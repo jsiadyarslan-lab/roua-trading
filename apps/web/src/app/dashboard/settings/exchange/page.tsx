@@ -53,16 +53,20 @@ export default function ExchangeSettingsPage() {
   const [apiKey, setApiKey] = useState('')
   const [apiSecret, setApiSecret] = useState('')
 
-  // Check auth
+  // Check auth — try roua_session first, then sync from NextAuth
   useEffect(() => {
     async function checkAuth() {
       try {
-        const res = await fetch('/api/auth/me')
-        const data = await res.json()
-        if (!data.authenticated) {
-          router.push('/')
-          return
-        }
+        const meRes = await fetch('/api/auth/me')
+        const meData = await meRes.json()
+        if (meData.authenticated) return
+
+        // Try syncing from NextAuth (for Google OAuth users)
+        const syncRes = await fetch('/api/auth/sync')
+        const syncData = await syncRes.json()
+        if (syncData.authenticated) return
+
+        router.push('/')
       } catch {
         router.push('/')
       }

@@ -55,38 +55,17 @@ export function PasskeyLogin({ onClose }: PasskeyLoginProps) {
     setErrorMessage('')
 
     try {
-      // Use NextAuth's signIn() for proper Google OAuth flow.
-      // After Google auth, NextAuth redirect callback goes to /dashboard.
-      // roua_session cookie is set in the [...nextauth] route handler.
-      const result = await signIn('google', {
-        callbackUrl: '/dashboard',
-        redirect: false,
-      })
-
-      if (result?.error) {
-        setErrorMessage(
-          result.error === 'AccessDenied'
-            ? 'تم رفض الوصول. تحقق من إعدادات Google OAuth.'
-            : result.error === 'OAuthSignin'
-              ? 'فشل الاتصال بـ Google. تحقق من GOOGLE_CLIENT_ID.'
-              : result.error === 'OAuthCallback'
-                ? 'فشل التحقق من Google. تحقق من إعدادات OAuth.'
-                : result.error === 'Configuration'
-                  ? 'خطأ في إعدادات المصادقة. تأكد من إعداد NEXTAUTH_SECRET.'
-                  : `خطأ في تسجيل الدخول: ${result.error}`
-        )
-        setGoogleLoading(false)
-        return
-      }
-
-      // If no error and result exists, redirect to dashboard
-      if (result?.ok && result?.url) {
-        window.location.href = result.url
-        return
-      }
-
-      // Fallback: redirect to dashboard
-      window.location.href = '/dashboard'
+      // Use NextAuth's signIn() with DEFAULT redirect behavior.
+      // This is the simplest and most reliable approach:
+      // 1. Browser navigates to /api/auth/signin/google
+      // 2. Server redirects to Google
+      // 3. User authenticates on Google
+      // 4. Google redirects back to /api/auth/callback/google
+      // 5. NextAuth creates session and redirects to /dashboard
+      // 6. Dashboard checks /api/auth/sync to create roua_session
+      await signIn('google', { callbackUrl: '/dashboard' })
+      // signIn with redirect: true (default) navigates the page,
+      // so the code below won't execute on success
     } catch (err: unknown) {
       setGoogleLoading(false)
       const message = err instanceof Error ? err.message : 'حدث خطأ غير متوقع'

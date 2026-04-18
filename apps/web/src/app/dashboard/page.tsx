@@ -33,19 +33,31 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // Check authentication
+  // Check authentication — try roua_session first, then sync from NextAuth
   useEffect(() => {
     async function checkAuth() {
       try {
-        const res = await fetch('/api/auth/me')
-        const data = await res.json()
+        // First try our custom session (works for passkey users)
+        const meRes = await fetch('/api/auth/me')
+        const meData = await meRes.json()
 
-        if (!data.authenticated) {
-          router.push('/')
+        if (meData.authenticated) {
+          setUser(meData.user)
           return
         }
 
-        setUser(data.user)
+        // No roua_session — try syncing from NextAuth (for Google OAuth users)
+        // This creates a roua_session if the user has a NextAuth session
+        const syncRes = await fetch('/api/auth/sync')
+        const syncData = await syncRes.json()
+
+        if (syncData.authenticated) {
+          setUser(syncData.user)
+          return
+        }
+
+        // No session at all — go to login
+        router.push('/')
       } catch {
         router.push('/')
       } finally {

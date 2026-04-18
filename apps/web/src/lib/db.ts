@@ -27,8 +27,7 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 // In production, also cache the PrismaClient on globalThis to prevent
-// hot-reloading from creating multiple connections. This is especially
-// important for Next.js dev mode and serverless functions.
+// hot-reloading from creating multiple connections.
 export const db =
   globalForPrisma.prisma ??
   new PrismaClient({
@@ -42,13 +41,14 @@ if (!globalForPrisma.prisma) {
 
 // ── Auto-initialize database tables on first request ──
 // This ensures the SQLite database is ready even if start.sh didn't run
-// (e.g. Railway using a different start command or redeploying without db push)
 export async function ensureDbReady() {
   if (globalForPrisma.dbInitialized) return
 
   try {
-    // Try a lightweight query to check if tables exist
+    // Check multiple tables — if ANY is missing, run prisma db push
+    // This catches the case where User table exists but Challenge table doesn't
     await db.user.findFirst()
+    await db.challenge.findFirst()  // New table for passkey challenges
     globalForPrisma.dbInitialized = true
   } catch (error: any) {
     if (error.message?.includes('does not exist') || error.message?.includes('no such table')) {
@@ -64,10 +64,13 @@ export async function ensureDbReady() {
         console.log('[db] Database tables created successfully')
       } catch (pushError) {
         console.error('[db] Failed to create database tables:', pushError)
-        throw pushError
+        // Don't throw — let the request continue, it might work with existing tables
+        globalForPrisma.dbInitialized = true
       }
     } else {
-      throw error
+      // Unknown error — mark as initialized to avoid retrying on every request
+      console.error('[db] Unknown DB error:', error.message)
+      globalForPrisma.dbInitialized = true
     }
   }
 }

@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Shield, Globe, Brain, Newspaper, ArrowLeft, ChevronDown,
   Fingerprint, Lock, Eye, Zap, BarChart3, TrendingUp,
-  CheckCircle2, Clock, Rocket, Sparkles, Key, Cpu
+  CheckCircle2, Clock, Rocket, Sparkles, Key, Cpu, AlertCircle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -111,11 +112,63 @@ const roadmap = [
 ]
 
 export default function Home() {
+  return (
+    <Suspense>
+      <HomeContent />
+    </Suspense>
+  )
+}
+
+function HomeContent() {
   const [showAuth, setShowAuth] = useState(false)
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
+  const [authError, setAuthError] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+
+  // Detect auth errors from URL params (NextAuth redirects here on failure)
+  useEffect(() => {
+    const error = searchParams.get('error')
+    if (error) {
+      const errorMessages: Record<string, string> = {
+        'OAuthSignin': 'فشل الاتصال بـ Google. تأكد من ضبط GOOGLE_CLIENT_ID و GOOGLE_CLIENT_SECRET بشكل صحيح.',
+        'OAuthCallback': 'فشل التحقق من Google. تأكد من إضافة عنوان إعادة التوجيه الصحيح في Google Cloud Console.',
+        'OAuthCreateAccount': 'فشل إنشاء الحساب. حاول مرة أخرى.',
+        'AccessDenied': 'تم رفض الوصول.',
+        'Configuration': 'خطأ في إعدادات المصادقة. تأكد من ضبط NEXTAUTH_URL و NEXTAUTH_SECRET.',
+        'Default': 'حدث خطأ أثناء تسجيل الدخول.',
+      }
+      setAuthError(errorMessages[error] || `خطأ: ${error}`)
+      setShowAuth(true) // Auto-open auth modal to show error
+    }
+
+    // Detect successful auth callback redirect
+    const authSuccess = searchParams.get('auth')
+    if (authSuccess === 'success') {
+      // User was redirected back from successful Google auth
+      window.location.href = '/dashboard'
+    }
+  }, [searchParams])
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
+      {/* ── Auth Error Banner ── */}
+      {authError && (
+        <div className="fixed top-16 left-0 right-0 z-[60] bg-red-500/10 border-b border-red-500/20 px-6 py-3">
+          <div className="max-w-7xl mx-auto flex items-center gap-3">
+            <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
+            <p className="text-sm text-red-400 flex-1">{authError}</p>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-400 hover:text-red-300 h-7"
+              onClick={() => setAuthError(null)}
+            >
+              ✕
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* ── Navigation ── */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">

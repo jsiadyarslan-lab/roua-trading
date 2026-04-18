@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { signIn } from 'next-auth/react'
 import { Fingerprint, Shield, X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -54,12 +55,37 @@ export function PasskeyLogin({ onClose }: PasskeyLoginProps) {
     setErrorMessage('')
 
     try {
-      // Use NextAuth Google sign-in
-      const callbackUrl = `${window.location.origin}/api/auth/google/callback`
-      const signInUrl = `/api/auth/signin/google?callbackUrl=${encodeURIComponent(callbackUrl)}`
+      // Use NextAuth's signIn() for proper Google OAuth flow
+      // After Google auth, NextAuth redirects to our bridge route
+      // which creates a roua_session cookie and redirects to /dashboard
+      const result = await signIn('google', {
+        callbackUrl: '/api/auth/google/callback',
+        redirect: false, // Don't auto-redirect so we can handle errors
+      })
 
-      // Redirect to Google OAuth
-      window.location.href = signInUrl
+      if (result?.error) {
+        setErrorMessage(
+          result.error === 'AccessDenied'
+            ? 'تم رفض الوصول. تحقق من إعدادات Google OAuth.'
+            : result.error === 'OAuthSignin'
+              ? 'فشل الاتصال بـ Google. تحقق من GOOGLE_CLIENT_ID.'
+              : result.error === 'OAuthCallback'
+                ? 'فشل التحقق من Google. تحقق من إعدادات OAuth.'
+                : `خطأ في تسجيل الدخول: ${result.error}`
+        )
+        setGoogleLoading(false)
+        return
+      }
+
+      // If no error and result exists, redirect to the callback bridge
+      // which will create roua_session and redirect to /dashboard
+      if (result?.ok && result?.url) {
+        window.location.href = result.url
+        return
+      }
+
+      // Fallback: redirect to callback bridge directly
+      window.location.href = '/api/auth/google/callback'
     } catch (err: unknown) {
       setGoogleLoading(false)
       const message = err instanceof Error ? err.message : 'حدث خطأ غير متوقع'

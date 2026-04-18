@@ -9,9 +9,14 @@ import crypto from 'crypto'
  *
  * After NextAuth successfully authenticates the user with Google,
  * this route creates a roua_session cookie so the existing
- * passkey-based session system recognizes the user.
+ * session system (used by dashboard) recognizes the user.
  *
- * This route is called via NextAuth's redirect callback.
+ * Flow:
+ * 1. User clicks "Sign in with Google" → NextAuth handles OAuth
+ * 2. NextAuth's redirect callback sends user here
+ * 3. We read the NextAuth session to get the user's email
+ * 4. We create a roua_session in the database
+ * 5. We set the roua_session cookie and redirect to /dashboard
  */
 export async function GET(request: NextRequest) {
   try {
@@ -21,8 +26,10 @@ export async function GET(request: NextRequest) {
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.email) {
-      console.warn('[Google Callback] No NextAuth session found')
-      return NextResponse.redirect(new URL('/?auth=error', request.url))
+      console.warn('[Google Callback] No NextAuth session found — redirecting to login with error')
+      return NextResponse.redirect(
+        new URL('/?error=Configuration', request.url)
+      )
     }
 
     const email = session.user.email
@@ -31,7 +38,9 @@ export async function GET(request: NextRequest) {
 
     if (!user) {
       console.warn(`[Google Callback] User not found in DB: ${email}`)
-      return NextResponse.redirect(new URL('/?auth=error', request.url))
+      return NextResponse.redirect(
+        new URL('/?error=OAuthCreateAccount', request.url)
+      )
     }
 
     // Update avatar from Google if available
@@ -40,6 +49,19 @@ export async function GET(request: NextRequest) {
         await db.user.update({
           where: { id: user.id },
           data: { avatar: session.user.image },
+        })
+      } catch {
+        // Non-critical
+      }
+    }
+
+    // Update displayName from Google if available and not set
+    const googleName = session.user.name
+    if (googleName && (!user.displayName || user.displayName === user.email.split('@')[0])) {
+      try {
+        await db.user.update({
+          where: { id: user.id },
+          data: { displayName: googleName },
         })
       } catch {
         // Non-critical
@@ -72,7 +94,7 @@ export async function GET(request: NextRequest) {
       // Non-critical
     }
 
-    console.log(`[Google Callback] Session created for ${email}`)
+    console.log(`[Google Callback] Session created for ${email} — redirecting to dashboard`)
 
     // Redirect to dashboard with session cookie
     const response = NextResponse.redirect(new URL('/dashboard', request.url))
@@ -87,6 +109,8 @@ export async function GET(request: NextRequest) {
     return response
   } catch (error) {
     console.error('[Google Callback] Error:', error)
-    return NextResponse.redirect(new URL('/?auth=error', request.url))
+    return NextResponse.redirect(
+      new URL('/?error=Default', request.url)
+    )
   }
 }

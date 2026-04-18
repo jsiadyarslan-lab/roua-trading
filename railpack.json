@@ -1,6 +1,6 @@
 {
   "$schema": "https://railpack.com/config/file/v1",
-  "start": "cd apps/web && HOSTNAME=0.0.0.0 bun x next start -H 0.0.0.0",
+  "start": "bash start.sh",
   "build": {
     "commands": [
       "bunx prisma generate --schema=./prisma/schema.prisma",

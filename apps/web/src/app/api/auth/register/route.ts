@@ -36,8 +36,9 @@ function getWebAuthnConfig() {
   return { rpId, rpName, origin }
 }
 
-function getUserIdBuffer(email: string): string {
-  return crypto.createHash('sha256').update(email).digest('base64url')
+function getUserIdBuffer(email: string): Uint8Array {
+  // Return raw bytes directly — avoid base64url/atob incompatibility
+  return crypto.createHash('sha256').update(email).digest()
 }
 
 export async function POST(request: NextRequest) {
@@ -75,8 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { rpId, rpName } = getWebAuthnConfig()
-    const userId = getUserIdBuffer(email)
-    const userIdBuffer = Uint8Array.from(atob(userId), (c) => c.charCodeAt(0))
+    const userIdBuffer = getUserIdBuffer(email)
 
     // Use @simplewebauthn/server for proper WebAuthn option generation
     const options = await generateRegistrationOptions({

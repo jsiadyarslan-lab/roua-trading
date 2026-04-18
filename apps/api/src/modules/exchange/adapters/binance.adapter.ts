@@ -19,7 +19,7 @@ import ccxt from 'ccxt';
 export class BinanceAdapter implements IExchangeAdapter {
   readonly name = 'Binance';
   private readonly logger = new Logger(BinanceAdapter.name);
-  private readonly exchange: ccxt.binance;
+  private readonly exchange: any;
 
   // Cache TTLs
   private readonly QUOTE_CACHE_TTL = 3_000;       // 3 seconds (crypto moves fast)

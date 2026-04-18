@@ -1,6 +1,6 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { RedisService } from '../../common/redis/redis.service';
+import { RedisService } from '../../../common/redis/redis.service';
 import { IExchangeAdapter, UnifiedQuoteDto, UnifiedCandleDto } from '../exchange.types';
 import axios from 'axios';
 

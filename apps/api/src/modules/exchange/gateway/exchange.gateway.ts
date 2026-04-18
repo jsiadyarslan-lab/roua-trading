@@ -222,7 +222,7 @@ export class ExchangeGateway
     if (!subscribers || subscribers.size === 0) return;
 
     for (const socketId of subscribers) {
-      const client = this.server.sockets.get(socketId);
+      const client = this.server.sockets.sockets.get(socketId);
       if (client) {
         client.emit(event, data);
       }

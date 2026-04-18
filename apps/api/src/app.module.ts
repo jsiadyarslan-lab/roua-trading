@@ -4,9 +4,10 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { RedisModule } from './common/redis/redis.module';
 import { AuthModule } from './auth/auth.module';
-import { ExchangeModule } from './exchange/exchange.module';
-import { AiModule } from './ai/ai.module';
+import { ExchangeModule } from './modules/exchange/exchange.module';
+import { AiModule } from './modules/ai/ai.module';
 import { PortfolioModule } from './portfolio/portfolio.module';
+import { CredentialsModule } from './modules/portfolio/credentials/credentials.module';
 import { AuditModule } from './audit/audit.module';
 
 @Module({
@@ -46,6 +47,7 @@ import { AuditModule } from './audit/audit.module';
     ExchangeModule,
     AiModule,
     PortfolioModule,
+    CredentialsModule,
   ],
 })
 export class AppModule {}

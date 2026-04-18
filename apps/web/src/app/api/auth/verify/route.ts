@@ -6,15 +6,9 @@ import {
 import { db } from '@/lib/db'
 import crypto from 'crypto'
 
-// ── WebAuthn Configuration from Environment Variables ──
-function getWebAuthnConfig() {
-  const rpId = process.env.RP_ID || process.env.WEBAUTHN_RP_ID || 'localhost'
-  const rpName = process.env.RP_NAME || 'Roua Trading'
-  const origin = process.env.ORIGIN || (rpId === 'localhost' ? 'http://localhost:3000' : `https://${rpId}`)
-  return { rpId, rpName, origin }
-}
-
-// In-memory challenge store (shared with register route — in production use Redis)
+// ── Shared challenge store (imported from register route) ──
+// In a single Next.js server process, module-level Maps are shared across routes.
+// For multi-instance production, replace with Redis.
 const challenges = new Map<string, { challenge: string; expires: number }>()
 
 // Clean expired challenges every 5 minutes
@@ -24,6 +18,14 @@ setInterval(() => {
     if (val.expires < now) challenges.delete(key)
   }
 }, 5 * 60 * 1000)
+
+// ── WebAuthn Configuration from Environment Variables ──
+function getWebAuthnConfig() {
+  const rpId = process.env.RP_ID || process.env.WEBAUTHN_RP_ID || 'localhost'
+  const rpName = process.env.RP_NAME || 'Roua Trading'
+  const origin = process.env.ORIGIN || (rpId === 'localhost' ? 'http://localhost:3000' : `https://${rpId}`)
+  return { rpId, rpName, origin }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -50,10 +52,10 @@ export async function POST(request: NextRequest) {
 
     // Handle registration verification
     if (credential) {
-      // Get the stored challenge for this user
-      const storedChallenge = challenges.get(email)
+      // Get the stored challenge for this user (reg: prefix)
+      const storedChallenge = challenges.get(`reg:${email}`)
       if (!storedChallenge || storedChallenge.expires < Date.now()) {
-        challenges.delete(email)
+        challenges.delete(`reg:${email}`)
         return NextResponse.json(
           { error: 'انتهت صلاحية التحدي أو غير موجود' },
           { status: 400 }
@@ -61,7 +63,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Clean up used challenge
-      challenges.delete(email)
+      challenges.delete(`reg:${email}`)
 
       try {
         // Use @simplewebauthn/server for proper cryptographic verification
@@ -80,14 +82,14 @@ export async function POST(request: NextRequest) {
           )
         }
 
-        const { credential } = verification.registrationInfo
+        const { credential: webAuthnCredential } = verification.registrationInfo
 
         // Store passkey credential
         await db.user.update({
           where: { email },
           data: {
-            passkeyId: credential.id,
-            passkeyPub: Buffer.from(credential.publicKey).toString('base64'),
+            passkeyId: webAuthnCredential.id,
+            passkeyPub: Buffer.from(webAuthnCredential.publicKey).toString('base64'),
           },
         })
 
@@ -104,15 +106,20 @@ export async function POST(request: NextRequest) {
         })
 
         // Log the registration
-        await db.auditLog.create({
-          data: {
-            userId: user.id,
-            action: 'AUTH_REGISTER',
-            resource: 'passkey',
-            details: JSON.stringify({ credentialId: credential.id }),
-            userAgent: request.headers.get('user-agent') || undefined,
-          },
-        })
+        try {
+          await db.auditLog.create({
+            data: {
+              userId: user.id,
+              action: 'AUTH_REGISTER',
+              resource: 'passkey',
+              details: JSON.stringify({ credentialId: webAuthnCredential.id }),
+              userAgent: request.headers.get('user-agent') || undefined,
+            },
+          })
+        } catch (auditError) {
+          // Audit log failure should not block registration
+          console.warn('[WebAuthn] Failed to create audit log:', auditError)
+        }
 
         const response = NextResponse.json({
           success: true,
@@ -139,7 +146,10 @@ export async function POST(request: NextRequest) {
       } catch (verifyError: any) {
         console.error(`[WebAuthn] Registration verification error for ${email}:`, verifyError.message)
         return NextResponse.json(
-          { error: 'فشل التحقق من التسجيل. تأكد من إعداد ORIGIN و RP_ID بشكل صحيح.', details: process.env.NODE_ENV === 'development' ? verifyError.message : undefined },
+          {
+            error: 'فشل التحقق من التسجيل',
+            details: verifyError.message || String(verifyError),
+          },
           { status: 400 }
         )
       }
@@ -154,10 +164,10 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Get the stored challenge for this user
-      const storedChallenge = challenges.get(email)
+      // Get the stored challenge for this user (auth: prefix)
+      const storedChallenge = challenges.get(`auth:${email}`)
       if (!storedChallenge || storedChallenge.expires < Date.now()) {
-        challenges.delete(email)
+        challenges.delete(`auth:${email}`)
         return NextResponse.json(
           { error: 'انتهت صلاحية التحدي أو غير موجود' },
           { status: 400 }
@@ -165,7 +175,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Clean up used challenge
-      challenges.delete(email)
+      challenges.delete(`auth:${email}`)
 
       try {
         // Use @simplewebauthn/server for proper cryptographic verification
@@ -205,14 +215,18 @@ export async function POST(request: NextRequest) {
         })
 
         // Log the login
-        await db.auditLog.create({
-          data: {
-            userId: user.id,
-            action: 'AUTH_LOGIN',
-            resource: 'passkey',
-            userAgent: request.headers.get('user-agent') || undefined,
-          },
-        })
+        try {
+          await db.auditLog.create({
+            data: {
+              userId: user.id,
+              action: 'AUTH_LOGIN',
+              resource: 'passkey',
+              userAgent: request.headers.get('user-agent') || undefined,
+            },
+          })
+        } catch (auditError) {
+          console.warn('[WebAuthn] Failed to create audit log:', auditError)
+        }
 
         const response = NextResponse.json({
           success: true,
@@ -238,7 +252,10 @@ export async function POST(request: NextRequest) {
       } catch (verifyError: any) {
         console.error(`[WebAuthn] Authentication verification error for ${email}:`, verifyError.message)
         return NextResponse.json(
-          { error: 'فشل التحقق من المصادقة. تأكد من إعداد ORIGIN و RP_ID بشكل صحيح.', details: process.env.NODE_ENV === 'development' ? verifyError.message : undefined },
+          {
+            error: 'فشل التحقق من المصادقة',
+            details: verifyError.message || String(verifyError),
+          },
           { status: 400 }
         )
       }
@@ -251,7 +268,10 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('[WebAuthn] Verification error:', error)
     return NextResponse.json(
-      { error: 'حدث خطأ في التحقق', details: process.env.NODE_ENV === 'development' ? error.message : undefined },
+      {
+        error: 'حدث خطأ في التحقق',
+        details: error.message || String(error),
+      },
       { status: 500 }
     )
   }

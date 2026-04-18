@@ -4,8 +4,11 @@ import {
   generateAuthenticationOptions,
 } from '@simplewebauthn/server'
 import { db } from '@/lib/db'
+import crypto from 'crypto'
 
-// In-memory challenge store (in production, use Redis)
+// ── Shared in-memory challenge store ──
+// NOTE: In production with multiple instances, use Redis instead.
+// Challenges are stored with a key prefix to namespace registration vs authentication.
 const challenges = new Map<string, { challenge: string; expires: number }>()
 
 // Clean expired challenges every 5 minutes
@@ -15,6 +18,9 @@ setInterval(() => {
     if (val.expires < now) challenges.delete(key)
   }
 }, 5 * 60 * 1000)
+
+// Export for use by verify route
+export { challenges }
 
 // ── WebAuthn Configuration from Environment Variables ──
 // Supports both RP_ID (standard) and WEBAUTHN_RP_ID (legacy) for backwards compatibility
@@ -29,11 +35,6 @@ function getWebAuthnConfig() {
 }
 
 function getUserIdBuffer(email: string): string {
-  // Create a deterministic user ID from email using Web Crypto API
-  const encoder = new TextEncoder()
-  const data = encoder.encode(email)
-  // Use a simple hash approach for compatibility
-  const crypto = require('crypto')
   return crypto.createHash('sha256').update(email).digest('base64url')
 }
 
@@ -50,7 +51,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user already exists
-    const existingUser = await db.user.findUnique({ where: { email } })
+    let existingUser
+    try {
+      existingUser = await db.user.findUnique({ where: { email } })
+    } catch (dbError: any) {
+      console.error('[WebAuthn] Database error in findUnique:', dbError.message)
+      return NextResponse.json(
+        { error: 'خطأ في قاعدة البيانات', details: dbError.message },
+        { status: 500 }
+      )
+    }
 
     if (existingUser && existingUser.passkeyId) {
       return NextResponse.json(
@@ -83,20 +93,28 @@ export async function POST(request: NextRequest) {
       timeout: 60000,
     })
 
-    // Store challenge
-    challenges.set(email, {
+    // Store challenge with "reg:" prefix for registration
+    challenges.set(`reg:${email}`, {
       challenge: options.challenge,
       expires: Date.now() + 5 * 60 * 1000, // 5 minutes
     })
 
     // Create user if doesn't exist
     if (!existingUser) {
-      await db.user.create({
-        data: {
-          email,
-          displayName: displayName || email.split('@')[0],
-        },
-      })
+      try {
+        await db.user.create({
+          data: {
+            email,
+            displayName: displayName || email.split('@')[0],
+          },
+        })
+      } catch (dbError: any) {
+        console.error('[WebAuthn] Database error in user create:', dbError.message)
+        return NextResponse.json(
+          { error: 'خطأ في إنشاء المستخدم', details: dbError.message },
+          { status: 500 }
+        )
+      }
     }
 
     console.log(`[WebAuthn] Registration challenge generated for ${email} (rpId: ${rpId})`)
@@ -104,8 +122,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(options)
   } catch (error: any) {
     console.error('[WebAuthn] Registration challenge error:', error)
+    // Always return error details so we can debug in production
     return NextResponse.json(
-      { error: 'حدث خطأ في إنشاء التحدي', details: process.env.NODE_ENV === 'development' ? error.message : undefined },
+      {
+        error: 'حدث خطأ في إنشاء التحدي',
+        details: error.message || String(error),
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      },
       { status: 500 }
     )
   }
@@ -149,7 +172,8 @@ export async function GET(request: NextRequest) {
       timeout: 60000,
     })
 
-    challenges.set(email, {
+    // Store challenge with "auth:" prefix for authentication
+    challenges.set(`auth:${email}`, {
       challenge: options.challenge,
       expires: Date.now() + 5 * 60 * 1000,
     })
@@ -160,7 +184,10 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('[WebAuthn] Auth challenge error:', error)
     return NextResponse.json(
-      { error: 'حدث خطأ', details: process.env.NODE_ENV === 'development' ? error.message : undefined },
+      {
+        error: 'حدث خطأ',
+        details: error.message || String(error),
+      },
       { status: 500 }
     )
   }

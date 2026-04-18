@@ -3,7 +3,7 @@ import {
   generateRegistrationOptions,
   generateAuthenticationOptions,
 } from '@simplewebauthn/server'
-import { db } from '@/lib/db'
+import { db, ensureDbReady } from '@/lib/db'
 import crypto from 'crypto'
 
 // ── Shared in-memory challenge store ──
@@ -40,6 +40,9 @@ function getUserIdBuffer(email: string): string {
 
 export async function POST(request: NextRequest) {
   try {
+    // Ensure database is initialized before any queries
+    await ensureDbReady()
+
     const body = await request.json()
     const { email, displayName } = body
 
@@ -137,6 +140,9 @@ export async function POST(request: NextRequest) {
 // GET: Return authentication challenge for existing user
 export async function GET(request: NextRequest) {
   try {
+    // Ensure database is initialized before any queries
+    await ensureDbReady()
+
     const email = request.nextUrl.searchParams.get('email')
 
     if (!email) {

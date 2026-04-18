@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, ensureDbReady } from '@/lib/db'
 
 export async function GET(request: NextRequest) {
   try {
+    // Ensure database is initialized before any queries
+    await ensureDbReady()
+
     const sessionToken = request.cookies.get('roua_session')?.value
 
     if (!sessionToken) {

@@ -3,7 +3,7 @@ import {
   verifyRegistrationResponse,
   verifyAuthenticationResponse,
 } from '@simplewebauthn/server'
-import { db } from '@/lib/db'
+import { db, ensureDbReady } from '@/lib/db'
 import crypto from 'crypto'
 
 // ── Shared challenge store (imported from register route) ──
@@ -29,6 +29,9 @@ function getWebAuthnConfig() {
 
 export async function POST(request: NextRequest) {
   try {
+    // Ensure database is initialized before any queries
+    await ensureDbReady()
+
     const body = await request.json()
     const { credential, assertion, email } = body
 

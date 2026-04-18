@@ -2,19 +2,6 @@ import { type NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
 import { db, ensureDbReady } from '@/lib/db'
 
-// ── Fix NEXTAUTH_URL at module load time ──
-// Railway auto-sets NEXTAUTH_URL to "0.0.0.0:8080" (internal bind address).
-// Browsers cannot reach this URL, causing ERR_CONNECTION_REFUSED.
-// We must fix it BEFORE NextAuth reads it.
-if (typeof process !== 'undefined' && process.env.NEXTAUTH_URL) {
-  const url = process.env.NEXTAUTH_URL
-  if (url.includes('0.0.0.0') || url.includes('127.0.0.1')) {
-    // Clear the bad URL so NextAuth falls back to request-based detection
-    console.warn(`[auth-config] NEXTAUTH_URL is "${url}" (internal address) — clearing it for auto-detection`)
-    delete process.env.NEXTAUTH_URL
-  }
-}
-
 /**
  * Shared NextAuth configuration — NO PrismaAdapter.
  *
@@ -23,6 +10,8 @@ if (typeof process !== 'undefined' && process.env.NEXTAUTH_URL) {
  * 2. We use JWT strategy (not database sessions) so adapter is not needed
  * 3. User creation is handled in the signIn callback instead
  * 4. The google/callback bridge route creates roua_session separately
+ *
+ * NEXTAUTH_URL is fixed in [...nextauth]/route.ts before each request.
  */
 export function getAuthOptions(): NextAuthOptions {
   return {
@@ -103,10 +92,17 @@ export function getAuthOptions(): NextAuthOptions {
       /**
        * After successful Google OAuth, redirect to our bridge route
        * that creates a roua_session cookie.
+       *
+       * Use NEXTAUTH_URL (which we fixed in the route handler) to build
+       * the redirect URL — never use baseUrl directly as it may be wrong.
        */
       async redirect({ url, baseUrl }) {
+        // If we have a valid NEXTAUTH_URL, use it to build the callback URL
+        const nextauthUrl = process.env.NEXTAUTH_URL || baseUrl
         // Always redirect to our bridge after Google sign-in
-        return `${baseUrl}/api/auth/google/callback`
+        const callbackUrl = `${nextauthUrl}/api/auth/google/callback`
+        console.log(`[NextAuth] redirect callback: ${callbackUrl} (baseUrl: ${baseUrl}, NEXTAUTH_URL: ${process.env.NEXTAUTH_URL})`)
+        return callbackUrl
       },
     },
     pages: {

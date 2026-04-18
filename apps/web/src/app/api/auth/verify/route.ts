@@ -4,7 +4,7 @@ import {
   verifyAuthenticationResponse,
 } from '@simplewebauthn/server'
 import { db, ensureDbReady } from '@/lib/db'
-import { challenges } from '@/lib/challenge-store'
+import { challengeStore } from '@/lib/challenge-store'
 import crypto from 'crypto'
 
 // ── WebAuthn Configuration from Environment Variables ──
@@ -45,24 +45,23 @@ export async function POST(request: NextRequest) {
 
     // Handle registration verification
     if (credential) {
-      // Get the stored challenge for this user (reg: prefix)
-      const storedChallenge = challenges.get(`reg:${email}`)
-      if (!storedChallenge || storedChallenge.expires < Date.now()) {
-        challenges.delete(`reg:${email}`)
+      // Get the stored challenge from DATABASE
+      const storedChallenge = await challengeStore.get(`reg:${email}`)
+      if (!storedChallenge) {
         return NextResponse.json(
-          { error: 'انتهت صلاحية التحدي أو غير موجود' },
+          { error: 'انتهت صلاحية التحدي أو غير موجود. يرجى المحاولة مرة أخرى.' },
           { status: 400 }
         )
       }
 
       // Clean up used challenge
-      challenges.delete(`reg:${email}`)
+      await challengeStore.delete(`reg:${email}`)
 
       try {
         // Use @simplewebauthn/server for proper cryptographic verification
         const verification = await verifyRegistrationResponse({
           response: credential,
-          expectedChallenge: storedChallenge.challenge,
+          expectedChallenge: storedChallenge,
           expectedOrigin: origin,
           expectedRPID: rpId,
         })
@@ -157,24 +156,23 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Get the stored challenge for this user (auth: prefix)
-      const storedChallenge = challenges.get(`auth:${email}`)
-      if (!storedChallenge || storedChallenge.expires < Date.now()) {
-        challenges.delete(`auth:${email}`)
+      // Get the stored challenge from DATABASE
+      const storedChallenge = await challengeStore.get(`auth:${email}`)
+      if (!storedChallenge) {
         return NextResponse.json(
-          { error: 'انتهت صلاحية التحدي أو غير موجود' },
+          { error: 'انتهت صلاحية التحدي أو غير موجود. يرجى المحاولة مرة أخرى.' },
           { status: 400 }
         )
       }
 
       // Clean up used challenge
-      challenges.delete(`auth:${email}`)
+      await challengeStore.delete(`auth:${email}`)
 
       try {
         // Use @simplewebauthn/server for proper cryptographic verification
         const verification = await verifyAuthenticationResponse({
           response: assertion,
-          expectedChallenge: storedChallenge.challenge,
+          expectedChallenge: storedChallenge,
           expectedOrigin: origin,
           expectedRPID: rpId,
           credential: {

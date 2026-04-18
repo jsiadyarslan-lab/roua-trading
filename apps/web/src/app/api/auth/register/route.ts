@@ -4,11 +4,10 @@ import {
   generateAuthenticationOptions,
 } from '@simplewebauthn/server'
 import { db, ensureDbReady } from '@/lib/db'
-import { challenges } from '@/lib/challenge-store'
+import { challengeStore } from '@/lib/challenge-store'
 import crypto from 'crypto'
 
 // ── WebAuthn Configuration from Environment Variables ──
-// Supports both RP_ID (standard) and WEBAUTHN_RP_ID (legacy) for backwards compatibility
 function getWebAuthnConfig() {
   let rpId = process.env.RP_ID || process.env.WEBAUTHN_RP_ID || 'localhost'
   const rpName = process.env.RP_NAME || 'Roua Trading'
@@ -83,11 +82,8 @@ export async function POST(request: NextRequest) {
       timeout: 60000,
     })
 
-    // Store challenge with "reg:" prefix for registration
-    challenges.set(`reg:${email}`, {
-      challenge: options.challenge,
-      expires: Date.now() + 5 * 60 * 1000, // 5 minutes
-    })
+    // Store challenge in DATABASE (not in-memory Map!)
+    await challengeStore.set(`reg:${email}`, options.challenge)
 
     // Create user if doesn't exist
     if (!existingUser) {
@@ -112,7 +108,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(options)
   } catch (error: any) {
     console.error('[WebAuthn] Registration challenge error:', error)
-    // Always return error details so we can debug in production
     return NextResponse.json(
       {
         error: 'حدث خطأ في إنشاء التحدي',
@@ -165,11 +160,8 @@ export async function GET(request: NextRequest) {
       timeout: 60000,
     })
 
-    // Store challenge with "auth:" prefix for authentication
-    challenges.set(`auth:${email}`, {
-      challenge: options.challenge,
-      expires: Date.now() + 5 * 60 * 1000,
-    })
+    // Store challenge in DATABASE (not in-memory Map!)
+    await challengeStore.set(`auth:${email}`, options.challenge)
 
     console.log(`[WebAuthn] Authentication challenge generated for ${email} (rpId: ${rpId})`)
 

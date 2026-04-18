@@ -4,23 +4,8 @@ import {
   generateAuthenticationOptions,
 } from '@simplewebauthn/server'
 import { db, ensureDbReady } from '@/lib/db'
+import { challenges } from '@/lib/challenge-store'
 import crypto from 'crypto'
-
-// ── Shared in-memory challenge store ──
-// NOTE: In production with multiple instances, use Redis instead.
-// Challenges are stored with a key prefix to namespace registration vs authentication.
-const challenges = new Map<string, { challenge: string; expires: number }>()
-
-// Clean expired challenges every 5 minutes
-setInterval(() => {
-  const now = Date.now()
-  for (const [key, val] of challenges) {
-    if (val.expires < now) challenges.delete(key)
-  }
-}, 5 * 60 * 1000)
-
-// Export for use by verify route
-export { challenges }
 
 // ── WebAuthn Configuration from Environment Variables ──
 // Supports both RP_ID (standard) and WEBAUTHN_RP_ID (legacy) for backwards compatibility

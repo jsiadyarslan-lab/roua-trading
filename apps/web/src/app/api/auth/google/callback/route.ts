@@ -10,37 +10,13 @@ import crypto from 'crypto'
  * After NextAuth successfully authenticates the user with Google,
  * this route creates a roua_session cookie so the existing
  * session system (used by dashboard) recognizes the user.
- *
- * Flow:
- * 1. User clicks "Sign in with Google" → NextAuth handles OAuth
- * 2. NextAuth's redirect callback sends user here
- * 3. We read the NextAuth session to get the user's email
- * 4. We create a roua_session in the database
- * 5. We set the roua_session cookie and redirect to /dashboard
  */
 export async function GET(request: NextRequest) {
   try {
     await ensureDbReady()
 
-    // Auto-detect NEXTAUTH_URL from request (same logic as [...nextauth]/route.ts)
-    const host = request.headers.get('host')
-    const protocol = request.headers.get('x-forwarded-proto') || 'https'
-    if (host) {
-      const detectedUrl = `${protocol}://${host}`
-      const currentUrl = process.env.NEXTAUTH_URL
-      const isInternalUrl = currentUrl && (
-        currentUrl.includes('0.0.0.0') ||
-        currentUrl.includes('127.0.0.1') ||
-        (currentUrl.includes('localhost') && !host.includes('localhost'))
-      )
-      if (!currentUrl || isInternalUrl) {
-        process.env.NEXTAUTH_URL = detectedUrl
-      }
-    }
-
     // Get the authenticated user from NextAuth session
-    const authOptions = getAuthOptions()
-    const session = await getServerSession(authOptions)
+    const session = await getServerSession(getAuthOptions())
 
     if (!session?.user?.email) {
       console.warn('[Google Callback] No NextAuth session found')
@@ -51,28 +27,31 @@ export async function GET(request: NextRequest) {
 
     const email = session.user.email
 
-    const user = await db.user.findUnique({ where: { email } })
+    // Find or create user in our DB
+    let user = await db.user.findUnique({ where: { email } })
 
     if (!user) {
-      console.warn(`[Google Callback] User not found in DB: ${email}`)
-      return NextResponse.redirect(
-        new URL('/?error=OAuthCreateAccount', request.url)
-      )
+      // User should have been created in signIn callback, but create as fallback
+      user = await db.user.create({
+        data: {
+          email,
+          displayName: session.user.name || email.split('@')[0],
+          avatar: session.user.image || null,
+        },
+      })
+      console.log(`[Google Callback] Created user: ${email}`)
     }
 
-    // Update avatar from Google if available
+    // Update avatar and name from Google if available
     if (session.user.image && !user.avatar) {
       try {
         await db.user.update({
           where: { id: user.id },
           data: { avatar: session.user.image },
         })
-      } catch {
-        // Non-critical
-      }
+      } catch {}
     }
 
-    // Update displayName from Google if available and not set
     const googleName = session.user.name
     if (googleName && (!user.displayName || user.displayName === user.email.split('@')[0])) {
       try {
@@ -80,9 +59,7 @@ export async function GET(request: NextRequest) {
           where: { id: user.id },
           data: { displayName: googleName },
         })
-      } catch {
-        // Non-critical
-      }
+      } catch {}
     }
 
     // Create a session in our custom session system
@@ -107,9 +84,7 @@ export async function GET(request: NextRequest) {
           userAgent: request.headers.get('user-agent') || undefined,
         },
       })
-    } catch {
-      // Non-critical
-    }
+    } catch {}
 
     console.log(`[Google Callback] Session created for ${email} — redirecting to dashboard`)
 

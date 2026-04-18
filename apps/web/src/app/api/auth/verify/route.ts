@@ -4,12 +4,8 @@ import {
   verifyAuthenticationResponse,
 } from '@simplewebauthn/server'
 import { db, ensureDbReady } from '@/lib/db'
+import { challenges } from '@/lib/challenge-store'
 import crypto from 'crypto'
-
-// ── Import the SHARED challenge store from the register route ──
-// Both routes MUST use the same Map, otherwise challenges created
-// during registration won't be found during verification.
-import { challenges } from '../register/route'
 
 // ── WebAuthn Configuration from Environment Variables ──
 function getWebAuthnConfig() {

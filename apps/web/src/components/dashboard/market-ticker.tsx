@@ -2,9 +2,17 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { TrendingUp, TrendingDown, Activity, RefreshCw, BarChart3 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { TrendingUp, TrendingDown, Activity, RefreshCw, BarChart3, Wifi, WifiOff } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { useWebSocketTicker } from '@/hooks/useWebSocketTicker'
+
+interface MarketTickerProps {
+  symbols?: string[]
+  refreshInterval?: number // kept for fallback polling
+}
+
+const DEFAULT_SYMBOLS = ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'AMZN', 'EUR/USD', 'BTC/USDT']
 
 interface QuoteData {
   symbol: string
@@ -22,38 +30,34 @@ interface QuoteData {
   source: string
 }
 
-interface MarketTickerProps {
-  symbols?: string[]
-  refreshInterval?: number // in milliseconds
-}
-
-const DEFAULT_SYMBOLS = ['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'AMZN', 'EUR/USD', 'BTC/USD']
-
 export function MarketTicker({
   symbols = DEFAULT_SYMBOLS,
   refreshInterval = 5000,
 }: MarketTickerProps) {
-  const [quotes, setQuotes] = useState<Map<string, QuoteData>>(new Map())
+  // WebSocket connection for live data
+  const { quotes: wsQuotes, connected: wsConnected } = useWebSocketTicker({
+    symbols,
+    enabled: true,
+  })
+
+  // Fallback: polling state for when WebSocket is disconnected
+  const [pollQuotes, setPollQuotes] = useState<Map<string, QuoteData>>(new Map())
   const [loading, setLoading] = useState<Set<string>>(new Set())
   const [errors, setErrors] = useState<Map<string, string>>(new Map())
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [isPaused, setIsPaused] = useState(false)
 
+  // Use WebSocket data when connected, otherwise fall back to polling
+  const useWebSocket = wsConnected && wsQuotes.size > 0
+
   const fetchQuote = useCallback(async (symbol: string) => {
     setLoading(prev => new Set(prev).add(symbol))
-
     try {
       const response = await fetch(`/api/exchange/quote/${encodeURIComponent(symbol)}`)
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.message || `فشل في جلب بيانات ${symbol}`)
-      }
-
+      if (!response.ok) throw new Error(`فشل في جلب بيانات ${symbol}`)
       const result = await response.json()
-
       if (result.success && result.data) {
-        setQuotes(prev => {
+        setPollQuotes(prev => {
           const next = new Map(prev)
           next.set(symbol, result.data)
           return next
@@ -79,20 +83,22 @@ export function MarketTicker({
     }
   }, [])
 
-  // Fetch all quotes
-  const fetchAllQuotes = useCallback(async () => {
-    await Promise.allSettled(symbols.map(s => fetchQuote(s)))
-    setLastUpdate(new Date())
-  }, [symbols, fetchQuote])
-
-  // Auto-refresh every interval
+  // Fallback polling when WebSocket is disconnected
   useEffect(() => {
-    if (isPaused) return
+    if (useWebSocket || isPaused) return
 
-    fetchAllQuotes()
-    const interval = setInterval(fetchAllQuotes, refreshInterval)
+    const fetchAll = async () => {
+      await Promise.allSettled(symbols.map(s => fetchQuote(s)))
+      setLastUpdate(new Date())
+    }
+
+    fetchAll()
+    const interval = setInterval(fetchAll, refreshInterval)
     return () => clearInterval(interval)
-  }, [fetchAllQuotes, refreshInterval, isPaused])
+  }, [useWebSocket, isPaused, symbols, fetchQuote, refreshInterval])
+
+  // Active quotes source
+  const activeQuotes = useWebSocket ? wsQuotes : pollQuotes
 
   const formatPrice = (price: number, currency: string = 'USD') => {
     return new Intl.NumberFormat('ar-SA', {
@@ -121,26 +127,41 @@ export function MarketTicker({
           <div>
             <h2 className="text-lg font-bold text-foreground">سوق مباشر</h2>
             <p className="text-xs text-muted-foreground">
-              تحديث كل {(refreshInterval / 1000).toFixed(0)} ثانية
+              {useWebSocket ? 'تحديث فوري عبر WebSocket' : `تحديث كل ${(refreshInterval / 1000).toFixed(0)} ثانية`}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-xs">
-            <Activity className="w-3 h-3 ml-1 text-green-400" />
-            مباشر
+          {/* Connection Status */}
+          <Badge
+            variant="outline"
+            className={`text-xs ${useWebSocket ? 'border-green-500/30 text-green-400' : 'border-yellow-500/30 text-yellow-400'}`}
+          >
+            {useWebSocket ? (
+              <>
+                <Wifi className="w-3 h-3 ml-1" />
+                مباشر (WS)
+              </>
+            ) : (
+              <>
+                <WifiOff className="w-3 h-3 ml-1" />
+                استطلاع
+              </>
+            )}
           </Badge>
 
-          <button
-            onClick={() => setIsPaused(!isPaused)}
-            className="p-1.5 rounded-md hover:bg-accent transition-colors"
-            title={isPaused ? 'استئناف' : 'إيقاف مؤقت'}
-          >
-            <RefreshCw className={`w-4 h-4 ${isPaused ? 'text-yellow-400' : 'text-muted-foreground'} ${!isPaused ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }} />
-          </button>
+          {!useWebSocket && (
+            <button
+              onClick={() => setIsPaused(!isPaused)}
+              className="p-1.5 rounded-md hover:bg-accent transition-colors"
+              title={isPaused ? 'استئناف' : 'إيقاف مؤقت'}
+            >
+              <RefreshCw className={`w-4 h-4 ${isPaused ? 'text-yellow-400' : 'text-muted-foreground'} ${!isPaused ? 'animate-spin' : ''}`} style={{ animationDuration: '3s' }} />
+            </button>
+          )}
 
-          {lastUpdate && (
+          {lastUpdate && !useWebSocket && (
             <span className="text-xs text-muted-foreground" dir="ltr">
               {lastUpdate.toLocaleTimeString('ar-SA')}
             </span>
@@ -152,8 +173,8 @@ export function MarketTicker({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
         <AnimatePresence>
           {symbols.map((symbol) => {
-            const quote = quotes.get(symbol)
-            const isLoading = loading.has(symbol)
+            const quote = activeQuotes.get(symbol)
+            const isLoading = !useWebSocket && loading.has(symbol)
             const error = errors.get(symbol)
             const isPositive = quote ? quote.change >= 0 : true
 

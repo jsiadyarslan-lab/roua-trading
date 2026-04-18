@@ -55,12 +55,12 @@ export function PasskeyLogin({ onClose }: PasskeyLoginProps) {
     setErrorMessage('')
 
     try {
-      // Use NextAuth's signIn() for proper Google OAuth flow
-      // After Google auth, NextAuth redirects to our bridge route
-      // which creates a roua_session cookie and redirects to /dashboard
+      // Use NextAuth's signIn() for proper Google OAuth flow.
+      // After Google auth, NextAuth redirect callback goes to /dashboard.
+      // roua_session cookie is set in the [...nextauth] route handler.
       const result = await signIn('google', {
-        callbackUrl: '/api/auth/google/callback',
-        redirect: false, // Don't auto-redirect so we can handle errors
+        callbackUrl: '/dashboard',
+        redirect: false,
       })
 
       if (result?.error) {
@@ -71,21 +71,22 @@ export function PasskeyLogin({ onClose }: PasskeyLoginProps) {
               ? 'فشل الاتصال بـ Google. تحقق من GOOGLE_CLIENT_ID.'
               : result.error === 'OAuthCallback'
                 ? 'فشل التحقق من Google. تحقق من إعدادات OAuth.'
-                : `خطأ في تسجيل الدخول: ${result.error}`
+                : result.error === 'Configuration'
+                  ? 'خطأ في إعدادات المصادقة. تأكد من إعداد NEXTAUTH_SECRET.'
+                  : `خطأ في تسجيل الدخول: ${result.error}`
         )
         setGoogleLoading(false)
         return
       }
 
-      // If no error and result exists, redirect to the callback bridge
-      // which will create roua_session and redirect to /dashboard
+      // If no error and result exists, redirect to dashboard
       if (result?.ok && result?.url) {
         window.location.href = result.url
         return
       }
 
-      // Fallback: redirect to callback bridge directly
-      window.location.href = '/api/auth/google/callback'
+      // Fallback: redirect to dashboard
+      window.location.href = '/dashboard'
     } catch (err: unknown) {
       setGoogleLoading(false)
       const message = err instanceof Error ? err.message : 'حدث خطأ غير متوقع'

@@ -57,7 +57,7 @@ export default function ExchangeSettingsPage() {
   useEffect(() => {
     async function checkAuth() {
       try {
-        const res = await fetch('/api/auth/session')
+        const res = await fetch('/api/auth/me')
         const data = await res.json()
         if (!data.authenticated) {
           router.push('/')

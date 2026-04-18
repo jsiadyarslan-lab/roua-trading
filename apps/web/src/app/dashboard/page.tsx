@@ -37,7 +37,7 @@ export default function DashboardPage() {
   useEffect(() => {
     async function checkAuth() {
       try {
-        const res = await fetch('/api/auth/session')
+        const res = await fetch('/api/auth/me')
         const data = await res.json()
 
         if (!data.authenticated) {
@@ -57,7 +57,7 @@ export default function DashboardPage() {
   }, [router])
 
   const handleLogout = async () => {
-    await fetch('/api/auth/session', { method: 'DELETE' })
+    await fetch('/api/auth/me', { method: 'DELETE' })
     router.push('/')
   }
 

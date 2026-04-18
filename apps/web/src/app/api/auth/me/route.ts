@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
 
+/**
+ * Custom session check endpoint at /api/auth/me
+ * (NOT at /api/auth/session which conflicts with NextAuth's built-in endpoint)
+ *
+ * Checks the roua_session cookie and returns user info.
+ */
 export async function GET(request: NextRequest) {
   try {
-    // Ensure database is initialized before any queries
     await ensureDbReady()
 
     const sessionToken = request.cookies.get('roua_session')?.value
@@ -18,7 +23,6 @@ export async function GET(request: NextRequest) {
     })
 
     if (!session || session.expiresAt < new Date()) {
-      // Clean up expired session
       if (session) {
         await db.session.delete({ where: { id: session.id } })
       }
@@ -40,17 +44,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * Logout: DELETE /api/auth/me
+ */
 export async function DELETE(request: NextRequest) {
   try {
     const sessionToken = request.cookies.get('roua_session')?.value
 
     if (sessionToken) {
-      // Delete session from database
       await db.session.deleteMany({
         where: { token: sessionToken },
       })
 
-      // Log the logout
       const session = await db.session.findUnique({
         where: { token: sessionToken },
       })

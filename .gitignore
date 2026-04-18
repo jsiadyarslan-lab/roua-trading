@@ -86,3 +86,4 @@ apps/web/prisma/migrations/
 # ── Upload / Download ──
 upload/
 download/
+.turbo/

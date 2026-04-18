@@ -1,93 +1,62 @@
-import NextAuth, { type NextAuthOptions } from 'next-auth'
-import GoogleProvider from 'next-auth/providers/google'
-import { PrismaAdapter } from '@auth/prisma-adapter'
-import { db, ensureDatabaseUrl, ensureDbReady } from '@/lib/db'
+import NextAuth from 'next-auth'
+import { NextRequest } from 'next/server'
+import { getAuthOptions } from '@/lib/auth-config'
 
-// Ensure DATABASE_URL is valid before any Prisma operations
-ensureDatabaseUrl()
+/**
+ * NextAuth handler with auto-detection of NEXTAUTH_URL.
+ *
+ * Railway sets NEXTAUTH_URL to "0.0.0.0:8080" (internal bind address)
+ * which browsers cannot reach. This handler detects the real public URL
+ * from request headers and sets it before processing.
+ */
+async function GET(request: NextRequest) {
+  // Auto-detect NEXTAUTH_URL from request headers
+  const host = request.headers.get('host')
+  const protocol = request.headers.get('x-forwarded-proto') || 'https'
+  if (host) {
+    const detectedUrl = `${protocol}://${host}`
+    const currentUrl = process.env.NEXTAUTH_URL
 
-export const authOptions: NextAuthOptions = {
-  // @ts-expect-error -- PrismaAdapter types are slightly mismatched with next-auth v4
-  adapter: PrismaAdapter(db),
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    }),
-  ],
-  session: {
-    strategy: 'jwt',
-  },
-  callbacks: {
-    async signIn({ user, account, profile }) {
-      try {
-        await ensureDbReady()
-      } catch {
-        return false
-      }
+    // Only override if NEXTAUTH_URL is missing or points to an internal address
+    const isInternalUrl = currentUrl && (
+      currentUrl.includes('0.0.0.0') ||
+      currentUrl.includes('127.0.0.1') ||
+      (currentUrl.includes('localhost') && !host.includes('localhost'))
+    )
 
-      // If signing in with Google, update avatar from profile
-      if (account?.provider === 'google' && profile?.picture) {
-        try {
-          await db.user.update({
-            where: { id: user.id },
-            data: { avatar: profile.picture },
-          })
-        } catch {
-          // Non-critical: avatar update failure shouldn't block sign-in
-        }
-      }
+    if (!currentUrl || isInternalUrl) {
+      process.env.NEXTAUTH_URL = detectedUrl
+      console.log(`[NextAuth] Auto-detected NEXTAUTH_URL: ${detectedUrl} (was: ${currentUrl || '(empty)'})`)
+    }
+  }
 
-      return true
-    },
-
-    async jwt({ token, user }) {
-      // On first sign-in, `user` is populated
-      if (user) {
-        token.id = user.id
-        token.tier = (user as any).tier || 'FREE'
-      }
-      return token
-    },
-
-    async session({ session, token }) {
-      if (session.user && token.id) {
-        session.user.id = token.id as string
-        ;(session.user as any).tier = token.tier || 'FREE'
-      }
-      return session
-    },
-
-    /**
-     * After successful Google OAuth, redirect to our bridge route
-     * that creates a roua_session cookie (used by the rest of the app).
-     * For non-Google sign-ins or default callbacks, use the standard behavior.
-     */
-    async redirect({ url, baseUrl }) {
-      // If url is our own site (sign-in was successful)
-      if (url.startsWith(baseUrl)) {
-        // After Google sign-in, redirect to our bridge that creates roua_session
-        // Only do this if the URL is the default callback URL (not a custom one)
-        if (url === baseUrl || url === `${baseUrl}/`) {
-          return `${baseUrl}/api/auth/google/callback`
-        }
-        return url
-      }
-      // For external URLs, redirect to our bridge
-      if (url.includes('callbackUrl=')) {
-        return `${baseUrl}/api/auth/google/callback`
-      }
-      return `${baseUrl}/api/auth/google/callback`
-    },
-  },
-  pages: {
-    signIn: '/',
-    error: '/',
-  },
-  secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === 'development',
+  const options = getAuthOptions()
+  const handler = NextAuth(options)
+  return handler(request as any)
 }
 
-const handler = NextAuth(authOptions)
+async function POST(request: NextRequest) {
+  // Same auto-detection for POST requests
+  const host = request.headers.get('host')
+  const protocol = request.headers.get('x-forwarded-proto') || 'https'
+  if (host) {
+    const detectedUrl = `${protocol}://${host}`
+    const currentUrl = process.env.NEXTAUTH_URL
 
-export { handler as GET, handler as POST }
+    const isInternalUrl = currentUrl && (
+      currentUrl.includes('0.0.0.0') ||
+      currentUrl.includes('127.0.0.1') ||
+      (currentUrl.includes('localhost') && !host.includes('localhost'))
+    )
+
+    if (!currentUrl || isInternalUrl) {
+      process.env.NEXTAUTH_URL = detectedUrl
+    }
+  }
+
+  const options = getAuthOptions()
+  const handler = NextAuth(options)
+  return handler(request as any)
+}
+
+export { GET, POST }

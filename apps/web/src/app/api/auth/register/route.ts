@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
+import {
+  generateRegistrationOptions,
+  generateAuthenticationOptions,
+} from '@simplewebauthn/server'
 import { db } from '@/lib/db'
-import crypto from 'crypto'
 
 // In-memory challenge store (in production, use Redis)
 const challenges = new Map<string, { challenge: string; expires: number }>()
@@ -13,12 +16,24 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000)
 
-function generateChallenge(): string {
-  return crypto.randomBytes(32).toString('base64url')
+// ── WebAuthn Configuration from Environment Variables ──
+// Supports both RP_ID (standard) and WEBAUTHN_RP_ID (legacy) for backwards compatibility
+function getWebAuthnConfig() {
+  const rpId = process.env.RP_ID || process.env.WEBAUTHN_RP_ID || 'localhost'
+  const rpName = process.env.RP_NAME || 'Roua Trading'
+  const origin = process.env.ORIGIN || (rpId === 'localhost' ? 'http://localhost:3000' : `https://${rpId}`)
+
+  console.log(`[WebAuthn] Config — rpId: ${rpId}, rpName: ${rpName}, origin: ${origin}`)
+
+  return { rpId, rpName, origin }
 }
 
 function getUserIdBuffer(email: string): string {
-  // Create a deterministic user ID from email
+  // Create a deterministic user ID from email using Web Crypto API
+  const encoder = new TextEncoder()
+  const data = encoder.encode(email)
+  // Use a simple hash approach for compatibility
+  const crypto = require('crypto')
   return crypto.createHash('sha256').update(email).digest('base64url')
 }
 
@@ -44,39 +59,35 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate WebAuthn registration challenge
-    const challenge = generateChallenge()
+    const { rpId, rpName } = getWebAuthnConfig()
     const userId = getUserIdBuffer(email)
+    const userIdBuffer = Uint8Array.from(atob(userId), (c) => c.charCodeAt(0))
+
+    // Use @simplewebauthn/server for proper WebAuthn option generation
+    const options = await generateRegistrationOptions({
+      rpID: rpId,
+      rpName: rpName,
+      userID: userIdBuffer,
+      userName: email,
+      userDisplayName: displayName || email.split('@')[0],
+      attestationType: 'none',
+      authenticatorSelection: {
+        authenticatorAttachment: 'platform',
+        userVerification: 'required',
+        residentKey: 'required',
+      },
+      // Exclude existing credentials if user exists
+      excludeCredentials: existingUser?.passkeyId
+        ? [{ id: existingUser.passkeyId, transports: ['internal' as const] }]
+        : [],
+      timeout: 60000,
+    })
 
     // Store challenge
     challenges.set(email, {
-      challenge,
+      challenge: options.challenge,
       expires: Date.now() + 5 * 60 * 1000, // 5 minutes
     })
-
-    const options = {
-      challenge,
-      rp: {
-        name: 'Roua Trading',
-        id: process.env.WEBAUTHN_RP_ID || 'localhost',
-      },
-      user: {
-        id: userId,
-        name: email,
-        displayName: displayName || email.split('@')[0],
-      },
-      pubKeyCredParams: [
-        { type: 'public-key' as const, alg: -7 },   // ES256
-        { type: 'public-key' as const, alg: -257 },  // RS256
-      ],
-      timeout: 60000,
-      attestation: 'none' as const,
-      authenticatorSelection: {
-        authenticatorAttachment: 'platform' as const,
-        userVerification: 'required' as const,
-        residentKey: 'required' as const,
-      },
-    }
 
     // Create user if doesn't exist
     if (!existingUser) {
@@ -88,11 +99,13 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    console.log(`[WebAuthn] Registration challenge generated for ${email} (rpId: ${rpId})`)
+
     return NextResponse.json(options)
   } catch (error: any) {
-    console.error('Registration challenge error:', error)
+    console.error('[WebAuthn] Registration challenge error:', error)
     return NextResponse.json(
-      { error: 'حدث خطأ في إنشاء التحدي' },
+      { error: 'حدث خطأ في إنشاء التحدي', details: process.env.NODE_ENV === 'development' ? error.message : undefined },
       { status: 500 }
     )
   }
@@ -121,32 +134,33 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const challenge = generateChallenge()
+    const { rpId } = getWebAuthnConfig()
 
-    challenges.set(email, {
-      challenge,
-      expires: Date.now() + 5 * 60 * 1000,
-    })
-
-    const options = {
-      challenge,
-      rpId: process.env.WEBAUTHN_RP_ID || 'localhost',
+    // Use @simplewebauthn/server for proper authentication options
+    const options = await generateAuthenticationOptions({
+      rpID: rpId,
       allowCredentials: [
         {
-          type: 'public-key' as const,
           id: user.passkeyId,
           transports: ['internal' as const],
         },
       ],
-      userVerification: 'required' as const,
+      userVerification: 'required',
       timeout: 60000,
-    }
+    })
+
+    challenges.set(email, {
+      challenge: options.challenge,
+      expires: Date.now() + 5 * 60 * 1000,
+    })
+
+    console.log(`[WebAuthn] Authentication challenge generated for ${email} (rpId: ${rpId})`)
 
     return NextResponse.json(options)
   } catch (error: any) {
-    console.error('Auth challenge error:', error)
+    console.error('[WebAuthn] Auth challenge error:', error)
     return NextResponse.json(
-      { error: 'حدث خطأ' },
+      { error: 'حدث خطأ', details: process.env.NODE_ENV === 'development' ? error.message : undefined },
       { status: 500 }
     )
   }

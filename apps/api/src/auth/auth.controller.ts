@@ -7,7 +7,10 @@ import { Throttle } from '@nestjs/throttler';
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) {
+    // Log WebAuthn configuration on startup for debugging
+    this.logger.log('AuthController initialized — WebAuthn endpoints ready');
+  }
 
   /**
    * POST /api/auth/register — Create registration challenge
@@ -17,6 +20,7 @@ export class AuthController {
   async registerChallenge(
     @Body() body: { email: string; displayName?: string },
   ) {
+    this.logger.log(`Registration challenge requested for: ${body.email}`);
     return this.authService.generateRegistrationChallenge(body.email, body.displayName);
   }
 
@@ -26,6 +30,7 @@ export class AuthController {
   @Get('challenge')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async authChallenge(@Query('email') email: string) {
+    this.logger.log(`Authentication challenge requested for: ${email}`);
     return this.authService.generateAuthenticationChallenge(email);
   }
 
@@ -44,6 +49,8 @@ export class AuthController {
 
     if (body.credential) {
       // Registration verification
+      this.logger.log(`Registration verification for: ${body.email}`);
+
       const result = await this.authService.verifyRegistration(
         body.email,
         body.credential,
@@ -55,7 +62,7 @@ export class AuthController {
       res.cookie('roua_session', result.sessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         path: '/',
       });
@@ -65,6 +72,8 @@ export class AuthController {
 
     if (body.assertion) {
       // Authentication verification
+      this.logger.log(`Authentication verification for: ${body.email}`);
+
       const result = await this.authService.verifyAuthentication(
         body.email,
         body.assertion,
@@ -76,7 +85,7 @@ export class AuthController {
       res.cookie('roua_session', result.sessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 24 * 60 * 60 * 1000,
         path: '/',
       });

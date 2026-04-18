@@ -6,7 +6,6 @@ import { RedisModule } from './common/redis/redis.module';
 import { AuthModule } from './auth/auth.module';
 import { ExchangeModule } from './modules/exchange/exchange.module';
 import { AiModule } from './modules/ai/ai.module';
-import { PortfolioModule } from './portfolio/portfolio.module';
 import { CredentialsModule } from './modules/portfolio/credentials/credentials.module';
 import { AuditModule } from './audit/audit.module';
 
@@ -46,7 +45,6 @@ import { AuditModule } from './audit/audit.module';
     AuthModule,
     ExchangeModule,
     AiModule,
-    PortfolioModule,
     CredentialsModule,
   ],
 })

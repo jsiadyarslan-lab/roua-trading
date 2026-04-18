@@ -340,19 +340,279 @@ turbo.json                               # إعدادات Turborepo ★
 | Rate Limiting لـ Twelve Data | تنفيذ عبر Redis INCR+EXPIRE بدلاً من الذاكرة المؤقتة |
 | تخزين تحديات WebAuthn | استخدام Redis بـ TTL 5 دقائق بدلاً من Map |
 
-#### 📋 الخطوات التالية
+#### 📋 الخطوات التالية (تم إنجازها في Phase 3)
 
+- [x] دمج Google Gemini API في AIModule
+- [x] دمج Groq API في AIModule
+- [x] دمج GLM-4 API في AIModule
+- [x] بناء AI Orchestrator مع توجيه ذكي
+- [x] إضافة WebSocket للأسعار الحية (Socket.IO)
+- [x] إضافة محول Binance عبر CCXT
+- [x] نظام إدارة مفاتيح API مشفر (AES-256-GCM)
 - [ ] تشغيل Docker Compose (PostgreSQL + Redis + RabbitMQ)
 - [ ] إضافة مفتاح `TWELVE_DATA_API_KEY` في .env
 - [ ] اختبار مسار `GET /api/exchange/quote/AAPL` مع بيانات حقيقية
-- [ ] دمج Google Gemini API في AIModule
-- [ ] دمج Groq API في AIModule
-- [ ] بناء AI Orchestrator مع توجيه ذكي
 - [ ] نظام RAG مع pgvector
 - [ ] تحويل Prisma من SQLite إلى PostgreSQL
-- [ ] إضافة WebSocket للأسعار الحية (Socket.IO)
 - [ ] بناء صفحة المحفظة (Portfolio)
 - [ ] بناء صفحة الأخبار (News Radar)
+
+---
+
+### الجلسة 3 — 18 أبريل 2026 — Phase 3: Live Markets, Security, and AI Orchestrator
+
+#### ✅ تم إنجازه
+
+##### 1. محول Binance عبر CCXT
+
+تم إنشاء `BinanceAdapter` ينفذ واجهة `IExchangeAdapter` للأسواق المشفرة:
+
+- **المكتبة**: `ccxt` — مكتبة موحدة لـ 100+ بورصة مشفرة
+- **الرموز المدعومة**: `BTC/USDT`, `ETH/USDT`, `SOL/USDT`, إلخ.
+- **التخزين المؤقت عبر Redis**:
+  - الأسعار: TTL 3 ثوانٍ (العملات المشفرة تتغير بسرعة)
+  - البيانات التاريخية: TTL دقيقة واحدة
+- **Rate Limiting**: 100 طلب/دقيقة (حفاظياً من 1200 المسموحة)
+- **تحويل الفترات الزمنية**: `1min` → `1m`, `1day` → `1d`, إلخ.
+- **التوجيه التلقائي**: الرموز التي تحتوي `/` (مثل BTC/USDT) → Binance، البقية → TwelveData
+
+```typescript
+// استخدام CCXT
+const exchange = new ccxt.binance({ enableRateLimit: true });
+const ticker = await exchange.fetchTicker('BTC/USDT');
+const ohlcv = await exchange.fetchOHLCV('BTC/USDT', '1h', since);
+```
+
+**الملف**: `apps/api/src/modules/exchange/adapters/binance.adapter.ts`
+
+##### 2. بوابة WebSocket للأسعار الحية
+
+تم إنشاء `ExchangeGateway` مع Socket.IO للأسعار الفورية:
+
+- **المسار**: `/exchange` namespace
+- **الأحداث (Events)**:
+  - `subscribe` — اشتراك في رمز معين
+  - `unsubscribe` — إلغاء الاشتراك
+  - `ticker` — دفع بيانات السعر المحدثة
+  - `ticker:error` — إخطار بالخطأ
+- **دورة التحديث**: كل 5 ثوانٍ للرموز المشترك فيها
+- **إدارة الاشتراكات**:
+  - تتبع `socketId → Set<symbol>` لكل عميل
+  - تتبع `symbol → Set<socketId>` للبث الفعال
+  - بدء/إيقاف دورة التحديث تلقائياً
+- **Redis Pub/Sub**: تخزين مؤقت لبيانات WebSocket عبر Redis
+- **CORS**: مُكوّن لقبول اتصالات من `localhost:3000`
+
+**Hook في الواجهة الأمامية**: `useWebSocketTicker`
+- اتصال تلقائي عبر Socket.IO
+- إعادة اتصال تلقائية (10 محاولات، تأخير 2 ثانية)
+- الاشتراك/إلغاء اشتراك ديناميكي
+- Fallback تلقائي لـ HTTP polling عند فصل WebSocket
+- مؤشر حالة الاتصال (مباشر WS / استطلاع)
+
+**تحديث مكون MarketTicker**:
+- يستخدم WebSocket كالمصدر الأساسي
+- HTTP polling كـ fallback تلقائي
+- مؤشر حالة الاتصال (أخضر = مباشر، أصفر = استطلاع)
+- إضافة رموز العملات المشفرة: `BTC/USDT`
+
+**الملفات**:
+- `apps/api/src/modules/exchange/gateway/exchange.gateway.ts`
+- `apps/web/src/hooks/useWebSocketTicker.ts`
+- `apps/web/src/components/dashboard/market-ticker.tsx` (محدّث)
+
+##### 3. إدارة مفاتيح API المشفرة (AES-256-GCM)
+
+تم بناء نظام آمن لإدارة مفاتيح بورصات المشفر:
+
+**نموذج قاعدة البيانات (`ExchangeCredential`)**:
+- `encryptedApiKey` — مفتاح API مشفر بـ AES-256-GCM
+- `encryptedSecret` — المفتاح السري مشفر بـ AES-256-GCM
+- `iv` — متجه التهيئة (Initialization Vector) بالنظام الست عشري
+- `authTag` — علامة المصادقة GCM بالنظام الست عشري
+- `permissions` — JSON: `["read", "trade"]` — لا يُسمح بـ "withdraw" أو "transfer"
+- قيد فريد: `@@unique([userId, exchange, label])`
+
+**خدمة الاعتمادات (`CredentialsService`)**:
+- **التشفير**: AES-256-GCM مع مفتاح 256-bit من `ENCRYPTION_KEY`
+- **مبدأ Non-Custodial**: رفض فوري لأي مفتاح يحتوي على صلاحيات:
+  - `withdraw` / `withdrawal`
+  - `transfer` / `internaltransfer`
+- **التحقق من المفاتيح**: اختبار المفتاح مقابل البورصة الفعلية عبر CCXT قبل التخزين
+- **سجل المراجعة**: تسجيل كل عملية (إضافة، رفض، حذف) في AuditLog
+- **فك التشفير**: فقط للاستخدام الداخلي (مثل إجراء صفقات)، لا يُرسل للواجهة أبداً
+
+**مسارات REST**:
+- `GET /api/portfolio/credentials` — جلب مفاتيح المستخدم (بدون بيانات مشفرة)
+- `POST /api/portfolio/credentials` — إضافة مفتاح جديد (مع التحقق والتشفير)
+- `DELETE /api/portfolio/credentials/:id` — حذف مفتاح
+- جميع المسارات محمية بـ `AuthGuard` + Rate Limiting (5 إضافات/دقيقة)
+
+**صفحة الإعدادات** (`/dashboard/settings/exchange`):
+- واجهة عربية RTL كاملة لإدارة المفاتيح
+- اختيار البورصة: Binance, KuCoin, Bybit, OKX, Gate.io
+- نموذج إضافة مفتاح مع تحقق وتشفير فوري
+- عرض قائمة المفاتيح مع حالة الصلاحية والصلاحيات
+- رسالة تحذيرية عن مبدأ Non-Custodial
+- حذف مفاتيح مع تأكيد
+- حركات Framer Motion
+
+**الملفات**:
+- `apps/api/src/modules/portfolio/credentials/credentials.module.ts`
+- `apps/api/src/modules/portfolio/credentials/credentials.service.ts`
+- `apps/api/src/modules/portfolio/credentials/credentials.controller.ts`
+- `apps/web/src/app/dashboard/settings/exchange/page.tsx`
+
+##### 4. منسق الذكاء الاصطناعي (AI Orchestrator)
+
+تم بناء نظام ذكاء اصطناعي متعدد النماذج مع توجيه ذكي:
+
+**خدمة Groq (Llama 3.3 70B)**:
+- الأسرع في الاستدلال — مثالي لتحليل المشاعر الفوري
+- درجة الثقة: 0.8
+- درجة الحرارة: 0.3 (استجابات دقيقة ومتسقة)
+- نموذج: `llama-3.3-70b-versatile`
+- API: `https://api.groq.com/openai/v1/chat/completions`
+
+**خدمة Gemini (2.0 Flash)**:
+- الأقدر — مثالي للتحليل الإبداعي والاستراتيجي
+- درجة الثقة: 0.9
+- درجة الحرارة: 0.4 (استجابات إبداعية منظمة)
+- نموذج: `gemini-2.0-flash`
+- API: `https://generativelanguage.googleapis.com/v1beta/models`
+
+**خدمة GLM-4 (Zhipu AI)**:
+- الأمثل للعربية — سياق طويل 200k token
+- درجة الثقة: 0.85
+- درجة الحرارة: 0.4
+- نموذج: `glm-4`
+- API: `https://open.bigmodel.cn/api/paas/v4/chat/completions`
+- مطالبة نظام عربية متخصصة بالتحليل المالي
+
+**منسق الذكاء الاصطناعي (`AIOrchestratorService`)**:
+
+| نوع المهمة | النموذج الأساسي | البديل 1 | البديل 2 |
+|------------|----------------|----------|----------|
+| `sentiment` (مشاعر) | Groq | GLM | Gemini |
+| `market_analysis` (تحليل أسواق) | Gemini | GLM | Groq |
+| `prediction` (توقعات) | GLM-4 | Gemini | Groq |
+| `general` (عام) | Gemini | Groq | GLM |
+
+- **سلسلة البديل**: أساسي → بديل 1 → بديل 2
+- **كشف Stub**: إذا عاد نموذج بدون مفتاح API (confidence = 0)، ينتقل تلقائياً للتالي
+- **تحليل متعدد النماذج**: `analyzeWithAllModels()` — تشغيل جميع النماذج بالتوازي
+- **رسائل نظام متخصصة**: كل نموذج له مطالبة نظام مختلفة حسب نوع المهمة واللغة
+
+**مسارات REST**:
+- `POST /api/ai/analyze` — تحليل بنموذج واحد (أمثل تلقائياً) — 10 طلبات/دقيقة
+- `POST /api/ai/analyze/all` — تحليل بجميع النماذج — 3 طلبات/دقيقة
+- `GET /api/ai/models` — حالة النماذج المتاحة
+- `GET /api/ai/sentiment?symbol=BTC/USDT` — تحليل مشاعر سريع
+- جميع المسارات محمية بـ `AuthGuard`
+
+**الملفات**:
+- `apps/api/src/modules/ai/ai.module.ts`
+- `apps/api/src/modules/ai/ai.controller.ts`
+- `apps/api/src/modules/ai/services/ai-orchestrator.service.ts`
+- `apps/api/src/modules/ai/services/groq.service.ts`
+- `apps/api/src/modules/ai/services/gemini.service.ts`
+- `apps/api/src/modules/ai/services/glm.service.ts`
+
+##### 5. تنظيف الكود
+
+- حذف الوحدات القديمة المكررة (dead code):
+  - `src/exchange/` (استبدلت بـ `src/modules/exchange/`)
+  - `src/ai/` (استبدلت بـ `src/modules/ai/`)
+  - `src/portfolio/` (استبدلت بـ `src/modules/portfolio/credentials/`)
+- تحديث `app.module.ts` لاستيراد الوحدات من المسارات الصحيحة فقط
+- إصلاح رموز العملات المشفرة: `BTC/USD` → `BTC/USDT` (متوافق مع Binance)
+
+#### 🏗️ هيكل الملفات بعد Phase 3
+
+```
+apps/api/src/
+├── main.ts                              # نقطة الدخول (المنفذ 3001)
+├── app.module.ts                        # الوحدة الرئيسية (محدّثة)
+├── auth/
+│   ├── auth.module.ts
+│   ├── auth.controller.ts
+│   └── auth.service.ts
+├── modules/                             # ★ هيكل تنظيمي جديد
+│   ├── exchange/
+│   │   ├── exchange.module.ts           # يسجل BinanceAdapter + TwelveDataAdapter
+│   │   ├── exchange.controller.ts       # مسارات REST
+│   │   ├── exchange.service.ts          # توجيه تلقائي حسب الرمز
+│   │   ├── exchange.types.ts            # DTOs + IExchangeAdapter
+│   │   ├── adapters/
+│   │   │   ├── twelve-data.adapter.ts   # أسهم، فوركس، سلع
+│   │   │   └── binance.adapter.ts       # ★ عملات مشفرة عبر CCXT
+│   │   └── gateway/
+│   │       └── exchange.gateway.ts      # ★ WebSocket للأسعار الفورية
+│   ├── ai/
+│   │   ├── ai.module.ts                # يسجل 3 خدمات + منسق
+│   │   ├── ai.controller.ts            # مسارات REST محمية
+│   │   └── services/
+│   │       ├── ai-orchestrator.service.ts  # ★ توجيه ذكي للنماذج
+│   │       ├── groq.service.ts             # ★ Llama 3.3 70B
+│   │       ├── gemini.service.ts           # ★ Gemini 2.0 Flash
+│   │       └── glm.service.ts              # ★ GLM-4 (Zhipu AI)
+│   └── portfolio/
+│       └── credentials/
+│           ├── credentials.module.ts    # ★ وحدة إدارة المفاتيح
+│           ├── credentials.service.ts   # ★ تشفير AES-256-GCM
+│           └── credentials.controller.ts # ★ مسارات REST آمنة
+├── audit/
+│   ├── audit.module.ts
+│   └── audit.service.ts
+└── common/
+    ├── prisma/
+    │   ├── prisma.module.ts
+    │   └── prisma.service.ts
+    ├── redis/
+    │   ├── redis.module.ts
+    │   └── redis.service.ts
+    └── guards/
+        └── auth.guard.ts
+
+apps/web/src/
+├── app/
+│   ├── dashboard/
+│   │   ├── page.tsx                    # لوحة القيادة (محدّثة)
+│   │   └── settings/
+│   │       └── exchange/
+│   │           └── page.tsx            # ★ صفحة مفاتيح البورصات
+│   └── ...
+├── components/
+│   └── dashboard/
+│       └── market-ticker.tsx           # ★ WebSocket + Fallback Polling
+├── hooks/
+│   └── useWebSocketTicker.ts           # ★ Hook للاتصال WebSocket
+└── ...
+
+prisma/schema.prisma                    # + ExchangeCredential model ★
+```
+
+#### ⚠️ التحديات والحلول في Phase 3
+
+| التحدي | الحل |
+|--------|------|
+| كود مكرر (وحدات قديمة وجديدة) | حذف الوحدات القديمة وتوحيد الاستيرادات |
+| `BTC/USD` لا يعمل مع Binance | تغيير إلى `BTC/USDT` (الزوج القياسي) |
+| تشفير مفاتيح API بأمان | AES-256-GCM مع IV عشوائي 96-bit + AuthTag |
+| رفض صلاحيات السحب/التحويل | فحص permissions بعد التحقق من المفتاح |
+| سلسلة البديل في AI Orchestrator | تجربة النماذج بالترتيب مع كشف stub (confidence=0) |
+| WebSocket + HTTP Fallback | Hook ذكي يتحول تلقائياً عند فقدان الاتصال |
+
+#### 📋 الخطوات التالية
+
+- [ ] تشغيل Docker Compose (PostgreSQL + Redis + RabbitMQ)
+- [ ] إضافة مفاتيح API الفعلية في .env
+- [ ] اختبار شامل لجميع المسارات
+- [ ] نظام RAG مع pgvector
+- [ ] تحويل Prisma من SQLite إلى PostgreSQL
+- [ ] بناء صفحة المحفظة (Portfolio)
+- [ ] بناء صفحة الأخبار (News Radar)
+- [ ] إضافة محولات أخرى (KuCoin, Bybit, OKX)
 
 ---
 

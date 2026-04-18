@@ -557,7 +557,7 @@ export default function Home() {
               ابدأ مجانًا
             </Button>
             <p className="text-xs text-muted-foreground mt-4">
-              لا حاجة لكلمة مرور — Passkeys فقط
+              سجّل بحساب Google أو Passkeys — بدون كلمات مرور
             </p>
           </motion.div>
         </div>

@@ -21,6 +21,7 @@ model User {
   credentials ExchangeCredential[]
   portfolios  Portfolio[]
   signals     SignalUsage[]
+  rouaSignals Signal[]
   sessions    Session[]
 }
 
@@ -102,6 +103,41 @@ enum AssetType {
   CRYPTO
   COMMODITY
   INDEX
+}
+
+enum SignalAction {
+  BUY
+  SELL
+  WAIT
+}
+
+enum SignalStatus {
+  ACTIVE
+  EXPIRED
+  EXECUTED
+  CANCELLED
+}
+
+model Signal {
+  id          String       @id @default(cuid())
+  userId      String
+  pair        String       // e.g., "BTC/USDT", "AAPL"
+  action      SignalAction
+  confidence  Int          // 0-100
+  reason      String       // AI-generated explanation
+  entryPrice  Float?
+  stopLoss    Float?
+  takeProfit  Float?
+  status      SignalStatus @default(ACTIVE)
+  expiresAt   DateTime
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([pair])
+  @@index([status])
+  @@index([expiresAt])
 }
 
 model SignalUsage {

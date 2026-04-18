@@ -3,13 +3,12 @@ import type { NextConfig } from "next";
 
 // API target for server-side rewrites:
 // - Local dev:  http://localhost:3001 (default)
-// - Docker:     http://api:3001       (via API_INTERNAL_URL build arg)
+// - Docker:     http://api:3001       (via API_INTERNAL_URL env var)
 const apiTarget = process.env.API_INTERNAL_URL || "http://localhost:3001";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
-  // Turbopack needs to know the monorepo root to resolve next/package.json
-  // from the workspace app directory (apps/web)
+  // No "output: standalone" — Railpack keeps node_modules so "next start" works.
+  // standalone bakes absolute local paths and requires manual static/public copying.
   turbopack: {
     root: path.resolve(__dirname, "../.."),
   },

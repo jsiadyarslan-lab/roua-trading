@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '../../[...nextauth]/route'
+import { getAuthOptions } from '@/lib/auth-config'
 import crypto from 'crypto'
 
 /**
@@ -22,11 +22,28 @@ export async function GET(request: NextRequest) {
   try {
     await ensureDbReady()
 
+    // Auto-detect NEXTAUTH_URL from request (same logic as [...nextauth]/route.ts)
+    const host = request.headers.get('host')
+    const protocol = request.headers.get('x-forwarded-proto') || 'https'
+    if (host) {
+      const detectedUrl = `${protocol}://${host}`
+      const currentUrl = process.env.NEXTAUTH_URL
+      const isInternalUrl = currentUrl && (
+        currentUrl.includes('0.0.0.0') ||
+        currentUrl.includes('127.0.0.1') ||
+        (currentUrl.includes('localhost') && !host.includes('localhost'))
+      )
+      if (!currentUrl || isInternalUrl) {
+        process.env.NEXTAUTH_URL = detectedUrl
+      }
+    }
+
     // Get the authenticated user from NextAuth session
+    const authOptions = getAuthOptions()
     const session = await getServerSession(authOptions)
 
     if (!session?.user?.email) {
-      console.warn('[Google Callback] No NextAuth session found — redirecting to login with error')
+      console.warn('[Google Callback] No NextAuth session found')
       return NextResponse.redirect(
         new URL('/?error=Configuration', request.url)
       )

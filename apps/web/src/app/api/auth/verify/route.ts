@@ -6,18 +6,10 @@ import {
 import { db, ensureDbReady } from '@/lib/db'
 import crypto from 'crypto'
 
-// ── Shared challenge store (imported from register route) ──
-// In a single Next.js server process, module-level Maps are shared across routes.
-// For multi-instance production, replace with Redis.
-const challenges = new Map<string, { challenge: string; expires: number }>()
-
-// Clean expired challenges every 5 minutes
-setInterval(() => {
-  const now = Date.now()
-  for (const [key, val] of challenges) {
-    if (val.expires < now) challenges.delete(key)
-  }
-}, 5 * 60 * 1000)
+// ── Import the SHARED challenge store from the register route ──
+// Both routes MUST use the same Map, otherwise challenges created
+// during registration won't be found during verification.
+import { challenges } from '../register/route'
 
 // ── WebAuthn Configuration from Environment Variables ──
 function getWebAuthnConfig() {

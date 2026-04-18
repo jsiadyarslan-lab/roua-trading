@@ -14,8 +14,27 @@ interface PasskeyLoginProps {
   onClose: () => void
 }
 
-function bufferToBase64(buffer: ArrayBuffer): string {
+function bufferToBase64url(buffer: ArrayBuffer): string {
+  // Convert to standard base64 first, then convert to base64url
+  // WebAuthn/@simplewebauthn expects base64url encoding (no +, /, or = padding)
   return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+}
+
+// Decode base64url string to Uint8Array.
+// Browser's atob() only supports standard base64 (uses + and /),
+// but WebAuthn uses base64url encoding (uses - and _).
+// We must convert base64url → base64 before decoding.
+function base64urlToUint8Array(base64url: string): Uint8Array {
+  // Convert base64url to standard base64
+  let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/')
+  // Pad with '=' to make length a multiple of 4
+  while (base64.length % 4 !== 0) {
+    base64 += '='
+  }
+  return Uint8Array.from(atob(base64), c => c.charCodeAt(0))
 }
 
 export function PasskeyLogin({ onClose }: PasskeyLoginProps) {
@@ -55,14 +74,14 @@ export function PasskeyLogin({ onClose }: PasskeyLoginProps) {
       const credential = await navigator.credentials.create({
         publicKey: {
           ...options,
-          challenge: Uint8Array.from(atob(options.challenge), c => c.charCodeAt(0)),
+          challenge: base64urlToUint8Array(options.challenge),
           user: {
             ...options.user,
-            id: Uint8Array.from(atob(options.user.id), c => c.charCodeAt(0)),
+            id: base64urlToUint8Array(options.user.id),
           },
           excludeCredentials: (options.excludeCredentials || []).map((ec: Record<string, unknown>) => ({
             ...ec,
-            id: Uint8Array.from(atob(ec.id as string), c => c.charCodeAt(0)),
+            id: base64urlToUint8Array(ec.id as string),
           })),
         },
       })
@@ -81,10 +100,10 @@ export function PasskeyLogin({ onClose }: PasskeyLoginProps) {
         body: JSON.stringify({
           credential: {
             id: credential.id,
-            rawId: bufferToBase64(credential.rawId),
+            rawId: bufferToBase64url(credential.rawId),
             response: {
-              clientDataJSON: bufferToBase64(attestationResponse.clientDataJSON),
-              attestationObject: bufferToBase64(attestationResponse.attestationObject),
+              clientDataJSON: bufferToBase64url(attestationResponse.clientDataJSON),
+              attestationObject: bufferToBase64url(attestationResponse.attestationObject),
             },
             type: credential.type,
           },
@@ -129,10 +148,10 @@ export function PasskeyLogin({ onClose }: PasskeyLoginProps) {
       const assertion = await navigator.credentials.get({
         publicKey: {
           ...options,
-          challenge: Uint8Array.from(atob(options.challenge), c => c.charCodeAt(0)),
+          challenge: base64urlToUint8Array(options.challenge),
           allowCredentials: (options.allowCredentials || []).map((ac: Record<string, unknown>) => ({
             ...ac,
-            id: Uint8Array.from(atob(ac.id as string), c => c.charCodeAt(0)),
+            id: base64urlToUint8Array(ac.id as string),
           })),
         },
       })
@@ -151,11 +170,11 @@ export function PasskeyLogin({ onClose }: PasskeyLoginProps) {
         body: JSON.stringify({
           assertion: {
             id: assertion.id,
-            rawId: bufferToBase64(assertion.rawId),
+            rawId: bufferToBase64url(assertion.rawId),
             response: {
-              clientDataJSON: bufferToBase64(assertionResponse.clientDataJSON),
-              authenticatorData: bufferToBase64(assertionResponse.authenticatorData),
-              signature: bufferToBase64(assertionResponse.signature),
+              clientDataJSON: bufferToBase64url(assertionResponse.clientDataJSON),
+              authenticatorData: bufferToBase64url(assertionResponse.authenticatorData),
+              signature: bufferToBase64url(assertionResponse.signature),
             },
             type: assertion.type,
           },

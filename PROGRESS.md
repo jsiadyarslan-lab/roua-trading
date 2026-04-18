@@ -55,42 +55,304 @@
 7. **ملفات البيئة**
    - `.env.example` مع جميع المتغيرات المطلوبة
 
-#### 🏗️ هيكل الملفات المنشأة
+---
+
+### الجلسة 2 — 18 أبريل 2026 — بناء الخادم الخلفي (Backend)
+
+#### ✅ تم إنجازه
+
+##### 1. تحويل المشروع إلى Turborepo Monorepo
+
+تم تحويل هيكل المشروع من تطبيق Next.js واحد إلى Monorepo كامل:
 
 ```
-src/
+roua-trading/                      ← الجذر (Turborepo)
+├── apps/
+│   ├── web/                       ← @roua/web (Next.js 16)
+│   │   ├── src/
+│   │   │   ├── app/               ← الصفحات و API Routes
+│   │   │   ├── components/        ← المكونات
+│   │   │   ├── hooks/             ← Custom Hooks
+│   │   │   └── lib/               ← المكتبات المساعدة
+│   │   ├── prisma/                ← مخطط قاعدة البيانات
+│   │   ├── public/                ← الملفات الثابتة
+│   │   └── package.json           ← @roua/web
+│   │
+│   └── api/                       ← @roua/api (NestJS 11)
+│       ├── src/
+│       │   ├── main.ts            ← نقطة الدخول (المنفذ 3001)
+│       │   ├── app.module.ts      ← الوحدة الرئيسية
+│       │   ├── auth/              ← وحدة المصادقة
+│       │   ├── exchange/          ← وحدة الأسواق
+│       │   ├── ai/                ← وحدة الذكاء الاصطناعي
+│       │   ├── portfolio/         ← وحدة المحفظة
+│       │   ├── audit/             ← وحدة سجل المراجعة
+│       │   └── common/            ← خدمات مشتركة
+│       │       ├── prisma/        ← PrismaService
+│       │       ├── redis/         ← RedisService
+│       │       └── guards/        ← AuthGuard
+│       └── package.json           ← @roua/api
+│
+├── packages/
+│   └── shared/                    ← @roua/shared (أنواع مشتركة)
+│       └── src/
+│           └── index.ts           ← DTOs و Interfaces مشتركة
+│
+├── prisma/
+│   └── schema.prisma              ← مخطط قاعدة البيانات المشترك
+├── docker-compose.yml             ← PostgreSQL + Redis + RabbitMQ
+├── turbo.json                     ← إعدادات Turborepo
+└── package.json                   ← إعدادات Monorepo الرئيسية
+```
+
+**المكونات الجديدة:**
+- `turbo.json` — إعدادات Turborepo مع مهام `dev`, `build`, `lint`, `db:*`
+- `package.json` رئيسي مع workspaces (`apps/*`, `packages/*`)
+- أوامر موحدة: `bun run dev:web` و `bun run dev:api`
+
+##### 2. إنشاء تطبيق NestJS (`apps/api`)
+
+تم بناء تطبيق NestJS 11 كامل مع جميع الحزم المطلوبة:
+
+**الحزم المثبتة:**
+| الحزمة | الغرض |
+|--------|-------|
+| `@nestjs/common` + `@nestjs/core` + `@nestjs/platform-express` | إطار العمل الأساسي |
+| `@nestjs/config` | إدارة متغيرات البيئة (isGlobal) |
+| `@nestjs/throttler` | Rate Limiting (3 مستويات: short/medium/long) |
+| `@nestjs/microservices` | جاهز لـ gRPC مستقبلاً |
+| `@prisma/client` | اتصال قاعدة البيانات |
+| `axios` | استدعاءات API الخارجية |
+| `ioredis` | اتصال Redis للتخزين المؤقت والـ Rate Limiting |
+| `cookie-parser` | قراءة ملفات تعريف الارتباط (Session Cookies) |
+| `class-validator` + `class-transformer` | التحقق من البيانات وتحويلها |
+
+**الإعدادات:**
+- المنفذ: `3001` (قابل للتغيير عبر `API_PORT`)
+- البادئة العالمية: `/api` لجميع المسارات
+- CORS مُفعّل مع `credentials: true` للسماح بالكوكيز
+- `ValidationPipe` عالمي مع `whitelist` و `transform`
+- `cookie-parser` لقراءة جلسات `roua_session`
+- ملف `.env` يُقرأ من الجذر (`../../.env`)
+
+##### 3. الوحدات (Modules) المُنشأة
+
+**AuthModule** — وحدة المصادقة الكاملة:
+- `AuthService` — منطق WebAuthn/Passkeys مع Redis للتخزين المؤقت
+  - `generateRegistrationChallenge()` — إنشاء تحدي التسجيل (مخزن في Redis بـ TTL 5 دقائق)
+  - `generateAuthenticationChallenge()` — إنشاء تحدي المصادقة
+  - `verifyRegistration()` — التحقق من بيانات التسجيل وإنشاء جلسة
+  - `verifyAuthentication()` — التحقق من بيانات الدخول وإنشاء جلسة
+  - `validateSession()` — التحقق من صلاحية الجلسة
+  - `destroySession()` — إنهاء الجلسة (تسجيل الخروج)
+- `AuthController` — واجهة REST:
+  - `POST /api/auth/register` — إنشاء تحدي التسجيل
+  - `GET /api/auth/challenge` — إنشاء تحدي المصادقة
+  - `POST /api/auth/verify` — التحقق من بيانات الاعتماد (تسجيل أو دخول)
+  - `GET /api/auth/session` — فحص الجلسة
+  - `DELETE /api/auth/session` — تسجيل الخروج
+- تم نقل منطق Passkeys من Next.js API Routes إلى NestJS مع تحسينات:
+  - تخزين التحديات في Redis بدلاً من الذاكرة المؤقتة
+  - تسجيل المراجعة التلقائي لكل عملية
+  - Rate Limiting على مسارات المصادقة
+
+**ExchangeModule** — طبقة تجريد الأسواق:
+- `IExchangeAdapter` — واجهة موحدة لجميع مصادر بيانات السوق
+  - `fetchQuote(symbol)` — جلب سعر مباشر
+  - `fetchHistoricalData(symbol, interval, start, end)` — جلب بيانات تاريخية
+- `UnifiedQuoteDto` — DTO موحد للأسعار يتضمن:
+  - `symbol`, `name`, `exchange`, `currency`
+  - `price`, `change`, `changePercent`
+  - `open`, `high`, `low`, `close`, `volume`
+  - `marketCap`, `fiftyTwoWeekHigh`, `fiftyTwoWeekLow`
+  - `timestamp`, `source`
+- `UnifiedCandleDto` — DTO موحد لبيانات OHLCV التاريخية
+- `TwelveDataAdapter` — محول Twelve Data الكامل:
+  - ينفذ `IExchangeAdapter`
+  - استدعاءات API عبر `axios`:
+    - `GET https://api.twelvedata.com/quote?symbol={symbol}&apikey={key}`
+    - `GET https://api.twelvedata.com/time_series?symbol={symbol}&interval={interval}&start_date={start}&end_date={end}&apikey={key}`
+  - **تخزين مؤقت عبر Redis:**
+    - الأسعار: TTL 5 ثوانٍ (شعور بالوقت الحقيقي مع احترام Rate Limits)
+    - البيانات التاريخية: TTL 5 دقائق
+  - **Rate Limiting عبر Redis:**
+    - 8 طلبات/دقيقة (حد الطبقة المجانية)
+    - استخدام `INCR` + `EXPIRE` للعد والتتبع
+    - رسالة خطأ واضحة بالعربية عند تجاوز الحد
+  - تحويل البيانات (mapping) من استجابة Twelve Data إلى `UnifiedQuoteDto` و `UnifiedCandleDto`
+- `ExchangeService` — خدمة إدارة المحولات:
+  - حقن `IExchangeAdapter` عبر Dependency Injection
+  - `getQuote(symbol)` — جلب سعر مباشر
+  - `getHistoricalData(symbol, interval, start, end)` — جلب بيانات تاريخية
+- `ExchangeController` — واجهة REST محمية بـ AuthGuard:
+  - `GET /api/exchange/quote/:symbol` — سعر مباشر (30 طلب/دقيقة)
+  - `GET /api/exchange/history/:symbol` — بيانات تاريخية (10 طلبات/دقيقة)
+
+**AIModule** — هيكل فارغ للمستقبل:
+- `AiService.orchestrate()` — جاهز لدمج الـ AI Symphony (Phase 2)
+- `AiService.analyzeSentiment()` — جاهز لتحليل المشاعر
+- `AiController` — مسارات REST:
+  - `POST /api/ai/orchestrate` — توجيه الطلب للنموذج المناسب
+  - `GET /api/ai/sentiment` — تحليل مشاعر السوق
+
+**PortfolioModule** — وحدة المحفظة:
+- `PortfolioService` — إدارة المحافظ والأصول:
+  - `getUserPortfolios()` — جلب محافظ المستخدم
+  - `createPortfolio()` — إنشاء محفظة جديدة
+  - `addAsset()` — إضافة أصل للمحفظة
+- `PortfolioController` — مسارات REST محمية:
+  - `GET /api/portfolio` — جلب المحافظ
+  - `POST /api/portfolio` — إنشاء محفظة
+  - `POST /api/portfolio/:id/assets` — إضافة أصل
+
+**AuditModule** — سجل المراجعة:
+- `AuditService.log()` — تسجيل حدث في قاعدة البيانات
+- `AuditService.getUserLogs()` — جلب سجلات مستخدم
+- `AuditService.getLogsByAction()` — جلب سجلات حسب النوع
+- `AuditService.getRecentLogs()` — جلب أحدث السجلات
+- جميع وحدات المصادقة تستخدم AuditService تلقائياً
+
+##### 4. الخدمات المشتركة (Common)
+
+**PrismaService** — اتصال قاعدة البيانات:
+- `@Global()` module متاح في جميع الوحدات
+- اتصال تلقائي عند بدء التطبيق وقطع عند الإيقاف
+- يستخدم نفس مخطط Prisma الموجود في الجذر
+
+**RedisService** — اتصال Redis:
+- `@Global()` module متاح في جميع الوحدات
+- `get/set/del/incr/expire/exists` — عمليات أساسية
+- `checkRateLimit()` — فحص Rate Limit عبر INCR + EXPIRE
+- `cacheOrGet()` — تخزين مؤقت مع TTL (get from cache or set from factory)
+- إعادة محاولة تلقائية عند فشل الاتصال
+
+**AuthGuard** — حماية المسارات:
+- قراءة `roua_session` من الكوكيز أو `Authorization` header
+- فحص الجلسة في قاعدة البيانات عبر Prisma
+- حذف الجلسات منتهية الصلاحية تلقائياً
+- إرفاق بيانات المستخدم بالطلب (`request.user`)
+
+##### 5. ربط الواجهة الأمامية (Next.js ↔ NestJS)
+
+**API Proxy في Next.js:**
+- تم إضافة `rewrites()` في `next.config.ts`:
+  - `/api/exchange/*` → `http://localhost:3001/api/exchange/*`
+  - `/api/ai/*` → `http://localhost:3001/api/ai/*`
+  - `/api/portfolio/*` → `http://localhost:3001/api/portfolio/*`
+- ملفات تعريف الارتباط (Cookies) تُمرر تلقائياً عبر البروكسي
+
+**صفحة لوحة القيادة (`/dashboard`):**
+- فحص المصادقة تلقائياً — إعادة توجيه لصفحة الهبوط إذا لم يكن مسجلاً
+- شريط جانبي (Sidebar) مع أقسام: لوحة القيادة، الأسواق، سيمفونية الذكاء، المحفظة، الأخبار، الإعدادات
+- بطاقات إحصائية: الأسواق المتابعة، نماذج الذكاء، المحفظة، الخطة
+- معلومات المستخدم مع مستوى الاشتراك (مجاني/متميز/مؤسسي)
+- تصميم RTL عربي متجاوب
+
+**مكون MarketTicker:**
+- عرض أسعار حية لـ 7 رموز: AAPL, MSFT, GOOGL, TSLA, AMZN, EUR/USD, BTC/USD
+- تحديث تلقائي كل 5 ثوانٍ (قابل للتخصيص)
+- بطاقات تفاعلية مع:
+  - السعر الحالي بالعملة المحلية
+  - نسبة التغير مع أيقونة صعود/هبوط
+  - أعلى/أدنى سعر وحجم التداول
+  - اسم البورصة ومصدر البيانات
+- زر إيقاف مؤقت/استئناف التحديث
+- إعادة محاولة تلقائية عند فشل الطلب
+- رسالة تحذير عند عدم تعيين مفتاح API
+- حركات Framer Motion للبطاقات
+
+**مخطط سيمفونية الذكاء الاصطناعي:**
+- عرض النماذج الستة كبطاقات مع حالة "قادم"
+- Gemini 2.5 Pro, Groq/Llama 3, GLM-4, Ollama Cloud, Claude 4.6, Twelve Data
+
+##### 6. الحزم المشتركة (`@roua/shared`)
+
+أنواع و DTOs مشتركة بين الواجهة والخادم:
+- `UnifiedQuote` — DTO موحد للأسعار
+- `UnifiedCandle` — DTO موحد للبيانات التاريخية
+- `IExchangeAdapter` — واجهة محولات الأسواق
+- `AuthUser` / `AuthSession` — أنواع المصادقة
+- `AuditLogEntry` — نوع سجل المراجعة
+- `AssetType` / `Tier` — أنواع التعداد
+
+#### 🏗️ هيكل الملفات المنشأة/المعدلة
+
+```
+apps/api/src/
+├── main.ts                              # نقطة الدخول (المنفذ 3001)
+├── app.module.ts                        # الوحدة الرئيسية
+├── auth/
+│   ├── auth.module.ts                   # وحدة المصادقة
+│   ├── auth.controller.ts               # مسارات REST
+│   └── auth.service.ts                  # منطق WebAuthn + Redis
+├── exchange/
+│   ├── exchange.module.ts               # وحدة الأسواق
+│   ├── exchange.controller.ts           # مسارات REST المحمية
+│   ├── exchange.service.ts              # خدمة إدارة المحولات
+│   ├── exchange.types.ts                # DTOs و IExchangeAdapter
+│   └── adapters/
+│       └── twelve-data.adapter.ts       # محول Twelve Data الكامل
+├── ai/
+│   ├── ai.module.ts                     # وحدة الذكاء (هيكل)
+│   ├── ai.controller.ts                 # مسارات REST
+│   └── ai.service.ts                    # خدمة AI Orchestrator (هيكل)
+├── portfolio/
+│   ├── portfolio.module.ts              # وحدة المحفظة
+│   ├── portfolio.controller.ts          # مسارات REST المحمية
+│   └── portfolio.service.ts             # خدمة إدارة المحافظ
+├── audit/
+│   ├── audit.module.ts                  # وحدة سجل المراجعة
+│   └── audit.service.ts                 # خدمة التسجيل
+└── common/
+    ├── prisma/
+    │   ├── prisma.module.ts             # Prisma Global Module
+    │   └── prisma.service.ts            # اتصال قاعدة البيانات
+    ├── redis/
+    │   ├── redis.module.ts              # Redis Global Module
+    │   └── redis.service.ts             # اتصال Redis + Rate Limiting + Caching
+    └── guards/
+        └── auth.guard.ts                # حماية المسارات بالجلسة
+
+apps/web/src/
 ├── app/
-│   ├── page.tsx                          # Landing page
-│   ├── layout.tsx                        # RTL Arabic layout
-│   ├── globals.css                       # Roua dark theme
-│   └── api/auth/
-│       ├── register/route.ts             # WebAuthn registration
-│       ├── verify/route.ts               # Credential verification
-│       └── session/route.ts              # Session management
-├── components/auth/
-│   └── passkey-login.tsx                 # Passkey auth component
-prisma/
-└── schema.prisma                         # Full database schema
-docker-compose.yml                        # PostgreSQL + Redis + RabbitMQ
-.env.example                              # Environment template
+│   ├── dashboard/
+│   │   └── page.tsx                     # لوحة القيادة الجديدة ★
+│   └── ...                              # (الملفات الموجودة بدون تغيير)
+├── components/
+│   └── dashboard/
+│       └── market-ticker.tsx            # مكون الأسعار الحية ★
+
+packages/shared/src/
+└── index.ts                             # أنواع مشتركة ★
+
+turbo.json                               # إعدادات Turborepo ★
 ```
 
 #### ⚠️ التحديات والحلول
 
 | التحدي | الحل |
 |--------|------|
-| خطأ ESLint مع `as` في JSX | استخراج متغيرات окmap قبل JSX |
-| قاعدة بيانات SQLite بدلاً من PostgreSQL | استخدام SQLite للتطوير المحلي، PostgreSQL في الإنتاج |
-| محدودية مسار `/` فقط | بناء SPA كامل في صفحة واحدة مع أقسام متعددة |
+| المشروع لم يكن Monorepo | تحويل كامل إلى Turborepo مع نقل Next.js إلى apps/web/ |
+| Prisma schema في الجذر والـ API في apps/api | استخدام مسار مطلق في `db:generate` script |
+| `@types/node` مفقود في apps/web | إضافته يدوياً إلى devDependencies |
+| صلاحيات ملفات package.json (root-owned) | تعديل مباشر عبر أداة الكتابة |
+| تمرير الكوكيز عبر البروكسي | تفعيل `credentials: true` في CORS + إعادة كتابة المسارات |
+| Rate Limiting لـ Twelve Data | تنفيذ عبر Redis INCR+EXPIRE بدلاً من الذاكرة المؤقتة |
+| تخزين تحديات WebAuthn | استخدام Redis بـ TTL 5 دقائق بدلاً من Map |
 
 #### 📋 الخطوات التالية
 
-- [ ] بناء لوحة القيادة (Dashboard) مع بيانات Twelve Data
-- [ ] دمج Google Gemini API للتحليل الإبداعي
-- [ ] دمج Groq API للتحليل العاطفي الفوري
-- [ ] إنشاء خدمة AI Orchestrator
-- [ ] بناء نظام RAG مع pgvector
-- [ ] إضافة Framer Motion animations أكثر تفصيلاً
+- [ ] تشغيل Docker Compose (PostgreSQL + Redis + RabbitMQ)
+- [ ] إضافة مفتاح `TWELVE_DATA_API_KEY` في .env
+- [ ] اختبار مسار `GET /api/exchange/quote/AAPL` مع بيانات حقيقية
+- [ ] دمج Google Gemini API في AIModule
+- [ ] دمج Groq API في AIModule
+- [ ] بناء AI Orchestrator مع توجيه ذكي
+- [ ] نظام RAG مع pgvector
+- [ ] تحويل Prisma من SQLite إلى PostgreSQL
+- [ ] إضافة WebSocket للأسعار الحية (Socket.IO)
+- [ ] بناء صفحة المحفظة (Portfolio)
+- [ ] بناء صفحة الأخبار (News Radar)
 
 ---
 

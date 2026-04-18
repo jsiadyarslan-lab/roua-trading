@@ -53,3 +53,36 @@ Stage Summary:
 - Full database schema ready
 - Docker Compose for production infrastructure
 - All files in /home/z/my-project/
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Build NestJS backend with market abstraction layer (Phase 2 - Backend Infrastructure)
+
+Work Log:
+- Explored existing codebase structure (single Next.js app, not monorepo)
+- Converted project to Turborepo monorepo structure
+- Moved Next.js files to apps/web/ with its own package.json
+- Created root package.json with workspaces and turbo.json
+- Created @roua/shared package with unified DTOs and interfaces
+- Created @roua/api NestJS 11 application at apps/api/
+- Built 5 NestJS modules: Auth, Exchange, AI, Portfolio, Audit
+- Built PrismaService and RedisService as @Global() modules
+- Built AuthGuard for session-based route protection
+- Implemented TwelveDataAdapter with IExchangeAdapter interface
+- Added Redis-based caching (5s quotes, 5min history) and rate limiting (8 req/min)
+- Created ExchangeController with protected REST endpoints
+- Migrated Passkeys logic from Next.js API Routes to NestJS AuthModule
+- Created Dashboard page (/dashboard) with sidebar and stats
+- Built MarketTicker component with 5s auto-refresh for 7 symbols
+- Added API proxy rewrites in Next.js config
+- Both apps compile successfully (next build + nest build)
+- Updated PROGRESS.md with comprehensive session log
+
+Stage Summary:
+- Full Turborepo monorepo: apps/web (Next.js) + apps/api (NestJS) + packages/shared
+- NestJS API running on port 3001 with 5 modules and shared infrastructure
+- TwelveDataAdapter with Redis caching and rate limiting
+- MarketTicker component with live quotes on /dashboard
+- API proxy from Next.js to NestJS for seamless integration
+- All builds pass successfully

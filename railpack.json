@@ -8,6 +8,6 @@
     ]
   },
   "install": {
-    "commands": ["bun install --frozen-lockfile"]
+    "commands": ["bun install"]
   }
 }

@@ -1,3 +1,4 @@
+import path from "path";
 import type { NextConfig } from "next";
 
 // API target for server-side rewrites:
@@ -7,6 +8,11 @@ const apiTarget = process.env.API_INTERNAL_URL || "http://localhost:3001";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Turbopack needs to know the monorepo root to resolve next/package.json
+  // from the workspace app directory (apps/web)
+  turbopack: {
+    root: path.resolve(__dirname, "../.."),
+  },
   typescript: {
     ignoreBuildErrors: true,
   },

@@ -1,23 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '../../[...nextauth]/route'
 import crypto from 'crypto'
 
-// After NextAuth Google sign-in, create a roua_session cookie
-// so the existing passkey-based session system recognizes the user
+/**
+ * Google OAuth → roua_session bridge
+ *
+ * After NextAuth successfully authenticates the user with Google,
+ * this route creates a roua_session cookie so the existing
+ * passkey-based session system recognizes the user.
+ *
+ * This route is called via NextAuth's redirect callback.
+ */
 export async function GET(request: NextRequest) {
   try {
     await ensureDbReady()
 
-    const email = request.nextUrl.searchParams.get('email')
+    // Get the authenticated user from NextAuth session
+    const session = await getServerSession(authOptions)
 
-    if (!email) {
+    if (!session?.user?.email) {
+      console.warn('[Google Callback] No NextAuth session found')
       return NextResponse.redirect(new URL('/?auth=error', request.url))
     }
+
+    const email = session.user.email
 
     const user = await db.user.findUnique({ where: { email } })
 
     if (!user) {
+      console.warn(`[Google Callback] User not found in DB: ${email}`)
       return NextResponse.redirect(new URL('/?auth=error', request.url))
+    }
+
+    // Update avatar from Google if available
+    if (session.user.image && !user.avatar) {
+      try {
+        await db.user.update({
+          where: { id: user.id },
+          data: { avatar: session.user.image },
+        })
+      } catch {
+        // Non-critical
+      }
     }
 
     // Create a session in our custom session system
@@ -45,6 +71,8 @@ export async function GET(request: NextRequest) {
     } catch {
       // Non-critical
     }
+
+    console.log(`[Google Callback] Session created for ${email}`)
 
     // Redirect to dashboard with session cookie
     const response = NextResponse.redirect(new URL('/dashboard', request.url))

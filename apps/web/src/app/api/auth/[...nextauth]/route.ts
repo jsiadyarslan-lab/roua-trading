@@ -57,6 +57,28 @@ export const authOptions: NextAuthOptions = {
       }
       return session
     },
+
+    /**
+     * After successful Google OAuth, redirect to our bridge route
+     * that creates a roua_session cookie (used by the rest of the app).
+     * For non-Google sign-ins or default callbacks, use the standard behavior.
+     */
+    async redirect({ url, baseUrl }) {
+      // If url is our own site (sign-in was successful)
+      if (url.startsWith(baseUrl)) {
+        // After Google sign-in, redirect to our bridge that creates roua_session
+        // Only do this if the URL is the default callback URL (not a custom one)
+        if (url === baseUrl || url === `${baseUrl}/`) {
+          return `${baseUrl}/api/auth/google/callback`
+        }
+        return url
+      }
+      // For external URLs, redirect to our bridge
+      if (url.includes('callbackUrl=')) {
+        return `${baseUrl}/api/auth/google/callback`
+      }
+      return `${baseUrl}/api/auth/google/callback`
+    },
   },
   pages: {
     signIn: '/',

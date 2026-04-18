@@ -21,8 +21,10 @@ setInterval(() => {
 
 // ── WebAuthn Configuration from Environment Variables ──
 function getWebAuthnConfig() {
-  const rpId = process.env.RP_ID || process.env.WEBAUTHN_RP_ID || 'localhost'
+  let rpId = process.env.RP_ID || process.env.WEBAUTHN_RP_ID || 'localhost'
   const rpName = process.env.RP_NAME || 'Roua Trading'
+  // Strip any trailing slash, protocol, or port from rpId
+  rpId = rpId.replace(/\/+$/, '').replace(/^https?:\/\//, '').replace(/:\d+$/, '')
   const origin = process.env.ORIGIN || (rpId === 'localhost' ? 'http://localhost:3000' : `https://${rpId}`)
   return { rpId, rpName, origin }
 }

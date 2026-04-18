@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
+    "start": "node apps/web/.next/standalone/apps/web/server.js",
     "lint": "turbo lint",
     "dev:web": "turbo dev --filter=@roua/web",
     "dev:api": "turbo dev --filter=@roua/api",

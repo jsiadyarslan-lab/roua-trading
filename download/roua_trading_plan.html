@@ -1093,12 +1093,30 @@ roua-trading/
 
   <span class="code-keyword">ai-orchestrator</span>:
     build: { context: ., dockerfile: docker/Dockerfile.ai }
-    depends_on: [redis, rabbitmq]
+    depends_on: [postgres, redis, rabbitmq]
     environment:
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GOOGLE_AI_STUDIO_API_KEY: ${GOOGLE_AI_STUDIO_API_KEY}
       GROQ_API_KEY: ${GROQ_API_KEY}
       GLM_API_KEY: ${GLM_API_KEY}
-      BEDROCK_ACCESS_KEY: ${BEDROCK_ACCESS_KEY}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+
+  <span class="code-keyword">news-service</span>:
+    build: { context: ., dockerfile: docker/Dockerfile.news }
+    depends_on: [postgres, redis, rabbitmq]
+    environment:
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY}
+      STRAPI_URL: ${STRAPI_URL}
+      STRAPI_API_KEY: ${STRAPI_API_KEY}
+
+  <span class="code-keyword">signal-service</span>:
+    build: { context: ., dockerfile: docker/Dockerfile.signal }
+    depends_on: [postgres, redis, rabbitmq]
+    environment:
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
 
 <span class="code-keyword">volumes</span>:
   postgres_data:</div>

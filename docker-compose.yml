@@ -60,6 +60,82 @@ services:
     networks:
       - roua-network
 
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # API — NestJS Backend (Bun runtime)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    container_name: roua-api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      API_PORT: 3001
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-roua_dev_2026}@postgres:5432/roua_trading
+      REDIS_URL: redis://:${REDIS_PASSWORD:-roua_redis_2026}@redis:6379
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-roua}:${RABBITMQ_PASSWORD:-roua_mq_2026}@rabbitmq:5672
+      CORS_ORIGIN: http://localhost:3000
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      GOOGLE_AI_STUDIO_API_KEY: ${GOOGLE_AI_STUDIO_API_KEY}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GLM_API_KEY: ${GLM_API_KEY}
+      TWELVE_DATA_API_KEY: ${TWELVE_DATA_API_KEY}
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bun -e \"fetch('http://localhost:3001/api').catch(() => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    networks:
+      - roua-network
+
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # Web — Next.js Frontend (Node standalone)
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    container_name: roua-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD:-roua_dev_2026}@postgres:5432/roua_trading
+      REDIS_URL: redis://:${REDIS_PASSWORD:-roua_redis_2026}@redis:6379
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      # Internal API URL (Docker network — no rewrites needed)
+      NEXT_PUBLIC_API_URL: http://api:3001/api
+    depends_on:
+      api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+    networks:
+      - roua-network
+
 volumes:
   postgres_data:
     driver: local

@@ -1,6 +1,6 @@
 {
   "$schema": "https://railpack.com/config/file/v1",
-  "start": "node apps/web/.next/standalone/apps/web/server.js",
+  "start": "HOSTNAME=0.0.0.0 node apps/web/.next/standalone/apps/web/server.js",
   "build": {
     "commands": [
       "bunx prisma generate --schema=./prisma/schema.prisma",

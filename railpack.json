@@ -1,0 +1,13 @@
+{
+  "$schema": "https://railpack.com/config/file/v1",
+  "start": "bash start.sh",
+  "build": {
+    "commands": [
+      "bunx prisma generate --schema=./prisma/schema.prisma",
+      "bun run build"
+    ]
+  },
+  "install": {
+    "commands": ["bun install"]
+  }
+}

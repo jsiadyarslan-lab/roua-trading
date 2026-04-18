@@ -7,6 +7,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// To use PostgreSQL in production, set these env vars on Railway:
+// DATABASE_URL=postgresql://user:pass@host:5432/db
+// Then change provider above to "postgresql"
+
 model User {
   id          String   @id @default(cuid())
   email       String   @unique

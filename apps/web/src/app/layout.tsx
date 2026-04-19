@@ -1,29 +1,37 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Cairo, Inter, JetBrains_Mono, Orbitron } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
+const cairo = Cairo({
+  subsets: ["arabic"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-ar",
+});
+
 const inter = Inter({
-  variable: "--font-inter",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-en",
+});
+
+const jetbrains = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["500", "700"],
+  variable: "--font-mono",
+});
+
+const orbitron = Orbitron({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  variable: "--font-brand",
 });
 
 export const metadata: Metadata = {
-  title: "رؤى للتداول — Roua Trading | ببصيرة نحو الأسواق",
-  description:
-    "طبقة ذكاء مالي تربط المتداول بجميع أسواق العالم عبر واجهة واحدة آمنة. مدعومة بسيمفونية من 6 نماذج ذكاء اصطناعي.",
-  keywords: [
-    "Roua Trading",
-    "رؤى للتداول",
-    "تحليل مالي",
-    "ذكاء اصطناعي",
-    "تداول",
-    "فوركس",
-    "عملات رقمية",
-  ],
-  authors: [{ name: "Roua Trading" }],
+  title: "رؤى | منصة التداول الذكية",
+  description: "منصة رؤى للتداول الذكي - Roua Trading Platform",
   icons: {
-    icon: "/logo.svg",
+    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
 };
 
@@ -35,7 +43,7 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" className="dark" suppressHydrationWarning>
       <body
-        className={`${inter.variable} antialiased bg-background text-foreground font-sans`}
+        className={`${cairo.variable} ${inter.variable} ${jetbrains.variable} ${orbitron.variable} antialiased`}
       >
         {children}
         <Toaster />

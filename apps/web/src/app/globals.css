@@ -6,8 +6,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-en);
+  --font-mono: var(--font-mono);
+  --font-ar: var(--font-ar);
+  --font-brand: var(--font-brand);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -43,73 +45,83 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-:root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
+:root,
+[data-theme="dark"] {
+  /* Roua Trading Platform - Dark Theme */
+  --bg-app: #0d1117;
+  --bg-nav: #05070efa;
+  --bg-panel: #111827;
+  --bg-card: #1a2332;
+  --bg-card-hover: #1e2a3d;
+  --bg-chart: #0d1520;
+  --bg-input: #ffffff0a;
+  --bg-sidebar: #05070efa;
+  --bg-ticker: #08090f;
 
-.dark {
-  --background: #0F172A;
-  --foreground: #F1F5F9;
-  --card: #1E293B;
-  --card-foreground: #F1F5F9;
-  --popover: #1E293B;
-  --popover-foreground: #F1F5F9;
-  --primary: #3AAFA9;
-  --primary-foreground: #0F172A;
-  --secondary: #1E293B;
-  --secondary-foreground: #F1F5F9;
-  --muted: #334155;
-  --muted-foreground: #94A3B8;
-  --accent: #4C6EF5;
-  --accent-foreground: #F1F5F9;
-  --destructive: #EF4444;
-  --border: #334155;
-  --input: #334155;
-  --ring: #3AAFA9;
-  --chart-1: #3AAFA9;
-  --chart-2: #4C6EF5;
-  --chart-3: #C6866A;
-  --chart-4: #10B981;
-  --chart-5: #694DBD;
-  --sidebar: #0F172A;
-  --sidebar-foreground: #F1F5F9;
-  --sidebar-primary: #3AAFA9;
-  --sidebar-primary-foreground: #0F172A;
-  --sidebar-accent: #1E293B;
-  --sidebar-accent-foreground: #F1F5F9;
-  --sidebar-border: #334155;
-  --sidebar-ring: #3AAFA9;
+  --border-subtle: #ffffff0f;
+  --border-strong: #ffffff1a;
+  --border-accent: #05966940;
+  --border-profit: #10b98140;
+  --border-loss: #ef444440;
+  --border-warning: #d4af3740;
+
+  --text-main: #e5e7eb;
+  --text-secondary: #94a3b8;
+  --text-muted: #94a3b899;
+
+  --accent: #059669;
+  --accent-bg: #0596690f;
+  --accent-border: #05966940;
+
+  --profit: #10b981;
+  --profit-bg: #10b98114;
+  --loss: #ef4444;
+  --loss-bg: #ef444414;
+
+  --warning: #d4af37;
+  --warning-bg: #d4af3712;
+  --gold: #d4af37;
+  --teal: #0d9488;
+
+  --shadow-card: 0 2px 12px #0000004d;
+  --shadow-lg: 0 8px 40px #0009;
+  --glow-accent: 0 0 12px #0596694d;
+  --glow-profit: 0 0 8px #10b9814d;
+  --glow-loss: 0 0 8px #ef44444d;
+
+  /* shadcn dark theme variables */
+  --radius: 0.625rem;
+  --background: #0d1117;
+  --foreground: #e5e7eb;
+  --card: #1a2332;
+  --card-foreground: #e5e7eb;
+  --popover: #1a2332;
+  --popover-foreground: #e5e7eb;
+  --primary: #059669;
+  --primary-foreground: #ffffff;
+  --secondary: #1e2a3d;
+  --secondary-foreground: #e5e7eb;
+  --muted: #111827;
+  --muted-foreground: #94a3b8;
+  --accent: #059669;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --border: #ffffff1a;
+  --input: #ffffff0a;
+  --ring: #059669;
+  --chart-1: #059669;
+  --chart-2: #10b981;
+  --chart-3: #d4af37;
+  --chart-4: #0d9488;
+  --chart-5: #ef4444;
+  --sidebar: #05070efa;
+  --sidebar-foreground: #e5e7eb;
+  --sidebar-primary: #059669;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #0596690f;
+  --sidebar-accent-foreground: #e5e7eb;
+  --sidebar-border: #ffffff0f;
+  --sidebar-ring: #059669;
 }
 
 @layer base {
@@ -118,5 +130,86 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-ar), var(--font-en), sans-serif;
+    overflow: hidden;
   }
+}
+
+/* Layout Shell - CSS Grid */
+.layout-shell {
+  display: grid;
+  grid-template-areas:
+    "brand header header watchlist"
+    "sidebar chart chart watchlist"
+    "sidebar scanner scanner order"
+    "news news news news";
+  grid-template-columns: auto 1fr 1fr 280px;
+  grid-template-rows: 64px 1fr auto 36px;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
+  background: var(--bg-app);
+}
+
+/* Glass morphism effect */
+.glass {
+  background: rgba(26, 35, 50, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Price typography */
+.price {
+  font-family: var(--font-mono), monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.price.positive {
+  color: var(--profit);
+}
+
+.price.negative {
+  color: var(--loss);
+}
+
+/* News ticker marquee animation */
+@keyframes ql-news {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Pulse glow animation for brand */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 2px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
 }

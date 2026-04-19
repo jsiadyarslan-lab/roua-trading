@@ -9,6 +9,7 @@ import { AiModule } from './modules/ai/ai.module';
 import { PortfolioModule } from './modules/portfolio/portfolio.module';
 import { SignalModule } from './modules/signal/signal.module';
 import { TradingModule } from './modules/trading/trading.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuditModule } from './audit/audit.module';
 
 @Module({
@@ -50,6 +51,7 @@ import { AuditModule } from './audit/audit.module';
     PortfolioModule,
     SignalModule,
     TradingModule,
+    AnalyticsModule,
   ],
 })
 export class AppModule {}

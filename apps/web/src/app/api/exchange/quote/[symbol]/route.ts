@@ -186,11 +186,20 @@ export async function GET(
       return NextResponse.json({ success: true, data: cached, cached: true })
     }
 
-    const isCrypto = symbol.includes('/')
+    // Determine if this is a crypto pair or forex pair
+    // Crypto pairs end with /USDT, /BUSD, /BTC, /ETH, etc.
+    // Forex pairs end with /USD, /EUR, /GBP, /JPY, etc.
+    const quoteCurrency = symbol.includes('/') ? symbol.split('/')[1] : ''
+    const CRYPTO_QUOTE_CURRENCIES = ['USDT', 'BUSD', 'BTC', 'ETH', 'BNB', 'USD']
+    const isCrypto = symbol.includes('/') && CRYPTO_QUOTE_CURRENCIES.includes(quoteCurrency)
+    // Also detect well-known crypto pairs specifically
+    const CRYPTO_BASE_CURRENCIES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
+    const baseCurrency = symbol.includes('/') ? symbol.split('/')[0] : ''
+    const isCryptoPair = isCrypto || CRYPTO_BASE_CURRENCIES.includes(baseCurrency)
 
     let quote
 
-    if (source === 'Binance' || (isCrypto && (!source || source === 'auto'))) {
+    if (source === 'Binance' || (isCryptoPair && (!source || source === 'auto'))) {
       // Crypto → try Binance first
       try {
         quote = await fetchBinance(symbol)
@@ -202,7 +211,7 @@ export async function GET(
           throw new Error(`فشل في جلب بيانات ${symbol}: ${cgErr.message}`)
         }
       }
-    } else if (source === 'TwelveData' || (!isCrypto && (!source || source === 'auto'))) {
+    } else if (source === 'TwelveData' || (!isCryptoPair && (!source || source === 'auto'))) {
       // Stocks/forex/commodities → Twelve Data
       quote = await fetchTwelveData(symbol)
     } else if (source === 'CoinGecko') {
@@ -215,7 +224,7 @@ export async function GET(
     }
 
     // Cache: 5s for crypto, 15s for stocks
-    const ttl = isCrypto ? 5000 : 15000
+    const ttl = isCryptoPair ? 5000 : 15000
     setCache(cacheKey, quote, ttl)
 
     return NextResponse.json({ success: true, data: quote })

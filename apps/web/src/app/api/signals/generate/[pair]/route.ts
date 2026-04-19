@@ -35,10 +35,14 @@ export async function POST(
     let changePercent = 0
 
     try {
-      const isCrypto = pair.includes('/')
+      const quoteCurrency = pair.includes('/') ? pair.split('/')[1] : ''
+      const CRYPTO_QUOTE_CURRENCIES = ['USDT', 'BUSD', 'BTC', 'ETH', 'BNB']
+      const CRYPTO_BASE_CURRENCIES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
+      const baseCurrency = pair.includes('/') ? pair.split('/')[0] : ''
+      const isCryptoPair = CRYPTO_QUOTE_CURRENCIES.includes(quoteCurrency) || CRYPTO_BASE_CURRENCIES.includes(baseCurrency)
       let quoteUrl: string
 
-      if (isCrypto) {
+      if (isCryptoPair) {
         const binanceSymbol = pair.replace('/', '')
         quoteUrl = `https://api.binance.com/api/v3/ticker/24hr?symbol=${encodeURIComponent(binanceSymbol)}`
       } else {
@@ -50,7 +54,7 @@ export async function POST(
       const quoteRes = await fetch(quoteUrl, { next: { revalidate: 5 } })
       if (quoteRes.ok) {
         const quoteData = await quoteRes.json()
-        if (isCrypto) {
+        if (isCryptoPair) {
           entryPrice = parseFloat(quoteData.lastPrice) || null
           changePercent = parseFloat(quoteData.priceChangePercent) || 0
         } else if (!quoteData.status || quoteData.status !== 'error') {

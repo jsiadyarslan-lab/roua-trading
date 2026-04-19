@@ -21,9 +21,14 @@ export async function GET(
     const interval = url.searchParams.get('interval') || '1day'
     const source = url.searchParams.get('source')
 
-    const isCrypto = symbol.includes('/')
+    // Determine if this is a crypto pair or forex pair
+    const quoteCurrency = symbol.includes('/') ? symbol.split('/')[1] : ''
+    const CRYPTO_QUOTE_CURRENCIES = ['USDT', 'BUSD', 'BTC', 'ETH', 'BNB']
+    const CRYPTO_BASE_CURRENCIES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
+    const baseCurrency = symbol.includes('/') ? symbol.split('/')[0] : ''
+    const isCryptoPair = CRYPTO_QUOTE_CURRENCIES.includes(quoteCurrency) || CRYPTO_BASE_CURRENCIES.includes(baseCurrency)
 
-    if (isCrypto) {
+    if (isCryptoPair) {
       // Fetch from Binance
       const binanceSymbol = symbol.replace('/', '')
       const intervalMap: Record<string, string> = {

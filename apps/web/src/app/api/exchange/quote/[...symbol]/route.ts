@@ -44,6 +44,9 @@ function toNum(v: any): number {
   return isNaN(n) ? 0 : n
 }
 
+// ── Known crypto base currencies (used for symbol normalization) ──
+const CRYPTO_BASE_CURRENCIES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
+
 // ── Mock data for when API keys are not configured ──
 const MOCK_QUOTES: Record<string, any> = {
   'AAPL': { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ', currency: 'USD', price: 189.84, change: 1.23, changePercent: 0.65, open: 188.50, high: 190.12, low: 188.10, close: 189.84, volume: 52347890, marketCap: 2950000000000, fiftyTwoWeekHigh: 199.62, fiftyTwoWeekLow: 164.08 },
@@ -261,7 +264,6 @@ export async function GET(
     const CRYPTO_QUOTE_CURRENCIES = ['USDT', 'BUSD'] // NOT USD — forex uses USD too
     const isCrypto = symbol.includes('/') && CRYPTO_QUOTE_CURRENCIES.includes(quoteCurrency)
     // Also detect well-known crypto pairs specifically
-    const CRYPTO_BASE_CURRENCIES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
     const baseCurrency = symbol.includes('/') ? symbol.split('/')[0] : ''
     const isCryptoPair = isCrypto || CRYPTO_BASE_CURRENCIES.includes(baseCurrency)
 

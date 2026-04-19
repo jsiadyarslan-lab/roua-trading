@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, ComponentType } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
@@ -8,7 +8,6 @@ import {
   BarChart3,
   Brain,
   Briefcase,
-  Newspaper,
   Settings,
   LogOut,
   Menu,
@@ -16,6 +15,7 @@ import {
   TrendingUp,
   Zap,
   Shield,
+  AlertTriangle,
 } from 'lucide-react'
 import { MarketTicker } from '@/components/dashboard/market-ticker'
 import { Button } from '@/components/ui/button'
@@ -34,6 +34,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [tickerError, setTickerError] = useState(false)
 
   // Check authentication — try roua_session first, then sync from NextAuth
   useEffect(() => {
@@ -289,14 +290,33 @@ export default function DashboardPage() {
             </Card>
           </motion.div>
 
-          {/* Market Ticker */}
+          {/* Market Ticker — with error boundary */}
           <motion.div
             id="markets"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <MarketTicker symbols={['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'AMZN', 'EUR/USD', 'BTC/USDT']} refreshInterval={5000} />
+            {!tickerError ? (
+              <SafeMarketTicker onError={() => setTickerError(true)} />
+            ) : (
+              <Card className="bg-card border-border">
+                <CardContent className="p-6 text-center">
+                  <AlertTriangle className="w-8 h-8 text-yellow-400 mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">
+                    تعذر تحميل بيانات السوق. يرجى تحديث الصفحة.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => setTickerError(false)}
+                  >
+                    إعادة المحاولة
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </motion.div>
 
           {/* AI Symphony Placeholder */}
@@ -350,4 +370,39 @@ export default function DashboardPage() {
       </main>
     </div>
   )
+}
+
+// ── Safe wrapper for MarketTicker with error boundary ──
+import { Component, ReactNode } from 'react'
+
+interface SafeMarketTickerProps {
+  onError: () => void
+}
+
+interface SafeMarketTickerState {
+  hasError: boolean
+}
+
+class SafeMarketTicker extends Component<SafeMarketTickerProps, SafeMarketTickerState> {
+  constructor(props: SafeMarketTickerProps) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(_: Error): SafeMarketTickerState {
+    return { hasError: true }
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[SafeMarketTicker] Caught error:', error.message)
+    this.props.onError()
+  }
+
+  render() {
+    if (this.state.hasError) {
+      this.props.onError()
+      return null
+    }
+    return <MarketTicker symbols={['AAPL', 'MSFT', 'GOOGL', 'TSLA', 'AMZN', 'EUR/USD', 'BTC/USDT']} refreshInterval={5000} />
+  }
 }

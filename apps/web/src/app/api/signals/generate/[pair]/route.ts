@@ -36,7 +36,7 @@ export async function POST(
 
     try {
       const quoteCurrency = pair.includes('/') ? pair.split('/')[1] : ''
-      const CRYPTO_QUOTE_CURRENCIES = ['USDT', 'BUSD', 'BTC', 'ETH', 'BNB']
+      const CRYPTO_QUOTE_CURRENCIES = ['USDT', 'BUSD'] // NOT USD — forex uses USD too
       const CRYPTO_BASE_CURRENCIES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
       const baseCurrency = pair.includes('/') ? pair.split('/')[0] : ''
       const isCryptoPair = CRYPTO_QUOTE_CURRENCIES.includes(quoteCurrency) || CRYPTO_BASE_CURRENCIES.includes(baseCurrency)

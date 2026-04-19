@@ -102,7 +102,7 @@ async function fetchBinance(symbol: string) {
     symbol,
     name: symbol.replace('/', ' / '),
     exchange: 'Binance',
-    currency: symbol.split('/')[1] || 'USDT',
+    currency: 'USD',
     price: toNum(data.lastPrice),
     change: toNum(data.priceChange),
     changePercent: toNum(data.priceChangePercent),
@@ -187,10 +187,10 @@ export async function GET(
     }
 
     // Determine if this is a crypto pair or forex pair
-    // Crypto pairs end with /USDT, /BUSD, /BTC, /ETH, etc.
-    // Forex pairs end with /USD, /EUR, /GBP, /JPY, etc.
+    // Crypto pairs: BTC/USDT, ETH/USDT, SOL/USDT (quote is USDT/BUSD)
+    // Forex pairs: EUR/USD, GBP/USD, USD/JPY (quote is fiat currency)
     const quoteCurrency = symbol.includes('/') ? symbol.split('/')[1] : ''
-    const CRYPTO_QUOTE_CURRENCIES = ['USDT', 'BUSD', 'BTC', 'ETH', 'BNB', 'USD']
+    const CRYPTO_QUOTE_CURRENCIES = ['USDT', 'BUSD'] // NOT USD — forex uses USD too
     const isCrypto = symbol.includes('/') && CRYPTO_QUOTE_CURRENCIES.includes(quoteCurrency)
     // Also detect well-known crypto pairs specifically
     const CRYPTO_BASE_CURRENCIES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']

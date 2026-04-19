@@ -101,12 +101,23 @@ export function MarketTicker({
   const activeQuotes = useWebSocket ? wsQuotes : pollQuotes
 
   const formatPrice = (price: number, currency: string = 'USD') => {
-    return new Intl.NumberFormat('ar-SA', {
-      style: 'currency',
-      currency: currency === 'USD' ? 'USD' : currency,
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(price)
+    // Normalize crypto currencies to USD — Intl.NumberFormat only accepts ISO 4217 codes
+    const validCurrencies: Record<string, string> = {
+      USDT: 'USD', BUSD: 'USD', USD: 'USD',
+      EUR: 'EUR', GBP: 'GBP', JPY: 'JPY',
+      BTC: 'USD', ETH: 'USD', BNB: 'USD',
+    }
+    const safeCurrency = validCurrencies[currency] || 'USD'
+    try {
+      return new Intl.NumberFormat('ar-SA', {
+        style: 'currency',
+        currency: safeCurrency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: price > 1000 ? 2 : 6,
+      }).format(price)
+    } catch {
+      return `${price.toFixed(2)} ${currency}`
+    }
   }
 
   const formatVolume = (volume: number) => {

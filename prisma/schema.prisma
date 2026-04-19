@@ -214,25 +214,20 @@ enum OrderSide {
 enum OrderType {
   MARKET
   LIMIT
-  STOP_LIMIT
-  TAKE_PROFIT
 }
 
 enum OrderStatus {
   PENDING
   ACCEPTED
-  OPEN
   PARTIALLY_FILLED
   FILLED
   CANCELLED
   REJECTED
-  EXPIRED
 }
 
 enum OrderEventType {
   CREATED
   RISK_REJECTED
-  ACCEPTED
   SENT_TO_EXCHANGE
   FILLED
   CANCELLED
@@ -251,43 +246,41 @@ enum TradeType {
 }
 
 model Order {
-  id               String      @id @default(cuid())
-  userId           String
+  id                  String      @id @default(uuid())
+  userId              String
   exchangeCredentialId String
-  exchange         String
-  symbol           String
-  side             OrderSide
-  type             OrderType
-  status           OrderStatus @default(PENDING)
-  quantity         Float
-  price            Float?
-  stopPrice        Float?
-  stopLoss         Float?
-  takeProfit       Float?
-  filledQuantity   Float       @default(0)
-  averageFillPrice Float?
-  fee              Float?
-  feeCurrency      String?
-  exchangeOrderId  String?
-  rejectReason     String?
-  signalId         String?
-  idempotencyKey   String?
-  clientOrderId    String?
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  user             User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  events           OrderEvent[]
+  exchange            String
+  symbol              String
+  side                OrderSide
+  type                OrderType
+  quantity            Decimal
+  price               Decimal?
+  stopLoss            Decimal?
+  takeProfit          Decimal?
+  status              OrderStatus @default(PENDING)
+  filledQuantity      Decimal     @default(0)
+  averagePrice        Decimal?
+  fee                 Decimal?
+  feeCurrency         String?
+  exchangeOrderId     String?
+  rejectReason        String?
+  signalId            String?
+  idempotencyKey      String      @unique
+  clientOrderId       String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events              OrderEvent[]
 
   @@index([userId])
   @@index([symbol])
   @@index([status])
   @@index([exchange])
   @@index([createdAt])
-  @@index([idempotencyKey])
 }
 
 model OrderEvent {
-  id        String         @id @default(cuid())
+  id        String         @id @default(uuid())
   orderId   String
   eventType OrderEventType
   payload   String?
@@ -328,22 +321,22 @@ model Position {
 }
 
 model Trade {
-  id             String    @id @default(cuid())
-  userId         String
-  orderId        String?
-  positionId     String?
-  exchange       String
-  symbol         String
-  side           OrderSide
-  type           TradeType
-  quantity       Float
-  price          Float
-  fee            Float?
-  feeCurrency    String?
-  pnl            Float?
+  id              String    @id @default(cuid())
+  userId          String
+  orderId         String?
+  positionId      String?
+  exchange        String
+  symbol          String
+  side            OrderSide
+  type            TradeType
+  quantity        Float
+  price           Float
+  fee             Float?
+  feeCurrency     String?
+  pnl             Float?
   exchangeTradeId String?
-  executedAt     DateTime  @default(now())
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  executedAt      DateTime  @default(now())
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([symbol])

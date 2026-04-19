@@ -39,6 +39,21 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * Set a key only if it does not already exist (atomic SET NX).
+   * Returns true if the key was set (did NOT exist before), false if it already existed.
+   * Implements the pattern: redis.set(key, value, 'EX', seconds, 'NX')
+   *
+   * @param key The Redis key
+   * @param value The value to set
+   * @param ttlSeconds Time-to-live in seconds (default: 86400 = 24 hours)
+   * @returns true if lock was acquired, false if key already existed
+   */
+  async setIfNotExists(key: string, value: string, ttlSeconds: number = 86400): Promise<boolean> {
+    const result = await this.client.set(key, value, 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
+  }
+
   async del(key: string): Promise<void> {
     await this.client.del(key);
   }

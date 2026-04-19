@@ -4,8 +4,7 @@
 
 /**
  * Order Command — The input object for creating a new order
- * This is the unified command that flows through the trading pipeline:
- * OrderController → IdempotencyCheck → RiskGatekeeper → OrderStateManager → ExecutionGateway
+ * Flows through: OrderController → IdempotencyCheck → RiskGatekeeper → OrderStateManager → ExecutionGateway
  */
 export class OrderCommand {
   userId: string;
@@ -21,17 +20,6 @@ export class OrderCommand {
   clientOrderId?: string;
   ipAddress?: string;
   userAgent?: string;
-}
-
-/**
- * Order Event — Immutable record of state transitions
- * Stored in OrderEvent table (append-only log)
- */
-export class OrderEventPayload {
-  orderId: string;
-  eventType: OrderEventTypeEnum;
-  payload?: Record<string, any>;
-  timestamp: Date;
 }
 
 /**
@@ -75,7 +63,7 @@ export class PositionInfo {
   openedAt: Date;
 }
 
-// ── Enums ──
+// ── Enums (must match Prisma schema exactly) ──
 
 export enum OrderSideEnum {
   BUY = 'BUY',

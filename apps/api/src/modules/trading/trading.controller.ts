@@ -51,7 +51,8 @@ export class TradingController {
       type: body.type as OrderType,
       quantity: parseFloat(body.quantity),
       price: body.price ? parseFloat(body.price) : undefined,
-      stopPrice: body.stopPrice ? parseFloat(body.stopPrice) : undefined,
+      stopLoss: body.stopLoss ? parseFloat(body.stopLoss) : undefined,
+      takeProfit: body.takeProfit ? parseFloat(body.takeProfit) : undefined,
       signalId: body.signalId,
     };
 
@@ -73,9 +74,7 @@ export class TradingController {
     }
 
     if (
-      !['MARKET', 'LIMIT', 'STOP_LIMIT', 'TAKE_PROFIT'].includes(
-        request.type,
-      )
+      !['MARKET', 'LIMIT'].includes(request.type)
     ) {
       throw new Error('نوع الطلب غير صالح');
     }

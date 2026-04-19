@@ -10,18 +10,15 @@ export enum OrderSide {
 export enum OrderType {
   MARKET = 'MARKET',
   LIMIT = 'LIMIT',
-  STOP_LIMIT = 'STOP_LIMIT',
-  TAKE_PROFIT = 'TAKE_PROFIT',
 }
 
 export enum OrderStatus {
   PENDING = 'PENDING',
-  OPEN = 'OPEN',
+  ACCEPTED = 'ACCEPTED',
   PARTIALLY_FILLED = 'PARTIALLY_FILLED',
   FILLED = 'FILLED',
   CANCELLED = 'CANCELLED',
   REJECTED = 'REJECTED',
-  EXPIRED = 'EXPIRED',
 }
 
 export enum PositionStatus {
@@ -43,7 +40,8 @@ export interface PlaceOrderRequest {
   type: OrderType;
   quantity: number;
   price?: number;
-  stopPrice?: number;
+  stopLoss?: number;
+  takeProfit?: number;
   signalId?: string;
 }
 
@@ -63,7 +61,7 @@ export interface OrderExecutionResult {
   orderId?: string;
   exchangeOrderId?: string;
   filledQuantity?: number;
-  averageFillPrice?: number;
+  averagePrice?: number;
   fee?: number;
   feeCurrency?: string;
   error?: string;

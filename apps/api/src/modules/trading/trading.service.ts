@@ -22,13 +22,19 @@ import {
  * Trading Engine Service — Roua Trading (رؤى)
  *
  * Core trading engine that handles:
- * 1. Order placement (market, limit, stop-limit)
+ * 1. Order placement (market, limit)
  * 2. Order cancellation
  * 3. Position tracking and management
  * 4. Trade execution and recording
  * 5. Integration with exchange APIs via CCXT
  * 6. Risk management checks before execution
  * 7. Automatic position opening/closing
+ *
+ * Note: Order model uses Decimal for quantity, price, stopLoss, takeProfit,
+ * filledQuantity, averagePrice, fee. When writing, pass as number/string
+ * (Prisma accepts both). When reading, Decimal fields return Prisma.Decimal
+ * objects — convert using Number() or .toNumber().
+ * Position and Trade models still use Float types.
  */
 @Injectable()
 export class TradingService {
@@ -139,6 +145,7 @@ export class TradingService {
 
     if (!execution.success) {
       // Record the failed order
+      // idempotencyKey is required (String @unique)
       const order = await this.prisma.order.create({
         data: {
           userId,
@@ -149,9 +156,9 @@ export class TradingService {
           type: request.type as any,
           status: 'REJECTED' as any,
           quantity: request.quantity,
-          price: request.price,
-          stopLoss: request.stopPrice || 0,
-          idempotencyKey: `legacy-${Date.now()}-${Math.random().toString(36).slice(2)}` as any,
+          price: request.price ?? null,
+          stopLoss: request.stopLoss ?? null,
+          idempotencyKey: `legacy-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         },
       });
 
@@ -174,6 +181,8 @@ export class TradingService {
     }
 
     // Step 6: Record successful order
+    // Note: averagePrice (not averageFillPrice) is the correct field name
+    // idempotencyKey is required (String @unique)
     const order = await this.prisma.order.create({
       data: {
         userId,
@@ -187,12 +196,14 @@ export class TradingService {
             ? 'FILLED' as any
             : 'PARTIALLY_FILLED' as any,
         quantity: request.quantity,
-        price: request.price,
-        stopLoss: request.stopPrice || 0,
+        price: request.price ?? null,
+        stopLoss: request.stopLoss ?? null,
         filledQuantity: execution.filledQuantity || 0,
-        averageFillPrice: execution.averageFillPrice,
+        averagePrice: execution.averagePrice,
+        fee: execution.fee ?? null,
+        feeCurrency: execution.feeCurrency ?? null,
         exchangeOrderId: execution.exchangeOrderId,
-        idempotencyKey: `legacy-${Date.now()}-${Math.random().toString(36).slice(2)}` as any,
+        idempotencyKey: `legacy-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       },
     });
 
@@ -209,7 +220,7 @@ export class TradingService {
         side: request.side,
         type: 'ENTRY',
         quantity: execution.filledQuantity || 0,
-        price: execution.averageFillPrice || currentPrice,
+        price: execution.averagePrice || currentPrice,
         fee: execution.fee,
         feeCurrency: execution.feeCurrency,
       },
@@ -237,7 +248,7 @@ export class TradingService {
         type: request.type,
         quantity: request.quantity,
         filledQuantity: execution.filledQuantity,
-        averageFillPrice: execution.averageFillPrice,
+        averagePrice: execution.averagePrice,
         riskScore: riskCheck.riskScore,
       }),
       ipAddress,
@@ -245,7 +256,7 @@ export class TradingService {
     });
 
     this.logger.log(
-      `✅ Order executed: ${order.id} — ${request.side} ${execution.filledQuantity}/${request.quantity} ${request.symbol} @ ${execution.averageFillPrice}`,
+      `✅ Order executed: ${order.id} — ${request.side} ${execution.filledQuantity}/${request.quantity} ${request.symbol} @ ${execution.averagePrice}`,
     );
 
     return order;
@@ -268,7 +279,7 @@ export class TradingService {
       throw new NotFoundException('الطلب غير موجود');
     }
 
-    if (!['PENDING', 'OPEN', 'PARTIALLY_FILLED'].includes(order.status)) {
+    if (!['PENDING', 'ACCEPTED', 'PARTIALLY_FILLED'].includes(order.status)) {
       throw new BadRequestException(
         `لا يمكن إلغاء طلب بحالة "${order.status}"`,
       );
@@ -490,18 +501,20 @@ export class TradingService {
 
     const pnl =
       position.side === 'BUY'
-        ? ((execution.averageFillPrice ||
+        ? ((execution.averagePrice ||
             position.currentPrice ||
             position.entryPrice) -
             position.entryPrice) *
           closeQuantity
         : (position.entryPrice -
-            (execution.averageFillPrice ||
+            (execution.averagePrice ||
               position.currentPrice ||
               position.entryPrice)) *
           closeQuantity;
 
     // Record closing order
+    // Note: averagePrice (not averageFillPrice) is the correct field name
+    // idempotencyKey is required (String @unique)
     const order = await this.prisma.order.create({
       data: {
         userId,
@@ -512,11 +525,13 @@ export class TradingService {
         type: 'MARKET' as any,
         status: 'FILLED' as any,
         quantity: closeQuantity,
-        stopLoss: position.stopLoss || 0,
+        stopLoss: position.stopLoss ?? null,
         filledQuantity: execution.filledQuantity || closeQuantity,
-        averageFillPrice: execution.averageFillPrice,
+        averagePrice: execution.averagePrice,
+        fee: execution.fee ?? null,
+        feeCurrency: execution.feeCurrency ?? null,
         exchangeOrderId: execution.exchangeOrderId,
-        idempotencyKey: `close-${Date.now()}-${Math.random().toString(36).slice(2)}` as any,
+        idempotencyKey: `close-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       },
     });
 
@@ -532,7 +547,7 @@ export class TradingService {
         type: closeQuantity >= position.quantity ? 'EXIT' : 'PARTIAL_EXIT',
         quantity: closeQuantity,
         price:
-          execution.averageFillPrice ||
+          execution.averagePrice ||
           position.currentPrice ||
           position.entryPrice,
         fee: execution.fee,
@@ -633,6 +648,7 @@ export class TradingService {
 
   /**
    * Execute an order on the exchange via CCXT
+   * Only MARKET and LIMIT order types are supported
    */
   private async _executeOnExchange(
     exchangeName: string,
@@ -642,7 +658,7 @@ export class TradingService {
     success: boolean;
     exchangeOrderId?: string;
     filledQuantity?: number;
-    averageFillPrice?: number;
+    averagePrice?: number;
     fee?: number;
     feeCurrency?: string;
     error?: string;
@@ -693,40 +709,6 @@ export class TradingService {
           );
           break;
 
-        case 'STOP_LIMIT':
-          if (!request.price || !request.stopPrice) {
-            return {
-              success: false,
-              error: 'سعر الحد وسعر الوقف مطلوبان لأوامر الوقف المحدد',
-            };
-          }
-          // CCXT unified stop-limit order
-          result = await exchange.createOrder(
-            request.symbol,
-            'stop_limit',
-            request.side.toLowerCase(),
-            request.quantity,
-            request.price,
-            { stopPrice: request.stopPrice },
-          );
-          break;
-
-        case 'TAKE_PROFIT':
-          if (!request.price) {
-            return {
-              success: false,
-              error: 'سعر جني الأرباح مطلوب',
-            };
-          }
-          result = await exchange.createOrder(
-            request.symbol,
-            'take_profit_limit',
-            request.side.toLowerCase(),
-            request.quantity,
-            request.price,
-          );
-          break;
-
         default:
           return {
             success: false,
@@ -738,7 +720,7 @@ export class TradingService {
         success: true,
         exchangeOrderId: result.id,
         filledQuantity: result.filled || 0,
-        averageFillPrice: result.average || result.price,
+        averagePrice: result.average || result.price,
         fee: result.fee?.cost,
         feeCurrency: result.fee?.currency,
       };
@@ -785,7 +767,7 @@ export class TradingService {
     execution: any,
   ) {
     const filledQty = execution.filledQuantity || 0;
-    const fillPrice = execution.averageFillPrice || order.price || 0;
+    const fillPrice = execution.averagePrice || (order.price ? Number(order.price) : 0);
 
     if (filledQty <= 0) return;
 
@@ -839,7 +821,7 @@ export class TradingService {
             currentPrice: fillPrice,
             highestPrice: fillPrice,
             lowestPrice: fillPrice,
-            stopLoss: request.stopPrice || stopLoss,
+            stopLoss: request.stopLoss ?? stopLoss,
             takeProfit,
           },
         });
@@ -888,7 +870,7 @@ export class TradingService {
             currentPrice: fillPrice,
             highestPrice: fillPrice,
             lowestPrice: fillPrice,
-            stopLoss: request.stopPrice || stopLoss,
+            stopLoss: request.stopLoss ?? stopLoss,
             takeProfit,
           },
         });

@@ -4,7 +4,7 @@ import { RedisService } from '../../../common/redis/redis.service';
 /**
  * Idempotency Service — Prevents Duplicate Order Execution
  *
- * Uses Redis SET with NX (Not eXists) flag to ensure that
+ * Uses Redis SET NX EX (atomic) to ensure that
  * each idempotencyKey can only be processed once within a 24-hour window.
  *
  * How it works:
@@ -16,22 +16,23 @@ import { RedisService } from '../../../common/redis/redis.service';
  * │ 5. Key auto-expires after 24 hours                        │
  * └───────────────────────────────────────────────────────────┘
  *
- * Redis command: SET idempotency:{key} 'locked' EX 86400 NX
+ * Redis command: SET idempotency:{key} '{json}' EX 86400 NX
  *
  * This ensures:
  * - Network retries don't create duplicate orders
  * - Client-side double-clicks are prevented
  * - Automatic cleanup after 24 hours
+ * - Atomic operation — no race condition possible
  */
 @Injectable()
 export class IdempotencyService {
   private readonly logger = new Logger(IdempotencyService.name);
 
-  /** TTL: 24 hours in milliseconds */
-  private readonly LOCK_TTL_MS = 24 * 60 * 60 * 1000; // 86400000
-
   /** Key prefix for Redis */
   private readonly KEY_PREFIX = 'idempotency:';
+
+  /** TTL: 24 hours in seconds */
+  private readonly LOCK_TTL_SECONDS = 86400; // 24 hours
 
   constructor(private readonly redisService: RedisService) {
     this.logger.log('🔑 Idempotency Service initialized — duplicate protection active');
@@ -39,38 +40,29 @@ export class IdempotencyService {
 
   /**
    * Check if an idempotency key is already used, and lock it if not.
+   * Uses atomic Redis SET NX EX pattern.
    *
    * @param key The unique idempotency key from the client
-   * @returns true if the lock was acquired (key was NOT used before), false if already exists
+   * @returns true if lock was acquired (key was NOT used before), false if already exists
    *
-   * Implementation: Uses Redis SET with NX (Not eXists) + EX (Expire) flags
-   * This is atomic — no race condition possible
+   * Implementation: Uses RedisService.setIfNotExists(key, value, ttlSeconds)
+   * which executes: SET key value EX ttl NX — atomic, no race condition
    */
   async checkAndLock(key: string): Promise<boolean> {
     const redisKey = `${this.KEY_PREFIX}${key}`;
 
     try {
-      // Use Redis SET with NX and EX flags
-      // SET key value NX EX seconds — only sets if key doesn't exist
-      const result = await this.redisService.set(
+      const acquired = await this.redisService.setIfNotExists(
         redisKey,
-        JSON.stringify({
-          locked: true,
-          lockedAt: new Date().toISOString(),
-        }),
-        this.LOCK_TTL_MS,
+        JSON.stringify({ locked: true, lockedAt: new Date().toISOString() }),
+        this.LOCK_TTL_SECONDS,
       );
 
-      // With our RedisService, set always succeeds (overwrites)
-      // We need to check existence first, then set conditionally
-      const exists = await this.redisService.get(redisKey);
-      if (exists) {
-        // Key already existed before our SET — this is a duplicate
+      if (!acquired) {
         this.logger.warn(`🔑 Duplicate idempotency key detected: ${key}`);
         return false;
       }
 
-      // Key didn't exist, we just set it — lock acquired
       this.logger.debug(`🔑 Idempotency key locked: ${key} (TTL: 24h)`);
       return true;
     } catch (error: any) {

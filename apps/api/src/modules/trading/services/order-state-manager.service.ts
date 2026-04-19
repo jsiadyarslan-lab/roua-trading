@@ -23,6 +23,11 @@ import { OrderCommand, OrderEventTypeEnum, OrderStatusEnum } from '../events/ord
  * - updateOrderStatus: Transitions order state with event logging
  * - findOrderById: Retrieves order with full event history
  * - Immutable event log for compliance and debugging
+ *
+ * Note: Order model uses Decimal for quantity, price, stopLoss, takeProfit,
+ * filledQuantity, averagePrice, fee. When writing, pass as number/string
+ * (Prisma accepts both). When reading, Decimal fields return Prisma.Decimal
+ * objects — convert using Number() or .toNumber().
  */
 @Injectable()
 export class OrderStateManagerService {
@@ -52,6 +57,7 @@ export class OrderStateManagerService {
     const exchangeName = credential?.exchange || 'unknown';
 
     // Create order with PENDING status and initial CREATED event
+    // Decimal fields accept number or string; Prisma handles conversion
     const order = await this.prisma.order.create({
       data: {
         userId: command.userId,
@@ -60,14 +66,14 @@ export class OrderStateManagerService {
         symbol: command.symbol,
         side: command.side as any,
         type: command.type as any,
-        quantity: command.quantity as any,
-        price: command.price ? (command.price as any) : null,
-        stopLoss: command.stopLoss as any,
-        takeProfit: command.takeProfit ? (command.takeProfit as any) : null,
+        quantity: command.quantity,
+        price: command.price ?? null,
+        stopLoss: command.stopLoss,
+        takeProfit: command.takeProfit ?? null,
         status: 'PENDING' as any,
-        filledQuantity: 0 as any,
-        idempotencyKey: command.idempotencyKey as any,
-        clientOrderId: command.clientOrderId as any,
+        filledQuantity: 0,
+        idempotencyKey: command.idempotencyKey,
+        clientOrderId: command.clientOrderId ?? null,
         events: {
           create: {
             eventType: 'CREATED' as any,
@@ -134,13 +140,17 @@ export class OrderStateManagerService {
     const eventType = this._statusToEventType(status);
 
     // Update order status and create event in a transaction
+    // Note: averagePrice (not averageFillPrice) is the correct field name
+    // Decimal fields accept number or string values
     await this.prisma.$transaction([
       this.prisma.order.update({
         where: { id: orderId },
         data: {
           status: status as any,
-          ...(payload?.filledQuantity !== undefined && { filledQuantity: payload.filledQuantity as any }),
-          ...(payload?.averagePrice !== undefined && { averageFillPrice: payload.averagePrice as any }),
+          ...(payload?.filledQuantity !== undefined && { filledQuantity: payload.filledQuantity }),
+          ...(payload?.averagePrice !== undefined && { averagePrice: payload.averagePrice }),
+          ...(payload?.fee !== undefined && { fee: payload.fee }),
+          ...(payload?.feeCurrency !== undefined && { feeCurrency: payload.feeCurrency }),
           ...(payload?.exchangeOrderId !== undefined && { exchangeOrderId: payload.exchangeOrderId }),
         },
       }),

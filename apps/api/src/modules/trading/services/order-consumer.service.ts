@@ -32,6 +32,10 @@ import ccxt from 'ccxt';
  *
  * If RabbitMQ is unavailable, this service can be invoked directly
  * via processOrder() for synchronous fallback execution.
+ *
+ * Note: Order model uses Decimal for quantity, price, filledQuantity,
+ * averagePrice, etc. When reading from Order, convert Decimal to number
+ * using Number(). Position and Trade models still use Float types.
  */
 @Injectable()
 export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
@@ -98,6 +102,7 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
         return { success: false, error: 'الطلب غير موجود' };
       }
 
+      // Convert Decimal status check — status is enum string, not Decimal
       if (order.status !== 'ACCEPTED' && order.status !== 'PENDING') {
         return { success: false, error: `حالة الطلب "${order.status}" لا تسمح بالتنفيذ` };
       }
@@ -243,6 +248,7 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
 
     if (existingPosition) {
       // Add to existing position (average price)
+      // Position model uses Float — no Decimal conversion needed
       const totalQuantity = existingPosition.quantity + filledQuantity;
       const avgPrice =
         (existingPosition.entryPrice * existingPosition.quantity +
@@ -260,6 +266,7 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
       });
     } else {
       // Open new position
+      // Position model uses Float types
       await this.prisma.position.create({
         data: {
           userId: message.userId,
@@ -280,6 +287,7 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
     }
 
     // Record trade
+    // Trade model uses Float types
     await this.prisma.trade.create({
       data: {
         userId: message.userId,

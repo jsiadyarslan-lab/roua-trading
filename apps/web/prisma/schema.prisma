@@ -258,6 +258,7 @@ enum OrderStatus {
 
 enum OrderEventType {
   CREATED
+  ACCEPTED
   RISK_REJECTED
   SENT_TO_EXCHANGE
   FILLED

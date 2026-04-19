@@ -13,7 +13,10 @@ import {
   ForbiddenException,
   BadRequestException,
   Logger,
+  Inject,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { IdempotencyService } from '../services/idempotency.service';
 import { RiskGatekeeperService } from '../services/risk-gatekeeper.service';
 import { OrderStateManagerService } from '../services/order-state-manager.service';
@@ -40,7 +43,7 @@ import {
  * │ 4. Run RiskGatekeeperService checks                             │
  * │    ├─ Failed → RISK_REJECTED event + 403 response              │
  * │    └─ Passed → ACCEPTED event                                   │
- * │ 5. Send to OrderProducerService (RabbitMQ queue)                │
+ * │ 5. Send to execution_queue (BullMQ) for async execution         │
  * │ 6. Return { orderId, status }                                   │
  * └──────────────────────────────────────────────────────────────────┘
  *
@@ -63,8 +66,9 @@ export class OrderController {
     private readonly stateManager: OrderStateManagerService,
     private readonly positionManager: PositionManagerService,
     private readonly orderProducer: OrderProducerService,
+    @InjectQueue('execution_queue') private readonly executionQueue: Queue,
   ) {
-    this.logger.log('📋 Order Controller initialized');
+    this.logger.log('📋 Order Controller initialized (with BullMQ execution_queue)');
   }
 
   /**
@@ -154,29 +158,64 @@ export class OrderController {
       validatedAt: new Date().toISOString(),
     });
 
-    // ── Step 7: Send to RabbitMQ for async execution ──
+    // ── Step 7: Send to BullMQ execution_queue for async execution ──
     try {
-      await this.orderProducer.sendOrder({
-        orderId: order.id,
-        userId: command.userId,
-        exchangeCredentialId: command.exchangeCredentialId,
-        symbol: command.symbol,
-        side: command.side,
-        type: command.type,
-        quantity: command.quantity,
-        price: command.price,
-        stopLoss: command.stopLoss,
-        takeProfit: command.takeProfit,
-        clientOrderId: command.clientOrderId,
-        idempotencyKey: command.idempotencyKey,
-        submittedAt: new Date(),
-      });
-    } catch (error: any) {
-      // Queue submission failed — log but don't fail the request
-      // The order is ACCEPTED and will be picked up by a retry mechanism
-      this.logger.error(
-        `Failed to queue order ${order.id}: ${error.message} — order is ACCEPTED but not yet submitted`,
+      await this.executionQueue.add(
+        'execute',
+        {
+          orderId: order.id,
+          userId: command.userId,
+          exchangeCredentialId: command.exchangeCredentialId,
+          symbol: command.symbol,
+          side: command.side,
+          type: command.type,
+          quantity: command.quantity,
+          price: command.price,
+          stopLoss: command.stopLoss,
+          takeProfit: command.takeProfit,
+          clientOrderId: command.clientOrderId,
+          idempotencyKey: command.idempotencyKey,
+        },
+        {
+          jobId: command.idempotencyKey, // Unique job ID (prevents duplicates)
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 5000,
+          },
+        },
       );
+
+      this.logger.log(`📤 Order ${order.id} added to execution_queue (jobId: ${command.idempotencyKey})`);
+    } catch (queueError: any) {
+      // BullMQ queue submission failed — try RabbitMQ as fallback
+      this.logger.warn(
+        `BullMQ queue failed for ${order.id}: ${queueError.message} — trying RabbitMQ fallback`,
+      );
+
+      try {
+        await this.orderProducer.sendOrder({
+          orderId: order.id,
+          userId: command.userId,
+          exchangeCredentialId: command.exchangeCredentialId,
+          symbol: command.symbol,
+          side: command.side,
+          type: command.type,
+          quantity: command.quantity,
+          price: command.price,
+          stopLoss: command.stopLoss,
+          takeProfit: command.takeProfit,
+          clientOrderId: command.clientOrderId,
+          idempotencyKey: command.idempotencyKey,
+          submittedAt: new Date(),
+        });
+      } catch (rabbitError: any) {
+        // Both queues failed — order is ACCEPTED but not yet submitted
+        // It will be picked up by a retry mechanism or manual reconciliation
+        this.logger.error(
+          `Both queues failed for order ${order.id}. Order is ACCEPTED but not submitted for execution.`,
+        );
+      }
     }
 
     // ── Step 8: Return response ──

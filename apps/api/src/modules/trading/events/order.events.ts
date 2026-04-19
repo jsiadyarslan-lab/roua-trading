@@ -86,6 +86,7 @@ export enum OrderStatusEnum {
 
 export enum OrderEventTypeEnum {
   CREATED = 'CREATED',
+  ACCEPTED = 'ACCEPTED',
   RISK_REJECTED = 'RISK_REJECTED',
   SENT_TO_EXCHANGE = 'SENT_TO_EXCHANGE',
   FILLED = 'FILLED',

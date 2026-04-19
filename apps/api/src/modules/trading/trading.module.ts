@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { BullModule } from '@nestjs/bullmq';
 import { TradingController } from './trading.controller';
 import { TradingService } from './trading.service';
 import { RiskManagerService } from './risk-manager.service';
@@ -45,6 +46,11 @@ import { OrderConsumerService } from './services/order-consumer.service';
     PortfolioModule,
     AnalyticsModule,
     AuditModule,
+
+    // BullMQ queue for order execution (shared with ExecutionModule)
+    BullModule.registerQueue({
+      name: 'execution_queue',
+    }),
   ],
   controllers: [TradingController, OrderController],
   providers: [

@@ -13,6 +13,7 @@
     "db:push": "prisma db push --schema=/home/z/my-project/prisma/schema.prisma"
   },
   "dependencies": {
+    "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
@@ -27,6 +28,7 @@
     "@types/ws": "^8.18.1",
     "amqplib": "^1.0.3",
     "axios": "^1.9.0",
+    "bullmq": "^5.74.1",
     "ccxt": "^4.4.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",

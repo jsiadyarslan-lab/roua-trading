@@ -10,6 +10,7 @@ import { PortfolioModule } from './modules/portfolio/portfolio.module';
 import { SignalModule } from './modules/signal/signal.module';
 import { TradingModule } from './modules/trading/trading.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { ExecutionModule } from './modules/execution/execution.module';
 import { AuditModule } from './audit/audit.module';
 
 @Module({
@@ -50,8 +51,9 @@ import { AuditModule } from './audit/audit.module';
     AiModule,
     PortfolioModule,
     SignalModule,
-    TradingModule,
     AnalyticsModule,
+    TradingModule,
+    ExecutionModule,
   ],
 })
 export class AppModule {}

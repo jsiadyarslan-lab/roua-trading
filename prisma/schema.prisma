@@ -227,6 +227,7 @@ enum OrderStatus {
 
 enum OrderEventType {
   CREATED
+  ACCEPTED
   RISK_REJECTED
   SENT_TO_EXCHANGE
   FILLED
@@ -342,6 +343,35 @@ model Trade {
   @@index([symbol])
   @@index([positionId])
   @@index([executedAt])
+}
+
+// ── Paper Trading Orders (Execution Engine) ──
+model PaperOrder {
+  id              String      @id @default(uuid())
+  userId          String
+  symbol          String
+  side            OrderSide
+  type            OrderType
+  quantity        Decimal
+  price           Decimal?
+  stopLoss        Decimal?
+  takeProfit      Decimal?
+  status          OrderStatus @default(PENDING)
+  filledQuantity   Decimal     @default(0)
+  averagePrice    Decimal?
+  fee             Decimal?
+  feeCurrency     String?
+  slippage        Decimal?
+  idempotencyKey  String      @unique
+  clientOrderId   String?
+  exchangeOrderId String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([status])
+  @@index([createdAt])
 }
 
 // ── WebAuthn Challenge store ──

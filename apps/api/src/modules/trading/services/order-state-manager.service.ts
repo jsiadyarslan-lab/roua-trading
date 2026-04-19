@@ -250,7 +250,7 @@ export class OrderStateManagerService {
   private _statusToEventType(status: string): string {
     const mapping: Record<string, string> = {
       PENDING: 'CREATED',
-      ACCEPTED: 'CREATED',
+      ACCEPTED: 'ACCEPTED',
       PARTIALLY_FILLED: 'FILLED',
       FILLED: 'FILLED',
       CANCELLED: 'CANCELLED',

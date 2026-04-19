@@ -17,6 +17,19 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: false,
   async rewrites() {
+    // Only rewrite /api/ai/* — exchange, signals, and portfolio now have
+    // their own Next.js route handlers (no NestJS backend needed).
+    // To re-enable NestJS rewrites, set API_INTERNAL_URL env var.
+    if (!process.env.API_INTERNAL_URL) {
+      return [
+        {
+          source: "/api/ai/:path*",
+          destination: `${apiTarget}/api/ai/:path*`,
+        },
+      ];
+    }
+
+    // If API_INTERNAL_URL is set, proxy all API routes to NestJS backend
     return [
       {
         source: "/api/exchange/:path*",

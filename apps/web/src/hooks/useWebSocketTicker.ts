@@ -1,7 +1,18 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { io, Socket } from 'socket.io-client'
+
+/**
+ * useWebSocketTicker — Market data hook
+ *
+ * In the current deployment, the NestJS WebSocket server is not running,
+ * so this hook gracefully falls back to polling mode only.
+ * The market-ticker component already handles the polling fallback
+ * when `connected` is false.
+ *
+ * To enable WebSocket in the future, set NEXT_PUBLIC_WS_URL env var
+ * and deploy the NestJS API service alongside Next.js.
+ */
 
 interface TickerData {
   symbol: string
@@ -37,7 +48,9 @@ interface UseWebSocketTickerReturn {
   unsubscribe: (symbol: string) => void
 }
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:3001'
+// Check if WebSocket is explicitly enabled via env var
+const WS_ENABLED = !!process.env.NEXT_PUBLIC_WS_URL
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || ''
 
 export function useWebSocketTicker({
   symbols,
@@ -47,7 +60,7 @@ export function useWebSocketTicker({
 }: UseWebSocketTickerOptions): UseWebSocketTickerReturn {
   const [quotes, setQuotes] = useState<Map<string, TickerData>>(new Map())
   const [connected, setConnected] = useState(false)
-  const socketRef = useRef<Socket | null>(null)
+  const socketRef = useRef<any>(null)
   const subscribedRef = useRef<Set<string>>(new Set())
 
   // Stable callback refs
@@ -56,7 +69,7 @@ export function useWebSocketTicker({
   const onErrorRef = useRef(onError)
   onErrorRef.current = onError
 
-  // Subscribe to a symbol
+  // Subscribe to a symbol (no-op when WS disabled)
   const subscribe = useCallback((symbol: string) => {
     if (socketRef.current?.connected && !subscribedRef.current.has(symbol)) {
       socketRef.current.emit('subscribe', { symbol })
@@ -64,7 +77,7 @@ export function useWebSocketTicker({
     }
   }, [])
 
-  // Unsubscribe from a symbol
+  // Unsubscribe from a symbol (no-op when WS disabled)
   const unsubscribe = useCallback((symbol: string) => {
     if (socketRef.current?.connected && subscribedRef.current.has(symbol)) {
       socketRef.current.emit('unsubscribe', { symbol })
@@ -72,52 +85,64 @@ export function useWebSocketTicker({
     }
   }, [])
 
-  // Initialize WebSocket connection
+  // Initialize WebSocket connection only if WS_ENABLED
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled || !WS_ENABLED) {
+      // WebSocket not available — connected stays false,
+      // which triggers polling fallback in market-ticker
+      return
+    }
 
-    const socket = io(`${WS_URL}/exchange`, {
-      transports: ['websocket', 'polling'],
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: 10,
-      reconnectionDelay: 2000,
-    })
+    // Dynamically import socket.io-client only when WebSocket is enabled
+    let socket: any = null
 
-    socketRef.current = socket
-
-    socket.on('connect', () => {
-      setConnected(true)
-      // Re-subscribe to all tracked symbols on reconnect
-      for (const symbol of subscribedRef.current) {
-        socket.emit('subscribe', { symbol })
-      }
-    })
-
-    socket.on('disconnect', () => {
-      setConnected(false)
-    })
-
-    socket.on('ticker', (payload: { symbol: string; data: TickerData }) => {
-      const { symbol, data } = payload
-      setQuotes((prev) => {
-        const next = new Map(prev)
-        next.set(symbol, data)
-        return next
+    import('socket.io-client').then(({ io }) => {
+      socket = io(`${WS_URL}/exchange`, {
+        transports: ['websocket', 'polling'],
+        autoConnect: true,
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 2000,
       })
-      onTickRef.current?.(symbol, data)
-    })
 
-    socket.on('ticker:error', (payload: { symbol: string; error: string }) => {
-      onErrorRef.current?.(payload.symbol, payload.error)
-    })
+      socketRef.current = socket
 
-    socket.on('connect_error', () => {
-      setConnected(false)
+      socket.on('connect', () => {
+        setConnected(true)
+        for (const symbol of subscribedRef.current) {
+          socket.emit('subscribe', { symbol })
+        }
+      })
+
+      socket.on('disconnect', () => {
+        setConnected(false)
+      })
+
+      socket.on('ticker', (payload: { symbol: string; data: TickerData }) => {
+        const { symbol, data } = payload
+        setQuotes((prev) => {
+          const next = new Map(prev)
+          next.set(symbol, data)
+          return next
+        })
+        onTickRef.current?.(symbol, data)
+      })
+
+      socket.on('ticker:error', (payload: { symbol: string; error: string }) => {
+        onErrorRef.current?.(payload.symbol, payload.error)
+      })
+
+      socket.on('connect_error', () => {
+        setConnected(false)
+      })
+    }).catch((err) => {
+      console.warn('[useWebSocketTicker] Failed to initialize WebSocket:', err)
     })
 
     return () => {
-      socket.disconnect()
+      if (socket) {
+        socket.disconnect()
+      }
       socketRef.current = null
       setConnected(false)
     }
@@ -127,14 +152,12 @@ export function useWebSocketTicker({
   useEffect(() => {
     if (!enabled || !connected) return
 
-    // Subscribe to new symbols
     for (const symbol of symbols) {
       if (!subscribedRef.current.has(symbol)) {
         subscribe(symbol)
       }
     }
 
-    // Unsubscribe from symbols no longer in the list
     for (const symbol of subscribedRef.current) {
       if (!symbols.includes(symbol)) {
         unsubscribe(symbol)

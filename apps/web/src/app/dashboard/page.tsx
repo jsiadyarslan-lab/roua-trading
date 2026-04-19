@@ -89,12 +89,12 @@ export default function DashboardPage() {
   }
 
   const navItems = [
-    { icon: LayoutDashboard, label: 'لوحة القيادة', path: '/dashboard', active: true },
-    { icon: BarChart3, label: 'الأسواق', path: '/dashboard', active: false },
-    { icon: Zap, label: 'إشارات رؤى', path: '/dashboard/signals', active: false },
-    { icon: Shield, label: 'ملاذ المحفظة', path: '/dashboard/sanctuary', active: false },
-    { icon: Brain, label: 'سيمفونية الذكاء', path: '/dashboard', active: false },
-    { icon: Settings, label: 'الإعدادات', path: '/dashboard/settings/exchange', active: false },
+    { icon: LayoutDashboard, label: 'لوحة القيادة', path: '/dashboard', active: true, section: '' },
+    { icon: BarChart3, label: 'الأسواق', path: '/dashboard', active: false, section: 'markets' },
+    { icon: Zap, label: 'إشارات رؤى', path: '/dashboard/signals', active: false, section: '' },
+    { icon: Shield, label: 'ملاذ المحفظة', path: '/dashboard/sanctuary', active: false, section: '' },
+    { icon: Brain, label: 'سيمفونية الذكاء', path: '/dashboard', active: false, section: 'ai-symphony' },
+    { icon: Settings, label: 'الإعدادات', path: '/dashboard/settings/exchange', active: false, section: '' },
   ]
 
   return (
@@ -126,7 +126,14 @@ export default function DashboardPage() {
             {navItems.map((item) => (
               <button
                 key={item.label}
-                onClick={() => router.push(item.path)}
+                onClick={() => {
+                  if (item.section) {
+                    const el = document.getElementById(item.section)
+                    el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  } else {
+                    router.push(item.path)
+                  }
+                }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all ${
                   item.active
                     ? 'bg-teal-500/10 text-teal-400 font-medium'
@@ -284,6 +291,7 @@ export default function DashboardPage() {
 
           {/* Market Ticker */}
           <motion.div
+            id="markets"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
@@ -293,6 +301,7 @@ export default function DashboardPage() {
 
           {/* AI Symphony Placeholder */}
           <motion.div
+            id="ai-symphony"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}

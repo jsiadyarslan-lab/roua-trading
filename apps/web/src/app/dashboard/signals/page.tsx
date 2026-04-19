@@ -51,15 +51,28 @@ export default function SignalsPage() {
   const [generating, setGenerating] = useState<string | null>(null)
   const [error, setError] = useState('')
 
-  // Check auth
+  // Check auth — try roua_session first, then sync from NextAuth
   useEffect(() => {
     async function checkAuth() {
       try {
-        const res = await fetch('/api/auth/session')
-        const data = await res.json()
-        if (!data.authenticated) {
-          router.push('/')
+        // First try our custom session (works for passkey users)
+        const meRes = await fetch('/api/auth/me')
+        const meData = await meRes.json()
+
+        if (meData.authenticated) {
+          return
         }
+
+        // No roua_session — try syncing from NextAuth (for Google OAuth users)
+        const syncRes = await fetch('/api/auth/sync')
+        const syncData = await syncRes.json()
+
+        if (syncData.authenticated) {
+          return
+        }
+
+        // No session at all — go to login
+        router.push('/')
       } catch {
         router.push('/')
       }

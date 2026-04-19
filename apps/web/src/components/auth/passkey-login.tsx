@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { signIn } from 'next-auth/react'
 import { Fingerprint, Shield, X, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
@@ -44,6 +44,17 @@ function GoogleIcon({ className }: { className?: string }) {
 
 export function PasskeyLogin({ onClose }: PasskeyLoginProps) {
   const [authState, setAuthState] = useState<AuthState>('idle')
+
+  // Redirect to dashboard after successful authentication
+  useEffect(() => {
+    if (authState === 'success') {
+      const timer = setTimeout(() => {
+        window.location.href = '/dashboard'
+      }, 1500)
+      return () => clearTimeout(timer)
+    }
+  }, [authState])
+
   const [email, setEmail] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [isRegister, setIsRegister] = useState(true)

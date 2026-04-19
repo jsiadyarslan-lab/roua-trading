@@ -2,38 +2,44 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Bot, Info, Zap, ShieldAlert } from 'lucide-react'
+import { Bot, Info, Zap, ShieldAlert, Brain, TrendingUp, TrendingDown, RefreshCw, Activity, Target } from 'lucide-react'
 
 interface ScannerRow {
   pair: string
   signal: 'BUY' | 'SELL'
   price: string
+  change: string
   score: number
   strength: number
   reason: string
+  timeframe: string
 }
 
 const scannerData: ScannerRow[] = [
-  { pair: 'EUR/USD', signal: 'BUY', price: '1.0847', score: 87, strength: 80, reason: 'EMA 9 عبر فوق EMA 21' },
-  { pair: 'GBP/USD', signal: 'SELL', price: '1.2734', score: 72, strength: 60, reason: 'اختراق مستوى دعم رئيسي' },
-  { pair: 'BTC/USD', signal: 'BUY', price: '67,234', score: 91, strength: 90, reason: 'نمط ابتلاعي صاعد مع حجم عالي' },
-  { pair: 'ETH/USD', signal: 'BUY', price: '3,456', score: 68, strength: 60, reason: 'ارتداد من مستوى فيبوناتشي 61.8%' },
-  { pair: 'XAU/USD', signal: 'SELL', price: '2,341', score: 55, strength: 50, reason: 'تباعد سلبي على RSI' },
+  { pair: 'EUR/USD', signal: 'BUY', price: '1.0847', change: '+0.15%', score: 87, strength: 80, reason: 'EMA 9 عبر فوق EMA 21 — إشارة صعودية قوية', timeframe: '4H' },
+  { pair: 'GBP/USD', signal: 'SELL', price: '1.2734', change: '-0.22%', score: 72, strength: 60, reason: 'اختراق مستوى دعم رئيسي مع حجم متزايد', timeframe: '1H' },
+  { pair: 'BTC/USD', signal: 'BUY', price: '67,234', change: '+2.41%', score: 91, strength: 90, reason: 'نمط ابتلاعي صاعد مع حجم عالي جداً', timeframe: '1D' },
+  { pair: 'ETH/USD', signal: 'BUY', price: '3,456', change: '+1.18%', score: 68, strength: 60, reason: 'ارتداد من مستوى فيبوناتشي 61.8%', timeframe: '4H' },
+  { pair: 'XAU/USD', signal: 'SELL', price: '2,341', change: '-0.34%', score: 55, strength: 50, reason: 'تباعد سلبي على RSI + مقاومة قوية', timeframe: '1H' },
 ]
 
 function StrengthBar({ value }: { value: number }) {
-  const bars = 10
-  const filled = Math.round(value / 10)
+  const bars = 8
+  const filled = Math.round(value / (100 / bars))
   return (
-    <div className="flex items-center gap-0.5">
+    <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
       {Array.from({ length: bars }).map((_, i) => (
         <div
           key={i}
-          className="w-1.5 rounded-sm"
           style={{
-            height: `${8 + (i % 3) * 2}px`,
-            background: i < filled ? (value >= 70 ? 'var(--profit)' : value >= 50 ? 'var(--warning)' : 'var(--loss)') : 'var(--bg-input)',
-            opacity: i < filled ? 1 : 0.3,
+            width: '3px',
+            borderRadius: '1px',
+            height: `${6 + (i % 3) * 2}px`,
+            background: i < filled
+              ? (value >= 70 ? 'var(--profit)' : value >= 50 ? 'var(--warning)' : 'var(--loss)')
+              : 'var(--bg-input)',
+            opacity: i < filled ? 1 : 0.4,
+            transition: 'all 0.3s',
           }}
         />
       ))}
@@ -41,18 +47,42 @@ function StrengthBar({ value }: { value: number }) {
   )
 }
 
-function ScoreBar({ value }: { value: number }) {
+function ScoreRing({ value }: { value: number }) {
   const getColor = () => {
     if (value >= 80) return 'var(--profit)'
     if (value >= 60) return 'var(--warning)'
     return 'var(--loss)'
   }
+  const color = getColor()
+  const circumference = 2 * Math.PI * 14
+  const offset = circumference - (value / 100) * circumference
+
   return (
-    <div className="flex items-center gap-2">
-      <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-input)' }}>
-        <motion.div className="h-full rounded-full" style={{ background: getColor() }} initial={{ width: 0 }} animate={{ width: `${value}%` }} transition={{ duration: 0.8, ease: 'easeOut' }} />
-      </div>
-      <span className="price text-[11px] font-medium" style={{ color: getColor() }}>{value}</span>
+    <div style={{ position: 'relative', width: '32px', height: '32px', flexShrink: 0 }}>
+      <svg width="32" height="32" style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx="16" cy="16" r="14" fill="none" stroke="var(--bg-input)" strokeWidth="3" />
+        <motion.circle
+          cx="16" cy="16" r="14" fill="none"
+          stroke={color}
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+        />
+      </svg>
+      <span style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '8px',
+        fontWeight: 800,
+        fontFamily: 'var(--font-mono)',
+        color,
+      }}>{value}</span>
     </div>
   )
 }
@@ -66,7 +96,6 @@ export default function SmartScanner() {
   const [riskLevel, setRiskLevel] = useState<RiskLevel>('Medium')
   const [loading, setLoading] = useState(false)
 
-  // POST /api/signals/generate/:pair integration
   const generateSignals = async () => {
     setLoading(true)
     try {
@@ -83,79 +112,166 @@ export default function SmartScanner() {
   const strategies: StrategyType[] = ['Scalping', 'Swing', 'Momentum']
   const riskLevels: RiskLevel[] = ['Low', 'Medium', 'High']
 
+  const strategyLabels: Record<StrategyType, string> = {
+    Scalping: 'سكالبينج',
+    Swing: 'سوينج',
+    Momentum: 'زخم',
+  }
+
+  const riskLabels: Record<RiskLevel, string> = {
+    Low: 'منخفضة',
+    Medium: 'متوسطة',
+    High: 'عالية',
+  }
+
   return (
-    <div className="card flex flex-col overflow-hidden" style={{ height: '100%' }}>
-      {/* AI Bot Card */}
-      <div className="px-4 py-2.5 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
-        {/* Row 1: Title + Status + P&L */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Bot size={16} style={{ color: 'var(--accent)' }} />
-              <span className="text-xs font-semibold" style={{ color: 'var(--text-main)' }}>Smart Scanner</span>
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}>500 إشارة</span>
+    <div style={{
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      background: 'var(--bg-card)',
+      border: '1px solid var(--border)',
+      borderRadius: '10px',
+    }}>
+      {/* AI Bot Header */}
+      <div style={{
+        padding: '8px 10px',
+        borderBottom: '1px solid var(--border-subtle)',
+      }}>
+        {/* Row 1: Title + Status + Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{
+              width: '24px',
+              height: '24px',
+              borderRadius: '7px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'linear-gradient(135deg, var(--purple), #FF6B9D)',
+            }}>
+              <Brain size={12} stroke="#fff" strokeWidth={2} />
             </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'var(--font-ar)' }}>الماسح الذكي</span>
+                <span style={{
+                  fontSize: '8px',
+                  fontWeight: 700,
+                  background: 'var(--purple-bg)',
+                  border: '1px solid var(--purple-border)',
+                  color: 'var(--purple)',
+                  padding: '0px 5px',
+                  borderRadius: '6px',
+                }}>AI</span>
+              </div>
+            </div>
+          </div>
 
-            <div style={{ width: '1px', height: '16px', background: 'var(--border-subtle)' }} />
-
-            {/* Status */}
-            <div className="flex items-center gap-1">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {/* Bot status */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '2px 7px',
+              borderRadius: '6px',
+              background: botActive ? 'var(--profit-bg)' : 'var(--bg-input)',
+              border: `1px solid ${botActive ? 'var(--border-profit)' : 'var(--border-subtle)'}`,
+            }}>
               <motion.div
-                className="w-1.5 h-1.5 rounded-full"
-                style={{ background: botActive ? 'var(--profit)' : 'var(--text-muted)' }}
+                style={{
+                  width: '5px',
+                  height: '5px',
+                  borderRadius: '50%',
+                  background: botActive ? 'var(--profit)' : 'var(--text-muted)',
+                }}
                 animate={{ opacity: botActive ? [1, 0.4, 1] : 0.5 }}
                 transition={{ duration: 1.5, repeat: Infinity }}
               />
-              <span className="text-[10px]" style={{ color: botActive ? 'var(--profit)' : 'var(--text-muted)' }}>
+              <span style={{ fontSize: '8.5px', fontWeight: 700, color: botActive ? 'var(--profit)' : 'var(--text-muted)' }}>
                 {botActive ? 'نشط' : 'متوقف'}
               </span>
             </div>
-            <span className="price text-[10px]" style={{ color: 'var(--profit)' }}>+$340 (+0.34%)</span>
-          </div>
 
-          <button
-            className="px-3 py-1 text-[10px] font-medium rounded-md transition-colors"
-            style={{
-              background: botActive ? 'var(--loss-bg)' : 'var(--profit-bg)',
-              color: botActive ? 'var(--loss)' : 'var(--profit)',
-              border: botActive ? '1px solid var(--border-loss)' : '1px solid var(--border-profit)',
-            }}
-            onClick={() => setBotActive(!botActive)}
-          >
-            {botActive ? 'إيقاف' : 'تشغيل'}
-          </button>
+            {/* Toggle button */}
+            <button
+              onClick={() => setBotActive(!botActive)}
+              style={{
+                padding: '3px 8px',
+                borderRadius: '6px',
+                fontSize: '8.5px',
+                fontWeight: 700,
+                fontFamily: 'var(--font-ar)',
+                cursor: 'pointer',
+                background: botActive ? 'var(--loss-bg)' : 'var(--profit-bg)',
+                color: botActive ? 'var(--loss)' : 'var(--profit)',
+                border: botActive ? '1px solid var(--border-loss)' : '1px solid var(--border-profit)',
+              }}
+            >
+              {botActive ? 'إيقاف' : 'تشغيل'}
+            </button>
+          </div>
         </div>
 
-        {/* Row 2: AI Analysis gauge + Strategy + Risk Level */}
-        <div className="flex items-center gap-4">
-          {/* Bullish/Bearish gauge */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-[9px]" style={{ color: 'var(--profit)' }}>صعودي 72%</span>
-            <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--loss-bg)' }}>
-              <div className="h-full rounded-full" style={{ background: 'var(--profit)', width: '72%' }} />
+        {/* Row 2: Bullish/Bearish Gauge */}
+        <div style={{
+          background: 'var(--bg-input)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: '7px',
+          padding: '6px 10px',
+          marginBottom: '6px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <TrendingUp size={10} style={{ color: 'var(--profit)' }} />
+              <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--profit)', fontFamily: 'var(--font-mono)' }} dir="ltr">72%</span>
+              <span style={{ fontSize: '8px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)' }}>صعودي</span>
             </div>
-            <span className="text-[9px]" style={{ color: 'var(--loss)' }}>هبوطي 28%</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: '8px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)' }}>هبوطي</span>
+              <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--loss)', fontFamily: 'var(--font-mono)' }} dir="ltr">28%</span>
+              <TrendingDown size={10} style={{ color: 'var(--loss)' }} />
+            </div>
           </div>
+          <div style={{
+            width: '100%',
+            height: '4px',
+            borderRadius: '2px',
+            overflow: 'hidden',
+            display: 'flex',
+            direction: 'ltr',
+          }}>
+            <div style={{ width: '72%', height: '100%', background: 'var(--profit)', borderRadius: '2px' }} />
+            <div style={{ width: '28%', height: '100%', background: 'var(--loss)', borderRadius: '2px' }} />
+          </div>
+        </div>
 
-          <div style={{ width: '1px', height: '14px', background: 'var(--border-subtle)' }} />
-
-          {/* Strategy Type */}
-          <div className="flex items-center gap-1.5">
-            <Zap size={11} style={{ color: 'var(--warning)' }} />
-            <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>الاستراتيجية:</span>
-            <div className="flex items-center gap-1">
+        {/* Row 3: Strategy + Risk */}
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          {/* Strategy */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }}>
+            <Zap size={10} style={{ color: 'var(--warning)', flexShrink: 0 }} />
+            <div style={{ display: 'flex', gap: '2px', flex: 1 }}>
               {strategies.map((s) => (
                 <button
                   key={s}
-                  className="text-[9px] px-1.5 py-0.5 rounded transition-colors"
+                  onClick={() => setStrategy(s)}
                   style={{
+                    fontSize: '8px',
+                    fontWeight: 600,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-ar)',
                     background: strategy === s ? 'var(--accent-bg)' : 'transparent',
                     color: strategy === s ? 'var(--accent)' : 'var(--text-muted)',
                     border: strategy === s ? '1px solid var(--accent-border)' : '1px solid transparent',
+                    transition: 'all 0.15s',
                   }}
-                  onClick={() => setStrategy(s)}
                 >
-                  {s}
+                  {strategyLabels[s]}
                 </button>
               ))}
             </div>
@@ -163,92 +279,185 @@ export default function SmartScanner() {
 
           <div style={{ width: '1px', height: '14px', background: 'var(--border-subtle)' }} />
 
-          {/* Risk Level */}
-          <div className="flex items-center gap-1.5">
-            <ShieldAlert size={11} style={{ color: 'var(--warning)' }} />
-            <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>المخاطرة:</span>
-            <div className="flex items-center gap-1">
+          {/* Risk */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <ShieldAlert size={10} style={{ color: 'var(--warning)', flexShrink: 0 }} />
+            <div style={{ display: 'flex', gap: '2px' }}>
               {riskLevels.map((r) => (
                 <button
                   key={r}
-                  className="text-[9px] px-1.5 py-0.5 rounded transition-colors"
-                  style={{
-                    background: riskLevel === r ? (r === 'High' ? 'var(--loss-bg)' : r === 'Medium' ? 'var(--warning-bg)' : 'var(--profit-bg)') : 'transparent',
-                    color: riskLevel === r ? (r === 'High' ? 'var(--loss)' : r === 'Medium' ? 'var(--warning)' : 'var(--profit)') : 'var(--text-muted)',
-                    border: riskLevel === r ? '1px solid currentColor' : '1px solid transparent',
-                  }}
                   onClick={() => setRiskLevel(r)}
+                  style={{
+                    fontSize: '8px',
+                    fontWeight: 600,
+                    padding: '2px 6px',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-ar)',
+                    background: riskLevel === r
+                      ? (r === 'High' ? 'var(--loss-bg)' : r === 'Medium' ? 'var(--warning-bg)' : 'var(--profit-bg)')
+                      : 'transparent',
+                    color: riskLevel === r
+                      ? (r === 'High' ? 'var(--loss)' : r === 'Medium' ? 'var(--warning)' : 'var(--profit)')
+                      : 'var(--text-muted)',
+                    border: riskLevel === r ? '1px solid currentColor' : '1px solid transparent',
+                    transition: 'all 0.15s',
+                  }}
                 >
-                  {r === 'Low' ? 'منخفضة' : r === 'Medium' ? 'متوسطة' : 'عالية'}
+                  {riskLabels[r]}
                 </button>
               ))}
             </div>
           </div>
+        </div>
 
-          {/* Refresh signals */}
+        {/* Row 4: P&L + Refresh */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+              <Activity size={9} style={{ color: 'var(--profit)' }} />
+              <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--profit)', fontFamily: 'var(--font-mono)' }} dir="ltr">+$340</span>
+            </div>
+            <span style={{ fontSize: '8px', fontWeight: 600, background: 'var(--profit-bg)', border: '1px solid var(--border-profit)', color: 'var(--profit)', padding: '0px 4px', borderRadius: '3px' }} dir="ltr">+0.34%</span>
+            <span style={{ fontSize: '8px', fontWeight: 700, background: 'var(--accent-bg)', border: '1px solid var(--accent-border)', color: 'var(--accent)', padding: '0px 4px', borderRadius: '3px' }}>500 إشارة</span>
+          </div>
           <button
-            className="text-[9px] px-2 py-0.5 rounded-md transition-colors ml-auto"
-            style={{ background: 'var(--accent-bg)', color: 'var(--accent)', border: '1px solid var(--accent-border)' }}
             onClick={generateSignals}
             disabled={loading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              padding: '3px 8px',
+              borderRadius: '6px',
+              fontSize: '8.5px',
+              fontWeight: 600,
+              fontFamily: 'var(--font-ar)',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              background: 'var(--accent-bg)',
+              color: 'var(--accent)',
+              border: '1px solid var(--accent-border)',
+              opacity: loading ? 0.6 : 1,
+            }}
           >
-            {loading ? '⏳ جارٍ التحديث...' : '🔄 تحديث الإشارات'}
+            <RefreshCw size={9} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+            {loading ? 'جارٍ التحديث...' : 'تحديث'}
           </button>
         </div>
       </div>
 
-      {/* Scanner table */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {/* Table header */}
-        <div className="grid grid-cols-5 gap-2 px-4 py-2 text-[10px] font-medium border-b" style={{ color: 'var(--text-muted)', borderColor: 'var(--border-subtle)' }}>
-          <span>الزوج</span>
-          <span>الإشارة</span>
-          <span>السعر</span>
-          <span>النتيجة</span>
-          <span>القوة</span>
+      {/* Scanner Table */}
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }} className="custom-scrollbar">
+        {/* Table Header */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1.2fr 0.6fr 0.8fr 0.6fr 0.8fr',
+          padding: '5px 10px',
+          borderBottom: '1px solid var(--border-subtle)',
+          background: 'rgba(0,0,0,0.06)',
+        }}>
+          {['الزوج', 'الإشارة', 'السعر', 'النتيجة', 'القوة'].map(h => (
+            <span key={h} style={{ fontSize: '8.5px', fontWeight: 700, color: 'var(--text-faint)', fontFamily: 'var(--font-ar)' }}>{h}</span>
+          ))}
         </div>
 
-        {/* Table rows */}
+        {/* Table Rows */}
         {scannerData.map((row, i) => (
           <motion.div
             key={row.pair}
-            className="grid grid-cols-5 gap-2 px-4 py-2 items-center transition-colors hover:bg-[var(--bg-card-hover)] border-b"
-            style={{ borderColor: 'var(--border-subtle)' }}
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1.2fr 0.6fr 0.8fr 0.6fr 0.8fr',
+              padding: '6px 10px',
+              alignItems: 'center',
+              borderBottom: '1px solid var(--border-subtle)',
+              cursor: 'pointer',
+              transition: 'background 0.15s',
+            }}
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.05 }}
+            whileHover={{ background: 'var(--bg-row-hover)' }}
           >
             {/* Pair */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-semibold" style={{ color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>{row.pair}</span>
-              <div className="group relative">
-                <Info size={11} style={{ color: 'var(--text-muted)' }} className="cursor-help" />
-                <div
-                  className="absolute bottom-full right-0 mb-1 px-2 py-1 rounded text-[9px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50"
-                  style={{ background: 'var(--bg-card)', color: 'var(--text-secondary)', border: '1px solid var(--border-subtle)', boxShadow: 'var(--shadow-card)' }}
-                >
-                  {row.reason}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{
+                width: '22px',
+                height: '22px',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: row.signal === 'BUY' ? 'var(--profit-bg)' : 'var(--loss-bg)',
+                border: `1px solid ${row.signal === 'BUY' ? 'var(--border-profit)' : 'var(--border-loss)'}`,
+                flexShrink: 0,
+              }}>
+                {row.signal === 'BUY'
+                  ? <TrendingUp size={10} style={{ color: 'var(--profit)' }} />
+                  : <TrendingDown size={10} style={{ color: 'var(--loss)' }} />
+                }
+              </div>
+              <div>
+                <div dir="ltr" style={{ fontSize: '10px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{row.pair}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                  <span style={{ fontSize: '7px', fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>{row.timeframe}</span>
+                  <div className="group" style={{ position: 'relative' }}>
+                    <Info size={8} style={{ color: 'var(--text-faint)', cursor: 'help' }} />
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '100%',
+                      right: 0,
+                      marginBottom: '4px',
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      fontSize: '8.5px',
+                      whiteSpace: 'nowrap',
+                      opacity: 0,
+                      pointerEvents: 'none',
+                      zIndex: 50,
+                      background: 'var(--bg-tooltip)',
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--border)',
+                      boxShadow: 'var(--shadow)',
+                      fontFamily: 'var(--font-ar)',
+                    }}
+                      className="tooltip-hover"
+                    >
+                      {row.reason}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Signal */}
-            <span
-              className="text-[10px] font-bold px-2 py-0.5 rounded text-center w-fit"
-              style={{
-                background: row.signal === 'BUY' ? 'var(--profit-bg)' : 'var(--loss-bg)',
-                color: row.signal === 'BUY' ? 'var(--profit)' : 'var(--loss)',
-                border: row.signal === 'BUY' ? '1px solid var(--border-profit)' : '1px solid var(--border-loss)',
-              }}
-            >
+            <span style={{
+              fontSize: '8.5px',
+              fontWeight: 800,
+              padding: '2px 6px',
+              borderRadius: '4px',
+              textAlign: 'center',
+              fontFamily: 'var(--font-ar)',
+              background: row.signal === 'BUY' ? 'var(--profit-bg)' : 'var(--loss-bg)',
+              color: row.signal === 'BUY' ? 'var(--profit)' : 'var(--loss)',
+              border: `1px solid ${row.signal === 'BUY' ? 'var(--border-profit)' : 'var(--border-loss)'}`,
+            }}>
               {row.signal === 'BUY' ? 'شراء' : 'بيع'}
             </span>
 
             {/* Price */}
-            <span className="price text-xs" style={{ color: 'var(--text-main)' }}>{row.price}</span>
+            <div>
+              <div dir="ltr" style={{ fontSize: '10px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{row.price}</div>
+              <div dir="ltr" style={{
+                fontSize: '8px',
+                fontWeight: 600,
+                fontFamily: 'var(--font-mono)',
+                color: row.change.startsWith('+') ? 'var(--profit)' : 'var(--loss)',
+              }}>{row.change}</div>
+            </div>
 
             {/* Score */}
-            <ScoreBar value={row.score} />
+            <ScoreRing value={row.score} />
 
             {/* Strength */}
             <StrengthBar value={row.strength} />

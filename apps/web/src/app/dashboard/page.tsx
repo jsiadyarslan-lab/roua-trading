@@ -67,19 +67,63 @@ export default function DashboardPage() {
 
           {/* Positions panel */}
           <div style={{ gridArea: 'positions', minHeight: 0 }}>
-            <div className="card" style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, padding: 0 }}>
-              <div className="panel-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="panel-title">المراكز المفتوحة</span>
-                  <span style={{ fontSize: '9px', fontWeight: 800, background: 'rgba(10,132,255,0.15)', border: '1px solid rgba(10,132,255,0.3)', color: '#0A84FF', padding: '1px 6px', borderRadius: '12px' }}>0</span>
-                </div>
+            <div style={{
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0,
+              padding: 0,
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: '10px',
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 12px',
+                background: 'rgba(0,0,0,0.06)',
+                borderBottom: '1px solid var(--border-subtle)',
+              }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '9px', color: 'rgba(128,144,168,0.5)' }}>إجمالي P&L:</span>
-                  <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--profit)', textShadow: '0 0 6px rgba(0,255,198,0.5)' }} dir="ltr">+$0.00</span>
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'linear-gradient(135deg, var(--warning), #FF8C00)',
+                  }}>
+                    <TrendingUp size={10} stroke="#fff" strokeWidth={2} />
+                  </div>
+                  <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--text-main)', fontFamily: 'var(--font-ar)' }}>المراكز المفتوحة</span>
+                  <span style={{ fontSize: '8px', fontWeight: 800, background: 'var(--accent-bg)', border: '1px solid var(--accent-border)', color: 'var(--accent)', padding: '0px 5px', borderRadius: '6px' }}>0</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ fontSize: '8px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar)' }}>إجمالي P&L:</span>
+                  <span style={{ fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--profit)', textShadow: '0 0 6px rgba(0,255,198,0.4)' }} dir="ltr">+$0.00</span>
                 </div>
               </div>
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-                <p style={{ color: 'var(--text-faint)', fontSize: '12px', fontFamily: 'var(--font-ar)' }}>لا توجد مراكز مفتوحة</p>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 8px',
+                    opacity: 0.5,
+                  }}>
+                    <TrendingUp size={16} style={{ color: 'var(--text-muted)' }} />
+                  </div>
+                  <p style={{ color: 'var(--text-faint)', fontSize: '10px', fontFamily: 'var(--font-ar)' }}>لا توجد مراكز مفتوحة</p>
+                </div>
               </div>
             </div>
           </div>

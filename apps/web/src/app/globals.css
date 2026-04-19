@@ -258,12 +258,12 @@
 /* ── Animation Keyframes ── */
 @keyframes ql-news {
   0% { transform: translateX(0); }
-  100% { transform: translateX(50%); }
+  100% { transform: translateX(-50%); }
 }
 
 @keyframes ql-ticker {
   0% { transform: translateX(0); }
-  100% { transform: translateX(50%); }
+  100% { transform: translateX(-50%); }
 }
 
 @keyframes orbit-cw {
@@ -380,4 +380,35 @@
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+}
+
+/* ── Tooltip Hover ── */
+.tooltip-hover {
+  transition: opacity 0.15s;
+}
+.group:hover .tooltip-hover {
+  opacity: 1 !important;
+}
+
+/* ── Row Hover ── */
+.bg-row-hover:hover {
+  background: var(--bg-row-hover);
+}
+
+/* ── Spin Animation ── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── Shimmer Loading Effect ── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, var(--bg-input) 25%, var(--bg-card) 50%, var(--bg-input) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
 }

@@ -26,6 +26,10 @@ const nextConfig: NextConfig = {
           source: "/api/ai/:path*",
           destination: `${apiTarget}/api/ai/:path*`,
         },
+        {
+          source: "/api/trading/:path*",
+          destination: `${apiTarget}/api/trading/:path*`,
+        },
       ];
     }
 
@@ -46,6 +50,10 @@ const nextConfig: NextConfig = {
       {
         source: "/api/signals/:path*",
         destination: `${apiTarget}/api/signals/:path*`,
+      },
+      {
+        source: "/api/trading/:path*",
+        destination: `${apiTarget}/api/trading/:path*`,
       },
     ];
   },

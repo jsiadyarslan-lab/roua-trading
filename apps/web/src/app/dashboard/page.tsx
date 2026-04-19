@@ -16,6 +16,7 @@ import {
   Zap,
   Shield,
   AlertTriangle,
+  Activity,
 } from 'lucide-react'
 import { MarketTicker } from '@/components/dashboard/market-ticker'
 import { Button } from '@/components/ui/button'
@@ -94,6 +95,8 @@ export default function DashboardPage() {
     { icon: BarChart3, label: 'الأسواق', path: '/dashboard', active: false, section: 'markets' },
     { icon: Zap, label: 'إشارات رؤى', path: '/dashboard/signals', active: false, section: '' },
     { icon: Shield, label: 'ملاذ المحفظة', path: '/dashboard/sanctuary', active: false, section: '' },
+    { icon: Activity, label: 'محرك التداول', path: '/dashboard/trading', active: false, section: '' },
+    { icon: Briefcase, label: 'المراكز المفتوحة', path: '/dashboard/positions', active: false, section: '' },
     { icon: Brain, label: 'سيمفونية الذكاء', path: '/dashboard', active: false, section: 'ai-symphony' },
     { icon: Settings, label: 'الإعدادات', path: '/dashboard/settings/exchange', active: false, section: '' },
   ]
@@ -229,7 +232,7 @@ export default function DashboardPage() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4"
           >
             <Card className="bg-card border-border">
               <CardContent className="p-4">
@@ -240,6 +243,24 @@ export default function DashboardPage() {
                   </div>
                   <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center">
                     <BarChart3 className="w-5 h-5 text-teal-400" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card
+              className="bg-card border-border cursor-pointer hover:border-emerald-500/30 transition-colors"
+              onClick={() => router.push('/dashboard/trading')}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-muted-foreground">محرك التداول</p>
+                    <p className="text-2xl font-bold mt-1">0</p>
+                    <p className="text-[10px] text-muted-foreground">مراكز مفتوحة</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                    <Activity className="w-5 h-5 text-emerald-400" />
                   </div>
                 </div>
               </CardContent>

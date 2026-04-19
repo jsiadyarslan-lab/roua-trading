@@ -8,6 +8,7 @@ import { ExchangeModule } from './modules/exchange/exchange.module';
 import { AiModule } from './modules/ai/ai.module';
 import { PortfolioModule } from './modules/portfolio/portfolio.module';
 import { SignalModule } from './modules/signal/signal.module';
+import { TradingModule } from './modules/trading/trading.module';
 import { AuditModule } from './audit/audit.module';
 
 @Module({
@@ -48,6 +49,7 @@ import { AuditModule } from './audit/audit.module';
     AiModule,
     PortfolioModule,
     SignalModule,
+    TradingModule,
   ],
 })
 export class AppModule {}

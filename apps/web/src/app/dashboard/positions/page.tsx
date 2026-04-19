@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, startTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
-  ArrowRight,
   Loader2,
   AlertTriangle,
   TrendingUp,
@@ -18,26 +17,8 @@ import {
   Edit3,
   BarChart3,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { useAuth } from '@/hooks/useAuth'
+import SubPageLayout from '@/components/dashboard/SubPageLayout'
 
 // ── Types ──
 interface Position {
@@ -61,66 +42,65 @@ interface PositionSummary {
   realizedPnl: number
 }
 
-// ── Constants ──
 const EXCHANGES = ['الكل', 'binance', 'kucoin', 'bybit', 'okx', 'gate']
 const SYMBOLS = ['الكل', 'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT']
 
+// ── Stat Card Component ──
+function StatCard({ icon, label, value, subValue, color, gradientFrom, gradientTo }: {
+  icon: React.ReactNode
+  label: string
+  value: string
+  subValue?: string
+  color: string
+  gradientFrom: string
+  gradientTo: string
+}) {
+  return (
+    <div style={{
+      background: 'var(--bg-card)',
+      border: '1px solid var(--border)',
+      borderRadius: '10px',
+      padding: '14px',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      <div style={{ position: 'absolute', top: 0, right: 0, width: '50px', height: '50px', background: gradientFrom, filter: 'blur(32px)', opacity: 0.15, pointerEvents: 'none' }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+        <div style={{
+          width: '26px', height: '26px', borderRadius: '7px',
+          background: `linear-gradient(135deg, ${gradientFrom}, ${gradientTo})`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {icon}
+        </div>
+        <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{label}</span>
+      </div>
+      <div dir="ltr" style={{ fontSize: '20px', fontWeight: 800, fontFamily: 'var(--font-mono)', color, letterSpacing: '-0.02em' }}>{value}</div>
+      {subValue && <div style={{ fontSize: '9px', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'var(--font-ar)', marginTop: '3px' }}>{subValue}</div>}
+    </div>
+  )
+}
+
 export default function PositionsPage() {
   const router = useRouter()
+  const { loading: authLoading } = useAuth()
 
-  // Auth
-  const [authChecked, setAuthChecked] = useState(false)
-
-  // Data
   const [positions, setPositions] = useState<Position[]>([])
   const [summary, setSummary] = useState<PositionSummary | null>(null)
   const [loading, setLoading] = useState(true)
   const [apiUnavailable, setApiUnavailable] = useState(false)
-
-  // Filters
   const [filterExchange, setFilterExchange] = useState('الكل')
   const [filterSymbol, setFilterSymbol] = useState('الكل')
-
-  // Dialogs
   const [closeDialog, setCloseDialog] = useState<Position | null>(null)
   const [editDialog, setEditDialog] = useState<Position | null>(null)
   const [closing, setClosing] = useState(false)
   const [updating, setUpdating] = useState(false)
-
-  // Close form
   const [closeQuantity, setCloseQuantity] = useState('')
   const [closeError, setCloseError] = useState('')
-
-  // Edit form
   const [editStopLoss, setEditStopLoss] = useState('')
   const [editTakeProfit, setEditTakeProfit] = useState('')
   const [editError, setEditError] = useState('')
 
-  // ── Auth check ──
-  useEffect(() => {
-    async function checkAuth() {
-      try {
-        const meRes = await fetch('/api/auth/me')
-        const meData = await meRes.json()
-        if (meData.authenticated) {
-          setAuthChecked(true)
-          return
-        }
-        const syncRes = await fetch('/api/auth/sync')
-        const syncData = await syncRes.json()
-        if (syncData.authenticated) {
-          setAuthChecked(true)
-          return
-        }
-        router.push('/')
-      } catch {
-        router.push('/')
-      }
-    }
-    checkAuth()
-  }, [router])
-
-  // ── Fetch positions ──
   const fetchPositions = useCallback(async () => {
     setLoading(true)
     try {
@@ -138,7 +118,6 @@ export default function PositionsPage() {
     }
   }, [])
 
-  // ── Fetch summary ──
   const fetchSummary = useCallback(async () => {
     try {
       const res = await fetch('/api/trading/positions/summary')
@@ -146,62 +125,44 @@ export default function PositionsPage() {
         const data = await res.json()
         setSummary(data.data || data.summary || null)
       }
-    } catch {
-      // Gracefully handle
-    }
+    } catch { /* */ }
   }, [])
 
   useEffect(() => {
-    if (authChecked) {
-      startTransition(() => {
-        fetchPositions()
-        fetchSummary()
-      })
-    }
-  }, [authChecked])
+    startTransition(() => {
+      fetchPositions()
+      fetchSummary()
+    })
+  }, [])
 
-  // ── Open close dialog with full quantity default ──
   const openCloseDialog = (pos: Position) => {
     setCloseQuantity(pos.quantity.toString())
     setCloseError('')
     setCloseDialog(pos)
   }
 
-  // ── Close position ──
   const handleClosePosition = async () => {
     if (!closeDialog) return
     setClosing(true)
     setCloseError('')
-
     const qty = closeQuantity ? parseFloat(closeQuantity) : closeDialog.quantity
     const isPartial = qty < closeDialog.quantity
-
     try {
       const body: Record<string, unknown> = { positionId: closeDialog.id }
-      if (isPartial && qty > 0) {
-        body.quantity = qty
-      }
-
+      if (isPartial && qty > 0) body.quantity = qty
       const res = await fetch('/api/trading/positions/close', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-
       if (res.ok) {
         if (isPartial) {
-          // Update position with reduced quantity
-          setPositions((prev) =>
-            prev.map((p) =>
-              p.id === closeDialog.id
-                ? { ...p, quantity: p.quantity - qty }
-                : p
-            )
-          )
+          setPositions((prev) => prev.map((p) => p.id === closeDialog.id ? { ...p, quantity: p.quantity - qty } : p))
         } else {
           setPositions((prev) => prev.filter((p) => p.id !== closeDialog.id))
         }
         fetchSummary()
+        setCloseDialog(null)
       } else {
         const data = await res.json()
         throw new Error(data.error || 'فشل في إغلاق المركز')
@@ -210,42 +171,31 @@ export default function PositionsPage() {
       setCloseError(err.message)
     } finally {
       setClosing(false)
-      if (!closeError) {
-        setCloseDialog(null)
-      }
     }
   }
 
-  // ── Update SL/TP ──
+  const openEditDialog = (pos: Position) => {
+    setEditStopLoss(pos.stopLoss?.toString() || '')
+    setEditTakeProfit(pos.takeProfit?.toString() || '')
+    setEditError('')
+    setEditDialog(pos)
+  }
+
   const handleUpdateLevels = async () => {
     if (!editDialog) return
     setUpdating(true)
     setEditError('')
-
     try {
       const body: Record<string, unknown> = {}
       if (editStopLoss) body.stopLoss = parseFloat(editStopLoss)
       if (editTakeProfit) body.takeProfit = parseFloat(editTakeProfit)
-
       const res = await fetch(`/api/trading/positions/${editDialog.id}/levels`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
-
       if (res.ok) {
-        // Update locally
-        setPositions((prev) =>
-          prev.map((p) =>
-            p.id === editDialog.id
-              ? {
-                  ...p,
-                  stopLoss: editStopLoss ? parseFloat(editStopLoss) : p.stopLoss,
-                  takeProfit: editTakeProfit ? parseFloat(editTakeProfit) : p.takeProfit,
-                }
-              : p
-          )
-        )
+        setPositions((prev) => prev.map((p) => p.id === editDialog.id ? { ...p, stopLoss: editStopLoss ? parseFloat(editStopLoss) : p.stopLoss, takeProfit: editTakeProfit ? parseFloat(editTakeProfit) : p.takeProfit } : p))
         setEditDialog(null)
       } else {
         const data = await res.json()
@@ -258,15 +208,6 @@ export default function PositionsPage() {
     }
   }
 
-  // ── Open edit dialog with current values ──
-  const openEditDialog = (pos: Position) => {
-    setEditStopLoss(pos.stopLoss?.toString() || '')
-    setEditTakeProfit(pos.takeProfit?.toString() || '')
-    setEditError('')
-    setEditDialog(pos)
-  }
-
-  // ── Helpers ──
   const formatCurrency = (value: number) =>
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(value)
 
@@ -276,7 +217,6 @@ export default function PositionsPage() {
     return value.toFixed(6)
   }
 
-  // ── Filtered positions ──
   const filteredPositions = positions.filter((pos) => {
     if (filterExchange !== 'الكل' && pos.exchange !== filterExchange) return false
     if (filterSymbol !== 'الكل' && pos.symbol !== filterSymbol) return false
@@ -285,571 +225,347 @@ export default function PositionsPage() {
 
   const totalUnrealizedPnl = filteredPositions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)
 
-  if (!authChecked) {
+  if (authLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-app)' }}>
+        <Loader2 className="animate-spin" style={{ width: 32, height: 32, color: 'var(--accent)' }} />
       </div>
     )
   }
 
+  // ── Select-like filter button ──
+  const FilterSelect = ({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+      <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'var(--font-ar)' }}>{label}:</span>
+      <div style={{ display: 'flex', gap: '2px', background: 'var(--bg-input)', borderRadius: '6px', padding: '2px' }}>
+        {options.map((opt) => (
+          <button
+            key={opt}
+            onClick={() => onChange(opt)}
+            style={{
+              padding: '3px 8px',
+              borderRadius: '4px',
+              fontSize: '9px',
+              fontWeight: 600,
+              fontFamily: opt === 'الكل' ? 'var(--font-ar)' : 'var(--font-mono)',
+              cursor: 'pointer',
+              border: 'none',
+              background: value === opt ? 'var(--accent)' : 'transparent',
+              color: value === opt ? '#fff' : 'var(--text-muted)',
+              transition: 'all 0.15s',
+            }}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+
   return (
-    <div className="min-h-screen bg-background" dir="rtl">
-      <div className="max-w-[1400px] mx-auto p-4 md:p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
-              <Briefcase className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">المراكز المفتوحة</h1>
-              <p className="text-sm text-muted-foreground">
-                إدارة وتتبع المراكز النشطة
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {apiUnavailable && (
-              <Badge variant="outline" className="text-xs border-yellow-500/30 text-yellow-400">
-                <AlertTriangle className="w-3 h-3 ml-1" />
-                API غير متاح
-              </Badge>
-            )}
-            <Button
-              onClick={() => { fetchPositions(); fetchSummary() }}
-              variant="outline"
-              size="sm"
-              className="border-border"
-            >
-              <RefreshCw className="w-4 h-4 ml-1" />
-              تحديث
-            </Button>
-          </div>
+    <SubPageLayout
+      title="المراكز المفتوحة"
+      icon={<Briefcase size={14} color="#fff" />}
+      iconBg="linear-gradient(135deg, #FFB800, #FF8C00)"
+      actions={
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {apiUnavailable && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', fontWeight: 600, color: 'var(--warning)', background: 'var(--warning-bg)', border: '1px solid var(--border-warning)', padding: '3px 8px', borderRadius: '6px' }}>
+              <AlertTriangle size={10} /> API غير متاح
+            </span>
+          )}
+          <button
+            onClick={() => { fetchPositions(); fetchSummary() }}
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 12px', borderRadius: '7px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-ar)', cursor: 'pointer' }}
+          >
+            <RefreshCw size={11} /> تحديث
+          </button>
         </div>
+      }
+    >
+      {/* Summary Cards */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}>
+        <StatCard
+          icon={<BarChart3 size={12} stroke="#fff" strokeWidth={2} />}
+          label="إجمالي المراكز"
+          value={String(summary?.totalPositions ?? positions.length)}
+          gradientFrom="#00FFC6"
+          gradientTo="#00B894"
+          color="var(--text-main)"
+        />
+        <StatCard
+          icon={<Briefcase size={12} stroke="#fff" strokeWidth={2} />}
+          label="القيمة الإجمالية"
+          value={formatCurrency(summary?.totalValue ?? 0)}
+          gradientFrom="#FFB800"
+          gradientTo="#FF8C00"
+          color="var(--text-main)"
+        />
+        <StatCard
+          icon={<Activity size={12} stroke="#fff" strokeWidth={2} />}
+          label="أ.خ غير محققة"
+          value={`${(summary?.unrealizedPnl ?? totalUnrealizedPnl) >= 0 ? '+' : ''}${formatCurrency(summary?.unrealizedPnl ?? totalUnrealizedPnl)}`}
+          gradientFrom="#00FFC6"
+          gradientTo="#0A84FF"
+          color={(summary?.unrealizedPnl ?? totalUnrealizedPnl) >= 0 ? 'var(--profit)' : 'var(--loss)'}
+        />
+        <StatCard
+          icon={<Target size={12} stroke="#fff" strokeWidth={2} />}
+          label="الأرباح المحققة"
+          value={`${(summary?.realizedPnl ?? 0) >= 0 ? '+' : ''}${formatCurrency(summary?.realizedPnl ?? 0)}`}
+          gradientFrom="#A259FF"
+          gradientTo="#7C3AED"
+          color={(summary?.realizedPnl ?? 0) >= 0 ? 'var(--profit)' : 'var(--loss)'}
+        />
+      </motion.div>
 
-        {/* Summary Cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-2 lg:grid-cols-4 gap-4"
-        >
-          <Card className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <BarChart3 className="w-4 h-4 text-teal-400" />
-                <p className="text-xs text-muted-foreground">إجمالي المراكز</p>
-              </div>
-              <p className="text-2xl font-bold">{summary?.totalPositions ?? positions.length}</p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Briefcase className="w-4 h-4 text-amber-400" />
-                <p className="text-xs text-muted-foreground">القيمة الإجمالية</p>
-              </div>
-              <p className="text-2xl font-bold" dir="ltr">
-                {formatCurrency(summary?.totalValue ?? 0)}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Activity className="w-4 h-4 text-emerald-400" />
-                <p className="text-xs text-muted-foreground">الأرباح/الخسائر غير المحققة</p>
-              </div>
-              <p className={`text-2xl font-bold ${
-                (summary?.unrealizedPnl ?? totalUnrealizedPnl) >= 0 ? 'text-emerald-400' : 'text-red-400'
-              }`} dir="ltr">
-                {(summary?.unrealizedPnl ?? totalUnrealizedPnl) >= 0 ? '+' : ''}
-                {formatCurrency(summary?.unrealizedPnl ?? totalUnrealizedPnl)}
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Target className="w-4 h-4 text-purple-400" />
-                <p className="text-xs text-muted-foreground">الأرباح المحققة</p>
-              </div>
-              <p className={`text-2xl font-bold ${
-                (summary?.realizedPnl ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
-              }`} dir="ltr">
-                {(summary?.realizedPnl ?? 0) >= 0 ? '+' : ''}
-                {formatCurrency(summary?.realizedPnl ?? 0)}
-              </p>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Filters */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Card className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs text-muted-foreground">البورصة:</Label>
-                  <Select value={filterExchange} onValueChange={setFilterExchange}>
-                    <SelectTrigger className="w-[130px] bg-background h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {EXCHANGES.map((ex) => (
-                        <SelectItem key={ex} value={ex}>{ex === 'الكل' ? 'الكل' : ex}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Label className="text-xs text-muted-foreground">الزوج:</Label>
-                  <Select value={filterSymbol} onValueChange={setFilterSymbol}>
-                    <SelectTrigger className="w-[130px] bg-background h-8 text-xs">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SYMBOLS.map((sym) => (
-                        <SelectItem key={sym} value={sym}>{sym}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Positions Table */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Card className="bg-card border-border">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-amber-400" />
-                  المراكز
-                  <Badge variant="outline" className="text-xs mr-1">
-                    {filteredPositions.length}
-                  </Badge>
-                </CardTitle>
-                {filteredPositions.length > 0 && (
-                  <div className="text-left">
-                    <p className="text-xs text-muted-foreground">الإجمالي</p>
-                    <p className={`text-sm font-bold ${totalUnrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`} dir="ltr">
-                      {totalUnrealizedPnl >= 0 ? '+' : ''}{formatCurrency(totalUnrealizedPnl)}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="text-center py-12">
-                  <Loader2 className="w-8 h-8 text-muted-foreground mx-auto animate-spin" />
-                  <p className="text-sm text-muted-foreground mt-3">جارٍ التحميل...</p>
-                </div>
-              ) : apiUnavailable ? (
-                <div className="text-center py-12">
-                  <AlertTriangle className="w-10 h-10 text-yellow-400 mx-auto mb-4 opacity-50" />
-                  <p className="text-sm text-muted-foreground mb-2">محرك التداول غير متاح حالياً</p>
-                  <p className="text-xs text-muted-foreground">تأكد من تشغيل خادم NestJS على المنفذ 3001</p>
-                </div>
-              ) : filteredPositions.length === 0 ? (
-                <div className="text-center py-12">
-                  <Briefcase className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-20" />
-                  <p className="font-medium mb-1">لا توجد مراكز مفتوحة</p>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {positions.length > 0
-                      ? 'لا توجد مراكز تطابق عوامل التصفية'
-                      : 'ابدأ بالتداول لرؤية المراكز هنا'}
-                  </p>
-                  {positions.length === 0 && (
-                    <Button
-                      onClick={() => router.push('/dashboard/trading')}
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white"
-                    >
-                      <Activity className="w-4 h-4 ml-2" />
-                      الانتقال للتداول
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <>
-                  {/* Desktop Table */}
-                  <div className="hidden md:block overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-border">
-                          <th className="text-right py-3 px-2 text-xs text-muted-foreground font-medium">الزوج</th>
-                          <th className="text-right py-3 px-2 text-xs text-muted-foreground font-medium">البورصة</th>
-                          <th className="text-right py-3 px-2 text-xs text-muted-foreground font-medium">الاتجاه</th>
-                          <th className="text-right py-3 px-2 text-xs text-muted-foreground font-medium">الكمية</th>
-                          <th className="text-right py-3 px-2 text-xs text-muted-foreground font-medium">سعر الدخول</th>
-                          <th className="text-right py-3 px-2 text-xs text-muted-foreground font-medium">السعر الحالي</th>
-                          <th className="text-right py-3 px-2 text-xs text-muted-foreground font-medium">ر/خ</th>
-                          <th className="text-right py-3 px-2 text-xs text-muted-foreground font-medium">وقف الخسارة</th>
-                          <th className="text-right py-3 px-2 text-xs text-muted-foreground font-medium">جني الأرباح</th>
-                          <th className="text-right py-3 px-2 text-xs text-muted-foreground font-medium">إجراءات</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredPositions.map((pos) => (
-                          <tr key={pos.id} className="border-b border-border/50 hover:bg-accent/30 transition-colors">
-                            <td className="py-3 px-2">
-                              <div className="flex items-center gap-2">
-                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ${
-                                  pos.side === 'LONG'
-                                    ? 'bg-emerald-500/10 text-emerald-400'
-                                    : 'bg-red-500/10 text-red-400'
-                                }`}>
-                                  {pos.symbol.slice(0, 2)}
-                                </div>
-                                <span className="font-medium" dir="ltr">{pos.symbol}</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-2">
-                              <Badge variant="outline" className="text-xs">{pos.exchange}</Badge>
-                            </td>
-                            <td className="py-3 px-2">
-                              <Badge className={`text-xs border-0 ${
-                                pos.side === 'LONG'
-                                  ? 'bg-emerald-500/10 text-emerald-400'
-                                  : 'bg-red-500/10 text-red-400'
-                              }`}>
-                                {pos.side === 'LONG' ? 'شراء' : 'بيع'}
-                              </Badge>
-                            </td>
-                            <td className="py-3 px-2" dir="ltr">{pos.quantity}</td>
-                            <td className="py-3 px-2" dir="ltr">{formatPrice(pos.entryPrice)}</td>
-                            <td className="py-3 px-2" dir="ltr">{formatPrice(pos.currentPrice)}</td>
-                            <td className="py-3 px-2">
-                              <span className={`font-medium ${
-                                (pos.unrealizedPnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
-                              }`} dir="ltr">
-                                {(pos.unrealizedPnl || 0) >= 0 ? '+' : ''}{formatCurrency(pos.unrealizedPnl || 0)}
-                              </span>
-                            </td>
-                            <td className="py-3 px-2">
-                              {pos.stopLoss ? (
-                                <span className="text-red-400" dir="ltr">{formatPrice(pos.stopLoss)}</span>
-                              ) : (
-                                <span className="text-muted-foreground text-xs">—</span>
-                              )}
-                            </td>
-                            <td className="py-3 px-2">
-                              {pos.takeProfit ? (
-                                <span className="text-emerald-400" dir="ltr">{formatPrice(pos.takeProfit)}</span>
-                              ) : (
-                                <span className="text-muted-foreground text-xs">—</span>
-                              )}
-                            </td>
-                            <td className="py-3 px-2">
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => openEditDialog(pos)}
-                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-teal-400"
-                                >
-                                  <Edit3 className="w-3.5 h-3.5" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => openCloseDialog(pos)}
-                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-red-400"
-                                >
-                                  <XCircle className="w-3.5 h-3.5" />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Mobile Cards */}
-                  <div className="md:hidden space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar">
-                    {filteredPositions.map((pos) => (
-                      <div
-                        key={pos.id}
-                        className="p-4 rounded-lg bg-background border border-border"
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                              pos.side === 'LONG'
-                                ? 'bg-emerald-500/10 text-emerald-400'
-                                : 'bg-red-500/10 text-red-400'
-                            }`}>
-                              {pos.side === 'LONG' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-                            </div>
-                            <div>
-                              <p className="font-medium" dir="ltr">{pos.symbol}</p>
-                              <div className="flex items-center gap-2">
-                                <Badge className={`text-[10px] border-0 ${
-                                  pos.side === 'LONG'
-                                    ? 'bg-emerald-500/10 text-emerald-400'
-                                    : 'bg-red-500/10 text-red-400'
-                                }`}>
-                                  {pos.side === 'LONG' ? 'شراء' : 'بيع'}
-                                </Badge>
-                                <Badge variant="outline" className="text-[10px]">{pos.exchange}</Badge>
-                              </div>
-                            </div>
-                          </div>
-                          <p className={`text-lg font-bold ${
-                            (pos.unrealizedPnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
-                          }`} dir="ltr">
-                            {(pos.unrealizedPnl || 0) >= 0 ? '+' : ''}{formatCurrency(pos.unrealizedPnl || 0)}
-                          </p>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-2 mb-3">
-                          <div className="p-2 rounded bg-card border border-border/50">
-                            <p className="text-[10px] text-muted-foreground">الكمية</p>
-                            <p className="text-xs font-medium" dir="ltr">{pos.quantity}</p>
-                          </div>
-                          <div className="p-2 rounded bg-card border border-border/50">
-                            <p className="text-[10px] text-muted-foreground">سعر الدخول</p>
-                            <p className="text-xs font-medium" dir="ltr">{formatPrice(pos.entryPrice)}</p>
-                          </div>
-                          <div className="p-2 rounded bg-card border border-border/50">
-                            <p className="text-[10px] text-muted-foreground">السعر الحالي</p>
-                            <p className="text-xs font-medium" dir="ltr">{formatPrice(pos.currentPrice)}</p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-2 mb-3">
-                          <div className="p-2 rounded bg-red-500/5 border border-red-500/10">
-                            <p className="text-[10px] text-red-400">وقف الخسارة</p>
-                            <p className="text-xs font-medium text-red-400" dir="ltr">
-                              {pos.stopLoss ? formatPrice(pos.stopLoss) : '—'}
-                            </p>
-                          </div>
-                          <div className="p-2 rounded bg-emerald-500/5 border border-emerald-500/10">
-                            <p className="text-[10px] text-emerald-400">جني الأرباح</p>
-                            <p className="text-xs font-medium text-emerald-400" dir="ltr">
-                              {pos.takeProfit ? formatPrice(pos.takeProfit) : '—'}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEditDialog(pos)}
-                            className="flex-1 text-xs border-teal-500/30 text-teal-400"
-                          >
-                            <Edit3 className="w-3 h-3 ml-1" />
-                            تعديل SL/TP
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openCloseDialog(pos)}
-                            className="flex-1 text-xs border-red-500/30 text-red-400"
-                          >
-                            <XCircle className="w-3 h-3 ml-1" />
-                            إغلاق
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Disclaimer */}
-        <div className="p-4 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-muted-foreground">
-              إدارة المراكز تتطلب اتصالاً بخادم التداول. رؤى لا تلمس أموالك أبداً — نحن ننفذ الأوامر فقط من خلال مفاتيح API المشفرة.
-            </p>
-          </div>
-        </div>
-
-        {/* Back */}
-        <Button
-          variant="ghost"
-          onClick={() => router.push('/dashboard')}
-          className="text-muted-foreground"
-        >
-          <ArrowRight className="w-4 h-4 ml-2" />
-          العودة للوحة القيادة
-        </Button>
+      {/* Filters */}
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+        <FilterSelect label="البورصة" value={filterExchange} onChange={setFilterExchange} options={EXCHANGES} />
+        <FilterSelect label="الزوج" value={filterSymbol} onChange={setFilterSymbol} options={SYMBOLS} />
       </div>
 
-      {/* Close Position Confirmation Dialog (with partial close) */}
-      <Dialog open={!!closeDialog} onOpenChange={(open) => !open && setCloseDialog(null)}>
-        <DialogContent className="bg-card border-border" dir="rtl">
-          <DialogHeader>
-            <DialogTitle>تأكيد إغلاق المركز</DialogTitle>
-            <DialogDescription>
-              هل أنت متأكد من إغلاق مركز {closeDialog?.symbol}؟ يمكنك إغلاق المركز بالكامل أو جزئياً.
-            </DialogDescription>
-          </DialogHeader>
-          {closeDialog && (
-            <>
-              <div className="grid grid-cols-2 gap-3 my-4">
-                <div className="p-3 rounded-lg bg-background border border-border">
-                  <p className="text-[10px] text-muted-foreground">الاتجاه</p>
-                  <p className={`text-sm font-medium ${closeDialog.side === 'LONG' ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {closeDialog.side === 'LONG' ? 'شراء' : 'بيع'}
-                  </p>
-                </div>
-                <div className="p-3 rounded-lg bg-background border border-border">
-                  <p className="text-[10px] text-muted-foreground">الكمية الحالية</p>
-                  <p className="text-sm font-medium">{closeDialog.quantity}</p>
-                </div>
-                <div className="p-3 rounded-lg bg-background border border-border">
-                  <p className="text-[10px] text-muted-foreground">سعر الدخول</p>
-                  <p className="text-sm font-medium" dir="ltr">{formatPrice(closeDialog.entryPrice)}</p>
-                </div>
-                <div className="p-3 rounded-lg bg-background border border-border">
-                  <p className="text-[10px] text-muted-foreground">ر/خ غير محقق</p>
-                  <p className={`text-sm font-bold ${
-                    (closeDialog.unrealizedPnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
-                  }`} dir="ltr">
-                    {formatCurrency(closeDialog.unrealizedPnl || 0)}
-                  </p>
-                </div>
+      {/* Positions */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', overflow: 'hidden' }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderBottom: '1px solid var(--border-subtle)', background: 'rgba(0,0,0,0.06)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '24px', height: '24px', borderRadius: '7px', background: 'linear-gradient(135deg, #FFB800, #FF8C00)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Briefcase size={11} stroke="#fff" strokeWidth={2} />
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs">كمية الإغلاق (اتركها للإغلاق الكامل)</Label>
-                <Input
-                  type="number"
-                  value={closeQuantity}
-                  onChange={(e) => setCloseQuantity(e.target.value)}
-                  placeholder={`الحد الأقصى: ${closeDialog.quantity}`}
-                  min={0}
-                  max={closeDialog.quantity}
-                  step={0.001}
-                  dir="ltr"
-                  className="bg-background"
-                />
-                {closeQuantity && parseFloat(closeQuantity) < closeDialog.quantity && parseFloat(closeQuantity) > 0 && (
-                  <p className="text-[10px] text-yellow-400">
-                    ⚠ إغلاق جزئي — سيبقى {closeDialog.quantity - parseFloat(closeQuantity)} {closeDialog.symbol} مفتوحاً
-                  </p>
-                )}
-                {closeQuantity && parseFloat(closeQuantity) > closeDialog.quantity && (
-                  <p className="text-[10px] text-red-400">
-                    الكمية تتجاوز المركز المتاح
-                  </p>
-                )}
-              </div>
-            </>
-          )}
-          {closeError && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-              <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
-              <p className="text-xs text-red-400">{closeError}</p>
+              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'var(--font-ar)' }}>المراكز</span>
+              <span style={{ fontSize: '8px', fontWeight: 700, background: 'var(--accent-bg)', border: '1px solid var(--accent-border)', color: 'var(--accent)', padding: '0px 5px', borderRadius: '6px' }}>{filteredPositions.length}</span>
             </div>
-          )}
-          <DialogFooter className="flex-row gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setCloseDialog(null)}
-              className="flex-1"
-            >
-              إلغاء
-            </Button>
-            <Button
-              onClick={handleClosePosition}
-              disabled={closing || (closeQuantity ? parseFloat(closeQuantity) > (closeDialog?.quantity || 0) || parseFloat(closeQuantity) <= 0 : false)}
-              className="flex-1 bg-red-500 hover:bg-red-600 text-white"
-            >
-              {closing ? (
-                <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-              ) : (
-                <XCircle className="w-4 h-4 ml-2" />
-              )}
-              {closeQuantity && parseFloat(closeQuantity) < (closeDialog?.quantity || 0) ? 'إغلاق جزئي' : 'إغلاق المركز'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit SL/TP Dialog */}
-      <Dialog open={!!editDialog} onOpenChange={(open) => !open && setEditDialog(null)}>
-        <DialogContent className="bg-card border-border" dir="rtl">
-          <DialogHeader>
-            <DialogTitle>تعديل مستويات الوقف والأرباح</DialogTitle>
-            <DialogDescription>
-              تحديث مستويات وقف الخسارة وجني الأرباح لمركز {editDialog?.symbol}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 my-4">
-            <div className="space-y-2">
-              <Label>وقف الخسارة (Stop Loss)</Label>
-              <Input
-                type="number"
-                value={editStopLoss}
-                onChange={(e) => setEditStopLoss(e.target.value)}
-                placeholder={editDialog?.stopLoss ? formatPrice(editDialog.stopLoss) : 'أدخل سعر الوقف'}
-                dir="ltr"
-                className="bg-background"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>جني الأرباح (Take Profit)</Label>
-              <Input
-                type="number"
-                value={editTakeProfit}
-                onChange={(e) => setEditTakeProfit(e.target.value)}
-                placeholder={editDialog?.takeProfit ? formatPrice(editDialog.takeProfit) : 'أدخل سعر الجني'}
-                dir="ltr"
-                className="bg-background"
-              />
-            </div>
-            {editError && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
-                <p className="text-xs text-red-400">{editError}</p>
+            {filteredPositions.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar)' }}>الإجمالي:</span>
+                <span dir="ltr" style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: totalUnrealizedPnl >= 0 ? 'var(--profit)' : 'var(--loss)' }}>
+                  {totalUnrealizedPnl >= 0 ? '+' : ''}{formatCurrency(totalUnrealizedPnl)}
+                </span>
               </div>
             )}
           </div>
-          <DialogFooter className="flex-row gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setEditDialog(null)}
-              className="flex-1"
-            >
-              إلغاء
-            </Button>
-            <Button
-              onClick={handleUpdateLevels}
-              disabled={updating}
-              className="flex-1 bg-teal-500 hover:bg-teal-600 text-white"
-            >
-              {updating ? (
-                <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-              ) : (
-                <Shield className="w-4 h-4 ml-2" />
+
+          {/* Content */}
+          <div style={{ minHeight: '200px' }}>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '48px' }}>
+                <Loader2 className="animate-spin" style={{ width: 28, height: 28, color: 'var(--accent)', margin: '0 auto 12px' }} />
+                <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)' }}>جارٍ التحميل...</p>
+              </div>
+            ) : apiUnavailable ? (
+              <div style={{ textAlign: 'center', padding: '48px' }}>
+                <AlertTriangle size={36} style={{ color: 'var(--warning)', margin: '0 auto 12px', opacity: 0.4 }} />
+                <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-ar)' }}>محرك التداول غير متاح حالياً</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)', marginTop: '4px' }}>تأكد من تشغيل خادم NestJS على المنفذ 3001</p>
+              </div>
+            ) : filteredPositions.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', opacity: 0.4 }}>
+                  <Briefcase size={22} style={{ color: 'var(--text-muted)' }} />
+                </div>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-ar)' }}>لا توجد مراكز مفتوحة</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)', marginTop: '4px' }}>
+                  {positions.length > 0 ? 'لا توجد مراكز تطابق عوامل التصفية' : 'ابدأ بالتداول لرؤية المراكز هنا'}
+                </p>
+                {positions.length === 0 && (
+                  <button onClick={() => router.push('/dashboard/trading')} style={{ marginTop: '16px', padding: '8px 20px', borderRadius: '8px', border: 'none', background: 'var(--accent)', color: '#fff', fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-ar)', cursor: 'pointer', boxShadow: 'var(--glow-accent)' }}>
+                    <Activity size={12} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: '6px' }} />
+                    الانتقال للتداول
+                  </button>
+                )}
+              </div>
+            ) : (
+              /* Desktop Table */
+              <div className="custom-scrollbar" style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                      {['الزوج', 'البورصة', 'الاتجاه', 'الكمية', 'سعر الدخول', 'السعر الحالي', 'ر/خ', 'وقف الخسارة', 'جني الأرباح', 'إجراءات'].map(h => (
+                        <th key={h} style={{ padding: '8px 10px', fontSize: '9px', fontWeight: 700, color: 'var(--text-faint)', fontFamily: 'var(--font-ar)', textAlign: 'right', background: 'rgba(0,0,0,0.06)' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPositions.map((pos) => (
+                      <tr key={pos.id} style={{ borderBottom: '1px solid var(--border-subtle)', transition: 'background 0.15s' }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-row-hover)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <td style={{ padding: '8px 10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{
+                              width: '26px', height: '26px', borderRadius: '7px',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              background: pos.side === 'LONG' ? 'linear-gradient(135deg, #00FFC6, #00B894)' : 'linear-gradient(135deg, #FF4D4D, #FF6B6B)',
+                            }}>
+                              {pos.side === 'LONG' ? <TrendingUp size={11} stroke="#fff" strokeWidth={2} /> : <TrendingDown size={11} stroke="#fff" strokeWidth={2} />}
+                            </div>
+                            <span dir="ltr" style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{pos.symbol}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '8px 10px' }}>
+                          <span style={{ fontSize: '9px', fontWeight: 600, background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', padding: '2px 7px', borderRadius: '5px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{pos.exchange}</span>
+                        </td>
+                        <td style={{ padding: '8px 10px' }}>
+                          <span style={{ fontSize: '9px', fontWeight: 800, padding: '2px 8px', borderRadius: '5px', fontFamily: 'var(--font-ar)', background: pos.side === 'LONG' ? 'var(--profit-bg)' : 'var(--loss-bg)', color: pos.side === 'LONG' ? 'var(--profit)' : 'var(--loss)', border: `1px solid ${pos.side === 'LONG' ? 'var(--border-profit)' : 'var(--border-loss)'}` }}>
+                            {pos.side === 'LONG' ? 'شراء' : 'بيع'}
+                          </span>
+                        </td>
+                        <td dir="ltr" style={{ padding: '8px 10px', fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{pos.quantity}</td>
+                        <td dir="ltr" style={{ padding: '8px 10px', fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{formatPrice(pos.entryPrice)}</td>
+                        <td dir="ltr" style={{ padding: '8px 10px', fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{formatPrice(pos.currentPrice)}</td>
+                        <td style={{ padding: '8px 10px' }}>
+                          <span dir="ltr" style={{ fontSize: '10px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: (pos.unrealizedPnl || 0) >= 0 ? 'var(--profit)' : 'var(--loss)' }}>
+                            {(pos.unrealizedPnl || 0) >= 0 ? '+' : ''}{formatCurrency(pos.unrealizedPnl || 0)}
+                          </span>
+                        </td>
+                        <td style={{ padding: '8px 10px' }}>
+                          {pos.stopLoss
+                            ? <span dir="ltr" style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--loss)' }}>{formatPrice(pos.stopLoss)}</span>
+                            : <span style={{ fontSize: '10px', color: 'var(--text-faint)' }}>—</span>
+                          }
+                        </td>
+                        <td style={{ padding: '8px 10px' }}>
+                          {pos.takeProfit
+                            ? <span dir="ltr" style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--profit)' }}>{formatPrice(pos.takeProfit)}</span>
+                            : <span style={{ fontSize: '10px', color: 'var(--text-faint)' }}>—</span>
+                          }
+                        </td>
+                        <td style={{ padding: '8px 10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <button onClick={() => openEditDialog(pos)} style={{ width: '26px', height: '26px', borderRadius: '6px', border: '1px solid var(--border-subtle)', background: 'var(--bg-input)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-border)'; e.currentTarget.style.color = 'var(--accent)' }}
+                              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-muted)' }}
+                            >
+                              <Edit3 size={11} style={{ color: 'inherit' }} />
+                            </button>
+                            <button onClick={() => openCloseDialog(pos)} style={{ width: '26px', height: '26px', borderRadius: '6px', border: '1px solid var(--border-subtle)', background: 'var(--bg-input)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-loss)'; e.currentTarget.style.color = 'var(--loss)' }}
+                              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-muted)' }}
+                            >
+                              <XCircle size={11} style={{ color: 'inherit' }} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Disclaimer */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '12px 16px', borderRadius: '8px', background: 'var(--warning-bg)', border: '1px solid var(--border-warning)', marginTop: '16px' }}>
+        <AlertTriangle size={13} style={{ color: 'var(--warning)', marginTop: '1px', flexShrink: 0 }} />
+        <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)', lineHeight: '1.5' }}>إدارة المراكز تتطلب اتصالاً بخادم التداول. رؤى لا تلمس أموالك أبداً — نحن ننفذ الأوامر فقط من خلال مفاتيح API المشفرة.</span>
+      </div>
+
+      {/* Close Position Dialog */}
+      {closeDialog && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} onClick={() => setCloseDialog(null)}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', maxWidth: '440px', width: '90%', boxShadow: 'var(--shadow-modal)' }} onClick={(e) => e.stopPropagation()} dir="rtl">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'linear-gradient(135deg, #FF4D4D, #FF6B6B)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <XCircle size={13} stroke="#fff" strokeWidth={2} />
+              </div>
+              <span style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-ar)', color: 'var(--text-main)' }}>تأكيد إغلاق المركز</span>
+            </div>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)', marginBottom: '16px' }}>هل أنت متأكد من إغلاق مركز {closeDialog.symbol}؟ يمكنك إغلاق المركز بالكامل أو جزئياً.</p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
+              {[
+                { label: 'الاتجاه', value: closeDialog.side === 'LONG' ? 'شراء' : 'بيع', color: closeDialog.side === 'LONG' ? 'var(--profit)' : 'var(--loss)' },
+                { label: 'الكمية', value: String(closeDialog.quantity), color: 'var(--text-main)' },
+                { label: 'سعر الدخول', value: formatPrice(closeDialog.entryPrice), color: 'var(--text-main)' },
+                { label: 'ر/خ غير محقق', value: formatCurrency(closeDialog.unrealizedPnl || 0), color: (closeDialog.unrealizedPnl || 0) >= 0 ? 'var(--profit)' : 'var(--loss)' },
+              ].map((item) => (
+                <div key={item.label} style={{ padding: '8px 10px', borderRadius: '7px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}>
+                  <span style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar)' }}>{item.label}</span>
+                  <div dir="ltr" style={{ fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: item.color, marginTop: '2px' }}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'var(--font-ar)', display: 'block', marginBottom: '4px' }}>كمية الإغلاق (اتركها فارغة للإغلاق الكامل)</label>
+              <input type="number" value={closeQuantity} onChange={(e) => setCloseQuantity(e.target.value)} placeholder={`الحد الأقصى: ${closeDialog.quantity}`} min={0} max={closeDialog.quantity} step={0.001} dir="ltr"
+                style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid var(--border-subtle)', background: 'var(--bg-input)', color: 'var(--text-main)', fontFamily: 'var(--font-mono)', fontSize: '11px', outline: 'none' }}
+              />
+              {closeQuantity && parseFloat(closeQuantity) < closeDialog.quantity && parseFloat(closeQuantity) > 0 && (
+                <p style={{ fontSize: '9px', color: 'var(--warning)', fontFamily: 'var(--font-ar)', marginTop: '4px' }}>إغلاق جزئي — سيبقى {closeDialog.quantity - parseFloat(closeQuantity)} {closeDialog.symbol} مفتوحاً</p>
               )}
-              تحديث
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+              {closeQuantity && parseFloat(closeQuantity) > closeDialog.quantity && (
+                <p style={{ fontSize: '9px', color: 'var(--loss)', fontFamily: 'var(--font-ar)', marginTop: '4px' }}>الكمية تتجاوز المركز المتاح</p>
+              )}
+            </div>
+
+            {closeError && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '6px', background: 'var(--loss-bg)', border: '1px solid var(--border-loss)', marginBottom: '12px' }}>
+                <AlertTriangle size={12} style={{ color: 'var(--loss)', flexShrink: 0 }} />
+                <span style={{ fontSize: '10px', color: 'var(--loss)', fontFamily: 'var(--font-ar)' }}>{closeError}</span>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setCloseDialog(null)} style={{ flex: 1, padding: '8px', borderRadius: '7px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-ar)', cursor: 'pointer' }}>إلغاء</button>
+              <button onClick={handleClosePosition} disabled={closing || (closeQuantity ? parseFloat(closeQuantity) > closeDialog.quantity || parseFloat(closeQuantity) <= 0 : false)}
+                style={{ flex: 1, padding: '8px', borderRadius: '7px', border: 'none', background: 'var(--loss)', color: '#fff', fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-ar)', cursor: closing ? 'not-allowed' : 'pointer', opacity: closing ? 0.7 : 1 }}>
+                {closing ? 'جارٍ التنفيذ...' : closeQuantity && parseFloat(closeQuantity) < closeDialog.quantity ? 'إغلاق جزئي' : 'إغلاق المركز'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit SL/TP Dialog */}
+      {editDialog && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} onClick={() => setEditDialog(null)}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', maxWidth: '400px', width: '90%', boxShadow: 'var(--shadow-modal)' }} onClick={(e) => e.stopPropagation()} dir="rtl">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'linear-gradient(135deg, #0A84FF, #5E5CE6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Shield size={13} stroke="#fff" strokeWidth={2} />
+              </div>
+              <span style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-ar)', color: 'var(--text-main)' }}>تعديل مستويات الوقف والأرباح</span>
+            </div>
+            <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)', marginBottom: '16px' }}>تحديث مستويات وقف الخسارة وجني الأرباح لمركز {editDialog.symbol}</p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
+              <div>
+                <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--loss)', fontFamily: 'var(--font-ar)', display: 'block', marginBottom: '4px' }}>وقف الخسارة (Stop Loss)</label>
+                <input type="number" value={editStopLoss} onChange={(e) => setEditStopLoss(e.target.value)} placeholder={editDialog.stopLoss ? formatPrice(editDialog.stopLoss) : 'أدخل سعر الوقف'} dir="ltr"
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid var(--border-subtle)', background: 'var(--bg-input)', color: 'var(--text-main)', fontFamily: 'var(--font-mono)', fontSize: '11px', outline: 'none' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '10px', fontWeight: 600, color: 'var(--profit)', fontFamily: 'var(--font-ar)', display: 'block', marginBottom: '4px' }}>جني الأرباح (Take Profit)</label>
+                <input type="number" value={editTakeProfit} onChange={(e) => setEditTakeProfit(e.target.value)} placeholder={editDialog.takeProfit ? formatPrice(editDialog.takeProfit) : 'أدخل سعر الجني'} dir="ltr"
+                  style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid var(--border-subtle)', background: 'var(--bg-input)', color: 'var(--text-main)', fontFamily: 'var(--font-mono)', fontSize: '11px', outline: 'none' }}
+                />
+              </div>
+            </div>
+
+            {editError && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 12px', borderRadius: '6px', background: 'var(--loss-bg)', border: '1px solid var(--border-loss)', marginBottom: '12px' }}>
+                <AlertTriangle size={12} style={{ color: 'var(--loss)', flexShrink: 0 }} />
+                <span style={{ fontSize: '10px', color: 'var(--loss)', fontFamily: 'var(--font-ar)' }}>{editError}</span>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button onClick={() => setEditDialog(null)} style={{ flex: 1, padding: '8px', borderRadius: '7px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-ar)', cursor: 'pointer' }}>إلغاء</button>
+              <button onClick={handleUpdateLevels} disabled={updating}
+                style={{ flex: 1, padding: '8px', borderRadius: '7px', border: 'none', background: 'var(--accent)', color: '#fff', fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-ar)', cursor: updating ? 'not-allowed' : 'pointer', opacity: updating ? 0.7 : 1, boxShadow: 'var(--glow-accent)' }}>
+                {updating ? 'جارٍ التحديث...' : 'تحديث'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </SubPageLayout>
   )
 }

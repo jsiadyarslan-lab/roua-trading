@@ -11,9 +11,10 @@ import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
-  ArrowRight,
   Link2,
 } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
+import SubPageLayout from '@/components/dashboard/SubPageLayout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -40,6 +41,7 @@ const SUPPORTED_EXCHANGES = [
 
 export default function ExchangeSettingsPage() {
   const router = useRouter()
+  const { loading: authLoading } = useAuth()
   const [credentials, setCredentials] = useState<Credential[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -53,26 +55,7 @@ export default function ExchangeSettingsPage() {
   const [apiKey, setApiKey] = useState('')
   const [apiSecret, setApiSecret] = useState('')
 
-  // Check auth — try roua_session first, then sync from NextAuth
-  useEffect(() => {
-    async function checkAuth() {
-      try {
-        const meRes = await fetch('/api/auth/me')
-        const meData = await meRes.json()
-        if (meData.authenticated) return
-
-        // Try syncing from NextAuth (for Google OAuth users)
-        const syncRes = await fetch('/api/auth/sync')
-        const syncData = await syncRes.json()
-        if (syncData.authenticated) return
-
-        router.push('/')
-      } catch {
-        router.push('/')
-      }
-    }
-    checkAuth()
-  }, [router])
+  // Auth handled by useAuth hook
 
   // Fetch credentials
   const fetchCredentials = useCallback(async () => {
@@ -142,30 +125,25 @@ export default function ExchangeSettingsPage() {
     }
   }
 
+  if (authLoading) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-app)' }}>
+        <Loader2 className="animate-spin" style={{ width: 32, height: 32, color: 'var(--accent)' }} />
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-background" dir="rtl">
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
-              <Key className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">مفاتيح البورصات</h1>
-              <p className="text-sm text-muted-foreground">
-                إدارة مفاتيح API للبورصات — مشفرة بـ AES-256-GCM
-              </p>
-            </div>
-          </div>
-          <Button
-            onClick={() => setShowForm(!showForm)}
-            className="bg-teal-500 hover:bg-teal-600 text-background"
-          >
-            <Plus className="w-4 h-4 ml-2" />
-            إضافة مفتاح
-          </Button>
-        </div>
+    <SubPageLayout
+      title="مفاتيح البورصات"
+      icon={<Key size={14} color="#fff" />}
+      iconBg="linear-gradient(135deg, #FFB800, #FF8C00)"
+      actions={
+        <button onClick={() => setShowForm(!showForm)} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '6px 14px', borderRadius: '7px', border: 'none', background: 'var(--accent)', color: '#fff', fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-ar)', cursor: 'pointer', boxShadow: 'var(--glow-accent)' }}>
+          <Plus size={12} /> إضافة مفتاح
+        </button>
+      }
+    >
 
         {/* Security Notice */}
         <div className="flex items-start gap-3 p-4 rounded-lg bg-teal-500/5 border border-teal-500/10">
@@ -398,16 +376,6 @@ export default function ExchangeSettingsPage() {
           </div>
         )}
 
-        {/* Back to Dashboard */}
-        <Button
-          variant="ghost"
-          onClick={() => router.push('/dashboard')}
-          className="text-muted-foreground"
-        >
-          <ArrowRight className="w-4 h-4 ml-2" />
-          العودة للوحة القيادة
-        </Button>
-      </div>
-    </div>
+    </SubPageLayout>
   )
 }

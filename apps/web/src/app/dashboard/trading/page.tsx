@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useMemo, useRef, startTransition } fr
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
-  ArrowRight,
   Loader2,
   AlertTriangle,
   TrendingUp,
@@ -18,6 +17,8 @@ import {
   Clock,
   Ban,
 } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
+import SubPageLayout from '@/components/dashboard/SubPageLayout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -137,9 +138,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: str
 
 export default function TradingPage() {
   const router = useRouter()
-
-  // Auth
-  const [authChecked, setAuthChecked] = useState(false)
+  const { loading: authLoading } = useAuth()
 
   // Trading panel state
   const [symbol, setSymbol] = useState('BTC/USDT')
@@ -175,29 +174,7 @@ export default function TradingPage() {
   // Auto-refresh timer
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // ── Auth check ──
-  useEffect(() => {
-    async function checkAuth() {
-      try {
-        const meRes = await fetch('/api/auth/me')
-        const meData = await meRes.json()
-        if (meData.authenticated) {
-          setAuthChecked(true)
-          return
-        }
-        const syncRes = await fetch('/api/auth/sync')
-        const syncData = await syncRes.json()
-        if (syncData.authenticated) {
-          setAuthChecked(true)
-          return
-        }
-        router.push('/')
-      } catch {
-        router.push('/')
-      }
-    }
-    checkAuth()
-  }, [router])
+  // Auth handled by useAuth hook
 
   // ── Fetch quote data from API ──
   const fetchQuote = useCallback(async () => {
@@ -288,33 +265,27 @@ export default function TradingPage() {
 
   // ── Initial data fetch ──
   useEffect(() => {
-    if (authChecked) {
-      startTransition(() => {
-        fetchCredentials()
-        fetchPositions()
-        fetchOrders()
-        fetchQuote()
-        fetchHistory()
-      })
-    }
-  }, [authChecked])
+    startTransition(() => {
+      fetchCredentials()
+      fetchPositions()
+      fetchOrders()
+      fetchQuote()
+      fetchHistory()
+    })
+  }, [])
 
   // ── Refetch quote and history when symbol changes ──
   useEffect(() => {
-    if (authChecked) {
-      startTransition(() => {
-        setQuote(null)
-        setHistoryData([])
-        fetchQuote()
-        fetchHistory()
-      })
-    }
+    startTransition(() => {
+      setQuote(null)
+      setHistoryData([])
+      fetchQuote()
+      fetchHistory()
+    })
   }, [symbol])
 
   // ── Auto-refresh every 10 seconds ──
   useEffect(() => {
-    if (!authChecked) return
-
     refreshIntervalRef.current = setInterval(() => {
       fetchQuote()
     }, 10000)
@@ -324,7 +295,7 @@ export default function TradingPage() {
         clearInterval(refreshIntervalRef.current)
       }
     }
-  }, [authChecked, fetchQuote])
+  }, [fetchQuote])
 
   // ── Execute order ──
   const handleExecuteOrder = async () => {
@@ -488,48 +459,32 @@ export default function TradingPage() {
     return data
   }, [historyData, quote])
 
-  if (!authChecked) {
+  if (authLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-app)' }}>
+        <Loader2 className="animate-spin" style={{ width: 32, height: 32, color: 'var(--accent)' }} />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background" dir="rtl">
-      <div className="max-w-[1400px] mx-auto p-4 md:p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center">
-              <Activity className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">محرك التداول</h1>
-              <p className="text-sm text-muted-foreground">
-                تنفيذ أوامر التداول وإدارة المراكز
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {apiUnavailable && (
-              <Badge variant="outline" className="text-xs border-yellow-500/30 text-yellow-400">
-                <AlertTriangle className="w-3 h-3 ml-1" />
-                API غير متاح
-              </Badge>
-            )}
-            <Button
-              onClick={() => { fetchPositions(); fetchOrders(); fetchQuote(); fetchHistory() }}
-              variant="outline"
-              size="sm"
-              className="border-border"
-            >
-              <RefreshCw className="w-4 h-4 ml-1" />
-              تحديث
-            </Button>
-          </div>
+    <SubPageLayout
+      title="محرك التداول"
+      icon={<Activity size={14} color="#fff" />}
+      iconBg="linear-gradient(135deg, #00FFC6, #0A84FF)"
+      actions={
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {apiUnavailable && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', fontWeight: 600, color: 'var(--warning)', background: 'var(--warning-bg)', border: '1px solid var(--border-warning)', padding: '3px 8px', borderRadius: '6px' }}>
+              <AlertTriangle size={10} /> API غير متاح
+            </span>
+          )}
+          <button onClick={() => { fetchPositions(); fetchOrders(); fetchQuote(); fetchHistory() }} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 12px', borderRadius: '7px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-ar)', cursor: 'pointer' }}>
+            <RefreshCw size={11} /> تحديث
+          </button>
         </div>
+      }
+    >
 
         {/* Main Grid: Trading Panel + Chart */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -1136,16 +1091,6 @@ export default function TradingPage() {
           </div>
         </div>
 
-        {/* Back */}
-        <Button
-          variant="ghost"
-          onClick={() => router.push('/dashboard')}
-          className="text-muted-foreground"
-        >
-          <ArrowRight className="w-4 h-4 ml-2" />
-          العودة للوحة القيادة
-        </Button>
-      </div>
 
       {/* Close Position Confirmation Dialog */}
       <Dialog open={!!closePositionDialog} onOpenChange={(open) => !open && setClosePositionDialog(null)}>
@@ -1260,6 +1205,6 @@ export default function TradingPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </SubPageLayout>
   )
 }

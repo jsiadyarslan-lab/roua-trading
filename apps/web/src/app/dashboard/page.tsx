@@ -14,6 +14,8 @@ import {
   Menu,
   X,
   TrendingUp,
+  Zap,
+  Shield,
 } from 'lucide-react'
 import { MarketTicker } from '@/components/dashboard/market-ticker'
 import { Button } from '@/components/ui/button'
@@ -87,12 +89,12 @@ export default function DashboardPage() {
   }
 
   const navItems = [
-    { icon: LayoutDashboard, label: 'لوحة القيادة', active: true },
-    { icon: BarChart3, label: 'الأسواق', active: false },
-    { icon: Brain, label: 'سيمفونية الذكاء', active: false },
-    { icon: Briefcase, label: 'المحفظة', active: false },
-    { icon: Newspaper, label: 'الأخبار', active: false },
-    { icon: Settings, label: 'الإعدادات', active: false },
+    { icon: LayoutDashboard, label: 'لوحة القيادة', path: '/dashboard', active: true },
+    { icon: BarChart3, label: 'الأسواق', path: '/dashboard', active: false },
+    { icon: Zap, label: 'إشارات رؤى', path: '/dashboard/signals', active: false },
+    { icon: Shield, label: 'ملاذ المحفظة', path: '/dashboard/sanctuary', active: false },
+    { icon: Brain, label: 'سيمفونية الذكاء', path: '/dashboard', active: false },
+    { icon: Settings, label: 'الإعدادات', path: '/dashboard/settings/exchange', active: false },
   ]
 
   return (
@@ -124,6 +126,7 @@ export default function DashboardPage() {
             {navItems.map((item) => (
               <button
                 key={item.label}
+                onClick={() => router.push(item.path)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all ${
                   item.active
                     ? 'bg-teal-500/10 text-teal-400 font-medium'

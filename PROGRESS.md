@@ -603,26 +603,216 @@ prisma/schema.prisma                    # + ExchangeCredential model ★
 | سلسلة البديل في AI Orchestrator | تجربة النماذج بالترتيب مع كشف stub (confidence=0) |
 | WebSocket + HTTP Fallback | Hook ذكي يتحول تلقائياً عند فقدان الاتصال |
 
+#### 📋 الخطوات التالية (محدّثة بعد Phase 4)
+
+- [ ] تشغيل Docker Compose (PostgreSQL + Redis + RabbitMQ)
+- [ ] إضافة مفاتيح API الفعلية في .env
+- [x] نظام RAG مع EmbeddingService
+- [x] توليد إشارات تداول ذكية (Signal Generation)
+- [x] تحليل مخاطر المحفظة (Portfolio Sanctuary)
+- [x] صفحة الإشارات + صفحة الملاذ
+- [ ] تحويل Prisma من SQLite إلى PostgreSQL + pgvector
+- [ ] بناء صفحة الأخبار (News Radar)
+- [ ] إضافة محولات أخرى (KuCoin, Bybit, OKX)
+- [ ] تنفيذ الصفقات (Trade Execution)
+
+---
+
+### الجلسة 4 — 18 أبريل 2026 — Phase 4: RAG, Signals, and Portfolio Sanctuary
+
+#### ✅ تم إنجازه
+
+##### 1. نظام RAG (توليد معزز بالاسترجاع)
+
+تم بناء طبقة ذكية مرجعية تمكّن AI Orchestrator من الاستفادة من أرشيف الأخبار:
+
+**EmbeddingService** — تحويل النص إلى تضمينات متجهية:
+- نموذج: `sentence-transformers/all-MiniLM-L6-v2` (384-بعد)
+- واجهة HuggingFace Inference API (مع مفتاح `HUGGINGFACE_API_KEY`)
+- Fallback: تضمينات مبنية على hash للتطوير بدون API
+- حساب التشابه الجيبي (`cosineSimilarity`) للبحث الدلالي
+- دعم الدفعات (`embedBatch`) لتحسين الأداء
+
+**RagService** — استرجاع السياق المعزز:
+- `retrieveRelevantContext(query, limit)`: البحث عن مقالات ذات صلة
+  - تحويل الاستعلام إلى embedding
+  - بحث بكلمات مفتاحية مسبق (pre-filtering) لتقليل مساحة البحث
+  - حساب التشابه الدلالي وترتيب النتائج
+  - عتبة صلة: 0.1 (minimum relevance threshold)
+- `storeArticle()`: تخزين مقالة مع embedding
+- `getArchiveStats()`: إحصائيات الأرشيف
+- استخراج كلمات مفتاحية ذكي مع دعم العربية والإنجليزية
+
+**تحديث AIOrchestratorService**:
+- حقن `RagService` اختيارياً (`@Optional()`)
+- قبل إرسال أي طلب لنموذج AI، يتم استرجاع سياق من أرشيف الأخبار
+- السياق يُضاف إلى بداية الموجه (prompt) المرسل للنموذج
+- أنواع مهام جديدة: `signal_generation`, `risk_analysis`
+- RAG غير معيق (non-blocking): يُرجع استجابة فارغة عند الفشل
+
+**الملفات**:
+- `apps/api/src/modules/ai/services/embedding.service.ts`
+- `apps/api/src/modules/ai/services/rag.service.ts`
+- `apps/api/src/modules/ai/services/ai-orchestrator.service.ts` (محدّث)
+- `apps/api/src/modules/ai/ai.module.ts` (محدّث)
+
+##### 2. توليد إشارات "رؤى" (Roua Signals)
+
+تم بناء نظام إشارات تداول ذكية متعدد الأبعاد:
+
+**نموذج Signal في Prisma**:
+- `pair`: زوج التداول (مثل `BTC/USDT`)
+- `action`: BUY / SELL / WAIT
+- `confidence`: نسبة الثقة (0-100)
+- `reason`: شرح مفصل بالعربية
+- `entryPrice`, `stopLoss`, `takeProfit`: مستويات السعر
+- `status`: ACTIVE / EXPIRED / EXECUTED / CANCELLED
+- `expiresAt`: انتهاء الصلاحية (24 ساعة تلقائياً)
+
+**SignalService** — تدفق توليد الإشارة:
+1. جلب بيانات السوق الحية من ExchangeService
+2. استرجاع أخبار ذات صلة من RagService
+3. تحليل المشاعر عبر GroqService (الأسرع)
+4. توليد إشارة شاملة عبر AIOrchestratorService
+5. تحليل رد AI واستخراج: الإجراء، الثقة، الأسعار، السبب
+6. حفظ الإشارة في قاعدة البيانات مع سجل مراجعة
+
+**مسارات API**:
+- `POST /api/signals/generate/:pair` — توليد إشارة (5/دقيقة)
+- `GET /api/signals/active` — الإشارات النشطة
+- `GET /api/signals/history` — سجل الإشارات
+- `DELETE /api/signals/:id` — إلغاء إشارة
+
+**الملفات**:
+- `apps/api/src/modules/signal/signal.module.ts`
+- `apps/api/src/modules/signal/signal.service.ts`
+- `apps/api/src/modules/signal/signal.controller.ts`
+- `prisma/schema.prisma` (أضيف Signal + SignalAction + SignalStatus)
+
+##### 3. ملاذ المحفظة (Portfolio Sanctuary)
+
+تم بناء نظام تحليل مخاطر شامل عبر جميع الحسابات المرتبطة:
+
+**SanctuaryService** — تدفق التحليل:
+1. جلب جميع مفاتيح API المشفرة للمستخدم
+2. فك تشفير المفاتيح وجلب الأرصدة من كل بورصة عبر CCXT
+3. تجميع أصول المحفظة اليدوية من قاعدة البيانات
+4. حساب مقاييس المخاطر:
+   - **مخاطر التركيز**: HHI (Herfindahl-Hirschman Index) — هل أكثر من 20% في أصل واحد؟
+   - **درجة التنويع**: مقلوب مخاطر التركيز
+   - **VaR (القيمة المعرضة للمخاطر)**: أقصى خسارة متوقعة بثقة 95%
+   - **التقلب المقدر**: تقلب المحفظة السنوي
+5. إرسال تقرير موجز إلى AIOrchestratorService لصياغة توصيات بالعربية
+6. إرجاع `RiskReport` شامل
+
+**RiskReport** يحتوي على:
+- `summary` — ملخص عربي
+- `riskScore` — درجة المخاطر (0-100)
+- `positions[]` — تفاصيل المراكز مع الأوزان
+- `metrics` — مقاييس المخاطر التفصيلية
+- `recommendations[]` — توصيات قابلة للتنفيذ
+- `aiAnalysis` — تحليل الذكاء الاصطناعي الكامل
+
+**مسار API**:
+- `GET /api/portfolio/sanctuary` — تحليل المخاطر (5/دقيقة)
+
+**الملفات**:
+- `apps/api/src/modules/portfolio/sanctuary/sanctuary.service.ts`
+- `apps/api/src/modules/portfolio/sanctuary/sanctuary.controller.ts`
+- `apps/api/src/modules/portfolio/portfolio.module.ts` (جديد — يجمع Credentials + Sanctuary)
+
+##### 4. واجهة المستخدم
+
+**صفحة `/dashboard/signals`** — إشارات رؤى:
+- توليد إشارة سريعة لـ 6 أزواج (BTC, ETH, SOL, AAPL, TSLA, GOLD)
+- عرض الإشارات النشطة مع:
+  - إجراء الشراء/البيع/الانتظار بألوان مميزة
+  - نسبة الثقة مع لون ديناميكي
+  - مستويات سعر الدخول / وقف الخسارة / جني الأرباح
+  - شرح AI المفصل بالعربية
+  - وقت الانتهاء المتبقي
+- أزرار: تجديد، تنفيذ (قريباً)، إلغاء
+- تحذير: الإشارات لأغراض تعليمية فقط
+
+**صفحة `/dashboard/sanctuary`** — ملاذ المحفظة:
+- بطاقة مستوى المخاطر (منخفض/متوسط/مرتفع) مع الدرجة
+- 4 مقاييس رئيسية: التركيز، التنويع، VaR، التقلب
+- قائمة المراكز مع الأوزان والتغيرات
+- التوصيات القابلة للتنفيذ
+- تحليل الذكاء الاصطناعي الكامل
+- زر إعادة التحليل
+- تحذير: التحليل لأغراض تعليمية فقط
+
+**تحديث لوحة القيادة**:
+- إضافة "إشارات رؤى" و"ملاذ المحفظة" في الشريط الجانبي
+- روابط تنقل بين الصفحات
+
+**الملفات**:
+- `apps/web/src/app/dashboard/signals/page.tsx`
+- `apps/web/src/app/dashboard/sanctuary/page.tsx`
+- `apps/web/src/app/dashboard/page.tsx` (محدّث)
+- `apps/web/next.config.ts` (أضيف `/api/signals/*` proxy)
+
+#### 🏗️ هيكل الملفات بعد Phase 4
+
+```
+apps/api/src/
+├── modules/
+│   ├── ai/
+│   │   ├── ai.module.ts               # + EmbeddingService + RagService
+│   │   ├── ai.controller.ts
+│   │   └── services/
+│   │       ├── ai-orchestrator.service.ts  # ★ RAG integration
+│   │       ├── groq.service.ts             # + signal_generation + risk_analysis types
+│   │       ├── gemini.service.ts
+│   │       ├── glm.service.ts
+│   │       ├── embedding.service.ts        # ★ NEW: Text → Vector
+│   │       └── rag.service.ts              # ★ NEW: Context retrieval
+│   ├── signal/                             # ★ NEW Module
+│   │   ├── signal.module.ts
+│   │   ├── signal.service.ts
+│   │   └── signal.controller.ts
+│   ├── portfolio/
+│   │   ├── portfolio.module.ts             # ★ NEW: Combines Credentials + Sanctuary
+│   │   ├── credentials/
+│   │   │   ├── credentials.module.ts
+│   │   │   ├── credentials.service.ts
+│   │   │   └── credentials.controller.ts
+│   │   └── sanctuary/                     # ★ NEW
+│   │       ├── sanctuary.service.ts
+│   │       └── sanctuary.controller.ts
+│   └── exchange/ (بدون تغيير)
+
+prisma/schema.prisma                     # + Signal model + SignalAction/Status enums
+
+apps/web/src/app/dashboard/
+├── page.tsx                             # ★ محدّث: روابط جديدة
+├── signals/
+│   └── page.tsx                         # ★ NEW
+├── sanctuary/
+│   └── page.tsx                         # ★ NEW
+└── settings/exchange/ (بدون تغيير)
+```
+
+#### ⚠️ التحديات والحلول في Phase 4
+
+| التحدي | الحل |
+|--------|------|
+| `signal_generation` / `risk_analysis` غير معرّف في AIAnalysisRequest | إضافة النوعين الجديدين إلى union type |
+| `totalValue` غير معرّف في `_generateRecommendations` | حساب محلي من `positions.reduce()` |
+| HuggingFace API قد لا يكون متاحاً | تضمينات hash-based كـ fallback للتطوير |
+| البحث المتجهي في SQLite | بحث بكلمات مفتاحية + تشابه دلالي في الذاكرة (حتى الانتقال لـ pgvector) |
+| RAG قد يفشل | `@Optional()` injection + non-blocking: إرجاع سياق فارغ عند الفشل |
+
 #### 📋 الخطوات التالية
 
 - [ ] تشغيل Docker Compose (PostgreSQL + Redis + RabbitMQ)
 - [ ] إضافة مفاتيح API الفعلية في .env
-- [ ] اختبار شامل لجميع المسارات
-- [ ] نظام RAG مع pgvector
-- [ ] تحويل Prisma من SQLite إلى PostgreSQL
-- [ ] بناء صفحة المحفظة (Portfolio)
+- [ ] تحويل Prisma من SQLite إلى PostgreSQL + pgvector
+- [ ] تنفيذ الصفقات (Trade Execution)
 - [ ] بناء صفحة الأخبار (News Radar)
 - [ ] إضافة محولات أخرى (KuCoin, Bybit, OKX)
-
----
-
-## المرحلة الثانية: الذكاء — الأشهر 4-6
-
-*(لم تبدأ بعد)*
-
-## المرحلة الثالثة: الثورة — الأشهر 7-9
-
-*(لم تبدأ بعد)*
+- [ ] نظام الإشعارات
 
 ## المرحلة الرابعة: الإطلاق — الأشهر 10-12
 

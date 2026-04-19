@@ -6,7 +6,8 @@ import { RedisModule } from './common/redis/redis.module';
 import { AuthModule } from './auth/auth.module';
 import { ExchangeModule } from './modules/exchange/exchange.module';
 import { AiModule } from './modules/ai/ai.module';
-import { CredentialsModule } from './modules/portfolio/credentials/credentials.module';
+import { PortfolioModule } from './modules/portfolio/portfolio.module';
+import { SignalModule } from './modules/signal/signal.module';
 import { AuditModule } from './audit/audit.module';
 
 @Module({
@@ -45,7 +46,8 @@ import { AuditModule } from './audit/audit.module';
     AuthModule,
     ExchangeModule,
     AiModule,
-    CredentialsModule,
+    PortfolioModule,
+    SignalModule,
   ],
 })
 export class AppModule {}

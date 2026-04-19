@@ -8,21 +8,22 @@ datasource db {
 }
 
 model User {
-  id          String     @id @default(cuid())
-  email       String     @unique
-  displayName String?
-  avatar      String?
-  passkeyId   String?
-  passkeyPub  String?
-  tier        Tier       @default(FREE)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  apiKeys              ApiKey[]
-  portfolios           Portfolio[]
-  signals              SignalUsage[]
-  sessions             Session[]
-  accounts             Account[]
-  exchangeCredentials  ExchangeCredential[]
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  displayName         String?
+  avatar              String?
+  passkeyId           String?
+  passkeyPub          String?
+  tier                Tier                 @default(FREE)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  apiKeys             ApiKey[]
+  portfolios          Portfolio[]
+  signals             SignalUsage[]
+  rouaSignals         Signal[]
+  sessions            Session[]
+  accounts            Account[]
+  exchangeCredentials ExchangeCredential[]
 }
 
 enum Tier {
@@ -84,6 +85,42 @@ enum AssetType {
   INDEX
 }
 
+// ── Signal System (Phase 4) ──
+enum SignalAction {
+  BUY
+  SELL
+  WAIT
+}
+
+enum SignalStatus {
+  ACTIVE
+  EXPIRED
+  EXECUTED
+  CANCELLED
+}
+
+model Signal {
+  id          String       @id @default(cuid())
+  userId      String
+  pair        String
+  action      SignalAction
+  confidence  Int
+  reason      String
+  entryPrice  Float?
+  stopLoss    Float?
+  takeProfit  Float?
+  status      SignalStatus @default(ACTIVE)
+  expiresAt   DateTime
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([pair])
+  @@index([status])
+  @@index([expiresAt])
+}
+
 model SignalUsage {
   id         String   @id @default(cuid())
   userId     String
@@ -125,6 +162,7 @@ model AuditLog {
   @@index([createdAt])
 }
 
+// ── News Article for RAG (Phase 4) ──
 model NewsArticle {
   id          String   @id @default(cuid())
   source      String
@@ -134,7 +172,7 @@ model NewsArticle {
   url         String?
   sentiment   Float?
   entities    String?
-  embedding   String?
+  embedding   String?   // JSON-encoded 384-dim vector (upgrade to pgvector for Postgres)
   publishedAt DateTime
   createdAt   DateTime @default(now())
 
@@ -163,12 +201,12 @@ model ExchangeCredential {
   @@index([exchange])
 }
 
-// ── WebAuthn Challenge store (replaces in-memory Map) ──
+// ── WebAuthn Challenge store ──
 model Challenge {
   id        String   @id @default(cuid())
-  key       String   @unique   // e.g. "reg:user@example.com" or "auth:user@example.com"
-  challenge String             // base64url-encoded challenge
-  expiresAt DateTime           // when this challenge expires
+  key       String   @unique
+  challenge String
+  expiresAt DateTime
   createdAt DateTime @default(now())
 
   @@index([key])

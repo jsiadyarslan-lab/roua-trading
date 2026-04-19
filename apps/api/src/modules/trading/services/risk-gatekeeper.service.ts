@@ -195,9 +195,13 @@ export class RiskGatekeeperService {
           const quote = await this.exchangeService.getQuote(command.symbol);
           currentPrice = quote.price;
         } catch {
-          // Can't verify balance without price — allow with warning
-          this.logger.warn(`Cannot fetch price for ${command.symbol} — skipping balance verification`);
-          return { allowed: true };
+          // FAIL-CLOSED: Cannot verify balance without price — reject to protect capital
+          this.logger.error(`Cannot fetch price for ${command.symbol} — rejecting order to protect capital`);
+          return {
+            allowed: false,
+            reason: 'لا يمكن التحقق من سعر الصفقة — تم رفض الطلب لحماية رأس المال.',
+            failedCheck: 'BALANCE_CHECK',
+          };
         }
       }
 
@@ -244,17 +248,34 @@ export class RiskGatekeeperService {
               failedCheck: 'BALANCE_CHECK',
             };
           }
+        } else {
+          // FAIL-CLOSED: Exchange not supported in CCXT — cannot verify balance
+          this.logger.error(`Exchange "${credential.exchange}" not found in CCXT — rejecting order to protect capital`);
+          return {
+            allowed: false,
+            reason: `لا يمكن التحقق من الرصيد للبورصة "${credential.exchange}" — تم رفض الطلب لحماية رأس المال.`,
+            failedCheck: 'BALANCE_CHECK',
+          };
         }
       } catch (error: any) {
-        // Balance check failed — log but don't block
-        this.logger.warn(`Balance verification failed for ${command.symbol}: ${error.message}`);
+        // FAIL-CLOSED: Balance verification failed — reject to protect capital
+        this.logger.error(`Balance verification failed for ${command.symbol}: ${error.message} — rejecting order`);
+        return {
+          allowed: false,
+          reason: 'فشل التحقق من الرصيد — تم رفض الطلب لحماية رأس المال.',
+          failedCheck: 'BALANCE_CHECK',
+        };
       }
 
       return { allowed: true };
     } catch (error: any) {
-      this.logger.error(`Balance check error: ${error.message}`);
-      // On error, allow with warning (fail-open for balance checks)
-      return { allowed: true };
+      // FAIL-CLOSED: Any unexpected error — reject to protect capital
+      this.logger.error(`Balance check error: ${error.message} — rejecting order`);
+      return {
+        allowed: false,
+        reason: 'فشل فحص الرصيد — تم رفض الطلب لحماية رأس المال.',
+        failedCheck: 'BALANCE_CHECK',
+      };
     }
   }
 

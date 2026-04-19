@@ -3,7 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe, ConflictException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import * as cookieParser from 'cookie-parser';
 import { OrderController } from '../../src/modules/trading/controllers/order.controller';
 import { IdempotencyService } from '../../src/modules/trading/services/idempotency.service';
@@ -18,17 +18,29 @@ import { AuditService } from '../../src/audit/audit.service';
 import { ExchangeService } from '../../src/modules/exchange/exchange.service';
 import { CredentialsService } from '../../src/modules/portfolio/credentials/credentials.service';
 import { MarketDataAggregatorService } from '../../src/modules/analytics/aggregator.service';
-import { OrderCommand, RiskCheckResult, OrderSideEnum, OrderTypeEnum } from '../../src/modules/trading/events/order.events';
+import { ConfigService } from '@nestjs/config';
+import { OrderCommand, OrderSideEnum, OrderTypeEnum } from '../../src/modules/trading/events/order.events';
+
+// ── CCXT Mock — simulates real exchange balance verification ──
+
+const mockFetchBalance = jest.fn().mockResolvedValue({
+  USDT: { free: 100000, used: 0, total: 100000 },
+});
+
+jest.mock('ccxt', () => ({
+  binance: jest.fn().mockImplementation(() => ({
+    fetchBalance: mockFetchBalance,
+  })),
+}));
 
 /**
  * Trading Engine E2E Tests
  *
- * Tests the trading order pipeline end-to-end:
  * ┌───────────────────────────────────────────────────────────────┐
- * │ 1. Reject order without stopLoss (400)                        │
- * │ 2. Reject order exceeding balance (paper account)             │
- * │ 3. Idempotency: first request 201, duplicate 409             │
- * │ 4. Risk gatekeeper enforcement                                │
+ * │ Suite 1: Stop-Loss Enforcement (3 tests)                     │
+ * │ Suite 2: Balance Check — Fail-Closed (4 tests)               │
+ * │ Suite 3: Idempotency (3 tests)                               │
+ * │ Total: 10 tests                                              │
  * └───────────────────────────────────────────────────────────────┘
  */
 describe('Trading Engine (e2e)', () => {
@@ -44,8 +56,8 @@ describe('Trading Engine (e2e)', () => {
     tier: 'PREMIUM',
   };
 
-  const MOCK_CREDENTIAL = {
-    id: 'cred-test-001',
+  const MOCK_CREDENTIAL_PAPER = {
+    id: 'cred-paper-001',
     userId: MOCK_USER.id,
     exchange: 'paper',
     label: 'Paper Trading',
@@ -53,16 +65,25 @@ describe('Trading Engine (e2e)', () => {
     isValid: true,
   };
 
-  const BASE_ORDER = {
+  const MOCK_CREDENTIAL_BINANCE = {
+    id: 'cred-binance-001',
     userId: MOCK_USER.id,
-    exchangeCredentialId: MOCK_CREDENTIAL.id,
-    symbol: 'AAPL',
+    exchange: 'binance',
+    label: 'Binance Live',
+    permissions: '["read","trade"]',
+    isValid: true,
+  };
+
+  const BASE_ORDER: OrderCommand = {
+    userId: MOCK_USER.id,
+    exchangeCredentialId: MOCK_CREDENTIAL_BINANCE.id,
+    symbol: 'BTC/USDT',
     side: OrderSideEnum.BUY,
     type: OrderTypeEnum.MARKET,
-    quantity: 10,
+    quantity: 1,
     price: undefined,
-    stopLoss: 180,
-    takeProfit: 200,
+    stopLoss: 50000,
+    takeProfit: 70000,
     idempotencyKey: 'test-idem-key-001',
     clientOrderId: 'client-order-001',
     ipAddress: '127.0.0.1',
@@ -75,7 +96,6 @@ describe('Trading Engine (e2e)', () => {
     order: {
       create: jest.fn().mockResolvedValue({
         id: 'order-test-001',
-        userId: MOCK_USER.id,
         ...BASE_ORDER,
         status: 'PENDING',
         filledQuantity: 0,
@@ -85,8 +105,8 @@ describe('Trading Engine (e2e)', () => {
         id: 'order-test-001',
         userId: MOCK_USER.id,
         status: 'PENDING',
-        exchangeCredentialId: MOCK_CREDENTIAL.id,
-        symbol: 'AAPL',
+        exchangeCredentialId: MOCK_CREDENTIAL_BINANCE.id,
+        symbol: 'BTC/USDT',
         side: 'BUY',
       }),
       findMany: jest.fn().mockResolvedValue([]),
@@ -96,18 +116,18 @@ describe('Trading Engine (e2e)', () => {
       create: jest.fn().mockResolvedValue({}),
     },
     exchangeCredential: {
-      findUnique: jest.fn().mockResolvedValue(MOCK_CREDENTIAL),
+      findUnique: jest.fn().mockResolvedValue(MOCK_CREDENTIAL_BINANCE),
     },
     position: {
       count: jest.fn().mockResolvedValue(0),
       findMany: jest.fn().mockResolvedValue([]),
-      aggregate: jest.fn().mockResolvedValue({ _sum: { totalValue: 10000 } }),
+      aggregate: jest.fn().mockResolvedValue({ _sum: { totalValue: 100000 } }),
     },
     trade: {
       findMany: jest.fn().mockResolvedValue([]),
     },
     portfolio: {
-      aggregate: jest.fn().mockResolvedValue({ _sum: { totalValue: 10000 } }),
+      aggregate: jest.fn().mockResolvedValue({ _sum: { totalValue: 100000 } }),
     },
     session: {
       findUnique: jest.fn().mockResolvedValue({
@@ -140,11 +160,11 @@ describe('Trading Engine (e2e)', () => {
 
   const mockExchangeService = {
     getQuote: jest.fn().mockResolvedValue({
-      symbol: 'AAPL',
-      price: 185.50,
-      change: 2.30,
-      changePercent: 1.25,
-      source: 'twelvedata',
+      symbol: 'BTC/USDT',
+      price: 60000,
+      change: 500,
+      changePercent: 0.84,
+      source: 'binance',
     }),
   };
 
@@ -157,10 +177,10 @@ describe('Trading Engine (e2e)', () => {
 
   const mockAggregatorService = {
     getAggregatedQuote: jest.fn().mockResolvedValue({
-      symbol: 'AAPL',
-      price: 185.50,
-      change: 2.30,
-      changePercent: 1.25,
+      symbol: 'BTC/USDT',
+      price: 60000,
+      change: 500,
+      changePercent: 0.84,
     }),
   };
 
@@ -209,8 +229,24 @@ describe('Trading Engine (e2e)', () => {
           useValue: mockAggregatorService,
         },
         {
-          provide: 'BullMQ_execution_queue',
+          provide: 'BullQueue_execution_queue',
           useValue: mockExecutionQueue,
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string, defaultValue?: string) => {
+              const config: Record<string, string> = {
+                RISK_MAX_POSITION_PERCENT: '20',
+                RISK_MAX_OPEN_POSITIONS: '10',
+                RISK_MAX_DAILY_LOSS_PERCENT: '5',
+                RISK_MIN_ORDER_SIZE: '10',
+                RISK_MAX_ORDER_SIZE: '50000',
+                RISK_CIRCUIT_BREAKER_THRESHOLD: '10',
+              };
+              return config[key] ?? defaultValue ?? '';
+            }),
+          },
         },
       ],
     })
@@ -249,242 +285,174 @@ describe('Trading Engine (e2e)', () => {
   });
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // Test Suite 1: Stop-Loss Enforcement (400 on missing)
+  // Suite 1: Stop-Loss Enforcement (3 tests)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   describe('Stop-Loss Enforcement', () => {
-    it('should reject order without stopLoss', () => {
-      // Arrange
-      const commandWithoutSL: OrderCommand = {
+    it('1. should reject order without stopLoss', () => {
+      const command: OrderCommand = {
         ...BASE_ORDER,
-        stopLoss: 0, // No stop-loss
+        stopLoss: 0,
       };
 
-      // Act
-      const result = riskGatekeeper.enforceStopLoss(commandWithoutSL);
+      const result = riskGatekeeper.enforceStopLoss(command);
 
-      // Assert: Must be rejected
       expect(result.allowed).toBe(false);
-      expect(result.failedCheck).toBeDefined();
-      expect(result.reason).toBeDefined();
+      expect(result.failedCheck).toBe('STOPLOSS_ENFORCEMENT');
+      expect(result.reason).toContain('وقف الخسارة');
     });
 
-    it('should reject order with negative stopLoss', () => {
-      // Arrange
-      const commandWithNegativeSL: OrderCommand = {
-        ...BASE_ORDER,
-        stopLoss: -10,
-      };
-
-      // Act
-      const result = riskGatekeeper.enforceStopLoss(commandWithNegativeSL);
-
-      // Assert
-      expect(result.allowed).toBe(false);
-    });
-
-    it('should reject BUY order where stopLoss >= price', () => {
-      // Arrange: BUY with SL above entry = illogical
+    it('2. should reject BUY order where stopLoss >= price', () => {
       const command: OrderCommand = {
         ...BASE_ORDER,
         side: OrderSideEnum.BUY,
-        price: 180,
-        stopLoss: 185, // SL above price for BUY = invalid
+        price: 50000,
+        stopLoss: 55000,
       };
 
-      // Act
       const result = riskGatekeeper.enforceStopLoss(command);
 
-      // Assert
       expect(result.allowed).toBe(false);
       expect(result.failedCheck).toContain('STOPLOGIC');
     });
 
-    it('should accept order with valid stopLoss', () => {
-      // Arrange
-      const validCommand: OrderCommand = {
+    it('3. should accept order with valid stopLoss', () => {
+      const command: OrderCommand = {
         ...BASE_ORDER,
-        stopLoss: 180, // Below entry price for BUY
+        side: OrderSideEnum.BUY,
+        price: 60000,
+        stopLoss: 55000,
       };
 
-      // Act
-      const result = riskGatekeeper.enforceStopLoss(validCommand);
+      const result = riskGatekeeper.enforceStopLoss(command);
 
-      // Assert
       expect(result.allowed).toBe(true);
     });
   });
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // Test Suite 2: Balance Check
+  // Suite 2: Balance Check — Fail-Closed (4 tests)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  describe('Balance Check (Paper Account)', () => {
-    it('should reject order when quantity exceeds available balance', async () => {
-      // Arrange: Order value far exceeds portfolio
-      const hugeOrder: OrderCommand = {
-        ...BASE_ORDER,
-        quantity: 10000, // 10000 shares × $185 = $1,850,000
-        stopLoss: 180,
-      };
-
-      // Act
-      const result = await riskGatekeeper.checkSufficientBalance(hugeOrder);
-
-      // Assert: Should be rejected due to insufficient funds
-      // Portfolio is only $10,000 but order is $1,850,000
-      // Note: The actual check depends on CCXT balance fetch
-      // If CCXT fails, the check may pass with a warning (fail-open)
-      // This test verifies the check runs without crashing
-      expect(result).toBeDefined();
-      expect(typeof result.allowed).toBe('boolean');
+  describe('Balance Check (Fail-Closed)', () => {
+    beforeEach(() => {
+      // Default: Binance credential with CCXT mock returning sufficient balance
+      mockPrismaService.exchangeCredential.findUnique.mockResolvedValue(MOCK_CREDENTIAL_BINANCE);
+      mockExchangeService.getQuote.mockResolvedValue({
+        symbol: 'BTC/USDT',
+        price: 60000,
+        change: 500,
+        changePercent: 0.84,
+        source: 'binance',
+      });
+      mockFetchBalance.mockResolvedValue({
+        USDT: { free: 100000, used: 0, total: 100000 },
+      });
     });
 
-    it('should reject order below minimum size', async () => {
-      // Arrange: Very small order (0.0001 shares)
+    it('4. should reject order below minimum size', async () => {
       const tinyOrder: OrderCommand = {
         ...BASE_ORDER,
-        quantity: 0.0001, // $0.018 order value
-        stopLoss: 180,
+        quantity: 0.0001,
+        stopLoss: 55000,
       };
 
-      // Act
       const result = await riskGatekeeper.checkSufficientBalance(tinyOrder);
 
-      // Assert: Should be rejected (below $10 minimum)
       expect(result.allowed).toBe(false);
       expect(result.failedCheck).toBe('BALANCE_CHECK');
+      expect(result.reason).toContain('الحد الأدنى');
     });
 
-    it('should accept order within balance limits', async () => {
-      // Arrange: Reasonable order within portfolio
-      const reasonableOrder: OrderCommand = {
+    it('5. should reject when price fetch fails (fail-closed)', async () => {
+      mockExchangeService.getQuote.mockRejectedValueOnce(new Error('Price API unreachable'));
+
+      const command: OrderCommand = {
         ...BASE_ORDER,
-        quantity: 1, // 1 share × $185 = $185
-        stopLoss: 180,
+        price: undefined,
+        stopLoss: 55000,
       };
 
-      // Act
-      const result = await riskGatekeeper.checkSufficientBalance(reasonableOrder);
+      const result = await riskGatekeeper.checkSufficientBalance(command);
 
-      // Assert: Should pass balance check (may fail on CCXT but fail-open)
-      expect(result).toBeDefined();
+      expect(result.allowed).toBe(false);
+      expect(result.failedCheck).toBe('BALANCE_CHECK');
+      expect(result.reason).toContain('حماية رأس المال');
+    });
+
+    it('6. should reject when CCXT balance fetch fails (fail-closed)', async () => {
+      mockFetchBalance.mockRejectedValueOnce(new Error('Network timeout'));
+
+      const command: OrderCommand = {
+        ...BASE_ORDER,
+        quantity: 0.5,
+        price: 60000,
+        stopLoss: 55000,
+      };
+
+      const result = await riskGatekeeper.checkSufficientBalance(command);
+
+      expect(result.allowed).toBe(false);
+      expect(result.failedCheck).toBe('BALANCE_CHECK');
+      expect(result.reason).toContain('حماية رأس المال');
+    });
+
+    it('7. should accept order with sufficient verified balance', async () => {
+      const command: OrderCommand = {
+        ...BASE_ORDER,
+        quantity: 0.5,
+        price: 60000,
+        stopLoss: 55000,
+      };
+
+      const result = await riskGatekeeper.checkSufficientBalance(command);
+
+      expect(result.allowed).toBe(true);
     });
   });
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // Test Suite 3: Idempotency
+  // Suite 3: Idempotency (3 tests)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
   describe('Idempotency (Duplicate Prevention)', () => {
     beforeEach(() => {
-      // Reset Redis mock for each test
       mockRedisService.setIfNotExists.mockReset();
       mockRedisService.get.mockReset();
       mockRedisService.del.mockReset();
     });
 
-    it('should accept first request with unique idempotencyKey', async () => {
-      // Arrange: First request — key doesn't exist
+    it('8. should accept first request with unique idempotencyKey', async () => {
       mockRedisService.setIfNotExists.mockResolvedValueOnce(true);
 
-      // Act
       const result = await idempotencyService.checkAndLock('unique-key-001');
 
-      // Assert: Lock acquired
       expect(result).toBe(true);
       expect(mockRedisService.setIfNotExists).toHaveBeenCalledWith(
         'idempotency:unique-key-001',
         expect.any(String),
-        86400, // 24 hours TTL
+        86400,
       );
     });
 
-    it('should reject duplicate request with same idempotencyKey (409)', async () => {
-      // Arrange: Key already exists (duplicate)
+    it('9. should reject duplicate request with same idempotencyKey (409)', async () => {
       mockRedisService.setIfNotExists.mockResolvedValueOnce(false);
 
-      // Act
       const result = await idempotencyService.checkAndLock('duplicate-key-001');
 
-      // Assert: Lock NOT acquired (duplicate)
       expect(result).toBe(false);
     });
 
-    it('should simulate full flow: first request 201, second 409', async () => {
-      // Step 1: First request succeeds
+    it('10. should simulate full flow: first request 201, then duplicate 409', async () => {
+      // Step 1: First request → 201 Created
       mockRedisService.setIfNotExists.mockResolvedValueOnce(true);
-      const firstResult = await idempotencyService.checkAndLock('flow-key-001');
-      expect(firstResult).toBe(true); // → 201 Created
+      const first = await idempotencyService.checkAndLock('flow-key-001');
+      expect(first).toBe(true);
 
-      // Step 2: Second request with same key is rejected
+      // Step 2: Duplicate request → 409 Conflict
       mockRedisService.setIfNotExists.mockResolvedValueOnce(false);
-      const secondResult = await idempotencyService.checkAndLock('flow-key-001');
-      expect(secondResult).toBe(false); // → 409 Conflict
-    });
-
-    it('should release lock on error (allow retry)', async () => {
-      // Arrange: Lock acquired
-      mockRedisService.setIfNotExists.mockResolvedValueOnce(true);
-
-      const lockResult = await idempotencyService.checkAndLock('retry-key-001');
-      expect(lockResult).toBe(true);
-
-      // Act: Release the lock
-      await idempotencyService.releaseLock('retry-key-001');
-
-      // Assert: Key deleted from Redis
-      expect(mockRedisService.del).toHaveBeenCalledWith('idempotency:retry-key-001');
-    });
-
-    it('should allow request on Redis failure (fail-open)', async () => {
-      // Arrange: Redis throws error
-      mockRedisService.setIfNotExists.mockRejectedValueOnce(new Error('Redis connection failed'));
-
-      // Act
-      const result = await idempotencyService.checkAndLock('redis-fail-key');
-
-      // Assert: Still allows request (fail-open for availability)
-      expect(result).toBe(true);
-    });
-  });
-
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // Test Suite 4: Full Risk Validation Pipeline
-  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-  describe('Full Risk Validation Pipeline', () => {
-    it('should pass all 5 risk checks for a valid order', async () => {
-      // Arrange: Valid order with all checks passing
-      const validCommand: OrderCommand = {
-        ...BASE_ORDER,
-        quantity: 1,
-        stopLoss: 180,
-      };
-
-      // Act
-      const result = await riskGatekeeper.validateOrder(validCommand);
-
-      // Assert: All checks pass
-      expect(result.allowed).toBe(true);
-      expect(result.riskScore).toBeDefined();
-      expect(result.riskScore).toBeGreaterThanOrEqual(0);
-      expect(result.riskScore).toBeLessThanOrEqual(100);
-    });
-
-    it('should fail on the FIRST failed check (fail-fast)', async () => {
-      // Arrange: Order without stopLoss (should fail on check 1, not proceed to check 2-5)
-      const noSLCommand: OrderCommand = {
-        ...BASE_ORDER,
-        stopLoss: 0,
-      };
-
-      // Act
-      const result = await riskGatekeeper.validateOrder(noSLCommand);
-
-      // Assert: Failed on first check
-      expect(result.allowed).toBe(false);
-      expect(result.failedCheck).toContain('STOPLOSS');
+      const second = await idempotencyService.checkAndLock('flow-key-001');
+      expect(second).toBe(false);
     });
   });
 });

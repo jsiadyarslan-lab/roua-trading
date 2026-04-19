@@ -45,11 +45,18 @@ export class OrderStateManagerService {
   async createOrder(command: OrderCommand): Promise<any> {
     this.logger.debug(`📋 Creating order: ${command.side} ${command.quantity} ${command.symbol}`);
 
+    // Look up the exchange name from the credential
+    const credential = await this.prisma.exchangeCredential.findUnique({
+      where: { id: command.exchangeCredentialId },
+    });
+    const exchangeName = credential?.exchange || 'unknown';
+
     // Create order with PENDING status and initial CREATED event
     const order = await this.prisma.order.create({
       data: {
         userId: command.userId,
         exchangeCredentialId: command.exchangeCredentialId,
+        exchange: exchangeName,
         symbol: command.symbol,
         side: command.side as any,
         type: command.type as any,
@@ -59,8 +66,8 @@ export class OrderStateManagerService {
         takeProfit: command.takeProfit ? (command.takeProfit as any) : null,
         status: 'PENDING' as any,
         filledQuantity: 0 as any,
-        idempotencyKey: command.idempotencyKey,
-        clientOrderId: command.clientOrderId,
+        idempotencyKey: command.idempotencyKey as any,
+        clientOrderId: command.clientOrderId as any,
         events: {
           create: {
             eventType: 'CREATED' as any,
@@ -133,7 +140,7 @@ export class OrderStateManagerService {
         data: {
           status: status as any,
           ...(payload?.filledQuantity !== undefined && { filledQuantity: payload.filledQuantity as any }),
-          ...(payload?.averagePrice !== undefined && { averagePrice: payload.averagePrice as any }),
+          ...(payload?.averagePrice !== undefined && { averageFillPrice: payload.averagePrice as any }),
           ...(payload?.exchangeOrderId !== undefined && { exchangeOrderId: payload.exchangeOrderId }),
         },
       }),

@@ -143,6 +143,7 @@ export class TradingService {
         data: {
           userId,
           exchangeCredentialId: request.credentialId,
+          exchange: credential.exchange,
           symbol: request.symbol,
           side: request.side as any,
           type: request.type as any,
@@ -150,7 +151,7 @@ export class TradingService {
           quantity: request.quantity,
           price: request.price,
           stopLoss: request.stopPrice || 0,
-          idempotencyKey: `legacy-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          idempotencyKey: `legacy-${Date.now()}-${Math.random().toString(36).slice(2)}` as any,
         },
       });
 
@@ -177,6 +178,7 @@ export class TradingService {
       data: {
         userId,
         exchangeCredentialId: request.credentialId,
+        exchange: credential.exchange,
         symbol: request.symbol,
         side: request.side as any,
         type: request.type as any,
@@ -188,9 +190,9 @@ export class TradingService {
         price: request.price,
         stopLoss: request.stopPrice || 0,
         filledQuantity: execution.filledQuantity || 0,
-        averagePrice: execution.averageFillPrice,
+        averageFillPrice: execution.averageFillPrice,
         exchangeOrderId: execution.exchangeOrderId,
-        idempotencyKey: `legacy-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        idempotencyKey: `legacy-${Date.now()}-${Math.random().toString(36).slice(2)}` as any,
       },
     });
 
@@ -277,7 +279,7 @@ export class TradingService {
       try {
         const credential =
           await this.prisma.exchangeCredential.findUnique({
-            where: { id: order.exchangeCredentialId },
+            where: { id: order.exchangeCredentialId! },
           });
         if (credential) {
           const { apiKey, apiSecret } =
@@ -504,6 +506,7 @@ export class TradingService {
       data: {
         userId,
         exchangeCredentialId: position.credentialId,
+        exchange: position.exchange,
         symbol: position.symbol,
         side: closeSide as any,
         type: 'MARKET' as any,
@@ -511,9 +514,9 @@ export class TradingService {
         quantity: closeQuantity,
         stopLoss: position.stopLoss || 0,
         filledQuantity: execution.filledQuantity || closeQuantity,
-        averagePrice: execution.averageFillPrice,
+        averageFillPrice: execution.averageFillPrice,
         exchangeOrderId: execution.exchangeOrderId,
-        idempotencyKey: `close-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        idempotencyKey: `close-${Date.now()}-${Math.random().toString(36).slice(2)}` as any,
       },
     });
 

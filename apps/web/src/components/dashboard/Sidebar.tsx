@@ -1,32 +1,29 @@
 'use client'
 
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  LayoutDashboard,
-  TrendingUp,
-  Bot,
-  Shield,
-  Settings,
-  ChevronsLeft,
-  ChevronsRight,
-} from 'lucide-react'
 import { useDashboardStore } from '@/lib/dashboard-store'
 
 const navItems = [
-  { id: 'dashboard', label: 'لوحة التحكم', icon: LayoutDashboard },
-  { id: 'markets', label: 'الأسواق', icon: TrendingUp },
-  { id: 'signals', label: 'إشارات رؤى', icon: Bot },
-  { id: 'portfolio', label: 'ملاذ المحفظة', icon: Shield },
-  { id: 'settings', label: 'الإعدادات', icon: Settings },
+  { id: 'dashboard', label: 'لوحة التحكم', emoji: '📊' },
+  { id: 'markets', label: 'الأسواق', emoji: '📈' },
+  { id: 'signals', label: 'إشارات رؤى', emoji: '🤖' },
+  { id: 'portfolio', label: 'ملاذ المحفظة', emoji: '🛡️' },
+  { id: 'settings', label: 'الإعدادات', emoji: '⚙️' },
 ]
 
 export default function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useDashboardStore()
+  const [activeId, setActiveId] = useState('dashboard')
 
   return (
     <motion.div
-      style={{ gridArea: 'sidebar' }}
-      className="glass flex flex-col overflow-hidden"
+      style={{
+        gridArea: 'sidebar',
+        background: 'var(--bg-sidebar)',
+        borderInlineStart: '1px solid var(--border-subtle)',
+      }}
+      className="flex flex-col overflow-hidden"
       animate={{ width: sidebarCollapsed ? 64 : 200 }}
       transition={{ duration: 0.3, ease: 'easeInOut' }}
     >
@@ -37,19 +34,14 @@ export default function Sidebar() {
           className="p-1.5 rounded-md transition-colors hover:bg-[var(--bg-card-hover)]"
           style={{ color: 'var(--text-secondary)' }}
         >
-          {sidebarCollapsed ? (
-            <ChevronsLeft size={18} />
-          ) : (
-            <ChevronsRight size={18} />
-          )}
+          <span className="text-sm">{sidebarCollapsed ? '◀' : '▶'}</span>
         </button>
       </div>
 
       {/* Navigation */}
       <nav className="flex-1 flex flex-col gap-1 px-2 custom-scrollbar overflow-y-auto">
-        {navItems.map((item, index) => {
-          const isActive = index === 0
-          const Icon = item.icon
+        {navItems.map((item) => {
+          const isActive = activeId === item.id
 
           return (
             <motion.button
@@ -60,12 +52,11 @@ export default function Sidebar() {
                 color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
                 border: isActive ? '1px solid var(--accent-border)' : '1px solid transparent',
               }}
-              whileHover={{
-                background: isActive ? 'var(--accent-bg)' : 'var(--bg-card-hover)',
-              }}
+              whileHover={{ background: isActive ? 'var(--accent-bg)' : 'var(--bg-card-hover)' }}
+              onClick={() => setActiveId(item.id)}
               title={sidebarCollapsed ? item.label : undefined}
             >
-              <Icon size={20} className="shrink-0" />
+              <span className="text-lg shrink-0">{item.emoji}</span>
               <AnimatePresence>
                 {!sidebarCollapsed && (
                   <motion.span
@@ -92,16 +83,13 @@ export default function Sidebar() {
       </nav>
 
       {/* Bottom section */}
-      <div
-        className="p-3 border-t"
-        style={{ borderColor: 'var(--border-subtle)' }}
-      >
+      <div className="p-3 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
         <div className="flex items-center gap-2">
           <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
             style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}
           >
-            MT
+            م
           </div>
           <AnimatePresence>
             {!sidebarCollapsed && (

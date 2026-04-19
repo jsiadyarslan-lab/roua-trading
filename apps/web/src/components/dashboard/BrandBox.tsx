@@ -5,70 +5,64 @@ import { motion } from 'framer-motion'
 export default function BrandBox() {
   return (
     <div
-      style={{ gridArea: 'brand', borderColor: 'var(--border-subtle)' }}
-      className="relative flex flex-col items-center justify-center border-b border-l"
+      className="brand-box relative flex flex-col items-center justify-center gap-1"
+      style={{
+        gridArea: 'brand',
+        width: '64px',
+        background: 'var(--bg-sidebar)',
+        borderInlineEnd: '1px solid var(--border-accent)',
+        borderBottom: '1px solid var(--border-subtle)',
+      }}
     >
-      {/* Glowing background effect */}
+      {/* Brand glow — radial gradient behind icon */}
+      <div
+        className="brand-glow absolute inset-0 flex items-center justify-center pointer-events-none"
+        style={{
+          background: 'radial-gradient(circle at center, var(--accent) 0%, transparent 60%)',
+          opacity: 0.15,
+          filter: 'blur(20px)',
+        }}
+      />
+
+      {/* Pulsing glow layer */}
       <motion.div
-        className="absolute inset-0 flex items-center justify-center"
-        animate={{
-          opacity: [0.4, 0.8, 0.4],
-          scale: [0.95, 1.05, 0.95],
-        }}
-        transition={{
-          duration: 3,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
+        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+        animate={{ opacity: [0.3, 0.7, 0.3], scale: [0.9, 1.1, 0.9] }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
       >
         <div
-          className="w-12 h-12 rounded-full"
-          style={{
-            background: 'radial-gradient(circle, var(--accent) 0%, transparent 70%)',
-            filter: 'blur(8px)',
-          }}
+          className="w-10 h-10 rounded-full"
+          style={{ background: 'radial-gradient(circle, var(--accent) 0%, transparent 70%)', filter: 'blur(6px)' }}
         />
       </motion.div>
 
-      {/* Icon */}
+      {/* Icon "ر" */}
       <motion.div
-        className="relative z-10 flex items-center justify-center w-10 h-10 rounded-lg mb-1"
+        className="relative z-10 flex items-center justify-center w-10 h-10 rounded-lg"
         style={{
           background: 'var(--accent-bg)',
           border: '1px solid var(--accent-border)',
           boxShadow: 'var(--glow-accent)',
         }}
         animate={{
-          boxShadow: [
-            '0 0 12px #0596694d',
-            '0 0 20px #0596696d',
-            '0 0 12px #0596694d',
-          ],
+          boxShadow: ['0 0 12px #0596694d', '0 0 20px #0596696d', '0 0 12px #0596694d'],
         }}
-        transition={{
-          duration: 2,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
+        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
       >
         <span
-          className="text-xl font-bold"
+          className="brand-icon text-xl font-bold"
           style={{ color: 'var(--accent)', fontFamily: 'var(--font-ar)' }}
         >
           ر
         </span>
       </motion.div>
 
-      {/* Brand name */}
+      {/* Brand name "رؤى" */}
       <span
-        className="text-xs font-semibold tracking-wider relative z-10"
-        style={{
-          fontFamily: 'var(--font-brand)',
-          color: 'var(--accent)',
-          letterSpacing: '0.15em',
-        }}
+        className="brand-text text-[10px] font-semibold tracking-wider relative z-10"
+        style={{ color: 'var(--accent)', fontFamily: 'var(--font-ar)' }}
       >
-        ROUA
+        رؤى
       </span>
     </div>
   )

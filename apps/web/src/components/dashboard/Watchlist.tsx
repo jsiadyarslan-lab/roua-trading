@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Star } from 'lucide-react'
 import { useDashboardStore } from '@/lib/dashboard-store'
@@ -25,27 +25,56 @@ const defaultAssets: WatchlistItem[] = [
 
 export default function Watchlist() {
   const { selectedPair, setSelectedPair } = useDashboardStore()
-  const [favorites, setFavorites] = useState<Set<string>>(new Set(['BTC/USD', 'XAU/USD']))
+  const [favorites, setFavorites] = useState<Set<string>>(() => {
+    // Load from localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('roua-watchlist-favorites')
+        if (stored) return new Set(JSON.parse(stored))
+      } catch { /* ignore */ }
+    }
+    return new Set(['BTC/USD', 'XAU/USD'])
+  })
+
+  // Simulated live price updates via useWebSocketTicker pattern
+  const [liveAssets, setLiveAssets] = useState(defaultAssets)
+
+  useEffect(() => {
+    // Simulate WebSocket ticker updates every 2 seconds
+    const interval = setInterval(() => {
+      setLiveAssets((prev) =>
+        prev.map((asset) => ({
+          ...asset,
+          change: +(asset.change + (Math.random() - 0.5) * 0.1).toFixed(2),
+        })),
+      )
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Persist favorites to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('roua-watchlist-favorites', JSON.stringify([...favorites]))
+    } catch { /* ignore */ }
+  }, [favorites])
 
   const toggleFavorite = (symbol: string) => {
     setFavorites((prev) => {
       const next = new Set(prev)
-      if (next.has(symbol)) {
-        next.delete(symbol)
-      } else {
-        next.add(symbol)
-      }
+      if (next.has(symbol)) next.delete(symbol)
+      else next.add(symbol)
       return next
     })
   }
 
   const sortedAssets = useMemo(() => {
-    return [...defaultAssets].sort((a, b) => {
+    return [...liveAssets].sort((a, b) => {
       const aFav = favorites.has(a.symbol) ? 0 : 1
       const bFav = favorites.has(b.symbol) ? 0 : 1
       return aFav - bFav
     })
-  }, [favorites])
+  }, [favorites, liveAssets])
 
   return (
     <div
@@ -53,21 +82,13 @@ export default function Watchlist() {
       className="glass flex flex-col overflow-hidden"
     >
       {/* Header */}
-      <div
-        className="flex items-center justify-between px-4 py-3 border-b"
-        style={{ borderColor: 'var(--border-subtle)' }}
-      >
+      <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
         <div className="flex items-center gap-2">
           <Star size={16} style={{ color: 'var(--gold)' }} />
-          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-main)' }}>
-            قائمة المراقبة
-          </h2>
+          <h2 className="text-sm font-semibold" style={{ color: 'var(--text-main)' }}>قائمة المراقبة</h2>
         </div>
-        <span
-          className="text-[10px] px-2 py-0.5 rounded-full"
-          style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}
-        >
-          {defaultAssets.length}
+        <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: 'var(--accent-bg)', color: 'var(--accent)' }}>
+          {liveAssets.length}
         </span>
       </div>
 
@@ -86,67 +107,39 @@ export default function Watchlist() {
                 background: isSelected ? 'var(--accent-bg)' : 'transparent',
                 borderInlineStart: isSelected ? '2px solid var(--accent)' : '2px solid transparent',
               }}
-              whileHover={{
-                background: isSelected ? 'var(--accent-bg)' : 'var(--bg-card-hover)',
-              }}
+              whileHover={{ background: isSelected ? 'var(--accent-bg)' : 'var(--bg-card-hover)' }}
               onClick={() => setSelectedPair(asset.symbol)}
             >
               {/* Star / favorite */}
-              <button
-                className="shrink-0 p-0.5"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  toggleFavorite(asset.symbol)
-                }}
-              >
+              <button className="shrink-0 p-0.5" onClick={(e) => { e.stopPropagation(); toggleFavorite(asset.symbol) }}>
                 <Star
                   size={12}
-                  style={{
-                    color: isFav ? 'var(--gold)' : 'var(--text-muted)',
-                    fill: isFav ? 'var(--gold)' : 'transparent',
-                  }}
+                  style={{ color: isFav ? 'var(--gold)' : 'var(--text-muted)', fill: isFav ? 'var(--gold)' : 'transparent' }}
                 />
               </button>
 
               {/* Symbol info */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span
-                    className="text-xs font-semibold truncate"
-                    style={{ color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}
-                  >
+                  <span className="text-xs font-semibold truncate" style={{ color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>
                     {asset.symbol}
                   </span>
-                  <span
-                    className="text-[9px] px-1 py-0 rounded"
-                    style={{ color: 'var(--text-muted)', background: 'var(--bg-input)' }}
-                  >
+                  <span className="text-[9px] px-1 py-0 rounded" style={{ color: 'var(--text-muted)', background: 'var(--bg-input)' }}>
                     {asset.category}
                   </span>
                 </div>
-                <span
-                  className="price text-[11px]"
-                  style={{ color: isPositive ? 'var(--profit)' : 'var(--loss)' }}
-                >
+                <span className={`price text-[11px] ${isPositive ? 'positive' : 'negative'}`}>
                   {isPositive ? '+' : ''}{asset.change.toFixed(2)}%
                 </span>
               </div>
 
               {/* Mini sparkline */}
               <svg width="28" height="18" className="shrink-0">
-                <path
-                  d={asset.sparkline}
-                  fill="none"
-                  stroke={isPositive ? 'var(--profit)' : 'var(--loss)'}
-                  strokeWidth="1.5"
-                />
+                <path d={asset.sparkline} fill="none" stroke={isPositive ? 'var(--profit)' : 'var(--loss)'} strokeWidth="1.5" />
               </svg>
 
               {/* Price */}
-              <span
-                className="price text-xs font-medium shrink-0"
-                style={{ color: 'var(--text-main)' }}
-              >
+              <span className="price text-xs font-medium shrink-0" style={{ color: 'var(--text-main)' }}>
                 {asset.price}
               </span>
             </motion.div>

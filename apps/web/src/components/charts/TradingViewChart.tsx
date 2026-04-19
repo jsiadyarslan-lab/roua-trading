@@ -1,16 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { motion } from 'framer-motion'
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid,
-} from 'recharts'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { createChart, ColorType, type IChartApi, type ISeriesApi, CandlestickData, Time } from 'lightweight-charts'
 import { useDashboardStore } from '@/lib/dashboard-store'
 
 const timeframes = [
@@ -22,26 +13,29 @@ const timeframes = [
   { label: '1ي', value: '1d' },
 ]
 
-const indicators = [
-  { label: 'RSI', active: true },
-  { label: 'MACD', active: false },
-  { label: 'BOLL', active: false },
-]
+const indicatorToggles = ['RSI', 'MACD', 'BOLL']
 
-// Generate mock chart data
-function generateChartData() {
-  const data = []
+// Generate mock candlestick data
+function generateCandlestickData(): CandlestickData[] {
+  const data: CandlestickData[] = []
   let basePrice = 67000
+  const now = new Date()
+  now.setHours(now.getHours() - 60)
+
   for (let i = 0; i < 60; i++) {
-    const change = (Math.random() - 0.48) * 500
-    basePrice += change
-    const high = basePrice + Math.random() * 300
-    const low = basePrice - Math.random() * 300
+    const time = new Date(now.getTime() + i * 3600000)
+    const open = basePrice + (Math.random() - 0.5) * 300
+    const close = open + (Math.random() - 0.48) * 500
+    const high = Math.max(open, close) + Math.random() * 200
+    const low = Math.min(open, close) - Math.random() * 200
+    basePrice = close
+
     data.push({
-      time: `${String(Math.floor(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}`,
-      price: Math.round(basePrice * 100) / 100,
+      time: Math.floor(time.getTime() / 1000) as Time,
+      open: Math.round(open * 100) / 100,
       high: Math.round(high * 100) / 100,
       low: Math.round(low * 100) / 100,
+      close: Math.round(close * 100) / 100,
     })
   }
   return data
@@ -51,50 +45,160 @@ export default function TradingViewChart() {
   const { selectedPair } = useDashboardStore()
   const [activeTimeframe, setActiveTimeframe] = useState('1h')
   const [activeIndicators, setActiveIndicators] = useState<Set<string>>(new Set(['RSI']))
-  const chartData = useMemo(() => generateChartData(), [])
+  const chartContainerRef = useRef<HTMLDivElement>(null)
+  const chartRef = useRef<IChartApi | null>(null)
+  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
+  const volumeRef = useRef<ISeriesApi<'Histogram'> | null>(null)
 
   const toggleIndicator = (label: string) => {
     setActiveIndicators((prev) => {
       const next = new Set(prev)
-      if (next.has(label)) {
-        next.delete(label)
-      } else {
-        next.add(label)
-      }
+      if (next.has(label)) next.delete(label)
+      else next.add(label)
       return next
     })
   }
 
-  const currentPrice = chartData[chartData.length - 1]?.price ?? 0
-  const prevPrice = chartData[chartData.length - 2]?.price ?? 0
-  const priceChange = currentPrice - prevPrice
+  const initChart = useCallback(() => {
+    if (!chartContainerRef.current) return
+
+    // Clean up existing chart
+    if (chartRef.current) {
+      chartRef.current.remove()
+      chartRef.current = null
+    }
+
+    const chart = createChart(chartContainerRef.current, {
+      layout: {
+        background: { type: ColorType.Solid, color: '#0d1520' },
+        textColor: '#94a3b8',
+        fontFamily: 'var(--font-mono)',
+      },
+      grid: {
+        vertLines: { color: '#ffffff0f' },
+        horzLines: { color: '#ffffff0f' },
+      },
+      crosshair: {
+        vertLine: { color: '#05966940', labelBackgroundColor: '#1a2332' },
+        horzLine: { color: '#05966940', labelBackgroundColor: '#1a2332' },
+      },
+      rightPriceScale: {
+        borderColor: '#ffffff0f',
+        scaleMargins: { top: 0.1, bottom: 0.2 },
+      },
+      timeScale: {
+        borderColor: '#ffffff0f',
+        timeVisible: true,
+        secondsVisible: false,
+      },
+    })
+
+    chartRef.current = chart
+
+    // Candlestick series
+    const candleSeries = chart.addCandlestickSeries({
+      upColor: '#10b981',
+      downColor: '#ef4444',
+      borderUpColor: '#10b981',
+      borderDownColor: '#ef4444',
+      wickUpColor: '#10b981',
+      wickDownColor: '#ef4444',
+    })
+
+    const data = generateCandlestickData()
+    candleSeries.setData(data)
+    seriesRef.current = candleSeries
+
+    // Volume histogram
+    const volumeSeries = chart.addHistogramSeries({
+      priceFormat: { type: 'volume' },
+      priceScaleId: '',
+    })
+
+    volumeSeries.priceScale().applyOptions({
+      scaleMargins: { top: 0.8, bottom: 0 },
+    })
+
+    volumeSeries.setData(
+      data.map((d) => ({
+        time: d.time,
+        value: Math.round(Math.random() * 1000000 + 500000),
+        color: d.close >= d.open ? '#10b98120' : '#ef444420',
+      }))
+    )
+    volumeRef.current = volumeSeries
+
+    chart.timeScale().fitContent()
+
+    // Handle resize
+    const handleResize = () => {
+      if (chartContainerRef.current && chartRef.current) {
+        chartRef.current.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+          height: chartContainerRef.current.clientHeight,
+        })
+      }
+    }
+
+    const resizeObserver = new ResizeObserver(handleResize)
+    resizeObserver.observe(chartContainerRef.current)
+
+    return () => {
+      resizeObserver.disconnect()
+    }
+  }, [])
+
+  useEffect(() => {
+    const cleanup = initChart()
+    return () => {
+      cleanup?.()
+      if (chartRef.current) {
+        chartRef.current.remove()
+        chartRef.current = null
+      }
+    }
+  }, [initChart, selectedPair, activeTimeframe])
+
+  // Simulated live candle update
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!seriesRef.current) return
+      const lastCandle = seriesRef.current.data()
+      const last = lastCandle[lastCandle.length - 1]
+      if (!last || typeof last === 'undefined') return
+
+      const newClose = (last.close as number) + (Math.random() - 0.5) * 100
+      seriesRef.current.update({
+        time: last.time,
+        open: last.open,
+        high: Math.max(last.high as number, newClose),
+        low: Math.min(last.low as number, newClose),
+        close: newClose,
+      })
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const currentData = seriesRef.current?.data()
+  const lastCandle = currentData?.[currentData.length - 1]
+  const currentPrice = lastCandle?.close ?? 0
+  const prevClose = currentData?.[currentData.length - 2]?.close ?? 0
+  const priceChange = (currentPrice as number) - (prevClose as number)
   const isPositive = priceChange >= 0
 
   return (
-    <div
-      style={{ gridArea: 'chart' }}
-      className="flex flex-col overflow-hidden"
-    >
+    <div style={{ gridArea: 'chart' }} className="flex flex-col overflow-hidden">
       {/* Chart header */}
-      <div
-        className="flex items-center justify-between px-4 py-2 border-b"
-        style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-chart)' }}
-      >
+      <div className="flex items-center justify-between px-4 py-2 border-b" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-chart)' }}>
         <div className="flex items-center gap-4">
-          {/* Pair info */}
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold" style={{ color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>
-              {selectedPair}
-            </span>
-            <span className="price text-lg font-bold" style={{ color: isPositive ? 'var(--profit)' : 'var(--loss)' }}>
-              {currentPrice.toLocaleString()}
+            <span className="text-sm font-bold" style={{ color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>{selectedPair}</span>
+            <span className={`price text-lg font-bold ${isPositive ? 'positive' : 'negative'}`}>
+              {(currentPrice as number)?.toLocaleString?.() ?? '—'}
             </span>
             <span
               className="text-xs px-1.5 py-0.5 rounded"
-              style={{
-                background: isPositive ? 'var(--profit-bg)' : 'var(--loss-bg)',
-                color: isPositive ? 'var(--profit)' : 'var(--loss)',
-              }}
+              style={{ background: isPositive ? 'var(--profit-bg)' : 'var(--loss-bg)', color: isPositive ? 'var(--profit)' : 'var(--loss)' }}
             >
               {isPositive ? '+' : ''}{priceChange.toFixed(2)}
             </span>
@@ -119,20 +223,20 @@ export default function TradingViewChart() {
           </div>
         </div>
 
-        {/* Indicators & tools */}
+        {/* Indicators & drawing tools */}
         <div className="flex items-center gap-2">
-          {indicators.map((ind) => (
+          {indicatorToggles.map((ind) => (
             <button
-              key={ind.label}
+              key={ind}
               className="px-2 py-1 text-[11px] rounded transition-colors"
               style={{
-                background: activeIndicators.has(ind.label) ? 'var(--accent-bg)' : 'transparent',
-                color: activeIndicators.has(ind.label) ? 'var(--accent)' : 'var(--text-muted)',
-                border: activeIndicators.has(ind.label) ? '1px solid var(--accent-border)' : '1px solid transparent',
+                background: activeIndicators.has(ind) ? 'var(--accent-bg)' : 'transparent',
+                color: activeIndicators.has(ind) ? 'var(--accent)' : 'var(--text-muted)',
+                border: activeIndicators.has(ind) ? '1px solid var(--accent-border)' : '1px solid transparent',
               }}
-              onClick={() => toggleIndicator(ind.label)}
+              onClick={() => toggleIndicator(ind)}
             >
-              {ind.label}
+              {ind}
             </button>
           ))}
 
@@ -140,117 +244,34 @@ export default function TradingViewChart() {
 
           {/* Drawing tools */}
           <div className="flex items-center gap-1">
-            <button
-              className="p-1 rounded transition-colors hover:bg-[var(--bg-card-hover)]"
-              style={{ color: 'var(--text-muted)' }}
-              title="خط الاتجاه"
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <line x1="2" y1="12" x2="12" y2="2" stroke="currentColor" strokeWidth="1.5" />
-              </svg>
+            <button className="p-1 rounded transition-colors hover:bg-[var(--bg-card-hover)]" style={{ color: 'var(--text-muted)' }} title="خط الاتجاه">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="2" y1="12" x2="12" y2="2" stroke="currentColor" strokeWidth="1.5" /></svg>
             </button>
-            <button
-              className="p-1 rounded transition-colors hover:bg-[var(--bg-card-hover)]"
-              style={{ color: 'var(--text-muted)' }}
-              title="فيبوناتشي"
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M2 7 Q5 2, 7 7 Q9 12, 12 7" stroke="currentColor" strokeWidth="1.5" fill="none" />
-              </svg>
+            <button className="p-1 rounded transition-colors hover:bg-[var(--bg-card-hover)]" style={{ color: 'var(--text-muted)' }} title="فيبوناتشي">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7 Q5 2, 7 7 Q9 12, 12 7" stroke="currentColor" strokeWidth="1.5" fill="none" /></svg>
             </button>
-            <button
-              className="p-1 rounded transition-colors hover:bg-[var(--bg-card-hover)]"
-              style={{ color: 'var(--text-muted)' }}
-              title="خط تقاطع"
-            >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <line x1="7" y1="2" x2="7" y2="12" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2" />
-                <line x1="2" y1="7" x2="12" y2="7" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2" />
-              </svg>
+            <button className="p-1 rounded transition-colors hover:bg-[var(--bg-card-hover)]" style={{ color: 'var(--text-muted)' }} title="خط تقاطع">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="7" y1="2" x2="7" y2="12" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2" /><line x1="2" y1="7" x2="12" y2="7" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2" /></svg>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Chart area */}
-      <div className="flex-1 min-h-0" style={{ background: 'var(--bg-chart)' }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <defs>
-              <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="var(--border-subtle)"
-              vertical={false}
-            />
-            <XAxis
-              dataKey="time"
-              tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
-              axisLine={{ stroke: 'var(--border-subtle)' }}
-              tickLine={false}
-              interval={9}
-            />
-            <YAxis
-              tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
-              axisLine={false}
-              tickLine={false}
-              domain={['dataMin - 500', 'dataMax + 500']}
-              tickFormatter={(v: number) => (v / 1000).toFixed(1) + 'K'}
-            />
-            <Tooltip
-              contentStyle={{
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: '8px',
-                fontSize: '11px',
-                fontFamily: 'var(--font-mono)',
-                color: 'var(--text-main)',
-                boxShadow: 'var(--shadow-card)',
-              }}
-              labelStyle={{ color: 'var(--text-muted)' }}
-              formatter={(value: number) => [value.toLocaleString(), 'السعر']}
-            />
-            <Area
-              type="monotone"
-              dataKey="price"
-              stroke="var(--accent)"
-              strokeWidth={2}
-              fill="url(#priceGradient)"
-              animationDuration={1000}
-            />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
+      {/* Chart canvas */}
+      <div ref={chartContainerRef} className="flex-1 min-h-0" style={{ background: 'var(--bg-chart)' }} />
 
       {/* RSI indicator sub-chart */}
       {activeIndicators.has('RSI') && (
-        <div
-          className="h-16 border-t"
-          style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-chart)' }}
-        >
-          <div className="flex items-center justify-between px-4 py-1">
-            <span className="text-[10px]" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-              RSI (14)
-            </span>
-            <span className="text-[10px]" style={{ color: 'var(--warning)', fontFamily: 'var(--font-mono)' }}>
-              58.4
-            </span>
+        <div className="h-16 border-t flex items-center px-4 gap-3" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-chart)' }}>
+          <span className="text-[10px]" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>RSI (14)</span>
+          <span className="val-gold text-[10px] price">58.4</span>
+          <div className="flex-1 flex items-center gap-1">
+            {[30, 40, 50, 60, 70].map((level) => (
+              <div key={level} className="flex-1 h-1 rounded-full" style={{ background: level <= 58 ? 'var(--warning)' : 'var(--bg-input)', opacity: level <= 58 ? 0.7 : 0.3 }} />
+            ))}
           </div>
-          <ResponsiveContainer width="100%" height={40}>
-            <AreaChart data={chartData.map((d, i) => ({ ...d, rsi: 40 + Math.sin(i * 0.3) * 20 + Math.random() * 10 }))} margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
-              <Area
-                type="monotone"
-                dataKey="rsi"
-                stroke="var(--warning)"
-                strokeWidth={1}
-                fill="transparent"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>30</span>
+          <span className="text-[9px]" style={{ color: 'var(--text-muted)' }}>70</span>
         </div>
       )}
     </div>

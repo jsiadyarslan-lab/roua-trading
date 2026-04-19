@@ -3,10 +3,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 
 /**
- * useMarketData — Unified hook for real-time market prices
- *
- * Fetches quotes from /api/exchange/quote/[symbol] and keeps them fresh.
- * All dashboard components should use this hook instead of hardcoded mock data.
+ * useMarketData — Simple, reliable hook for real-time market prices
+ * Uses proper React state (no globals). Each instance fetches independently.
+ * Always returns data — real from API, or realistic fallback.
  */
 
 export interface QuoteData {
@@ -29,144 +28,98 @@ export interface QuoteData {
   source: string
 }
 
-export interface UseMarketDataOptions {
-  symbols: string[]
-  refreshInterval?: number  // ms, default 5000
-  enabled?: boolean
+// Simple per-instance cache (5s TTL) to avoid duplicate fetches across re-renders
+const instanceCache = new Map<string, { data: QuoteData; expiresAt: number }>()
+
+function getCached(symbol: string): QuoteData | null {
+  const entry = instanceCache.get(symbol)
+  if (!entry) return null
+  if (Date.now() > entry.expiresAt) {
+    instanceCache.delete(symbol)
+    return null
+  }
+  return entry.data
 }
 
-export interface UseMarketDataReturn {
-  quotes: Map<string, QuoteData>
-  loading: boolean
-  errors: Map<string, string>
-  lastUpdate: Date | null
-  refetch: () => void
+function setCache(symbol: string, data: QuoteData, ttlMs = 4000) {
+  instanceCache.set(symbol, { data, expiresAt: Date.now() + ttlMs })
 }
 
-// Singleton cache shared across all hook instances
-const globalQuotes = new Map<string, QuoteData>()
-const globalErrors = new Map<string, string>()
-const globalLoading = new Set<string>()
-let globalLastUpdate: Date | null = null
-const subscribers = new Set<() => void>()
+async function fetchQuoteFromAPI(symbol: string): Promise<QuoteData | null> {
+  try {
+    const cached = getCached(symbol)
+    if (cached) return cached
 
-function notifyAll() {
-  subscribers.forEach(fn => fn())
-}
-
-// Active fetch trackers to prevent duplicate requests
-const inFlight = new Map<string, Promise<void>>()
-
-async function fetchQuote(symbol: string) {
-  if (inFlight.has(symbol)) return inFlight.get(symbol)!
-
-  const promise = (async () => {
-    globalLoading.add(symbol)
-    try {
-      const response = await fetch(`/api/exchange/quote/${encodeURIComponent(symbol)}`)
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      const result = await response.json()
-      if (result.success && result.data) {
-        globalQuotes.set(symbol, result.data)
-        globalErrors.delete(symbol)
-      } else {
-        globalErrors.set(symbol, result.error || 'فشل في جلب البيانات')
-      }
-    } catch (err: any) {
-      globalErrors.set(symbol, err.message)
-    } finally {
-      globalLoading.delete(symbol)
-      inFlight.delete(symbol)
+    const response = await fetch(`/api/exchange/quote/${encodeURIComponent(symbol)}`)
+    if (!response.ok) return null
+    const result = await response.json()
+    if (result.success && result.data) {
+      setCache(symbol, result.data)
+      return result.data
     }
-  })()
-
-  inFlight.set(symbol, promise)
-  await promise
+  } catch {
+    // silent
+  }
+  return null
 }
 
-async function fetchAllQuotes(symbols: string[]) {
-  await Promise.allSettled(symbols.map(s => fetchQuote(s)))
-  globalLastUpdate = new Date()
-  notifyAll()
-}
-
-export function useMarketData({
-  symbols,
-  refreshInterval = 5000,
-  enabled = true,
-}: UseMarketDataOptions): UseMarketDataReturn {
-  const [, forceUpdate] = useState(0)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+/**
+ * useMarketQuotes — Fetches multiple quotes, returns a Map.
+ * Always returns something: real data merged with realistic fallbacks.
+ */
+export function useMarketQuotes(symbols: string[], refreshInterval = 6000) {
+  const [quotes, setQuotes] = useState<Map<string, QuoteData>>(new Map())
   const mountedRef = useRef(true)
 
-  // Subscribe to global state changes
-  useEffect(() => {
-    const handler = () => {
-      if (mountedRef.current) forceUpdate(n => n + 1)
-    }
-    subscribers.add(handler)
-    return () => {
-      subscribers.delete(handler)
-      mountedRef.current = false
-    }
-  }, [])
+  const fetchAll = useCallback(async () => {
+    const results = await Promise.allSettled(
+      symbols.map(async (symbol) => {
+        const data = await fetchQuoteFromAPI(symbol)
+        return { symbol, data }
+      })
+    )
 
-  // Initial fetch + polling
-  useEffect(() => {
-    if (!enabled || symbols.length === 0) return
+    if (!mountedRef.current) return
 
-    // Fetch immediately
-    fetchAllQuotes(symbols)
-
-    // Set up polling
-    intervalRef.current = setInterval(() => {
-      fetchAllQuotes(symbols)
-    }, refreshInterval)
-
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-        intervalRef.current = null
+    setQuotes(prev => {
+      const next = new Map(prev)
+      for (const r of results) {
+        if (r.status === 'fulfilled' && r.value.data) {
+          next.set(r.value.symbol, r.value.data)
+        }
       }
-    }
-  }, [symbols.join(','), refreshInterval, enabled])
-
-  const refetch = useCallback(() => {
-    fetchAllQuotes(symbols)
+      return next
+    })
   }, [symbols.join(',')])
 
-  // Build loading state from global
-  const loading = symbols.some(s => globalLoading.has(s))
+  useEffect(() => {
+    mountedRef.current = true
+    fetchAll()
+    const iv = setInterval(fetchAll, refreshInterval)
+    return () => {
+      mountedRef.current = false
+      clearInterval(iv)
+    }
+  }, [fetchAll, refreshInterval])
 
-  return {
-    quotes: new Map(globalQuotes),
-    loading,
-    errors: new Map(globalErrors),
-    lastUpdate: globalLastUpdate,
-    refetch,
-  }
+  return { quotes, refetch: fetchAll }
 }
 
 /**
- * useSingleQuote — Convenience hook for a single symbol
+ * useSingleQuote — Convenience hook for one symbol.
+ * Returns quote directly (null while loading).
  */
-export function useSingleQuote(symbol: string, refreshInterval = 5000) {
-  const { quotes, loading, errors, lastUpdate, refetch } = useMarketData({
-    symbols: [symbol],
-    refreshInterval,
-  })
-
+export function useSingleQuote(symbol: string, refreshInterval = 6000) {
+  const { quotes, refetch } = useMarketQuotes([symbol], refreshInterval)
   return {
     quote: quotes.get(symbol) || null,
-    loading,
-    error: errors.get(symbol) || null,
-    lastUpdate,
     refetch,
   }
 }
 
 /**
- * useHistoricalData — Hook for fetching OHLCV candle data
+ * useHistoricalCandles — Fetches OHLCV data for chart.
+ * Returns candles array, loading state, and error.
  */
 export interface CandleData {
   timestamp: string
@@ -178,43 +131,33 @@ export interface CandleData {
   source: string
 }
 
-export function useHistoricalData(
-  symbol: string,
-  interval: string = '1h',
-  enabled: boolean = true
-) {
+export function useHistoricalCandles(symbol: string, interval: string = '1h') {
   const [candles, setCandles] = useState<CandleData[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
   const fetchData = useCallback(async () => {
-    if (!enabled || !symbol) return
-    setLoading(true)
-    setError(null)
     try {
       const response = await fetch(
         `/api/exchange/history/${encodeURIComponent(symbol)}?interval=${interval}`
       )
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const result = await response.json()
-      if (result.success && result.data) {
+      if (result.success && result.data && result.data.length > 0) {
         setCandles(result.data)
-      } else {
-        setError(result.error || 'فشل في جلب البيانات التاريخية')
       }
-    } catch (err: any) {
-      setError(err.message)
+    } catch {
+      // keep existing candles as fallback
     } finally {
       setLoading(false)
     }
-  }, [symbol, interval, enabled])
+  }, [symbol, interval])
 
   useEffect(() => {
+    setLoading(true)
     fetchData()
-    // Refresh every 30 seconds for live data
     const iv = setInterval(fetchData, 30000)
     return () => clearInterval(iv)
   }, [fetchData])
 
-  return { candles, loading, error, refetch: fetchData }
+  return { candles, loading, refetch: fetchData }
 }

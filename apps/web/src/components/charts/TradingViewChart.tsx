@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createChart, ColorType, CandlestickSeries, HistogramSeries, type IChartApi, type ISeriesApi, type CandlestickData, type WhitespaceData, type Time } from 'lightweight-charts'
 import { useDashboardStore } from '@/lib/dashboard-store'
-import { useHistoricalData, useSingleQuote } from '@/hooks/useMarketData'
+import { useHistoricalCandles, useSingleQuote } from '@/hooks/useMarketData'
 
 const timeframes = [
   { label: '1د', value: '1min' },
@@ -16,6 +16,34 @@ const timeframes = [
 
 const indicatorToggles = ['RSI', 'MACD', 'BOLL']
 
+// Fallback: generate realistic candles when API has no data
+function generateFallbackCandles(pair: string): CandlestickData[] {
+  const basePrice = pair.includes('BTC') ? 67000 : pair.includes('ETH') ? 3500 : pair.includes('EUR') ? 1.08 : pair.includes('GBP') ? 1.27 : pair.includes('XAU') ? 2340 : 100
+  const data: CandlestickData[] = []
+  const now = new Date()
+  now.setHours(now.getHours() - 60)
+  let price = basePrice
+
+  for (let i = 0; i < 60; i++) {
+    const time = new Date(now.getTime() + i * 3600000)
+    const vol = basePrice * 0.005
+    const open = price + (Math.random() - 0.5) * vol
+    const close = open + (Math.random() - 0.48) * vol * 2
+    const high = Math.max(open, close) + Math.random() * vol * 0.5
+    const low = Math.min(open, close) - Math.random() * vol * 0.5
+    price = close
+
+    data.push({
+      time: Math.floor(time.getTime() / 1000) as Time,
+      open: Math.round(open * 10000) / 10000,
+      high: Math.round(high * 10000) / 10000,
+      low: Math.round(low * 10000) / 10000,
+      close: Math.round(close * 10000) / 10000,
+    })
+  }
+  return data
+}
+
 export default function TradingViewChart() {
   const { selectedPair } = useDashboardStore()
   const [activeTimeframe, setActiveTimeframe] = useState('1h')
@@ -25,13 +53,9 @@ export default function TradingViewChart() {
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const volumeRef = useRef<ISeriesApi<'Histogram'> | null>(null)
 
-  // Real market data
-  const { candles, loading: candlesLoading, error: candlesError } = useHistoricalData(
-    selectedPair,
-    activeTimeframe,
-    true
-  )
-  const { quote: liveQuote } = useSingleQuote(selectedPair, 3000)
+  // Real data from API
+  const { candles: apiCandles } = useHistoricalCandles(selectedPair, activeTimeframe)
+  const { quote: liveQuote } = useSingleQuote(selectedPair, 5000)
 
   const toggleIndicator = (label: string) => {
     setActiveIndicators((prev) => {
@@ -42,37 +66,37 @@ export default function TradingViewChart() {
     })
   }
 
-  // Generate fallback mock data when API fails
-  const generateFallbackData = useCallback((): CandlestickData[] => {
-    const data: CandlestickData[] = []
-    let basePrice = selectedPair.includes('BTC') ? 67000 : selectedPair.includes('ETH') ? 3500 : selectedPair.includes('EUR') ? 1.08 : 100
-    const now = new Date()
-    now.setHours(now.getHours() - 60)
+  // Build chart data: prefer API, then fallback
+  const chartData = apiCandles.length > 0
+    ? apiCandles
+        .map((c) => ({
+          time: Math.floor(new Date(c.timestamp).getTime() / 1000) as Time,
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close,
+        }))
+        .sort((a, b) => (a.time as number) - (b.time as number))
+        .filter((d, i, arr) => i === 0 || (d.time as number) !== (arr[i - 1].time as number))
+    : generateFallbackCandles(selectedPair)
 
-    for (let i = 0; i < 60; i++) {
-      const time = new Date(now.getTime() + i * 3600000)
-      const volatility = basePrice * 0.005
-      const open = basePrice + (Math.random() - 0.5) * volatility
-      const close = open + (Math.random() - 0.48) * volatility * 2
-      const high = Math.max(open, close) + Math.random() * volatility * 0.5
-      const low = Math.min(open, close) - Math.random() * volatility * 0.5
-      basePrice = close
-
-      data.push({
-        time: Math.floor(time.getTime() / 1000) as Time,
-        open: Math.round(open * 100) / 100,
-        high: Math.round(high * 100) / 100,
-        low: Math.round(low * 100) / 100,
-        close: Math.round(close * 100) / 100,
-      })
-    }
-    return data
-  }, [selectedPair])
+  const volumeData = apiCandles.length > 0
+    ? apiCandles
+        .map((c) => ({
+          time: Math.floor(new Date(c.timestamp).getTime() / 1000) as Time,
+          value: c.volume,
+          color: c.close >= c.open ? '#00FFC620' : '#FF4D4D20',
+        }))
+        .sort((a, b) => (a.time as number) - (b.time as number))
+    : chartData.map((d) => ({
+        time: d.time,
+        value: Math.round(Math.random() * 1000000 + 500000),
+        color: d.close >= d.open ? '#00FFC620' : '#FF4D4D20',
+      }))
 
   const initChart = useCallback(() => {
     if (!chartContainerRef.current) return
 
-    // Clean up existing chart
     if (chartRef.current) {
       chartRef.current.remove()
       chartRef.current = null
@@ -105,7 +129,6 @@ export default function TradingViewChart() {
 
     chartRef.current = chart
 
-    // Candlestick series (v5 API)
     const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#00FFC6',
       downColor: '#FF4D4D',
@@ -114,22 +137,17 @@ export default function TradingViewChart() {
       wickUpColor: '#00FFC6',
       wickDownColor: '#FF4D4D',
     })
-
     seriesRef.current = candleSeries
 
-    // Volume histogram (v5 API)
     const volumeSeries = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' },
       priceScaleId: '',
     })
-
     volumeSeries.priceScale().applyOptions({
       scaleMargins: { top: 0.8, bottom: 0 },
     })
-
     volumeRef.current = volumeSeries
 
-    // Handle resize
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
         chartRef.current.applyOptions({
@@ -159,81 +177,23 @@ export default function TradingViewChart() {
     }
   }, [initChart])
 
-  // Update chart data when candles or selectedPair/timeframe changes
+  // Set data when chartData changes
   useEffect(() => {
-    if (!seriesRef.current || !volumeRef.current) return
-
-    let chartData: CandlestickData[]
-
-    if (candles.length > 0) {
-      // Use real data from API
-      chartData = candles
-        .map((c) => ({
-          time: Math.floor(new Date(c.timestamp).getTime() / 1000) as Time,
-          open: c.open,
-          high: c.high,
-          low: c.low,
-          close: c.close,
-        }))
-        .sort((a, b) => (a.time as number) - (b.time as number))
-
-      // Deduplicate by time
-      const seen = new Set<number>()
-      chartData = chartData.filter(d => {
-        const t = d.time as number
-        if (seen.has(t)) return false
-        seen.add(t)
-        return true
-      })
-    } else if (candlesError) {
-      // API failed, use fallback
-      chartData = generateFallbackData()
-    } else {
-      // Still loading
-      return
-    }
-
-    if (chartData.length === 0) return
+    if (!seriesRef.current || !volumeRef.current || chartData.length === 0) return
 
     seriesRef.current.setData(chartData)
-
-    // Volume data
-    const volumeData = candles.length > 0
-      ? candles
-          .map((c) => ({
-            time: Math.floor(new Date(c.timestamp).getTime() / 1000) as Time,
-            value: c.volume,
-            color: c.close >= c.open ? '#00FFC620' : '#FF4D4D20',
-          }))
-          .sort((a, b) => (a.time as number) - (b.time as number))
-      : chartData.map((d) => ({
-          time: d.time,
-          value: Math.round(Math.random() * 1000000 + 500000),
-          color: d.close >= d.open ? '#00FFC620' : '#FF4D4D20',
-        }))
-
-    // Deduplicate volume too
-    const volSeen = new Set<number>()
-    const dedupedVol = volumeData.filter(d => {
-      const t = d.time as number
-      if (volSeen.has(t)) return false
-      volSeen.add(t)
-      return true
-    })
-
-    volumeRef.current.setData(dedupedVol)
+    volumeRef.current.setData(volumeData)
     chartRef.current?.timeScale().fitContent()
-  }, [candles, candlesError, selectedPair, activeTimeframe, generateFallbackData])
+  }, [chartData.length, selectedPair, activeTimeframe]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Live price update via quote
+  // Live tick update
   useEffect(() => {
-    if (!seriesRef.current || !liveQuote) return
+    if (!seriesRef.current || !liveQuote?.price) return
 
     const allData = seriesRef.current.data()
     const last = allData[allData.length - 1]
     if (!last || !('open' in last)) return
 
-    // Update the last candle's close price with live quote
     seriesRef.current.update({
       time: last.time,
       open: last.open,
@@ -241,15 +201,15 @@ export default function TradingViewChart() {
       low: Math.min(last.low, liveQuote.price),
       close: liveQuote.price,
     })
-  }, [liveQuote?.price]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [liveQuote?.price, liveQuote?.timestamp]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Get current price from live quote or chart data
-  const currentPrice = liveQuote?.price ?? 0
+  // Current price display
+  const currentPrice = liveQuote?.price ?? (chartData.length > 0 ? chartData[chartData.length - 1].close : 0)
   const priceChange = liveQuote?.change ?? 0
   const isPositive = priceChange >= 0
 
   const formatChartPrice = (price: number) => {
-    if (price === 0) return '—'
+    if (!price) return '—'
     if (price > 1000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     if (price > 1) return price.toFixed(2)
     return price.toFixed(5)
@@ -266,7 +226,7 @@ export default function TradingViewChart() {
             </button>
             <div style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.06)' }} />
             <span className={`price text-lg font-bold ${isPositive ? 'positive' : 'negative'}`} style={{ textShadow: isPositive ? '0 0 16px rgba(0,255,198,0.33)' : '0 0 16px rgba(255,77,77,0.33)' }} dir="ltr">
-              {currentPrice > 0 ? formatChartPrice(currentPrice) : '—'}
+              {formatChartPrice(currentPrice)}
             </span>
             <span
               style={{ fontSize: '9px', fontWeight: 700, background: isPositive ? 'var(--profit-bg)' : 'var(--loss-bg)', border: `1px solid ${isPositive ? 'var(--border-profit)' : 'var(--border-loss)'}`, color: isPositive ? 'var(--profit)' : 'var(--loss)', padding: '2px 7px', borderRadius: '5px', fontFamily: 'var(--font-mono)' }}
@@ -274,7 +234,7 @@ export default function TradingViewChart() {
             >
               {isPositive ? '▲' : '▼'} {isPositive ? '+' : ''}{priceChange.toFixed(2)}
             </span>
-            {liveQuote && (
+            {liveQuote?.source && (
               <span style={{ fontSize: '8px', fontWeight: 600, background: 'var(--accent-bg)', border: '1px solid var(--accent-border)', color: 'var(--accent)', padding: '1px 5px', borderRadius: '4px' }}>
                 {liveQuote.source}
               </span>
@@ -319,7 +279,6 @@ export default function TradingViewChart() {
 
           <div style={{ width: '1px', height: '16px', background: 'var(--border-subtle)' }} />
 
-          {/* Drawing tools */}
           <div className="flex items-center gap-1">
             <button className="p-1 rounded transition-colors hover:bg-[var(--bg-active)]" style={{ color: 'var(--text-muted)' }} title="خط الاتجاه">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="2" y1="12" x2="12" y2="2" stroke="currentColor" strokeWidth="1.5" /></svg>

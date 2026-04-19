@@ -25,15 +25,17 @@ export default function NewsTicker() {
   const tickerRef = useRef<HTMLDivElement>(null)
   const [newsItems, setNewsItems] = useState<NewsItem[]>(defaultNewsItems)
 
-  // Fetch from /api/news/feed (Finnhub) on mount
+  // Fetch from /api/news/feed (Finnhub) on mount — gracefully falls back to defaults
   useEffect(() => {
     const fetchNews = async () => {
       try {
-        const response = await fetch('/api/news/feed')
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 5000)
+        const response = await fetch('/api/news/feed', { signal: controller.signal })
+        clearTimeout(timeoutId)
         if (response.ok) {
           const data = await response.json()
           if (Array.isArray(data) && data.length > 0) {
-            // Map Finnhub data to our format
             const mapped: NewsItem[] = data.slice(0, 15).map((item: any) => ({
               category: item.category || 'General',
               categoryAr: item.categoryAr || item.category || 'عام',
@@ -42,11 +44,11 @@ export default function NewsTicker() {
               text: item.headline || item.text || item.title || '',
               impact: item.impact || (item.sentiment === 'positive' ? 'medium' : 'high'),
             }))
-            setNewsItems(mapped.length > 0 ? mapped : defaultNewsItems)
+            if (mapped.length > 0) setNewsItems(mapped)
           }
         }
       } catch {
-        // Use default news on error
+        // Silently use default news items when API is unavailable
       }
     }
     fetchNews()

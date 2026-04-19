@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { createChart, ColorType, type IChartApi, type ISeriesApi, CandlestickData, Time } from 'lightweight-charts'
+import { createChart, ColorType, CandlestickSeries, HistogramSeries, type IChartApi, type ISeriesApi, type CandlestickData, type WhitespaceData, type Time } from 'lightweight-charts'
 import { useDashboardStore } from '@/lib/dashboard-store'
 
 const timeframes = [
@@ -95,8 +95,8 @@ export default function TradingViewChart() {
 
     chartRef.current = chart
 
-    // Candlestick series
-    const candleSeries = chart.addCandlestickSeries({
+    // Candlestick series (v5 API)
+    const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#10b981',
       downColor: '#ef4444',
       borderUpColor: '#10b981',
@@ -109,8 +109,8 @@ export default function TradingViewChart() {
     candleSeries.setData(data)
     seriesRef.current = candleSeries
 
-    // Volume histogram
-    const volumeSeries = chart.addHistogramSeries({
+    // Volume histogram (v5 API)
+    const volumeSeries = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' },
       priceScaleId: '',
     })
@@ -159,20 +159,23 @@ export default function TradingViewChart() {
     }
   }, [initChart, selectedPair, activeTimeframe])
 
+  // Type guard: WhitespaceData only has 'time', CandlestickData has OHLC
+  const isCandle = (d: CandlestickData<Time> | WhitespaceData<Time>): d is CandlestickData<Time> => 'open' in d
+
   // Simulated live candle update
   useEffect(() => {
     const interval = setInterval(() => {
       if (!seriesRef.current) return
-      const lastCandle = seriesRef.current.data()
-      const last = lastCandle[lastCandle.length - 1]
-      if (!last || typeof last === 'undefined') return
+      const allData = seriesRef.current.data()
+      const last = allData[allData.length - 1]
+      if (!last || !isCandle(last)) return
 
-      const newClose = (last.close as number) + (Math.random() - 0.5) * 100
+      const newClose = last.close + (Math.random() - 0.5) * 100
       seriesRef.current.update({
         time: last.time,
         open: last.open,
-        high: Math.max(last.high as number, newClose),
-        low: Math.min(last.low as number, newClose),
+        high: Math.max(last.high, newClose),
+        low: Math.min(last.low, newClose),
         close: newClose,
       })
     }, 3000)
@@ -181,9 +184,10 @@ export default function TradingViewChart() {
 
   const currentData = seriesRef.current?.data()
   const lastCandle = currentData?.[currentData.length - 1]
-  const currentPrice = lastCandle?.close ?? 0
-  const prevClose = currentData?.[currentData.length - 2]?.close ?? 0
-  const priceChange = (currentPrice as number) - (prevClose as number)
+  const prevCandle = currentData?.[currentData.length - 2]
+  const currentPrice = (lastCandle && isCandle(lastCandle)) ? lastCandle.close : 0
+  const prevClose = (prevCandle && isCandle(prevCandle)) ? prevCandle.close : 0
+  const priceChange = currentPrice - prevClose
   const isPositive = priceChange >= 0
 
   return (

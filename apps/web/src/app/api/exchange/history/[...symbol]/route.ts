@@ -13,10 +13,12 @@ function toNum(v: any): number {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ symbol: string }> }
+  { params }: { params: Promise<{ symbol: string[] }> }
 ) {
   try {
-    const { symbol } = await params
+    // Catch-all route: /api/exchange/history/BTC/USDT → symbol = ['BTC', 'USDT']
+    const symbolParts = await params
+    const symbol = symbolParts.symbol.join('/')
     const url = request.nextUrl
     const interval = url.searchParams.get('interval') || '1day'
     const source = url.searchParams.get('source')
@@ -63,7 +65,8 @@ export async function GET(
     // Stocks/forex → Twelve Data
     const apiKey = process.env.TWELVE_DATA_API_KEY
     if (!apiKey) {
-      throw new Error('TWELVE_DATA_API_KEY is not configured')
+      // Return empty data instead of 500 error when API key is missing
+      return NextResponse.json({ success: true, data: [], source: 'Demo', note: 'TWELVE_DATA_API_KEY not configured' })
     }
 
     const tdUrl = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=${interval}&outputsize=30&apikey=${apiKey}`

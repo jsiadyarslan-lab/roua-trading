@@ -224,10 +224,12 @@ async function fetchCoinGecko(symbol: string) {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ symbol: string }> }
+  { params }: { params: Promise<{ symbol: string[] }> }
 ) {
   try {
-    const { symbol } = await params
+    // Catch-all route: /api/exchange/quote/BTC/USDT → symbol = ['BTC', 'USDT']
+    const symbolParts = await params
+    const symbol = symbolParts.symbol.join('/')
     const source = request.nextUrl.searchParams.get('source')
 
     // Check cache first

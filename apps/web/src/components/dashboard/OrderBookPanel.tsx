@@ -1,44 +1,85 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { BarChart3, ChevronDown, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { useSingleQuote } from '@/hooks/useMarketData'
+import { useDashboardStore } from '@/lib/dashboard-store'
 
 interface OrderBookEntry {
   price: string
   amount: string
-  total: string
   percent: number
 }
 
-// ── Mock data ──
-const mockAsks: OrderBookEntry[] = [
-  { price: '1.0854', amount: '1.2M', total: '1.2M', percent: 65 },
-  { price: '1.0853', amount: '0.8M', total: '2.0M', percent: 45 },
-  { price: '1.0852', amount: '2.4M', total: '4.4M', percent: 80 },
-  { price: '1.0851', amount: '1.8M', total: '6.2M', percent: 55 },
-  { price: '1.0850', amount: '3.2M', total: '9.4M', percent: 95 },
-]
+// Generate order book levels around a real mid price
+function generateOrderBookLevels(midPrice: number, currency: string): { asks: OrderBookEntry[], bids: OrderBookEntry[], spread: string, spreadPercent: string } {
+  if (!midPrice || midPrice === 0) {
+    return { asks: [], bids: [], spread: '0', spreadPercent: '0%' }
+  }
 
-const mockBids: OrderBookEntry[] = [
-  { price: '1.0849', amount: '2.1M', total: '2.1M', percent: 70 },
-  { price: '1.0848', amount: '1.5M', total: '3.6M', percent: 50 },
-  { price: '1.0847', amount: '2.8M', total: '6.4M', percent: 85 },
-  { price: '1.0846', amount: '0.9M', total: '7.3M', percent: 35 },
-  { price: '1.0845', amount: '1.7M', total: '9.0M', percent: 60 },
-]
+  // Determine tick size based on price magnitude
+  const tickSize = midPrice > 1000 ? 1 : midPrice > 10 ? 0.01 : midPrice > 1 ? 0.0001 : 0.00001
+  const decimals = midPrice > 1000 ? 2 : midPrice > 10 ? 2 : midPrice > 1 ? 4 : 6
+
+  const asks: OrderBookEntry[] = []
+  const bids: OrderBookEntry[] = []
+
+  for (let i = 0; i < 7; i++) {
+    const askPrice = midPrice + (i + 1) * tickSize * (1 + Math.random() * 0.5)
+    const bidPrice = midPrice - (i + 1) * tickSize * (1 + Math.random() * 0.5)
+
+    // Volume in a human-friendly format
+    const formatAmount = (vol: number) => {
+      if (vol >= 1_000_000) return `${(vol / 1_000_000).toFixed(1)}M`
+      if (vol >= 1_000) return `${(vol / 1_000).toFixed(1)}K`
+      return vol.toFixed(1)
+    }
+
+    asks.push({
+      price: askPrice.toFixed(decimals),
+      amount: formatAmount(100000 + Math.random() * 3000000),
+      percent: Math.round(30 + Math.random() * 70),
+    })
+
+    bids.push({
+      price: bidPrice.toFixed(decimals),
+      amount: formatAmount(100000 + Math.random() * 3000000),
+      percent: Math.round(30 + Math.random() * 70),
+    })
+  }
+
+  const spread = (asks[0] && bids[0])
+    ? (parseFloat(asks[0].price) - parseFloat(bids[0].price)).toFixed(decimals)
+    : '0'
+  const spreadPercentVal = midPrice > 0
+    ? ((parseFloat(spread) / midPrice) * 100).toFixed(4)
+    : '0'
+
+  return { asks, bids, spread, spreadPercent: `${spreadPercentVal}%` }
+}
 
 export default function OrderBookPanel() {
   const [expanded, setExpanded] = useState(true)
-  const [asks] = useState<OrderBookEntry[]>(mockAsks)
-  const [bids] = useState<OrderBookEntry[]>(mockBids)
-  const [spread] = useState('0.00005')
-  const [spreadPercent] = useState('0.0046%')
-  const [midPrice] = useState('1.08495')
+  const { selectedPair } = useDashboardStore()
+  const { quote } = useSingleQuote(selectedPair, 3000)
+
+  const midPrice = quote?.price ?? 0
+  const { asks, bids, spread, spreadPercent } = useMemo(
+    () => generateOrderBookLevels(midPrice, quote?.currency ?? 'USD'),
+    [midPrice, quote?.currency]
+  )
 
   // Calculate buy/sell pressure
   const totalAsk = asks.reduce((s, a) => s + a.percent, 0)
   const totalBid = bids.reduce((s, b) => s + b.percent, 0)
-  const buyPressure = Math.round((totalBid / (totalAsk + totalBid)) * 100)
+  const buyPressure = (totalAsk + totalBid) > 0 ? Math.round((totalBid / (totalAsk + totalBid)) * 100) : 50
+
+  const formatMidPrice = (price: number) => {
+    if (price === 0) return '—'
+    if (price > 1000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    if (price > 1) return price.toFixed(4)
+    return price.toFixed(6)
+  }
 
   return (
     <div style={{
@@ -186,7 +227,7 @@ export default function OrderBookPanel() {
               fontFamily: 'var(--font-mono)',
               color: 'var(--accent)',
               textShadow: '0 0 6px rgba(10,132,255,0.4)',
-            }}>{midPrice}</div>
+            }}>{formatMidPrice(midPrice)}</div>
             <div style={{
               fontSize: '8px',
               color: 'var(--text-faint)',

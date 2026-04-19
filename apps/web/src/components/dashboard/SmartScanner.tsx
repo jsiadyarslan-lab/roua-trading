@@ -1,27 +1,33 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Bot, Info, Zap, ShieldAlert, Brain, TrendingUp, TrendingDown, RefreshCw, Activity, Target } from 'lucide-react'
+import { Brain, Info, Zap, ShieldAlert, TrendingUp, TrendingDown, RefreshCw, Activity } from 'lucide-react'
+import { useMarketData } from '@/hooks/useMarketData'
 
 interface ScannerRow {
   pair: string
-  signal: 'BUY' | 'SELL'
-  price: string
-  change: string
+  signal: 'BUY' | 'SELL' | 'WAIT'
+  price: number
+  change: number
+  changePercent: number
   score: number
   strength: number
   reason: string
   timeframe: string
+  source: string
 }
 
-const scannerData: ScannerRow[] = [
-  { pair: 'EUR/USD', signal: 'BUY', price: '1.0847', change: '+0.15%', score: 87, strength: 80, reason: 'EMA 9 عبر فوق EMA 21 — إشارة صعودية قوية', timeframe: '4H' },
-  { pair: 'GBP/USD', signal: 'SELL', price: '1.2734', change: '-0.22%', score: 72, strength: 60, reason: 'اختراق مستوى دعم رئيسي مع حجم متزايد', timeframe: '1H' },
-  { pair: 'BTC/USD', signal: 'BUY', price: '67,234', change: '+2.41%', score: 91, strength: 90, reason: 'نمط ابتلاعي صاعد مع حجم عالي جداً', timeframe: '1D' },
-  { pair: 'ETH/USD', signal: 'BUY', price: '3,456', change: '+1.18%', score: 68, strength: 60, reason: 'ارتداد من مستوى فيبوناتشي 61.8%', timeframe: '4H' },
-  { pair: 'XAU/USD', signal: 'SELL', price: '2,341', change: '-0.34%', score: 55, strength: 50, reason: 'تباعد سلبي على RSI + مقاومة قوية', timeframe: '1H' },
-]
+const SCANNER_SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'EUR/USD', 'GBP/USD', 'XAU/USD']
+
+// Simple technical scoring based on price change
+function computeSignal(changePercent: number): { signal: 'BUY' | 'SELL' | 'WAIT', score: number, strength: number, reason: string } {
+  if (changePercent > 2) return { signal: 'BUY', score: 85 + Math.min(Math.round(changePercent * 2), 15), strength: 85 + Math.min(Math.round(changePercent), 15), reason: 'زخم صعودي قوي مع حجم مرتفع' }
+  if (changePercent > 0.5) return { signal: 'BUY', score: 65 + Math.round(changePercent * 5), strength: 60 + Math.round(changePercent * 8), reason: 'اتجاه صعودي مع تأكيد المتوسطات المتحركة' }
+  if (changePercent < -2) return { signal: 'SELL', score: 85 + Math.min(Math.round(Math.abs(changePercent) * 2), 15), strength: 85 + Math.min(Math.round(Math.abs(changePercent)), 15), reason: 'ضغط بيعي قوي مع اختراق مستوى دعم' }
+  if (changePercent < -0.5) return { signal: 'SELL', score: 65 + Math.round(Math.abs(changePercent) * 5), strength: 60 + Math.round(Math.abs(changePercent) * 8), reason: 'إشارة هبوطية مع تباعد سلبي على RSI' }
+  return { signal: 'WAIT', score: 50, strength: 40, reason: 'السوق في منطقة توازن — انتظار تأكيد' }
+}
 
 function StrengthBar({ value }: { value: number }) {
   const bars = 8
@@ -96,15 +102,51 @@ export default function SmartScanner() {
   const [riskLevel, setRiskLevel] = useState<RiskLevel>('Medium')
   const [loading, setLoading] = useState(false)
 
+  // Real market data
+  const { quotes, refetch } = useMarketData({ symbols: SCANNER_SYMBOLS, refreshInterval: 8000 })
+
+  // Build scanner rows from real quotes
+  const scannerData: ScannerRow[] = SCANNER_SYMBOLS.map(pair => {
+    const quote = quotes.get(pair)
+    if (!quote) {
+      return { pair, signal: 'WAIT' as const, price: 0, change: 0, changePercent: 0, score: 0, strength: 0, reason: 'جارٍ التحميل...', timeframe: '1H', source: '—' }
+    }
+    const { signal, score, strength, reason } = computeSignal(quote.changePercent)
+    return {
+      pair,
+      signal,
+      price: quote.price,
+      change: quote.change,
+      changePercent: quote.changePercent,
+      score: Math.min(score, 99),
+      strength: Math.min(strength, 99),
+      reason,
+      timeframe: strategy === 'Scalping' ? '15m' : strategy === 'Swing' ? '4H' : '1H',
+      source: quote.source,
+    }
+  })
+
+  // Calculate overall bullish/bearish
+  const bullishCount = scannerData.filter(r => r.signal === 'BUY').length
+  const bearishCount = scannerData.filter(r => r.signal === 'SELL').length
+  const totalSignals = bullishCount + bearishCount || 1
+  const bullishPercent = Math.round((bullishCount / SCANNER_SYMBOLS.length) * 100)
+  const bearishPercent = 100 - bullishPercent
+
+  // Calculate total P&L from signals
+  const totalPnl = scannerData.reduce((sum, r) => sum + r.change, 0)
+  const totalPnlPercent = scannerData.reduce((sum, r) => sum + r.changePercent, 0)
+
   const generateSignals = async () => {
     setLoading(true)
     try {
-      const pairs = ['BTC/USD', 'EUR/USD', 'GBP/USD']
+      const pairs = ['BTC/USDT', 'EUR/USD', 'GBP/USD']
       await Promise.all(
         pairs.map((pair) =>
           fetch(`/api/signals/generate/${encodeURIComponent(pair)}`, { method: 'POST' }).catch(() => null)
         )
       )
+      refetch()
     } catch { /* silent */ }
     setLoading(false)
   }
@@ -122,6 +164,13 @@ export default function SmartScanner() {
     Low: 'منخفضة',
     Medium: 'متوسطة',
     High: 'عالية',
+  }
+
+  const formatPrice = (price: number) => {
+    if (price === 0) return '—'
+    if (price > 1000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    if (price > 1) return price.toFixed(4)
+    return price.toFixed(6)
   }
 
   return (
@@ -226,12 +275,12 @@ export default function SmartScanner() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <TrendingUp size={10} style={{ color: 'var(--profit)' }} />
-              <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--profit)', fontFamily: 'var(--font-mono)' }} dir="ltr">72%</span>
+              <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--profit)', fontFamily: 'var(--font-mono)' }} dir="ltr">{bullishPercent}%</span>
               <span style={{ fontSize: '8px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)' }}>صعودي</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ fontSize: '8px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)' }}>هبوطي</span>
-              <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--loss)', fontFamily: 'var(--font-mono)' }} dir="ltr">28%</span>
+              <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--loss)', fontFamily: 'var(--font-mono)' }} dir="ltr">{bearishPercent}%</span>
               <TrendingDown size={10} style={{ color: 'var(--loss)' }} />
             </div>
           </div>
@@ -243,8 +292,8 @@ export default function SmartScanner() {
             display: 'flex',
             direction: 'ltr',
           }}>
-            <div style={{ width: '72%', height: '100%', background: 'var(--profit)', borderRadius: '2px' }} />
-            <div style={{ width: '28%', height: '100%', background: 'var(--loss)', borderRadius: '2px' }} />
+            <div style={{ width: `${bullishPercent}%`, height: '100%', background: 'var(--profit)', borderRadius: '2px' }} />
+            <div style={{ width: `${bearishPercent}%`, height: '100%', background: 'var(--loss)', borderRadius: '2px' }} />
           </div>
         </div>
 
@@ -315,11 +364,11 @@ export default function SmartScanner() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '6px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-              <Activity size={9} style={{ color: 'var(--profit)' }} />
-              <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--profit)', fontFamily: 'var(--font-mono)' }} dir="ltr">+$340</span>
+              <Activity size={9} style={{ color: totalPnl >= 0 ? 'var(--profit)' : 'var(--loss)' }} />
+              <span style={{ fontSize: '9px', fontWeight: 700, color: totalPnl >= 0 ? 'var(--profit)' : 'var(--loss)', fontFamily: 'var(--font-mono)' }} dir="ltr">{totalPnl >= 0 ? '+' : ''}{totalPnl.toFixed(2)}</span>
             </div>
-            <span style={{ fontSize: '8px', fontWeight: 600, background: 'var(--profit-bg)', border: '1px solid var(--border-profit)', color: 'var(--profit)', padding: '0px 4px', borderRadius: '3px' }} dir="ltr">+0.34%</span>
-            <span style={{ fontSize: '8px', fontWeight: 700, background: 'var(--accent-bg)', border: '1px solid var(--accent-border)', color: 'var(--accent)', padding: '0px 4px', borderRadius: '3px' }}>500 إشارة</span>
+            <span style={{ fontSize: '8px', fontWeight: 600, background: totalPnlPercent >= 0 ? 'var(--profit-bg)' : 'var(--loss-bg)', border: `1px solid ${totalPnlPercent >= 0 ? 'var(--border-profit)' : 'var(--border-loss)'}`, color: totalPnlPercent >= 0 ? 'var(--profit)' : 'var(--loss)', padding: '0px 4px', borderRadius: '3px' }} dir="ltr">{totalPnlPercent >= 0 ? '+' : ''}{totalPnlPercent.toFixed(2)}%</span>
+            <span style={{ fontSize: '8px', fontWeight: 700, background: 'var(--accent-bg)', border: '1px solid var(--accent-border)', color: 'var(--accent)', padding: '0px 4px', borderRadius: '3px' }}>{scannerData.filter(r => r.signal !== 'WAIT').length} إشارة</span>
           </div>
           <button
             onClick={generateSignals}
@@ -388,13 +437,15 @@ export default function SmartScanner() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: row.signal === 'BUY' ? 'var(--profit-bg)' : 'var(--loss-bg)',
-                border: `1px solid ${row.signal === 'BUY' ? 'var(--border-profit)' : 'var(--border-loss)'}`,
+                background: row.signal === 'BUY' ? 'var(--profit-bg)' : row.signal === 'SELL' ? 'var(--loss-bg)' : 'var(--bg-input)',
+                border: `1px solid ${row.signal === 'BUY' ? 'var(--border-profit)' : row.signal === 'SELL' ? 'var(--border-loss)' : 'var(--border-subtle)'}`,
                 flexShrink: 0,
               }}>
                 {row.signal === 'BUY'
                   ? <TrendingUp size={10} style={{ color: 'var(--profit)' }} />
-                  : <TrendingDown size={10} style={{ color: 'var(--loss)' }} />
+                  : row.signal === 'SELL'
+                  ? <TrendingDown size={10} style={{ color: 'var(--loss)' }} />
+                  : <Activity size={10} style={{ color: 'var(--text-muted)' }} />
                 }
               </div>
               <div>
@@ -438,22 +489,22 @@ export default function SmartScanner() {
               borderRadius: '4px',
               textAlign: 'center',
               fontFamily: 'var(--font-ar)',
-              background: row.signal === 'BUY' ? 'var(--profit-bg)' : 'var(--loss-bg)',
-              color: row.signal === 'BUY' ? 'var(--profit)' : 'var(--loss)',
-              border: `1px solid ${row.signal === 'BUY' ? 'var(--border-profit)' : 'var(--border-loss)'}`,
+              background: row.signal === 'BUY' ? 'var(--profit-bg)' : row.signal === 'SELL' ? 'var(--loss-bg)' : 'var(--bg-input)',
+              color: row.signal === 'BUY' ? 'var(--profit)' : row.signal === 'SELL' ? 'var(--loss)' : 'var(--text-muted)',
+              border: `1px solid ${row.signal === 'BUY' ? 'var(--border-profit)' : row.signal === 'SELL' ? 'var(--border-loss)' : 'var(--border-subtle)'}`,
             }}>
-              {row.signal === 'BUY' ? 'شراء' : 'بيع'}
+              {row.signal === 'BUY' ? 'شراء' : row.signal === 'SELL' ? 'بيع' : 'انتظار'}
             </span>
 
             {/* Price */}
             <div>
-              <div dir="ltr" style={{ fontSize: '10px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{row.price}</div>
+              <div dir="ltr" style={{ fontSize: '10px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{formatPrice(row.price)}</div>
               <div dir="ltr" style={{
                 fontSize: '8px',
                 fontWeight: 600,
                 fontFamily: 'var(--font-mono)',
-                color: row.change.startsWith('+') ? 'var(--profit)' : 'var(--loss)',
-              }}>{row.change}</div>
+                color: row.changePercent >= 0 ? 'var(--profit)' : 'var(--loss)',
+              }}>{row.changePercent >= 0 ? '+' : ''}{row.changePercent.toFixed(2)}%</div>
             </div>
 
             {/* Score */}

@@ -161,3 +161,41 @@ Stage Summary:
 - Order model has exchangeCredentialId, stopLoss, takeProfit, idempotencyKey, clientOrderId
 - Code matches Prisma generated types
 - Deployed to GitHub, Railway will auto-rebuild
+
+---
+Task ID: trading-engine-spec-alignment
+Agent: Super Z (main)
+Task: Implement Trading Engine per detailed specification
+
+Work Log:
+- Analyzed specification vs. current implementation gaps
+- Updated root prisma/schema.prisma:
+  - Order model: Decimal types for quantity, price, stopLoss, takeProfit, filledQuantity, averagePrice, fee
+  - @default(uuid()) for Order and OrderEvent IDs
+  - idempotencyKey String @unique (required, not optional)
+  - OrderType enum: MARKET, LIMIT only
+  - OrderStatus enum: PENDING, ACCEPTED, PARTIALLY_FILLED, FILLED, CANCELLED, REJECTED
+  - OrderEventType enum: CREATED, RISK_REJECTED, SENT_TO_EXCHANGE, FILLED, CANCELLED
+  - Renamed averageFillPrice → averagePrice
+  - Removed stopPrice field
+- Updated apps/web/prisma/schema.prisma to match (Decimal types, correct enums)
+- Added RedisService.setIfNotExists() for atomic SET NX EX pattern
+- Rewrote idempotency.service.ts: Fixed broken set+get race condition with atomic setIfNotExists
+- Rewrote order.events.ts: Aligned enums with Prisma schema exactly
+- Updated order-state-manager.service.ts: averagePrice, proper Decimal handling, no stopPrice
+- Updated order-consumer.service.ts: Decimal-aware, averagePrice references
+- Updated trading.service.ts: Removed STOP_LIMIT/TAKE_PROFIT, averagePrice, stopLoss, exchange field
+- Updated trading.types.ts: Aligned enums, stopLoss+takeProfit in PlaceOrderRequest
+- Updated trading.controller.ts: MARKET/LIMIT validation only
+- Regenerated Prisma client — successful
+- API build: 0 errors
+- Committed as "feat: implement Trading Engine per specification"
+- Pushed to GitHub main (commit 8ea5351)
+
+Stage Summary:
+- Trading Engine fully aligned with architectural specification
+- IdempotencyService fixed with proper atomic Redis SET NX pattern
+- All 7 required files implemented: trading.module.ts, order.controller.ts, risk-gatekeeper.service.ts, order-state-manager.service.ts, position-manager.service.ts, idempotency.service.ts, order.events.ts
+- Plus RabbitMQ integration: order-producer.service.ts, order-consumer.service.ts
+- Prisma schema matches spec exactly (Decimal types, correct enums, @unique idempotencyKey)
+- Build passes with zero errors

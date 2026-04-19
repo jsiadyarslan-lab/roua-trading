@@ -137,8 +137,16 @@ async function fetchTwelveData(symbol: string) {
 
 // ── Fetch from Binance public API (no key needed) ──
 async function fetchBinance(symbol: string) {
+  // Normalize: BTC/USD → BTC/USDT for Binance (Binance uses USDT pairs for crypto)
+  let normalizedSymbol = symbol
+  if (symbol.endsWith('/USD') && !symbol.endsWith('/USDT') && !symbol.endsWith('/BUSD')) {
+    const base = symbol.split('/')[0]
+    if (CRYPTO_BASE_CURRENCIES.includes(base)) {
+      normalizedSymbol = `${base}/USDT`
+    }
+  }
   // Convert BTC/USDT to BTCUSDT for Binance API
-  const binanceSymbol = symbol.replace('/', '')
+  const binanceSymbol = normalizedSymbol.replace('/', '')
 
   const url = `https://api.binance.com/api/v3/ticker/24hr?symbol=${encodeURIComponent(binanceSymbol)}`
   const res = await fetch(url, { next: { revalidate: 5 } })
@@ -174,12 +182,19 @@ async function fetchBinance(symbol: string) {
 async function fetchCoinGecko(symbol: string) {
   const coinMap: Record<string, string> = {
     'BTC/USDT': 'bitcoin',
+    'BTC/USD': 'bitcoin',
     'ETH/USDT': 'ethereum',
+    'ETH/USD': 'ethereum',
     'SOL/USDT': 'solana',
+    'SOL/USD': 'solana',
     'BNB/USDT': 'binancecoin',
+    'BNB/USD': 'binancecoin',
     'XRP/USDT': 'ripple',
+    'XRP/USD': 'ripple',
     'ADA/USDT': 'cardano',
+    'ADA/USD': 'cardano',
     'DOGE/USDT': 'dogecoin',
+    'DOGE/USD': 'dogecoin',
   }
 
   const coinId = coinMap[symbol]
@@ -300,8 +315,9 @@ export async function GET(
     console.error(`[exchange/quote] Error:`, error.message)
     // Even on unexpected errors, try to return mock data instead of 500
     try {
-      const { symbol } = await params
-      const mockQuote = getMockQuote(symbol)
+      const { symbol: symParts } = await params
+      const sym = Array.isArray(symParts) ? symParts.join('/') : symParts
+      const mockQuote = getMockQuote(sym)
       return NextResponse.json({ success: true, data: mockQuote, fallback: true })
     } catch {
       return NextResponse.json(

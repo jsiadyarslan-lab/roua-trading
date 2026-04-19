@@ -31,8 +31,16 @@ export async function GET(
     const isCryptoPair = CRYPTO_QUOTE_CURRENCIES.includes(quoteCurrency) || CRYPTO_BASE_CURRENCIES.includes(baseCurrency)
 
     if (isCryptoPair) {
+      // Normalize: BTC/USD → BTC/USDT for Binance (Binance uses USDT pairs)
+      let normalizedSymbol = symbol
+      if (symbol.endsWith('/USD') && !symbol.endsWith('/USDT') && !symbol.endsWith('/BUSD')) {
+        const base = symbol.split('/')[0]
+        if (CRYPTO_BASE_CURRENCIES.includes(base)) {
+          normalizedSymbol = `${base}/USDT`
+        }
+      }
       // Fetch from Binance
-      const binanceSymbol = symbol.replace('/', '')
+      const binanceSymbol = normalizedSymbol.replace('/', '')
       const intervalMap: Record<string, string> = {
         '1min': '1m', '5min': '5m', '15min': '15m', '30min': '30m',
         '1h': '1h', '2h': '2h', '4h': '4h', '1day': '1d', '1week': '1w', '1month': '1M',

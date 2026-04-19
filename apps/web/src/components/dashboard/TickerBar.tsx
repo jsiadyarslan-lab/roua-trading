@@ -1,49 +1,30 @@
 'use client'
 
-import { useRef } from 'react'
-import { useMarketQuotes } from '@/hooks/useMarketData'
+import { useRef, useState } from 'react'
 
-const TICKER_SYMBOLS = ['EUR/USD', 'GBP/USD', 'BTC/USDT', 'XAU/USD', 'AAPL', 'TSLA', 'USD/JPY']
-
-// Fallback data shown while real data loads
-const fallbackTicks: Record<string, { price: string; change: string; isPositive: boolean }> = {
-  'EUR/USD': { price: '—', change: '0.00%', isPositive: true },
-  'GBP/USD': { price: '—', change: '0.00%', isPositive: true },
-  'BTC/USDT': { price: '—', change: '0.00%', isPositive: true },
-  'XAU/USD':  { price: '—', change: '0.00%', isPositive: false },
-  'AAPL':     { price: '—', change: '0.00%', isPositive: true },
-  'TSLA':     { price: '—', change: '0.00%', isPositive: true },
-  'USD/JPY':  { price: '—', change: '0.00%', isPositive: false },
+interface TickItem {
+  symbol: string
+  price: string
+  change: string
+  changePercent: string
+  isPositive: boolean
 }
 
-function formatTickerPrice(price: number, symbol: string): string {
-  if (!price) return '—'
-  if (symbol.includes('EUR') || symbol.includes('GBP') || symbol.includes('JPY')) {
-    return price < 10 ? price.toFixed(5) : price.toFixed(2)
-  }
-  if (price > 1000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  return price.toFixed(2)
-}
+const defaultTicks: TickItem[] = [
+  { symbol: 'EUR/USD', price: '1.17670', change: '+7.72%', changePercent: '+0.07', isPositive: true },
+  { symbol: 'GBP/USD', price: '1.32450', change: '+0.34%', changePercent: '+0.004', isPositive: true },
+  { symbol: 'BTC/USD', price: '67,234', change: '+2.41%', changePercent: '+1582', isPositive: true },
+  { symbol: 'XAU/USD', price: '2,341.50', change: '-0.34%', changePercent: '-8.00', isPositive: false },
+  { symbol: 'SPX500', price: '5,234.80', change: '+0.56%', changePercent: '+29.10', isPositive: true },
+  { symbol: 'NAS100', price: '18,567', change: '+0.89%', changePercent: '+164.00', isPositive: true },
+  { symbol: 'USD/JPY', price: '154.32', change: '-0.12%', changePercent: '-0.19', isPositive: false },
+]
 
 export default function TickerBar() {
   const tickerRef = useRef<HTMLDivElement>(null)
-  const { quotes } = useMarketQuotes(TICKER_SYMBOLS, 6000)
+  const [ticks] = useState<TickItem[]>(defaultTicks)
 
-  // Build ticks from real quotes, fallback to defaults
-  const ticks = TICKER_SYMBOLS.map(symbol => {
-    const quote = quotes.get(symbol)
-    const fallback = fallbackTicks[symbol]
-    if (!quote) return { symbol, ...fallback }
-
-    return {
-      symbol,
-      price: formatTickerPrice(quote.price, symbol),
-      change: `${quote.changePercent >= 0 ? '+' : ''}${quote.changePercent.toFixed(2)}%`,
-      isPositive: quote.changePercent >= 0,
-    }
-  })
-
-  const renderTick = (tick: typeof ticks[0], idx: number) => (
+  const renderTick = (tick: TickItem, idx: number) => (
     <div key={idx} className="tick-item" data-sym={tick.symbol} style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', padding: '0 32px', flexShrink: 0, borderInlineEnd: '1px solid rgba(255,255,255,0.04)', direction: 'ltr' }}>
       <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9.5px', fontWeight: 700, color: 'rgba(160,175,195,0.65)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
         {tick.symbol}
@@ -60,8 +41,10 @@ export default function TickerBar() {
   return (
     <div className="ticker-bar" style={{ gridArea: 'ticker' }}>
       <div style={{ width: '100%', height: '38px', overflow: 'hidden', background: 'var(--bg-ticker)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', flexShrink: 0, position: 'relative', boxShadow: 'var(--shadow-sm)' }}>
+        {/* Fade edges */}
         <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '28px', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(90deg, var(--bg-ticker), transparent)' }} />
         <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '28px', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(-90deg, var(--bg-ticker), transparent)' }} />
+        
         <div ref={tickerRef} style={{ display: 'inline-flex', alignItems: 'center', height: '100%', whiteSpace: 'nowrap', willChange: 'transform', animationName: 'ql-ticker', animationDuration: '72s', animationTimingFunction: 'linear', animationIterationCount: 'infinite', animationPlayState: 'running' }}>
           {ticks.map((tick, i) => renderTick(tick, i))}
           {ticks.map((tick, i) => renderTick(tick, i + ticks.length))}

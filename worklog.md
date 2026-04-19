@@ -123,3 +123,41 @@ Stage Summary:
 - API: 9 proxy routes connecting Next.js to NestJS trading module
 - Database: 3 new Prisma models (Order, Position, Trade) + 5 enums
 - Build passes, pushed to GitHub main branch
+
+---
+Task ID: build-fix-1
+Agent: Super Z (main)
+Task: Fix 12 TypeScript build errors in Trading Engine (Railway deployment failure)
+
+Work Log:
+- Analyzed Railway build logs showing 12 TS errors in trading module
+- Root cause: Mismatch between Prisma schema and TypeScript code
+- Updated root prisma/schema.prisma:
+  - Added ACCEPTED to OrderStatus enum
+  - Added OrderEventType enum (CREATED, RISK_REJECTED, ACCEPTED, SENT_TO_EXCHANGE, FILLED, CANCELLED)
+  - Added OrderEvent model with relation to Order
+  - Renamed credentialId to exchangeCredentialId on Order model
+  - Added missing Order fields: stopLoss, takeProfit, idempotencyKey, clientOrderId
+  - Added events OrderEvent[] relation on Order model
+- Updated apps/web/prisma/schema.prisma: Added ACCEPTED to OrderEventType enum
+- Fixed order-state-manager.service.ts:
+  - Added exchange field lookup from credential
+  - Fixed averagePrice → averageFillPrice mapping
+  - Fixed idempotencyKey/clientOrderId type casts
+- Fixed trading.service.ts:
+  - Added exchange field to all Order.create calls
+  - Changed averagePrice → averageFillPrice (3 occurrences)
+  - Changed order.exchangeCredentialId to order.exchangeCredentialId!
+  - Added as any casts for idempotencyKey fields
+- Regenerated Prisma client
+- API build: 0 errors
+- Committed as "fix: resolve 12 TypeScript build errors in Trading Engine"
+- Pushed to GitHub main (commit 26e83f1)
+
+Stage Summary:
+- All 12 build errors resolved
+- Prisma schema now has OrderEvent model for event sourcing
+- OrderStatus enum includes ACCEPTED for order pipeline
+- Order model has exchangeCredentialId, stopLoss, takeProfit, idempotencyKey, clientOrderId
+- Code matches Prisma generated types
+- Deployed to GitHub, Railway will auto-rebuild

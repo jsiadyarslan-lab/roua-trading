@@ -18,21 +18,6 @@ interface WalletData {
   currency: string
 }
 
-// ── Mock data (will be replaced by API) ──
-const mockWallet: WalletData = {
-  equity: 29733.45,
-  balance: 28493.15,
-  availableMargin: 25120.80,
-  usedMargin: 3372.35,
-  todayPnl: 1240.30,
-  todayPnlPercent: 4.35,
-  totalPnl: 4733.45,
-  totalPnlPercent: 18.93,
-  freeMargin: 25120.80,
-  marginLevel: 882.5,
-  currency: 'USD',
-}
-
 // ── Stat Row Component ──
 function StatRow({ label, value, color, icon }: {
   label: string
@@ -144,27 +129,69 @@ function ProgressBar({ value, max, color, bgColor, label }: {
 export default function WalletPanel() {
   const [expanded, setExpanded] = useState(true)
   const [showBalance, setShowBalance] = useState(true)
-  const [wallet] = useState<WalletData>(mockWallet)
+  const [wallet, setWallet] = useState<WalletData | null>(null)
   const [sparkData, setSparkData] = useState<number[]>([])
 
-  // Generate mock sparkline data
+  // Fetch real wallet data from API
   useEffect(() => {
+    let mounted = true
+
+    const fetchWallet = async () => {
+      try {
+        const response = await fetch('/api/trading/positions/summary')
+        if (!response.ok) return
+        const data = await response.json()
+
+        if (!mounted) return
+
+        // The API returns portfolio summary data
+        if (data.equity !== undefined) {
+          setWallet({
+            equity: data.equity || 0,
+            balance: data.balance || data.equity || 0,
+            availableMargin: data.availableMargin || data.freeMargin || 0,
+            usedMargin: data.usedMargin || 0,
+            todayPnl: data.todayPnl || data.unrealizedPnl || 0,
+            todayPnlPercent: data.todayPnlPercent || 0,
+            totalPnl: data.totalPnl || 0,
+            totalPnlPercent: data.totalPnlPercent || 0,
+            freeMargin: data.freeMargin || data.availableMargin || 0,
+            marginLevel: data.marginLevel || 0,
+            currency: data.currency || 'USD',
+          })
+        }
+      } catch {
+        // API not available or not authenticated — keep wallet null
+      }
+    }
+
+    fetchWallet()
+    const interval = setInterval(fetchWallet, 15000)
+    return () => {
+      mounted = false
+      clearInterval(interval)
+    }
+  }, [])
+
+  // Generate sparkline data when wallet data changes
+  useEffect(() => {
+    const equity = wallet?.equity ?? 25000
     const data = Array.from({ length: 20 }, (_, i) =>
-      wallet.equity * (0.94 + Math.random() * 0.08 + i * 0.003)
+      equity * (0.94 + Math.random() * 0.08 + i * 0.003)
     )
     setSparkData(data)
-  }, [wallet.equity])
+  }, [wallet?.equity])
 
   const formatValue = (val: number) => {
     if (!showBalance) return '••••••'
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: wallet.currency,
+      currency: wallet?.currency || 'USD',
       minimumFractionDigits: 2,
     }).format(val)
   }
 
-  const isPositive = wallet.todayPnl >= 0
+  const isPositive = (wallet?.todayPnl ?? 0) >= 0
 
   return (
     <div style={{
@@ -294,7 +321,7 @@ export default function WalletPanel() {
               letterSpacing: '-0.03em',
               lineHeight: 1.1,
             }} dir="ltr">
-              {formatValue(wallet.equity)}
+              {wallet ? formatValue(wallet.equity) : '—'}
             </div>
 
             {/* P&L Badge + Sparkline */}
@@ -323,7 +350,7 @@ export default function WalletPanel() {
                   fontFamily: 'var(--font-mono), monospace',
                   color: isPositive ? 'var(--profit)' : 'var(--loss)',
                 }} dir="ltr">
-                  {isPositive ? '+' : ''}{formatValue(wallet.todayPnl).replace('$', '$')} ({isPositive ? '+' : ''}{wallet.todayPnlPercent}%)
+                  {wallet ? `${isPositive ? '+' : ''}${formatValue(wallet.todayPnl).replace('$', '$')} (${isPositive ? '+' : ''}${wallet.todayPnlPercent}%)` : '—'}
                 </span>
               </div>
               {sparkData.length > 0 && (
@@ -356,7 +383,7 @@ export default function WalletPanel() {
                 fontFamily: 'var(--font-mono)',
                 color: 'var(--text-main)',
                 letterSpacing: '-0.02em',
-              }}>{showBalance ? formatValue(wallet.balance) : '••••'}</div>
+              }}>{wallet ? (showBalance ? formatValue(wallet.balance) : '••••') : '—'}</div>
             </div>
 
             {/* Free Margin */}
@@ -376,7 +403,7 @@ export default function WalletPanel() {
                 fontFamily: 'var(--font-mono)',
                 color: 'var(--profit)',
                 letterSpacing: '-0.02em',
-              }}>{showBalance ? formatValue(wallet.availableMargin) : '••••'}</div>
+              }}>{wallet ? (showBalance ? formatValue(wallet.availableMargin) : '••••') : '—'}</div>
             </div>
           </div>
 
@@ -387,33 +414,35 @@ export default function WalletPanel() {
           }}>
             <StatRow
               label="الهامش المستخدم"
-              value={showBalance ? formatValue(wallet.usedMargin) : '••••'}
+              value={wallet ? (showBalance ? formatValue(wallet.usedMargin) : '••••') : '—'}
               icon={<BarChart3 size={9} stroke="var(--accent)" strokeWidth={2} />}
             />
             <StatRow
               label="مستوى الهامش"
-              value={showBalance ? `${wallet.marginLevel.toFixed(1)}%` : '••••'}
-              color={wallet.marginLevel > 200 ? 'var(--profit)' : wallet.marginLevel > 100 ? 'var(--warning)' : 'var(--loss)'}
+              value={wallet ? (showBalance ? `${wallet.marginLevel.toFixed(1)}%` : '••••') : '—'}
+              color={wallet && wallet.marginLevel > 200 ? 'var(--profit)' : wallet && wallet.marginLevel > 100 ? 'var(--warning)' : 'var(--loss)'}
               icon={<Shield size={9} stroke="var(--purple)" strokeWidth={2} />}
             />
             <StatRow
               label="إجمالي الربح"
-              value={showBalance ? `+${formatValue(wallet.totalPnl).replace('$', '$')}` : '••••'}
+              value={wallet ? (showBalance ? `+${formatValue(wallet.totalPnl).replace('$', '$')}` : '••••') : '—'}
               color="var(--profit)"
               icon={<TrendingUp size={9} stroke="var(--profit)" strokeWidth={2} />}
             />
           </div>
 
           {/* ── Margin Usage Bar ── */}
-          <div style={{ marginTop: '8px' }}>
-            <ProgressBar
-              value={wallet.usedMargin}
-              max={wallet.equity}
-              color="var(--accent)"
-              bgColor="var(--bg-input)"
-              label="استخدام الهامش"
-            />
-          </div>
+          {wallet && (
+            <div style={{ marginTop: '8px' }}>
+              <ProgressBar
+                value={wallet.usedMargin}
+                max={wallet.equity}
+                color="var(--accent)"
+                bgColor="var(--bg-input)"
+                label="استخدام الهامش"
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

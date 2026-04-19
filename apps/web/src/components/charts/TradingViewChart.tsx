@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createChart, ColorType, CandlestickSeries, HistogramSeries, type IChartApi, type ISeriesApi, type CandlestickData, type WhitespaceData, type Time } from 'lightweight-charts'
 import { useDashboardStore } from '@/lib/dashboard-store'
+import { useSingleQuote, useHistoricalCandles } from '@/hooks/useMarketData'
 
 const timeframes = [
   { label: '1د', value: '1m' },
@@ -15,30 +16,13 @@ const timeframes = [
 
 const indicatorToggles = ['RSI', 'MACD', 'BOLL']
 
-// Generate mock candlestick data
-function generateCandlestickData(): CandlestickData[] {
-  const data: CandlestickData[] = []
-  let basePrice = 67000
-  const now = new Date()
-  now.setHours(now.getHours() - 60)
-
-  for (let i = 0; i < 60; i++) {
-    const time = new Date(now.getTime() + i * 3600000)
-    const open = basePrice + (Math.random() - 0.5) * 300
-    const close = open + (Math.random() - 0.48) * 500
-    const high = Math.max(open, close) + Math.random() * 200
-    const low = Math.min(open, close) - Math.random() * 200
-    basePrice = close
-
-    data.push({
-      time: Math.floor(time.getTime() / 1000) as Time,
-      open: Math.round(open * 100) / 100,
-      high: Math.round(high * 100) / 100,
-      low: Math.round(low * 100) / 100,
-      close: Math.round(close * 100) / 100,
-    })
+// Map our timeframe values to API interval values
+function mapTimeframeToInterval(tf: string): string {
+  const map: Record<string, string> = {
+    '1m': '1min', '5m': '5min', '15m': '15min',
+    '1h': '1h', '4h': '4h', '1d': '1day',
   }
-  return data
+  return map[tf] || '1h'
 }
 
 export default function TradingViewChart() {
@@ -49,6 +33,15 @@ export default function TradingViewChart() {
   const chartRef = useRef<IChartApi | null>(null)
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null)
   const volumeRef = useRef<ISeriesApi<'Histogram'> | null>(null)
+
+  // Fetch real historical candles
+  const { candles, loading: candlesLoading } = useHistoricalCandles(
+    selectedPair,
+    mapTimeframeToInterval(activeTimeframe)
+  )
+
+  // Fetch real-time quote for live price updates
+  const { quote } = useSingleQuote(selectedPair, 5000)
 
   const toggleIndicator = (label: string) => {
     setActiveIndicators((prev) => {
@@ -80,7 +73,7 @@ export default function TradingViewChart() {
       },
       crosshair: {
         vertLine: { color: '#0A84FF40', labelBackgroundColor: '#1a2332' },
-        horzLine: { color: '#0A84FF40', labelBackgroundColor: '#1a2332' },
+        horxLine: { color: '#0A84FF40', labelBackgroundColor: '#1a2332' },
       },
       rightPriceScale: {
         borderColor: '#ffffff0f',
@@ -105,8 +98,6 @@ export default function TradingViewChart() {
       wickDownColor: '#FF4D4D',
     })
 
-    const data = generateCandlestickData()
-    candleSeries.setData(data)
     seriesRef.current = candleSeries
 
     // Volume histogram (v5 API)
@@ -119,16 +110,7 @@ export default function TradingViewChart() {
       scaleMargins: { top: 0.8, bottom: 0 },
     })
 
-    volumeSeries.setData(
-      data.map((d) => ({
-        time: d.time,
-        value: Math.round(Math.random() * 1000000 + 500000),
-        color: d.close >= d.open ? '#00FFC620' : '#FF4D4D20',
-      }))
-    )
     volumeRef.current = volumeSeries
-
-    chart.timeScale().fitContent()
 
     // Handle resize
     const handleResize = () => {
@@ -148,6 +130,7 @@ export default function TradingViewChart() {
     }
   }, [])
 
+  // Initialize chart once
   useEffect(() => {
     const cleanup = initChart()
     return () => {
@@ -157,35 +140,83 @@ export default function TradingViewChart() {
         chartRef.current = null
       }
     }
-  }, [initChart, selectedPair, activeTimeframe])
+  }, [initChart])
 
-  // Type guard: WhitespaceData only has 'time', CandlestickData has OHLC
-  const isCandle = (d: CandlestickData<Time> | WhitespaceData<Time>): d is CandlestickData<Time> => 'open' in d
-
-  // Simulated live candle update
+  // Update chart data when candles or timeframe change
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (!seriesRef.current) return
-      const allData = seriesRef.current.data()
-      const last = allData[allData.length - 1]
-      if (!last || !isCandle(last)) return
+    if (!seriesRef.current || !volumeRef.current) return
 
-      const newClose = last.close + (Math.random() - 0.5) * 100
-      seriesRef.current.update({
-        time: last.time,
-        open: last.open,
-        high: Math.max(last.high, newClose),
-        low: Math.min(last.low, newClose),
-        close: newClose,
-      })
-    }, 3000)
-    return () => clearInterval(interval)
-  }, [])
+    if (candles.length > 0) {
+      // Convert API candles to lightweight-charts format
+      const candleData: CandlestickData[] = candles
+        .filter(c => c.open > 0 || c.close > 0) // skip invalid candles
+        .map(c => ({
+          time: Math.floor(new Date(c.timestamp).getTime() / 1000) as Time,
+          open: c.open,
+          high: c.high,
+          low: c.low,
+          close: c.close,
+        }))
+        .sort((a, b) => (a.time as number) - (b.time as number))
+
+      if (candleData.length > 0) {
+        seriesRef.current.setData(candleData)
+
+        // Set volume data
+        const volumeData = candles
+          .filter(c => c.open > 0 || c.close > 0)
+          .map(c => ({
+            time: Math.floor(new Date(c.timestamp).getTime() / 1000) as Time,
+            value: c.volume,
+            color: c.close >= c.open ? '#00FFC620' : '#FF4D4D20',
+          }))
+          .sort((a, b) => (a.time as number) - (b.time as number))
+
+        volumeRef.current.setData(volumeData)
+        chartRef.current?.timeScale().fitContent()
+      }
+    }
+  }, [candles, activeTimeframe])
+
+  // Live price update: update the last candle with real-time price
+  useEffect(() => {
+    if (!quote || !seriesRef.current) return
+
+    const allData = seriesRef.current.data()
+    if (allData.length === 0) return
+
+    const last = allData[allData.length - 1]
+    if (!last || !('open' in last)) return
+
+    // Update the last candle with the real-time close price
+    seriesRef.current.update({
+      time: last.time,
+      open: last.open,
+      high: Math.max(last.high, quote.price),
+      low: Math.min(last.low, quote.price),
+      close: quote.price,
+    })
+  }, [quote])
+
+  // Re-init chart on timeframe change
+  useEffect(() => {
+    if (chartRef.current) {
+      chartRef.current.remove()
+      chartRef.current = null
+    }
+    const cleanup = initChart()
+    return () => {
+      cleanup?.()
+    }
+  }, [activeTimeframe, initChart])
+
+  // Type guard
+  const isCandle = (d: CandlestickData<Time> | WhitespaceData<Time>): d is CandlestickData<Time> => 'open' in d
 
   const currentData = seriesRef.current?.data()
   const lastCandle = currentData?.[currentData.length - 1]
   const prevCandle = currentData?.[currentData.length - 2]
-  const currentPrice = (lastCandle && isCandle(lastCandle)) ? lastCandle.close : 0
+  const currentPrice = (lastCandle && isCandle(lastCandle)) ? lastCandle.close : (quote?.price ?? 0)
   const prevClose = (prevCandle && isCandle(prevCandle)) ? prevCandle.close : 0
   const priceChange = currentPrice - prevClose
   const isPositive = priceChange >= 0
@@ -201,7 +232,7 @@ export default function TradingViewChart() {
             </button>
             <div style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.06)' }} />
             <span className={`price text-lg font-bold ${isPositive ? 'positive' : 'negative'}`} style={{ textShadow: isPositive ? '0 0 16px rgba(0,255,198,0.33)' : '0 0 16px rgba(255,77,77,0.33)' }} dir="ltr">
-              {(currentPrice as number)?.toLocaleString?.() ?? '—'}
+              {currentPrice > 0 ? currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: currentPrice > 1000 ? 2 : 6 }) : '—'}
             </span>
             <span
               style={{ fontSize: '9px', fontWeight: 700, background: isPositive ? 'var(--profit-bg)' : 'var(--loss-bg)', border: `1px solid ${isPositive ? 'var(--border-profit)' : 'var(--border-loss)'}`, color: isPositive ? 'var(--profit)' : 'var(--loss)', padding: '2px 7px', borderRadius: '5px', fontFamily: 'var(--font-mono)' }}
@@ -209,6 +240,11 @@ export default function TradingViewChart() {
             >
               {isPositive ? '▲' : '▼'} {isPositive ? '+' : ''}{priceChange.toFixed(2)}
             </span>
+            {quote && (
+              <span style={{ fontSize: '8px', fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }} dir="ltr">
+                via {quote.source}
+              </span>
+            )}
           </div>
 
           {/* Timeframe buttons */}

@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { BarChart3, ChevronDown, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { useSingleQuote } from '@/hooks/useMarketData'
+import { useDashboardStore } from '@/lib/dashboard-store'
 
 interface OrderBookEntry {
   price: string
@@ -10,35 +12,79 @@ interface OrderBookEntry {
   percent: number
 }
 
-// ── Mock data ──
-const mockAsks: OrderBookEntry[] = [
-  { price: '1.0854', amount: '1.2M', total: '1.2M', percent: 65 },
-  { price: '1.0853', amount: '0.8M', total: '2.0M', percent: 45 },
-  { price: '1.0852', amount: '2.4M', total: '4.4M', percent: 80 },
-  { price: '1.0851', amount: '1.8M', total: '6.2M', percent: 55 },
-  { price: '1.0850', amount: '3.2M', total: '9.4M', percent: 95 },
-]
+// Generate order book levels around a real mid-price
+function generateOrderBookLevels(midPrice: number, isPositive: boolean): { asks: OrderBookEntry[]; bids: OrderBookEntry[] } {
+  if (!midPrice || midPrice === 0) {
+    return { asks: [], bids: [] }
+  }
 
-const mockBids: OrderBookEntry[] = [
-  { price: '1.0849', amount: '2.1M', total: '2.1M', percent: 70 },
-  { price: '1.0848', amount: '1.5M', total: '3.6M', percent: 50 },
-  { price: '1.0847', amount: '2.8M', total: '6.4M', percent: 85 },
-  { price: '1.0846', amount: '0.9M', total: '7.3M', percent: 35 },
-  { price: '1.0845', amount: '1.7M', total: '9.0M', percent: 60 },
-]
+  // Determine price step based on price magnitude
+  let step: number
+  if (midPrice > 50000) step = midPrice * 0.0002        // BTC-like: ~$10-15 steps
+  else if (midPrice > 1000) step = midPrice * 0.0003     // Gold-like: ~$0.7 steps
+  else if (midPrice > 100) step = midPrice * 0.0005      // Stock-like: ~$0.05 steps
+  else step = midPrice * 0.0005                           // Forex-like: very small steps
+
+  const asks: OrderBookEntry[] = []
+  const bids: OrderBookEntry[] = []
+  let askTotal = 0
+  let bidTotal = 0
+
+  for (let i = 0; i < 7; i++) {
+    const askPrice = midPrice + step * (i + 1)
+    const bidPrice = midPrice - step * (i + 1)
+
+    // Random volume with slight bias toward closer levels
+    const askVolume = (Math.random() * 3 + 0.5) * (1 - i * 0.08)
+    const bidVolume = (Math.random() * 3 + 0.5) * (1 - i * 0.08)
+    askTotal += askVolume
+    bidTotal += bidVolume
+
+    asks.push({
+      price: askPrice.toFixed(midPrice < 10 ? 5 : 2),
+      amount: `${askVolume.toFixed(1)}M`,
+      total: `${askTotal.toFixed(1)}M`,
+      percent: Math.round(30 + Math.random() * 65),
+    })
+
+    bids.push({
+      price: bidPrice.toFixed(midPrice < 10 ? 5 : 2),
+      amount: `${bidVolume.toFixed(1)}M`,
+      total: `${bidTotal.toFixed(1)}M`,
+      percent: Math.round(30 + Math.random() * 65),
+    })
+  }
+
+  return { asks, bids }
+}
 
 export default function OrderBookPanel() {
   const [expanded, setExpanded] = useState(true)
-  const [asks] = useState<OrderBookEntry[]>(mockAsks)
-  const [bids] = useState<OrderBookEntry[]>(mockBids)
-  const [spread] = useState('0.00005')
-  const [spreadPercent] = useState('0.0046%')
-  const [midPrice] = useState('1.08495')
+  const { selectedPair } = useDashboardStore()
+  const { quote } = useSingleQuote(selectedPair, 5000)
+
+  const midPrice = quote?.price ?? 0
+  const isPositive = quote ? quote.changePercent >= 0 : true
+
+  // Generate order book from real price data
+  const { asks, bids } = useMemo(
+    () => generateOrderBookLevels(midPrice, isPositive),
+    [midPrice, isPositive]
+  )
+
+  const spread = useMemo(() => {
+    if (asks.length === 0 || bids.length === 0) return { value: '—', percent: '—' }
+    const askPrice = parseFloat(asks[0].price)
+    const bidPrice = parseFloat(bids[0].price)
+    const diff = askPrice - bidPrice
+    const pct = ((diff / midPrice) * 100).toFixed(4)
+    return { value: diff.toFixed(midPrice < 10 ? 5 : 2), percent: `${pct}%` }
+  }, [asks, bids, midPrice])
 
   // Calculate buy/sell pressure
   const totalAsk = asks.reduce((s, a) => s + a.percent, 0)
   const totalBid = bids.reduce((s, b) => s + b.percent, 0)
-  const buyPressure = Math.round((totalBid / (totalAsk + totalBid)) * 100)
+  const buyPressure = totalAsk + totalBid > 0 ? Math.round((totalBid / (totalAsk + totalBid)) * 100) : 50
 
   return (
     <div style={{
@@ -84,6 +130,11 @@ export default function OrderBookPanel() {
           textAlign: 'start',
           color: 'var(--text-main)',
         }}>دفتر الأوامر</span>
+        {quote && (
+          <span style={{ fontSize: '8px', fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }} dir="ltr">
+            {selectedPair} · {quote.source}
+          </span>
+        )}
         <div style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
           <ChevronDown size={12} stroke="var(--text-muted)" strokeWidth={2} />
         </div>
@@ -186,13 +237,13 @@ export default function OrderBookPanel() {
               fontFamily: 'var(--font-mono)',
               color: 'var(--accent)',
               textShadow: '0 0 6px rgba(10,132,255,0.4)',
-            }}>{midPrice}</div>
+            }}>{midPrice > 0 ? (midPrice < 10 ? midPrice.toFixed(5) : midPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : '—'}</div>
             <div style={{
               fontSize: '8px',
               color: 'var(--text-faint)',
               fontFamily: 'var(--font-mono)',
             }} dir="ltr">
-              Spread: {spread} ({spreadPercent})
+              Spread: {spread.value} ({spread.percent})
             </div>
           </div>
 

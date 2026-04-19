@@ -10,7 +10,11 @@
     "start:prod": "node dist/main",
     "lint": "eslint .",
     "db:generate": "prisma generate --schema=/home/z/my-project/prisma/schema.prisma",
-    "db:push": "prisma db push --schema=/home/z/my-project/prisma/schema.prisma"
+    "db:push": "prisma db push --schema=/home/z/my-project/prisma/schema.prisma",
+    "test:e2e": "jest --config ./test/jest-e2e.json --forceExit --detectOpenHandles",
+    "test:e2e:analytics": "jest --config ./test/jest-e2e.json --forceExit test/e2e/analytics.e2e-spec.ts",
+    "test:e2e:trading": "jest --config ./test/jest-e2e.json --forceExit test/e2e/trading.e2e-spec.ts",
+    "test:e2e:execution": "jest --config ./test/jest-e2e.json --forceExit test/e2e/execution.e2e-spec.ts"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.4",
@@ -42,10 +46,16 @@
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.1.19",
     "@types/cookie-parser": "^1.4.8",
     "@types/express": "^5.0.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^22.0.0",
+    "@types/supertest": "^7.2.0",
+    "jest": "^30.3.0",
     "prisma": "^6.11.1",
+    "supertest": "^7.2.2",
+    "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
     "typescript": "^5"
   }

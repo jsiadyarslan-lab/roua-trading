@@ -188,6 +188,7 @@
     "sidebar_r chart sidebar_l"
     "sidebar_r positions sidebar_l";
   grid-template-columns: clamp(200px, 18vw, 230px) 1fr clamp(360px, 31vw, 440px);
+  grid-template-rows: 1fr clamp(120px, 20vh, 220px);
   overflow: hidden;
 }
 

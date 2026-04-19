@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Component } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { TrendingUp } from 'lucide-react'
 
@@ -27,30 +27,49 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Check authentication
+  // Check authentication — graceful: show dashboard even if auth API fails
   useEffect(() => {
+    let mounted = true
+
     async function checkAuth() {
       try {
         const meRes = await fetch('/api/auth/me')
-        const meData = await meRes.json()
-        if (meData.authenticated) {
-          setUser(meData.user)
-          return
+        if (meRes.ok) {
+          const meData = await meRes.json()
+          if (meData.authenticated) {
+            if (mounted) setUser(meData.user)
+            return
+          }
         }
-        const syncRes = await fetch('/api/auth/sync')
-        const syncData = await syncRes.json()
-        if (syncData.authenticated) {
-          setUser(syncData.user)
-          return
-        }
-        router.push('/')
       } catch {
+        // /api/auth/me failed, try sync
+      }
+
+      try {
+        const syncRes = await fetch('/api/auth/sync')
+        if (syncRes.ok) {
+          const syncData = await syncRes.json()
+          if (syncData.authenticated) {
+            if (mounted) setUser(syncData.user)
+            return
+          }
+        }
+      } catch {
+        // /api/auth/sync also failed
+      }
+
+      // If no session cookie at all, redirect; otherwise stay on dashboard
+      const hasCookie = document.cookie.includes('roua_session')
+      if (!hasCookie && mounted) {
         router.push('/')
-      } finally {
-        setLoading(false)
       }
     }
-    checkAuth()
+
+    checkAuth().finally(() => {
+      if (mounted) setLoading(false)
+    })
+
+    return () => { mounted = false }
   }, [router])
 
   if (loading) {
@@ -68,65 +87,62 @@ export default function DashboardPage() {
 
   return (
     <div className="layout-shell" dir="rtl">
-      {/* Background effects */}
-      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
-        <div style={{ position: 'absolute', top: '-18%', insetInlineStart: '-10%', width: '44%', height: '44%', background: 'radial-gradient(circle, rgba(10,132,255,0.043), transparent 70%)', filter: 'blur(80px)', borderRadius: '50%' }} />
-        <div style={{ position: 'absolute', bottom: '-18%', insetInlineEnd: '-10%', width: '44%', height: '44%', background: 'radial-gradient(circle, rgba(0,255,198,0.03), transparent 70%)', filter: 'blur(80px)', borderRadius: '50%' }} />
-        <div style={{ position: 'absolute', inset: 0, opacity: 0.013, backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 39px, #0A84FF 39px, #0A84FF 40px), repeating-linear-gradient(90deg, transparent, transparent 39px, #0A84FF 39px, #0A84FF 40px)' }} />
-      </div>
+      {/* Brand Box — grid-area: brand */}
+      <BrandBox />
 
-      {/* Grid content */}
-      <div style={{ position: 'relative', zIndex: 1, height: '100%', maxHeight: '100dvh' }}>
-        {/* Brand Box */}
-        <BrandBox />
+      {/* News Bar — grid-area: news */}
+      <NewsBar />
 
-        {/* News Bar */}
-        <NewsBar />
+      {/* Ticker Bar — grid-area: ticker */}
+      <TickerBar />
 
-        {/* Ticker Bar */}
-        <TickerBar />
+      {/* Top Navigation — grid-area: topnav */}
+      <TopNav />
 
-        {/* Top Navigation */}
-        <TopNav />
+      {/* Main Content Area — grid-area: content */}
+      <div style={{ gridArea: 'content', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+        {/* Background effects — positioned absolute so they don't affect grid children */}
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+          <div style={{ position: 'absolute', top: '-18%', insetInlineStart: '-10%', width: '44%', height: '44%', background: 'radial-gradient(circle, rgba(10,132,255,0.043), transparent 70%)', filter: 'blur(80px)', borderRadius: '50%' }} />
+          <div style={{ position: 'absolute', bottom: '-18%', insetInlineEnd: '-10%', width: '44%', height: '44%', background: 'radial-gradient(circle, rgba(0,255,198,0.03), transparent 70%)', filter: 'blur(80px)', borderRadius: '50%' }} />
+          <div style={{ position: 'absolute', inset: 0, opacity: 0.013, backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 39px, #0A84FF 39px, #0A84FF 40px), repeating-linear-gradient(90deg, transparent, transparent 39px, #0A84FF 39px, #0A84FF 40px)' }} />
+        </div>
 
-        {/* Main Content Area */}
-        <div style={{ gridArea: 'content', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div className="dash-grid">
-            {/* Right sidebar: Wallet + Order Book + Quick Trade */}
-            <div style={{ gridArea: 'sidebar_r', minHeight: 0, overflow: 'hidden', padding: '4px 6px', display: 'flex', flexDirection: 'column', gap: '4px', scrollbarWidth: 'thin', scrollbarColor: 'var(--accent-bg) transparent' }}>
-              <WalletPanel />
-              <OrderBookPanel />
-              <OrderPanel />
-            </div>
+        <div className="dash-grid" style={{ position: 'relative', zIndex: 1 }}>
+          {/* Right sidebar: Wallet + Order Book + Quick Trade */}
+          <div style={{ gridArea: 'sidebar_r', minHeight: 0, overflow: 'hidden', padding: '4px 6px', display: 'flex', flexDirection: 'column', gap: '4px', scrollbarWidth: 'thin', scrollbarColor: 'var(--accent-bg) transparent' }}>
+            <WalletPanel />
+            <OrderBookPanel />
+            <OrderPanel />
+          </div>
 
-            {/* Center: Chart */}
-            <div style={{ gridArea: 'chart', minHeight: 0, minWidth: 0 }}>
-              <TradingViewChart />
-            </div>
+          {/* Center: Chart */}
+          <div style={{ gridArea: 'chart', minHeight: 0, minWidth: 0 }}>
+            <TradingViewChart />
+          </div>
 
-            {/* Positions panel */}
-            <div style={{ gridArea: 'positions', minHeight: 0 }}>
-              <div className="card" style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, padding: 0 }}>
-                <div className="panel-header">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="panel-title">المراكز المفتوحة</span>
-                    <span style={{ fontSize: '9px', fontWeight: 800, background: 'rgba(10,132,255,0.15)', border: '1px solid rgba(10,132,255,0.3)', color: '#0A84FF', padding: '1px 6px', borderRadius: '12px' }}>0</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ fontSize: '9px', color: 'rgba(128,144,168,0.5)' }}>إجمالي P&L:</span>
-                    <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--profit)', textShadow: '0 0 6px rgba(0,255,198,0.5)' }} dir="ltr">+$0.00</span>
-                  </div>
+          {/* Positions panel */}
+          <div style={{ gridArea: 'positions', minHeight: 0 }}>
+            <div className="card" style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, padding: 0 }}>
+              <div className="panel-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="panel-title">المراكز المفتوحة</span>
+                  <span style={{ fontSize: '9px', fontWeight: 800, background: 'rgba(10,132,255,0.15)', border: '1px solid rgba(10,132,255,0.3)', color: '#0A84FF', padding: '1px 6px', borderRadius: '12px' }}>0</span>
                 </div>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
-                  <p style={{ color: 'var(--text-faint)', fontSize: '12px', fontFamily: 'var(--font-ar)' }}>لا توجد مراكز مفتوحة</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '9px', color: 'rgba(128,144,168,0.5)' }}>إجمالي P&L:</span>
+                  <span style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--profit)', textShadow: '0 0 6px rgba(0,255,198,0.5)' }} dir="ltr">+$0.00</span>
                 </div>
               </div>
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+                <p style={{ color: 'var(--text-faint)', fontSize: '12px', fontFamily: 'var(--font-ar)' }}>لا توجد مراكز مفتوحة</p>
+              </div>
             </div>
+          </div>
 
-            {/* Left sidebar: Smart Scanner */}
-            <div style={{ gridArea: 'sidebar_l', minHeight: 0, overflow: 'hidden' }}>
-              <SmartScanner />
-            </div>
+          {/* Left sidebar: Smart Scanner */}
+          <div style={{ gridArea: 'sidebar_l', minHeight: 0, overflow: 'hidden' }}>
+            <SmartScanner />
           </div>
         </div>
       </div>

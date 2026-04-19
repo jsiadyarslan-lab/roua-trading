@@ -1,4 +1,3 @@
-import path from "path";
 import type { NextConfig } from "next";
 
 // API target for server-side rewrites:
@@ -9,9 +8,7 @@ const apiTarget = process.env.API_INTERNAL_URL || "http://localhost:3001";
 const nextConfig: NextConfig = {
   // No "output: standalone" — Railpack keeps node_modules so "next start" works.
   // standalone bakes absolute local paths and requires manual static/public copying.
-  turbopack: {
-    root: path.resolve(__dirname, "../.."),
-  },
+  // turbopack disabled — causes panic with middleware; use webpack instead
   typescript: {
     ignoreBuildErrors: true,
   },

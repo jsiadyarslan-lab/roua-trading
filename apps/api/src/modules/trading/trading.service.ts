@@ -142,17 +142,15 @@ export class TradingService {
       const order = await this.prisma.order.create({
         data: {
           userId,
-          credentialId: request.credentialId,
-          exchange: credential.exchange,
+          exchangeCredentialId: request.credentialId,
           symbol: request.symbol,
-          side: request.side,
-          type: request.type,
-          status: 'REJECTED',
+          side: request.side as any,
+          type: request.type as any,
+          status: 'REJECTED' as any,
           quantity: request.quantity,
           price: request.price,
-          stopPrice: request.stopPrice,
-          rejectReason: execution.error,
-          signalId: request.signalId,
+          stopLoss: request.stopPrice || 0,
+          idempotencyKey: `legacy-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         },
       });
 
@@ -178,24 +176,21 @@ export class TradingService {
     const order = await this.prisma.order.create({
       data: {
         userId,
-        credentialId: request.credentialId,
-        exchange: credential.exchange,
+        exchangeCredentialId: request.credentialId,
         symbol: request.symbol,
-        side: request.side,
-        type: request.type,
+        side: request.side as any,
+        type: request.type as any,
         status:
-          execution.filledQuantity! >= request.quantity
-            ? 'FILLED'
-            : 'PARTIALLY_FILLED',
+          (execution.filledQuantity || 0) >= request.quantity
+            ? 'FILLED' as any
+            : 'PARTIALLY_FILLED' as any,
         quantity: request.quantity,
         price: request.price,
-        stopPrice: request.stopPrice,
+        stopLoss: request.stopPrice || 0,
         filledQuantity: execution.filledQuantity || 0,
-        averageFillPrice: execution.averageFillPrice,
-        fee: execution.fee,
-        feeCurrency: execution.feeCurrency,
+        averagePrice: execution.averageFillPrice,
         exchangeOrderId: execution.exchangeOrderId,
-        signalId: request.signalId,
+        idempotencyKey: `legacy-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       },
     });
 
@@ -282,7 +277,7 @@ export class TradingService {
       try {
         const credential =
           await this.prisma.exchangeCredential.findUnique({
-            where: { id: order.credentialId },
+            where: { id: order.exchangeCredentialId },
           });
         if (credential) {
           const { apiKey, apiSecret } =
@@ -508,18 +503,17 @@ export class TradingService {
     const order = await this.prisma.order.create({
       data: {
         userId,
-        credentialId: position.credentialId,
-        exchange: position.exchange,
+        exchangeCredentialId: position.credentialId,
         symbol: position.symbol,
-        side: closeSide as OrderSide,
-        type: OrderType.MARKET,
-        status: 'FILLED',
+        side: closeSide as any,
+        type: 'MARKET' as any,
+        status: 'FILLED' as any,
         quantity: closeQuantity,
+        stopLoss: position.stopLoss || 0,
         filledQuantity: execution.filledQuantity || closeQuantity,
-        averageFillPrice: execution.averageFillPrice,
-        fee: execution.fee,
-        feeCurrency: execution.feeCurrency,
+        averagePrice: execution.averageFillPrice,
         exchangeOrderId: execution.exchangeOrderId,
+        idempotencyKey: `close-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       },
     });
 
@@ -792,6 +786,12 @@ export class TradingService {
 
     if (filledQty <= 0) return;
 
+    // Get exchange name from credential
+    const credential = await this.prisma.exchangeCredential.findUnique({
+      where: { id: request.credentialId },
+    });
+    const exchangeName = credential?.exchange || 'unknown';
+
     if (request.side === 'BUY') {
       // For BUY orders, check if there's an existing position to add to
       const existingPosition = await this.prisma.position.findFirst({
@@ -827,7 +827,7 @@ export class TradingService {
           data: {
             userId,
             credentialId: request.credentialId,
-            exchange: order.exchange,
+            exchange: exchangeName,
             symbol: request.symbol,
             side: 'BUY',
             status: 'OPEN',
@@ -876,7 +876,7 @@ export class TradingService {
           data: {
             userId,
             credentialId: request.credentialId,
-            exchange: order.exchange,
+            exchange: exchangeName,
             symbol: request.symbol,
             side: 'SELL',
             status: 'OPEN',

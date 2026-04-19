@@ -232,3 +232,134 @@ model Account {
   @@unique([provider, providerAccountId])
   @@index([userId])
 }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Trading Engine Models
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum OrderType {
+  MARKET
+  LIMIT
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PARTIALLY_FILLED
+  FILLED
+  CANCELLED
+  REJECTED
+}
+
+enum OrderEventType {
+  CREATED
+  RISK_REJECTED
+  SENT_TO_EXCHANGE
+  FILLED
+  CANCELLED
+}
+
+model Order {
+  id                  String       @id @default(uuid())
+  userId              String
+  exchangeCredentialId String
+  symbol              String
+  side                OrderSide
+  type                OrderType
+  quantity            Float
+  price               Float?
+  stopLoss            Float?
+  takeProfit          Float?
+  status              OrderStatus  @default(PENDING)
+  filledQuantity      Float        @default(0)
+  averagePrice        Float?
+  idempotencyKey      String       @unique
+  clientOrderId       String?
+  exchangeOrderId     String?
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  events              OrderEvent[]
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([status])
+  @@index([exchangeCredentialId])
+  @@index([createdAt])
+}
+
+model OrderEvent {
+  id        String          @id @default(uuid())
+  orderId   String
+  order     Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  eventType OrderEventType
+  payload   String?
+  timestamp DateTime        @default(now())
+
+  @@index([orderId])
+  @@index([eventType])
+  @@index([timestamp])
+}
+
+enum PositionStatus {
+  OPEN
+  CLOSED
+  LIQUIDATED
+}
+
+model Position {
+  id             String         @id @default(cuid())
+  userId         String
+  credentialId   String
+  exchange       String
+  symbol         String
+  side           OrderSide
+  status         PositionStatus @default(OPEN)
+  quantity       Float
+  entryPrice     Float
+  currentPrice   Float?
+  highestPrice   Float?
+  lowestPrice    Float?
+  stopLoss       Float?
+  takeProfit     Float?
+  unrealizedPnl  Float?
+  realizedPnl    Float?
+  openedAt       DateTime       @default(now())
+  closedAt       DateTime?
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([status])
+}
+
+enum TradeType {
+  ENTRY
+  EXIT
+  PARTIAL_EXIT
+}
+
+model Trade {
+  id           String    @id @default(cuid())
+  userId       String
+  orderId      String?
+  positionId   String?
+  exchange     String
+  symbol       String
+  side         OrderSide
+  type         TradeType
+  quantity     Float
+  price        Float
+  fee          Float?
+  feeCurrency  String?
+  pnl          Float?
+  executedAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([executedAt])
+}

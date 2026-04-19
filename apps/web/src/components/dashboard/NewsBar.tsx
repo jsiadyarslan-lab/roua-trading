@@ -49,6 +49,7 @@ export default function NewsBar() {
     fetchNews()
   }, [])
 
+  // Restart animation when news items change
   useEffect(() => {
     if (tickerRef.current) {
       tickerRef.current.style.animation = 'none'
@@ -68,13 +69,18 @@ export default function NewsBar() {
     </div>
   )
 
+  // Triple the content for seamless loop
+  const tripled = [...newsItems, ...newsItems, ...newsItems]
+
   return (
     <div className="bar-news" style={{ gridArea: 'news' }}>
       <div id="news-bar" style={{ width: '100%', height: '26px', overflow: 'hidden', background: 'rgba(2,3,8,0.97)', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', flexShrink: 0, position: 'relative', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', zIndex: 10 }}>
+        {/* Fade edges */}
+        <div style={{ position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: '28px', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(to right, rgba(2,3,8,0.97), transparent)' }} />
+        <div style={{ position: 'absolute', insetInlineEnd: 0, top: 0, bottom: 0, width: '28px', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(to left, rgba(2,3,8,0.97), transparent)' }} />
         <div style={{ flex: '1 1 0%', overflow: 'hidden', position: 'relative', height: '100%' }}>
           <div ref={tickerRef} style={{ display: 'inline-flex', alignItems: 'center', height: '100%', animation: 'ql-news 95s linear infinite', willChange: 'transform', whiteSpace: 'nowrap' }}>
-            {newsItems.map((item, i) => renderItem(item, i))}
-            {newsItems.map((item, i) => renderItem(item, i + newsItems.length))}
+            {tripled.map((item, i) => renderItem(item, i))}
           </div>
         </div>
       </div>

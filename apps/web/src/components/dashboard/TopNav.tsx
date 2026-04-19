@@ -7,8 +7,8 @@ const navItems = [
   { icon: LayoutDashboard, label: 'لوحة القيادة', path: '/dashboard' },
   { icon: Briefcase, label: 'المحفظة', path: '/dashboard/sanctuary' },
   { icon: Brain, label: 'التحليل الذكي', path: '/dashboard/signals' },
-  { icon: Radar, label: 'الماسح الذكي', path: '/dashboard' },
-  { icon: FileText, label: 'التقارير', path: '/dashboard' },
+  { icon: Radar, label: 'الماسح الذكي', path: '/dashboard/signals' },
+  { icon: FileText, label: 'التقارير', path: '/dashboard/positions' },
   { icon: Newspaper, label: 'الأخبار', path: '/dashboard' },
   { icon: Settings, label: 'الإعدادات', path: '/dashboard/settings/exchange' },
 ]

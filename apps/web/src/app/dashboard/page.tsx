@@ -1,10 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { TrendingUp } from 'lucide-react'
 
-// New QUANT LAB design components
+import { useAuth } from '@/hooks/useAuth'
 import BrandBox from '@/components/dashboard/BrandBox'
 import TopNav from '@/components/dashboard/TopNav'
 import NewsBar from '@/components/dashboard/NewsBar'
@@ -15,62 +13,8 @@ import SmartScanner from '@/components/dashboard/SmartScanner'
 import OrderPanel from '@/components/dashboard/OrderPanel'
 import TradingViewChart from '@/components/charts/TradingViewChart'
 
-interface User {
-  id: string
-  email: string
-  displayName: string
-  tier: string
-}
-
 export default function DashboardPage() {
-  const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  // Check authentication — graceful: show dashboard even if auth API fails
-  useEffect(() => {
-    let mounted = true
-
-    async function checkAuth() {
-      try {
-        const meRes = await fetch('/api/auth/me')
-        if (meRes.ok) {
-          const meData = await meRes.json()
-          if (meData.authenticated) {
-            if (mounted) setUser(meData.user)
-            return
-          }
-        }
-      } catch {
-        // /api/auth/me failed, try sync
-      }
-
-      try {
-        const syncRes = await fetch('/api/auth/sync')
-        if (syncRes.ok) {
-          const syncData = await syncRes.json()
-          if (syncData.authenticated) {
-            if (mounted) setUser(syncData.user)
-            return
-          }
-        }
-      } catch {
-        // /api/auth/sync also failed
-      }
-
-      // If no session cookie at all, redirect; otherwise stay on dashboard
-      const hasCookie = document.cookie.includes('roua_session')
-      if (!hasCookie && mounted) {
-        router.push('/')
-      }
-    }
-
-    checkAuth().finally(() => {
-      if (mounted) setLoading(false)
-    })
-
-    return () => { mounted = false }
-  }, [router])
+  const { loading } = useAuth()
 
   if (loading) {
     return (

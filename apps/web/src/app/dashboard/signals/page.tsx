@@ -10,16 +10,15 @@ import {
   TrendingDown,
   Minus,
   Clock,
-  ArrowRight,
   Loader2,
   AlertTriangle,
-  CheckCircle2,
   XCircle,
   BarChart3,
+  Shield,
+  Activity,
 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { useAuth } from '@/hooks/useAuth'
+import SubPageLayout from '@/components/dashboard/SubPageLayout'
 
 interface Signal {
   id: string
@@ -36,372 +35,211 @@ interface Signal {
 }
 
 const QUICK_PAIRS = [
-  { symbol: 'BTC/USDT', name: 'بيتكوين', icon: '₿' },
-  { symbol: 'ETH/USDT', name: 'إيثريوم', icon: 'Ξ' },
-  { symbol: 'SOL/USDT', name: 'سولانا', icon: '◎' },
-  { symbol: 'AAPL', name: 'آبل', icon: '' },
-  { symbol: 'TSLA', name: 'تسلا', icon: '' },
-  { symbol: 'GOLD', name: 'الذهب', icon: '🥇' },
+  { symbol: 'BTC/USDT', name: 'بيتكوين', icon: '₿', color: '#FFB800' },
+  { symbol: 'ETH/USDT', name: 'إيثريوم', icon: 'Ξ', color: '#A259FF' },
+  { symbol: 'SOL/USDT', name: 'سولانا', icon: '◎', color: '#0A84FF' },
+  { symbol: 'AAPL', name: 'آبل', icon: '', color: '#00FFC6' },
+  { symbol: 'TSLA', name: 'تسلا', icon: '', color: '#FF4D4D' },
+  { symbol: 'GOLD', name: 'الذهب', icon: '', color: '#FFB800' },
 ]
 
+function SignalCard({ signal, onRefresh, onCancel }: { signal: Signal; onRefresh: (pair: string) => void; onCancel: (id: string) => void }) {
+  const config = signal.action === 'BUY'
+    ? { label: 'شراء', Icon: TrendingUp, color: 'var(--profit)', bgColor: 'var(--profit-bg)', borderColor: 'var(--border-profit)' }
+    : signal.action === 'SELL'
+    ? { label: 'بيع', Icon: TrendingDown, color: 'var(--loss)', bgColor: 'var(--loss-bg)', borderColor: 'var(--border-loss)' }
+    : { label: 'انتظار', Icon: Minus, color: 'var(--warning)', bgColor: 'var(--warning-bg)', borderColor: 'var(--border-warning)' }
+
+  const { Icon } = config
+  const formatPrice = (p: number | null) => p ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(p) : '—'
+  const timeLeft = () => {
+    const diff = new Date(signal.expiresAt).getTime() - Date.now()
+    if (diff <= 0) return 'منتهية'
+    return `${Math.floor(diff / 3600000)}س ${Math.floor((diff % 3600000) / 60000)}د`
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} style={{ background: 'var(--bg-card)', border: `1px solid ${config.borderColor}`, borderRightWidth: '3px', borderRadius: '10px', overflow: 'hidden' }}>
+      <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: config.bgColor, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icon size={16} style={{ color: config.color }} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }} dir="ltr">{signal.pair}</span>
+                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: config.bgColor, border: `1px solid ${config.borderColor}`, color: config.color }}>{config.label}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', fontSize: '10px', color: 'var(--text-muted)' }}>
+                <span>الثقة: <span style={{ color: signal.confidence >= 70 ? 'var(--profit)' : signal.confidence >= 40 ? 'var(--warning)' : 'var(--loss)', fontWeight: 700 }}>{signal.confidence}%</span></span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}><Clock size={10} />{timeLeft()}</span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+            <div style={{ padding: '8px 10px', borderRadius: '6px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}>
+              <span style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar)' }}>سعر الدخول</span>
+              <div style={{ fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }} dir="ltr">{formatPrice(signal.entryPrice)}</div>
+            </div>
+            <div style={{ padding: '8px 10px', borderRadius: '6px', background: 'var(--loss-bg)', border: '1px solid var(--border-loss)' }}>
+              <span style={{ fontSize: '9px', color: 'var(--loss)' }}>وقف الخسارة</span>
+              <div style={{ fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--loss)' }} dir="ltr">{formatPrice(signal.stopLoss)}</div>
+            </div>
+            <div style={{ padding: '8px 10px', borderRadius: '6px', background: 'var(--profit-bg)', border: '1px solid var(--border-profit)' }}>
+              <span style={{ fontSize: '9px', color: 'var(--profit)' }}>جني الأرباح</span>
+              <div style={{ fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--profit)' }} dir="ltr">{formatPrice(signal.takeProfit)}</div>
+            </div>
+          </div>
+
+          <div style={{ padding: '10px 12px', borderRadius: '6px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'var(--font-ar)', lineHeight: '1.6' }}>
+            {signal.reason}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginRight: '12px' }}>
+          <button onClick={() => onRefresh(signal.pair)} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 10px', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-muted)', fontSize: '10px', fontFamily: 'var(--font-ar)', cursor: 'pointer' }}>
+            <RefreshCw size={10} /> تجديد
+          </button>
+          <button disabled title="قريباً" style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 10px', borderRadius: '6px', border: '1px solid var(--purple-border)', background: 'var(--purple-bg)', color: 'var(--purple)', fontSize: '10px', fontFamily: 'var(--font-ar)', cursor: 'not-allowed', opacity: 0.6 }}>
+            <BarChart3 size={10} /> تنفيذ
+          </button>
+          <button onClick={() => onCancel(signal.id)} style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '5px 10px', borderRadius: '6px', border: '1px solid transparent', background: 'none', color: 'var(--text-muted)', fontSize: '10px', fontFamily: 'var(--font-ar)', cursor: 'pointer' }}>
+            <XCircle size={10} /> إلغاء
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
 export default function SignalsPage() {
-  const router = useRouter()
+  const { loading: authLoading } = useAuth()
   const [signals, setSignals] = useState<Signal[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState<string | null>(null)
   const [error, setError] = useState('')
 
-  // Check auth — try roua_session first, then sync from NextAuth
-  useEffect(() => {
-    async function checkAuth() {
-      try {
-        // First try our custom session (works for passkey users)
-        const meRes = await fetch('/api/auth/me')
-        const meData = await meRes.json()
-
-        if (meData.authenticated) {
-          return
-        }
-
-        // No roua_session — try syncing from NextAuth (for Google OAuth users)
-        const syncRes = await fetch('/api/auth/sync')
-        const syncData = await syncRes.json()
-
-        if (syncData.authenticated) {
-          return
-        }
-
-        // No session at all — go to login
-        router.push('/')
-      } catch {
-        router.push('/')
-      }
-    }
-    checkAuth()
-  }, [router])
-
-  // Fetch active signals
   const fetchSignals = useCallback(async () => {
     try {
       const res = await fetch('/api/signals/active')
       if (res.ok) {
         const data = await res.json()
-        if (data.success) {
-          setSignals(data.data)
-        }
+        if (data.success) setSignals(data.data)
       }
-    } catch (err) {
-      console.error('Failed to fetch signals:', err)
-    } finally {
-      setLoading(false)
-    }
+    } catch { /* silent */ } finally { setLoading(false) }
   }, [])
 
-  useEffect(() => {
-    fetchSignals()
-  }, [fetchSignals])
+  useEffect(() => { fetchSignals() }, [fetchSignals])
 
-  // Generate signal
   const handleGenerate = async (pair: string) => {
     setGenerating(pair)
     setError('')
-
     try {
-      const res = await fetch(`/api/signals/generate/${encodeURIComponent(pair)}`, {
-        method: 'POST',
-      })
-
+      const res = await fetch(`/api/signals/generate/${encodeURIComponent(pair)}`, { method: 'POST' })
       const data = await res.json()
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || data.message || 'فشل في توليد الإشارة')
-      }
-
-      // Refresh signals list
+      if (!res.ok || !data.success) throw new Error(data.error || data.message || 'فشل في توليد الإشارة')
       await fetchSignals()
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setGenerating(null)
-    }
+    } catch (err: any) { setError(err.message) } finally { setGenerating(null) }
   }
 
-  // Cancel signal
   const handleCancel = async (id: string) => {
     try {
       await fetch(`/api/signals/${id}`, { method: 'DELETE' })
-      setSignals((prev) => prev.filter((s) => s.id !== id))
-    } catch (err) {
-      console.error('Failed to cancel signal:', err)
-    }
+      setSignals(prev => prev.filter(s => s.id !== id))
+    } catch { /* silent */ }
   }
 
-  const getActionConfig = (action: string) => {
-    switch (action) {
-      case 'BUY':
-        return {
-          label: 'شراء',
-          icon: TrendingUp,
-          color: 'text-green-400',
-          bgColor: 'bg-green-500/10',
-          borderColor: 'border-green-500/30',
-        }
-      case 'SELL':
-        return {
-          label: 'بيع',
-          icon: TrendingDown,
-          color: 'text-red-400',
-          bgColor: 'bg-red-500/10',
-          borderColor: 'border-red-500/30',
-        }
-      default:
-        return {
-          label: 'انتظار',
-          icon: Minus,
-          color: 'text-yellow-400',
-          bgColor: 'bg-yellow-500/10',
-          borderColor: 'border-yellow-500/30',
-        }
-    }
-  }
-
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 70) return 'text-green-400'
-    if (confidence >= 40) return 'text-yellow-400'
-    return 'text-red-400'
-  }
-
-  const formatPrice = (price: number | null) => {
-    if (!price) return '—'
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-    }).format(price)
-  }
-
-  const timeUntilExpiry = (expiresAt: string) => {
-    const diff = new Date(expiresAt).getTime() - Date.now()
-    if (diff <= 0) return 'منتهية'
-    const hours = Math.floor(diff / (1000 * 60 * 60))
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-    return `${hours}س ${minutes}د`
+  if (authLoading) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-app)' }}>
+        <Loader2 className="animate-spin" style={{ width: 32, height: 32, color: 'var(--accent)' }} />
+      </div>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-background" dir="rtl">
-      <div className="max-w-6xl mx-auto p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-400 to-pink-500 flex items-center justify-center">
-              <Zap className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">إشارات رؤى</h1>
-              <p className="text-sm text-muted-foreground">
-                توصيات تداول ذكية مدعومة بالذكاء الاصطناعي
-              </p>
-            </div>
-          </div>
-          <Button
-            onClick={() => fetchSignals()}
-            variant="outline"
-            className="border-border"
-          >
-            <RefreshCw className="w-4 h-4 ml-2" />
-            تحديث
-          </Button>
+    <SubPageLayout
+      title="إشارات رؤى"
+      icon={<Zap size={15} color="#fff" />}
+      iconBg="linear-gradient(135deg, #A259FF, #FF6B9D)"
+      actions={
+        <button onClick={() => fetchSignals()} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-ar)', cursor: 'pointer' }}>
+          <RefreshCw size={12} /> تحديث
+        </button>
+      }
+    >
+      {/* Quick Generate */}
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+          <Zap size={14} style={{ color: 'var(--purple)' }} />
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-ar)' }}>توليد إشارة سريعة</span>
         </div>
-
-        {/* Quick Generate */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <Zap className="w-4 h-4" />
-              توليد إشارة سريعة
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              {QUICK_PAIRS.map((pair) => (
-                <button
-                  key={pair.symbol}
-                  onClick={() => handleGenerate(pair.symbol)}
-                  disabled={generating !== null}
-                  className={`p-4 rounded-xl text-center transition-all border ${
-                    generating === pair.symbol
-                      ? 'bg-purple-500/10 border-purple-500/30'
-                      : 'bg-background border-border hover:border-purple-500/30 hover:bg-purple-500/5'
-                  } disabled:opacity-50`}
-                >
-                  {generating === pair.symbol ? (
-                    <Loader2 className="w-6 h-6 mx-auto animate-spin text-purple-400" />
-                  ) : (
-                    <>
-                      {pair.icon && <span className="block text-xl mb-1">{pair.icon}</span>}
-                      <p className="text-sm font-medium" dir="ltr">{pair.symbol}</p>
-                      <p className="text-[10px] text-muted-foreground">{pair.name}</p>
-                    </>
-                  )}
-                </button>
-              ))}
-            </div>
-            {error && (
-              <div className="flex items-center gap-2 p-3 mt-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
-                <p className="text-sm text-red-400">{error}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Active Signals */}
-        {loading ? (
-          <div className="text-center py-12">
-            <Loader2 className="w-8 h-8 text-muted-foreground mx-auto animate-spin" />
-            <p className="text-sm text-muted-foreground mt-3">جارٍ التحميل...</p>
-          </div>
-        ) : signals.length === 0 ? (
-          <Card className="bg-card border-border">
-            <CardContent className="py-12 text-center">
-              <Zap className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-30" />
-              <p className="font-medium mb-1">لا توجد إشارات نشطة</p>
-              <p className="text-sm text-muted-foreground mb-4">
-                اضغط على أي زوج أعلاه لتوليد إشارة تداول ذكية
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold">الإشارات النشطة</h2>
-              <Badge variant="outline" className="text-xs">
-                {signals.length} إشارة
-              </Badge>
-            </div>
-
-            <AnimatePresence>
-              {signals.map((signal) => {
-                const config = getActionConfig(signal.action)
-                const ActionIcon = config.icon
-
-                return (
-                  <motion.div
-                    key={signal.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                  >
-                    <Card className={`bg-card ${config.borderColor} border-l-4`}>
-                      <CardContent className="p-5">
-                        <div className="flex items-start justify-between">
-                          {/* Signal Info */}
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-3">
-                              <div className={`w-10 h-10 rounded-xl ${config.bgColor} flex items-center justify-center`}>
-                                <ActionIcon className={`w-5 h-5 ${config.color}`} />
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <h3 className="font-bold text-lg" dir="ltr">{signal.pair}</h3>
-                                  <Badge className={`${config.bgColor} ${config.color} border-0 text-xs`}>
-                                    {config.label}
-                                  </Badge>
-                                </div>
-                                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                  <span>الثقة: <span className={getConfidenceColor(signal.confidence)}>{signal.confidence}%</span></span>
-                                  <span className="flex items-center gap-1">
-                                    <Clock className="w-3 h-3" />
-                                    {timeUntilExpiry(signal.expiresAt)}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Price Levels */}
-                            <div className="grid grid-cols-3 gap-3 mb-3">
-                              <div className="p-2 rounded-lg bg-background border border-border">
-                                <p className="text-[10px] text-muted-foreground">سعر الدخول</p>
-                                <p className="text-sm font-medium" dir="ltr">{formatPrice(signal.entryPrice)}</p>
-                              </div>
-                              <div className="p-2 rounded-lg bg-red-500/5 border border-red-500/10">
-                                <p className="text-[10px] text-red-400">وقف الخسارة</p>
-                                <p className="text-sm font-medium text-red-400" dir="ltr">{formatPrice(signal.stopLoss)}</p>
-                              </div>
-                              <div className="p-2 rounded-lg bg-green-500/5 border border-green-500/10">
-                                <p className="text-[10px] text-green-400">جني الأرباح</p>
-                                <p className="text-sm font-medium text-green-400" dir="ltr">{formatPrice(signal.takeProfit)}</p>
-                              </div>
-                            </div>
-
-                            {/* AI Reason */}
-                            <div className="p-3 rounded-lg bg-background border border-border text-sm text-muted-foreground leading-relaxed">
-                              {signal.reason}
-                            </div>
-                          </div>
-
-                          {/* Actions */}
-                          <div className="flex flex-col gap-2 mr-4">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-border text-xs"
-                              onClick={() => handleGenerate(signal.pair)}
-                            >
-                              <RefreshCw className="w-3 h-3 ml-1" />
-                              تجديد
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="border-purple-500/30 text-purple-400 text-xs"
-                              disabled
-                              title="قريباً"
-                            >
-                              <BarChart3 className="w-3 h-3 ml-1" />
-                              تنفيذ
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-muted-foreground hover:text-red-400 text-xs"
-                              onClick={() => handleCancel(signal.id)}
-                            >
-                              <XCircle className="w-3 h-3 ml-1" />
-                              إلغاء
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                )
-              })}
-            </AnimatePresence>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }}>
+          {QUICK_PAIRS.map(pair => (
+            <button
+              key={pair.symbol}
+              onClick={() => handleGenerate(pair.symbol)}
+              disabled={generating !== null}
+              style={{
+                padding: '14px 8px', borderRadius: '10px', border: generating === pair.symbol ? `1px solid ${pair.color}40` : '1px solid var(--border)',
+                background: generating === pair.symbol ? `${pair.color}14` : 'var(--bg-input)',
+                cursor: generating !== null ? 'not-allowed' : 'pointer', textAlign: 'center',
+                transition: 'all 0.15s', opacity: generating !== null && generating !== pair.symbol ? 0.5 : 1,
+              }}
+            >
+              {generating === pair.symbol ? (
+                <Loader2 size={20} className="animate-spin" style={{ color: pair.color, margin: '0 auto' }} />
+              ) : (
+                <>
+                  {pair.icon && <span style={{ display: 'block', fontSize: '18px', marginBottom: '4px' }}>{pair.icon}</span>}
+                  <span style={{ display: 'block', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }} dir="ltr">{pair.symbol}</span>
+                  <span style={{ display: 'block', fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)', marginTop: '2px' }}>{pair.name}</span>
+                </>
+              )}
+            </button>
+          ))}
+        </div>
+        {error && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 14px', borderRadius: '8px', background: 'var(--loss-bg)', border: '1px solid var(--border-loss)', marginTop: '10px' }}>
+            <AlertTriangle size={13} style={{ color: 'var(--loss)' }} />
+            <span style={{ fontSize: '11px', color: 'var(--loss)', fontFamily: 'var(--font-ar)' }}>{error}</span>
           </div>
         )}
-
-        {/* Disclaimer */}
-        <div className="p-4 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
-          <div className="flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-muted-foreground">
-              إشارات رؤى لأغراض تعليمية فقط وليست نصيحة استثمارية. تداول بمسؤولية ولا تستثمر أكثر مما يمكنك تحمل خسارته.
-            </p>
-          </div>
-        </div>
-
-        {/* Back */}
-        <Button
-          variant="ghost"
-          onClick={() => router.push('/dashboard')}
-          className="text-muted-foreground"
-        >
-          <ArrowRight className="w-4 h-4 ml-2" />
-          العودة للوحة القيادة
-        </Button>
       </div>
-    </div>
+
+      {/* Active Signals */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '48px' }}>
+          <Loader2 className="animate-spin" style={{ width: 28, height: 28, color: 'var(--accent)', margin: '0 auto 12px' }} />
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)' }}>جارٍ التحميل...</p>
+        </div>
+      ) : signals.length === 0 ? (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '48px', textAlign: 'center' }}>
+          <Zap size={36} style={{ color: 'var(--text-faint)', margin: '0 auto 12px', opacity: 0.3 }} />
+          <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-ar)' }}>لا توجد إشارات نشطة</p>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)', marginTop: '4px' }}>اضغط على أي زوج أعلاه لتوليد إشارة تداول ذكية</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'var(--font-ar)' }}>الإشارات النشطة</span>
+            <span style={{ fontSize: '9px', fontWeight: 700, background: 'var(--accent-bg)', border: '1px solid var(--accent-border)', color: 'var(--accent)', padding: '1px 7px', borderRadius: '10px' }}>{signals.length}</span>
+          </div>
+          <AnimatePresence>
+            {signals.map(signal => (
+              <SignalCard key={signal.id} signal={signal} onRefresh={handleGenerate} onCancel={handleCancel} />
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/* Disclaimer */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '12px 16px', borderRadius: '8px', background: 'var(--warning-bg)', border: '1px solid var(--border-warning)', marginTop: '16px' }}>
+        <AlertTriangle size={13} style={{ color: 'var(--warning)', marginTop: '1px', flexShrink: 0 }} />
+        <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)', lineHeight: '1.5' }}>إشارات رؤى لأغراض تعليمية فقط وليست نصيحة استثمارية. تداول بمسؤولية.</span>
+      </div>
+    </SubPageLayout>
   )
 }

@@ -84,7 +84,7 @@ export default function SmartScanner() {
   const riskLevels: RiskLevel[] = ['Low', 'Medium', 'High']
 
   return (
-    <div style={{ gridArea: 'scanner' }} className="glass flex flex-col overflow-hidden">
+    <div className="card flex flex-col overflow-hidden" style={{ height: '100%' }}>
       {/* AI Bot Card */}
       <div className="px-4 py-2.5 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
         {/* Row 1: Title + Status + P&L */}

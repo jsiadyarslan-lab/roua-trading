@@ -79,8 +79,8 @@ export default function TradingViewChart() {
         horzLines: { color: '#ffffff0f' },
       },
       crosshair: {
-        vertLine: { color: '#05966940', labelBackgroundColor: '#1a2332' },
-        horzLine: { color: '#05966940', labelBackgroundColor: '#1a2332' },
+        vertLine: { color: '#0A84FF40', labelBackgroundColor: '#1a2332' },
+        horzLine: { color: '#0A84FF40', labelBackgroundColor: '#1a2332' },
       },
       rightPriceScale: {
         borderColor: '#ffffff0f',
@@ -97,12 +97,12 @@ export default function TradingViewChart() {
 
     // Candlestick series (v5 API)
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#10b981',
-      downColor: '#ef4444',
-      borderUpColor: '#10b981',
-      borderDownColor: '#ef4444',
-      wickUpColor: '#10b981',
-      wickDownColor: '#ef4444',
+      upColor: '#00FFC6',
+      downColor: '#FF4D4D',
+      borderUpColor: '#00FFC6',
+      borderDownColor: '#FF4D4D',
+      wickUpColor: '#00FFC6',
+      wickDownColor: '#FF4D4D',
     })
 
     const data = generateCandlestickData()
@@ -123,7 +123,7 @@ export default function TradingViewChart() {
       data.map((d) => ({
         time: d.time,
         value: Math.round(Math.random() * 1000000 + 500000),
-        color: d.close >= d.open ? '#10b98120' : '#ef444420',
+        color: d.close >= d.open ? '#00FFC620' : '#FF4D4D20',
       }))
     )
     volumeRef.current = volumeSeries
@@ -191,20 +191,23 @@ export default function TradingViewChart() {
   const isPositive = priceChange >= 0
 
   return (
-    <div style={{ gridArea: 'chart' }} className="flex flex-col overflow-hidden">
+    <div className="flex flex-col overflow-hidden" style={{ height: '100%', background: 'var(--bg-chart)', borderRadius: '10px', border: '1px solid var(--border-subtle)' }}>
       {/* Chart header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-chart)' }}>
+      <div className="flex items-center justify-between px-4 py-2 border-b" style={{ borderColor: 'rgba(255,255,255,0.04)', background: 'rgba(0,0,0,0.3)', flexShrink: 0, minHeight: '40px' }}>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-bold" style={{ color: 'var(--text-main)', fontFamily: 'var(--font-mono)' }}>{selectedPair}</span>
-            <span className={`price text-lg font-bold ${isPositive ? 'positive' : 'negative'}`}>
+            <button style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 10px', borderRadius: '6px', background: 'var(--accent-bg)', border: '1px solid var(--accent-border)', cursor: 'pointer', color: 'var(--text-main)', fontFamily: 'var(--font-mono)', fontSize: '12px', fontWeight: 800, letterSpacing: '0.04em' }}>
+              {selectedPair}
+            </button>
+            <div style={{ width: '1px', height: '16px', background: 'rgba(255,255,255,0.06)' }} />
+            <span className={`price text-lg font-bold ${isPositive ? 'positive' : 'negative'}`} style={{ textShadow: isPositive ? '0 0 16px rgba(0,255,198,0.33)' : '0 0 16px rgba(255,77,77,0.33)' }} dir="ltr">
               {(currentPrice as number)?.toLocaleString?.() ?? '—'}
             </span>
             <span
-              className="text-xs px-1.5 py-0.5 rounded"
-              style={{ background: isPositive ? 'var(--profit-bg)' : 'var(--loss-bg)', color: isPositive ? 'var(--profit)' : 'var(--loss)' }}
+              style={{ fontSize: '9px', fontWeight: 700, background: isPositive ? 'var(--profit-bg)' : 'var(--loss-bg)', border: `1px solid ${isPositive ? 'var(--border-profit)' : 'var(--border-loss)'}`, color: isPositive ? 'var(--profit)' : 'var(--loss)', padding: '2px 7px', borderRadius: '5px', fontFamily: 'var(--font-mono)' }}
+              dir="ltr"
             >
-              {isPositive ? '+' : ''}{priceChange.toFixed(2)}
+              {isPositive ? '▲' : '▼'} {isPositive ? '+' : ''}{priceChange.toFixed(2)}
             </span>
           </div>
 
@@ -248,13 +251,13 @@ export default function TradingViewChart() {
 
           {/* Drawing tools */}
           <div className="flex items-center gap-1">
-            <button className="p-1 rounded transition-colors hover:bg-[var(--bg-card-hover)]" style={{ color: 'var(--text-muted)' }} title="خط الاتجاه">
+            <button className="p-1 rounded transition-colors hover:bg-[var(--bg-active)]" style={{ color: 'var(--text-muted)' }} title="خط الاتجاه">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="2" y1="12" x2="12" y2="2" stroke="currentColor" strokeWidth="1.5" /></svg>
             </button>
-            <button className="p-1 rounded transition-colors hover:bg-[var(--bg-card-hover)]" style={{ color: 'var(--text-muted)' }} title="فيبوناتشي">
+            <button className="p-1 rounded transition-colors hover:bg-[var(--bg-active)]" style={{ color: 'var(--text-muted)' }} title="فيبوناتشي">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7 Q5 2, 7 7 Q9 12, 12 7" stroke="currentColor" strokeWidth="1.5" fill="none" /></svg>
             </button>
-            <button className="p-1 rounded transition-colors hover:bg-[var(--bg-card-hover)]" style={{ color: 'var(--text-muted)' }} title="خط تقاطع">
+            <button className="p-1 rounded transition-colors hover:bg-[var(--bg-active)]" style={{ color: 'var(--text-muted)' }} title="خط تقاطع">
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><line x1="7" y1="2" x2="7" y2="12" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2" /><line x1="2" y1="7" x2="12" y2="7" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2" /></svg>
             </button>
           </div>

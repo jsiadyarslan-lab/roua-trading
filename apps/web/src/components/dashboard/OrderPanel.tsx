@@ -66,7 +66,7 @@ export default function OrderPanel() {
   }
 
   return (
-    <div style={{ gridArea: 'order' }} className="glass flex flex-col overflow-hidden">
+    <div className="flex flex-col overflow-hidden" style={{ borderRadius: '8px', border: '1px solid var(--border)', background: 'var(--bg-card)', flexShrink: 0 }}>
       {/* Quick Trade Form */}
       <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
         <div className="flex items-center justify-between mb-3">
@@ -118,7 +118,7 @@ export default function OrderPanel() {
           <motion.button
             className="py-2 rounded-lg text-xs font-bold transition-all"
             style={{ background: 'var(--profit)', color: '#fff', boxShadow: 'var(--glow-profit)', opacity: submitting === 'buy' ? 0.7 : 1 }}
-            whileHover={{ scale: 1.02, boxShadow: '0 0 16px #10b9816d' }}
+            whileHover={{ scale: 1.02, boxShadow: '0 0 16px #00FFC64d' }}
             whileTap={{ scale: 0.98 }}
             onClick={() => submitOrder('BUY')}
             disabled={submitting !== null}
@@ -128,7 +128,7 @@ export default function OrderPanel() {
           <motion.button
             className="py-2 rounded-lg text-xs font-bold transition-all"
             style={{ background: 'var(--loss)', color: '#fff', boxShadow: 'var(--glow-loss)', opacity: submitting === 'sell' ? 0.7 : 1 }}
-            whileHover={{ scale: 1.02, boxShadow: '0 0 16px #ef44446d' }}
+            whileHover={{ scale: 1.02, boxShadow: '0 0 16px #FF4D4D4d' }}
             whileTap={{ scale: 0.98 }}
             onClick={() => submitOrder('SELL')}
             disabled={submitting !== null}

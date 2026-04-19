@@ -47,47 +47,72 @@
 
 :root,
 [data-theme="dark"] {
-  /* Roua Trading Platform - Dark Theme */
+  /* Roua Trading Platform - QUANT LAB Dark Theme */
   --bg-app: #0d1117;
-  --bg-nav: #05070efa;
+  --bg-nav: #04050cf5;
+  --bg-nav-solid: #04050c;
   --bg-panel: #111827;
   --bg-card: #1a2332;
-  --bg-card-hover: #1e2a3d;
+  --bg-card-2: #1a2332b3;
+  --bg-card-3: #0d1520f2;
   --bg-chart: #0d1520;
   --bg-input: #ffffff0a;
   --bg-sidebar: #05070efa;
   --bg-ticker: #08090f;
+  --bg-overlay: #03050ceb;
+  --bg-tooltip: #04060ef7;
+  --bg-modal: #111827;
+  --bg-row-odd: #ffffff04;
+  --bg-row-hover: #0a84ff0a;
+  --bg-active: #0a84ff17;
+  --bg-active-2: #0a84ff1f;
 
+  --border: #ffffff1a;
   --border-subtle: #ffffff0f;
   --border-strong: #ffffff1a;
-  --border-accent: #05966940;
-  --border-profit: #10b98140;
-  --border-loss: #ef444440;
-  --border-warning: #d4af3740;
+  --border-2: #ffffff0a;
+  --border-muted: #ffffff08;
+  --border-accent: #0A84FF40;
+  --border-profit: #00FFC640;
+  --border-loss: #FF4D4D40;
+  --border-warning: #FFB80040;
 
   --text-main: #e5e7eb;
   --text-secondary: #94a3b8;
   --text-muted: #94a3b899;
+  --text-faint: #8090a866;
+  --text-dim: #8090a859;
 
-  --accent: #059669;
-  --accent-bg: #0596690f;
-  --accent-border: #05966940;
+  --accent: #0A84FF;
+  --accent-bg: #0A84FF0f;
+  --accent-border: #0A84FF40;
+  --accent-bg-2: #0a84ff1f;
+  --accent-border-2: #0a84ff66;
 
-  --profit: #10b981;
-  --profit-bg: #10b98114;
-  --loss: #ef4444;
-  --loss-bg: #ef444414;
+  --profit: #00FFC6;
+  --profit-bg: #00FFC614;
+  --profit-2: #00ff9d;
+  --loss: #FF4D4D;
+  --loss-bg: #FF4D4D14;
 
-  --warning: #d4af37;
-  --warning-bg: #d4af3712;
-  --gold: #d4af37;
-  --teal: #0d9488;
+  --warning: #FFB800;
+  --warning-bg: #FFB80012;
+  --gold: #FFB800;
 
-  --shadow-card: 0 2px 12px #0000004d;
+  --purple: #A259FF;
+  --purple-bg: #A259FF14;
+  --purple-border: #A259FF40;
+
+  --shadow: 0 4px 20px #0006;
+  --shadow-sm: 0 1px 6px #0006;
   --shadow-lg: 0 8px 40px #0009;
-  --glow-accent: 0 0 12px #0596694d;
-  --glow-profit: 0 0 8px #10b9814d;
-  --glow-loss: 0 0 8px #ef44444d;
+  --shadow-modal: 0 16px 64px #000000b3;
+  --shadow-card: 0 2px 12px #0000004d;
+
+  --glow-accent: 0 0 12px #0A84FF4d;
+  --glow-profit: 0 0 8px #00FFC64d;
+  --glow-loss: 0 0 8px #FF4D4D4d;
+  --glow-warning: 0 0 8px #ffb8004d;
 
   /* shadcn dark theme variables */
   --radius: 0.625rem;
@@ -97,31 +122,31 @@
   --card-foreground: #e5e7eb;
   --popover: #1a2332;
   --popover-foreground: #e5e7eb;
-  --primary: #059669;
+  --primary: #0A84FF;
   --primary-foreground: #ffffff;
   --secondary: #1e2a3d;
   --secondary-foreground: #e5e7eb;
   --muted: #111827;
   --muted-foreground: #94a3b8;
-  --accent: #059669;
+  --accent: #0A84FF;
   --accent-foreground: #ffffff;
-  --destructive: #ef4444;
+  --destructive: #FF4D4D;
   --border: #ffffff1a;
   --input: #ffffff0a;
-  --ring: #059669;
-  --chart-1: #059669;
-  --chart-2: #10b981;
-  --chart-3: #d4af37;
-  --chart-4: #0d9488;
-  --chart-5: #ef4444;
+  --ring: #0A84FF;
+  --chart-1: #0A84FF;
+  --chart-2: #00FFC6;
+  --chart-3: #FFB800;
+  --chart-4: #A259FF;
+  --chart-5: #FF4D4D;
   --sidebar: #05070efa;
   --sidebar-foreground: #e5e7eb;
-  --sidebar-primary: #059669;
+  --sidebar-primary: #0A84FF;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #0596690f;
+  --sidebar-accent: #0A84FF0f;
   --sidebar-accent-foreground: #e5e7eb;
   --sidebar-border: #ffffff0f;
-  --sidebar-ring: #059669;
+  --sidebar-ring: #0A84FF;
 }
 
 @layer base {
@@ -135,23 +160,78 @@
   }
 }
 
-/* Layout Shell - CSS Grid */
+/* ── Layout Shell - QUANT LAB CSS Grid ── */
 .layout-shell {
   display: grid;
   grid-template-areas:
-    "brand header header watchlist"
-    "sidebar chart chart watchlist"
-    "sidebar scanner scanner order"
-    "news news news news";
-  grid-template-columns: auto 1fr 1fr 280px;
-  grid-template-rows: 64px 1fr auto 36px;
+    "brand news"
+    "brand ticker"
+    "brand topnav"
+    "content content";
+  grid-template-columns: 144px 1fr;
+  grid-template-rows: 26px 38px 52px 1fr;
   height: 100vh;
   max-height: 100vh;
   overflow: hidden;
   background: var(--bg-app);
 }
 
-/* Glass morphism effect */
+/* ── Inner Dashboard Grid ── */
+.dash-grid {
+  flex: 1 1 0%;
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+  grid-template-areas:
+    "sidebar_r chart sidebar_l"
+    "sidebar_r positions sidebar_l";
+  grid-template-columns: clamp(200px, 18vw, 230px) 1fr clamp(360px, 31vw, 440px);
+  overflow: hidden;
+}
+
+/* ── Card / Panel Styles ── */
+.card {
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  gap: 8px;
+  background: rgba(0,0,0,0.06);
+  border-bottom: 1px solid rgba(0,0,0,0.12);
+}
+
+.panel-title {
+  font-family: var(--font-ar), Inter, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* ── Pulse Live Indicator ── */
+.pulse-live {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+  animation: pulse-live-anim 2s ease-in-out infinite;
+}
+
+@keyframes pulse-live-anim {
+  0%, 100% { opacity: 0.6; box-shadow: 0 0 4px var(--accent); }
+  50% { opacity: 1; box-shadow: 0 0 8px var(--accent); }
+}
+
+/* ── Glass morphism effect ── */
 .glass {
   background: rgba(26, 35, 50, 0.7);
   backdrop-filter: blur(12px);
@@ -159,7 +239,7 @@
   border: 1px solid var(--border-subtle);
 }
 
-/* Price typography */
+/* ── Price typography ── */
 .price {
   font-family: var(--font-mono), monospace;
   font-variant-numeric: tabular-nums;
@@ -174,17 +254,43 @@
   color: var(--loss);
 }
 
-/* News ticker marquee animation */
+/* ── Animation Keyframes ── */
 @keyframes ql-news {
-  0% {
-    transform: translateX(0);
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes ql-ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+@keyframes orbit-cw {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes orbit-ccw {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes planet-breathe {
+  0%, 100% {
+    box-shadow: 0 0 24px rgba(10,132,255,0.50), 0 0 50px rgba(10,132,255,0.14),
+    inset 3px 3px 8px rgba(120,200,255,0.22), inset -5px -5px 10px rgba(0,0,0,0.65);
   }
-  100% {
-    transform: translateX(-50%);
+  50% {
+    box-shadow: 0 0 36px rgba(10,132,255,0.75), 0 0 70px rgba(10,132,255,0.22),
+    inset 3px 3px 8px rgba(140,220,255,0.30), inset -5px -5px 10px rgba(0,0,0,0.55);
   }
 }
 
-/* Pulse glow animation for brand */
+@keyframes halo-pulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1.0; transform: scale(1.05); }
+}
+
 @keyframes pulse-glow {
   0%, 100% {
     opacity: 0.6;
@@ -196,7 +302,7 @@
   }
 }
 
-/* Brand box specific classes */
+/* ── Brand Box ── */
 .brand-box {
   grid-area: brand;
   display: flex;
@@ -205,9 +311,11 @@
   justify-content: center;
   gap: 4px;
   background: var(--bg-sidebar);
-  border-inline-end: 1px solid var(--border-accent);
-  border-bottom: 1px solid var(--border-subtle);
-  width: 64px;
+  border-inline-end: 1px solid var(--accent-border);
+  border-bottom: 1px solid var(--border-2);
+  position: relative;
+  overflow: hidden;
+  z-index: 10;
 }
 
 .brand-glow {
@@ -231,7 +339,21 @@
   color: var(--accent);
 }
 
-/* Value accent classes */
+/* ── News Bar ── */
+.bar-news {
+  grid-area: news;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* ── Ticker Bar ── */
+.ticker-bar {
+  grid-area: ticker;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* ── Value accent classes ── */
 .val-gold {
   color: var(--gold);
 }
@@ -241,7 +363,7 @@
   text-shadow: var(--glow-accent);
 }
 
-/* Custom scrollbar */
+/* ── Custom scrollbar ── */
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }

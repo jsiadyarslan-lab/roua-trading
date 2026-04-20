@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@700;800;900&family=Cairo:wght@400;500;600;700&family=Readex+Pro:wght@300;400;500;600&display=swap');
 
 @custom-variant dark (&:is(.dark *));
 
@@ -47,61 +48,88 @@
 
 :root,
 [data-theme="dark"] {
-  /* Roua Trading Platform - QUANT LAB Dark Theme */
-  --bg-app: #0d1117;
-  --bg-nav: #04050cf5;
-  --bg-nav-solid: #04050c;
-  --bg-panel: #111827;
-  --bg-card: #1a2332;
-  --bg-card-2: #1a2332b3;
-  --bg-card-3: #0d1520f2;
-  --bg-chart: #0d1520;
-  --bg-input: #ffffff0a;
-  --bg-sidebar: #05070efa;
-  --bg-ticker: #08090f;
-  --bg-overlay: #03050ceb;
-  --bg-tooltip: #04060ef7;
-  --bg-modal: #111827;
-  --bg-row-odd: #ffffff04;
-  --bg-row-hover: #0a84ff0a;
-  --bg-active: #0a84ff17;
-  --bg-active-2: #0a84ff1f;
+  /* ── QUANTUM TRADE AI v5 Design System ── */
+  --bg: #090b10;
+  --bg2: #0d1018;
+  --bg3: #0f1525;
+  --bg4: #131a28;
 
-  --border: #ffffff1a;
+  --blue: #4d9eff;
+  --blue2: rgba(77,158,255,.12);
+  --blue3: rgba(77,158,255,.06);
+  --green: #00ff88;
+  --green2: rgba(0,255,136,.12);
+  --red: #ff3355;
+  --red2: rgba(255,51,85,.12);
+  --amber: #ffaa00;
+  --purple: #a78bfa;
+
+  --text: #e0e8ff;
+  --text2: #7a9abb;
+  --text3: #3d5270;
+  --text4: #1e2d42;
+
+  --border: rgba(77,158,255,.10);
+  --border2: rgba(77,158,255,.18);
+
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-display: 'Syne', sans-serif;
+  --font-ui: 'Cairo', sans-serif;
+  --font-body: 'Readex Pro', sans-serif;
+
+  /* ── Legacy Roua Theme (keep for existing components) ── */
+  --bg-app: #090b10;
+  --bg-nav: #0d1018;
+  --bg-nav-solid: #0d1018;
+  --bg-panel: #0f1525;
+  --bg-card: #131a28;
+  --bg-card-2: #131a28b3;
+  --bg-card-3: #0f1520f2;
+  --bg-chart: #090b10;
+  --bg-input: #ffffff0a;
+  --bg-sidebar: #0d1018;
+  --bg-ticker: #090b10;
+  --bg-overlay: #03050ceb;
+  --bg-tooltip: #0d1018f7;
+  --bg-modal: #0f1525;
+  --bg-row-odd: #ffffff04;
+  --bg-row-hover: #4d9eff0a;
+  --bg-active: #4d9eff17;
+  --bg-active-2: #4d9eff1f;
+
   --border-subtle: #ffffff0f;
   --border-strong: #ffffff1a;
   --border-2: #ffffff0a;
   --border-muted: #ffffff08;
-  --border-accent: #0A84FF40;
-  --border-profit: #00FFC640;
-  --border-loss: #FF4D4D40;
-  --border-warning: #FFB80040;
+  --border-accent: #4d9eff40;
+  --border-profit: #00ff8840;
+  --border-loss: #ff335540;
+  --border-warning: #ffaa0040;
 
-  --text-main: #e5e7eb;
-  --text-secondary: #94a3b8;
-  --text-muted: #94a3b899;
-  --text-faint: #8090a866;
-  --text-dim: #8090a859;
+  --text-main: #e0e8ff;
+  --text-secondary: #7a9abb;
+  --text-muted: #7a9abb99;
+  --text-faint: #3d527066;
+  --text-dim: #3d527059;
 
-  --accent: #0A84FF;
-  --accent-bg: #0A84FF0f;
-  --accent-border: #0A84FF40;
-  --accent-bg-2: #0a84ff1f;
-  --accent-border-2: #0a84ff66;
+  --accent: #4d9eff;
+  --accent-bg: #4d9eff0f;
+  --accent-border: #4d9eff40;
+  --accent-bg-2: #4d9eff1f;
+  --accent-border-2: #4d9eff66;
 
-  --profit: #00FFC6;
-  --profit-bg: #00FFC614;
-  --profit-2: #00ff9d;
-  --loss: #FF4D4D;
-  --loss-bg: #FF4D4D14;
+  --profit: #00ff88;
+  --profit-bg: rgba(0,255,136,.12);
+  --profit-2: #00ff88;
+  --loss: #ff3355;
+  --loss-bg: rgba(255,51,85,.12);
 
-  --warning: #FFB800;
-  --warning-bg: #FFB80012;
-  --gold: #FFB800;
+  --warning: #ffaa00;
+  --warning-bg: #ffaa0012;
+  --gold: #ffaa00;
 
-  --purple: #A259FF;
-  --purple-bg: #A259FF14;
-  --purple-border: #A259FF40;
+  --purple-bg: #a78bfa14;
+  --purple-border: #a78bfa40;
 
   --shadow: 0 4px 20px #0006;
   --shadow-sm: 0 1px 6px #0006;
@@ -109,44 +137,44 @@
   --shadow-modal: 0 16px 64px #000000b3;
   --shadow-card: 0 2px 12px #0000004d;
 
-  --glow-accent: 0 0 12px #0A84FF4d;
-  --glow-profit: 0 0 8px #00FFC64d;
-  --glow-loss: 0 0 8px #FF4D4D4d;
-  --glow-warning: 0 0 8px #ffb8004d;
+  --glow-accent: 0 0 12px #4d9eff4d;
+  --glow-profit: 0 0 8px #00ff884d;
+  --glow-loss: 0 0 8px #ff33554d;
+  --glow-warning: 0 0 8px #ffaa004d;
 
   /* shadcn dark theme variables */
   --radius: 0.625rem;
-  --background: #0d1117;
-  --foreground: #e5e7eb;
-  --card: #1a2332;
-  --card-foreground: #e5e7eb;
-  --popover: #1a2332;
-  --popover-foreground: #e5e7eb;
-  --primary: #0A84FF;
+  --background: #090b10;
+  --foreground: #e0e8ff;
+  --card: #131a28;
+  --card-foreground: #e0e8ff;
+  --popover: #131a28;
+  --popover-foreground: #e0e8ff;
+  --primary: #4d9eff;
   --primary-foreground: #ffffff;
   --secondary: #1e2a3d;
-  --secondary-foreground: #e5e7eb;
-  --muted: #111827;
-  --muted-foreground: #94a3b8;
-  --accent: #0A84FF;
+  --secondary-foreground: #e0e8ff;
+  --muted: #0f1525;
+  --muted-foreground: #7a9abb;
+  --accent: #4d9eff;
   --accent-foreground: #ffffff;
-  --destructive: #FF4D4D;
-  --border: #ffffff1a;
+  --destructive: #ff3355;
+  --border: rgba(77,158,255,.10);
   --input: #ffffff0a;
-  --ring: #0A84FF;
-  --chart-1: #0A84FF;
-  --chart-2: #00FFC6;
-  --chart-3: #FFB800;
-  --chart-4: #A259FF;
-  --chart-5: #FF4D4D;
-  --sidebar: #05070efa;
-  --sidebar-foreground: #e5e7eb;
-  --sidebar-primary: #0A84FF;
+  --ring: #4d9eff;
+  --chart-1: #4d9eff;
+  --chart-2: #00ff88;
+  --chart-3: #ffaa00;
+  --chart-4: #a78bfa;
+  --chart-5: #ff3355;
+  --sidebar: #0d1018;
+  --sidebar-foreground: #e0e8ff;
+  --sidebar-primary: #4d9eff;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #0A84FF0f;
-  --sidebar-accent-foreground: #e5e7eb;
-  --sidebar-border: #ffffff0f;
-  --sidebar-ring: #0A84FF;
+  --sidebar-accent: #4d9eff0f;
+  --sidebar-accent-foreground: #e0e8ff;
+  --sidebar-border: rgba(77,158,255,.10);
+  --sidebar-ring: #4d9eff;
 }
 
 @layer base {
@@ -155,66 +183,9 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: var(--font-ar), var(--font-en), sans-serif;
+    font-family: var(--font-ui), var(--font-en), sans-serif;
     overflow: hidden;
   }
-}
-
-/* ── Layout Shell - QUANT LAB CSS Grid ── */
-.layout-shell {
-  display: grid;
-  grid-template-areas:
-    "brand news"
-    "brand ticker"
-    "brand topnav"
-    "content content";
-  grid-template-columns: 144px 1fr;
-  grid-template-rows: 26px 38px 52px 1fr;
-  height: 100vh;
-  max-height: 100vh;
-  overflow: hidden;
-  background: var(--bg-app);
-}
-
-/* ── Inner Dashboard Grid ── */
-.dash-grid {
-  flex: 1 1 0%;
-  min-height: 0;
-  min-width: 0;
-  display: grid;
-  gap: 6px;
-  padding: 6px;
-  grid-template-areas:
-    "sidebar_r chart sidebar_l"
-    "sidebar_r positions sidebar_l";
-  grid-template-columns: clamp(200px, 18vw, 230px) 1fr clamp(360px, 31vw, 440px);
-  grid-template-rows: 1fr clamp(120px, 20vh, 220px);
-  overflow: hidden;
-}
-
-/* ── Card / Panel Styles ── */
-.card {
-  background: var(--bg-card);
-  box-shadow: var(--shadow-card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-}
-
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  gap: 8px;
-  background: rgba(0,0,0,0.06);
-  border-bottom: 1px solid rgba(0,0,0,0.12);
-}
-
-.panel-title {
-  font-family: var(--font-ar), Inter, sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-main);
 }
 
 /* ── Pulse Live Indicator ── */
@@ -222,22 +193,14 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 6px var(--accent);
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
   animation: pulse-live-anim 2s ease-in-out infinite;
 }
 
 @keyframes pulse-live-anim {
-  0%, 100% { opacity: 0.6; box-shadow: 0 0 4px var(--accent); }
-  50% { opacity: 1; box-shadow: 0 0 8px var(--accent); }
-}
-
-/* ── Glass morphism effect ── */
-.glass {
-  background: rgba(26, 35, 50, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--border-subtle);
+  0%, 100% { opacity: 0.6; box-shadow: 0 0 4px var(--green); }
+  50% { opacity: 1; box-shadow: 0 0 8px var(--green); }
 }
 
 /* ── Price typography ── */
@@ -247,25 +210,24 @@
   letter-spacing: -0.02em;
 }
 
-.price.positive {
-  color: var(--profit);
+.price.positive { color: var(--green); }
+.price.negative { color: var(--red); }
+
+/* ── Glass morphism ── */
+.glass {
+  background: rgba(19, 26, 40, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-subtle);
 }
 
-.price.negative {
-  color: var(--loss);
-}
+/* ── Custom scrollbar ── */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--text3); }
 
 /* ── Animation Keyframes ── */
-@keyframes ql-news {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
-@keyframes ql-ticker {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
 @keyframes orbit-cw {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -276,132 +238,11 @@
   to { transform: rotate(-360deg); }
 }
 
-@keyframes planet-breathe {
-  0%, 100% {
-    box-shadow: 0 0 24px rgba(10,132,255,0.50), 0 0 50px rgba(10,132,255,0.14),
-    inset 3px 3px 8px rgba(120,200,255,0.22), inset -5px -5px 10px rgba(0,0,0,0.65);
-  }
-  50% {
-    box-shadow: 0 0 36px rgba(10,132,255,0.75), 0 0 70px rgba(10,132,255,0.22),
-    inset 3px 3px 8px rgba(140,220,255,0.30), inset -5px -5px 10px rgba(0,0,0,0.55);
-  }
-}
-
-@keyframes halo-pulse {
-  0%, 100% { opacity: 0.7; transform: scale(1); }
-  50% { opacity: 1.0; transform: scale(1.05); }
-}
-
 @keyframes pulse-glow {
-  0%, 100% {
-    opacity: 0.6;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.05);
-  }
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
 }
 
-/* ── Brand Box ── */
-.brand-box {
-  grid-area: brand;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  background: var(--bg-sidebar);
-  border-inline-end: 1px solid var(--accent-border);
-  border-bottom: 1px solid var(--border-2);
-  position: relative;
-  overflow: hidden;
-  z-index: 10;
-}
-
-.brand-glow {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-  background: radial-gradient(circle at center, var(--accent) 0%, transparent 60%);
-  opacity: 0.15;
-  filter: blur(20px);
-}
-
-.brand-icon {
-  font-family: var(--font-ar);
-}
-
-.brand-text {
-  font-family: var(--font-ar);
-  color: var(--accent);
-}
-
-/* ── News Bar ── */
-.bar-news {
-  grid-area: news;
-  min-width: 0;
-  overflow: hidden;
-}
-
-/* ── Ticker Bar ── */
-.ticker-bar {
-  grid-area: ticker;
-  min-width: 0;
-  overflow: hidden;
-}
-
-/* ── Value accent classes ── */
-.val-gold {
-  color: var(--gold);
-}
-
-.val-accent {
-  color: var(--accent);
-  text-shadow: var(--glow-accent);
-}
-
-/* ── Custom scrollbar ── */
-.custom-scrollbar::-webkit-scrollbar {
-  width: 4px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 2px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-}
-
-/* ── Tooltip Hover ── */
-.tooltip-hover {
-  transition: opacity 0.15s;
-}
-.group:hover .tooltip-hover {
-  opacity: 1 !important;
-}
-
-/* ── Row Hover ── */
-.bg-row-hover:hover {
-  background: var(--bg-row-hover);
-}
-
-/* ── Spin Animation ── */
-@keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* ── Shimmer Loading Effect ── */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -411,4 +252,25 @@
   background: linear-gradient(90deg, var(--bg-input) 25%, var(--bg-card) 50%, var(--bg-input) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── Quantum Orb Pulse ── */
+@keyframes orb-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50% { transform: scale(1.12); opacity: 1; }
+}
+
+@keyframes orb-ring-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes orb-ring-spin-reverse {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
 }

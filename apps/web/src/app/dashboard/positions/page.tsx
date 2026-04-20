@@ -24,7 +24,7 @@ import SubPageLayout from '@/components/dashboard/SubPageLayout'
 interface Position {
   id: string
   symbol: string
-  side: 'LONG' | 'SHORT'
+  side: 'BUY' | 'SELL'
   quantity: number
   entryPrice: number
   currentPrice: number
@@ -32,7 +32,7 @@ interface Position {
   exchange: string
   stopLoss?: number
   takeProfit?: number
-  createdAt: string
+  openedAt: string
 }
 
 interface PositionSummary {
@@ -398,9 +398,9 @@ export default function PositionsPage() {
                             <div style={{
                               width: '26px', height: '26px', borderRadius: '7px',
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              background: pos.side === 'LONG' ? 'linear-gradient(135deg, #00FFC6, #00B894)' : 'linear-gradient(135deg, #FF4D4D, #FF6B6B)',
+                              background: pos.side === 'BUY' ? 'linear-gradient(135deg, #00FFC6, #00B894)' : 'linear-gradient(135deg, #FF4D4D, #FF6B6B)',
                             }}>
-                              {pos.side === 'LONG' ? <TrendingUp size={11} stroke="#fff" strokeWidth={2} /> : <TrendingDown size={11} stroke="#fff" strokeWidth={2} />}
+                              {pos.side === 'BUY' ? <TrendingUp size={11} stroke="#fff" strokeWidth={2} /> : <TrendingDown size={11} stroke="#fff" strokeWidth={2} />}
                             </div>
                             <span dir="ltr" style={{ fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{pos.symbol}</span>
                           </div>
@@ -409,8 +409,8 @@ export default function PositionsPage() {
                           <span style={{ fontSize: '9px', fontWeight: 600, background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', padding: '2px 7px', borderRadius: '5px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{pos.exchange}</span>
                         </td>
                         <td style={{ padding: '8px 10px' }}>
-                          <span style={{ fontSize: '9px', fontWeight: 800, padding: '2px 8px', borderRadius: '5px', fontFamily: 'var(--font-ar)', background: pos.side === 'LONG' ? 'var(--profit-bg)' : 'var(--loss-bg)', color: pos.side === 'LONG' ? 'var(--profit)' : 'var(--loss)', border: `1px solid ${pos.side === 'LONG' ? 'var(--border-profit)' : 'var(--border-loss)'}` }}>
-                            {pos.side === 'LONG' ? 'شراء' : 'بيع'}
+                          <span style={{ fontSize: '9px', fontWeight: 800, padding: '2px 8px', borderRadius: '5px', fontFamily: 'var(--font-ar)', background: pos.side === 'BUY' ? 'var(--profit-bg)' : 'var(--loss-bg)', color: pos.side === 'BUY' ? 'var(--profit)' : 'var(--loss)', border: `1px solid ${pos.side === 'BUY' ? 'var(--border-profit)' : 'var(--border-loss)'}` }}>
+                            {pos.side === 'BUY' ? 'شراء' : 'بيع'}
                           </span>
                         </td>
                         <td dir="ltr" style={{ padding: '8px 10px', fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{pos.quantity}</td>
@@ -479,7 +479,7 @@ export default function PositionsPage() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '16px' }}>
               {[
-                { label: 'الاتجاه', value: closeDialog.side === 'LONG' ? 'شراء' : 'بيع', color: closeDialog.side === 'LONG' ? 'var(--profit)' : 'var(--loss)' },
+                { label: 'الاتجاه', value: closeDialog.side === 'BUY' ? 'شراء' : 'بيع', color: closeDialog.side === 'BUY' ? 'var(--profit)' : 'var(--loss)' },
                 { label: 'الكمية', value: String(closeDialog.quantity), color: 'var(--text-main)' },
                 { label: 'سعر الدخول', value: formatPrice(closeDialog.entryPrice), color: 'var(--text-main)' },
                 { label: 'ر/خ غير محقق', value: formatCurrency(closeDialog.unrealizedPnl || 0), color: (closeDialog.unrealizedPnl || 0) >= 0 ? 'var(--profit)' : 'var(--loss)' },

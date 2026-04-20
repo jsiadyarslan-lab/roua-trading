@@ -55,7 +55,7 @@ import {
 interface Position {
   id: string
   symbol: string
-  side: 'LONG' | 'SHORT'
+  side: 'BUY' | 'SELL'
   quantity: number
   entryPrice: number
   currentPrice: number
@@ -63,7 +63,7 @@ interface Position {
   exchange: string
   stopLoss?: number
   takeProfit?: number
-  createdAt: string
+  openedAt: string
 }
 
 interface Order {
@@ -935,21 +935,21 @@ export default function TradingPage() {
                         >
                           <div className="flex items-center gap-3">
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                              pos.side === 'LONG'
+                              pos.side === 'BUY'
                                 ? 'bg-emerald-500/10 text-emerald-400'
                                 : 'bg-red-500/10 text-red-400'
                             }`}>
-                              {pos.side === 'LONG' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                              {pos.side === 'BUY' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                             </div>
                             <div>
                               <p className="font-medium text-sm" dir="ltr">{pos.symbol}</p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <Badge className={`text-[10px] border-0 ${
-                                  pos.side === 'LONG'
+                                  pos.side === 'BUY'
                                     ? 'bg-emerald-500/10 text-emerald-400'
                                     : 'bg-red-500/10 text-red-400'
                                 }`}>
-                                  {pos.side === 'LONG' ? 'شراء' : 'بيع'}
+                                  {pos.side === 'BUY' ? 'شراء' : 'بيع'}
                                 </Badge>
                                 <span>{pos.quantity}</span>
                                 <span>@</span>
@@ -1105,8 +1105,8 @@ export default function TradingPage() {
             <div className="grid grid-cols-2 gap-3 my-4">
               <div className="p-3 rounded-lg bg-background border border-border">
                 <p className="text-[10px] text-muted-foreground">الاتجاه</p>
-                <p className={`text-sm font-medium ${closePositionDialog.side === 'LONG' ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {closePositionDialog.side === 'LONG' ? 'شراء' : 'بيع'}
+                <p className={`text-sm font-medium ${closePositionDialog.side === 'BUY' ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {closePositionDialog.side === 'BUY' ? 'شراء' : 'بيع'}
                 </p>
               </div>
               <div className="p-3 rounded-lg bg-background border border-border">

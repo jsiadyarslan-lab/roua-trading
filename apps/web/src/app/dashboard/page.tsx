@@ -118,6 +118,7 @@ export default function QuantumDashboard() {
   const [navActive, setNavActive] = useState('dashboard')
   const [tradeExecuting, setTradeExecuting] = useState(false)
   const [signalGenerating, setSignalGenerating] = useState(false)
+  const [positionSummary, setPositionSummary] = useState<{ totalPositions: number; totalValue: number; unrealizedPnl: number; realizedPnl: number } | null>(null)
 
   // Real data hooks
   const allSymbols = Object.values(MARKET_PAIRS).flat()
@@ -171,6 +172,16 @@ export default function QuantumDashboard() {
       .then(d => { if (Array.isArray(d)) setNews(d) })
       .catch(() => {})
   }, [])
+
+  // Fetch position summary
+  const fetchSummary = useCallback(() => {
+    fetch('/api/trading/positions/summary')
+      .then(r => { if (!r.ok) return null; return r.json() })
+      .then(d => { if (d?.success && d.data) setPositionSummary(d.data) })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => { fetchSummary() }, [fetchSummary])
 
   // Init chart
   const initChart = useCallback(() => {
@@ -611,6 +622,11 @@ export default function QuantumDashboard() {
                   <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: 'var(--text3)', marginRight: 8 }}>
                     {positions.length || 0}
                   </span>
+                  {positionSummary && (
+                    <span style={{ fontSize: '9px', fontFamily: 'var(--font-mono)', color: (positionSummary.unrealizedPnl || 0) >= 0 ? 'var(--green)' : 'var(--red)', marginRight: 8 }}>
+                      P&L: {(positionSummary.unrealizedPnl || 0) >= 0 ? '+' : ''}{(positionSummary.unrealizedPnl || 0).toFixed(2)}
+                    </span>
+                  )}
                 </div>
                 <div className="flex-1 overflow-auto custom-scrollbar">
                   <table className="w-full" style={{ fontSize: '10px' }}>
@@ -669,12 +685,12 @@ export default function QuantumDashboard() {
                 <div className="flex-1 overflow-auto custom-scrollbar p-2 space-y-1">
                   {signals.length > 0 ? signals.slice(0, 3).map((s: any, i: number) => (
                     <div key={i} className="flex items-center justify-between px-2 py-1 rounded" style={{ background: 'var(--bg4)', border: '0.5px solid var(--border)' }}>
-                      <span className="price" style={{ fontSize: '10px', color: 'var(--text)' }}>{s.symbol || '—'}</span>
+                      <span className="price" style={{ fontSize: '10px', color: 'var(--text)' }}>{s.pair || s.symbol || '—'}</span>
                       <span style={{ fontSize: '9px', padding: '1px 6px', borderRadius: '2px', fontFamily: 'var(--font-mono)',
-                        background: s.direction === 'BUY' ? 'var(--green2)' : 'var(--red2)',
-                        color: s.direction === 'BUY' ? 'var(--green)' : 'var(--red)',
+                        background: (s.action || s.direction) === 'BUY' ? 'var(--green2)' : 'var(--red2)',
+                        color: (s.action || s.direction) === 'BUY' ? 'var(--green)' : 'var(--red)',
                         width: 34, textAlign: 'center',
-                      }}>{s.direction || '—'}</span>
+                      }}>{s.action || s.direction || '—'}</span>
                     </div>
                   )) : (
                     <div className="text-center py-3" style={{ color: 'var(--text4)', fontSize: '10px' }}>لا توجد إشارات نشطة</div>
@@ -758,9 +774,30 @@ export default function QuantumDashboard() {
                 {/* Risk Calculator */}
                 <div className="p-2 rounded" style={{ background: 'var(--bg4)', border: '0.5px solid var(--border)' }}>
                   <div style={{ fontSize: '9px', color: 'var(--text3)', fontFamily: 'var(--font-ui)', marginBottom: 4 }}>حاسبة المخاطر</div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between mb-1">
                     <span style={{ fontSize: '9px', color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>Risk:Reward</span>
-                    <span style={{ fontSize: '9px', color: 'var(--green)', fontFamily: 'var(--font-mono)' }}>1:2.5</span>
+                    <span style={{ fontSize: '9px', color: (() => {
+                      const sl = parseFloat(tradeSL)
+                      const tp = parseFloat(tradeTP)
+                      if (!sl || !tp || !price || sl === 0) return 'var(--text3)'
+                      const risk = Math.abs(price - sl)
+                      const reward = Math.abs(tp - price)
+                      if (risk === 0) return 'var(--text3)'
+                      const ratio = reward / risk
+                      return ratio >= 2 ? 'var(--green)' : ratio >= 1 ? 'var(--amber)' : 'var(--red)'
+                    })(), fontFamily: 'var(--font-mono)' }}>{(() => {
+                      const sl = parseFloat(tradeSL)
+                      const tp = parseFloat(tradeTP)
+                      if (!sl || !tp || !price || sl === 0) return '—'
+                      const risk = Math.abs(price - sl)
+                      const reward = Math.abs(tp - price)
+                      if (risk === 0) return '—'
+                      return `1:${(reward / risk).toFixed(1)}`
+                    })()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span style={{ fontSize: '9px', color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>القيمة</span>
+                    <span style={{ fontSize: '9px', color: 'var(--text)', fontFamily: 'var(--font-mono)' }} dir="ltr">{(parseFloat(tradeSize) || 0.01) * price > 0 ? `$${((parseFloat(tradeSize) || 0.01) * price).toFixed(2)}` : '—'}</span>
                   </div>
                 </div>
 
@@ -775,7 +812,8 @@ export default function QuantumDashboard() {
                       quantity: parseFloat(tradeSize) || 0.01,
                       type: 'MARKET',
                     }
-                    if (tradeSL) body.stopPrice = parseFloat(tradeSL)
+                    if (tradeSL) body.stopLoss = parseFloat(tradeSL)
+                    if (tradeTP) body.takeProfit = parseFloat(tradeTP)
                     const res = await fetch('/api/trading/orders', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
@@ -858,35 +896,47 @@ export default function QuantumDashboard() {
                   </button>
                 </div>
 
-                {/* Stats */}
+                {/* Stats from API */}
                 <div className="space-y-2">
                   {[
-                    { label: 'إجمالي الصفقات', value: '147' },
-                    { label: 'نسبة الفوز', value: '68.7%' },
-                    { label: 'الربح الإجمالي', value: '+$2,341' },
-                    { label: 'أقصى خسارة', value: '-$187' },
-                  ].map(stat => (
-                    <div key={stat.label} className="flex justify-between p-2 rounded" style={{ background: 'var(--bg4)', border: '0.5px solid var(--border)' }}>
-                      <span style={{ fontSize: '9px', color: 'var(--text3)', fontFamily: 'var(--font-ui)' }}>{stat.label}</span>
-                      <span className="price" style={{ fontSize: '10px', color: stat.value.startsWith('+') ? 'var(--green)' : stat.value.startsWith('-') ? 'var(--red)' : 'var(--text)' }}>{stat.value}</span>
-                    </div>
-                  ))}
+                    { label: 'إجمالي الصفقات', value: positionSummary ? String(positionSummary.totalPositions || 0) : '0' },
+                    { label: 'القيمة الإجمالية', value: positionSummary ? `$${(positionSummary.totalValue || 0).toFixed(2)}` : '$0.00' },
+                    { label: 'أرباح غير محققة', value: positionSummary ? `${(positionSummary.unrealizedPnl || 0) >= 0 ? '+' : ''}$${(positionSummary.unrealizedPnl || 0).toFixed(2)}` : '$0.00' },
+                    { label: 'أرباح محققة', value: positionSummary ? `${(positionSummary.realizedPnl || 0) >= 0 ? '+' : ''}$${(positionSummary.realizedPnl || 0).toFixed(2)}` : '$0.00' },
+                  ].map(stat => {
+                    const isPositive = stat.value.startsWith('+')
+                    const isNegative = stat.value.startsWith('-')
+                    return (
+                      <div key={stat.label} className="flex justify-between p-2 rounded" style={{ background: 'var(--bg4)', border: '0.5px solid var(--border)' }}>
+                        <span style={{ fontSize: '9px', color: 'var(--text3)', fontFamily: 'var(--font-ui)' }}>{stat.label}</span>
+                        <span className="price" style={{ fontSize: '10px', color: isPositive ? 'var(--green)' : isNegative ? 'var(--red)' : 'var(--text)' }}>{stat.value}</span>
+                      </div>
+                    )
+                  })}
                 </div>
 
-                {/* Operation Log */}
+                {/* Recent Positions as Operation Log */}
                 <div>
-                  <div style={{ fontSize: '9px', color: 'var(--text3)', fontFamily: 'var(--font-ui)', marginBottom: 4 }}>سجل العمليات</div>
+                  <div style={{ fontSize: '9px', color: 'var(--text3)', fontFamily: 'var(--font-ui)', marginBottom: 4 }}>سجل العمليات الأخيرة</div>
                   <div className="space-y-1">
-                    {[
-                      { time: '14:32', msg: 'شراء BTC/USDT 0.01', type: 'buy' },
-                      { time: '13:15', msg: 'بيع ETH/USDT 0.5', type: 'sell' },
-                      { time: '12:01', msg: 'إشارة جديدة EUR/USD', type: 'signal' },
-                    ].map((log, i) => (
-                      <div key={i} className="flex items-center gap-2" style={{ fontSize: '9px' }}>
-                        <span className="price" style={{ color: 'var(--text4)' }}>{log.time}</span>
-                        <span style={{ color: log.type === 'buy' ? 'var(--green)' : log.type === 'sell' ? 'var(--red)' : 'var(--amber)', fontFamily: 'var(--font-ui)' }}>{log.msg}</span>
-                      </div>
-                    ))}
+                    {positions.length > 0 ? positions.slice(0, 5).map((p: any, i: number) => {
+                      const currentPrice = quotes.get(p.symbol)?.price ?? 0
+                      const entry = p.entryPrice ?? 0
+                      const pnl = p.side === 'BUY' && currentPrice > 0 && entry > 0
+                        ? (currentPrice - entry) * (p.quantity || 0)
+                        : p.side === 'SELL' && currentPrice > 0 && entry > 0
+                          ? (entry - currentPrice) * (p.quantity || 0)
+                          : 0
+                      return (
+                        <div key={i} className="flex items-center gap-2" style={{ fontSize: '9px' }}>
+                          <span style={{ color: p.side === 'BUY' ? 'var(--green)' : 'var(--red)', fontFamily: 'var(--font-mono)', width: 24, textAlign: 'center' as const }}>{p.side === 'BUY' ? 'شراء' : 'بيع'}</span>
+                          <span className="price" style={{ color: 'var(--text2)' }}>{p.symbol}</span>
+                          <span style={{ color: pnl >= 0 ? 'var(--green)' : 'var(--red)', fontFamily: 'var(--font-mono)', marginRight: 'auto' }}>{pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}</span>
+                        </div>
+                      )
+                    }) : (
+                      <div style={{ fontSize: '9px', color: 'var(--text4)', textAlign: 'center' as const, padding: '8px 0' }}>لا توجد عمليات</div>
+                    )}
                   </div>
                 </div>
               </div>

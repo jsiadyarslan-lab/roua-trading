@@ -9,18 +9,17 @@ interface Position {
   side: string
   quantity: number
   entryPrice: number
-  currentPrice: number
-  pnl: number
-  pnlPercent: number
-  leverage: number
+  currentPrice: number | null
+  unrealizedPnl: number | null
+  stopLoss: number | null
+  takeProfit: number | null
 }
 
 interface PortfolioSummary {
+  totalPositions: number
   totalValue: number
-  totalPnl: number
-  totalPnlPercent: number
-  openPositions: number
-  margin: number
+  unrealizedPnl: number
+  realizedPnl: number
 }
 
 export default function BottomPanel() {
@@ -66,9 +65,9 @@ export default function BottomPanel() {
 
   // Demo positions if none loaded
   const displayPositions = positions.length > 0 ? positions : [
-    { id: '1', symbol: 'BTC/USD', side: 'LONG', quantity: 0.05, entryPrice: 67200, currentPrice: 67450, pnl: 12.5, pnlPercent: 0.37, leverage: 10 },
-    { id: '2', symbol: 'ETH/USD', side: 'SHORT', quantity: 1.2, entryPrice: 3520, currentPrice: 3485, pnl: 42.0, pnlPercent: 0.99, leverage: 5 },
-    { id: '3', symbol: 'SOL/USD', side: 'LONG', quantity: 10, entryPrice: 145, currentPrice: 142.5, pnl: -25.0, pnlPercent: -1.72, leverage: 3 },
+    { id: '1', symbol: 'BTC/USD', side: 'BUY', quantity: 0.05, entryPrice: 67200, currentPrice: 67450, unrealizedPnl: 12.5, stopLoss: null, takeProfit: null },
+    { id: '2', symbol: 'ETH/USD', side: 'SELL', quantity: 1.2, entryPrice: 3520, currentPrice: 3485, unrealizedPnl: 42.0, stopLoss: null, takeProfit: null },
+    { id: '3', symbol: 'SOL/USD', side: 'BUY', quantity: 10, entryPrice: 145, currentPrice: 142.5, unrealizedPnl: -25.0, stopLoss: null, takeProfit: null },
   ]
 
   return (
@@ -129,7 +128,10 @@ export default function BottomPanel() {
             </thead>
             <tbody>
               {displayPositions.map((pos) => {
-                const isPositive = pos.pnl >= 0
+                const pnl = pos.unrealizedPnl ?? 0
+                const isPositive = pnl >= 0
+                const currentP = pos.currentPrice ?? pos.entryPrice
+                const pnlPercent = pos.entryPrice > 0 ? (pnl / (pos.entryPrice * pos.quantity)) * 100 : 0
                 return (
                   <tr
                     key={pos.id}
@@ -143,17 +145,17 @@ export default function BottomPanel() {
                     <td className="px-2 py-1">
                       <span
                         style={{
-                          color: pos.side === 'LONG' ? 'var(--green)' : 'var(--red)',
+                          color: pos.side === 'BUY' ? 'var(--green)' : 'var(--red)',
                           fontWeight: 700,
                         }}
                       >
-                        {pos.side === 'LONG' ? 'شراء' : 'بيع'}
+                        {pos.side === 'BUY' ? 'شراء' : 'بيع'}
                       </span>
                     </td>
                     <td className="px-2 py-1" dir="ltr">{pos.quantity}</td>
                     <td className="px-2 py-1" dir="ltr">{pos.entryPrice.toFixed(2)}</td>
-                    <td className="px-2 py-1" dir="ltr">{pos.currentPrice.toFixed(2)}</td>
-                    <td className="px-2 py-1" dir="ltr">{pos.leverage}x</td>
+                    <td className="px-2 py-1" dir="ltr">{currentP.toFixed(2)}</td>
+                    <td className="px-2 py-1" dir="ltr">1x</td>
                     <td
                       className="px-2 py-1 price"
                       style={{
@@ -162,7 +164,7 @@ export default function BottomPanel() {
                       }}
                       dir="ltr"
                     >
-                      {isPositive ? '+' : ''}{pos.pnl.toFixed(2)} ({isPositive ? '+' : ''}{pos.pnlPercent.toFixed(2)}%)
+                      {isPositive ? '+' : ''}{pnl.toFixed(2)} ({isPositive ? '+' : ''}{pnlPercent.toFixed(2)}%)
                     </td>
                   </tr>
                 )
@@ -261,27 +263,26 @@ export default function BottomPanel() {
           {[
             {
               label: 'القيمة الإجمالية',
-              value: summary?.totalValue?.toFixed(2) ?? '12,450.00',
+              value: summary?.totalValue?.toFixed(2) ?? '0.00',
               color: 'var(--text)',
               prefix: '$',
             },
             {
-              label: 'الربح/الخسارة',
-              value: summary?.totalPnl?.toFixed(2) ?? '+245.50',
-              color: 'var(--green)',
+              label: 'أرباح غير محققة',
+              value: summary?.unrealizedPnl != null ? (summary.unrealizedPnl >= 0 ? '+' : '') + summary.unrealizedPnl.toFixed(2) : '0.00',
+              color: (summary?.unrealizedPnl ?? 0) >= 0 ? 'var(--green)' : 'var(--red)',
               prefix: '$',
             },
             {
-              label: 'نسبة الربح',
-              value: summary?.totalPnlPercent?.toFixed(2) ?? '+1.97',
-              color: 'var(--green)',
-              suffix: '%',
+              label: 'أرباح محققة',
+              value: summary?.realizedPnl != null ? (summary.realizedPnl >= 0 ? '+' : '') + summary.realizedPnl.toFixed(2) : '0.00',
+              color: (summary?.realizedPnl ?? 0) >= 0 ? 'var(--green)' : 'var(--red)',
+              prefix: '$',
             },
             {
-              label: 'الهامش المستخدم',
-              value: summary?.margin?.toFixed(2) ?? '2,100.00',
-              color: 'var(--amber)',
-              prefix: '$',
+              label: 'عدد الصفقات',
+              value: summary?.totalPositions?.toString() ?? '0',
+              color: 'var(--blue)',
             },
           ].map((item) => (
             <div

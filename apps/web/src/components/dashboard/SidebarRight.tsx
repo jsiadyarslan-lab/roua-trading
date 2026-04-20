@@ -8,13 +8,15 @@ import QuantumOrb from './QuantumOrb'
 interface Signal {
   id: string
   pair: string
-  direction: 'LONG' | 'SHORT'
+  action: 'BUY' | 'SELL' | 'WAIT'
   confidence: number
-  entryPrice: number
-  targetPrice: number
-  stopLoss: number
+  entryPrice: number | null
+  takeProfit: number | null
+  stopLoss: number | null
+  reason: string
   status: string
   createdAt: string
+  expiresAt: string
 }
 
 interface BotLogEntry {
@@ -441,10 +443,10 @@ export default function SidebarRight() {
               // Demo signals when no real data
               <>
                 {[
-                  { pair: 'BTC/USD', dir: 'LONG' as const, conf: 87, entry: 67450, target: 69200, sl: 66500 },
-                  { pair: 'ETH/USD', dir: 'SHORT' as const, conf: 72, entry: 3520, target: 3380, sl: 3590 },
-                  { pair: 'SOL/USD', dir: 'LONG' as const, conf: 65, entry: 142.5, target: 155, sl: 136 },
-                  { pair: 'XRP/USD', dir: 'LONG' as const, conf: 58, entry: 0.523, target: 0.56, sl: 0.50 },
+                  { pair: 'BTC/USD', action: 'BUY' as const, confidence: 87, entryPrice: 67450, takeProfit: 69200, stopLoss: 66500, reason: 'زخم صعودي قوي', status: 'ACTIVE', id: 'demo1', createdAt: '', expiresAt: '' },
+                  { pair: 'ETH/USD', action: 'SELL' as const, confidence: 72, entryPrice: 3520, takeProfit: 3380, stopLoss: 3590, reason: 'ضغط بيعي', status: 'ACTIVE', id: 'demo2', createdAt: '', expiresAt: '' },
+                  { pair: 'SOL/USD', action: 'BUY' as const, confidence: 65, entryPrice: 142.5, takeProfit: 155, stopLoss: 136, reason: 'اتجاه صعودي', status: 'ACTIVE', id: 'demo3', createdAt: '', expiresAt: '' },
+                  { pair: 'XRP/USD', action: 'BUY' as const, confidence: 58, entryPrice: 0.523, takeProfit: 0.56, stopLoss: 0.50, reason: 'فرصة شراء', status: 'ACTIVE', id: 'demo4', createdAt: '', expiresAt: '' },
                 ].map((sig, idx) => (
                   <div
                     key={idx}
@@ -472,13 +474,13 @@ export default function SidebarRight() {
                             fontFamily: 'var(--font-mono)',
                             fontSize: '9px',
                             fontWeight: 700,
-                            color: sig.dir === 'LONG' ? 'var(--green)' : 'var(--red)',
-                            background: sig.dir === 'LONG' ? 'var(--green2)' : 'var(--red2)',
+                            color: sig.action === 'BUY' ? 'var(--green)' : 'var(--red)',
+                            background: sig.action === 'BUY' ? 'var(--green2)' : 'var(--red2)',
                             padding: '1px 6px',
                             borderRadius: 3,
                           }}
                         >
-                          {sig.dir === 'LONG' ? '▲ شراء' : '▼ بيع'}
+                          {sig.action === 'BUY' ? '▲ شراء' : '▼ بيع'}
                         </span>
                       </div>
                       <span
@@ -486,10 +488,10 @@ export default function SidebarRight() {
                           fontFamily: 'var(--font-mono)',
                           fontSize: '11px',
                           fontWeight: 700,
-                          color: sig.conf >= 75 ? 'var(--green)' : sig.conf >= 60 ? 'var(--amber)' : 'var(--text2)',
+                          color: sig.confidence >= 75 ? 'var(--green)' : sig.confidence >= 60 ? 'var(--amber)' : 'var(--text2)',
                         }}
                       >
-                        {sig.conf}%
+                        {sig.confidence}%
                       </span>
                     </div>
                     {/* Confidence bar */}
@@ -505,10 +507,10 @@ export default function SidebarRight() {
                       <div
                         style={{
                           height: '100%',
-                          width: `${sig.conf}%`,
-                          background: sig.conf >= 75
+                          width: `${sig.confidence}%`,
+                          background: sig.confidence >= 75
                             ? 'var(--green)'
-                            : sig.conf >= 60
+                            : sig.confidence >= 60
                             ? 'var(--amber)'
                             : 'var(--text3)',
                           borderRadius: 2,
@@ -518,13 +520,13 @@ export default function SidebarRight() {
                     </div>
                     <div className="flex justify-between">
                       <span className="price" style={{ fontSize: '9px', color: 'var(--text3)' }} dir="ltr">
-                        دخول: {sig.entry}
+                        دخول: {sig.entryPrice}
                       </span>
                       <span className="price" style={{ fontSize: '9px', color: 'var(--green)' }} dir="ltr">
-                        هدف: {sig.target}
+                        هدف: {sig.takeProfit}
                       </span>
                       <span className="price" style={{ fontSize: '9px', color: 'var(--red)' }} dir="ltr">
-                        وقف: {sig.sl}
+                        وقف: {sig.stopLoss}
                       </span>
                     </div>
                   </div>
@@ -554,13 +556,13 @@ export default function SidebarRight() {
                           fontFamily: 'var(--font-mono)',
                           fontSize: '9px',
                           fontWeight: 700,
-                          color: sig.direction === 'LONG' ? 'var(--green)' : 'var(--red)',
-                          background: sig.direction === 'LONG' ? 'var(--green2)' : 'var(--red2)',
+                          color: sig.action === 'BUY' ? 'var(--green)' : 'var(--red)',
+                          background: sig.action === 'BUY' ? 'var(--green2)' : 'var(--red2)',
                           padding: '1px 6px',
                           borderRadius: 3,
                         }}
                       >
-                        {sig.direction === 'LONG' ? '▲ شراء' : '▼ بيع'}
+                        {sig.action === 'BUY' ? '▲ شراء' : '▼ بيع'}
                       </span>
                     </div>
                     <span

@@ -71,7 +71,9 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { symbol, side, type, quantity, price, stopPrice, credentialId } = body
+    const { symbol, side, type, quantity, price, stopPrice, stopLoss, takeProfit, credentialId } = body
+    const slValue = stopLoss || stopPrice
+    const tpValue = takeProfit
 
     if (!symbol || !side || !quantity) {
       return NextResponse.json(
@@ -123,8 +125,8 @@ export async function POST(req: NextRequest) {
         type: (type || 'MARKET').toUpperCase() === 'LIMIT' ? 'LIMIT' : 'MARKET',
         quantity: parseFloat(String(quantity)),
         price: orderPrice ? orderPrice : null,
-        stopLoss: stopPrice ? parseFloat(String(stopPrice)) : null,
-        takeProfit: null,
+        stopLoss: slValue ? parseFloat(String(slValue)) : null,
+        takeProfit: tpValue ? parseFloat(String(tpValue)) : null,
         status: 'FILLED',
         filledQuantity: parseFloat(String(quantity)),
         averagePrice: orderPrice || null,
@@ -163,8 +165,8 @@ export async function POST(req: NextRequest) {
           quantity: parseFloat(String(quantity)),
           entryPrice: orderPrice,
           currentPrice: orderPrice,
-          stopLoss: stopPrice ? parseFloat(String(stopPrice)) : null,
-          takeProfit: null,
+          stopLoss: slValue ? parseFloat(String(slValue)) : null,
+          takeProfit: tpValue ? parseFloat(String(tpValue)) : null,
           unrealizedPnl: 0,
         },
       })

@@ -7,6 +7,7 @@ import {
 } from 'lightweight-charts'
 import { useDashboardStore } from '@/lib/dashboard-store'
 import { useMarketQuotes, useSingleQuote, useHistoricalCandles } from '@/hooks/useMarketData'
+import { toast } from '@/hooks/use-toast'
 
 // ── Navigation Items ──
 const NAV_ITEMS = [
@@ -115,6 +116,8 @@ export default function QuantumDashboard() {
   const [tradeLeverage, setTradeLeverage] = useState('1')
   const [botEnabled, setBotEnabled] = useState(false)
   const [navActive, setNavActive] = useState('dashboard')
+  const [tradeExecuting, setTradeExecuting] = useState(false)
+  const [signalGenerating, setSignalGenerating] = useState(false)
 
   // Real data hooks
   const allSymbols = Object.values(MARKET_PAIRS).flat()
@@ -136,7 +139,7 @@ export default function QuantumDashboard() {
   const [news, setNews] = useState<any[]>([])
 
   // Fetch signals (graceful - won't crash if auth required)
-  useEffect(() => {
+  const fetchSignals = useCallback(() => {
     fetch('/api/signals/active')
       .then(r => {
         if (!r.ok) return null
@@ -146,8 +149,10 @@ export default function QuantumDashboard() {
       .catch(() => {})
   }, [])
 
+  useEffect(() => { fetchSignals() }, [fetchSignals])
+
   // Fetch positions (graceful - won't crash if server error)
-  useEffect(() => {
+  const fetchPositions = useCallback(() => {
     fetch('/api/trading/positions')
       .then(r => {
         if (!r.ok) return null
@@ -156,6 +161,8 @@ export default function QuantumDashboard() {
       .then(d => { if (d?.data) setPositions(d.data || []) })
       .catch(() => {})
   }, [])
+
+  useEffect(() => { fetchPositions() }, [fetchPositions])
 
   // Fetch news feed
   useEffect(() => {
@@ -577,10 +584,20 @@ export default function QuantumDashboard() {
           <div className="flex items-center h-[58px] px-3 gap-2 shrink-0" style={{ background: 'var(--bg2)', borderTop: '0.5px solid var(--border)' }}>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '9px', color: 'var(--text3)' }}>MACD(12,26,9)</span>
             <div className="flex-1 flex items-center gap-[2px]">
-              {Array.from({ length: 60 }, (_, i) => {
-                const v = Math.sin(i * 0.3) * Math.cos(i * 0.15) * (Math.random() * 0.5 + 0.5)
-                return <div key={i} style={{ flex: 1, height: `${Math.abs(v) * 80}%`, background: v >= 0 ? 'rgba(0,255,136,0.4)' : 'rgba(255,51,85,0.4)', borderRadius: 1 }} />
-              })}
+              {(() => {
+                if (candles.length < 26) {
+                  return Array.from({ length: 60 }, (_, i) => (
+                    <div key={i} style={{ flex: 1, height: '10%', background: 'var(--bg4)', borderRadius: 1 }} />
+                  ))
+                }
+                const closes = candles.filter(c => c.open > 0 || c.close > 0).map(c => c.close)
+                const macdResult = calcMACD(closes)
+                const hist = macdResult.histogram.slice(-60)
+                const maxH = Math.max(...hist.map(Math.abs), 0.001)
+                return hist.map((v, i) => (
+                  <div key={i} style={{ flex: 1, height: `${Math.abs(v) / maxH * 80}%`, background: v >= 0 ? 'rgba(0,255,136,0.4)' : 'rgba(255,51,85,0.4)', borderRadius: 1 }} />
+                ))
+              })()}
             </div>
           </div>
 
@@ -607,15 +624,36 @@ export default function QuantumDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {positions.length > 0 ? positions.map((p: any, i: number) => (
-                        <tr key={i} style={{ borderBottom: '0.5px solid var(--border)' }}>
-                          <td className="px-3 py-1 price" style={{ color: 'var(--text)' }}>{p.symbol || '—'}</td>
-                          <td className="px-2 py-1" style={{ color: p.side === 'BUY' ? 'var(--green)' : 'var(--red)', fontFamily: 'var(--font-mono)' }}>{p.side || '—'}</td>
-                          <td className="px-2 py-1 price" style={{ color: 'var(--text2)' }}>{p.size || '—'}</td>
-                          <td className="px-2 py-1 price" style={{ color: 'var(--text2)' }}>{p.entryPrice || '—'}</td>
-                          <td className="px-2 py-1 price" style={{ color: 'var(--green)' }}>+0.00</td>
-                        </tr>
-                      )) : (
+                      {positions.length > 0 ? positions.map((p: any, i: number) => {
+                        const currentPrice = quotes.get(p.symbol)?.price ?? 0
+                        const entry = p.entryPrice ?? 0
+                        const pnl = p.side === 'BUY' && currentPrice > 0 && entry > 0
+                          ? (currentPrice - entry) * (p.quantity || p.size || 0)
+                          : p.side === 'SELL' && currentPrice > 0 && entry > 0
+                            ? (entry - currentPrice) * (p.quantity || p.size || 0)
+                            : 0
+                        const pnlColor = pnl >= 0 ? 'var(--green)' : 'var(--red)'
+                        return (
+                          <tr key={i} style={{ borderBottom: '0.5px solid var(--border)' }}>
+                            <td className="px-3 py-1 price" style={{ color: 'var(--text)' }}>{p.symbol || '—'}</td>
+                            <td className="px-2 py-1" style={{ color: p.side === 'BUY' ? 'var(--green)' : 'var(--red)', fontFamily: 'var(--font-mono)' }}>{p.side || '—'}</td>
+                            <td className="px-2 py-1 price" style={{ color: 'var(--text2)' }}>{p.quantity || p.size || '—'}</td>
+                            <td className="px-2 py-1 price" style={{ color: 'var(--text2)' }}>{entry > 0 ? entry.toFixed(2) : '—'}</td>
+                            <td className="px-2 py-1 price" style={{ color: pnlColor, display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <span>{pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}</span>
+                              <button onClick={() => {
+                                fetch('/api/trading/positions/close', {
+                                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ positionId: p.id })
+                                }).then(r => r.json()).then(d => {
+                                  if (d.success) { toast({ title: 'تم إغلاق الصفقة', description: `${p.symbol} ${p.side}` }); fetchPositions() }
+                                  else toast({ title: 'خطأ', description: d.error || 'فشل الإغلاق', variant: 'destructive' })
+                                }).catch(() => toast({ title: 'خطأ في الاتصال', variant: 'destructive' }))
+                              }} style={{ fontSize: '9px', color: 'var(--red)', cursor: 'pointer', background: 'var(--red2)', border: 'none', borderRadius: '2px', padding: '1px 4px', fontFamily: 'var(--font-mono)' }}>✕</button>
+                            </td>
+                          </tr>
+                        )
+                      }) : (
                         <tr><td colSpan={5} className="text-center py-4" style={{ color: 'var(--text4)', fontSize: '10px' }}>لا توجد صفقات مفتوحة</td></tr>
                       )}
                     </tbody>
@@ -727,16 +765,45 @@ export default function QuantumDashboard() {
                 </div>
 
                 {/* Execute Button */}
-                <button className="w-full py-3 rounded font-bold text-sm" style={{
-                  background: tradeDirection === 'buy'
+                <button onClick={async () => {
+                  if (tradeExecuting) return
+                  setTradeExecuting(true)
+                  try {
+                    const body: Record<string, any> = {
+                      symbol: selectedPair,
+                      side: tradeDirection.toUpperCase(),
+                      quantity: parseFloat(tradeSize) || 0.01,
+                      type: 'MARKET',
+                    }
+                    if (tradeSL) body.stopPrice = parseFloat(tradeSL)
+                    const res = await fetch('/api/trading/orders', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(body),
+                    })
+                    const data = await res.json()
+                    if (data.success) {
+                      toast({ title: 'تم تنفيذ الصفقة', description: `${tradeDirection === 'buy' ? 'شراء' : 'بيع'} ${tradeSize} ${selectedPair}` })
+                      fetchPositions()
+                    } else {
+                      toast({ title: 'خطأ في التنفيذ', description: data.error || (res.status === 401 ? 'يرجى تسجيل الدخول أولاً' : 'فشل التنفيذ'), variant: 'destructive' })
+                    }
+                  } catch {
+                    toast({ title: 'خطأ في الاتصال', description: 'تعذر الاتصال بالخادم', variant: 'destructive' })
+                  } finally {
+                    setTradeExecuting(false)
+                  }
+                }} disabled={tradeExecuting} className="w-full py-3 rounded font-bold text-sm" style={{
+                  background: tradeExecuting ? 'var(--bg4)' : tradeDirection === 'buy'
                     ? 'linear-gradient(135deg, #00ff88, #00cc6a)'
                     : 'linear-gradient(135deg, #ff3355, #cc1133)',
-                  color: '#090b10',
+                  color: tradeExecuting ? 'var(--text3)' : '#090b10',
                   fontFamily: 'var(--font-ui)',
-                  cursor: 'pointer',
-                  boxShadow: tradeDirection === 'buy' ? '0 0 20px rgba(0,255,136,0.3)' : '0 0 20px rgba(255,51,85,0.3)',
+                  cursor: tradeExecuting ? 'not-allowed' : 'pointer',
+                  opacity: tradeExecuting ? 0.7 : 1,
+                  boxShadow: tradeExecuting ? 'none' : tradeDirection === 'buy' ? '0 0 20px rgba(0,255,136,0.3)' : '0 0 20px rgba(255,51,85,0.3)',
                 }}>
-                  {tradeDirection === 'buy' ? 'شراء' : 'بيع'} {selectedPair}
+                  {tradeExecuting ? 'جارٍ التنفيذ...' : `${tradeDirection === 'buy' ? 'شراء' : 'بيع'} ${selectedPair}`}
                 </button>
               </div>
             )}
@@ -745,19 +812,25 @@ export default function QuantumDashboard() {
               <div className="space-y-2">
                 <div className="flex justify-between items-center mb-2">
                   <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--font-ui)' }}>الإشارات النشطة</span>
-                  <button style={{ fontSize: '9px', color: 'var(--blue)', background: 'var(--blue2)', border: '0.5px solid var(--border2)', borderRadius: '2px', padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>تحديث</button>
+                  <div className="flex gap-1">
+                    <button onClick={() => { setSignalGenerating(true); fetch(`/api/signals/generate/${encodeURIComponent(selectedPair)}`, { method: 'POST' }).then(r => r.json()).then(d => { if (d.success) { toast({ title: 'تم توليد إشارة', description: `${d.data?.pair} ${d.data?.action}` }); fetchSignals() } else toast({ title: 'خطأ', description: d.error || 'فشل التوليد', variant: 'destructive' }) }).catch(() => toast({ title: 'خطأ في الاتصال', variant: 'destructive' })).finally(() => setSignalGenerating(false)) }} disabled={signalGenerating} style={{ fontSize: '9px', color: 'var(--green)', background: 'var(--green2)', border: '0.5px solid rgba(0,255,136,0.3)', borderRadius: '2px', padding: '2px 6px', cursor: signalGenerating ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', opacity: signalGenerating ? 0.5 : 1 }}>{signalGenerating ? '...' : 'توليد'}</button>
+                    <button onClick={fetchSignals} style={{ fontSize: '9px', color: 'var(--blue)', background: 'var(--blue2)', border: '0.5px solid var(--border2)', borderRadius: '2px', padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>تحديث</button>
+                  </div>
                 </div>
                 {signals.length > 0 ? signals.map((s: any, i: number) => (
-                  <div key={i} className="flex items-center gap-2 p-2 rounded" style={{ background: 'var(--bg4)', border: '0.5px solid var(--border)' }}>
-                    <span className="price" style={{ fontSize: '10px', width: 65, color: 'var(--text)' }}>{s.symbol}</span>
-                    <span style={{ fontSize: '9px', padding: '1px 6px', borderRadius: '2px', width: 34, textAlign: 'center', fontFamily: 'var(--font-mono)',
-                      background: s.direction === 'BUY' ? 'var(--green2)' : 'var(--red2)',
-                      color: s.direction === 'BUY' ? 'var(--green)' : 'var(--red)',
-                    }}>{s.direction}</span>
-                    <div className="flex-1 h-[3px] rounded" style={{ background: 'var(--bg)' }}>
+                  <div key={i} className="p-2 rounded" style={{ background: 'var(--bg4)', border: '0.5px solid var(--border)' }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="price" style={{ fontSize: '10px', color: 'var(--text)' }}>{s.pair || s.symbol}</span>
+                      <span style={{ fontSize: '9px', padding: '1px 6px', borderRadius: '2px', textAlign: 'center', fontFamily: 'var(--font-mono)',
+                        background: (s.action || s.direction) === 'BUY' ? 'var(--green2)' : 'var(--red2)',
+                        color: (s.action || s.direction) === 'BUY' ? 'var(--green)' : 'var(--red)',
+                      }}>{s.action || s.direction}</span>
+                      <span className="price" style={{ fontSize: '9px', color: 'var(--text2)', marginRight: 'auto' }}>{s.confidence || 65}%</span>
+                    </div>
+                    <div className="h-[3px] rounded" style={{ background: 'var(--bg)' }}>
                       <div className="h-full rounded" style={{ width: `${s.confidence || 65}%`, background: s.confidence > 70 ? 'var(--green)' : s.confidence > 50 ? 'var(--amber)' : 'var(--red)' }} />
                     </div>
-                    <span className="price" style={{ fontSize: '9px', color: 'var(--text2)' }}>{s.confidence || 65}%</span>
+                    {s.reason && <p style={{ fontSize: '8px', color: 'var(--text3)', fontFamily: 'var(--font-ui)', marginTop: 4, lineHeight: '1.3' }}>{s.reason}</p>}
                   </div>
                 )) : (
                   <div className="text-center py-6" style={{ color: 'var(--text4)', fontSize: '10px' }}>لا توجد إشارات نشطة حالياً</div>
@@ -837,4 +910,57 @@ function calcEMA(closes: number[], period: number, candleData: CandlestickData<T
     ema.push({ time: candleData[i].time, value: prev })
   }
   return ema
+}
+
+// ── MACD Calculation ──
+function calcMACD(closes: number[], fast = 12, slow = 26, signal = 9) {
+  const kFast = 2 / (fast + 1)
+  const kSlow = 2 / (slow + 1)
+  const kSignal = 2 / (signal + 1)
+
+  // Calculate fast EMA
+  const fastEma: number[] = []
+  if (closes.length < fast) return { macd: [], signalLine: [], histogram: [] }
+  let fastPrev = closes.slice(0, fast).reduce((a, b) => a + b, 0) / fast
+  fastEma.push(fastPrev)
+  for (let i = fast; i < closes.length; i++) {
+    fastPrev = closes[i] * kFast + fastPrev * (1 - kFast)
+    fastEma.push(fastPrev)
+  }
+
+  // Calculate slow EMA
+  const slowEma: number[] = []
+  if (closes.length < slow) return { macd: [], signalLine: [], histogram: [] }
+  let slowPrev = closes.slice(0, slow).reduce((a, b) => a + b, 0) / slow
+  slowEma.push(slowPrev)
+  for (let i = slow; i < closes.length; i++) {
+    slowPrev = closes[i] * kSlow + slowPrev * (1 - kSlow)
+    slowEma.push(slowPrev)
+  }
+
+  // MACD line = fast EMA - slow EMA (aligned from slow period start)
+  const macdLine: number[] = []
+  const offset = slow - fast
+  for (let i = 0; i < slowEma.length; i++) {
+    macdLine.push(fastEma[i + offset] - slowEma[i])
+  }
+
+  // Signal line = EMA of MACD line
+  const signalLine: number[] = []
+  if (macdLine.length < signal) return { macd: macdLine, signalLine: [], histogram: [] }
+  let sigPrev = macdLine.slice(0, signal).reduce((a, b) => a + b, 0) / signal
+  signalLine.push(sigPrev)
+  for (let i = signal; i < macdLine.length; i++) {
+    sigPrev = macdLine[i] * kSignal + sigPrev * (1 - kSignal)
+    signalLine.push(sigPrev)
+  }
+
+  // Histogram = MACD - Signal (aligned)
+  const histogram: number[] = []
+  const sigOffset = macdLine.length - signalLine.length
+  for (let i = 0; i < signalLine.length; i++) {
+    histogram.push(macdLine[i + sigOffset] - signalLine[i])
+  }
+
+  return { macd: macdLine, signalLine, histogram }
 }

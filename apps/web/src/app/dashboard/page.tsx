@@ -134,19 +134,25 @@ export default function QuantumDashboard() {
   const [signals, setSignals] = useState<any[]>([])
   const [positions, setPositions] = useState<any[]>([])
 
-  // Fetch signals
+  // Fetch signals (graceful - won't crash if auth required)
   useEffect(() => {
     fetch('/api/signals/active')
-      .then(r => r.json())
-      .then(d => { if (d.success) setSignals(d.data || []) })
+      .then(r => {
+        if (!r.ok) return null
+        return r.json()
+      })
+      .then(d => { if (d?.success) setSignals(d.data || []) })
       .catch(() => {})
   }, [])
 
-  // Fetch positions
+  // Fetch positions (graceful - won't crash if server error)
   useEffect(() => {
     fetch('/api/trading/positions')
-      .then(r => r.json())
-      .then(d => { if (d.data) setPositions(d.data || []) })
+      .then(r => {
+        if (!r.ok) return null
+        return r.json()
+      })
+      .then(d => { if (d?.data) setPositions(d.data || []) })
       .catch(() => {})
   }, [])
 
@@ -275,7 +281,7 @@ export default function QuantumDashboard() {
 
   // Live price update
   useEffect(() => {
-    if (!quote || !seriesRef.current) return
+    if (!currentQuote || !seriesRef.current) return
     const allData = seriesRef.current.data()
     if (allData.length === 0) return
     const last = allData[allData.length - 1]
@@ -283,17 +289,27 @@ export default function QuantumDashboard() {
     seriesRef.current.update({
       time: last.time,
       open: last.open,
-      high: Math.max(last.high, quote.price),
-      low: Math.min(last.low, quote.price),
-      close: quote.price,
+      high: Math.max(last.high, currentQuote.price),
+      low: Math.min(last.low, currentQuote.price),
+      close: currentQuote.price,
     })
   }, [currentQuote])
 
   // Reinit on timeframe change
   useEffect(() => {
-    if (chartRef.current) { chartRef.current.remove(); chartRef.current = null }
-    initChart()
-  }, [activeTimeframe])
+    if (chartRef.current) {
+      chartRef.current.remove()
+      chartRef.current = null
+      seriesRef.current = null
+      volumeRef.current = null
+      ema12Ref.current = null
+      ema26Ref.current = null
+    }
+    const cleanup = initChart()
+    return () => {
+      cleanup?.()
+    }
+  }, [activeTimeframe, initChart])
 
   const price = currentQuote?.price ?? 0
   const change = currentQuote?.changePercent ?? 0

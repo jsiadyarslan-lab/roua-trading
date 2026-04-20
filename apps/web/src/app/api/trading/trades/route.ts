@@ -1,29 +1,43 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server'
+import { db, ensureDbReady } from '@/lib/db'
 
-const API_BASE = process.env.API_URL || 'http://localhost:3001/api';
-
+/**
+ * GET /api/trading/trades
+ * Fetches trade history for the authenticated user.
+ */
 export async function GET(req: NextRequest) {
   try {
-    const sessionToken = req.cookies.get('roua_session')?.value || 
-                         req.headers.get('authorization')?.replace('Bearer ', '');
+    await ensureDbReady()
 
+    const sessionToken = req.cookies.get('roua_session')?.value
     if (!sessionToken) {
-      return NextResponse.json({ error: 'غير مصادق' }, { status: 401 });
+      return NextResponse.json({ success: false, error: 'غير مصادق' }, { status: 401 })
     }
 
-    const { searchParams } = new URL(req.url);
-    const limit = searchParams.get('limit') || '50';
+    const session = await db.session.findUnique({
+      where: { token: sessionToken },
+      include: { user: true },
+    })
 
-    const res = await fetch(`${API_BASE}/trading/trades?limit=${limit}`, {
-      headers: {
-        'Cookie': `roua_session=${sessionToken}`,
-        'Authorization': `Bearer ${sessionToken}`,
-      },
-    });
+    if (!session || session.expiresAt < new Date()) {
+      return NextResponse.json({ success: false, error: 'جلسة غير صالحة' }, { status: 401 })
+    }
 
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+    const { searchParams } = new URL(req.url)
+    const limit = parseInt(searchParams.get('limit') || '50')
+
+    const trades = await db.trade.findMany({
+      where: { userId: session.userId },
+      orderBy: { executedAt: 'desc' },
+      take: limit,
+    })
+
+    return NextResponse.json({ success: true, data: trades })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('[trading/trades] Error:', error.message)
+    return NextResponse.json(
+      { success: false, error: error.message || 'فشل في جلب سجل الصفقات' },
+      { status: 500 }
+    )
   }
 }

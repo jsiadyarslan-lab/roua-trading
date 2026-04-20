@@ -1,31 +1,51 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server'
 
-const API_BASE = process.env.API_URL || 'http://localhost:3001/api';
-
+/**
+ * POST /api/trading/risk/position-size
+ * Calculates recommended position size based on risk parameters.
+ * Pure calculation — no authentication or database needed.
+ */
 export async function POST(req: NextRequest) {
   try {
-    const sessionToken = req.cookies.get('roua_session')?.value || 
-                         req.headers.get('authorization')?.replace('Bearer ', '');
+    const body = await req.json()
+    const {
+      accountBalance = 10000,
+      riskPercentage = 2,
+      entryPrice = 0,
+      stopLossPrice = 0,
+    } = body
 
-    if (!sessionToken) {
-      return NextResponse.json({ error: 'غير مصادق' }, { status: 401 });
+    // Calculate position size based on risk percentage
+    const riskAmount = accountBalance * (riskPercentage / 100)
+
+    let positionSize = 0
+    let riskRewardRatio = 0
+
+    if (entryPrice > 0 && stopLossPrice > 0) {
+      const riskPerUnit = Math.abs(entryPrice - stopLossPrice)
+      if (riskPerUnit > 0) {
+        positionSize = riskAmount / riskPerUnit
+      }
+
+      // Default take profit at 2x risk
+      const takeProfitPrice = entryPrice + (entryPrice - stopLossPrice) * 2
+      riskRewardRatio = Math.abs(takeProfitPrice - entryPrice) / Math.abs(entryPrice - stopLossPrice)
     }
 
-    const body = await req.json();
-
-    const res = await fetch(`${API_BASE}/trading/risk/position-size`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Cookie': `roua_session=${sessionToken}`,
-        'Authorization': `Bearer ${sessionToken}`,
+    return NextResponse.json({
+      success: true,
+      data: {
+        positionSize: parseFloat(positionSize.toFixed(6)),
+        riskAmount: parseFloat(riskAmount.toFixed(2)),
+        riskPercentage,
+        riskRewardRatio: parseFloat(riskRewardRatio.toFixed(2)),
       },
-      body: JSON.stringify(body),
-    });
-
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
+    })
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('[trading/risk/position-size] Error:', error.message)
+    return NextResponse.json(
+      { success: false, error: error.message || 'فشل في حساب حجم المركز' },
+      { status: 500 }
+    )
   }
 }

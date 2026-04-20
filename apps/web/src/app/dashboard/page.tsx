@@ -130,9 +130,10 @@ export default function QuantumDashboard() {
   const ema12Ref = useRef<ISeriesApi<'Line'> | null>(null)
   const ema26Ref = useRef<ISeriesApi<'Line'> | null>(null)
 
-  // Signal data from API
+  // Signal & position data from API
   const [signals, setSignals] = useState<any[]>([])
   const [positions, setPositions] = useState<any[]>([])
+  const [news, setNews] = useState<any[]>([])
 
   // Fetch signals
   useEffect(() => {
@@ -147,6 +148,14 @@ export default function QuantumDashboard() {
     fetch('/api/trading/positions')
       .then(r => r.json())
       .then(d => { if (d.data) setPositions(d.data || []) })
+      .catch(() => {})
+  }, [])
+
+  // Fetch news feed
+  useEffect(() => {
+    fetch('/api/news/feed')
+      .then(r => { if (!r.ok) return null; return r.json() })
+      .then(d => { if (Array.isArray(d)) setNews(d) })
       .catch(() => {})
   }, [])
 
@@ -433,6 +442,30 @@ export default function QuantumDashboard() {
                 })}
               </div>
             </>
+          )}
+
+          {/* News Ticker */}
+          {!sidebarCollapsed && news.length > 0 && (
+            <div className="px-3 py-2">
+              <div style={{ fontSize: '9px', fontFamily: 'var(--font-ui)', color: 'var(--text3)', fontWeight: 600, marginBottom: 4 }}>آخر الأخبار</div>
+              <div className="space-y-1">
+                {news.slice(0, 4).map((item: any, i: number) => (
+                  <div key={i} className="px-2 py-1.5 rounded" style={{ background: 'var(--bg4)', border: '0.5px solid var(--border)' }}>
+                    <div className="flex items-center gap-1 mb-0.5">
+                      <span style={{ fontSize: '7px', fontWeight: 700, padding: '1px 4px', borderRadius: '2px', background: item.bgColor || 'var(--blue2)', color: item.color || 'var(--blue)', fontFamily: 'var(--font-mono)' }}>
+                        {item.categoryAr || item.category || 'عام'}
+                      </span>
+                      {item.impact === 'high' && (
+                        <span style={{ fontSize: '7px', color: 'var(--amber)', fontFamily: 'var(--font-mono)' }}>●</span>
+                      )}
+                    </div>
+                    <p style={{ fontSize: '9px', color: 'var(--text2)', fontFamily: 'var(--font-ui)', lineHeight: '1.4' }}>
+                      {item.text?.slice(0, 60)}{item.text?.length > 60 ? '...' : ''}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Collapse Button */}

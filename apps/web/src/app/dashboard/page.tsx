@@ -7,6 +7,7 @@ import {
 } from 'lightweight-charts'
 import { useDashboardStore } from '@/lib/dashboard-store'
 import { useMarketQuotes, useSingleQuote, useHistoricalCandles } from '@/hooks/useMarketData'
+import { useAuth } from '@/hooks/useAuth'
 import { toast } from '@/hooks/use-toast'
 
 // ── Navigation Items ──
@@ -105,6 +106,7 @@ function QuantumOrb({ changePercent }: { changePercent: number }) {
 
 // ── Main Dashboard ──
 export default function QuantumDashboard() {
+  const { user, loading: authLoading } = useAuth()
   const { selectedPair, setSelectedPair, sidebarCollapsed, toggleSidebar } = useDashboardStore()
   const [activeMarketTab, setActiveMarketTab] = useState<keyof typeof MARKET_PAIRS>('Crypto')
   const [activeTimeframe, setActiveTimeframe] = useState('1h')
@@ -139,8 +141,12 @@ export default function QuantumDashboard() {
   const [positions, setPositions] = useState<any[]>([])
   const [news, setNews] = useState<any[]>([])
 
-  // Fetch signals (graceful - won't crash if auth required)
+  // Auth-gated fetch: only call protected endpoints when authenticated
+  const isAuthenticated = !!user && !authLoading
+
+  // Fetch signals (auth required)
   const fetchSignals = useCallback(() => {
+    if (!isAuthenticated) return
     fetch('/api/signals/active')
       .then(r => {
         if (!r.ok) return null
@@ -148,12 +154,13 @@ export default function QuantumDashboard() {
       })
       .then(d => { if (d?.success) setSignals(d.data || []) })
       .catch(() => {})
-  }, [])
+  }, [isAuthenticated])
 
   useEffect(() => { fetchSignals() }, [fetchSignals])
 
-  // Fetch positions (graceful - won't crash if server error)
+  // Fetch positions (auth required)
   const fetchPositions = useCallback(() => {
+    if (!isAuthenticated) return
     fetch('/api/trading/positions')
       .then(r => {
         if (!r.ok) return null
@@ -161,11 +168,11 @@ export default function QuantumDashboard() {
       })
       .then(d => { if (d?.data) setPositions(d.data || []) })
       .catch(() => {})
-  }, [])
+  }, [isAuthenticated])
 
   useEffect(() => { fetchPositions() }, [fetchPositions])
 
-  // Fetch news feed
+  // Fetch news feed (public)
   useEffect(() => {
     fetch('/api/news/feed')
       .then(r => { if (!r.ok) return null; return r.json() })
@@ -173,13 +180,14 @@ export default function QuantumDashboard() {
       .catch(() => {})
   }, [])
 
-  // Fetch position summary
+  // Fetch position summary (auth required)
   const fetchSummary = useCallback(() => {
+    if (!isAuthenticated) return
     fetch('/api/trading/positions/summary')
       .then(r => { if (!r.ok) return null; return r.json() })
       .then(d => { if (d?.success && d.data) setPositionSummary(d.data) })
       .catch(() => {})
-  }, [])
+  }, [isAuthenticated])
 
   useEffect(() => { fetchSummary() }, [fetchSummary])
 
@@ -390,7 +398,7 @@ export default function QuantumDashboard() {
 
         {/* Avatar */}
         <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg, var(--blue), var(--purple))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#fff', cursor: 'pointer' }}>
-          ر
+          {user ? (user.displayName?.[0] || user.email?.[0] || 'ر') : 'ر'}
         </div>
       </div>
 
@@ -640,7 +648,9 @@ export default function QuantumDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {positions.length > 0 ? positions.map((p: any, i: number) => {
+                      {!isAuthenticated ? (
+                        <tr><td colSpan={5} className="text-center py-4" style={{ color: 'var(--amber)', fontSize: '10px' }}>يرجى تسجيل الدخول لعرض الصفقات</td></tr>
+                      ) : positions.length > 0 ? positions.map((p: any, i: number) => {
                         const currentPrice = quotes.get(p.symbol)?.price ?? 0
                         const entry = p.entryPrice ?? 0
                         const pnl = p.side === 'BUY' && currentPrice > 0 && entry > 0
@@ -658,6 +668,7 @@ export default function QuantumDashboard() {
                             <td className="px-2 py-1 price" style={{ color: pnlColor, display: 'flex', alignItems: 'center', gap: 4 }}>
                               <span>{pnl >= 0 ? '+' : ''}{pnl.toFixed(2)}</span>
                               <button onClick={() => {
+                                if (!isAuthenticated) return
                                 fetch('/api/trading/positions/close', {
                                   method: 'POST', headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({ positionId: p.id })
@@ -683,7 +694,9 @@ export default function QuantumDashboard() {
                   <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text2)', fontFamily: 'var(--font-ui)' }}>آخر الإشارات</span>
                 </div>
                 <div className="flex-1 overflow-auto custom-scrollbar p-2 space-y-1">
-                  {signals.length > 0 ? signals.slice(0, 3).map((s: any, i: number) => (
+                  {!isAuthenticated ? (
+                    <div className="text-center py-3" style={{ color: 'var(--amber)', fontSize: '10px' }}>يرجى تسجيل الدخول لعرض الإشارات</div>
+                  ) : signals.length > 0 ? signals.slice(0, 3).map((s: any, i: number) => (
                     <div key={i} className="flex items-center justify-between px-2 py-1 rounded" style={{ background: 'var(--bg4)', border: '0.5px solid var(--border)' }}>
                       <span className="price" style={{ fontSize: '10px', color: 'var(--text)' }}>{s.pair || s.symbol || '—'}</span>
                       <span style={{ fontSize: '9px', padding: '1px 6px', borderRadius: '2px', fontFamily: 'var(--font-mono)',
@@ -804,6 +817,10 @@ export default function QuantumDashboard() {
                 {/* Execute Button */}
                 <button onClick={async () => {
                   if (tradeExecuting) return
+                  if (!isAuthenticated) {
+                    toast({ title: 'يرجى تسجيل الدخول', description: 'يجب تسجيل الدخول أولاً لتنفيذ الصفقات', variant: 'destructive' })
+                    return
+                  }
                   setTradeExecuting(true)
                   try {
                     const body: Record<string, any> = {
@@ -851,11 +868,13 @@ export default function QuantumDashboard() {
                 <div className="flex justify-between items-center mb-2">
                   <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--font-ui)' }}>الإشارات النشطة</span>
                   <div className="flex gap-1">
-                    <button onClick={() => { setSignalGenerating(true); fetch(`/api/signals/generate/${encodeURIComponent(selectedPair)}`, { method: 'POST' }).then(r => r.json()).then(d => { if (d.success) { toast({ title: 'تم توليد إشارة', description: `${d.data?.pair} ${d.data?.action}` }); fetchSignals() } else toast({ title: 'خطأ', description: d.error || 'فشل التوليد', variant: 'destructive' }) }).catch(() => toast({ title: 'خطأ في الاتصال', variant: 'destructive' })).finally(() => setSignalGenerating(false)) }} disabled={signalGenerating} style={{ fontSize: '9px', color: 'var(--green)', background: 'var(--green2)', border: '0.5px solid rgba(0,255,136,0.3)', borderRadius: '2px', padding: '2px 6px', cursor: signalGenerating ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', opacity: signalGenerating ? 0.5 : 1 }}>{signalGenerating ? '...' : 'توليد'}</button>
+                    <button onClick={() => { if (!isAuthenticated) { toast({ title: 'يرجى تسجيل الدخول', description: 'يجب تسجيل الدخول أولاً', variant: 'destructive' }); return } setSignalGenerating(true); fetch(`/api/signals/generate/${encodeURIComponent(selectedPair)}`, { method: 'POST' }).then(r => r.json()).then(d => { if (d.success) { toast({ title: 'تم توليد إشارة', description: `${d.data?.pair} ${d.data?.action}` }); fetchSignals() } else toast({ title: 'خطأ', description: d.error || 'فشل التوليد', variant: 'destructive' }) }).catch(() => toast({ title: 'خطأ في الاتصال', variant: 'destructive' })).finally(() => setSignalGenerating(false)) }} disabled={signalGenerating} style={{ fontSize: '9px', color: 'var(--green)', background: 'var(--green2)', border: '0.5px solid rgba(0,255,136,0.3)', borderRadius: '2px', padding: '2px 6px', cursor: signalGenerating ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-mono)', opacity: signalGenerating ? 0.5 : 1 }}>{signalGenerating ? '...' : 'توليد'}</button>
                     <button onClick={fetchSignals} style={{ fontSize: '9px', color: 'var(--blue)', background: 'var(--blue2)', border: '0.5px solid var(--border2)', borderRadius: '2px', padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>تحديث</button>
                   </div>
                 </div>
-                {signals.length > 0 ? signals.map((s: any, i: number) => (
+                {!isAuthenticated ? (
+                  <div className="text-center py-6" style={{ color: 'var(--amber)', fontSize: '10px' }}>يرجى تسجيل الدخول لعرض الإشارات</div>
+                ) : signals.length > 0 ? signals.map((s: any, i: number) => (
                   <div key={i} className="p-2 rounded" style={{ background: 'var(--bg4)', border: '0.5px solid var(--border)' }}>
                     <div className="flex items-center gap-2 mb-1">
                       <span className="price" style={{ fontSize: '10px', color: 'var(--text)' }}>{s.pair || s.symbol}</span>

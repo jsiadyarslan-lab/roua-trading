@@ -23,7 +23,7 @@ interface DashboardState {
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
-  selectedPair: 'BTC/USDT',
+  selectedPair: 'BTC/USD',
   setSelectedPair: (pair) => set({ selectedPair: pair }),
   sidebarCollapsed: false,
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),

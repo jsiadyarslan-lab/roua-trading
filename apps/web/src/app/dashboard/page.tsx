@@ -262,22 +262,14 @@ export default function DashboardPage() {
         .dash-col::-webkit-scrollbar-thumb:hover { background: #0A84FF44; }
       `}</style>
 
-      <div style={{
-        width: '100%',
+      <div className="dash-grid" style={{
         height: `calc(100vh - ${HEADER_H}px)`,
         background: T.bg,
-        display: 'grid',
-        gridTemplateColumns: '220px 1fr 350px',
-        gap: 4, padding: 4,
-        overflow: 'hidden',
-        direction: 'rtl',
-        boxSizing: 'border-box',
       }}>
 
         {/* ══════════ COL 1 — أدوات يمين (draggable) ══════════ */}
         <div
-          className="dash-col"
-          style={{ display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto', overflowX: 'hidden', paddingRight: 4 }}
+          className="dash-col dash-col-left"
           onDragEnd={col1.onDragEnd}
         >
           {col1.order.map(id => {
@@ -328,7 +320,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ══════════ COL 2 — الشارت + الصفقات ══════════ */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, overflow: 'hidden' }}>
+        <div className="dash-col dash-col-center" style={{ overflow: 'hidden' }}>
 
           {/* الشارت — ثابت غير قابل للسحب */}
           <div style={{
@@ -402,7 +394,16 @@ export default function DashboardPage() {
         </div>
 
         {/* ══════════ COL 3 — Tabs Panel ══════════ */}
-        <Col3TabbedPanel />
+        <div className="dash-col dash-col-right">
+          <Col3TabbedPanel />
+        </div>
+
+        {/* Mobile Sidebar (Visible only on mobile) */}
+        <div className="dash-col dash-col-right-mobile" style={{ display: 'none', padding: '0 4px 20px' }}>
+             <Col3TabbedPanel />
+             <div style={{ height: 10 }} />
+             <WatchlistMini />
+        </div>
 
       </div>
     </>

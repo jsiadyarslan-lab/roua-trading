@@ -7,7 +7,7 @@ import {
   Home, Wallet, Brain, ScanSearch, BarChart2,
   Copy, Users, Newspaper, CalendarDays, Settings,
   ChevronDown, Bell, User, MoreHorizontal,
-  TrendingUp, TrendingDown,
+  TrendingUp, TrendingDown, Menu, X
 } from 'lucide-react'
 import { useMarketQuotes } from '@/hooks/useMarketData'
 
@@ -34,6 +34,7 @@ const H_NEWS  = 26
 const H_CURR  = 32
 const H_NAV   = 42
 const H_TOTAL = H_NEWS + H_CURR + H_NAV
+const MOBILE_HEADER_H = 50
 const ORB_D   = 108
 const ORB_GAP = 120
 
@@ -64,9 +65,9 @@ const STARS = [
 ]
 
 /* ══ Cosmic Orb ══ */
-function CosmicOrb({ state }: { state: MarketState }) {
+function CosmicOrb({ state, size = 68 }: { state: MarketState, size?: number }) {
   const c = STATE[state]
-  const S = 68
+  const S = size
   return (
     <div style={{ position: 'relative', width: S, height: S }}>
       <div style={{
@@ -127,7 +128,7 @@ function CosmicOrb({ state }: { state: MarketState }) {
 function LogoCircle({ state }: { state: MarketState }) {
   const c = STATE[state]
   return (
-    <div style={{
+    <div className="logo-orb" style={{
       position: 'absolute', top: '50%', right: 10,
       transform: 'translateY(-50%)',
       width: ORB_D, height: ORB_D, borderRadius: '50%',
@@ -239,7 +240,7 @@ const SYMBOLS = [
   'USD/JPY','XAU/USD','BNB/USD','SOL/USD','XRP/USD',
 ]
 
-function CurrencyTicker() {
+function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
   const { quotes } = useMarketQuotes(SYMBOLS, 5000)
 
   // Track previous prices to detect direction
@@ -272,14 +273,17 @@ function CurrencyTicker() {
     flash: flashState[sym] ?? null,
   }))
 
+  const finalRows = isMobile ? rows.slice(0, 3) : rows
+
   return (
     <div style={{
-      height: H_CURR, background: T.bg2,
-      borderBottom: `0.5px solid ${T.border}`,
+      height: isMobile ? 'auto' : H_CURR, background: isMobile ? 'transparent' : T.bg2,
+      borderBottom: isMobile ? 'none' : `0.5px solid ${T.border}`,
       display: 'flex', alignItems: 'center',
-      padding: '0 6px',
+      padding: isMobile ? 0 : '0 6px',
+      flex: isMobile ? 1 : undefined,
     }}>
-      {rows.map(({ sym, q, flash }, i) => {
+      {finalRows.map(({ sym, q, flash }, i) => {
         const flashBg = flash === 'up'
           ? 'rgba(0,255,198,0.12)'
           : flash === 'down'
@@ -292,46 +296,25 @@ function CurrencyTicker() {
           <div key={sym} style={{
             flex: 1, display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
-            padding: '2px 6px',
-            borderLeft: i < rows.length - 1 ? `0.5px solid ${T.border}` : 'none',
+            padding: isMobile ? '0 4px' : '2px 6px',
+            borderLeft: i < finalRows.length - 1 ? `0.5px solid ${T.border}` : 'none',
             borderRadius: 4,
             background: flashBg,
             transition: 'background 0.15s',
           }}>
-            {/* Symbol */}
             <span style={{
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 7.5, color: T.text3,
+              fontSize: isMobile ? 6.5 : 7.5, color: T.text3,
               letterSpacing: '0.04em', lineHeight: 1.2,
             }}>{sym}</span>
-
-            {/* Price */}
             <span style={{
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 11, fontWeight: 700,
+              fontSize: isMobile ? 9 : 11, fontWeight: 700,
               color: flash === 'up' ? T.green : flash === 'down' ? T.red : T.text,
-              lineHeight: 1.15,
-              transition: 'color 0.3s',
+              lineHeight: 1.15, transition: 'color 0.3s',
             }}>
-              {q
-                ? q.price > 1000
-                  ? q.price.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                  : q.price.toFixed(q.price > 10 ? 4 : 6)
-                : '—'}
+              {q ? q.price.toLocaleString('en', { maximumFractionDigits: q.price > 100 ? 2 : 4 }) : '—'}
             </span>
-
-            {/* Change % */}
-            {q && (
-              <span style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 7.5, lineHeight: 1.1,
-                color: isUp ? T.green : T.red,
-                display: 'flex', alignItems: 'center', gap: 1,
-              }}>
-                {isUp ? <TrendingUp size={7} /> : <TrendingDown size={7} />}
-                {isUp ? '+' : ''}{chg.toFixed(2)}%
-              </span>
-            )}
           </div>
         )
       })}
@@ -367,7 +350,7 @@ function MainNav() {
       padding: '0 8px', gap: 0, overflow: 'hidden',
       borderBottomRightRadius: ORB_D / 2,
     }}>
-      {NAV_LINKS.map(({ href, label, icon: Icon }) => {
+      {NAV_LINKS.slice(0, 6).map(({ href, label, icon: Icon }) => {
         const active = pathname === href ||
           (href !== '/dashboard' && (pathname ?? '').startsWith(href))
         return (
@@ -414,12 +397,7 @@ function MainNav() {
             padding: '5px', minWidth: 148, zIndex: 999,
             boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
           }}>
-            {[
-              { label: 'الباك تيستر',   href: '/dashboard/backtester' },
-              { label: 'مدير المخاطر',  href: '/dashboard/risk' },
-              { label: 'تنبيهات السعر', href: '/dashboard/alerts' },
-              { label: 'تقارير الأداء', href: '/dashboard/reports' },
-            ].map(item => (
+            {NAV_LINKS.slice(6).map(item => (
               <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }}>
                 <div
                   onClick={() => setMoreOpen(false)}
@@ -472,10 +450,18 @@ const KF = `
 }
 header *            { scrollbar-width:none; -ms-overflow-style:none; }
 header *::-webkit-scrollbar { display:none; }
+
+@media (max-width: 900px) {
+  .desktop-header { display: none !important; }
+  .mobile-header { display: flex !important; }
+  .logo-orb { display: none !important; }
+}
 `
 
 /* ══ Root export ══ */
 export function AppHeader() {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const pathname = usePathname()
   const { quotes } = useMarketQuotes(
     ['BTC/USD','ETH/USD','EUR/USD','GBP/USD','USD/JPY','XAU/USD'],
     5000
@@ -495,7 +481,43 @@ export function AppHeader() {
   return (
     <>
       <style>{KF}</style>
-      <header style={{
+      
+      {/* Mobile Sidebar */}
+      {menuOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)',
+          zIndex: 1000, backdropFilter: 'blur(8px)'
+        }} onClick={() => setMenuOpen(false)}>
+          <div style={{
+            position: 'absolute', left: 0, top: 0, bottom: 0, width: '280px',
+            background: T.bg2, borderRight: `1px solid ${T.border}`,
+            display: 'flex', flexDirection: 'column', padding: '20px'
+          }} onClick={e => e.stopPropagation()}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <span style={{ fontSize: 18, fontWeight: 900, color: T.text, fontFamily: "'Cairo', sans-serif" }}>القائمة</span>
+                <X size={24} color={T.text} onClick={() => setMenuOpen(false)} style={{ cursor: 'pointer' }} />
+             </div>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {NAV_LINKS.map(({ href, label, icon: Icon }) => (
+                  <Link key={href} href={href} style={{ textDecoration: 'none' }} onClick={() => setMenuOpen(false)}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
+                      borderRadius: 8, background: pathname === href ? `${T.blue}15` : 'transparent',
+                      color: pathname === href ? T.blue : T.text2,
+                      fontSize: 14, fontWeight: 600, fontFamily: "'Cairo', sans-serif"
+                    }}>
+                      <Icon size={18} />
+                      {label}
+                    </div>
+                  </Link>
+                ))}
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Header Layout */}
+      <header className="desktop-header" style={{
         position: 'sticky', top: 0, zIndex: 100,
         direction: 'rtl', height: H_TOTAL,
       }}>
@@ -507,6 +529,26 @@ export function AppHeader() {
           <NewsTicker />
           <CurrencyTicker />
           <MainNav />
+        </div>
+      </header>
+
+      {/* Mobile Header Layout */}
+      <header className="mobile-header" style={{
+        display: 'none', position: 'sticky', top: 0, zIndex: 100,
+        height: MOBILE_HEADER_H, background: T.navGlass, borderBottom: `1px solid ${T.border}`,
+        alignItems: 'center', padding: '0 12px', justifyContent: 'space-between',
+        backdropFilter: 'blur(20px)'
+      }}>
+        <button onClick={() => setMenuOpen(true)} style={{ background: 'transparent', border: 'none', color: T.text, cursor: 'pointer' }}>
+           <Menu size={24} />
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+           <CurrencyTicker isMobile />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+           <CosmicOrb state={marketState} size={32} />
         </div>
       </header>
     </>

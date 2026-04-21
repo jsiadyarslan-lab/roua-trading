@@ -274,3 +274,54 @@
   from { transform: rotate(0deg); }
   to { transform: rotate(-360deg); }
 }
+/* ── Responsive Dashboard ── */
+.dash-grid {
+  display: grid;
+  grid-template-columns: 220px 1fr 350px;
+  width: 100%;
+  height: 100%;
+  gap: 4px;
+  padding: 4px;
+  overflow: hidden;
+  direction: rtl;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1280px) {
+  .dash-grid {
+    grid-template-columns: 200px 1fr;
+  }
+  .dash-col-right {
+    display: none !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .dash-grid {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    overflow-y: auto !important;
+  }
+  .dash-col-left {
+    display: none !important;
+  }
+  .dash-col-center {
+    width: 100%;
+  }
+  .dash-col-right-mobile {
+    display: block !important;
+  }
+}
+
+.dash-col {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.dash-main-chart {
+  flex: 1;
+  min-height: 400px;
+}

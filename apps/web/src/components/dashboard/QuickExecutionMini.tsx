@@ -59,9 +59,10 @@ export function QuickExecutionMini() {
             value={symbol}
             onChange={e => setSymbol(e.target.value.toUpperCase())}
             aria-label="Symbol"
+            className="number-data"
             style={{
               width: '100%', background: 'var(--surface)', border: '1px solid var(--card-border)',
-              borderRadius: 10, color: 'var(--foreground)', fontSize: 13, padding: '10px 12px',
+              borderRadius: 10, color: 'var(--foreground)', fontSize: 13, padding: '12px',
               fontFamily: 'var(--mono)', outline: 'none',
               transition: 'all 0.2s', boxSizing: 'border-box', fontWeight: 700
             }}
@@ -76,9 +77,10 @@ export function QuickExecutionMini() {
             onChange={e => setQuantity(e.target.value)}
             type="number" step="0.01" min="0.01"
             aria-label="Quantity"
+            className="number-data"
             style={{
               width: '100%', background: 'var(--surface)', border: '1px solid var(--card-border)',
-              borderRadius: 10, color: 'var(--foreground)', fontSize: 13, padding: '10px 12px',
+              borderRadius: 10, color: 'var(--foreground)', fontSize: 13, padding: '12px',
               fontFamily: 'var(--mono)', outline: 'none',
               transition: 'all 0.2s', boxSizing: 'border-box', fontWeight: 700
             }}
@@ -98,9 +100,10 @@ export function QuickExecutionMini() {
             placeholder="0.00"
             type="number" step="0.1"
             aria-label="Take Profit"
+            className="number-data"
             style={{
               width: '100%', background: 'rgba(0,200,83,0.05)', border: '1px solid rgba(0,200,83,0.15)',
-              borderRadius: 10, color: 'var(--success)', fontSize: 13, padding: '10px 12px',
+              borderRadius: 10, color: 'var(--success)', fontSize: 13, padding: '12px',
               fontFamily: 'var(--mono)', outline: 'none',
               transition: 'all 0.2s', boxSizing: 'border-box', fontWeight: 700
             }}
@@ -114,9 +117,10 @@ export function QuickExecutionMini() {
             placeholder="0.00"
             type="number" step="0.1"
             aria-label="Stop Loss"
+            className="number-data"
             style={{
               width: '100%', background: 'rgba(255,59,48,0.05)', border: '1px solid rgba(255,59,48,0.15)',
-              borderRadius: 10, color: 'var(--danger)', fontSize: 13, padding: '10px 12px',
+              borderRadius: 10, color: 'var(--danger)', fontSize: 13, padding: '12px',
               fontFamily: 'var(--mono)', outline: 'none',
               transition: 'all 0.2s', boxSizing: 'border-box', fontWeight: 700
             }}

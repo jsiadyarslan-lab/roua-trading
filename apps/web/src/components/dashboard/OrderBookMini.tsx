@@ -123,10 +123,10 @@ export function OrderBookMini() {
                 </span>
               </div>
               <div style={{ textAlign: 'left' }}>
-                <div style={{ fontSize: 11, color: isPositive ? 'var(--success)' : 'var(--danger)', fontWeight: 800, fontFamily: 'var(--mono)' }}>
+                <div className="number-data" style={{ fontSize: 11, color: isPositive ? 'var(--success)' : 'var(--danger)', fontWeight: 800 }}>
                   {isPositive ? '+' : ''}{(quote?.changePercent ?? 0).toFixed(2)}%
                 </div>
-                <div style={{ fontSize: 8, color: 'var(--muted)', fontWeight: 700 }}>LAST PRICE</div>
+                <div style={{ fontSize: 8, color: 'var(--text-muted-safe)', fontWeight: 700 }}>LAST PRICE</div>
               </div>
             </div>
 
@@ -173,7 +173,7 @@ function OrderRowUI({ row, type, maxTotal, index }: { row: OrderRow; type: 'ask'
       <span className="price" style={{ color, zIndex: 1, fontSize: 12 }}>
         {row.price > 100 ? row.price.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : row.price.toFixed(5)}
       </span>
-      <span style={{ color: 'var(--foreground)', fontWeight: 600, fontFamily: 'var(--mono)', zIndex: 1, fontSize: 11 }}>
+      <span className="number-data" style={{ color: 'var(--foreground)', fontWeight: 600, zIndex: 1, fontSize: 11 }}>
         {row.size.toFixed(3)}
       </span>
     </div>

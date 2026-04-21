@@ -355,16 +355,17 @@ function MainNav() {
         return (
           <Link key={href} href={href} style={{ textDecoration: 'none', flexShrink: 0 }}>
             <div style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              padding: '5px 9px', borderRadius: 5, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '0 12px', borderRadius: 8, cursor: 'pointer',
+              height: 44, // Enhanced touch target
               background: active ? `${T.blue}18` : 'transparent',
               borderBottom: active ? `2px solid ${T.blue}` : '2px solid transparent',
               color: active ? T.blue : T.text2,
               fontFamily: "'Cairo', sans-serif",
-              fontSize: 11.5, fontWeight: active ? 700 : 500,
+              fontSize: 12, fontWeight: active ? 800 : 500,
               whiteSpace: 'nowrap', transition: 'all 0.15s',
             }}>
-              <Icon size={11} strokeWidth={active ? 2.5 : 1.8} />
+              <Icon size={14} strokeWidth={active ? 2.5 : 2} />
               {label}
             </div>
           </Link>
@@ -375,15 +376,15 @@ function MainNav() {
         <button
           onClick={() => setMoreOpen(!moreOpen)}
           style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            padding: '5px 9px', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '0 12px', cursor: 'pointer', height: 44,
             background: 'transparent', border: 'none',
-            color: T.text2, fontFamily: "'Cairo', sans-serif", fontSize: 11.5,
+            color: T.text2, fontFamily: "'Cairo', sans-serif", fontSize: 12,
           }}
         >
-          <MoreHorizontal size={11} />
+          <MoreHorizontal size={14} />
           المزيد
-          <ChevronDown size={9} style={{
+          <ChevronDown size={11} style={{
             transform: moreOpen ? 'rotate(180deg)' : 'rotate(0deg)',
             transition: 'transform 0.2s',
           }} />
@@ -445,13 +446,13 @@ function MainNav() {
 
       <div style={{
         flexShrink: 0, display: 'flex', alignItems: 'center',
-        gap: 6, cursor: 'pointer',
-        padding: '5px 12px', borderRadius: 20,
+        gap: 8, cursor: 'pointer',
+        padding: '0 16px', borderRadius: 22, height: 44,
         background: 'rgba(255,255,255,0.05)',
-        border: '1px solid var(--card-border)', marginLeft: 8,
+        border: '1px solid var(--card-border)', marginInlineStart: 8,
       }}>
-        <User size={13} color="var(--accent)" />
-        <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: 'var(--foreground)', fontWeight: 700 }}>حسابي</span>
+        <User size={16} color="var(--accent)" />
+        <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>حسابي</span>
       </div>
     </div>
   )
@@ -544,7 +545,7 @@ export function AppHeader() {
       }}>
         <LogoCircle state={marketState} />
         <div style={{
-          height: '100%', marginRight: ORB_GAP,
+          height: '100%', marginInlineStart: ORB_GAP,
           display: 'flex', flexDirection: 'column',
         }}>
           <NewsTicker />

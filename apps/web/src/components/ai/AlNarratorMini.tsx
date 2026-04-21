@@ -131,8 +131,8 @@ export function AlNarratorMini() {
           {/* Institutional Confidence Meter */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 800 }}>مؤشر الثقة الرقمي (CONFIDENCE)</span>
-                <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 900, fontFamily: 'var(--mono)' }}>{data.confidence}%</span>
+                <span style={{ fontSize: 9, color: 'var(--text-muted-safe)', fontWeight: 800 }}>مؤشر الثقة الرقمي (CONFIDENCE)</span>
+                <span className="price" style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 900 }}>{data.confidence}%</span>
              </div>
              <div style={{ width: '100%', height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 10, overflow: 'hidden', padding: 1.5 }}>
                 <div style={{
@@ -193,9 +193,15 @@ export function AlNarratorMini() {
           </div>
         </>
       ) : (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-          <div style={{ width: 24, height: 24, border: '2px solid var(--card-border)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-          <span style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 600 }}>يتم تحليل بيانات السوق بواسطة الذكاء الاصطناعي...</span>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Institutional Skeleton Loader */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div className="skeleton" style={{ flex: 1, height: 52, borderRadius: 12 }} />
+            <div className="skeleton" style={{ flex: 1, height: 52, borderRadius: 12 }} />
+          </div>
+          <div className="skeleton" style={{ width: '100%', height: 28, borderRadius: 10 }} />
+          <div className="skeleton" style={{ width: '100%', height: 8, borderRadius: 4 }} />
+          <div className="skeleton" style={{ width: '100%', flex: 1, borderRadius: 10 }} />
         </div>
       )}
       
@@ -204,10 +210,16 @@ export function AlNarratorMini() {
           0%, 100% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 10px currentColor; }
           50% { transform: scale(1.4); opacity: 1; box-shadow: 0 0 20px currentColor; }
         }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
+        .skeleton {
+          background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);
+          background-size: 200% 100%;
+          animation: skeleton-shimmer 1.5s infinite;
+        }
+        @keyframes skeleton-shimmer {
+          from { background-position: 200% 0; }
+          to { background-position: -200% 0; }
         }
       `}</style>
-    </div>
+</div>
   )
 }

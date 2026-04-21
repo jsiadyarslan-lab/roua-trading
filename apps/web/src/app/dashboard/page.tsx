@@ -10,6 +10,7 @@ import { OrderBookMini } from '@/components/dashboard/OrderBookMini'
 import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
 import { ScannerMini } from '@/components/dashboard/ScannerMini'
 import { BotMini } from '@/components/dashboard/BotMini'
+import QuantumChartEngine from '@/components/dashboard/QuantumChartEngine'
 
 /* ─── Design tokens ─── */
 const T = {
@@ -351,7 +352,7 @@ export default function DashboardPage() {
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5, color: T.text3, opacity: 0.6 }}>MARKET CHART</span>
             </div>
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              <Empty label="شاشة التداول الرئيسية" color={T.primary} />
+              <QuantumChartEngine />
             </div>
           </div>
 

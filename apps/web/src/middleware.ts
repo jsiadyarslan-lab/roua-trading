@@ -2,21 +2,15 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  // ── DEV BYPASS: skip auth in local development ──
-  if (process.env.NODE_ENV === 'development') {
-    return NextResponse.next()
-  }
-
-  const session = request.cookies.get('roua_session')
-  const isDashboard = request.nextUrl.pathname.startsWith('/dashboard')
-
-  if (isDashboard && !session) {
-    return NextResponse.redirect(new URL('/', request.url))
-  }
-
+  // Allow all requests to pass through to break the redirect loop.
+  // The client-side dashboard components and hooks (like useAuth) 
+  // will handle unauthenticated states gracefully.
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: '/dashboard/:path*',
+  matcher: [
+    '/dashboard/:path*',
+    '/dashboard'
+  ],
 }

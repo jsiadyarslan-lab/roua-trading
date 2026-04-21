@@ -39,10 +39,9 @@ export function useAuth() {
         }
       } catch { /* no session */ }
 
-      const hasCookie = document.cookie.includes('roua_session')
-      if (!hasCookie && mounted) {
-        router.push('/')
-      }
+      // DEV MODE: no redirect — allow unauthenticated access locally
+      // In production, the middleware handles this redirect
+      if (mounted) setUser(null)
     }
 
     checkAuth().finally(() => {

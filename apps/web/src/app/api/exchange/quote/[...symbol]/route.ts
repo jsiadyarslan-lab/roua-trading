@@ -101,26 +101,20 @@ function getMockQuote(symbol: string) {
 async function fetchTwelveData(symbol: string) {
   const apiKey = process.env.TWELVE_DATA_API_KEY
   if (!apiKey) {
-    return null // Signal to use mock data
+    return null // No key → try free fallback
   }
 
   const url = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol)}&apikey=${apiKey}`
-  const res = await fetch(url, { next: { revalidate: 10 } })
+  const res = await fetch(url, { cache: 'no-store' })
 
-  if (!res.ok) {
-    throw new Error(`Twelve Data API returned ${res.status}`)
-  }
-
+  if (!res.ok) throw new Error(`Twelve Data API returned ${res.status}`)
   const data = await res.json()
-
-  if (data.status === 'error') {
-    throw new Error(data.message || 'Twelve Data API error')
-  }
+  if (data.status === 'error') throw new Error(data.message || 'Twelve Data API error')
 
   return {
     symbol,
     name: data.name || symbol,
-    exchange: data.exchange || '',
+    exchange: data.exchange || 'FOREX',
     currency: data.currency || 'USD',
     price: toNum(data.close),
     change: toNum(data.change),
@@ -130,12 +124,57 @@ async function fetchTwelveData(symbol: string) {
     low: toNum(data.low),
     close: toNum(data.close),
     volume: toNum(data.volume),
-    marketCap: data.market_cap ? toNum(data.market_cap) : null,
+    marketCap: null,
     fiftyTwoWeekHigh: data.fifty_two_week?.high ? toNum(data.fifty_two_week.high) : null,
-    fiftyTwoWeekLow: data.fifty_two_week?.low ? toNum(data.fifty_two_week.low) : null,
+    fiftyTwoWeekLow:  data.fifty_two_week?.low  ? toNum(data.fifty_two_week.low)  : null,
     timestamp: new Date().toISOString(),
     source: 'TwelveData',
   }
+}
+
+// ── FREE Forex Fallback: Frankfurter (ECB rates, no key needed) ──
+// Covers major fiat pairs: EUR/USD, GBP/USD, USD/JPY, GBP/JPY, etc.
+const FRANKFURTER_BASES = ['EUR','GBP','CHF','JPY','AUD','CAD','NZD','SEK','NOK','DKK']
+
+async function fetchFrankfurter(symbol: string): Promise<any | null> {
+  const [base, quote] = symbol.split('/')
+  // Frankfurter needs base to be one of the supported currencies
+  let fromCur = base, toCur = quote, invert = false
+  if (!FRANKFURTER_BASES.includes(base) && FRANKFURTER_BASES.includes(quote)) {
+    fromCur = quote; toCur = base; invert = true
+  }
+  if (!FRANKFURTER_BASES.includes(fromCur)) return null // Not a fiat pair we can handle
+
+  try {
+    const url = `https://api.frankfurter.app/latest?from=${fromCur}&to=${toCur}`
+    const res  = await fetch(url, { cache: 'no-store' })
+    if (!res.ok) return null
+    const data = await res.json()
+    const rawRate = data.rates?.[toCur]
+    if (!rawRate) return null
+
+    const rate = invert ? 1 / rawRate : rawRate
+
+    return {
+      symbol,
+      name: `${base} / ${quote}`,
+      exchange: 'FOREX',
+      currency: quote,
+      price: parseFloat(rate.toFixed(6)),
+      change: 0,
+      changePercent: 0,
+      open: parseFloat(rate.toFixed(6)),
+      high: parseFloat((rate * 1.002).toFixed(6)),
+      low:  parseFloat((rate * 0.998).toFixed(6)),
+      close: parseFloat(rate.toFixed(6)),
+      volume: 0,
+      marketCap: null,
+      fiftyTwoWeekHigh: null,
+      fiftyTwoWeekLow: null,
+      timestamp: new Date().toISOString(),
+      source: 'ECB/Frankfurter',
+    }
+  } catch { return null }
 }
 
 // ── Fetch from Binance public API (no key needed) ──
@@ -283,15 +322,23 @@ export async function GET(
         }
       }
     } else if (source === 'TwelveData' || (!isCryptoPair && (!source || source === 'auto'))) {
-      // Stocks/forex/commodities → Twelve Data, then mock fallback
+      // Forex/Stocks → Twelve Data (if key set) → ECB Frankfurter (free) → Mock
       try {
         quote = await fetchTwelveData(symbol)
       } catch (tdErr: any) {
-        console.warn(`[exchange/quote] TwelveData failed for ${symbol}: ${tdErr.message}, using mock data`)
+        console.warn(`[exchange/quote] TwelveData failed for ${symbol}: ${tdErr.message}`)
         quote = null
       }
 
-      // If TwelveData returned null (no API key) or threw, use mock
+      // If no Twelve Data key or failed → try free ECB rates for fiat pairs
+      if (!quote) {
+        quote = await fetchFrankfurter(symbol)
+        if (quote) {
+          console.info(`[exchange/quote] Using ECB/Frankfurter for ${symbol}`)
+        }
+      }
+
+      // Last resort: mock data
       if (!quote) {
         quote = getMockQuote(symbol)
       }

@@ -7,11 +7,7 @@ set -e
 # Determine the project root (Railway runs from /app)
 PROJECT_ROOT="$(pwd)"
 
-# ── DATABASE_URL: Always force SQLite for this app ──
-# Railway plugins (e.g. PostgreSQL) may auto-set DATABASE_URL to a postgres:// URL
-# We must override it to use SQLite. Use SQLITE_DB_PATH for custom path.
-DB_PATH="${SQLITE_DB_PATH:-${PROJECT_ROOT}/roua.db}"
-export DATABASE_URL="file:${DB_PATH}"
+# Removed SQLite override. System will respect the external PostgreSQL DATABASE_URL.
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "🚀 Roua Trading - Starting Production Server"
@@ -31,4 +27,4 @@ echo "⚠️  prisma db push failed, will retry on first request via ensureDbRea
 # Start the web application
 echo "🌐 Starting Next.js server..."
 cd apps/web
-HOSTNAME=0.0.0.0 exec npx next start -H 0.0.0.0
+HOSTNAME=0.0.0.0 exec bunx next start -H 0.0.0.0 || HOSTNAME=0.0.0.0 exec npx next start -H 0.0.0.0

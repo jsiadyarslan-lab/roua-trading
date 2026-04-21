@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -27,6 +27,7 @@ model User {
   orders              Order[]
   positions           Position[]
   trades              Trade[]
+  tradingBots         TradingBot[]
 }
 
 enum Tier {
@@ -403,5 +404,49 @@ model Account {
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// ── Strategy Reports ──
+model StrategyReport {
+  id              String   @id @default(cuid())
+  symbol          String
+  assetName       String
+  title           String
+  type            String
+  severity        String
+  price           Float
+  change          Float
+  isUp            Boolean
+  tag             String?
+  decision        String   // JSON stringified { title, color, desc }
+  matrix          String   // JSON stringified array of matrices
+  risk            String   // JSON stringified risk metrics
+  flow            String   // JSON stringified dark pool flows
+  consensus       String
+  hiddenSignature String
+  deepAnalysis    String   // JSON stringified string[]
+  publishedAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@index([symbol])
+  @@index([type])
+}
+
+// ── Trading Bot (Automation Engine) ──
+model TradingBot {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String   @default("HFT-Alpha")
+  strategy        String   @default("Scalp AI")
+  isActive        Boolean  @default(false)
+  winRate         Float    @default(0)
+  totalTrades     Int      @default(0)
+  dailyPnl        Float    @default(0)
+  statusMessage   String   @default("SYSTEM_IDLE")
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }

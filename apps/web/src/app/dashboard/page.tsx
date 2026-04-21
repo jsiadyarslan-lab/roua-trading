@@ -238,19 +238,13 @@ const COL1_PANELS: Record<string, { label: string; accent: string; flex?: string
   narrator:   { label: 'سرد السوق',    accent: T.purple, flex: '0 0 22%', body: '' },
 }
 
-const COL3_PANELS: Record<string, { label: string; accent: string; body: string }> = {
-  bot:        { label: 'البوت',           accent: T.cyan,   body: 'ربوت التداول الآلي'        },
-  scanner:    { label: 'سكانر الأسواق',  accent: T.amber,  body: 'فحص السوق في الوقت الفعلي' },
-  'multi-tf': { label: 'تحليل متعدد الأطر', accent: T.purple, body: 'تحليل الأطر الزمنية'       },
-  signals:    { label: 'إشارات الدخول',  accent: T.green,  body: 'إشارات التداول النشطة'    },
-}
+// COL3 panels replaced with Tabs in Col3TabbedPanel
 
 /* ════════════════════════════════════════════
    DASHBOARD PAGE
 ════════════════════════════════════════════ */
 export default function DashboardPage() {
   const col1 = useDraggableColumn('col1', ['portfolio','quick-exec','order-book','watchlist','narrator'])
-  const col3 = useDraggableColumn('col3', ['bot','scanner','multi-tf','signals'])
 
   /* Positions open — collapsible separately */
   const [posOpen, setPosOpen] = useState(true)
@@ -407,73 +401,86 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ══════════ COL 3 — 2×2 شبكة قابلة للسحب ══════════ */}
-        <div
-          className="dash-col"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gridTemplateRows: '1fr 1fr',
-            gap: 4, overflowY: 'auto', overflowX: 'hidden', paddingLeft: 4
-          }}
-          onDragEnd={col3.onDragEnd}
-        >
-          {col3.order.map(id => {
-            const def = COL3_PANELS[id]
-            if (!def) return null
-            const isCollapsed = !!col3.collapsed[id]
-            return (
-              <Panel
-                key={id} id={id}
-                label={def.label} accent={def.accent}
-                collapsed={isCollapsed}
-                onToggle={() => col3.toggleCollapse(id)}
-                onDragStart={col3.onDragStart}
-                onDragOver={col3.onDragOver}
-                onDrop={col3.onDrop}
-                isDragOver={col3.dragOver === id}
-              >
-                {id === 'multi-tf' ? (
-                  <div style={{ height: '100%', padding: '12px', display: 'flex', flexDirection: 'column', gap: 8, overflowY: 'auto' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>BTC/USD</span>
-                      <span style={{ fontSize: 9, background: `${T.purple}20`, color: T.purple, padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>Live AI Sync</span>
-                    </div>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, justifyContent: 'center' }}>
-                      {[
-                        { tf: '15M', state: 'Bullish', strength: 85, color: T.green },
-                        { tf: '1H', state: 'Slight Bullish', strength: 65, color: T.green },
-                        { tf: '4H', state: 'Neutral', strength: 40, color: T.amber },
-                        { tf: '1D', state: 'Bearish', strength: 25, color: T.red }
-                      ].map((t, i) => (
-                        <div key={i} style={{ background: T.bg, borderRadius: 8, border: `0.5px solid ${T.border}`, padding: '6px 10px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 10, fontWeight: 900, color: t.color, width: 24, fontFamily: "'JetBrains Mono', monospace" }}>{t.tf}</span>
-                          <div style={{ flex: 1, height: 4, background: T.bg2, borderRadius: 2, overflow: 'hidden', margin: '0 4px' }}>
-                            <div style={{ height: '100%', width: `${t.strength}%`, background: t.color, boxShadow: `0 0 6px ${t.color}` }} />
-                          </div>
-                          <span style={{ fontSize: 9, color: t.color, fontWeight: 800, width: 24, textAlign: 'right', fontFamily: "'JetBrains Mono', monospace" }}>{t.strength}%</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div style={{ marginTop: 'auto', textAlign: 'center', fontSize: 10, color: T.purple, padding: '6px', background: `${T.purple}10`, border: `0.5px solid ${T.purple}30`, borderRadius: 6, fontWeight: 800 }}>
-                      مضاربة سريعة مبكرة (Scalping)
-                    </div>
-                  </div>
-                ) : id === 'bot' ? (
-                  <BotMini />
-                ) : id === 'scanner' ? (
-                  <ScannerMini />
-                ) : (
-                  <Empty label={def.body} color={def.accent} />
-                )}
-              </Panel>
-            )
-          })}
-        </div>
+        {/* ══════════ COL 3 — Tabs Panel ══════════ */}
+        <Col3TabbedPanel />
 
       </div>
     </>
+  )
+}
+
+function Col3TabbedPanel() {
+  const [active, setActive] = useState('bot')
+  const TABS = [
+    { id: 'bot', label: 'البوت', accent: T.cyan },
+    { id: 'scanner', label: 'السكانر', accent: T.amber },
+    { id: 'multi-tf', label: 'متعدد الأطر', accent: T.purple },
+    { id: 'signals', label: 'إشارات', accent: T.green },
+  ]
+
+  return (
+    <div className="dash-col" style={{
+      display: 'flex', flexDirection: 'column', height: '100%',
+      background: T.card, border: `0.5px solid ${T.border}`,
+      borderRadius: 10, overflow: 'hidden'
+    }}>
+      {/* Tabs Header */}
+      <div style={{
+        display: 'flex', background: T.bg2, borderBottom: `0.5px solid ${T.border}`,
+        padding: '6px', gap: 4, flexShrink: 0
+      }}>
+        {TABS.map(t => {
+           const isActive = active === t.id
+           return (
+             <button key={t.id} onClick={() => setActive(t.id)} style={{
+               flex: 1, padding: '8px 2px', background: isActive ? `${t.accent}15` : 'transparent',
+               border: `0.5px solid ${isActive ? t.accent + '40' : 'transparent'}`,
+               borderRadius: 6, color: isActive ? t.accent : T.text2,
+               fontSize: 10.5, fontWeight: isActive ? 800 : 600, cursor: 'pointer',
+               fontFamily: "'Cairo', sans-serif", transition: '0.2s', display: 'flex',
+               justifyContent: 'center', alignItems: 'center'
+             }}>
+               {t.label}
+             </button>
+           )
+        })}
+      </div>
+      
+      {/* Tab Body */}
+      <div style={{ flex: 1, overflow: 'hidden', padding: 0 }}>
+         {active === 'bot' && <div style={{ height: '100%', overflowY: 'auto' }}><BotMini /></div>}
+         {active === 'scanner' && <div style={{ height: '100%', overflowY: 'auto' }}><ScannerMini /></div>}
+         {active === 'signals' && <Empty label="إشارات الدخول - قريباً" color={T.green} />}
+         {active === 'multi-tf' && (
+           <div style={{ height: '100%', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+               <span style={{ fontSize: 14, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>BTC/USD</span>
+               <span style={{ fontSize: 10, background: `${T.purple}20`, color: T.purple, padding: '4px 10px', borderRadius: 4, fontWeight: 700 }}>Live AI Sync</span>
+             </div>
+             
+             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, justifyContent: 'center' }}>
+               {[
+                 { tf: '15M', state: 'Bullish',  strength: 85, color: T.green },
+                 { tf: '1H',  state: 'Slight Bullish', strength: 65, color: T.green },
+                 { tf: '4H',  state: 'Neutral',  strength: 40, color: T.amber },
+                 { tf: '1D',  state: 'Bearish',  strength: 25, color: T.red }
+               ].map((t, i) => (
+                 <div key={i} style={{ background: T.bg, borderRadius: 8, border: `0.5px solid ${T.border}`, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                   <span style={{ fontSize: 12, fontWeight: 900, color: t.color, width: 30, fontFamily: "'JetBrains Mono', monospace" }}>{t.tf}</span>
+                   <div style={{ flex: 1, height: 6, background: T.bg2, borderRadius: 3, overflow: 'hidden', margin: '0 4px' }}>
+                     <div style={{ height: '100%', width: `${t.strength}%`, background: t.color, boxShadow: `0 0 8px ${t.color}` }} />
+                   </div>
+                   <span style={{ fontSize: 11, color: t.color, fontWeight: 800, width: 34, textAlign: 'right', fontFamily: "'JetBrains Mono', monospace" }}>{t.strength}%</span>
+                 </div>
+               ))}
+             </div>
+
+             <div style={{ marginTop: 'auto', textAlign: 'center', fontSize: 12, color: T.purple, padding: '10px', background: `${T.purple}10`, border: `0.5px solid ${T.purple}30`, borderRadius: 6, fontWeight: 800 }}>
+               مضاربة سريعة مبكرة (Scalping)
+             </div>
+           </div>
+         )}
+      </div>
+    </div>
   )
 }

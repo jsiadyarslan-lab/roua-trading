@@ -424,21 +424,22 @@ function Col3TabbedPanel() {
       background: T.card, border: `0.5px solid ${T.border}`,
       borderRadius: 10, overflow: 'hidden'
     }}>
-      {/* Tabs Header */}
+      {/* Sleek Segmented Tabs Header */}
       <div style={{
-        display: 'flex', background: T.bg2, borderBottom: `0.5px solid ${T.border}`,
-        padding: '6px', gap: 4, flexShrink: 0
+        display: 'flex', background: T.bg, borderBottom: `0.5px solid ${T.border}`,
+        padding: '6px 6px 0', gap: 6, flexShrink: 0
       }}>
         {TABS.map(t => {
            const isActive = active === t.id
            return (
              <button key={t.id} onClick={() => setActive(t.id)} style={{
-               flex: 1, padding: '8px 2px', background: isActive ? `${t.accent}15` : 'transparent',
-               border: `0.5px solid ${isActive ? t.accent + '40' : 'transparent'}`,
-               borderRadius: 6, color: isActive ? t.accent : T.text2,
-               fontSize: 10.5, fontWeight: isActive ? 800 : 600, cursor: 'pointer',
-               fontFamily: "'Cairo', sans-serif", transition: '0.2s', display: 'flex',
-               justifyContent: 'center', alignItems: 'center'
+               flex: 1, padding: '6px 0', background: 'transparent',
+               border: 'none',
+               borderBottom: `2px solid ${isActive ? t.accent : 'transparent'}`,
+               color: isActive ? T.text : T.text3,
+               fontSize: 10, fontWeight: isActive ? 700 : 500, cursor: 'pointer',
+               fontFamily: "'Cairo', sans-serif", transition: '0.2s',
+               display: 'flex', justifyContent: 'center', alignItems: 'center'
              }}>
                {t.label}
              </button>
@@ -455,7 +456,7 @@ function Col3TabbedPanel() {
            <div style={{ height: '100%', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                <span style={{ fontSize: 14, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>BTC/USD</span>
-               <span style={{ fontSize: 10, background: `${T.purple}20`, color: T.purple, padding: '4px 10px', borderRadius: 4, fontWeight: 700 }}>Live AI Sync</span>
+               <span style={{ fontSize: 9, background: `${T.purple}15`, border: `0.5px solid ${T.purple}30`, color: T.purple, padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>Live AI Sync</span>
              </div>
              
              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, justifyContent: 'center' }}>
@@ -465,18 +466,18 @@ function Col3TabbedPanel() {
                  { tf: '4H',  state: 'Neutral',  strength: 40, color: T.amber },
                  { tf: '1D',  state: 'Bearish',  strength: 25, color: T.red }
                ].map((t, i) => (
-                 <div key={i} style={{ background: T.bg, borderRadius: 8, border: `0.5px solid ${T.border}`, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                   <span style={{ fontSize: 12, fontWeight: 900, color: t.color, width: 30, fontFamily: "'JetBrains Mono', monospace" }}>{t.tf}</span>
-                   <div style={{ flex: 1, height: 6, background: T.bg2, borderRadius: 3, overflow: 'hidden', margin: '0 4px' }}>
-                     <div style={{ height: '100%', width: `${t.strength}%`, background: t.color, boxShadow: `0 0 8px ${t.color}` }} />
+                 <div key={i} style={{ background: T.bg2, borderRadius: 6, border: `0.5px solid ${T.border}`, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                   <span style={{ fontSize: 10, fontWeight: 900, color: t.color, width: 24, fontFamily: "'JetBrains Mono', monospace" }}>{t.tf}</span>
+                   <div style={{ flex: 1, height: 4, background: T.bg, borderRadius: 2, overflow: 'hidden', margin: '0 4px' }}>
+                     <div style={{ height: '100%', width: `${t.strength}%`, background: t.color, boxShadow: `0 0 6px ${t.color}80` }} />
                    </div>
-                   <span style={{ fontSize: 11, color: t.color, fontWeight: 800, width: 34, textAlign: 'right', fontFamily: "'JetBrains Mono', monospace" }}>{t.strength}%</span>
+                   <span style={{ fontSize: 9, color: t.color, fontWeight: 800, width: 24, textAlign: 'right', fontFamily: "'JetBrains Mono', monospace" }}>{t.strength}%</span>
                  </div>
                ))}
              </div>
 
-             <div style={{ marginTop: 'auto', textAlign: 'center', fontSize: 12, color: T.purple, padding: '10px', background: `${T.purple}10`, border: `0.5px solid ${T.purple}30`, borderRadius: 6, fontWeight: 800 }}>
-               مضاربة سريعة مبكرة (Scalping)
+             <div style={{ marginTop: 'auto', textAlign: 'center', fontSize: 10, color: T.text2, padding: '8px', border: `0.5px dashed ${T.border}`, borderRadius: 6, fontWeight: 600 }}>
+               استراتيجية الأطر: <span style={{color: T.purple}}>Scalping</span>
              </div>
            </div>
          )}

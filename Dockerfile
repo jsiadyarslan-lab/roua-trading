@@ -1,22 +1,21 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Roua Trading — Single-Stage Production Dockerfile
-# Optimised for Railway + Bun monorepo (Turborepo)
+# Roua Trading — Production Dockerfile for Railway
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FROM oven/bun:1
 
 WORKDIR /app
 
-# Copy all source files first
+# Copy all source files
 COPY . .
 
-# Install all dependencies (no frozen lockfile needed)
+# Install all workspace dependencies
 RUN bun install
 
 # Generate Prisma client
 RUN bunx prisma generate --schema=./prisma/schema.prisma
 
-# Build the Next.js app via turbo
-RUN bun run build
+# Build Next.js directly via bunx to ensure binary is found
+RUN cd apps/web && bunx next build --webpack
 
 # Runtime environment
 ENV NODE_ENV=production
@@ -28,5 +27,4 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
-# Run DB migrations then start Next.js
 CMD ["bash", "start.sh"]

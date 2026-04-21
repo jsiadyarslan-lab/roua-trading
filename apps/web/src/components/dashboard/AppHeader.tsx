@@ -34,6 +34,8 @@ const H_NEWS  = 26
 const H_CURR  = 32
 const H_NAV   = 42
 const H_TOTAL = H_NEWS + H_CURR + H_NAV
+const ORB_D   = 108
+const ORB_GAP = 120
 
 type MarketState = 'bullish' | 'bearish' | 'volatile' | 'neutral'
 
@@ -125,10 +127,10 @@ function CosmicOrb({ state }: { state: MarketState }) {
 function LogoCircle({ state }: { state: MarketState }) {
   const c = STATE[state]
   return (
-    <div className="orb-container" style={{
+    <div style={{
       position: 'absolute', top: '50%', right: 10,
       transform: 'translateY(-50%)',
-      borderRadius: '50%',
+      width: ORB_D, height: ORB_D, borderRadius: '50%',
       background: `radial-gradient(circle at 50% 40%, #0D1520, #020308)`,
       border: `1.5px solid ${c.core}44`,
       boxShadow: `0 0 28px ${c.glow}, 0 0 0 4px ${c.core}11`,
@@ -170,11 +172,12 @@ function NewsTicker() {
   const doubled = items.length ? [...items, ...items] : []
 
   return (
-    <div className="radius-top-right" style={{
+    <div style={{
       height: H_NEWS, background: T.bg,
       borderBottom: `0.5px solid ${T.border}`,
       display: 'flex', alignItems: 'center',
       overflow: 'hidden',
+      borderTopRightRadius: ORB_D / 2,
     }}>
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
         {doubled.length > 0 ? (
@@ -270,11 +273,11 @@ function CurrencyTicker() {
   }))
 
   return (
-    <div className="no-scrollbar" style={{
+    <div style={{
       height: H_CURR, background: T.bg2,
       borderBottom: `0.5px solid ${T.border}`,
       display: 'flex', alignItems: 'center',
-      padding: '0 6px', overflowX: 'auto',
+      padding: '0 6px',
     }}>
       {rows.map(({ sym, q, flash }, i) => {
         const flashBg = flash === 'up'
@@ -287,8 +290,7 @@ function CurrencyTicker() {
 
         return (
           <div key={sym} style={{
-            flexShrink: 0, minWidth: 80,
-            display: 'flex', flexDirection: 'column',
+            flex: 1, display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
             padding: '2px 6px',
             borderLeft: i < rows.length - 1 ? `0.5px solid ${T.border}` : 'none',
@@ -356,13 +358,14 @@ function MainNav() {
   const [moreOpen, setMoreOpen] = useState(false)
 
   return (
-    <div className="radius-bottom-right no-scrollbar" style={{
+    <div style={{
       height: H_NAV,
       backdropFilter: 'blur(20px) saturate(1.6)',
       WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
       background: T.navGlass,
       display: 'flex', alignItems: 'center',
-      padding: '0 8px', gap: 0, overflowX: 'auto',
+      padding: '0 8px', gap: 0, overflow: 'hidden',
+      borderBottomRightRadius: ORB_D / 2,
     }}>
       {NAV_LINKS.map(({ href, label, icon: Icon }) => {
         const active = pathname === href ||
@@ -393,7 +396,7 @@ function MainNav() {
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '5px 9px', cursor: 'pointer',
             background: 'transparent', border: 'none',
-            color: T.text2, fontFamily: "'Cairo', sans-serif", fontSize: 11.5, whiteSpace: 'nowrap',
+            color: T.text2, fontFamily: "'Cairo', sans-serif", fontSize: 11.5,
           }}
         >
           <MoreHorizontal size={11} />
@@ -439,7 +442,7 @@ function MainNav() {
         )}
       </div>
 
-      <div style={{ flex: 1, minWidth: 16 }} />
+      <div style={{ flex: 1 }} />
 
       <div style={{
         flexShrink: 0, display: 'flex', alignItems: 'center',
@@ -455,20 +458,8 @@ function MainNav() {
   )
 }
 
-/* ─── Keyframes & Variables ─── */
+/* ─── Keyframes ─── */
 const KF = `
-:root {
-  --orb-d: 108px;
-  --orb-gap: 120px;
-}
-
-@media (max-width: 1024px) {
-  :root {
-    --orb-d: 72px;
-    --orb-gap: 80px;
-  }
-}
-
 @keyframes news-scroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
 @keyframes ring-cw     { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 @keyframes ring-ccw    { from{transform:rotate(0deg)} to{transform:rotate(-360deg)} }
@@ -479,21 +470,8 @@ const KF = `
 @keyframes star-blink {
   0%,100%{ opacity:0.25 } 50%{ opacity:0.9 }
 }
-
-.no-scrollbar::-webkit-scrollbar { display:none; }
-.no-scrollbar { -ms-overflow-style:none; scrollbar-width:none; }
-
-.orb-container {
-  width: var(--orb-d);
-  height: var(--orb-d);
-}
-
-.nav-container {
-  margin-right: var(--orb-gap);
-}
-
-.radius-top-right { border-top-right-radius: calc(var(--orb-d) / 2); }
-.radius-bottom-right { border-bottom-right-radius: calc(var(--orb-d) / 2); }
+header *            { scrollbar-width:none; -ms-overflow-style:none; }
+header *::-webkit-scrollbar { display:none; }
 `
 
 /* ══ Root export ══ */
@@ -522,10 +500,9 @@ export function AppHeader() {
         direction: 'rtl', height: H_TOTAL,
       }}>
         <LogoCircle state={marketState} />
-        <div className="nav-container" style={{
-          height: '100%',
+        <div style={{
+          height: '100%', marginRight: ORB_GAP,
           display: 'flex', flexDirection: 'column',
-          width: 'calc(100% - var(--orb-gap))'
         }}>
           <NewsTicker />
           <CurrencyTicker />

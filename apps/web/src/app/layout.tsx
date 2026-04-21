@@ -27,28 +27,11 @@ const orbitron = Orbitron({
   variable: "--font-brand",
 });
 
-import { Viewport } from "next";
-
-export const viewport: Viewport = {
-  themeColor: "#0A84FF",
-  width: "device-width",
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-};
-
 export const metadata: Metadata = {
   title: "رؤى | منصة التداول الذكية",
   description: "منصة رؤى للتداول الذكي - Roua Trading Platform",
-  manifest: "/manifest.json",
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
-    apple: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "رؤى",
   },
 };
 

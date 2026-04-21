@@ -50,9 +50,9 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Security: non-root user
-RUN addgroup --system --gid 1001 roua \
-    && adduser --system --uid 1001 --ingroup roua webuser
+# Security: non-root user (Debian-compatible commands)
+RUN groupadd --system --gid 1001 roua \
+    && useradd --system --uid 1001 --gid roua webuser
 
 # Copy full built source (needed for Prisma + start.sh)
 COPY --from=builder --chown=webuser:roua /app ./

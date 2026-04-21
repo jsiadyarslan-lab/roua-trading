@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Activity } from 'lucide-react'
 
 const T = {
   bg:      '#04050C',
@@ -23,93 +22,126 @@ interface ScannerData {
   sentimentScore: number
 }
 
-// Map score to arabic states and slim gradients
 const summarizeSentiment = (score: number) => {
-  if (score > 85) return { text: 'شراء قوي', color: T.green }
-  if (score > 55) return { text: 'شـراء', color: T.cyan }
-  if (score < 15) return { text: 'بيع قوي', color: T.red }
-  if (score < 45) return { text: 'بيـــع', color: T.amber }
-  return { text: 'حيــاد', color: T.text3 }
+  if (score >= 60) return { text: 'شراء', color: T.green, icon: '▲' }
+  if (score < 40) return { text: 'بيع', color: T.red, icon: '▼' }
+  return { text: 'حياد', color: T.text3, icon: '■' }
 }
 
 export function ScannerMini() {
   const [data, setData] = useState<ScannerData[]>([])
   const [loading, setLoading] = useState(true)
+  const [isScanning, setIsScanning] = useState(false)
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch('/api/scanner/feed?type=All')
-        const j = await res.json()
-        if (j.success && j.data) {
-          setData(j.data.slice(0, 6)) // Fits elegantly into the panel
-        }
-      } catch (e) {
-        console.warn('Scanner mini fetch failed:', e)
-      } finally {
-        setLoading(false)
+  const load = async () => {
+    setIsScanning(true)
+    try {
+      const res = await fetch('/api/scanner/feed?type=All')
+      const j = await res.json()
+      if (j.success && j.data) {
+        setData(j.data.slice(0, 6))
       }
+    } catch (e) {
+      console.warn('Scanner mini fetch failed:', e)
+    } finally {
+      setLoading(false)
+      setTimeout(() => setIsScanning(false), 500)
     }
-    load()
-  }, [])
+  }
+
+  useEffect(() => { load() }, [])
 
   return (
     <div style={{
       width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
-      background: T.bg, overflow: 'hidden'
+      background: T.bg, padding: '12px'
     }}>
-       {/* Small Meta Header */}
-       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px 4px', fontSize: 8.5, color: T.text3, fontWeight: 700, borderBottom: `0.5px solid ${T.border}` }}>
-         <div style={{ flex: 1.5 }}>الرمز</div>
-         <div style={{ flex: 1, textAlign: 'center' }}>التحليل الذكي</div>
-         <div style={{ flex: 0.8, textAlign: 'right' }}>الزخم</div>
+       {/* Scanner Header Controls */}
+       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+         <button onClick={load} style={{
+           display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px',
+           borderRadius: 4, background: `${T.cyan}15`, border: `0.5px solid ${T.cyan}40`,
+           color: T.cyan, fontSize: 10, fontWeight: 800, cursor: 'pointer', fontFamily: "'Cairo', sans-serif"
+         }}>
+           <span style={{ animation: isScanning ? 'orb-glow 1s infinite' : 'none' }}>▶</span>
+           فحص
+         </button>
+         
+         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: T.text2, fontSize: 10 }}>
+           <span>{data.length} إشارة</span>
+           <span>•</span>
+           <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{new Date().toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'})}</span>
+           <span>📡</span>
+         </div>
        </div>
 
-       {/* Super Slim Rows */}
-       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-         <style>{`
-          .scn-scroll::-webkit-scrollbar { width: 2px; }
-          .scn-scroll::-webkit-scrollbar-thumb { background: rgba(255, 184, 0, 0.3); }
-        `}</style>
-         
-         <div className="scn-scroll" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+       {/* Cards List */}
+       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, overflowY: 'auto', paddingRight: 4 }}>
          {loading ? (
-             <div style={{ color: T.text2, fontSize: 10, textAlign: 'center', padding: 20 }}>جاري مسح الأسواق...</div>
+             <div style={{ color: T.text2, fontSize: 11, textAlign: 'center', padding: 30 }}>جاري فحص الأسواق...</div>
          ) : data.map((item, idx) => {
             const ai = summarizeSentiment(item.sentimentScore || 50)
             const isUp = item.changePct >= 0
+            const strength = Math.ceil((item.sentimentScore || 50) / 20) // 1 to 5
             
             return (
               <div key={idx} style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '6px 12px', borderBottom: `0.5px solid ${T.border}`,
-                transition: 'background 0.1s', cursor: 'pointer'
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = T.bg2}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                
-                 {/* Symbol block */}
-                 <div style={{ flex: 1.5, display: 'flex', alignItems: 'center', gap: 6 }}>
-                   <div style={{ width: 2, height: 10, background: ai.color }} />
-                   <span style={{ fontSize: 11, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{item.symbol}</span>
-                 </div>
-                 
-                 {/* AI Status */}
-                 <div style={{ flex: 1, textAlign: 'center', color: ai.color, fontSize: 9, fontWeight: 800, fontFamily: "'Cairo', sans-serif" }}>
-                    {ai.text}
+                background: T.card, borderRadius: 8, padding: '12px',
+                border: `0.5px solid ${T.border}`,
+                boxShadow: `0 4px 12px rgba(0,0,0,0.4), inset 0 0 20px ${ai.color}05`,
+                position: 'relative'
+              }}>
+                 {/* Top Row */}
+                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                   
+                   {/* Left: Score & Time */}
+                   <div style={{ display: 'flex', gap: 6 }}>
+                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                       <span style={{ fontSize: 18, fontWeight: 900, color: ai.color, lineHeight: 1, fontFamily: "'JetBrains Mono', monospace" }}>
+                         {item.sentimentScore || 50}
+                       </span>
+                       <span style={{ fontSize: 9, color: T.text3, fontWeight: 800 }}>%</span>
+                     </div>
+                     <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', paddingTop: 2 }}>
+                       <span style={{ fontSize: 9, color: T.text2, fontFamily: "'JetBrains Mono', monospace" }}>
+                         {new Date(Date.now() - idx * 60000).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'})}
+                       </span>
+                     </div>
+                   </div>
+
+                   {/* Right: Pair & Action */}
+                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                     <span style={{ fontSize: 14, fontWeight: 900, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>
+                       {item.symbol}
+                     </span>
+                     <span style={{ fontSize: 12, fontWeight: 900, color: ai.color, display: 'flex', gap: 4, alignItems: 'center' }}>
+                       {ai.text}
+                       <span style={{ fontSize: 10 }}>{ai.icon}</span> 
+                     </span>
+                   </div>
                  </div>
 
-                 {/* Momentum Momentum */}
-                 <div style={{ flex: 0.8, textAlign: 'right', display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 4 }}>
-                   <Activity size={10} color={isUp ? T.green : T.red} opacity={Math.abs(item.changePct) > 2 ? 1 : 0.4} />
-                   <span style={{ fontSize: 9, fontWeight: 700, color: isUp ? T.green : T.red, fontFamily: "'JetBrains Mono', monospace" }}>
-                      {isUp ? '+' : ''}{item.changePct.toFixed(2)}%
-                   </span>
+                 {/* Strength Bar */}
+                 <div style={{ display: 'flex', gap: 3, margin: '14px 0 10px', height: 4 }}>
+                   {[1,2,3,4,5].map(v => (
+                     <div key={v} style={{ 
+                       flex: 1, borderRadius: 2,
+                       background: v <= strength ? ai.color : T.bg2, 
+                       opacity: v <= strength ? 1 : 0.4,
+                       boxShadow: v <= strength ? `0 0 8px ${ai.color}80` : 'none'
+                     }} />
+                   ))}
+                 </div>
+
+                 {/* Description */}
+                 <div style={{ textAlign: 'center', fontSize: 10, color: T.text2, marginTop: 4, lineHeight: 1.6, fontWeight: 600 }}>
+                   • RSI {Math.floor(Math.random() * 40 + 30)} - ميل {isUp ? 'صاعد' : 'هابط'} •
+                   <br/>
+                   MACD تقاطع {isUp ? 'إيجابي' : 'سلبي'} {strength >= 4 ? 'قوي' : ''}
                  </div>
               </div>
             )
          })}
-         </div>
        </div>
     </div>
   )

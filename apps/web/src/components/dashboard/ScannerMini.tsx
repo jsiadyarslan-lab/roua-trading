@@ -3,14 +3,14 @@
 import { useState, useEffect } from 'react'
 
 const T = {
-  bg:      '#04050C',
-  bg2:     '#0D1117',
-  card:    '#08090F',
-  border:  'rgba(10,132,255,0.12)',
+  bg:      '#0F1113',
+  bg2:     '#111214',
+  card:    '#111214',
+  border:  'rgba(255, 255, 255, 0.06)',
   amber:   '#FFB800',
-  cyan:    '#00C8FF',
-  green:   '#00FFC6',
-  red:     '#FF4D4D',
+  accent:  '#00E5FF',
+  success: '#00C853',
+  danger:  '#FF3B30',
   text:    '#E6EBF5',
   text2:   '#8090A8',
   text3:   '#A0AFC3',
@@ -59,14 +59,14 @@ export function ScannerMini() {
        {/* Scanner Header Controls */}
        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
          <button onClick={load} style={{
-           display: 'flex', alignItems: 'center', gap: 4, padding: '2px 10px',
-           borderRadius: 4, background: `${T.cyan}10`, border: `0.5px solid ${T.cyan}30`,
-           color: T.cyan, fontSize: 9, fontWeight: 800, cursor: 'pointer', fontFamily: "'Cairo', sans-serif"
-         }}>
-           <span style={{ animation: isScanning ? 'pulse 1s infinite' : 'none' }}>▶</span>
-           فحص
-         </button>
-         
+            display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px',
+            borderRadius: 8, background: `${T.accent}12`, border: `1px solid ${T.accent}25`,
+            color: T.accent, fontSize: 10, fontWeight: 800, cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
+            transition: 'all 0.2s'
+          }}>
+            <span style={{ animation: isScanning ? 'pulse 1s infinite' : 'none', fontSize: 11 }}>▶</span>
+            بدء الفحص
+          </button>
          <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: T.text3, fontSize: 9 }}>
            <span>{data.length} Signals</span>
            <span style={{ color: T.border }}>|</span>
@@ -86,10 +86,20 @@ export function ScannerMini() {
             
             return (
               <div key={idx} style={{
-                background: T.card, borderRadius: 6, padding: '8px 10px',
-                border: `0.5px solid ${T.border}`,
-                boxShadow: `inset 0 0 10px ${ai.color}05`,
-                position: 'relative'
+                background: T.card, borderRadius: 12, padding: '12px',
+                border: `1px solid ${T.border}`,
+                boxShadow: `inset 0 0 15px ${ai.color}08`,
+                position: 'relative',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                cursor: 'pointer'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = T.accent
+                e.currentTarget.style.transform = 'translateY(-2px)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = T.border
+                e.currentTarget.style.transform = 'translateY(0)'
               }}>
                  {/* Top Row */}
                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

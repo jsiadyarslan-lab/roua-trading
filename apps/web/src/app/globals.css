@@ -48,133 +48,72 @@
 
 :root,
 [data-theme="dark"] {
-  /* ── QUANTUM TRADE AI v5 Design System ── */
-  --bg: #090b10;
-  --bg2: #0d1018;
-  --bg3: #0f1525;
-  --bg4: #131a28;
+  /* ── ROUA TRADING DESIGN BUNDLE v1 ── */
+  --bg: #0F1113;
+  --bg2: #111214;
+  --bg3: #16181A;
+  --bg4: #1A1C1E;
 
-  --blue: #4d9eff;
-  --blue2: rgba(77,158,255,.12);
-  --blue3: rgba(77,158,255,.06);
-  --green: #00ff88;
-  --green2: rgba(0,255,136,.12);
-  --red: #ff3355;
-  --red2: rgba(255,51,85,.12);
-  --amber: #ffaa00;
-  --purple: #a78bfa;
+  --primary: #0A84FF;
+  --accent: #00E5FF;
+  --green: #00C853;
+  --red: #FF3B30;
+  --success: #00C853;
+  --danger: #FF3B30;
+  --amber: #FFB800;
+  --purple: #B388FF;
 
-  --text: #e0e8ff;
-  --text2: #7a9abb;
-  --text3: #3d5270;
+  --text: #E6EBF5;
+  --text2: #8090A8;
+  --text3: #A0AFC3;
   --text4: #1e2d42;
 
-  --border: rgba(77,158,255,.10);
-  --border2: rgba(77,158,255,.18);
+  --border: rgba(0, 229, 255, 0.08);
+  --border2: rgba(0, 229, 255, 0.15);
 
   --font-mono: 'JetBrains Mono', monospace;
-  --font-display: 'Syne', sans-serif;
-  --font-ui: 'Cairo', sans-serif;
-  --font-body: 'Readex Pro', sans-serif;
+  --font-display: 'Inter', sans-serif;
+  --font-ui: 'Inter', 'Cairo', sans-serif;
+  --font-body: 'Inter', sans-serif;
 
-  /* ── Legacy Roua Theme (keep for existing components) ── */
-  --bg-app: #090b10;
-  --bg-nav: #0d1018;
-  --bg-nav-solid: #0d1018;
-  --bg-panel: #0f1525;
-  --bg-card: #131a28;
-  --bg-card-2: #131a28b3;
-  --bg-card-3: #0f1520f2;
-  --bg-chart: #090b10;
-  --bg-input: #ffffff0a;
-  --bg-sidebar: #0d1018;
-  --bg-ticker: #090b10;
-  --bg-overlay: #03050ceb;
-  --bg-tooltip: #0d1018f7;
-  --bg-modal: #0f1525;
-  --bg-row-odd: #ffffff04;
-  --bg-row-hover: #4d9eff0a;
-  --bg-active: #4d9eff17;
-  --bg-active-2: #4d9eff1f;
+  --radius: 12px;
 
-  --border-subtle: #ffffff0f;
-  --border-strong: #ffffff1a;
-  --border-2: #ffffff0a;
-  --border-muted: #ffffff08;
-  --border-accent: #4d9eff40;
-  --border-profit: #00ff8840;
-  --border-loss: #ff335540;
-  --border-warning: #ffaa0040;
+  /* ── Secondary tokens for glassmorphism ── */
+  --bg-card: #111214;
+  --bg-input: rgba(255, 255, 255, 0.04);
+  
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --glow-accent: 0 0 15px rgba(0, 229, 255, 0.35);
 
-  --text-main: #e0e8ff;
-  --text-secondary: #7a9abb;
-  --text-muted: #7a9abb99;
-  --text-faint: #3d527066;
-  --text-dim: #3d527059;
-
-  --accent: #4d9eff;
-  --accent-bg: #4d9eff0f;
-  --accent-border: #4d9eff40;
-  --accent-bg-2: #4d9eff1f;
-  --accent-border-2: #4d9eff66;
-
-  --profit: #00ff88;
-  --profit-bg: rgba(0,255,136,.12);
-  --profit-2: #00ff88;
-  --loss: #ff3355;
-  --loss-bg: rgba(255,51,85,.12);
-
-  --warning: #ffaa00;
-  --warning-bg: #ffaa0012;
-  --gold: #ffaa00;
-
-  --purple-bg: #a78bfa14;
-  --purple-border: #a78bfa40;
-
-  --shadow: 0 4px 20px #0006;
-  --shadow-sm: 0 1px 6px #0006;
-  --shadow-lg: 0 8px 40px #0009;
-  --shadow-modal: 0 16px 64px #000000b3;
-  --shadow-card: 0 2px 12px #0000004d;
-
-  --glow-accent: 0 0 12px #4d9eff4d;
-  --glow-profit: 0 0 8px #00ff884d;
-  --glow-loss: 0 0 8px #ff33554d;
-  --glow-warning: 0 0 8px #ffaa004d;
-
-  /* shadcn dark theme variables */
-  --radius: 0.625rem;
-  --background: #090b10;
-  --foreground: #e0e8ff;
-  --card: #131a28;
-  --card-foreground: #e0e8ff;
-  --popover: #131a28;
-  --popover-foreground: #e0e8ff;
-  --primary: #4d9eff;
+  /* shadcn dark theme compatibility */
+  --background: #0F1113;
+  --foreground: #E6EBF5;
+  --card: #111214;
+  --card-foreground: #E6EBF5;
+  --popover: #111214;
+  --popover-foreground: #E6EBF5;
   --primary-foreground: #ffffff;
-  --secondary: #1e2a3d;
-  --secondary-foreground: #e0e8ff;
-  --muted: #0f1525;
-  --muted-foreground: #7a9abb;
-  --accent: #4d9eff;
+  --secondary: #16181A;
+  --secondary-foreground: #E6EBF5;
+  --muted: #1A1C1E;
+  --muted-foreground: #8090A8;
   --accent-foreground: #ffffff;
-  --destructive: #ff3355;
-  --border: rgba(77,158,255,.10);
-  --input: #ffffff0a;
-  --ring: #4d9eff;
-  --chart-1: #4d9eff;
-  --chart-2: #00ff88;
-  --chart-3: #ffaa00;
-  --chart-4: #a78bfa;
-  --chart-5: #ff3355;
-  --sidebar: #0d1018;
-  --sidebar-foreground: #e0e8ff;
-  --sidebar-primary: #4d9eff;
+  --destructive: #FF3B30;
+  --input: rgba(255, 255, 255, 0.04);
+  --ring: #0A84FF;
+  --chart-1: #0A84FF;
+  --chart-2: #00C853;
+  --chart-3: #FFB800;
+  --chart-4: #B388FF;
+  --chart-5: #FF3B30;
+  --sidebar: #0F1113;
+  --sidebar-foreground: #E6EBF5;
+  --sidebar-primary: #0A84FF;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #4d9eff0f;
-  --sidebar-accent-foreground: #e0e8ff;
-  --sidebar-border: rgba(77,158,255,.10);
-  --sidebar-ring: #4d9eff;
+  --sidebar-accent: rgba(0, 229, 255, 0.08);
+  --sidebar-accent-foreground: #E6EBF5;
+  --sidebar-border: rgba(0, 229, 255, 0.08);
+  --sidebar-ring: #0A84FF;
 }
 
 @layer base {

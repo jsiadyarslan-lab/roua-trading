@@ -4,18 +4,18 @@ import { useState, useEffect, useRef } from 'react'
 import { Play, Square, Settings2, Activity, Cpu, ChevronDown } from 'lucide-react'
 
 const T = {
-  bg:      '#04050C',
-  bg2:     '#0D1117',
-  card:    '#08090F',
-  border:  'rgba(10,132,255,0.12)',
-  blue:    '#0A84FF',
-  cyan:    '#00C8FF',
-  green:   '#00FFC6',
-  red:     '#FF4D4D',
+  bg:      '#0F1113',
+  bg2:     '#111214',
+  card:    '#111214',
+  primary: '#0A84FF',
+  accent:  '#00E5FF',
+  success: '#00C853',
+  danger:  '#FF3B30',
   purple:  '#B388FF',
   text:    '#E6EBF5',
   text2:   '#8090A8',
   text3:   '#A0AFC3',
+  border:  'rgba(255, 255, 255, 0.05)',
 }
 
 const FAKE_LOGS = [
@@ -170,12 +170,13 @@ export function BotMini() {
 
       {/* ─── Strategy Selector Dropdown (Sleek) ─── */}
       <div style={{
-        background: T.bg2, border: `0.5px solid ${T.border}`, borderRadius: 4,
-        padding: '6px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        cursor: 'pointer', marginBottom: 12, transition: '0.2s'
-      }} onMouseEnter={e => e.currentTarget.style.borderColor = T.cyan} onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
-         <ChevronDown size={12} color={T.text2} />
-         <span style={{ fontSize: 10, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>
+        background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 10,
+        padding: '6px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        cursor: 'pointer', marginBottom: 12, transition: '0.2s',
+        fontFamily: "'Cairo', sans-serif"
+      }} onMouseEnter={e => e.currentTarget.style.borderColor = T.accent} onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
+         <ChevronDown size={14} color={T.text2} />
+         <span style={{ fontSize: 11, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>
            {stats.strategy || 'EMA_CROSS_V2'} <span style={{color: T.purple}}>[68%]</span>
          </span>
       </div>

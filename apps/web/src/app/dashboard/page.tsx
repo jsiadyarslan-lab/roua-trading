@@ -13,16 +13,16 @@ import { BotMini } from '@/components/dashboard/BotMini'
 
 /* ─── Design tokens ─── */
 const T = {
-  bg:      '#04050C',
-  bg2:     '#0D1117',
-  bg3:     '#0D1520',
-  card:    '#08090F',
-  border:  'rgba(10,132,255,0.10)',
-  border2: 'rgba(10,132,255,0.18)',
-  blue:    '#0A84FF',
-  cyan:    '#00C8FF',
-  green:   '#00FFC6',
-  red:     '#FF4D4D',
+  bg:      '#0F1113',
+  bg2:     '#111214',
+  bg3:     '#16181A',
+  card:    '#111214',
+  border:  'rgba(0, 229, 255, 0.08)',
+  border2: 'rgba(0, 229, 255, 0.15)',
+  primary: '#0A84FF',
+  accent:  '#00E5FF',
+  success: '#00C853',
+  danger:  '#FF3B30',
   amber:   '#FFB800',
   purple:  '#B388FF',
   text:    '#E6EBF5',
@@ -56,7 +56,7 @@ interface PanelProps {
 }
 
 function Panel({
-  id, label, labelEn, accent = T.blue,
+  id, label, labelEn, accent = T.primary,
   flex, height, children,
   collapsed, onToggle,
   onDragStart, onDragOver, onDrop, isDragOver,
@@ -68,64 +68,72 @@ function Panel({
       style={{
         flex: collapsed ? `0 0 ${PANEL_H}px` : (height ? `0 0 ${height}px` : (flex ?? 1)),
         display: 'flex', flexDirection: 'column',
-        border: `0.5px solid ${isDragOver ? accent : T.border}`,
-        borderRadius: 10, overflow: 'hidden',
-        background: isDragOver ? `${accent}08` : T.card,
-        transition: ANIM + ', border-color 0.15s, background 0.15s',
+        border: `1px solid ${isDragOver ? T.accent : T.border}`,
+        borderRadius: 12,
+        overflow: 'hidden',
+        background: isDragOver ? `${T.accent}08` : T.card,
+        transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
         minHeight: PANEL_H,
+        boxShadow: isDragOver ? `0 0 20px ${T.accent}15` : 'none',
+        position: 'relative'
       }}
     >
       {/* ── Header bar ── */}
       <div style={{
         height: PANEL_H, flexShrink: 0,
-        background: `linear-gradient(90deg, ${accent}12, transparent)`,
-        borderBottom: collapsed ? 'none' : `0.5px solid ${T.border}`,
+        background: `linear-gradient(90deg, ${accent}08, transparent)`,
+        borderBottom: collapsed ? 'none' : `1px solid ${T.border}`,
         display: 'flex', alignItems: 'center',
-        padding: '0 8px', gap: 5, cursor: 'default',
+        padding: '0 12px', gap: 8, cursor: 'default',
         userSelect: 'none',
       }}>
         {/* Drag handle */}
         <div
           draggable
           onDragStart={e => onDragStart(e, id)}
-          style={{ cursor: 'grab', color: T.text3, display: 'flex', alignItems: 'center', flexShrink: 0 }}
+          style={{ cursor: 'grab', color: T.text3, display: 'flex', alignItems: 'center', flexShrink: 0, padding: '4px 0' }}
           title="اسحب لإعادة الترتيب"
         >
-          <GripVertical size={12} />
+          <GripVertical size={14} opacity={0.5} />
         </div>
 
-        {/* Accent bar */}
-        <div style={{ width: 3, height: 14, borderRadius: 2, background: accent, flexShrink: 0 }} />
-
-        {/* Title */}
-        <span style={{
-          fontFamily: "'Cairo', sans-serif", fontSize: 11.5,
-          fontWeight: 700, color: T.text, flex: 1,
-        }}>{label}</span>
-
-        {/* Label EN */}
-        {labelEn && (
+        {/* Title Group */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flex: 1 }}>
           <span style={{
-            fontFamily: "'JetBrains Mono', monospace", fontSize: 7.5,
-            color: accent, letterSpacing: '0.05em', opacity: 0.75,
-          }}>{labelEn}</span>
-        )}
+            fontFamily: "'Cairo', sans-serif", fontSize: 13,
+            fontWeight: 800, color: T.text,
+          }}>{label}</span>
+          
+          {labelEn && (
+            <span style={{
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5,
+              color: T.text3, letterSpacing: '0.05em', opacity: 0.6,
+              fontWeight: 500
+            }}>{labelEn}</span>
+          )}
+        </div>
 
-        {/* Collapse toggle */}
+        {/* Action Toggle */}
         <button
           onClick={onToggle}
           title={collapsed ? 'توسيع' : 'طي'}
           style={{
             background: 'transparent', border: 'none', cursor: 'pointer',
-            color: T.text3, padding: 2, display: 'flex', alignItems: 'center',
-            transition: 'color 0.15s',
+            color: T.text3, padding: 4, display: 'flex', alignItems: 'center',
+            transition: 'all 0.2s', borderRadius: 6
           }}
-          onMouseEnter={e => (e.currentTarget.style.color = accent)}
-          onMouseLeave={e => (e.currentTarget.style.color = T.text3)}
+          onMouseEnter={e => {
+            e.currentTarget.style.color = T.text
+            e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.color = T.text3
+            e.currentTarget.style.background = 'transparent'
+          }}
         >
-          <ChevronDown size={12} style={{
+          <ChevronDown size={14} style={{
             transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-            transition: 'transform 0.22s ease',
+            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           }} />
         </button>
       </div>
@@ -134,7 +142,7 @@ function Panel({
       <div style={{
         flex: 1, overflow: 'hidden',
         opacity: collapsed ? 0 : 1,
-        transition: 'opacity 0.18s ease',
+        transition: 'opacity 0.2s ease',
         pointerEvents: collapsed ? 'none' : 'auto',
       }}>
         {children}
@@ -230,12 +238,12 @@ function useDraggableColumn(storageKey: string, initial: string[]) {
 /* ════════════════════════════════════════════
    PANEL DEFINITIONS
 ════════════════════════════════════════════ */
-const COL1_PANELS: Record<string, { label: string; accent: string; flex?: string; height?: number; body: string }> = {
-  portfolio:  { label: 'المحفظة',      accent: T.blue,   flex: '0 0 32%', body: '' },
-  'quick-exec': { label: 'التنفيذ السريع', accent: T.green,  height: 126,     body: ''                              },
-  'order-book': { label: 'دفتر الأوامر',  accent: T.amber,  height: 320,      body: ''                   },
-  'watchlist':  { label: 'قائمة الأسواق',  accent: T.cyan,   height: 440,     body: ''                   },
-  narrator:   { label: 'سرد السوق',    accent: T.purple, flex: '0 0 22%', body: '' },
+const COL1_PANELS: Record<string, { label: string; accent: string; flex?: string; height?: number; labelEn?: string }> = {
+  portfolio:    { label: 'المحفظة',      accent: T.primary, flex: '0 0 32%', labelEn: 'PORTFOLIO' },
+  'quick-exec': { label: 'التنفيذ السريع', accent: T.success,  height: 168,     labelEn: 'EXECUTION' },
+  'order-book': { label: 'دفتر الأوامر',  accent: T.danger,   height: 380,     labelEn: 'ORDERBOOK' },
+  'watchlist':  { label: 'قائمة الأسواق',  accent: T.accent,   height: 480,     labelEn: 'WATCHLIST' },
+  narrator:     { label: 'سرد السوق AI', accent: T.purple,   flex: '0 0 28%', labelEn: 'INSIGHTS'  },
 }
 
 // COL3 panels replaced with Tabs in Col3TabbedPanel
@@ -265,6 +273,8 @@ export default function DashboardPage() {
       <div className="dash-grid" style={{
         height: `calc(100vh - ${HEADER_H}px)`,
         background: T.bg,
+        gap: 12,
+        padding: 12
       }}>
 
         {/* ══════════ COL 1 — أدوات يمين (draggable) ══════════ */}
@@ -320,75 +330,59 @@ export default function DashboardPage() {
         </div>
 
         {/* ══════════ COL 2 — الشارت + الصفقات ══════════ */}
-        <div className="dash-col dash-col-center" style={{ overflow: 'hidden' }}>
+        <div className="dash-col dash-col-center" style={{ overflow: 'hidden', gap: 12 }}>
 
           {/* الشارت — ثابت غير قابل للسحب */}
           <div style={{
             flex: 1,
             background: T.card,
-            border: `0.5px solid ${T.border}`,
-            borderRadius: 10,
+            border: `1px solid ${T.border}`,
+            borderRadius: 12,
             display: 'flex', flexDirection: 'column',
             overflow: 'hidden',
           }}>
             <div style={{
               height: PANEL_H, flexShrink: 0,
-              background: `linear-gradient(90deg, ${T.blue}12, transparent)`,
-              borderBottom: `0.5px solid ${T.border}`,
-              display: 'flex', alignItems: 'center', padding: '0 10px', gap: 5,
+              background: `linear-gradient(90deg, ${T.primary}08, transparent)`,
+              borderBottom: `1px solid ${T.border}`,
+              display: 'flex', alignItems: 'center', padding: '0 12px', gap: 8,
             }}>
-              <div style={{ width: 3, height: 14, borderRadius: 2, background: T.blue }} />
-              <span style={{
-                fontFamily: "'Cairo', sans-serif", fontSize: 11.5,
-                fontWeight: 700, color: T.text, flex: 1,
-              }}>الشارت</span>
+              <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 800, color: T.text, flex: 1 }}>الرسم البياني</span>
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5, color: T.text3, opacity: 0.6 }}>MARKET CHART</span>
             </div>
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              <Empty label="الرسم البياني الرئيسي" color={T.blue} />
+              <Empty label="شاشة التداول الرئيسية" color={T.primary} />
             </div>
           </div>
 
           {/* الصفقات المفتوحة — collapsible */}
           <div style={{
             flexShrink: 0,
-            height: posOpen ? 84 : PANEL_H,
+            height: posOpen ? 120 : PANEL_H,
             transition: ANIM,
             background: T.card,
-            border: `0.5px solid ${T.border}`,
-            borderRadius: 10,
+            border: `1px solid ${T.border}`,
+            borderRadius: 12,
             overflow: 'hidden',
             display: 'flex', flexDirection: 'column',
           }}>
             <div style={{
               height: PANEL_H, flexShrink: 0,
-              background: `linear-gradient(90deg, ${T.green}12, transparent)`,
-              borderBottom: posOpen ? `0.5px solid ${T.border}` : 'none',
-              display: 'flex', alignItems: 'center', padding: '0 10px', gap: 5,
+              background: `linear-gradient(90deg, ${T.success}08, transparent)`,
+              borderBottom: posOpen ? `1px solid ${T.border}` : 'none',
+              display: 'flex', alignItems: 'center', padding: '0 12px', gap: 8,
             }}>
-              <div style={{ width: 3, height: 14, borderRadius: 2, background: T.green }} />
-              <span style={{
-                fontFamily: "'Cairo', sans-serif", fontSize: 11.5,
-                fontWeight: 700, color: T.text, flex: 1,
-              }}>الصفقات المفتوحة</span>
-              <span style={{
-                fontFamily: "'JetBrains Mono', monospace", fontSize: 7.5,
-                color: T.green, letterSpacing: '0.05em', opacity: 0.75,
-              }}>OPEN POSITIONS</span>
+              <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 800, color: T.text, flex: 1 }}>الصفقات المفتوحة</span>
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5, color: T.success, opacity: 0.8 }}>OPEN TRADES</span>
               <button
                 onClick={() => setPosOpen(p => !p)}
-                style={{
-                  background: 'transparent', border: 'none', cursor: 'pointer',
-                  color: T.text3, padding: 2, display: 'flex', alignItems: 'center',
-                }}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.text3, padding: 4 }}
               >
-                <ChevronDown size={12} style={{
-                  transform: posOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
-                  transition: 'transform 0.22s ease',
-                }} />
+                <ChevronDown size={14} style={{ transform: posOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.3s' }} />
               </button>
             </div>
-            <div style={{ flex: 1, opacity: posOpen ? 1 : 0, transition: 'opacity 0.18s' }}>
-              <Empty label="لا توجد صفقات مفتوحة" color={T.green} />
+            <div style={{ flex: 1, opacity: posOpen ? 1 : 0, transition: 'opacity 0.2s', overflow: 'hidden' }}>
+              <Empty label="لا توجد مراكز مفتوحة حالياً" color={T.success} />
             </div>
           </div>
         </div>

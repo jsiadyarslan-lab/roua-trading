@@ -256,28 +256,59 @@ export default function DashboardPage() {
           0%,100% { opacity: 0.5 }
           50%      { opacity: 1   }
         }
-        .dash-col::-webkit-scrollbar { width: 4px; }
+        .dash-col::-webkit-scrollbar { width: 4px; display: none; }
+        .dash-col:hover::-webkit-scrollbar { display: block; }
         .dash-col::-webkit-scrollbar-track { background: transparent; }
         .dash-col::-webkit-scrollbar-thumb { background: #0A84FF22; border-radius: 10px; }
         .dash-col::-webkit-scrollbar-thumb:hover { background: #0A84FF44; }
+
+        /* Responsive Dashboard Grid */
+        .dashboard-main-grid {
+          width: 100%;
+          height: calc(100vh - ${HEADER_H}px);
+          background: ${T.bg};
+          display: grid;
+          grid-template-columns: 220px 1fr 350px;
+          gap: 4px;
+          padding: 4px;
+          direction: rtl;
+          box-sizing: border-box;
+          overflow: hidden;
+        }
+
+        /* Tablet Portrait & Mobile */
+        @media (max-width: 1024px) {
+          .dashboard-main-grid {
+            grid-template-columns: 1fr;
+            grid-template-rows: auto auto auto;
+            overflow-y: auto;
+            height: auto;
+            min-height: calc(100vh - ${HEADER_H}px);
+            padding-bottom: 24px;
+          }
+          
+          /* Allow columns to size naturally on mobile */
+          .dash-col-wrapper {
+             overflow: visible !important;
+             max-height: none !important;
+          }
+          
+          .chart-col {
+             min-height: 500px;
+          }
+          
+          .tabs-col {
+             min-height: 400px;
+          }
+        }
       `}</style>
 
-      <div style={{
-        width: '100%',
-        height: `calc(100vh - ${HEADER_H}px)`,
-        background: T.bg,
-        display: 'grid',
-        gridTemplateColumns: '220px 1fr 350px',
-        gap: 4, padding: 4,
-        overflow: 'hidden',
-        direction: 'rtl',
-        boxSizing: 'border-box',
-      }}>
+      <div className="dashboard-main-grid">
 
         {/* ══════════ COL 1 — أدوات يمين (draggable) ══════════ */}
         <div
-          className="dash-col"
-          style={{ display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto', overflowX: 'hidden', paddingRight: 4 }}
+          className="dash-col dash-col-wrapper"
+          style={{ display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto', overflowX: 'hidden' }}
           onDragEnd={col1.onDragEnd}
         >
           {col1.order.map(id => {
@@ -328,7 +359,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ══════════ COL 2 — الشارت + الصفقات ══════════ */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, overflow: 'hidden' }}>
+        <div className="dash-col dash-col-wrapper chart-col" style={{ display: 'flex', flexDirection: 'column', gap: 4, overflow: 'hidden' }}>
 
           {/* الشارت — ثابت غير قابل للسحب */}
           <div style={{
@@ -381,6 +412,7 @@ export default function DashboardPage() {
               <span style={{
                 fontFamily: "'JetBrains Mono', monospace", fontSize: 7.5,
                 color: T.green, letterSpacing: '0.05em', opacity: 0.75,
+                display: 'none', // hidden on mobile by default or just let it exist
               }}>OPEN POSITIONS</span>
               <button
                 onClick={() => setPosOpen(p => !p)}
@@ -402,7 +434,9 @@ export default function DashboardPage() {
         </div>
 
         {/* ══════════ COL 3 — Tabs Panel ══════════ */}
-        <Col3TabbedPanel />
+        <div className="dash-col dash-col-wrapper tabs-col">
+          <Col3TabbedPanel />
+        </div>
 
       </div>
     </>

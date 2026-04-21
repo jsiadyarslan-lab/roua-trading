@@ -8,15 +8,23 @@ export function middleware(request: NextRequest) {
   }
 
   const session = request.cookies.get('roua_session')
-  const isDashboard = request.nextUrl.pathname.startsWith('/dashboard')
+  const { pathname } = request.nextUrl
 
-  if (isDashboard && !session) {
-    return NextResponse.redirect(new URL('/', request.url))
+  // Protected Routes: /dashboard and everything under it
+  const isProtected = pathname === '/dashboard' || pathname.startsWith('/dashboard/')
+
+  if (isProtected && !session) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/'
+    return NextResponse.redirect(url)
   }
 
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: '/dashboard/:path*',
+  matcher: [
+    '/dashboard',
+    '/dashboard/:path*',
+  ],
 }

@@ -13,21 +13,21 @@ import { useMarketQuotes } from '@/hooks/useMarketData'
 
 /* ─── Design tokens ─── */
 const T = {
-  bg:       '#04050C',
-  bg2:      '#0D1117',
-  blue:     '#0A84FF',
-  cyan:     '#00C8FF',
-  green:    '#00FFC6',
-  red:      '#FF4D4D',
+  bg:       'var(--bg)',
+  bg2:      'var(--surface)',
+  blue:     'var(--primary)',
+  accent:   'var(--accent)',
+  green:    'var(--success)',
+  red:      'var(--danger)',
   amber:    '#FFB800',
   purple:   '#B388FF',
-  text:     '#E6EBF5',
-  text2:    '#8090A8',
-  text3:    '#A0AFC3',
-  border:   'rgba(10,132,255,0.12)',
-  border2:  'rgba(10,132,255,0.22)',
-  navGlass: 'rgba(4,5,12,0.96)',
-  card:     'rgba(5,7,12,0.94)',
+  text:     'var(--foreground)',
+  text2:    'var(--muted)',
+  text3:    'var(--muted)',
+  border:   'var(--card-border)',
+  border2:  'rgba(255, 255, 255, 0.12)',
+  navGlass: 'rgba(15, 17, 19, 0.85)',
+  card:     'var(--surface)',
 }
 
 const H_NEWS  = 26
@@ -307,9 +307,8 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
               fontSize: isMobile ? 6.5 : 7.5, color: T.text3,
               letterSpacing: '0.04em', lineHeight: 1.2,
             }}>{sym}</span>
-            <span style={{
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: isMobile ? 9 : 11, fontWeight: 700,
+            <span className="price" style={{
+              fontSize: isMobile ? 10 : 11.5,
               color: flash === 'up' ? T.green : flash === 'down' ? T.red : T.text,
               lineHeight: 1.15, transition: 'color 0.3s',
             }}>
@@ -422,15 +421,37 @@ function MainNav() {
 
       <div style={{ flex: 1 }} />
 
+      {/* Mode Switcher (Trader / Investor / AI) */}
+      <div style={{
+         display: 'flex', background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 8,
+         border: '1px solid var(--card-border)', marginLeft: 12
+      }}>
+         {['Trader', 'Investor', 'AI'].map((mode) => (
+           <button 
+             key={mode}
+             style={{
+                padding: '4px 10px', fontSize: 9.5, fontWeight: mode === 'Trader' ? 800 : 500,
+                background: mode === 'Trader' ? 'var(--primary)' : 'transparent',
+                color: mode === 'Trader' ? '#fff' : 'var(--muted)',
+                borderRadius: 6, border: 'none', cursor: 'pointer',
+                fontFamily: 'var(--mono)', transition: '0.2s',
+                textTransform: 'uppercase'
+             }}
+           >
+             {mode}
+           </button>
+         ))}
+      </div>
+
       <div style={{
         flexShrink: 0, display: 'flex', alignItems: 'center',
-        gap: 4, cursor: 'pointer',
-        padding: '4px 10px', borderRadius: 20,
-        background: 'rgba(255,255,255,0.04)',
-        border: `0.5px solid ${T.border2}`, marginLeft: 8,
+        gap: 6, cursor: 'pointer',
+        padding: '5px 12px', borderRadius: 20,
+        background: 'rgba(255,255,255,0.05)',
+        border: '1px solid var(--card-border)', marginLeft: 8,
       }}>
-        <User size={11} color={T.text2} />
-        <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text2 }}>حسابي</span>
+        <User size={13} color="var(--accent)" />
+        <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: 'var(--foreground)', fontWeight: 700 }}>حسابي</span>
       </div>
     </div>
   )

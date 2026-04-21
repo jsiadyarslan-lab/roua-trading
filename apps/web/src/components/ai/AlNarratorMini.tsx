@@ -1,27 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Sparkles, Activity, AlertTriangle, ShieldCheck, Zap, Bell, CheckCircle2 } from 'lucide-react'
-
-const T = {
-  bg:      '#0F1113',
-  bg2:     '#111214',
-  card:    '#111214',
-  primary: '#0A84FF',
-  accent:  '#00E5FF',
-  success: '#00C853',
-  danger:  '#FF3B30',
-  amber:   '#FFB800',
-  purple:  '#B388FF',
-  text:    '#E6EBF5',
-  text2:   '#8090A8',
-  text3:   '#A0AFC3',
-  border:  'rgba(255, 255, 255, 0.06)',
-}
+import { Activity, ShieldCheck, Zap, Bell, CheckCircle2, TrendingUp, TrendingDown } from 'lucide-react'
 
 interface Keyword {
   word: string
-  color: keyof typeof T | string
+  color: string
 }
 
 interface NarrativeData {
@@ -43,7 +27,6 @@ export function AlNarratorMini() {
     try {
       const res = await fetch('/api/ai/narrator')
       const json = await res.json()
-      // Mocking confidence and risk if not present in API yet
       if (json.success) {
         setData({
           ...json.data,
@@ -65,44 +48,46 @@ export function AlNarratorMini() {
   }, [])
 
   const sentimentColor = {
-    bullish:  T.success,
-    bearish:  T.danger,
-    neutral:  T.primary,
-    volatile: T.amber,
+    bullish:  'var(--success)',
+    bearish:  'var(--danger)',
+    neutral:  'var(--primary)',
+    volatile: '#FFB800', // Amber
   }
 
   const isHighConfidence = (data?.confidence ?? 0) > 85
 
   return (
-    <div style={{
-      width: '100%', height: '100%',
-      padding: '12px',
-      display: 'flex', flexDirection: 'column', gap: 12,
-      overflow: 'hidden',
-      boxSizing: 'border-box',
-      position: 'relative',
-      background: T.card,
-      direction: 'rtl'
-    }}>
+    <div 
+      className="card"
+      style={{
+        width: '100%', height: '100%',
+        padding: '16px',
+        display: 'flex', flexDirection: 'column', gap: 14,
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+        position: 'relative',
+        direction: 'rtl'
+      }}
+    >
       {/* Header: Title & Signal Pulse */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
-            width: 8, height: 8, borderRadius: '50%',
-            background: data ? sentimentColor[data.sentiment] : T.text3,
-            boxShadow: data ? `0 0 10px ${sentimentColor[data.sentiment]}` : 'none',
+            width: 10, height: 10, borderRadius: '50%',
+            background: data ? sentimentColor[data.sentiment] : 'var(--muted)',
+            boxShadow: data ? `0 0 12px ${sentimentColor[data.sentiment]}` : 'none',
             animation: isHighConfidence ? 'orb-pulse 2s infinite' : 'none'
           }} />
-          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text, fontWeight: 800 }}>
-            رؤى الذكاء الاصطناعي (AI Insight)
+          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>
+            رؤى الذكاء الاصطناعي (AI INSIGHT)
           </span>
         </div>
         
         {data && (
           <div style={{
-             fontSize: 9, padding: '2px 8px', borderRadius: 20,
-             background: 'rgba(255,255,255,0.03)', border: `1px solid ${T.border}`,
-             color: T.text2, fontFamily: "'JetBrains Mono', monospace"
+             fontSize: 10, padding: '2px 8px', borderRadius: 20,
+             background: 'rgba(255,255,255,0.03)', border: '1px solid var(--card-border)',
+             color: 'var(--muted)', fontFamily: 'var(--mono)', fontWeight: 700
           }}>
             {new Date(data.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
           </div>
@@ -112,105 +97,115 @@ export function AlNarratorMini() {
       {data ? (
         <>
           {/* Signal & Risk Row */}
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 10 }}>
             <div style={{
-               flex: 1, padding: '10px', borderRadius: 10, background: 'rgba(255,255,255,0.02)',
-               border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: 4
+               flex: 1, padding: '12px', borderRadius: 12, background: 'rgba(255,255,255,0.02)',
+               border: '1px solid var(--card-border)', display: 'flex', flexDirection: 'column', gap: 4
             }}>
-               <span style={{ fontSize: 8, color: T.text2, fontWeight: 600 }}>إشارة الاتجاه</span>
+               <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700 }}>التوجه العام</span>
                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Activity size={14} color={sentimentColor[data.sentiment]} />
+                  {data.sentiment === 'bullish' ? <TrendingUp size={16} color="var(--success)" /> : <TrendingDown size={16} color="var(--danger)" />}
                   <span style={{ fontSize: 13, fontWeight: 900, color: sentimentColor[data.sentiment], fontFamily: "'Cairo', sans-serif" }}>
-                    {data.sentiment === 'bullish' ? 'صعود قوي' : data.sentiment === 'bearish' ? 'هبوط محتمل' : 'تذبذب جانبي'}
+                    {data.sentiment === 'bullish' ? 'صعود مؤسسي' : data.sentiment === 'bearish' ? 'هبوط سيادي' : 'تذبذب جانبي'}
                   </span>
                </div>
             </div>
             <div style={{
-               flex: 1, padding: '10px', borderRadius: 10, background: 'rgba(255,255,255,0.02)',
-               border: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: 4
+               flex: 1, padding: '12px', borderRadius: 12, background: 'rgba(255,255,255,0.02)',
+               border: '1px solid var(--card-border)', display: 'flex', flexDirection: 'column', gap: 4
             }}>
-               <span style={{ fontSize: 8, color: T.text2, fontWeight: 600 }}>مستوى المخاطرة</span>
+               <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700 }}>مستوى المخاطرة</span>
                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <ShieldCheck size={14} color={data.risk === 'Low' ? T.success : data.risk === 'Medium' ? T.amber : T.danger} />
+                  <ShieldCheck size={16} color={data.risk === 'Low' ? 'var(--success)' : data.risk === 'Medium' ? '#FFB800' : 'var(--danger)'} />
                   <span style={{ 
                     fontSize: 13, fontWeight: 900, 
-                    color: data.risk === 'Low' ? T.success : data.risk === 'Medium' ? T.amber : T.danger,
+                    color: data.risk === 'Low' ? 'var(--success)' : data.risk === 'Medium' ? '#FFB800' : 'var(--danger)',
                     fontFamily: "'Cairo', sans-serif" 
                   }}>
-                    {data.risk === 'Low' ? 'منخفضة' : data.risk === 'Medium' ? 'متوسطة' : 'عالية'}
+                    {data.risk === 'Low' ? 'منخفضة جداً' : data.risk === 'Medium' ? 'متوسطة' : 'عالية المخاطر'}
                   </span>
                </div>
             </div>
           </div>
 
-          {/* Confidence Meter */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {/* Institutional Confidence Meter */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 9, color: T.text2, fontWeight: 600 }}>مؤشر الثقة (Confidence)</span>
-                <span style={{ fontSize: 10, color: T.accent, fontWeight: 900, fontFamily: "'JetBrains Mono', monospace" }}>{data.confidence}%</span>
+                <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 800 }}>مؤشر الثقة الرقمي (CONFIDENCE)</span>
+                <span style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 900, fontFamily: 'var(--mono)' }}>{data.confidence}%</span>
              </div>
-             <div style={{ width: '100%', height: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 10, overflow: 'hidden' }}>
+             <div style={{ width: '100%', height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 10, overflow: 'hidden', padding: 1.5 }}>
                 <div style={{
                    height: '100%', width: `${data.confidence}%`,
-                   background: `linear-gradient(90deg, ${T.primary}, ${T.accent})`,
-                   boxShadow: `0 0 10px ${T.accent}40`,
-                   transition: 'width 1s ease-out'
+                   background: `linear-gradient(90deg, var(--primary), var(--accent))`,
+                   boxShadow: `0 0 15px var(--accent)40`,
+                   borderRadius: 8,
+                   transition: 'width 1.2s cubic-bezier(0.4, 0, 0.2, 1)'
                 }} />
              </div>
           </div>
 
-          {/* Narrative Blurb */}
+          {/* Narrative Insight */}
           <div 
             onClick={() => setExpanded(!expanded)}
             style={{
-               flex: 1, cursor: 'pointer', overflow: 'hidden', padding: '8px',
-               background: 'rgba(0,229,255,0.02)', border: `1px dashed ${T.border}`, borderRadius: 8,
-               fontSize: 11.5, color: T.text, lineHeight: 1.6, fontFamily: "'Cairo', sans-serif",
-               position: 'relative'
+               flex: 1, cursor: 'pointer', overflow: 'hidden', padding: '12px',
+               background: 'rgba(0,229,255,0.02)', border: '1px dashed var(--card-border)', borderRadius: 10,
+               fontSize: 12, color: 'var(--foreground)', lineHeight: 1.7, fontFamily: "'Cairo', sans-serif",
+               position: 'relative', transition: 'max-height 0.3s'
             }}
           >
-             <div style={{ height: expanded ? 'auto' : '44px', overflow: 'hidden' }}>
+             <div style={{ maxHeight: expanded ? '300px' : '58px', overflow: 'hidden' }}>
                 {data.narrative}
              </div>
              {!expanded && (
                <div style={{
-                  position: 'absolute', bottom: 0, left: 0, right: 0, height: 20,
-                  background: 'linear-gradient(to top, #111214, transparent)',
-                  display: 'flex', justifyContent: 'center', alignItems: 'flex-end', fontSize: 8, color: T.accent
-               }}>انقر للتوسع</div>
+                  position: 'absolute', bottom: 0, left: 0, right: 0, height: 32,
+                  background: 'linear-gradient(to top, var(--surface), transparent)',
+                  display: 'flex', justifyContent: 'center', alignItems: 'flex-end', fontSize: 9, color: 'var(--accent)', fontWeight: 800
+               }}>قراءة المزيد...</div>
              )}
           </div>
 
-          {/* Suggested Actions */}
-          <div style={{ display: 'flex', gap: 6, marginTop: 'auto' }}>
-             <button style={{
-                flex: 1, padding: '8px', borderRadius: 8, border: 'none', background: `${T.primary}15`,
-                color: T.primary, fontSize: 10, fontWeight: 800, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                fontFamily: "'Cairo', sans-serif"
-             }}>
-                <Zap size={11} /> تنفيذ آلي
+          {/* Global Action Buttons */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 'auto' }}>
+             <button 
+               className="btn-buy"
+               style={{
+                  flex: 1.4, padding: '10px', borderRadius: 10, border: 'none',
+                  fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  fontFamily: "'Cairo', sans-serif",
+                  boxShadow: '0 4px 12px rgba(0,200,83,0.2)'
+               }}
+             >
+                <Zap size={14} fill="currentColor" /> تنفيذ الإشارة
              </button>
              <button style={{
-                flex: 1, padding: '8px', borderRadius: 8, border: 'none', background: 'rgba(255,255,255,0.05)',
-                color: T.text, fontSize: 10, fontWeight: 800, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                flex: 1, padding: '10px', borderRadius: 10, border: '1px solid var(--card-border)', 
+                background: 'rgba(255,255,255,0.05)',
+                color: 'var(--foreground)', fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 fontFamily: "'Cairo', sans-serif"
              }}>
-                <Bell size={11} color={T.accent} /> تنبيه ذكي
+                <Bell size={14} color="var(--accent)" /> تنبيه
              </button>
           </div>
         </>
       ) : (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.text3, fontSize: 11 }}>
-          يتم استدعاء الذكاء الاصطناعي...
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+          <div style={{ width: 24, height: 24, border: '2px solid var(--card-border)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+          <span style={{ color: 'var(--muted)', fontSize: 11, fontWeight: 600 }}>يتم تحليل بيانات السوق بواسطة الذكاء الاصطناعي...</span>
         </div>
       )}
       
       <style>{`
         @keyframes orb-pulse {
-          0%, 100% { transform: scale(1); opacity: 0.8; }
-          50% { transform: scale(1.3); opacity: 1; }
+          0%, 100% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 10px currentColor; }
+          50% { transform: scale(1.4); opacity: 1; box-shadow: 0 0 20px currentColor; }
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </div>

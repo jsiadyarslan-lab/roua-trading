@@ -277,7 +277,7 @@
 /* ── Responsive Dashboard ── */
 .dash-grid {
   display: grid;
-  grid-template-columns: 220px 1fr 350px;
+  grid-template-columns: 280px 1fr 350px;
   width: 100%;
   height: 100%;
   gap: 4px;
@@ -289,7 +289,7 @@
 
 @media (max-width: 1280px) {
   .dash-grid {
-    grid-template-columns: 200px 1fr;
+    grid-template-columns: 260px 1fr;
   }
   .dash-col-right {
     display: none !important;

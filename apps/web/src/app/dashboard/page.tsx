@@ -237,24 +237,93 @@ function useDraggableColumn(storageKey: string, initial: string[]) {
 }
 
 /* ════════════════════════════════════════════
-   PANEL DEFINITIONS
+   LEFT SIDEBAR — Tabbed (replaces 5 overflowing panels)
 ════════════════════════════════════════════ */
-const COL1_PANELS: Record<string, { label: string; accent: string; flex?: string; height?: number; labelEn?: string }> = {
-  portfolio:    { label: 'المحفظة',      accent: T.primary, flex: '0 0 32%', labelEn: 'PORTFOLIO' },
-  'quick-exec': { label: 'التنفيذ السريع', accent: T.success,  height: 168,     labelEn: 'EXECUTION' },
-  'order-book': { label: 'دفتر الأوامر',  accent: T.danger,   height: 380,     labelEn: 'ORDERBOOK' },
-  'watchlist':  { label: 'قائمة الأسواق',  accent: T.accent,   height: 480,     labelEn: 'WATCHLIST' },
-  narrator:     { label: 'سرد السوق AI', accent: T.purple,   flex: '0 0 28%', labelEn: 'INSIGHTS'  },
-}
+function LeftSidebar() {
+  const [tab, setTab] = useState<'portfolio'|'execute'|'book'|'watch'|'ai'>('portfolio')
 
-// COL3 panels replaced with Tabs in Col3TabbedPanel
+  const TABS = [
+    { id: 'portfolio', label: 'محفظة',   icon: '💼', accent: T.primary },
+    { id: 'execute',   label: 'تنفيذ',   icon: '⚡', accent: T.success },
+    { id: 'book',      label: 'أوردر',   icon: '📊', accent: T.danger  },
+    { id: 'watch',     label: 'أسواق',   icon: '🔍', accent: T.accent  },
+    { id: 'ai',        label: 'AI',      icon: '🧠', accent: T.purple  },
+  ] as const
+
+  const active = TABS.find(t => t.id === tab)!
+
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', height: '100%',
+      background: T.card, border: `1px solid ${T.border}`,
+      borderRadius: 12, overflow: 'hidden',
+    }}>
+      {/* Tab Strip */}
+      <div style={{
+        display: 'flex', flexShrink: 0,
+        background: T.bg2,
+        borderBottom: `1px solid ${T.border}`,
+      }}>
+        {TABS.map(t => {
+          const isActive = t.id === tab
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              title={t.label}
+              style={{
+                flex: 1, padding: '8px 2px 6px',
+                background: 'transparent', border: 'none',
+                borderBottom: `2.5px solid ${isActive ? t.accent : 'transparent'}`,
+                cursor: 'pointer', display: 'flex', flexDirection: 'column',
+                alignItems: 'center', gap: 2, transition: 'all 0.15s',
+              }}
+            >
+              <span style={{ fontSize: 14, lineHeight: 1 }}>{t.icon}</span>
+              <span style={{
+                fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: isActive ? 800 : 500,
+                color: isActive ? t.accent : T.text2, transition: 'color 0.15s',
+              }}>{t.label}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Panel Label */}
+      <div style={{
+        padding: '8px 12px 4px', flexShrink: 0,
+        borderBottom: `1px solid ${T.border}`,
+        background: `linear-gradient(90deg, ${active.accent}0a, transparent)`,
+        display: 'flex', alignItems: 'center', gap: 6,
+      }}>
+        <div style={{
+          width: 6, height: 6, borderRadius: '50%',
+          background: active.accent,
+          boxShadow: `0 0 8px ${active.accent}`,
+          flexShrink: 0,
+        }} />
+        <span style={{
+          fontFamily: "'Cairo', sans-serif", fontSize: 11,
+          fontWeight: 800, color: T.text,
+        }}>{active.label}</span>
+      </div>
+
+      {/* Tab Content */}
+      <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+        {tab === 'portfolio' && <PortfolioMini />}
+        {tab === 'execute'   && <QuickExecutionMini />}
+        {tab === 'book'      && <OrderBookMini />}
+        {tab === 'watch'     && <WatchlistMini />}
+        {tab === 'ai'        && <AlNarratorMini />}
+      </div>
+    </div>
+  )
+}
 
 /* ════════════════════════════════════════════
    DASHBOARD PAGE
 ════════════════════════════════════════════ */
 export default function DashboardPage() {
-  const col1 = useDraggableColumn('col1', ['portfolio','quick-exec','order-book','watchlist','narrator'])
-
   /* Positions open — collapsible separately */
   const [posOpen, setPosOpen] = useState(true)
 
@@ -278,61 +347,12 @@ export default function DashboardPage() {
         padding: 12
       }}>
 
-        {/* ══════════ COL 1 — أدوات يمين (draggable) ══════════ */}
-        <div
-          className="dash-col dash-col-left"
-          onDragEnd={col1.onDragEnd}
-        >
-          {col1.order.map(id => {
-            const def = COL1_PANELS[id]
-            if (!def) return null
-            const isCollapsed = !!col1.collapsed[id]
-
-            if (id === 'quick-exec') {
-              return (
-                <Panel
-                  key={id} id={id}
-                  label={def.label} accent={def.accent}
-                  height={isCollapsed ? undefined : def.height}
-                  flex={isCollapsed ? undefined : undefined}
-                  collapsed={isCollapsed}
-                  onToggle={() => col1.toggleCollapse(id)}
-                  onDragStart={col1.onDragStart}
-                  onDragOver={col1.onDragOver}
-                  onDrop={col1.onDrop}
-                  isDragOver={col1.dragOver === id}
-                >
-                  <QuickExecutionMini />
-                </Panel>
-              )
-            }
-
-            return (
-              <Panel
-                key={id} id={id}
-                label={def.label} accent={def.accent}
-                flex={isCollapsed ? undefined : def.flex}
-                height={isCollapsed ? undefined : def.height}
-                collapsed={isCollapsed}
-                onToggle={() => col1.toggleCollapse(id)}
-                onDragStart={col1.onDragStart}
-                onDragOver={col1.onDragOver}
-                onDrop={col1.onDrop}
-                isDragOver={col1.dragOver === id}
-              >
-                {id === 'portfolio' ? <PortfolioMini /> : 
-                 id === 'narrator' ? <AlNarratorMini /> : 
-                 id === 'order-book' ? <OrderBookMini /> : 
-                 id === 'watchlist' ? <WatchlistMini /> : 
-                 <Empty label={def.body} color={def.accent} />}
-              </Panel>
-            )
-          })}
+        {/* ══════════ COL 1 — Tabbed Left Sidebar ══════════ */}
+        <div className="dash-col dash-col-left" style={{ minHeight: 0 }}>
+          <LeftSidebar />
         </div>
-
         {/* ══════════ COL 2 — الشارت + الصفقات ══════════ */}
         <div className="dash-col dash-col-center" style={{ overflow: 'hidden', gap: 12 }}>
-
           {/* الشارت — ثابت غير قابل للسحب */}
           <div style={{
             flex: 1,

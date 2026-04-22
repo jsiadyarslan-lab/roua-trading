@@ -1,123 +1,245 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
-  User, Shield, Link as LinkIcon, Bell, Palette, 
-  ChevronRight, Globe, CheckCircle2, AlertCircle,
-  Plus, Trash2, Key, Settings as SettingsIcon
+  User, Shield, Link as LinkIcon, Activity,
+  Terminal, Globe, CheckCircle2, AlertTriangle,
+  Cpu, Zap, Lock, Key, Eye, Server, Radio
 } from 'lucide-react'
+
+// Constants & Tokens
+const T = {
+  bg: 'var(--bg)',
+  surface: 'var(--surface)',
+  border: 'var(--card-border)',
+  cyan: 'var(--accent)',
+  blue: 'var(--primary)',
+  green: '#00FFC6',
+  red: '#FF4D4D',
+  amber: '#FFB800',
+  text: 'var(--foreground)',
+  textDim: 'var(--muted)',
+  mono: "'JetBrains Mono', monospace",
+  sans: "'Cairo', sans-serif"
+}
+
+const GLOW = `0 0 12px ${T.cyan}33`
 
 export function SettingsView() {
   const [activeTab, setActiveTab] = useState('integrations')
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => setMounted(true), [])
 
   const TABS = [
-    { id: 'profile', label: 'الملف الشخصي', icon: User },
-    { id: 'integrations', label: 'المنصات المربوطة', icon: LinkIcon },
-    { id: 'security', label: 'الأمان', icon: Shield },
-    { id: 'preferences', label: 'التفضيلات', icon: Palette },
+    { id: 'integrations', label: 'الربط الخارجي', icon: Server, code: 'INT-01' },
+    { id: 'profile', label: 'هوية المتداول', icon: User, code: 'ID-02' },
+    { id: 'security', label: 'أمان النظام', icon: Shield, code: 'SEC-03' },
+    { id: 'system', label: 'النواة والتفضيلات', icon: Cpu, code: 'SYS-04' },
   ]
+
+  if (!mounted) return null
 
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', height: '100%',
-      background: 'var(--bg)', color: 'var(--text)', fontFamily: "'Cairo', sans-serif",
-      animation: 'fadeIn 0.3s ease'
+      background: '#010205', color: T.text, fontFamily: T.sans,
+      position: 'relative', overflow: 'hidden'
     }}>
-      {/* Header */}
+      {/* Background Decor */}
       <div style={{
-        padding: '24px 32px', borderBottom: '1px solid var(--border)',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+        position: 'absolute', top: '-20%', right: '-10%', width: '50%', height: '50%',
+        background: `radial-gradient(circle, ${T.cyan}11 0%, transparent 70%)`,
+        pointerEvents: 'none', zIndex: 0
+      }} />
+      
+      {/* Cyber Header */}
+      <div style={{
+        padding: '24px 32px',
+        borderBottom: `1px solid ${T.border}`,
+        background: 'linear-gradient(180deg, rgba(0,242,255,0.03) 0%, transparent 100%)',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end',
+        position: 'relative', zIndex: 1
       }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 900, marginBottom: 4 }}>إعدادات المنصة</h1>
-          <p style={{ fontSize: 13, color: 'var(--text3)' }}>إدارة حسابك، ربط المنصات العالمية وتخصيص تجربتك.</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+            <Terminal size={20} color={T.cyan} />
+            <span style={{ fontFamily: T.mono, fontSize: 11, color: T.cyan, letterSpacing: '0.2em' }}>
+              SYS_CONFIG // ROOT
+            </span>
+          </div>
+          <h1 style={{ fontSize: 28, fontWeight: 900, letterSpacing: '-0.02em', margin: 0, textShadow: GLOW }}>
+            مركز تحكم المنصة
+          </h1>
+        </div>
+        <div style={{ textAlign: 'left' }}>
+          <div style={{ fontFamily: T.mono, fontSize: 10, color: T.textDim }}>SYSTEM STATUS</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: T.green }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.green, boxShadow: `0 0 8px ${T.green}` }} />
+            <span style={{ fontSize: 12, fontWeight: 700 }}>OPTIMAL</span>
+          </div>
         </div>
       </div>
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* Nav Sidebar */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden', position: 'relative', zIndex: 1 }}>
+        {/* Cyber Sidebar */}
         <div style={{
-          width: 240, borderLeft: '1px solid var(--border)', padding: 16,
-          display: 'flex', flexDirection: 'column', gap: 4
+          width: 260, borderLeft: `1px solid ${T.border}`,
+          background: 'rgba(5, 8, 15, 0.4)', backdropFilter: 'blur(10px)',
+          display: 'flex', flexDirection: 'column', gap: 8, padding: '24px 16px'
         }}>
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
-                borderRadius: 10, border: 'none', cursor: 'pointer', transition: 'all 0.2s',
-                background: activeTab === tab.id ? 'var(--accent)15' : 'transparent',
-                color: activeTab === tab.id ? 'var(--accent)' : 'var(--text2)',
-                textAlign: 'right'
-              }}
-            >
-              <tab.icon size={18} />
-              <span style={{ fontSize: 14, fontWeight: 700 }}>{tab.label}</span>
-            </button>
-          ))}
+          {TABS.map(tab => {
+            const active = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
+                  borderRadius: 6, border: `1px solid ${active ? T.cyan + '55' : 'transparent'}`,
+                  background: active ? `linear-gradient(90deg, ${T.cyan}15 0%, transparent 100%)` : 'transparent',
+                  color: active ? '#fff' : T.textDim,
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  position: 'relative', overflow: 'hidden', textAlign: 'right'
+                }}
+              >
+                {active && (
+                  <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 2, background: T.cyan, boxShadow: GLOW }} />
+                )}
+                <tab.icon size={18} color={active ? T.cyan : T.textDim} />
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 14, fontWeight: active ? 800 : 600 }}>{tab.label}</span>
+                  <span style={{ fontFamily: T.mono, fontSize: 9, opacity: 0.6 }}>{tab.code}</span>
+                </div>
+              </button>
+            )
+          })}
         </div>
 
-        {/* Content Area */}
+        {/* Dynamic Content Area */}
         <div className="custom-scrollbar" style={{ flex: 1, padding: 32, overflowY: 'auto' }}>
           {activeTab === 'integrations' && <IntegrationsTab />}
           {activeTab === 'profile' && <ProfileTab />}
           {activeTab === 'security' && <SecurityTab />}
-          {activeTab === 'preferences' && <div style={{ textAlign: 'center', padding: 40, opacity: 0.5 }}>تفضيلات الواجهة قيد التطوير...</div>}
+          {activeTab === 'system' && (
+            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: T.textDim, fontFamily: T.mono, flexDirection: 'column', gap: 16 }}>
+              <Cpu size={48} opacity={0.2} />
+              <div>MODULE_NOT_INITIALIZED</div>
+            </div>
+          )}
         </div>
       </div>
-
-      <style>{`
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
     </div>
   )
 }
 
+/* ─── INTEGRATIONS COMMAND CENTER ─── */
 function IntegrationsTab() {
-  const [connections, setConnections] = useState([
-    { id: 'alpaca', name: 'Alpaca Markets', type: 'Broker', status: 'connected', icon: '🦙' },
-    { id: 'binance', name: 'Binance', type: 'Exchange', status: 'disconnected', icon: '🟡' },
-    { id: 'mt5', name: 'MetaTrader 5', type: 'Terminal', status: 'pending', icon: '📉' },
-  ])
+  const NODES = [
+    { id: 'binance', name: 'Binance API', type: 'Exchange', status: 'connected', ping: '12ms', ip: '192.168.1.44', icon: '🔶' },
+    { id: 'mt5', name: 'MetaTrader 5', type: 'Trading Terminal', status: 'connected', ping: '8ms', ip: '10.0.4.22', icon: '📈' },
+    { id: 'alpaca', name: 'Alpaca', type: 'Brokerage', status: 'pending', ping: '--', ip: 'WAITING_AUTH', icon: '🦙' },
+  ]
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: 18, fontWeight: 800 }}>الربط الخارجي (Integrations)</h2>
-        <button className="btn-cyan-active" style={{ padding: '8px 16px', borderRadius: 8, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Plus size={16} /> إضافة منصة جديدة
+    <div style={{ animation: 'fadeUp 0.4s ease' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>العُقد المتصلة (Nodes)</h2>
+          <p style={{ fontSize: 12, color: T.textDim, margin: '4px 0 0', fontFamily: T.mono }}>MANAGE API GATEWAYS & DATA FEEDS</p>
+        </div>
+        <button style={{
+          background: `rgba(0, 242, 255, 0.1)`, border: `1px solid ${T.cyan}`, color: T.cyan,
+          padding: '10px 20px', borderRadius: 4, fontFamily: T.mono, fontSize: 12, fontWeight: 700,
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, boxShadow: GLOW
+        }}>
+          <Plus size={14} /> [ ADD_NODE ]
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 20 }}>
-        {connections.map(c => (
-          <div key={c.id} style={{
-            background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16,
-            padding: 20, display: 'flex', flexDirection: 'column', gap: 16, transition: 'all 0.2s',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
+        {NODES.map(node => (
+          <div key={node.id} style={{
+            background: 'rgba(10, 14, 23, 0.6)',
+            border: `1px solid ${node.status === 'connected' ? T.border : 'rgba(255,184,0,0.3)'}`,
+            borderRadius: 8, overflow: 'hidden', position: 'relative'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div style={{ fontSize: 32 }}>{c.icon}</div>
-              <div style={{
-                fontSize: 10, padding: '4px 8px', borderRadius: 20, fontWeight: 800,
-                background: c.status === 'connected' ? 'var(--success)20' : 'var(--border)',
-                color: c.status === 'connected' ? 'var(--success)' : 'var(--text3)',
-                display: 'flex', alignItems: 'center', gap: 4
-              }}>
-                {c.status === 'connected' ? <CheckCircle2 size={10} /> : <AlertCircle size={10} />}
-                {c.status === 'connected' ? 'متصل' : 'غير متصل'}
-              </div>
+            {/* Top Bar */}
+            <div style={{
+              background: 'rgba(0,0,0,0.4)', padding: '8px 16px', display: 'flex', justifyContent: 'space-between',
+              borderBottom: `1px solid ${T.border}`, fontFamily: T.mono, fontSize: 10, color: T.textDim
+            }}>
+              <span>ID: {node.id.toUpperCase()}_GATEWAY</span>
+              <span>{node.type.toUpperCase()}</span>
             </div>
             
-            <div>
-              <h3 style={{ fontSize: 16, fontWeight: 900, marginBottom: 2 }}>{c.name}</h3>
-              <p style={{ fontSize: 12, color: 'var(--text3)' }}>{c.type}</p>
-            </div>
+            <div style={{ padding: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div style={{
+                    width: 48, height: 48, borderRadius: 8, background: 'rgba(255,255,255,0.03)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24,
+                    border: `1px solid ${T.border}`
+                  }}>
+                    {node.icon}
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>{node.name}</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      <div style={{
+                        width: 6, height: 6, borderRadius: '50%',
+                        background: node.status === 'connected' ? T.green : T.amber,
+                        boxShadow: `0 0 10px ${node.status === 'connected' ? T.green : T.amber}`
+                      }} />
+                      <span style={{ fontSize: 11, fontFamily: T.mono, color: node.status === 'connected' ? T.green : T.amber }}>
+                        {node.status === 'connected' ? 'SECURE_LINK_ACTIVE' : 'AWAITING_HANDSHAKE'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-            <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
-              <button style={{ flex: 1, padding: '8px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', fontSize: 12, cursor: 'pointer' }}>تعديل</button>
-              <button style={{ padding: '8px', borderRadius: 8, border: '1px solid var(--danger)40', background: 'transparent', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={16} /></button>
+              {/* Data Grid */}
+              <div style={{
+                display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
+                background: 'rgba(0,0,0,0.3)', padding: 12, borderRadius: 6, border: `1px dashed ${T.border}`
+              }}>
+                <div>
+                  <div style={{ fontSize: 9, color: T.textDim, fontFamily: T.mono, marginBottom: 2 }}>LATENCY</div>
+                  <div style={{ fontSize: 13, fontFamily: T.mono, color: '#fff' }}>{node.ping}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 9, color: T.textDim, fontFamily: T.mono, marginBottom: 2 }}>HOST IP</div>
+                  <div style={{ fontSize: 13, fontFamily: T.mono, color: '#fff' }}>{node.ip}</div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+                <button style={{
+                  flex: 1, padding: '8px', background: 'transparent', border: `1px solid ${T.border}`,
+                  color: T.text, borderRadius: 4, fontFamily: T.mono, fontSize: 11, cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }} onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                   onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+                  [ CONFIGURE ]
+                </button>
+                {node.status === 'connected' ? (
+                  <button style={{
+                    padding: '8px 16px', background: 'rgba(255, 77, 77, 0.1)', border: `1px solid ${T.red}55`,
+                    color: T.red, borderRadius: 4, fontFamily: T.mono, fontSize: 11, cursor: 'pointer'
+                  }}>
+                    DISCONNECT
+                  </button>
+                ) : (
+                  <button style={{
+                    padding: '8px 16px', background: `rgba(0, 242, 255, 0.1)`, border: `1px solid ${T.cyan}55`,
+                    color: T.cyan, borderRadius: 4, fontFamily: T.mono, fontSize: 11, cursor: 'pointer'
+                  }}>
+                    AUTHORIZE
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         ))}
@@ -126,56 +248,151 @@ function IntegrationsTab() {
   )
 }
 
+/* ─── TRADER PROFILE CARD ─── */
 function ProfileTab() {
   return (
-    <div style={{ maxWidth: 600, display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 800 }}>الملف الشخصي</h2>
+    <div style={{ animation: 'fadeUp 0.4s ease', maxWidth: 800 }}>
+      <h2 style={{ fontSize: 20, fontWeight: 900, margin: '0 0 24px 0' }}>هوية المتداول (Trader Clearance)</h2>
       
-      <div style={{ display: 'flex', alignItems: 'center', gap: 24, padding: 24, background: 'var(--bg2)', borderRadius: 16, border: '1px solid var(--border)' }}>
-        <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(45deg, var(--primary), var(--accent))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>👤</div>
-        <div style={{ flex: 1 }}>
-          <h3 style={{ fontSize: 18, fontWeight: 900 }}>جابر الصبحي</h3>
-          <p style={{ fontSize: 13, color: 'var(--text3)' }}>المستوى: متداول محترف (Diamond)</p>
+      {/* ID Badge */}
+      <div style={{
+        background: `linear-gradient(135deg, rgba(10, 14, 23, 0.9) 0%, rgba(5, 8, 15, 0.95) 100%)`,
+        border: `1px solid ${T.cyan}44`, borderRadius: 12, padding: 32,
+        position: 'relative', overflow: 'hidden', boxShadow: GLOW,
+        display: 'flex', gap: 32, alignItems: 'center'
+      }}>
+        {/* Hologram Decor */}
+        <div style={{ position: 'absolute', right: -20, top: -20, opacity: 0.05, transform: 'scale(2)', pointerEvents: 'none' }}>
+          <Shield size={200} />
         </div>
-        <button style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--accent)', color: 'var(--accent)', background: 'transparent', fontSize: 12 }}>تغيير الصورة</button>
+
+        <div style={{
+          width: 100, height: 100, borderRadius: 12, border: `2px solid ${T.cyan}`,
+          background: 'rgba(0, 242, 255, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          boxShadow: `inset 0 0 20px rgba(0, 242, 255, 0.2)`, position: 'relative'
+        }}>
+          <User size={48} color={T.cyan} />
+          {/* Scanline overlay */}
+          <div style={{
+            position: 'absolute', inset: 0, background: `linear-gradient(to bottom, transparent 50%, rgba(0,242,255,0.1) 51%)`,
+            backgroundSize: '100% 4px'
+          }} />
+        </div>
+
+        <div style={{ flex: 1, zIndex: 1 }}>
+          <div style={{ fontFamily: T.mono, fontSize: 10, color: T.cyan, marginBottom: 4, letterSpacing: '0.1em' }}>CLEARANCE LEVEL: DIAMOND</div>
+          <h3 style={{ fontSize: 28, fontWeight: 900, margin: '0 0 16px 0', color: '#fff' }}>جابر الصبحي</h3>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 10, color: T.textDim, fontFamily: T.mono }}>TRADER_ID</div>
+              <div style={{ fontFamily: T.mono, fontSize: 14 }}>RUA-9928-VX</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: T.textDim, fontFamily: T.mono }}>ACCOUNT_STATUS</div>
+              <div style={{ fontFamily: T.mono, fontSize: 14, color: T.green }}>VERIFIED_ACTIVE</div>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ width: 80, height: 80, border: `1px dashed ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+           <span style={{ fontSize: 10, fontFamily: T.mono, color: T.textDim, textAlign: 'center' }}>QR<br/>AUTH</span>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gap: 16 }}>
-        <div>
-          <label style={{ fontSize: 12, color: 'var(--text3)', display: 'block', marginBottom: 8 }}>الاسم الكامل</label>
-          <input type="text" defaultValue="جابر الصبحي" style={{ width: '100%', padding: '12px', borderRadius: 10, background: 'var(--bg2)', border: '1px solid var(--border)', color: '#fff' }} />
+      {/* Edit Form */}
+      <div style={{ marginTop: 32, background: 'rgba(10, 14, 23, 0.6)', border: `1px solid ${T.border}`, borderRadius: 8, padding: 24 }}>
+        <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 20 }}>تحديث البيانات (Update Matrix)</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+           <div>
+             <label style={{ display: 'block', fontSize: 11, fontFamily: T.mono, color: T.textDim, marginBottom: 8 }}>FULL_NAME</label>
+             <input type="text" defaultValue="جابر الصبحي" style={{
+               width: '100%', background: 'rgba(0,0,0,0.5)', border: `1px solid ${T.border}`,
+               padding: '12px 16px', borderRadius: 4, color: '#fff', fontFamily: T.sans, fontSize: 14
+             }} />
+           </div>
+           <div>
+             <label style={{ display: 'block', fontSize: 11, fontFamily: T.mono, color: T.textDim, marginBottom: 8 }}>CONTACT_EMAIL</label>
+             <input type="email" defaultValue="jaber@rouatrading.com" style={{
+               width: '100%', background: 'rgba(0,0,0,0.5)', border: `1px solid ${T.border}`,
+               padding: '12px 16px', borderRadius: 4, color: '#fff', fontFamily: T.mono, fontSize: 14
+             }} />
+           </div>
         </div>
-        <div>
-          <label style={{ fontSize: 12, color: 'var(--text3)', display: 'block', marginBottom: 8 }}>البريد الإلكتروني</label>
-          <input type="email" defaultValue="jaber@example.com" style={{ width: '100%', padding: '12px', borderRadius: 10, background: 'var(--bg2)', border: '1px solid var(--border)', color: '#fff' }} />
+        <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
+          <button style={{
+            background: T.cyan, color: '#000', border: 'none', padding: '12px 24px',
+            borderRadius: 4, fontWeight: 900, fontFamily: T.sans, cursor: 'pointer',
+            boxShadow: `0 0 15px ${T.cyan}66`
+          }}>
+            تأكيد البصمة (SAVE)
+          </button>
         </div>
       </div>
-
-      <button className="btn-cyan-active" style={{ padding: '12px', borderRadius: 10, fontWeight: 800 }}>حفظ التغييرات</button>
     </div>
   )
 }
 
+/* ─── SECURITY MATRIX ─── */
 function SecurityTab() {
+  const SEC_ITEMS = [
+    { id: 'pwd', label: 'مفتاح التشفير (Password)', status: 'AES-256 ACTIVE', desc: 'تم التحديث منذ 14 يوم', icon: Key },
+    { id: '2fa', label: 'المصادقة الثنائية (2FA)', status: 'ENABLED', desc: 'Google Authenticator Sync: OK', icon: Lock },
+    { id: 'ip', label: 'مراقبة الشبكة (IP Logs)', status: 'MONITORING', desc: 'لم يتم رصد اتصالات مشبوهة', icon: Radio },
+  ]
+
   return (
-    <div style={{ maxWidth: 600, display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 800 }}>الأمان والخصوصية</h2>
-      
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {[
-          { label: 'كلمة المرور', desc: 'آخر تغيير منذ 3 أشهر', action: 'تغيير' },
-          { label: 'المصادقة الثنائية (2FA)', desc: 'مفعلة عبر Google Authenticator', action: 'إدارة' },
-          { label: 'سجل الدخول', desc: 'رؤية آخر الأجهزة التي دخلت لحسابك', action: 'عرض' }
-        ].map((item, i) => (
-          <div key={i} style={{ padding: 20, background: 'var(--bg2)', borderRadius: 12, border: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>{item.label}</div>
-              <div style={{ fontSize: 12, color: 'var(--text3)' }}>{item.desc}</div>
+    <div style={{ animation: 'fadeUp 0.4s ease', maxWidth: 800 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 900, margin: 0 }}>مصفوفة الأمان (Security Matrix)</h2>
+          <p style={{ fontSize: 12, color: T.textDim, margin: '4px 0 0', fontFamily: T.mono }}>SYSTEM DEFENSE PROTOCOLS</p>
+        </div>
+        <div style={{ padding: '6px 12px', background: 'rgba(0,255,198,0.1)', border: `1px solid ${T.green}`, color: T.green, borderRadius: 4, fontFamily: T.mono, fontSize: 11 }}>
+          DEFCON 5
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {SEC_ITEMS.map((item, i) => (
+          <div key={item.id} style={{
+            background: 'rgba(10, 14, 23, 0.6)', border: `1px solid ${T.border}`, borderRadius: 8,
+            padding: 24, display: 'flex', alignItems: 'center', gap: 20,
+            position: 'relative', overflow: 'hidden'
+          }}>
+            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: T.cyan }} />
+            
+            <div style={{ width: 48, height: 48, borderRadius: 8, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <item.icon size={24} color={T.cyan} />
             </div>
-            <button style={{ padding: '6px 16px', borderRadius: 6, border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)', fontSize: 12 }}>{item.action}</button>
+
+            <div style={{ flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>{item.label}</h3>
+                <span style={{ fontSize: 10, fontFamily: T.mono, color: T.green, background: 'rgba(0,255,198,0.1)', padding: '2px 6px', borderRadius: 4 }}>
+                  {item.status}
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: T.textDim, fontFamily: T.mono }}>{item.desc}</div>
+            </div>
+
+            <button style={{
+              background: 'transparent', border: `1px solid ${T.border}`, color: '#fff',
+              padding: '8px 16px', borderRadius: 4, fontFamily: T.mono, fontSize: 11, cursor: 'pointer',
+              transition: 'all 0.2s'
+            }} onMouseOver={e => e.currentTarget.style.borderColor = T.cyan} onMouseOut={e => e.currentTarget.style.borderColor = T.border}>
+              [ CONFIGURE ]
+            </button>
           </div>
         ))}
       </div>
+      
+      <style>{`
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   )
 }

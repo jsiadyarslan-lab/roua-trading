@@ -49,13 +49,43 @@ export function BotEngine({ quotes = new Map() }: { quotes?: Map<string, any> })
       }
 
       if (signal) {
-        addLog(`[${settings.strategy}] إشارة ${signal === 'BUY' ? 'شراء' : 'بيع'} بقوة ${confidence.toFixed(0)}% على ${selectedSymbol}`, signal === 'BUY' ? 'buy' : 'sell');
+        addLog(`[${settings.strategy}] جاري تجهيز أمر ${signal === 'BUY' ? 'شراء' : 'بيع'} على ${selectedSymbol}...`, 'info');
         lastSignalRef.current = signal;
+        
+        // Calculate trade size. We'll use notional (USD amount) for simplicity.
+        // E.g., if riskPct is 2%, and we assume a fixed standard portfolio size (or just use riskPct * 10 dollars)
+        // A safer default for paper trading is using $100 notional
+        const tradeAmount = Math.max(10, settings.riskPct * 50);
+
+        fetch('/api/alpaca/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            symbol: selectedSymbol,
+            side: signal.toLowerCase(),
+            notional: tradeAmount,
+            type: 'market'
+          })
+        }).then(res => res.json()).then(data => {
+          if (data.success) {
+            addLog(`[تنفيذ ناجح] تم تنفيذ أمر ${signal === 'BUY' ? 'شراء' : 'بيع'} بقيمة $${tradeAmount}`, signal === 'BUY' ? 'buy' : 'sell');
+            useBotStore.getState().setStats({
+              ...useBotStore.getState().stats,
+              trades: useBotStore.getState().stats.trades + 1
+            });
+          } else {
+            addLog(`[فشل التنفيذ] ${data.error}`, 'warn');
+            lastSignalRef.current = null; // reset so it tries again later
+          }
+        }).catch(err => {
+          addLog(`[خطأ بالشبكة] فشل الاتصال بمحرك التنفيذ`, 'warn');
+          lastSignalRef.current = null;
+        });
       }
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [isOn, hydrated, selectedSymbol, settings.strategy, settings.confLimit, addLog]);
+  }, [isOn, hydrated, selectedSymbol, settings.strategy, settings.confLimit, settings.riskPct, addLog]);
 
   return null;
 }

@@ -12,6 +12,11 @@ import { ScannerMini } from '@/components/dashboard/ScannerMini'
 import { BotMini } from '@/components/dashboard/BotMini'
 import QuantumChart from '@/components/dashboard/QuantumChart'
 import { AlpacaPositions } from '@/components/dashboard/AlpacaPositions'
+import { useMarketQuotes } from '@/hooks/useMarketData'
+
+const DASHBOARD_SYMBOLS = [
+  'BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA'
+]
 
 /* ─── Design tokens ─── */
 const T = {
@@ -402,12 +407,12 @@ export default function DashboardPage() {
 
         {/* ══════════ COL 3 — Tabs Panel ══════════ */}
         <div className="dash-col dash-col-right">
-          <Col3TabbedPanel />
+          <Col3TabbedPanel quotes={quotes} />
         </div>
 
         {/* Mobile Sidebar (Visible only on mobile) */}
         <div className="dash-col dash-col-right-mobile" style={{ display: 'none', padding: '0 4px 20px' }}>
-             <Col3TabbedPanel />
+             <Col3TabbedPanel quotes={quotes} />
              <div style={{ height: 10 }} />
              <WatchlistMini />
         </div>
@@ -417,7 +422,7 @@ export default function DashboardPage() {
   )
 }
 
-function Col3TabbedPanel() {
+function Col3TabbedPanel({ quotes }: { quotes: any }) {
   const [active, setActive] = useState('bot')
   const TABS = [
     { id: 'bot', label: 'البوت', accent: T.cyan },
@@ -457,7 +462,11 @@ function Col3TabbedPanel() {
       
       {/* Tab Body */}
       <div style={{ flex: 1, overflow: 'hidden', padding: 0 }}>
-         {active === 'bot' && <div style={{ height: '100%', overflowY: 'auto' }}><BotMini /></div>}
+         {active === 'bot' && (
+           <div style={{ height: '100%', overflowY: 'auto' }}>
+             <BotMini quotes={quotes} />
+           </div>
+         )}
          {active === 'scanner' && <div style={{ height: '100%', overflowY: 'auto' }}><ScannerMini /></div>}
          {active === 'signals' && <Empty label="إشارات الدخول - قريباً" color={T.green} />}
          {active === 'multi-tf' && (

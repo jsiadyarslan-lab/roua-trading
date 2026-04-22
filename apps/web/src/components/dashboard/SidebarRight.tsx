@@ -65,33 +65,17 @@ export default function SidebarRight() {
     return () => clearInterval(iv)
   }, [])
 
-  // Bot logs simulation
+  // Bot logs (Real-time updates from engine)
   useEffect(() => {
-    if (!botEnabled) return
-    const messages = [
-      { message: 'فحص السوق...', type: 'info' as const },
-      { message: 'تم رصد نمط صاعد على BTC', type: 'success' as const },
-      { message: 'تحليل RSI: منطقة تشبع بيعي', type: 'info' as const },
-      { message: 'إشارة شراء محتملة', type: 'success' as const },
-      { message: 'مقاومة عند 68,500', type: 'warning' as const },
-    ]
-    const addLog = () => {
-      const msg = messages[Math.floor(Math.random() * messages.length)]
-      setBotLogs(prev => [
-        { time: new Date().toLocaleTimeString('ar-EG'), ...msg },
-        ...prev.slice(0, 19),
-      ])
-      setBotStats(prev => ({
-        ...prev,
-        trades: prev.trades + Math.floor(Math.random() * 2),
-        wins: prev.wins + (Math.random() > 0.4 ? 1 : 0),
-        losses: prev.losses + (Math.random() > 0.7 ? 1 : 0),
-        profit: prev.profit + (Math.random() > 0.5 ? Math.random() * 5 : -Math.random() * 2),
-      }))
+    if (!botEnabled) {
+      setBotLogs([])
+      return
     }
-    addLog()
-    const iv = setInterval(addLog, 4000)
-    return () => clearInterval(iv)
+    setBotLogs([{ 
+      time: new Date().toLocaleTimeString('ar-EG'), 
+      message: 'بدء مراقبة حساب Alpaca...', 
+      type: 'info' 
+    }])
   }, [botEnabled])
 
   // Execute order
@@ -443,98 +427,10 @@ export default function SidebarRight() {
         {rightTab === 'signals' && (
           <div className="flex flex-col gap-2">
             {signals.length === 0 ? (
-              // Demo signals when no real data
-              <>
-                {[
-                  { pair: 'BTC/USD', action: 'BUY' as const, confidence: 87, entryPrice: 67450, takeProfit: 69200, stopLoss: 66500, reason: 'زخم صعودي قوي', status: 'ACTIVE', id: 'demo1', createdAt: '', expiresAt: '' },
-                  { pair: 'ETH/USD', action: 'SELL' as const, confidence: 72, entryPrice: 3520, takeProfit: 3380, stopLoss: 3590, reason: 'ضغط بيعي', status: 'ACTIVE', id: 'demo2', createdAt: '', expiresAt: '' },
-                  { pair: 'SOL/USD', action: 'BUY' as const, confidence: 65, entryPrice: 142.5, takeProfit: 155, stopLoss: 136, reason: 'اتجاه صعودي', status: 'ACTIVE', id: 'demo3', createdAt: '', expiresAt: '' },
-                  { pair: 'XRP/USD', action: 'BUY' as const, confidence: 58, entryPrice: 0.523, takeProfit: 0.56, stopLoss: 0.50, reason: 'فرصة شراء', status: 'ACTIVE', id: 'demo4', createdAt: '', expiresAt: '' },
-                ].map((sig, idx) => (
-                  <div
-                    key={idx}
-                    className="p-2.5 rounded"
-                    style={{
-                      background: 'var(--bg3)',
-                      border: '1px solid var(--border)',
-                    }}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="price"
-                          style={{
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            color: 'var(--text)',
-                          }}
-                          dir="ltr"
-                        >
-                          {sig.pair}
-                        </span>
-                        <span
-                          style={{
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: '9px',
-                            fontWeight: 700,
-                            color: sig.action === 'BUY' ? 'var(--green)' : 'var(--red)',
-                            background: sig.action === 'BUY' ? 'var(--green2)' : 'var(--red2)',
-                            padding: '1px 6px',
-                            borderRadius: 3,
-                          }}
-                        >
-                          {sig.action === 'BUY' ? '▲ شراء' : '▼ بيع'}
-                        </span>
-                      </div>
-                      <span
-                        style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          color: sig.confidence >= 75 ? 'var(--green)' : sig.confidence >= 60 ? 'var(--amber)' : 'var(--text2)',
-                        }}
-                      >
-                        {sig.confidence}%
-                      </span>
-                    </div>
-                    {/* Confidence bar */}
-                    <div
-                      className="mb-2"
-                      style={{
-                        height: 3,
-                        background: 'var(--bg)',
-                        borderRadius: 2,
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <div
-                        style={{
-                          height: '100%',
-                          width: `${sig.confidence}%`,
-                          background: sig.confidence >= 75
-                            ? 'var(--green)'
-                            : sig.confidence >= 60
-                            ? 'var(--amber)'
-                            : 'var(--text3)',
-                          borderRadius: 2,
-                          transition: 'width 0.5s',
-                        }}
-                      />
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="price" style={{ fontSize: '9px', color: 'var(--text3)' }} dir="ltr">
-                        دخول: {sig.entryPrice}
-                      </span>
-                      <span className="price" style={{ fontSize: '9px', color: 'var(--green)' }} dir="ltr">
-                        هدف: {sig.takeProfit}
-                      </span>
-                      <span className="price" style={{ fontSize: '9px', color: 'var(--red)' }} dir="ltr">
-                        وقف: {sig.stopLoss}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </>
+              <div className="flex flex-col items-center justify-center py-10 opacity-40">
+                <span className="text-2xl mb-2">📡</span>
+                <span style={{ fontSize: '11px', fontFamily: 'var(--font-ui)' }}>لا توجد إشارات نشطة حالياً</span>
+              </div>
             ) : (
               signals.map((sig) => (
                 <div

@@ -7,7 +7,7 @@ import {
   CH_frame, CH_bindEvents, CH_initIndPanel,
   CH_setType, CH_setTF, CH_setSub, CH_setTool,
   CH_clearDrawings, CH_zoom, CH_resetView, CH_screenshot,
-  CH_setDirty, CH_liveTick,
+  CH_setDirty, CH_liveTick, CH_animFrame,
   setActiveTF, toggleSubChart, togglePanel, closeAllPanels,
 } from '../../lib/chartEngine';
 import { useSymbolStore } from '../../hooks/useSymbolStore';

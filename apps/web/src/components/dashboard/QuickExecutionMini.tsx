@@ -7,58 +7,97 @@ import { useSymbolStore } from '@/hooks/useSymbolStore'
 export function QuickExecutionMini() {
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
   const [localSymbol, setLocalSymbol] = useState(selectedSymbol)
-  
-  // Sync when global changes, but allow local typing before commit
+  const [account, setAccount] = useState<{ cash: number; buyingPower: number } | null>(null)
+
+  // Sync when global symbol changes
+  useEffect(() => { setLocalSymbol(selectedSymbol) }, [selectedSymbol])
+
+  // Load Alpaca account balance on mount
   useEffect(() => {
-    setLocalSymbol(selectedSymbol)
-  }, [selectedSymbol])
-  
+    fetch('/api/alpaca/account')
+      .then(r => r.json())
+      .then(j => { if (j.success) setAccount({ cash: j.data.cash, buyingPower: j.data.buyingPower }) })
+      .catch(() => {})
+  }, [])
+
   const [quantity, setQuantity] = useState('0.1')
   const [stopLoss, setStopLoss] = useState('')
   const [takeProfit, setTakeProfit] = useState('')
-  const [status, setStatus] = useState<{ msg: string; type: 'success' | 'error' | '' }>({ msg: '', type: '' })
+  const [status, setStatus] = useState<{ msg: string; type: 'success' | 'error' | 'loading' | '' }>({ msg: '', type: '' })
   const [loading, setLoading] = useState(false)
+  const [lastOrder, setLastOrder] = useState<any>(null)
 
-  const executeOrder = async (side: 'BUY' | 'SELL') => {
-    if (!symbol || !quantity) return
+  const executeOrder = async (side: 'buy' | 'sell') => {
+    if (!localSymbol || !quantity) return
     setLoading(true)
-    setStatus({ msg: 'جاري التنفيذ...', type: '' })
+    setStatus({ msg: `⏳ جارٍ إرسال أمر ${side === 'buy' ? 'شراء' : 'بيع'} عبر Alpaca...`, type: 'loading' })
+
     try {
-      const res = await fetch('/api/trading/orders', {
-        method: 'POST',
+      const body: Record<string, any> = {
+        symbol:   localSymbol,
+        side,
+        qty:      parseFloat(quantity),
+        type:     'market',
+      }
+      if (stopLoss)   body.stop_loss   = parseFloat(stopLoss)
+      if (takeProfit) body.take_profit = parseFloat(takeProfit)
+
+      const res = await fetch('/api/alpaca/orders', {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          symbol: localSymbol,
-          side,
-          type: 'MARKET',
-          quantity: parseFloat(quantity),
-          price: 0,
-          stopLoss: stopLoss ? parseFloat(stopLoss) : null,
-          takeProfit: takeProfit ? parseFloat(takeProfit) : null
-        })
+        body:    JSON.stringify(body),
       })
       const j = await res.json()
+
       if (j.success) {
-        setStatus({ msg: `تم تنفيذ ${side === 'BUY' ? 'شراء' : 'بيع'} بنجاح`, type: 'success' })
+        setLastOrder(j)
+        const filled = j.filledAvgPrice
+          ? ` @ $${parseFloat(j.filledAvgPrice).toFixed(2)}`
+          : ''
+        setStatus({
+          msg:  `✅ ${side === 'buy' ? 'شراء' : 'بيع'} ${j.qty} ${j.symbol}${filled}\nOrder ID: ${j.orderId?.slice(0,8)}...`,
+          type: 'success',
+        })
+        // Refresh account balance
+        fetch('/api/alpaca/account').then(r=>r.json()).then(j => {
+          if (j.success) setAccount({ cash: j.data.cash, buyingPower: j.data.buyingPower })
+        })
       } else {
-        setStatus({ msg: j.error || 'فشل التنفيذ', type: 'error' })
+        setStatus({ msg: `❌ ${j.error || 'فشل التنفيذ'}`, type: 'error' })
       }
     } catch {
-      setStatus({ msg: 'خطأ في الشبكة', type: 'error' })
+      setStatus({ msg: '❌ خطأ في الشبكة — تعذّر الوصول لـ Alpaca', type: 'error' })
     } finally {
       setLoading(false)
-      setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
+      setTimeout(() => setStatus({ msg: '', type: '' }), 5000)
     }
   }
 
   return (
     <div style={{
       width: '100%', height: '100%',
-      padding: '16px',
-      display: 'flex', flexDirection: 'column', gap: 14,
+      padding: '12px 16px',
+      display: 'flex', flexDirection: 'column', gap: 10,
       boxSizing: 'border-box', position: 'relative',
       background: 'var(--bg)'
     }}>
+      {/* Alpaca Paper Trading Badge + Balance */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          background: 'rgba(0,200,83,0.08)', border: '1px solid rgba(0,200,83,0.2)',
+          borderRadius: 6, padding: '3px 8px',
+        }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00C853', boxShadow: '0 0 6px #00C853' }} />
+          <span style={{ fontSize: 9, fontWeight: 800, color: '#00C853', fontFamily: "'JetBrains Mono', monospace" }}>PAPER TRADING</span>
+        </div>
+        {account && (
+          <div style={{ fontSize: 9, color: 'var(--muted)', fontFamily: "'JetBrains Mono', monospace" }}>
+            💰 <span style={{ color: 'var(--success)', fontWeight: 700 }}>${account.cash.toLocaleString(undefined, {maximumFractionDigits:0})}</span>
+          </div>
+        )}
+      </div>
+
       {/* Symbol & Quantity Wrapper */}
       <div style={{ display: 'flex', gap: 10 }}>
         <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -142,39 +181,39 @@ export function QuickExecutionMini() {
       {/* Action Buttons */}
       <div style={{ display: 'flex', gap: 12, marginTop: 'auto' }}>
         <button 
-          onClick={() => executeOrder('BUY')}
+          onClick={() => executeOrder('buy')}
           disabled={loading}
           className="btn-buy"
           style={{
-            flex: 1, height: 48, borderRadius: 12, border: 'none', 
-            fontSize: 14, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
+            flex: 1, height: 44, borderRadius: 12, border: 'none', 
+            fontSize: 13, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
             fontFamily: "'Cairo', sans-serif",
             boxShadow: '0 8px 16px rgba(0,200,83,0.25)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            transition: 'transform 0.1s'
+            transition: 'transform 0.1s', opacity: loading ? 0.7 : 1,
           }}
           onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
           onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
         >
-          <Zap size={16} fill="white" />
+          <Zap size={14} fill="white" />
           شراء (BUY)
         </button>
         <button 
-          onClick={() => executeOrder('SELL')}
+          onClick={() => executeOrder('sell')}
           disabled={loading}
           className="btn-sell"
           style={{
-            flex: 1, height: 48, borderRadius: 12, border: 'none', 
-            fontSize: 14, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
+            flex: 1, height: 44, borderRadius: 12, border: 'none', 
+            fontSize: 13, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
             fontFamily: "'Cairo', sans-serif",
             boxShadow: '0 8px 16px rgba(255,59,48,0.25)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            transition: 'transform 0.1s'
+            transition: 'transform 0.1s', opacity: loading ? 0.7 : 1,
           }}
           onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
           onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
         >
-          <Zap size={16} fill="white" />
+          <Zap size={14} fill="white" />
           بيع (SELL)
         </button>
       </div>

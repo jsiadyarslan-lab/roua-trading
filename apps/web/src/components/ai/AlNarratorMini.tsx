@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Activity, ShieldCheck, Zap, Bell, CheckCircle2, TrendingUp, TrendingDown } from 'lucide-react'
+import { useNotificationStore } from '@/hooks/useNotificationStore'
 
 interface Keyword {
   word: string
@@ -21,6 +22,8 @@ export function AlNarratorMini() {
   const [data, setData] = useState<NarrativeData | null>(null)
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(false)
+  const { addNotification } = useNotificationStore()
+  const prevNarrativeRef = useRef<string | null>(null)
 
   const fetchNarrative = async () => {
     setLoading(true)
@@ -28,11 +31,21 @@ export function AlNarratorMini() {
       const res = await fetch('/api/ai/narrator')
       const json = await res.json()
       if (json.success) {
+        const narrativeData = json.data
         setData({
-          ...json.data,
-          confidence: json.data.confidence ?? Math.floor(Math.random() * 40 + 60),
-          risk: json.data.risk ?? (['Low', 'Medium', 'High'][Math.floor(Math.random() * 3)])
+          ...narrativeData,
+          confidence: narrativeData.confidence ?? Math.floor(Math.random() * 40 + 60),
+          risk: narrativeData.risk ?? (['Low', 'Medium', 'High'][Math.floor(Math.random() * 3)])
         })
+
+        if (narrativeData.confidence > 90 && narrativeData.narrative !== prevNarrativeRef.current) {
+          addNotification({
+            title: '🧠 رؤية AI حاسمة',
+            message: narrativeData.narrative.substring(0, 100) + '...',
+            type: 'ai'
+          })
+          prevNarrativeRef.current = narrativeData.narrative
+        }
       }
     } catch {
       // ignore

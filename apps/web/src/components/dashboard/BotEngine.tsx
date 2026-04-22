@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useBotStore } from '@/hooks/useBotStore';
 import { useSymbolStore } from '@/hooks/useSymbolStore';
+import { useNotificationStore } from '@/hooks/useNotificationStore';
 
 export function BotEngine({ quotes = new Map() }: { quotes?: Map<string, any> }) {
   const { isOn, addLog, settings } = useBotStore();
+  const { addNotification } = useNotificationStore();
   const { selectedSymbol } = useSymbolStore();
   const lastSignalRef = useRef<string | null>(null);
   const quotesRef = useRef(quotes);
@@ -49,7 +51,13 @@ export function BotEngine({ quotes = new Map() }: { quotes?: Map<string, any> })
       }
 
       if (signal) {
-        addLog(`[${settings.strategy}] إشارة ${signal === 'BUY' ? 'شراء' : 'بيع'} بقوة ${confidence.toFixed(0)}% على ${selectedSymbol}`, signal === 'BUY' ? 'buy' : 'sell');
+        const msg = `[${settings.strategy}] إشارة ${signal === 'BUY' ? 'شراء' : 'بيع'} بقوة ${confidence.toFixed(0)}% على ${selectedSymbol}`;
+        addLog(msg, signal === 'BUY' ? 'buy' : 'sell');
+        addNotification({
+          title: signal === 'BUY' ? '⚡️ إشارة شراء بوت' : '🔻 إشارة بيع بوت',
+          message: msg,
+          type: 'trade'
+        });
         lastSignalRef.current = signal;
       }
     }, 5000);

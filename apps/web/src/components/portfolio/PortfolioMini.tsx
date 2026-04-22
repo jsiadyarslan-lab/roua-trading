@@ -17,20 +17,20 @@ const T = {
   border: 'rgba(10,132,255,0.12)',
 }
 
-/* ── Demo data for unauthenticated dev mode ── */
-const DEMO: PortfolioSummary = {
-  balance:       38725,
-  totalPnl:      13259,
-  pnlPercent:    4.6,
-  totalPositions: 5,
-  winRate:       65,
-  margin:        149081,
-  totalProfit:   5240,
-  totalLoss:     1770,
-  winCount:      104,
-  lossCount:     48,
-  totalTrades:   152,
-  sharpe:        1.84,
+/* ── Default Real Data State ── */
+const DEFAULT: PortfolioSummary = {
+  balance:       0,
+  totalPnl:      0,
+  pnlPercent:    0,
+  totalPositions: 0,
+  winRate:       0,  // Requires trade history analysis (future)
+  margin:        0,
+  totalProfit:   0,
+  totalLoss:     0,
+  winCount:      0,
+  lossCount:     0,
+  totalTrades:   0,
+  sharpe:        0,
 }
 
 interface PortfolioSummary {
@@ -53,33 +53,60 @@ function fmt(n: number, decimals = 2) {
 }
 
 export function usePortfolioSummary() {
-  const [data, setData] = useState<PortfolioSummary>(DEMO)
+  const [data, setData] = useState<PortfolioSummary>(DEFAULT)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
       try {
-        const [summaryRes, tradesRes] = await Promise.all([
-          fetch('/api/trading/positions/summary'),
-          fetch('/api/trading/trades'),
+        const [accRes, posRes] = await Promise.all([
+          fetch('/api/alpaca/account'),
+          fetch('/api/alpaca/positions'),
         ])
 
-        if (summaryRes.ok) {
-          const s = await summaryRes.json()
-          if (s.success && s.data) {
-            setData(prev => ({
-              ...prev,
-              totalPositions: s.data.totalPositions ?? prev.totalPositions,
-              totalPnl:       (s.data.unrealizedPnl ?? 0) + (s.data.realizedPnl ?? 0),
-              margin:         s.data.totalValue ?? prev.margin,
-            }))
-          }
+        const acc = await accRes.json()
+        const pos = await posRes.json()
+
+        let balance = 0, margin = 0
+        if (acc.success) {
+          balance = acc.data.equity
+          margin = acc.data.equity - acc.data.cash
         }
-      } catch { /* keep demo */ } finally {
+
+        let totalPnl = 0, totalPositions = 0, pnlPercent = 0
+        let win = 0, loss = 0
+        
+        if (pos.success) {
+          totalPositions = pos.data.length
+          pos.data.forEach((p: any) => {
+            totalPnl += p.unrealizedPnl
+            if (p.unrealizedPnl >= 0) win++
+            else loss++
+          })
+          if (balance > 0) pnlPercent = (totalPnl / (balance - totalPnl)) * 100
+        }
+
+        setData(prev => ({
+          ...prev,
+          balance,
+          margin,
+          totalPnl,
+          totalPositions,
+          pnlPercent,
+          winCount: win,
+          lossCount: loss,
+          totalTrades: win + loss,
+          winRate: totalPositions > 0 ? (win / totalPositions) * 100 : 0
+        }))
+
+      } catch { /* Error fetching real data */ } finally {
         setLoading(false)
       }
     }
+    
     load()
+    const interval = setInterval(load, 10000)
+    return () => clearInterval(interval)
   }, [])
 
   return { data, loading }

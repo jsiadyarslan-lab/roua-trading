@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { TrendingUp, TrendingDown, RefreshCw, X } from 'lucide-react'
+import { TrendingUp, TrendingDown, RefreshCw, X, AlertTriangle } from 'lucide-react'
 
 interface Position {
   symbol:        string
@@ -31,6 +31,8 @@ export function AlpacaPositions() {
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<string | null>(null)
   const [closing, setClosing] = useState<string | null>(null)
+  const [confirmClose, setConfirmClose] = useState<string | null>(null)
+  const [account, setAccount] = useState<any>(null)
 
   const fetchPositions = useCallback(async () => {
     setLoading(true)
@@ -44,6 +46,11 @@ export function AlpacaPositions() {
       } else {
         setError(j.error || 'فشل في جلب المراكز')
       }
+      // جلب بيانات الحساب
+      const accRes = await fetch('/api/alpaca/account')
+      const accJ   = await accRes.json()
+      if (accJ.success) setAccount(accJ.data)
+
     } catch {
       setError('خطأ في الشبكة')
     } finally {
@@ -60,7 +67,14 @@ export function AlpacaPositions() {
 
   // إغلاق مركز
   const closePosition = async (symbol: string) => {
-    if (!confirm(`هل تريد إغلاق مركز ${symbol}؟`)) return
+    if (confirmClose !== symbol) {
+      setConfirmClose(symbol)
+      // إخفاء التأكيد بعد 3 ثواني
+      setTimeout(() => setConfirmClose(null), 3000)
+      return
+    }
+
+    setConfirmClose(null)
     setClosing(symbol)
     try {
       const res = await fetch(`/api/alpaca/positions/${encodeURIComponent(symbol)}`, { method: 'DELETE' })
@@ -112,20 +126,42 @@ export function AlpacaPositions() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Header */}
       <div style={{
-        display: 'flex', alignItems: 'center', padding: '4px 10px',
-        borderBottom: `1px solid ${T.border}`, flexShrink: 0, gap: 8,
+        display: 'flex', alignItems: 'center', padding: '6px 10px',
+        borderBottom: `1px solid ${T.border}`, flexShrink: 0, gap: 12, overflowX: 'auto', whiteSpace: 'nowrap'
       }}>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text2, flex: 1 }}>
-          {positions.length} مركز مفتوح
-          {lastUpdate && <> · <span style={{ color: T.text3 }}>{lastUpdate}</span></>}
-        </span>
-        {/* إجمالي الربح/الخسارة */}
-        <span style={{
-          fontSize: 11, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
-          color: totalPnl >= 0 ? T.success : T.danger,
-        }}>
-          {totalPnl >= 0 ? '+' : ''}{totalPnl.toFixed(2)}$
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, fontWeight: 700, color: T.text }}>المراكز ({positions.length})</span>
+          {lastUpdate && <span style={{ fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{lastUpdate}</span>}
+        </div>
+        
+        <div style={{ width: 1, height: 12, background: T.border }} />
+
+        {/* Account Info */}
+        <div style={{ display: 'flex', gap: 12, flex: 1, fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>
+          <div style={{ display: 'flex', gap: 4 }}>
+            <span style={{ color: T.text2 }}>PNL:</span>
+            <span style={{ fontWeight: 800, color: totalPnl >= 0 ? T.success : T.danger }}>
+              {totalPnl >= 0 ? '+' : ''}{totalPnl.toFixed(2)}$
+            </span>
+          </div>
+          {account && (
+            <>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <span style={{ color: T.text2 }}>الرصيد:</span>
+                <span style={{ color: T.text }}>${account.equity.toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <span style={{ color: T.text2 }}>متاح:</span>
+                <span style={{ color: T.success }}>${account.buyingPower.toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <span style={{ color: T.text2 }}>مستخدم:</span>
+                <span style={{ color: T.danger }}>${(account.equity - account.cash).toLocaleString()}</span>
+              </div>
+            </>
+          )}
+        </div>
+
         <button
           onClick={fetchPositions}
           disabled={loading}
@@ -134,7 +170,7 @@ export function AlpacaPositions() {
             color: T.text3, padding: 2, display: 'flex', alignItems: 'center',
           }}
         >
-          <RefreshCw size={11} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
+          <RefreshCw size={12} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
         </button>
       </div>
 
@@ -143,7 +179,7 @@ export function AlpacaPositions() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>
           <thead>
             <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
-              {['الزوج', 'الاتجاه', 'الكمية', 'السعر دخول', 'السعر الحالي', 'P&L', ''].map(h => (
+              {['الزوج', 'التاريخ', 'الاتجاه', 'الكمية', 'السعر دخول', 'السعر الحالي', 'P&L', ''].map(h => (
                 <th key={h} style={{ padding: '4px 8px', textAlign: 'right', fontWeight: 600, color: T.text3, whiteSpace: 'nowrap', fontSize: 9 }}>
                   {h}
                 </th>
@@ -157,6 +193,7 @@ export function AlpacaPositions() {
               return (
                 <tr key={pos.symbol} style={{ borderBottom: `1px solid ${T.border}` }}>
                   <td style={{ padding: '5px 8px', fontWeight: 700, color: T.text }}>{pos.symbol}</td>
+                  <td style={{ padding: '5px 8px', color: T.text3, fontSize: 8 }}>تجميعي</td>
                   <td style={{ padding: '5px 8px' }}>
                     <span style={{
                       padding: '1px 6px', borderRadius: 3, fontSize: 9, fontWeight: 800,
@@ -168,7 +205,7 @@ export function AlpacaPositions() {
                       {isLong ? 'شراء' : 'بيع'}
                     </span>
                   </td>
-                  <td style={{ padding: '5px 8px', color: T.text2 }}>{pos.qty}</td>
+                  <td style={{ padding: '5px 8px', color: T.text }}>{pos.qty}</td>
                   <td style={{ padding: '5px 8px', color: T.text2 }}>{pos.avgEntryPrice.toFixed(2)}</td>
                   <td style={{ padding: '5px 8px', color: T.text }}>{pos.currentPrice.toFixed(2)}</td>
                   <td style={{ padding: '5px 8px' }}>
@@ -185,13 +222,22 @@ export function AlpacaPositions() {
                       disabled={closing === pos.symbol}
                       title="إغلاق المركز"
                       style={{
-                        background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.25)',
-                        color: T.danger, borderRadius: 4, cursor: 'pointer',
-                        padding: '1px 5px', fontSize: 9, fontFamily: "'Cairo', sans-serif",
-                        display: 'flex', alignItems: 'center', gap: 2,
+                        background: confirmClose === pos.symbol ? T.danger : 'rgba(255,59,48,0.1)',
+                        border: '1px solid rgba(255,59,48,0.25)',
+                        color: confirmClose === pos.symbol ? '#fff' : T.danger,
+                        borderRadius: 4, cursor: 'pointer',
+                        padding: '2px 6px', fontSize: 9, fontFamily: "'Cairo', sans-serif",
+                        display: 'flex', alignItems: 'center', gap: 4,
+                        transition: 'all 0.2s', fontWeight: confirmClose === pos.symbol ? 800 : 600
                       }}
                     >
-                      <X size={9} /> {closing === pos.symbol ? '...' : 'إغلاق'}
+                      {closing === pos.symbol ? (
+                        <RefreshCw size={9} style={{ animation: 'spin 1s linear infinite' }} />
+                      ) : confirmClose === pos.symbol ? (
+                        <>تأكيد الإغلاق؟</>
+                      ) : (
+                        <><X size={9} /> إغلاق</>
+                      )}
                     </button>
                   </td>
                 </tr>

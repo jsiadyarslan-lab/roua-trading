@@ -25,7 +25,7 @@ export default function NewsTicker() {
   const tickerRef = useRef<HTMLDivElement>(null)
   const [newsItems, setNewsItems] = useState<NewsItem[]>(defaultNewsItems)
 
-  // Fetch from /api/news/feed (Finnhub) on mount — gracefully falls back to defaults
+  // Fetch from /api/news/feed on mount, then refresh every 5 minutes
   useEffect(() => {
     const fetchNews = async () => {
       try {
@@ -52,6 +52,9 @@ export default function NewsTicker() {
       }
     }
     fetchNews()
+    // Auto-refresh news every 5 minutes
+    const refreshInterval = setInterval(fetchNews, 5 * 60 * 1000)
+    return () => clearInterval(refreshInterval)
   }, [])
 
   useEffect(() => {

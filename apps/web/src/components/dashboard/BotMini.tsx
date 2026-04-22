@@ -10,9 +10,18 @@ export function BotMini() {
 
   React.useEffect(() => {
     setHydrated(true);
+    // Safety timeout — always show after 1.5s
+    const t = setTimeout(() => setHydrated(true), 1500);
+    return () => clearTimeout(t);
   }, []);
 
-  if (!hydrated) return null;
+  if (!hydrated) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 8 }}>
+      <div style={{ width: 20, height: 20, border: '2px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <span style={{ fontSize: 11, color: 'var(--muted)' }}>تهيئة محرك البوت...</span>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
 
   return (
     <div style={{
@@ -32,6 +41,7 @@ export function BotMini() {
             boxShadow: isOn ? '0 0 10px var(--success)' : 'none'
           }} />
           <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>روبوت التداول الآلي</span>
+          <span style={{ fontSize: 8, padding: '1px 6px', borderRadius: 4, background: 'rgba(255,184,0,0.15)', color: '#FFB800', fontWeight: 700, fontFamily: 'monospace' }}>PAPER 📄</span>
         </div>
         <button 
           onClick={() => setIsOn(!isOn)}

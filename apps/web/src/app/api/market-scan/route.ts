@@ -29,14 +29,15 @@ const SYMBOLS = [
   'AAPL', 'TSLA', 'NVDA', 'GOLD', 'OIL'
 ]
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const results: any[] = []
+    const origin = req.nextUrl.origin
     
     // Fetch quotes for all symbols to get current price and 24h change
     const quotePromises = SYMBOLS.map(async (s) => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/exchange/quote/${s}`, { next: { revalidate: 60 } })
+        const res = await fetch(`${origin}/api/exchange/quote/${s}`, { cache: 'no-store' })
         const data = await res.json()
         return data.success ? data.data : null
       } catch { return null }

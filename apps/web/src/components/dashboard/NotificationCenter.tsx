@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { X, TrendingUp, TrendingDown, Bot, Brain, ScanSearch, Zap } from 'lucide-react'
 import { useNotificationStore, Notification, NotifSource, NotifAction } from '@/hooks/useNotificationStore'
+import { useSymbolStore } from '@/hooks/useSymbolStore'
 
 /* ══ Helpers ══════════════════════════════════════════════ */
 const SRC_ICON: Record<NotifSource, React.ReactNode> = {
@@ -41,6 +42,7 @@ function ToastCard({ notif, onDismiss }: { notif: Notification; onDismiss: () =>
   const [visible, setVisible] = useState(false)
   const color = SRC_COLOR[notif.source]
   const actionColor = ACTION_COLOR[notif.action]
+  const { setSelectedSymbol } = useSymbolStore()
 
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true))
@@ -68,6 +70,10 @@ function ToastCard({ notif, onDismiss }: { notif: Notification; onDismiss: () =>
         backdropFilter: 'blur(20px)',
         fontFamily: "'Cairo', sans-serif",
         direction: 'rtl',
+        cursor: notif.pair ? 'pointer' : 'default',
+      }}
+      onClick={() => {
+        if (notif.pair) setSelectedSymbol(notif.pair)
       }}
     >
       {/* Progress bar */}
@@ -159,9 +165,13 @@ function NotificationItem({ notif, onRead, onDismiss }: {
 }) {
   const color = SRC_COLOR[notif.source]
   const actionColor = ACTION_COLOR[notif.action]
+  const { setSelectedSymbol } = useSymbolStore()
   return (
     <div
-      onClick={onRead}
+      onClick={() => {
+        onRead()
+        if (notif.pair) setSelectedSymbol(notif.pair)
+      }}
       style={{
         padding: '12px 14px',
         borderBottom: '1px solid rgba(255,255,255,0.04)',

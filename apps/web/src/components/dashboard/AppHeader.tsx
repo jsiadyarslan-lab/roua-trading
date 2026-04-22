@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useMarketQuotes } from '@/hooks/useMarketData'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { NotificationCenter } from '@/components/dashboard/NotificationCenter'
 
 /* ─── Design tokens ─── */
 const T = {
@@ -216,20 +217,7 @@ function NewsTicker() {
         }} />
       </div>
       <div style={{ flexShrink: 0, padding: '0 10px' }}>
-        <button style={{
-          position: 'relative', background: 'transparent',
-          border: 'none', color: T.text2, cursor: 'pointer',
-          display: 'flex', alignItems: 'center',
-        }}>
-          <Bell size={12} />
-          <span style={{
-            position: 'absolute', top: -4, left: -4,
-            width: 12, height: 12, borderRadius: '50%',
-            background: T.red, fontSize: 7, color: '#fff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
-          }}>3</span>
-        </button>
+        <NotificationCenter />
       </div>
     </div>
   )

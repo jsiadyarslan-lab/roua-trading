@@ -14,6 +14,8 @@ import QuantumChart from '@/components/dashboard/QuantumChart'
 import { AlpacaPositions } from '@/components/dashboard/AlpacaPositions'
 import { useMarketQuotes } from '@/hooks/useMarketData'
 import { BotEngine } from '@/components/dashboard/BotEngine'
+import { NotificationEngine } from '@/components/dashboard/NotificationEngine'
+import { NotificationToasts } from '@/components/dashboard/NotificationCenter'
 
 const DASHBOARD_SYMBOLS = [
   'BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA'
@@ -349,6 +351,8 @@ export default function DashboardPage() {
       `}</style>
 
       <BotEngine quotes={quotes} />
+      <NotificationEngine quotes={quotes} />
+      <NotificationToasts />
 
       <div className="dash-grid" style={{
         height: `calc(100vh - ${HEADER_H}px)`,

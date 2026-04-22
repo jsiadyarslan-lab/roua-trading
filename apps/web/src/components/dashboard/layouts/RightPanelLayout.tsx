@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { BotMini } from '@/components/dashboard/BotMini'
 import { ScannerMini } from '@/components/dashboard/ScannerMini'
 import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
+import { BotCommandCenter } from '@/components/dashboard/BotCommandCenter'
 
 const T = {
   bg:      '#0F1113',
@@ -85,7 +86,7 @@ export function RightPanelLayout({ quotes }: { quotes: any }) {
            </div>
          )}
          {active === 'scanner' && <div className="custom-scrollbar" style={{ height: '100%', overflowY: 'auto' }}><ScannerMini /></div>}
-         {active === 'signals' && <Empty label="إشارات الدخول - قريباً" color={T.green} />}
+         {active === 'signals' && <BotCommandCenter />}
          {active === 'multi-tf' && (
            <div className="custom-scrollbar" style={{ height: '100%', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>

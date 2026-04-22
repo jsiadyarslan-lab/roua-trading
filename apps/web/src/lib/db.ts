@@ -1,25 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 
-// ── Ensure DATABASE_URL is always valid for SQLite ──
-// Railway may not always run start.sh, or DATABASE_URL may be overridden
-// by a PostgreSQL plugin. This guarantees a valid SQLite URL at runtime.
-export function ensureDatabaseUrl() {
-  const currentUrl = process.env.DATABASE_URL
-  if (currentUrl && currentUrl.startsWith('file:')) {
-    return // Already valid SQLite URL
-  }
-
-  // DATABASE_URL is missing or invalid (e.g. PostgreSQL URL from Railway plugin)
-  // Override with a valid SQLite path
-  const dbPath = process.env.SQLITE_DB_PATH || `${process.cwd()}/roua.db`
-  const newUrl = `file:${dbPath}`
-  console.warn(
-    `[db] DATABASE_URL was "${currentUrl || '(empty)'}", overriding with "${newUrl}"`
-  )
-  process.env.DATABASE_URL = newUrl
-}
-
-ensureDatabaseUrl()
+// ── Ensure DATABASE_URL is correct for PostgreSQL ──
+// We are using PostgreSQL on Railway, so we don't override the DATABASE_URL.
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined

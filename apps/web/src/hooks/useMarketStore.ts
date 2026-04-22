@@ -41,6 +41,7 @@ class BinanceWSManager {
   private ws: WebSocket | null = null
   private subscribers = new Set<string>()
   private reconnectTimer: any = null
+  private debounceTimer: any = null
 
   private normalizeSymbol(symbol: string) {
     let s = symbol.replace('/', '')
@@ -52,7 +53,7 @@ class BinanceWSManager {
 
   subscribe(symbol: string) {
     this.subscribers.add(symbol)
-    this.reconnect()
+    this.scheduleReconnect()
   }
 
   unsubscribe(symbol: string) {
@@ -60,7 +61,7 @@ class BinanceWSManager {
     if (this.subscribers.size === 0) {
       this.close()
     } else {
-      this.reconnect()
+      this.scheduleReconnect()
     }
   }
 
@@ -70,6 +71,14 @@ class BinanceWSManager {
       this.ws = null
     }
     clearTimeout(this.reconnectTimer)
+    clearTimeout(this.debounceTimer)
+  }
+
+  private scheduleReconnect() {
+    clearTimeout(this.debounceTimer)
+    this.debounceTimer = setTimeout(() => {
+      this.reconnect()
+    }, 100)
   }
 
   private reconnect() {
@@ -79,7 +88,12 @@ class BinanceWSManager {
     const streams = Array.from(this.subscribers).map(s => `${this.normalizeSymbol(s)}@ticker`).join('/')
     const wsUrl = `wss://stream.binance.com:9443/stream?streams=${streams}`
 
-    this.ws = new WebSocket(wsUrl)
+    try {
+      this.ws = new WebSocket(wsUrl)
+    } catch (e) {
+      console.error('WS init error', e)
+      return
+    }
 
     this.ws.onmessage = (event) => {
       try {

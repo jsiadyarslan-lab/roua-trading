@@ -1,3 +1,5 @@
+'use client'
+
 import { Copy, Shield, Star, TrendingUp, ArrowUpRight, Activity } from 'lucide-react'
 
 const T = {

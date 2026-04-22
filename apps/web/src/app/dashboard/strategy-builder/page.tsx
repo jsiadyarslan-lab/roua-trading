@@ -1,3 +1,5 @@
+'use client'
+
 import { Play, Plus, Settings2, Shield, Activity, GitBranch, Save } from 'lucide-react'
 
 const T = {

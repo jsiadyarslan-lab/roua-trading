@@ -12,6 +12,7 @@ import {
   Wifi,
   Database,
   Cpu,
+  Settings as SettingsIcon,
 } from 'lucide-react'
 import { useDashboardStore } from '@/lib/dashboard-store'
 import { useMarketQuotes, type QuoteData } from '@/hooks/useMarketData'
@@ -21,6 +22,7 @@ const NAV_SECTIONS = [
     label: 'الرئيسي',
     items: [
       { icon: LayoutDashboard, label: 'لوحة القيادة', id: 'dashboard' },
+      { icon: SettingsIcon, label: 'الإعدادات', id: 'settings' },
     ],
   },
   {
@@ -50,8 +52,7 @@ const MARKET_PAIRS = [
 ]
 
 export default function SidebarLeft() {
-  const { sidebarCollapsed, toggleSidebar, selectedPair, setSelectedPair } = useDashboardStore()
-  const [activeNav, setActiveNav] = useState('dashboard')
+  const { sidebarCollapsed, toggleSidebar, selectedPair, setSelectedPair, activePage, setActivePage } = useDashboardStore()
   const { quotes } = useMarketQuotes(MARKET_PAIRS, 8000)
 
   return (
@@ -85,11 +86,11 @@ export default function SidebarLeft() {
               </div>
             )}
             {section.items.map((item) => {
-              const isActive = activeNav === item.id
+              const isActive = activePage === item.id
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveNav(item.id)}
+                  onClick={() => setActivePage(item.id)}
                   className="flex items-center gap-2 w-full cursor-pointer"
                   style={{
                     padding: sidebarCollapsed ? '8px 0' : '6px 12px',

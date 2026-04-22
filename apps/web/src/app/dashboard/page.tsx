@@ -18,6 +18,8 @@ import { NotificationToaster } from '@/components/dashboard/NotificationToaster'
 import { NotificationCenterMini } from '@/components/dashboard/NotificationCenterMini'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import SidebarLeft from '@/components/dashboard/SidebarLeft'
+import { SettingsView } from '@/components/dashboard/SettingsView'
+import { useDashboardStore } from '@/lib/dashboard-store'
 
 const DASHBOARD_SYMBOLS = [
   'BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA'
@@ -48,6 +50,7 @@ const ANIM    = 'height 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease'
 
 export default function DashboardPage() {
   const { quotes } = useMarketQuotes(DASHBOARD_SYMBOLS, 8000)
+  const { activePage } = useDashboardStore()
   const [posOpen, setPosOpen] = useState(true)
 
   return (
@@ -77,54 +80,62 @@ export default function DashboardPage() {
           <SidebarLeft />
         </div>
 
-        <div className="dash-col dash-col-center" style={{ overflow: 'hidden', gap: 12 }}>
-          <div style={{
-            flex: 1,
-            background: T.card,
-            border: `1px solid ${T.border}`,
-            borderRadius: 12,
-            display: 'flex', flexDirection: 'column',
-            overflow: 'hidden',
-          }}>
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <QuantumChart />
-            </div>
+        {activePage === 'settings' ? (
+          <div style={{ flex: 1, height: '100%', overflow: 'hidden' }}>
+            <SettingsView />
           </div>
+        ) : (
+          <>
+            <div className="dash-col dash-col-center" style={{ overflow: 'hidden', gap: 12 }}>
+              <div style={{
+                flex: 1,
+                background: T.card,
+                border: `1px solid ${T.border}`,
+                borderRadius: 12,
+                display: 'flex', flexDirection: 'column',
+                overflow: 'hidden',
+              }}>
+                <div style={{ flex: 1, overflow: 'hidden' }}>
+                  <QuantumChart />
+                </div>
+              </div>
 
-          <div style={{
-            flexShrink: 0,
-            height: posOpen ? 120 : PANEL_H,
-            transition: ANIM,
-            background: T.card,
-            border: `1px solid ${T.border}`,
-            borderRadius: 12,
-            overflow: 'hidden',
-            display: 'flex', flexDirection: 'column',
-          }}>
-            <div style={{
-              height: PANEL_H, flexShrink: 0,
-              background: `linear-gradient(90deg, ${T.success}08, transparent)`,
-              borderBottom: posOpen ? `1px solid ${T.border}` : 'none',
-              display: 'flex', alignItems: 'center', padding: '0 12px', gap: 8,
-            }}>
-              <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 800, color: T.text, flex: 1 }}>الصفقات المفتوحة</span>
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5, color: T.success, opacity: 0.8 }}>OPEN TRADES</span>
-              <button
-                onClick={() => setPosOpen(p => !p)}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.text3, padding: 4 }}
-              >
-                <ChevronDown size={14} style={{ transform: posOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.3s' }} />
-              </button>
+              <div style={{
+                flexShrink: 0,
+                height: posOpen ? 120 : PANEL_H,
+                transition: ANIM,
+                background: T.card,
+                border: `1px solid ${T.border}`,
+                borderRadius: 12,
+                overflow: 'hidden',
+                display: 'flex', flexDirection: 'column',
+              }}>
+                <div style={{
+                  height: PANEL_H, flexShrink: 0,
+                  background: `linear-gradient(90deg, ${T.success}08, transparent)`,
+                  borderBottom: posOpen ? `1px solid ${T.border}` : 'none',
+                  display: 'flex', alignItems: 'center', padding: '0 12px', gap: 8,
+                }}>
+                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 800, color: T.text, flex: 1 }}>الصفقات المفتوحة</span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5, color: T.success, opacity: 0.8 }}>OPEN TRADES</span>
+                  <button
+                    onClick={() => setPosOpen(p => !p)}
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.text3, padding: 4 }}
+                  >
+                    <ChevronDown size={14} style={{ transform: posOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.3s' }} />
+                  </button>
+                </div>
+                <div style={{ flex: 1, opacity: posOpen ? 1 : 0, transition: 'opacity 0.2s', overflow: 'hidden' }}>
+                  <AlpacaPositions />
+                </div>
+              </div>
             </div>
-            <div style={{ flex: 1, opacity: posOpen ? 1 : 0, transition: 'opacity 0.2s', overflow: 'hidden' }}>
-              <AlpacaPositions />
-            </div>
-          </div>
-        </div>
 
-        <div className="dash-col dash-col-right">
-          <Col3TabbedPanel quotes={quotes} />
-        </div>
+            <div className="dash-col dash-col-right">
+              <Col3TabbedPanel quotes={quotes} />
+            </div>
+          </>
+        )}
 
         <div className="dash-col dash-col-right-mobile" style={{ display: 'none', padding: '0 4px 20px' }}>
              <Col3TabbedPanel quotes={quotes} />

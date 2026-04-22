@@ -20,6 +20,8 @@ interface DashboardState {
   toggleLanguage: () => void
   chartFullscreen: boolean
   toggleChartFullscreen: () => void
+  activePage: string
+  setActivePage: (page: string) => void
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -42,4 +44,6 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   toggleLanguage: () => set((s) => ({ language: s.language === 'ar' ? 'en' : 'ar' })),
   chartFullscreen: false,
   toggleChartFullscreen: () => set((s) => ({ chartFullscreen: !s.chartFullscreen })),
+  activePage: 'dashboard',
+  setActivePage: (page) => set({ activePage: page }),
 }))

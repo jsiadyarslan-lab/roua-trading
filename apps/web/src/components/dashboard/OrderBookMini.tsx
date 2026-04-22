@@ -40,12 +40,13 @@ export function OrderBookMini() {
     : 0
 
   // Memoize orderbook data to prevent excessive flashing
-  const { asks, bids, maxTotal } = useMemo(() => {
-    if (basePrice === 0) return { asks: [], bids: [], maxTotal: 1 }
+  const { asks, bids, maxTotal, maxSize } = useMemo(() => {
+    if (basePrice === 0) return { asks: [], bids: [], maxTotal: 1, maxSize: 1 }
     const a = buildDepth(basePrice, rangeHalf, 10, 'ask').reverse()
     const b = buildDepth(basePrice, rangeHalf, 10, 'bid')
     const m = Math.max(a[0]?.total ?? 1, b[b.length - 1]?.total ?? 1)
-    return { asks: a, bids: b, maxTotal: m }
+    const maxS = Math.max(...a.map(x => x.size), ...b.map(x => x.size), 1)
+    return { asks: a, bids: b, maxTotal: m, maxSize: maxS }
   }, [basePrice, rangeHalf])
 
   const isPositive = (quote?.changePercent ?? 0) >= 0
@@ -91,7 +92,7 @@ export function OrderBookMini() {
         <span>الكمية (SIZE)</span>
       </div>
 
-      <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+      <div className="custom-scrollbar no-scrollbar" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
         {basePrice === 0 ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', fontSize: 11 }}>
             يتم تحليل السيولة...
@@ -101,24 +102,25 @@ export function OrderBookMini() {
             {/* ASKS (Sells) */}
             <div style={{ display: 'flex', flexDirection: 'column-reverse' }}>
               {asks.map((ask, i) => (
-                <OrderRowUI key={`ask-${i}`} row={ask} type="ask" maxTotal={maxTotal} index={i} />
+                <OrderRowUI key={`ask-${i}`} row={ask} type="ask" maxTotal={maxTotal} maxSize={maxSize} index={i} />
               ))}
             </div>
 
             {/* Mid Price Institutional Badge */}
             <div style={{
-              margin: '4px 0', padding: '12px 16px',
-              background: 'rgba(255,255,255,0.02)',
-              borderTop: '1px solid var(--card-border)',
-              borderBottom: '1px solid var(--card-border)',
+              margin: '2px 0', padding: '10px 16px',
+              background: 'rgba(255,255,255,0.03)',
+              borderTop: `1px solid ${isPositive ? 'var(--success)' : 'var(--danger)'}40`,
+              borderBottom: `1px solid ${isPositive ? 'var(--success)' : 'var(--danger)'}40`,
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              position: 'sticky', top: 0, zIndex: 10, backdropFilter: 'blur(12px)'
+              position: 'sticky', top: 0, zIndex: 10, backdropFilter: 'blur(12px)',
+              boxShadow: `0 0 20px ${isPositive ? 'var(--success)' : 'var(--danger)'}15`
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 {isPositive ? <ArrowUp size={18} color="var(--success)" /> : <ArrowDown size={18} color="var(--danger)" />}
                 <span className="price" style={{ 
                   fontSize: 20, color: isPositive ? 'var(--success)' : 'var(--danger)',
-                  letterSpacing: '-0.02em', fontWeight: 800
+                  letterSpacing: '-0.02em', fontWeight: 900, textShadow: `0 0 10px ${isPositive ? 'var(--success)' : 'var(--danger)'}60`
                 }}>
                   {basePrice > 100 ? basePrice.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : basePrice.toFixed(5)}
                 </span>
@@ -134,7 +136,7 @@ export function OrderBookMini() {
             {/* BIDS (Buys) */}
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {bids.map((bid, i) => (
-                <OrderRowUI key={`bid-${i}`} row={bid} type="bid" maxTotal={maxTotal} index={i} />
+                <OrderRowUI key={`bid-${i}`} row={bid} type="bid" maxTotal={maxTotal} maxSize={maxSize} index={i} />
               ))}
             </div>
           </>
@@ -144,37 +146,52 @@ export function OrderBookMini() {
   )
 }
 
-function OrderRowUI({ row, type, maxTotal, index }: { row: OrderRow; type: 'ask' | 'bid'; maxTotal: number; index: number }) {
+function OrderRowUI({ row, type, maxTotal, maxSize, index }: { row: OrderRow; type: 'ask' | 'bid'; maxTotal: number; maxSize: number; index: number }) {
   const color = type === 'ask' ? 'var(--danger)' : 'var(--success)'
+  const rawColor = type === 'ask' ? '255,59,48' : '0,200,83'
+  
   const widthPct = Math.min((row.total / maxTotal) * 100, 100)
-  const isEven = index % 2 === 0
+  const heatPct = Math.min((row.size / maxSize), 1)
+  
+  // Identify "Whale Walls" (Significant liquidity)
+  const isWall = heatPct > 0.85
 
   return (
     <div
       style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         padding: '4px 16px', position: 'relative', height: 26, cursor: 'pointer',
-        background: isEven ? 'transparent' : 'rgba(255,255,255,0.015)',
-        transition: 'background 0.2s'
+        background: isWall ? `rgba(${rawColor}, 0.12)` : (index % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)'),
+        borderRight: isWall ? `3px solid rgb(${rawColor})` : '3px solid transparent', // RTL means right is the start edge
+        transition: 'all 0.2s',
+        boxShadow: isWall ? `inset -20px 0 30px -10px rgba(${rawColor}, 0.3)` : 'none'
       }}
-      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
-      onMouseLeave={e => e.currentTarget.style.background = isEven ? 'transparent' : 'rgba(255,255,255,0.015)'}
+      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+      onMouseLeave={e => e.currentTarget.style.background = isWall ? `rgba(${rawColor}, 0.12)` : (index % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)')}
     >
-      {/* Depth Visualization Gradient */}
+      {/* Cumulative Depth Background */}
       <div style={{
-        position: 'absolute', top: 0, right: 0, bottom: 0,
+        position: 'absolute', top: 1, bottom: 1, right: 0,
         width: `${widthPct}%`, 
-        background: type === 'ask' 
-          ? `linear-gradient(to left, rgba(255,59,48,0.12), transparent)` 
-          : `linear-gradient(to left, rgba(0,200,83,0.12), transparent)`, 
+        background: `rgba(${rawColor}, 0.08)`, 
+        borderLeft: `1px solid rgba(${rawColor}, 0.3)`,
         zIndex: 0,
         transition: 'width 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
       }} />
 
-      <span className="price" style={{ color, zIndex: 1, fontSize: 12 }}>
+      {/* Heatmap Indicator (Individual Size) */}
+      <div style={{
+        position: 'absolute', top: 3, bottom: 3, left: 16,
+        width: `${heatPct * 40}%`, // Max 40% width for individual size
+        background: `linear-gradient(to right, rgba(${rawColor}, ${heatPct * 0.9}), transparent)`,
+        zIndex: 0,
+        borderRadius: '4px 0 0 4px',
+      }} />
+
+      <span className="price" style={{ color: isWall ? '#fff' : color, fontWeight: isWall ? 900 : 700, zIndex: 1, fontSize: 12, textShadow: isWall ? `0 0 8px rgba(${rawColor},0.8)` : 'none' }}>
         {row.price > 100 ? row.price.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : row.price.toFixed(5)}
       </span>
-      <span className="number-data" style={{ color: 'var(--foreground)', fontWeight: 600, zIndex: 1, fontSize: 11 }}>
+      <span className="number-data" style={{ color: isWall ? `rgb(${rawColor})` : 'var(--foreground)', fontWeight: isWall ? 900 : 600, zIndex: 1, fontSize: 11, textShadow: isWall ? `0 0 6px rgba(${rawColor},0.5)` : 'none' }}>
         {row.size.toFixed(3)}
       </span>
     </div>

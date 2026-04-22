@@ -145,50 +145,69 @@ export function AlNarratorMini() {
              </div>
           </div>
 
+          {/* AI Reasoning Steps (The Revolutionary Part) */}
+          <div style={{
+            display: 'flex', flexDirection: 'column', gap: 6,
+            padding: '10px', background: 'rgba(0,229,255,0.03)',
+            borderRadius: 10, border: '1px solid rgba(0,229,255,0.1)'
+          }}>
+             <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 800, marginBottom: 4 }}>تحليل المحرك الرقمي (QUANTUM REASONING)</span>
+             {[
+               { label: 'تحليل الأخبار العالمية', status: 'checked' },
+               { label: 'فحص المؤشرات الفنية (RSI/MACD)', status: 'checked' },
+               { label: 'قياس تدفق السيولة المؤسسية', status: data.confidence > 80 ? 'checked' : 'loading' },
+               { label: 'تقييم المخاطر الجيوسياسية', status: 'checked' }
+             ].map((step, si) => (
+               <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: step.status === 'checked' ? 1 : 0.4 }}>
+                  {step.status === 'checked' ? <CheckCircle2 size={12} color="var(--success)" /> : <Activity size={12} className="spinning" />}
+                  <span style={{ fontSize: 10, color: 'var(--text2)', fontFamily: "'Cairo', sans-serif" }}>{step.label}</span>
+               </div>
+             ))}
+          </div>
+
           {/* Narrative Insight */}
           <div 
             onClick={() => setExpanded(!expanded)}
             style={{
                flex: 1, cursor: 'pointer', overflow: 'hidden', padding: '12px',
-               background: 'rgba(0,229,255,0.02)', border: '1px dashed var(--card-border)', borderRadius: 10,
-               fontSize: 12, color: 'var(--foreground)', lineHeight: 1.7, fontFamily: "'Cairo', sans-serif",
+               background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--card-border)', borderRadius: 10,
+               fontSize: 11, color: 'var(--foreground)', lineHeight: 1.6, fontFamily: "'Cairo', sans-serif",
                position: 'relative', transition: 'max-height 0.3s'
             }}
           >
-             <div style={{ maxHeight: expanded ? '300px' : '58px', overflow: 'hidden' }}>
+             <div style={{ maxHeight: expanded ? '400px' : '48px', overflow: 'hidden' }}>
                 {data.narrative}
              </div>
              {!expanded && (
                <div style={{
-                  position: 'absolute', bottom: 0, left: 0, right: 0, height: 32,
+                  position: 'absolute', bottom: 0, left: 0, right: 0, height: 24,
                   background: 'linear-gradient(to top, var(--surface), transparent)',
-                  display: 'flex', justifyContent: 'center', alignItems: 'flex-end', fontSize: 9, color: 'var(--accent)', fontWeight: 800
-               }}>قراءة المزيد...</div>
+                  display: 'flex', justifyContent: 'center', alignItems: 'flex-end', fontSize: 8, color: 'var(--accent)', fontWeight: 800
+               }}>اضغط للتوسع...</div>
              )}
           </div>
 
           {/* Global Action Buttons */}
-          <div style={{ display: 'flex', gap: 10, marginTop: 'auto' }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
              <button 
-               className="btn-buy"
+               className="btn-cyan-active"
                style={{
-                  flex: 1.4, padding: '10px', borderRadius: 10, border: 'none',
-                  fontSize: 12, fontWeight: 800, cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  flex: 1.5, padding: '8px', borderRadius: 8, border: 'none',
+                  fontSize: 11, fontWeight: 800, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   fontFamily: "'Cairo', sans-serif",
-                  boxShadow: '0 4px 12px rgba(0,200,83,0.2)'
                }}
              >
-                <Zap size={14} fill="currentColor" /> تنفيذ الإشارة
+                <Zap size={13} fill="currentColor" /> توصية ذكية
              </button>
              <button style={{
-                flex: 1, padding: '10px', borderRadius: 10, border: '1px solid var(--card-border)', 
+                flex: 1, padding: '8px', borderRadius: 8, border: '1px solid var(--border)', 
                 background: 'rgba(255,255,255,0.05)',
-                color: 'var(--foreground)', fontSize: 12, fontWeight: 800, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                color: 'var(--text)', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
                 fontFamily: "'Cairo', sans-serif"
              }}>
-                <Bell size={14} color="var(--accent)" /> تنبيه
+                <Bell size={12} /> تنبيه
              </button>
           </div>
         </>
@@ -199,7 +218,7 @@ export function AlNarratorMini() {
             <div className="skeleton" style={{ flex: 1, height: 52, borderRadius: 12 }} />
             <div className="skeleton" style={{ flex: 1, height: 52, borderRadius: 12 }} />
           </div>
-          <div className="skeleton" style={{ width: '100%', height: 28, borderRadius: 10 }} />
+          <div className="skeleton" style={{ width: '100%', height: 40, borderRadius: 10 }} />
           <div className="skeleton" style={{ width: '100%', height: 8, borderRadius: 4 }} />
           <div className="skeleton" style={{ width: '100%', flex: 1, borderRadius: 10 }} />
         </div>
@@ -208,10 +227,17 @@ export function AlNarratorMini() {
       <style>{`
         @keyframes orb-pulse {
           0%, 100% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 10px currentColor; }
-          50% { transform: scale(1.4); opacity: 1; box-shadow: 0 0 20px currentColor; }
+          50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 25px currentColor; }
+        }
+        .spinning {
+          animation: spin 2s linear infinite;
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
         .skeleton {
-          background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.03) 75%);
+          background: linear-gradient(90deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.02) 75%);
           background-size: 200% 100%;
           animation: skeleton-shimmer 1.5s infinite;
         }

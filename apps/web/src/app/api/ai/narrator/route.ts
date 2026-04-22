@@ -5,79 +5,57 @@ export async function GET(req: NextRequest) {
   try {
     await ensureDbReady()
     
-    // Simulate slight delay for AI generation
-    await new Promise(r => setTimeout(r, 600))
-
-    // Pull latest news from DB to ground the narrative (if any)
+    // 1. Fetch Latest News
     const recentNews = await db.newsArticle.findMany({
       orderBy: { publishedAt: 'desc' },
-      take: 5
+      take: 3
     })
 
-    // Create a dynamic narrative based on available DB data or fallback
-    let narrative = "السوق هادئ بشكل عام، لا توجد تصريحات محركة مهمة."
-    let sentiment = "neutral"
-    let keywords = [
-      { word: "هادئ", color: "text3" }
-    ]
+    // 2. Fetch Scanner Results (Real Technical Data)
+    let scannerResults: any[] = []
+    try {
+      const scanRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/market-scan`)
+      const scanData = await scanRes.json()
+      if (scanData.success) scannerResults = scanData.data
+    } catch { /* ignore */ }
 
-    if (recentNews.length > 0) {
-      // Pick the most impactful news item conceptually
-      const topNews = recentNews[0]
-      const isPositive = (topNews.sentiment || 0) > 0.2
-      const isNegative = (topNews.sentiment || 0) < -0.2
+    // 3. Hybrid Analysis Logic
+    const topScan = scannerResults[0] // Highest strength signal
+    const newsSentiment = recentNews.reduce((acc, n) => acc + (n.sentiment || 0), 0) / (recentNews.length || 1)
+    
+    let narrative = ""
+    let sentiment: 'bullish' | 'bearish' | 'neutral' | 'volatile' = "neutral"
+    let confidence = 70
+    let risk: 'Low' | 'Medium' | 'High' = "Medium"
+    let keywords: any[] = []
+
+    if (topScan) {
+      const isBullishTech = topScan.dir === 'buy'
+      const isBullishNews = newsSentiment > 0.1
       
-      sentiment = isPositive ? "bullish" : isNegative ? "bearish" : "neutral"
-      
-      narrative = `السوق يركز على [${topNews.source}]: ${topNews.summary || topNews.title}. `
-      
-      if (isPositive) {
-        narrative += "الزخم التصاعدي يتزايد مع توقعات باختراق المقاومة قريباً."
-        keywords = [
-          { word: "يختبر مقاومة", color: "green" },
-          { word: "الزخم التصاعدي", color: "green" },
-          { word: topNews.source, color: "blue" }
-        ]
-      } else if (isNegative) {
-        narrative += "تسود حالة الحذر وسط مخاوف من تراجع إضافي وكسر الدعم الحالي."
-        keywords = [
-          { word: "تراجع", color: "red" },
-          { word: "كسر الدعم", color: "red" },
-          { word: "الحذر", color: "amber" },
-          { word: topNews.source, color: "blue" }
-        ]
+      if (isBullishTech && isBullishNews) {
+        sentiment = "bullish"
+        confidence = 92
+        risk = "Low"
+        narrative = `توافق تام بين التحليل الفني والأساسي. ${topScan.pair} يظهر زخماً صاعداً قوياً بنسبة ثقة ${topScan.strength}% مدعوماً بـ: ${topScan.reasons.join('، ')}. مع أخبار إيجابية تدعم استمرار الصعود.`
+        keywords = [{ word: "اختراق مؤكد", color: "success" }, { word: "زخم مؤسسي", color: "accent" }]
+      } else if (!isBullishTech && !isBullishNews) {
+        sentiment = "bearish"
+        confidence = 88
+        risk = "Medium"
+        narrative = `ضغط بيعي متزايد على الأسواق. ${topScan.pair} يواجه صعوبة في الحفاظ على مستويات الدعم. التحليل الفني يشير لـ ${topScan.reasons[0]} بالتزامن مع تراجع في المعنويات العامة.`
+        keywords = [{ word: "ضغط بيعي", color: "danger" }, { word: "هروب سيولة", color: "danger" }]
       } else {
-        narrative += "التحركات العرضية تسيطر حتى تتضح معالم البيانات القادمة."
-        keywords = [
-          { word: "عناوين", color: "blue" },
-          { word: "عرضية", color: "text2" }
-        ]
+        sentiment = "volatile"
+        confidence = 65
+        risk = "High"
+        narrative = `السوق في حالة تضارب. التحليل الفني لـ ${topScan.pair} يعطي إشارة ${topScan.dir === 'buy' ? 'شراء' : 'بيع'}، لكن الأخبار تشير لـ ${newsSentiment > 0 ? 'تفاؤل' : 'حذر'}. يُنصح بالانتظار أو تقليل أحجام الصفقات.`
+        keywords = [{ word: "تضارب إشارات", color: "amber" }, { word: "حذر شديد", color: "amber" }]
       }
     } else {
-      // Mock Data if DB has no news yet
-      const hHour = new Date().getHours()
-      if (hHour < 12) {
-        narrative = "اليورو يختبر مقاومة 1.0870 بانتظار بيانات التصنيع. الزخم صاعد بدعم قرارات البنك المركزي الأخيرة."
-        sentiment = "bullish"
-        keywords = [
-          { word: "يختبر مقاومة", color: "green" },
-          { word: "صاعد", color: "green" }
-        ]
-      } else if (hHour < 18) {
-        narrative = "ضغط بيعي على الذهب بعد ارتفاع الدولار؛ مخاوف التضخم تعيد المتداولين إلى الملاذات الأكثر سيولة."
-        sentiment = "bearish"
-        keywords = [
-          { word: "ضغط بيعي", color: "red" },
-          { word: "مخاوف", color: "amber" }
-        ]
-      } else {
-        narrative = "بتكوين يستقر حول 67,000$ بعد تصفية مراكز مضاربة كبيرة. السوق يترقب افتتاح الجلسة الآسيوية."
-        sentiment = "volatile"
-        keywords = [
-          { word: "تصفية مراكز", color: "purple" },
-          { word: "يستقر", color: "text2" }
-        ]
-      }
+      narrative = "المحرك يراقب استقرار الأسواق حالياً. لا توجد انحرافات سعرية حادة تبرر دخول صفقات عالية المخاطرة."
+      sentiment = "neutral"
+      confidence = 50
     }
 
     return NextResponse.json({
@@ -86,6 +64,8 @@ export async function GET(req: NextRequest) {
         narrative,
         sentiment,
         keywords,
+        confidence,
+        risk,
         timestamp: new Date().toISOString()
       }
     })

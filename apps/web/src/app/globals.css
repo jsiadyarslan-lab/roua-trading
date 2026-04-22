@@ -257,10 +257,19 @@
 }
 
 /* ── Custom scrollbar ── */
-.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ── Hide scrollbar but keep functionality ── */
+.no-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
 
 /* ── Animation Keyframes ── */
 @keyframes orbit-cw {

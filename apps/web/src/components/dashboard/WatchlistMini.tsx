@@ -90,7 +90,7 @@ export function WatchlistMini() {
       </div>
 
       {/* List Body */}
-      <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+      <div className="custom-scrollbar no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {symbols.map((sym) => {
             const q = quotes.get(sym)
@@ -142,13 +142,23 @@ export function WatchlistMini() {
                   )}
                 </div>
 
-                {/* Price & Sparkline Placeholder */}
+                {/* Price & Sparkline */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 'auto' }}>
                   <PriceDisplay price={price} isUp={isUp} />
                   
-                  {/* Subtle Sparkline Mockup */}
-                  <div style={{ width: 80, height: 24, opacity: 0.6 }}>
-                    <svg viewBox="0 0 100 30" style={{ width: '100%', height: '100%' }}>
+                  {/* Enhanced Sparkline */}
+                  <div style={{ width: 80, height: 30, opacity: 0.8, alignSelf: 'flex-end', marginBottom: -4 }}>
+                    <svg viewBox="0 0 100 30" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+                      <defs>
+                        <linearGradient id={`grad-${sym}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor={color} stopOpacity="0.4" />
+                          <stop offset="100%" stopColor={color} stopOpacity="0.0" />
+                        </linearGradient>
+                      </defs>
+                      <path 
+                        d={isUp ? "M0 25 L20 20 L40 22 L60 10 L80 15 L100 5 L100 30 L0 30 Z" : "M0 5 L20 15 L40 10 L60 22 L80 20 L100 25 L100 30 L0 30 Z"} 
+                        fill={`url(#grad-${sym})`} 
+                      />
                       <path 
                         d={isUp ? "M0 25 L20 20 L40 22 L60 10 L80 15 L100 5" : "M0 5 L20 15 L40 10 L60 22 L80 20 L100 25"} 
                         fill="none" 

@@ -74,10 +74,11 @@ export default function NewsBar() {
 
   return (
     <div className="bar-news" style={{ gridArea: 'news' }}>
-      <div id="news-bar" style={{ width: '100%', height: '26px', overflow: 'hidden', background: 'rgba(2,3,8,0.97)', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', alignItems: 'center', flexShrink: 0, position: 'relative', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', zIndex: 10 }}>
-        {/* Fade edges */}
-        <div style={{ position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: '32px', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(to right, rgba(2,3,8,0.97), transparent)' }} />
-        <div style={{ position: 'absolute', insetInlineEnd: 0, top: 0, bottom: 0, width: '32px', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(to left, rgba(2,3,8,0.97), transparent)' }} />
+      <div id="news-bar" style={{ width: '100%', height: '26px', overflow: 'hidden', background: 'var(--bg2, rgba(2,3,8,0.97))', borderBottom: '1px solid var(--card-border, rgba(255,255,255,0.04))', display: 'flex', alignItems: 'center', flexShrink: 0, position: 'relative', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', zIndex: 10 }}>
+        {/* Seamless Fade edges using theme variables */}
+        <div style={{ position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: '48px', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(to right, var(--bg2, #0d1421) 10%, transparent)' }} />
+        <div style={{ position: 'absolute', insetInlineEnd: 0, top: 0, bottom: 0, width: '48px', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(to left, var(--bg2, #0d1421) 10%, transparent)' }} />
+        
         <div style={{ flex: '1 1 0%', overflow: 'hidden', position: 'relative', height: '100%' }}>
           <div ref={tickerRef} style={{ display: 'inline-flex', alignItems: 'center', height: '100%', animationName: 'ql-news', animationDuration: '80s', animationTimingFunction: 'linear', animationIterationCount: 'infinite', animationPlayState: 'running', willChange: 'transform', whiteSpace: 'nowrap' }}>
             {doubled.map((item, i) => renderItem(item, i))}

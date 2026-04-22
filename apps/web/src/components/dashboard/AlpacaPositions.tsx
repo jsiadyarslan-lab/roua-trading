@@ -162,7 +162,7 @@ export function AlpacaPositions() {
       </div>
 
       {/* Positions Table */}
-      <div style={{ flex: 1, overflowX: 'auto', overflowY: 'auto' }}>
+      <div className="no-scrollbar" style={{ flex: 1, overflowX: 'auto', overflowY: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>
           <thead>
             <tr style={{ background: 'rgba(255,255,255,0.03)' }}>

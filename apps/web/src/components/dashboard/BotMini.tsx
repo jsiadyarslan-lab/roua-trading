@@ -1,52 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useSymbolStore } from '@/hooks/useSymbolStore';
+import React from 'react';
+import { useBotStore } from '@/hooks/useBotStore';
 
-export function BotMini({ quotes = new Map() }: { quotes?: Map<string, any> }) {
-  const [isOn, setIsOn] = useState(false);
-  const [logs, setLogs] = useState<any[]>([]);
-  const [stats, setStats] = useState({ trades: 0, profit: 0, winRate: 0 });
-  const { selectedSymbol } = useSymbolStore();
-  const lastSignalRef = useRef<string | null>(null);
-
-  const addLog = useCallback((msg: string, type = 'info') => {
-    const time = new Date().toLocaleTimeString('ar-EG');
-    setLogs(prev => [{ time, msg, type }, ...prev].slice(0, 30));
-  }, []);
-
-  // Bot Logic: Monitors the current selected symbol or a set of symbols
-  useEffect(() => {
-    if (!isOn) {
-      addLog('تم إيقاف الروبوت.', 'warn');
-      return;
-    }
-
-    addLog('الروبوت نشط - يراقب الأسواق حياً...', 'info');
-    
-    const interval = setInterval(() => {
-      // Simple logic: If we have a quote for the selected symbol, analyze it
-      const q = quotes.get(selectedSymbol);
-      if (!q) return;
-
-      const change = q.changePercent || 0;
-      let signal = null;
-
-      if (change > 2.5 && lastSignalRef.current !== 'BUY') {
-        signal = 'BUY';
-      } else if (change < -2.5 && lastSignalRef.current !== 'SELL') {
-        signal = 'SELL';
-      }
-
-      if (signal) {
-        addLog(`تم رصد فرصة ${signal === 'BUY' ? 'شراء' : 'بيع'} على ${selectedSymbol} (تغير ${change}%)`, signal === 'BUY' ? 'buy' : 'sell');
-        lastSignalRef.current = signal;
-        // In a real scenario, this would call /api/trading/orders
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [isOn, selectedSymbol, quotes, addLog]);
+export function BotMini() {
+  const { isOn, setIsOn, logs, stats } = useBotStore();
 
   return (
     <div style={{

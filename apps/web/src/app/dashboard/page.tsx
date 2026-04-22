@@ -13,6 +13,7 @@ import { BotMini } from '@/components/dashboard/BotMini'
 import QuantumChart from '@/components/dashboard/QuantumChart'
 import { AlpacaPositions } from '@/components/dashboard/AlpacaPositions'
 import { useMarketQuotes } from '@/hooks/useMarketData'
+import { BotEngine } from '@/components/dashboard/BotEngine'
 
 const DASHBOARD_SYMBOLS = [
   'BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA'
@@ -346,6 +347,8 @@ export default function DashboardPage() {
         .dash-col::-webkit-scrollbar-thumb { background: #0A84FF22; border-radius: 10px; }
         .dash-col::-webkit-scrollbar-thumb:hover { background: #0A84FF44; }
       `}</style>
+
+      <BotEngine quotes={quotes} />
 
       <div className="dash-grid" style={{
         height: `calc(100vh - ${HEADER_H}px)`,

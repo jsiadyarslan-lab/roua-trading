@@ -279,6 +279,63 @@ export function CH_drawMain(){
     ctx.fillStyle='#000';ctx.font='bold 10px JetBrains Mono,monospace';ctx.textAlign='center';
     ctx.fillText(label,W-PW+PW/2,y+3.5);
   }
+  // Open Trades (Positions)
+  if(ST.showTrades && ST.openTrades && ST.openTrades.length){
+    ST.openTrades.forEach(t => {
+      const dp = ST.candles[0] ? String(ST.candles[0].c).split('.')[1]?.length||2 : 2;
+      
+      // 1. Entry Line
+      const yEntry = py(t.entry);
+      if(yEntry > TH && yEntry < H-20){
+        ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 1; ctx.setLineDash([5,3]);
+        ctx.beginPath(); ctx.moveTo(0, yEntry); ctx.lineTo(W-PW, yEntry); ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Entry Label
+        ctx.fillStyle = '#58a6ff';
+        const pnlStr = (t.pnl >= 0 ? '+' : '') + t.pnl.toFixed(2) + '$';
+        const label = `${t.side === 'buy' ? 'BUY' : 'SELL'} ${t.qty} | ${pnlStr}`;
+        ctx.font = 'bold 9px JetBrains Mono,monospace';
+        const tw = ctx.measureText(label).width + 10;
+        ctx.fillRect(10, yEntry - 9, tw, 18);
+        ctx.fillStyle = '#000';
+        ctx.textAlign = 'left';
+        ctx.fillText(label, 15, yEntry + 4);
+      }
+
+      // 2. Stop Loss (if any)
+      if(t.sl){
+        const ySl = py(t.sl);
+        if(ySl > TH && ySl < H-20){
+          ctx.strokeStyle = '#f85149'; ctx.lineWidth = 0.8; ctx.setLineDash([2,2]);
+          ctx.beginPath(); ctx.moveTo(0, ySl); ctx.lineTo(W-PW, ySl); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = 'rgba(248,81,73,0.2)';
+          ctx.fillRect(10, ySl - 7, 30, 14);
+          ctx.fillStyle = '#f85149';
+          ctx.font = '8px JetBrains Mono,monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText('SL', 15, ySl + 3);
+        }
+      }
+
+      // 3. Take Profit (if any)
+      if(t.tp){
+        const yTp = py(t.tp);
+        if(yTp > TH && yTp < H-20){
+          ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 0.8; ctx.setLineDash([2,2]);
+          ctx.beginPath(); ctx.moveTo(0, yTp); ctx.lineTo(W-PW, yTp); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = 'rgba(63,185,80,0.2)';
+          ctx.fillRect(10, yTp - 7, 30, 14);
+          ctx.fillStyle = '#3fb950';
+          ctx.font = '8px JetBrains Mono,monospace';
+          ctx.textAlign = 'left';
+          ctx.fillText('TP', 15, yTp + 3);
+        }
+      }
+    });
+  }
   // Crosshair
   if(ST.mx>=0&&ST.my>=0&&ST.mx<W-PW&&ST.my>TH&&ST.my<H-20){
     const ci=Math.min(Math.floor(ST.mx/barW),slice.length-1);

@@ -15,6 +15,8 @@ interface Position {
   unrealizedPct: number
 }
 
+import { usePositionsStore } from '@/hooks/usePositionsStore'
+
 const T = {
   success: '#00C853',
   danger:  '#FF3B30',
@@ -27,44 +29,29 @@ const T = {
 }
 
 export function AlpacaPositions() {
-  const [positions, setPositions] = useState<Position[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [lastUpdate, setLastUpdate] = useState<string | null>(null)
+  const { positions, loading, error, lastUpdate, fetchPositions } = usePositionsStore()
   const [closing, setClosing] = useState<string | null>(null)
   const [confirmClose, setConfirmClose] = useState<string | null>(null)
   const [account, setAccount] = useState<any>(null)
 
-  const fetchPositions = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+  const syncAccount = useCallback(async () => {
     try {
-      const res = await fetch('/api/alpaca/positions')
-      const j   = await res.json()
-      if (j.success) {
-        setPositions(j.data)
-        setLastUpdate(new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
-      } else {
-        setError(j.error || 'فشل في جلب المراكز')
-      }
-      // جلب بيانات الحساب
       const accRes = await fetch('/api/alpaca/account')
       const accJ   = await accRes.json()
       if (accJ.success) setAccount(accJ.data)
-
-    } catch {
-      setError('خطأ في الشبكة')
-    } finally {
-      setLoading(false)
-    }
+    } catch {}
   }, [])
 
   // جلب عند التحميل وتحديث كل 10 ثواني
   useEffect(() => {
     fetchPositions()
-    const interval = setInterval(fetchPositions, 10000)
+    syncAccount()
+    const interval = setInterval(() => {
+      fetchPositions()
+      syncAccount()
+    }, 10000)
     return () => clearInterval(interval)
-  }, [fetchPositions])
+  }, [fetchPositions, syncAccount])
 
   // إغلاق مركز
   const closePosition = async (rawSymbol: string, displaySymbol: string) => {

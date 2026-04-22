@@ -11,6 +11,7 @@ import {
   setActiveTF, toggleSubChart, togglePanel, closeAllPanels,
 } from '../../lib/chartEngine';
 import { useSymbolStore } from '../../hooks/useSymbolStore';
+import { usePositionsStore } from '../../hooks/usePositionsStore';
 
 // ── CSS injected once globally ────────────────────────────
 const CHART_CSS = `
@@ -154,6 +155,21 @@ export default function QuantumChart({ currentPrice = null, candles = null }) {
       CH_setDirty(true);
     }
   }, [currentPrice]);
+
+  // Sync Positions to Chart Engine
+  const positions = usePositionsStore(s => s.positions);
+  useEffect(() => {
+    const active = positions.filter(p => p.symbol === selectedSymbol || p.rawSymbol === selectedSymbol);
+    ST.openTrades = active.map(p => ({
+      entry: p.avgEntryPrice,
+      qty: p.qty,
+      side: p.side.toLowerCase(),
+      pnl: p.unrealizedPnl,
+      sl: p.sl,
+      tp: p.tp
+    }));
+    CH_setDirty(true);
+  }, [positions, selectedSymbol]);
 
   /* ─── JSX ─────────────────────────────────────────────── */
   return (

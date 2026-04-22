@@ -94,13 +94,10 @@ export default function SidebarLeft() {
                   style={{
                     padding: sidebarCollapsed ? '8px 0' : '6px 12px',
                     justifyContent: sidebarCollapsed ? 'center' : 'flex-start',
-                    background: isActive ? 'var(--accent)' : 'transparent',
-                    color: isActive ? '#000' : 'var(--text2)',
+                    background: isActive ? 'var(--blue2)' : 'transparent',
+                    borderInlineStart: isActive ? '2px solid var(--blue)' : '2px solid transparent',
+                    color: isActive ? 'var(--blue)' : 'var(--text2)',
                     transition: 'all 0.15s',
-                    borderRadius: isActive ? 'var(--radius)' : '0',
-                    margin: '2px 8px',
-                    width: sidebarCollapsed ? 'auto' : 'calc(100% - 16px)',
-                    boxShadow: isActive ? '0 0 10px rgba(0, 242, 255, 0.25)' : 'none',
                   }}
                 >
                   <item.icon size={15} />
@@ -148,11 +145,9 @@ export default function SidebarLeft() {
                     onClick={() => setSelectedPair(pair)}
                     className="flex items-center justify-between px-2 py-1.5 rounded cursor-pointer"
                     style={{
-                    background: isSelected ? 'rgba(0, 242, 255, 0.12)' : 'transparent',
-                    border: isSelected ? '1px solid var(--accent)' : '1px solid transparent',
-                    color: isSelected ? 'var(--accent)' : 'var(--text)',
-                    transition: 'all 0.12s',
-                    borderRadius: 'var(--radius)',
+                      background: isSelected ? 'var(--blue2)' : 'transparent',
+                      border: isSelected ? '1px solid var(--border2)' : '1px solid transparent',
+                      transition: 'all 0.12s',
                     }}
                   >
                     <span

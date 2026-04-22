@@ -11,6 +11,7 @@ import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
 import { ScannerMini } from '@/components/dashboard/ScannerMini'
 import { BotMini } from '@/components/dashboard/BotMini'
 import QuantumChart from '@/components/dashboard/QuantumChart'
+import { AlpacaPositions } from '@/components/dashboard/AlpacaPositions'
 
 /* ─── Design tokens ─── */
 const T = {
@@ -394,7 +395,7 @@ export default function DashboardPage() {
               </button>
             </div>
             <div style={{ flex: 1, opacity: posOpen ? 1 : 0, transition: 'opacity 0.2s', overflow: 'hidden' }}>
-              <Empty label="لا توجد مراكز مفتوحة حالياً" color={T.success} />
+              <AlpacaPositions />
             </div>
           </div>
         </div>

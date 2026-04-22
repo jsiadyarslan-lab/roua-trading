@@ -102,9 +102,28 @@ export default function QuantumChart({ currentPrice = null, candles = null }) {
     if (candles && candles.length > 0) {
       CH_loadCandles(candles);
     } else {
-      CH_gen(selectedSymbol, currentPrice
-        ? { p: currentPrice, d: selectedSymbol.includes('JPY') ? 3 : selectedSymbol.includes('BTC') ? 1 : 5 }
-        : null);
+      if (currentPrice) {
+        CH_gen(selectedSymbol, { p: currentPrice, d: selectedSymbol.includes('JPY') ? 3 : selectedSymbol.includes('BTC') ? 1 : 5 });
+        const elPrice = document.getElementById('chPrice');
+        if (elPrice) elPrice.textContent = currentPrice.toFixed(selectedSymbol.includes('JPY') ? 3 : selectedSymbol.includes('BTC') ? 1 : 5);
+      } else {
+        fetch(`/api/exchange/quote/${encodeURIComponent(selectedSymbol)}`)
+          .then(r => r.json())
+          .then(j => {
+            const p = (j.success && j.data && j.data.price) ? j.data.price : (selectedSymbol.includes('BTC') ? 65000 : selectedSymbol.includes('JPY') ? 150 : 1.08);
+            const d = selectedSymbol.includes('JPY') ? 3 : selectedSymbol.includes('BTC') ? 1 : 5;
+            CH_gen(selectedSymbol, { p, d });
+            const elPrice = document.getElementById('chPrice');
+            if (elPrice) elPrice.textContent = p.toFixed(d);
+          })
+          .catch(() => {
+            const p = selectedSymbol.includes('BTC') ? 65000 : selectedSymbol.includes('JPY') ? 150 : 1.08;
+            const d = selectedSymbol.includes('JPY') ? 3 : selectedSymbol.includes('BTC') ? 1 : 5;
+            CH_gen(selectedSymbol, { p, d });
+            const elPrice = document.getElementById('chPrice');
+            if (elPrice) elPrice.textContent = p.toFixed(d);
+          });
+      }
     }
 
     CH_bindEvents();

@@ -375,7 +375,9 @@ function MainNav() {
           (href !== '/dashboard' && (pathname ?? '').startsWith(href))
         return (
           <Link key={href} href={href} style={{ textDecoration: 'none', flexShrink: 0 }}>
-            <div style={{
+            <div 
+              onClick={() => setActivePage('dashboard')}
+              style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '0 12px', borderRadius: 8, cursor: 'pointer',
               height: 44,
@@ -440,7 +442,10 @@ function MainNav() {
             {NAV_LINKS.slice(6, 9).map(item => (
               <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }}>
                 <div
-                  onClick={() => setMoreOpen(false)}
+                  onClick={() => {
+                    setMoreOpen(false)
+                    setActivePage('dashboard')
+                  }}
                   style={{
                     padding: '7px 12px', borderRadius: 6, cursor: 'pointer',
                     fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.text2,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   LayoutDashboard,
   TrendingUp,
@@ -8,12 +8,13 @@ import {
   Globe,
   ChevronLeft,
   ChevronRight,
+  Activity,
   Wifi,
   Database,
   Cpu,
 } from 'lucide-react'
 import { useDashboardStore } from '@/lib/dashboard-store'
-import { useMarketQuotes } from '@/hooks/useMarketData'
+import { useMarketQuotes, type QuoteData } from '@/hooks/useMarketData'
 
 const NAV_SECTIONS = [
   {
@@ -49,7 +50,8 @@ const MARKET_PAIRS = [
 ]
 
 export default function SidebarLeft() {
-  const { sidebarCollapsed, toggleSidebar, selectedPair, setSelectedPair, activePage, setActivePage } = useDashboardStore()
+  const { sidebarCollapsed, toggleSidebar, selectedPair, setSelectedPair } = useDashboardStore()
+  const [activeNav, setActiveNav] = useState('dashboard')
   const { quotes } = useMarketQuotes(MARKET_PAIRS, 8000)
 
   return (
@@ -83,11 +85,11 @@ export default function SidebarLeft() {
               </div>
             )}
             {section.items.map((item) => {
-              const isActive = activePage === item.id
+              const isActive = activeNav === item.id
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActivePage(item.id)}
+                  onClick={() => setActiveNav(item.id)}
                   className="flex items-center gap-2 w-full cursor-pointer"
                   style={{
                     padding: sidebarCollapsed ? '8px 0' : '6px 12px',

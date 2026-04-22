@@ -3,12 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useBotStore } from '@/hooks/useBotStore';
 import { useSymbolStore } from '@/hooks/useSymbolStore';
+import { useMarketStore } from '@/hooks/useMarketStore';
 
-export function BotEngine({ quotes = new Map() }: { quotes?: Map<string, any> }) {
+export function BotEngine() {
   const { isOn, addLog, settings } = useBotStore();
   const { selectedSymbol } = useSymbolStore();
+  const globalQuotes = useMarketStore(state => state.quotes);
   const lastSignalRef = useRef<string | null>(null);
-  const quotesRef = useRef(quotes);
+  const quotesRef = useRef(globalQuotes);
   const [hydrated, setHydrated] = useState(false);
 
   // Zustand persist hydration check
@@ -17,8 +19,8 @@ export function BotEngine({ quotes = new Map() }: { quotes?: Map<string, any> })
   }, []);
 
   useEffect(() => {
-    quotesRef.current = quotes;
-  }, [quotes]);
+    quotesRef.current = globalQuotes;
+  }, [globalQuotes]);
 
   useEffect(() => {
     if (!hydrated || !isOn) return;
@@ -30,7 +32,7 @@ export function BotEngine({ quotes = new Map() }: { quotes?: Map<string, any> })
 
     const interval = setInterval(() => {
       const currentQuotes = quotesRef.current;
-      const q = currentQuotes.get(selectedSymbol);
+      const q = currentQuotes[selectedSymbol];
       if (!q) return;
 
       const change = q.changePercent || 0;

@@ -6,6 +6,7 @@ import ChartArea from './ChartArea'
 import SidebarRight from './SidebarRight'
 import BottomPanel from './BottomPanel'
 import { useDashboardStore } from '@/lib/dashboard-store'
+import { BotEngine } from './BotEngine'
 
 export default function QuantumDashboard() {
   const { chartFullscreen } = useDashboardStore()
@@ -20,6 +21,7 @@ export default function QuantumDashboard() {
         direction: 'rtl',
       }}
     >
+      <BotEngine />
       {/* TopBar */}
       <TopBar />
 

@@ -37,37 +37,51 @@ export async function GET(req: NextRequest) {
     // Fetch quotes for all symbols to get current price and 24h change
     const quotePromises = SYMBOLS.map(async (s) => {
       try {
-        const res = await fetch(`${origin}/api/exchange/quote/${s}`, { cache: 'no-store' })
+        const res = await fetch(`${origin}/api/exchange/quote/${encodeURIComponent(s)}`, { cache: 'no-store' })
         const data = await res.json()
-        return data.success ? data.data : null
-      } catch { return null }
+        
+        // Let's also fetch historical candles for RSI
+        let closes: number[] = []
+        try {
+           const histRes = await fetch(`${origin}/api/exchange/history/${encodeURIComponent(s)}?interval=1h`, { cache: 'no-store' })
+           const histData = await histRes.json()
+           if (histData.success && histData.data) {
+             closes = histData.data.map((c: any) => c.close).reverse() // ensure chronological
+           }
+        } catch { }
+
+        return { symbol: s, quote: data.success ? data.data : null, closes }
+      } catch { return { symbol: s, quote: null, closes: [] } }
     })
     
-    const quotes = await Promise.all(quotePromises)
+    const fetchedData = await Promise.all(quotePromises)
     
-    for (let i = 0; i < SYMBOLS.length; i++) {
-      const q = quotes[i]
+    for (const item of fetchedData) {
+      const q = item.quote
       if (!q) continue
       
-      const symbol = SYMBOLS[i]
+      const symbol = item.symbol
       const change = q.changePercent || 0
       
-      // Heuristic score based on real data
       let score = 0
       const reasons: string[] = []
       
       // 1. Momentum from 24h change
-      if (change > 2) { score += 2; reasons.push('زخم صعودي قوي (24س)') }
-      else if (change > 0.5) { score += 1; reasons.push('ميل صعودي') }
-      else if (change < -2) { score -= 2; reasons.push('زخم هبوطي قوي (24س)') }
-      else if (change < -0.5) { score -= 1; reasons.push('ميل هبوطي') }
+      if (change > 2) { score += 1; reasons.push('زخم صعودي قوي (24س)') }
+      else if (change > 0.5) { score += 0.5; reasons.push('ميل صعودي') }
+      else if (change < -2) { score -= 1; reasons.push('زخم هبوطي قوي (24س)') }
+      else if (change < -0.5) { score -= 0.5; reasons.push('ميل هبوطي') }
       
-      // 2. Volatility factor
-      if (Math.abs(change) > 5) reasons.push('تقلبات عالية')
-      
-      // 3. Simple price level check (heuristic)
-      if (q.low && q.price < q.low * 1.01) { score += 1; reasons.push('قريب من أدنى مستوى يومي') }
-      if (q.high && q.price > q.high * 0.99) { score -= 1; reasons.push('قريب من أعلى مستوى يومي') }
+      // 2. RSI Factor
+      if (item.closes.length >= 14) {
+         const rsi = calculateRSI(item.closes)
+         if (rsi < 30) { score += 2; reasons.push(`تشبع بيعي (RSI: ${Math.round(rsi)})`) }
+         else if (rsi > 70) { score -= 2; reasons.push(`تشبع شرائي (RSI: ${Math.round(rsi)})`) }
+      } else {
+         // Fallback if no candles
+         if (q.low && q.price < q.low * 1.01) { score += 1; reasons.push('قريب من أدنى مستوى يومي') }
+         if (q.high && q.price > q.high * 0.99) { score -= 1; reasons.push('قريب من أعلى مستوى يومي') }
+      }
 
       if (Math.abs(score) >= 1) {
         results.push({

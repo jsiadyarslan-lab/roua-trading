@@ -71,9 +71,45 @@ export function ScannerMini() {
 
       {/* Results */}
       <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+        <style>{`
+          @keyframes dash-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+          }
+          .skeleton {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            animation: dash-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+          }
+        `}</style>
         {scanning && signals.length === 0 ? (
-          <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 10 }}>
-            <div style={{ fontSize: 11, color: 'var(--text3)', fontFamily: "'Cairo', sans-serif" }}>جاري تحليل الأسواق حياً...</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[1, 2, 3].map((skeletonIndex) => (
+              <div
+                key={skeletonIndex}
+                style={{
+                  background: 'var(--surface)', border: '1px solid var(--border)',
+                  borderRadius: 8, padding: 12, opacity: 0.7
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div>
+                    <div className="skeleton" style={{ width: 60, height: 16, marginBottom: 4 }} />
+                    <div className="skeleton" style={{ width: 40, height: 12 }} />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                    <div className="skeleton" style={{ width: 50, height: 12, marginBottom: 4 }} />
+                    <div className="skeleton" style={{ width: 30, height: 16 }} />
+                  </div>
+                </div>
+                <div className="skeleton" style={{ width: '100%', height: 4, borderRadius: 2, marginBottom: 10 }} />
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <div className="skeleton" style={{ width: 40, height: 14 }} />
+                  <div className="skeleton" style={{ width: 60, height: 14 }} />
+                  <div className="skeleton" style={{ width: 50, height: 14 }} />
+                </div>
+              </div>
+            ))}
           </div>
         ) : signals.length === 0 ? (
           <div style={{ padding: 40, textAlign: 'center', opacity: 0.4 }}>

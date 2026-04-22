@@ -27,12 +27,20 @@ const NAV_SECTIONS = [
     label: 'التحليل',
     items: [
       { icon: TrendingUp, label: 'التحليل الفني', id: 'analysis' },
+      { icon: Cpu, label: 'التحليل الذكي', id: 'ai' },
     ],
   },
   {
     label: 'التداول',
     items: [
       { icon: ArrowLeftRight, label: 'التداول السريع', id: 'trading' },
+      { icon: ArrowLeftRight, label: 'نسخ الصفقات', id: 'copy-trading' },
+    ],
+  },
+  {
+    label: 'استراتيجيات',
+    items: [
+      { icon: Activity, label: 'محرر الخوارزميات', id: 'strategy-builder' },
     ],
   },
   {

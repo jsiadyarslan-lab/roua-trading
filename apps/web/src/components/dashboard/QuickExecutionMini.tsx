@@ -23,12 +23,33 @@ export function QuickExecutionMini() {
   const [quantity, setQuantity] = useState('0.1')
   const [stopLoss, setStopLoss] = useState('')
   const [takeProfit, setTakeProfit] = useState('')
-  const [status, setStatus] = useState<{ msg: string; type: 'success' | 'error' | 'loading' | '' }>({ msg: '', type: '' })
+  const [status, setStatus] = useState<{ msg: string; type: 'success' | 'error' | 'loading' | 'confirm' | '' }>({ msg: '', type: '' })
   const [loading, setLoading] = useState(false)
-  const [lastOrder, setLastOrder] = useState<any>(null)
+  const [pendingAction, setPendingAction] = useState<'buy' | 'sell' | null>(null)
 
-  const executeOrder = async (side: 'buy' | 'sell') => {
-    if (!localSymbol || !quantity) return
+  const validateAndConfirm = (side: 'buy' | 'sell') => {
+    if (!localSymbol) {
+      setStatus({ msg: '❌ يرجى إدخال رمز الأصل', type: 'error' });
+      setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
+      return;
+    }
+    const qtyNum = parseFloat(quantity)
+    if (isNaN(qtyNum) || qtyNum <= 0) {
+      setStatus({ msg: '❌ الكمية غير صالحة', type: 'error' });
+      setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
+      return;
+    }
+
+    setPendingAction(side);
+    setStatus({ 
+      msg: `تأكيد عملية ${side === 'buy' ? 'الشراء' : 'البيع'} لـ ${quantity} من ${localSymbol}؟`, 
+      type: 'confirm' 
+    });
+  }
+
+  const executeOrder = async () => {
+    if (!pendingAction || !localSymbol || !quantity) return
+    const side = pendingAction
     setLoading(true)
     setStatus({ msg: `⏳ جارٍ إرسال أمر ${side === 'buy' ? 'شراء' : 'بيع'} عبر Alpaca...`, type: 'loading' })
 
@@ -52,10 +73,10 @@ export function QuickExecutionMini() {
       if (j.success) {
         setLastOrder(j)
         const filled = j.filledAvgPrice
-          ? ` @ $${parseFloat(j.filledAvgPrice).toFixed(2)}`
+          ? ` بسعر $${parseFloat(j.filledAvgPrice).toFixed(2)}`
           : ''
         setStatus({
-          msg:  `✅ ${side === 'buy' ? 'شراء' : 'بيع'} ${j.qty} ${j.symbol}${filled}\nOrder ID: ${j.orderId?.slice(0,8)}...`,
+          msg:  `✅ تمت عملية ${side === 'buy' ? 'شراء' : 'بيع'} ${j.qty} ${j.symbol}${filled}\nرقم الأمر: ${j.orderId?.slice(0,8)}...`,
           type: 'success',
         })
         // Refresh account balance
@@ -66,9 +87,10 @@ export function QuickExecutionMini() {
         setStatus({ msg: `❌ ${j.error || 'فشل التنفيذ'}`, type: 'error' })
       }
     } catch {
-      setStatus({ msg: '❌ خطأ في الشبكة — تعذّر الوصول لـ Alpaca', type: 'error' })
+      setStatus({ msg: '❌ خطأ في الشبكة — تعذّر الوصول للمزود', type: 'error' })
     } finally {
       setLoading(false)
+      setPendingAction(null)
       setTimeout(() => setStatus({ msg: '', type: '' }), 5000)
     }
   }
@@ -89,11 +111,11 @@ export function QuickExecutionMini() {
           borderRadius: 6, padding: '3px 8px',
         }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00C853', boxShadow: '0 0 6px #00C853' }} />
-          <span style={{ fontSize: 9, fontWeight: 800, color: '#00C853', fontFamily: "'JetBrains Mono', monospace" }}>PAPER TRADING</span>
+          <span style={{ fontSize: 9, fontWeight: 800, color: '#00C853', fontFamily: "'JetBrains Mono', monospace" }}>حساب تجريبي (PAPER)</span>
         </div>
         {account && (
           <div style={{ fontSize: 9, color: 'var(--muted)', fontFamily: "'JetBrains Mono', monospace" }}>
-            💰 <span style={{ color: 'var(--success)', fontWeight: 700 }}>${account.cash.toLocaleString(undefined, {maximumFractionDigits:0})}</span>
+            القوة الشرائية: <span style={{ color: 'var(--success)', fontWeight: 700 }}>${account.cash.toLocaleString(undefined, {maximumFractionDigits:0})}</span>
           </div>
         )}
       </div>
@@ -101,7 +123,7 @@ export function QuickExecutionMini() {
       {/* Symbol & Quantity Wrapper */}
       <div style={{ display: 'flex', gap: 10 }}>
         <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 800 }}>الأصل (SYMBOL)</label>
+          <label style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 800 }}>الأصل</label>
           <input 
             value={localSymbol}
             onChange={e => setLocalSymbol(e.target.value.toUpperCase())}
@@ -121,7 +143,7 @@ export function QuickExecutionMini() {
           />
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 800 }}>الكمية (SIZE)</label>
+          <label style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 800 }}>الكمية</label>
           <input 
             value={quantity}
             onChange={e => setQuantity(e.target.value)}
@@ -143,7 +165,7 @@ export function QuickExecutionMini() {
       {/* TP & SL Wrapper */}
       <div style={{ display: 'flex', gap: 10 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 9, color: 'var(--success)', fontWeight: 800 }}>جني أرباح (TP)</label>
+          <label style={{ fontSize: 9, color: 'var(--success)', fontWeight: 800 }}>جني أرباح</label>
           <input 
             value={takeProfit}
             onChange={e => setTakeProfit(e.target.value)}
@@ -160,7 +182,7 @@ export function QuickExecutionMini() {
           />
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 9, color: 'var(--danger)', fontWeight: 800 }}>وقف خسارة (SL)</label>
+          <label style={{ fontSize: 9, color: 'var(--danger)', fontWeight: 800 }}>وقف خسارة</label>
           <input 
             value={stopLoss}
             onChange={e => setStopLoss(e.target.value)}
@@ -181,7 +203,7 @@ export function QuickExecutionMini() {
       {/* Action Buttons */}
       <div style={{ display: 'flex', gap: 12, marginTop: 'auto' }}>
         <button 
-          onClick={() => executeOrder('buy')}
+          onClick={() => validateAndConfirm('buy')}
           disabled={loading}
           className="btn-neon-buy"
           style={{
@@ -195,10 +217,10 @@ export function QuickExecutionMini() {
           onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
         >
           <Zap size={14} fill="white" />
-          شراء (BUY)
+          شراء
         </button>
         <button 
-          onClick={() => executeOrder('sell')}
+          onClick={() => validateAndConfirm('sell')}
           disabled={loading}
           className="btn-neon-sell"
           style={{
@@ -212,7 +234,7 @@ export function QuickExecutionMini() {
           onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
         >
           <Zap size={14} fill="white" />
-          بيع (SELL)
+          بيع
         </button>
       </div>
 
@@ -220,13 +242,36 @@ export function QuickExecutionMini() {
       {status.msg && (
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'rgba(15,17,19,0.94)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(15,17,19,0.94)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
           fontSize: 13, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
           color: status.type === 'success' ? 'var(--success)' : status.type === 'error' ? 'var(--danger)' : 'var(--foreground)',
           backdropFilter: 'blur(8px)', zIndex: 20, borderRadius: 12,
           padding: 24, textAlign: 'center', lineHeight: 1.5
         }}>
-          {status.msg}
+          <div>{status.msg}</div>
+          
+          {status.type === 'confirm' && (
+            <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+              <button 
+                onClick={executeOrder}
+                style={{
+                  background: 'var(--success)', border: 'none', borderRadius: 4,
+                  padding: '6px 16px', color: '#fff', fontWeight: 800, cursor: 'pointer', fontFamily: "'Cairo', sans-serif"
+                }}
+              >
+                تأكيد
+              </button>
+              <button 
+                onClick={() => setStatus({ msg: '', type: '' })}
+                style={{
+                  background: 'transparent', border: '1px solid var(--border)', borderRadius: 4,
+                  padding: '6px 16px', color: 'var(--foreground)', fontWeight: 800, cursor: 'pointer', fontFamily: "'Cairo', sans-serif"
+                }}
+              >
+                إلغاء
+              </button>
+            </div>
+          )}
         </div>
       )}
 

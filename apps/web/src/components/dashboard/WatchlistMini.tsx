@@ -60,7 +60,18 @@ export function WatchlistMini() {
       width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
       background: 'var(--bg)', overflow: 'hidden'
     }}>
-      
+      <style>{`
+        @keyframes dash-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+        .skeleton {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 4px;
+          animation: dash-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+      `}</style>
+
       {/* Tabs */}
       <div style={{
         display: 'flex', padding: '6px 16px', gap: 12, background: 'var(--surface)',
@@ -129,7 +140,7 @@ export function WatchlistMini() {
                     <span style={{ fontSize: 13, fontWeight: 900, color: 'var(--foreground)', fontFamily: 'var(--mono)' }}>{sym}</span>
                     <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 600 }}>MARKET PAIR</span>
                   </div>
-                  {q && (
+                  {q ? (
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px',
                       borderRadius: 20, background: isUp ? 'rgba(0,200,83,0.1)' : 'rgba(255,59,48,0.1)',
@@ -139,42 +150,52 @@ export function WatchlistMini() {
                       {isUp ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                       {isUp ? '+' : ''}{changePct.toFixed(2)}%
                     </div>
+                  ) : (
+                    <div className="skeleton" style={{ width: 45, height: 20, borderRadius: 20 }} />
                   )}
                 </div>
 
                 {/* Price & Sparkline */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: 'auto' }}>
-                  <PriceDisplay price={price} isUp={isUp} />
+                  {price === null ? (
+                    <div className="skeleton" style={{ width: 80, height: 22 }} />
+                  ) : (
+                    <PriceDisplay price={price} isUp={isUp} />
+                  )}
                   
                   {/* Enhanced Sparkline */}
                   <div style={{ width: 80, height: 30, opacity: 0.8, alignSelf: 'flex-end', marginBottom: -4 }}>
-                    <svg viewBox="0 0 100 30" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
-                      <defs>
-                        <linearGradient id={`grad-${sym}`} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor={color} stopOpacity="0.4" />
-                          <stop offset="100%" stopColor={color} stopOpacity="0.0" />
-                        </linearGradient>
-                      </defs>
-                      <path 
-                        d={isUp ? "M0 25 L20 20 L40 22 L60 10 L80 15 L100 5 L100 30 L0 30 Z" : "M0 5 L20 15 L40 10 L60 22 L80 20 L100 25 L100 30 L0 30 Z"} 
-                        fill={`url(#grad-${sym})`} 
-                      />
-                      <path 
-                        d={isUp ? "M0 25 L20 20 L40 22 L60 10 L80 15 L100 5" : "M0 5 L20 15 L40 10 L60 22 L80 20 L100 25"} 
-                        fill="none" 
-                        stroke={color} 
-                        strokeWidth="2.5" 
-                        strokeLinecap="round" 
-                        strokeLinejoin="round" 
-                      />
-                    </svg>
+                    {q ? (
+                      <svg viewBox="0 0 100 30" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+                        <defs>
+                          <linearGradient id={`grad-${sym}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={color} stopOpacity="0.4" />
+                            <stop offset="100%" stopColor={color} stopOpacity="0.0" />
+                          </linearGradient>
+                        </defs>
+                        <path 
+                          d={isUp ? "M0 25 L20 20 L40 22 L60 10 L80 15 L100 5 L100 30 L0 30 Z" : "M0 5 L20 15 L40 10 L60 22 L80 20 L100 25 L100 30 L0 30 Z"} 
+                          fill={`url(#grad-${sym})`} 
+                        />
+                        <path 
+                          d={isUp ? "M0 25 L20 20 L40 22 L60 10 L80 15 L100 5" : "M0 5 L20 15 L40 10 L60 22 L80 20 L100 25"} 
+                          fill="none" 
+                          stroke={color} 
+                          strokeWidth="2.5" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                        />
+                      </svg>
+                    ) : (
+                      <div className="skeleton" style={{ width: '100%', height: '100%', opacity: 0.5 }} />
+                    )}
                   </div>
                 </div>
 
                 {/* Left Indicator bar */}
                 <div style={{
                   position: 'absolute', left: 0, top: '20%', bottom: '20%', width: 2.5,
-                  background: color, borderRadius: '0 4px 4px 0'
+                  background: q ? color : 'transparent', borderRadius: '0 4px 4px 0'
                 }} />
               </div>
             )

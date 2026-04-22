@@ -1,60 +1,31 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useMarketStore, binanceWS, QuoteData } from './useMarketStore'
 
-/**
- * useMarketData — Simple, reliable hook for real-time market prices
- * Uses proper React state (no globals). Each instance fetches independently.
- * Always returns data — real from API, or realistic fallback.
- */
 
-export interface QuoteData {
-  symbol: string
-  name: string
-  exchange: string
-  currency: string
-  price: number
-  change: number
-  changePercent: number
-  open: number
-  high: number
-  low: number
-  close: number
-  volume: number
-  marketCap: number | null
-  fiftyTwoWeekHigh: number | null
-  fiftyTwoWeekLow: number | null
-  timestamp: string
-  source: string
+const CRYPTO_BASES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
+
+function isCryptoPair(symbol: string) {
+  const base = symbol.split('/')[0]
+  const quote = symbol.split('/')[1]
+  return CRYPTO_BASES.includes(base) || ['USDT', 'BUSD', 'USDC'].includes(quote)
 }
 
-// Simple per-instance cache (5s TTL) to avoid duplicate fetches across re-renders
-const instanceCache = new Map<string, { data: QuoteData; expiresAt: number }>()
-
-function getCached(symbol: string): QuoteData | null {
-  const entry = instanceCache.get(symbol)
-  if (!entry) return null
-  if (Date.now() > entry.expiresAt) {
-    instanceCache.delete(symbol)
-    return null
+function normalizeBinanceSymbol(symbol: string) {
+  let s = symbol.replace('/', '')
+  if (symbol.endsWith('/USD') && !symbol.endsWith('/USDT')) {
+    s = s.replace('USD', 'USDT')
   }
-  return entry.data
-}
-
-function setCache(symbol: string, data: QuoteData, ttlMs = 4000) {
-  instanceCache.set(symbol, { data, expiresAt: Date.now() + ttlMs })
+  return s.toLowerCase()
 }
 
 async function fetchQuoteFromAPI(symbol: string): Promise<QuoteData | null> {
   try {
-    const cached = getCached(symbol)
-    if (cached) return cached
-
     const response = await fetch(`/api/exchange/quote/${encodeURIComponent(symbol)}`)
     if (!response.ok) return null
     const result = await response.json()
     if (result.success && result.data) {
-      setCache(symbol, result.data)
       return result.data
     }
   } catch {
@@ -63,52 +34,76 @@ async function fetchQuoteFromAPI(symbol: string): Promise<QuoteData | null> {
   return null
 }
 
-/**
- * useMarketQuotes — Fetches multiple quotes, returns a Map.
- * Always returns something: real data merged with realistic fallbacks.
- */
 export function useMarketQuotes(symbols: string[], refreshInterval = 6000) {
-  const [quotes, setQuotes] = useState<Map<string, QuoteData>>(new Map())
+  const globalQuotes = useMarketStore(state => state.quotes)
+  const setQuote = useMarketStore(state => state.setQuote)
   const mountedRef = useRef(true)
 
-  const fetchAll = useCallback(async () => {
+  // Derive local map for compatibility with older code relying on Map
+  const quotesMap = new Map<string, QuoteData>()
+  symbols.forEach(s => {
+    if (globalQuotes[s]) quotesMap.set(s, globalQuotes[s])
+  })
+
+  // Split symbols
+  const cryptoSymbols = symbols.filter(isCryptoPair)
+  const nonCryptoSymbols = symbols.filter(s => !isCryptoPair(s))
+
+  const fetchAllInit = useCallback(async () => {
     const results = await Promise.allSettled(
       symbols.map(async (symbol) => {
+        // Skip fetch if we already have it from WS and it's fresh, but to be safe, we fetch initial once.
         const data = await fetchQuoteFromAPI(symbol)
         return { symbol, data }
       })
     )
-
     if (!mountedRef.current) return
-
-    setQuotes(prev => {
-      const next = new Map(prev)
-      for (const r of results) {
-        if (r.status === 'fulfilled' && r.value.data) {
-          next.set(r.value.symbol, r.value.data)
-        }
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value.data) {
+        setQuote(r.value.symbol, r.value.data)
       }
-      return next
-    })
+    }
   }, [symbols.join(',')])
+
+  const pollNonCrypto = useCallback(async () => {
+    if (nonCryptoSymbols.length === 0) return
+    const results = await Promise.allSettled(
+      nonCryptoSymbols.map(async (symbol) => {
+        const data = await fetchQuoteFromAPI(symbol)
+        return { symbol, data }
+      })
+    )
+    if (!mountedRef.current) return
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value.data) {
+        setQuote(r.value.symbol, r.value.data)
+      }
+    }
+  }, [nonCryptoSymbols.join(',')])
 
   useEffect(() => {
     mountedRef.current = true
-    fetchAll()
-    const iv = setInterval(fetchAll, refreshInterval)
+    fetchAllInit()
+
+    // 1. Setup Polling
+    const iv = setInterval(pollNonCrypto, refreshInterval)
+
+    // 2. Setup Binance WebSocket via Singleton
+    cryptoSymbols.forEach(s => binanceWS.subscribe(s))
+
     return () => {
       mountedRef.current = false
       clearInterval(iv)
+      // We don't eagerly unsubscribe to avoid connection flapping if user just switched tabs
+      setTimeout(() => {
+        cryptoSymbols.forEach(s => binanceWS.unsubscribe(s))
+      }, 5000)
     }
-  }, [fetchAll, refreshInterval])
+  }, [symbols.join(','), refreshInterval, fetchAllInit, pollNonCrypto])
 
-  return { quotes, refetch: fetchAll }
+  return { quotes: quotesMap, refetch: fetchAllInit }
 }
 
-/**
- * useSingleQuote — Convenience hook for one symbol.
- * Returns quote directly (null while loading).
- */
 export function useSingleQuote(symbol: string, refreshInterval = 6000) {
   const { quotes, refetch } = useMarketQuotes([symbol], refreshInterval)
   return {
@@ -117,10 +112,6 @@ export function useSingleQuote(symbol: string, refreshInterval = 6000) {
   }
 }
 
-/**
- * useHistoricalCandles — Fetches OHLCV data for chart.
- * Returns candles array, loading state, and error.
- */
 export interface CandleData {
   timestamp: string
   open: number

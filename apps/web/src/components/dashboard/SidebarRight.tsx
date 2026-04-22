@@ -158,10 +158,11 @@ export default function SidebarRight() {
               fontFamily: 'var(--font-ui)',
               fontSize: '11px',
               fontWeight: rightTab === tab.id ? 700 : 500,
-              color: rightTab === tab.id ? 'var(--blue)' : 'var(--text3)',
-              background: rightTab === tab.id ? 'var(--blue3)' : 'transparent',
-              borderBottom: rightTab === tab.id ? '2px solid var(--blue)' : '2px solid transparent',
+              color: rightTab === tab.id ? '#000' : 'var(--text3)',
+              background: rightTab === tab.id ? 'var(--accent)' : 'transparent',
+              fontWeight: rightTab === tab.id ? 800 : 500,
               transition: 'all 0.15s',
+              boxShadow: rightTab === tab.id ? '0 0 10px rgba(0, 242, 255, 0.25)' : 'none',
             }}
           >
             {tab.label}
@@ -186,9 +187,11 @@ export default function SidebarRight() {
                   fontFamily: 'var(--font-ui)',
                   fontSize: '12px',
                   fontWeight: 700,
-                  background: tradeDirection === 'buy' ? 'var(--green2)' : 'var(--bg3)',
-                  color: tradeDirection === 'buy' ? 'var(--green)' : 'var(--text3)',
-                  border: tradeDirection === 'buy' ? '1px solid rgba(0,255,136,0.2)' : '1px solid transparent',
+                  background: tradeDirection === 'buy' ? 'var(--success)' : 'var(--surface)',
+                  color: tradeDirection === 'buy' ? '#000' : 'var(--text3)',
+                  border: tradeDirection === 'buy' ? '1px solid var(--success)' : '1px solid transparent',
+                  borderRadius: 'var(--radius)',
+                  boxShadow: tradeDirection === 'buy' ? '0 0 10px rgba(0, 255, 136, 0.2)' : 'none',
                 }}
               >
                 شراء
@@ -200,9 +203,11 @@ export default function SidebarRight() {
                   fontFamily: 'var(--font-ui)',
                   fontSize: '12px',
                   fontWeight: 700,
-                  background: tradeDirection === 'sell' ? 'var(--red2)' : 'var(--bg3)',
-                  color: tradeDirection === 'sell' ? 'var(--red)' : 'var(--text3)',
-                  border: tradeDirection === 'sell' ? '1px solid rgba(255,51,85,0.2)' : '1px solid transparent',
+                  background: tradeDirection === 'sell' ? 'var(--danger)' : 'var(--surface)',
+                  color: tradeDirection === 'sell' ? '#fff' : 'var(--text3)',
+                  border: tradeDirection === 'sell' ? '1px solid var(--danger)' : '1px solid transparent',
+                  borderRadius: 'var(--radius)',
+                  boxShadow: tradeDirection === 'sell' ? '0 0 10px rgba(255, 68, 68, 0.2)' : 'none',
                 }}
               >
                 بيع
@@ -420,14 +425,12 @@ export default function SidebarRight() {
                 fontFamily: 'var(--font-ui)',
                 fontSize: '13px',
                 fontWeight: 800,
-                background: tradeDirection === 'buy'
-                  ? 'linear-gradient(135deg, rgba(0,255,136,0.2), rgba(0,255,136,0.08))'
-                  : 'linear-gradient(135deg, rgba(255,51,85,0.2), rgba(255,51,85,0.08))',
-                border: `1px solid ${tradeDirection === 'buy' ? 'rgba(0,255,136,0.3)' : 'rgba(255,51,85,0.3)'}`,
-                color: tradeDirection === 'buy' ? 'var(--green)' : 'var(--red)',
-                textShadow: tradeDirection === 'buy'
-                  ? '0 0 12px rgba(0,255,136,0.3)'
-                  : '0 0 12px rgba(255,51,85,0.3)',
+                background: tradeDirection === 'buy' ? 'var(--success)' : 'var(--danger)',
+                color: tradeDirection === 'buy' ? '#000' : '#fff',
+                border: 'none',
+                boxShadow: tradeDirection === 'buy' 
+                  ? '0 0 15px rgba(0,255,136,0.4)' 
+                  : '0 0 15px rgba(255,68,68,0.4)',
                 transition: 'all 0.2s',
               }}
             >

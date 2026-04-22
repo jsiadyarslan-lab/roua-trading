@@ -48,16 +48,16 @@
 
 :root,
 [data-theme="dark"] {
-  /* ── ROUA TRADING DESIGN BUNDLE v2 (Harden Phase) ── */
-  --bg: #0F1113;
-  --surface: #111214;
+  /* ── QUANTUM V5 DESIGN CLONE ── */
+  --bg: #060b13;
+  --surface: #0d1421;
   --primary: #0A84FF;
-  --accent: #00E5FF;
-  --success: #00C853;
-  --danger: #FF3B30;
-  --muted: #8E8E93;
-  --card-border: rgba(255, 255, 255, 0.06);
-  --radius: 12px;
+  --accent: #00f2ff;
+  --success: #00ff88;
+  --danger: #ff4444;
+  --muted: #94a3b8;
+  --card-border: rgba(255, 255, 255, 0.05);
+  --radius: 8px;
   --shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
   --mono: 'JetBrains Mono', monospace;
   --ui: 'Inter', system-ui, sans-serif;
@@ -108,6 +108,41 @@
     font-family: var(--font-ui), var(--font-en), sans-serif;
     overflow: hidden;
   }
+}
+
+/* ── Quantum V5 Buttons & Neon Effects ── */
+.btn-neon-buy {
+  background: rgba(0, 255, 136, 0.1);
+  color: var(--success);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  transition: all 0.15s ease-in-out;
+}
+.btn-neon-buy:hover:not(:disabled) {
+  background: rgba(0, 255, 136, 0.2);
+  border-color: var(--success);
+  box-shadow: 0 0 12px rgba(0, 255, 136, 0.3);
+  color: #fff;
+}
+
+.btn-neon-sell {
+  background: rgba(255, 68, 68, 0.1);
+  color: var(--danger);
+  border: 1px solid rgba(255, 68, 68, 0.3);
+  transition: all 0.15s ease-in-out;
+}
+.btn-neon-sell:hover:not(:disabled) {
+  background: rgba(255, 68, 68, 0.2);
+  border-color: var(--danger);
+  box-shadow: 0 0 12px rgba(255, 68, 68, 0.3);
+  color: #fff;
+}
+
+.btn-cyan-active {
+  background: var(--accent) !important;
+  color: #000 !important;
+  font-weight: 700 !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 8px rgba(0, 242, 255, 0.4);
 }
 
 /* ── Pulse Live Indicator ── */

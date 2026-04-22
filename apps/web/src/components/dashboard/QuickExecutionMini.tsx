@@ -183,12 +183,11 @@ export function QuickExecutionMini() {
         <button 
           onClick={() => executeOrder('buy')}
           disabled={loading}
-          className="btn-buy"
+          className="btn-neon-buy"
           style={{
-            flex: 1, height: 44, borderRadius: 12, border: 'none', 
+            flex: 1, height: 44, borderRadius: 'var(--radius)', 
             fontSize: 13, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
             fontFamily: "'Cairo', sans-serif",
-            boxShadow: '0 8px 16px rgba(0,200,83,0.25)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             transition: 'transform 0.1s', opacity: loading ? 0.7 : 1,
           }}
@@ -201,12 +200,11 @@ export function QuickExecutionMini() {
         <button 
           onClick={() => executeOrder('sell')}
           disabled={loading}
-          className="btn-sell"
+          className="btn-neon-sell"
           style={{
-            flex: 1, height: 44, borderRadius: 12, border: 'none', 
+            flex: 1, height: 44, borderRadius: 'var(--radius)', 
             fontSize: 13, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
             fontFamily: "'Cairo', sans-serif",
-            boxShadow: '0 8px 16px rgba(255,59,48,0.25)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             transition: 'transform 0.1s', opacity: loading ? 0.7 : 1,
           }}

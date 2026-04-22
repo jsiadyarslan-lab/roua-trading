@@ -15,52 +15,52 @@ import { useSymbolStore } from '../../hooks/useSymbolStore';
 // ── CSS injected once globally ────────────────────────────
 const CHART_CSS = `
   :root {
-    --bg2: #1a1f2e; --bg4: #232c3e;
-    --cyan: #58a6ff; --border: rgba(48,54,61,.9);
-    --border2: rgba(88,166,255,.22);
-    --text: #e6edf3; --text2: #8b949e; --text3: #6e7681; --text4: #484f58;
+    --bg2: #0d1421; --bg4: #161e2e;
+    --cyan: #00f2ff; --border: rgba(255,255,255,0.08);
+    --border2: rgba(0,242,255,0.2);
+    --text: #ffffff; --text2: #94a3b8; --text3: #64748b; --text4: #475569;
     --font-mono: 'JetBrains Mono', monospace;
     --font-hud: 'Orbitron', sans-serif;
   }
   .iv-draw-btn {
     height:28px;min-width:28px;background:none;border:none;border-radius:4px;
     color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;
-    transition:background .12s,color .12s;flex-shrink:0;gap:3px;padding:0 2px;
+    transition:all .12s;flex-shrink:0;gap:3px;padding:0 2px;
   }
-  .iv-draw-btn:hover { background:rgba(88,166,255,.08);color:var(--text2); }
-  .iv-draw-btn.active { background:rgba(88,166,255,.15);color:var(--cyan); }
+  .iv-draw-btn:hover { background:rgba(0,242,255,0.08);color:var(--text2); }
+  .iv-draw-btn.active { background:var(--cyan);color:#000;box-shadow: 0 0 10px rgba(0,242,255,0.35);font-weight:700; }
   .iv-tf-trigger {
-    background:rgba(88,166,255,.1)!important;border:1px solid rgba(88,166,255,.25)!important;
+    background:rgba(0,242,255,0.1)!important;border:1px solid rgba(0,242,255,0.3)!important;
     border-radius:5px!important;color:var(--cyan)!important;font-weight:700!important;
     padding:0 8px!important;height:26px!important;
   }
   .iv-dropdown {
     display:none;position:absolute;top:calc(100% + 4px);left:0;
     background:var(--bg2);border:1px solid var(--border2);border-radius:8px;
-    padding:8px;z-index:500;box-shadow:0 8px 32px rgba(0,0,0,.65);
+    padding:8px;z-index:500;box-shadow:0 8px 32px rgba(0,0,0,.75);
   }
   .iv-dropdown.open { display:block; }
   .iv-dd-item {
-    display:block;width:100%;text-align:right;padding:5px 8px;
+    display:block;width:100%;text-align:right;padding:6px 8px;
     font-size:11px;font-family:var(--font-mono);background:none;border:none;
     color:var(--text2);cursor:pointer;border-radius:4px;transition:background .1s;
   }
-  .iv-dd-item:hover { background:rgba(88,166,255,.08);color:var(--text); }
+  .iv-dd-item:hover { background:rgba(0,242,255,0.08);color:var(--text); }
   .iv-tf-dd-btn {
     background:var(--bg4);border:1px solid var(--border);color:var(--text3);
     border-radius:4px;padding:5px 0;font-size:10px;font-family:var(--font-mono);
     font-weight:600;cursor:pointer;transition:all .1s;text-align:center;
   }
-  .iv-tf-dd-btn:hover { background:rgba(88,166,255,.1);color:var(--text2); }
-  .iv-tf-dd-active { background:rgba(88,166,255,.18)!important;color:var(--cyan)!important;border-color:rgba(88,166,255,.35)!important;font-weight:700!important; }
-  .iv-left-btn { width:26px;height:26px;background:none;border:none;border-radius:4px;color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .12s,color .12s; }
-  .iv-left-btn:hover { background:rgba(88,166,255,.09);color:var(--text2); }
-  .iv-left-btn.active { background:rgba(88,166,255,.18);color:var(--cyan); }
+  .iv-tf-dd-btn:hover { background:rgba(0,242,255,0.1);color:var(--text2); }
+  .iv-tf-dd-active { background:var(--cyan)!important;color:#000!important;border-color:var(--cyan)!important;font-weight:700!important; }
+  .iv-left-btn { width:26px;height:26px;background:none;border:none;border-radius:4px;color:var(--text3);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .12s; }
+  .iv-left-btn:hover { background:rgba(0,242,255,0.09);color:var(--text2); }
+  .iv-left-btn.active { background:var(--cyan);color:#000;box-shadow: 0 0 8px rgba(0,242,255,0.3); }
   .iv-left-sep { width:18px;height:1px;background:var(--border);margin:2px 0; }
   .iv-sep { width:1px;height:18px;background:var(--border);margin:0 2px;flex-shrink:0; }
-  .ind-panel { display:none;position:absolute;top:30px;right:0;background:rgba(5,10,20,.98);border:1px solid rgba(88,166,255,.25);border-radius:8px;padding:10px;width:180px;z-index:200;box-shadow:0 8px 32px rgba(0,0,0,.8); }
+  .ind-panel { display:none;position:absolute;top:30px;right:0;background:rgba(13,20,33,.98);border:1px solid var(--border2);border-radius:8px;padding:10px;width:180px;z-index:200;box-shadow:0 8px 32px rgba(0,0,0,.8); }
   .ind-panel.open { display:block; }
-  #mainChartArea { background:#0d1117; }
+  #mainChartArea { background:#060b13; }
   #tvCanvas { position:absolute;top:0;left:0; }
   #subCanvas { position:absolute;top:0;left:0; }
   .sub-chart-panel { height:90px;position:relative;overflow:hidden; }

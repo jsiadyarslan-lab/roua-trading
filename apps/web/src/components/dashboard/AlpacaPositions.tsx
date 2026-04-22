@@ -112,10 +112,9 @@ export function AlpacaPositions() {
             )}
           </>
         )}
-        <button onClick={fetchPositions} style={{
-          marginTop: 4, padding: '3px 10px', fontSize: 9,
-          background: 'rgba(10,132,255,0.1)', border: '1px solid rgba(10,132,255,0.25)',
-          color: '#0A84FF', borderRadius: 5, cursor: 'pointer',
+        <button onClick={fetchPositions} className="btn-cyan-active" style={{
+          marginTop: 4, padding: '3px 12px', fontSize: 10,
+          borderRadius: 'var(--radius)', cursor: 'pointer',
           fontFamily: "'Cairo', sans-serif",
         }}>تحديث</button>
       </div>
@@ -220,15 +219,16 @@ export function AlpacaPositions() {
                     <button
                       onClick={() => closePosition(pos.symbol)}
                       disabled={closing === pos.symbol}
+                      className={confirmClose === pos.symbol ? 'btn-neon-sell' : ''}
                       title="إغلاق المركز"
                       style={{
-                        background: confirmClose === pos.symbol ? T.danger : 'rgba(255,59,48,0.1)',
-                        border: '1px solid rgba(255,59,48,0.25)',
-                        color: confirmClose === pos.symbol ? '#fff' : T.danger,
-                        borderRadius: 4, cursor: 'pointer',
-                        padding: '2px 6px', fontSize: 9, fontFamily: "'Cairo', sans-serif",
+                        background: confirmClose === pos.symbol ? 'var(--danger)' : 'rgba(255,68,68,0.1)',
+                        border: '1px solid rgba(255,68,68,0.25)',
+                        color: confirmClose === pos.symbol ? '#fff' : 'var(--danger)',
+                        borderRadius: 'var(--radius)', cursor: 'pointer',
+                        padding: '2px 8px', fontSize: 9, fontFamily: "'Cairo', sans-serif",
                         display: 'flex', alignItems: 'center', gap: 4,
-                        transition: 'all 0.2s', fontWeight: confirmClose === pos.symbol ? 800 : 600
+                        transition: 'all 0.15s', fontWeight: confirmClose === pos.symbol ? 800 : 600
                       }}
                     >
                       {closing === pos.symbol ? (

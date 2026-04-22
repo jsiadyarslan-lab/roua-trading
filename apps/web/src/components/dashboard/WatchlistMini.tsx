@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useMarketQuotes } from '@/hooks/useMarketData'
 import { TrendingUp, TrendingDown } from 'lucide-react'
+import { useSymbolStore } from '@/hooks/useSymbolStore'
 
 // Helper component to handle price pulse animation
 function PriceDisplay({ price, isUp }: { price: number | null, isUp: boolean }) {
@@ -50,6 +51,7 @@ const ALL_SYMBOLS = [
 export function WatchlistMini() {
   const [activeTab, setActiveTab] = useState<'Crypto' | 'Forex' | 'Stocks'>('Crypto')
   const { quotes } = useMarketQuotes(ALL_SYMBOLS, 5000)
+  const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
 
   const symbols = SYMBOLS_BY_TAB[activeTab]
 
@@ -100,10 +102,13 @@ export function WatchlistMini() {
             return (
               <div
                 key={sym}
+                onClick={() => setSelectedSymbol(sym)}
                 className="card"
                 style={{
                   display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
                   height: 96, padding: '14px 16px',
+                  background: sym === selectedSymbol ? 'rgba(0, 229, 255, 0.05)' : 'var(--surface)',
+                  borderColor: sym === selectedSymbol ? 'var(--accent)' : 'var(--card-border)',
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   cursor: 'pointer', position: 'relative', overflow: 'hidden'
                 }}

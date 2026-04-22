@@ -10,6 +10,7 @@ import {
   CH_setDirty, CH_liveTick,
   setActiveTF, toggleSubChart, togglePanel, closeAllPanels,
 } from '../../lib/chartEngine';
+import { useSymbolStore } from '../../hooks/useSymbolStore';
 
 // ── CSS injected once globally ────────────────────────────
 const CHART_CSS = `
@@ -75,28 +76,34 @@ function injectCSS() {
   cssInjected = true;
 }
 
-export default function QuantumChart({ pair = 'BTC/USD', currentPrice = null, candles = null }) {
+export default function QuantumChart({ currentPrice = null, candles = null }) {
+  const selectedSymbol = useSymbolStore(s => s.selectedSymbol);
+  
   const mainCanvasRef = useRef(null);
   const subCanvasRef  = useRef(null);
   const animFrameRef  = useRef(null);
   const tickRef       = useRef(null);
+  const engineInitRef = useRef(false);
 
   // CSS
   useEffect(() => { injectCSS(); }, []);
 
-  // Init engine once
+  // Init engine and handle symbol changes
   useEffect(() => {
     const mainCanvas = document.getElementById('tvCanvas');
     const subCanvas  = document.getElementById('subCanvas');
     if (!mainCanvas || !subCanvas) return;
 
-    CH_setContexts(mainCanvas.getContext('2d'), subCanvas.getContext('2d'));
+    if (!engineInitRef.current) {
+      CH_setContexts(mainCanvas.getContext('2d'), subCanvas.getContext('2d'));
+      engineInitRef.current = true;
+    }
 
     if (candles && candles.length > 0) {
       CH_loadCandles(candles);
     } else {
-      CH_gen(pair, currentPrice
-        ? { p: currentPrice, d: pair.includes('JPY') ? 3 : pair.includes('BTC') ? 1 : 5 }
+      CH_gen(selectedSymbol, currentPrice
+        ? { p: currentPrice, d: selectedSymbol.includes('JPY') ? 3 : selectedSymbol.includes('BTC') ? 1 : 5 }
         : null);
     }
 
@@ -108,7 +115,7 @@ export default function QuantumChart({ pair = 'BTC/USD', currentPrice = null, ca
 
     // Live tick (replace with real WebSocket)
     tickRef.current = setInterval(() => {
-      CH_liveTick(pair, null);
+      CH_liveTick(selectedSymbol, null);
     }, 1500);
 
     return () => {
@@ -116,7 +123,7 @@ export default function QuantumChart({ pair = 'BTC/USD', currentPrice = null, ca
       if (tickRef.current) clearInterval(tickRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pair]);
+  }, [selectedSymbol]);
 
   // Sync live price prop
   useEffect(() => {

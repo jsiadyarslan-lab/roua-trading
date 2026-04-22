@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { ArrowUp, ArrowDown } from 'lucide-react'
 import { useSingleQuote } from '@/hooks/useMarketData'
+import { useSymbolStore } from '@/hooks/useSymbolStore'
 
 interface OrderRow {
   price: number
@@ -30,7 +31,7 @@ function buildDepth(
 }
 
 export function OrderBookMini() {
-  const [selectedSymbol, setSelectedSymbol] = useState('BTC/USD')
+  const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
   const { quote } = useSingleQuote(selectedSymbol, 5000)
 
   const basePrice = quote?.price ?? 0

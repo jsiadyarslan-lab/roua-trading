@@ -10,6 +10,7 @@ import {
   TrendingUp, TrendingDown, Menu, X
 } from 'lucide-react'
 import { useMarketQuotes } from '@/hooks/useMarketData'
+import { useSymbolStore } from '@/hooks/useSymbolStore'
 
 /* ─── Design tokens ─── */
 const T = {
@@ -242,6 +243,7 @@ const SYMBOLS = [
 
 function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
   const { quotes } = useMarketQuotes(SYMBOLS, 5000)
+  const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
 
   // Track previous prices to detect direction
   const prevPrices = useRef<Record<string, number>>({})
@@ -293,13 +295,17 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
         const isUp = chg >= 0
 
         return (
-          <div key={sym} style={{
+          <div key={sym} 
+            onClick={() => setSelectedSymbol(sym)}
+            style={{
             flex: 1, display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
             padding: isMobile ? '0 4px' : '2px 6px',
             borderLeft: i < finalRows.length - 1 ? `0.5px solid ${T.border}` : 'none',
             borderRadius: 4,
-            background: flashBg,
+            background: sym === selectedSymbol ? 'rgba(255,255,255,0.06)' : flashBg,
+            cursor: 'pointer',
+            borderBottom: sym === selectedSymbol ? `2px solid ${T.blue}` : '2px solid transparent',
             transition: 'background 0.15s',
           }}>
             <span style={{

@@ -1,10 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Zap, ShieldCheck } from 'lucide-react'
+import { useSymbolStore } from '@/hooks/useSymbolStore'
 
 export function QuickExecutionMini() {
-  const [symbol, setSymbol] = useState('BTC/USD')
+  const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
+  const [localSymbol, setLocalSymbol] = useState(selectedSymbol)
+  
+  // Sync when global changes, but allow local typing before commit
+  useEffect(() => {
+    setLocalSymbol(selectedSymbol)
+  }, [selectedSymbol])
+  
   const [quantity, setQuantity] = useState('0.1')
   const [stopLoss, setStopLoss] = useState('')
   const [takeProfit, setTakeProfit] = useState('')
@@ -20,7 +28,7 @@ export function QuickExecutionMini() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          symbol,
+          symbol: localSymbol,
           side,
           type: 'MARKET',
           quantity: parseFloat(quantity),
@@ -56,8 +64,12 @@ export function QuickExecutionMini() {
         <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', gap: 4 }}>
           <label style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 800 }}>الأصل (SYMBOL)</label>
           <input 
-            value={symbol}
-            onChange={e => setSymbol(e.target.value.toUpperCase())}
+            value={localSymbol}
+            onChange={e => setLocalSymbol(e.target.value.toUpperCase())}
+            onBlur={e => {
+              e.currentTarget.style.borderColor = 'var(--card-border)'
+              setSelectedSymbol(localSymbol)
+            }}
             aria-label="Symbol"
             className="number-data"
             style={{
@@ -67,7 +79,6 @@ export function QuickExecutionMini() {
               transition: 'all 0.2s', boxSizing: 'border-box', fontWeight: 700
             }}
             onFocus={e => e.currentTarget.style.borderColor = 'var(--accent)'}
-            onBlur={e => e.currentTarget.style.borderColor = 'var(--card-border)'}
           />
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>

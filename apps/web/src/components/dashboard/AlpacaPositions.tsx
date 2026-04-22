@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, RefreshCw, X, AlertTriangle } from 'lucide-re
 
 interface Position {
   symbol:        string
+  rawSymbol:     string
   side:          string
   qty:           number
   avgEntryPrice: number
@@ -66,18 +67,18 @@ export function AlpacaPositions() {
   }, [fetchPositions])
 
   // إغلاق مركز
-  const closePosition = async (symbol: string) => {
-    if (confirmClose !== symbol) {
-      setConfirmClose(symbol)
+  const closePosition = async (rawSymbol: string, displaySymbol: string) => {
+    if (confirmClose !== rawSymbol) {
+      setConfirmClose(rawSymbol)
       // إخفاء التأكيد بعد 3 ثواني
       setTimeout(() => setConfirmClose(null), 3000)
       return
     }
 
     setConfirmClose(null)
-    setClosing(symbol)
+    setClosing(rawSymbol)
     try {
-      const res = await fetch(`/api/alpaca/positions/${encodeURIComponent(symbol)}`, { method: 'DELETE' })
+      const res = await fetch(`/api/alpaca/positions/${encodeURIComponent(rawSymbol)}`, { method: 'DELETE' })
       const j   = await res.json()
       if (j.success) {
         await fetchPositions()
@@ -217,23 +218,23 @@ export function AlpacaPositions() {
                   </td>
                   <td style={{ padding: '5px 6px' }}>
                     <button
-                      onClick={() => closePosition(pos.symbol)}
-                      disabled={closing === pos.symbol}
-                      className={confirmClose === pos.symbol ? 'btn-neon-sell' : ''}
+                      onClick={() => closePosition(pos.rawSymbol, pos.symbol)}
+                      disabled={closing === pos.rawSymbol}
+                      className={confirmClose === pos.rawSymbol ? 'btn-neon-sell' : ''}
                       title="إغلاق المركز"
                       style={{
-                        background: confirmClose === pos.symbol ? 'var(--danger)' : 'rgba(255,68,68,0.1)',
+                        background: confirmClose === pos.rawSymbol ? 'var(--danger)' : 'rgba(255,68,68,0.1)',
                         border: '1px solid rgba(255,68,68,0.25)',
-                        color: confirmClose === pos.symbol ? '#fff' : 'var(--danger)',
+                        color: confirmClose === pos.rawSymbol ? '#fff' : 'var(--danger)',
                         borderRadius: 'var(--radius)', cursor: 'pointer',
                         padding: '2px 8px', fontSize: 9, fontFamily: "'Cairo', sans-serif",
                         display: 'flex', alignItems: 'center', gap: 4,
-                        transition: 'all 0.15s', fontWeight: confirmClose === pos.symbol ? 800 : 600
+                        transition: 'all 0.15s', fontWeight: confirmClose === pos.rawSymbol ? 800 : 600
                       }}
                     >
-                      {closing === pos.symbol ? (
+                      {closing === pos.rawSymbol ? (
                         <RefreshCw size={9} style={{ animation: 'spin 1s linear infinite' }} />
-                      ) : confirmClose === pos.symbol ? (
+                      ) : confirmClose === pos.rawSymbol ? (
                         <>تأكيد الإغلاق؟</>
                       ) : (
                         <><X size={9} /> إغلاق</>

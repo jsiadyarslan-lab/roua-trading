@@ -308,7 +308,7 @@ export function NotificationCenter() {
         <>
           <div style={{ position: 'fixed', inset: 0, zIndex: 9998 }} onClick={() => setOpen(false)} />
           <div style={{
-            position: 'absolute', top: 40, left: '50%', transform: 'translateX(-50%)',
+            position: 'fixed', top: 40, left: 16,
             zIndex: 9999, width: 360,
             background: 'rgba(6,11,19,0.98)', backdropFilter: 'blur(24px)',
             border: '1px solid rgba(0,242,255,0.12)', borderRadius: 14,

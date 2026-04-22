@@ -21,6 +21,7 @@ export async function GET() {
 
     const positions = (data || []).map((p: any) => ({
       symbol:        fromAlpacaSymbol(p.symbol),
+      rawSymbol:     p.symbol,           // ← الرمز الأصلي من Alpaca للإغلاق
       side:          p.side,
       qty:           parseFloat(p.qty)           || 0,
       avgEntryPrice: parseFloat(p.avg_entry_price) || 0,

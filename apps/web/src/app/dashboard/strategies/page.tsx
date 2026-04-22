@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   Building2, Globe, TrendingUp, TrendingDown, Activity, 
   FileText, Search, ShieldAlert, Cpu, Eye, Filter, Zap, Target, LineChart,

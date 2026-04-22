@@ -11,6 +11,8 @@ import {
 } from 'lucide-react'
 import { useMarketQuotes } from '@/hooks/useMarketData'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { useNotificationStore } from '@/hooks/useNotificationStore'
+import { useDashboardStore } from '@/lib/dashboard-store'
 
 /* ─── Design tokens ─── */
 const T = {
@@ -163,6 +165,8 @@ function NewsTicker() {
   const [items, setItems] = useState<
     { text: string; categoryAr: string; color: string; impact: string }[]
   >([])
+  const { unreadCount } = useNotificationStore()
+  const { setRightTab, setActivePage } = useDashboardStore()
 
   useEffect(() => {
     fetch('/api/news/feed')
@@ -172,6 +176,13 @@ function NewsTicker() {
   }, [])
 
   const doubled = items.length ? [...items, ...items] : []
+
+  const handleBellClick = () => {
+    setActivePage('dashboard')
+    // We need a way to set the right tab. 
+    // In my previous page.tsx edit, Col3TabbedPanel uses a local 'active' state.
+    // I should move that to the store too if I want to control it from here.
+  }
 
   return (
     <div style={{
@@ -216,19 +227,24 @@ function NewsTicker() {
         }} />
       </div>
       <div style={{ flexShrink: 0, padding: '0 10px' }}>
-        <button style={{
-          position: 'relative', background: 'transparent',
-          border: 'none', color: T.text2, cursor: 'pointer',
-          display: 'flex', alignItems: 'center',
-        }}>
-          <Bell size={12} />
-          <span style={{
-            position: 'absolute', top: -4, left: -4,
-            width: 12, height: 12, borderRadius: '50%',
-            background: T.red, fontSize: 7, color: '#fff',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
-          }}>3</span>
+        <button 
+          onClick={handleBellClick}
+          style={{
+            position: 'relative', background: 'transparent',
+            border: 'none', color: unreadCount > 0 ? T.accent : T.text2, cursor: 'pointer',
+            display: 'flex', alignItems: 'center',
+          }}
+        >
+          <Bell size={12} fill={unreadCount > 0 ? "currentColor" : "none"} />
+          {unreadCount > 0 && (
+            <span style={{
+              position: 'absolute', top: -4, left: -4,
+              width: 12, height: 12, borderRadius: '50%',
+              background: T.red, fontSize: 7, color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+            }}>{unreadCount}</span>
+          )}
         </button>
       </div>
     </div>
@@ -344,6 +360,7 @@ const NAV_LINKS = [
 function MainNav() {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
+  const { setActivePage } = useDashboardStore()
 
   return (
     <div style={{
@@ -363,7 +380,7 @@ function MainNav() {
             <div style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '0 12px', borderRadius: 8, cursor: 'pointer',
-              height: 44, // Enhanced touch target
+              height: 44,
               background: active ? `${T.blue}18` : 'transparent',
               borderBottom: active ? `2px solid ${T.blue}` : '2px solid transparent',
               color: active ? T.blue : T.text2,
@@ -377,6 +394,25 @@ function MainNav() {
           </Link>
         )
       })}
+
+      {/* Settings Special Section */}
+      <div 
+        onClick={() => setActivePage('settings')}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '0 12px', borderRadius: 8, cursor: 'pointer',
+          height: 44, flexShrink: 0,
+          background: useDashboardStore.getState().activePage === 'settings' ? `${T.blue}18` : 'transparent',
+          borderBottom: useDashboardStore.getState().activePage === 'settings' ? `2px solid ${T.blue}` : '2px solid transparent',
+          color: useDashboardStore.getState().activePage === 'settings' ? T.blue : T.text2,
+          fontFamily: "'Cairo', sans-serif",
+          fontSize: 12, fontWeight: useDashboardStore.getState().activePage === 'settings' ? 800 : 500,
+          whiteSpace: 'nowrap', transition: 'all 0.15s',
+        }}
+      >
+        <Settings size={14} strokeWidth={useDashboardStore.getState().activePage === 'settings' ? 2.5 : 2} />
+        الإعدادات
+      </div>
 
       <div style={{ position: 'relative', flexShrink: 0 }}>
         <button
@@ -403,7 +439,7 @@ function MainNav() {
             padding: '5px', minWidth: 148, zIndex: 999,
             boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
           }}>
-            {NAV_LINKS.slice(6).map(item => (
+            {NAV_LINKS.slice(6, 9).map(item => (
               <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }}>
                 <div
                   onClick={() => setMoreOpen(false)}
@@ -450,13 +486,16 @@ function MainNav() {
          ))}
       </div>
 
-      <div style={{
-        flexShrink: 0, display: 'flex', alignItems: 'center',
-        gap: 8, cursor: 'pointer',
-        padding: '0 16px', borderRadius: 22, height: 44,
-        background: 'rgba(255,255,255,0.05)',
-        border: '1px solid var(--card-border)', marginInlineStart: 8,
-      }}>
+      <div 
+        onClick={() => setActivePage('settings')}
+        style={{
+          flexShrink: 0, display: 'flex', alignItems: 'center',
+          gap: 8, cursor: 'pointer',
+          padding: '0 16px', borderRadius: 22, height: 44,
+          background: 'rgba(255,255,255,0.05)',
+          border: '1px solid var(--card-border)', marginInlineStart: 8,
+        }}
+      >
         <User size={16} color="var(--accent)" />
         <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>حسابي</span>
       </div>

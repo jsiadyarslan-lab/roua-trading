@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   LayoutDashboard,
   TrendingUp,
@@ -8,21 +8,18 @@ import {
   Globe,
   ChevronLeft,
   ChevronRight,
-  Activity,
   Wifi,
   Database,
   Cpu,
-  Settings as SettingsIcon,
 } from 'lucide-react'
 import { useDashboardStore } from '@/lib/dashboard-store'
-import { useMarketQuotes, type QuoteData } from '@/hooks/useMarketData'
+import { useMarketQuotes } from '@/hooks/useMarketData'
 
 const NAV_SECTIONS = [
   {
     label: 'الرئيسي',
     items: [
       { icon: LayoutDashboard, label: 'لوحة القيادة', id: 'dashboard' },
-      { icon: SettingsIcon, label: 'الإعدادات', id: 'settings' },
     ],
   },
   {

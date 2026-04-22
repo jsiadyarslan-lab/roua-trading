@@ -28,6 +28,7 @@ model User {
   positions           Position[]
   trades              Trade[]
   tradingBots         TradingBot[]
+  chartPreferences    ChartPreference[]
 }
 
 enum Tier {
@@ -449,4 +450,20 @@ model TradingBot {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+// ── Chart Preferences (Drawings & Settings) ──
+model ChartPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  symbol    String   // e.g. "BTC/USD" or "global"
+  settings  String   @default("{}") // JSON for colors, indicators, timeframes
+  drawings  String   @default("[]") // JSON for lines, rects, fibs, etc.
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, symbol])
+  @@index([userId])
+  @@index([symbol])
 }

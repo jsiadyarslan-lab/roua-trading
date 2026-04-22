@@ -10,7 +10,7 @@ import { OrderBookMini } from '@/components/dashboard/OrderBookMini'
 import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
 import { ScannerMini } from '@/components/dashboard/ScannerMini'
 import { BotMini } from '@/components/dashboard/BotMini'
-import QuantumChartEngine from '@/components/dashboard/QuantumChartEngine'
+import QuantumChart from '@/components/dashboard/QuantumChart'
 
 /* ─── Design tokens ─── */
 const T = {
@@ -342,17 +342,8 @@ export default function DashboardPage() {
             display: 'flex', flexDirection: 'column',
             overflow: 'hidden',
           }}>
-            <div style={{
-              height: PANEL_H, flexShrink: 0,
-              background: `linear-gradient(90deg, ${T.primary}08, transparent)`,
-              borderBottom: `1px solid ${T.border}`,
-              display: 'flex', alignItems: 'center', padding: '0 12px', gap: 8,
-            }}>
-              <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 800, color: T.text, flex: 1 }}>الرسم البياني</span>
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5, color: T.text3, opacity: 0.6 }}>MARKET CHART</span>
-            </div>
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              <QuantumChartEngine />
+              <QuantumChart />
             </div>
           </div>
 

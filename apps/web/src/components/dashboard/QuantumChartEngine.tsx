@@ -43,6 +43,8 @@ const mkSt = (): St => ({
   showVol:true, volAlpha:0.35, bgColor:'#080810',
 })
 
+import { useChartPreference, ChartSettings } from '@/hooks/useChartPreference'
+
 // ── Math ──
 function ema(a:number[],p:number):number[]{const k=2/(p+1);let e=a[0];return a.map((v,i)=>{e=i===0?v:v*k+e*(1-k);return e})}
 function sma(a:number[],p:number):(number|null)[]{return a.map((_,i)=>i<p-1?null:a.slice(i-p+1,i+1).reduce((s,v)=>s+v,0)/p)}
@@ -69,6 +71,29 @@ export default function QuantumChartEngine() {
   const containerRef = useRef<HTMLDivElement>(null)
   const [st, setSt] = useState<St>(mkSt())
   const [dirty, setDirty] = useState(true)
+
+  const { settings, drawings: dbDrawings, savePrefs, loading: prefLoading } = useChartPreference(selectedPair)
+
+  // Apply loaded preferences
+  useEffect(() => {
+    if (!prefLoading) {
+      setSt(s => ({
+        ...s,
+        type: settings.type || s.type,
+        showGrid: settings.showGrid ?? s.showGrid,
+        showPriceLine: settings.showPriceLine ?? s.showPriceLine,
+        showVol: settings.showVol ?? s.showVol,
+        drawings: dbDrawings.length ? dbDrawings : s.drawings
+      }))
+      setDirty(true)
+    }
+  }, [prefLoading, settings, dbDrawings])
+
+  const handleTypeChange = (t: ChartType) => {
+    setSt(s => ({ ...s, type: t }))
+    setDirty(true)
+    savePrefs({ ...settings, type: t }, st.drawings)
+  }
 
   const interval = TF_MAP[activeTimeframe] || '15min'
   const tfMins = TF_MIN[activeTimeframe] || 15
@@ -192,7 +217,7 @@ export default function QuantumChartEngine() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: C.bg, overflow: 'hidden' }}>
       <div style={{ display: 'flex', alignItems: 'center', height: 38, background: C.bg2, borderBottom: `1px solid ${C.border}`, padding: '0 8px', gap: 8 }}>
-        <select value={st.type} onChange={e=> { setSt(s=>({...s, type: e.target.value as ChartType})); setDirty(true) }} style={{ background: C.bg4, color: C.text, border: `1px solid ${C.border}`, borderRadius: 4, padding: '2px 4px', fontSize: 11 }}>
+        <select value={st.type} onChange={e=> handleTypeChange(e.target.value as ChartType)} style={{ background: C.bg4, color: C.text, border: `1px solid ${C.border}`, borderRadius: 4, padding: '2px 4px', fontSize: 11 }}>
           <option value="candle">شموع</option><option value="hollow">مجوفة</option><option value="bar">OHLC</option><option value="line">خط</option>
         </select>
         <div style={{ display: 'flex', gap: 2 }}>

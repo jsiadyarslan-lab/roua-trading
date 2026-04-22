@@ -22,9 +22,39 @@ export function alpacaClient() {
   }
 }
 
-/** نرمّز رمز الزوج لـ Alpaca: BTC/USD → BTCUSD */
+const FOREX_PROXY_MAP: Record<string, string> = {
+  'EUR/USD': 'FXE',
+  'GBP/USD': 'FXB',
+  'USD/JPY': 'FXY',
+  'USD/CHF': 'FXF',
+  'AUD/USD': 'FXA',
+  'USD/CAD': 'FXC',
+  'NZD/USD': 'UUP',
+  'XAU/USD': 'GLD',
+  'XAG/USD': 'SLV',
+  'XPT/USD': 'PPLT'
+}
+
+/** نرمّز رمز الزوج لـ Alpaca: للعملات نستخدم ETFs كبديل */
 export function toAlpacaSymbol(symbol: string): string {
-  return symbol.replace('/', '')
+  if (!symbol || symbol === 'undefined') return 'AAPL'
+  const s = decodeURIComponent(symbol)
+  
+  if (FOREX_PROXY_MAP[s]) return FOREX_PROXY_MAP[s]
+
+  // العملات الرقمية
+  if (s.includes('BTC') || s.includes('ETH')) {
+    return s.includes('/') ? s : s.replace('USD', '/USD')
+  }
+
+  return s.replace('/', '')
+}
+
+/** نعكس الرمز الوهمي للواجهة الأمامية */
+export function fromAlpacaSymbol(alpacaSym: string): string {
+  const entry = Object.entries(FOREX_PROXY_MAP).find(([, val]) => val === alpacaSym)
+  if (entry) return entry[0]
+  return alpacaSym
 }
 
 /** دالة مساعدة لإرسال طلبات لـ Alpaca */

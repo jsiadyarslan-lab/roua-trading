@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { alpacaFetch } from '@/lib/alpacaClient'
+import { alpacaFetch, fromAlpacaSymbol } from '@/lib/alpacaClient'
 
 /**
  * GET /api/alpaca/positions
@@ -20,7 +20,7 @@ export async function GET() {
     const data = await res.json()
 
     const positions = (data || []).map((p: any) => ({
-      symbol:        p.symbol,
+      symbol:        fromAlpacaSymbol(p.symbol),
       side:          p.side,
       qty:           parseFloat(p.qty)           || 0,
       avgEntryPrice: parseFloat(p.avg_entry_price) || 0,

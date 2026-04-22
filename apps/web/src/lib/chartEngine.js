@@ -29,7 +29,9 @@ export const ST = {
   showPriceLine:true, showCandleTimer:true, showTrades:true,
   showVol:true, volAlpha:0.35,
   bgColor:'#0d1117', crosshairType:'cross',
-  openTrades: [],
+  openTrades: [
+    { entry: 65000, qty: 1, side: 'buy', pnl: 100, sl: 64000, tp: 67000 }
+  ],
 };
 
 export let CH_ctx, CH_subCtx, CH_dirty=true, CH_DPR=1;
@@ -279,34 +281,35 @@ export function CH_drawMain(){
     ctx.fillStyle='#000';ctx.font='bold 10px JetBrains Mono,monospace';ctx.textAlign='center';
     ctx.fillText(label,W-PW+PW/2,y+3.5);
   }
+  
+  // Debug: Global reference
+  if (typeof window !== 'undefined') window._ST = ST;
+
   // Open Trades (Positions)
-  if(ST.showTrades && ST.openTrades && ST.openTrades.length){
-    ST.openTrades.forEach(t => {
-      const dp = ST.candles[0] ? String(ST.candles[0].c).split('.')[1]?.length||2 : 2;
-      
+  const trades = ST.openTrades || [];
+  if(trades.length > 0){
+    const dp = ST.candles[0] ? String(ST.candles[0].c).split('.')[1]?.length||2 : 2;
+    trades.forEach(t => {
       // 1. Entry Line
       const yEntry = py(t.entry);
-      // Draw line across full width regardless of Y (canvas will clip naturally, but we keep it within reasonable bounds)
       if(yEntry > -100 && yEntry < H + 100){
-        ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+        ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 2; ctx.setLineDash([]);
         ctx.beginPath(); ctx.moveTo(0, yEntry); ctx.lineTo(W-PW, yEntry); ctx.stroke();
         
-        // Entry Label (Keep visible within chart area)
-        const labelY = Math.max(TH + 10, Math.min(H - 30, yEntry));
+        const labelY = Math.max(TH + 12, Math.min(H - 35, yEntry));
         ctx.fillStyle = '#58a6ff';
-        const pnlStr = (t.pnl >= 0 ? '+' : '') + t.pnl.toFixed(2) + '$';
+        const pnlStr = (t.pnl >= 0 ? '+' : '') + (t.pnl||0).toFixed(2) + '$';
         const label = `${t.side === 'buy' ? 'BUY' : 'SELL'} ${t.qty} | ${pnlStr}`;
-        ctx.font = 'bold 10px JetBrains Mono,monospace';
-        const tw = ctx.measureText(label).width + 12;
+        ctx.font = 'bold 11px JetBrains Mono,monospace';
+        const tw = ctx.measureText(label).width + 14;
         
-        // Background for label
-        ctx.shadowBlur = 10; ctx.shadowColor = 'rgba(0,0,0,0.5)';
-        ctx.fillRect(10, labelY - 9, tw, 18);
+        ctx.shadowBlur = 12; ctx.shadowColor = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(12, labelY - 10, tw, 20);
         ctx.shadowBlur = 0;
         
         ctx.fillStyle = '#000';
         ctx.textAlign = 'left';
-        ctx.fillText(label, 16, labelY + 4);
+        ctx.fillText(label, 18, labelY + 5);
       }
 
       // 2. Stop Loss
@@ -316,14 +319,13 @@ export function CH_drawMain(){
           ctx.strokeStyle = '#f85149'; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
           ctx.beginPath(); ctx.moveTo(0, ySl); ctx.lineTo(W-PW, ySl); ctx.stroke();
           ctx.setLineDash([]);
-          
-          const labelY = Math.max(TH + 10, Math.min(H - 30, ySl));
+          const lY = Math.max(TH + 10, Math.min(H - 30, ySl));
           ctx.fillStyle = 'rgba(248,81,73,0.3)';
-          ctx.fillRect(W-PW-35, labelY - 7, 30, 14);
+          ctx.fillRect(W-PW-40, lY - 8, 35, 16);
           ctx.fillStyle = '#f85149';
-          ctx.font = 'bold 9px JetBrains Mono,monospace';
+          ctx.font = 'bold 10px JetBrains Mono,monospace';
           ctx.textAlign = 'right';
-          ctx.fillText('SL', W-PW-10, labelY + 3);
+          ctx.fillText('SL', W-PW-12, lY + 4);
         }
       }
 
@@ -334,14 +336,13 @@ export function CH_drawMain(){
           ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
           ctx.beginPath(); ctx.moveTo(0, yTp); ctx.lineTo(W-PW, yTp); ctx.stroke();
           ctx.setLineDash([]);
-          
-          const labelY = Math.max(TH + 10, Math.min(H - 30, yTp));
+          const lY = Math.max(TH + 10, Math.min(H - 30, yTp));
           ctx.fillStyle = 'rgba(63,185,80,0.3)';
-          ctx.fillRect(W-PW-35, labelY - 7, 30, 14);
+          ctx.fillRect(W-PW-40, lY - 8, 35, 16);
           ctx.fillStyle = '#3fb950';
-          ctx.font = 'bold 9px JetBrains Mono,monospace';
+          ctx.font = 'bold 10px JetBrains Mono,monospace';
           ctx.textAlign = 'right';
-          ctx.fillText('TP', W-PW-10, labelY + 3);
+          ctx.fillText('TP', W-PW-12, lY + 4);
         }
       }
     });

@@ -131,7 +131,8 @@ export default function QuantumChart({ currentPrice = null, candles = null }) {
     CH_initIndPanel();
 
     // Start render loop using the engine's own CH_frame
-    animFrameRef.current = requestAnimationFrame(CH_frame);
+    if (CH_animFrame) cancelAnimationFrame(CH_animFrame);
+    CH_frame();
 
     // Live tick (replace with real WebSocket)
     tickRef.current = setInterval(() => {
@@ -139,10 +140,9 @@ export default function QuantumChart({ currentPrice = null, candles = null }) {
     }, 1500);
 
     return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (CH_animFrame) cancelAnimationFrame(CH_animFrame);
       if (tickRef.current) clearInterval(tickRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSymbol]);
 
   // Sync live price prop

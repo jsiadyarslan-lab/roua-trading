@@ -330,6 +330,7 @@ function LeftSidebar() {
    DASHBOARD PAGE
 ════════════════════════════════════════════ */
 export default function DashboardPage() {
+  const { quotes } = useMarketQuotes(DASHBOARD_SYMBOLS, 8000)
   /* Positions open — collapsible separately */
   const [posOpen, setPosOpen] = useState(true)
 

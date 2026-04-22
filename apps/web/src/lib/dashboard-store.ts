@@ -10,8 +10,8 @@ interface DashboardState {
   // New state fields
   activeTimeframe: string
   setActiveTimeframe: (tf: string) => void
-  rightTab: 'bot' | 'scanner' | 'alerts' | 'multi-tf'
-  setRightTab: (tab: 'bot' | 'scanner' | 'alerts' | 'multi-tf') => void
+  rightTab: 'trade' | 'signals' | 'bot'
+  setRightTab: (tab: 'trade' | 'signals' | 'bot') => void
   tradeDirection: 'buy' | 'sell'
   setTradeDirection: (dir: 'buy' | 'sell') => void
   botEnabled: boolean
@@ -20,8 +20,6 @@ interface DashboardState {
   toggleLanguage: () => void
   chartFullscreen: boolean
   toggleChartFullscreen: () => void
-  activePage: string
-  setActivePage: (page: string) => void
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -34,7 +32,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   // New state fields
   activeTimeframe: '15m',
   setActiveTimeframe: (tf) => set({ activeTimeframe: tf }),
-  rightTab: 'bot',
+  rightTab: 'trade',
   setRightTab: (tab) => set({ rightTab: tab }),
   tradeDirection: 'buy',
   setTradeDirection: (dir) => set({ tradeDirection: dir }),
@@ -44,6 +42,4 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   toggleLanguage: () => set((s) => ({ language: s.language === 'ar' ? 'en' : 'ar' })),
   chartFullscreen: false,
   toggleChartFullscreen: () => set((s) => ({ chartFullscreen: !s.chartFullscreen })),
-  activePage: 'dashboard',
-  setActivePage: (page) => set({ activePage: page }),
 }))

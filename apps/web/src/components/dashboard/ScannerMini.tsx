@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSymbolStore } from '@/hooks/useSymbolStore';
-import { useNotificationStore } from '@/hooks/useNotificationStore';
 
 export function ScannerMini() {
   const [signals, setSignals] = useState<any[]>([]);
   const [scanning, setScanning] = useState(false);
   const [lastScan, setLastScan] = useState<string | null>(null);
   const { setSelectedSymbol } = useSymbolStore();
-  const { addNotification } = useNotificationStore();
-  const prevTopPairRef = useRef<string | null>(null);
 
   const doScan = useCallback(async () => {
     if (scanning) return;
@@ -19,17 +18,6 @@ export function ScannerMini() {
       if (data.success) {
         setSignals(data.data);
         setLastScan(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-        
-        // Notify if a high strength signal is found and it's different from the last one
-        const top = data.data[0];
-        if (top && top.strength > 85 && top.pair !== prevTopPairRef.current) {
-          addNotification({
-            title: `📡 فرصة قوية: ${top.pair}`,
-            message: `رصد إشارة ${top.dir === 'buy' ? 'شراء' : 'بيع'} بقوة ${top.strength}%`,
-            type: 'info'
-          });
-          prevTopPairRef.current = top.pair;
-        }
       }
     } catch (e) {
       console.error('Scan failed:', e);

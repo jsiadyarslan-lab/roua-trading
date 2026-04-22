@@ -14,12 +14,6 @@ import QuantumChart from '@/components/dashboard/QuantumChart'
 import { AlpacaPositions } from '@/components/dashboard/AlpacaPositions'
 import { useMarketQuotes } from '@/hooks/useMarketData'
 import { BotEngine } from '@/components/dashboard/BotEngine'
-import { NotificationToaster } from '@/components/dashboard/NotificationToaster'
-import { NotificationCenterMini } from '@/components/dashboard/NotificationCenterMini'
-import { useNotificationStore } from '@/hooks/useNotificationStore'
-import SidebarLeft from '@/components/dashboard/SidebarLeft'
-import { SettingsView } from '@/components/dashboard/SettingsView'
-import { useDashboardStore } from '@/lib/dashboard-store'
 
 const DASHBOARD_SYMBOLS = [
   'BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA'
@@ -45,12 +39,300 @@ const T = {
 }
 
 const HEADER_H = 100
-const PANEL_H = 30
+
+const PANEL_H = 30               // collapsed height (header bar only)
 const ANIM    = 'height 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease'
 
+/* ════════════════════════════════════════════
+   Collapsible + Draggable Panel
+════════════════════════════════════════════ */
+interface PanelProps {
+  id:        string
+  label:     string
+  labelEn?:  string
+  accent?:   string
+  flex?:     string | number
+  height?:   number
+  children?: React.ReactNode
+  collapsed: boolean
+  onToggle:  () => void
+  /* DnD */
+  onDragStart: (e: React.DragEvent, id: string) => void
+  onDragOver:  (e: React.DragEvent, id: string) => void
+  onDrop:      (e: React.DragEvent, id: string) => void
+  isDragOver:  boolean
+}
+
+function Panel({
+  id, label, labelEn, accent = T.primary,
+  flex, height, children,
+  collapsed, onToggle,
+  onDragStart, onDragOver, onDrop, isDragOver,
+}: PanelProps) {
+  return (
+    <div
+      onDragOver={e => { e.preventDefault(); onDragOver(e, id) }}
+      onDrop={e => onDrop(e, id)}
+      style={{
+        flex: collapsed ? `0 0 ${PANEL_H}px` : (height ? `0 0 ${height}px` : (flex ?? 1)),
+        display: 'flex', flexDirection: 'column',
+        border: `1px solid ${isDragOver ? T.accent : T.border}`,
+        borderRadius: 12,
+        overflow: 'hidden',
+        background: isDragOver ? `${T.accent}08` : T.card,
+        transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+        minHeight: PANEL_H,
+        boxShadow: isDragOver ? `0 0 20px ${T.accent}15` : 'none',
+        position: 'relative'
+      }}
+    >
+      {/* ── Header bar ── */}
+      <div style={{
+        height: PANEL_H, flexShrink: 0,
+        background: `linear-gradient(90deg, ${accent}08, transparent)`,
+        borderBottom: collapsed ? 'none' : `1px solid ${T.border}`,
+        display: 'flex', alignItems: 'center',
+        padding: '0 12px', gap: 8, cursor: 'default',
+        userSelect: 'none',
+      }}>
+        {/* Drag handle */}
+        <div
+          draggable
+          onDragStart={e => onDragStart(e, id)}
+          style={{ cursor: 'grab', color: T.text3, display: 'flex', alignItems: 'center', flexShrink: 0, padding: '4px 0' }}
+          title="اسحب لإعادة الترتيب"
+        >
+          <GripVertical size={14} opacity={0.5} />
+        </div>
+
+        {/* Title Group */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flex: 1 }}>
+          <span style={{
+            fontFamily: "'Cairo', sans-serif", fontSize: 13,
+            fontWeight: 800, color: T.text,
+          }}>{label}</span>
+          
+          {labelEn && (
+            <span style={{
+              fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5,
+              color: T.text3, letterSpacing: '0.05em', opacity: 0.6,
+              fontWeight: 500
+            }}>{labelEn}</span>
+          )}
+        </div>
+
+        {/* Action Toggle */}
+        <button
+          onClick={onToggle}
+          title={collapsed ? 'توسيع' : 'طي'}
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            color: T.text3, padding: 4, display: 'flex', alignItems: 'center',
+            transition: 'all 0.2s', borderRadius: 6
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.color = T.text
+            e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.color = T.text3
+            e.currentTarget.style.background = 'transparent'
+          }}
+        >
+          <ChevronDown size={14} style={{
+            transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+          }} />
+        </button>
+      </div>
+
+      {/* ── Body ── */}
+      <div style={{
+        flex: 1, overflow: 'hidden',
+        opacity: collapsed ? 0 : 1,
+        transition: 'opacity 0.2s ease',
+        pointerEvents: collapsed ? 'none' : 'auto',
+      }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+/* ════════════════════════════════════════════
+   Placeholder body
+════════════════════════════════════════════ */
+function Empty({ label, color = T.text3 }: { label?: string; color?: string }) {
+  return (
+    <div style={{
+      width: '100%', height: '100%',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <span style={{
+        fontFamily: "'Cairo', sans-serif", fontSize: 11, color, opacity: 0.4,
+      }}>{label ?? 'قيد التطوير'}</span>
+    </div>
+  )
+}
+
+/* ════════════════════════════════════════════
+   useDraggableColumn — manages order + DnD for a column
+════════════════════════════════════════════ */
+function useDraggableColumn(storageKey: string, initial: string[]) {
+  const [order, setOrder]     = useState<string[]>(() => {
+    if (typeof window === 'undefined') return initial
+    try {
+      const s = localStorage.getItem(storageKey)
+      return s ? JSON.parse(s) : initial
+    } catch { return initial }
+  })
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => {
+    if (typeof window === 'undefined') return {}
+    try {
+      const s = localStorage.getItem(storageKey + '_c')
+      return s ? JSON.parse(s) : {}
+    } catch { return {} }
+  })
+  const [dragOver, setDragOver] = useState<string | null>(null)
+  const dragging = useRef<string | null>(null)
+
+  useEffect(() => {
+    localStorage.setItem(storageKey, JSON.stringify(order))
+  }, [order, storageKey])
+
+  useEffect(() => {
+    localStorage.setItem(storageKey + '_c', JSON.stringify(collapsed))
+  }, [collapsed, storageKey])
+
+  const onDragStart = useCallback((_e: React.DragEvent, id: string) => {
+    dragging.current = id
+  }, [])
+
+  const onDragOver = useCallback((_e: React.DragEvent, id: string) => {
+    if (dragging.current && dragging.current !== id) setDragOver(id)
+  }, [])
+
+  const onDrop = useCallback((_e: React.DragEvent, targetId: string) => {
+    const from = dragging.current
+    if (!from || from === targetId) { setDragOver(null); return }
+    setOrder(prev => {
+      const next = [...prev]
+      const fi = next.indexOf(from)
+      const ti = next.indexOf(targetId)
+      if (fi < 0 || ti < 0) return prev
+      next.splice(fi, 1)
+      next.splice(ti, 0, from)
+      return next
+    })
+    dragging.current = null
+    setDragOver(null)
+  }, [])
+
+  const onDragEnd = useCallback(() => {
+    dragging.current = null
+    setDragOver(null)
+  }, [])
+
+  const toggleCollapse = useCallback((id: string) => {
+    setCollapsed(prev => ({ ...prev, [id]: !prev[id] }))
+  }, [])
+
+  return {
+    order, collapsed, dragOver,
+    onDragStart, onDragOver, onDrop, onDragEnd, toggleCollapse,
+  }
+}
+
+/* ════════════════════════════════════════════
+   LEFT SIDEBAR — Tabbed (replaces 5 overflowing panels)
+════════════════════════════════════════════ */
+function LeftSidebar() {
+  const [tab, setTab] = useState<'portfolio'|'execute'|'book'|'watch'|'ai'>('portfolio')
+
+  const TABS = [
+    { id: 'portfolio', label: 'محفظة',   icon: '💼', accent: T.primary },
+    { id: 'execute',   label: 'تنفيذ',   icon: '⚡', accent: T.success },
+    { id: 'book',      label: 'أوردر',   icon: '📊', accent: T.danger  },
+    { id: 'watch',     label: 'أسواق',   icon: '🔍', accent: T.accent  },
+    { id: 'ai',        label: 'AI',      icon: '🧠', accent: T.purple  },
+  ] as const
+
+  const active = TABS.find(t => t.id === tab)!
+
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', height: '100%',
+      background: T.card, border: `1px solid ${T.border}`,
+      borderRadius: 12, overflow: 'hidden',
+    }}>
+      {/* Tab Strip */}
+      <div style={{
+        display: 'flex', flexShrink: 0,
+        background: T.bg2,
+        borderBottom: `1px solid ${T.border}`,
+      }}>
+        {TABS.map(t => {
+          const isActive = t.id === tab
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              title={t.label}
+              style={{
+                flex: 1, padding: '8px 2px 6px',
+                background: 'transparent', border: 'none',
+                borderBottom: `2.5px solid ${isActive ? t.accent : 'transparent'}`,
+                cursor: 'pointer', display: 'flex', flexDirection: 'column',
+                alignItems: 'center', gap: 2, transition: 'all 0.15s',
+              }}
+            >
+              <span style={{ fontSize: 14, lineHeight: 1 }}>{t.icon}</span>
+              <span style={{
+                fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: isActive ? 800 : 500,
+                color: isActive ? t.accent : T.text2, transition: 'color 0.15s',
+              }}>{t.label}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Panel Label */}
+      <div style={{
+        padding: '8px 12px 4px', flexShrink: 0,
+        borderBottom: `1px solid ${T.border}`,
+        background: `linear-gradient(90deg, ${active.accent}0a, transparent)`,
+        display: 'flex', alignItems: 'center', gap: 6,
+      }}>
+        <div style={{
+          width: 6, height: 6, borderRadius: '50%',
+          background: active.accent,
+          boxShadow: `0 0 8px ${active.accent}`,
+          flexShrink: 0,
+        }} />
+        <span style={{
+          fontFamily: "'Cairo', sans-serif", fontSize: 11,
+          fontWeight: 800, color: T.text,
+        }}>{active.label}</span>
+      </div>
+
+      {/* Tab Content */}
+      <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+        {tab === 'portfolio' && <PortfolioMini />}
+        {tab === 'execute'   && <QuickExecutionMini />}
+        {tab === 'book'      && <OrderBookMini />}
+        {tab === 'watch'     && <WatchlistMini />}
+        {tab === 'ai'        && <AlNarratorMini />}
+      </div>
+    </div>
+  )
+}
+
+/* ════════════════════════════════════════════
+   DASHBOARD PAGE
+════════════════════════════════════════════ */
 export default function DashboardPage() {
   const { quotes } = useMarketQuotes(DASHBOARD_SYMBOLS, 8000)
-  const { activePage } = useDashboardStore()
+  /* Positions open — collapsible separately */
   const [posOpen, setPosOpen] = useState(true)
 
   return (
@@ -67,7 +349,6 @@ export default function DashboardPage() {
       `}</style>
 
       <BotEngine quotes={quotes} />
-      <NotificationToaster />
 
       <div className="dash-grid" style={{
         height: `calc(100vh - ${HEADER_H}px)`,
@@ -76,86 +357,82 @@ export default function DashboardPage() {
         padding: 12
       }}>
 
+        {/* ══════════ COL 1 — Tabbed Left Sidebar ══════════ */}
         <div className="dash-col dash-col-left" style={{ minHeight: 0 }}>
-          <SidebarLeft />
+          <LeftSidebar />
+        </div>
+        {/* ══════════ COL 2 — الشارت + الصفقات ══════════ */}
+        <div className="dash-col dash-col-center" style={{ overflow: 'hidden', gap: 12 }}>
+          {/* الشارت — ثابت غير قابل للسحب */}
+          <div style={{
+            flex: 1,
+            background: T.card,
+            border: `1px solid ${T.border}`,
+            borderRadius: 12,
+            display: 'flex', flexDirection: 'column',
+            overflow: 'hidden',
+          }}>
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <QuantumChart />
+            </div>
+          </div>
+
+          {/* الصفقات المفتوحة — collapsible */}
+          <div style={{
+            flexShrink: 0,
+            height: posOpen ? 120 : PANEL_H,
+            transition: ANIM,
+            background: T.card,
+            border: `1px solid ${T.border}`,
+            borderRadius: 12,
+            overflow: 'hidden',
+            display: 'flex', flexDirection: 'column',
+          }}>
+            <div style={{
+              height: PANEL_H, flexShrink: 0,
+              background: `linear-gradient(90deg, ${T.success}08, transparent)`,
+              borderBottom: posOpen ? `1px solid ${T.border}` : 'none',
+              display: 'flex', alignItems: 'center', padding: '0 12px', gap: 8,
+            }}>
+              <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 800, color: T.text, flex: 1 }}>الصفقات المفتوحة</span>
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5, color: T.success, opacity: 0.8 }}>OPEN TRADES</span>
+              <button
+                onClick={() => setPosOpen(p => !p)}
+                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.text3, padding: 4 }}
+              >
+                <ChevronDown size={14} style={{ transform: posOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.3s' }} />
+              </button>
+            </div>
+            <div style={{ flex: 1, opacity: posOpen ? 1 : 0, transition: 'opacity 0.2s', overflow: 'hidden' }}>
+              <AlpacaPositions />
+            </div>
+          </div>
         </div>
 
-        {activePage === 'settings' ? (
-          <div style={{ flex: 1, height: '100%', overflow: 'hidden' }}>
-            <SettingsView />
-          </div>
-        ) : (
-          <>
-            <div className="dash-col dash-col-center" style={{ overflow: 'hidden', gap: 12 }}>
-              <div style={{
-                flex: 1,
-                background: T.card,
-                border: `1px solid ${T.border}`,
-                borderRadius: 12,
-                display: 'flex', flexDirection: 'column',
-                overflow: 'hidden',
-              }}>
-                <div style={{ flex: 1, overflow: 'hidden' }}>
-                  <QuantumChart />
-                </div>
-              </div>
+        {/* ══════════ COL 3 — Tabs Panel ══════════ */}
+        <div className="dash-col dash-col-right">
+          <Col3TabbedPanel quotes={quotes} />
+        </div>
 
-              <div style={{
-                flexShrink: 0,
-                height: posOpen ? 120 : PANEL_H,
-                transition: ANIM,
-                background: T.card,
-                border: `1px solid ${T.border}`,
-                borderRadius: 12,
-                overflow: 'hidden',
-                display: 'flex', flexDirection: 'column',
-              }}>
-                <div style={{
-                  height: PANEL_H, flexShrink: 0,
-                  background: `linear-gradient(90deg, ${T.success}08, transparent)`,
-                  borderBottom: posOpen ? `1px solid ${T.border}` : 'none',
-                  display: 'flex', alignItems: 'center', padding: '0 12px', gap: 8,
-                }}>
-                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 800, color: T.text, flex: 1 }}>الصفقات المفتوحة</span>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5, color: T.success, opacity: 0.8 }}>OPEN TRADES</span>
-                  <button
-                    onClick={() => setPosOpen(p => !p)}
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.text3, padding: 4 }}
-                  >
-                    <ChevronDown size={14} style={{ transform: posOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.3s' }} />
-                  </button>
-                </div>
-                <div style={{ flex: 1, opacity: posOpen ? 1 : 0, transition: 'opacity 0.2s', overflow: 'hidden' }}>
-                  <AlpacaPositions />
-                </div>
-              </div>
-            </div>
-
-            <div className="dash-col dash-col-right">
-              <Col3TabbedPanel quotes={quotes} />
-            </div>
-          </>
-        )}
-
+        {/* Mobile Sidebar (Visible only on mobile) */}
         <div className="dash-col dash-col-right-mobile" style={{ display: 'none', padding: '0 4px 20px' }}>
              <Col3TabbedPanel quotes={quotes} />
              <div style={{ height: 10 }} />
              <WatchlistMini />
         </div>
+
       </div>
     </>
   )
 }
 
 function Col3TabbedPanel({ quotes }: { quotes: any }) {
-  const { rightTab, setRightTab } = useDashboardStore()
-  const { unreadCount } = useNotificationStore()
-  
+  const [active, setActive] = useState('bot')
   const TABS = [
     { id: 'bot', label: 'البوت', accent: T.cyan },
     { id: 'scanner', label: 'السكانر', accent: T.amber },
-    { id: 'alerts', label: `تنبيهات ${unreadCount > 0 ? `(${unreadCount})` : ''}`, accent: T.purple },
-    { id: 'multi-tf', label: 'متعدد الأطر', accent: T.green },
+    { id: 'multi-tf', label: 'متعدد الأطر', accent: T.purple },
+    { id: 'signals', label: 'إشارات', accent: T.green },
   ]
 
   return (
@@ -164,30 +441,67 @@ function Col3TabbedPanel({ quotes }: { quotes: any }) {
       background: T.card, border: `0.5px solid ${T.border}`,
       borderRadius: 10, overflow: 'hidden'
     }}>
+      {/* Sleek Segmented Tabs Header */}
       <div style={{
         display: 'flex', background: T.bg, borderBottom: `0.5px solid ${T.border}`,
         padding: '6px 6px 0', gap: 6, flexShrink: 0
       }}>
         {TABS.map(t => {
-           const isActive = rightTab === t.id
+           const isActive = active === t.id
            return (
-             <button key={t.id} onClick={() => setRightTab(t.id as any)} style={{
+             <button key={t.id} onClick={() => setActive(t.id)} style={{
                flex: 1, padding: '6px 0', background: 'transparent',
-               border: 'none', borderBottom: isActive ? `2px solid ${t.accent}` : 'none',
-               color: isActive ? t.accent : T.text2, fontSize: 10, fontWeight: 800,
-               cursor: 'pointer', transition: 'all 0.2s', fontFamily: "'Cairo', sans-serif"
+               border: 'none',
+               borderBottom: `2px solid ${isActive ? t.accent : 'transparent'}`,
+               color: isActive ? T.text : T.text3,
+               fontSize: 10, fontWeight: isActive ? 700 : 500, cursor: 'pointer',
+               fontFamily: "'Cairo', sans-serif", transition: '0.2s',
+               display: 'flex', justifyContent: 'center', alignItems: 'center'
              }}>
                {t.label}
              </button>
            )
         })}
       </div>
+      
+      {/* Tab Body */}
+      <div style={{ flex: 1, overflow: 'hidden', padding: 0 }}>
+         {active === 'bot' && (
+           <div style={{ height: '100%', overflowY: 'auto' }}>
+             <BotMini quotes={quotes} />
+           </div>
+         )}
+         {active === 'scanner' && <div style={{ height: '100%', overflowY: 'auto' }}><ScannerMini /></div>}
+         {active === 'signals' && <Empty label="إشارات الدخول - قريباً" color={T.green} />}
+         {active === 'multi-tf' && (
+           <div style={{ height: '100%', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+               <span style={{ fontSize: 14, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>BTC/USD</span>
+               <span style={{ fontSize: 9, background: `${T.purple}15`, border: `0.5px solid ${T.purple}30`, color: T.purple, padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>Live AI Sync</span>
+             </div>
+             
+             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, justifyContent: 'center' }}>
+               {[
+                 { tf: '15M', state: 'Bullish',  strength: 85, color: T.green },
+                 { tf: '1H',  state: 'Slight Bullish', strength: 65, color: T.green },
+                 { tf: '4H',  state: 'Neutral',  strength: 40, color: T.amber },
+                 { tf: '1D',  state: 'Bearish',  strength: 25, color: T.red }
+               ].map((t, i) => (
+                 <div key={i} style={{ background: T.bg2, borderRadius: 6, border: `0.5px solid ${T.border}`, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                   <span style={{ fontSize: 10, fontWeight: 900, color: t.color, width: 24, fontFamily: "'JetBrains Mono', monospace" }}>{t.tf}</span>
+                   <div style={{ flex: 1, height: 4, background: T.bg, borderRadius: 2, overflow: 'hidden', margin: '0 4px' }}>
+                     <div style={{ height: '100%', width: `${t.strength}%`, background: t.color, boxShadow: `0 0 6px ${t.color}80` }} />
+                   </div>
+                   <span style={{ fontSize: 9, color: t.color, fontWeight: 800, width: 24, textAlign: 'right', fontFamily: "'JetBrains Mono', monospace" }}>{t.strength}%</span>
+                 </div>
+               ))}
+             </div>
 
-      <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
-        {rightTab === 'bot' && <BotMini />}
-        {rightTab === 'scanner' && <ScannerMini />}
-        {rightTab === 'alerts' && <NotificationCenterMini />}
-        {rightTab === 'multi-tf' && <div style={{ padding: 40, textAlign: 'center', opacity: 0.3 }}>تحليل متعدد الأطر قيد التطوير...</div>}
+             <div style={{ marginTop: 'auto', textAlign: 'center', fontSize: 10, color: T.text2, padding: '8px', border: `0.5px dashed ${T.border}`, borderRadius: 6, fontWeight: 600 }}>
+               استراتيجية الأطر: <span style={{color: T.purple}}>Scalping</span>
+             </div>
+           </div>
+         )}
       </div>
     </div>
   )

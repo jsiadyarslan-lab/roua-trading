@@ -1,15 +1,17 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+'use client';
+
+import { useEffect, useRef } from 'react';
 import {
-  ST, CH_setContexts, CH_gen, CH_loadCandles,
+  ST,
+  CH_setContexts, CH_gen, CH_loadCandles,
   CH_frame, CH_bindEvents, CH_initIndPanel,
   CH_setType, CH_setTF, CH_setSub, CH_setTool,
   CH_clearDrawings, CH_zoom, CH_resetView, CH_screenshot,
-  CH_dirty, setActiveTF, toggleSubChart, togglePanel,
-  closeAllPanels, toggleLiquidityLevels, resetChartSettings,
-  drawTVChart, INDS
+  CH_setDirty, CH_liveTick,
+  setActiveTF, toggleSubChart, togglePanel, closeAllPanels,
 } from '../../lib/chartEngine';
 
-// ── CSS Variables needed by the chart ────────────────────
+// ── CSS injected once globally ────────────────────────────
 const CHART_CSS = `
   :root {
     --bg2: #1a1f2e; --bg4: #232c3e;
@@ -63,95 +65,88 @@ const CHART_CSS = `
   .sub-chart-panel { height:90px;position:relative;overflow:hidden; }
 `;
 
+let cssInjected = false;
+function injectCSS() {
+  if (cssInjected || typeof document === 'undefined') return;
+  const style = document.createElement('style');
+  style.id = 'quantum-chart-css';
+  style.textContent = CHART_CSS;
+  document.head.appendChild(style);
+  cssInjected = true;
+}
+
 export default function QuantumChart({ pair = 'BTC/USD', currentPrice = null, candles = null }) {
   const mainCanvasRef = useRef(null);
-  const subCanvasRef = useRef(null);
-  const animFrameRef = useRef(null);
-  const tickIntervalRef = useRef(null);
+  const subCanvasRef  = useRef(null);
+  const animFrameRef  = useRef(null);
+  const tickRef       = useRef(null);
 
-  // Inject CSS once
-  useEffect(() => {
-    if (!document.getElementById('quantum-chart-css')) {
-      const style = document.createElement('style');
-      style.id = 'quantum-chart-css';
-      style.textContent = CHART_CSS;
-      document.head.appendChild(style);
-    }
-  }, []);
+  // CSS
+  useEffect(() => { injectCSS(); }, []);
 
-  // Init chart engine
+  // Init engine once
   useEffect(() => {
     const mainCanvas = document.getElementById('tvCanvas');
-    const subCanvas = document.getElementById('subCanvas');
+    const subCanvas  = document.getElementById('subCanvas');
     if (!mainCanvas || !subCanvas) return;
 
-    const mainCtx = mainCanvas.getContext('2d');
-    const subCtx = subCanvas.getContext('2d');
-    CH_setContexts(mainCtx, subCtx);
+    CH_setContexts(mainCanvas.getContext('2d'), subCanvas.getContext('2d'));
 
-    // Load candles: real data if provided, otherwise simulated
     if (candles && candles.length > 0) {
       CH_loadCandles(candles);
     } else {
-      CH_gen(pair, currentPrice ? { p: currentPrice, d: pair.includes('JPY') ? 3 : pair.includes('BTC') ? 1 : 5 } : null);
+      CH_gen(pair, currentPrice
+        ? { p: currentPrice, d: pair.includes('JPY') ? 3 : pair.includes('BTC') ? 1 : 5 }
+        : null);
     }
 
     CH_bindEvents();
     CH_initIndPanel();
 
-    // Start render loop
-    animFrameRef.current = requestAnimationFrame(function loop() {
-      const { CH_dirty: dirty } = require('../../lib/chartEngine');
-      if (dirty) {
-        const { CH_layout, CH_drawMain, CH_drawSub } = require('../../lib/chartEngine');
-        CH_layout();
-        CH_drawMain();
-        CH_drawSub();
-        require('../../lib/chartEngine').CH_dirty = false;
-      }
-      animFrameRef.current = requestAnimationFrame(loop);
-    });
+    // Start render loop using the engine's own CH_frame
+    animFrameRef.current = requestAnimationFrame(CH_frame);
 
-    // Live tick simulation (replace with real WebSocket data)
-    tickIntervalRef.current = setInterval(() => {
-      const { CH_liveTick } = require('../../lib/chartEngine');
-      CH_liveTick(pair, currentPrice ? { p: currentPrice, d: 5 } : null);
+    // Live tick (replace with real WebSocket)
+    tickRef.current = setInterval(() => {
+      CH_liveTick(pair, null);
     }, 1500);
 
     return () => {
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-      if (tickIntervalRef.current) clearInterval(tickIntervalRef.current);
+      if (tickRef.current) clearInterval(tickRef.current);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pair]);
 
-  // Update price when prop changes
+  // Sync live price prop
   useEffect(() => {
     if (currentPrice && ST.candles.length) {
       const last = ST.candles[ST.candles.length - 1];
       last.c = currentPrice;
       last.h = Math.max(last.h, currentPrice);
       last.l = Math.min(last.l, currentPrice);
-      require('../../lib/chartEngine').CH_dirty = true;
+      CH_setDirty(true);
     }
   }, [currentPrice]);
 
+  /* ─── JSX ─────────────────────────────────────────────── */
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%', background: '#0d1117' }}>
+    <div style={{ display:'flex', flexDirection:'column', height:'100%', width:'100%', background:'#0d1117' }}>
 
       {/* ── TOOLBAR ── */}
       <div id="iv-bar-tf" style={{
-        display: 'flex', alignItems: 'center', padding: '0 6px',
-        height: '38px', background: 'var(--bg2,#1a1f2e)',
-        borderBottom: '1px solid var(--border,rgba(48,54,61,.9))',
-        flexShrink: 0, gap: '2px'
+        display:'flex', alignItems:'center', padding:'0 6px',
+        height:'38px', background:'var(--bg2,#1a1f2e)',
+        borderBottom:'1px solid var(--border,rgba(48,54,61,.9))',
+        flexShrink:0, gap:'2px',
       }}>
         {/* Chart Type */}
-        <div style={{ position: 'relative' }}>
-          <button className="iv-draw-btn" onClick={() => togglePanel('ivCtypePanel', null)} title="نوع الشارت" style={{ width: '30px' }}>
+        <div style={{ position:'relative' }}>
+          <button className="iv-draw-btn" onClick={() => togglePanel('ivCtypePanel', null)} title="نوع الشارت" style={{ width:'30px' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="4" height="16" rx="1"/><rect x="10" y="9" width="4" height="11" rx="1"/><rect x="18" y="2" width="4" height="18" rx="1"/></svg>
           </button>
-          <div id="ivCtypePanel" className="iv-dropdown" style={{ minWidth: '150px' }}>
-            <div style={{ fontSize: '9px', color: 'var(--text4)', fontFamily: 'var(--font-hud)', letterSpacing: '1px', marginBottom: '6px' }}>نوع الشارت</div>
+          <div id="ivCtypePanel" className="iv-dropdown" style={{ minWidth:'150px' }}>
+            <div style={{ fontSize:'9px', color:'var(--text4)', fontFamily:'var(--font-hud)', letterSpacing:'1px', marginBottom:'6px' }}>نوع الشارت</div>
             {[['candle','🕯 شموع'],['hollow','⬡ مجوفة'],['bar','▐ OHLC'],['line','∿ خط'],['area','◭ منطقة'],['heikin','HA Heikin-Ashi']].map(([t,l]) => (
               <button key={t} className="iv-dd-item" onClick={() => { CH_setType(t); closeAllPanels(); }}>{l}</button>
             ))}
@@ -161,14 +156,14 @@ export default function QuantumChart({ pair = 'BTC/USD', currentPrice = null, ca
         <div className="iv-sep" />
 
         {/* Timeframe */}
-        <div style={{ position: 'relative' }}>
-          <button className="iv-draw-btn iv-tf-trigger" onClick={() => togglePanel('ivTFPanel', null)} style={{ width: 'auto', padding: '0 8px', fontFamily: 'var(--font-mono)', fontSize: '11px', fontWeight: 700, color: 'var(--cyan)' }}>
+        <div style={{ position:'relative' }}>
+          <button className="iv-draw-btn iv-tf-trigger" onClick={() => togglePanel('ivTFPanel', null)} style={{ width:'auto', padding:'0 8px', fontFamily:'var(--font-mono)', fontSize:'11px', fontWeight:700, color:'var(--cyan)' }}>
             <span id="ivActiveTFLabel">15m</span>
             <svg width="9" height="9" viewBox="0 0 10 6" fill="currentColor"><path d="M0 0 L5 6 L10 0Z"/></svg>
           </button>
-          <div id="ivTFPanel" className="iv-dropdown" style={{ minWidth: '160px' }}>
-            <div style={{ fontSize: '9px', color: 'var(--text4)', fontFamily: 'var(--font-hud)', marginBottom: '6px' }}>الإطار الزمني</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '3px' }}>
+          <div id="ivTFPanel" className="iv-dropdown" style={{ minWidth:'160px' }}>
+            <div style={{ fontSize:'9px', color:'var(--text4)', fontFamily:'var(--font-hud)', marginBottom:'6px' }}>الإطار الزمني</div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'3px' }}>
               {[[1,'1m'],[5,'5m'],[15,'15m'],[30,'30m'],[60,'1H'],[240,'4H'],[1440,'1D'],[10080,'1W']].map(([m,l]) => (
                 <button key={m} className={`iv-tf-dd-btn${m===15?' iv-tf-dd-active':''}`} onClick={(e) => setActiveTF(m, e.target, l)}>{l}</button>
               ))}
@@ -191,7 +186,7 @@ export default function QuantumChart({ pair = 'BTC/USD', currentPrice = null, ca
         <button className="iv-draw-btn" id="toolFib" onClick={() => CH_setTool('fib', document.getElementById('toolFib'))} title="فيبوناتشي">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="2" y1="5" x2="22" y2="5"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="2" y1="15" x2="22" y2="15"/><line x1="5" y1="2" x2="5" y2="22"/></svg>
         </button>
-        <button className="iv-draw-btn" onClick={() => CH_clearDrawings()} title="مسح" style={{ color: 'var(--text4)' }}>
+        <button className="iv-draw-btn" onClick={() => CH_clearDrawings()} title="مسح" style={{ color:'var(--text4)' }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
         </button>
 
@@ -204,27 +199,27 @@ export default function QuantumChart({ pair = 'BTC/USD', currentPrice = null, ca
         <button className="iv-draw-btn" onClick={() => CH_zoom(1.33)} title="تصغير">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
         </button>
-        <button className="iv-draw-btn" onClick={() => CH_resetView()} title="إعادة ضبط" style={{ fontSize: '11px', fontWeight: 700, width: 'auto', padding: '0 5px', fontFamily: 'var(--font-hud)' }}>⊡</button>
+        <button className="iv-draw-btn" onClick={() => CH_resetView()} title="إعادة ضبط" style={{ fontSize:'11px', fontWeight:700, width:'auto', padding:'0 5px', fontFamily:'var(--font-hud)' }}>⊡</button>
 
         <div className="iv-sep" />
 
         {/* Indicators */}
-        <div style={{ position: 'relative' }}>
-          <button className="iv-draw-btn" onClick={() => togglePanel('indPanel', null)} id="indBtn" style={{ width: 'auto', padding: '0 7px', fontSize: '10px', fontFamily: 'var(--font-hud)', fontWeight: 700, gap: '3px' }}>
+        <div style={{ position:'relative' }}>
+          <button className="iv-draw-btn" onClick={() => togglePanel('indPanel', null)} id="indBtn" style={{ width:'auto', padding:'0 7px', fontSize:'10px', fontFamily:'var(--font-hud)', fontWeight:700, gap:'3px' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
             IND
           </button>
           <div className="ind-panel" id="indPanel">
-            <div style={{ fontSize: '10px', color: 'var(--text3)', letterSpacing: '1px', marginBottom: '7px', paddingBottom: '5px', borderBottom: '1px solid rgba(88,166,255,.1)', fontFamily: 'var(--font-hud)' }}>INDICATORS</div>
+            <div style={{ fontSize:'10px', color:'var(--text3)', letterSpacing:'1px', marginBottom:'7px', paddingBottom:'5px', borderBottom:'1px solid rgba(88,166,255,.1)', fontFamily:'var(--font-hud)' }}>INDICATORS</div>
             <div id="indList"></div>
           </div>
         </div>
 
         {/* Oscillator */}
-        <div style={{ position: 'relative' }}>
-          <button className="iv-draw-btn" id="subBtn" onClick={() => togglePanel('ivSubPanel', null)} style={{ width: 'auto', padding: '0 7px', fontSize: '10px', fontFamily: 'var(--font-hud)', fontWeight: 700, gap: '3px' }}>OSC</button>
-          <div id="ivSubPanel" className="iv-dropdown" style={{ minWidth: '130px' }}>
-            <div style={{ fontSize: '9px', color: 'var(--text4)', letterSpacing: '1px', marginBottom: '6px' }}>مؤشر فرعي</div>
+        <div style={{ position:'relative' }}>
+          <button className="iv-draw-btn" id="subBtn" onClick={() => togglePanel('ivSubPanel', null)} style={{ width:'auto', padding:'0 7px', fontSize:'10px', fontFamily:'var(--font-hud)', fontWeight:700, gap:'3px' }}>OSC</button>
+          <div id="ivSubPanel" className="iv-dropdown" style={{ minWidth:'130px' }}>
+            <div style={{ fontSize:'9px', color:'var(--text4)', letterSpacing:'1px', marginBottom:'6px' }}>مؤشر فرعي</div>
             {[['rsi','RSI (14)'],['macd','MACD'],['stoch','Stochastic']].map(([t,l]) => (
               <button key={t} className="iv-dd-item" onClick={() => { CH_setSub(t); closeAllPanels(); if (document.getElementById('subChartWrap')?.style.height === '0px') toggleSubChart(); }}>{l}</button>
             ))}
@@ -232,9 +227,9 @@ export default function QuantumChart({ pair = 'BTC/USD', currentPrice = null, ca
         </div>
 
         {/* VOL */}
-        <button className="iv-draw-btn" onClick={() => { ST.showVol = !ST.showVol; require('../../lib/chartEngine').CH_dirty = true; }} style={{ width: 'auto', padding: '0 6px', fontSize: '9px', fontFamily: 'var(--font-hud)', fontWeight: 700 }}>VOL</button>
+        <button className="iv-draw-btn" onClick={() => { ST.showVol = !ST.showVol; CH_setDirty(true); }} style={{ width:'auto', padding:'0 6px', fontSize:'9px', fontFamily:'var(--font-hud)', fontWeight:700 }}>VOL</button>
 
-        <div style={{ flex: 1 }} />
+        <div style={{ flex:1 }} />
 
         {/* Screenshot */}
         <button className="iv-draw-btn" onClick={() => CH_screenshot()} title="لقطة شاشة">
@@ -243,52 +238,55 @@ export default function QuantumChart({ pair = 'BTC/USD', currentPrice = null, ca
       </div>
 
       {/* ── CHART AREA ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden', minHeight: 0, position: 'relative' }}>
+      <div style={{ flex:1, display:'flex', flexDirection:'row', overflow:'hidden', minHeight:0, position:'relative' }}>
+
         {/* Left Toolbar */}
-        <div id="chartLeftTools" style={{ width: '32px', flexShrink: 0, background: 'var(--bg2,#1a1f2e)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '4px 0', gap: '1px' }}>
+        <div id="chartLeftTools" style={{ width:'32px', flexShrink:0, background:'var(--bg2,#1a1f2e)', borderRight:'1px solid var(--border)', display:'flex', flexDirection:'column', alignItems:'center', padding:'4px 0', gap:'1px' }}>
           {[['cursor','↖','مؤشر'],['trend','╱','اتجاه'],['hline','━','أفقي']].map(([t,icon,title]) => (
-            <button key={t} className="iv-left-btn" onClick={() => CH_setTool(t, null)} title={title} style={{ fontSize: '13px' }}>{icon}</button>
+            <button key={t} className="iv-left-btn" onClick={() => CH_setTool(t, null)} title={title} style={{ fontSize:'13px' }}>{icon}</button>
           ))}
           <div className="iv-left-sep" />
-          <button className="iv-left-btn" onClick={() => CH_zoom(0.75)} title="تكبير" style={{ fontSize: '16px' }}>+</button>
-          <button className="iv-left-btn" onClick={() => CH_zoom(1.33)} title="تصغير" style={{ fontSize: '16px' }}>−</button>
+          <button className="iv-left-btn" onClick={() => CH_zoom(0.75)} title="تكبير" style={{ fontSize:'16px' }}>+</button>
+          <button className="iv-left-btn" onClick={() => CH_zoom(1.33)} title="تصغير" style={{ fontSize:'16px' }}>−</button>
           <div className="iv-left-sep" />
-          <button className="iv-left-btn" onClick={() => CH_clearDrawings()} title="مسح" style={{ color: '#f85149' }}>🗑</button>
+          <button className="iv-left-btn" onClick={() => CH_clearDrawings()} title="مسح" style={{ color:'#f85149' }}>🗑</button>
         </div>
 
         {/* Canvas Column */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
-          {/* OHLC Overlay */}
-          <div id="mainChartArea" style={{ flex: 1, position: 'relative', overflow: 'hidden', minHeight: 0 }}>
+        <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0 }}>
+
+          {/* Main Chart */}
+          <div id="mainChartArea" style={{ flex:1, position:'relative', overflow:'hidden', minHeight:0 }}>
             <canvas id="tvCanvas" ref={mainCanvasRef}></canvas>
-            <div id="chartInfoOverlay" style={{ position: 'absolute', top: 0, right: 0, left: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 10px', pointerEvents: 'none', zIndex: 3, background: 'linear-gradient(180deg,rgba(13,17,23,.85) 0%,transparent 100%)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                <span style={{ fontFamily: 'var(--font-hud)', fontSize: '11px', fontWeight: 700, color: 'var(--cyan,#58a6ff)', letterSpacing: '.5px' }} id="chPair">{pair}</span>
-                <span style={{ fontFamily: 'monospace', fontSize: '16px', fontWeight: 700, lineHeight: 1 }} id="chPrice">{currentPrice || '—'}</span>
-                <span style={{ fontSize: '9px', color: 'var(--text4)', fontFamily: 'monospace', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>O <b id="tbChO" style={{ color: 'rgba(255,255,255,.5)' }}>—</b></span>
-                  <span>H <b id="tbChH" style={{ color: 'rgba(63,185,80,.7)' }}>—</b></span>
-                  <span>L <b id="tbChL" style={{ color: 'rgba(248,81,73,.7)' }}>—</b></span>
-                  <span>C <b id="tbChC" style={{ color: 'rgba(255,255,255,.5)' }}>—</b></span>
+            <div id="chartInfoOverlay" style={{ position:'absolute', top:0, right:0, left:0, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'4px 10px', pointerEvents:'none', zIndex:3, background:'linear-gradient(180deg,rgba(13,17,23,.85) 0%,transparent 100%)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:'7px' }}>
+                <span style={{ fontFamily:'var(--font-hud)', fontSize:'11px', fontWeight:700, color:'var(--cyan,#58a6ff)', letterSpacing:'.5px' }} id="chPair">{pair}</span>
+                <span style={{ fontFamily:'monospace', fontSize:'16px', fontWeight:700, lineHeight:1 }} id="chPrice">{currentPrice || '—'}</span>
+                <span style={{ fontSize:'9px', color:'var(--text4)', fontFamily:'monospace', display:'flex', alignItems:'center', gap:'6px' }}>
+                  <span>O <b id="tbChO" style={{ color:'rgba(255,255,255,.5)' }}>—</b></span>
+                  <span>H <b id="tbChH" style={{ color:'rgba(63,185,80,.7)' }}>—</b></span>
+                  <span>L <b id="tbChL" style={{ color:'rgba(248,81,73,.7)' }}>—</b></span>
+                  <span>C <b id="tbChC" style={{ color:'rgba(255,255,255,.5)' }}>—</b></span>
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '8px', fontFamily: 'monospace' }}>
-                <span style={{ color: 'rgba(139,92,246,.7)' }}>■ Tokyo</span>
-                <span style={{ color: 'rgba(88,166,255,.7)' }}>■ London</span>
-                <span style={{ color: 'rgba(227,179,65,.7)' }}>■ New York</span>
+              <div style={{ display:'flex', alignItems:'center', gap:'8px', fontSize:'8px', fontFamily:'monospace' }}>
+                <span style={{ color:'rgba(139,92,246,.7)' }}>■ Tokyo</span>
+                <span style={{ color:'rgba(88,166,255,.7)' }}>■ London</span>
+                <span style={{ color:'rgba(227,179,65,.7)' }}>■ New York</span>
               </div>
             </div>
           </div>
 
           {/* Sub Chart */}
-          <div id="subChartWrap" style={{ flexShrink: 0, background: '#141b27', borderTop: '1px solid rgba(88,166,255,.12)', transition: 'height .2s ease', height: '0px', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1px 8px', background: '#0a1018', borderBottom: '1px solid rgba(88,166,255,.06)', cursor: 'pointer', height: '20px' }} onClick={toggleSubChart}>
-              <span id="subLabel" style={{ fontSize: '10px', fontFamily: 'monospace', color: 'rgba(88,166,255,.6)' }}>RSI(14)</span>
+          <div id="subChartWrap" style={{ flexShrink:0, background:'#141b27', borderTop:'1px solid rgba(88,166,255,.12)', transition:'height .2s ease', height:'0px', overflow:'hidden' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'1px 8px', background:'#0a1018', borderBottom:'1px solid rgba(88,166,255,.06)', cursor:'pointer', height:'20px' }} onClick={toggleSubChart}>
+              <span id="subLabel" style={{ fontSize:'10px', fontFamily:'monospace', color:'rgba(88,166,255,.6)' }}>RSI(14)</span>
             </div>
-            <div className="sub-chart-panel" id="subChartPanel" style={{ height: '80px', position: 'relative', overflow: 'hidden' }}>
+            <div className="sub-chart-panel" id="subChartPanel" style={{ height:'80px', position:'relative', overflow:'hidden' }}>
               <canvas id="subCanvas" ref={subCanvasRef}></canvas>
             </div>
           </div>
+
         </div>
       </div>
     </div>

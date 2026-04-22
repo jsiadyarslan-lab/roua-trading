@@ -34,6 +34,9 @@ export const ST = {
 
 export let CH_ctx, CH_subCtx, CH_dirty=true, CH_DPR=1;
 
+// ── Allow external modules to mark dirty (ES module bindings are read-only) ──
+export function CH_setDirty(val){ CH_dirty = val; }
+
 // ── Helper: set contexts ──────────────────────────────────
 export function CH_setContexts(mainCtx, subCtx) {
   CH_ctx = mainCtx;

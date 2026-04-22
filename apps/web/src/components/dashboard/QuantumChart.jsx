@@ -267,7 +267,7 @@ export default function QuantumChart({ currentPrice = null, candles = null }) {
             <canvas id="tvCanvas" ref={mainCanvasRef}></canvas>
             <div id="chartInfoOverlay" style={{ position:'absolute', top:0, right:0, left:0, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'4px 10px', pointerEvents:'none', zIndex:3, background:'linear-gradient(180deg,rgba(13,17,23,.85) 0%,transparent 100%)' }}>
               <div style={{ display:'flex', alignItems:'center', gap:'7px' }}>
-                <span style={{ fontFamily:'var(--font-hud)', fontSize:'11px', fontWeight:700, color:'var(--cyan,#58a6ff)', letterSpacing:'.5px' }} id="chPair">{pair}</span>
+                <span style={{ fontFamily:'var(--font-hud)', fontSize:'11px', fontWeight:700, color:'var(--cyan,#58a6ff)', letterSpacing:'.5px' }} id="chPair">{selectedSymbol}</span>
                 <span style={{ fontFamily:'monospace', fontSize:'16px', fontWeight:700, lineHeight:1 }} id="chPrice">{currentPrice || '—'}</span>
                 <span style={{ fontSize:'9px', color:'var(--text4)', fontFamily:'monospace', display:'flex', alignItems:'center', gap:'6px' }}>
                   <span>O <b id="tbChO" style={{ color:'rgba(255,255,255,.5)' }}>—</b></span>

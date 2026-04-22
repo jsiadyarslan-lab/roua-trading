@@ -286,52 +286,62 @@ export function CH_drawMain(){
       
       // 1. Entry Line
       const yEntry = py(t.entry);
-      if(yEntry > TH && yEntry < H-20){
-        ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 1; ctx.setLineDash([5,3]);
+      // Draw line across full width regardless of Y (canvas will clip naturally, but we keep it within reasonable bounds)
+      if(yEntry > -100 && yEntry < H + 100){
+        ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
         ctx.beginPath(); ctx.moveTo(0, yEntry); ctx.lineTo(W-PW, yEntry); ctx.stroke();
-        ctx.setLineDash([]);
         
-        // Entry Label
+        // Entry Label (Keep visible within chart area)
+        const labelY = Math.max(TH + 10, Math.min(H - 30, yEntry));
         ctx.fillStyle = '#58a6ff';
         const pnlStr = (t.pnl >= 0 ? '+' : '') + t.pnl.toFixed(2) + '$';
         const label = `${t.side === 'buy' ? 'BUY' : 'SELL'} ${t.qty} | ${pnlStr}`;
-        ctx.font = 'bold 9px JetBrains Mono,monospace';
-        const tw = ctx.measureText(label).width + 10;
-        ctx.fillRect(10, yEntry - 9, tw, 18);
+        ctx.font = 'bold 10px JetBrains Mono,monospace';
+        const tw = ctx.measureText(label).width + 12;
+        
+        // Background for label
+        ctx.shadowBlur = 10; ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(10, labelY - 9, tw, 18);
+        ctx.shadowBlur = 0;
+        
         ctx.fillStyle = '#000';
         ctx.textAlign = 'left';
-        ctx.fillText(label, 15, yEntry + 4);
+        ctx.fillText(label, 16, labelY + 4);
       }
 
-      // 2. Stop Loss (if any)
+      // 2. Stop Loss
       if(t.sl){
         const ySl = py(t.sl);
-        if(ySl > TH && ySl < H-20){
-          ctx.strokeStyle = '#f85149'; ctx.lineWidth = 0.8; ctx.setLineDash([2,2]);
+        if(ySl > -50 && ySl < H + 50){
+          ctx.strokeStyle = '#f85149'; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
           ctx.beginPath(); ctx.moveTo(0, ySl); ctx.lineTo(W-PW, ySl); ctx.stroke();
           ctx.setLineDash([]);
-          ctx.fillStyle = 'rgba(248,81,73,0.2)';
-          ctx.fillRect(10, ySl - 7, 30, 14);
+          
+          const labelY = Math.max(TH + 10, Math.min(H - 30, ySl));
+          ctx.fillStyle = 'rgba(248,81,73,0.3)';
+          ctx.fillRect(W-PW-35, labelY - 7, 30, 14);
           ctx.fillStyle = '#f85149';
-          ctx.font = '8px JetBrains Mono,monospace';
-          ctx.textAlign = 'left';
-          ctx.fillText('SL', 15, ySl + 3);
+          ctx.font = 'bold 9px JetBrains Mono,monospace';
+          ctx.textAlign = 'right';
+          ctx.fillText('SL', W-PW-10, labelY + 3);
         }
       }
 
-      // 3. Take Profit (if any)
+      // 3. Take Profit
       if(t.tp){
         const yTp = py(t.tp);
-        if(yTp > TH && yTp < H-20){
-          ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 0.8; ctx.setLineDash([2,2]);
+        if(yTp > -50 && yTp < H + 50){
+          ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 1; ctx.setLineDash([4,4]);
           ctx.beginPath(); ctx.moveTo(0, yTp); ctx.lineTo(W-PW, yTp); ctx.stroke();
           ctx.setLineDash([]);
-          ctx.fillStyle = 'rgba(63,185,80,0.2)';
-          ctx.fillRect(10, yTp - 7, 30, 14);
+          
+          const labelY = Math.max(TH + 10, Math.min(H - 30, yTp));
+          ctx.fillStyle = 'rgba(63,185,80,0.3)';
+          ctx.fillRect(W-PW-35, labelY - 7, 30, 14);
           ctx.fillStyle = '#3fb950';
-          ctx.font = '8px JetBrains Mono,monospace';
-          ctx.textAlign = 'left';
-          ctx.fillText('TP', 15, yTp + 3);
+          ctx.font = 'bold 9px JetBrains Mono,monospace';
+          ctx.textAlign = 'right';
+          ctx.fillText('TP', W-PW-10, labelY + 3);
         }
       }
     });

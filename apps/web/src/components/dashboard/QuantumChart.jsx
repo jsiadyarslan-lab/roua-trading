@@ -159,14 +159,20 @@ export default function QuantumChart({ currentPrice = null, candles = null }) {
   // Sync Positions to Chart Engine
   const positions = usePositionsStore(s => s.positions);
   useEffect(() => {
-    const active = positions.filter(p => p.symbol === selectedSymbol || p.rawSymbol === selectedSymbol);
+    const active = positions.filter(p => 
+      p.symbol.toUpperCase() === selectedSymbol.toUpperCase() || 
+      p.rawSymbol.toUpperCase() === selectedSymbol.toUpperCase()
+    );
+    
+    console.log(`[Chart] Syncing ${active.length} positions for ${selectedSymbol}`, active);
+
     ST.openTrades = active.map(p => ({
       entry: p.avgEntryPrice,
       qty: p.qty,
       side: p.side.toLowerCase(),
       pnl: p.unrealizedPnl,
-      sl: p.sl,
-      tp: p.tp
+      sl: p.sl || null,
+      tp: p.tp || null
     }));
     CH_setDirty(true);
   }, [positions, selectedSymbol]);

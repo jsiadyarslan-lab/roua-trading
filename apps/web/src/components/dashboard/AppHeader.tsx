@@ -179,9 +179,7 @@ function NewsTicker() {
 
   const handleBellClick = () => {
     setActivePage('dashboard')
-    // We need a way to set the right tab. 
-    // In my previous page.tsx edit, Col3TabbedPanel uses a local 'active' state.
-    // I should move that to the store too if I want to control it from here.
+    setRightTab('alerts')
   }
 
   return (

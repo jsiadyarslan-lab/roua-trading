@@ -148,7 +148,7 @@ export default function DashboardPage() {
 }
 
 function Col3TabbedPanel({ quotes }: { quotes: any }) {
-  const [active, setActive] = useState('bot')
+  const { rightTab, setRightTab } = useDashboardStore()
   const { unreadCount } = useNotificationStore()
   
   const TABS = [
@@ -169,9 +169,9 @@ function Col3TabbedPanel({ quotes }: { quotes: any }) {
         padding: '6px 6px 0', gap: 6, flexShrink: 0
       }}>
         {TABS.map(t => {
-           const isActive = active === t.id
+           const isActive = rightTab === t.id
            return (
-             <button key={t.id} onClick={() => setActive(t.id)} style={{
+             <button key={t.id} onClick={() => setRightTab(t.id as any)} style={{
                flex: 1, padding: '6px 0', background: 'transparent',
                border: 'none', borderBottom: isActive ? `2px solid ${t.accent}` : 'none',
                color: isActive ? t.accent : T.text2, fontSize: 10, fontWeight: 800,
@@ -184,10 +184,10 @@ function Col3TabbedPanel({ quotes }: { quotes: any }) {
       </div>
 
       <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
-        {active === 'bot' && <BotMini />}
-        {active === 'scanner' && <ScannerMini />}
-        {active === 'alerts' && <NotificationCenterMini />}
-        {active === 'multi-tf' && <div style={{ padding: 40, textAlign: 'center', opacity: 0.3 }}>تحليل متعدد الأطر قيد التطوير...</div>}
+        {rightTab === 'bot' && <BotMini />}
+        {rightTab === 'scanner' && <ScannerMini />}
+        {rightTab === 'alerts' && <NotificationCenterMini />}
+        {rightTab === 'multi-tf' && <div style={{ padding: 40, textAlign: 'center', opacity: 0.3 }}>تحليل متعدد الأطر قيد التطوير...</div>}
       </div>
     </div>
   )

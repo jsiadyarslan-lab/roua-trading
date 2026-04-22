@@ -10,8 +10,8 @@ interface DashboardState {
   // New state fields
   activeTimeframe: string
   setActiveTimeframe: (tf: string) => void
-  rightTab: 'trade' | 'signals' | 'bot'
-  setRightTab: (tab: 'trade' | 'signals' | 'bot') => void
+  rightTab: 'bot' | 'scanner' | 'alerts' | 'multi-tf'
+  setRightTab: (tab: 'bot' | 'scanner' | 'alerts' | 'multi-tf') => void
   tradeDirection: 'buy' | 'sell'
   setTradeDirection: (dir: 'buy' | 'sell') => void
   botEnabled: boolean
@@ -34,7 +34,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   // New state fields
   activeTimeframe: '15m',
   setActiveTimeframe: (tf) => set({ activeTimeframe: tf }),
-  rightTab: 'trade',
+  rightTab: 'bot',
   setRightTab: (tab) => set({ rightTab: tab }),
   tradeDirection: 'buy',
   setTradeDirection: (dir) => set({ tradeDirection: dir }),

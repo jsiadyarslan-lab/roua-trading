@@ -212,6 +212,13 @@ export default function QuantumChart({ currentPrice = null, candles = null }) {
         <button className="iv-draw-btn" id="toolFib" onClick={() => CH_setTool('fib', document.getElementById('toolFib'))} title="فيبوناتشي">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="2" y1="5" x2="22" y2="5"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="2" y1="15" x2="22" y2="15"/><line x1="5" y1="2" x2="5" y2="22"/></svg>
         </button>
+        <button className="iv-draw-btn" id="toolRect" onClick={() => CH_setTool('rect', document.getElementById('toolRect'))} title="مستطيل">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+        </button>
+        <div className="iv-sep" style={{ margin:'0 4px' }} />
+        <button className="iv-draw-btn" id="toolMagnet" onClick={(e) => { ST.magnet = !ST.magnet; e.currentTarget.classList.toggle('active'); }} title="المغناطيس (Snapping)">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h4v8a4 4 0 0 0 8 0V4h4v8a8 8 0 0 1-16 0V4z"/></svg>
+        </button>
         <button className="iv-draw-btn" onClick={() => CH_clearDrawings()} title="مسح" style={{ color:'var(--text4)' }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
         </button>

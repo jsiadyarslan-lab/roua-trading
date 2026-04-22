@@ -13,8 +13,8 @@ const CFG = {
 
 export const ST = {
   candles:[], ha:[], type:'candle', sub:'rsi', tf:15,
-  inds:{ma20:false,ma50:false,ema12:false,ema26:false,bb:false,vwap:false,atr:false,cci:false,wpr:false,psar:false},
-  tool:'cursor', drawings:[], drawStart:null,
+  inds:{ma20:false,ma50:false,ema12:false,ema26:false,bb:false,vwap:false,atr:false,cci:false,wpr:false,psar:false,liq:false},
+  tool:'cursor', drawings:[], drawStart:null, magnet:false,
   rightOffset:0, barsVis:80,
   mx:-1, my:-1, drag:false, dragX0:0, dragOff0:0,
   W:0, H:0, mH:0, pMin:0, pMax:1,
@@ -196,6 +196,25 @@ export function CH_drawMain(){
   if(ST.inds.ema26){const ema=CH_ema(cls,26);drawLine(ctx,ema,slice,barW,py,'rgba(249,115,22,.7)',1);}
   if(ST.inds.bb){const bb=CH_bb(cls);bb.forEach((v,i)=>{if(!v)return;const x=i*barW+barW/2;['u','m','l'].forEach((k,ki)=>{if(i===0)return;const pv=bb[i-1];if(!pv)return;ctx.strokeStyle=ki===1?'rgba(88,166,255,.4)':'rgba(88,166,255,.2)';ctx.lineWidth=ki===1?0.8:0.5;ctx.setLineDash(ki===1?[3,3]:[]);ctx.beginPath();ctx.moveTo((i-1)*barW+barW/2,py(pv[k]));ctx.lineTo(x,py(v[k]));ctx.stroke();ctx.setLineDash([]);});});}
   if(ST.inds.vwap){const vw=CH_vwap(slice);drawLine(ctx,vw,slice,barW,py,'rgba(255,215,0,.6)',1.2);}
+  if(ST.inds.psar){
+    const psar = CH_parabolicSAR(slice);
+    ctx.fillStyle='rgba(255,255,255,0.8)';
+    psar.forEach((v,i)=>{
+      if(v===null)return;
+      ctx.beginPath();ctx.arc(i*barW+barW/2, py(v), 1.5, 0, Math.PI*2);ctx.fill();
+    });
+  }
+  if(ST.inds.liq){
+    const liq = CH_liquidity(slice);
+    liq.forEach(l => {
+      ctx.strokeStyle = l.type==='h' ? 'rgba(248,81,73,.5)' : 'rgba(63,185,80,.5)';
+      ctx.lineWidth=1; ctx.setLineDash([4,4]);
+      const xStart=l.idx*barW+barW/2; const y=py(l.val);
+      ctx.beginPath();ctx.moveTo(xStart,y);ctx.lineTo(W,y);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle=ctx.strokeStyle;ctx.font='8px JetBrains Mono,monospace';ctx.textAlign='right';
+      ctx.fillText(l.type==='h'?'BSL':'SSL', W-PW-4, y-2);
+    });
+  }
   // Candles
   slice.forEach((b,i)=>{
     const x=i*barW;const mx=x+barW/2;const bw=Math.max(1,barW-spacing);
@@ -338,7 +357,11 @@ export function CH_renderDrawings(ctx,cW,dp){
     ctx.strokeStyle='rgba(255,200,50,.75)';ctx.lineWidth=1.5;ctx.setLineDash([]);
     if(d.type==='hline'){const y=py(d.price);ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(cW-CFG.PW,y);ctx.stroke();ctx.fillStyle='rgba(255,200,50,.7)';ctx.font='9px monospace';ctx.textAlign='left';ctx.fillText(d.price.toFixed(dp||5),4,y-3);}
     else if(d.type==='trend'&&d.x2!==undefined){ctx.beginPath();ctx.moveTo(d.x1,d.y1);ctx.lineTo(d.x2,d.y2);ctx.stroke();}
-    else if(d.type==='rect'&&d.x2!==undefined){ctx.strokeRect(Math.min(d.x1,d.x2),Math.min(d.y1,d.y2),Math.abs(d.x2-d.x1),Math.abs(d.y2-d.y1));}
+    else if(d.type==='rect'&&d.x2!==undefined){
+      ctx.fillStyle='rgba(88,166,255,0.1)';
+      ctx.fillRect(Math.min(d.x1,d.x2),Math.min(d.y1,d.y2),Math.abs(d.x2-d.x1),Math.abs(d.y2-d.y1));
+      ctx.strokeRect(Math.min(d.x1,d.x2),Math.min(d.y1,d.y2),Math.abs(d.x2-d.x1),Math.abs(d.y2-d.y1));
+    }
     else if(d.type==='fib'&&d.p2!==undefined){
       const y1=py(d.p1),y2=py(d.p2);
       [0,0.236,0.382,0.5,0.618,0.786,1].forEach(r=>{
@@ -394,6 +417,18 @@ export function CH_bindEvents(){
   c.addEventListener('mousemove',e=>{
     const r=c.getBoundingClientRect();
     ST.mx=(e.clientX-r.left);ST.my=(e.clientY-r.top);
+    
+    if(ST.magnet && ST.barsData && ST.barsData.length > 0) {
+      const idx = Math.floor(ST.mx / ST.barW);
+      if(idx >= 0 && idx < ST.barsData.length) {
+        const py = v => ST.mH ? (ST.H)*(ST.pMax-v)/(ST.pMax-ST.pMin)*((ST.mH-20)/(ST.H))+20 : 0;
+        const b = ST.barsData[idx];
+        const pyH = py(b.h), pyL = py(b.l);
+        if(Math.abs(ST.my - pyH) < 20) ST.my = pyH;
+        else if(Math.abs(ST.my - pyL) < 20) ST.my = pyL;
+      }
+    }
+
     if(ST.drag){ST.rightOffset=ST.dragOff0-(ST.mx-ST.dragX0)/ST.barW;ST.rightOffset=Math.max(0,ST.rightOffset);}
     if(ST.tool!=='cursor'&&ST.drawStart){
       const last=ST.drawings[ST.drawings.length-1];
@@ -487,6 +522,8 @@ export const INDS=[
   {k:'ema26', l:'EMA 26',         c:'rgba(249,115,22,.7)'},
   {k:'bb',    l:'Bollinger Bands',c:'rgba(88,166,255,.5)'},
   {k:'vwap',  l:'VWAP',           c:'rgba(255,215,0,.6)'},
+  {k:'psar',  l:'Parabolic SAR',  c:'rgba(255,255,255,.8)'},
+  {k:'liq',   l:'Liquidity Lvls', c:'rgba(248,81,73,.5)'},
 ];
 
 export function CH_initIndPanel(){
@@ -568,3 +605,17 @@ export function resetChartSettings(){
 }
 
 export function drawTVChart(){ CH_dirty=true; }
+
+export function CH_liquidity(data, window=10){
+  const res = [];
+  for(let i=window; i<data.length-window; i++){
+    let isHigh = true, isLow = true;
+    for(let j=1; j<=window; j++){
+      if(data[i-j].h > data[i].h || data[i+j].h > data[i].h) isHigh = false;
+      if(data[i-j].l < data[i].l || data[i+j].l < data[i].l) isLow = false;
+    }
+    if(isHigh) res.push({idx: i, val: data[i].h, type: 'h'});
+    if(isLow) res.push({idx: i, val: data[i].l, type: 'l'});
+  }
+  return res;
+}

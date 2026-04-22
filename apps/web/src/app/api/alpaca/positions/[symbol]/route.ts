@@ -7,10 +7,11 @@ import { alpacaFetch, toAlpacaSymbol } from '@/lib/alpacaClient'
  */
 export async function DELETE(
   _req: NextRequest,
-  { params }: { params: { symbol: string } }
+  { params }: { params: Promise<{ symbol: string }> }
 ) {
   try {
-    const symbol = toAlpacaSymbol(decodeURIComponent(params.symbol))
+    const resolvedParams = await params
+    const symbol = toAlpacaSymbol(decodeURIComponent(resolvedParams.symbol))
     const res = await alpacaFetch(`/v2/positions/${symbol}`, { method: 'DELETE' })
 
     if (!res.ok) {

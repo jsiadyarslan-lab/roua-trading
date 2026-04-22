@@ -1,40 +1,61 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBotStore } from '@/hooks/useBotStore';
 import { useSymbolStore } from '@/hooks/useSymbolStore';
 
 export function BotEngine({ quotes = new Map() }: { quotes?: Map<string, any> }) {
-  const { isOn, addLog } = useBotStore();
+  const { isOn, addLog, settings } = useBotStore();
   const { selectedSymbol } = useSymbolStore();
   const lastSignalRef = useRef<string | null>(null);
+  const quotesRef = useRef(quotes);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Zustand persist hydration check
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   useEffect(() => {
-    if (!isOn) return;
+    quotesRef.current = quotes;
+  }, [quotes]);
 
-    addLog('بدء جلسة مراقبة جديدة...', 'info');
-    
+  useEffect(() => {
+    if (!hydrated || !isOn) return;
+    addLog(`تم تفعيل نظام التداول الآلي استراتيجية: ${settings.strategy}`, 'info');
+  }, [isOn, hydrated]); // Only log when turning ON
+
+  useEffect(() => {
+    if (!hydrated || !isOn) return;
+
     const interval = setInterval(() => {
-      const q = quotes.get(selectedSymbol);
+      const currentQuotes = quotesRef.current;
+      const q = currentQuotes.get(selectedSymbol);
       if (!q) return;
 
       const change = q.changePercent || 0;
       let signal = null;
 
-      if (change > 2.5 && lastSignalRef.current !== 'BUY') {
-        signal = 'BUY';
-      } else if (change < -2.5 && lastSignalRef.current !== 'SELL') {
-        signal = 'SELL';
+      // Use the confLimit from settings (mocking logic here)
+      // If change is high enough, we consider it "confident"
+      const confidence = Math.min(99, Math.abs(change) * 20);
+
+      if (confidence >= settings.confLimit) {
+        if (change > 0 && lastSignalRef.current !== 'BUY') {
+          signal = 'BUY';
+        } else if (change < 0 && lastSignalRef.current !== 'SELL') {
+          signal = 'SELL';
+        }
       }
 
       if (signal) {
-        addLog(`[إشارة آليّة] تم رصد فرصة ${signal === 'BUY' ? 'شراء' : 'بيع'} على ${selectedSymbol} (تغير ${change}%)`, signal === 'BUY' ? 'buy' : 'sell');
+        addLog(`[${settings.strategy}] إشارة ${signal === 'BUY' ? 'شراء' : 'بيع'} بقوة ${confidence.toFixed(0)}% على ${selectedSymbol}`, signal === 'BUY' ? 'buy' : 'sell');
         lastSignalRef.current = signal;
       }
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [isOn, selectedSymbol, quotes, addLog]);
+  }, [isOn, hydrated, selectedSymbol, settings.strategy, settings.confLimit, addLog]);
 
-  return null; // This component has no UI
+  return null;
 }

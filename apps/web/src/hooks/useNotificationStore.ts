@@ -79,7 +79,13 @@ export const useNotificationStore = create<NotificationState>()(
         }))
 
         // Play sound for urgent/high priority
-        if (settings.soundEnabled && (n.priority === 'urgent' || n.priority === 'high')) {
+        if (
+          settings.soundEnabled && 
+          (n.priority === 'urgent' || n.priority === 'high') &&
+          typeof navigator !== 'undefined' && 
+          // @ts-ignore
+          (navigator.userActivation?.hasBeenActive ?? true)
+        ) {
           try {
             const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
             const osc = ctx.createOscillator()

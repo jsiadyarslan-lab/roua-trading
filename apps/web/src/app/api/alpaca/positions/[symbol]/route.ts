@@ -11,7 +11,7 @@ export async function DELETE(
 ) {
   try {
     const resolvedParams = await params
-    const symbol = toAlpacaSymbol(decodeURIComponent(resolvedParams.symbol))
+    const symbol = decodeURIComponent(resolvedParams.symbol)
     const res = await alpacaFetch(`/v2/positions/${symbol}`, { method: 'DELETE' })
 
     if (!res.ok) {

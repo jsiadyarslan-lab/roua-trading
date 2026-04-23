@@ -70,6 +70,7 @@ export async function POST(req: NextRequest) {
     // وقف الخسارة وجني الأرباح (bracket order)
     if (stop_loss || take_profit) {
       payload.order_class = 'bracket'
+      payload.time_in_force = 'gtc' // Bracket orders require 'gtc' or 'day'
       if (stop_loss) {
         payload.stop_loss = { stop_price: stop_loss.toString() }
       }

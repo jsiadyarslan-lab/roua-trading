@@ -32,11 +32,14 @@ const HEADER_H = 100
 const PANEL_H = 30
 const ANIM    = 'height 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease'
 
+import { usePositionsStore } from '@/hooks/usePositionsStore'
+
 /* ════════════════════════════════════════════
    DASHBOARD PAGE MAIN CONTAINER
 ════════════════════════════════════════════ */
 export default function DashboardPage() {
   const globalQuotes = useMarketStore(state => state.quotes)
+  const account = usePositionsStore(state => state.account)
   const quotes = new Map(
     DASHBOARD_SYMBOLS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][]
   )
@@ -103,10 +106,26 @@ export default function DashboardPage() {
               height: PANEL_H, flexShrink: 0,
               background: `linear-gradient(90deg, ${T.success}08, transparent)`,
               borderBottom: posOpen ? `1px solid ${T.border}` : 'none',
-              display: 'flex', alignItems: 'center', padding: '0 12px', gap: 8,
+              display: 'flex', alignItems: 'center', padding: '0 12px', gap: 16,
             }}>
-              <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 800, color: T.text, flex: 1 }}>الصفقات المفتوحة</span>
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5, color: T.success, opacity: 0.8 }}>OPEN TRADES</span>
+              <div style={{ flex: 1, display: 'flex', gap: 24, fontSize: 11, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>
+                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span style={{ color: T.text3 }}>الرصيد:</span>
+                    <span style={{ color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>${account ? account.equity.toLocaleString() : '---'}</span>
+                 </div>
+                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span style={{ color: T.text3 }}>الهامش الحر:</span>
+                    <span style={{ color: T.success, fontFamily: "'JetBrains Mono', monospace" }}>${account ? account.buyingPower.toLocaleString() : '---'}</span>
+                 </div>
+                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span style={{ color: T.text3 }}>الهامش المستخدم:</span>
+                    <span style={{ color: T.danger, fontFamily: "'JetBrains Mono', monospace" }}>${account ? (account.equity - account.cash).toLocaleString() : '---'}</span>
+                 </div>
+                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <span style={{ color: T.text3 }}>كمية الهامش:</span>
+                    <span style={{ color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>${account ? account.initialMargin.toLocaleString() : '---'}</span>
+                 </div>
+              </div>
               <button
                 onClick={() => setPosOpen(p => !p)}
                 style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.text3, padding: 4 }}

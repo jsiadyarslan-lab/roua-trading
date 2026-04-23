@@ -30,11 +30,10 @@ const T = {
 }
 
 export function AlpacaPositions() {
-  const { positions, loading, error, lastUpdate, fetchPositions } = usePositionsStore()
+  const { positions, account, loading, error, lastUpdate, fetchPositions, fetchAccount } = usePositionsStore()
   const { trades: paperTrades, removeTrade: removePaperTrade } = usePaperTradesStore()
   const [closing, setClosing] = useState<string | null>(null)
   const [confirmClose, setConfirmClose] = useState<string | null>(null)
-  const [account, setAccount] = useState<any>(null)
 
   // Merge Alpaca positions and Paper trades
   const allPositions = [
@@ -69,24 +68,16 @@ export function AlpacaPositions() {
     }))
   ]
 
-  const syncAccount = useCallback(async () => {
-    try {
-      const accRes = await fetch('/api/alpaca/account')
-      const accJ   = await accRes.json()
-      if (accJ.success) setAccount(accJ.data)
-    } catch {}
-  }, [])
-
   // جلب عند التحميل وتحديث كل 10 ثواني
   useEffect(() => {
     fetchPositions()
-    syncAccount()
+    fetchAccount()
     const interval = setInterval(() => {
       fetchPositions()
-      syncAccount()
+      fetchAccount()
     }, 10000)
     return () => clearInterval(interval)
-  }, [fetchPositions, syncAccount])
+  }, [fetchPositions, fetchAccount])
 
   // إغلاق مركز
   const closePosition = async (id: string, isPaper: boolean, rawSymbol: string) => {

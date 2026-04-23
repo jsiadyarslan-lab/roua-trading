@@ -1,0 +1,101 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useSymbolStore } from '@/hooks/useSymbolStore'
+
+const T = {
+  bg:      '#0F1113',
+  bg2:     '#111214',
+  border:  'rgba(0, 229, 255, 0.08)',
+  accent:  '#00E5FF',
+  green:   '#00C853',
+  red:     '#FF3B30',
+  amber:   '#FFB800',
+  purple:  '#B388FF',
+  text:    '#E6EBF5',
+  text2:   '#8090A8',
+}
+
+export function MultiTfScannerMini() {
+  const { selectedSymbol } = useSymbolStore()
+  const [data, setData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let mounted = true
+    const fetchData = async () => {
+      setLoading(true)
+      try {
+        const timeframes = ['15m', '1h', '4h', '1d']
+        const promises = timeframes.map(tf => 
+          fetch(`/api/market-scan?pair=${encodeURIComponent(selectedSymbol)}&tf=${tf}`).then(r => r.json())
+        )
+        const results = await Promise.all(promises)
+        
+        if (!mounted) return
+
+        const processed = results.map((res, i) => {
+          if (!res.success || !res.data || res.data.length === 0) {
+             return { tf: timeframes[i].toUpperCase(), state: 'Neutral', strength: 50, color: T.amber }
+          }
+          const item = res.data[0]
+          return {
+             tf: timeframes[i].toUpperCase(),
+             state: item.dir === 'buy' ? 'Bullish' : item.dir === 'sell' ? 'Bearish' : 'Neutral',
+             strength: item.strength,
+             color: item.dir === 'buy' ? T.green : item.dir === 'sell' ? T.red : T.amber
+          }
+        })
+        setData(processed)
+      } catch (e) {
+        console.error(e)
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    }
+
+    fetchData()
+    const iv = setInterval(fetchData, 60000)
+    return () => { mounted = false; clearInterval(iv) }
+  }, [selectedSymbol])
+
+  // Determine overall strategy based on TFs
+  const overallStrength = data.reduce((sum, item) => sum + (item.state === 'Bullish' ? item.strength : item.state === 'Bearish' ? -item.strength : 0), 0)
+  const strategy = overallStrength > 100 ? 'Trend Follow (Long)' : overallStrength < -100 ? 'Trend Follow (Short)' : 'Scalping'
+
+  return (
+    <div className="custom-scrollbar" style={{ height: '100%', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <span style={{ fontSize: 14, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol}</span>
+        <span style={{ fontSize: 9, background: `${T.purple}15`, border: `0.5px solid ${T.purple}30`, color: T.purple, padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>
+          {loading ? 'جاري المسح...' : 'Live Sync'}
+        </span>
+      </div>
+      
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, justifyContent: 'center' }}>
+        {data.length === 0 && !loading ? (
+           <div style={{ textAlign: 'center', color: T.text2, fontSize: 10 }}>لا تتوفر بيانات للرمز المحدد</div>
+        ) : (
+          (data.length > 0 ? data : [
+            { tf: '15M', state: '...', strength: 0, color: T.border },
+            { tf: '1H',  state: '...', strength: 0, color: T.border },
+            { tf: '4H',  state: '...', strength: 0, color: T.border },
+            { tf: '1D',  state: '...', strength: 0, color: T.border }
+          ]).map((t, i) => (
+            <div key={i} style={{ background: T.bg2, borderRadius: 6, border: `0.5px solid ${T.border}`, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 10, fontWeight: 900, color: t.color, width: 24, fontFamily: "'JetBrains Mono', monospace" }}>{t.tf}</span>
+              <div style={{ flex: 1, height: 4, background: T.bg, borderRadius: 2, overflow: 'hidden', margin: '0 4px' }}>
+                <div style={{ height: '100%', width: `${t.strength}%`, background: t.color, boxShadow: `0 0 6px ${t.color}80`, transition: 'width 0.5s ease-out' }} />
+              </div>
+              <span style={{ fontSize: 9, color: t.color, fontWeight: 800, width: 24, textAlign: 'right', fontFamily: "'JetBrains Mono', monospace" }}>{t.strength}%</span>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div style={{ marginTop: 'auto', textAlign: 'center', fontSize: 10, color: T.text2, padding: '8px', border: `0.5px dashed ${T.border}`, borderRadius: 6, fontWeight: 600 }}>
+        استراتيجية الأطر: <span style={{color: T.purple}}>{strategy}</span>
+      </div>
+    </div>
+  )
+}

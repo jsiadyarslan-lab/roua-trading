@@ -16,25 +16,37 @@ interface Position {
 
 interface PositionsState {
   positions: Position[]
+  account: any
   loading: boolean
   error: string | null
   lastUpdate: string | null
   setPositions: (positions: Position[]) => void
+  setAccount: (account: any) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
   setLastUpdate: (lastUpdate: string | null) => void
   fetchPositions: () => Promise<void>
+  fetchAccount: () => Promise<void>
 }
 
 export const usePositionsStore = create<PositionsState>((set) => ({
   positions: [],
+  account: null,
   loading: false,
   error: null,
   lastUpdate: null,
   setPositions: (positions) => set({ positions }),
+  setAccount: (account) => set({ account }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   setLastUpdate: (lastUpdate) => set({ lastUpdate }),
+  fetchAccount: async () => {
+    try {
+      const res = await fetch('/api/alpaca/account')
+      const j = await res.json()
+      if (j.success) set({ account: j.data })
+    } catch {}
+  },
   fetchPositions: async () => {
     set({ loading: true, error: null })
     try {

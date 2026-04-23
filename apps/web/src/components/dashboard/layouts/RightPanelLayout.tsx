@@ -6,6 +6,7 @@ import { ScannerMini } from '@/components/dashboard/ScannerMini'
 import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
 import { BotCommandCenter } from '@/components/dashboard/BotCommandCenter'
 import { AICouncilPanel } from '@/components/dashboard/AICouncilPanel'
+import { MultiTfScannerMini } from '@/components/dashboard/MultiTfScannerMini'
 
 const T = {
   bg:      '#0F1113',
@@ -90,35 +91,7 @@ export function RightPanelLayout({ quotes }: { quotes: any }) {
          {active === 'council' && <AICouncilPanel />}
          {active === 'scanner' && <div className="custom-scrollbar" style={{ height: '100%', overflowY: 'auto' }}><ScannerMini /></div>}
          {active === 'signals' && <BotCommandCenter />}
-         {active === 'multi-tf' && (
-           <div className="custom-scrollbar" style={{ height: '100%', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
-             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-               <span style={{ fontSize: 14, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>BTC/USD</span>
-               <span style={{ fontSize: 9, background: `${T.purple}15`, border: `0.5px solid ${T.purple}30`, color: T.purple, padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>Live AI Sync</span>
-             </div>
-             
-             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, justifyContent: 'center' }}>
-               {[
-                 { tf: '15M', state: 'Bullish',  strength: 85, color: T.green },
-                 { tf: '1H',  state: 'Slight Bullish', strength: 65, color: T.green },
-                 { tf: '4H',  state: 'Neutral',  strength: 40, color: T.amber },
-                 { tf: '1D',  state: 'Bearish',  strength: 25, color: T.red }
-               ].map((t, i) => (
-                 <div key={i} style={{ background: T.bg2, borderRadius: 6, border: `0.5px solid ${T.border}`, padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                   <span style={{ fontSize: 10, fontWeight: 900, color: t.color, width: 24, fontFamily: "'JetBrains Mono', monospace" }}>{t.tf}</span>
-                   <div style={{ flex: 1, height: 4, background: T.bg, borderRadius: 2, overflow: 'hidden', margin: '0 4px' }}>
-                     <div style={{ height: '100%', width: `${t.strength}%`, background: t.color, boxShadow: `0 0 6px ${t.color}80` }} />
-                   </div>
-                   <span style={{ fontSize: 9, color: t.color, fontWeight: 800, width: 24, textAlign: 'right', fontFamily: "'JetBrains Mono', monospace" }}>{t.strength}%</span>
-                 </div>
-               ))}
-             </div>
-
-             <div style={{ marginTop: 'auto', textAlign: 'center', fontSize: 10, color: T.text2, padding: '8px', border: `0.5px dashed ${T.border}`, borderRadius: 6, fontWeight: 600 }}>
-               استراتيجية الأطر: <span style={{color: T.purple}}>Scalping</span>
-             </div>
-           </div>
-         )}
+         {active === 'multi-tf' && <MultiTfScannerMini />}
       </div>
     </div>
   )

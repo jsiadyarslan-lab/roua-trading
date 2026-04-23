@@ -245,10 +245,10 @@ export default function QuantumChart({ currentPrice = null }) {
                   key={m} 
                   className={`iv-tf-dd-btn${timeframe===tf?' iv-tf-dd-active':''}`} 
                   onClick={() => {
-                    setTimeframe(tf as string);
-                    setActiveTF(m, null, l as string);
+                    setTimeframe(tf);
+                    setActiveTF(m, null, l);
                   }}
-                >{l as string}</button>
+                >{l}</button>
               ))}
             </div>
           </div>

@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import { Play, Pause, AlertTriangle, ShieldAlert, Zap, Settings2 } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Play, Pause, ShieldAlert, Zap, Settings2, RefreshCw, Layers, CheckCircle } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
+import { useNotificationStore } from '@/hooks/useNotificationStore'
 
 const T = {
   bg:      '#0F1113',
@@ -19,16 +21,80 @@ const T = {
   text3:   '#A0AFC3',
 }
 
-const recentSignals = [
-  { pair: 'BTC/USD', type: 'BUY', time: '10:42 AM', profit: '+1.2%', conf: 92 },
-  { pair: 'ETH/USD', type: 'SELL', time: '09:15 AM', profit: '+0.8%', conf: 85 },
-  { pair: 'SOL/USD', type: 'BUY', time: '08:30 AM', profit: '-0.2%', conf: 76 },
-]
+interface SmartSignal {
+  pair: string
+  type: 'BUY' | 'SELL'
+  price: number
+  tp: number
+  sl: number
+  conf: number
+  reason: string
+  time: string
+}
 
 export function BotCommandCenter() {
   const [isActive, setIsActive] = useState(true)
   const [risk, setRisk] = useState<'low' | 'med' | 'high'>('med')
   const { setSelectedSymbol } = useSymbolStore()
+  const { addTrade } = usePaperTradesStore()
+  const { addNotification } = useNotificationStore()
+
+  const [signals, setSignals] = useState<SmartSignal[]>([])
+  const [loading, setLoading] = useState(false)
+  const [executedIds, setExecutedIds] = useState<Record<string, boolean>>({})
+
+  const fetchSignals = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/signals/smart')
+      const j = await res.json()
+      if (j.success && j.data) {
+        setSignals(j.data)
+      }
+    } catch (e) {
+      console.error('Failed to fetch signals', e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchSignals()
+    const int = setInterval(fetchSignals, 30000) // Refresh every 30s
+    return () => clearInterval(int)
+  }, [fetchSignals])
+
+  const handleExecute = (sig: SmartSignal, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent triggering the row click (setSelectedSymbol)
+    
+    const qty = risk === 'low' ? 0.05 : risk === 'med' ? 0.15 : 0.30
+    
+    addTrade({
+      symbol: sig.pair,
+      side: sig.type === 'BUY' ? 'long' : 'short',
+      qty,
+      entryPrice: sig.price,
+      currentPrice: sig.price,
+      tp: sig.tp,
+      sl: sig.sl,
+      entryTime: Date.now(),
+      strategy: 'Smart Signals',
+      source: 'manual'
+    })
+
+    setExecutedIds(prev => ({ ...prev, [sig.pair + sig.time]: true }))
+
+    addNotification({
+      title: 'تم تنفيذ الإشارة ✅',
+      body: `تم فتح صفقة ${sig.type} ورقية لـ ${sig.pair} بسعر $${sig.price.toLocaleString()}`,
+      priority: 'high',
+      source: 'system',
+      action: sig.type,
+      pair: sig.pair,
+      price: sig.price,
+      confidence: sig.conf
+    })
+  }
 
   return (
     <div className="custom-scrollbar no-scrollbar" style={{ height: '100%', overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -72,13 +138,13 @@ export function BotCommandCenter() {
       <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
           <Settings2 size={12} color={T.text2} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>إدارة المخاطر (Risk Level)</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>إدارة المخاطر (لحجم الإشارة)</span>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {[
-            { id: 'low', label: 'مخاطرة منخفضة', color: T.success, desc: '1% Max Drawdown' },
-            { id: 'med', label: 'مخاطرة متوسطة', color: T.amber, desc: '3% Max Drawdown' },
-            { id: 'high', label: 'عالي المخاطرة', color: T.danger, desc: '5% Max Drawdown' }
+            { id: 'low', label: 'مخاطرة منخفضة', color: T.success, desc: 'حجم: 0.05' },
+            { id: 'med', label: 'مخاطرة متوسطة', color: T.amber, desc: 'حجم: 0.15' },
+            { id: 'high', label: 'عالي المخاطرة', color: T.danger, desc: 'حجم: 0.30' }
           ].map(r => (
             <button
               key={r.id}
@@ -97,35 +163,82 @@ export function BotCommandCenter() {
         </div>
       </div>
 
-      {/* Latest Signals Log */}
+      {/* Live Signals Stream */}
       <div style={{ flex: 1, background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-          <ShieldAlert size={12} color={T.accent} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>سجل الإشارات الأخير</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <ShieldAlert size={12} color={T.accent} />
+            <span style={{ fontSize: 11, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>بث الإشارات الحية (Live Signals)</span>
+          </div>
+          <button onClick={fetchSignals} disabled={loading} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
+            <RefreshCw size={12} color={T.text2} className={loading ? 'animate-spin' : ''} />
+          </button>
         </div>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {recentSignals.map((sig, i) => {
-            const isBuy = sig.type === 'BUY'
-            const c = isBuy ? T.success : T.danger
-            return (
-              <div key={i} onClick={() => setSelectedSymbol(sig.pair)} style={{
-                background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6, padding: '8px 10px',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', transition: '0.2s'
-              }} onMouseEnter={e => e.currentTarget.style.borderColor = c} onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{
-                    fontSize: 8, fontWeight: 800, color: c, background: `${c}15`, padding: '2px 6px', borderRadius: 4, fontFamily: "'JetBrains Mono', monospace"
-                  }}>{sig.type}</span>
-                  <span style={{ fontSize: 11, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{sig.pair}</span>
+          {loading && signals.length === 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 80, gap: 8 }}>
+              <Layers size={20} color={T.accent} className="animate-pulse" />
+              <span style={{ fontSize: 10, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>جاري فحص السوق...</span>
+            </div>
+          ) : signals.length === 0 ? (
+             <div style={{ textAlign: 'center', padding: '20px 0', fontSize: 10, color: T.text3 }}>لا توجد إشارات قوية حالياً.</div>
+          ) : (
+            signals.map((sig, i) => {
+              const isBuy = sig.type === 'BUY'
+              const c = isBuy ? T.success : T.danger
+              const sigKey = sig.pair + sig.time
+              const executed = executedIds[sigKey]
+
+              return (
+                <div key={i} onClick={() => setSelectedSymbol(sig.pair)} style={{
+                  background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6, padding: '8px',
+                  display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer', transition: '0.2s'
+                }} onMouseEnter={e => e.currentTarget.style.borderColor = c} onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
+                  
+                  {/* Top Row: Asset & Signal */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{
+                        fontSize: 9, fontWeight: 800, color: c, background: `${c}15`, padding: '2px 6px', borderRadius: 4, fontFamily: "'JetBrains Mono', monospace"
+                      }}>{sig.type}</span>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{sig.pair}</span>
+                    </div>
+                    <span style={{ fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>الثقة: {sig.conf}%</span>
+                  </div>
+
+                  {/* Middle Row: Details */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '4px 6px', borderRadius: 4 }}>
+                     <span style={{ fontSize: 9, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>{sig.reason}</span>
+                     <span style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{sig.time}</span>
+                  </div>
+
+                  {/* Bottom Row: Execute Button */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 8, fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: T.text2 }}>
+                       <span>TP: <span style={{ color: T.success }}>{sig.tp.toFixed(2)}</span></span>
+                       <span>SL: <span style={{ color: T.danger }}>{sig.sl.toFixed(2)}</span></span>
+                    </div>
+                    <button 
+                      onClick={(e) => !executed && handleExecute(sig, e)}
+                      disabled={executed}
+                      style={{
+                        background: executed ? 'rgba(255,255,255,0.05)' : `${c}15`,
+                        border: `1px solid ${executed ? 'rgba(255,255,255,0.1)' : `${c}40`}`,
+                        color: executed ? T.text3 : c,
+                        padding: '4px 10px', borderRadius: 4, fontSize: 9, fontWeight: 800,
+                        cursor: executed ? 'default' : 'pointer', fontFamily: "'Cairo', sans-serif",
+                        display: 'flex', alignItems: 'center', gap: 4
+                      }}
+                    >
+                      {executed ? <><CheckCircle size={10} /> تم التنفيذ</> : 'تنفيذ ⚡'}
+                    </button>
+                  </div>
+
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span style={{ fontSize: 9, color: T.success, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{sig.profit}</span>
-                  <span style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{sig.time}</span>
-                </div>
-              </div>
-            )
-          })}
+              )
+            })
+          )}
         </div>
       </div>
       

@@ -38,90 +38,49 @@ function timeAgo(ts: number) {
 }
 
 /* ══ Single Toast Card ════════════════════════════════════ */
-function ToastCard({ notif, onDismiss }: { notif: Notification; onDismiss: () => void }) {
+function ToastCard({ notif, onDismiss }: { notif: Notification, onDismiss: () => void }) {
   const [visible, setVisible] = useState(false)
-  const color = SRC_COLOR[notif.source]
-  const actionColor = ACTION_COLOR[notif.action]
   const { setSelectedSymbol } = useSymbolStore()
-
+  
   useEffect(() => {
+    // Animate in
     requestAnimationFrame(() => setVisible(true))
-    const t = setTimeout(() => {
+    // Auto dismiss after 8 seconds
+    const timer = setTimeout(() => {
       setVisible(false)
       setTimeout(onDismiss, 350)
-    }, 6000)
-    return () => clearTimeout(t)
+    }, 8000)
+    return () => clearTimeout(timer)
   }, [onDismiss])
 
-  return (
-    <div
-      style={{
-        transform: visible ? 'translateX(0)' : 'translateX(120%)',
-        opacity: visible ? 1 : 0,
-        transition: 'transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.3s ease',
-        background: 'rgba(6,11,19,0.97)',
-        border: `1px solid ${color}33`,
-        borderLeft: `3px solid ${color}`,
-        borderRadius: 10,
-        padding: '12px 14px',
-        minWidth: 300,
-        maxWidth: 360,
-        boxShadow: `0 8px 32px rgba(0,0,0,0.6), 0 0 20px ${color}15`,
-        backdropFilter: 'blur(20px)',
-        fontFamily: "'Cairo', sans-serif",
-        direction: 'rtl',
-        cursor: notif.pair ? 'pointer' : 'default',
-      }}
-      onClick={() => {
-        if (notif.pair) setSelectedSymbol(notif.pair)
-      }}
-    >
-      {/* Progress bar */}
-      <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0, height: 2,
-        background: `${color}33`, borderRadius: '10px 10px 0 0', overflow: 'hidden'
-      }}>
-        <div style={{
-          height: '100%', width: '100%', background: color,
-          animation: 'toast-progress 6s linear forwards',
-        }} />
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-        {/* Icon */}
-        <div style={{
-          width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-          background: `${color}15`, border: `1px solid ${color}33`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color,
-        }}>
-          {SRC_ICON[notif.source]}
-        </div>
-
-        <div style={{ flex: 1, minWidth: 0 }}>
   const color = SRC_COLOR[notif.source]
   const actionColor = ACTION_COLOR[notif.action]
   
   return (
-    <div style={{
-      width: 280,
-      background: 'rgba(15,17,19,0.95)',
-      backdropFilter: 'blur(12px)',
-      border: `1px solid ${color}30`,
-      borderRadius: 12,
-      padding: '12px 14px',
-      display: 'flex', gap: 10, alignItems: 'flex-start',
-      boxShadow: `0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)`,
-      transform: visible ? 'translateX(0) scale(1)' : 'translateX(100%) scale(0.9)',
-      opacity: visible ? 1 : 0,
-      transition: 'all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
+    <div 
+      onClick={() => notif.pair && setSelectedSymbol(notif.pair)}
+      style={{
+        width: 280,
+        background: 'rgba(15,17,19,0.95)',
+        backdropFilter: 'blur(12px)',
+        border: `1px solid ${color}30`,
+        borderRadius: 12,
+        padding: '12px 14px',
+        display: 'flex', gap: 10, alignItems: 'flex-start',
+        boxShadow: `0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)`,
+        transform: visible ? 'translateX(0) scale(1)' : 'translateX(100%) scale(0.9)',
+        opacity: visible ? 1 : 0,
+        transition: 'all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+        position: 'relative',
+        overflow: 'hidden',
+        cursor: notif.pair ? 'pointer' : 'default',
+        direction: 'rtl'
+      }}
+    >
       {/* Progress Bar */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0, height: 2, background: color,
-        width: '100%', animation: 'toast-progress 5s linear forwards'
+        width: '100%', animation: 'toast-progress 8s linear forwards'
       }} />
       
       <div style={{
@@ -139,7 +98,6 @@ function ToastCard({ notif, onDismiss }: { notif: Notification; onDismiss: () =>
         {notif.pair && (
           <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
             <span style={{ fontSize: 9, fontFamily: 'monospace', color: '#fff', fontWeight: 700 }}>{notif.pair}</span>
-            {notif.price && <span style={{ fontSize: 9, color: '#8090A8' }}>{notif.price}</span>}
             <span style={{
               fontSize: 8, padding: '1px 5px', borderRadius: 3,
               background: `${actionColor}20`, color: actionColor, fontWeight: 800,
@@ -151,7 +109,7 @@ function ToastCard({ notif, onDismiss }: { notif: Notification; onDismiss: () =>
       </div>
 
       <button
-        onClick={() => { setVisible(false); setTimeout(onDismiss, 350) }}
+        onClick={(e) => { e.stopPropagation(); setVisible(false); setTimeout(onDismiss, 350) }}
         style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#8090A8', padding: 0, flexShrink: 0, marginTop: 2 }}
       >
         <X size={12} />

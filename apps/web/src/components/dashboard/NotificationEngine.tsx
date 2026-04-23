@@ -75,7 +75,7 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
       } catch {}
     }
 
-    fetchAiAlert()
+    // fetchAiAlert() // Don't fire immediately on mount to avoid spamming on refresh
     const iv = setInterval(fetchAiAlert, 10_000) // check every 10s, but skips if < 90s since last fire
     return () => clearInterval(iv)
   }, [hydrated, settings.aiAlerts, settings.minConfidence, addNotification])
@@ -110,7 +110,7 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
       } catch {}
     }
 
-    fetchScanAlert()
+    // fetchScanAlert() // Don't fire immediately on mount to avoid spamming on refresh
     const iv = setInterval(fetchScanAlert, 10_000)
     return () => clearInterval(iv)
   }, [hydrated, settings.scannerAlerts, settings.minConfidence, addNotification])

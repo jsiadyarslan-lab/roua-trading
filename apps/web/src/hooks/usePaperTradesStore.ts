@@ -46,13 +46,21 @@ export const usePaperTradesStore = create<PaperTradesState>()(
       updatePrice: (symbol, price) =>
         set((state) => ({
           trades: state.trades.map((t) => {
-            if (t.symbol !== symbol || t.entryPrice === 0) return t
-            const diff = t.side === 'long'
-              ? price - t.entryPrice
-              : t.entryPrice - price
-            const pnl = diff * t.qty
-            const pct = (diff / t.entryPrice) * 100
-            return { ...t, currentPrice: price, unrealizedPnl: pnl, unrealizedPct: pct }
+            if (t.symbol !== symbol) return t
+            
+            const currentPrice = price
+            let pnl = 0
+            let pct = 0
+            
+            if (t.entryPrice > 0) {
+              const diff = t.side === 'long'
+                ? price - t.entryPrice
+                : t.entryPrice - price
+              pnl = diff * t.qty
+              pct = (diff / t.entryPrice) * 100
+            }
+
+            return { ...t, currentPrice, unrealizedPnl: pnl, unrealizedPct: pct }
           }),
         })),
 

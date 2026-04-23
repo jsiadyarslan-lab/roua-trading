@@ -348,6 +348,7 @@ export function CH_drawMain(){
     });
   }
   // Crosshair
+  if(ST.mx>=0&&ST.my>=0&&ST.mx<W-PW&&ST.my>TH&&ST.my<H-20){
     if(ST.crosshairType!=='none'){
       ctx.strokeStyle=CFG.CROSS;ctx.lineWidth=0.8;ctx.setLineDash([3,3]);
       if(ST.crosshairType==='cross'||ST.crosshairType==='dot'){

@@ -58,10 +58,10 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     // 2. Fetch initial data for ALL symbols via API
     Promise.allSettled(GLOBAL_SYMBOLS.map(fetchAndStore))
 
-    // 3. Poll non-crypto (Forex + Stocks) every 15 seconds
+    // 3. Poll non-crypto (Forex + Stocks) every 60 seconds to respect TwelveData limit (8 req/min)
     const pollInterval = setInterval(() => {
       Promise.allSettled(NON_CRYPTO_SYMBOLS.map(fetchAndStore))
-    }, 15_000)
+    }, 60_000)
 
     return () => {
       clearInterval(pollInterval)

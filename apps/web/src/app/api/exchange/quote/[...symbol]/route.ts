@@ -98,7 +98,14 @@ function getMockQuote(symbol: string) {
 }
 
 // ── Fetch from Twelve Data API ──
+let twelveDataExhausted = false;
+let twelveDataResetTimeout: NodeJS.Timeout | null = null;
+
 async function fetchTwelveData(symbol: string) {
+  if (twelveDataExhausted) {
+    return null; // Skip if we know we're out of credits
+  }
+
   const apiKey = process.env.TWELVE_DATA_API_KEY
   if (!apiKey) {
     return null // No key → try free fallback
@@ -109,7 +116,20 @@ async function fetchTwelveData(symbol: string) {
 
   if (!res.ok) throw new Error(`Twelve Data API returned ${res.status}`)
   const data = await res.json()
-  if (data.status === 'error') throw new Error(data.message || 'Twelve Data API error')
+  
+  if (data.status === 'error') {
+    if (data.message && data.message.includes('run out of API credits')) {
+      twelveDataExhausted = true;
+      console.warn(`[exchange/quote] TwelveData API limit exhausted. Circuit breaker activated for 1 hour.`);
+      if (!twelveDataResetTimeout) {
+        twelveDataResetTimeout = setTimeout(() => {
+          twelveDataExhausted = false;
+          twelveDataResetTimeout = null;
+        }, 3600_000); // Reset after 1 hour
+      }
+    }
+    throw new Error(data.message || 'Twelve Data API error')
+  }
 
   return {
     symbol,

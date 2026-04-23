@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { X, TrendingUp, TrendingDown, Bot, Brain, ScanSearch, Zap } from 'lucide-react'
 import { useNotificationStore, Notification, NotifSource, NotifAction } from '@/hooks/useNotificationStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 
 /* ══ Helpers ══════════════════════════════════════════════ */
 const SRC_ICON: Record<NotifSource, React.ReactNode> = {

@@ -48,7 +48,7 @@ export async function GET(
         '1h': '1h', '2h': '2h', '4h': '4h', '1day': '1d', '1week': '1w', '1month': '1M',
       }
       const binanceInterval = intervalMap[interval] || '1d'
-      const limit = 30
+      const limit = 200
 
       const bUrl = `https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(binanceSymbol)}&interval=${binanceInterval}&limit=${limit}`
       const res = await fetch(bUrl, { next: { revalidate: 60 } })
@@ -79,7 +79,7 @@ export async function GET(
       return NextResponse.json({ success: true, data: [], source: 'Demo', note: 'TWELVE_DATA_API_KEY not configured' })
     }
 
-    const tdUrl = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=${interval}&outputsize=30&apikey=${apiKey}`
+    const tdUrl = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=${interval}&outputsize=200&apikey=${apiKey}`
     const res = await fetch(tdUrl, { next: { revalidate: 300 } })
 
     if (!res.ok) {

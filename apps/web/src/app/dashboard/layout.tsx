@@ -1,4 +1,5 @@
 import { AppHeader } from '@/components/dashboard/AppHeader'
+import { MarketProvider } from '@/components/dashboard/MarketProvider'
 import { Metadata, Viewport } from 'next'
 
 export const dynamic = 'force-dynamic'
@@ -28,11 +29,14 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   return (
-    <div style={{ minHeight: '100vh', background: '#04050C', direction: 'rtl', display: 'flex', flexDirection: 'column' }}>
-      <AppHeader />
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        {children}
-      </main>
-    </div>
+    <MarketProvider>
+      <div style={{ minHeight: '100vh', background: '#04050C', direction: 'rtl', display: 'flex', flexDirection: 'column' }}>
+        <AppHeader />
+        <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          {children}
+        </main>
+      </div>
+    </MarketProvider>
   )
 }
+

@@ -9,7 +9,7 @@ import {
   ChevronDown, Bell, User, MoreHorizontal,
   TrendingUp, TrendingDown, Menu, X
 } from 'lucide-react'
-import { useMarketQuotes } from '@/hooks/useMarketData'
+import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { NotificationCenter } from '@/components/dashboard/NotificationCenter'
 
@@ -230,7 +230,9 @@ const SYMBOLS = [
 ]
 
 function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
-  const { quotes } = useMarketQuotes(SYMBOLS, 5000)
+  const globalQuotes = useMarketStore(state => state.quotes)
+  // Build a Map for backward compatibility with existing rendering code
+  const quotes = new Map(SYMBOLS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
 
   // Track previous prices to detect direction
@@ -478,10 +480,9 @@ header *::-webkit-scrollbar { display:none; }
 export function AppHeader() {
   const [menuOpen, setMenuOpen] = useState(false)
   const pathname = usePathname()
-  const { quotes } = useMarketQuotes(
-    ['BTC/USD','ETH/USD','EUR/USD','GBP/USD','USD/JPY','XAU/USD'],
-    5000
-  )
+  const globalQuotes = useMarketStore(state => state.quotes)
+  const ORBS = ['BTC/USD','ETH/USD','EUR/USD','GBP/USD','USD/JPY','XAU/USD']
+  const quotes = new Map(ORBS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
 
   const marketState: MarketState = (() => {
     if (quotes.size === 0) return 'neutral'

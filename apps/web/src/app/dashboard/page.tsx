@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import QuantumChart from '@/components/dashboard/QuantumChart'
 import { AlpacaPositions } from '@/components/dashboard/AlpacaPositions'
-import { useMarketQuotes } from '@/hooks/useMarketData'
+import { useMarketStore } from '@/hooks/useMarketStore'
 import { BotEngine } from '@/components/dashboard/BotEngine'
 import { NotificationEngine } from '@/components/dashboard/NotificationEngine'
 import { NotificationToasts } from '@/components/dashboard/NotificationCenter'
@@ -36,7 +36,10 @@ const ANIM    = 'height 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease'
    DASHBOARD PAGE MAIN CONTAINER
 ════════════════════════════════════════════ */
 export default function DashboardPage() {
-  const { quotes } = useMarketQuotes(DASHBOARD_SYMBOLS, 8000)
+  const globalQuotes = useMarketStore(state => state.quotes)
+  const quotes = new Map(
+    DASHBOARD_SYMBOLS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][]
+  )
   /* Positions open — collapsible separately */
   const [posOpen, setPosOpen] = useState(true)
 

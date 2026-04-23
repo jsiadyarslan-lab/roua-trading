@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useMarketQuotes } from '@/hooks/useMarketData'
+import { useMarketStore } from '@/hooks/useMarketStore'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 
@@ -50,7 +50,8 @@ const ALL_SYMBOLS = [
 
 export function WatchlistMini() {
   const [activeTab, setActiveTab] = useState<'Crypto' | 'Forex' | 'Stocks'>('Crypto')
-  const { quotes } = useMarketQuotes(ALL_SYMBOLS, 5000)
+  const globalQuotes = useMarketStore(state => state.quotes)
+  const quotes = new Map(ALL_SYMBOLS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
 
   const symbols = SYMBOLS_BY_TAB[activeTab]

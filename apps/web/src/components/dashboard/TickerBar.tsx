@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef } from 'react'
-import { useMarketQuotes } from '@/hooks/useMarketData'
+import { useMarketStore } from '@/hooks/useMarketStore'
 
 const TICKER_SYMBOLS = ['EUR/USD', 'GBP/USD', 'BTC/USDT', 'XAU/USD', 'AAPL', 'TSLA', 'USD/JPY']
 
@@ -26,7 +26,8 @@ function formatTickerPrice(price: number, symbol: string): string {
 
 export default function TickerBar() {
   const tickerRef = useRef<HTMLDivElement>(null)
-  const { quotes } = useMarketQuotes(TICKER_SYMBOLS, 5000)
+  const globalQuotes = useMarketStore(state => state.quotes)
+  const quotes = new Map(TICKER_SYMBOLS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
 
   // Convert quotes to tick items
   const ticks: TickItem[] = TICKER_SYMBOLS.map(symbol => {

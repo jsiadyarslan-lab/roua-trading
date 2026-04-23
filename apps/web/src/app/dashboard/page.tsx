@@ -7,6 +7,7 @@ import { AlpacaPositions } from '@/components/dashboard/AlpacaPositions'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { BotEngine } from '@/components/dashboard/BotEngine'
 import { NotificationEngine } from '@/components/dashboard/NotificationEngine'
+import { GlobalLogicEngine } from '@/components/dashboard/GlobalLogicEngine'
 import { NotificationToasts } from '@/components/dashboard/NotificationCenter'
 
 import { LeftSidebarLayout } from '@/components/dashboard/layouts/LeftSidebarLayout'
@@ -66,6 +67,10 @@ export default function DashboardPage() {
           0%,100% { opacity: 0.5 }
           50%      { opacity: 1   }
         }
+        @keyframes ql-news {
+          from { transform: translateX(0); }
+          to { transform: translateX(-50%); }
+        }
         .dash-grid {
           display: grid;
           grid-template-columns: 280px 1fr 350px;
@@ -97,6 +102,7 @@ export default function DashboardPage() {
 
       <BotEngine quotes={quotes} />
       <NotificationEngine quotes={quotes} />
+      <GlobalLogicEngine />
       <NotificationToasts />
 
       <div className="dash-grid">

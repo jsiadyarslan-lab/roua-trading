@@ -52,9 +52,12 @@ function fmt(n: number, decimals = 2) {
   return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 }
 
+import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
+
 export function usePortfolioSummary() {
   const [data, setData] = useState<PortfolioSummary>(DEFAULT)
   const [loading, setLoading] = useState(true)
+  const paperTrades = usePaperTradesStore(s => s.trades)
 
   useEffect(() => {
     async function load() {
@@ -76,15 +79,26 @@ export function usePortfolioSummary() {
         let totalPnl = 0, totalPositions = 0, pnlPercent = 0
         let win = 0, loss = 0
         
+        // Sum up Alpaca real positions
         if (pos.success) {
-          totalPositions = pos.data.length
+          totalPositions += pos.data.length
           pos.data.forEach((p: any) => {
             totalPnl += p.unrealizedPnl
             if (p.unrealizedPnl >= 0) win++
             else loss++
           })
-          if (balance > 0) pnlPercent = (totalPnl / (balance - totalPnl)) * 100
         }
+
+        // Sum up Paper trades
+        totalPositions += paperTrades.length
+        paperTrades.forEach(pt => {
+           const pnl = (pt.currentPrice - pt.entryPrice) * (pt.side === 'long' ? 1 : -1) * pt.qty * 10 // scale for demo
+           totalPnl += pnl
+           if (pnl >= 0) win++
+           else loss++
+        })
+
+        if (balance > 0) pnlPercent = (totalPnl / (balance - totalPnl)) * 100
 
         setData(prev => ({
           ...prev,
@@ -96,7 +110,7 @@ export function usePortfolioSummary() {
           winCount: win,
           lossCount: loss,
           totalTrades: win + loss,
-          winRate: totalPositions > 0 ? (win / totalPositions) * 100 : 0
+          winRate: (win + loss) > 0 ? (win / (win + loss)) * 100 : 0
         }))
 
       } catch { /* Error fetching real data */ } finally {
@@ -107,7 +121,7 @@ export function usePortfolioSummary() {
     load()
     const interval = setInterval(load, 10000)
     return () => clearInterval(interval)
-  }, [])
+  }, [paperTrades])
 
   return { data, loading }
 }

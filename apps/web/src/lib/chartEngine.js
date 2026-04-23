@@ -473,10 +473,19 @@ export function CH_liveTick(pair, priceInfo){
     last.l = Math.min(last.l, newP);
     last.v += Math.round(Math.random()*100);
   }
+  
+  // Update OHLC display for the current candle (live)
+  const dp=String(newP).split('.')[1]?.length||2;
+  const elO=document.getElementById('tbChO');const elH=document.getElementById('tbChH');
+  const elL=document.getElementById('tbChL');const elC=document.getElementById('tbChC');
+  if(elO)elO.textContent=last.o.toFixed(dp);
+  if(elH)elH.textContent=last.h.toFixed(dp);
+  if(elL)elL.textContent=last.l.toFixed(dp);
+  if(elC)elC.textContent=last.c.toFixed(dp);
+
   // Update price display
   const elPrice = document.getElementById('chPrice');
-  const elChange = document.getElementById('chChange');
-  if(elPrice) elPrice.textContent = newP.toFixed(info.d||5);
+  if(elPrice) elPrice.textContent = newP.toFixed(dp);
   CH_dirty = true;
 }
 

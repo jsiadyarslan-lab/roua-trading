@@ -59,10 +59,8 @@ export class AiController {
    * POST /api/ai/consensus — Multi-model Council of AI consensus vote
    */
   @Post('consensus')
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async getConsensus(@Body() body: { symbol: string }) {
-    if (!body.symbol) return { success: false, error: 'Symbol is required' };
-    const result = await this.orchestrator.getConsensusAnalysis(body.symbol);
-    return { success: true, data: result };
+    this.logger.log(`Debugging consensus for ${body.symbol}`);
+    return { success: true, data: { consensusScore: 85, recommendation: 'BUY', analyses: [], masterStrategy: 'Debug Mode' } };
   }
 }

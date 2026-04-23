@@ -257,11 +257,12 @@ export default function ChartArea() {
     ].filter(p => p.symbol === selectedPair || p.symbol === selectedPair.replace('/', ''))
 
     allPositions.forEach(p => {
-      const entryPrice = p.avgEntryPrice || p.entryPrice;
+      // Handle both Alpaca (avg_entry_price string) and Paper (entryPrice number)
+      const entryPrice = p.isPaper ? p.entryPrice : parseFloat(p.avg_entry_price || p.avgEntryPrice || '0');
       const isLong = p.side === 'long';
       const pnlColor = p.unrealizedPnl >= 0 ? '#00C853' : '#FF3B30';
 
-      if (entryPrice) {
+      if (entryPrice && entryPrice > 0) {
         const entryLine = series.createPriceLine({
           price: entryPrice,
           color: isLong ? '#00C853' : '#FF3B30',

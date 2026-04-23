@@ -99,32 +99,63 @@ function ToastCard({ notif, onDismiss }: { notif: Notification; onDismiss: () =>
         </div>
 
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-            <span style={{ fontSize: 12, fontWeight: 800, color: '#fff' }}>{notif.title}</span>
-            {notif.action !== 'INFO' && (
-              <span style={{
-                fontSize: 9, fontWeight: 900, padding: '1px 6px', borderRadius: 4,
-                background: `${actionColor}22`, color: actionColor, border: `1px solid ${actionColor}44`,
-              }}>
-                {notif.action === 'BUY' ? '▲ شراء' : notif.action === 'SELL' ? '▼ بيع' : notif.action}
-              </span>
-            )}
-          </div>
-          <p style={{ fontSize: 11, color: '#8090A8', margin: 0, lineHeight: 1.5 }}>{notif.body}</p>
-          {notif.confidence !== undefined && (
-            <div style={{ marginTop: 6, height: 3, background: 'rgba(255,255,255,0.06)', borderRadius: 2, overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${notif.confidence}%`, background: actionColor, borderRadius: 2 }} />
-            </div>
-          )}
-        </div>
-
-        <button
-          onClick={() => { setVisible(false); setTimeout(onDismiss, 350) }}
-          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#8090A8', padding: 0, flexShrink: 0, marginTop: 2 }}
-        >
-          <X size={12} />
-        </button>
+  const color = SRC_COLOR[notif.source]
+  const actionColor = ACTION_COLOR[notif.action]
+  
+  return (
+    <div style={{
+      width: 280,
+      background: 'rgba(15,17,19,0.95)',
+      backdropFilter: 'blur(12px)',
+      border: `1px solid ${color}30`,
+      borderRadius: 12,
+      padding: '12px 14px',
+      display: 'flex', gap: 10, alignItems: 'flex-start',
+      boxShadow: `0 8px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)`,
+      transform: visible ? 'translateX(0) scale(1)' : 'translateX(100%) scale(0.9)',
+      opacity: visible ? 1 : 0,
+      transition: 'all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* Progress Bar */}
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, height: 2, background: color,
+        width: '100%', animation: 'toast-progress 5s linear forwards'
+      }} />
+      
+      <div style={{
+        width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+        background: `${color}15`, border: `1px solid ${color}30`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', color,
+      }}>
+        {SRC_ICON[notif.source]}
       </div>
+      
+      <div style={{ flex: 1, minWidth: 0, marginTop: -2 }}>
+        <h4 style={{ fontSize: 11, fontWeight: 800, color: '#e6ebf5', margin: '0 0 3px 0' }}>{notif.title}</h4>
+        <p style={{ fontSize: 10, color: '#8090A8', margin: 0, lineHeight: 1.4 }}>{notif.body}</p>
+        
+        {notif.pair && (
+          <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
+            <span style={{ fontSize: 9, fontFamily: 'monospace', color: '#fff', fontWeight: 700 }}>{notif.pair}</span>
+            {notif.price && <span style={{ fontSize: 9, color: '#8090A8' }}>{notif.price}</span>}
+            <span style={{
+              fontSize: 8, padding: '1px 5px', borderRadius: 3,
+              background: `${actionColor}20`, color: actionColor, fontWeight: 800,
+            }}>
+              {notif.action === 'BUY' ? 'شراء' : notif.action === 'SELL' ? 'بيع' : notif.action}
+            </span>
+          </div>
+        )}
+      </div>
+
+      <button
+        onClick={() => { setVisible(false); setTimeout(onDismiss, 350) }}
+        style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#8090A8', padding: 0, flexShrink: 0, marginTop: 2 }}
+      >
+        <X size={12} />
+      </button>
     </div>
   )
 }
@@ -142,7 +173,7 @@ export function NotificationToasts() {
         }
       `}</style>
       <div style={{
-        position: 'fixed', bottom: 20, left: 20,
+        position: 'fixed', bottom: 20, right: 20,
         zIndex: 99999,
         display: 'flex', flexDirection: 'column', gap: 10,
         pointerEvents: 'none',

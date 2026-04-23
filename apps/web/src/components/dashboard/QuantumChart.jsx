@@ -12,6 +12,7 @@ import {
 } from '../../lib/chartEngine';
 import { useSymbolStore } from '../../hooks/useSymbolStore';
 import { usePositionsStore } from '../../hooks/usePositionsStore';
+import { usePaperTradesStore } from '../../hooks/usePaperTradesStore';
 
 // ── CSS injected once globally ────────────────────────────
 const CHART_CSS = `
@@ -158,24 +159,48 @@ export default function QuantumChart({ currentPrice = null, candles = null }) {
 
   // Sync Positions to Chart Engine
   const positions = usePositionsStore(s => s.positions);
+  const paperTrades = usePaperTradesStore(s => s.trades);
+
   useEffect(() => {
-    const active = positions.filter(p => 
-      p.symbol.toUpperCase() === selectedSymbol.toUpperCase() || 
-      p.rawSymbol.toUpperCase() === selectedSymbol.toUpperCase()
-    );
+    // 1. Merge Alpaca and Paper trades robustly
+    const merged = [
+      ...positions.map(p => {
+        const manualPt = paperTrades.find(pt => pt.symbol.replace('/', '') === p.symbol.replace('/', '') && pt.source === 'manual')
+        return {
+          entry: p.avgEntryPrice,
+          qty: p.qty,
+          side: p.side.toLowerCase(),
+          pnl: p.unrealizedPnl,
+          sl: manualPt?.sl || null,
+          tp: manualPt?.tp || null,
+          symbol: p.symbol,
+          rawSymbol: p.rawSymbol
+        }
+      }),
+      ...paperTrades.filter(pt => pt.source === 'bot' || !positions.some(p => p.rawSymbol.replace('/', '') === pt.symbol.replace('/', ''))).map(p => ({
+        entry: p.entryPrice,
+        qty: p.qty,
+        side: p.side.toLowerCase(),
+        pnl: p.unrealizedPnl,
+        sl: p.sl || null,
+        tp: p.tp || null,
+        symbol: p.symbol,
+        rawSymbol: p.symbol
+      }))
+    ];
+
+    // 2. Filter for selected symbol
+    const active = merged.filter(p => {
+      const pSym = (p.symbol || p.rawSymbol || '').toUpperCase().replace('/', '');
+      const sSym = selectedSymbol.toUpperCase().replace('/', '');
+      return pSym === sSym;
+    });
     
     console.log(`[Chart] Syncing ${active.length} positions for ${selectedSymbol}`, active);
 
-    ST.openTrades = active.map(p => ({
-      entry: p.avgEntryPrice,
-      qty: p.qty,
-      side: p.side.toLowerCase(),
-      pnl: p.unrealizedPnl,
-      sl: p.sl || null,
-      tp: p.tp || null
-    }));
+    ST.openTrades = active;
     CH_setDirty(true);
-  }, [positions, selectedSymbol]);
+  }, [positions, paperTrades, selectedSymbol]);
 
   /* ─── JSX ─────────────────────────────────────────────── */
   return (

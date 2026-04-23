@@ -171,7 +171,7 @@ export default function SidebarRight() {
       {/* Tab Content */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
         {/* Signals Tab Toolbar */}
-        {rightTab === 'signals' && signals.length > 0 && (
+        {rightTab === 'signals' && (
           <div className="flex justify-end mb-2">
             <button
               onClick={handleClearSignals}

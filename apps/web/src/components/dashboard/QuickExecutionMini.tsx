@@ -231,7 +231,8 @@ export function QuickExecutionMini() {
               if (account && account.cash) {
                 const risk = account.cash * (parseFloat(riskPct) / 100);
                 const pips = currentPrice - sl;
-                const calcQty = (risk / pips).toFixed(4);
+                // Alpaca bracket orders are safer with integer quantities
+                const calcQty = Math.max(1, Math.floor(risk / pips)).toString();
                 if (parseFloat(calcQty) > 0) {
                   setQuantity(calcQty);
                 }

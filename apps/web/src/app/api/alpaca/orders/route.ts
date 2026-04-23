@@ -69,6 +69,12 @@ export async function POST(req: NextRequest) {
 
     // وقف الخسارة وجني الأرباح (bracket order)
     if (stop_loss || take_profit) {
+      // Alpaca does NOT support bracket orders for Crypto (e.g. BTC/USD, ETH/USD)
+      const isCrypto = symbol.includes('/') || ['BTC', 'ETH', 'SOL', 'XRP', 'BNB'].some(c => symbol.toUpperCase().startsWith(c));
+      if (isCrypto) {
+        return NextResponse.json({ success: false, error: 'Alpaca لا يدعم تحديد جني الأرباح ووقف الخسارة للعملات الرقمية حالياً. يرجى ترك هذه الحقول فارغة للتنفيذ.' }, { status: 400 })
+      }
+
       payload.order_class = 'bracket'
       payload.time_in_force = 'gtc' // Bracket orders require 'gtc' or 'day'
       if (stop_loss) {

@@ -293,23 +293,25 @@ export function CH_drawMain(){
       // 1. Entry Line
       const yEntry = py(t.entry);
       if(yEntry > -100 && yEntry < H + 100){
-        ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 2; ctx.setLineDash([]);
+        const isLong = t.side === 'buy' || t.side === 'long';
+        ctx.strokeStyle = isLong ? '#3fb950' : '#f85149'; 
+        ctx.lineWidth = 1.5; ctx.setLineDash([6, 3]);
         ctx.beginPath(); ctx.moveTo(0, yEntry); ctx.lineTo(W-PW, yEntry); ctx.stroke();
         
         const labelY = Math.max(TH + 12, Math.min(H - 35, yEntry));
-        ctx.fillStyle = '#58a6ff';
+        ctx.fillStyle = ctx.strokeStyle;
         const pnlStr = (t.pnl >= 0 ? '+' : '') + (t.pnl||0).toFixed(2) + '$';
-        const label = `${t.side === 'buy' ? 'BUY' : 'SELL'} ${t.qty} | ${pnlStr}`;
-        ctx.font = 'bold 11px JetBrains Mono,monospace';
-        const tw = ctx.measureText(label).width + 14;
+        const label = `${isLong ? 'BUY' : 'SELL'} ${t.qty.toFixed(3)} | ${pnlStr}`;
+        ctx.font = 'bold 10px JetBrains Mono,monospace';
+        const tw = ctx.measureText(label).width + 12;
         
-        ctx.shadowBlur = 12; ctx.shadowColor = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(12, labelY - 10, tw, 20);
+        ctx.shadowBlur = 8; ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(10, labelY - 9, tw, 18);
         ctx.shadowBlur = 0;
         
         ctx.fillStyle = '#000';
         ctx.textAlign = 'left';
-        ctx.fillText(label, 18, labelY + 5);
+        ctx.fillText(label, 16, labelY + 4);
       }
 
       // 2. Stop Loss

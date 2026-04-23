@@ -85,7 +85,10 @@ class BinanceWSManager {
     this.close()
     if (this.subscribers.size === 0) return
 
-    const streams = Array.from(this.subscribers).map(s => `${this.normalizeSymbol(s)}@ticker`).join('/')
+    const streamNames = Array.from(
+      new Set(Array.from(this.subscribers).map(s => `${this.normalizeSymbol(s)}@ticker`))
+    )
+    const streams = streamNames.join('/')
     const wsUrl = `wss://stream.binance.com:9443/stream?streams=${streams}`
 
     try {

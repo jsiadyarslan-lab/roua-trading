@@ -13,6 +13,8 @@ interface Position {
   marketValue:   number
   unrealizedPnl: number
   unrealizedPct: number
+}
+
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 

@@ -45,10 +45,12 @@ export function BotEngine() {
         })
           .then(r => r.json())
           .then(j => {
-            if (j.success && j.data.consensusScore >= 85) {
+            if (j.success && j.data.consensusScore >= settings.confLimit) {
               const signal = j.data.recommendation;
               if (signal === 'BUY' || signal === 'SELL') {
-                this._executeTrade(signal, q.price, j.data.consensusScore);
+                if (lastSignalRef.current !== signal) {
+                  _executeTrade(signal, q.price, j.data.consensusScore);
+                }
               }
             }
           })
@@ -65,7 +67,7 @@ export function BotEngine() {
       else if (change < 0 && lastSignalRef.current !== 'SELL') signal = 'SELL';
       
       if (signal) {
-        this._executeTrade(signal, q.price, confidence);
+        _executeTrade(signal, q.price, confidence);
       }
     }, 10000); // Slower interval for AI calls
 

@@ -56,18 +56,13 @@ export class AiController {
   }
 
   /**
-   * GET /api/ai/sentiment — Quick sentiment analysis
+   * POST /api/ai/consensus — Multi-model Council of AI consensus vote
    */
-  @Get('sentiment')
-  async analyzeSentiment(@Query('symbol') symbol: string) {
-    const request: AIAnalysisRequest = {
-      prompt: `حلل مشاعر السوق تجاه ${symbol}. هل المتداولون متفائلون أم متشائمون؟ ما هي المؤشرات الرئيسية؟`,
-      type: 'sentiment',
-      symbol,
-      language: 'ar',
-    };
-
-    const result = await this.orchestrator.analyze(request);
+  @Post('consensus')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async getConsensus(@Body() body: { symbol: string }) {
+    if (!body.symbol) return { success: false, error: 'Symbol is required' };
+    const result = await this.orchestrator.getConsensusAnalysis(body.symbol);
     return { success: true, data: result };
   }
 }

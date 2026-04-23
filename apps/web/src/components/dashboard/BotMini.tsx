@@ -144,7 +144,22 @@ export function BotMini() {
               onChange={(e) => updateSettings({ confLimit: parseInt(e.target.value) })}
               style={{ width: '100%' }}
             />
-            <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--amber)' }}>{settings.confLimit}%</div>
+          <div>
+            <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>وضع إجماع الذكاء الاصطناعي</label>
+            <div 
+              onClick={() => updateSettings({ useAIConsensus: !settings.useAIConsensus })}
+              style={{
+                width: '100%', height: 36, background: settings.useAIConsensus ? 'rgba(0,229,255,0.1)' : 'var(--bg2)',
+                border: `1px solid ${settings.useAIConsensus ? 'var(--accent)' : 'var(--border)'}`,
+                borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: 'pointer', transition: 'all 0.2s'
+              }}
+            >
+              <span style={{ fontSize: 11, fontWeight: 700, color: settings.useAIConsensus ? 'var(--accent)' : 'var(--text3)' }}>
+                {settings.useAIConsensus ? '⚡ مفعل (إجماع 6 نماذج)' : 'متوقف (زخم فني فقط)'}
+              </span>
+            </div>
+            <p style={{ fontSize: 8, color: 'var(--text4)', marginTop: 4 }}>* عند التفعيل، سيقوم البوت باستشارة 6 نماذج ذكاء اصطناعي قبل كل صفقة.</p>
           </div>
         </div>
       )}

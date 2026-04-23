@@ -19,6 +19,7 @@ interface BotState {
     riskPct: number
     confLimit: number
     strategy: string
+    useAIConsensus: boolean
   }
   setIsOn: (on: boolean) => void
   addLog: (msg: string, type?: string) => void
@@ -36,7 +37,8 @@ export const useBotStore = create<BotState>()(
       settings: {
         riskPct: 2,
         confLimit: 75,
-        strategy: 'Trend Follow'
+        strategy: 'Trend Follow',
+        useAIConsensus: false
       },
       setIsOn: (on: boolean) => set({ isOn: on }),
       addLog: (msg: string, type = 'info') => set((state) => ({

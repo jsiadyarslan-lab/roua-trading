@@ -35,19 +35,47 @@ export function BotEngine() {
       if (!q || !q.price) return;
 
       const change = q.changePercent || 0;
+
+      // AI CONSENSUS MODE
+      if (settings.useAIConsensus) {
+        fetch('/api/ai/consensus', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol: selectedSymbol }),
+        })
+          .then(r => r.json())
+          .then(j => {
+            if (j.success && j.data.consensusScore >= 85) {
+              const signal = j.data.recommendation;
+              if (signal === 'BUY' || signal === 'SELL') {
+                this._executeTrade(signal, q.price, j.data.consensusScore);
+              }
+            }
+          })
+          .catch(e => console.error('AI Consensus failed', e));
+        return;
+      }
+
+      // MOMENTUM MODE (Fallback)
       const confidence = Math.min(99, Math.abs(change) * 20);
       if (confidence < settings.confLimit) return;
 
       let signal: 'BUY' | 'SELL' | null = null;
       if (change > 0 && lastSignalRef.current !== 'BUY')  signal = 'BUY';
       else if (change < 0 && lastSignalRef.current !== 'SELL') signal = 'SELL';
-      if (!signal) return;
+      
+      if (signal) {
+        this._executeTrade(signal, q.price, confidence);
+      }
+    }, 10000); // Slower interval for AI calls
 
-      const price = q.price;
+    return () => clearInterval(interval);
+  }, [isOn, hydrated, selectedSymbol, settings.strategy, settings.confLimit, settings.riskPct, settings.useAIConsensus, addLog, addPaperTrade]); // eslint-disable-line
+
+  // Helper to execute trades (refactored out of main loop)
+  const _executeTrade = (signal: 'BUY' | 'SELL', price: number, confidence: number) => {
       const tradeAmount = Math.max(10, settings.riskPct * 50);
       const qty = parseFloat((tradeAmount / price).toFixed(6));
-
-      // Auto TP/SL: 2% take profit, 1% stop loss
       const tp = signal === 'BUY' ? price * 1.02 : price * 0.98;
       const sl = signal === 'BUY' ? price * 0.99 : price * 1.01;
 
@@ -57,7 +85,6 @@ export function BotEngine() {
           signal === 'BUY' ? 'buy' : 'sell'
         );
 
-        // Record position in paper trades store (visible in positions panel)
         addPaperTrade({
           symbol:       selectedSymbol,
           side:         signal === 'BUY' ? 'long' : 'short',
@@ -78,8 +105,7 @@ export function BotEngine() {
         });
 
       } else {
-        // Live Trading — only when PAPER_TRADING_MODE = false
-        addLog(`[Live] تجهيز أمر ${signal === 'BUY' ? 'شراء' : 'بيع'} على ${selectedSymbol}...`, 'info');
+        addLog(`[Live] تنفيذ أمر ${signal === 'BUY' ? 'شراء' : 'بيع'} ذكاء اصطناعي على ${selectedSymbol}...`, 'info');
         lastSignalRef.current = signal;
 
         fetch('/api/alpaca/orders', {
@@ -99,10 +125,7 @@ export function BotEngine() {
           })
           .catch(() => { addLog(`[خطأ] فشل الاتصال`, 'warn'); lastSignalRef.current = null; });
       }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [isOn, hydrated, selectedSymbol, settings.strategy, settings.confLimit, settings.riskPct, addLog, addPaperTrade]); // eslint-disable-line
+  };
 
   return null;
 }

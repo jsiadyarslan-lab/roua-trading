@@ -96,6 +96,110 @@ export class AIOrchestratorService {
   }
 
   /**
+   * Perform a comprehensive consensus analysis using all available models as specialists
+   * Returns a master analysis with individual votes and a consensus score
+   */
+  async getConsensusAnalysis(symbol: string): Promise<{
+    consensusScore: number;
+    recommendation: 'BUY' | 'SELL' | 'HOLD';
+    analyses: { role: string; model: string; vote: string; confidence: number; reason: string }[];
+    masterStrategy: string;
+  }> {
+    this.logger.log(`🎼 Initiating AI Council Consensus for ${symbol}`);
+
+    // Roles and their assigned models/prompts
+    const roles = [
+      { id: 'tech', name: 'المحلل الفني', model: 'gemini', prompt: `حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.` },
+      { id: 'sent', name: 'محلل المشاعر', model: 'groq', prompt: `حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.` },
+      { id: 'risk', name: 'خبير المخاطر', model: 'glm', prompt: `حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة المثالية.` },
+      { id: 'macro', name: 'خبير الماكرو', model: 'gemini', prompt: `حلل الوضع الاقتصادي العام وتأثيره على ${symbol}.` },
+      { id: 'pattern', name: 'خبير الأنماط', model: 'glm', prompt: `هل ترى أي أنماط تاريخية متكررة (Fractals) في حركة ${symbol} الحالية؟` },
+      { id: 'exec', name: 'استراتيجي التنفيذ', model: 'groq', prompt: `ما هو أفضل توقيت (Entry Timing) للدخول في ${symbol} بناءً على السيولة؟` },
+    ];
+
+    // Call all roles in parallel
+    const start = Date.now();
+    const results = await Promise.allSettled(
+      roles.map(async (role) => {
+        const response = await this._callModel(role.model, {
+          symbol,
+          prompt: role.prompt,
+          type: 'market_analysis',
+          language: 'ar',
+        });
+        return { ...role, response };
+      }),
+    );
+
+    const analyses: any[] = [];
+    let buyWeight = 0;
+    let sellWeight = 0;
+    let totalConfidence = 0;
+
+    for (const res of results) {
+      if (res.status === 'fulfilled' && res.value.response.confidence > 0) {
+        const { name, response } = res.value;
+        const content = response.content;
+        
+        // Simple heuristic to detect vote from content
+        let vote: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';
+        if (content.includes('شراء') || content.includes('صعود') || content.includes('BUY')) vote = 'BUY';
+        else if (content.includes('بيع') || content.includes('هبوط') || content.includes('SELL')) vote = 'SELL';
+
+        const conf = response.confidence || 0.5;
+        if (vote === 'BUY') buyWeight += conf;
+        else if (vote === 'SELL') sellWeight += conf;
+        totalConfidence += conf;
+
+        analyses.push({
+          role: name,
+          model: response.model,
+          vote,
+          confidence: Math.round(conf * 100),
+          reason: content.slice(0, 200) + '...',
+        });
+      }
+    }
+
+    // Calculate consensus
+    let recommendation: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';
+    let consensusScore = 0;
+
+    if (totalConfidence > 0) {
+      const buyPct = buyWeight / totalConfidence;
+      const sellPct = sellWeight / totalConfidence;
+
+      if (buyPct > 0.6) {
+        recommendation = 'BUY';
+        consensusScore = Math.round(buyPct * 100);
+      } else if (sellPct > 0.6) {
+        recommendation = 'SELL';
+        consensusScore = Math.round(sellPct * 100);
+      } else {
+        recommendation = 'HOLD';
+        consensusScore = Math.round((1 - Math.abs(buyPct - sellPct)) * 50);
+      }
+    }
+
+    // Generate Master Strategy using Gemini
+    const masterStrategy = await this.geminiService.analyze({
+      symbol,
+      prompt: `بناءً على تحليلات المجلس التالية، لخص الاستراتيجية النهائية للتداول على ${symbol} بالعربية بشكل احترافي ومختصر:\n${analyses.map(a => `${a.role}: ${a.vote} (${a.confidence}%)`).join('\n')}`,
+      type: 'signal_generation',
+      language: 'ar',
+    });
+
+    this.logger.log(`✅ Consensus achieved: ${recommendation} (${consensusScore}%) in ${Date.now() - start}ms`);
+
+    return {
+      consensusScore,
+      recommendation,
+      analyses,
+      masterStrategy: masterStrategy.content,
+    };
+  }
+
+  /**
    * Analyze with ALL models and combine results
    * Returns a comprehensive multi-model analysis
    */

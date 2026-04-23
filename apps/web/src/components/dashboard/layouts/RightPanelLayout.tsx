@@ -5,6 +5,7 @@ import { BotMini } from '@/components/dashboard/BotMini'
 import { ScannerMini } from '@/components/dashboard/ScannerMini'
 import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
 import { BotCommandCenter } from '@/components/dashboard/BotCommandCenter'
+import { AICouncilPanel } from '@/components/dashboard/AICouncilPanel'
 
 const T = {
   bg:      '#0F1113',
@@ -44,6 +45,7 @@ export function RightPanelLayout({ quotes }: { quotes: any }) {
   const [active, setActive] = useState('bot')
   const TABS = [
     { id: 'bot', label: 'البوت', accent: T.cyan },
+    { id: 'council', label: 'المجلس', accent: T.accent },
     { id: 'scanner', label: 'السكانر', accent: T.amber },
     { id: 'multi-tf', label: 'متعدد الأطر', accent: T.purple },
     { id: 'signals', label: 'إشارات', accent: T.green },
@@ -85,6 +87,7 @@ export function RightPanelLayout({ quotes }: { quotes: any }) {
              <BotMini quotes={quotes} />
            </div>
          )}
+         {active === 'council' && <AICouncilPanel />}
          {active === 'scanner' && <div className="custom-scrollbar" style={{ height: '100%', overflowY: 'auto' }}><ScannerMini /></div>}
          {active === 'signals' && <BotCommandCenter />}
          {active === 'multi-tf' && (

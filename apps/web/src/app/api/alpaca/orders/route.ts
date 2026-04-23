@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
       }
 
       payload.order_class = 'bracket'
-      payload.time_in_force = 'gtc' // Bracket orders require 'gtc' or 'day'
+      payload.time_in_force = 'day' // Fractional shares require 'day'
       if (stop_loss) {
         payload.stop_loss = { stop_price: stop_loss.toString() }
       }

@@ -46,6 +46,7 @@ export async function GET(
       const intervalMap: Record<string, string> = {
         '1min': '1m', '5min': '5m', '15min': '15m', '30min': '30m',
         '1h': '1h', '2h': '2h', '4h': '4h', '1day': '1d', '1week': '1w', '1month': '1M',
+        '15m': '15m', '1d': '1d'
       }
       const binanceInterval = intervalMap[interval] || '1d'
       const limit = 200

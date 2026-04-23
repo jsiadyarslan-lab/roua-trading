@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
            const histRes = await fetch(`${origin}/api/exchange/history/${encodeURIComponent(s)}?interval=${timeframe}`, { cache: 'no-store' })
            const histData = await histRes.json()
            if (histData.success && histData.data) {
-             closes = histData.data.map((c: any) => c.close).reverse()
+             closes = histData.data.map((c: any) => c.close)
            }
         } catch { }
 

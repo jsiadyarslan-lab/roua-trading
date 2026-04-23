@@ -66,6 +66,29 @@ export default function DashboardPage() {
           0%,100% { opacity: 0.5 }
           50%      { opacity: 1   }
         }
+        .dash-grid {
+          display: grid;
+          grid-template-columns: 280px 1fr 350px;
+          height: calc(100vh - ${HEADER_H}px);
+          background: ${T.bg};
+          gap: 12px;
+          padding: 12px;
+          box-sizing: border-box;
+          overflow: hidden;
+        }
+        @media (max-width: 1280px) {
+          .dash-grid { grid-template-columns: 260px 1fr; }
+          .dash-col-right { display: none !important; }
+        }
+        @media (max-width: 900px) {
+          .dash-grid { 
+            grid-template-columns: 1fr; 
+            height: auto; 
+            overflow-y: auto;
+          }
+          .dash-col-left { display: none !important; }
+          .dash-col-right-mobile { display: block !important; }
+        }
         .dash-col::-webkit-scrollbar { width: 4px; }
         .dash-col::-webkit-scrollbar-track { background: transparent; }
         .dash-col::-webkit-scrollbar-thumb { background: #0A84FF22; border-radius: 10px; }
@@ -76,12 +99,7 @@ export default function DashboardPage() {
       <NotificationEngine quotes={quotes} />
       <NotificationToasts />
 
-      <div className="dash-grid" style={{
-        height: `calc(100vh - ${HEADER_H}px)`,
-        background: T.bg,
-        gap: 12,
-        padding: 12
-      }}>
+      <div className="dash-grid">
 
         {/* ══════════ COL 1 — Tabbed Left Sidebar ══════════ */}
         <div className="dash-col dash-col-left" style={{ minHeight: 0 }}>

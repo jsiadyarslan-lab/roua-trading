@@ -37,20 +37,24 @@ const CHART_CSS = `
     padding:0 8px!important;height:26px!important;
   }
   .iv-dropdown {
-    display:none;position:absolute;top:calc(100% + 4px);left:0;
+    display:none;position:absolute;top:calc(100% + 4px);
     background:var(--bg2);border:1px solid var(--border2);border-radius:8px;
-    padding:8px;z-index:500;box-shadow:0 8px 32px rgba(0,0,0,.75);
+    padding:10px;z-index:500;box-shadow:0 15px 45px rgba(0,0,0,.85);
+    min-width:180px;backdrop-filter:blur(10px);
   }
   .iv-dropdown.open { display:block; }
+  .iv-dropdown.tf-panel { right:0; left:auto; }
+  .iv-dropdown.ctype-panel { left:0; right:auto; }
   .iv-dd-item {
-    display:block;width:100%;text-align:right;padding:6px 8px;
+    display:block;width:100%;text-align:right;padding:8px 10px;
     font-size:11px;font-family:var(--font-mono);background:none;border:none;
-    color:var(--text2);cursor:pointer;border-radius:4px;transition:background .1s;
+    color:var(--text2);cursor:pointer;border-radius:6px;transition:all .15s;
+    margin-bottom:2px;
   }
-  .iv-dd-item:hover { background:rgba(0,242,255,0.08);color:var(--text); }
+  .iv-dd-item:hover { background:rgba(0,242,255,0.12);color:var(--cyan); }
   .iv-tf-dd-btn {
     background:var(--bg4);border:1px solid var(--border);color:var(--text3);
-    border-radius:4px;padding:5px 0;font-size:10px;font-family:var(--font-mono);
+    border-radius:6px;padding:6px 0;font-size:10px;font-family:var(--font-mono);
     font-weight:600;cursor:pointer;transition:all .1s;text-align:center;
   }
   .iv-tf-dd-btn:hover { background:rgba(0,242,255,0.1);color:var(--text2); }
@@ -78,8 +82,8 @@ function injectCSS() {
   cssInjected = true;
 }
 
-export default function QuantumChart({ currentPrice = null, candles = null }) {
-  const selectedSymbol = useSymbolStore(s => s.selectedSymbol);
+export default function QuantumChart({ currentPrice = null }) {
+  const { selectedSymbol, timeframe, setTimeframe } = useSymbolStore();
   
   const mainCanvasRef = useRef(null);
   const subCanvasRef  = useRef(null);
@@ -90,7 +94,7 @@ export default function QuantumChart({ currentPrice = null, candles = null }) {
   // CSS
   useEffect(() => { injectCSS(); }, []);
 
-  // Init engine and handle symbol changes
+  // Init engine and handle symbol/timeframe changes
   useEffect(() => {
     const mainCanvas = document.getElementById('tvCanvas');
     const subCanvas  = document.getElementById('subCanvas');
@@ -101,41 +105,37 @@ export default function QuantumChart({ currentPrice = null, candles = null }) {
       engineInitRef.current = true;
     }
 
-    if (candles && candles.length > 0) {
-      CH_loadCandles(candles);
-    } else {
-      if (currentPrice) {
-        CH_gen(selectedSymbol, { p: currentPrice, d: selectedSymbol.includes('JPY') ? 3 : selectedSymbol.includes('BTC') ? 1 : 5 });
-        const elPrice = document.getElementById('chPrice');
-        if (elPrice) elPrice.textContent = currentPrice.toFixed(selectedSymbol.includes('JPY') ? 3 : selectedSymbol.includes('BTC') ? 1 : 5);
-      } else {
-        fetch(`/api/exchange/quote/${encodeURIComponent(selectedSymbol)}`)
-          .then(r => r.json())
-          .then(j => {
-            const p = (j.success && j.data && j.data.price) ? j.data.price : (selectedSymbol.includes('BTC') ? 65000 : selectedSymbol.includes('JPY') ? 150 : 1.08);
-            const d = selectedSymbol.includes('JPY') ? 3 : selectedSymbol.includes('BTC') ? 1 : 5;
-            CH_gen(selectedSymbol, { p, d });
-            const elPrice = document.getElementById('chPrice');
-            if (elPrice) elPrice.textContent = p.toFixed(d);
-          })
-          .catch(() => {
-            const p = selectedSymbol.includes('BTC') ? 65000 : selectedSymbol.includes('JPY') ? 150 : 1.08;
-            const d = selectedSymbol.includes('JPY') ? 3 : selectedSymbol.includes('BTC') ? 1 : 5;
-            CH_gen(selectedSymbol, { p, d });
-            const elPrice = document.getElementById('chPrice');
-            if (elPrice) elPrice.textContent = p.toFixed(d);
-          });
+    // Fetch REAL candles
+    const fetchCandles = async () => {
+      try {
+        const res = await fetch(`/api/exchange/history/${encodeURIComponent(selectedSymbol)}?interval=${timeframe}`);
+        const j = await res.json();
+        if (j.success && j.data && j.data.length > 0) {
+          const formatted = j.data.map(c => ({
+            t: new Date(c.timestamp).getTime(),
+            o: c.open, h: c.high, l: c.low, c: c.close, v: c.volume
+          }));
+          CH_loadCandles(formatted);
+          const last = formatted[formatted.length - 1];
+          const elPrice = document.getElementById('chPrice');
+          if (elPrice) elPrice.textContent = last.c.toFixed(selectedSymbol.includes('JPY') ? 3 : selectedSymbol.includes('BTC') ? 1 : 5);
+        } else {
+          // Fallback to simulation if API fails or no data
+          CH_gen(selectedSymbol, { p: currentPrice || 65000, d: selectedSymbol.includes('JPY') ? 3 : selectedSymbol.includes('BTC') ? 1 : 5 });
+        }
+      } catch (e) {
+        console.error('Failed to fetch candles', e);
+        CH_gen(selectedSymbol, { p: currentPrice || 65000, d: selectedSymbol.includes('JPY') ? 3 : selectedSymbol.includes('BTC') ? 1 : 5 });
       }
-    }
+    };
 
+    fetchCandles();
     CH_bindEvents();
     CH_initIndPanel();
 
-    // Start render loop using the engine's own CH_frame
     if (CH_animFrame) cancelAnimationFrame(CH_animFrame);
     CH_frame();
 
-    // Live tick (replace with real WebSocket)
     tickRef.current = setInterval(() => {
       CH_liveTick(selectedSymbol, null);
     }, 1500);
@@ -144,7 +144,7 @@ export default function QuantumChart({ currentPrice = null, candles = null }) {
       if (CH_animFrame) cancelAnimationFrame(CH_animFrame);
       if (tickRef.current) clearInterval(tickRef.current);
     };
-  }, [selectedSymbol]);
+  }, [selectedSymbol, timeframe]);
 
   // Sync live price prop
   useEffect(() => {
@@ -218,7 +218,7 @@ export default function QuantumChart({ currentPrice = null, candles = null }) {
           <button className="iv-draw-btn" onClick={() => togglePanel('ivCtypePanel', null)} title="نوع الشارت" style={{ width:'30px' }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="4" height="16" rx="1"/><rect x="10" y="9" width="4" height="11" rx="1"/><rect x="18" y="2" width="4" height="18" rx="1"/></svg>
           </button>
-          <div id="ivCtypePanel" className="iv-dropdown" style={{ minWidth:'150px' }}>
+          <div id="ivCtypePanel" className="iv-dropdown ctype-panel" style={{ minWidth:'150px' }}>
             <div style={{ fontSize:'9px', color:'var(--text4)', fontFamily:'var(--font-hud)', letterSpacing:'1px', marginBottom:'6px' }}>نوع الشارت</div>
             {[['candle','🕯 شموع'],['hollow','⬡ مجوفة'],['bar','▐ OHLC'],['line','∿ خط'],['area','◭ منطقة'],['heikin','HA Heikin-Ashi']].map(([t,l]) => (
               <button key={t} className="iv-dd-item" onClick={() => { CH_setType(t); closeAllPanels(); }}>{l}</button>
@@ -234,11 +234,21 @@ export default function QuantumChart({ currentPrice = null, candles = null }) {
             <span id="ivActiveTFLabel">15m</span>
             <svg width="9" height="9" viewBox="0 0 10 6" fill="currentColor"><path d="M0 0 L5 6 L10 0Z"/></svg>
           </button>
-          <div id="ivTFPanel" className="iv-dropdown" style={{ minWidth:'160px' }}>
+          <div id="ivTFPanel" className="iv-dropdown tf-panel" style={{ minWidth:'180px' }}>
             <div style={{ fontSize:'9px', color:'var(--text4)', fontFamily:'var(--font-hud)', marginBottom:'6px' }}>الإطار الزمني</div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:'3px' }}>
-              {[[1,'1m'],[5,'5m'],[15,'15m'],[30,'30m'],[60,'1H'],[240,'4H'],[1440,'1D'],[10080,'1W']].map(([m,l]) => (
-                <button key={m} className={`iv-tf-dd-btn${m===15?' iv-tf-dd-active':''}`} onClick={(e) => setActiveTF(m, e.target, l)}>{l}</button>
+              {[
+                [1,'1min','1m'], [5,'5min','5m'], [15,'15min','15m'], [30,'30min','30m'],
+                [60,'1h','1H'], [240,'4h','4H'], [1440,'1day','1D'], [10080,'1week','1W']
+              ].map(([m,tf,l]) => (
+                <button 
+                  key={m} 
+                  className={`iv-tf-dd-btn${timeframe===tf?' iv-tf-dd-active':''}`} 
+                  onClick={() => {
+                    setTimeframe(tf as string);
+                    setActiveTF(m, null, l as string);
+                  }}
+                >{l as string}</button>
               ))}
             </div>
           </div>

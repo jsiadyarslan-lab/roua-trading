@@ -144,6 +144,8 @@ export function BotMini() {
               onChange={(e) => updateSettings({ confLimit: parseInt(e.target.value) })}
               style={{ width: '100%' }}
             />
+            <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--amber)' }}>{settings.confLimit}%</div>
+          </div>
           <div>
             <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>وضع إجماع الذكاء الاصطناعي</label>
             <div 
@@ -164,5 +166,5 @@ export function BotMini() {
         </div>
       )}
     </div>
-  );
+  )
 }

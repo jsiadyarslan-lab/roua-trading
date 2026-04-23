@@ -6,6 +6,7 @@ import { AlNarratorMini } from '@/components/ai/AlNarratorMini'
 import { QuickExecutionMini } from '@/components/dashboard/QuickExecutionMini'
 import { OrderBookMini } from '@/components/dashboard/OrderBookMini'
 import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
+import { PriceAlertsPanel } from '@/components/dashboard/PriceAlertsPanel'
 
 const T = {
   bg:      '#0F1113',
@@ -26,13 +27,14 @@ const T = {
 }
 
 export function LeftSidebarLayout() {
-  const [tab, setTab] = useState<'portfolio'|'execute'|'book'|'watch'|'ai'>('portfolio')
+  const [tab, setTab] = useState<'portfolio'|'execute'|'book'|'watch'|'ai'|'alerts'>('portfolio')
 
   const TABS = [
     { id: 'portfolio', label: 'محفظة',   icon: '💼', accent: T.primary },
     { id: 'execute',   label: 'تنفيذ',   icon: '⚡', accent: T.success },
     { id: 'book',      label: 'أوردر',   icon: '📊', accent: T.danger  },
     { id: 'watch',     label: 'أسواق',   icon: '🔍', accent: T.accent  },
+    { id: 'alerts',    label: 'تنبيهات', icon: '🔔', accent: '#FFB800' },
     { id: 'ai',        label: 'AI',      icon: '🧠', accent: T.purple  },
   ] as const
 
@@ -100,6 +102,7 @@ export function LeftSidebarLayout() {
         {tab === 'execute'   && <QuickExecutionMini />}
         {tab === 'book'      && <OrderBookMini />}
         {tab === 'watch'     && <WatchlistMini />}
+        {tab === 'alerts'    && <PriceAlertsPanel />}
         {tab === 'ai'        && <AlNarratorMini />}
       </div>
     </div>

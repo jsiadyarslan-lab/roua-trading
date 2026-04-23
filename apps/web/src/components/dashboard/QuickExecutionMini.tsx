@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Zap, ShieldCheck } from 'lucide-react'
+import { Zap, ShieldCheck, ChevronDown, ChevronUp, Calculator } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { useMarketStore } from '@/hooks/useMarketStore'
 
 export function QuickExecutionMini() {
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
@@ -23,9 +24,26 @@ export function QuickExecutionMini() {
   const [quantity, setQuantity] = useState('0.1')
   const [stopLoss, setStopLoss] = useState('')
   const [takeProfit, setTakeProfit] = useState('')
+  const [riskPct, setRiskPct] = useState('1') // % of account balance to risk
+  const [showRiskCalc, setShowRiskCalc] = useState(false)
   const [status, setStatus] = useState<{ msg: string; type: 'success' | 'error' | 'loading' | 'confirm' | '' }>({ msg: '', type: '' })
   const [loading, setLoading] = useState(false)
   const [pendingAction, setPendingAction] = useState<'buy' | 'sell' | null>(null)
+
+  // Live price from market store for risk calculations
+  const globalQuotes = useMarketStore(state => state.quotes)
+  const currentPrice = globalQuotes[localSymbol]?.price ?? 0
+
+  // Risk Calculator: auto-compute position size
+  const riskAmount = account ? (account.cash * (parseFloat(riskPct) / 100)) : 0
+  const slPips = stopLoss && currentPrice > 0 ? Math.abs(currentPrice - parseFloat(stopLoss)) : null
+  const autoQty = slPips && slPips > 0 ? (riskAmount / slPips).toFixed(4) : null
+  const potentialLoss = slPips && parseFloat(quantity) > 0 ? (slPips * parseFloat(quantity)) : null
+  const potentialGain = takeProfit && currentPrice > 0 && parseFloat(quantity) > 0
+    ? Math.abs(parseFloat(takeProfit) - currentPrice) * parseFloat(quantity) : null
+  const rrRatio = potentialGain && potentialLoss && potentialLoss > 0
+    ? (potentialGain / potentialLoss).toFixed(2) : null
+
 
   const validateAndConfirm = (side: 'buy' | 'sell') => {
     if (!localSymbol) {
@@ -198,6 +216,89 @@ export function QuickExecutionMini() {
             }}
           />
         </div>
+      </div>
+
+      {/* ── Risk Calculator ── */}
+      <div style={{ borderTop: '1px solid var(--card-border)', paddingTop: 8 }}>
+        <button
+          onClick={() => setShowRiskCalc(v => !v)}
+          style={{
+            width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 0', color: 'var(--muted)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Calculator size={12} color="var(--accent)" />
+            <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--accent)', fontFamily: "'Cairo', sans-serif" }}>حاسبة المخاطرة</span>
+          </div>
+          {showRiskCalc ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        </button>
+
+        {showRiskCalc && (
+          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {/* Risk % slider */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700, whiteSpace: 'nowrap' }}>نسبة المخاطرة:</span>
+              <input
+                type="range" min="0.1" max="10" step="0.1"
+                value={riskPct}
+                onChange={e => setRiskPct(e.target.value)}
+                style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: 11, fontWeight: 900, color: 'var(--accent)', fontFamily: 'monospace', minWidth: 36, textAlign: 'left' }}>
+                {riskPct}%
+              </span>
+            </div>
+
+            {/* Stats row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+              {[
+                { label: 'مبلغ المخاطرة', value: account ? `$${riskAmount.toFixed(0)}` : '—', color: 'var(--danger)' },
+                { label: 'الكمية المثلى', value: autoQty ?? (currentPrice > 0 ? `~${(riskAmount / currentPrice).toFixed(4)}` : '—'), color: 'var(--accent)' },
+                { label: 'نسبة المكاسب/خسائر', value: rrRatio ? `${rrRatio}:1` : '—', color: parseFloat(rrRatio ?? '0') >= 2 ? 'var(--success)' : 'var(--warning)' },
+              ].map(({ label, value, color }) => (
+                <div key={label} style={{
+                  background: 'var(--surface)', borderRadius: 8, padding: '6px 8px',
+                  border: '1px solid var(--card-border)', textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: 11, fontWeight: 900, color, fontFamily: 'monospace' }}>{value}</div>
+                  <div style={{ fontSize: 8, color: 'var(--muted)', fontWeight: 700, marginTop: 2 }}>{label}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* P&L preview */}
+            {(potentialGain !== null || potentialLoss !== null) && (
+              <div style={{ display: 'flex', gap: 6 }}>
+                {potentialGain !== null && (
+                  <div style={{ flex: 1, background: 'rgba(0,200,83,0.07)', borderRadius: 8, padding: '6px 8px', border: '1px solid rgba(0,200,83,0.2)', textAlign: 'center' }}>
+                    <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--success)', fontFamily: 'monospace' }}>+${potentialGain.toFixed(2)}</div>
+                    <div style={{ fontSize: 8, color: 'var(--muted)', fontWeight: 700 }}>جني أرباح مقدّر</div>
+                  </div>
+                )}
+                {potentialLoss !== null && (
+                  <div style={{ flex: 1, background: 'rgba(255,59,48,0.07)', borderRadius: 8, padding: '6px 8px', border: '1px solid rgba(255,59,48,0.2)', textAlign: 'center' }}>
+                    <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--danger)', fontFamily: 'monospace' }}>-${potentialLoss.toFixed(2)}</div>
+                    <div style={{ fontSize: 8, color: 'var(--muted)', fontWeight: 700 }}>وقف خسارة مقدّر</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {autoQty && (
+              <button
+                onClick={() => setQuantity(autoQty)}
+                style={{
+                  fontSize: 10, padding: '5px', borderRadius: 6, border: '1px dashed var(--accent)',
+                  background: 'rgba(0,229,255,0.06)', color: 'var(--accent)', cursor: 'pointer',
+                  fontWeight: 700, fontFamily: "'Cairo', sans-serif",
+                }}
+              >
+                ← تطبيق الكمية المثلى ({autoQty})
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Action Buttons */}

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { binanceWS, useMarketStore } from '@/hooks/useMarketStore'
+import { PriceAlertEngine } from '@/components/dashboard/PriceAlertEngine'
 
 /**
  * MASTER SYMBOL LIST — Single source of truth for all WS subscriptions.
@@ -68,5 +69,10 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  return <>{children}</>
+  return (
+    <>
+      <PriceAlertEngine />
+      {children}
+    </>
+  )
 }

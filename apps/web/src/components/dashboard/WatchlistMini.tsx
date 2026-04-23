@@ -53,6 +53,35 @@ export function WatchlistMini() {
   const globalQuotes = useMarketStore(state => state.quotes)
   const quotes = new Map(ALL_SYMBOLS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
+  const [sparklineData, setSparklineData] = useState<Record<string, number[]>>({})
+  const fetchedRef = useRef<Set<string>>(new Set())
+
+  // Fetch real sparklines for current tab's symbols
+  useEffect(() => {
+    const symbols = SYMBOLS_BY_TAB[activeTab]
+    const toFetch = symbols.filter(s => !fetchedRef.current.has(s))
+    if (toFetch.length === 0) return
+
+    Promise.allSettled(
+      toFetch.map(sym =>
+        fetch(`/api/exchange/history/${encodeURIComponent(sym)}?interval=1h`)
+          .then(r => r.json())
+          .then(data => {
+            if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+              const closes: number[] = data.data
+                .slice(-12)
+                .map((c: any) => c.close)
+                .filter((v: any) => typeof v === 'number' && !isNaN(v))
+              if (closes.length >= 4) {
+                fetchedRef.current.add(sym)
+                setSparklineData(prev => ({ ...prev, [sym]: closes }))
+              }
+            }
+          })
+          .catch(() => {})
+      )
+    )
+  }, [activeTab])
 
   const symbols = SYMBOLS_BY_TAB[activeTab]
 
@@ -164,30 +193,49 @@ export function WatchlistMini() {
                     <PriceDisplay price={price} isUp={isUp} />
                   )}
                   
-                  {/* Enhanced Sparkline */}
-                  <div style={{ width: 80, height: 30, opacity: 0.8, alignSelf: 'flex-end', marginBottom: -4 }}>
-                    {q ? (
-                      <svg viewBox="0 0 100 30" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
-                        <defs>
-                          <linearGradient id={`grad-${sym}`} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={color} stopOpacity="0.4" />
-                            <stop offset="100%" stopColor={color} stopOpacity="0.0" />
-                          </linearGradient>
-                        </defs>
-                        <path 
-                          d={isUp ? "M0 25 L20 20 L40 22 L60 10 L80 15 L100 5 L100 30 L0 30 Z" : "M0 5 L20 15 L40 10 L60 22 L80 20 L100 25 L100 30 L0 30 Z"} 
-                          fill={`url(#grad-${sym})`} 
-                        />
-                        <path 
-                          d={isUp ? "M0 25 L20 20 L40 22 L60 10 L80 15 L100 5" : "M0 5 L20 15 L40 10 L60 22 L80 20 L100 25"} 
-                          fill="none" 
-                          stroke={color} 
-                          strokeWidth="2.5" 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round" 
-                        />
-                      </svg>
-                    ) : (
+                  {/* Real Data Sparkline */}
+                  <div style={{ width: 80, height: 30, opacity: 0.85, alignSelf: 'flex-end', marginBottom: -4 }}>
+                    {q ? (() => {
+                      const rawPoints = sparklineData[sym]
+                      const hasReal = rawPoints && rawPoints.length >= 4
+
+                      // Normalize to SVG viewBox
+                      const points = hasReal ? rawPoints : (isUp
+                        ? [25, 20, 22, 10, 15, 5]
+                        : [5, 15, 10, 22, 20, 25])
+
+                      const mn = Math.min(...points)
+                      const mx = Math.max(...points)
+                      const range = mx - mn || 1
+                      const normalized = points.map(p => 28 - ((p - mn) / range) * 26)
+                      const step = 100 / (normalized.length - 1)
+                      const linePts = normalized.map((y, i) => `${i * step},${y}`).join(' L ')
+                      const fillPts = `M 0,${normalized[0]} L ${linePts} L ${100},${normalized[normalized.length-1]} L 100,30 L 0,30 Z`
+                      const linePath = `M 0,${normalized[0]} L ${linePts}`
+
+                      return (
+                        <svg viewBox="0 0 100 30" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
+                          <defs>
+                            <linearGradient id={`grad-${sym}`} x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+                              <stop offset="100%" stopColor={color} stopOpacity="0.0" />
+                            </linearGradient>
+                          </defs>
+                          <path d={fillPts} fill={`url(#grad-${sym})`} />
+                          <path
+                            d={linePath}
+                            fill="none" stroke={color} strokeWidth="2.5"
+                            strokeLinecap="round" strokeLinejoin="round"
+                          />
+                          {/* Last price dot */}
+                          <circle
+                            cx={100} cy={normalized[normalized.length - 1]}
+                            r={3} fill={color}
+                            style={{ filter: `drop-shadow(0 0 3px ${color})` }}
+                          />
+                        </svg>
+                      )
+                    })() : (
                       <div className="skeleton" style={{ width: '100%', height: '100%', opacity: 0.5 }} />
                     )}
                   </div>

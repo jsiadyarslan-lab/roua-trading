@@ -48,11 +48,11 @@ function ToastCard({ notif, onDismiss }: { notif: Notification, onDismiss: () =>
   useEffect(() => {
     // Animate in
     requestAnimationFrame(() => setVisible(true))
-    // Auto dismiss after 4 seconds
+    // Auto dismiss after 3 seconds
     const timer = setTimeout(() => {
       setVisible(false)
       setTimeout(onDismiss, 350)
-    }, 4000)
+    }, 3000)
     return () => clearTimeout(timer)
   }, [onDismiss])
 
@@ -110,7 +110,7 @@ function ToastCard({ notif, onDismiss }: { notif: Notification, onDismiss: () =>
       {/* Progress Bar */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0, height: 2, background: color,
-        width: '100%', animation: 'toast-progress 4s linear forwards'
+        width: '100%', animation: 'toast-progress 3s linear forwards'
       }} />
       
       <div style={{

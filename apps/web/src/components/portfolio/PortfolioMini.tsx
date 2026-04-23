@@ -89,19 +89,23 @@ export function usePortfolioSummary() {
           })
         }
 
-        // Sum up Paper trades
-        totalPositions += paperTrades.length
-        paperTrades.forEach(pt => {
-           const pnl = (pt.currentPrice - pt.entryPrice) * (pt.side === 'long' ? 1 : -1) * pt.qty * 10 // scale for demo
-           totalPnl += pnl
-           if (pnl >= 0) win++
+        // Add Paper trades metrics (from the LATEST state)
+        // Note: we'll sum these every time 'load' runs OR when paperTrades changes 
+        // by moving this logic to a separate step or just being careful.
+        // Actually, let's keep it simple: the stats in the sidebar update every 10s 
+        // with the API, but the paper trades themselves are live in the store.
+        
+        const ptList = usePaperTradesStore.getState().trades
+        totalPositions += ptList.length
+        ptList.forEach(pt => {
+           totalPnl += pt.unrealizedPnl
+           if (pt.unrealizedPnl >= 0) win++
            else loss++
         })
 
         if (balance > 0) pnlPercent = (totalPnl / (balance - totalPnl)) * 100
 
-        setData(prev => ({
-          ...prev,
+        setData({
           balance,
           margin,
           totalPnl,
@@ -110,8 +114,9 @@ export function usePortfolioSummary() {
           winCount: win,
           lossCount: loss,
           totalTrades: win + loss,
-          winRate: (win + loss) > 0 ? (win / (win + loss)) * 100 : 0
-        }))
+          winRate: (win + loss) > 0 ? (win / (win + loss)) * 100 : 0,
+          sharpe: 1.25 // mock
+        })
 
       } catch { /* Error fetching real data */ } finally {
         setLoading(false)
@@ -121,7 +126,7 @@ export function usePortfolioSummary() {
     load()
     const interval = setInterval(load, 10000)
     return () => clearInterval(interval)
-  }, [paperTrades])
+  }, []) // Removed paperTrades dependency to avoid infinite fetch loop
 
   return { data, loading }
 }

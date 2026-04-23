@@ -348,17 +348,6 @@ export function CH_drawMain(){
     });
   }
   // Crosshair
-  if(ST.mx>=0&&ST.my>=0&&ST.mx<W-PW&&ST.my>TH&&ST.my<H-20){
-    const ci=Math.min(Math.floor(ST.mx/barW),slice.length-1);
-    const bar=slice[ci];
-    if(bar){
-      // Update OHLC display
-      const dp=String(bar.c).split('.')[1]?.length||2;
-      const elO=document.getElementById('tbChO');const elH=document.getElementById('tbChH');
-      const elL=document.getElementById('tbChL');const elC=document.getElementById('tbChC');
-      if(elO)elO.textContent=bar.o.toFixed(dp);if(elH)elH.textContent=bar.h.toFixed(dp);
-      if(elL)elL.textContent=bar.l.toFixed(dp);if(elC)elC.textContent=bar.c.toFixed(dp);
-    }
     if(ST.crosshairType!=='none'){
       ctx.strokeStyle=CFG.CROSS;ctx.lineWidth=0.8;ctx.setLineDash([3,3]);
       if(ST.crosshairType==='cross'||ST.crosshairType==='dot'){
@@ -366,6 +355,18 @@ export function CH_drawMain(){
         ctx.beginPath();ctx.moveTo(ST.mx,TH);ctx.lineTo(ST.mx,H-20);ctx.stroke();
       }
       ctx.setLineDash([]);
+    }
+  } else {
+    // No crosshair -> show current (last) candle info
+    const last = slice[slice.length-1];
+    if(last){
+      const dp=String(last.c).split('.')[1]?.length||2;
+      const elO=document.getElementById('tbChO');const elH=document.getElementById('tbChH');
+      const elL=document.getElementById('tbChL');const elC=document.getElementById('tbChC');
+      if(elO)elO.textContent=last.o.toFixed(dp);
+      if(elH)elH.textContent=last.h.toFixed(dp);
+      if(elL)elL.textContent=last.l.toFixed(dp);
+      if(elC)elC.textContent=last.c.toFixed(dp);
     }
   }
 }

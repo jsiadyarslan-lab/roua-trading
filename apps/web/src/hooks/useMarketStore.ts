@@ -74,28 +74,44 @@ class BinanceWSManager {
     clearTimeout(this.debounceTimer)
   }
 
+  private currentStreams: string = ''
+
   private scheduleReconnect() {
     clearTimeout(this.debounceTimer)
     this.debounceTimer = setTimeout(() => {
       this.reconnect()
-    }, 100)
+    }, 500) // 500ms debounce to batch multiple subscriptions
   }
 
   private reconnect() {
-    this.close()
-    if (this.subscribers.size === 0) return
+    if (this.subscribers.size === 0) {
+      this.close()
+      return
+    }
 
     const streamNames = Array.from(
       new Set(Array.from(this.subscribers).map(s => `${this.normalizeSymbol(s)}@ticker`))
-    )
+    ).sort()
     const streams = streamNames.join('/')
+
+    if (streams === this.currentStreams && this.ws && this.ws.readyState === WebSocket.OPEN) {
+      return // Already connected to these streams
+    }
+
+    this.close()
+    this.currentStreams = streams
     const wsUrl = `wss://stream.binance.com:9443/stream?streams=${streams}`
 
+    console.log(`[BinanceWS] Connecting to: ${streams}`)
     try {
       this.ws = new WebSocket(wsUrl)
     } catch (e) {
-      console.error('WS init error', e)
+      console.error('[BinanceWS] Init error', e)
       return
+    }
+
+    this.ws.onopen = () => {
+      console.log(`[BinanceWS] Connected to ${streamNames.length} streams`)
     }
 
     this.ws.onmessage = (event) => {
@@ -103,10 +119,12 @@ class BinanceWSManager {
         const msg = JSON.parse(event.data)
         if (msg.data && msg.data.c) {
           const d = msg.data
-          const rawSymbol = d.s // e.g. BTCUSDT
+          const rawSymbol = d.s.toUpperCase()
           
-          // Find original symbol
-          const originalSymbol = Array.from(this.subscribers).find(s => this.normalizeSymbol(s).toUpperCase() === rawSymbol)
+          // Find original symbol (e.g. BTC/USD) from subscribers
+          const originalSymbol = Array.from(this.subscribers).find(s => 
+            this.normalizeSymbol(s).toUpperCase() === rawSymbol
+          )
           
           if (originalSymbol) {
             const price = parseFloat(d.c)
@@ -132,11 +150,17 @@ class BinanceWSManager {
           }
         }
       } catch (e) {
-        console.error('WS Parse Error', e)
+        console.error('[BinanceWS] Parse Error', e)
       }
     }
 
-    this.ws.onclose = () => {
+    this.ws.onerror = (e) => {
+      console.error('[BinanceWS] Error:', e)
+    }
+
+    this.ws.onclose = (e) => {
+      console.warn(`[BinanceWS] Closed (Code: ${e.code}). Reconnecting in 3s...`)
+      this.currentStreams = ''
       this.reconnectTimer = setTimeout(() => this.reconnect(), 3000)
     }
   }

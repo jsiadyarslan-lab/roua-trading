@@ -101,14 +101,14 @@ export function QuickExecutionMini() {
         addPaperTrade({
           id: `manual-${Date.now()}`,
           symbol: localSymbol,
-          side: side as 'long' | 'short',
+          side: side === 'buy' ? 'long' : 'short',
           qty: parseFloat(quantity),
           entryPrice: j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : currentPrice,
           currentPrice: currentPrice,
           tp: takeProfit ? parseFloat(takeProfit) : undefined,
           sl: stopLoss ? parseFloat(stopLoss) : undefined,
           source: 'manual',
-          entryTime: new Date().toISOString()
+          entryTime: Date.now() // Paper trades store expects unix ms
         })
 
         setStatus({

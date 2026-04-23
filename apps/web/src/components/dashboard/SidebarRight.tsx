@@ -103,6 +103,20 @@ export default function SidebarRight() {
     }
   }
 
+  // Clear all signals
+  const handleClearSignals = async () => {
+    if (!confirm('هل أنت متأكد من حذف جميع الإشارات؟')) return
+    try {
+      const res = await fetch('/api/signals/clear', { method: 'DELETE' })
+      const data = await res.json()
+      if (data.success) {
+        setSignals([])
+      }
+    } catch (e) {
+      console.error('Failed to clear signals', e)
+    }
+  }
+
   // Risk calculator
   const entryPrice = quote?.price ?? 0
   const sl = parseFloat(slPrice) || 0
@@ -156,6 +170,27 @@ export default function SidebarRight() {
 
       {/* Tab Content */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
+        {/* Signals Tab Toolbar */}
+        {rightTab === 'signals' && signals.length > 0 && (
+          <div className="flex justify-end mb-2">
+            <button
+              onClick={handleClearSignals}
+              style={{
+                fontSize: '9px',
+                color: 'var(--red)',
+                background: 'rgba(255, 68, 68, 0.1)',
+                border: '1px solid rgba(255, 68, 68, 0.2)',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-ui)',
+              }}
+            >
+              حذف الكل
+            </button>
+          </div>
+        )}
+
         {/* Trading Tab */}
         {rightTab === 'trade' && (
           <div className="flex flex-col gap-3">

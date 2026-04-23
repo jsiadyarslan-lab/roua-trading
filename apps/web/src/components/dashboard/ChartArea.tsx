@@ -252,14 +252,31 @@ export default function ChartArea() {
     priceLinesRef.current = []
 
     const allPositions = [
-      ...positions.map(p => ({ ...p, isPaper: false })),
-      ...paperTrades.map(p => ({ ...p, isPaper: true }))
-    ].filter(p => p.symbol === selectedPair || p.symbol === selectedPair.replace('/', ''))
+      ...positions.map(p => {
+        const manualPt = paperTrades.find(pt => pt.symbol.replace('/', '') === p.symbol.replace('/', '') && pt.source === 'manual')
+        return {
+          ...p,
+          id: p.rawSymbol,
+          isPaper: false,
+          entryTime: manualPt?.entryTime || null,
+          tp: manualPt?.tp || null,
+          sl: manualPt?.sl || null
+        }
+      }),
+      ...paperTrades.filter(pt => pt.source === 'bot' || !positions.some(p => p.rawSymbol.replace('/', '') === pt.symbol.replace('/', ''))).map(p => ({
+        ...p,
+        isPaper: true
+      }))
+    ].filter(p => {
+      const pSym = p.symbol || p.rawSymbol || '';
+      return pSym.replace('/', '') === selectedPair.replace('/', '')
+    })
 
     allPositions.forEach(p => {
       // Handle both Alpaca (avg_entry_price string) and Paper (entryPrice number)
       const entryPrice = p.isPaper ? p.entryPrice : parseFloat(p.avg_entry_price || p.avgEntryPrice || '0');
-      const isLong = p.side === 'long';
+      const side = (p.side || '').toLowerCase();
+      const isLong = side === 'long' || side === 'buy';
       const pnlColor = p.unrealizedPnl >= 0 ? '#00C853' : '#FF3B30';
 
       if (entryPrice && entryPrice > 0) {

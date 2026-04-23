@@ -113,47 +113,9 @@ export function AlpacaPositions() {
   const totalPnl = allPositions.reduce((sum, p) => sum + p.unrealizedPnl, 0)
 
   // ─── Render ───
+  // ─── Render ───
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', padding: '6px 10px',
-        borderBottom: `1px solid ${T.border}`, flexShrink: 0, gap: 12, overflowX: 'auto', whiteSpace: 'nowrap'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, fontWeight: 700, color: T.text }}>المراكز ({allPositions.length})</span>
-        </div>
-        
-        <div style={{ flex: 1 }} />
-
-        <button
-          onClick={() => {
-             if(confirm('هل تريد حذف جميع الصفقات التجريبية (Paper Trades)؟')) {
-                usePaperTradesStore.getState().clearAll();
-             }
-          }}
-          title="حذف جميع الصفقات التجريبية"
-          style={{
-            background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.2)', cursor: 'pointer',
-            color: '#FF3B30', padding: '2px 8px', display: 'flex', alignItems: 'center',
-            fontSize: '9px', fontFamily: "'Cairo', sans-serif", borderRadius: 4, fontWeight: 700
-          }}
-        >
-          حذف التجريبية
-        </button>
-
-        <button
-          onClick={fetchPositions}
-          disabled={loading}
-          style={{
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            color: T.text3, padding: 2, display: 'flex', alignItems: 'center',
-          }}
-        >
-          <RefreshCw size={12} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-        </button>
-      </div>
-
       {/* Positions Table */}
       <div className="no-scrollbar" style={{ flex: 1, overflowX: 'auto', overflowY: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>

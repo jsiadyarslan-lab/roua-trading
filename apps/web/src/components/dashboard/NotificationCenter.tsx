@@ -40,27 +40,56 @@ function timeAgo(ts: number) {
 /* ══ Single Toast Card ════════════════════════════════════ */
 function ToastCard({ notif, onDismiss }: { notif: Notification, onDismiss: () => void }) {
   const [visible, setVisible] = useState(false)
+  const [executed, setExecuted] = useState(false)
   const { setSelectedSymbol } = useSymbolStore()
+  const { addTrade } = usePaperTradesStore()
   
   useEffect(() => {
     // Animate in
     requestAnimationFrame(() => setVisible(true))
-    // Auto dismiss after 8 seconds
+    // Auto dismiss after 4 seconds
     const timer = setTimeout(() => {
       setVisible(false)
       setTimeout(onDismiss, 350)
-    }, 8000)
+    }, 4000)
     return () => clearTimeout(timer)
   }, [onDismiss])
 
   const color = SRC_COLOR[notif.source]
   const actionColor = ACTION_COLOR[notif.action]
+  const canExecute = (notif.action === 'BUY' || notif.action === 'SELL') && notif.pair && notif.price
+
+  const handleExecute = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (executed || !canExecute) return
+
+    const isBuy = notif.action === 'BUY'
+    
+    addTrade({
+      symbol: notif.pair as string,
+      side: isBuy ? 'long' : 'short',
+      qty: 0.1, // Default safe quantity for quick execution
+      entryPrice: notif.price as number,
+      currentPrice: notif.price as number,
+      tp: (notif.price as number) * (isBuy ? 1.015 : 0.985),
+      sl: (notif.price as number) * (isBuy ? 0.99 : 1.01),
+      entryTime: Date.now(),
+      strategy: `تنبيه سريع (${notif.source})`,
+      source: 'manual'
+    })
+
+    setExecuted(true)
+    setTimeout(() => {
+      setVisible(false)
+      setTimeout(onDismiss, 350)
+    }, 1500)
+  }
   
   return (
     <div 
       onClick={() => notif.pair && setSelectedSymbol(notif.pair)}
       style={{
-        width: 280,
+        width: 300,
         background: 'rgba(15,17,19,0.95)',
         backdropFilter: 'blur(12px)',
         border: `1px solid ${color}30`,
@@ -80,7 +109,7 @@ function ToastCard({ notif, onDismiss }: { notif: Notification, onDismiss: () =>
       {/* Progress Bar */}
       <div style={{
         position: 'absolute', bottom: 0, left: 0, height: 2, background: color,
-        width: '100%', animation: 'toast-progress 8s linear forwards'
+        width: '100%', animation: 'toast-progress 4s linear forwards'
       }} />
       
       <div style={{
@@ -96,14 +125,32 @@ function ToastCard({ notif, onDismiss }: { notif: Notification, onDismiss: () =>
         <p style={{ fontSize: 10, color: '#8090A8', margin: 0, lineHeight: 1.4 }}>{notif.body}</p>
         
         {notif.pair && (
-          <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
-            <span style={{ fontSize: 9, fontFamily: 'monospace', color: '#fff', fontWeight: 700 }}>{notif.pair}</span>
-            <span style={{
-              fontSize: 8, padding: '1px 5px', borderRadius: 3,
-              background: `${actionColor}20`, color: actionColor, fontWeight: 800,
-            }}>
-              {notif.action === 'BUY' ? 'شراء' : notif.action === 'SELL' ? 'بيع' : notif.action}
-            </span>
+          <div style={{ marginTop: 8, display: 'flex', gap: 6, alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <span style={{ fontSize: 9, fontFamily: 'monospace', color: '#fff', fontWeight: 700 }}>{notif.pair}</span>
+              <span style={{
+                fontSize: 8, padding: '1px 5px', borderRadius: 3,
+                background: `${actionColor}20`, color: actionColor, fontWeight: 800,
+              }}>
+                {notif.action === 'BUY' ? 'شراء' : notif.action === 'SELL' ? 'بيع' : notif.action}
+              </span>
+            </div>
+            
+            {canExecute && (
+              <button 
+                onClick={handleExecute}
+                disabled={executed}
+                style={{
+                  background: executed ? 'rgba(255,255,255,0.05)' : `${actionColor}15`,
+                  border: `1px solid ${executed ? 'rgba(255,255,255,0.1)' : `${actionColor}40`}`,
+                  color: executed ? '#8090A8' : actionColor,
+                  padding: '3px 8px', borderRadius: 4, fontSize: 9, fontWeight: 800,
+                  cursor: executed ? 'default' : 'pointer', fontFamily: "'Cairo', sans-serif",
+                }}
+              >
+                {executed ? 'تم التنفيذ ✅' : 'تنفيذ ⚡'}
+              </button>
+            )}
           </div>
         )}
       </div>

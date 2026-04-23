@@ -39,11 +39,16 @@ export async function GET(
     }
 
     if (isCryptoPair) {
-      // Fetch from Binance
-      const binanceSymbol = symbol.replace('/', '')
-      if (symbol.endsWith('/USD') && !symbol.endsWith('/USDT')) {
-        // ... (normalization if needed)
+      // Normalize: BTC/USD → BTC/USDT for Binance (Binance uses USDT pairs)
+      let normalizedSymbol = symbol
+      if (symbol.endsWith('/USD') && !symbol.endsWith('/USDT') && !symbol.endsWith('/BUSD')) {
+        const base = symbol.split('/')[0]
+        if (CRYPTO_BASE_CURRENCIES.includes(base)) {
+          normalizedSymbol = `${base}/USDT`
+        }
       }
+      // Fetch from Binance
+      const binanceSymbol = normalizedSymbol.replace('/', '')
       const binanceInterval = intervalMap[interval] || '1d'
       const limit = 200
 

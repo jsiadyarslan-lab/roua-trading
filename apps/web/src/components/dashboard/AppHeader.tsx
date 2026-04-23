@@ -7,7 +7,7 @@ import {
   Home, Wallet, Brain, ScanSearch, BarChart2,
   Copy, Users, Newspaper, CalendarDays, Settings,
   ChevronDown, Bell, User, MoreHorizontal,
-  TrendingUp, TrendingDown, Menu, X
+  TrendingUp, TrendingDown, Menu, X, GitMerge, Activity
 } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
@@ -319,16 +319,18 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
 
 /* ══ Strip 3: Main Nav ══ */
 const NAV_LINKS = [
-  { href: '/dashboard',              label: 'الرئيسية',           icon: Home },
-  { href: '/dashboard/portfolio',    label: 'المحفظة',            icon: Wallet },
-  { href: '/dashboard/ai',           label: 'تحليل AI',           icon: Brain },
-  { href: '/dashboard/scanner',      label: 'السكانر المتقدم',    icon: ScanSearch },
-  { href: '/dashboard/strategies',   label: 'تحليلات استراتيجية', icon: BarChart2 },
-  { href: '/dashboard/copy-trading', label: 'نسخ الصفقات',        icon: Copy },
-  { href: '/dashboard/social',       label: 'التداول الاجتماعي',  icon: Users },
-  { href: '/dashboard/news',         label: 'الأخبار',            icon: Newspaper },
-  { href: '/dashboard/calendar',     label: 'الأجندة الاقتصادية', icon: CalendarDays },
-  { href: '/dashboard/settings',     label: 'الإعدادات',          icon: Settings },
+  { href: '/dashboard',                        label: 'الرئيسية',           icon: Home },
+  { href: '/dashboard/portfolio',              label: 'المحفظة',            icon: Wallet },
+  { href: '/dashboard/ai',                     label: 'تحليل AI',           icon: Brain },
+  { href: '/dashboard/scanner',                label: 'السكانر المتقدم',    icon: ScanSearch },
+  { href: '/dashboard/strategies',             label: 'تحليلات استراتيجية', icon: BarChart2 },
+  { href: '/dashboard/copy-trading',           label: 'نسخ الصفقات',        icon: Copy },
+  { href: '/dashboard/social',                 label: 'التداول الاجتماعي',  icon: Users },
+  { href: '/dashboard/news',                   label: 'الأخبار',            icon: Newspaper },
+  { href: '/dashboard/calendar',               label: 'الأجندة الاقتصادية', icon: CalendarDays },
+  { href: '/dashboard/strategies/backtest',    label: 'اختبار الاستراتيجيات', icon: Activity },
+  { href: '/dashboard/correlation',            label: 'مصفوفة الارتباط',    icon: GitMerge },
+  { href: '/dashboard/settings',               label: 'الإعدادات',          icon: Settings },
 ]
 
 function MainNav() {

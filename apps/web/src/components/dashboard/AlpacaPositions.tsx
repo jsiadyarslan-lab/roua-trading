@@ -39,7 +39,8 @@ export function AlpacaPositions() {
   // Merge Alpaca positions and Paper trades
   const allPositions = [
     ...positions.map(p => {
-      const manualPt = paperTrades.find(pt => pt.symbol === p.symbol && pt.source === 'manual')
+      // Alpaca might return BTCUSD, but paper trade has BTC/USD
+      const manualPt = paperTrades.find(pt => pt.symbol.replace('/', '') === p.symbol.replace('/', '') && pt.source === 'manual')
       return {
         ...p,
         id: p.rawSymbol,
@@ -49,7 +50,7 @@ export function AlpacaPositions() {
         sl: manualPt?.sl || null
       }
     }),
-    ...paperTrades.filter(pt => pt.source === 'bot' || !positions.some(p => p.rawSymbol === pt.symbol)).map(p => ({
+    ...paperTrades.filter(pt => pt.source === 'bot' || !positions.some(p => p.rawSymbol.replace('/', '') === pt.symbol.replace('/', ''))).map(p => ({
       symbol: p.symbol,
       rawSymbol: p.symbol,
       side: p.side,

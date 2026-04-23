@@ -38,15 +38,18 @@ export function AlpacaPositions() {
 
   // Merge Alpaca positions and Paper trades
   const allPositions = [
-    ...positions.map(p => ({
-      ...p,
-      id: p.rawSymbol,
-      isPaper: false,
-      entryTime: null,
-      tp: null,
-      sl: null
-    })),
-    ...paperTrades.map(p => ({
+    ...positions.map(p => {
+      const manualPt = paperTrades.find(pt => pt.symbol === p.symbol && pt.source === 'manual')
+      return {
+        ...p,
+        id: p.rawSymbol,
+        isPaper: false,
+        entryTime: manualPt?.entryTime || null,
+        tp: manualPt?.tp || null,
+        sl: manualPt?.sl || null
+      }
+    }),
+    ...paperTrades.filter(pt => pt.source === 'bot' || !positions.some(p => p.rawSymbol === pt.symbol)).map(p => ({
       symbol: p.symbol,
       rawSymbol: p.symbol,
       side: p.side,

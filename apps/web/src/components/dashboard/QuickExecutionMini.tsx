@@ -4,11 +4,14 @@ import { useState, useEffect } from 'react'
 import { Zap, ShieldCheck, ChevronDown, ChevronUp, Calculator } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
+import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 
 export function QuickExecutionMini() {
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
   const [localSymbol, setLocalSymbol] = useState(selectedSymbol)
   const [account, setAccount] = useState<{ cash: number; buyingPower: number } | null>(null)
+  const { addTrade: addPaperTrade } = usePaperTradesStore()
+  const [lastOrder, setLastOrder] = useState<any>(null)
 
   // Sync when global symbol changes
   useEffect(() => { setLocalSymbol(selectedSymbol) }, [selectedSymbol])
@@ -93,6 +96,21 @@ export function QuickExecutionMini() {
         const filled = j.filledAvgPrice
           ? ` بسعر $${parseFloat(j.filledAvgPrice).toFixed(2)}`
           : ''
+          
+        // TRACK IN PAPER STORE: This ensures TP/SL lines render immediately even if Alpaca stripped them for crypto
+        addPaperTrade({
+          id: `manual-${Date.now()}`,
+          symbol: localSymbol,
+          side: side as 'long' | 'short',
+          qty: parseFloat(quantity),
+          entryPrice: j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : currentPrice,
+          currentPrice: currentPrice,
+          tp: takeProfit ? parseFloat(takeProfit) : undefined,
+          sl: stopLoss ? parseFloat(stopLoss) : undefined,
+          source: 'manual',
+          entryTime: new Date().toISOString()
+        })
+
         setStatus({
           msg:  `✅ تمت عملية ${side === 'buy' ? 'شراء' : 'بيع'} ${j.qty} ${j.symbol}${filled}\nرقم الأمر: ${j.orderId?.slice(0,8)}...`,
           type: 'success',

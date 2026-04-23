@@ -69,19 +69,19 @@ export async function POST(req: NextRequest) {
 
     // وقف الخسارة وجني الأرباح (bracket order)
     if (stop_loss || take_profit) {
-      // Alpaca does NOT support bracket orders for Crypto (e.g. BTC/USD, ETH/USD)
       const isCrypto = symbol.includes('/') || ['BTC', 'ETH', 'SOL', 'XRP', 'BNB'].some(c => symbol.toUpperCase().startsWith(c));
-      if (isCrypto) {
-        return NextResponse.json({ success: false, error: 'Alpaca لا يدعم تحديد جني الأرباح ووقف الخسارة للعملات الرقمية حالياً. يرجى ترك هذه الحقول فارغة للتنفيذ.' }, { status: 400 })
-      }
-
-      payload.order_class = 'bracket'
-      payload.time_in_force = 'day' // Fractional shares require 'day'
-      if (stop_loss) {
-        payload.stop_loss = { stop_price: stop_loss.toString() }
-      }
-      if (take_profit) {
-        payload.take_profit = { limit_price: take_profit.toString() }
+      
+      // Alpaca does NOT support bracket orders for Crypto (e.g. BTC/USD, ETH/USD)
+      // If it's crypto, we just execute the market order. The frontend will save TP/SL locally.
+      if (!isCrypto) {
+        payload.order_class = 'bracket'
+        payload.time_in_force = 'day' // Fractional shares require 'day'
+        if (stop_loss) {
+          payload.stop_loss = { stop_price: stop_loss.toString() }
+        }
+        if (take_profit) {
+          payload.take_profit = { limit_price: take_profit.toString() }
+        }
       }
     }
 

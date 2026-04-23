@@ -112,34 +112,7 @@ export function AlpacaPositions() {
 
   const totalPnl = allPositions.reduce((sum, p) => sum + p.unrealizedPnl, 0)
 
-  // ─── Empty state ───
-  if (!loading && allPositions.length === 0) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', alignItems: 'center', justifyContent: 'center', gap: 6, color: T.text2 }}>
-        {error ? (
-          <span style={{ fontSize: 11, color: T.danger, fontFamily: "'Cairo', sans-serif", textAlign: 'center', padding: '0 12px' }}>
-            ⚠️ {error}
-          </span>
-        ) : (
-          <>
-            <span style={{ fontSize: 20 }}>📭</span>
-            <span style={{ fontSize: 11, fontFamily: "'Cairo', sans-serif" }}>لا توجد مراكز مفتوحة</span>
-            {lastUpdate && (
-              <span style={{ fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
-                آخر تحديث: {lastUpdate}
-              </span>
-            )}
-          </>
-        )}
-        <button onClick={fetchPositions} className="btn-cyan-active" style={{
-          marginTop: 4, padding: '3px 12px', fontSize: 10,
-          borderRadius: 'var(--radius)', cursor: 'pointer',
-          fontFamily: "'Cairo', sans-serif",
-        }}>تحديث</button>
-      </div>
-    )
-  }
-
+  // ─── Render ───
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Header */}
@@ -149,36 +122,9 @@ export function AlpacaPositions() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, fontWeight: 700, color: T.text }}>المراكز ({allPositions.length})</span>
-          {lastUpdate && <span style={{ fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{lastUpdate}</span>}
         </div>
         
-        <div style={{ width: 1, height: 12, background: T.border }} />
-
-        {/* Account Info */}
-        <div style={{ display: 'flex', gap: 12, flex: 1, fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>
-          <div style={{ display: 'flex', gap: 4 }}>
-            <span style={{ color: T.text2 }}>PNL:</span>
-            <span style={{ fontWeight: 800, color: totalPnl >= 0 ? T.success : T.danger }}>
-              {totalPnl >= 0 ? '+' : ''}{totalPnl.toFixed(2)}$
-            </span>
-          </div>
-          {account && (
-            <>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <span style={{ color: T.text2 }}>الرصيد:</span>
-                <span style={{ color: T.text }}>${account.equity.toLocaleString()}</span>
-              </div>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <span style={{ color: T.text2 }}>متاح:</span>
-                <span style={{ color: T.success }}>${account.buyingPower.toLocaleString()}</span>
-              </div>
-              <div style={{ display: 'flex', gap: 4 }}>
-                <span style={{ color: T.text2 }}>مستخدم:</span>
-                <span style={{ color: T.danger }}>${(account.equity - account.cash).toLocaleString()}</span>
-              </div>
-            </>
-          )}
-        </div>
+        <div style={{ flex: 1 }} />
 
         <button
           onClick={() => {

@@ -34,74 +34,19 @@ async function fetchQuoteFromAPI(symbol: string): Promise<QuoteData | null> {
   return null
 }
 
-export function useMarketQuotes(symbols: string[], refreshInterval = 6000) {
+export function useMarketQuotes(symbols: string[]) {
   const globalQuotes = useMarketStore(state => state.quotes)
-  const setQuote = useMarketStore(state => state.setQuote)
-  const mountedRef = useRef(true)
-
-  // Derive local map for compatibility with older code relying on Map
+  
+  // Derive local map for compatibility
   const quotesMap = new Map<string, QuoteData>()
   symbols.forEach(s => {
     if (globalQuotes[s]) quotesMap.set(s, globalQuotes[s])
   })
 
-  // Split symbols
-  const cryptoSymbols = symbols.filter(isCryptoPair)
-  const nonCryptoSymbols = symbols.filter(s => !isCryptoPair(s))
+  // Expose a dummy refetch that doesn't do anything because MarketProvider polls globally
+  const refetch = useCallback(() => {}, [])
 
-  const fetchAllInit = useCallback(async () => {
-    const results = await Promise.allSettled(
-      symbols.map(async (symbol) => {
-        // Skip fetch if we already have it from WS and it's fresh, but to be safe, we fetch initial once.
-        const data = await fetchQuoteFromAPI(symbol)
-        return { symbol, data }
-      })
-    )
-    if (!mountedRef.current) return
-    for (const r of results) {
-      if (r.status === 'fulfilled' && r.value.data) {
-        setQuote(r.value.symbol, r.value.data)
-      }
-    }
-  }, [symbols.join(',')])
-
-  const pollNonCrypto = useCallback(async () => {
-    if (nonCryptoSymbols.length === 0) return
-    const results = await Promise.allSettled(
-      nonCryptoSymbols.map(async (symbol) => {
-        const data = await fetchQuoteFromAPI(symbol)
-        return { symbol, data }
-      })
-    )
-    if (!mountedRef.current) return
-    for (const r of results) {
-      if (r.status === 'fulfilled' && r.value.data) {
-        setQuote(r.value.symbol, r.value.data)
-      }
-    }
-  }, [nonCryptoSymbols.join(',')])
-
-  useEffect(() => {
-    mountedRef.current = true
-    fetchAllInit()
-
-    // 1. Setup Polling
-    const iv = setInterval(pollNonCrypto, refreshInterval)
-
-    // 2. Setup Binance WebSocket via Singleton
-    cryptoSymbols.forEach(s => binanceWS.subscribe(s))
-
-    return () => {
-      mountedRef.current = false
-      clearInterval(iv)
-      // We don't eagerly unsubscribe to avoid connection flapping if user just switched tabs
-      setTimeout(() => {
-        cryptoSymbols.forEach(s => binanceWS.unsubscribe(s))
-      }, 5000)
-    }
-  }, [symbols.join(','), refreshInterval, fetchAllInit, pollNonCrypto])
-
-  return { quotes: quotesMap, refetch: fetchAllInit }
+  return { quotes: quotesMap, refetch }
 }
 
 export function useSingleQuote(symbol: string, refreshInterval = 6000) {

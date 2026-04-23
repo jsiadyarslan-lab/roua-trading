@@ -1,13 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Brain, Shield, Zap, TrendingUp, TrendingDown, Minus, Info, RefreshCw, Layers } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Brain, Shield, Zap, TrendingUp, TrendingDown, Minus, Info, RefreshCw, Layers, AlertCircle } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 
 const T = {
   bg: '#0F1113',
-  card: '#16181A',
-  border: 'rgba(0, 229, 255, 0.1)',
   accent: '#00E5FF',
   green: '#00C853',
   red: '#FF3B30',
@@ -24,141 +22,203 @@ interface Analysis {
   reason: string
 }
 
+interface ConsensusData {
+  consensusScore: number
+  recommendation: 'BUY' | 'SELL' | 'HOLD'
+  analyses: Analysis[]
+  masterStrategy: string
+  meta?: { symbol: string; price: number; rsi: number; processingTimeMs: number }
+}
+
 export function AICouncilPanel() {
   const { selectedSymbol } = useSymbolStore()
   const [loading, setLoading] = useState(false)
-  const [data, setData] = useState<{
-    consensusScore: number
-    recommendation: 'BUY' | 'SELL' | 'HOLD'
-    analyses: Analysis[]
-    masterStrategy: string
-  } | null>(null)
+  const [data, setData] = useState<ConsensusData | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  const fetchConsensus = async () => {
+  const fetchConsensus = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
       const res = await fetch('/api/ai/consensus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol: selectedSymbol }),
       })
+      
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`خطأ ${res.status}: ${text.slice(0, 100)}`)
+      }
+
       const j = await res.json()
-      if (j.success) setData(j.data)
-    } catch (e) {
-      console.error('Failed to fetch AI consensus', e)
+      if (j.success) {
+        setData(j.data)
+      } else {
+        throw new Error(j.error || 'فشل في الحصول على الإجماع')
+      }
+    } catch (e: any) {
+      setError(e.message || 'خطأ غير متوقع')
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedSymbol])
 
   useEffect(() => {
     fetchConsensus()
-  }, [selectedSymbol])
+  }, [fetchConsensus])
 
-  if (!data && !loading) return <div className="p-4 text-center text-xs opacity-40">جاري التحميل...</div>
+  const recColor = data?.recommendation === 'BUY' ? T.green : data?.recommendation === 'SELL' ? T.red : T.amber
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: T.bg, fontFamily: "'Cairo', sans-serif" }}>
-      {/* Header with Pulse */}
-      <div className="p-4 border-b border-white/5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <div className="flex flex-col h-full overflow-hidden" style={{ background: T.bg, fontFamily: "'Cairo', sans-serif", direction: 'rtl' }}>
+      {/* Header */}
+      <div className="p-3 border-b border-white/5 flex items-center justify-between" style={{ background: '#0a0c0e' }}>
+        <div className="flex items-center gap-2">
           <div className="relative">
-            <Brain size={18} color={T.accent} />
-            <div className="absolute inset-0 bg-cyan-400/20 blur-md rounded-full animate-pulse" />
+            <Brain size={16} color={T.accent} />
+            {!loading && data && <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full" />}
           </div>
           <div>
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider">مجلس الذكاء الاصطناعي</h3>
-            <p className="text-[9px] text-cyan-400/60 font-mono">AI COUNCIL CONSENSUS</p>
+            <h3 className="text-[11px] font-bold text-white">مجلس الذكاء الاصطناعي</h3>
+            <p className="text-[8px] font-mono" style={{ color: T.accent + '80' }}>
+              {data?.meta ? `${data.meta.symbol} • RSI: ${data.meta.rsi} • ${data.meta.processingTimeMs}ms` : 'AI COUNCIL CONSENSUS'}
+            </p>
           </div>
         </div>
-        <button 
-          onClick={fetchConsensus} 
+        <button
+          onClick={fetchConsensus}
           disabled={loading}
-          className="p-1.5 rounded-full hover:bg-white/5 transition-colors"
+          className="p-1.5 rounded-md transition-colors hover:bg-white/5"
+          title="تحديث التحليل"
         >
-          <RefreshCw size={14} className={loading ? 'animate-spin' : ''} color={T.text2} />
+          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} color={T.text2} />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-4">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center h-40 gap-4">
-            <Layers size={32} className="animate-bounce text-cyan-500/30" />
-            <span className="text-[10px] text-cyan-400/60 animate-pulse">جاري استشارة النماذج الستة...</span>
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-2.5 space-y-3">
+        {/* Loading State */}
+        {loading && (
+          <div className="flex flex-col items-center justify-center h-40 gap-3">
+            <div className="relative">
+              <Layers size={28} color={T.accent + '40'} />
+              <div className="absolute inset-0 animate-ping" style={{ background: T.accent + '10', borderRadius: '50%' }} />
+            </div>
+            <span className="text-[10px] animate-pulse" style={{ color: T.accent + '80' }}>
+              جاري استشارة النماذج الستة...
+            </span>
           </div>
-        ) : data && (
+        )}
+
+        {/* Error State */}
+        {error && !loading && (
+          <div className="p-3 rounded-lg border border-red-500/20 bg-red-500/5 flex items-start gap-2">
+            <AlertCircle size={14} color={T.red} className="mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-[10px] font-bold text-red-400 mb-1">فشل في التحليل</p>
+              <p className="text-[9px] text-red-400/60">{error}</p>
+              <button onClick={fetchConsensus} className="mt-2 text-[9px] text-red-400 underline">إعادة المحاولة</button>
+            </div>
+          </div>
+        )}
+
+        {/* Data State */}
+        {!loading && data && (
           <>
             {/* Consensus Gauge */}
-            <div className="relative p-4 rounded-xl border border-white/5 bg-white/[0.02] flex flex-col items-center text-center">
-               <div className="absolute top-2 right-2 flex items-center gap-1">
-                 <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" />
-                 <span className="text-[8px] text-green-500/80 font-bold">LIVE</span>
-               </div>
-               
-               <div className="text-[10px] text-white/40 mb-1 uppercase tracking-tighter">درجة الإجماع</div>
-               <div className="text-3xl font-black font-mono mb-1" style={{ color: data.recommendation === 'BUY' ? T.green : data.recommendation === 'SELL' ? T.red : T.amber }}>
-                 {data.consensusScore}%
-               </div>
-               
-               <div className="px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest" style={{ background: `${data.recommendation === 'BUY' ? T.green : data.recommendation === 'SELL' ? T.red : T.amber}20`, color: data.recommendation === 'BUY' ? T.green : data.recommendation === 'SELL' ? T.red : T.amber }}>
-                 {data.recommendation === 'BUY' ? 'قوة شرائية' : data.recommendation === 'SELL' ? 'ضغط بيعي' : 'حياد'}
-               </div>
+            <div className="relative p-3 rounded-xl text-center" style={{ background: '#0d0f12', border: `1px solid ${recColor}20` }}>
+              <div className="absolute top-2 left-2 flex items-center gap-1">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" />
+                <span className="text-[7px] text-green-500/80 font-bold font-mono">LIVE</span>
+              </div>
+
+              <div className="text-[9px] mb-1 uppercase tracking-widest" style={{ color: T.text2 }}>درجة الإجماع</div>
+              <div className="text-4xl font-black font-mono mb-2" style={{ color: recColor, textShadow: `0 0 20px ${recColor}40` }}>
+                {data.consensusScore}%
+              </div>
+
+              {/* Gauge Bar */}
+              <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden mb-2">
+                <div
+                  className="h-full rounded-full transition-all duration-1000"
+                  style={{ width: `${data.consensusScore}%`, background: recColor, boxShadow: `0 0 10px ${recColor}60` }}
+                />
+              </div>
+
+              <div
+                className="inline-flex px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest"
+                style={{ background: `${recColor}15`, color: recColor, border: `1px solid ${recColor}30` }}
+              >
+                {data.recommendation === 'BUY' ? '⬆ قوة شرائية' : data.recommendation === 'SELL' ? '⬇ ضغط بيعي' : '◆ حياد — انتظار'}
+              </div>
             </div>
 
-            {/* Strategy Summary */}
-            <div className="p-3 rounded-lg border border-cyan-500/10 bg-cyan-500/5">
-              <div className="flex items-center gap-2 mb-2">
-                <Zap size={10} color={T.accent} />
-                <span className="text-[10px] font-bold text-cyan-400">الاستراتيجية المقترحة</span>
+            {/* Master Strategy */}
+            <div className="p-2.5 rounded-lg" style={{ background: '#0d1117', border: `1px solid ${T.accent}15` }}>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Zap size={9} color={T.accent} />
+                <span className="text-[9px] font-bold" style={{ color: T.accent }}>الاستراتيجية الموحدة</span>
               </div>
-              <p className="text-[10px] leading-relaxed text-white/80">
+              <p className="text-[10px] leading-5" style={{ color: T.text + 'cc' }}>
                 {data.masterStrategy}
               </p>
             </div>
 
-            {/* Individual Votes */}
-            <div className="space-y-2">
-              <div className="text-[9px] font-bold text-white/30 uppercase px-1">توزيع الأصوات</div>
-              {data.analyses.map((a, i) => (
-                <div key={i} className="p-2 rounded-lg border border-white/5 bg-white/[0.01] hover:bg-white/[0.03] transition-colors group">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center gap-2">
-                      <div className="w-5 h-5 rounded-md bg-white/5 flex items-center justify-center">
-                        {a.vote === 'BUY' ? <TrendingUp size={10} color={T.green} /> : a.vote === 'SELL' ? <TrendingDown size={10} color={T.red} /> : <Minus size={10} color={T.amber} />}
+            {/* Vote Distribution */}
+            <div className="space-y-1.5">
+              <div className="text-[8px] font-bold px-1 uppercase tracking-widest" style={{ color: T.text2 }}>توزيع أصوات المجلس</div>
+              {data.analyses.map((a, i) => {
+                const voteColor = a.vote === 'BUY' ? T.green : a.vote === 'SELL' ? T.red : T.amber
+                return (
+                  <div
+                    key={i}
+                    className="p-2 rounded-lg transition-colors group"
+                    style={{ background: '#0d0f12', border: '1px solid rgba(255,255,255,0.04)' }}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-4 h-4 rounded-md flex items-center justify-center" style={{ background: `${voteColor}15` }}>
+                          {a.vote === 'BUY'
+                            ? <TrendingUp size={9} color={voteColor} />
+                            : a.vote === 'SELL'
+                            ? <TrendingDown size={9} color={voteColor} />
+                            : <Minus size={9} color={voteColor} />}
+                        </div>
+                        <span className="text-[10px] font-bold text-white/90">{a.role}</span>
                       </div>
-                      <span className="text-[10px] font-bold text-white/90">{a.role}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[8px] font-bold px-1.5 py-px rounded" style={{ background: `${voteColor}15`, color: voteColor }}>
+                          {a.vote}
+                        </span>
+                        <span className="text-[8px] font-mono" style={{ color: T.text2 }}>{a.confidence}%</span>
+                      </div>
                     </div>
-                    <span className="text-[9px] font-mono text-white/40">{a.confidence}%</span>
+                    <div className="w-full h-0.5 bg-white/5 rounded-full overflow-hidden mb-1.5">
+                      <div
+                        className="h-full transition-all duration-1000"
+                        style={{ width: `${a.confidence}%`, background: voteColor, boxShadow: `0 0 6px ${voteColor}40` }}
+                      />
+                    </div>
+                    <p className="text-[8px] leading-relaxed" style={{ color: T.text2 }}>
+                      {a.reason}
+                    </p>
                   </div>
-                  <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full transition-all duration-1000" 
-                      style={{ 
-                        width: `${a.confidence}%`, 
-                        background: a.vote === 'BUY' ? T.green : a.vote === 'SELL' ? T.red : T.amber,
-                        boxShadow: `0 0 8px ${a.vote === 'BUY' ? T.green : a.vote === 'SELL' ? T.red : T.amber}40`
-                      }} 
-                    />
-                  </div>
-                  <div className="mt-1.5 text-[9px] text-white/40 leading-snug line-clamp-1 group-hover:line-clamp-none transition-all">
-                    {a.reason}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </>
         )}
       </div>
 
-      {/* Footer Info */}
-      <div className="p-3 border-t border-white/5 bg-black/20 flex items-center justify-between">
-        <div className="flex items-center gap-1.5 opacity-40">
-          <Shield size={10} />
-          <span className="text-[8px] font-bold uppercase">Institutional Grade AI</span>
+      {/* Footer */}
+      <div className="p-2 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255,255,255,0.04)', background: '#080a0c' }}>
+        <div className="flex items-center gap-1" style={{ opacity: 0.4 }}>
+          <Shield size={9} />
+          <span className="text-[7px] font-bold uppercase">Quantum AI Engine</span>
         </div>
-        <div className="flex items-center gap-1 opacity-40">
-          <Info size={10} />
-          <span className="text-[8px] font-bold">Consensus V2.4</span>
+        <div className="flex items-center gap-1" style={{ opacity: 0.4 }}>
+          <Info size={9} />
+          <span className="text-[7px] font-bold">Council v3.0 — 6 Roles</span>
         </div>
       </div>
     </div>

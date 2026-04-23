@@ -19,40 +19,41 @@ const nextConfig: NextConfig = {
     // To re-enable NestJS rewrites, set API_INTERNAL_URL env var.
     if (!process.env.API_INTERNAL_URL) {
       return [
+        // Proxy all /api/ai/* EXCEPT /api/ai/consensus (handled by Next.js route)
         {
-          source: "/api/ai/:path*",
-          destination: `${apiTarget}/api/ai/:path*`,
+          source: '/api/ai/((?!consensus).+)',
+          destination: `${apiTarget}/api/ai/$1`,
         },
         {
-          source: "/api/trading/:path*",
+          source: '/api/trading/:path*',
           destination: `${apiTarget}/api/trading/:path*`,
         },
-      ];
+      ]
     }
 
     // If API_INTERNAL_URL is set, proxy all API routes to NestJS backend
     return [
       {
-        source: "/api/exchange/:path*",
+        source: '/api/exchange/:path*',
         destination: `${apiTarget}/api/exchange/:path*`,
       },
       {
-        source: "/api/ai/:path*",
-        destination: `${apiTarget}/api/ai/:path*`,
+        source: '/api/ai/((?!consensus).+)',
+        destination: `${apiTarget}/api/ai/$1`,
       },
       {
-        source: "/api/portfolio/:path*",
+        source: '/api/portfolio/:path*',
         destination: `${apiTarget}/api/portfolio/:path*`,
       },
       {
-        source: "/api/signals/:path*",
+        source: '/api/signals/:path*',
         destination: `${apiTarget}/api/signals/:path*`,
       },
       {
-        source: "/api/trading/:path*",
+        source: '/api/trading/:path*',
         destination: `${apiTarget}/api/trading/:path*`,
       },
-    ];
+    ]
   },
 };
 

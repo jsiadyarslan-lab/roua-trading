@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ChevronDown } from 'lucide-react'
 import QuantumChart from '@/components/dashboard/QuantumChart'
 import { AlpacaPositions } from '@/components/dashboard/AlpacaPositions'
@@ -40,6 +40,19 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
 export default function DashboardPage() {
   const globalQuotes = useMarketStore(state => state.quotes)
   const account = usePositionsStore(state => state.account)
+  const fetchAccount = usePositionsStore(state => state.fetchAccount)
+  const fetchPositions = usePositionsStore(state => state.fetchPositions)
+
+  useEffect(() => {
+    fetchAccount()
+    fetchPositions()
+    const iv = setInterval(() => {
+      fetchAccount()
+      fetchPositions()
+    }, 15000)
+    return () => clearInterval(iv)
+  }, [fetchAccount, fetchPositions])
+
   const quotes = new Map(
     DASHBOARD_SYMBOLS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][]
   )
@@ -94,7 +107,7 @@ export default function DashboardPage() {
           {/* Open Trades — Collapsible */}
           <div style={{
             flexShrink: 0,
-            height: posOpen ? 120 : PANEL_H,
+            height: posOpen ? 220 : PANEL_H,
             transition: ANIM,
             background: T.card,
             border: `1px solid ${T.border}`,

@@ -31,22 +31,29 @@ const SYMBOLS = [
 
 export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url)
+    const targetPair = searchParams.get('pair')
+    const timeframe = searchParams.get('tf') || '1h'
+    
     const results: any[] = []
     const origin = req.nextUrl.origin
     
-    // Fetch quotes for all symbols to get current price and 24h change
-    const quotePromises = SYMBOLS.map(async (s) => {
+    // Symbols to scan: either the target pair or the default list
+    const symbolsToScan = targetPair ? [targetPair] : SYMBOLS
+    
+    // Fetch quotes for selected symbols
+    const quotePromises = symbolsToScan.map(async (s) => {
       try {
         const res = await fetch(`${origin}/api/exchange/quote/${encodeURIComponent(s)}`, { cache: 'no-store' })
         const data = await res.json()
         
-        // Let's also fetch historical candles for RSI
+        // Fetch historical candles for RSI based on timeframe
         let closes: number[] = []
         try {
-           const histRes = await fetch(`${origin}/api/exchange/history/${encodeURIComponent(s)}?interval=1h`, { cache: 'no-store' })
+           const histRes = await fetch(`${origin}/api/exchange/history/${encodeURIComponent(s)}?interval=${timeframe}`, { cache: 'no-store' })
            const histData = await histRes.json()
            if (histData.success && histData.data) {
-             closes = histData.data.map((c: any) => c.close).reverse() // ensure chronological
+             closes = histData.data.map((c: any) => c.close).reverse()
            }
         } catch { }
 
@@ -66,36 +73,31 @@ export async function GET(req: NextRequest) {
       let score = 0
       const reasons: string[] = []
       
-      // 1. Momentum from 24h change
-      if (change > 2) { score += 1; reasons.push('زخم صعودي قوي (24س)') }
-      else if (change > 0.5) { score += 0.5; reasons.push('ميل صعودي') }
-      else if (change < -2) { score -= 1; reasons.push('زخم هبوطي قوي (24س)') }
-      else if (change < -0.5) { score -= 0.5; reasons.push('ميل هبوطي') }
+      // 1. Momentum factor
+      if (change > 2) { score += 1; reasons.push('زخم صعودي قوي') }
+      else if (change < -2) { score -= 1; reasons.push('زخم هبوطي قوي') }
       
       // 2. RSI Factor
       if (item.closes.length >= 14) {
          const rsi = calculateRSI(item.closes)
-         if (rsi < 30) { score += 2; reasons.push(`تشبع بيعي (RSI: ${Math.round(rsi)})`) }
-         else if (rsi > 70) { score -= 2; reasons.push(`تشبع شرائي (RSI: ${Math.round(rsi)})`) }
-      } else {
-         // Fallback if no candles
-         if (q.low && q.price < q.low * 1.01) { score += 1; reasons.push('قريب من أدنى مستوى يومي') }
-         if (q.high && q.price > q.high * 0.99) { score -= 1; reasons.push('قريب من أعلى مستوى يومي') }
+         if (rsi < 30) { score += 2.5; reasons.push(`تشبع بيعي (RSI: ${Math.round(rsi)})`) }
+         else if (rsi > 70) { score -= 2.5; reasons.push(`تشبع شرائي (RSI: ${Math.round(rsi)})`) }
+         else if (rsi < 45) { score += 0.5; reasons.push('ميل صعودي') }
+         else if (rsi > 55) { score -= 0.5; reasons.push('ميل هبوطي') }
       }
 
-      if (Math.abs(score) >= 1) {
-        results.push({
-          pair: symbol,
-          dir: score > 0 ? 'buy' : 'sell',
-          strength: Math.min(95, 50 + Math.abs(score) * 15),
-          price: q.price,
-          change,
-          reasons: reasons.slice(0, 3)
-        })
-      }
+      // Add to results
+      results.push({
+        pair: symbol,
+        dir: score > 0 ? 'buy' : score < 0 ? 'sell' : 'neutral',
+        strength: Math.min(98, 50 + Math.abs(score) * 15),
+        price: q.price,
+        change,
+        reasons: reasons.slice(0, 3)
+      })
     }
 
-    return NextResponse.json({ success: true, data: results.sort((a,b) => b.strength - a.strength) })
+    return NextResponse.json({ success: true, data: targetPair ? results : results.filter(r => Math.abs(r.strength - 50) > 10).sort((a,b) => b.strength - a.strength) })
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }

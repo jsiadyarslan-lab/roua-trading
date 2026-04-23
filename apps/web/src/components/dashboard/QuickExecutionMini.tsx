@@ -109,7 +109,7 @@ export function QuickExecutionMini() {
     } finally {
       setLoading(false)
       setPendingAction(null)
-      setTimeout(() => setStatus({ msg: '', type: '' }), 5000)
+      setTimeout(() => setStatus({ msg: '', type: '' }), 800)
     }
   }
 
@@ -216,6 +216,37 @@ export function QuickExecutionMini() {
             }}
           />
         </div>
+      </div>
+      
+      {/* Auto-Calculate Button */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -2 }}>
+        <button
+          onClick={() => {
+            if (currentPrice > 0) {
+              const tp = currentPrice * 1.02; // 2% Take Profit
+              const sl = currentPrice * 0.99; // 1% Stop Loss
+              setTakeProfit(tp.toFixed(2));
+              setStopLoss(sl.toFixed(2));
+              
+              if (account && account.cash) {
+                const risk = account.cash * (parseFloat(riskPct) / 100);
+                const pips = currentPrice - sl;
+                const calcQty = (risk / pips).toFixed(4);
+                if (parseFloat(calcQty) > 0) {
+                  setQuantity(calcQty);
+                }
+              }
+            }
+          }}
+          style={{
+            background: 'rgba(0, 229, 255, 0.1)', border: '1px solid rgba(0, 229, 255, 0.2)',
+            color: 'var(--accent)', fontSize: 9, fontWeight: 700, padding: '4px 10px',
+            borderRadius: 6, cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
+            display: 'flex', alignItems: 'center', gap: 4
+          }}
+        >
+          <Calculator size={10} /> حساب تلقائي
+        </button>
       </div>
 
       {/* ── Risk Calculator ── */}

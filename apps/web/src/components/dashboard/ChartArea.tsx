@@ -14,6 +14,8 @@ import {
 } from 'lightweight-charts'
 import { useDashboardStore } from '@/lib/dashboard-store'
 import { useSingleQuote, useHistoricalCandles } from '@/hooks/useMarketData'
+import { usePositionsStore } from '@/hooks/usePositionsStore'
+import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 
 const TIMEFRAMES = [
   { label: '1m', value: '1m' },
@@ -58,6 +60,11 @@ export default function ChartArea() {
   const interval = mapTimeframeToInterval(activeTimeframe)
   const { candles, loading } = useHistoricalCandles(selectedPair, interval)
   const { quote } = useSingleQuote(selectedPair, 5000)
+
+  // Positions
+  const { positions } = usePositionsStore()
+  const { trades: paperTrades } = usePaperTradesStore()
+  const priceLinesRef = useRef<any[]>([])
 
   // Compute current price / change for header
   const currentPrice = quote?.price ?? 0
@@ -221,7 +228,6 @@ export default function ChartArea() {
       lineSeriesRef.current.setData(data)
     }
 
-    // Volume
     if (volumeSeriesRef.current) {
       const volData = sortedCandles.map(c => ({
         time: Math.floor(new Date(c.timestamp).getTime() / 1000) as Time,
@@ -233,6 +239,66 @@ export default function ChartArea() {
 
     chartRef.current?.timeScale().fitContent()
   }, [candles, chartType])
+
+  // Draw Positions on Chart
+  useEffect(() => {
+    const series = candleSeriesRef.current || lineSeriesRef.current;
+    if (!series) return;
+
+    // Remove old lines
+    priceLinesRef.current.forEach(pl => {
+      try { series.removePriceLine(pl) } catch {}
+    })
+    priceLinesRef.current = []
+
+    const allPositions = [
+      ...positions.map(p => ({ ...p, isPaper: false })),
+      ...paperTrades.map(p => ({ ...p, isPaper: true }))
+    ].filter(p => p.symbol === selectedPair || p.symbol === selectedPair.replace('/', ''))
+
+    allPositions.forEach(p => {
+      const entryPrice = p.avgEntryPrice || p.entryPrice;
+      const isLong = p.side === 'long';
+      const pnlColor = p.unrealizedPnl >= 0 ? '#00C853' : '#FF3B30';
+
+      if (entryPrice) {
+        const entryLine = series.createPriceLine({
+          price: entryPrice,
+          color: isLong ? '#00C853' : '#FF3B30',
+          lineWidth: 2,
+          lineStyle: 2, // Dashed
+          axisLabelVisible: true,
+          title: `Entry ${p.qty} (${p.isPaper ? 'Paper' : 'Real'})`,
+        });
+        priceLinesRef.current.push(entryLine)
+      }
+
+      if (p.tp) {
+        const tpLine = series.createPriceLine({
+          price: p.tp,
+          color: '#00C853',
+          lineWidth: 1,
+          lineStyle: 3, // Dotted
+          axisLabelVisible: true,
+          title: 'TP',
+        });
+        priceLinesRef.current.push(tpLine)
+      }
+
+      if (p.sl) {
+        const slLine = series.createPriceLine({
+          price: p.sl,
+          color: '#FF3B30',
+          lineWidth: 1,
+          lineStyle: 3, // Dotted
+          axisLabelVisible: true,
+          title: 'SL',
+        });
+        priceLinesRef.current.push(slLine)
+      }
+    })
+
+  }, [positions, paperTrades, selectedPair, chartType, candles]) // re-run if series is re-created
 
   // Live price update
   useEffect(() => {

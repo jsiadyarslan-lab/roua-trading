@@ -190,6 +190,22 @@ export function AlpacaPositions() {
         </div>
 
         <button
+          onClick={() => {
+             if(confirm('هل تريد حذف جميع الصفقات التجريبية (Paper Trades)؟')) {
+                usePaperTradesStore.getState().clearAll();
+             }
+          }}
+          title="حذف جميع الصفقات التجريبية"
+          style={{
+            background: 'rgba(255,59,48,0.1)', border: '1px solid rgba(255,59,48,0.2)', cursor: 'pointer',
+            color: '#FF3B30', padding: '2px 8px', display: 'flex', alignItems: 'center',
+            fontSize: '9px', fontFamily: "'Cairo', sans-serif", borderRadius: 4, fontWeight: 700
+          }}
+        >
+          حذف التجريبية
+        </button>
+
+        <button
           onClick={fetchPositions}
           disabled={loading}
           style={{

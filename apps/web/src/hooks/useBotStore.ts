@@ -24,6 +24,7 @@ interface BotState {
   addLog: (msg: string, type?: string) => void
   setStats: (stats: { trades: number; profit: number; winRate: number }) => void
   updateSettings: (settings: Partial<BotState['settings']>) => void
+  resetAll: () => void
 }
 
 export const useBotStore = create<BotState>()(
@@ -45,6 +46,10 @@ export const useBotStore = create<BotState>()(
       updateSettings: (newSettings) => set((state) => ({
         settings: { ...state.settings, ...newSettings }
       })),
+      resetAll: () => set({
+        logs: [],
+        stats: { trades: 0, profit: 0, winRate: 0 }
+      }),
     }),
     {
       name: 'roua-bot-storage',

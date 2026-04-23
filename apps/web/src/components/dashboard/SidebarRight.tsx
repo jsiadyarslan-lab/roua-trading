@@ -630,24 +630,27 @@ export default function SidebarRight() {
                 border: '1px solid var(--border)',
               }}
             >
-              <div
-                className="px-2 py-1.5"
-                style={{
-                  background: 'var(--bg)',
-                  borderBottom: '1px solid var(--border)',
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: 'var(--font-ui)',
-                    fontSize: '9px',
-                    fontWeight: 700,
-                    color: 'var(--text3)',
-                  }}
-                >
-                  سجل العمليات
-                </span>
-              </div>
+                <div className="flex items-center justify-between px-2 py-1.5" style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-ui)',
+                      fontSize: '9px',
+                      fontWeight: 700,
+                      color: 'var(--text3)',
+                    }}
+                  >
+                    سجل العمليات
+                  </span>
+                  <button
+                    onClick={() => { if(confirm('حذف السجل والإحصائيات؟')) useBotStore.getState().resetAll() }}
+                    style={{
+                      background: 'none', border: 'none', color: 'var(--red)',
+                      fontSize: '8px', cursor: 'pointer', fontWeight: 600, fontFamily: 'var(--font-ar)'
+                    }}
+                  >
+                    مسح السجل
+                  </button>
+                </div>
               <div
                 className="p-2 max-h-40 overflow-y-auto custom-scrollbar"
                 style={{ fontFamily: 'var(--font-mono)', fontSize: '9px' }}

@@ -29,9 +29,7 @@ export const ST = {
   showPriceLine:true, showCandleTimer:true, showTrades:true,
   showVol:true, volAlpha:0.35,
   bgColor:'#0d1117', crosshairType:'cross',
-  openTrades: [
-    { entry: 65000, qty: 1, side: 'buy', pnl: 100, sl: 64000, tp: 67000 }
-  ],
+  openTrades: [],
 };
 
 export let CH_ctx, CH_subCtx, CH_dirty=true, CH_DPR=1;

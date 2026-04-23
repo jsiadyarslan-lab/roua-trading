@@ -93,8 +93,6 @@ export async function GET(
     }))
 
     return NextResponse.json({ success: true, data: candles })
-
-    return NextResponse.json({ success: true, data: candles })
   } catch (error: any) {
     console.error('[exchange/history] Error:', error.message)
     return NextResponse.json(

@@ -62,10 +62,14 @@ export async function GET(req: NextRequest) {
     })
     
     const fetchedData = await Promise.all(quotePromises)
+    console.log(`[market-scan] Feteched ${fetchedData.length} quotes for ${targetPair || 'all'}`)
     
     for (const item of fetchedData) {
       const q = item.quote
-      if (!q) continue
+      if (!q) {
+        console.warn(`[market-scan] No quote for ${item.symbol}`)
+        continue
+      }
       
       const symbol = item.symbol
       const change = q.changePercent || 0
@@ -80,10 +84,13 @@ export async function GET(req: NextRequest) {
       // 2. RSI Factor
       if (item.closes.length >= 14) {
          const rsi = calculateRSI(item.closes)
+         console.log(`[market-scan] RSI for ${symbol} (${timeframe}): ${rsi.toFixed(2)}`)
          if (rsi < 30) { score += 2.5; reasons.push(`تشبع بيعي (RSI: ${Math.round(rsi)})`) }
          else if (rsi > 70) { score -= 2.5; reasons.push(`تشبع شرائي (RSI: ${Math.round(rsi)})`) }
          else if (rsi < 45) { score += 0.5; reasons.push('ميل صعودي') }
          else if (rsi > 55) { score -= 0.5; reasons.push('ميل هبوطي') }
+      } else {
+         console.warn(`[market-scan] Not enough candles for ${symbol} (${timeframe}): ${item.closes.length}`)
       }
 
       // Add to results
@@ -99,6 +106,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ success: true, data: targetPair ? results : results.filter(r => Math.abs(r.strength - 50) > 10).sort((a,b) => b.strength - a.strength) })
   } catch (error: any) {
+    console.error(`[market-scan] Fatal Error:`, error.message)
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }

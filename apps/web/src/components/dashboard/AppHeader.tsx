@@ -66,6 +66,12 @@ const STARS = [
   { top: '15%', left: '90%',  s: 2,   op: 0.6, dur: '4.1s' },
 ]
 
+function formatHeaderPrice(value: unknown) {
+  const price = Number(value)
+  if (!Number.isFinite(price)) return '—'
+  return price.toLocaleString('en', { maximumFractionDigits: price > 100 ? 2 : 4 })
+}
+
 /* ══ Cosmic Orb ══ */
 function CosmicOrb({ state, size = 68 }: { state: MarketState, size?: number }) {
   const c = STATE[state]
@@ -308,7 +314,7 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
               color: flash === 'up' ? T.green : flash === 'down' ? T.red : T.text,
               lineHeight: 1.15, transition: 'color 0.3s',
             }}>
-              {q ? q.price.toLocaleString('en', { maximumFractionDigits: q.price > 100 ? 2 : 4 }) : '—'}
+              {formatHeaderPrice(q?.price)}
             </span>
           </div>
         )

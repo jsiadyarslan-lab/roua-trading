@@ -40,6 +40,11 @@ interface SmartSignal {
   expiresAt?: string
 }
 
+function formatSignalPrice(value: unknown) {
+  const price = Number(value)
+  return Number.isFinite(price) ? price.toLocaleString() : '—'
+}
+
 export function BotCommandCenter() {
   const [risk, setRisk] = useState<'low' | 'med' | 'high'>('med')
   const { setSelectedSymbol } = useSymbolStore()
@@ -94,7 +99,7 @@ export function BotCommandCenter() {
 
     addNotification({
       title: 'تم تنفيذ الإشارة ✅',
-      body: `تم فتح صفقة ${sig.type} ورقية لـ ${sig.pair} بسعر $${sig.price.toLocaleString()}`,
+      body: `تم فتح صفقة ${sig.type} ورقية لـ ${sig.pair} بسعر $${formatSignalPrice(sig.price)}`,
       priority: 'high',
       source: 'system',
       action: sig.type,

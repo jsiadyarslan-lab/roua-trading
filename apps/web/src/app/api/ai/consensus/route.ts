@@ -27,10 +27,36 @@ export async function POST(req: NextRequest) {
     const mtf = await buildMultiTimeframeSnapshot(origin, symbol)
 
     if (!scanner) {
-      return NextResponse.json(
-        { success: false, error: 'تعذر بناء سياق السوق للرمز المطلوب' },
-        { status: 503 }
-      )
+      return NextResponse.json({
+        success: true,
+        degraded: true,
+        data: {
+          consensusScore: 42,
+          recommendation: 'HOLD',
+          analyses: [
+            {
+              role: 'المجلس',
+              model: 'Fallback/Guard',
+              vote: 'HOLD',
+              confidence: 42,
+              reason: 'تعذر بناء سياق سوق موثوق الآن، لذلك تم خفض التوصية إلى الانتظار حتى تعود البيانات.',
+              featuresUsed: ['fallback'],
+            },
+          ],
+          conflictExplanation: 'المجلس دخل وضع الحماية لأن بيانات السوق لم تكن كافية أو موثوقة عند هذه اللحظة.',
+          masterStrategy: `الانتظار على ${symbol} حتى يعود quote/history بشكل مستقر، ثم إعادة التقييم قبل أي قرار.`,
+          meta: {
+            symbol,
+            price: context.quote?.price ?? 0,
+            rsi: 50,
+            source: context.source || 'Fallback',
+            freshness: context.freshness,
+            processingTimeMs: Date.now() - startedAt,
+            timeframe: context.timeframe,
+            timestamp: new Date().toISOString(),
+          },
+        },
+      })
     }
 
     const { features } = scanner
@@ -145,8 +171,37 @@ export async function POST(req: NextRequest) {
     })
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, error: error?.message || 'فشل في إجماع المجلس' },
-      { status: 500 }
+      {
+        success: true,
+        degraded: true,
+        data: {
+          consensusScore: 35,
+          recommendation: 'HOLD',
+          analyses: [
+            {
+              role: 'المجلس',
+              model: 'Fallback/Error',
+              vote: 'HOLD',
+              confidence: 35,
+              reason: error?.message || 'فشل داخلي في محرك الإجماع، وتم تفعيل وضع الانتظار الوقائي.',
+              featuresUsed: ['error-fallback'],
+            },
+          ],
+          conflictExplanation: 'تم تفعيل fallback للمجلس بسبب خطأ داخلي، لذلك لا يتم السماح بتوصية هجومية الآن.',
+          masterStrategy: 'الانتظار حتى يكتمل التحليل ويعود محرك المجلس للعمل الطبيعي.',
+          meta: {
+            symbol: 'UNKNOWN',
+            price: 0,
+            rsi: 50,
+            source: 'Fallback',
+            freshness: 'degraded',
+            processingTimeMs: 0,
+            timeframe: '1h',
+            timestamp: new Date().toISOString(),
+          },
+        },
+      },
+      { status: 200 }
     )
   }
 }

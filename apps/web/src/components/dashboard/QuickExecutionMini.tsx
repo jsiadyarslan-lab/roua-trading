@@ -8,6 +8,11 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { formatExecutionLabel, formatFreshness, getStatusLabel, getStatusTone, type DataStatus, type ExecutionState } from '@/lib/dashboard-live'
 
+function formatCashValue(value: unknown) {
+  const cash = Number(value)
+  return Number.isFinite(cash) ? cash.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—'
+}
+
 export function QuickExecutionMini({
   mobile = false,
   dataStatus = 'disconnected',
@@ -225,7 +230,7 @@ export function QuickExecutionMini({
         </div>
         {account && (
           <div style={{ fontSize: 9, color: 'var(--muted)', fontFamily: "'JetBrains Mono', monospace" }}>
-            القوة الشرائية: <span style={{ color: 'var(--success)', fontWeight: 700 }}>${account.cash.toLocaleString(undefined, {maximumFractionDigits:0})}</span>
+            القوة الشرائية: <span style={{ color: 'var(--success)', fontWeight: 700 }}>${formatCashValue(account.cash)}</span>
           </div>
         )}
       </div>

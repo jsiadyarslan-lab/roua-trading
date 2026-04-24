@@ -46,6 +46,12 @@ const formatMoney = (value: unknown) => {
   return Number.isFinite(num) ? num.toLocaleString() : '---'
 }
 
+const formatQuotePrice = (value: unknown) => {
+  const num = Number(value)
+  if (!Number.isFinite(num)) return '—'
+  return num.toLocaleString('en-US', { maximumFractionDigits: num > 100 ? 2 : 4 })
+}
+
 /* ════════════════════════════════════════════
    DASHBOARD PAGE MAIN CONTAINER
 ════════════════════════════════════════════ */
@@ -511,7 +517,7 @@ export default function DashboardPage() {
                 >
                   <div style={{ fontSize: 10, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{symbol}</div>
                   <div style={{ fontSize: 14, color: T.text, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", marginTop: 4 }}>
-                    {quote ? quote.price.toLocaleString('en-US', { maximumFractionDigits: quote.price > 100 ? 2 : 4 }) : '—'}
+                    {formatQuotePrice(quote?.price)}
                   </div>
                   <div style={{ fontSize: 9, color: getStatusTone(getDataStatus(quote)), marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>
                     {getStatusLabel(getDataStatus(quote))}

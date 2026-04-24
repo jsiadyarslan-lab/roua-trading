@@ -37,6 +37,7 @@ const T = {
 const HEADER_H = 100
 const PANEL_H = 30
 const ANIM = 'height 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease'
+type MobileView = 'execution' | 'market' | 'portfolio' | 'insight'
 
 const formatMoney = (value: unknown) => {
   const num = Number(value)
@@ -49,12 +50,15 @@ const formatMoney = (value: unknown) => {
 export default function DashboardPage() {
   const globalQuotes = useMarketStore(state => state.quotes)
   const selectedSymbol = useSymbolStore(state => state.selectedSymbol)
+  const setSelectedSymbol = useSymbolStore(state => state.setSelectedSymbol)
   const currentPrice = globalQuotes[selectedSymbol]?.price ?? null
   const account = usePositionsStore(state => state.account)
+  const positions = usePositionsStore(state => state.positions)
   const fetchAccount = usePositionsStore(state => state.fetchAccount)
   const fetchPositions = usePositionsStore(state => state.fetchPositions)
   const [posOpen, setPosOpen] = useState(true)
-  const [activeMobileSection, setActiveMobileSection] = useState<'portfolio' | 'chart' | 'scanner' | 'ai'>('chart')
+  const [activeMobileView, setActiveMobileView] = useState<MobileView>('execution')
+  const [chartExpanded, setChartExpanded] = useState(false)
 
   useEffect(() => {
     fetchAccount()
@@ -76,13 +80,20 @@ export default function DashboardPage() {
     [globalQuotes],
   )
 
-  const scrollToSection = (id: string, section: 'portfolio' | 'chart' | 'scanner' | 'ai') => {
-    setActiveMobileSection(section)
-    const el = document.getElementById(id)
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }
-  }
+  const mobileSymbols = useMemo(() => {
+    const defaults = ['BTC/USD', 'ETH/USD', 'SOL/USD']
+    const ordered = [selectedSymbol, ...defaults.filter(sym => sym !== selectedSymbol)]
+    return ordered.slice(0, 3).map(sym => ({
+      symbol: sym,
+      quote: globalQuotes[sym] ?? null,
+    }))
+  }, [globalQuotes, selectedSymbol])
+
+  const mobileSummaryCards = [
+    { label: 'الرصيد', value: `$${formatMoney(account?.equity)}` },
+    { label: 'القوة الشرائية', value: `$${formatMoney(account?.buyingPower)}` },
+    { label: 'المراكز', value: `${positions.length}` },
+  ]
 
   return (
     <>
@@ -121,7 +132,7 @@ export default function DashboardPage() {
           display: none !important;
         }
 
-        .dash-mobile-stack {
+        .mobile-dashboard-shell {
           display: none;
         }
 
@@ -144,15 +155,124 @@ export default function DashboardPage() {
             display: none !important;
           }
 
-          .dash-mobile-stack {
+          .mobile-dashboard-shell {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
             padding: 10px 10px calc(124px + env(safe-area-inset-bottom));
             background: ${T.bg};
             box-sizing: border-box;
             width: 100%;
             overflow-x: hidden;
+          }
+
+          .mobile-hero-trading-area {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 0;
+          }
+
+          .mobile-market-strip {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+          }
+
+          .mobile-market-pill {
+            min-width: 0;
+            padding: 10px 8px;
+            border-radius: 14px;
+            border: 1px solid rgba(0, 229, 255, 0.12);
+            background: rgba(255,255,255,0.03);
+            text-align: center;
+          }
+
+          .mobile-market-pill--active {
+            border-color: rgba(0, 229, 255, 0.32);
+            background: rgba(0, 229, 255, 0.08);
+            box-shadow: 0 0 0 1px rgba(0,229,255,0.08) inset;
+          }
+
+          .mobile-hero-card {
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1px solid rgba(0, 229, 255, 0.10);
+            background: linear-gradient(180deg, rgba(0,229,255,0.06), rgba(255,255,255,0.02));
+          }
+
+          .mobile-hero-card__header {
+            min-height: 44px;
+            padding: 0 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(0,229,255,0.08);
+          }
+
+          .mobile-hero-chart {
+            height: 34dvh;
+            min-height: 220px;
+            max-height: 320px;
+          }
+
+          .mobile-hero-chart--expanded {
+            height: 72dvh;
+            max-height: none;
+          }
+
+          .mobile-summary-strip {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+          }
+
+          .mobile-summary-card {
+            border-radius: 14px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            padding: 10px 8px;
+            text-align: center;
+          }
+
+          .mobile-primary-ticket {
+            border-radius: 18px;
+            border: 1px solid rgba(0,229,255,0.10);
+            background: rgba(255,255,255,0.02);
+            overflow: hidden;
+          }
+
+          .mobile-secondary-tabs {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+          }
+
+          .mobile-secondary-tab {
+            min-height: 46px;
+            border-radius: 14px;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: rgba(255,255,255,0.03);
+            color: ${T.text3};
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+          }
+
+          .mobile-secondary-tab--active {
+            color: ${T.text};
+            border-color: rgba(0,229,255,0.22);
+            background: rgba(0,229,255,0.12);
+          }
+
+          .mobile-panel-shell {
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1px solid rgba(0, 229, 255, 0.10);
+            background: rgba(255,255,255,0.02);
+            min-height: 280px;
           }
 
           .mobile-bottom-nav {
@@ -247,7 +367,7 @@ export default function DashboardPage() {
         }
 
         @media (min-width: 768px) {
-          .dash-mobile-stack,
+          .mobile-dashboard-shell,
           .mobile-bottom-nav {
             display: none !important;
           }
@@ -359,85 +479,147 @@ export default function DashboardPage() {
       </div>
 
       {/* Mobile-first stacked dashboard */}
-      <div className="dash-mobile-stack">
-        <section id="chart" className="mobile-section" style={{ scrollMarginTop: 12 }}>
-          <div className="mobile-section__header">
-            <span className="mobile-section__title">Chart</span>
-            <BarChart3 size={18} color={T.text3} />
+      <div className="mobile-dashboard-shell">
+        <div className="mobile-hero-trading-area">
+          <div className="mobile-market-strip">
+            {mobileSymbols.map(({ symbol, quote }) => {
+              const active = symbol === selectedSymbol
+              return (
+                <button
+                  key={symbol}
+                  type="button"
+                  onClick={() => setSelectedSymbol(symbol)}
+                  className={`mobile-market-pill${active ? ' mobile-market-pill--active' : ''}`}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div style={{ fontSize: 10, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{symbol}</div>
+                  <div style={{ fontSize: 14, color: T.text, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", marginTop: 4 }}>
+                    {quote ? quote.price.toLocaleString('en-US', { maximumFractionDigits: quote.price > 100 ? 2 : 4 }) : '—'}
+                  </div>
+                </button>
+              )
+            })}
           </div>
-          <div className="mobile-section__body mobile-chart-shell">
-            <QuantumChart currentPrice={currentPrice} />
-          </div>
-        </section>
 
-        <section id="execution" className="mobile-section" style={{ scrollMarginTop: 12 }}>
-          <div className="mobile-section__header">
-            <span className="mobile-section__title">Order Execution</span>
-            <ChevronDown size={18} color={T.text3} style={{ transform: 'rotate(-90deg)' }} />
+          <div className="mobile-hero-card">
+            <div className="mobile-hero-card__header">
+              <span className="mobile-section__title">Chart</span>
+              <button
+                type="button"
+                onClick={() => setChartExpanded(value => !value)}
+                style={{ background: 'transparent', border: 'none', color: T.text3, cursor: 'pointer' }}
+              >
+                <ChevronDown size={16} style={{ transform: chartExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
+              </button>
+            </div>
+            <div className={`mobile-hero-chart${chartExpanded ? ' mobile-hero-chart--expanded' : ''}`}>
+              <QuantumChart
+                currentPrice={currentPrice}
+                mobile
+                compact={!chartExpanded}
+                onExpand={() => setChartExpanded(value => !value)}
+              />
+            </div>
           </div>
-          <div className="mobile-section__body">
-            <QuickExecutionMini />
-          </div>
-        </section>
 
-        <section id="orderbook" className="mobile-section" style={{ scrollMarginTop: 12 }}>
-          <div className="mobile-section__header">
-            <span className="mobile-section__title">Order Book / Watchlist</span>
-            <ScanSearch size={18} color={T.text3} />
+          <div className="mobile-primary-ticket">
+            <QuickExecutionMini mobile />
           </div>
-          <div className="mobile-section__body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <OrderBookPanel />
-            <WatchlistMini />
-          </div>
-        </section>
 
-        <section id="portfolio" className="mobile-section" style={{ scrollMarginTop: 12 }}>
-          <div className="mobile-section__header">
-            <span className="mobile-section__title">Portfolio</span>
-            <Wallet size={18} color={T.text3} />
+          <div className="mobile-summary-strip">
+            {mobileSummaryCards.map(card => (
+              <div key={card.label} className="mobile-summary-card">
+                <div style={{ fontSize: 9, color: T.text3, marginBottom: 4 }}>{card.label}</div>
+                <div style={{ fontSize: 12, color: T.text, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{card.value}</div>
+              </div>
+            ))}
           </div>
-          <div className="mobile-section__body">
-            <PortfolioMini />
-          </div>
-        </section>
+        </div>
 
-        <section id="scanner" className="mobile-section" style={{ scrollMarginTop: 12 }}>
-          <div className="mobile-section__header">
-            <span className="mobile-section__title">Scanner</span>
-            <ScanSearch size={18} color={T.text3} />
-          </div>
-          <div className="mobile-section__body">
-            <ScannerMini />
-          </div>
-        </section>
+        <div className="mobile-secondary-tabs">
+          {[
+            { id: 'execution', label: 'تنفيذ', icon: BarChart3 },
+            { id: 'market', label: 'السوق', icon: ScanSearch },
+            { id: 'portfolio', label: 'المحفظة', icon: Wallet },
+            { id: 'insight', label: 'رؤى', icon: Brain },
+          ].map(item => {
+            const Icon = item.icon
+            const active = activeMobileView === item.id
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => setActiveMobileView(item.id as MobileView)}
+                className={`mobile-secondary-tab${active ? ' mobile-secondary-tab--active' : ''}`}
+              >
+                <Icon size={16} />
+                <span style={{ fontSize: 10, fontWeight: 800 }}>{item.label}</span>
+              </button>
+            )
+          })}
+        </div>
 
-        <section id="ai" className="mobile-section" style={{ scrollMarginTop: 12 }}>
-          <div className="mobile-section__header">
-            <span className="mobile-section__title">AI</span>
-            <Brain size={18} color={T.text3} />
-          </div>
-          <div className="mobile-section__body">
-            <AlNarratorMini />
-          </div>
-        </section>
+        <div className="mobile-panel-shell">
+          {activeMobileView === 'execution' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 10, height: '100%' }}>
+              <div className="mobile-section__header">
+                <span className="mobile-section__title">الحساب والمراكز</span>
+                <BarChart3 size={18} color={T.text3} />
+              </div>
+              <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
+                <PortfolioMini mobile compact />
+              </div>
+            </div>
+          )}
+
+          {activeMobileView === 'market' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 10, height: '100%' }}>
+              <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
+                <OrderBookPanel mobile collapsedByDefault />
+              </div>
+              <div style={{ minHeight: 0, flex: 1, borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
+                <WatchlistMini />
+              </div>
+            </div>
+          )}
+
+          {activeMobileView === 'portfolio' && (
+            <div style={{ padding: 10, height: '100%' }}>
+              <div style={{ height: '100%', borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
+                <PortfolioMini mobile />
+              </div>
+            </div>
+          )}
+
+          {activeMobileView === 'insight' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 10, height: '100%' }}>
+              <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
+                <ScannerMini mobile compact />
+              </div>
+              <div style={{ minHeight: 0, flex: 1, borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
+                <AlNarratorMini mobile compact />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Mobile bottom navigation */}
       <nav className="mobile-bottom-nav" aria-label="Mobile dashboard navigation">
         <div className="mobile-bottom-nav__inner">
           {[
-            { id: 'portfolio', label: 'Portfolio', icon: Wallet },
-            { id: 'chart', label: 'Chart', icon: BarChart3 },
-            { id: 'scanner', label: 'Scanner', icon: ScanSearch },
-            { id: 'ai', label: 'AI', icon: Brain },
+            { id: 'execution', label: 'تنفيذ', icon: BarChart3 },
+            { id: 'market', label: 'السوق', icon: ScanSearch },
+            { id: 'portfolio', label: 'المحفظة', icon: Wallet },
+            { id: 'insight', label: 'رؤى', icon: Brain },
           ].map(item => {
             const Icon = item.icon
-            const active = activeMobileSection === item.id
+            const active = activeMobileView === item.id
             return (
               <button
                 key={item.id}
                 type="button"
-                onClick={() => scrollToSection(item.id, item.id as 'portfolio' | 'chart' | 'scanner' | 'ai')}
+                onClick={() => setActiveMobileView(item.id as MobileView)}
                 className={`mobile-bottom-nav__button${active ? ' mobile-bottom-nav__button--active' : ''}`}
               >
                 <Icon size={18} />

@@ -131,15 +131,18 @@ export function usePortfolioSummary() {
 }
 
 /* ══ Mini Portfolio Widget (for dashboard sidebar panel) ══ */
-export function PortfolioMini() {
+export function PortfolioMini({ mobile = false, compact = false }: { mobile?: boolean; compact?: boolean }) {
   const { data } = usePortfolioSummary()
   const pnlUp = data.totalPnl >= 0
+  const cardGap = compact ? 6 : 8
+  const pad = compact ? '10px 12px' : '8px 10px'
+  const balanceSize = compact ? 16 : 18
 
   return (
     <div style={{
       width: '100%', height: '100%',
-      padding: '8px 10px',
-      display: 'flex', flexDirection: 'column', gap: 8,
+      padding: pad,
+      display: 'flex', flexDirection: 'column', gap: cardGap,
       overflow: 'hidden',
       boxSizing: 'border-box',
     }}>
@@ -152,7 +155,7 @@ export function PortfolioMini() {
           }}>الرصيد الكلي</div>
           <div style={{
             fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 18, fontWeight: 800, color: T.text,
+            fontSize: balanceSize, fontWeight: 800, color: T.text,
             letterSpacing: '-0.02em',
           }}>${fmt(data.balance, 0)}</div>
         </div>
@@ -238,7 +241,7 @@ export function PortfolioMini() {
       </div>
 
       {/* Margin */}
-      <div style={{
+      {!compact && <div style={{
         display: 'flex', justifyContent: 'space-between',
         alignItems: 'center',
         borderTop: `0.5px solid ${T.border}`, paddingTop: 5,
@@ -248,7 +251,7 @@ export function PortfolioMini() {
           fontFamily: "'JetBrains Mono', monospace",
           fontSize: 9.5, color: T.amber,
         }}>${fmt(data.margin, 0)}</span>
-      </div>
+      </div>}
     </div>
   )
 }

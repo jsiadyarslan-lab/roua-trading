@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSymbolStore } from '@/hooks/useSymbolStore';
 
-export function ScannerMini() {
+export function ScannerMini({ mobile = false, compact = false }: { mobile?: boolean; compact?: boolean }) {
   const [signals, setSignals] = useState<any[]>([]);
   const [scanning, setScanning] = useState(false);
   const [lastScan, setLastScan] = useState<string | null>(null);
@@ -60,8 +60,7 @@ export function ScannerMini() {
       border: '1px solid var(--border)',
       overflow: 'hidden'
     }}>
-      {/* Header */}
-      <div style={{
+      {!compact && <div style={{
         padding: '10px 14px',
         background: 'var(--bg2)',
         borderBottom: '1px solid var(--border)',
@@ -88,10 +87,10 @@ export function ScannerMini() {
         >
           {scanning ? '⟳ جارٍ...' : 'فحص الآن'}
         </button>
-      </div>
+      </div>}
 
       {/* Results */}
-      <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+      <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: compact ? '6px' : '8px' }}>
         <style>{`
           @keyframes dash-pulse {
             0%, 100% { opacity: 1; }
@@ -133,7 +132,7 @@ export function ScannerMini() {
             ))}
           </div>
         ) : signals.length === 0 ? (
-          <div style={{ padding: 40, textAlign: 'center', opacity: 0.4 }}>
+          <div style={{ padding: compact ? 20 : 40, textAlign: 'center', opacity: 0.4 }}>
              <span style={{ fontSize: 30 }}>📡</span>
              <div style={{ fontSize: 11, marginTop: 10 }}>لا توجد إشارات حالياً</div>
           </div>
@@ -145,7 +144,7 @@ export function ScannerMini() {
                 onClick={() => setSelectedSymbol(sig.pair)}
                 style={{
                   background: 'var(--surface)', border: '1px solid var(--border)',
-                  borderRadius: 8, padding: 12, cursor: 'pointer', transition: 'all 0.2s'
+                  borderRadius: 8, padding: compact ? 10 : 12, cursor: 'pointer', transition: 'all 0.2s'
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>

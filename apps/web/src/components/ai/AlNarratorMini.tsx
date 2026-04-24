@@ -17,7 +17,7 @@ interface NarrativeData {
   timestamp: string
 }
 
-export function AlNarratorMini() {
+export function AlNarratorMini({ mobile = false, compact = false }: { mobile?: boolean; compact?: boolean }) {
   const [data, setData] = useState<NarrativeData | null>(null)
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(false)
@@ -61,8 +61,8 @@ export function AlNarratorMini() {
       className="card"
       style={{
         width: '100%', height: '100%',
-        padding: '16px',
-        display: 'flex', flexDirection: 'column', gap: 14,
+        padding: compact ? '12px' : '16px',
+        display: 'flex', flexDirection: 'column', gap: compact ? 10 : 14,
         overflow: 'hidden',
         boxSizing: 'border-box',
         position: 'relative',
@@ -97,9 +97,9 @@ export function AlNarratorMini() {
       {data ? (
         <>
           {/* Signal & Risk Row */}
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div style={{ display: 'flex', gap: compact ? 8 : 10 }}>
             <div style={{
-               flex: 1, padding: '12px', borderRadius: 12, background: 'rgba(255,255,255,0.02)',
+               flex: 1, padding: compact ? '10px' : '12px', borderRadius: 12, background: 'rgba(255,255,255,0.02)',
                border: '1px solid var(--card-border)', display: 'flex', flexDirection: 'column', gap: 4
             }}>
                <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700 }}>التوجه العام</span>
@@ -111,7 +111,7 @@ export function AlNarratorMini() {
                </div>
             </div>
             <div style={{
-               flex: 1, padding: '12px', borderRadius: 12, background: 'rgba(255,255,255,0.02)',
+               flex: 1, padding: compact ? '10px' : '12px', borderRadius: 12, background: 'rgba(255,255,255,0.02)',
                border: '1px solid var(--card-border)', display: 'flex', flexDirection: 'column', gap: 4
             }}>
                <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700 }}>مستوى المخاطرة</span>
@@ -146,7 +146,7 @@ export function AlNarratorMini() {
           </div>
 
           {/* AI Reasoning Steps (The Revolutionary Part) */}
-          <div style={{
+          {!compact && <div style={{
             display: 'flex', flexDirection: 'column', gap: 6,
             padding: '10px', background: 'rgba(0,229,255,0.03)',
             borderRadius: 10, border: '1px solid rgba(0,229,255,0.1)'
@@ -163,13 +163,13 @@ export function AlNarratorMini() {
                   <span style={{ fontSize: 10, color: 'var(--text2)', fontFamily: "'Cairo', sans-serif" }}>{step.label}</span>
                </div>
              ))}
-          </div>
+          </div>}
 
           {/* Narrative Insight */}
           <div 
             onClick={() => setExpanded(!expanded)}
             style={{
-               flex: 1, cursor: 'pointer', overflow: 'hidden', padding: '12px',
+               flex: 1, cursor: 'pointer', overflow: 'hidden', padding: compact ? '10px' : '12px',
                background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--card-border)', borderRadius: 10,
                fontSize: 11, color: 'var(--foreground)', lineHeight: 1.6, fontFamily: "'Cairo', sans-serif",
                position: 'relative', transition: 'max-height 0.3s'

@@ -36,7 +36,7 @@ const H_NEWS  = 26
 const H_CURR  = 32
 const H_NAV   = 42
 const H_TOTAL = H_NEWS + H_CURR + H_NAV
-const MOBILE_HEADER_H = 50
+const MOBILE_HEADER_H = 44
 const ORB_D   = 108
 const ORB_GAP = 120
 
@@ -555,19 +555,19 @@ export function AppHeader() {
       <header className="mobile-header" style={{
         display: 'none', position: 'sticky', top: 0, zIndex: 100,
         height: MOBILE_HEADER_H, background: T.navGlass, borderBottom: `1px solid ${T.border}`,
-        alignItems: 'center', padding: '0 12px', justifyContent: 'space-between',
+        alignItems: 'center', padding: '0 10px', justifyContent: 'space-between',
         backdropFilter: 'blur(20px)'
       }}>
-        <button onClick={() => setMenuOpen(true)} style={{ background: 'transparent', border: 'none', color: T.text, cursor: 'pointer' }}>
-           <Menu size={24} />
+        <button onClick={() => setMenuOpen(true)} style={{ background: 'transparent', border: 'none', color: T.text, cursor: 'pointer', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+           <Menu size={20} />
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0, paddingInline: 6 }}>
            <CurrencyTicker isMobile />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-           <CosmicOrb state={marketState} size={32} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+           <CosmicOrb state={marketState} size={24} />
         </div>
       </header>
     </>

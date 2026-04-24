@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { Maximize2 } from 'lucide-react';
 import {
   ST,
   CH_setContexts, CH_gen, CH_loadCandles,
@@ -83,9 +84,9 @@ function injectCSS() {
 }
 
 /**
- * @param {{ currentPrice?: number | null }} props
+ * @param {{ currentPrice?: number | null, mobile?: boolean, compact?: boolean, onExpand?: (() => void) | null }} props
  */
-export default function QuantumChart({ currentPrice = null } = {}) {
+export default function QuantumChart({ currentPrice = null, mobile = false, compact = false, onExpand = null } = {}) {
   const { selectedSymbol, timeframe, setTimeframe } = useSymbolStore();
   
   const mainCanvasRef = useRef(null);
@@ -224,6 +225,12 @@ export default function QuantumChart({ currentPrice = null } = {}) {
     CH_setDirty(true);
   }, [positions, paperTrades, selectedSymbol]);
 
+  const toolbarHeight = mobile ? 32 : 38
+  const overlayPriceSize = mobile ? 13 : 16
+  const overlayPairSize = mobile ? 9 : 11
+  const showDesktopTools = !mobile
+  const showSessions = !compact
+
   /* ─── JSX ─────────────────────────────────────────────── */
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100%', width:'100%', background:'#0d1117' }}>
@@ -231,9 +238,11 @@ export default function QuantumChart({ currentPrice = null } = {}) {
       {/* ── TOOLBAR ── */}
       <div id="iv-bar-tf" style={{
         display:'flex', alignItems:'center', padding:'0 6px',
-        height:'38px', background:'var(--bg2,#1a1f2e)',
+        height: `${toolbarHeight}px`, background:'var(--bg2,#1a1f2e)',
         borderBottom:'1px solid var(--border,rgba(48,54,61,.9))',
         flexShrink:0, gap:'2px',
+        overflowX: mobile ? 'auto' : 'visible',
+        scrollbarWidth: 'none',
       }}>
         {/* Chart Type */}
         <div style={{ position:'relative' }}>
@@ -288,16 +297,16 @@ export default function QuantumChart({ currentPrice = null } = {}) {
         <button className="iv-draw-btn" id="toolHLine" onClick={() => CH_setTool('hline', document.getElementById('toolHLine'))} title="خط أفقي">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="2" y1="12" x2="22" y2="12"/></svg>
         </button>
-        <button className="iv-draw-btn" id="toolFib" onClick={() => CH_setTool('fib', document.getElementById('toolFib'))} title="فيبوناتشي">
+        {!mobile && <button className="iv-draw-btn" id="toolFib" onClick={() => CH_setTool('fib', document.getElementById('toolFib'))} title="فيبوناتشي">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="2" y1="5" x2="22" y2="5"/><line x1="2" y1="10" x2="22" y2="10"/><line x1="2" y1="15" x2="22" y2="15"/><line x1="5" y1="2" x2="5" y2="22"/></svg>
-        </button>
-        <button className="iv-draw-btn" id="toolRect" onClick={() => CH_setTool('rect', document.getElementById('toolRect'))} title="مستطيل">
+        </button>}
+        {!mobile && <button className="iv-draw-btn" id="toolRect" onClick={() => CH_setTool('rect', document.getElementById('toolRect'))} title="مستطيل">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
-        </button>
+        </button>}
         <div className="iv-sep" style={{ margin:'0 4px' }} />
-        <button className="iv-draw-btn" id="toolMagnet" onClick={(e) => { ST.magnet = !ST.magnet; e.currentTarget.classList.toggle('active'); }} title="المغناطيس (Snapping)">
+        {!mobile && <button className="iv-draw-btn" id="toolMagnet" onClick={(e) => { ST.magnet = !ST.magnet; e.currentTarget.classList.toggle('active'); }} title="المغناطيس (Snapping)">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h4v8a4 4 0 0 0 8 0V4h4v8a8 8 0 0 1-16 0V4z"/></svg>
-        </button>
+        </button>}
         <button className="iv-draw-btn" onClick={() => CH_clearDrawings()} title="مسح" style={{ color:'var(--text4)' }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/></svg>
         </button>
@@ -347,13 +356,18 @@ export default function QuantumChart({ currentPrice = null } = {}) {
         <button className="iv-draw-btn" onClick={() => CH_screenshot()} title="لقطة شاشة">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
         </button>
+        {mobile && onExpand && (
+          <button className="iv-draw-btn" onClick={onExpand} title="تكبير الرسم" style={{ color:'var(--cyan)', width:'auto', padding:'0 8px', fontWeight:700 }}>
+            <Maximize2 size={13} />
+          </button>
+        )}
       </div>
 
       {/* ── CHART AREA ── */}
       <div style={{ flex:1, display:'flex', flexDirection:'row', overflow:'hidden', minHeight:0, position:'relative' }}>
 
         {/* Left Toolbar */}
-        <div id="chartLeftTools" style={{ width:'32px', flexShrink:0, background:'var(--bg2,#1a1f2e)', borderRight:'1px solid var(--border)', display:'flex', flexDirection:'column', alignItems:'center', padding:'4px 0', gap:'1px' }}>
+        {showDesktopTools && <div id="chartLeftTools" style={{ width:'32px', flexShrink:0, background:'var(--bg2,#1a1f2e)', borderRight:'1px solid var(--border)', display:'flex', flexDirection:'column', alignItems:'center', padding:'4px 0', gap:'1px' }}>
           {[['cursor','↖','مؤشر'],['trend','╱','اتجاه'],['hline','━','أفقي']].map(([t,icon,title]) => (
             <button key={t} className="iv-left-btn" onClick={() => CH_setTool(t, null)} title={title} style={{ fontSize:'13px' }}>{icon}</button>
           ))}
@@ -362,7 +376,7 @@ export default function QuantumChart({ currentPrice = null } = {}) {
           <button className="iv-left-btn" onClick={() => CH_zoom(1.33)} title="تصغير" style={{ fontSize:'16px' }}>−</button>
           <div className="iv-left-sep" />
           <button className="iv-left-btn" onClick={() => CH_clearDrawings()} title="مسح" style={{ color:'#f85149' }}>🗑</button>
-        </div>
+        </div>}
 
         {/* Canvas Column */}
         <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0 }}>
@@ -370,22 +384,22 @@ export default function QuantumChart({ currentPrice = null } = {}) {
           {/* Main Chart */}
           <div id="mainChartArea" style={{ flex:1, position:'relative', overflow:'hidden', minHeight:0 }}>
             <canvas id="tvCanvas" ref={mainCanvasRef}></canvas>
-            <div id="chartInfoOverlay" style={{ position:'absolute', top:0, right:0, left:0, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'4px 10px', pointerEvents:'none', zIndex:3, background:'linear-gradient(180deg,rgba(13,17,23,.85) 0%,transparent 100%)' }}>
+            <div id="chartInfoOverlay" style={{ position:'absolute', top:0, right:0, left:0, display:'flex', alignItems:'center', justifyContent:'space-between', padding: mobile ? '5px 8px' : '4px 10px', pointerEvents:'none', zIndex:3, background:'linear-gradient(180deg,rgba(13,17,23,.85) 0%,transparent 100%)' }}>
               <div style={{ display:'flex', alignItems:'center', gap:'7px' }}>
-                <span style={{ fontFamily:'var(--font-hud)', fontSize:'11px', fontWeight:700, color:'var(--cyan,#58a6ff)', letterSpacing:'.5px' }} id="chPair">{selectedSymbol}</span>
-                <span style={{ fontFamily:'monospace', fontSize:'16px', fontWeight:700, lineHeight:1 }} id="chPrice">{currentPrice || '—'}</span>
-                <span style={{ fontSize:'9px', color:'var(--text4)', fontFamily:'monospace', display:'flex', alignItems:'center', gap:'6px' }}>
+                <span style={{ fontFamily:'var(--font-hud)', fontSize:`${overlayPairSize}px`, fontWeight:700, color:'var(--cyan,#58a6ff)', letterSpacing:'.5px' }} id="chPair">{selectedSymbol}</span>
+                <span style={{ fontFamily:'monospace', fontSize:`${overlayPriceSize}px`, fontWeight:700, lineHeight:1 }} id="chPrice">{currentPrice || '—'}</span>
+                {!compact && <span style={{ fontSize:'9px', color:'var(--text4)', fontFamily:'monospace', display:'flex', alignItems:'center', gap:'6px' }}>
                   <span>O <b id="tbChO" style={{ color:'rgba(255,255,255,.5)' }}>—</b></span>
                   <span>H <b id="tbChH" style={{ color:'rgba(63,185,80,.7)' }}>—</b></span>
                   <span>L <b id="tbChL" style={{ color:'rgba(248,81,73,.7)' }}>—</b></span>
                   <span>C <b id="tbChC" style={{ color:'rgba(255,255,255,.5)' }}>—</b></span>
-                </span>
+                </span>}
               </div>
-              <div style={{ display:'flex', alignItems:'center', gap:'8px', fontSize:'8px', fontFamily:'monospace' }}>
+              {showSessions && <div style={{ display:'flex', alignItems:'center', gap:'8px', fontSize:'8px', fontFamily:'monospace' }}>
                 <span style={{ color:'rgba(139,92,246,.7)' }}>■ Tokyo</span>
                 <span style={{ color:'rgba(88,166,255,.7)' }}>■ London</span>
                 <span style={{ color:'rgba(227,179,65,.7)' }}>■ New York</span>
-              </div>
+              </div>}
             </div>
           </div>
 

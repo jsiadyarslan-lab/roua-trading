@@ -6,7 +6,7 @@ import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 
-export function QuickExecutionMini() {
+export function QuickExecutionMini({ mobile = false }: { mobile?: boolean }) {
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
   const [localSymbol, setLocalSymbol] = useState(selectedSymbol)
   const [account, setAccount] = useState<{ cash: number; buyingPower: number } | null>(null)
@@ -29,6 +29,7 @@ export function QuickExecutionMini() {
   const [takeProfit, setTakeProfit] = useState('')
   const [riskPct, setRiskPct] = useState('1') // % of account balance to risk
   const [showRiskCalc, setShowRiskCalc] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [status, setStatus] = useState<{ msg: string; type: 'success' | 'error' | 'loading' | 'confirm' | '' }>({ msg: '', type: '' })
   const [loading, setLoading] = useState(false)
   const [pendingAction, setPendingAction] = useState<'buy' | 'sell' | null>(null)
@@ -46,6 +47,9 @@ export function QuickExecutionMini() {
     ? Math.abs(parseFloat(takeProfit) - currentPrice) * parseFloat(quantity) : null
   const rrRatio = potentialGain && potentialLoss && potentialLoss > 0
     ? (potentialGain / potentialLoss).toFixed(2) : null
+  const cardPadding = mobile ? '10px 12px' : '12px 16px'
+  const inputPadding = mobile ? '10px' : '12px'
+  const actionHeight = mobile ? 52 : 48
 
 
   const validateAndConfirm = (side: 'buy' | 'sell') => {
@@ -133,7 +137,7 @@ export function QuickExecutionMini() {
   return (
     <div style={{
       width: '100%', height: '100%',
-      padding: '12px 16px',
+      padding: cardPadding,
       display: 'flex', flexDirection: 'column', gap: 10,
       boxSizing: 'border-box', position: 'relative',
       background: 'var(--bg)'
@@ -170,7 +174,7 @@ export function QuickExecutionMini() {
             className="number-data"
             style={{
               width: '100%', background: 'var(--surface)', border: '1px solid var(--card-border)',
-              borderRadius: 10, color: 'var(--foreground)', fontSize: 13, padding: '12px',
+              borderRadius: 10, color: 'var(--foreground)', fontSize: mobile ? 12 : 13, padding: inputPadding,
               fontFamily: 'var(--mono)', outline: 'none',
               transition: 'all 0.2s', boxSizing: 'border-box', fontWeight: 700
             }}
@@ -187,7 +191,7 @@ export function QuickExecutionMini() {
             className="number-data"
             style={{
               width: '100%', background: 'var(--surface)', border: '1px solid var(--card-border)',
-              borderRadius: 10, color: 'var(--foreground)', fontSize: 13, padding: '12px',
+              borderRadius: 10, color: 'var(--foreground)', fontSize: mobile ? 12 : 13, padding: inputPadding,
               fontFamily: 'var(--mono)', outline: 'none',
               transition: 'all 0.2s', boxSizing: 'border-box', fontWeight: 700
             }}
@@ -197,8 +201,32 @@ export function QuickExecutionMini() {
         </div>
       </div>
 
-      {/* TP & SL Wrapper */}
-      <div style={{ display: 'flex', gap: 10 }}>
+      {mobile && (
+        <button
+          onClick={() => setShowAdvanced(v => !v)}
+          style={{
+            width: '100%',
+            minHeight: 42,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px solid var(--card-border)',
+            borderRadius: 10,
+            cursor: 'pointer',
+            color: 'var(--foreground)',
+            padding: '0 12px',
+            fontFamily: "'Cairo', sans-serif",
+            fontSize: 10,
+            fontWeight: 800,
+          }}
+        >
+          <span>الإعدادات المتقدمة: TP / SL / المخاطرة</span>
+          {showAdvanced ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+      )}
+
+      {(!mobile || showAdvanced) && <div style={{ display: 'flex', gap: 10 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
           <label style={{ fontSize: 9, color: 'var(--success)', fontWeight: 800 }}>جني أرباح</label>
           <input 
@@ -210,7 +238,7 @@ export function QuickExecutionMini() {
             className="number-data"
             style={{
               width: '100%', background: 'rgba(0,200,83,0.05)', border: '1px solid rgba(0,200,83,0.15)',
-              borderRadius: 10, color: 'var(--success)', fontSize: 13, padding: '12px',
+              borderRadius: 10, color: 'var(--success)', fontSize: mobile ? 12 : 13, padding: inputPadding,
               fontFamily: 'var(--mono)', outline: 'none',
               transition: 'all 0.2s', boxSizing: 'border-box', fontWeight: 700
             }}
@@ -227,16 +255,16 @@ export function QuickExecutionMini() {
             className="number-data"
             style={{
               width: '100%', background: 'rgba(255,59,48,0.05)', border: '1px solid rgba(255,59,48,0.15)',
-              borderRadius: 10, color: 'var(--danger)', fontSize: 13, padding: '12px',
+              borderRadius: 10, color: 'var(--danger)', fontSize: mobile ? 12 : 13, padding: inputPadding,
               fontFamily: 'var(--mono)', outline: 'none',
               transition: 'all 0.2s', boxSizing: 'border-box', fontWeight: 700
             }}
           />
         </div>
-      </div>
+      </div>}
       
       {/* Auto-Calculate Button */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -2 }}>
+      {(!mobile || showAdvanced) && <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: -2 }}>
         <button
           onClick={() => {
             if (currentPrice > 0) {
@@ -265,10 +293,10 @@ export function QuickExecutionMini() {
         >
           <Calculator size={10} /> حساب تلقائي
         </button>
-      </div>
+      </div>}
 
       {/* ── Risk Calculator ── */}
-      <div style={{ borderTop: '1px solid var(--card-border)', paddingTop: 8 }}>
+      {(!mobile || showAdvanced) && <div style={{ borderTop: '1px solid var(--card-border)', paddingTop: 8 }}>
         <button
           onClick={() => setShowRiskCalc(v => !v)}
           style={{
@@ -348,7 +376,7 @@ export function QuickExecutionMini() {
             )}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Action Buttons */}
       <div style={{ display: 'flex', gap: 12, marginTop: 'auto' }}>
@@ -357,7 +385,7 @@ export function QuickExecutionMini() {
           disabled={loading}
           className="btn-neon-buy"
           style={{
-            flex: 1, minHeight: 48, height: 48, borderRadius: 'var(--radius)', 
+            flex: 1, minHeight: actionHeight, height: actionHeight, borderRadius: 'var(--radius)', 
             fontSize: 13, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
             fontFamily: "'Cairo', sans-serif",
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -374,7 +402,7 @@ export function QuickExecutionMini() {
           disabled={loading}
           className="btn-neon-sell"
           style={{
-            flex: 1, minHeight: 48, height: 48, borderRadius: 'var(--radius)', 
+            flex: 1, minHeight: actionHeight, height: actionHeight, borderRadius: 'var(--radius)', 
             fontSize: 13, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
             fontFamily: "'Cairo', sans-serif",
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,

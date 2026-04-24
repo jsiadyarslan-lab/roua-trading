@@ -58,8 +58,20 @@ function generateOrderBookLevels(midPrice: number, isPositive: boolean): { asks:
   return { asks, bids }
 }
 
-export default function OrderBookPanel() {
-  const [expanded, setExpanded] = useState(true)
+interface OrderBookPanelProps {
+  mobile?: boolean
+  collapsedByDefault?: boolean
+}
+
+export default function OrderBookPanel(props: OrderBookPanelProps) {
+  return <OrderBookPanelInner {...props} />
+}
+
+export function OrderBookPanelInner({
+  mobile = false,
+  collapsedByDefault = false,
+}: OrderBookPanelProps = {}) {
+  const [expanded, setExpanded] = useState(!collapsedByDefault)
   const { selectedPair } = useDashboardStore()
   const { quote } = useSingleQuote(selectedPair, 5000)
 
@@ -85,6 +97,8 @@ export default function OrderBookPanel() {
   const totalAsk = asks.reduce((s, a) => s + a.percent, 0)
   const totalBid = bids.reduce((s, b) => s + b.percent, 0)
   const buyPressure = totalAsk + totalBid > 0 ? Math.round((totalBid / (totalAsk + totalBid)) * 100) : 50
+  const visibleAsks = mobile ? asks.slice().reverse().slice(0, 4) : asks.slice().reverse()
+  const visibleBids = mobile ? bids.slice(0, 4) : bids
 
   return (
     <div style={{
@@ -103,7 +117,7 @@ export default function OrderBookPanel() {
           display: 'flex',
           alignItems: 'center',
           gap: '8px',
-          padding: '8px 10px',
+          padding: mobile ? '10px 10px' : '8px 10px',
           background: 'none',
           border: 'none',
           cursor: 'pointer',
@@ -190,7 +204,7 @@ export default function OrderBookPanel() {
           </div>
 
           {/* Asks (Sells) - displayed in reverse so lowest ask is at bottom */}
-          {asks.slice().reverse().map((ask, i) => (
+          {visibleAsks.map((ask, i) => (
             <div key={`ask-${i}`} dir="ltr" style={{
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',
@@ -248,7 +262,7 @@ export default function OrderBookPanel() {
           </div>
 
           {/* Bids (Buys) */}
-          {bids.map((bid, i) => (
+          {visibleBids.map((bid, i) => (
             <div key={`bid-${i}`} dir="ltr" style={{
               display: 'grid',
               gridTemplateColumns: '1fr 1fr',

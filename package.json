@@ -17,6 +17,7 @@
     "db:generate": "turbo db:generate --filter=@roua/web"
   },
   "devDependencies": {
+    "next": "^16.2.4",
     "prisma": "6.19.2",
     "turbo": "^2.5.0",
     "typescript": "^5"

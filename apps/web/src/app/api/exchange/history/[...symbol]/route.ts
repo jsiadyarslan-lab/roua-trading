@@ -60,6 +60,7 @@ export async function GET(
       const candles = data.map((c: any[]) => ({
         symbol,
         timestamp: new Date(c[0]).toISOString(),
+        datetime: new Date(c[0]).toISOString(),
         open: toNum(c[1]), high: toNum(c[2]), low: toNum(c[3]), close: toNum(c[4]), volume: toNum(c[5]),
         source: 'Binance',
       }))
@@ -88,6 +89,7 @@ export async function GET(
     const candles = (data.values || []).map((c: any) => ({
       symbol,
       timestamp: c.datetime,
+      datetime: c.datetime,
       open: toNum(c.open), high: toNum(c.high), low: toNum(c.low), close: toNum(c.close), volume: toNum(c.volume),
       source: 'TwelveData',
     }))

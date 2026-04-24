@@ -118,9 +118,10 @@ const DEMO_DATABASE = [
 ]
 
 export default function StrategiesPage() {
-  const [data, setData] = useState<any[]>(DEMO_DATABASE)
+  const [data, setData] = useState<any[]>([])
   const [activeIdx, setActiveIdx] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -129,9 +130,11 @@ export default function StrategiesPage() {
         const j = await res.json()
         if (j.success && j.data && j.data.length > 0) {
           setData(j.data)
+        } else {
+          setData([])
         }
-      } catch (e) {
-        console.warn('Backend schema not synced yet, using local mock data')
+      } catch {
+        setError('تعذر تحميل تقارير الاستراتيجيات حالياً.')
       } finally {
         setLoading(false)
       }
@@ -141,7 +144,34 @@ export default function StrategiesPage() {
 
   const active = data[activeIdx]
 
-  if (!active) return <div style={{ color: T.text, padding: 20 }}>جارٍ التحميل...</div>;
+  if (loading) {
+    return <div style={{ color: T.text, padding: 20 }}>جارٍ تحميل تقارير الاستراتيجيات...</div>
+  }
+
+  if (!active) {
+    return (
+      <div style={{
+        color: T.text,
+        padding: 24,
+        direction: 'rtl',
+        fontFamily: "'Cairo', sans-serif",
+      }}>
+        <div style={{
+          background: T.card,
+          border: `0.5px solid ${T.border}`,
+          borderRadius: 12,
+          padding: 24,
+          textAlign: 'center',
+        }}>
+          <FileText size={28} color={T.blue} style={{ marginBottom: 12 }} />
+          <h2 style={{ margin: '0 0 8px', fontSize: 18 }}>لا توجد تقارير استراتيجية منشورة بعد</h2>
+          <p style={{ margin: 0, color: T.text2, fontSize: 13 }}>
+            {error || 'عند توفر تقارير بحثية حقيقية ستظهر هنا بدل أي بيانات تجريبية.'}
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div style={{

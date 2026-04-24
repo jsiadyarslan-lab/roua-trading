@@ -30,7 +30,7 @@ const DEFAULT: PortfolioSummary = {
   winCount:      0,
   lossCount:     0,
   totalTrades:   0,
-  sharpe:        0,
+  sharpe:        null,
 }
 
 interface PortfolioSummary {
@@ -45,7 +45,7 @@ interface PortfolioSummary {
   winCount: number
   lossCount: number
   totalTrades: number
-  sharpe: number
+  sharpe: number | null
 }
 
 function fmt(n: number, decimals = 2) {
@@ -57,7 +57,6 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 export function usePortfolioSummary() {
   const [data, setData] = useState<PortfolioSummary>(DEFAULT)
   const [loading, setLoading] = useState(true)
-  const paperTrades = usePaperTradesStore(s => s.trades)
 
   useEffect(() => {
     async function load() {
@@ -115,7 +114,7 @@ export function usePortfolioSummary() {
           lossCount: loss,
           totalTrades: win + loss,
           winRate: (win + loss) > 0 ? (win / (win + loss)) * 100 : 0,
-          sharpe: 1.25 // mock
+          sharpe: null,
         })
 
       } catch { /* Error fetching real data */ } finally {
@@ -195,7 +194,7 @@ export function PortfolioMini() {
         {[
           { label: 'مراكز', value: data.totalPositions, color: T.cyan },
           { label: 'فوز%', value: `${data.winRate}%`, color: T.green },
-          { label: 'Sharpe', value: data.sharpe.toFixed(2), color: T.amber },
+          { label: 'Sharpe', value: data.sharpe === null ? '—' : data.sharpe.toFixed(2), color: T.amber },
         ].map((stat, i) => (
           <div key={i} style={{
             flex: 1, textAlign: 'center',

@@ -187,7 +187,7 @@ export default function PortfolioPage() {
           color={T.amber} icon={Target} note="جيد جداً"
         />
         <StatCard
-          label="Sharpe Ratio" value={s.sharpe.toFixed(2)}
+          label="Sharpe Ratio" value={s.sharpe === null ? '—' : s.sharpe.toFixed(2)}
           color={T.purple} icon={Award} note="ممتاز"
         />
       </div>

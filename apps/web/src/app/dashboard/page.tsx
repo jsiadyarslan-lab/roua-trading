@@ -59,6 +59,7 @@ export default function DashboardPage() {
   const [posOpen, setPosOpen] = useState(true)
   const [activeMobileView, setActiveMobileView] = useState<MobileView>('execution')
   const [chartExpanded, setChartExpanded] = useState(false)
+  const [isMobileViewport, setIsMobileViewport] = useState(false)
 
   useEffect(() => {
     fetchAccount()
@@ -69,6 +70,15 @@ export default function DashboardPage() {
     }, 15000)
     return () => clearInterval(iv)
   }, [fetchAccount, fetchPositions])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const media = window.matchMedia('(max-width: 767px)')
+    const syncViewport = () => setIsMobileViewport(media.matches)
+    syncViewport()
+    media.addEventListener('change', syncViewport)
+    return () => media.removeEventListener('change', syncViewport)
+  }, [])
 
   const quotes = useMemo(
     () =>
@@ -90,9 +100,9 @@ export default function DashboardPage() {
   }, [globalQuotes, selectedSymbol])
 
   const mobileSummaryCards = [
-    { label: 'الرصيد', value: `$${formatMoney(account?.equity)}` },
-    { label: 'القوة الشرائية', value: `$${formatMoney(account?.buyingPower)}` },
-    { label: 'المراكز', value: `${positions.length}` },
+    { label: 'الرصيد', value: `$${formatMoney(account?.equity)}`, tone: T.text },
+    { label: 'قوة الشراء', value: `$${formatMoney(account?.buyingPower)}`, tone: T.success },
+    { label: 'المراكز', value: `${positions.length}`, tone: T.cyan },
   ]
 
   return (
@@ -223,15 +233,17 @@ export default function DashboardPage() {
 
           .mobile-summary-strip {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 8px;
+            padding: 8px 10px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.06);
           }
 
           .mobile-summary-card {
-            border-radius: 14px;
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.06);
-            padding: 10px 8px;
+            min-width: 0;
+            padding-inline: 2px;
             text-align: center;
           }
 
@@ -242,37 +254,12 @@ export default function DashboardPage() {
             overflow: hidden;
           }
 
-          .mobile-secondary-tabs {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-          }
-
-          .mobile-secondary-tab {
-            min-height: 46px;
-            border-radius: 14px;
-            border: 1px solid rgba(255,255,255,0.06);
-            background: rgba(255,255,255,0.03);
-            color: ${T.text3};
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-          }
-
-          .mobile-secondary-tab--active {
-            color: ${T.text};
-            border-color: rgba(0,229,255,0.22);
-            background: rgba(0,229,255,0.12);
-          }
-
           .mobile-panel-shell {
             border-radius: 18px;
             overflow: hidden;
             border: 1px solid rgba(0, 229, 255, 0.10);
             background: rgba(255,255,255,0.02);
-            min-height: 280px;
+            min-height: 240px;
           }
 
           .mobile-bottom-nav {
@@ -384,7 +371,7 @@ export default function DashboardPage() {
       <GlobalLogicEngine />
       <NotificationToasts />
 
-      <div className="dash-grid">
+      {!isMobileViewport && <div className="dash-grid">
         {/* ══════════ COL 1 — Tabbed Left Sidebar ══════════ */}
         <div className="dash-col dash-col-left" style={{ minHeight: 0 }}>
           <LeftSidebarLayout />
@@ -476,10 +463,10 @@ export default function DashboardPage() {
           <div style={{ height: 10 }} />
           <WatchlistMini />
         </div>
-      </div>
+      </div>}
 
       {/* Mobile-first stacked dashboard */}
-      <div className="mobile-dashboard-shell">
+      {isMobileViewport && <div className="mobile-dashboard-shell">
         <div className="mobile-hero-trading-area">
           <div className="mobile-market-strip">
             {mobileSymbols.map(({ symbol, quote }) => {
@@ -529,34 +516,11 @@ export default function DashboardPage() {
           <div className="mobile-summary-strip">
             {mobileSummaryCards.map(card => (
               <div key={card.label} className="mobile-summary-card">
-                <div style={{ fontSize: 9, color: T.text3, marginBottom: 4 }}>{card.label}</div>
-                <div style={{ fontSize: 12, color: T.text, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{card.value}</div>
+                <div style={{ fontSize: 9, color: T.text3, marginBottom: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.label}</div>
+                <div style={{ fontSize: 11, color: card.tone, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.value}</div>
               </div>
             ))}
           </div>
-        </div>
-
-        <div className="mobile-secondary-tabs">
-          {[
-            { id: 'execution', label: 'تنفيذ', icon: BarChart3 },
-            { id: 'market', label: 'السوق', icon: ScanSearch },
-            { id: 'portfolio', label: 'المحفظة', icon: Wallet },
-            { id: 'insight', label: 'رؤى', icon: Brain },
-          ].map(item => {
-            const Icon = item.icon
-            const active = activeMobileView === item.id
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setActiveMobileView(item.id as MobileView)}
-                className={`mobile-secondary-tab${active ? ' mobile-secondary-tab--active' : ''}`}
-              >
-                <Icon size={16} />
-                <span style={{ fontSize: 10, fontWeight: 800 }}>{item.label}</span>
-              </button>
-            )
-          })}
         </div>
 
         <div className="mobile-panel-shell">
@@ -602,10 +566,10 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* Mobile bottom navigation */}
-      <nav className="mobile-bottom-nav" aria-label="Mobile dashboard navigation">
+      {isMobileViewport && <nav className="mobile-bottom-nav" aria-label="Mobile dashboard navigation">
         <div className="mobile-bottom-nav__inner">
           {[
             { id: 'execution', label: 'تنفيذ', icon: BarChart3 },
@@ -628,7 +592,7 @@ export default function DashboardPage() {
             )
           })}
         </div>
-      </nav>
+      </nav>}
     </>
   )
 }

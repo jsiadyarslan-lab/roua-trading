@@ -1,36 +1,57 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSymbolStore } from '@/hooks/useSymbolStore';
 
 export function ScannerMini() {
   const [signals, setSignals] = useState<any[]>([]);
   const [scanning, setScanning] = useState(false);
   const [lastScan, setLastScan] = useState<string | null>(null);
+  const scanningRef = useRef(false);
   const { setSelectedSymbol } = useSymbolStore();
 
   const doScan = useCallback(async () => {
-    if (scanning) return;
+    if (scanningRef.current) return;
+
+    scanningRef.current = true;
     setScanning(true);
+
     try {
       const res = await fetch('/api/market-scan');
+
+      if (!res.ok) {
+        throw new Error(`Scan failed with status ${res.status}`);
+      }
+
       const data = await res.json();
-      if (data.success) {
+
+      if (data?.success && Array.isArray(data.data)) {
         setSignals(data.data);
-        setLastScan(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+        setLastScan(
+          new Date().toLocaleTimeString('ar-EG', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          })
+        );
+      } else {
+        console.warn('Scan returned unexpected payload:', data);
       }
     } catch (e) {
       console.error('Scan failed:', e);
     } finally {
+      scanningRef.current = false;
       setScanning(false);
     }
-  }, [scanning]);
+  }, []);
 
   useEffect(() => {
-    doScan();
-    const iv = setInterval(doScan, 60000); // Auto scan every minute
+    void doScan();
+    const iv = setInterval(() => {
+      void doScan();
+    }, 60000); // Auto scan every minute
     return () => clearInterval(iv);
-  }, []);
+  }, [doScan]);
 
   return (
     <div style={{
@@ -154,12 +175,12 @@ export function ScannerMini() {
                 </div>
 
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                  {sig.reasons.map((reason: string, ri: number) => (
+                  {Array.isArray(sig.reasons) ? sig.reasons.map((reason: string, ri: number) => (
                     <span key={ri} style={{ 
                       fontSize: 9, background: 'rgba(255,255,255,0.05)', 
                       padding: '2px 6px', borderRadius: 4, color: 'var(--text2)' 
                     }}>{reason}</span>
-                  ))}
+                  )) : null}
                 </div>
               </div>
             ))}

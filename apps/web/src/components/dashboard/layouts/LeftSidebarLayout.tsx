@@ -1,12 +1,19 @@
 'use client'
 
 import { useState } from 'react'
+import { Activity, Bell, Bot, Brain, CalendarDays, ChartCandlestick, GitMerge, Newspaper, Search, Wallet } from 'lucide-react'
 import { PortfolioMini } from '@/components/portfolio/PortfolioMini'
 import { AlNarratorMini } from '@/components/ai/AlNarratorMini'
 import { QuickExecutionMini } from '@/components/dashboard/QuickExecutionMini'
 import { OrderBookMini } from '@/components/dashboard/OrderBookMini'
 import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
 import { PriceAlertsPanel } from '@/components/dashboard/PriceAlertsPanel'
+import {
+  DesktopBacktestPanel,
+  DesktopCalendarPanel,
+  DesktopCorrelationPanel,
+  DesktopNewsPanel,
+} from '@/components/dashboard/DesktopContextPanels'
 
 const T = {
   bg:      '#0F1113',
@@ -27,18 +34,26 @@ const T = {
 }
 
 export function LeftSidebarLayout() {
-  const [tab, setTab] = useState<'portfolio'|'execute'|'book'|'watch'|'ai'|'alerts'>('portfolio')
+  const [tab, setTab] = useState<'portfolio'|'execute'|'book'|'watch'|'alerts'|'ai'|'news'|'calendar'|'backtest'|'correlation'>('portfolio')
 
   const TABS = [
-    { id: 'portfolio', label: 'محفظة',   icon: '💼', accent: T.primary },
-    { id: 'execute',   label: 'تنفيذ',   icon: '⚡', accent: T.success },
-    { id: 'book',      label: 'أوردر',   icon: '📊', accent: T.danger  },
-    { id: 'watch',     label: 'أسواق',   icon: '🔍', accent: T.accent  },
-    { id: 'alerts',    label: 'تنبيهات', icon: '🔔', accent: '#FFB800' },
-    { id: 'ai',        label: 'AI',      icon: '🧠', accent: T.purple  },
+    { id: 'portfolio', label: 'محفظة', icon: Wallet, accent: T.primary, group: 'core' },
+    { id: 'execute', label: 'تنفيذ', icon: Bot, accent: T.success, group: 'core' },
+    { id: 'book', label: 'أوردر', icon: ChartCandlestick, accent: T.danger, group: 'core' },
+    { id: 'watch', label: 'أسواق', icon: Search, accent: T.accent, group: 'core' },
+    { id: 'alerts', label: 'تنبيهات', icon: Bell, accent: '#FFB800', group: 'core' },
+    { id: 'ai', label: 'AI', icon: Brain, accent: T.purple, group: 'core' },
+    { id: 'news', label: 'الأخبار', icon: Newspaper, accent: T.accent, group: 'context' },
+    { id: 'calendar', label: 'الأجندة', icon: CalendarDays, accent: T.amber, group: 'context' },
+    { id: 'backtest', label: 'المختبر', icon: Activity, accent: T.purple, group: 'context' },
+    { id: 'correlation', label: 'الارتباط', icon: GitMerge, accent: T.success, group: 'context' },
   ] as const
 
   const active = TABS.find(t => t.id === tab)!
+  const groups = [
+    { id: 'core', label: 'القيادة' },
+    { id: 'context', label: 'السياق' },
+  ] as const
 
   return (
     <div style={{
@@ -46,35 +61,46 @@ export function LeftSidebarLayout() {
       background: T.card, border: `1px solid ${T.border}`,
       borderRadius: 12, overflow: 'hidden',
     }}>
-      {/* Tab Strip */}
-      <div style={{
-        display: 'flex', flexShrink: 0,
-        background: T.bg2,
-        borderBottom: `1px solid ${T.border}`,
-      }}>
-        {TABS.map(t => {
-          const isActive = t.id === tab
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              title={t.label}
-              style={{
-                flex: 1, padding: '8px 2px 6px',
-                background: 'transparent', border: 'none',
-                borderBottom: `2.5px solid ${isActive ? t.accent : 'transparent'}`,
-                cursor: 'pointer', display: 'flex', flexDirection: 'column',
-                alignItems: 'center', gap: 2, transition: 'all 0.15s',
-              }}
-            >
-              <span style={{ fontSize: 14, lineHeight: 1 }}>{t.icon}</span>
-              <span style={{
-                fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: isActive ? 800 : 500,
-                color: isActive ? t.accent : T.text2, transition: 'color 0.15s',
-              }}>{t.label}</span>
-            </button>
-          )
-        })}
+      <div style={{ flexShrink: 0, background: T.bg2, borderBottom: `1px solid ${T.border}`, padding: '8px 8px 6px', display: 'grid', gap: 8 }}>
+        {groups.map(group => (
+          <div key={group.id} style={{ display: 'grid', gap: 6 }}>
+            <div style={{ fontSize: 9, color: T.text3, fontWeight: 800, paddingInline: 4 }}>{group.label}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 6 }}>
+              {TABS.filter(t => t.group === group.id).map(t => {
+                const isActive = t.id === tab
+                const Icon = t.icon
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setTab(t.id)}
+                    title={t.label}
+                    style={{
+                      minWidth: 0,
+                      padding: '8px 4px 7px',
+                      background: isActive ? `${t.accent}12` : 'rgba(255,255,255,0.02)',
+                      border: `1px solid ${isActive ? `${t.accent}44` : T.border}`,
+                      borderRadius: 11,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 4,
+                      transition: 'all 0.16s ease',
+                      boxShadow: isActive ? `0 0 0 1px ${t.accent}14 inset` : 'none',
+                    }}
+                  >
+                    <Icon size={13} color={isActive ? t.accent : T.text2} />
+                    <span style={{
+                      fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: isActive ? 800 : 600,
+                      color: isActive ? t.accent : T.text2, transition: 'color 0.15s',
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%',
+                    }}>{t.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Panel Label */}
@@ -104,6 +130,10 @@ export function LeftSidebarLayout() {
         {tab === 'watch'     && <WatchlistMini />}
         {tab === 'alerts'    && <PriceAlertsPanel />}
         {tab === 'ai'        && <AlNarratorMini />}
+        {tab === 'news' && <DesktopNewsPanel />}
+        {tab === 'calendar' && <DesktopCalendarPanel />}
+        {tab === 'backtest' && <DesktopBacktestPanel />}
+        {tab === 'correlation' && <DesktopCorrelationPanel />}
       </div>
     </div>
   )

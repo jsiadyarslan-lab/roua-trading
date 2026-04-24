@@ -25,7 +25,7 @@ export function BotMini() {
 
   return (
     <div style={{
-      display: 'flex', flexDirection: 'column', height: '100%',
+      display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, maxHeight: '100%',
       background: 'var(--bg)', borderRadius: 12, border: '1px solid var(--border)',
       overflow: 'hidden', fontFamily: "'Cairo', sans-serif"
     }}>
@@ -73,9 +73,9 @@ export function BotMini() {
       </div>
 
       {activeTab === 'log' ? (
-        <>
+        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, overflow: 'hidden' }}>
           {/* Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, background: 'var(--border)', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 1, background: 'var(--border)', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
             <div style={{ background: 'var(--surface)', padding: 10, textAlign: 'center' }}>
               <div style={{ fontSize: 9, color: 'var(--text3)' }}>الصفقات</div>
               <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--accent)' }}>{stats.trades}</div>
@@ -91,7 +91,18 @@ export function BotMini() {
           </div>
 
           {/* Logs */}
-          <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: 10, background: '#060b13' }}>
+          <div
+            className="bot-notifications-container custom-scrollbar"
+            style={{
+              flex: '1 1 auto',
+              minHeight: 0,
+              maxHeight: '40vh',
+              overflowY: 'auto',
+              padding: 10,
+              background: '#060b13',
+              scrollbarGutter: 'stable',
+            }}
+          >
             {logs.length === 0 ? (
               <div style={{ padding: 40, textAlign: 'center', opacity: 0.3, fontSize: 11 }}>السجل فارغ</div>
             ) : (
@@ -111,7 +122,7 @@ export function BotMini() {
               </div>
             )}
           </div>
-        </>
+        </div>
       ) : (
         <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>

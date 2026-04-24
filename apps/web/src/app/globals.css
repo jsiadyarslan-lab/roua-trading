@@ -135,7 +135,6 @@
   border-color: var(--success);
   box-shadow: 0 0 12px rgba(0, 255, 136, 0.3), inset 0 0 0 1px rgba(255,255,255,0.04);
   color: #fff;
-  transform: translateY(-1px);
 }
 
 .btn-neon-sell {
@@ -151,7 +150,6 @@
   border-color: var(--danger);
   box-shadow: 0 0 12px rgba(255, 68, 68, 0.3), inset 0 0 0 1px rgba(255,255,255,0.04);
   color: #fff;
-  transform: translateY(-1px);
 }
 
 .btn-cyan-active {
@@ -164,7 +162,6 @@
   overflow: hidden;
 }
 .btn-cyan-active:hover:not(:disabled) {
-  transform: translateY(-1px);
   box-shadow: 0 0 12px rgba(0, 242, 255, 0.34), 0 12px 28px rgba(0, 229, 255, 0.2);
 }
 
@@ -178,7 +175,6 @@
   overflow: hidden;
 }
 .btn-danger-active:hover:not(:disabled) {
-  transform: translateY(-1px);
   box-shadow: 0 0 14px rgba(255, 68, 68, 0.28), 0 14px 28px rgba(255, 68, 68, 0.18);
 }
 
@@ -266,7 +262,6 @@
 .card:hover {
   border-color: var(--pulse-border);
   box-shadow: var(--shadow-pulse), var(--pulse-glow), inset 0 1px 0 rgba(255,255,255,0.04);
-  transform: translateY(-2px);
 }
 .card:hover::after {
   opacity: 1;
@@ -284,7 +279,7 @@ button {
     opacity 0.18s ease;
 }
 button:hover:not(:disabled) {
-  transform: translateY(-1px);
+  transform: none;
 }
 button:active:not(:disabled) {
   transform: translateY(0) scale(0.985);

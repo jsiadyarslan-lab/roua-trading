@@ -76,7 +76,8 @@ export function LeftSidebarLayout() {
                     title={t.label}
                     style={{
                       minWidth: 0,
-                      padding: '8px 4px 7px',
+                      minHeight: 52,
+                      padding: '6px 4px',
                       background: isActive ? `${t.accent}12` : 'rgba(255,255,255,0.02)',
                       border: `1px solid ${isActive ? `${t.accent}44` : T.border}`,
                       borderRadius: 11,
@@ -84,14 +85,16 @@ export function LeftSidebarLayout() {
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
-                      gap: 4,
+                      justifyContent: 'center',
+                      gap: 3,
                       transition: 'all 0.16s ease',
                       boxShadow: isActive ? `0 0 0 1px ${t.accent}14 inset` : 'none',
+                      overflow: 'hidden',
                     }}
                   >
-                    <Icon size={13} color={isActive ? t.accent : T.text2} />
+                    <Icon size={12} color={isActive ? t.accent : T.text2} />
                     <span style={{
-                      fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: isActive ? 800 : 600,
+                      fontFamily: "'Cairo', sans-serif", fontSize: 8.5, fontWeight: isActive ? 800 : 600,
                       color: isActive ? t.accent : T.text2, transition: 'color 0.15s',
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%',
                     }}>{t.label}</span>

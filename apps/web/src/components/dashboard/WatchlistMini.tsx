@@ -186,18 +186,18 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selected
                   height: 96, padding: '14px 16px',
                   background: sym === activeSymbol ? 'rgba(0, 229, 255, 0.05)' : 'var(--surface)',
                   borderColor: sym === activeSymbol ? 'var(--accent)' : 'var(--card-border)',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  transition: 'border-color 0.22s ease, box-shadow 0.22s ease, background-color 0.22s ease',
                   cursor: 'pointer', position: 'relative', overflow: 'hidden'
                 }}
                 onMouseEnter={e => {
                   const el = e.currentTarget as HTMLDivElement
-                  el.style.transform = 'translateY(-4px)'
                   el.style.borderColor = 'var(--accent)'
+                  el.style.boxShadow = '0 0 0 1px rgba(0,229,255,0.10) inset, 0 10px 24px rgba(0,0,0,0.16)'
                 }}
                 onMouseLeave={e => {
                   const el = e.currentTarget as HTMLDivElement
-                  el.style.transform = 'translateY(0)'
                   el.style.borderColor = 'var(--card-border)'
+                  el.style.boxShadow = ''
                 }}
               >
                 {/* Pair & Badge */}

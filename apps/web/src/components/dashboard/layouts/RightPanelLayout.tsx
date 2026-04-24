@@ -209,7 +209,8 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
               onClick={() => setActive(t.id)}
               style={{
                 minWidth: 0,
-                padding: '10px 8px 9px',
+                minHeight: 58,
+                padding: '7px 6px',
                 background: isActive ? `${t.accent}12` : 'rgba(255,255,255,0.02)',
                 border: `1px solid ${isActive ? `${t.accent}35` : T.border}`,
                 borderRadius: 12,
@@ -220,13 +221,15 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 4,
+                justifyContent: 'center',
+                gap: 3,
                 boxShadow: isActive ? `0 0 0 1px ${t.accent}10 inset` : 'none',
+                overflow: 'hidden',
               }}
             >
-              <Icon size={14} color={isActive ? t.accent : T.text3} />
-              <span style={{ fontSize: 10, fontWeight: isActive ? 800 : 700 }}>{t.label}</span>
-              <span style={{ fontSize: 8, color: isActive ? T.text3 : '#6E7B8F', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <Icon size={13} color={isActive ? t.accent : T.text3} />
+              <span style={{ fontSize: 9, fontWeight: isActive ? 800 : 700, lineHeight: 1.1 }}>{t.label}</span>
+              <span style={{ fontSize: 7.5, color: isActive ? T.text3 : '#6E7B8F', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.1 }}>
                 {t.subtitle}
               </span>
             </button>

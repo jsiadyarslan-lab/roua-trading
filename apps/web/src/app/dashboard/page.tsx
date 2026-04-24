@@ -139,7 +139,7 @@ export default function DashboardPage() {
           .dash-col-right-mobile { display: block !important; }
         }
 
-        @media (max-width: 767px) {
+        @media (max-width: 1024px) {
           .dash-grid {
             display: none !important;
           }
@@ -245,7 +245,7 @@ export default function DashboardPage() {
           }
         }
 
-        @media (min-width: 768px) {
+        @media (min-width: 1025px) {
           .dash-mobile-stack,
           .mobile-bottom-nav {
             display: none !important;
@@ -359,17 +359,7 @@ export default function DashboardPage() {
 
       {/* Mobile-first stacked dashboard */}
       <div className="dash-mobile-stack">
-        <section id="portfolio" className="mobile-section">
-          <div className="mobile-section__header">
-            <span className="mobile-section__title">Portfolio</span>
-            <Wallet size={18} color={T.text3} />
-          </div>
-          <div className="mobile-section__body">
-            <PortfolioMini />
-          </div>
-        </section>
-
-        <section id="chart" className="mobile-section">
+        <section id="chart" className="mobile-section" style={{ scrollMarginTop: 12 }}>
           <div className="mobile-section__header">
             <span className="mobile-section__title">Chart</span>
             <BarChart3 size={18} color={T.text3} />
@@ -379,7 +369,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section id="execution" className="mobile-section">
+        <section id="execution" className="mobile-section" style={{ scrollMarginTop: 12 }}>
           <div className="mobile-section__header">
             <span className="mobile-section__title">Order Execution</span>
             <ChevronDown size={18} color={T.text3} style={{ transform: 'rotate(-90deg)' }} />
@@ -389,7 +379,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section id="orderbook" className="mobile-section">
+        <section id="orderbook" className="mobile-section" style={{ scrollMarginTop: 12 }}>
           <div className="mobile-section__header">
             <span className="mobile-section__title">Order Book / Watchlist</span>
             <ScanSearch size={18} color={T.text3} />
@@ -400,7 +390,17 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section id="scanner" className="mobile-section">
+        <section id="portfolio" className="mobile-section" style={{ scrollMarginTop: 12 }}>
+          <div className="mobile-section__header">
+            <span className="mobile-section__title">Portfolio</span>
+            <Wallet size={18} color={T.text3} />
+          </div>
+          <div className="mobile-section__body">
+            <PortfolioMini />
+          </div>
+        </section>
+
+        <section id="scanner" className="mobile-section" style={{ scrollMarginTop: 12 }}>
           <div className="mobile-section__header">
             <span className="mobile-section__title">Scanner</span>
             <ScanSearch size={18} color={T.text3} />
@@ -410,7 +410,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section id="ai" className="mobile-section">
+        <section id="ai" className="mobile-section" style={{ scrollMarginTop: 12 }}>
           <div className="mobile-section__header">
             <span className="mobile-section__title">AI</span>
             <Brain size={18} color={T.text3} />

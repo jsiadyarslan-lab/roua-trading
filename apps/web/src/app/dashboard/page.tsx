@@ -20,6 +20,7 @@ import { ScannerMini } from '@/components/dashboard/ScannerMini'
 import { AlNarratorMini } from '@/components/ai/AlNarratorMini'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone } from '@/lib/dashboard-live'
+import { DecisionFlowRail } from '@/components/dashboard/DecisionFlowRail'
 
 const DASHBOARD_SYMBOLS = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA']
 
@@ -435,6 +436,9 @@ export default function DashboardPage() {
               flexDirection: 'column',
             }}
           >
+            <div style={{ padding: 10, borderBottom: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.015)' }}>
+              <DecisionFlowRail />
+            </div>
             <div
               style={{
                 height: PANEL_H,
@@ -558,11 +562,14 @@ export default function DashboardPage() {
             ))}
           </div>
 
+          <DecisionFlowRail compact />
+
         </div>
 
         <div className="mobile-panel-shell">
           {activeMobileView === 'execution' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 10, height: '100%' }}>
+              <DecisionFlowRail compact />
               <div className="mobile-section__header">
                 <span className="mobile-section__title">الحساب والمراكز</span>
                 <BarChart3 size={18} color={T.text3} />

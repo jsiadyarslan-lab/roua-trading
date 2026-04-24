@@ -10,6 +10,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
   const [lastScan, setLastScan] = useState<string | null>(null);
   const scanningRef = useRef(false);
   const { setSelectedSymbol } = useSymbolStore();
+  const spotlight = signals.find(sig => sig.pair === selectedSymbol) || signals[0] || null
 
   const doScan = useCallback(async () => {
     if (scanningRef.current) return;
@@ -103,6 +104,44 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
             animation: dash-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
           }
         `}</style>
+        {spotlight && (
+          <div style={{
+            marginBottom: 8,
+            background: 'rgba(0,229,255,0.04)',
+            border: '1px solid rgba(0,229,255,0.12)',
+            borderRadius: 10,
+            padding: compact ? 10 : 12,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--foreground)', fontFamily: "'Cairo', sans-serif" }}>
+                {spotlight.pair === selectedSymbol ? 'هذا الأصل تحت المجهر الآن' : 'الفرصة الأهم الآن'}
+              </span>
+              <span style={{
+                fontSize: 9,
+                padding: '2px 8px',
+                borderRadius: 999,
+                background: spotlight.dir === 'buy' ? 'rgba(0,200,83,0.15)' : spotlight.dir === 'sell' ? 'rgba(255,59,48,0.15)' : 'rgba(255,184,0,0.15)',
+                color: spotlight.dir === 'buy' ? 'var(--success)' : spotlight.dir === 'sell' ? 'var(--danger)' : 'var(--amber)',
+                fontFamily: 'monospace',
+                fontWeight: 800,
+              }}>
+                {spotlight.signalClass || 'watch'} · {spotlight.entryBias || 'wait'}
+              </span>
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text2)', lineHeight: 1.7 }}>
+              {Array.isArray(spotlight.reasons) && spotlight.reasons.length > 0
+                ? `ظهر ${spotlight.pair} لأن السكانر رصد: ${spotlight.reasons.slice(0, 2).join('، ')}.`
+                : `السكانر يراقب ${spotlight.pair} بانتظار تأكيد أقوى.`}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 9, color: 'var(--text3)', fontFamily: 'monospace' }}>
+              <span>{spotlight.source || 'Unknown source'} {spotlight.freshness ? `· ${spotlight.freshness}` : ''}</span>
+              <span>{spotlight.timestamp ? formatFreshness(spotlight.timestamp) : (lastScan || 'الآن')}</span>
+            </div>
+          </div>
+        )}
         {scanning && signals.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[1, 2, 3].map((skeletonIndex) => (
@@ -167,6 +206,15 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                     <div style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>{sig.strength}%</div>
                     <div style={{ fontSize: 9, color: 'var(--text3)', marginTop: 3 }}>{sig.timestamp ? formatFreshness(sig.timestamp) : (lastScan || 'الآن')}</div>
                   </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 9, color: 'var(--accent)', fontFamily: 'monospace' }}>
+                    {(sig.signalClass || 'watch').toUpperCase()} · {(sig.entryBias || 'wait').toUpperCase()}
+                  </span>
+                  <span style={{ fontSize: 9, color: 'var(--text3)', fontFamily: 'monospace' }}>
+                    {sig.source || 'source'} {sig.freshness ? `· ${sig.freshness}` : ''}
+                  </span>
                 </div>
 
                 {/* Progress Bar */}

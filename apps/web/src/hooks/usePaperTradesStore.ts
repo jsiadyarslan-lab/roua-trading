@@ -43,26 +43,36 @@ export const usePaperTradesStore = create<PaperTradesState>()(
           ],
         })),
 
-      updatePrice: (symbol, price) =>
-        set((state) => ({
-          trades: state.trades.map((t) => {
-            if (t.symbol !== symbol) return t
-            
-            const currentPrice = price
-            let pnl = 0
-            let pct = 0
-            
-            if (t.entryPrice > 0) {
-              const diff = t.side === 'long'
-                ? price - t.entryPrice
-                : t.entryPrice - price
-              pnl = diff * t.qty
-              pct = (diff / t.entryPrice) * 100
-            }
+      updatePrice: (symbol, price) => {
+        const normalizedSymbol = symbol.toUpperCase().replace(/\//g, '')
+        const currentTrades = get().trades
+        let changed = false
 
-            return { ...t, currentPrice, unrealizedPnl: pnl, unrealizedPct: pct }
-          }),
-        })),
+        const trades = currentTrades.map((t) => {
+          const tradeSymbol = t.symbol.toUpperCase().replace(/\//g, '')
+          if (tradeSymbol !== normalizedSymbol) return t
+
+          if (t.currentPrice === price) return t
+
+          const currentPrice = price
+          let pnl = 0
+          let pct = 0
+
+          if (t.entryPrice > 0) {
+            const diff = t.side === 'long'
+              ? price - t.entryPrice
+              : t.entryPrice - price
+            pnl = diff * t.qty
+            pct = (diff / t.entryPrice) * 100
+          }
+
+          changed = true
+          return { ...t, currentPrice, unrealizedPnl: pnl, unrealizedPct: pct }
+        })
+
+        if (!changed) return
+        set({ trades })
+      },
 
       removeTrade: (id) =>
         set((state) => ({ trades: state.trades.filter((t) => t.id !== id) })),

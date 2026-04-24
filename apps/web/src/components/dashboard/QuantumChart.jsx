@@ -90,6 +90,7 @@ export default function QuantumChart({ currentPrice = null }) {
   const animFrameRef  = useRef(null);
   const tickRef       = useRef(null);
   const engineInitRef = useRef(false);
+  const openTradesSignatureRef = useRef('');
 
   // CSS
   useEffect(() => { injectCSS(); }, []);
@@ -177,16 +178,18 @@ export default function QuantumChart({ currentPrice = null }) {
           rawSymbol: p.rawSymbol
         }
       }),
-      ...paperTrades.filter(pt => pt.source === 'bot' || !positions.some(p => p.rawSymbol.replace('/', '') === pt.symbol.replace('/', ''))).map(p => ({
-        entry: p.entryPrice,
-        qty: p.qty,
-        side: p.side.toLowerCase(),
-        pnl: p.unrealizedPnl,
-        sl: p.sl || null,
-        tp: p.tp || null,
-        symbol: p.symbol,
-        rawSymbol: p.symbol
-      }))
+      ...paperTrades
+        .filter(pt => pt.source === 'bot' || !positions.some(p => p.rawSymbol.replace('/', '') === pt.symbol.replace('/', '')))
+        .map(p => ({
+          entry: p.entryPrice,
+          qty: p.qty,
+          side: p.side.toLowerCase(),
+          pnl: p.unrealizedPnl,
+          sl: p.sl || null,
+          tp: p.tp || null,
+          symbol: p.symbol,
+          rawSymbol: p.symbol
+        }))
     ];
 
     // 2. Filter for selected symbol
@@ -195,7 +198,23 @@ export default function QuantumChart({ currentPrice = null }) {
       const sSym = selectedSymbol.toUpperCase().replace('/', '');
       return pSym === sSym;
     });
-    
+
+    const signature = active
+      .map(p => [
+        p.symbol,
+        p.rawSymbol,
+        p.entry,
+        p.qty,
+        p.side,
+        p.pnl,
+        p.sl ?? '',
+        p.tp ?? ''
+      ].join('|'))
+      .join(';;');
+
+    if (signature === openTradesSignatureRef.current) return;
+
+    openTradesSignatureRef.current = signature;
     console.log(`[Chart] Syncing ${active.length} positions for ${selectedSymbol}`, active);
 
     ST.openTrades = active;

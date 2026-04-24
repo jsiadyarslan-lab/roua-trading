@@ -1,60 +1,103 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
 
+type NarratorPayload = {
+  narrative: string
+  sentiment: 'bullish' | 'bearish' | 'neutral' | 'volatile'
+  keywords: Array<{ word: string; color: 'success' | 'accent' | 'danger' | 'amber' }>
+  confidence: number
+  risk: 'Low' | 'Medium' | 'High'
+  timestamp: string
+  degraded?: boolean
+}
+
+function fallbackNarrator(reason?: string): NarratorPayload {
+  return {
+    narrative:
+      'المحرك يعمل بوضع آمن حالياً. لا يمكن الوصول إلى البيانات الخلفية، لذلك يتم عرض تحليل افتراضي بدل تعطيل الواجهة.',
+    sentiment: 'neutral',
+    keywords: [
+      { word: 'وضع آمن', color: 'amber' },
+      { word: 'بيانات محلية', color: 'accent' },
+    ],
+    confidence: 45,
+    risk: 'Medium',
+    timestamp: new Date().toISOString(),
+    degraded: true,
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
-    await ensureDbReady()
-    
-    // 1. Fetch Latest News
-    const recentNews = await db.newsArticle.findMany({
-      orderBy: { publishedAt: 'desc' },
-      take: 3
-    })
+    try {
+      await ensureDbReady()
+    } catch (dbError: any) {
+      console.error('[ai/narrator] DB unavailable:', dbError?.message || dbError)
+      return NextResponse.json({
+        success: true,
+        data: fallbackNarrator('DB unavailable'),
+      })
+    }
 
-    // 2. Fetch Scanner Results (Real Technical Data)
+    let recentNews: any[] = []
+    try {
+      recentNews = await db.newsArticle.findMany({
+        orderBy: { publishedAt: 'desc' },
+        take: 3,
+      })
+    } catch (newsError: any) {
+      console.error('[ai/narrator] News query failed:', newsError?.message || newsError)
+      return NextResponse.json({
+        success: true,
+        data: fallbackNarrator('News query failed'),
+      })
+    }
+
     let scannerResults: any[] = []
     try {
       const scanRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/market-scan`)
       const scanData = await scanRes.json()
       if (scanData.success) scannerResults = scanData.data
-    } catch { /* ignore */ }
+    } catch {
+      // ignore scanner failures and continue with safe fallback logic
+    }
 
-    // 3. Hybrid Analysis Logic
-    const topScan = scannerResults[0] // Highest strength signal
-    const newsSentiment = recentNews.reduce((acc, n) => acc + (n.sentiment || 0), 0) / (recentNews.length || 1)
-    
-    let narrative = ""
-    let sentiment: 'bullish' | 'bearish' | 'neutral' | 'volatile' = "neutral"
+    const topScan = scannerResults[0]
+    const newsSentiment =
+      recentNews.reduce((acc, n) => acc + (n.sentiment || 0), 0) / (recentNews.length || 1)
+
+    let narrative = ''
+    let sentiment: 'bullish' | 'bearish' | 'neutral' | 'volatile' = 'neutral'
     let confidence = 70
-    let risk: 'Low' | 'Medium' | 'High' = "Medium"
-    let keywords: any[] = []
+    let risk: 'Low' | 'Medium' | 'High' = 'Medium'
+    let keywords: Array<{ word: string; color: 'success' | 'accent' | 'danger' | 'amber' }> = []
 
     if (topScan) {
       const isBullishTech = topScan.dir === 'buy'
       const isBullishNews = newsSentiment > 0.1
-      
+
       if (isBullishTech && isBullishNews) {
-        sentiment = "bullish"
+        sentiment = 'bullish'
         confidence = 92
-        risk = "Low"
+        risk = 'Low'
         narrative = `توافق تام بين التحليل الفني والأساسي. ${topScan.pair} يظهر زخماً صاعداً قوياً بنسبة ثقة ${topScan.strength}% مدعوماً بـ: ${topScan.reasons.join('، ')}. مع أخبار إيجابية تدعم استمرار الصعود.`
-        keywords = [{ word: "اختراق مؤكد", color: "success" }, { word: "زخم مؤسسي", color: "accent" }]
+        keywords = [{ word: 'اختراق مؤكد', color: 'success' }, { word: 'زخم مؤسسي', color: 'accent' }]
       } else if (!isBullishTech && !isBullishNews) {
-        sentiment = "bearish"
+        sentiment = 'bearish'
         confidence = 88
-        risk = "Medium"
+        risk = 'Medium'
         narrative = `ضغط بيعي متزايد على الأسواق. ${topScan.pair} يواجه صعوبة في الحفاظ على مستويات الدعم. التحليل الفني يشير لـ ${topScan.reasons[0]} بالتزامن مع تراجع في المعنويات العامة.`
-        keywords = [{ word: "ضغط بيعي", color: "danger" }, { word: "هروب سيولة", color: "danger" }]
+        keywords = [{ word: 'ضغط بيعي', color: 'danger' }, { word: 'هروب سيولة', color: 'danger' }]
       } else {
-        sentiment = "volatile"
+        sentiment = 'volatile'
         confidence = 65
-        risk = "High"
+        risk = 'High'
         narrative = `السوق في حالة تضارب. التحليل الفني لـ ${topScan.pair} يعطي إشارة ${topScan.dir === 'buy' ? 'شراء' : 'بيع'}، لكن الأخبار تشير لـ ${newsSentiment > 0 ? 'تفاؤل' : 'حذر'}. يُنصح بالانتظار أو تقليل أحجام الصفقات.`
-        keywords = [{ word: "تضارب إشارات", color: "amber" }, { word: "حذر شديد", color: "amber" }]
+        keywords = [{ word: 'تضارب إشارات', color: 'amber' }, { word: 'حذر شديد', color: 'amber' }]
       }
     } else {
-      narrative = "المحرك يراقب استقرار الأسواق حالياً. لا توجد انحرافات سعرية حادة تبرر دخول صفقات عالية المخاطرة."
-      sentiment = "neutral"
+      narrative = 'المحرك يراقب استقرار الأسواق حالياً. لا توجد انحرافات سعرية حادة تبرر دخول صفقات عالية المخاطرة.'
+      sentiment = 'neutral'
       confidence = 50
     }
 
@@ -66,13 +109,14 @@ export async function GET(req: NextRequest) {
         keywords,
         confidence,
         risk,
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     })
   } catch (error: any) {
-    return NextResponse.json(
-      { success: false, error: error.message || 'فشل في توليد التحليل' },
-      { status: 500 }
-    )
+    console.error('[ai/narrator] Error:', error?.message || error)
+    return NextResponse.json({
+      success: true,
+      data: fallbackNarrator(error?.message),
+    })
   }
 }

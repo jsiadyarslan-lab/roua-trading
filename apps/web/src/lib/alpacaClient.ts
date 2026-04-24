@@ -1,11 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 
 const ALPACA_BASE = process.env.ALPACA_PAPER === 'false'
   ? 'https://api.alpaca.markets'
   : 'https://paper-api.alpaca.markets'
 
+const HAS_ALPACA_KEYS = Boolean(process.env.ALPACA_API_KEY && process.env.ALPACA_API_SECRET)
+
 export function alpacaClient() {
-  const key    = process.env.ALPACA_API_KEY
+  const key = process.env.ALPACA_API_KEY
   const secret = process.env.ALPACA_API_SECRET
 
   if (!key || !secret) {
@@ -15,9 +17,9 @@ export function alpacaClient() {
   return {
     baseURL: ALPACA_BASE,
     headers: {
-      'APCA-API-KEY-ID':     key,
+      'APCA-API-KEY-ID': key,
       'APCA-API-SECRET-KEY': secret,
-      'Content-Type':        'application/json',
+      'Content-Type': 'application/json',
     },
   }
 }
@@ -32,14 +34,14 @@ const FOREX_PROXY_MAP: Record<string, string> = {
   'NZD/USD': 'UUP',
   'XAU/USD': 'GLD',
   'XAG/USD': 'SLV',
-  'XPT/USD': 'PPLT'
+  'XPT/USD': 'PPLT',
 }
 
 /** نرمّز رمز الزوج لـ Alpaca: للعملات نستخدم ETFs كبديل */
 export function toAlpacaSymbol(symbol: string): string {
   if (!symbol || symbol === 'undefined') return 'AAPL'
   const s = decodeURIComponent(symbol)
-  
+
   if (FOREX_PROXY_MAP[s]) return FOREX_PROXY_MAP[s]
 
   // العملات الرقمية
@@ -57,11 +59,49 @@ export function fromAlpacaSymbol(alpacaSym: string): string {
   return alpacaSym
 }
 
+function createFallbackResponse(path: string): Response {
+  if (path === '/v2/account') {
+    return NextResponse.json(
+      {
+        id: 'mock-alpaca-account',
+        status: 'ACTIVE',
+        currency: 'USD',
+        cash: '10000',
+        equity: '10000',
+        buying_power: '40000',
+        portfolio_value: '10000',
+        daytrade_count: 0,
+        account_number: 'PA-MOCK',
+        trading_blocked: false,
+        account_blocked: false,
+      },
+      { status: 200 }
+    )
+  }
+
+  if (path === '/v2/positions') {
+    return NextResponse.json([], { status: 200 })
+  }
+
+  return NextResponse.json(
+    {
+      success: false,
+      degraded: true,
+      error: 'Alpaca credentials not configured',
+    },
+    { status: 503 }
+  )
+}
+
 /** دالة مساعدة لإرسال طلبات لـ Alpaca */
 export async function alpacaFetch(
   path: string,
   options: RequestInit = {},
 ): Promise<Response> {
+  if (!HAS_ALPACA_KEYS) {
+    return createFallbackResponse(path)
+  }
+
   const client = alpacaClient()
   return fetch(`${client.baseURL}${path}`, {
     ...options,

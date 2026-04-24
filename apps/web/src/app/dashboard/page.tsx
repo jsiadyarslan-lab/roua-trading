@@ -25,6 +25,7 @@ const T = {
   card:    '#111214',
   border:  'rgba(0, 229, 255, 0.08)',
   success: '#00C853',
+  danger:  '#FF3B30',
   text:    '#E6EBF5',
   text3:   '#A0AFC3',
 }
@@ -135,7 +136,7 @@ export default function DashboardPage() {
         .dash-col::-webkit-scrollbar-thumb:hover { background: #0A84FF44; }
       `}</style>
 
-      <BotEngine quotes={quotes} />
+      <BotEngine />
       <NotificationEngine quotes={quotes} />
       <GlobalLogicEngine />
       <NotificationToasts />

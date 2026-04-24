@@ -139,7 +139,7 @@ export default function DashboardPage() {
           .dash-col-right-mobile { display: block !important; }
         }
 
-        @media (max-width: 1024px) {
+        @media (max-width: 767px) {
           .dash-grid {
             display: none !important;
           }
@@ -148,7 +148,7 @@ export default function DashboardPage() {
             display: flex;
             flex-direction: column;
             gap: 10px;
-            padding: 10px 10px 104px;
+            padding: 10px 10px calc(124px + env(safe-area-inset-bottom));
             background: ${T.bg};
             box-sizing: border-box;
             width: 100%;
@@ -190,6 +190,7 @@ export default function DashboardPage() {
             cursor: pointer;
             transition: all 0.18s ease;
             box-sizing: border-box;
+            touch-action: manipulation;
           }
 
           .mobile-bottom-nav__button--active {
@@ -245,7 +246,7 @@ export default function DashboardPage() {
           }
         }
 
-        @media (min-width: 1025px) {
+        @media (min-width: 768px) {
           .dash-mobile-stack,
           .mobile-bottom-nav {
             display: none !important;

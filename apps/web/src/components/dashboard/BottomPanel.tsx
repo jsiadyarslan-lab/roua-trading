@@ -106,10 +106,18 @@ export default function BottomPanel() {
             {displayPositions.length}
           </span>
         </div>
-        <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar">
+        <div
+          className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar"
+          style={{
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehaviorX: 'contain',
+            overscrollBehaviorY: 'contain',
+          }}
+        >
           <table
             style={{
               width: '100%',
+              minWidth: 920,
               borderCollapse: 'collapse',
               fontFamily: 'var(--font-mono)',
               fontSize: '10px',
@@ -117,7 +125,18 @@ export default function BottomPanel() {
           >
             <thead>
               <tr style={{ color: 'var(--text3)' }}>
-                <th className="px-2 py-1 text-right font-medium">الزوج</th>
+                <th
+                  className="px-2 py-1 text-right font-medium"
+                  style={{
+                    position: 'sticky',
+                    left: 0,
+                    zIndex: 3,
+                    background: 'var(--bg)',
+                    boxShadow: '1px 0 0 var(--border)',
+                  }}
+                >
+                  الزوج
+                </th>
                 <th className="px-2 py-1 text-right font-medium">الاتجاه</th>
                 <th className="px-2 py-1 text-right font-medium" dir="ltr">الحجم</th>
                 <th className="px-2 py-1 text-right font-medium" dir="ltr">الدخول</th>
@@ -141,7 +160,21 @@ export default function BottomPanel() {
                     }}
                     className="hover:bg-[var(--bg3)]"
                   >
-                    <td className="px-2 py-1" style={{ fontWeight: 600 }} dir="ltr">{pos.symbol}</td>
+                    <td
+                      className="px-2 py-1"
+                      style={{
+                        fontWeight: 600,
+                        position: 'sticky',
+                        left: 0,
+                        zIndex: 2,
+                        background: 'var(--bg2)',
+                        boxShadow: '1px 0 0 var(--border)',
+                        whiteSpace: 'nowrap',
+                      }}
+                      dir="ltr"
+                    >
+                      {pos.symbol}
+                    </td>
                     <td className="px-2 py-1">
                       <span
                         style={{
@@ -200,11 +233,13 @@ export default function BottomPanel() {
           </span>
         </div>
         <div className="flex-1 p-2 overflow-y-auto custom-scrollbar">
-          {[
-            { label: 'إشارات شراء', count: 3, color: 'var(--green)' },
-            { label: 'إشارات بيع', count: 1, color: 'var(--red)' },
-            { label: 'متوسط الثقة', count: 72, color: 'var(--amber)', suffix: '%' },
-          ].map((item) => (
+          {(
+            [
+              { label: 'إشارات شراء', count: 3, color: 'var(--green)' },
+              { label: 'إشارات بيع', count: 1, color: 'var(--red)' },
+              { label: 'متوسط الثقة', count: 72, color: 'var(--amber)', suffix: '%' },
+            ] as Array<{ label: string; count: number; color: string; suffix?: string }>
+          ).map((item) => (
             <div
               key={item.label}
               className="flex items-center justify-between py-1"
@@ -260,31 +295,33 @@ export default function BottomPanel() {
           </span>
         </div>
         <div className="flex-1 p-2 overflow-y-auto custom-scrollbar">
-          {[
-            {
-              label: 'القيمة الإجمالية',
-              value: summary?.totalValue?.toFixed(2) ?? '0.00',
-              color: 'var(--text)',
-              prefix: '$',
-            },
-            {
-              label: 'أرباح غير محققة',
-              value: summary?.unrealizedPnl != null ? (summary.unrealizedPnl >= 0 ? '+' : '') + summary.unrealizedPnl.toFixed(2) : '0.00',
-              color: (summary?.unrealizedPnl ?? 0) >= 0 ? 'var(--green)' : 'var(--red)',
-              prefix: '$',
-            },
-            {
-              label: 'أرباح محققة',
-              value: summary?.realizedPnl != null ? (summary.realizedPnl >= 0 ? '+' : '') + summary.realizedPnl.toFixed(2) : '0.00',
-              color: (summary?.realizedPnl ?? 0) >= 0 ? 'var(--green)' : 'var(--red)',
-              prefix: '$',
-            },
-            {
-              label: 'عدد الصفقات',
-              value: summary?.totalPositions?.toString() ?? '0',
-              color: 'var(--blue)',
-            },
-          ].map((item) => (
+          {(
+            [
+              {
+                label: 'القيمة الإجمالية',
+                value: summary?.totalValue?.toFixed(2) ?? '0.00',
+                color: 'var(--text)',
+                prefix: '$',
+              },
+              {
+                label: 'أرباح غير محققة',
+                value: summary?.unrealizedPnl != null ? (summary.unrealizedPnl >= 0 ? '+' : '') + summary.unrealizedPnl.toFixed(2) : '0.00',
+                color: (summary?.unrealizedPnl ?? 0) >= 0 ? 'var(--green)' : 'var(--red)',
+                prefix: '$',
+              },
+              {
+                label: 'أرباح محققة',
+                value: summary?.realizedPnl != null ? (summary.realizedPnl >= 0 ? '+' : '') + summary.realizedPnl.toFixed(2) : '0.00',
+                color: (summary?.realizedPnl ?? 0) >= 0 ? 'var(--green)' : 'var(--red)',
+                prefix: '$',
+              },
+              {
+                label: 'عدد الصفقات',
+                value: summary?.totalPositions?.toString() ?? '0',
+                color: 'var(--blue)',
+              },
+            ] as Array<{ label: string; value: string; color: string; prefix?: string; suffix?: string }>
+          ).map((item) => (
             <div
               key={item.label}
               className="flex items-center justify-between py-1"

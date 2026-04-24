@@ -3,7 +3,8 @@
 import { useState, useMemo } from 'react'
 import { BarChart3, ChevronDown, ArrowUpRight, ArrowDownRight } from 'lucide-react'
 import { useSingleQuote } from '@/hooks/useMarketData'
-import { useDashboardStore } from '@/lib/dashboard-store'
+import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { formatFreshness, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
 
 interface OrderBookEntry {
   price: string
@@ -61,6 +62,9 @@ function generateOrderBookLevels(midPrice: number, isPositive: boolean): { asks:
 interface OrderBookPanelProps {
   mobile?: boolean
   collapsedByDefault?: boolean
+  dataStatus?: DataStatus
+  lastUpdatedAt?: string | number | null
+  sourceLabel?: string
 }
 
 export default function OrderBookPanel(props: OrderBookPanelProps) {
@@ -70,9 +74,12 @@ export default function OrderBookPanel(props: OrderBookPanelProps) {
 export function OrderBookPanelInner({
   mobile = false,
   collapsedByDefault = false,
+  dataStatus = 'disconnected',
+  lastUpdatedAt = null,
+  sourceLabel = 'Unknown source',
 }: OrderBookPanelProps = {}) {
   const [expanded, setExpanded] = useState(!collapsedByDefault)
-  const { selectedPair } = useDashboardStore()
+  const selectedPair = useSymbolStore(state => state.selectedSymbol)
   const { quote } = useSingleQuote(selectedPair, 5000)
 
   const midPrice = quote?.price ?? 0
@@ -99,6 +106,7 @@ export function OrderBookPanelInner({
   const buyPressure = totalAsk + totalBid > 0 ? Math.round((totalBid / (totalAsk + totalBid)) * 100) : 50
   const visibleAsks = mobile ? asks.slice().reverse().slice(0, 4) : asks.slice().reverse()
   const visibleBids = mobile ? bids.slice(0, 4) : bids
+  const statusTone = getStatusTone(dataStatus)
 
   return (
     <div style={{
@@ -146,7 +154,7 @@ export function OrderBookPanelInner({
         }}>دفتر الأوامر</span>
         {quote && (
           <span style={{ fontSize: '8px', fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }} dir="ltr">
-            {selectedPair} · {quote.source}
+            {selectedPair} · {sourceLabel}
           </span>
         )}
         <div style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
@@ -156,6 +164,43 @@ export function OrderBookPanelInner({
 
       {expanded && (
         <div style={{ padding: '0 10px 10px' }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '8px',
+            padding: '8px 10px',
+            borderRadius: '8px',
+            background: 'rgba(255,255,255,0.025)',
+            border: '1px solid var(--border-subtle)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                borderRadius: '999px',
+                padding: '3px 7px',
+                background: `${statusTone}18`,
+                border: `1px solid ${statusTone}40`,
+                color: statusTone,
+                fontSize: '8px',
+                fontWeight: 800,
+                fontFamily: 'var(--font-mono)',
+              }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusTone }} />
+                {getStatusLabel(dataStatus)}
+              </span>
+              <span style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
+                {formatFreshness(lastUpdatedAt)}
+              </span>
+            </div>
+            <span style={{ fontSize: '9px', color: buyPressure >= 50 ? 'var(--profit)' : 'var(--loss)', fontFamily: 'var(--font-mono)' }}>
+              Spread move {buyPressure >= 50 ? '↑' : '↓'}
+            </span>
+          </div>
+
           {/* Buy/Sell Pressure Bar */}
           <div style={{ marginBottom: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>

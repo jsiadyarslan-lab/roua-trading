@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useMarketStore } from '@/hooks/useMarketStore'
-import { TrendingUp, TrendingDown } from 'lucide-react'
+import { Flame, TrendingUp, TrendingDown } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { formatFreshness, getDataStatus, getStatusLabel, getStatusTone } from '@/lib/dashboard-live'
 
 // Helper component to handle price pulse animation
 function PriceDisplay({ price, isUp }: { price: number | null, isUp: boolean }) {
@@ -48,13 +49,14 @@ const ALL_SYMBOLS = [
   ...SYMBOLS_BY_TAB.Stocks,
 ]
 
-export function WatchlistMini() {
+export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selectedSymbol?: string }) {
   const [activeTab, setActiveTab] = useState<'Crypto' | 'Forex' | 'Stocks'>('Crypto')
   const globalQuotes = useMarketStore(state => state.quotes)
   const quotes = new Map(ALL_SYMBOLS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
   const [sparklineData, setSparklineData] = useState<Record<string, number[]>>({})
   const fetchedRef = useRef<Set<string>>(new Set())
+  const activeSymbol = selectedSymbolProp ?? selectedSymbol
 
   // Fetch real sparklines for current tab's symbols
   useEffect(() => {
@@ -84,6 +86,10 @@ export function WatchlistMini() {
   }, [activeTab])
 
   const symbols = SYMBOLS_BY_TAB[activeTab]
+  const hotMover = symbols
+    .map(sym => ({ sym, quote: quotes.get(sym) }))
+    .filter(item => item.quote)
+    .sort((a, b) => Math.abs((b.quote?.changePercent ?? 0)) - Math.abs((a.quote?.changePercent ?? 0)))[0]
 
   return (
     <div style={{
@@ -130,6 +136,34 @@ export function WatchlistMini() {
         })}
       </div>
 
+      <div style={{
+        margin: '10px 16px 0',
+        borderRadius: 10,
+        border: '1px solid rgba(255,255,255,0.06)',
+        background: 'rgba(255,255,255,0.02)',
+        padding: '8px 10px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 10,
+      }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 9, color: 'var(--muted)', marginBottom: 4 }}>Hot mover</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Flame size={12} color="var(--warning)" />
+            <span style={{ fontSize: 11, color: 'var(--foreground)', fontWeight: 800, fontFamily: 'var(--mono)' }}>{hotMover?.sym ?? '—'}</span>
+            <span style={{ fontSize: 10, color: (hotMover?.quote?.changePercent ?? 0) >= 0 ? 'var(--success)' : 'var(--danger)', fontFamily: 'var(--mono)' }}>
+              {hotMover?.quote ? `${hotMover.quote.changePercent >= 0 ? '+' : ''}${hotMover.quote.changePercent.toFixed(2)}%` : '—'}
+            </span>
+          </div>
+        </div>
+        {hotMover?.quote && (
+          <div style={{ fontSize: 9, color: getStatusTone(getDataStatus(hotMover.quote)), fontFamily: 'var(--mono)' }}>
+            {getStatusLabel(getDataStatus(hotMover.quote))}
+          </div>
+        )}
+      </div>
+
       {/* List Body */}
       <div className="custom-scrollbar no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -139,6 +173,8 @@ export function WatchlistMini() {
             const price = q?.price ?? null
             const isUp = changePct >= 0
             const color = isUp ? 'var(--success)' : 'var(--danger)'
+            const dataStatus = getDataStatus(q)
+            const statusTone = getStatusTone(dataStatus)
 
             return (
               <div
@@ -148,8 +184,8 @@ export function WatchlistMini() {
                 style={{
                   display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
                   height: 96, padding: '14px 16px',
-                  background: sym === selectedSymbol ? 'rgba(0, 229, 255, 0.05)' : 'var(--surface)',
-                  borderColor: sym === selectedSymbol ? 'var(--accent)' : 'var(--card-border)',
+                  background: sym === activeSymbol ? 'rgba(0, 229, 255, 0.05)' : 'var(--surface)',
+                  borderColor: sym === activeSymbol ? 'var(--accent)' : 'var(--card-border)',
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   cursor: 'pointer', position: 'relative', overflow: 'hidden'
                 }}
@@ -168,7 +204,7 @@ export function WatchlistMini() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                     <span style={{ fontSize: 13, fontWeight: 900, color: 'var(--foreground)', fontFamily: 'var(--mono)' }}>{sym}</span>
-                    <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 600 }}>MARKET PAIR</span>
+                    <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 600 }}>{formatFreshness(q?.timestamp ?? null)} · {getStatusLabel(dataStatus)}</span>
                   </div>
                   {q ? (
                     <div style={{
@@ -246,6 +282,18 @@ export function WatchlistMini() {
                   position: 'absolute', left: 0, top: '20%', bottom: '20%', width: 2.5,
                   background: q ? color : 'transparent', borderRadius: '0 4px 4px 0'
                 }} />
+                {q && (
+                  <div style={{
+                    position: 'absolute',
+                    insetInlineEnd: 10,
+                    insetBlockEnd: 8,
+                    fontSize: 8,
+                    color: statusTone,
+                    fontFamily: 'var(--mono)',
+                  }}>
+                    {q.source}
+                  </div>
+                )}
               </div>
             )
           })}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Activity, ShieldCheck, Zap, Bell, CheckCircle2, TrendingUp, TrendingDown } from 'lucide-react'
+import { formatFreshness, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
 
 interface Keyword {
   word: string
@@ -17,7 +18,17 @@ interface NarrativeData {
   timestamp: string
 }
 
-export function AlNarratorMini({ mobile = false, compact = false }: { mobile?: boolean; compact?: boolean }) {
+export function AlNarratorMini({
+  mobile = false,
+  compact = false,
+  selectedSymbol,
+  dataStatus = 'disconnected',
+}: {
+  mobile?: boolean
+  compact?: boolean
+  selectedSymbol?: string
+  dataStatus?: DataStatus
+}) {
   const [data, setData] = useState<NarrativeData | null>(null)
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(false)
@@ -55,6 +66,7 @@ export function AlNarratorMini({ mobile = false, compact = false }: { mobile?: b
   }
 
   const isHighConfidence = (data?.confidence ?? 0) > 85
+  const statusTone = getStatusTone(dataStatus)
 
   return (
     <div 
@@ -79,17 +91,17 @@ export function AlNarratorMini({ mobile = false, compact = false }: { mobile?: b
             animation: isHighConfidence ? 'orb-pulse 2s infinite' : 'none'
           }} />
           <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>
-            رؤى الذكاء الاصطناعي (AI INSIGHT)
+            {selectedSymbol ? `ما الذي يحدث في ${selectedSymbol}؟` : 'رؤى الذكاء الاصطناعي'}
           </span>
         </div>
         
         {data && (
           <div style={{
              fontSize: 10, padding: '2px 8px', borderRadius: 20,
-             background: 'rgba(255,255,255,0.03)', border: '1px solid var(--card-border)',
-             color: 'var(--muted)', fontFamily: 'var(--mono)', fontWeight: 700
+             background: `${statusTone}16`, border: `1px solid ${statusTone}32`,
+             color: statusTone, fontFamily: 'var(--mono)', fontWeight: 700
           }}>
-            {new Date(data.timestamp).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+            {getStatusLabel(dataStatus)} · {formatFreshness(data.timestamp)}
           </div>
         )}
       </div>
@@ -166,6 +178,20 @@ export function AlNarratorMini({ mobile = false, compact = false }: { mobile?: b
           </div>}
 
           {/* Narrative Insight */}
+          <div style={{
+            padding: compact ? '8px 10px' : '10px 12px',
+            borderRadius: 10,
+            background: 'rgba(255,255,255,0.02)',
+            border: '1px solid var(--card-border)',
+            fontSize: 10,
+            color: 'var(--text2)',
+            lineHeight: 1.7,
+          }}>
+            {selectedSymbol
+              ? `المساعد يقرأ ${selectedSymbol} الآن ويربط السرد بالاتجاه والبيانات الحية بدل عرض رؤية عامة منفصلة.`
+              : 'المساعد يربط السرد بحركة السوق الحالية.'}
+          </div>
+
           <div 
             onClick={() => setExpanded(!expanded)}
             style={{

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Maximize2 } from 'lucide-react';
 import {
   ST,
@@ -14,6 +14,7 @@ import {
 import { useSymbolStore } from '../../hooks/useSymbolStore';
 import { usePositionsStore } from '../../hooks/usePositionsStore';
 import { usePaperTradesStore } from '../../hooks/usePaperTradesStore';
+import { formatFreshness, getStatusLabel, getStatusTone } from '../../lib/dashboard-live';
 
 // ── CSS injected once globally ────────────────────────────
 const CHART_CSS = `
@@ -84,9 +85,17 @@ function injectCSS() {
 }
 
 /**
- * @param {{ currentPrice?: number | null, mobile?: boolean, compact?: boolean, onExpand?: (() => void) | null }} props
+ * @param {{ currentPrice?: number | null, mobile?: boolean, compact?: boolean, onExpand?: (() => void) | null, dataStatus?: import('../../lib/dashboard-live').DataStatus, lastUpdatedAt?: string | number | null, sourceLabel?: string }} props
  */
-export default function QuantumChart({ currentPrice = null, mobile = false, compact = false, onExpand = null } = {}) {
+export default function QuantumChart({
+  currentPrice = null,
+  mobile = false,
+  compact = false,
+  onExpand = null,
+  dataStatus = 'disconnected',
+  lastUpdatedAt = null,
+  sourceLabel = 'Unknown source',
+} = {}) {
   const { selectedSymbol, timeframe, setTimeframe } = useSymbolStore();
   
   const mainCanvasRef = useRef(null);
@@ -95,6 +104,11 @@ export default function QuantumChart({ currentPrice = null, mobile = false, comp
   const tickRef       = useRef(null);
   const engineInitRef = useRef(false);
   const openTradesSignatureRef = useRef('');
+  const previousPriceRef = useRef(currentPrice);
+  const [pricePulse, setPricePulse] = useState(false);
+  const [feedState, setFeedState] = useState('waiting');
+  const [lastTickLabel, setLastTickLabel] = useState('—');
+  const [currentCandleCountdown, setCurrentCandleCountdown] = useState('—');
 
   // CSS
   useEffect(() => { injectCSS(); }, []);
@@ -116,6 +130,7 @@ export default function QuantumChart({ currentPrice = null, mobile = false, comp
         const res = await fetch(`/api/exchange/history/${encodeURIComponent(selectedSymbol)}?interval=${timeframe}`);
         const j = await res.json();
         if (j.success && j.data && j.data.length > 0) {
+          setFeedState('live');
           const formatted = j.data.map(c => ({
             t: new Date(c.timestamp).getTime(),
             o: c.open, h: c.high, l: c.low, c: c.close, v: c.volume
@@ -126,10 +141,12 @@ export default function QuantumChart({ currentPrice = null, mobile = false, comp
           if (elPrice) elPrice.textContent = last.c.toFixed(selectedSymbol.includes('JPY') ? 3 : selectedSymbol.includes('BTC') ? 1 : 5);
         } else {
           // Fallback to simulation if API fails or no data
+          setFeedState('fallback');
           CH_gen(selectedSymbol, { p: currentPrice || 65000, d: selectedSymbol.includes('JPY') ? 3 : selectedSymbol.includes('BTC') ? 1 : 5 });
         }
       } catch (e) {
         console.error('Failed to fetch candles', e);
+        setFeedState('fallback');
         CH_gen(selectedSymbol, { p: currentPrice || 65000, d: selectedSymbol.includes('JPY') ? 3 : selectedSymbol.includes('BTC') ? 1 : 5 });
       }
     };
@@ -161,6 +178,35 @@ export default function QuantumChart({ currentPrice = null, mobile = false, comp
       CH_setDirty(true);
     }
   }, [currentPrice]);
+
+  useEffect(() => {
+    if (currentPrice && previousPriceRef.current && currentPrice !== previousPriceRef.current) {
+      setPricePulse(true);
+      setLastTickLabel(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      const timer = setTimeout(() => setPricePulse(false), 420);
+      previousPriceRef.current = currentPrice;
+      return () => clearTimeout(timer);
+    }
+    previousPriceRef.current = currentPrice;
+  }, [currentPrice]);
+
+  useEffect(() => {
+    const tick = () => {
+      const minutes = Number.parseInt(timeframe, 10);
+      const intervalMinutes = Number.isFinite(minutes) ? minutes : timeframe === '1h' ? 60 : timeframe === '4h' ? 240 : timeframe === '1day' ? 1440 : 15;
+      const now = Date.now();
+      const intervalMs = intervalMinutes * 60 * 1000;
+      const remaining = intervalMs - (now % intervalMs);
+      const totalSeconds = Math.max(0, Math.floor(remaining / 1000));
+      const mins = Math.floor(totalSeconds / 60);
+      const secs = totalSeconds % 60;
+      setCurrentCandleCountdown(`${mins}:${secs.toString().padStart(2, '0')}`);
+    };
+
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [timeframe]);
 
   // Sync Positions to Chart Engine
   const positions = usePositionsStore(s => s.positions);
@@ -230,6 +276,8 @@ export default function QuantumChart({ currentPrice = null, mobile = false, comp
   const overlayPairSize = mobile ? 9 : 11
   const showDesktopTools = !mobile
   const showSessions = !compact
+  const statusTone = getStatusTone(dataStatus)
+  const feedLabel = feedState === 'fallback' ? 'Using fallback series' : feedState === 'waiting' ? 'Waiting for feed' : 'Chart live'
 
   /* ─── JSX ─────────────────────────────────────────────── */
   return (
@@ -387,7 +435,20 @@ export default function QuantumChart({ currentPrice = null, mobile = false, comp
             <div id="chartInfoOverlay" style={{ position:'absolute', top:0, right:0, left:0, display:'flex', alignItems:'center', justifyContent:'space-between', padding: mobile ? '5px 8px' : '4px 10px', pointerEvents:'none', zIndex:3, background:'linear-gradient(180deg,rgba(13,17,23,.85) 0%,transparent 100%)' }}>
               <div style={{ display:'flex', alignItems:'center', gap:'7px' }}>
                 <span style={{ fontFamily:'var(--font-hud)', fontSize:`${overlayPairSize}px`, fontWeight:700, color:'var(--cyan,#58a6ff)', letterSpacing:'.5px' }} id="chPair">{selectedSymbol}</span>
-                <span style={{ fontFamily:'monospace', fontSize:`${overlayPriceSize}px`, fontWeight:700, lineHeight:1 }} id="chPrice">{currentPrice || '—'}</span>
+                <span
+                  style={{
+                    fontFamily:'monospace',
+                    fontSize:`${overlayPriceSize}px`,
+                    fontWeight:700,
+                    lineHeight:1,
+                    color: pricePulse ? statusTone : '#ffffff',
+                    transition: 'color 0.22s ease, text-shadow 0.22s ease',
+                    textShadow: pricePulse ? `0 0 12px ${statusTone}` : 'none',
+                  }}
+                  id="chPrice"
+                >
+                  {currentPrice || '—'}
+                </span>
                 {!compact && <span style={{ fontSize:'9px', color:'var(--text4)', fontFamily:'monospace', display:'flex', alignItems:'center', gap:'6px' }}>
                   <span>O <b id="tbChO" style={{ color:'rgba(255,255,255,.5)' }}>—</b></span>
                   <span>H <b id="tbChH" style={{ color:'rgba(63,185,80,.7)' }}>—</b></span>
@@ -395,12 +456,49 @@ export default function QuantumChart({ currentPrice = null, mobile = false, comp
                   <span>C <b id="tbChC" style={{ color:'rgba(255,255,255,.5)' }}>—</b></span>
                 </span>}
               </div>
-              {showSessions && <div style={{ display:'flex', alignItems:'center', gap:'8px', fontSize:'8px', fontFamily:'monospace' }}>
-                <span style={{ color:'rgba(139,92,246,.7)' }}>■ Tokyo</span>
-                <span style={{ color:'rgba(88,166,255,.7)' }}>■ London</span>
-                <span style={{ color:'rgba(227,179,65,.7)' }}>■ New York</span>
-              </div>}
+              <div style={{ display:'flex', alignItems:'center', gap:'8px', fontSize:'8px', fontFamily:'monospace', color:'var(--text2)' }}>
+                <span style={{
+                  display:'inline-flex',
+                  alignItems:'center',
+                  gap:'5px',
+                  padding:'3px 6px',
+                  borderRadius:'999px',
+                  border:`1px solid ${statusTone}55`,
+                  background:`${statusTone}18`,
+                  color:statusTone,
+                }}>
+                  <span style={{ width:6, height:6, borderRadius:'50%', background:statusTone, boxShadow:`0 0 8px ${statusTone}` }} />
+                  {getStatusLabel(dataStatus)}
+                </span>
+                {!compact && <span>{sourceLabel}</span>}
+                <span>{formatFreshness(lastUpdatedAt)}</span>
+                <span>Tick {lastTickLabel}</span>
+                <span>Candle {currentCandleCountdown}</span>
+                {showSessions && !mobile && <>
+                  <span style={{ color:'rgba(139,92,246,.7)' }}>■ Tokyo</span>
+                  <span style={{ color:'rgba(88,166,255,.7)' }}>■ London</span>
+                  <span style={{ color:'rgba(227,179,65,.7)' }}>■ New York</span>
+                </>}
+              </div>
             </div>
+            {feedState !== 'live' && (
+              <div style={{
+                position:'absolute',
+                inset:'42px 12px auto auto',
+                zIndex:4,
+                padding:'8px 10px',
+                borderRadius:10,
+                background:'rgba(8,10,14,0.72)',
+                border:`1px solid ${statusTone}44`,
+                color:'#d8e0ef',
+                fontSize:10,
+                fontFamily:'var(--font-mono)',
+                pointerEvents:'none',
+                backdropFilter:'blur(8px)',
+              }}>
+                {feedLabel}
+              </div>
+            )}
           </div>
 
           {/* Sub Chart */}

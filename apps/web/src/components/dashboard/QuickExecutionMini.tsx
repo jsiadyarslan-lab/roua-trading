@@ -5,13 +5,25 @@ import { Zap, ShieldCheck, ChevronDown, ChevronUp, Calculator } from 'lucide-rea
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
+import { useNotificationStore } from '@/hooks/useNotificationStore'
+import { formatExecutionLabel, formatFreshness, getStatusLabel, getStatusTone, type DataStatus, type ExecutionState } from '@/lib/dashboard-live'
 
-export function QuickExecutionMini({ mobile = false }: { mobile?: boolean }) {
+export function QuickExecutionMini({
+  mobile = false,
+  dataStatus = 'disconnected',
+  lastUpdatedAt = null,
+  sourceLabel = 'Unknown source',
+}: {
+  mobile?: boolean
+  dataStatus?: DataStatus
+  lastUpdatedAt?: string | number | null
+  sourceLabel?: string
+}) {
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
   const [localSymbol, setLocalSymbol] = useState(selectedSymbol)
   const [account, setAccount] = useState<{ cash: number; buyingPower: number } | null>(null)
   const { addTrade: addPaperTrade } = usePaperTradesStore()
-  const [lastOrder, setLastOrder] = useState<any>(null)
+  const addNotification = useNotificationStore(state => state.addNotification)
 
   // Sync when global symbol changes
   useEffect(() => { setLocalSymbol(selectedSymbol) }, [selectedSymbol])
@@ -33,6 +45,7 @@ export function QuickExecutionMini({ mobile = false }: { mobile?: boolean }) {
   const [status, setStatus] = useState<{ msg: string; type: 'success' | 'error' | 'loading' | 'confirm' | '' }>({ msg: '', type: '' })
   const [loading, setLoading] = useState(false)
   const [pendingAction, setPendingAction] = useState<'buy' | 'sell' | null>(null)
+  const [executionState, setExecutionState] = useState<ExecutionState>('idle')
 
   // Live price from market store for risk calculations
   const globalQuotes = useMarketStore(state => state.quotes)
@@ -50,22 +63,29 @@ export function QuickExecutionMini({ mobile = false }: { mobile?: boolean }) {
   const cardPadding = mobile ? '10px 12px' : '12px 16px'
   const inputPadding = mobile ? '10px' : '12px'
   const actionHeight = mobile ? 52 : 48
+  const statusTone = getStatusTone(dataStatus)
+  const environmentLabel = 'PAPER'
+  const inferredOrderType = pendingAction === 'sell' ? 'بيع' : 'شراء'
 
 
   const validateAndConfirm = (side: 'buy' | 'sell') => {
+    setExecutionState('validating')
     if (!localSymbol) {
+      setExecutionState('rejected')
       setStatus({ msg: '❌ يرجى إدخال رمز الأصل', type: 'error' });
       setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
       return;
     }
     const qtyNum = parseFloat(quantity)
     if (isNaN(qtyNum) || qtyNum <= 0) {
+      setExecutionState('rejected')
       setStatus({ msg: '❌ الكمية غير صالحة', type: 'error' });
       setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
       return;
     }
 
     setPendingAction(side);
+    setExecutionState('ready')
     setStatus({ 
       msg: `تأكيد عملية ${side === 'buy' ? 'الشراء' : 'البيع'} لـ ${quantity} من ${localSymbol}؟`, 
       type: 'confirm' 
@@ -76,6 +96,7 @@ export function QuickExecutionMini({ mobile = false }: { mobile?: boolean }) {
     if (!pendingAction || !localSymbol || !quantity) return
     const side = pendingAction
     setLoading(true)
+    setExecutionState('submitting')
     setStatus({ msg: `⏳ جارٍ إرسال أمر ${side === 'buy' ? 'شراء' : 'بيع'} عبر Alpaca...`, type: 'loading' })
 
     try {
@@ -96,7 +117,7 @@ export function QuickExecutionMini({ mobile = false }: { mobile?: boolean }) {
       const j = await res.json()
 
       if (j.success) {
-        setLastOrder(j)
+        setExecutionState('accepted')
         const filled = j.filledAvgPrice
           ? ` بسعر $${parseFloat(j.filledAvgPrice).toFixed(2)}`
           : ''
@@ -118,14 +139,26 @@ export function QuickExecutionMini({ mobile = false }: { mobile?: boolean }) {
           msg:  `✅ تمت عملية ${side === 'buy' ? 'شراء' : 'بيع'} ${j.qty} ${j.symbol}${filled}\nرقم الأمر: ${j.orderId?.slice(0,8)}...`,
           type: 'success',
         })
+        setExecutionState(j.filledAvgPrice ? 'filled' : 'accepted')
+        addNotification({
+          source: 'trade',
+          priority: 'high',
+          action: side === 'buy' ? 'BUY' : 'SELL',
+          title: `تم ${side === 'buy' ? 'شراء' : 'بيع'} ${j.symbol}`,
+          body: `تم تنفيذ ${j.qty} ${j.symbol}${filled || ' في وضع paper'}`,
+          pair: j.symbol,
+          price: j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : currentPrice,
+        })
         // Refresh account balance
         fetch('/api/alpaca/account').then(r=>r.json()).then(j => {
           if (j.success) setAccount({ cash: j.data.cash, buyingPower: j.data.buyingPower })
         })
       } else {
+        setExecutionState('rejected')
         setStatus({ msg: `❌ ${j.error || 'فشل التنفيذ'}`, type: 'error' })
       }
     } catch {
+      setExecutionState('rejected')
       setStatus({ msg: '❌ خطأ في الشبكة — تعذّر الوصول للمزود', type: 'error' })
     } finally {
       setLoading(false)
@@ -142,6 +175,44 @@ export function QuickExecutionMini({ mobile = false }: { mobile?: boolean }) {
       boxSizing: 'border-box', position: 'relative',
       background: 'var(--bg)'
     }}>
+      <div style={{
+        borderRadius: 12,
+        border: `1px solid ${statusTone}30`,
+        background: 'rgba(255,255,255,0.02)',
+        padding: mobile ? '8px 10px' : '10px 12px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 12,
+      }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4, fontWeight: 700 }}>حالة التنفيذ</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>{formatExecutionLabel(executionState, pendingAction)}</span>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              borderRadius: 999,
+              padding: '3px 8px',
+              border: `1px solid ${statusTone}44`,
+              background: `${statusTone}18`,
+              color: statusTone,
+              fontSize: 9,
+              fontWeight: 800,
+              fontFamily: "'JetBrains Mono', monospace",
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusTone, boxShadow: `0 0 8px ${statusTone}` }} />
+              {getStatusLabel(dataStatus)}
+            </span>
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontSize: 9, color: 'var(--muted)', marginBottom: 4 }}>{sourceLabel}</div>
+          <div style={{ fontSize: 10, color: 'var(--foreground)', fontWeight: 700 }}>{formatFreshness(lastUpdatedAt)}</div>
+        </div>
+      </div>
+
       {/* Alpaca Paper Trading Badge + Balance */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{
@@ -157,6 +228,31 @@ export function QuickExecutionMini({ mobile = false }: { mobile?: boolean }) {
             القوة الشرائية: <span style={{ color: 'var(--success)', fontWeight: 700 }}>${account.cash.toLocaleString(undefined, {maximumFractionDigits:0})}</span>
           </div>
         )}
+      </div>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: mobile ? 'repeat(2, minmax(0, 1fr))' : 'repeat(5, minmax(0, 1fr))',
+        gap: 8,
+      }}>
+        {[
+          { label: 'الأصل', value: localSymbol || '—', tone: 'var(--foreground)' },
+          { label: 'الكمية', value: quantity || '—', tone: 'var(--accent)' },
+          { label: 'النوع', value: inferredOrderType, tone: pendingAction === 'sell' ? 'var(--danger)' : 'var(--success)' },
+          { label: 'المخاطرة', value: potentialLoss !== null ? `$${potentialLoss.toFixed(2)}` : '—', tone: 'var(--warning)' },
+          { label: 'البيئة', value: environmentLabel, tone: 'var(--success)' },
+        ].map(item => (
+          <div key={item.label} style={{
+            minWidth: 0,
+            borderRadius: 10,
+            padding: '8px 10px',
+            border: '1px solid var(--card-border)',
+            background: 'rgba(255,255,255,0.025)',
+          }}>
+            <div style={{ fontSize: 8, color: 'var(--muted)', marginBottom: 4, fontWeight: 700 }}>{item.label}</div>
+            <div style={{ fontSize: 11, color: item.tone, fontWeight: 800, fontFamily: 'var(--mono)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.value}</div>
+          </div>
+        ))}
       </div>
 
       {/* Symbol & Quantity Wrapper */}
@@ -395,7 +491,7 @@ export function QuickExecutionMini({ mobile = false }: { mobile?: boolean }) {
           onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
         >
           <Zap size={14} fill="white" />
-          شراء
+          {loading && pendingAction === 'buy' ? 'جارٍ...' : 'شراء'}
         </button>
         <button 
           onClick={() => validateAndConfirm('sell')}
@@ -412,7 +508,7 @@ export function QuickExecutionMini({ mobile = false }: { mobile?: boolean }) {
           onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
         >
           <Zap size={14} fill="white" />
-          بيع
+          {loading && pendingAction === 'sell' ? 'جارٍ...' : 'بيع'}
         </button>
       </div>
 

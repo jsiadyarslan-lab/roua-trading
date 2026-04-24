@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { formatFreshness, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
 
 const T = {
   bg:     '#04050C',
@@ -131,12 +132,27 @@ export function usePortfolioSummary() {
 }
 
 /* ══ Mini Portfolio Widget (for dashboard sidebar panel) ══ */
-export function PortfolioMini({ mobile = false, compact = false }: { mobile?: boolean; compact?: boolean }) {
+export function PortfolioMini({
+  mobile = false,
+  compact = false,
+  dataStatus = 'disconnected',
+  lastUpdatedAt = null,
+  sourceLabel = 'Unknown source',
+  selectedSymbol,
+}: {
+  mobile?: boolean
+  compact?: boolean
+  dataStatus?: DataStatus
+  lastUpdatedAt?: string | number | null
+  sourceLabel?: string
+  selectedSymbol?: string
+}) {
   const { data } = usePortfolioSummary()
   const pnlUp = data.totalPnl >= 0
   const cardGap = compact ? 6 : 8
   const pad = compact ? '10px 12px' : '8px 10px'
   const balanceSize = compact ? 16 : 18
+  const statusTone = getStatusTone(dataStatus)
 
   return (
     <div style={{
@@ -146,6 +162,44 @@ export function PortfolioMini({ mobile = false, compact = false }: { mobile?: bo
       overflow: 'hidden',
       boxSizing: 'border-box',
     }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: 8,
+        borderRadius: 10,
+        padding: compact ? '6px 8px' : '7px 10px',
+        border: `1px solid ${statusTone}28`,
+        background: 'rgba(255,255,255,0.025)',
+      }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 8.5, color: T.text3, marginBottom: 3 }}>Account status</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '2px 7px',
+              borderRadius: 999,
+              border: `1px solid ${statusTone}40`,
+              background: `${statusTone}16`,
+              color: statusTone,
+              fontSize: 8.5,
+              fontWeight: 800,
+              fontFamily: "'JetBrains Mono', monospace",
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusTone }} />
+              {getStatusLabel(dataStatus)}
+            </span>
+            {selectedSymbol && <span style={{ fontSize: 9, color: T.text2, fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol}</span>}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontSize: 8.5, color: T.text3 }}>{sourceLabel}</div>
+          <div style={{ fontSize: 9, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{formatFreshness(lastUpdatedAt)}</div>
+        </div>
+      </div>
+
       {/* Balance */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
@@ -197,7 +251,7 @@ export function PortfolioMini({ mobile = false, compact = false }: { mobile?: bo
         {[
           { label: 'مراكز', value: data.totalPositions, color: T.cyan },
           { label: 'فوز%', value: `${data.winRate}%`, color: T.green },
-          { label: 'Sharpe', value: data.sharpe === null ? '—' : data.sharpe.toFixed(2), color: T.amber },
+          { label: 'Exposure', value: `${Math.min(100, Math.abs(data.margin) > 0 && data.balance > 0 ? Math.round((Math.abs(data.margin) / data.balance) * 100) : 0)}%`, color: T.amber },
         ].map((stat, i) => (
           <div key={i} style={{
             flex: 1, textAlign: 'center',

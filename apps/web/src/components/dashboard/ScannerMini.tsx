@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSymbolStore } from '@/hooks/useSymbolStore';
+import { formatFreshness } from '@/lib/dashboard-live';
 
-export function ScannerMini({ mobile = false, compact = false }: { mobile?: boolean; compact?: boolean }) {
+export function ScannerMini({ mobile = false, compact = false, selectedSymbol }: { mobile?: boolean; compact?: boolean; selectedSymbol?: string }) {
   const [signals, setSignals] = useState<any[]>([]);
   const [scanning, setScanning] = useState(false);
   const [lastScan, setLastScan] = useState<string | null>(null);
@@ -134,7 +135,7 @@ export function ScannerMini({ mobile = false, compact = false }: { mobile?: bool
         ) : signals.length === 0 ? (
           <div style={{ padding: compact ? 20 : 40, textAlign: 'center', opacity: 0.4 }}>
              <span style={{ fontSize: 30 }}>📡</span>
-             <div style={{ fontSize: 11, marginTop: 10 }}>لا توجد إشارات حالياً</div>
+             <div style={{ fontSize: 11, marginTop: 10 }}>لا توجد إشارات الآن، السوق هادئ أو لم يكتمل الفحص.</div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -144,13 +145,16 @@ export function ScannerMini({ mobile = false, compact = false }: { mobile?: bool
                 onClick={() => setSelectedSymbol(sig.pair)}
                 style={{
                   background: 'var(--surface)', border: '1px solid var(--border)',
-                  borderRadius: 8, padding: compact ? 10 : 12, cursor: 'pointer', transition: 'all 0.2s'
+                  borderRadius: 8, padding: compact ? 10 : 12, cursor: 'pointer', transition: 'all 0.2s',
+                  boxShadow: sig.pair === selectedSymbol ? '0 0 0 1px rgba(0,229,255,0.16) inset' : 'none',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', fontFamily: 'monospace' }}>{sig.pair}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text3)' }}>{sig.price}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text3)' }}>
+                      {sig.price} {sig.pair === selectedSymbol ? '· الأصل النشط' : ''}
+                    </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ 
@@ -161,6 +165,7 @@ export function ScannerMini({ mobile = false, compact = false }: { mobile?: bool
                       {sig.dir === 'buy' ? 'إشارة شراء' : 'إشارة بيع'}
                     </div>
                     <div style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>{sig.strength}%</div>
+                    <div style={{ fontSize: 9, color: 'var(--text3)', marginTop: 3 }}>{lastScan ? formatFreshness(new Date().toISOString()) : 'الآن'}</div>
                   </div>
                 </div>
 
@@ -174,6 +179,15 @@ export function ScannerMini({ mobile = false, compact = false }: { mobile?: bool
                 </div>
 
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  <span style={{
+                    fontSize: 9,
+                    background: sig.pair === selectedSymbol ? 'rgba(0,229,255,0.10)' : 'rgba(255,255,255,0.05)',
+                    padding: '2px 6px',
+                    borderRadius: 4,
+                    color: sig.pair === selectedSymbol ? 'var(--accent)' : 'var(--text2)',
+                  }}>
+                    {sig.pair === selectedSymbol ? 'هذا الأصل يهمك الآن' : 'فرصة مرصودة'}
+                  </span>
                   {Array.isArray(sig.reasons) ? sig.reasons.map((reason: string, ri: number) => (
                     <span key={ri} style={{ 
                       fontSize: 9, background: 'rgba(255,255,255,0.05)', 

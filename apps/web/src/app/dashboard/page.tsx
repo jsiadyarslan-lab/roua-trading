@@ -37,6 +37,11 @@ const ANIM    = 'height 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease'
 
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 
+const formatMoney = (value: unknown) => {
+  const num = Number(value)
+  return Number.isFinite(num) ? num.toLocaleString() : '---'
+}
+
 /* ════════════════════════════════════════════
    DASHBOARD PAGE MAIN CONTAINER
 ════════════════════════════════════════════ */
@@ -187,19 +192,19 @@ export default function DashboardPage() {
               <div style={{ flex: 1, display: 'flex', gap: 24, fontSize: 11, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>
                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     <span style={{ color: T.text3 }}>الرصيد:</span>
-                    <span style={{ color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>${account ? (account.equity || 0).toLocaleString() : '---'}</span>
+                    <span style={{ color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>${formatMoney(account?.equity)}</span>
                  </div>
                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     <span style={{ color: T.text3 }}>الهامش الحر:</span>
-                    <span style={{ color: T.success, fontFamily: "'JetBrains Mono', monospace" }}>${account ? (account.buyingPower || 0).toLocaleString() : '---'}</span>
+                    <span style={{ color: T.success, fontFamily: "'JetBrains Mono', monospace" }}>${formatMoney(account?.buyingPower)}</span>
                  </div>
                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     <span style={{ color: T.text3 }}>الهامش المستخدم:</span>
-                    <span style={{ color: T.danger, fontFamily: "'JetBrains Mono', monospace" }}>${account ? ((account.equity || 0) - (account.cash || 0)).toLocaleString() : '---'}</span>
+                    <span style={{ color: T.danger, fontFamily: "'JetBrains Mono', monospace" }}>${formatMoney((account?.equity ?? 0) - (account?.cash ?? 0))}</span>
                  </div>
                  <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                     <span style={{ color: T.text3 }}>كمية الهامش:</span>
-                    <span style={{ color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>${account ? (account.initialMargin || 0).toLocaleString() : '---'}</span>
+                    <span style={{ color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>${formatMoney(account?.initialMargin)}</span>
                  </div>
               </div>
               <button

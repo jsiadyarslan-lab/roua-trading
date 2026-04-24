@@ -2,24 +2,27 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useBotStore } from '@/hooks/useBotStore';
-import { useSymbolStore } from '@/hooks/useSymbolStore';
-import { useMarketStore } from '@/hooks/useMarketStore';
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
+import { useNotificationStore } from '@/hooks/useNotificationStore';
 
 // ⚠️ PAPER TRADING MODE: Set to true to prevent real orders
 const PAPER_TRADING_MODE = true;
 
 export function BotEngine() {
   const { isOn, addLog, settings } = useBotStore();
-  const { selectedSymbol } = useSymbolStore();
-  const globalQuotes = useMarketStore(state => state.quotes);
   const addPaperTrade = usePaperTradesStore(state => state.addTrade);
-  const lastSignalRef = useRef<string | null>(null);
-  const quotesRef = useRef(globalQuotes);
+  const addNotification = useNotificationStore(state => state.addNotification);
+  const tradesRef = useRef(usePaperTradesStore.getState().trades);
+  const lastExecutionRef = useRef<Record<string, number>>({});
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => { setHydrated(true); }, []);
-  useEffect(() => { quotesRef.current = globalQuotes; }, [globalQuotes]);
+  useEffect(() => {
+    const unsubscribe = usePaperTradesStore.subscribe(state => {
+      tradesRef.current = state.trades;
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!hydrated || !isOn) return;
@@ -34,69 +37,62 @@ export function BotEngine() {
     const scanAll = async () => {
       if (isScanning) return;
       isScanning = true;
+      let executedCount = 0;
 
-      // Import GLOBAL_SYMBOLS dynamically or use a local list if needed
-      // For now, let's use the core symbols to keep it responsive
-      const symbolsToScan = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XAU/USD', 'EUR/USD', 'GBP/USD'];
-      
-      for (const sym of symbolsToScan) {
-        if (!isOn) break;
+      try {
+        const res = await fetch('/api/market-scan', { cache: 'no-store' });
+        const payload = await res.json();
+        const signals = Array.isArray(payload?.data) ? payload.data : [];
 
-        const q = quotesRef.current[sym];
-        if (!q || !q.price) continue;
+        for (const signalData of signals) {
+          if (!isOn) break;
 
-        // AI CONSENSUS MODE
-        if (settings.useAIConsensus) {
-          try {
-            const res = await fetch('/api/ai/consensus', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ symbol: sym }),
-            });
-            const j = await res.json();
-            
-            if (j.success && j.data.consensusScore >= settings.confLimit) {
-              const signal = j.data.recommendation;
-              if ((signal === 'BUY' || signal === 'SELL') && lastSignalRef.current !== `${sym}-${signal}`) {
-                _executeTrade(sym, q.price, j.data.consensusScore, signal);
-                lastSignalRef.current = `${sym}-${signal}`;
-              }
-            }
-          } catch (e) {
-            console.error(`AI Consensus failed for ${sym}`, e);
+          const sym = signalData.pair;
+          const confidence = Number(signalData.strength || 0);
+          const price = Number(signalData.price || 0);
+          const signal = signalData.dir === 'buy' ? 'BUY' : signalData.dir === 'sell' ? 'SELL' : null;
+
+          if (!signal || !price || confidence < settings.confLimit) continue;
+
+          const executionKey = `${sym}:${signal}`;
+          const existingBotTrade = tradesRef.current.some(trade =>
+            trade.source === 'bot' &&
+            trade.symbol === sym &&
+            ((trade.side === 'long' && signal === 'BUY') || (trade.side === 'short' && signal === 'SELL'))
+          );
+          const lastExecutedAt = lastExecutionRef.current[executionKey] || 0;
+          const cooldownMs = 5 * 60 * 1000;
+
+          if (existingBotTrade || Date.now() - lastExecutedAt < cooldownMs) {
+            continue;
           }
-        } else {
-          // MOMENTUM MODE
-          const change = q.changePercent || 0;
-          const confidence = Math.min(99, Math.abs(change) * 20);
-          
-          if (confidence >= settings.confLimit) {
-            let signal: 'BUY' | 'SELL' | null = null;
-            if (change > 0.5 && lastSignalRef.current !== `${sym}-BUY`) signal = 'BUY';
-            else if (change < -0.5 && lastSignalRef.current !== `${sym}-SELL`) signal = 'SELL';
-            
-            if (signal) {
-              _executeTrade(sym, q.price, confidence, signal);
-              lastSignalRef.current = `${sym}-${signal}`;
-            }
-          }
+
+          _executeTrade(sym, price, confidence, signal, signalData.reasons || []);
+          lastExecutionRef.current[executionKey] = Date.now();
+          executedCount += 1;
+
+          if (executedCount >= 2) break;
         }
-
-        // Delay between symbols to respect API limits
-        await new Promise(r => setTimeout(r, 1000));
+      } catch (error) {
+        console.error('[BotEngine] market-scan failed', error);
+        addLog('[خطأ] فشل البوت في قراءة نتائج السكانر', 'warn');
       }
-      
-      addLog(`[تحليل] اكتمل مسح السوق — لم يتم رصد إشارات قوية حالياً (${new Date().toLocaleTimeString('ar-SA')})`, 'info');
+
+      if (executedCount === 0) {
+        addLog(`[تحليل] اكتمل مسح السوق — لا توجد إشارات قابلة للتنفيذ الآن (${new Date().toLocaleTimeString('ar-SA')})`, 'info');
+      } else {
+        addLog(`[تنفيذ آلي] تم تنفيذ ${executedCount} صفقة من نتائج السكانر`, 'buy');
+      }
       isScanning = false;
     };
 
     scanAll();
     const interval = setInterval(scanAll, 30000); // Full market scan every 30s
     return () => clearInterval(interval);
-  }, [isOn, hydrated, settings.confLimit, settings.useAIConsensus]); // eslint-disable-line
+  }, [isOn, hydrated, settings.confLimit]); // eslint-disable-line
 
   // Helper to execute trades (refactored out of main loop)
-  const _executeTrade = (symbol: string, price: number, confidence: number, signal: 'BUY' | 'SELL') => {
+  const _executeTrade = (symbol: string, price: number, confidence: number, signal: 'BUY' | 'SELL', reasons: string[]) => {
       const tradeAmount = Math.max(10, settings.riskPct * 50);
       const qty = parseFloat((tradeAmount / price).toFixed(6));
       const tp = signal === 'BUY' ? price * 1.02 : price * 0.98;
@@ -104,7 +100,7 @@ export function BotEngine() {
 
       if (PAPER_TRADING_MODE) {
         addLog(
-          `[Paper] ${settings.strategy} → ${signal === 'BUY' ? '📈 شراء' : '📉 بيع'} ${symbol} | ${qty} @ $${price.toFixed(2)} | ثقة: ${confidence.toFixed(0)}%`,
+          `[Paper] ${settings.strategy} → ${signal === 'BUY' ? '📈 شراء' : '📉 بيع'} ${symbol} | ${qty} @ $${price.toFixed(2)} | ثقة: ${confidence.toFixed(0)}% | ${reasons[0] || 'إشارة سكانر'}`,
           signal === 'BUY' ? 'buy' : 'sell'
         );
 
@@ -124,6 +120,16 @@ export function BotEngine() {
         useBotStore.getState().setStats({
           ...useBotStore.getState().stats,
           trades: useBotStore.getState().stats.trades + 1,
+        });
+        addNotification({
+          source: 'bot',
+          priority: confidence >= 80 ? 'high' : 'medium',
+          action: signal,
+          title: `البوت نفذ ${signal === 'BUY' ? 'شراء' : 'بيع'} على ${symbol}`,
+          body: `${reasons[0] || 'إشارة سكانر'} · ثقة ${confidence.toFixed(0)}%`,
+          pair: symbol,
+          price,
+          confidence,
         });
 
       } else {

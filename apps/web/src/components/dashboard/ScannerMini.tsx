@@ -165,7 +165,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                       {sig.dir === 'buy' ? 'إشارة شراء' : 'إشارة بيع'}
                     </div>
                     <div style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>{sig.strength}%</div>
-                    <div style={{ fontSize: 9, color: 'var(--text3)', marginTop: 3 }}>{lastScan ? formatFreshness(new Date().toISOString()) : 'الآن'}</div>
+                    <div style={{ fontSize: 9, color: 'var(--text3)', marginTop: 3 }}>{sig.timestamp ? formatFreshness(sig.timestamp) : (lastScan || 'الآن')}</div>
                   </div>
                 </div>
 

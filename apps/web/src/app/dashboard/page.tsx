@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Activity, BarChart3, Brain, ChevronDown, ScanSearch, Wallet } from 'lucide-react'
+import { BarChart3, Brain, ChevronDown, ScanSearch, Wallet } from 'lucide-react'
 import QuantumChart from '@/components/dashboard/QuantumChart'
 import { AlpacaPositions } from '@/components/dashboard/AlpacaPositions'
 import { useMarketStore } from '@/hooks/useMarketStore'
@@ -19,7 +19,7 @@ import { PortfolioMini } from '@/components/portfolio/PortfolioMini'
 import { ScannerMini } from '@/components/dashboard/ScannerMini'
 import { AlNarratorMini } from '@/components/ai/AlNarratorMini'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
-import { formatFreshness, getDataStatus, getSourceLabel, getStatusLabel, getStatusTone, type ActivityItem } from '@/lib/dashboard-live'
+import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone } from '@/lib/dashboard-live'
 
 const DASHBOARD_SYMBOLS = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA']
 
@@ -44,12 +44,6 @@ type MobileView = 'execution' | 'market' | 'portfolio' | 'insight'
 const formatMoney = (value: unknown) => {
   const num = Number(value)
   return Number.isFinite(num) ? num.toLocaleString() : '---'
-}
-
-const formatSigned = (value: number | null | undefined) => {
-  if (!Number.isFinite(Number(value))) return '—'
-  const num = Number(value)
-  return `${num >= 0 ? '+' : ''}${num.toFixed(2)}%`
 }
 
 /* ════════════════════════════════════════════
@@ -115,60 +109,7 @@ export default function DashboardPage() {
   ]
 
   const quoteStatus = getDataStatus(activeQuote)
-  const quoteTone = getStatusTone(quoteStatus)
-  const freshnessLabel = formatFreshness(activeQuote?.timestamp)
   const sourceLabel = getSourceLabel(activeQuote?.source)
-
-  const marketPulse = useMemo(
-    () =>
-      DASHBOARD_SYMBOLS.map(symbol => {
-        const quote = globalQuotes[symbol] ?? null
-        return {
-          symbol,
-          quote,
-          status: getDataStatus(quote),
-        }
-      }).filter(item => item.quote),
-    [globalQuotes],
-  )
-
-  const activityItems = useMemo<ActivityItem[]>(() => {
-    const items: ActivityItem[] = []
-    if (activeQuote) {
-      items.push({
-        id: `quote-${selectedSymbol}`,
-        symbol: selectedSymbol,
-        title: `تم تحديث ${selectedSymbol}`,
-        detail: `${activeQuote.price.toLocaleString('en-US', { maximumFractionDigits: activeQuote.price > 100 ? 2 : 4 })} · ${formatSigned(activeQuote.changePercent)}`,
-        tone: activeQuote.changePercent >= 0 ? 'success' : 'danger',
-        timestamp: new Date(activeQuote.timestamp).getTime(),
-      })
-    }
-
-    if (positions.length > 0) {
-      const matching = positions.filter(position => position.symbol === selectedSymbol || position.rawSymbol === selectedSymbol)
-      if (matching.length > 0) {
-        items.push({
-          id: `position-${selectedSymbol}`,
-          symbol: selectedSymbol,
-          title: `مركز نشط على ${selectedSymbol}`,
-          detail: `${matching.length} مركز · PnL ${matching.reduce((sum, position) => sum + (position.unrealizedPnl ?? 0), 0).toFixed(2)}$`,
-          tone: matching.reduce((sum, position) => sum + (position.unrealizedPnl ?? 0), 0) >= 0 ? 'success' : 'warning',
-          timestamp: Date.now(),
-        })
-      }
-    }
-
-    items.push({
-      id: 'engine-state',
-      title: quoteStatus === 'live' ? 'السوق متصل ويعمل' : 'جودة البيانات تحتاج انتباه',
-      detail: `${getStatusLabel(quoteStatus)} · ${sourceLabel} · ${freshnessLabel}`,
-      tone: quoteStatus === 'live' ? 'info' : quoteStatus === 'disconnected' ? 'danger' : 'warning',
-      timestamp: Date.now(),
-    })
-
-    return items.slice(0, 3)
-  }, [activeQuote, freshnessLabel, positions, quoteStatus, selectedSymbol, sourceLabel])
 
   return (
     <>
@@ -185,11 +126,6 @@ export default function DashboardPage() {
           0%,100% { transform: scale(1); opacity: 0.65; }
           50% { transform: scale(1.35); opacity: 1; }
         }
-        @keyframes ticker-glow {
-          0%,100% { box-shadow: 0 0 0 rgba(0,229,255,0); }
-          50% { box-shadow: 0 0 18px rgba(0,229,255,0.18); }
-        }
-
         .dash-grid {
           display: grid;
           grid-template-columns: minmax(240px, 280px) minmax(0, 1fr) minmax(300px, 350px);
@@ -440,9 +376,6 @@ export default function DashboardPage() {
         .live-status-dot {
           animation: live-dot 1.8s ease-in-out infinite;
         }
-        .pulse-rail-card {
-          animation: ticker-glow 3.6s ease-in-out infinite;
-        }
       `}</style>
 
       <BotEngine />
@@ -450,133 +383,7 @@ export default function DashboardPage() {
       <GlobalLogicEngine />
       <NotificationToasts />
 
-      {!isMobileViewport && <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '10px 12px 0', background: T.bg }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1.5fr) minmax(280px, 0.7fr)',
-          gap: 10,
-          alignItems: 'stretch',
-        }}>
-          <div style={{
-            borderRadius: 16,
-            padding: '12px 14px',
-            border: `1px solid ${T.border}`,
-            background: 'linear-gradient(90deg, rgba(0,229,255,0.10), rgba(255,255,255,0.02))',
-            display: 'flex',
-            justifyContent: 'space-between',
-            gap: 14,
-            alignItems: 'center',
-          }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                <span style={{ fontSize: 18, fontWeight: 900, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol}</span>
-                <span style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '4px 8px',
-                  borderRadius: 999,
-                  background: `${quoteTone}18`,
-                  border: `1px solid ${quoteTone}40`,
-                  color: quoteTone,
-                  fontSize: 10,
-                  fontWeight: 800,
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}>
-                  <span className="live-status-dot" style={{ width: 7, height: 7, borderRadius: '50%', background: quoteTone, display: 'inline-block' }} />
-                  {getStatusLabel(quoteStatus)}
-                </span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
-                <span style={{ fontSize: 24, fontWeight: 900, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>
-                  {currentPrice ? currentPrice.toLocaleString('en-US', { maximumFractionDigits: currentPrice > 100 ? 2 : 4 }) : '—'}
-                </span>
-                <span style={{ fontSize: 13, fontWeight: 800, color: (activeQuote?.changePercent ?? 0) >= 0 ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace" }}>
-                  {formatSigned(activeQuote?.changePercent)}
-                </span>
-              </div>
-              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 11, color: T.text3 }}>
-                <span>آخر تحديث: <b style={{ color: T.text }}>{freshnessLabel}</b></span>
-                <span>المصدر: <b style={{ color: quoteTone }}>{sourceLabel}</b></span>
-              </div>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, minWidth: 320 }}>
-              {activityItems.map(item => (
-                <div
-                  key={item.id}
-                  style={{
-                    flex: 1,
-                    minWidth: 0,
-                    borderRadius: 12,
-                    padding: '10px 12px',
-                    background: 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${
-                      item.tone === 'success'
-                        ? 'rgba(0,200,83,0.18)'
-                        : item.tone === 'danger'
-                          ? 'rgba(255,59,48,0.18)'
-                          : item.tone === 'warning'
-                            ? 'rgba(255,184,0,0.18)'
-                            : 'rgba(0,229,255,0.18)'
-                    }`,
-                  }}
-                >
-                  <div style={{ fontSize: 10, color: T.text3, marginBottom: 6 }}>{formatFreshness(item.timestamp)}</div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: T.text, marginBottom: 4 }}>{item.title}</div>
-                  <div style={{ fontSize: 11, color: T.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.detail}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div style={{
-            borderRadius: 16,
-            padding: '10px 12px',
-            border: `1px solid ${T.border}`,
-            background: 'rgba(255,255,255,0.02)',
-            overflow: 'hidden',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <Activity size={15} color={quoteTone} />
-              <span style={{ fontSize: 12, fontWeight: 800, color: T.text }}>Market Pulse</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8 }}>
-              {marketPulse.slice(0, 6).map(item => {
-                const changeUp = (item.quote?.changePercent ?? 0) >= 0
-                const tone = getStatusTone(item.status)
-                return (
-                  <button
-                    key={item.symbol}
-                    type="button"
-                    className="pulse-rail-card"
-                    onClick={() => setSelectedSymbol(item.symbol)}
-                    style={{
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      borderRadius: 12,
-                      padding: '10px',
-                      border: item.symbol === selectedSymbol ? `1px solid ${tone}` : '1px solid rgba(255,255,255,0.06)',
-                      background: item.symbol === selectedSymbol ? 'rgba(0,229,255,0.06)' : 'rgba(255,255,255,0.025)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, gap: 8 }}>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{item.symbol}</span>
-                      <span style={{ fontSize: 9, color: tone }}>{getStatusLabel(item.status)}</span>
-                    </div>
-                    <div style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>
-                      {item.quote?.price?.toLocaleString('en-US', { maximumFractionDigits: item.quote.price > 100 ? 2 : 4 }) ?? '—'}
-                    </div>
-                    <div style={{ fontSize: 10, color: changeUp ? T.success : T.danger, marginTop: 5, fontFamily: "'JetBrains Mono', monospace" }}>
-                      {formatSigned(item.quote?.changePercent)}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        </div>
-
-      <div className="dash-grid">
+      {!isMobileViewport && <div className="dash-grid">
         {/* ══════════ COL 1 — Tabbed Left Sidebar ══════════ */}
         <div className="dash-col dash-col-left" style={{ minHeight: 0 }}>
           <LeftSidebarLayout />
@@ -673,7 +480,7 @@ export default function DashboardPage() {
           <div style={{ height: 10 }} />
           <WatchlistMini />
         </div>
-      </div></div>}
+      </div>}
 
       {/* Mobile-first stacked dashboard */}
       {isMobileViewport && <div className="mobile-dashboard-shell">
@@ -738,25 +545,6 @@ export default function DashboardPage() {
             ))}
           </div>
 
-          <div style={{
-            borderRadius: 14,
-            padding: '10px 12px',
-            border: `1px solid ${T.border}`,
-            background: 'rgba(255,255,255,0.02)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-          }}>
-            {activityItems.map(item => (
-              <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 11, color: T.text, fontWeight: 800 }}>{item.title}</div>
-                  <div style={{ fontSize: 10, color: T.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.detail}</div>
-                </div>
-                <div style={{ fontSize: 9, color: T.text3, flexShrink: 0 }}>{formatFreshness(item.timestamp)}</div>
-              </div>
-            ))}
-          </div>
         </div>
 
         <div className="mobile-panel-shell">

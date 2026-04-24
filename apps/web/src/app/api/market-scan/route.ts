@@ -23,10 +23,10 @@ function calculateRSI(closes: number[], period = 14) {
   return 100 - (100 / (1 + rs))
 }
 
-const SYMBOLS = [
-  'BTC/USDT', 'ETH/USDT', 'SOL/USDT',
-  'EUR/USD', 'GBP/USD', 'USD/JPY',
-  'AAPL', 'TSLA', 'NVDA', 'GOLD', 'OIL'
+const SCANNER_SYMBOLS = [
+  'BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD', 'ADA/USD',
+  'EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD',
+  'AAPL', 'TSLA', 'NVDA',
 ]
 
 export async function GET(req: NextRequest) {
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     const origin = req.nextUrl.origin
     
     // Symbols to scan: either the target pair or the default list
-    const symbolsToScan = targetPair ? [targetPair] : SYMBOLS
+    const symbolsToScan = targetPair ? [targetPair] : SCANNER_SYMBOLS
     
     // Fetch quotes for selected symbols
     const quotePromises = symbolsToScan.map(async (s) => {
@@ -78,8 +78,10 @@ export async function GET(req: NextRequest) {
       const reasons: string[] = []
       
       // 1. Momentum factor
-      if (change > 2) { score += 1; reasons.push('زخم صعودي قوي') }
-      else if (change < -2) { score -= 1; reasons.push('زخم هبوطي قوي') }
+      if (change > 1.25) { score += 1.25; reasons.push('زخم صعودي قوي') }
+      else if (change < -1.25) { score -= 1.25; reasons.push('زخم هبوطي قوي') }
+      else if (change > 0.45) { score += 0.5; reasons.push('ميل صعودي قصير الأجل') }
+      else if (change < -0.45) { score -= 0.5; reasons.push('ميل هبوطي قصير الأجل') }
       
       // 2. RSI Factor
       if (item.closes.length >= 14) {
@@ -87,24 +89,42 @@ export async function GET(req: NextRequest) {
          console.log(`[market-scan] RSI for ${symbol} (${timeframe}): ${rsi.toFixed(2)}`)
          if (rsi < 30) { score += 2.5; reasons.push(`تشبع بيعي (RSI: ${Math.round(rsi)})`) }
          else if (rsi > 70) { score -= 2.5; reasons.push(`تشبع شرائي (RSI: ${Math.round(rsi)})`) }
-         else if (rsi < 45) { score += 0.5; reasons.push('ميل صعودي') }
-         else if (rsi > 55) { score -= 0.5; reasons.push('ميل هبوطي') }
+         else if (rsi < 45) { score += 0.65; reasons.push('ميل صعودي') }
+         else if (rsi > 55) { score -= 0.65; reasons.push('ميل هبوطي') }
       } else {
          console.warn(`[market-scan] Not enough candles for ${symbol} (${timeframe}): ${item.closes.length}`)
+         if (Math.abs(change) > 0.8) {
+           score += change > 0 ? 0.75 : -0.75
+           reasons.push('إشارة مبنية على الزخم السعري فقط')
+         }
+      }
+
+      if (q.source === 'Demo') {
+        reasons.push('بيانات تجريبية')
+      } else {
+        reasons.push(`المصدر: ${q.source}`)
       }
 
       // Add to results
+      const strength = Math.min(98, Math.round(50 + Math.abs(score) * 15))
       results.push({
         pair: symbol,
         dir: score > 0 ? 'buy' : score < 0 ? 'sell' : 'neutral',
-        strength: Math.min(98, 50 + Math.abs(score) * 15),
+        strength,
         price: q.price,
         change,
-        reasons: reasons.slice(0, 3)
+        reasons: reasons.slice(0, 3),
+        source: q.source,
+        timestamp: new Date().toISOString(),
+        timeframe,
       })
     }
 
-    return NextResponse.json({ success: true, data: targetPair ? results : results.filter(r => Math.abs(r.strength - 50) > 10).sort((a,b) => b.strength - a.strength) })
+    const filtered = results
+      .filter(result => targetPair ? true : result.dir !== 'neutral' && result.strength >= 60)
+      .sort((a,b) => b.strength - a.strength)
+
+    return NextResponse.json({ success: true, data: filtered })
   } catch (error: any) {
     console.error(`[market-scan] Fatal Error:`, error.message)
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })

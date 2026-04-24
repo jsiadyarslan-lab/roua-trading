@@ -42,19 +42,21 @@ interface NotificationState {
   updateSettings: (s: Partial<NotifSettings>) => void
 }
 
+const DEFAULT_SETTINGS: NotifSettings = {
+  enabled: true,
+  soundEnabled: true,
+  botAlerts: true,
+  aiAlerts: true,
+  scannerAlerts: true,
+  tradeAlerts: true,
+  minConfidence: 45,
+}
+
 export const useNotificationStore = create<NotificationState>()(
   persist(
     (set, get) => ({
       notifications: [],
-      settings: {
-        enabled: true,
-        soundEnabled: true,
-        botAlerts: true,
-        aiAlerts: true,
-        scannerAlerts: true,
-        tradeAlerts: true,
-        minConfidence: 60,
-      },
+      settings: DEFAULT_SETTINGS,
       toasts: [],
 
       addNotification: (n) => {
@@ -80,9 +82,9 @@ export const useNotificationStore = create<NotificationState>()(
 
         // Play sound for urgent/high priority
         if (
-          settings.soundEnabled && 
+          settings.soundEnabled &&
           (n.priority === 'urgent' || n.priority === 'high') &&
-          typeof navigator !== 'undefined' && 
+          typeof navigator !== 'undefined' &&
           // @ts-ignore
           (navigator.userActivation?.hasBeenActive ?? true)
         ) {
@@ -126,6 +128,20 @@ export const useNotificationStore = create<NotificationState>()(
     }),
     {
       name: 'roua-notifications',
+      version: 2,
+      migrate: (persistedState: any) => ({
+        notifications: Array.isArray(persistedState?.notifications) ? persistedState.notifications.slice(0, 50) : [],
+        settings: {
+          ...DEFAULT_SETTINGS,
+          ...(persistedState?.settings ?? {}),
+          minConfidence: Math.min(
+            typeof persistedState?.settings?.minConfidence === 'number'
+              ? persistedState.settings.minConfidence
+              : DEFAULT_SETTINGS.minConfidence,
+            DEFAULT_SETTINGS.minConfidence
+          ),
+        },
+      }),
       partialize: (state) => ({
         notifications: state.notifications.slice(0, 50),
         settings: state.settings,

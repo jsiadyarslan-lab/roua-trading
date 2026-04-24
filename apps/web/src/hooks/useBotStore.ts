@@ -28,18 +28,20 @@ interface BotState {
   resetAll: () => void
 }
 
+const DEFAULT_SETTINGS: BotState['settings'] = {
+  riskPct: 2,
+  confLimit: 65,
+  strategy: 'Trend Follow',
+  useAIConsensus: false,
+}
+
 export const useBotStore = create<BotState>()(
   persist(
     (set) => ({
-      isOn: false,
+      isOn: true,
       logs: [],
       stats: { trades: 0, profit: 0, winRate: 0 },
-      settings: {
-        riskPct: 2,
-        confLimit: 75,
-        strategy: 'Trend Follow',
-        useAIConsensus: false
-      },
+      settings: DEFAULT_SETTINGS,
       setIsOn: (on: boolean) => set({ isOn: on }),
       addLog: (msg: string, type = 'info') => set((state) => ({
         logs: [{ time: new Date().toLocaleTimeString('ar-EG'), msg, type }, ...state.logs].slice(0, 50)
@@ -55,6 +57,23 @@ export const useBotStore = create<BotState>()(
     }),
     {
       name: 'roua-bot-storage',
+      version: 2,
+      migrate: (persistedState: any) => ({
+        ...persistedState,
+        isOn: true,
+        settings: {
+          ...DEFAULT_SETTINGS,
+          ...(persistedState?.settings ?? {}),
+          confLimit: Math.min(
+            typeof persistedState?.settings?.confLimit === 'number'
+              ? persistedState.settings.confLimit
+              : DEFAULT_SETTINGS.confLimit,
+            DEFAULT_SETTINGS.confLimit
+          ),
+        },
+        logs: Array.isArray(persistedState?.logs) ? persistedState.logs.slice(0, 50) : [],
+        stats: persistedState?.stats ?? { trades: 0, profit: 0, winRate: 0 },
+      }),
     }
   )
 )

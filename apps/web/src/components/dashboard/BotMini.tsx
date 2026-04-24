@@ -8,7 +8,6 @@ type BotTab = 'log' | 'config';
 export function BotMini() {
   const { isOn, engineState, setIsOn, logs, stats, settings, updateSettings } = useBotStore();
   const [activeTab, setActiveTab] = useState<BotTab>('log');
-  const [hydrated, setHydrated] = React.useState(false);
 
   const engineStateLabel = {
     idle: 'متوقف',
@@ -19,41 +18,6 @@ export function BotMini() {
     exiting: 'يغلق مركزًا',
     cooldown: 'تبريد',
   }[engineState];
-
-  React.useEffect(() => {
-    setHydrated(true);
-    // Safety timeout — always show after 1.5s
-    const t = setTimeout(() => setHydrated(true), 1500);
-    return () => clearTimeout(t);
-  }, []);
-
-  if (!hydrated) {
-    return (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100%',
-          flexDirection: 'column',
-          gap: 8,
-        }}
-      >
-        <div
-          style={{
-            width: 20,
-            height: 20,
-            border: '2px solid var(--accent)',
-            borderTopColor: 'transparent',
-            borderRadius: '50%',
-            animation: 'spin 0.8s linear infinite',
-          }}
-        />
-        <span style={{ fontSize: 11, color: 'var(--muted)' }}>تهيئة محرك البوت...</span>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      </div>
-    );
-  }
 
   return (
     <div

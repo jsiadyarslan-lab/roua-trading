@@ -63,6 +63,7 @@ export default function DashboardPage() {
   const [activeMobileView, setActiveMobileView] = useState<MobileView>('execution')
   const [chartExpanded, setChartExpanded] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
+  const [isCompactDesktopViewport, setIsCompactDesktopViewport] = useState(false)
 
   useEffect(() => {
     fetchAccount()
@@ -76,11 +77,19 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return
-    const media = window.matchMedia('(max-width: 767px)')
-    const syncViewport = () => setIsMobileViewport(media.matches)
+    const mobileMedia = window.matchMedia('(max-width: 767px)')
+    const compactDesktopMedia = window.matchMedia('(max-width: 1280px)')
+    const syncViewport = () => {
+      setIsMobileViewport(mobileMedia.matches)
+      setIsCompactDesktopViewport(compactDesktopMedia.matches && !mobileMedia.matches)
+    }
     syncViewport()
-    media.addEventListener('change', syncViewport)
-    return () => media.removeEventListener('change', syncViewport)
+    mobileMedia.addEventListener('change', syncViewport)
+    compactDesktopMedia.addEventListener('change', syncViewport)
+    return () => {
+      mobileMedia.removeEventListener('change', syncViewport)
+      compactDesktopMedia.removeEventListener('change', syncViewport)
+    }
   }, [])
 
   const quotes = useMemo(
@@ -470,16 +479,20 @@ export default function DashboardPage() {
         </div>
 
         {/* ══════════ COL 3 — Tabs Panel ══════════ */}
-        <div className="dash-col dash-col-right">
-          <RightPanelLayout quotes={quotes} />
-        </div>
+        {!isCompactDesktopViewport && (
+          <div className="dash-col dash-col-right">
+            <RightPanelLayout quotes={quotes} />
+          </div>
+        )}
 
         {/* Mobile Sidebar (Visible only on medium screens) */}
-        <div className="dash-col dash-col-right-mobile" style={{ display: 'none', padding: '0 4px 20px' }}>
-          <RightPanelLayout quotes={quotes} />
-          <div style={{ height: 10 }} />
-          <WatchlistMini />
-        </div>
+        {isCompactDesktopViewport && (
+          <div className="dash-col dash-col-right-mobile" style={{ display: 'none', padding: '0 4px 20px' }}>
+            <RightPanelLayout quotes={quotes} />
+            <div style={{ height: 10 }} />
+            <WatchlistMini />
+          </div>
+        )}
       </div>}
 
       {/* Mobile-first stacked dashboard */}

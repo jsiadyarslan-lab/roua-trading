@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react'
 import { binanceWS, useMarketStore } from '@/hooks/useMarketStore'
+import { useDashboardStore } from '@/lib/dashboard-store'
+import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { PriceAlertEngine } from '@/components/dashboard/PriceAlertEngine'
 
 /**
@@ -51,6 +53,37 @@ async function fetchAndStore(symbol: string) {
  * Ensures only ONE WebSocket connection exists for the entire dashboard.
  */
 export function MarketProvider({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    // Keep the legacy dashboard pair store and the newer symbol store in sync.
+    // This prevents the chart, header, watchlists, and left/right panels from drifting apart.
+    const unsubscribeDashboard = useDashboardStore.subscribe((state, prevState) => {
+      if (state.selectedPair === prevState.selectedPair) return
+      const currentSymbol = useSymbolStore.getState().selectedSymbol
+      if (currentSymbol !== state.selectedPair) {
+        useSymbolStore.getState().setSelectedSymbol(state.selectedPair)
+      }
+    })
+
+    const unsubscribeSymbol = useSymbolStore.subscribe((state, prevState) => {
+      if (state.selectedSymbol === prevState.selectedSymbol) return
+      const currentPair = useDashboardStore.getState().selectedPair
+      if (currentPair !== state.selectedSymbol) {
+        useDashboardStore.getState().setSelectedPair(state.selectedSymbol)
+      }
+    })
+
+    const initialPair = useDashboardStore.getState().selectedPair
+    const initialSymbol = useSymbolStore.getState().selectedSymbol
+    if (initialPair !== initialSymbol) {
+      useDashboardStore.getState().setSelectedPair(initialSymbol)
+    }
+
+    return () => {
+      unsubscribeDashboard()
+      unsubscribeSymbol()
+    }
+  }, [])
+
   useEffect(() => {
     // 1. Subscribe all crypto symbols via the singleton WS manager (one connection for all)
     WS_CRYPTO_SYMBOLS.forEach(sym => binanceWS.subscribe(sym))

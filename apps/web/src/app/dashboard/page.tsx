@@ -73,26 +73,61 @@ export default function DashboardPage() {
         }
         .dash-grid {
           display: grid;
-          grid-template-columns: 280px 1fr 350px;
-          height: calc(100vh - ${HEADER_H}px);
+          grid-template-columns: minmax(240px, 280px) minmax(0, 1fr) minmax(300px, 350px);
+          min-height: calc(100dvh - ${HEADER_H}px);
           background: ${T.bg};
           gap: 12px;
           padding: 12px;
           box-sizing: border-box;
           overflow: hidden;
+          align-items: stretch;
+          width: 100%;
+        }
+        .dash-col {
+          min-width: 0;
+          min-height: 0;
+        }
+        .dash-col-left,
+        .dash-col-center,
+        .dash-col-right {
+          min-width: 0;
+          min-height: 0;
+        }
+        .dash-col-right-mobile {
+          display: none !important;
+        }
+        @media (max-width: 1500px) {
+          .dash-grid { grid-template-columns: minmax(230px, 260px) minmax(0, 1fr) minmax(280px, 320px); }
         }
         @media (max-width: 1280px) {
-          .dash-grid { grid-template-columns: 260px 1fr; }
+          .dash-grid { grid-template-columns: minmax(220px, 250px) minmax(0, 1fr); }
           .dash-col-right { display: none !important; }
-        }
-        @media (max-width: 900px) {
-          .dash-grid { 
-            grid-template-columns: 1fr; 
-            height: auto; 
-            overflow-y: auto;
-          }
-          .dash-col-left { display: none !important; }
           .dash-col-right-mobile { display: block !important; }
+        }
+        @media (max-width: 1024px) {
+          .dash-grid {
+            grid-template-columns: 1fr;
+            min-height: calc(100dvh - ${HEADER_H}px);
+            height: auto;
+            overflow-y: auto;
+            padding: 10px;
+          }
+          .dash-col-right-mobile {
+            display: block !important;
+            padding: 0 4px 20px;
+          }
+          .dash-col-center {
+            overflow: visible;
+          }
+        }
+        @media (max-width: 640px) {
+          .dash-grid {
+            padding: 8px;
+            gap: 8px;
+          }
+          .dash-col-center {
+            gap: 8px;
+          }
         }
         .dash-col::-webkit-scrollbar { width: 4px; }
         .dash-col::-webkit-scrollbar-track { background: transparent; }
@@ -113,7 +148,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ══════════ COL 2 — Chart + Positions ══════════ */}
-        <div className="dash-col dash-col-center" style={{ overflow: 'hidden', gap: 12 }}>
+        <div className="dash-col dash-col-center" style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
           {/* Chart — Fixed, non-draggable */}
           <div style={{
             flex: 1,

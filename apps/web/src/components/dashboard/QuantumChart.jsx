@@ -82,7 +82,10 @@ function injectCSS() {
   cssInjected = true;
 }
 
-export default function QuantumChart({ currentPrice = null }) {
+/**
+ * @param {{ currentPrice?: number | null }} props
+ */
+export default function QuantumChart({ currentPrice = null } = {}) {
   const { selectedSymbol, timeframe, setTimeframe } = useSymbolStore();
   
   const mainCanvasRef = useRef(null);

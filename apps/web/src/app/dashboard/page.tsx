@@ -5,6 +5,7 @@ import { ChevronDown } from 'lucide-react'
 import QuantumChart from '@/components/dashboard/QuantumChart'
 import { AlpacaPositions } from '@/components/dashboard/AlpacaPositions'
 import { useMarketStore } from '@/hooks/useMarketStore'
+import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { BotEngine } from '@/components/dashboard/BotEngine'
 import { NotificationEngine } from '@/components/dashboard/NotificationEngine'
 import { GlobalLogicEngine } from '@/components/dashboard/GlobalLogicEngine'
@@ -41,6 +42,8 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
 ════════════════════════════════════════════ */
 export default function DashboardPage() {
   const globalQuotes = useMarketStore(state => state.quotes)
+  const selectedSymbol = useSymbolStore(state => state.selectedSymbol)
+  const currentPrice = globalQuotes[selectedSymbol]?.price ?? null
   const account = usePositionsStore(state => state.account)
   const fetchAccount = usePositionsStore(state => state.fetchAccount)
   const fetchPositions = usePositionsStore(state => state.fetchPositions)
@@ -160,7 +163,7 @@ export default function DashboardPage() {
             overflow: 'hidden',
           }}>
             <div style={{ flex: 1, overflow: 'hidden' }}>
-              <QuantumChart />
+              <QuantumChart currentPrice={currentPrice} />
             </div>
           </div>
 

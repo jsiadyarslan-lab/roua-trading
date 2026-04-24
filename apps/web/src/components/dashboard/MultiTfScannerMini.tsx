@@ -19,6 +19,7 @@ const T = {
 export function MultiTfScannerMini() {
   const { selectedSymbol } = useSymbolStore()
   const [data, setData] = useState<any[]>([])
+  const [summary, setSummary] = useState<{ alignment: string; executionHint: string } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -36,17 +37,34 @@ export function MultiTfScannerMini() {
 
         const processed = results.map((res, i) => {
           if (!res.success || !res.data || res.data.length === 0) {
-             return { tf: timeframes[i].toUpperCase(), state: 'Neutral', strength: 50, color: T.amber }
+             return { tf: timeframes[i].toUpperCase(), state: 'Neutral', strength: 50, color: T.amber, entryBias: 'wait', signalClass: 'watch' }
           }
           const item = res.data[0]
           return {
              tf: timeframes[i].toUpperCase(),
              state: item.dir === 'buy' ? 'Bullish' : item.dir === 'sell' ? 'Bearish' : 'Neutral',
              strength: item.strength,
-             color: item.dir === 'buy' ? T.green : item.dir === 'sell' ? T.red : T.amber
+             color: item.dir === 'buy' ? T.green : item.dir === 'sell' ? T.red : T.amber,
+             entryBias: item.entryBias,
+             signalClass: item.signalClass,
+             reasons: item.reasons || [],
           }
         })
         setData(processed)
+
+        const score = processed.reduce((sum, item, index) => {
+          const weight = index === 3 ? 2 : index === 2 ? 1.5 : index === 1 ? 1 : 0.5
+          return sum + (item.state === 'Bullish' ? item.strength * weight : item.state === 'Bearish' ? -item.strength * weight : 0)
+        }, 0)
+
+        setSummary({
+          alignment: Math.abs(score) > 260 ? 'Strong Alignment' : Math.abs(score) > 140 ? 'Mixed Alignment' : 'Counter Trend',
+          executionHint: Math.abs(score) > 260
+            ? score > 0 ? 'الدخول مع الاتجاه مسموح' : 'الدخول البيعي مع الاتجاه مسموح'
+            : Math.abs(score) > 140
+              ? 'انتظار تأكيد من 15M قبل التنفيذ'
+              : 'لا تدخل ضد الإطار الأعلى الآن',
+        })
       } catch (e) {
         console.error(e)
       } finally {
@@ -61,7 +79,7 @@ export function MultiTfScannerMini() {
 
   // Determine overall strategy based on TFs
   const overallStrength = data.reduce((sum, item) => sum + (item.state === 'Bullish' ? item.strength : item.state === 'Bearish' ? -item.strength : 0), 0)
-  const strategy = overallStrength > 100 ? 'Trend Follow (Long)' : overallStrength < -100 ? 'Trend Follow (Short)' : 'Scalping'
+  const strategy = overallStrength > 100 ? 'Trend Follow (Long)' : overallStrength < -100 ? 'Trend Follow (Short)' : 'Wait / Pullback'
 
   return (
     <div className="custom-scrollbar" style={{ height: '100%', padding: '16px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto' }}>
@@ -93,8 +111,20 @@ export function MultiTfScannerMini() {
         )}
       </div>
 
-      <div style={{ marginTop: 'auto', textAlign: 'center', fontSize: 10, color: T.text2, padding: '8px', border: `0.5px dashed ${T.border}`, borderRadius: 6, fontWeight: 600 }}>
-        استراتيجية الأطر: <span style={{color: T.purple}}>{strategy}</span>
+      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 6, fontSize: 10, color: T.text2, padding: '8px', border: `0.5px dashed ${T.border}`, borderRadius: 6, fontWeight: 600 }}>
+        <div style={{ textAlign: 'center' }}>
+          استراتيجية الأطر: <span style={{color: T.purple}}>{strategy}</span>
+        </div>
+        {summary && (
+          <>
+            <div style={{ textAlign: 'center', fontSize: 9, color: T.text }}>
+              {summary.alignment}
+            </div>
+            <div style={{ textAlign: 'center', fontSize: 9, color: T.accent }}>
+              {summary.executionHint}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

@@ -11,6 +11,11 @@ interface Keyword {
 
 interface NarrativeData {
   narrative: string
+  summary?: string
+  bullCase?: string
+  bearCase?: string
+  keyRisk?: string
+  nextTrigger?: string
   sentiment: 'bullish' | 'bearish' | 'neutral' | 'volatile'
   keywords: Keyword[]
   confidence: number // 0-100
@@ -36,7 +41,8 @@ export function AlNarratorMini({
   const fetchNarrative = async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/ai/narrator')
+      const symbolQuery = selectedSymbol ? `?symbol=${encodeURIComponent(selectedSymbol)}` : ''
+      const res = await fetch(`/api/ai/narrator${symbolQuery}`)
       const json = await res.json()
       if (json.success) {
         setData({
@@ -56,7 +62,7 @@ export function AlNarratorMini({
     fetchNarrative()
     const interval = setInterval(fetchNarrative, 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [selectedSymbol])
 
   const sentimentColor = {
     bullish:  'var(--success)',
@@ -187,10 +193,24 @@ export function AlNarratorMini({
             color: 'var(--text2)',
             lineHeight: 1.7,
           }}>
-            {selectedSymbol
+            {data.summary || (selectedSymbol
               ? `المساعد يقرأ ${selectedSymbol} الآن ويربط السرد بالاتجاه والبيانات الحية بدل عرض رؤية عامة منفصلة.`
-              : 'المساعد يربط السرد بحركة السوق الحالية.'}
+              : 'المساعد يربط السرد بحركة السوق الحالية.')}
           </div>
+
+          {!compact && data.nextTrigger && (
+            <div style={{
+              padding: '10px 12px',
+              borderRadius: 10,
+              background: 'rgba(0,229,255,0.04)',
+              border: '1px solid rgba(0,229,255,0.12)',
+              fontSize: 10,
+              color: 'var(--text2)',
+              lineHeight: 1.7,
+            }}>
+              <strong style={{ color: 'var(--accent)' }}>المحفز التالي:</strong> {data.nextTrigger}
+            </div>
+          )}
 
           <div 
             onClick={() => setExpanded(!expanded)}

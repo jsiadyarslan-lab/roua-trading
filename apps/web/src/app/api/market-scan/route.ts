@@ -1,132 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-// Simple tech indicator helpers
-function calculateRSI(closes: number[], period = 14) {
-  if (closes.length <= period) return 50
-  let gains = 0, losses = 0
-  for (let i = 1; i <= period; i++) {
-    const diff = closes[i] - closes[i - 1]
-    if (diff >= 0) gains += diff
-    else losses -= diff
-  }
-  let avgGain = gains / period
-  let avgLoss = losses / period
-  for (let i = period + 1; i < closes.length; i++) {
-    const diff = closes[i] - closes[i - 1]
-    const gain = diff >= 0 ? diff : 0
-    const loss = diff < 0 ? -diff : 0
-    avgGain = (avgGain * (period - 1) + gain) / period
-    avgLoss = (avgLoss * (period - 1) + loss) / period
-  }
-  if (avgLoss === 0) return 100
-  const rs = avgGain / avgLoss
-  return 100 - (100 / (1 + rs))
-}
-
-const SCANNER_SYMBOLS = [
-  'BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD', 'ADA/USD',
-  'EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD',
-  'AAPL', 'TSLA', 'NVDA',
-]
+import {
+  PRIMARY_SYMBOLS,
+  buildScannerResult,
+  fetchMarketContext,
+  rankScannerResults,
+  type ScannerResult,
+} from '@/lib/trading-intelligence'
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
     const targetPair = searchParams.get('pair')
     const timeframe = searchParams.get('tf') || '1h'
-    
-    const results: any[] = []
     const origin = req.nextUrl.origin
-    
-    // Symbols to scan: either the target pair or the default list
-    const symbolsToScan = targetPair ? [targetPair] : SCANNER_SYMBOLS
-    
-    // Fetch quotes for selected symbols
-    const quotePromises = symbolsToScan.map(async (s) => {
-      try {
-        const res = await fetch(`${origin}/api/exchange/quote/${encodeURIComponent(s)}`, { cache: 'no-store' })
-        const data = await res.json()
-        
-        // Fetch historical candles for RSI based on timeframe
-        let closes: number[] = []
-        try {
-           const histRes = await fetch(`${origin}/api/exchange/history/${encodeURIComponent(s)}?interval=${timeframe}`, { cache: 'no-store' })
-           const histData = await histRes.json()
-           if (histData.success && histData.data) {
-             closes = histData.data.map((c: any) => c.close)
-           }
-        } catch { }
+    const symbolsToScan = targetPair ? [targetPair] : PRIMARY_SYMBOLS
 
-        return { symbol: s, quote: data.success ? data.data : null, closes }
-      } catch { return { symbol: s, quote: null, closes: [] } }
-    })
-    
-    const fetchedData = await Promise.all(quotePromises)
-    console.log(`[market-scan] Feteched ${fetchedData.length} quotes for ${targetPair || 'all'}`)
-    
-    for (const item of fetchedData) {
-      const q = item.quote
-      if (!q) {
-        console.warn(`[market-scan] No quote for ${item.symbol}`)
-        continue
-      }
-      
-      const symbol = item.symbol
-      const change = q.changePercent || 0
-      
-      let score = 0
-      const reasons: string[] = []
-      
-      // 1. Momentum factor
-      if (change > 1.25) { score += 1.25; reasons.push('زخم صعودي قوي') }
-      else if (change < -1.25) { score -= 1.25; reasons.push('زخم هبوطي قوي') }
-      else if (change > 0.45) { score += 0.5; reasons.push('ميل صعودي قصير الأجل') }
-      else if (change < -0.45) { score -= 0.5; reasons.push('ميل هبوطي قصير الأجل') }
-      
-      // 2. RSI Factor
-      if (item.closes.length >= 14) {
-         const rsi = calculateRSI(item.closes)
-         console.log(`[market-scan] RSI for ${symbol} (${timeframe}): ${rsi.toFixed(2)}`)
-         if (rsi < 30) { score += 2.5; reasons.push(`تشبع بيعي (RSI: ${Math.round(rsi)})`) }
-         else if (rsi > 70) { score -= 2.5; reasons.push(`تشبع شرائي (RSI: ${Math.round(rsi)})`) }
-         else if (rsi < 45) { score += 0.65; reasons.push('ميل صعودي') }
-         else if (rsi > 55) { score -= 0.65; reasons.push('ميل هبوطي') }
-      } else {
-         console.warn(`[market-scan] Not enough candles for ${symbol} (${timeframe}): ${item.closes.length}`)
-         if (Math.abs(change) > 0.8) {
-           score += change > 0 ? 0.75 : -0.75
-           reasons.push('إشارة مبنية على الزخم السعري فقط')
-         }
-      }
+    const contexts = await Promise.all(
+      symbolsToScan.map((symbol) => fetchMarketContext(origin, symbol, timeframe))
+    )
 
-      if (q.source === 'Demo') {
-        reasons.push('بيانات تجريبية')
-      } else {
-        reasons.push(`المصدر: ${q.source}`)
-      }
+    const results = contexts
+      .map((context) => buildScannerResult(context))
+      .filter((value): value is ScannerResult => Boolean(value))
 
-      // Add to results
-      const strength = Math.min(98, Math.round(50 + Math.abs(score) * 15))
-      results.push({
-        pair: symbol,
-        dir: score > 0 ? 'buy' : score < 0 ? 'sell' : 'neutral',
-        strength,
-        price: q.price,
-        change,
-        reasons: reasons.slice(0, 3),
-        source: q.source,
-        timestamp: new Date().toISOString(),
+    const filtered = targetPair
+      ? results
+      : rankScannerResults(results)
+
+    return NextResponse.json({
+      success: true,
+      data: filtered,
+      meta: {
         timeframe,
-      })
-    }
-
-    const filtered = results
-      .filter(result => targetPair ? true : result.dir !== 'neutral' && result.strength >= 60)
-      .sort((a,b) => b.strength - a.strength)
-
-    return NextResponse.json({ success: true, data: filtered })
+        symbolsScanned: symbolsToScan.length,
+        sourceEngine: 'scanner-engine',
+        timestamp: new Date().toISOString(),
+      },
+    })
   } catch (error: any) {
-    console.error(`[market-scan] Fatal Error:`, error.message)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    console.error('[market-scan] Fatal Error:', error?.message || error)
+    return NextResponse.json(
+      { success: false, error: error?.message || 'فشل في مسح السوق' },
+      { status: 500 }
+    )
   }
 }

@@ -1,105 +1,100 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
+import { buildScannerResult, fetchMarketContext } from '@/lib/trading-intelligence'
+
+type KeywordColor = 'success' | 'accent' | 'danger' | 'amber'
 
 type NarratorPayload = {
   narrative: string
+  summary: string
+  bullCase: string
+  bearCase: string
+  keyRisk: string
+  nextTrigger: string
   sentiment: 'bullish' | 'bearish' | 'neutral' | 'volatile'
-  keywords: Array<{ word: string; color: 'success' | 'accent' | 'danger' | 'amber' }>
+  keywords: Array<{ word: string; color: KeywordColor }>
   confidence: number
   risk: 'Low' | 'Medium' | 'High'
+  symbol: string
+  source: string
   timestamp: string
   degraded?: boolean
 }
 
-function buildNarratorFromScan(scanData: any, recentNews: any[] = [], degraded = false): NarratorPayload {
-  const topScan = Array.isArray(scanData?.data) ? scanData.data[0] : null
+function buildNarrativeFromContext(symbol: string, scan: any, recentNews: any[] = [], degraded = false): NarratorPayload {
   const newsSentiment =
-    recentNews.reduce((acc, n) => acc + (typeof n?.sentiment === 'number' ? n.sentiment : 0), 0) /
+    recentNews.reduce((acc, item) => acc + (typeof item?.sentiment === 'number' ? item.sentiment : 0), 0) /
     (recentNews.length || 1)
 
-  let narrative = ''
-  let sentiment: 'bullish' | 'bearish' | 'neutral' | 'volatile' = 'neutral'
-  let confidence = degraded ? 60 : 70
-  let risk: 'Low' | 'Medium' | 'High' = degraded ? 'Medium' : 'Medium'
-  let keywords: Array<{ word: string; color: 'success' | 'accent' | 'danger' | 'amber' }> = [
-    { word: degraded ? 'بيانات جزئية' : 'تحليل مباشر', color: 'amber' },
-    { word: 'مراقبة السوق', color: 'accent' },
+  const sentiment =
+    scan?.dir === 'buy' && newsSentiment >= -0.1 ? 'bullish'
+      : scan?.dir === 'sell' && newsSentiment <= 0.1 ? 'bearish'
+        : Math.abs(scan?.change || 0) > 2.5 ? 'volatile'
+          : 'neutral'
+
+  const confidence = Math.min(95, Math.max(55, Number(scan?.strength || 62) + (degraded ? -10 : 0)))
+  const risk = degraded || scan?.freshness !== 'fresh'
+    ? 'High'
+    : Math.abs(scan?.change || 0) > 2
+      ? 'Medium'
+      : 'Low'
+
+  const summary = scan
+    ? `${symbol} في حالة ${scan?.dir === 'buy' ? 'زخم صاعد' : scan?.dir === 'sell' ? 'ضغط بيعي' : 'ترقب'} على ${scan?.timeframe}.`
+    : `لا توجد قراءة مكتملة لـ ${symbol} الآن.`
+
+  const bullCase = scan?.dir === 'buy'
+    ? `السيناريو الإيجابي مدعوم عبر ${scan.reasons?.slice(0, 2).join('، ')}.`
+    : `السيناريو الإيجابي يحتاج عودة السعر فوق مناطق التراجع الحالية وتأكيد من الإطار الأعلى.`
+
+  const bearCase = scan?.dir === 'sell'
+    ? `السيناريو السلبي مدعوم عبر ${scan.reasons?.slice(0, 2).join('، ')}.`
+    : `السيناريو السلبي يظهر إذا فشل السعر في الحفاظ على الزخم الحالي أو تدهورت جودة البيانات.`
+
+  const keyRisk = degraded
+    ? 'المخاطرة الأساسية هنا هي العمل على بيانات جزئية أو متأخرة.'
+    : scan?.freshness !== 'fresh'
+      ? 'جودة التغذية ليست مثالية، وقد تتأخر الإشارة عن السوق الحقيقي.'
+      : Math.abs(scan?.change || 0) > 2.5
+        ? 'التذبذب مرتفع، لذلك أي دخول يحتاج حجمًا محافظًا.'
+        : 'الخطر الحالي متوسط ويعتمد على ثبات الزخم.'
+
+  const nextTrigger = scan?.dir === 'buy'
+    ? `المحفز التالي هو استمرار السعر فوق ${Number(scan?.price || 0).toFixed(2)} مع بقاء الثقة فوق 60.`
+    : scan?.dir === 'sell'
+      ? `المحفز التالي هو استمرار الضغط دون ${Number(scan?.price || 0).toFixed(2)} مع ضعف محاولات الارتداد.`
+      : 'المحفز التالي هو ظهور انحياز أوضح من السكانر أو خبر مؤثر يغير النظام.'
+
+  const narrative = `${summary} ${scan?.reasons?.[0] ? `السبب الأقوى الآن: ${scan.reasons[0]}.` : ''} ${recentNews.length > 0 ? 'الأخبار الأخيرة أُخذت في الحسبان ضمن السرد.' : 'لا توجد أخبار حديثة كافية، لذا يركّز السرد على السعر والبنية الفنية.'} ${keyRisk}`
+
+  const keywords: Array<{ word: string; color: KeywordColor }> = [
+    { word: scan?.signalClass || 'watch', color: 'accent' },
+    { word: scan?.entryBias || 'wait', color: sentiment === 'bullish' ? 'success' : sentiment === 'bearish' ? 'danger' : 'amber' },
+    { word: degraded ? 'بيانات جزئية' : 'سياق مباشر', color: degraded ? 'amber' : 'success' },
   ]
-
-  if (topScan) {
-    const bullishTech = topScan.dir === 'buy'
-    const bullishNews = newsSentiment > 0.1
-    const bearishNews = newsSentiment < -0.1
-
-    if (bullishTech && bullishNews) {
-      sentiment = 'bullish'
-      confidence = degraded ? 84 : 92
-      risk = 'Low'
-      narrative = `زخم إيجابي واضح في ${topScan.pair}. التحليل الفني يشير إلى ${topScan.reasons.join('، ')} مع دعم معنوي من الأخبار الأخيرة.`
-      keywords = [
-        { word: 'زخم صاعد', color: 'success' },
-        { word: 'توافق الإشارات', color: 'accent' },
-        { word: 'ثقة مرتفعة', color: 'success' },
-      ]
-    } else if (!bullishTech && bearishNews) {
-      sentiment = 'bearish'
-      confidence = degraded ? 80 : 88
-      risk = 'Medium'
-      narrative = `ضغط بيعي متزايد على ${topScan.pair}. الإشارة الفنية تميل إلى ${topScan.dir === 'buy' ? 'الشراء' : 'البيع'} مع تراجع في المعنويات العامة.`
-      keywords = [
-        { word: 'ضغط بيعي', color: 'danger' },
-        { word: 'حذر', color: 'amber' },
-        { word: 'مخاطرة متوسطة', color: 'danger' },
-      ]
-    } else if (topScan.dir === 'buy' || topScan.dir === 'sell') {
-      sentiment = 'volatile'
-      confidence = degraded ? 72 : 78
-      risk = 'High'
-      narrative = `السوق يتحرك بقوة في ${topScan.pair}. التحليل الفني يعطي إشارة ${topScan.dir === 'buy' ? 'شراء' : 'بيع'} مع عوامل متعارضة في الخلفية، لذا يُفضل الالتزام بإدارة المخاطر.`
-      keywords = [
-        { word: 'تذبذب مرتفع', color: 'amber' },
-        { word: 'إدارة مخاطر', color: 'accent' },
-      ]
-    } else {
-      sentiment = 'neutral'
-      confidence = degraded ? 55 : 60
-      risk = 'Medium'
-      narrative = `السوق في حالة انتظار نسبي. ${topScan.pair} لا يُظهر حسمًا واضحًا الآن، لكن الرصد مستمر لاكتشاف أي اختراق أو انعكاس.`
-      keywords = [
-        { word: 'انتظار', color: 'amber' },
-        { word: 'رصد نشط', color: 'accent' },
-      ]
-    }
-  } else {
-    narrative = degraded
-      ? 'المحرك يعمل ببيانات جزئية من السوق. لا توجد تغطية كاملة للمخزن، لكن الإشارات الفنية ما زالت تُراقب وتُحدَّث بشكل حي.'
-      : 'المحرك يراقب استقرار الأسواق حالياً. لا توجد انحرافات سعرية حادة تبرر دخول صفقات عالية المخاطرة.'
-    sentiment = 'neutral'
-    confidence = degraded ? 58 : 50
-    risk = 'Medium'
-    keywords = degraded
-      ? [
-          { word: 'وضع جزئي', color: 'amber' },
-          { word: 'مراقبة حية', color: 'accent' },
-        ]
-      : [
-          { word: 'استقرار', color: 'amber' },
-          { word: 'مراقبة', color: 'accent' },
-        ]
-  }
 
   return {
     narrative,
+    summary,
+    bullCase,
+    bearCase,
+    keyRisk,
+    nextTrigger,
     sentiment,
     keywords,
     confidence,
     risk,
+    symbol,
+    source: scan?.source || 'Unknown',
     timestamp: new Date().toISOString(),
     ...(degraded ? { degraded: true } : {}),
   }
 }
 
 export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url)
+  const symbol = searchParams.get('symbol') || 'BTC/USD'
+  const origin = req.nextUrl.origin
   let dbReady = false
   let recentNews: any[] = []
 
@@ -121,57 +116,19 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  let scanData: any = null
   try {
-    const scanRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/market-scan`, {
-      cache: 'no-store',
-    })
-    scanData = await scanRes.json()
-  } catch (error: any) {
-    console.error('[ai/narrator] Scan fetch failed:', error?.message || error)
-  }
-
-  try {
-    if (scanData?.success) {
-      return NextResponse.json({
-        success: true,
-        data: buildNarratorFromScan(scanData, recentNews, !dbReady),
-      })
-    }
+    const context = await fetchMarketContext(origin, symbol, '1h')
+    const scan = buildScannerResult(context)
 
     return NextResponse.json({
       success: true,
-      data: {
-        narrative: !dbReady
-          ? 'المحرك يعمل ببيانات جزئية من السوق. لا توجد تغطية كاملة للمخزن، لكن التحليل ما زال حيًا ويستقبل الإشارات المتاحة.'
-          : 'المحرك يراقب استقرار الأسواق حالياً. لا توجد انحرافات سعرية حادة تبرر دخول صفقات عالية المخاطرة.',
-        sentiment: 'neutral',
-        keywords: [
-          { word: !dbReady ? 'بيانات جزئية' : 'استقرار', color: 'amber' },
-          { word: 'مراقبة حية', color: 'accent' },
-        ],
-        confidence: !dbReady ? 58 : 50,
-        risk: 'Medium',
-        timestamp: new Date().toISOString(),
-        ...( !dbReady ? { degraded: true } : {} ),
-      },
+      data: buildNarrativeFromContext(symbol, scan, recentNews, !dbReady || context.freshness !== 'fresh'),
     })
   } catch (error: any) {
     console.error('[ai/narrator] Error:', error?.message || error)
     return NextResponse.json({
       success: true,
-      data: {
-        narrative: 'المحرك يعمل ببيانات جزئية من السوق، لكن لا يزال يقدم تحليلًا حيًا بدل إيقاف الواجهة.',
-        sentiment: 'neutral',
-        keywords: [
-          { word: 'تحليل حي', color: 'accent' },
-          { word: 'وضع جزئي', color: 'amber' },
-        ],
-        confidence: 58,
-        risk: 'Medium',
-        timestamp: new Date().toISOString(),
-        degraded: true,
-      },
+      data: buildNarrativeFromContext(symbol, null, [], true),
     })
   }
 }

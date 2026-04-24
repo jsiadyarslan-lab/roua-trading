@@ -5,6 +5,7 @@ import { Play, Pause, ShieldAlert, Zap, Settings2, RefreshCw, Layers, CheckCircl
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
+import { useBotStore } from '@/hooks/useBotStore'
 
 const T = {
   bg:      '#0F1113',
@@ -22,6 +23,8 @@ const T = {
 }
 
 interface SmartSignal {
+  id?: string
+  symbol?: string
   pair: string
   type: 'BUY' | 'SELL'
   price: number
@@ -30,14 +33,19 @@ interface SmartSignal {
   conf: number
   reason: string
   time: string
+  timeframe?: string
+  sourceEngine?: string
+  freshness?: string
+  invalidatesWhen?: string
+  expiresAt?: string
 }
 
 export function BotCommandCenter() {
-  const [isActive, setIsActive] = useState(true)
   const [risk, setRisk] = useState<'low' | 'med' | 'high'>('med')
   const { setSelectedSymbol } = useSymbolStore()
   const { addTrade } = usePaperTradesStore()
   const { addNotification } = useNotificationStore()
+  const { isOn: isActive, setIsOn: setBotActive, engineState } = useBotStore()
 
   const [signals, setSignals] = useState<SmartSignal[]>([])
   const [loading, setLoading] = useState(false)
@@ -82,7 +90,7 @@ export function BotCommandCenter() {
       source: 'manual'
     })
 
-    setExecutedIds(prev => ({ ...prev, [sig.pair + sig.time]: true }))
+    setExecutedIds(prev => ({ ...prev, [sig.id || (sig.pair + sig.time)]: true }))
 
     addNotification({
       title: 'تم تنفيذ الإشارة ✅',
@@ -116,12 +124,12 @@ export function BotCommandCenter() {
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontSize: 12, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>محرك التداول الذكي</span>
             <span style={{ fontSize: 9, color: isActive ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
-              {isActive ? 'SYSTEM ONLINE - AUTOTRADE ACTIVE' : 'SYSTEM PAUSED - MANUAL ONLY'}
+              {isActive ? `SYSTEM ONLINE - ${engineState.toUpperCase()}` : 'SYSTEM PAUSED - MANUAL ONLY'}
             </span>
           </div>
         </div>
         <button
-          onClick={() => setIsActive(!isActive)}
+          onClick={() => setBotActive(!isActive)}
           style={{
             background: isActive ? 'transparent' : T.success,
             border: `1px solid ${isActive ? T.danger : T.success}`,
@@ -187,7 +195,7 @@ export function BotCommandCenter() {
             signals.map((sig, i) => {
               const isBuy = sig.type === 'BUY'
               const c = isBuy ? T.success : T.danger
-              const sigKey = sig.pair + sig.time
+              const sigKey = sig.id || (sig.pair + sig.time)
               const executed = executedIds[sigKey]
 
               return (
@@ -209,8 +217,21 @@ export function BotCommandCenter() {
 
                   {/* Middle Row: Details */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '4px 6px', borderRadius: 4 }}>
-                     <span style={{ fontSize: 9, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>{sig.reason}</span>
-                     <span style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{sig.time}</span>
+                    <span style={{ fontSize: 9, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>{sig.reason}</span>
+                     <span style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+                       {sig.timeframe || '1H'} · {sig.time}
+                     </span>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+                      {sig.sourceEngine || 'scanner-engine'} {sig.freshness ? `· ${sig.freshness}` : ''}
+                    </span>
+                    {sig.invalidatesWhen && (
+                      <span style={{ fontSize: 8, color: T.amber, fontFamily: "'Cairo', sans-serif", textAlign: 'left' }}>
+                        {sig.invalidatesWhen}
+                      </span>
+                    )}
                   </div>
 
                   {/* Bottom Row: Execute Button */}

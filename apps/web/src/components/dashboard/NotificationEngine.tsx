@@ -58,7 +58,7 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
       lastAiCheckRef.current = now
 
       try {
-        const res = await fetch('/api/ai/narrator')
+        const res = await fetch(`/api/ai/narrator?symbol=${encodeURIComponent(selectedSymbol)}`)
         const data = await res.json()
         if (!data.success) return
         const { narrative, sentiment, confidence } = data.data

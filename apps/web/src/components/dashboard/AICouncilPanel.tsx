@@ -27,7 +27,8 @@ interface ConsensusData {
   recommendation: 'BUY' | 'SELL' | 'HOLD'
   analyses: Analysis[]
   masterStrategy: string
-  meta?: { symbol: string; price: number; rsi: number; processingTimeMs: number }
+  conflictExplanation?: string
+  meta?: { symbol: string; price: number; rsi: number; processingTimeMs: number; source?: string; freshness?: string }
 }
 
 export function AICouncilPanel() {
@@ -167,6 +168,18 @@ export function AICouncilPanel() {
                 {data.masterStrategy}
               </p>
             </div>
+
+            {data.conflictExplanation && (
+              <div className="p-2.5 rounded-lg" style={{ background: '#120f09', border: `1px solid ${T.amber}25` }}>
+                <div className="flex items-center gap-1.5 mb-1.5">
+                  <AlertCircle size={9} color={T.amber} />
+                  <span className="text-[9px] font-bold" style={{ color: T.amber }}>تفسير التعارض</span>
+                </div>
+                <p className="text-[9px] leading-5" style={{ color: T.text2 }}>
+                  {data.conflictExplanation}
+                </p>
+              </div>
+            )}
 
             {/* Vote Distribution */}
             <div className="space-y-1.5">

@@ -6,9 +6,19 @@ import { useBotStore } from '@/hooks/useBotStore';
 type BotTab = 'log' | 'config';
 
 export function BotMini() {
-  const { isOn, setIsOn, logs, stats, settings, updateSettings } = useBotStore();
+  const { isOn, engineState, setIsOn, logs, stats, settings, updateSettings } = useBotStore();
   const [activeTab, setActiveTab] = useState<BotTab>('log');
   const [hydrated, setHydrated] = React.useState(false);
+
+  const engineStateLabel = {
+    idle: 'متوقف',
+    armed: 'مسلّح',
+    scanning: 'يمسح السوق',
+    entering: 'يدخل صفقة',
+    managing: 'يدير المراكز',
+    exiting: 'يغلق مركزًا',
+    cooldown: 'تبريد',
+  }[engineState];
 
   React.useEffect(() => {
     setHydrated(true);
@@ -112,6 +122,20 @@ export function BotMini() {
           >
             PAPER 📄
           </span>
+          <span
+            style={{
+              fontSize: 8,
+              padding: '1px 6px',
+              borderRadius: 4,
+              background: 'rgba(0,229,255,0.12)',
+              color: 'var(--accent)',
+              fontWeight: 700,
+              fontFamily: 'monospace',
+              flexShrink: 0,
+            }}
+          >
+            {engineStateLabel}
+          </span>
         </div>
 
         <div className="bot-mini-header__actions" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -198,6 +222,32 @@ export function BotMini() {
             <div style={{ background: 'var(--surface)', padding: 10, textAlign: 'center', minHeight: 48 }}>
               <div style={{ fontSize: 9, color: 'var(--text3)' }}>نسبة الفوز</div>
               <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--amber)' }}>{stats.winRate}%</div>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+              gap: 1,
+              background: 'var(--border)',
+              borderBottom: '1px solid var(--border)',
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ background: 'var(--surface)', padding: 8, textAlign: 'center', minHeight: 44 }}>
+              <div style={{ fontSize: 9, color: 'var(--text3)' }}>مفتوحة</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--accent)' }}>{stats.openPositions}</div>
+            </div>
+            <div style={{ background: 'var(--surface)', padding: 8, textAlign: 'center', minHeight: 44 }}>
+              <div style={{ fontSize: 9, color: 'var(--text3)' }}>فوز / خسارة</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--foreground)' }}>{stats.wins}/{stats.losses}</div>
+            </div>
+            <div style={{ background: 'var(--surface)', padding: 8, textAlign: 'center', minHeight: 44 }}>
+              <div style={{ fontSize: 9, color: 'var(--text3)' }}>خسارة الجلسة</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: stats.sessionLoss < 0 ? 'var(--danger)' : 'var(--text3)' }}>
+                ${stats.sessionLoss}
+              </div>
             </div>
           </div>
 

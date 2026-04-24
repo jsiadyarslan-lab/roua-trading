@@ -99,7 +99,6 @@ export function QuickExecutionMini() {
           
         // TRACK IN PAPER STORE: This ensures TP/SL lines render immediately even if Alpaca stripped them for crypto
         addPaperTrade({
-          id: `manual-${Date.now()}`,
           symbol: localSymbol,
           side: side === 'buy' ? 'long' : 'short',
           qty: parseFloat(quantity),
@@ -259,8 +258,8 @@ export function QuickExecutionMini() {
           }}
           style={{
             background: 'rgba(0, 229, 255, 0.1)', border: '1px solid rgba(0, 229, 255, 0.2)',
-            color: 'var(--accent)', fontSize: 9, fontWeight: 700, padding: '4px 10px',
-            borderRadius: 6, cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
+            color: 'var(--accent)', fontSize: 9, fontWeight: 700, padding: '12px 14px', minHeight: 48,
+            borderRadius: 10, cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
             display: 'flex', alignItems: 'center', gap: 4
           }}
         >
@@ -273,8 +272,8 @@ export function QuickExecutionMini() {
         <button
           onClick={() => setShowRiskCalc(v => !v)}
           style={{
-            width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px 0', color: 'var(--muted)',
+            width: '100%', minHeight: 48, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px 0', color: 'var(--muted)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -358,7 +357,7 @@ export function QuickExecutionMini() {
           disabled={loading}
           className="btn-neon-buy"
           style={{
-            flex: 1, height: 44, borderRadius: 'var(--radius)', 
+            flex: 1, minHeight: 48, height: 48, borderRadius: 'var(--radius)', 
             fontSize: 13, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
             fontFamily: "'Cairo', sans-serif",
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -375,7 +374,7 @@ export function QuickExecutionMini() {
           disabled={loading}
           className="btn-neon-sell"
           style={{
-            flex: 1, height: 44, borderRadius: 'var(--radius)', 
+            flex: 1, minHeight: 48, height: 48, borderRadius: 'var(--radius)', 
             fontSize: 13, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
             fontFamily: "'Cairo', sans-serif",
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,

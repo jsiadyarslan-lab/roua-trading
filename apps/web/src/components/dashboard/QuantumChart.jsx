@@ -7,7 +7,7 @@ import {
   CH_frame, CH_bindEvents, CH_initIndPanel,
   CH_setType, CH_setTF, CH_setSub, CH_setTool,
   CH_clearDrawings, CH_zoom, CH_resetView, CH_screenshot,
-  CH_setDirty, CH_liveTick, CH_animFrame,
+  CH_setDirty, CH_liveTick, CH_animFrame, CH_resize,
   setActiveTF, toggleSubChart, togglePanel, closeAllPanels,
 } from '../../lib/chartEngine';
 import { useSymbolStore } from '../../hooks/useSymbolStore';
@@ -70,6 +70,51 @@ const CHART_CSS = `
   #tvCanvas { position:absolute;top:0;left:0; }
   #subCanvas { position:absolute;top:0;left:0; }
   .sub-chart-panel { height:90px;position:relative;overflow:hidden; }
+
+  @media (max-width: 767px) {
+    #mainChartArea,
+    #subChartPanel {
+      width: 100%;
+      max-width: 100%;
+    }
+    #mainChartArea canvas,
+    #subChartPanel canvas {
+      width: 100% !important;
+      max-width: 100%;
+      display: block;
+    }
+    #iv-bar-tf {
+      height: auto;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 8px;
+      align-items: stretch;
+    }
+    .iv-draw-btn,
+    .iv-left-btn,
+    .iv-tf-dd-btn,
+    .iv-dd-item {
+      min-height: 48px;
+      touch-action: manipulation;
+    }
+    .iv-draw-btn {
+      min-width: 48px;
+      padding: 0 12px;
+    }
+    .iv-left-btn {
+      width: 48px;
+      height: 48px;
+    }
+    .iv-tf-dd-btn {
+      padding: 10px 0;
+    }
+    .iv-dd-item {
+      padding: 12px 10px;
+    }
+    #chartLeftTools {
+      width: 48px;
+    }
+  }
 `;
 
 let cssInjected = false;
@@ -97,6 +142,29 @@ export default function QuantumChart({ currentPrice = null } = {}) {
 
   // CSS
   useEffect(() => { injectCSS(); }, []);
+
+  // Keep canvas dimensions in sync with layout changes
+  useEffect(() => {
+    const handleResize = () => CH_resize();
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    const observer = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(handleResize)
+      : null;
+
+    const mainArea = document.getElementById('mainChartArea');
+    const subPanel = document.getElementById('subChartPanel');
+
+    if (observer && mainArea) observer.observe(mainArea);
+    if (observer && subPanel) observer.observe(subPanel);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      observer?.disconnect();
+    };
+  }, []);
 
   // Init engine and handle symbol/timeframe changes
   useEffect(() => {

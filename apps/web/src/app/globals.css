@@ -59,6 +59,13 @@
   --card-border: rgba(255, 255, 255, 0.05);
   --radius: 8px;
   --shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --shadow-pulse: 0 18px 40px rgba(0, 0, 0, 0.32);
+  --pulse-surface: linear-gradient(180deg, rgba(10, 20, 33, 0.96), rgba(7, 12, 20, 0.98));
+  --pulse-border: rgba(0, 229, 255, 0.16);
+  --pulse-border-strong: rgba(0, 229, 255, 0.34);
+  --pulse-glow: 0 0 18px rgba(0, 229, 255, 0.14);
+  --pulse-glow-strong: 0 0 28px rgba(0, 229, 255, 0.22);
+  --pulse-sheen: linear-gradient(120deg, transparent 0%, rgba(0, 229, 255, 0.09) 46%, rgba(255, 255, 255, 0.07) 52%, transparent 100%);
   --mono: 'JetBrains Mono', monospace;
   --ui: 'Inter', system-ui, sans-serif;
 
@@ -114,38 +121,65 @@
 }
 
 /* ── Quantum V5 Buttons & Neon Effects ── */
+.btn-danger-active,
 .btn-neon-buy {
   background: rgba(0, 255, 136, 0.1);
   color: var(--success);
   border: 1px solid rgba(0, 255, 136, 0.3);
-  transition: all 0.15s ease-in-out;
+  transition: all 0.18s ease-in-out;
+  position: relative;
+  overflow: hidden;
 }
 .btn-neon-buy:hover:not(:disabled) {
   background: rgba(0, 255, 136, 0.2);
   border-color: var(--success);
-  box-shadow: 0 0 12px rgba(0, 255, 136, 0.3);
+  box-shadow: 0 0 12px rgba(0, 255, 136, 0.3), inset 0 0 0 1px rgba(255,255,255,0.04);
   color: #fff;
+  transform: translateY(-1px);
 }
 
 .btn-neon-sell {
   background: rgba(255, 68, 68, 0.1);
   color: var(--danger);
   border: 1px solid rgba(255, 68, 68, 0.3);
-  transition: all 0.15s ease-in-out;
+  transition: all 0.18s ease-in-out;
+  position: relative;
+  overflow: hidden;
 }
 .btn-neon-sell:hover:not(:disabled) {
   background: rgba(255, 68, 68, 0.2);
   border-color: var(--danger);
-  box-shadow: 0 0 12px rgba(255, 68, 68, 0.3);
+  box-shadow: 0 0 12px rgba(255, 68, 68, 0.3), inset 0 0 0 1px rgba(255,255,255,0.04);
   color: #fff;
+  transform: translateY(-1px);
 }
 
 .btn-cyan-active {
-  background: var(--accent) !important;
-  color: #000 !important;
+  background: linear-gradient(135deg, rgba(0, 229, 255, 0.94), rgba(0, 255, 234, 0.88)) !important;
+  color: #021318 !important;
   font-weight: 700 !important;
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 8px rgba(0, 242, 255, 0.4);
+  border: 1px solid rgba(0, 229, 255, 0.46) !important;
+  box-shadow: 0 0 8px rgba(0, 242, 255, 0.28), 0 8px 24px rgba(0, 229, 255, 0.16);
+  position: relative;
+  overflow: hidden;
+}
+.btn-cyan-active:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 0 12px rgba(0, 242, 255, 0.34), 0 12px 28px rgba(0, 229, 255, 0.2);
+}
+
+.btn-danger-active {
+  background: linear-gradient(135deg, rgba(255, 79, 79, 0.94), rgba(255, 60, 60, 0.88)) !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  border: 1px solid rgba(255, 90, 90, 0.4) !important;
+  box-shadow: 0 0 10px rgba(255, 68, 68, 0.22), 0 10px 24px rgba(255, 68, 68, 0.14);
+  position: relative;
+  overflow: hidden;
+}
+.btn-danger-active:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 0 14px rgba(255, 68, 68, 0.28), 0 14px 28px rgba(255, 68, 68, 0.18);
 }
 
 /* ── Pulse Live Indicator ── */
@@ -201,14 +235,81 @@
 
 /* Standardized Card (Refined) */
 .card {
-  background: var(--surface);
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius);
+  background: var(--pulse-surface);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: calc(var(--radius) + 2px);
   padding: 16px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.03);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
+}
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at top right, rgba(0, 229, 255, 0.08), transparent 38%),
+    radial-gradient(circle at bottom left, rgba(10, 132, 255, 0.06), transparent 34%);
+  opacity: 1;
+  pointer-events: none;
+}
+.card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--pulse-sheen);
+  transform: translateX(-130%);
+  opacity: 0;
+  pointer-events: none;
+}
+.card:hover {
+  border-color: var(--pulse-border);
+  box-shadow: var(--shadow-pulse), var(--pulse-glow), inset 0 1px 0 rgba(255,255,255,0.04);
+  transform: translateY(-2px);
+}
+.card:hover::after {
+  opacity: 1;
+  transform: translateX(130%);
+  transition: transform 0.9s ease, opacity 0.3s ease;
+}
+
+button {
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease,
+    background-color 0.22s ease,
+    color 0.22s ease,
+    opacity 0.18s ease;
+}
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+button:active:not(:disabled) {
+  transform: translateY(0) scale(0.985);
+}
+button:disabled {
+  opacity: 0.72;
+}
+
+.btn-cyan-active::before,
+.btn-danger-active::before,
+.btn-neon-buy::before,
+.btn-neon-sell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.16) 48%, transparent 100%);
+  transform: translateX(-135%);
+  pointer-events: none;
+}
+.btn-cyan-active:hover::before,
+.btn-danger-active:hover::before,
+.btn-neon-buy:hover::before,
+.btn-neon-sell:hover::before {
+  transform: translateX(135%);
+  transition: transform 0.8s ease;
 }
 
 .price-pulse {

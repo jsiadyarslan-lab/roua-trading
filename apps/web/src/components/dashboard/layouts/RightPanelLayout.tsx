@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
+import { Bot, Brain, ScanSearch, Sparkles, Waves } from 'lucide-react'
 import { BotMini } from '@/components/dashboard/BotMini'
 import { ScannerMini } from '@/components/dashboard/ScannerMini'
-import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
 import { BotCommandCenter } from '@/components/dashboard/BotCommandCenter'
 import { AICouncilPanel } from '@/components/dashboard/AICouncilPanel'
 import { MultiTfScannerMini } from '@/components/dashboard/MultiTfScannerMini'
+import { SmartSetupBar } from '@/components/dashboard/SmartSetupBar'
 
 const T = {
   bg: '#0F1113',
@@ -29,40 +30,16 @@ const T = {
   text3: '#A0AFC3',
 }
 
-function Empty({ label, color = T.text3 }: { label?: string; color?: string }) {
-  return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}
-    >
-      <span
-        style={{
-          fontFamily: "'Cairo', sans-serif",
-          fontSize: 11,
-          color,
-          opacity: 0.4,
-        }}
-      >
-        {label ?? 'قيد التطوير'}
-      </span>
-    </div>
-  )
-}
-
 export function RightPanelLayout({ quotes }: { quotes: any }) {
   const [active, setActive] = useState('bot')
   const TABS = [
-    { id: 'bot', label: 'البوت', accent: T.cyan },
-    { id: 'council', label: 'المجلس', accent: T.accent },
-    { id: 'scanner', label: 'السكانر', accent: T.amber },
-    { id: 'multi-tf', label: 'متعدد الأطر', accent: T.purple },
-    { id: 'signals', label: 'إشارات', accent: T.green },
+    { id: 'bot', label: 'البوت', accent: T.cyan, icon: Bot, subtitle: 'التنفيذ والإدارة' },
+    { id: 'council', label: 'المجلس', accent: T.accent, icon: Brain, subtitle: 'الترجيح والحكم' },
+    { id: 'scanner', label: 'السكانر', accent: T.amber, icon: ScanSearch, subtitle: 'اكتشاف الفرص' },
+    { id: 'multi-tf', label: 'متعدد الأطر', accent: T.purple, icon: Waves, subtitle: 'النظام والانحياز' },
+    { id: 'signals', label: 'إشارات', accent: T.green, icon: Sparkles, subtitle: 'التحويل للتنفيذ' },
   ]
+  const activeTab = TABS.find((tab) => tab.id === active) || TABS[0]
 
   return (
     <div
@@ -73,61 +50,103 @@ export function RightPanelLayout({ quotes }: { quotes: any }) {
         height: '100%',
         minHeight: 0,
         maxHeight: '100%',
-        background: T.card,
-        border: `0.5px solid ${T.border}`,
-        borderRadius: 10,
+        background: 'linear-gradient(180deg, rgba(0,229,255,0.05), rgba(255,255,255,0.01))',
+        border: `1px solid ${T.border}`,
+        borderRadius: 14,
         overflow: 'hidden',
       }}
     >
-      {/* Sleek Segmented Tabs Header */}
+      <div style={{ padding: 10, borderBottom: `1px solid ${T.border}`, background: 'rgba(255,255,255,0.02)' }}>
+        <SmartSetupBar compact />
+      </div>
+
+      <div
+        style={{
+          padding: '10px 12px 8px',
+          borderBottom: `1px solid ${T.border}`,
+          background: 'linear-gradient(90deg, rgba(0,229,255,0.08), transparent)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
+            مركز القرار التشغيلي
+          </div>
+          <div style={{ fontSize: 9, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
+            {activeTab.subtitle}
+          </div>
+        </div>
+        <div
+          style={{
+            fontSize: 9,
+            color: activeTab.accent,
+            background: `${activeTab.accent}14`,
+            border: `1px solid ${activeTab.accent}28`,
+            borderRadius: 999,
+            padding: '4px 8px',
+            fontWeight: 800,
+            fontFamily: "'JetBrains Mono', monospace",
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {activeTab.label}
+        </div>
+      </div>
+
       <div
         style={{
           display: 'flex',
-          background: T.bg,
-          borderBottom: `0.5px solid ${T.border}`,
-          padding: '6px 6px 0',
-          gap: 6,
+          gap: 8,
+          padding: '10px 10px 8px',
+          overflowX: 'auto',
           flexShrink: 0,
+          background: 'rgba(255,255,255,0.02)',
+          borderBottom: `1px solid ${T.border}`,
         }}
       >
         {TABS.map(t => {
           const isActive = active === t.id
+          const Icon = t.icon
           return (
             <button
               key={t.id}
               onClick={() => setActive(t.id)}
               style={{
-                flex: 1,
-                padding: '6px 0',
-                background: 'transparent',
-                border: 'none',
-                borderBottom: `2px solid ${isActive ? t.accent : 'transparent'}`,
+                minWidth: 88,
+                padding: '10px 10px 9px',
+                background: isActive ? `${t.accent}12` : 'rgba(255,255,255,0.02)',
+                border: `1px solid ${isActive ? `${t.accent}35` : T.border}`,
+                borderRadius: 12,
                 color: isActive ? T.text : T.text3,
-                fontSize: 10,
-                fontWeight: isActive ? 700 : 500,
                 cursor: 'pointer',
                 fontFamily: "'Cairo', sans-serif",
-                transition: '0.2s',
+                transition: '0.18s ease',
                 display: 'flex',
-                justifyContent: 'center',
+                flexDirection: 'column',
                 alignItems: 'center',
+                gap: 4,
+                boxShadow: isActive ? `0 0 0 1px ${t.accent}10 inset` : 'none',
               }}
             >
-              {t.label}
+              <Icon size={14} color={isActive ? t.accent : T.text3} />
+              <span style={{ fontSize: 10, fontWeight: isActive ? 800 : 700 }}>{t.label}</span>
             </button>
           )
         })}
       </div>
 
-      {/* Tab Body */}
       <div
         style={{
           flex: 1,
           minHeight: 0,
           overflow: 'hidden',
-          padding: 0,
+          padding: 10,
           display: 'flex',
           flexDirection: 'column',
+          background: T.bg,
         }}
       >
         {active === 'bot' && (
@@ -139,6 +158,8 @@ export function RightPanelLayout({ quotes }: { quotes: any }) {
               overflowY: 'auto',
               display: 'flex',
               flexDirection: 'column',
+              borderRadius: 14,
+              overflowX: 'hidden',
             }}
           >
             <BotMini />
@@ -154,6 +175,8 @@ export function RightPanelLayout({ quotes }: { quotes: any }) {
               overflowY: 'auto',
               display: 'flex',
               flexDirection: 'column',
+              borderRadius: 14,
+              overflowX: 'hidden',
             }}
           >
             <AICouncilPanel />
@@ -169,6 +192,8 @@ export function RightPanelLayout({ quotes }: { quotes: any }) {
               overflowY: 'auto',
               display: 'flex',
               flexDirection: 'column',
+              borderRadius: 14,
+              overflowX: 'hidden',
             }}
           >
             <ScannerMini />
@@ -184,6 +209,8 @@ export function RightPanelLayout({ quotes }: { quotes: any }) {
               overflowY: 'auto',
               display: 'flex',
               flexDirection: 'column',
+              borderRadius: 14,
+              overflowX: 'hidden',
             }}
           >
             <BotCommandCenter />
@@ -199,6 +226,8 @@ export function RightPanelLayout({ quotes }: { quotes: any }) {
               overflowY: 'auto',
               display: 'flex',
               flexDirection: 'column',
+              borderRadius: 14,
+              overflowX: 'hidden',
             }}
           >
             <MultiTfScannerMini />

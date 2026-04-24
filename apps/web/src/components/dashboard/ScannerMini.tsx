@@ -58,14 +58,14 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', height: '100%',
-      background: 'var(--bg)', borderRadius: 12,
-      border: '1px solid var(--border)',
+      background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 16,
+      border: '1px solid rgba(0,229,255,0.08)',
       overflow: 'hidden'
     }}>
       {!compact && <div style={{
-        padding: '10px 14px',
-        background: 'var(--bg2)',
-        borderBottom: '1px solid var(--border)',
+        padding: '14px 14px 12px',
+        background: 'linear-gradient(90deg, rgba(255,184,0,0.12), transparent)',
+        borderBottom: '1px solid rgba(0,229,255,0.08)',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         flexShrink: 0
       }}>
@@ -92,7 +92,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
       </div>}
 
       {/* Results */}
-      <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: compact ? '6px' : '8px' }}>
+      <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: compact ? '8px' : '10px' }}>
         <style>{`
           @keyframes dash-pulse {
             0%, 100% { opacity: 1; }
@@ -107,9 +107,9 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
         {spotlight && (
           <div style={{
             marginBottom: 8,
-            background: 'rgba(0,229,255,0.04)',
-            border: '1px solid rgba(0,229,255,0.12)',
-            borderRadius: 10,
+            background: 'linear-gradient(180deg, rgba(255,184,0,0.08), rgba(255,255,255,0.02))',
+            border: '1px solid rgba(255,184,0,0.16)',
+            borderRadius: 14,
             padding: compact ? 10 : 12,
             display: 'flex',
             flexDirection: 'column',
@@ -148,8 +148,8 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
               <div
                 key={skeletonIndex}
                 style={{
-                  background: 'var(--surface)', border: '1px solid var(--border)',
-                  borderRadius: 8, padding: 12, opacity: 0.7
+                  background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(0,229,255,0.08)',
+                  borderRadius: 12, padding: 12, opacity: 0.7
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -183,8 +183,8 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                 key={i}
                 onClick={() => setSelectedSymbol(sig.pair)}
                 style={{
-                  background: 'var(--surface)', border: '1px solid var(--border)',
-                  borderRadius: 8, padding: compact ? 10 : 12, cursor: 'pointer', transition: 'all 0.2s',
+                  background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(0,229,255,0.08)',
+                  borderRadius: 14, padding: compact ? 10 : 12, cursor: 'pointer', transition: 'all 0.2s',
                   boxShadow: sig.pair === selectedSymbol ? '0 0 0 1px rgba(0,229,255,0.16) inset' : 'none',
                 }}
               >

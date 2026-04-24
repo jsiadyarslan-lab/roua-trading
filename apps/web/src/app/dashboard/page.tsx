@@ -20,7 +20,6 @@ import { ScannerMini } from '@/components/dashboard/ScannerMini'
 import { AlNarratorMini } from '@/components/ai/AlNarratorMini'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone } from '@/lib/dashboard-live'
-import { SmartSetupBar } from '@/components/dashboard/SmartSetupBar'
 
 const DASHBOARD_SYMBOLS = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA']
 
@@ -401,7 +400,6 @@ export default function DashboardPage() {
 
         {/* ══════════ COL 2 — Chart + Positions ══════════ */}
         <div className="dash-col dash-col-center" style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
-          <SmartSetupBar />
           <div
             style={{
               flex: 1,
@@ -559,8 +557,6 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
-          <SmartSetupBar compact />
-
         </div>
 
         <div className="mobile-panel-shell">

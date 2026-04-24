@@ -105,13 +105,13 @@ export function BotCommandCenter() {
   }
 
   return (
-    <div className="custom-scrollbar no-scrollbar" style={{ height: '100%', overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div className="custom-scrollbar no-scrollbar" style={{ height: '100%', overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: 12, background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 16, border: `1px solid ${T.border}` }}>
       
       {/* Bot Master Switch */}
       <div style={{
         background: isActive ? 'rgba(0,200,83,0.05)' : 'rgba(255,59,48,0.05)',
         border: `1px solid ${isActive ? 'rgba(0,200,83,0.2)' : 'rgba(255,59,48,0.2)'}`,
-        borderRadius: 8, padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+        borderRadius: 14, padding: '14px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
@@ -143,7 +143,7 @@ export function BotCommandCenter() {
       </div>
 
       {/* Risk Management */}
-      <div style={{ background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px' }}>
+      <div className="card" style={{ border: `1px solid ${T.border}`, borderRadius: 14, padding: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
           <Settings2 size={12} color={T.text2} />
           <span style={{ fontSize: 11, fontWeight: 700, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>إدارة المخاطر (لحجم الإشارة)</span>
@@ -172,7 +172,7 @@ export function BotCommandCenter() {
       </div>
 
       {/* Live Signals Stream */}
-      <div style={{ flex: 1, background: T.bg2, border: `1px solid ${T.border}`, borderRadius: 8, padding: '10px', display: 'flex', flexDirection: 'column' }}>
+      <div className="card" style={{ flex: 1, border: `1px solid ${T.border}`, borderRadius: 14, padding: '12px', display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <ShieldAlert size={12} color={T.accent} />
@@ -199,8 +199,8 @@ export function BotCommandCenter() {
               const executed = executedIds[sigKey]
 
               return (
-                <div key={i} onClick={() => setSelectedSymbol(sig.pair)} style={{
-                  background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6, padding: '8px',
+                <div key={i} onClick={() => setSelectedSymbol(sig.pair)} className="card" style={{
+                  background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, borderRadius: 12, padding: '10px 11px',
                   display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer', transition: '0.2s'
                 }} onMouseEnter={e => e.currentTarget.style.borderColor = c} onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
                   

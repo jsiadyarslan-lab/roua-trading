@@ -76,9 +76,9 @@ export function AICouncilPanel() {
   const recColor = data?.recommendation === 'BUY' ? T.green : data?.recommendation === 'SELL' ? T.red : T.amber
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: T.bg, fontFamily: "'Cairo', sans-serif", direction: 'rtl' }}>
+    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', fontFamily: "'Cairo', sans-serif", direction: 'rtl', border: '1px solid rgba(0,229,255,0.08)', borderRadius: 16 }}>
       {/* Header */}
-      <div className="p-3 border-b border-white/5 flex items-center justify-between" style={{ background: '#0a0c0e' }}>
+      <div className="p-3 border-b border-white/5 flex items-center justify-between" style={{ background: 'linear-gradient(90deg, rgba(0,229,255,0.12), transparent)' }}>
         <div className="flex items-center gap-2">
           <div className="relative">
             <Brain size={16} color={T.accent} />
@@ -159,7 +159,7 @@ export function AICouncilPanel() {
             </div>
 
             {/* Master Strategy */}
-            <div className="p-2.5 rounded-lg" style={{ background: '#0d1117', border: `1px solid ${T.accent}15` }}>
+            <div className="card" style={{ padding: '10px 11px', border: `1px solid ${T.accent}15` }}>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <Zap size={9} color={T.accent} />
                 <span className="text-[9px] font-bold" style={{ color: T.accent }}>الاستراتيجية الموحدة</span>
@@ -170,7 +170,7 @@ export function AICouncilPanel() {
             </div>
 
             {data.conflictExplanation && (
-              <div className="p-2.5 rounded-lg" style={{ background: '#120f09', border: `1px solid ${T.amber}25` }}>
+              <div className="card" style={{ padding: '10px 11px', border: `1px solid ${T.amber}25`, background: 'linear-gradient(180deg, rgba(255,184,0,0.08), rgba(255,255,255,0.015))' }}>
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <AlertCircle size={9} color={T.amber} />
                   <span className="text-[9px] font-bold" style={{ color: T.amber }}>تفسير التعارض</span>
@@ -189,8 +189,8 @@ export function AICouncilPanel() {
                 return (
                   <div
                     key={i}
-                    className="p-2 rounded-lg transition-colors group"
-                    style={{ background: '#0d0f12', border: '1px solid rgba(255,255,255,0.04)' }}
+                    className="card transition-colors group"
+                    style={{ padding: '10px 11px', border: '1px solid rgba(255,255,255,0.05)' }}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-1.5">

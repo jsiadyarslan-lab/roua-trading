@@ -276,10 +276,14 @@ export function CH_drawMain(){
     const label=lastC.toFixed(dp);
     const lw=ctx.measureText(label).width+8;
     ctx.fillRect(W-PW,y-9,PW,17);
-    ctx.fillStyle='#000';ctx.font='bold 10px JetBrains Mono,monospace';ctx.textAlign='center';
-    ctx.fillText(label,W-PW+PW/2,y+3.5);
+    ctx.fillStyle = '#000';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, W - PW + PW / 2, y + 3.5);
   }
-  
+
+  // Automatic Pattern & Level Detection (Always active for "Life" feel)
+  CH_drawAutoPatterns(ctx, slice, py, barW);
+
   // Debug: Global reference
   if (typeof window !== 'undefined') window._ST = ST;
 
@@ -697,4 +701,56 @@ export function CH_liquidity(data, window=10){
     if(isLow) res.push({idx: i, val: data[i].l, type: 'l'});
   }
   return res;
+}
+
+export function CH_drawAutoPatterns(ctx, slice, py, barW) {
+  if (slice.length < 5) return;
+  
+  ctx.save();
+  ctx.font = 'bold 8px Cairo, sans-serif';
+  ctx.textAlign = 'center';
+
+  for (let i = 2; i < slice.length; i++) {
+    const b = slice[i];
+    const prev = slice[i-1];
+    const body = Math.abs(b.c - b.o);
+    const range = b.h - b.l;
+    const isBull = b.c >= b.o;
+    
+    const x = i * barW + barW/2;
+
+    // 1. Hammer Detection
+    const lowerWick = isBull ? b.o - b.l : b.c - b.l;
+    const upperWick = isBull ? b.h - b.c : b.h - b.o;
+    
+    if (lowerWick > body * 2 && upperWick < body * 0.5) {
+      ctx.fillStyle = '#00C853';
+      ctx.fillText('▲ HAMMER', x, py(b.l) + 12);
+    } else if (upperWick > body * 2 && lowerWick < body * 0.5) {
+      ctx.fillStyle = '#FF3B30';
+      ctx.fillText('▼ SHOOTING STAR', x, py(b.h) - 8);
+    }
+
+    // 2. Engulfing Detection
+    const prevBody = Math.abs(prev.c - prev.o);
+    if (body > prevBody * 1.5) {
+      if (isBull && prev.c < prev.o) {
+        ctx.fillStyle = '#00C853';
+        ctx.fillText('⚡ BULLISH ENGULF', x, py(b.h) - 8);
+      } else if (!isBull && prev.c > prev.o) {
+        ctx.fillStyle = '#FF3B30';
+        ctx.fillText('⚡ BEARISH ENGULF', x, py(b.l) + 12);
+      }
+    }
+    
+    // 3. Breakout Detection (Simple)
+    if (i > 10) {
+      const recentHigh = Math.max(...slice.slice(Math.max(0, i-10), i).map(x => x.h));
+      if (b.c > recentHigh) {
+        ctx.fillStyle = '#00E5FF';
+        ctx.fillText('🚀 BREAKOUT', x, py(b.h) - 18);
+      }
+    }
+  }
+  ctx.restore();
 }

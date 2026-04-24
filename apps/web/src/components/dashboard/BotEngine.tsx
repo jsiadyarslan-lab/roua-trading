@@ -30,52 +30,73 @@ export function BotEngine() {
   useEffect(() => {
     if (!hydrated || !isOn) return;
 
-    const interval = setInterval(() => {
-      const q = quotesRef.current[selectedSymbol];
-      if (!q || !q.price) return;
+    let isScanning = false;
+    const scanAll = async () => {
+      if (isScanning) return;
+      isScanning = true;
 
-      const change = q.changePercent || 0;
+      // Import GLOBAL_SYMBOLS dynamically or use a local list if needed
+      // For now, let's use the core symbols to keep it responsive
+      const symbolsToScan = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XAU/USD', 'EUR/USD', 'GBP/USD'];
+      
+      for (const sym of symbolsToScan) {
+        if (!isOn) break;
 
-      // AI CONSENSUS MODE
-      if (settings.useAIConsensus) {
-        fetch('/api/ai/consensus', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbol: selectedSymbol }),
-        })
-          .then(r => r.json())
-          .then(j => {
+        const q = quotesRef.current[sym];
+        if (!q || !q.price) continue;
+
+        // AI CONSENSUS MODE
+        if (settings.useAIConsensus) {
+          try {
+            const res = await fetch('/api/ai/consensus', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ symbol: sym }),
+            });
+            const j = await res.json();
+            
             if (j.success && j.data.consensusScore >= settings.confLimit) {
               const signal = j.data.recommendation;
-              if (signal === 'BUY' || signal === 'SELL') {
-                if (lastSignalRef.current !== signal) {
-                  _executeTrade(signal, q.price, j.data.consensusScore);
-                }
+              if ((signal === 'BUY' || signal === 'SELL') && lastSignalRef.current !== `${sym}-${signal}`) {
+                _executeTrade(sym, q.price, j.data.consensusScore, signal);
+                lastSignalRef.current = `${sym}-${signal}`;
               }
             }
-          })
-          .catch(e => console.error('AI Consensus failed', e));
-        return;
+          } catch (e) {
+            console.error(`AI Consensus failed for ${sym}`, e);
+          }
+        } else {
+          // MOMENTUM MODE
+          const change = q.changePercent || 0;
+          const confidence = Math.min(99, Math.abs(change) * 20);
+          
+          if (confidence >= settings.confLimit) {
+            let signal: 'BUY' | 'SELL' | null = null;
+            if (change > 0.5 && lastSignalRef.current !== `${sym}-BUY`) signal = 'BUY';
+            else if (change < -0.5 && lastSignalRef.current !== `${sym}-SELL`) signal = 'SELL';
+            
+            if (signal) {
+              _executeTrade(sym, q.price, confidence, signal);
+              lastSignalRef.current = `${sym}-${signal}`;
+            }
+          }
+        }
+
+        // Delay between symbols to respect API limits
+        await new Promise(r => setTimeout(r, 1000));
       }
-
-      // MOMENTUM MODE (Fallback)
-      const confidence = Math.min(99, Math.abs(change) * 20);
-      if (confidence < settings.confLimit) return;
-
-      let signal: 'BUY' | 'SELL' | null = null;
-      if (change > 0 && lastSignalRef.current !== 'BUY')  signal = 'BUY';
-      else if (change < 0 && lastSignalRef.current !== 'SELL') signal = 'SELL';
       
-      if (signal) {
-        _executeTrade(signal, q.price, confidence);
-      }
-    }, 10000); // Slower interval for AI calls
+      addLog(`[تحليل] اكتمل مسح السوق — لم يتم رصد إشارات قوية حالياً (${new Date().toLocaleTimeString('ar-SA')})`, 'info');
+      isScanning = false;
+    };
 
+    scanAll();
+    const interval = setInterval(scanAll, 30000); // Full market scan every 30s
     return () => clearInterval(interval);
-  }, [isOn, hydrated, selectedSymbol, settings.strategy, settings.confLimit, settings.riskPct, settings.useAIConsensus, addLog, addPaperTrade]); // eslint-disable-line
+  }, [isOn, hydrated, settings.confLimit, settings.useAIConsensus]); // eslint-disable-line
 
   // Helper to execute trades (refactored out of main loop)
-  const _executeTrade = (signal: 'BUY' | 'SELL', price: number, confidence: number) => {
+  const _executeTrade = (symbol: string, price: number, confidence: number, signal: 'BUY' | 'SELL') => {
       const tradeAmount = Math.max(10, settings.riskPct * 50);
       const qty = parseFloat((tradeAmount / price).toFixed(6));
       const tp = signal === 'BUY' ? price * 1.02 : price * 0.98;
@@ -83,12 +104,12 @@ export function BotEngine() {
 
       if (PAPER_TRADING_MODE) {
         addLog(
-          `[Paper] ${settings.strategy} → ${signal === 'BUY' ? '📈 شراء' : '📉 بيع'} ${selectedSymbol} | ${qty} @ $${price.toFixed(2)} | ثقة: ${confidence.toFixed(0)}%`,
+          `[Paper] ${settings.strategy} → ${signal === 'BUY' ? '📈 شراء' : '📉 بيع'} ${symbol} | ${qty} @ $${price.toFixed(2)} | ثقة: ${confidence.toFixed(0)}%`,
           signal === 'BUY' ? 'buy' : 'sell'
         );
 
         addPaperTrade({
-          symbol:       selectedSymbol,
+          symbol,
           side:         signal === 'BUY' ? 'long' : 'short',
           qty,
           entryPrice:   price,
@@ -100,32 +121,29 @@ export function BotEngine() {
           source:       'bot',
         });
 
-        lastSignalRef.current = signal;
         useBotStore.getState().setStats({
           ...useBotStore.getState().stats,
           trades: useBotStore.getState().stats.trades + 1,
         });
 
       } else {
-        addLog(`[Live] تنفيذ أمر ${signal === 'BUY' ? 'شراء' : 'بيع'} ذكاء اصطناعي على ${selectedSymbol}...`, 'info');
-        lastSignalRef.current = signal;
+        addLog(`[Live] تنفيذ أمر ${signal === 'BUY' ? 'شراء' : 'بيع'} ذكاء اصطناعي على ${symbol}...`, 'info');
 
         fetch('/api/alpaca/orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbol: selectedSymbol, side: signal.toLowerCase(), notional: tradeAmount, type: 'market' }),
+          body: JSON.stringify({ symbol, side: signal.toLowerCase(), notional: tradeAmount, type: 'market' }),
         })
           .then(r => r.json())
           .then(data => {
             if (data.success) {
-              addLog(`[تنفيذ ناجح] ${signal === 'BUY' ? 'شراء' : 'بيع'} $${tradeAmount}`, signal === 'BUY' ? 'buy' : 'sell');
+              addLog(`[تنفيذ ناجح] ${signal === 'BUY' ? 'شراء' : 'بيع'} $${tradeAmount} على ${symbol}`, signal === 'BUY' ? 'buy' : 'sell');
               useBotStore.getState().setStats({ ...useBotStore.getState().stats, trades: useBotStore.getState().stats.trades + 1 });
             } else {
               addLog(`[فشل] ${data.error}`, 'warn');
-              lastSignalRef.current = null;
             }
           })
-          .catch(() => { addLog(`[خطأ] فشل الاتصال`, 'warn'); lastSignalRef.current = null; });
+          .catch(() => { addLog(`[خطأ] فشل الاتصال لـ ${symbol}`, 'warn'); });
       }
   };
 

@@ -137,6 +137,13 @@ export default function SmartScanner() {
       }
     })
   }, [quotes])
+  
+  // Auto-generate signals every 60s
+  useEffect(() => {
+    generateSignals()
+    const interval = setInterval(generateSignals, 60000)
+    return () => clearInterval(interval)
+  }, [])
 
   // Calculate overall market sentiment from real data
   const bullishPercent = useMemo(() => {

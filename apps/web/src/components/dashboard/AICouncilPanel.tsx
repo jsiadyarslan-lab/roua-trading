@@ -66,6 +66,10 @@ export function AICouncilPanel() {
 
   useEffect(() => {
     fetchConsensus()
+    
+    // Auto-refresh every 3 minutes to keep the council "alive"
+    const interval = setInterval(fetchConsensus, 180000)
+    return () => clearInterval(interval)
   }, [fetchConsensus])
 
   const recColor = data?.recommendation === 'BUY' ? T.green : data?.recommendation === 'SELL' ? T.red : T.amber

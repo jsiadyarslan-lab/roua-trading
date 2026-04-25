@@ -35,6 +35,43 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "📦 Applying Prisma schema..."
 bunx prisma db push --schema=./prisma/schema.prisma --accept-data-loss || true
 
+# Verify critical tables exist — Prisma db:push sometimes silently fails
+# to create new tables when there are existing schema conflicts.
+echo "📦 Verifying critical tables..."
+if [ -n "${DATABASE_URL:-}" ]; then
+  # Extract connection params from DATABASE_URL for psql/psql-like check
+  # Use Prisma's db execute to create missing tables as a safety net
+  bunx prisma db execute --schema=./prisma/schema.prisma --stdin <<'SQL' 2>/dev/null || true
+    CREATE TABLE IF NOT EXISTS "Position" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "credentialId" TEXT NOT NULL,
+      "exchange" TEXT NOT NULL,
+      "symbol" TEXT NOT NULL,
+      "side" TEXT NOT NULL,
+      "status" TEXT NOT NULL DEFAULT 'OPEN',
+      "quantity" DOUBLE PRECISION NOT NULL,
+      "entryPrice" DOUBLE PRECISION NOT NULL,
+      "currentPrice" DOUBLE PRECISION,
+      "unrealizedPnl" DOUBLE PRECISION,
+      "realizedPnl" DOUBLE PRECISION,
+      "stopLoss" DOUBLE PRECISION,
+      "takeProfit" DOUBLE PRECISION,
+      "highestPrice" DOUBLE PRECISION,
+      "lowestPrice" DOUBLE PRECISION,
+      "openedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "closedAt" TIMESTAMP(3),
+      "updatedAt" TIMESTAMP(3) NOT NULL,
+      CONSTRAINT "Position_pkey" PRIMARY KEY ("id")
+    );
+    CREATE INDEX IF NOT EXISTS "Position_userId_idx" ON "Position"("userId");
+    CREATE INDEX IF NOT EXISTS "Position_symbol_idx" ON "Position"("symbol");
+    CREATE INDEX IF NOT EXISTS "Position_status_idx" ON "Position"("status");
+    CREATE INDEX IF NOT EXISTS "Position_exchange_idx" ON "Position"("exchange");
+SQL
+  echo "📦 Position table verification done."
+fi
+
 # Generate Prisma client (ensure latest)
 echo "📦 Generating Prisma client..."
 bunx prisma generate --schema=./prisma/schema.prisma

@@ -104,7 +104,7 @@ export class TwelveDataAdapter implements IExchangeAdapter {
   // ── Private: Direct API Calls ──
 
   private async _fetchQuoteFromApi(symbol: string): Promise<UnifiedQuoteDto> {
-    // Check rate limit
+    // Check rate limit (including circuit breaker)
     await this._checkRateLimit();
 
     const url = `${this.baseUrl}/quote`;
@@ -119,6 +119,16 @@ export class TwelveDataAdapter implements IExchangeAdapter {
     const data = response.data;
 
     if (data.status === 'error') {
+      // Detect daily credit exhaustion from TwelveData's server-side counter
+      // This happens when our Redis counter reset (container restart) but
+      // TwelveData's counter didn't — so we're still over the limit on their end.
+      if (data.message && (
+        data.message.includes('run out of API credits') ||
+        data.message.includes('out of API credits') ||
+        data.message.includes('limit being')
+      )) {
+        await this._activateDailyCircuitBreaker();
+      }
       throw new Error(data.message || 'Twelve Data API error');
     }
 
@@ -131,7 +141,7 @@ export class TwelveDataAdapter implements IExchangeAdapter {
     start: Date,
     end: Date,
   ): Promise<UnifiedCandleDto[]> {
-    // Check rate limit
+    // Check rate limit (including circuit breaker)
     await this._checkRateLimit();
 
     const url = `${this.baseUrl}/time_series`;
@@ -150,6 +160,14 @@ export class TwelveDataAdapter implements IExchangeAdapter {
     const data = response.data;
 
     if (data.status === 'error') {
+      // Detect daily credit exhaustion
+      if (data.message && (
+        data.message.includes('run out of API credits') ||
+        data.message.includes('out of API credits') ||
+        data.message.includes('limit being')
+      )) {
+        await this._activateDailyCircuitBreaker();
+      }
       throw new Error(data.message || 'Twelve Data API error');
     }
 
@@ -206,6 +224,21 @@ export class TwelveDataAdapter implements IExchangeAdapter {
   // ── Private: Rate Limiting ──
 
   private async _checkRateLimit(): Promise<void> {
+    // ── Circuit breaker: check if TwelveData reported daily credit exhaustion ──
+    // This is set when TwelveData's server says "out of API credits" even though
+    // our Redis counter might have reset (e.g., after container restart).
+    const circuitBreakerKey = 'twelvedata:daily_exhausted';
+    const circuitBreaker = await this.redisService.get(circuitBreakerKey);
+    if (circuitBreaker) {
+      this.logger.warn(
+        `🚫 TwelveData daily credits exhausted (circuit breaker active). All requests paused until reset.`,
+      );
+      throw new HttpException(
+        `تم تجاوز الحد اليومي لطلبات Twelve Data. يرجى المحاولة غداً.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     // ── Per-minute rate limit (8 calls/min) ──
     const key = 'ratelimit:twelvedata';
 
@@ -245,6 +278,34 @@ export class TwelveDataAdapter implements IExchangeAdapter {
 
     this.logger.debug(
       `Rate limit: ${result.remaining}/min, ${dailyResult.remaining}/day remaining`,
+    );
+  }
+
+  /**
+   * Activate the daily circuit breaker.
+   * When TwelveData's server says we're out of credits, we set a Redis key
+   * that blocks ALL subsequent requests until it expires (next day).
+   * This prevents wasting time making requests that will always fail.
+   *
+   * TTL is set to 24 hours to ensure we don't retry until the next day.
+   */
+  private async _activateDailyCircuitBreaker(): Promise<void> {
+    const circuitBreakerKey = 'twelvedata:daily_exhausted';
+    const ttlMs = 86_400_000; // 24 hours
+
+    await this.redisService.set(
+      circuitBreakerKey,
+      JSON.stringify({
+        activatedAt: new Date().toISOString(),
+        reason: 'TwelveData server reported daily credit exhaustion',
+      }),
+      ttlMs,
+    );
+
+    this.logger.error(
+      `🚫 TwelveData DAILY CREDITS EXHAUSTED — circuit breaker activated for 24 hours. ` +
+      `All stock/forex/commodity data will be unavailable until credits reset. ` +
+      `Consider upgrading your TwelveData plan at https://twelvedata.com/pricing`,
     );
   }
 

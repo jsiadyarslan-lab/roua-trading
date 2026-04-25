@@ -4,6 +4,20 @@
 
 set -e
 
+# Load local environment fallback when running outside Railway or when env vars are absent.
+if [ -z "${DATABASE_URL:-}" ] && [ -f ".env" ]; then
+  while IFS='=' read -r key value; do
+    case "$key" in
+      ''|\#*) continue ;;
+    esac
+    value="${value%$'\r'}"
+    if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+      value="${value:1:-1}"
+    fi
+    export "$key=$value"
+  done < .env
+fi
+
 # Determine the project root (Railway runs from /app)
 PROJECT_ROOT="$(pwd)"
 

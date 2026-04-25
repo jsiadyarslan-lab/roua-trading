@@ -66,13 +66,11 @@ const TABS: Array<{
 
 function TabButton({
   label,
-  helper,
   accent,
   active,
   onClick,
 }: {
   label: string
-  helper: string
   accent: string
   active: boolean
   onClick: () => void
@@ -84,7 +82,7 @@ function TabButton({
       style={{
         width: '100%',
         minHeight: 28,
-        padding: '4px 6px',
+        padding: '4px 5px',
         borderRadius: 8,
         border: `1px solid ${active ? `${accent}52` : 'rgba(148, 163, 184, 0.10)'}`,
         background: active
@@ -105,7 +103,7 @@ function TabButton({
         <div
           style={{
             fontSize: 8,
-            lineHeight: 1.1,
+            lineHeight: 1,
             color: active ? T.text : '#D7E2EF',
             fontWeight: 900,
             fontFamily: "'Cairo', sans-serif",
@@ -115,19 +113,6 @@ function TabButton({
           }}
         >
           {label}
-        </div>
-        <div
-          style={{
-            marginTop: 1,
-            fontSize: 6,
-            lineHeight: 1.2,
-            color: active ? accent : T.textMute,
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {helper}
         </div>
       </div>
       <div
@@ -152,7 +137,7 @@ export function LeftSidebarLayout() {
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: '132px minmax(0, 1fr)',
+        gridTemplateColumns: '92px minmax(0, 1fr)',
         height: '100%',
         minHeight: 0,
         borderRadius: 18,
@@ -174,14 +159,14 @@ export function LeftSidebarLayout() {
       >
         <div
           style={{
-            padding: '11px 10px 10px',
+            padding: '10px 8px 9px',
             borderBottom: `1px solid ${T.border}`,
             display: 'grid',
             gap: 4,
           }}
         >
-          <div style={{ fontSize: 10.5, color: T.text, fontWeight: 900, fontFamily: "'Cairo', sans-serif" }}>الأدوات</div>
-          <div style={{ fontSize: 7, color: T.textSoft, lineHeight: 1.5 }}>تنقل مضغوط وواضح.</div>
+          <div style={{ fontSize: 9.5, color: T.text, fontWeight: 900, fontFamily: "'Cairo', sans-serif" }}>الأدوات</div>
+          <div style={{ fontSize: 6.5, color: T.textSoft, lineHeight: 1.4 }}>أسماء فقط.</div>
         </div>
 
         <div
@@ -190,17 +175,16 @@ export function LeftSidebarLayout() {
             flex: 1,
             minHeight: 0,
             overflowY: 'auto',
-            padding: 8,
+            padding: 6,
             display: 'grid',
             alignContent: 'start',
-            gap: 6,
+            gap: 5,
           }}
         >
           {TABS.map(item => (
             <TabButton
               key={item.id}
               label={item.label}
-              helper={item.helper}
               accent={item.accent}
               active={item.id === tab}
               onClick={() => setTab(item.id)}

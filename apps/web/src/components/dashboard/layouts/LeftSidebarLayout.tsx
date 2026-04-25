@@ -83,9 +83,9 @@ function TabButton({
       onClick={onClick}
       style={{
         width: '100%',
-        minHeight: 34,
-        padding: '6px 8px',
-        borderRadius: 10,
+        minHeight: 28,
+        padding: '4px 6px',
+        borderRadius: 8,
         border: `1px solid ${active ? `${accent}52` : 'rgba(148, 163, 184, 0.10)'}`,
         background: active
           ? `linear-gradient(90deg, ${accent}16, rgba(255,255,255,0.02))`
@@ -104,7 +104,7 @@ function TabButton({
       <div style={{ minWidth: 0 }}>
         <div
           style={{
-            fontSize: 9.5,
+            fontSize: 8,
             lineHeight: 1.1,
             color: active ? T.text : '#D7E2EF',
             fontWeight: 900,
@@ -118,8 +118,8 @@ function TabButton({
         </div>
         <div
           style={{
-            marginTop: 2,
-            fontSize: 7,
+            marginTop: 1,
+            fontSize: 6,
             lineHeight: 1.2,
             color: active ? accent : T.textMute,
             whiteSpace: 'nowrap',
@@ -133,8 +133,8 @@ function TabButton({
       <div
         style={{
           flexShrink: 0,
-          width: 6,
-          height: 6,
+          width: 4,
+          height: 4,
           borderRadius: 999,
           background: active ? accent : 'rgba(255,255,255,0.16)',
           boxShadow: active ? `0 0 10px ${accent}66` : 'none',

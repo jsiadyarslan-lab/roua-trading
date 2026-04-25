@@ -21,7 +21,7 @@ const T = {
   panel: '#0E1824',
   panelTop: '#122030',
   border: 'rgba(148, 163, 184, 0.12)',
-  borderStrong: 'rgba(0, 229, 255, 0.22)',
+  borderStrong: 'rgba(0, 229, 255, 0.30)',
   text: '#E8EEF8',
   textSoft: '#A2B4C8',
   textMute: '#6F849C',
@@ -141,11 +141,11 @@ export function LeftSidebarLayout() {
         gridTemplateColumns: '74px minmax(0, 1fr)',
         height: '100%',
         minHeight: 0,
-        borderRadius: 18,
+        borderRadius: 16,
         overflow: 'hidden',
         border: `1px solid ${T.borderStrong}`,
         background: `linear-gradient(180deg, ${T.shell}, #060B12)`,
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 20px 44px rgba(0,0,0,0.28)',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 14px 26px rgba(0,0,0,0.22)',
       }}
     >
       <aside
@@ -155,15 +155,15 @@ export function LeftSidebarLayout() {
           display: 'flex',
           flexDirection: 'column',
           background: `linear-gradient(180deg, ${T.rail}, ${T.railSoft})`,
-          borderLeft: `1px solid ${T.border}`,
+          borderLeft: `1px solid rgba(0,229,255,0.16)`,
         }}
       >
         <div
           style={{
-            padding: '10px 6px 8px',
-            borderBottom: `1px solid ${T.border}`,
+            padding: '8px 5px 7px',
+            borderBottom: `1px solid rgba(0,229,255,0.12)`,
             display: 'grid',
-            gap: 4,
+            gap: 3,
           }}
         >
           <div style={{ fontSize: 8.5, color: T.text, fontWeight: 900, fontFamily: "'Cairo', sans-serif" }}>الأدوات</div>
@@ -176,11 +176,11 @@ export function LeftSidebarLayout() {
             flex: 1,
             minHeight: 0,
             overflowY: 'auto',
-            padding: 6,
+            padding: 4,
             display: 'grid',
             justifyItems: 'center',
             alignContent: 'start',
-            gap: 5,
+            gap: 4,
           }}
         >
           {TABS.map(item => (
@@ -206,10 +206,10 @@ export function LeftSidebarLayout() {
       >
         <div
           style={{
-            padding: '14px 16px 12px',
-            borderBottom: `1px solid ${T.border}`,
+            padding: '10px 11px 9px',
+            borderBottom: `1px solid rgba(0,229,255,0.12)`,
             display: 'grid',
-            gap: 8,
+            gap: 5,
             background: `linear-gradient(90deg, ${active.accent}10, rgba(255,255,255,0.01))`,
           }}
         >
@@ -217,28 +217,28 @@ export function LeftSidebarLayout() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
               <div
                 style={{
-                  width: 10,
-                  height: 10,
+                  width: 8,
+                  height: 8,
                   borderRadius: 999,
                   background: active.accent,
-                  boxShadow: `0 0 16px ${active.accent}77`,
+                  boxShadow: `0 0 12px ${active.accent}66`,
                   flexShrink: 0,
                 }}
               />
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 13, color: T.text, fontWeight: 900, fontFamily: "'Cairo', sans-serif" }}>{active.label}</div>
-                <div style={{ marginTop: 3, fontSize: 9, color: T.textSoft }}>{active.helper}</div>
+                <div style={{ fontSize: 11, color: T.text, fontWeight: 900, fontFamily: "'Cairo', sans-serif" }}>{active.label}</div>
+                <div style={{ marginTop: 2, fontSize: 7.5, color: T.textSoft }}>{active.helper}</div>
               </div>
             </div>
             <div
               style={{
                 flexShrink: 0,
-                padding: '5px 10px',
+                padding: '4px 7px',
                 borderRadius: 999,
                 border: `1px solid ${active.accent}40`,
                 background: `${active.accent}14`,
                 color: active.accent,
-                fontSize: 8,
+                fontSize: 6.5,
                 fontWeight: 900,
                 letterSpacing: '0.03em',
                 fontFamily: "'Cairo', sans-serif",
@@ -255,7 +255,7 @@ export function LeftSidebarLayout() {
             flex: 1,
             minHeight: 0,
             overflow: 'hidden',
-            padding: 10,
+            padding: 4,
             background: 'linear-gradient(180deg, rgba(8,13,20,0.92), rgba(6,10,16,0.98))',
           }}
         >
@@ -264,14 +264,14 @@ export function LeftSidebarLayout() {
               height: '100%',
               minHeight: 0,
               overflow: 'hidden',
-              borderRadius: 16,
-              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 12,
+              border: '1px solid rgba(0,229,255,0.14)',
               background: 'linear-gradient(180deg, rgba(14,20,30,0.98), rgba(8,12,19,0.98))',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.035), 0 16px 34px rgba(0,0,0,0.22)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.025), 0 10px 22px rgba(0,0,0,0.18)',
             }}
           >
             {tab === 'portfolio' && <PortfolioMini compact />}
-            {tab === 'execute' && <QuickExecutionMini />}
+            {tab === 'execute' && <QuickExecutionMini mobile />}
             {tab === 'book' && <OrderBookMini />}
             {tab === 'watch' && <WatchlistMini />}
             {tab === 'alerts' && <PriceAlertsPanel />}

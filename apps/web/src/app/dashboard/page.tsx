@@ -148,8 +148,8 @@ export default function DashboardPage() {
           height: calc(100dvh - ${HEADER_H}px);
           max-height: calc(100dvh - ${HEADER_H}px);
           background: ${T.bg};
-          gap: 12px;
-          padding: 12px;
+          gap: 8px;
+          padding: 8px;
           box-sizing: border-box;
           overflow: hidden;
           align-items: stretch;

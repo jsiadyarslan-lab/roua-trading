@@ -11,6 +11,7 @@ import { SignalModule } from './modules/signal/signal.module';
 import { TradingModule } from './modules/trading/trading.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ExecutionModule } from './modules/execution/execution.module';
+import { EngineModule } from './modules/engine/engine.module';
 import { AuditModule } from './audit/audit.module';
 
 @Module({
@@ -54,6 +55,7 @@ import { AuditModule } from './audit/audit.module';
     AnalyticsModule,
     TradingModule,
     ExecutionModule,
+    EngineModule,
   ],
 })
 export class AppModule {}

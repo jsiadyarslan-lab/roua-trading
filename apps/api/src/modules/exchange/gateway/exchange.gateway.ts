@@ -36,7 +36,7 @@ export class ExchangeGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   private readonly logger = new Logger(ExchangeGateway.name);
 
@@ -235,5 +235,14 @@ export class ExchangeGateway
     // In a production multi-instance setup, we would subscribe to a Redis channel
     // For now, the single-instance refresh cycle handles real-time updates
     this.logger.debug('📡 Redis Pub/Sub ready (single-instance mode)');
+  }
+
+  /**
+   * Broadcast an event to ALL connected clients
+   * Used by MarketBroadcasterService for system-wide updates
+   */
+  broadcast(event: string, data: any): void {
+    if (!this.server) return;
+    this.server.emit(event, data);
   }
 }

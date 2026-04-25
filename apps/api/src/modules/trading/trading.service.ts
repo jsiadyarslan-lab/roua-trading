@@ -634,6 +634,28 @@ export class TradingService {
   }
 
   /**
+   * Get closed positions for a user
+   */
+  async getClosedPositions(userId: string, limit: number = 100) {
+    return this.prisma.position.findMany({
+      where: { userId, status: 'CLOSED' },
+      orderBy: { closedAt: 'desc' },
+      take: limit,
+    });
+  }
+
+  /**
+   * Get all positions (open + closed) for a user
+   */
+  async getAllPositions(userId: string, limit: number = 100) {
+    return this.prisma.position.findMany({
+      where: { userId },
+      orderBy: { openedAt: 'desc' },
+      take: limit,
+    });
+  }
+
+  /**
    * Get trade history
    */
   async getTradeHistory(userId: string, limit: number = 50) {

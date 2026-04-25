@@ -440,23 +440,8 @@ export default function TradingPage() {
         }
       })
     }
-    // Fallback: generate mock data if no history
-    if (!quote) return []
-    const data: { time: string; price: number; open: number; high: number; low: number }[] = []
-    let p = quote.price
-    for (let i = 24; i >= 0; i--) {
-      const change = (Math.random() - 0.48) * p * 0.02
-      p = Math.max(p + change, p * 0.8)
-      const open = p - change
-      data.push({
-        time: i === 0 ? 'الآن' : `-${i}س`,
-        price: parseFloat(p.toFixed(2)),
-        open: parseFloat(open.toFixed(2)),
-        high: parseFloat((p + Math.abs(change) * 0.5).toFixed(2)),
-        low: parseFloat((p - Math.abs(change) * 0.5).toFixed(2)),
-      })
-    }
-    return data
+    // No mock data — show empty chart if no real history available
+    return []
   }, [historyData, quote])
 
   if (authLoading) {

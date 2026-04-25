@@ -56,54 +56,11 @@ function normalizeRouteSymbol(parts: string[] | string) {
   }
 }
 
-// ── Mock data for when API keys are not configured ──
-const MOCK_QUOTES: Record<string, any> = {
-  'AAPL': { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ', currency: 'USD', price: 189.84, change: 1.23, changePercent: 0.65, open: 188.50, high: 190.12, low: 188.10, close: 189.84, volume: 52347890, marketCap: 2950000000000, fiftyTwoWeekHigh: 199.62, fiftyTwoWeekLow: 164.08 },
-  'MSFT': { symbol: 'MSFT', name: 'Microsoft Corporation', exchange: 'NASDAQ', currency: 'USD', price: 425.52, change: 3.45, changePercent: 0.82, open: 422.00, high: 427.15, low: 421.30, close: 425.52, volume: 21345670, marketCap: 3160000000000, fiftyTwoWeekHigh: 430.82, fiftyTwoWeekLow: 309.45 },
-  'GOOGL': { symbol: 'GOOGL', name: 'Alphabet Inc.', exchange: 'NASDAQ', currency: 'USD', price: 176.42, change: -0.87, changePercent: -0.49, open: 177.20, high: 178.10, low: 175.80, close: 176.42, volume: 18765430, marketCap: 2180000000000, fiftyTwoWeekHigh: 182.45, fiftyTwoWeekLow: 120.21 },
-  'TSLA': { symbol: 'TSLA', name: 'Tesla, Inc.', exchange: 'NASDAQ', currency: 'USD', price: 248.42, change: 5.67, changePercent: 2.33, open: 243.00, high: 250.80, low: 242.50, close: 248.42, volume: 98765430, marketCap: 790000000000, fiftyTwoWeekHigh: 299.29, fiftyTwoWeekLow: 138.80 },
-  'AMZN': { symbol: 'AMZN', name: 'Amazon.com, Inc.', exchange: 'NASDAQ', currency: 'USD', price: 186.13, change: 2.14, changePercent: 1.16, open: 184.00, high: 187.20, low: 183.50, close: 186.13, volume: 43215670, marketCap: 1940000000000, fiftyTwoWeekHigh: 191.70, fiftyTwoWeekLow: 118.35 },
-  'EUR/USD': { symbol: 'EUR/USD', name: 'Euro / US Dollar', exchange: 'FOREX', currency: 'USD', price: 1.0862, change: 0.0012, changePercent: 0.11, open: 1.0850, high: 1.0878, low: 1.0842, close: 1.0862, volume: 0, marketCap: null, fiftyTwoWeekHigh: null, fiftyTwoWeekLow: null },
-  'BTC/USDT': { symbol: 'BTC/USDT', name: 'Bitcoin / Tether', exchange: 'Binance', currency: 'USD', price: 67234.50, change: 1234.56, changePercent: 1.87, open: 66000.00, high: 67890.12, low: 65432.10, close: 67234.50, volume: 23456.78, marketCap: null, fiftyTwoWeekHigh: null, fiftyTwoWeekLow: null },
-}
-
-function getMockQuote(symbol: string) {
-  // Direct match first
-  if (MOCK_QUOTES[symbol]) {
-    return {
-      ...MOCK_QUOTES[symbol],
-      timestamp: new Date().toISOString(),
-      source: 'Demo',
-    }
-  }
-
-  // Generate a generic mock for unknown symbols
-  const isCryptoPair = symbol.includes('/') &&
-    (['USDT', 'BUSD'].includes(symbol.split('/')[1]) ||
-     ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE'].includes(symbol.split('/')[0]))
-  const basePrice = isCryptoPair ? 100 + Math.random() * 500 : 50 + Math.random() * 200
-  const change = (Math.random() - 0.5) * 10
-  const changePercent = (change / basePrice) * 100
-
-  return {
-    symbol,
-    name: symbol.replace('/', ' / '),
-    exchange: isCryptoPair ? 'Crypto' : 'Market',
-    currency: 'USD',
-    price: parseFloat(basePrice.toFixed(2)),
-    change: parseFloat(change.toFixed(2)),
-    changePercent: parseFloat(changePercent.toFixed(2)),
-    open: parseFloat((basePrice - change * 0.5).toFixed(2)),
-    high: parseFloat((basePrice + Math.abs(change) * 0.3).toFixed(2)),
-    low: parseFloat((basePrice - Math.abs(change) * 0.7).toFixed(2)),
-    close: parseFloat(basePrice.toFixed(2)),
-    volume: Math.floor(Math.random() * 50000000),
-    marketCap: null,
-    fiftyTwoWeekHigh: null,
-    fiftyTwoWeekLow: null,
-    timestamp: new Date().toISOString(),
-    source: 'Demo',
-  }
+// ── No mock data — return null when real APIs are unavailable ──
+// Previously had hardcoded stock prices (AAPL, MSFT, etc.) and random price
+// generation for unknown symbols. Removed to avoid displaying fake data.
+function getUnavailableQuote(symbol: string): null {
+  return null
 }
 
 // ── Fetch from Twelve Data API ──
@@ -338,7 +295,7 @@ export async function GET(
     let quote
 
     if (source === 'Binance' || (isCryptoPair && (!source || source === 'auto'))) {
-      // Crypto → try Binance first, then CoinGecko, then mock
+      // Crypto → try Binance first, then CoinGecko
       try {
         quote = await fetchBinance(symbol)
       } catch (binanceErr: any) {
@@ -346,12 +303,12 @@ export async function GET(
         try {
           quote = await fetchCoinGecko(symbol)
         } catch (cgErr: any) {
-          console.warn(`[exchange/quote] CoinGecko also failed for ${symbol}: ${cgErr.message}, using mock data`)
-          quote = getMockQuote(symbol)
+          console.warn(`[exchange/quote] CoinGecko also failed for ${symbol}: ${cgErr.message}`)
+          quote = null
         }
       }
     } else if (source === 'TwelveData' || (!isCryptoPair && (!source || source === 'auto'))) {
-      // Forex/Stocks → Twelve Data (if key set) → ECB Frankfurter (free) → Mock
+      // Forex/Stocks → Twelve Data (if key set) → ECB Frankfurter (free)
       try {
         quote = await fetchTwelveData(symbol)
       } catch (tdErr: any) {
@@ -366,16 +323,11 @@ export async function GET(
           console.info(`[exchange/quote] Using ECB/Frankfurter for ${symbol}`)
         }
       }
-
-      // Last resort: mock data
-      if (!quote) {
-        quote = getMockQuote(symbol)
-      }
     } else if (source === 'CoinGecko') {
       try {
         quote = await fetchCoinGecko(symbol)
       } catch {
-        quote = getMockQuote(symbol)
+        quote = null
       }
     } else {
       return NextResponse.json(
@@ -384,23 +336,25 @@ export async function GET(
       )
     }
 
-    // Cache: 5s for crypto, 15s for stocks, 60s for mock data
-    const ttl = quote.source === 'Demo' ? 60000 : (isCryptoPair ? 5000 : 15000)
+    // If no real data available, return error instead of fake data
+    if (!quote) {
+      return NextResponse.json(
+        { success: false, error: `لا تتوفر بيانات حقيقية لـ ${symbol} — تحقق من اتصال الإنترنت أو مفاتيح API` },
+        { status: 503 }
+      )
+    }
+
+    // Cache: 5s for crypto, 15s for stocks/forex
+    const ttl = isCryptoPair ? 5000 : 15000
     setCache(cacheKey, quote, ttl)
 
     return NextResponse.json({ success: true, data: quote })
   } catch (error: any) {
     console.error(`[exchange/quote] Error:`, error.message)
-    // Even on unexpected errors, try to return mock data instead of 500
-    try {
-      const { symbol: symParts } = await params
-      const mockQuote = getMockQuote(normalizeRouteSymbol(symParts))
-      return NextResponse.json({ success: true, data: mockQuote, fallback: true })
-    } catch {
-      return NextResponse.json(
-        { success: false, error: error.message || 'فشل في جلب بيانات السوق' },
-        { status: 500 }
-      )
-    }
+    // Return error instead of fake data
+    return NextResponse.json(
+      { success: false, error: error.message || 'فشل في جلب بيانات السوق' },
+      { status: 500 }
+    )
   }
 }

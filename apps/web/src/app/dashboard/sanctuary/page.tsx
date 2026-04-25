@@ -301,10 +301,8 @@ export default function SanctuaryPage() {
     return formatCurrency(val)
   }
 
-  // Mock chart data for performance line
-  const performanceData = report ? Array.from({ length: 12 }, (_, i) =>
-    report.totalValue * (0.82 + Math.random() * 0.22 + i * 0.015)
-  ) : []
+  // Performance line — use real data only, no mock/fake chart data
+  const performanceData: number[] = []
 
   // Pie chart segments from positions
   const pieSegments = report ? report.positions.slice(0, 5).map(pos => ({
@@ -313,11 +311,11 @@ export default function SanctuaryPage() {
     label: pos.symbol,
   })) : []
 
-  // Risk metrics derived values
-  const sharpeRatio = report ? (1.2 + report.metrics.diversificationScore / 100 * 1.2).toFixed(2) : '—'
-  const winRate = report ? Math.round(60 + report.metrics.diversificationScore * 0.15) : 0
-  const totalTrades = report ? report.metrics.positionCount * 12 : 0
-  const profitTrades = Math.round(totalTrades * winRate / 100)
+  // Risk metrics — use real data from report only, no fabricated values
+  const sharpeRatio = report?.metrics?.sharpeRatio?.toFixed(2) ?? '—'
+  const winRate = report?.metrics?.winRate ?? 0
+  const totalTrades = report?.metrics?.totalTrades ?? 0
+  const profitTrades = report?.metrics?.profitTrades ?? 0
   const lossTrades = totalTrades - profitTrades
 
   // Auth loading state

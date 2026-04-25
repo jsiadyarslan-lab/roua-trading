@@ -145,6 +145,36 @@ export class TradingController {
   }
 
   /**
+   * Get closed position history
+   * GET /api/trading/positions/history
+   */
+  @Get('positions/history')
+  async getClosedPositions(
+    @Req() req: any,
+    @Query('limit') limit?: string,
+  ) {
+    return this.tradingService.getClosedPositions(
+      req.user.id,
+      limit ? parseInt(limit, 10) : 100,
+    );
+  }
+
+  /**
+   * Get all positions (open + closed)
+   * GET /api/trading/positions/all
+   */
+  @Get('positions/all')
+  async getAllPositions(
+    @Req() req: any,
+    @Query('limit') limit?: string,
+  ) {
+    return this.tradingService.getAllPositions(
+      req.user.id,
+      limit ? parseInt(limit, 10) : 100,
+    );
+  }
+
+  /**
    * Get position summary
    * GET /api/trading/positions/summary
    */

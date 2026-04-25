@@ -76,7 +76,7 @@
   --font-mono: var(--mono);
   --font-ui: var(--ui);
   
-  /* Navigation & TopBar variables */
+  /* Navigation variables */
   --bg-nav: rgba(10, 12, 16, 0.94);
   --accent-bg: rgba(0, 229, 255, 0.06);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);

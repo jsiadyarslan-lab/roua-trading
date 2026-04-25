@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import {
   LineChart,
   Line,
@@ -51,6 +52,7 @@ interface NeuralPredictResult {
 }
 
 export default function NeuralPanel() {
+  const { user, loading: authLoading } = useAuth();
   const [symbol, setSymbol] = useState('BTC/USDT');
   const [architecture, setArchitecture] = useState('ENSEMBLE');
   const [horizon, setHorizon] = useState('1d');
@@ -62,12 +64,17 @@ export default function NeuralPanel() {
   const [error, setError] = useState('');
 
   const trainModel = async () => {
+    if (!user) {
+      setError('يرجى تسجيل الدخول أولاً لاستخدام مختبر التداول');
+      return;
+    }
     setTraining(true);
     setError('');
     try {
       const res = await fetch('/api/neural/train', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ symbol, architecture, horizon, lookbackDays: 90 }),
       });
       const data = await res.json();
@@ -84,6 +91,10 @@ export default function NeuralPanel() {
   };
 
   const predict = async () => {
+    if (!user) {
+      setError('يرجى تسجيل الدخول أولاً لاستخدام مختبر التداول');
+      return;
+    }
     setLoading(true);
     setError('');
     setResult(null);
@@ -92,6 +103,7 @@ export default function NeuralPanel() {
       const res = await fetch('/api/neural/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ symbol, steps, horizon, includeConfidence: true }),
       });
 
@@ -108,8 +120,22 @@ export default function NeuralPanel() {
     }
   };
 
+  // Show auth prompt if not logged in
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-gray-400">جاري التحقق من الهوية...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
+      {!user && (
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5 text-center">
+          <p className="text-sm text-amber-300">يرجى تسجيل الدخول أولاً لاستخدام مختبر التداول الذكي</p>
+        </div>
+      )}
       {/* Configuration */}
       <div className="rounded-xl border border-white/5 bg-[#111827] p-5">
         <h2 className="mb-4 text-lg font-semibold text-white flex items-center gap-2">

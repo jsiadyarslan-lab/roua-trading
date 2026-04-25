@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * POST /api/neural/train
- * Proxies to NestJS /api/neural/train
+ * GET /api/neural/swarm
+ * Proxies to NestJS /api/neural/swarm
  * Forwards both cookie and Authorization header for auth.
  */
-export async function POST(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
-    const body = await request.json();
     const apiTarget = process.env.API_INTERNAL_URL || 'http://localhost:3001';
 
     // Extract session token from cookie to also pass as Bearer header
@@ -23,17 +22,16 @@ export async function POST(request: NextRequest) {
       headers['Authorization'] = `Bearer ${sessionToken}`;
     }
 
-    const res = await fetch(`${apiTarget}/api/neural/train`, {
-      method: 'POST',
+    const res = await fetch(`${apiTarget}/api/neural/swarm`, {
+      method: 'GET',
       headers,
-      body: JSON.stringify(body),
     });
 
     const data = await res.json();
     return NextResponse.json(data, { status: res.status });
   } catch (error: any) {
     return NextResponse.json(
-      { success: false, error: `Neural train proxy error: ${error.message}` },
+      { success: false, error: `Neural swarm list proxy error: ${error.message}` },
       { status: 502 },
     );
   }

@@ -12,9 +12,13 @@ export class AuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
 
     // Extract session token from cookie or Authorization header
-    const sessionToken =
-      request.cookies?.['roua_session'] ||
-      request.headers.authorization?.replace('Bearer ', '');
+    const cookieToken = request.cookies?.['roua_session'];
+    const authHeader = request.headers.authorization;
+    const bearerToken = authHeader?.startsWith('Bearer ')
+      ? authHeader.slice(7)
+      : authHeader;
+
+    const sessionToken = cookieToken || bearerToken;
 
     if (!sessionToken) {
       throw new UnauthorizedException('لم يتم تقديم رمز المصادقة');

@@ -1,6 +1,7 @@
 #!/bin/bash
 # Railway startup script for Roua Trading
 # Production startup with full stack: NestJS API + Next.js Web
+# Uses Bun runtime (oven/bun:1 Docker image)
 
 set -e
 
@@ -21,8 +22,6 @@ fi
 # Determine the project root (Railway runs from /app)
 PROJECT_ROOT="$(pwd)"
 
-# Removed SQLite override. System will respect the external PostgreSQL DATABASE_URL.
-
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "🚀 Roua Trading - Starting Full Stack"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -34,11 +33,11 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 # Apply Prisma schema to database (safe for production)
 echo "📦 Applying Prisma schema..."
-npm --prefix apps/api run db:push -- --accept-data-loss || true
+bunx prisma db push --schema=./prisma/schema.prisma --accept-data-loss || true
 
 # Generate Prisma client (ensure latest)
 echo "📦 Generating Prisma client..."
-npm --prefix apps/api run db:generate
+bunx prisma generate --schema=./prisma/schema.prisma
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
@@ -48,7 +47,7 @@ cd apps/api
 
 # Use the compiled JS entrypoint in production
 if [ -d "dist" ]; then
-  npm run start:prod &
+  node dist/main &
   API_PID=$!
   echo "📋 NestJS started from dist/ (PID: $API_PID)"
 else
@@ -78,4 +77,4 @@ cd "$PROJECT_ROOT"
 echo "🌐 Starting Next.js server (port 3000)..."
 cd apps/web
 trap "kill $API_PID 2>/dev/null || true" EXIT
-npm run start
+bunx next start -H 0.0.0.0

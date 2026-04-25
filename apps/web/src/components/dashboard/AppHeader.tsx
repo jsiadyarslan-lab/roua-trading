@@ -7,7 +7,8 @@ import {
   Home, Wallet, Brain, ScanSearch, BarChart2,
   Copy, Users, Newspaper, CalendarDays, Settings,
   ChevronDown, Bell, User, MoreHorizontal,
-  TrendingUp, TrendingDown, Menu, X, GitMerge, Activity
+  TrendingUp, TrendingDown, Menu, X, GitMerge, Activity,
+  FlaskConical
 } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
@@ -328,6 +329,7 @@ const NAV_LINKS = [
   { href: '/dashboard',                        label: 'الرئيسية',           icon: Home },
   { href: '/dashboard/portfolio',              label: 'المحفظة',            icon: Wallet },
   { href: '/dashboard/ai',                     label: 'تحليل AI',           icon: Brain },
+  { href: '/dashboard/neural',                  label: 'Neural Lab',         icon: FlaskConical },
   { href: '/dashboard/scanner',                label: 'السكانر المتقدم',    icon: ScanSearch },
   { href: '/dashboard/strategies',             label: 'تحليلات استراتيجية', icon: BarChart2 },
   { href: '/dashboard/copy-trading',           label: 'نسخ الصفقات',        icon: Copy },

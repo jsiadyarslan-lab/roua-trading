@@ -1,18 +1,6 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import {
-  Activity,
-  Bell,
-  Bot,
-  Brain,
-  CalendarDays,
-  ChartCandlestick,
-  GitMerge,
-  Newspaper,
-  Search,
-  Wallet,
-} from 'lucide-react'
 import { PortfolioMini } from '@/components/portfolio/PortfolioMini'
 import { AlNarratorMini } from '@/components/ai/AlNarratorMini'
 import { QuickExecutionMini } from '@/components/dashboard/QuickExecutionMini'
@@ -61,33 +49,30 @@ const TABS: Array<{
   id: TabId
   label: string
   helper: string
-  icon: any
   accent: string
   tone: string
 }> = [
-  { id: 'portfolio', label: 'المحفظة', helper: 'الرصيد والمراكز', icon: Wallet, accent: T.blue, tone: 'المركز المالي' },
-  { id: 'execute', label: 'التنفيذ', helper: 'أمر سريع', icon: Bot, accent: T.green, tone: 'أمر السوق' },
-  { id: 'book', label: 'دفتر الأوامر', helper: 'العمق والسيولة', icon: ChartCandlestick, accent: T.red, tone: 'بنية السوق' },
-  { id: 'watch', label: 'قائمة السوق', helper: 'المراقبة الحية', icon: Search, accent: T.cyan, tone: 'الرموز النشطة' },
-  { id: 'alerts', label: 'التنبيهات', helper: 'قواعد المتابعة', icon: Bell, accent: T.amber, tone: 'الشروط والتنبيه' },
-  { id: 'ai', label: 'رؤى AI', helper: 'الشرح والسياق', icon: Brain, accent: T.purple, tone: 'القراءة التفسيرية' },
-  { id: 'news', label: 'الأخبار', helper: 'تدفق السوق', icon: Newspaper, accent: T.cyan, tone: 'السياق الإخباري' },
-  { id: 'calendar', label: 'الأجندة', helper: 'أحداث مؤثرة', icon: CalendarDays, accent: T.amber, tone: 'الماكرو القادم' },
-  { id: 'backtest', label: 'المختبر', helper: 'اختبار سريع', icon: Activity, accent: T.purple, tone: 'صلاحية الفكرة' },
-  { id: 'correlation', label: 'الارتباط', helper: 'ترابط الأصول', icon: GitMerge, accent: T.green, tone: 'مخاطر التداخل' },
+  { id: 'portfolio', label: 'المحفظة', helper: 'الرصيد والمراكز', accent: T.blue, tone: 'المركز المالي' },
+  { id: 'execute', label: 'التنفيذ', helper: 'أمر سريع', accent: T.green, tone: 'أمر السوق' },
+  { id: 'book', label: 'دفتر الأوامر', helper: 'العمق والسيولة', accent: T.red, tone: 'بنية السوق' },
+  { id: 'watch', label: 'قائمة السوق', helper: 'المراقبة الحية', accent: T.cyan, tone: 'الرموز النشطة' },
+  { id: 'alerts', label: 'التنبيهات', helper: 'قواعد المتابعة', accent: T.amber, tone: 'الشروط والتنبيه' },
+  { id: 'ai', label: 'رؤى AI', helper: 'الشرح والسياق', accent: T.purple, tone: 'القراءة التفسيرية' },
+  { id: 'news', label: 'الأخبار', helper: 'تدفق السوق', accent: T.cyan, tone: 'السياق الإخباري' },
+  { id: 'calendar', label: 'الأجندة', helper: 'أحداث مؤثرة', accent: T.amber, tone: 'الماكرو القادم' },
+  { id: 'backtest', label: 'المختبر', helper: 'اختبار سريع', accent: T.purple, tone: 'صلاحية الفكرة' },
+  { id: 'correlation', label: 'الارتباط', helper: 'ترابط الأصول', accent: T.green, tone: 'مخاطر التداخل' },
 ]
 
 function TabButton({
   label,
   helper,
-  icon: Icon,
   accent,
   active,
   onClick,
 }: {
   label: string
   helper: string
-  icon: any
   accent: string
   active: boolean
   onClick: () => void
@@ -98,42 +83,28 @@ function TabButton({
       onClick={onClick}
       style={{
         width: '100%',
-        minHeight: 50,
-        padding: '10px 12px',
-        borderRadius: 14,
+        minHeight: 34,
+        padding: '6px 8px',
+        borderRadius: 10,
         border: `1px solid ${active ? `${accent}52` : 'rgba(148, 163, 184, 0.10)'}`,
         background: active
-          ? `linear-gradient(90deg, ${accent}18, rgba(255,255,255,0.03))`
-          : 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.015))',
-        display: 'grid',
-        gridTemplateColumns: '28px minmax(0, 1fr)',
+          ? `linear-gradient(90deg, ${accent}16, rgba(255,255,255,0.02))`
+          : 'linear-gradient(180deg, rgba(255,255,255,0.020), rgba(255,255,255,0.012))',
+        display: 'flex',
         alignItems: 'center',
-        gap: 10,
+        justifyContent: 'space-between',
+        gap: 8,
         cursor: 'pointer',
         textAlign: 'right',
         boxShadow: active
-          ? `inset 3px 0 0 ${accent}, 0 0 0 1px ${accent}16, 0 8px 22px ${accent}10`
+          ? `inset 2px 0 0 ${accent}, 0 0 0 1px ${accent}12`
           : 'inset 0 1px 0 rgba(255,255,255,0.02)',
       }}
     >
-      <div
-        style={{
-          width: 28,
-          height: 28,
-          borderRadius: 10,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: active ? `${accent}16` : 'rgba(255,255,255,0.035)',
-          border: `1px solid ${active ? `${accent}3b` : 'rgba(255,255,255,0.08)'}`,
-        }}
-      >
-        <Icon size={14} color={active ? accent : '#94A9C2'} />
-      </div>
       <div style={{ minWidth: 0 }}>
         <div
           style={{
-            fontSize: 11,
+            fontSize: 9.5,
             lineHeight: 1.1,
             color: active ? T.text : '#D7E2EF',
             fontWeight: 900,
@@ -147,8 +118,8 @@ function TabButton({
         </div>
         <div
           style={{
-            marginTop: 4,
-            fontSize: 8,
+            marginTop: 2,
+            fontSize: 7,
             lineHeight: 1.2,
             color: active ? accent : T.textMute,
             whiteSpace: 'nowrap',
@@ -159,6 +130,16 @@ function TabButton({
           {helper}
         </div>
       </div>
+      <div
+        style={{
+          flexShrink: 0,
+          width: 6,
+          height: 6,
+          borderRadius: 999,
+          background: active ? accent : 'rgba(255,255,255,0.16)',
+          boxShadow: active ? `0 0 10px ${accent}66` : 'none',
+        }}
+      />
     </button>
   )
 }
@@ -171,7 +152,7 @@ export function LeftSidebarLayout() {
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: '156px minmax(0, 1fr)',
+        gridTemplateColumns: '132px minmax(0, 1fr)',
         height: '100%',
         minHeight: 0,
         borderRadius: 18,
@@ -193,14 +174,14 @@ export function LeftSidebarLayout() {
       >
         <div
           style={{
-            padding: '14px 12px 12px',
+            padding: '11px 10px 10px',
             borderBottom: `1px solid ${T.border}`,
             display: 'grid',
-            gap: 5,
+            gap: 4,
           }}
         >
-          <div style={{ fontSize: 12, color: T.text, fontWeight: 900, fontFamily: "'Cairo', sans-serif" }}>المركز الأيسر</div>
-          <div style={{ fontSize: 8, color: T.textSoft, lineHeight: 1.6 }}>تنقل رأسي واضح بين الأدوات والسياق بدون ازدحام.</div>
+          <div style={{ fontSize: 10.5, color: T.text, fontWeight: 900, fontFamily: "'Cairo', sans-serif" }}>الأدوات</div>
+          <div style={{ fontSize: 7, color: T.textSoft, lineHeight: 1.5 }}>تنقل مضغوط وواضح.</div>
         </div>
 
         <div
@@ -209,10 +190,10 @@ export function LeftSidebarLayout() {
             flex: 1,
             minHeight: 0,
             overflowY: 'auto',
-            padding: 10,
+            padding: 8,
             display: 'grid',
             alignContent: 'start',
-            gap: 8,
+            gap: 6,
           }}
         >
           {TABS.map(item => (
@@ -220,7 +201,6 @@ export function LeftSidebarLayout() {
               key={item.id}
               label={item.label}
               helper={item.helper}
-              icon={item.icon}
               accent={item.accent}
               active={item.id === tab}
               onClick={() => setTab(item.id)}

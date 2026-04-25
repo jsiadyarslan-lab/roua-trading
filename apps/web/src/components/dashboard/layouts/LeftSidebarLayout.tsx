@@ -80,9 +80,10 @@ function TabButton({
       type="button"
       onClick={onClick}
       style={{
-        width: '100%',
-        minHeight: 28,
-        padding: '4px 5px',
+        width: 'fit-content',
+        maxWidth: '100%',
+        minHeight: 24,
+        padding: '4px 8px',
         borderRadius: 8,
         border: `1px solid ${active ? `${accent}52` : 'rgba(148, 163, 184, 0.10)'}`,
         background: active
@@ -90,19 +91,19 @@ function TabButton({
           : 'linear-gradient(180deg, rgba(255,255,255,0.020), rgba(255,255,255,0.012))',
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 8,
+        justifyContent: 'center',
+        gap: 6,
         cursor: 'pointer',
-        textAlign: 'right',
+        textAlign: 'center',
         boxShadow: active
           ? `inset 2px 0 0 ${accent}, 0 0 0 1px ${accent}12`
           : 'inset 0 1px 0 rgba(255,255,255,0.02)',
       }}
     >
-      <div style={{ minWidth: 0 }}>
+      <div style={{ minWidth: 0, maxWidth: '100%' }}>
         <div
           style={{
-            fontSize: 8,
+            fontSize: 7.5,
             lineHeight: 1,
             color: active ? T.text : '#D7E2EF',
             fontWeight: 900,
@@ -118,8 +119,8 @@ function TabButton({
       <div
         style={{
           flexShrink: 0,
-          width: 4,
-          height: 4,
+          width: 3,
+          height: 3,
           borderRadius: 999,
           background: active ? accent : 'rgba(255,255,255,0.16)',
           boxShadow: active ? `0 0 10px ${accent}66` : 'none',
@@ -137,7 +138,7 @@ export function LeftSidebarLayout() {
     <div
       style={{
         display: 'grid',
-        gridTemplateColumns: '92px minmax(0, 1fr)',
+        gridTemplateColumns: '74px minmax(0, 1fr)',
         height: '100%',
         minHeight: 0,
         borderRadius: 18,
@@ -159,14 +160,14 @@ export function LeftSidebarLayout() {
       >
         <div
           style={{
-            padding: '10px 8px 9px',
+            padding: '10px 6px 8px',
             borderBottom: `1px solid ${T.border}`,
             display: 'grid',
             gap: 4,
           }}
         >
-          <div style={{ fontSize: 9.5, color: T.text, fontWeight: 900, fontFamily: "'Cairo', sans-serif" }}>الأدوات</div>
-          <div style={{ fontSize: 6.5, color: T.textSoft, lineHeight: 1.4 }}>أسماء فقط.</div>
+          <div style={{ fontSize: 8.5, color: T.text, fontWeight: 900, fontFamily: "'Cairo', sans-serif" }}>الأدوات</div>
+          <div style={{ fontSize: 6, color: T.textSoft, lineHeight: 1.3 }}>أسماء فقط</div>
         </div>
 
         <div
@@ -177,6 +178,7 @@ export function LeftSidebarLayout() {
             overflowY: 'auto',
             padding: 6,
             display: 'grid',
+            justifyItems: 'center',
             alignContent: 'start',
             gap: 5,
           }}

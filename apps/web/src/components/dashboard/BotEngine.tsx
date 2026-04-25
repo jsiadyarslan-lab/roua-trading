@@ -5,7 +5,7 @@ import { useBotStore } from '@/hooks/useBotStore'
 import { usePaperTradesStore, type PaperTrade } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 
-const PAPER_TRADING_MODE = true
+const PAPER_TRADING_MODE = process.env.NEXT_PUBLIC_PAPER_TRADING === 'true'
 const COOLDOWN_MS = 5 * 60 * 1000
 const MAX_OPEN_BOT_POSITIONS = 3
 const MAX_TRADES_PER_HOUR = 6

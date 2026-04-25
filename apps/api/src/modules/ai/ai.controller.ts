@@ -60,7 +60,8 @@ export class AiController {
    */
   @Post('consensus')
   async getConsensus(@Body() body: { symbol: string }) {
-    this.logger.log(`Debugging consensus for ${body.symbol}`);
-    return { success: true, data: { consensusScore: 85, recommendation: 'BUY', analyses: [], masterStrategy: 'Debug Mode' } };
+    this.logger.log(`🎼 Generating AI Council Consensus for ${body.symbol}`);
+    const result = await this.orchestrator.getConsensusAnalysis(body.symbol);
+    return { success: true, data: result };
   }
 }

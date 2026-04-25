@@ -19,10 +19,9 @@ const nextConfig: NextConfig = {
     // To re-enable NestJS rewrites, set API_INTERNAL_URL env var.
     if (!process.env.API_INTERNAL_URL) {
       return [
-        // Proxy all /api/ai/* EXCEPT /api/ai/consensus (handled by Next.js route)
         {
-          source: '/api/ai/((?!consensus).+)',
-          destination: `${apiTarget}/api/ai/$1`,
+          source: '/api/ai/:path*',
+          destination: `${apiTarget}/api/ai/:path*`,
         },
         {
           source: '/api/trading/:path*',
@@ -38,8 +37,8 @@ const nextConfig: NextConfig = {
         destination: `${apiTarget}/api/exchange/:path*`,
       },
       {
-        source: '/api/ai/((?!consensus).+)',
-        destination: `${apiTarget}/api/ai/$1`,
+        source: '/api/ai/:path*',
+        destination: `${apiTarget}/api/ai/:path*`,
       },
       {
         source: '/api/portfolio/:path*',

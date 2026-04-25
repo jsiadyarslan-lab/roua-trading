@@ -36,6 +36,7 @@ export function AICouncilPanel() {
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<ConsensusData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null)
 
   const fetchConsensus = useCallback(async () => {
     setLoading(true)
@@ -55,6 +56,7 @@ export function AICouncilPanel() {
       const j = await res.json()
       if (j.success) {
         setData(j.data)
+        setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
       } else {
         throw new Error(j.error || 'فشل في الحصول على الإجماع')
       }
@@ -87,7 +89,7 @@ export function AICouncilPanel() {
           <div>
             <h3 className="text-[11px] font-bold text-white">مجلس الذكاء الاصطناعي</h3>
             <p className="text-[8px] font-mono" style={{ color: T.accent + '80' }}>
-              {data?.meta ? `${data.meta.symbol} • RSI: ${data.meta.rsi} • ${data.meta.processingTimeMs}ms` : 'AI COUNCIL CONSENSUS'}
+              {data?.meta ? `${data.meta.symbol} • RSI: ${data.meta.rsi} • ${data.meta.processingTimeMs}ms` : `AI COUNCIL CONSENSUS ${lastUpdate ? `· ${lastUpdate}` : ''}`}
             </p>
           </div>
         </div>

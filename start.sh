@@ -29,19 +29,26 @@ echo "DATABASE_URL: ${DATABASE_URL}"
 echo "RP_ID: ${RP_ID:-localhost}"
 echo "ORIGIN: ${ORIGIN:-not set}"
 echo "NODE_ENV: ${NODE_ENV:-development}"
+echo "DEV_MODE: ${DEV_MODE:-not set}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-# Apply Prisma schema to database (safe for production)
-echo "📦 Applying Prisma schema..."
-bunx prisma db push --schema=./prisma/schema.prisma --accept-data-loss || true
+# ── Step 1: Generate Prisma client (must be done before db push) ──
+echo "📦 Generating Prisma client..."
+bunx prisma generate --schema=./prisma/schema.prisma
 
-# Verify critical tables exist — Prisma db:push sometimes silently fails
-# to create new tables when there are existing schema conflicts.
+# ── Step 2: Apply Prisma schema to database ──
+echo "📦 Applying Prisma schema..."
+bunx prisma db push --schema=./prisma/schema.prisma --accept-data-loss 2>&1 || echo "⚠️ prisma db push had issues — will verify tables below"
+
+# ── Step 3: Verify critical tables exist ──
+# Prisma db:push sometimes silently fails to create new tables when
+# there are existing schema conflicts. We write a SQL file and execute
+# it via prisma db execute to create any missing tables.
 echo "📦 Verifying critical tables..."
 if [ -n "${DATABASE_URL:-}" ]; then
-  # Extract connection params from DATABASE_URL for psql/psql-like check
-  # Use Prisma's db execute to create missing tables as a safety net
-  bunx prisma db execute --schema=./prisma/schema.prisma --stdin <<'SQL' 2>/dev/null || true
+  # Write safety-net SQL to a temp file
+  cat > /tmp/ensure_tables.sql <<'EOSQL'
+    -- Position table (critical for trading engine)
     CREATE TABLE IF NOT EXISTS "Position" (
       "id" TEXT NOT NULL,
       "userId" TEXT NOT NULL,
@@ -68,13 +75,107 @@ if [ -n "${DATABASE_URL:-}" ]; then
     CREATE INDEX IF NOT EXISTS "Position_symbol_idx" ON "Position"("symbol");
     CREATE INDEX IF NOT EXISTS "Position_status_idx" ON "Position"("status");
     CREATE INDEX IF NOT EXISTS "Position_exchange_idx" ON "Position"("exchange");
-SQL
-  echo "📦 Position table verification done."
-fi
 
-# Generate Prisma client (ensure latest)
-echo "📦 Generating Prisma client..."
-bunx prisma generate --schema=./prisma/schema.prisma
+    -- OrderEvent table (critical for order lifecycle)
+    CREATE TABLE IF NOT EXISTS "OrderEvent" (
+      "id" TEXT NOT NULL,
+      "orderId" TEXT NOT NULL,
+      "eventType" TEXT NOT NULL,
+      "payload" TEXT,
+      "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "OrderEvent_pkey" PRIMARY KEY ("id")
+    );
+    CREATE INDEX IF NOT EXISTS "OrderEvent_orderId_idx" ON "OrderEvent"("orderId");
+    CREATE INDEX IF NOT EXISTS "OrderEvent_eventType_idx" ON "OrderEvent"("eventType");
+
+    -- Trade table (critical for P&L tracking)
+    CREATE TABLE IF NOT EXISTS "Trade" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "orderId" TEXT,
+      "positionId" TEXT,
+      "exchange" TEXT NOT NULL,
+      "symbol" TEXT NOT NULL,
+      "side" TEXT NOT NULL,
+      "type" TEXT NOT NULL,
+      "quantity" DOUBLE PRECISION NOT NULL,
+      "price" DOUBLE PRECISION NOT NULL,
+      "fee" DOUBLE PRECISION,
+      "feeCurrency" TEXT,
+      "pnl" DOUBLE PRECISION,
+      "exchangeTradeId" TEXT,
+      "executedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Trade_pkey" PRIMARY KEY ("id")
+    );
+    CREATE INDEX IF NOT EXISTS "Trade_userId_idx" ON "Trade"("userId");
+    CREATE INDEX IF NOT EXISTS "Trade_symbol_idx" ON "Trade"("symbol");
+
+    -- PaperOrder table (critical for paper trading)
+    CREATE TABLE IF NOT EXISTS "PaperOrder" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "symbol" TEXT NOT NULL,
+      "side" TEXT NOT NULL,
+      "type" TEXT NOT NULL,
+      "quantity" DECIMAL(65,30) NOT NULL,
+      "price" DECIMAL(65,30),
+      "stopLoss" DECIMAL(65,30),
+      "takeProfit" DECIMAL(65,30),
+      "status" TEXT NOT NULL DEFAULT 'PENDING',
+      "filledQuantity" DECIMAL(65,30) NOT NULL DEFAULT 0,
+      "averagePrice" DECIMAL(65,30),
+      "fee" DECIMAL(65,30),
+      "feeCurrency" TEXT,
+      "slippage" DECIMAL(65,30),
+      "idempotencyKey" TEXT NOT NULL,
+      "clientOrderId" TEXT,
+      "exchangeOrderId" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL,
+      CONSTRAINT "PaperOrder_pkey" PRIMARY KEY ("id")
+    );
+    CREATE INDEX IF NOT EXISTS "PaperOrder_userId_idx" ON "PaperOrder"("userId");
+    CREATE INDEX IF NOT EXISTS "PaperOrder_idempotencyKey_key" ON "PaperOrder"("idempotencyKey");
+
+    -- TradingBot table (critical for bot engine)
+    CREATE TABLE IF NOT EXISTS "TradingBot" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "name" TEXT NOT NULL DEFAULT 'HFT-Alpha',
+      "strategy" TEXT NOT NULL DEFAULT 'Scalp AI',
+      "isActive" BOOLEAN NOT NULL DEFAULT false,
+      "winRate" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "totalTrades" INTEGER NOT NULL DEFAULT 0,
+      "dailyPnl" DOUBLE PRECISION NOT NULL DEFAULT 0,
+      "statusMessage" TEXT NOT NULL DEFAULT 'SYSTEM_IDLE',
+      "updatedAt" TIMESTAMP(3) NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "TradingBot_pkey" PRIMARY KEY ("id")
+    );
+    CREATE INDEX IF NOT EXISTS "TradingBot_userId_idx" ON "TradingBot"("userId");
+
+    -- ChartPreference table
+    CREATE TABLE IF NOT EXISTS "ChartPreference" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "symbol" TEXT NOT NULL,
+      "settings" TEXT NOT NULL DEFAULT '{}',
+      "drawings" TEXT NOT NULL DEFAULT '[]',
+      "updatedAt" TIMESTAMP(3) NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "ChartPreference_pkey" PRIMARY KEY ("id")
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "ChartPreference_userId_symbol_key" ON "ChartPreference"("userId", "symbol");
+    CREATE INDEX IF NOT EXISTS "ChartPreference_userId_idx" ON "ChartPreference"("userId");
+EOSQL
+
+  echo "📦 Executing safety-net SQL via prisma db execute..."
+  bunx prisma db execute --schema=./prisma/schema.prisma --file /tmp/ensure_tables.sql 2>&1 && echo "📦 Safety-net SQL executed successfully" || echo "⚠️ Safety-net SQL had issues (non-fatal — tables may already exist with different schema)"
+
+  rm -f /tmp/ensure_tables.sql
+else
+  echo "⚠️ No DATABASE_URL — skipping table verification"
+fi
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 

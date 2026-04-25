@@ -5,11 +5,24 @@ import { PrismaService } from '../prisma/prisma.service';
 @Injectable()
 export class AuthGuard implements CanActivate {
   private readonly logger = new Logger(AuthGuard.name);
+  private devUser: any = null;
 
   constructor(private readonly prisma: PrismaService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
+
+    // ── DEV_MODE bypass ──
+    // When DEV_MODE=1, allow all requests without authentication.
+    // A default dev user is created/attached so downstream code works.
+    // ⚠️ NEVER use DEV_MODE in production!
+    if (process.env.DEV_MODE === '1') {
+      if (!this.devUser) {
+        this.devUser = await this._ensureDevUser();
+      }
+      (request as any).user = this.devUser;
+      return true;
+    }
 
     // Extract session token from cookie or Authorization header
     const cookieToken = request.cookies?.['roua_session'];
@@ -44,5 +57,39 @@ export class AuthGuard implements CanActivate {
     (request as any).user = session.user;
 
     return true;
+  }
+
+  /**
+   * Ensure a default dev user exists in the database for DEV_MODE.
+   * Creates one if it doesn't exist, then returns it.
+   */
+  private async _ensureDevUser(): Promise<any> {
+    try {
+      const devEmail = 'dev@roua.local';
+      let user = await this.prisma.user.findUnique({ where: { email: devEmail } });
+
+      if (!user) {
+        user = await this.prisma.user.create({
+          data: {
+            email: devEmail,
+            displayName: 'Dev User',
+            tier: 'PREMIUM',
+          },
+        });
+        this.logger.log('🔧 DEV_MODE: Created default dev user (dev@roua.local)');
+      }
+
+      this.logger.warn('🔧 DEV_MODE: Authentication bypassed — all requests use dev user');
+      return user;
+    } catch (err: any) {
+      // If User table doesn't exist yet, return a minimal mock user
+      this.logger.warn('🔧 DEV_MODE: Could not create dev user in DB, using mock user');
+      return {
+        id: 'dev-user-00000000',
+        email: 'dev@roua.local',
+        displayName: 'Dev User',
+        tier: 'PREMIUM',
+      };
+    }
   }
 }

@@ -245,9 +245,22 @@ export function buildScannerResult(context: MarketContext): ScannerResult | null
 }
 
 export function rankScannerResults(results: ScannerResult[]) {
-  return results
-    .filter(result => result.dir !== 'neutral' && result.strength >= 60)
-    .sort((a, b) => b.strength - a.strength)
+  const sortedResults = [...results].sort((a, b) => b.strength - a.strength)
+  const directionalResults = sortedResults.filter(
+    (result) => result.dir !== 'neutral' && result.strength >= 60
+  )
+
+  if (directionalResults.length > 0) {
+    return directionalResults
+  }
+
+  const watchResults = sortedResults.filter((result) => result.strength >= 50)
+
+  if (watchResults.length > 0) {
+    return watchResults.slice(0, 3)
+  }
+
+  return sortedResults.slice(0, 3)
 }
 
 export function buildUnifiedSignal(result: ScannerResult): UnifiedSignal {

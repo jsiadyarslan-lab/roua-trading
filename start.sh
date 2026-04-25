@@ -44,7 +44,8 @@ fi
 
 # Wait for API to be ready
 echo "⏳ Waiting for API to be ready..."
-API_HEALTH_URL="http://127.0.0.1:3001/api/engine/health"
+# Use a public endpoint for readiness; /api/engine/health is protected by AuthGuard.
+API_HEALTH_URL="http://127.0.0.1:3001/api/auth/session"
 for i in $(seq 1 45); do
   if curl -fsS "$API_HEALTH_URL" > /dev/null 2>&1; then
     echo "✅ API is ready! (attempt $i)"

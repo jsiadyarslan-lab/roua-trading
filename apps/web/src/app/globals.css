@@ -280,9 +280,20 @@ button {
 }
 button:hover:not(:disabled) {
   transform: none;
+  border-color: rgba(0, 229, 255, 0.24);
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,229,255,0.04));
+  box-shadow: 0 0 0 1px rgba(0,229,255,0.08) inset, 0 8px 18px rgba(0,0,0,0.18), 0 0 14px rgba(0,229,255,0.08);
 }
 button:active:not(:disabled) {
   transform: translateY(0) scale(0.985);
+}
+button svg,
+button [data-icon] {
+  transition: color 0.22s ease, filter 0.22s ease, opacity 0.22s ease;
+}
+button:hover:not(:disabled) svg,
+button:hover:not(:disabled) [data-icon] {
+  filter: drop-shadow(0 0 6px rgba(0,229,255,0.22));
 }
 button:disabled {
   opacity: 0.72;

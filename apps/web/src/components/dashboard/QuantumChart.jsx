@@ -14,7 +14,7 @@ import {
 import { useSymbolStore } from '../../hooks/useSymbolStore';
 import { usePositionsStore } from '../../hooks/usePositionsStore';
 import { usePaperTradesStore } from '../../hooks/usePaperTradesStore';
-import { formatFreshness, getStatusLabel, getStatusTone } from '../../lib/dashboard-live';
+import { formatFreshness } from '../../lib/dashboard-live';
 
 // ── CSS injected once globally ────────────────────────────
 const CHART_CSS = `
@@ -107,7 +107,6 @@ export default function QuantumChart({
   const previousPriceRef = useRef(currentPrice);
   const [pricePulse, setPricePulse] = useState(false);
   const [feedState, setFeedState] = useState('waiting');
-  const [lastTickLabel, setLastTickLabel] = useState('—');
   const [currentCandleCountdown, setCurrentCandleCountdown] = useState('—');
 
   // CSS
@@ -182,7 +181,6 @@ export default function QuantumChart({
   useEffect(() => {
     if (currentPrice && previousPriceRef.current && currentPrice !== previousPriceRef.current) {
       setPricePulse(true);
-      setLastTickLabel(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
       const timer = setTimeout(() => setPricePulse(false), 420);
       previousPriceRef.current = currentPrice;
       return () => clearTimeout(timer);
@@ -276,7 +274,6 @@ export default function QuantumChart({
   const overlayPairSize = mobile ? 9 : 11
   const showDesktopTools = !mobile
   const showSessions = !compact
-  const statusTone = getStatusTone(dataStatus)
   const feedLabel = feedState === 'fallback' ? 'Using fallback series' : feedState === 'waiting' ? 'Waiting for feed' : 'Chart live'
 
   /* ─── JSX ─────────────────────────────────────────────── */
@@ -432,7 +429,7 @@ export default function QuantumChart({
           {/* Main Chart */}
           <div id="mainChartArea" style={{ flex:1, position:'relative', overflow:'hidden', minHeight:0 }}>
             <canvas id="tvCanvas" ref={mainCanvasRef}></canvas>
-            <div id="chartInfoOverlay" style={{ position:'absolute', top:0, right:0, left:0, display:'flex', alignItems:'center', justifyContent:'space-between', padding: mobile ? '5px 8px' : '4px 10px', pointerEvents:'none', zIndex:3, background:'linear-gradient(180deg,rgba(13,17,23,.85) 0%,transparent 100%)' }}>
+            <div id="chartInfoOverlay" style={{ position:'absolute', top:0, right:0, left:0, display:'flex', alignItems:'center', justifyContent:'space-between', padding: mobile ? '5px 8px' : '4px 10px', pointerEvents:'none', zIndex:3, background:'linear-gradient(180deg,rgba(13,17,23,.82) 0%,transparent 100%)' }}>
               <div style={{ display:'flex', alignItems:'center', gap:'7px' }}>
                 <span style={{ fontFamily:'var(--font-hud)', fontSize:`${overlayPairSize}px`, fontWeight:700, color:'var(--cyan,#58a6ff)', letterSpacing:'.5px' }} id="chPair">{selectedSymbol}</span>
                 <span
@@ -449,6 +446,24 @@ export default function QuantumChart({
                 >
                   {currentPrice || '—'}
                 </span>
+                <span
+                  style={{
+                    display:'inline-flex',
+                    alignItems:'center',
+                    gap:'4px',
+                    padding:'2px 6px',
+                    borderRadius:'999px',
+                    border:'1px solid rgba(255,255,255,0.10)',
+                    background:'rgba(7,12,18,0.74)',
+                    color:'var(--text2)',
+                    fontSize:'8px',
+                    fontFamily:'var(--font-mono)',
+                    whiteSpace:'nowrap',
+                  }}
+                >
+                  <span style={{ width:5, height:5, borderRadius:'50%', background:'var(--cyan)', boxShadow:'0 0 8px rgba(0,242,255,0.28)' }} />
+                  {currentCandleCountdown}
+                </span>
                 {!compact && <span style={{ fontSize:'9px', color:'var(--text4)', fontFamily:'monospace', display:'flex', alignItems:'center', gap:'6px' }}>
                   <span>O <b id="tbChO" style={{ color:'rgba(255,255,255,.5)' }}>—</b></span>
                   <span>H <b id="tbChH" style={{ color:'rgba(63,185,80,.7)' }}>—</b></span>
@@ -457,23 +472,7 @@ export default function QuantumChart({
                 </span>}
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:'8px', fontSize:'8px', fontFamily:'monospace', color:'var(--text2)' }}>
-                <span style={{
-                  display:'inline-flex',
-                  alignItems:'center',
-                  gap:'5px',
-                  padding:'3px 6px',
-                  borderRadius:'999px',
-                  border:`1px solid ${statusTone}55`,
-                  background:`${statusTone}18`,
-                  color:statusTone,
-                }}>
-                  <span style={{ width:6, height:6, borderRadius:'50%', background:statusTone, boxShadow:`0 0 8px ${statusTone}` }} />
-                  {getStatusLabel(dataStatus)}
-                </span>
-                {!compact && <span>{sourceLabel}</span>}
                 <span>{formatFreshness(lastUpdatedAt)}</span>
-                <span>Tick {lastTickLabel}</span>
-                <span>Candle {currentCandleCountdown}</span>
                 {showSessions && !mobile && <>
                   <span style={{ color:'rgba(139,92,246,.7)' }}>■ Tokyo</span>
                   <span style={{ color:'rgba(88,166,255,.7)' }}>■ London</span>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { RefreshCw, TrendingDown, TrendingUp, X } from 'lucide-react'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
@@ -14,7 +14,6 @@ interface Position {
   currentPrice: number
   marketValue: number
   unrealizedPnl: number
-  unrealizedPct: number
 }
 
 const T = {
@@ -83,7 +82,6 @@ export function AlpacaPositions() {
         currentPrice: trade.currentPrice,
         marketValue: trade.currentPrice * trade.qty,
         unrealizedPnl: trade.unrealizedPnl,
-        unrealizedPct: trade.unrealizedPct,
         id: trade.id,
         isPaper: true,
         entryTime: trade.entryTime,
@@ -151,41 +149,45 @@ export function AlpacaPositions() {
           flex: 1,
           minHeight: 0,
           overflowY: 'auto',
-          padding: '10px',
+          padding: '8px',
           display: 'flex',
           flexDirection: 'column',
-          gap: 8,
+          gap: 6,
         }}
       >
         {allPositions.length > 0 && (
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'minmax(0, 1.5fr) minmax(108px, 1.1fr) minmax(0, 1.75fr) minmax(112px, 0.95fr) auto',
-              gap: 10,
+              gridTemplateColumns: 'minmax(120px,1.35fr) 88px 52px 76px 76px 68px 68px 88px 48px',
+              gap: 6,
               alignItems: 'center',
-              padding: '0 10px 4px',
+              padding: '0 6px 2px',
               color: T.text3,
-              fontSize: 7,
+              fontSize: 6.5,
               fontWeight: 800,
               fontFamily: "'Cairo', sans-serif",
             }}
           >
             <div>العقد</div>
-            <div>الفتح</div>
-            <div>أسعار الصفقة</div>
-            <div style={{ textAlign: 'left' }}>P&L</div>
-            <div style={{ textAlign: 'left' }}>إجراء</div>
+            <div style={{ textAlign: 'center' }}>الفتح</div>
+            <div style={{ textAlign: 'center' }}>كمية</div>
+            <div style={{ textAlign: 'center' }}>دخول</div>
+            <div style={{ textAlign: 'center' }}>حالي</div>
+            <div style={{ textAlign: 'center' }}>TP</div>
+            <div style={{ textAlign: 'center' }}>SL</div>
+            <div style={{ textAlign: 'center' }}>P&L</div>
+            <div style={{ textAlign: 'center' }}>إغلاق</div>
           </div>
         )}
 
         {allPositions.length === 0 && (
           <div
             style={{
-              borderRadius: 14,
+              borderRadius: 12,
               border: `1px dashed ${T.border}`,
               background: 'rgba(255,255,255,0.025)',
-              minHeight: 120,
+              minHeight: 110,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -204,10 +206,8 @@ export function AlpacaPositions() {
         {allPositions.map(position => {
           const isLong = position.side === 'long'
           const pnlUp = position.unrealizedPnl >= 0
-          const sideTone = isLong ? T.success : T.danger
           const openedAt = position.entryTime
             ? new Date(position.entryTime).toLocaleString('ar-SA', {
-                year: '2-digit',
                 month: '2-digit',
                 day: '2-digit',
                 hour: '2-digit',
@@ -219,219 +219,155 @@ export function AlpacaPositions() {
             <div
               key={position.id}
               style={{
-                borderRadius: 12,
+                borderRadius: 10,
                 border: `1px solid ${pnlUp ? 'rgba(0,200,83,0.16)' : 'rgba(255,90,84,0.16)'}`,
                 background: `linear-gradient(180deg, ${T.card}, ${T.cardAlt})`,
-                boxShadow: `inset 0 1px 0 rgba(255,255,255,0.025), 0 6px 14px rgba(0,0,0,0.14)`,
-                padding: '8px 10px',
+                boxShadow: `inset 0 1px 0 rgba(255,255,255,0.02), 0 4px 10px rgba(0,0,0,0.12)`,
+                padding: '5px 6px',
                 display: 'grid',
-                gridTemplateColumns: 'minmax(0, 1.5fr) minmax(108px, 1.1fr) minmax(0, 1.75fr) minmax(112px, 0.95fr) auto',
-                gap: 10,
+                gridTemplateColumns: 'minmax(120px,1.35fr) 88px 52px 76px 76px 68px 68px 88px 48px',
+                gap: 6,
                 alignItems: 'center',
               }}
             >
-              <div
-                style={{
-                  minWidth: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  paddingLeft: 10,
-                  borderLeft: '1px solid rgba(255,255,255,0.06)',
-                }}
-              >
-                <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flexWrap: 'wrap' }}>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 900,
-                        color: T.text,
-                        fontFamily: "'JetBrains Mono', monospace",
-                        letterSpacing: '-0.02em',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {position.symbol}
-                    </span>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 3,
-                        padding: '1px 6px',
-                        borderRadius: 999,
-                        background: isLong ? 'rgba(0,200,83,0.14)' : 'rgba(255,90,84,0.14)',
-                        border: `1px solid ${isLong ? 'rgba(0,200,83,0.28)' : 'rgba(255,90,84,0.28)'}`,
-                        color: sideTone,
-                        fontSize: 7.5,
-                        fontWeight: 900,
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {isLong ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
-                      {isLong ? 'شراء' : 'بيع'}
-                    </span>
-                    {position.isPaper && (
-                      <span
-                        style={{
-                          padding: '1px 5px',
-                          borderRadius: 999,
-                          background: 'rgba(0,229,255,0.10)',
-                          border: '1px solid rgba(0,229,255,0.20)',
-                          color: T.cyan,
-                          fontSize: 7,
-                          fontWeight: 800,
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        PAPER
-                      </span>
-                    )}
-                    {position.source === 'bot' && (
-                      <span
-                        style={{
-                          padding: '1px 5px',
-                          borderRadius: 999,
-                          background: 'rgba(245,185,66,0.12)',
-                          border: '1px solid rgba(245,185,66,0.20)',
-                          color: T.amber,
-                          fontSize: 7,
-                          fontWeight: 800,
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        BOT
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ fontSize: 7.5, color: T.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    الكمية {position.qty}
-                  </div>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  minWidth: 0,
-                  display: 'grid',
-                  gap: 3,
-                  paddingLeft: 10,
-                  borderLeft: '1px solid rgba(255,255,255,0.06)',
-                }}
-              >
-                <div style={{ fontSize: 6.5, color: T.text3 }}>تاريخ الفتح</div>
-                <div
+              <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                <span
                   style={{
-                    fontSize: 8.5,
-                    fontWeight: 800,
+                    fontSize: 9.5,
+                    fontWeight: 900,
                     color: T.text,
                     fontFamily: "'JetBrains Mono', monospace",
                     whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
                   }}
                 >
-                  {openedAt}
-                </div>
+                  {position.symbol}
+                </span>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 2,
+                    padding: '1px 4px',
+                    borderRadius: 999,
+                    background: isLong ? 'rgba(0,200,83,0.14)' : 'rgba(255,90,84,0.14)',
+                    border: `1px solid ${isLong ? 'rgba(0,200,83,0.28)' : 'rgba(255,90,84,0.28)'}`,
+                    color: isLong ? T.success : T.danger,
+                    fontSize: 6,
+                    fontWeight: 900,
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {isLong ? <TrendingUp size={7} /> : <TrendingDown size={7} />}
+                  {isLong ? 'شراء' : 'بيع'}
+                </span>
+                {position.isPaper && (
+                  <span
+                    style={{
+                      padding: '1px 4px',
+                      borderRadius: 999,
+                      background: 'rgba(0,229,255,0.10)',
+                      border: '1px solid rgba(0,229,255,0.20)',
+                      color: T.cyan,
+                      fontSize: 5.5,
+                      fontWeight: 800,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    PAPER
+                  </span>
+                )}
+                {position.source === 'bot' && (
+                  <span
+                    style={{
+                      padding: '1px 4px',
+                      borderRadius: 999,
+                      background: 'rgba(245,185,66,0.12)',
+                      border: '1px solid rgba(245,185,66,0.20)',
+                      color: T.amber,
+                      fontSize: 5.5,
+                      fontWeight: 800,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    BOT
+                  </span>
+                )}
               </div>
 
               <div
                 style={{
-                  minWidth: 0,
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-                  gap: 8,
-                  paddingLeft: 10,
-                  borderLeft: '1px solid rgba(255,255,255,0.06)',
+                  fontSize: 6.5,
+                  fontWeight: 700,
+                  color: T.text2,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  textAlign: 'center',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
                 }}
               >
-                {[
-                  { label: 'دخول', value: fmtPrice(position.avgEntryPrice), tone: T.text },
-                  { label: 'حالي', value: fmtPrice(position.currentPrice), tone: T.text },
-                  { label: 'TP', value: position.tp ? fmtPrice(position.tp) : '—', tone: position.tp ? T.success : T.text3 },
-                  { label: 'SL', value: position.sl ? fmtPrice(position.sl) : '—', tone: position.sl ? T.danger : T.text3 },
-                ].map(item => (
-                  <div key={item.label} style={{ minWidth: 0, display: 'grid', gap: 3, textAlign: 'center' }}>
-                    <div style={{ fontSize: 6.5, color: T.text3 }}>{item.label}</div>
-                    <div
-                      style={{
-                        fontSize: 9,
-                        fontWeight: 800,
-                        color: item.tone,
-                        fontFamily: "'JetBrains Mono', monospace",
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {item.value}
-                    </div>
-                  </div>
-                ))}
+                {openedAt}
               </div>
 
-                <div
+              <div style={{ fontSize: 8, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center', whiteSpace: 'nowrap' }}>
+                {position.qty}
+              </div>
+
+              <div style={{ fontSize: 8, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center', whiteSpace: 'nowrap' }}>
+                {fmtPrice(position.avgEntryPrice)}
+              </div>
+
+              <div style={{ fontSize: 8, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center', whiteSpace: 'nowrap' }}>
+                {fmtPrice(position.currentPrice)}
+              </div>
+
+              <div style={{ fontSize: 7.5, fontWeight: 800, color: position.tp ? T.success : T.text3, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center', whiteSpace: 'nowrap' }}>
+                {position.tp ? fmtPrice(position.tp) : '—'}
+              </div>
+
+              <div style={{ fontSize: 7.5, fontWeight: 800, color: position.sl ? T.danger : T.text3, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center', whiteSpace: 'nowrap' }}>
+                {position.sl ? fmtPrice(position.sl) : '—'}
+              </div>
+
+              <div style={{ fontSize: 8.5, fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center', whiteSpace: 'nowrap' }}>
+                {fmtPnl(position.unrealizedPnl)}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => closePosition(position.id, position.isPaper, position.rawSymbol)}
+                  disabled={closing === position.id}
                   style={{
-                    minWidth: 0,
-                    display: 'grid',
+                    minWidth: 46,
+                    height: 20,
+                    padding: '0 5px',
+                    borderRadius: 6,
+                    border: `1px solid ${confirmClose === position.id ? 'rgba(255,90,84,0.42)' : 'rgba(255,90,84,0.22)'}`,
+                    background: confirmClose === position.id ? 'rgba(255,90,84,0.16)' : 'rgba(255,90,84,0.08)',
+                    color: T.danger,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                     gap: 3,
-                    paddingLeft: 10,
-                    borderLeft: '1px solid rgba(255,255,255,0.06)',
-                    justifyItems: 'end',
-                  }}
-                >
-                  <div style={{ fontSize: 6.5, color: T.text3 }}>الربح والخسارة</div>
-                <div
-                  style={{
-                    color: pnlUp ? T.success : T.danger,
-                    fontSize: 10,
+                    cursor: 'pointer',
+                    fontSize: 6,
                     fontWeight: 900,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    fontFamily: "'Cairo', sans-serif",
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {fmtPnl(position.unrealizedPnl)}
-                </div>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button
-                    type="button"
-                    onClick={() => closePosition(position.id, position.isPaper, position.rawSymbol)}
-                    disabled={closing === position.id}
-                    style={{
-                      flexShrink: 0,
-                      minWidth: 56,
-                      height: 26,
-                      padding: '0 7px',
-                      borderRadius: 8,
-                      border: `1px solid ${confirmClose === position.id ? 'rgba(255,90,84,0.42)' : 'rgba(255,90,84,0.22)'}`,
-                      background: confirmClose === position.id ? 'rgba(255,90,84,0.16)' : 'rgba(255,90,84,0.08)',
-                      color: T.danger,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 4,
-                      cursor: 'pointer',
-                      fontSize: 7,
-                      fontWeight: 900,
-                      fontFamily: "'Cairo', sans-serif",
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {closing === position.id ? (
-                      <RefreshCw size={10} style={{ animation: 'spin 1s linear infinite' }} />
-                    ) : confirmClose === position.id ? (
-                      'تأكيد'
-                    ) : (
-                      <>
-                        <X size={10} />
-                        إغلاق
-                      </>
-                    )}
-                  </button>
-                </div>
+                  {closing === position.id ? (
+                    <RefreshCw size={8} style={{ animation: 'spin 1s linear infinite' }} />
+                  ) : confirmClose === position.id ? (
+                    'تأكيد'
+                  ) : (
+                    <>
+                      <X size={8} />
+                      إغلاق
+                    </>
+                  )}
+                </button>
               </div>
             </div>
           )

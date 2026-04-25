@@ -20,11 +20,11 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 # Apply Prisma schema to database (safe for production)
 echo "📦 Applying Prisma schema..."
-npx --yes prisma db push --schema=./prisma/schema.prisma --accept-data-loss || true
+npm --prefix apps/api run db:push -- --accept-data-loss || true
 
 # Generate Prisma client (ensure latest)
 echo "📦 Generating Prisma client..."
-npx --yes prisma generate --schema=./prisma/schema.prisma
+npm --prefix apps/api run db:generate
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 

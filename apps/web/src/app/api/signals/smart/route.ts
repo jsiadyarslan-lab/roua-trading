@@ -1,61 +1,105 @@
 import { NextRequest, NextResponse } from 'next/server'
 import {
-  PRIMARY_SYMBOLS,
   buildScannerResult,
   buildUnifiedSignal,
   fetchMarketContext,
+  PRIMARY_SYMBOLS,
   rankScannerResults,
   type ScannerResult,
 } from '@/lib/trading-intelligence'
 
+type SmartSignalPayload = {
+  id: string
+  pair: string
+  type: 'BUY' | 'SELL'
+  price: number
+  tp: number
+  sl: number
+  conf: number
+  reason: string
+  time: string
+  timeframe: string
+  sourceEngine: string
+  freshness: 'fresh' | 'stale' | 'degraded'
+  invalidatesWhen: string
+  expiresAt: string
+  source: string
+  signalClass: string
+  entryBias: string
+  reasons: string[]
+}
+
+function formatTime(timestamp: string) {
+  try {
+    return new Date(timestamp).toLocaleTimeString('ar-EG', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    })
+  } catch {
+    return timestamp
+  }
+}
+
+function mapUnifiedSignal(result: ScannerResult) {
+  const signal = buildUnifiedSignal(result)
+
+  return {
+    id: signal.id,
+    pair: signal.symbol,
+    type: signal.side,
+    price: signal.entry,
+    tp: signal.tp,
+    sl: signal.sl,
+    conf: signal.confidence,
+    reason: result.reasons.slice(0, 2).join('، ') || 'إشارة مبنية على المسح الفني',
+    time: formatTime(signal.createdAt),
+    timeframe: signal.timeframe,
+    sourceEngine: signal.sourceEngine,
+    freshness: signal.freshness,
+    invalidatesWhen: signal.invalidatesWhen,
+    expiresAt: signal.expiresAt,
+    source: signal.source,
+    signalClass: signal.signalClass,
+    entryBias: signal.entryBias,
+    reasons: result.reasons,
+  } satisfies SmartSignalPayload
+}
+
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)
+    const targetPair = searchParams.get('pair')
+    const limit = Math.min(Math.max(Number(searchParams.get('limit') || '8') || 8, 1), 20)
     const timeframe = searchParams.get('tf') || '1h'
     const origin = req.nextUrl.origin
+    const symbolsToScan = targetPair ? [targetPair] : PRIMARY_SYMBOLS
 
     const contexts = await Promise.all(
-      PRIMARY_SYMBOLS.map((symbol) => fetchMarketContext(origin, symbol, timeframe))
+      symbolsToScan.map((symbol) => fetchMarketContext(origin, symbol, timeframe))
     )
 
-    const scannerResults = rankScannerResults(
-      contexts
-        .map((context) => buildScannerResult(context))
-        .filter((value): value is ScannerResult => Boolean(value))
-    )
+    const results = contexts
+      .map((context) => buildScannerResult(context))
+      .filter((value): value is ScannerResult => Boolean(value))
 
-    const signals = scannerResults.slice(0, 8).map((result) => {
-      const unified = buildUnifiedSignal(result)
-
-      return {
-        ...unified,
-        pair: unified.symbol,
-        type: unified.side,
-        price: unified.entry,
-        tp: unified.tp,
-        sl: unified.sl,
-        conf: unified.confidence,
-        reason: unified.reasons.join(' · '),
-        time: new Date(unified.createdAt).toLocaleTimeString('en-US', {
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-      }
-    })
+    const ranked = targetPair ? results : rankScannerResults(results)
+    const payload = ranked.slice(0, limit).map(mapUnifiedSignal)
 
     return NextResponse.json({
       success: true,
-      data: signals,
+      data: payload,
       meta: {
         timeframe,
+        symbolsScanned: symbolsToScan.length,
         sourceEngine: 'scanner-engine',
         timestamp: new Date().toISOString(),
       },
     })
   } catch (error: any) {
+    console.error('[signals/smart] Fatal Error:', error?.message || error)
     return NextResponse.json(
-      { success: false, error: error?.message || 'فشل في توليد الإشارات' },
+      { success: false, error: error?.message || 'فشل في توليد الإشارات الذكية' },
       { status: 500 }
     )
   }

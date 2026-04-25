@@ -1,6 +1,6 @@
 #!/bin/bash
 # Railway startup script for Roua Trading
-# Creates the SQLite database if it doesn't exist, then starts the web app
+# Production startup must never mutate schema destructively.
 
 set -e
 
@@ -18,13 +18,13 @@ echo "ORIGIN: ${ORIGIN:-not set}"
 echo "NODE_ENV: ${NODE_ENV:-development}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-# Create/migrate the database
-echo "📦 Running prisma db push..."
-npx prisma db push --schema=./prisma/schema.prisma --skip-generate --accept-data-loss 2>&1 || \
-bunx prisma db push --schema=./prisma/schema.prisma --skip-generate --accept-data-loss 2>&1 || \
-echo "⚠️  prisma db push failed, will retry on first request via ensureDbReady()"
+# Never run prisma db push with accept-data-loss during startup.
+# Schema changes must be applied deliberately during deployment, not when the
+# production app boots.
+echo "📦 Startup database policy: destructive schema sync disabled"
+echo "ℹ️  Apply Prisma schema changes in a controlled deploy step before starting production."
 
 # Start the web application
 echo "🌐 Starting Next.js server..."
 cd apps/web
-HOSTNAME=0.0.0.0 exec bunx next start -H 0.0.0.0 || HOSTNAME=0.0.0.0 exec npx next start -H 0.0.0.0
+HOSTNAME=0.0.0.0 exec bun x next start -H 0.0.0.0

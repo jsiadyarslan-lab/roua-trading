@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { TrendingUp, TrendingDown, RefreshCw, X, AlertTriangle } from 'lucide-react'
+import { AlertTriangle, RefreshCw, TrendingDown, TrendingUp, X } from 'lucide-react'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 
@@ -19,52 +19,77 @@ interface Position {
 
 const T = {
   success: '#00C853',
-  danger: '#FF3B30',
+  danger: '#FF5A54',
+  cyan: '#00E5FF',
+  amber: '#F5B942',
   text: '#E6EBF5',
-  text2: '#8090A8',
-  text3: '#A0AFC3',
-  border: 'rgba(255,255,255,0.06)',
-  card: '#111214',
-  bg: '#0F1113',
+  text2: '#8FA5BE',
+  text3: '#6E839B',
+  border: 'rgba(255,255,255,0.08)',
+  panel: '#0A1118',
+  card: '#111A24',
+  cardAlt: '#0E1620',
 }
 
+const fmtPrice = (value: number) =>
+  Number.isFinite(value)
+    ? value.toLocaleString('en-US', { maximumFractionDigits: value > 100 ? 2 : 4 })
+    : '—'
+
+const fmtPnl = (value: number) =>
+  `${value >= 0 ? '+' : ''}${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}$`
+
 export function AlpacaPositions() {
-  const { positions, account, loading, error, lastUpdate, fetchPositions, fetchAccount } = usePositionsStore()
+  const { positions, loading, error, lastUpdate, fetchPositions, fetchAccount } = usePositionsStore()
   const { trades: paperTrades, removeTrade: removePaperTrade } = usePaperTradesStore()
   const [closing, setClosing] = useState<string | null>(null)
   const [confirmClose, setConfirmClose] = useState<string | null>(null)
 
-  // Merge Alpaca positions and Paper trades
-  const allPositions: Array<Position & { id: string; isPaper: boolean; entryTime: number | null; tp: number | null; sl: number | null; source?: string }> = [
-    ...positions.map(p => {
-      const manualPt = paperTrades.find(pt => pt.symbol.replace('/', '') === p.symbol.replace('/', '') && pt.source === 'manual')
+  const allPositions: Array<
+    Position & {
+      id: string
+      isPaper: boolean
+      entryTime: number | null
+      tp: number | null
+      sl: number | null
+      source?: string
+    }
+  > = [
+    ...positions.map(position => {
+      const manualPaper = paperTrades.find(
+        trade => trade.symbol.replace('/', '') === position.symbol.replace('/', '') && trade.source === 'manual',
+      )
       return {
-        ...p,
-        id: p.rawSymbol,
+        ...position,
+        id: position.rawSymbol,
         isPaper: false,
-        entryTime: manualPt?.entryTime || null,
-        tp: manualPt?.tp || null,
-        sl: manualPt?.sl || null,
+        entryTime: manualPaper?.entryTime || null,
+        tp: manualPaper?.tp || null,
+        sl: manualPaper?.sl || null,
       }
     }),
     ...paperTrades
-      .filter(pt => pt.source === 'bot' || !positions.some(p => p.rawSymbol.replace('/', '') === pt.symbol.replace('/', '')))
-      .map(p => ({
-        symbol: p.symbol,
-        rawSymbol: p.symbol,
-        side: p.side,
-        qty: p.qty,
-        avgEntryPrice: p.entryPrice,
-        currentPrice: p.currentPrice,
-        marketValue: p.currentPrice * p.qty,
-        unrealizedPnl: p.unrealizedPnl,
-        unrealizedPct: p.unrealizedPct,
-        id: p.id,
+      .filter(
+        trade =>
+          trade.source === 'bot' ||
+          !positions.some(position => position.rawSymbol.replace('/', '') === trade.symbol.replace('/', '')),
+      )
+      .map(trade => ({
+        symbol: trade.symbol,
+        rawSymbol: trade.symbol,
+        side: trade.side,
+        qty: trade.qty,
+        avgEntryPrice: trade.entryPrice,
+        currentPrice: trade.currentPrice,
+        marketValue: trade.currentPrice * trade.qty,
+        unrealizedPnl: trade.unrealizedPnl,
+        unrealizedPct: trade.unrealizedPct,
+        id: trade.id,
         isPaper: true,
-        entryTime: p.entryTime,
-        tp: p.tp ?? null,
-        sl: p.sl ?? null,
-        source: p.source,
+        entryTime: trade.entryTime,
+        tp: trade.tp ?? null,
+        sl: trade.sl ?? null,
+        source: trade.source,
       })),
   ]
 
@@ -95,12 +120,12 @@ export function AlpacaPositions() {
     }
 
     try {
-      const res = await fetch(`/api/alpaca/positions/${encodeURIComponent(rawSymbol)}`, { method: 'DELETE' })
-      const j = await res.json()
-      if (j.success) {
+      const response = await fetch(`/api/alpaca/positions/${encodeURIComponent(rawSymbol)}`, { method: 'DELETE' })
+      const json = await response.json()
+      if (json.success) {
         await fetchPositions()
       } else {
-        alert(`فشل الإغلاق: ${j.error}`)
+        alert(`فشل الإغلاق: ${json.error}`)
       }
     } catch {
       alert('خطأ في إغلاق المركز')
@@ -109,186 +134,306 @@ export function AlpacaPositions() {
     }
   }
 
-  const totalPnl = allPositions.reduce((sum, p) => sum + p.unrealizedPnl, 0)
+  const totalPnl = allPositions.reduce((sum, position) => sum + position.unrealizedPnl, 0)
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: T.bg }}>
-      <div className="no-scrollbar" style={{ flex: 1, overflowX: 'auto', overflowY: 'auto' }}>
-        <table
-          style={{
-            width: '100%',
-            minWidth: 920,
-            borderCollapse: 'collapse',
-            fontSize: 10,
-            fontFamily: "'JetBrains Mono', monospace",
-          }}
-        >
-          <thead>
-            <tr style={{ background: 'rgba(255,255,255,0.03)' }}>
-              {['الزوج', 'التاريخ', 'الاتجاه', 'الكمية', 'دخول', 'حالي', 'TP', 'SL', 'P&L', ''].map((h, index) => (
-                <th
-                  key={h}
-                  style={{
-                    padding: '8px 10px',
-                    textAlign: 'right',
-                    fontWeight: 600,
-                    color: T.text3,
-                    whiteSpace: 'nowrap',
-                    fontSize: 9,
-                    position: index === 0 ? 'sticky' : 'static',
-                    left: index === 0 ? 0 : undefined,
-                    zIndex: index === 0 ? 3 : 1,
-                    background: index === 0 ? 'rgba(17,18,20,0.98)' : 'rgba(255,255,255,0.03)',
-                    boxShadow: index === 0 ? '1px 0 0 rgba(255,255,255,0.06)' : undefined,
-                  }}
-                >
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {allPositions.map((pos) => {
-              const isLong = pos.side === 'long'
-              const pnlPos = pos.unrealizedPnl >= 0
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        minHeight: 0,
+        overflow: 'hidden',
+        background: T.panel,
+      }}
+    >
+      <div
+        className="custom-scrollbar"
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: 'auto',
+          padding: '10px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 8,
+        }}
+      >
+        {allPositions.length === 0 && (
+          <div
+            style={{
+              borderRadius: 14,
+              border: `1px dashed ${T.border}`,
+              background: 'rgba(255,255,255,0.025)',
+              minHeight: 120,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              color: T.text3,
+              textAlign: 'center',
+              padding: 16,
+            }}
+          >
+            <div style={{ fontSize: 11, color: T.text }}>لا توجد صفقات مفتوحة الآن</div>
+            <div style={{ fontSize: 9 }}>عند فتح مركز سيظهر هنا بشكل مضغوط مع زر إغلاق مباشر.</div>
+          </div>
+        )}
 
-              return (
-                <tr key={pos.id} style={{ borderBottom: `1px solid ${T.border}` }}>
-                  <td
-                    style={{
-                      padding: '8px 10px',
-                      fontWeight: 700,
-                      color: T.text,
-                      position: 'sticky',
-                      left: 0,
-                      zIndex: 2,
-                      background: T.card,
-                      boxShadow: '1px 0 0 rgba(255,255,255,0.06)',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>{pos.symbol}</span>
-                      {pos.isPaper && (
-                        <span
-                          style={{
-                            fontSize: 8,
-                            padding: '1px 4px',
-                            borderRadius: 2,
-                            background: 'rgba(0,200,83,0.15)',
-                            color: T.success,
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          📄
-                        </span>
-                      )}
-                      {pos.source === 'bot' && <span style={{ fontSize: 8 }}>🤖</span>}
-                    </div>
-                  </td>
-                  <td style={{ padding: '8px 10px', color: T.text3, fontSize: 8, whiteSpace: 'nowrap' }}>
-                    {pos.entryTime ? new Date(pos.entryTime).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : 'تجميعي'}
-                  </td>
-                  <td style={{ padding: '8px 10px' }}>
+        {allPositions.map(position => {
+          const isLong = position.side === 'long'
+          const pnlUp = position.unrealizedPnl >= 0
+          const actionColor = confirmClose === position.id ? T.danger : pnlUp ? T.success : T.danger
+
+          return (
+            <div
+              key={position.id}
+              style={{
+                borderRadius: 16,
+                border: `1px solid ${pnlUp ? 'rgba(0,200,83,0.16)' : 'rgba(255,90,84,0.16)'}`,
+                background: `linear-gradient(180deg, ${T.card}, ${T.cardAlt})`,
+                boxShadow: `inset 0 1px 0 rgba(255,255,255,0.03), 0 10px 24px rgba(0,0,0,0.18)`,
+                padding: '10px 11px 9px',
+                display: 'grid',
+                gap: 8,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <div style={{ minWidth: 0, display: 'grid', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     <span
                       style={{
-                        padding: '4px 8px',
-                        borderRadius: 6,
-                        fontSize: 9,
-                        fontWeight: 800,
-                        background: isLong ? 'rgba(0,200,83,0.12)' : 'rgba(255,59,48,0.12)',
-                        color: isLong ? T.success : T.danger,
+                        fontSize: 12,
+                        fontWeight: 900,
+                        color: T.text,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        letterSpacing: '-0.02em',
+                      }}
+                    >
+                      {position.symbol}
+                    </span>
+                    <span
+                      style={{
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 4,
-                        whiteSpace: 'nowrap',
+                        padding: '2px 7px',
+                        borderRadius: 999,
+                        background: isLong ? 'rgba(0,200,83,0.14)' : 'rgba(255,90,84,0.14)',
+                        border: `1px solid ${isLong ? 'rgba(0,200,83,0.28)' : 'rgba(255,90,84,0.28)'}`,
+                        color: isLong ? T.success : T.danger,
+                        fontSize: 8,
+                        fontWeight: 900,
                       }}
                     >
-                      {isLong ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
+                      {isLong ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                       {isLong ? 'شراء' : 'بيع'}
                     </span>
-                  </td>
-                  <td style={{ padding: '8px 10px', color: T.text, whiteSpace: 'nowrap' }}>{pos.qty}</td>
-                  <td style={{ padding: '8px 10px', color: T.text2, whiteSpace: 'nowrap' }}>{pos.avgEntryPrice.toFixed(2)}</td>
-                  <td style={{ padding: '8px 10px', color: T.text, whiteSpace: 'nowrap' }}>{pos.currentPrice.toFixed(2)}</td>
-                  <td style={{ padding: '8px 10px', color: pos.tp ? T.success : T.text3, whiteSpace: 'nowrap' }}>{pos.tp ? pos.tp.toFixed(2) : '—'}</td>
-                  <td style={{ padding: '8px 10px', color: pos.sl ? T.danger : T.text3, whiteSpace: 'nowrap' }}>{pos.sl ? pos.sl.toFixed(2) : '—'}</td>
-                  <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
-                    <span style={{ color: pnlPos ? T.success : T.danger, fontWeight: 700 }}>
-                      {pnlPos ? '+' : ''}{pos.unrealizedPnl.toFixed(2)}$
-                      <span style={{ fontSize: 9, opacity: 0.7, marginRight: 3 }}>
-                        ({pnlPos ? '+' : ''}{pos.unrealizedPct.toFixed(2)}%)
+                    {position.isPaper && (
+                      <span
+                        style={{
+                          padding: '2px 6px',
+                          borderRadius: 999,
+                          background: 'rgba(0,229,255,0.10)',
+                          border: '1px solid rgba(0,229,255,0.20)',
+                          color: T.cyan,
+                          fontSize: 7.5,
+                          fontWeight: 800,
+                        }}
+                      >
+                        PAPER
                       </span>
-                    </span>
-                  </td>
-                  <td style={{ padding: '8px 8px', whiteSpace: 'nowrap' }}>
-                    <button
-                      onClick={() => closePosition(pos.id, pos.isPaper, pos.rawSymbol)}
-                      disabled={closing === pos.id}
-                      className={confirmClose === pos.id ? 'btn-neon-sell' : ''}
-                      title="إغلاق المركز"
+                    )}
+                    {position.source === 'bot' && (
+                      <span
+                        style={{
+                          padding: '2px 6px',
+                          borderRadius: 999,
+                          background: 'rgba(245,185,66,0.12)',
+                          border: '1px solid rgba(245,185,66,0.20)',
+                          color: T.amber,
+                          fontSize: 7.5,
+                          fontWeight: 800,
+                        }}
+                      >
+                        BOT
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', color: T.text3, fontSize: 8.5 }}>
+                    <span>{position.entryTime ? new Date(position.entryTime).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : 'مركز تجميعي'}</span>
+                    <span>القيمة: {fmtPrice(position.marketValue)}$</span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => closePosition(position.id, position.isPaper, position.rawSymbol)}
+                  disabled={closing === position.id}
+                  style={{
+                    flexShrink: 0,
+                    minWidth: 74,
+                    height: 32,
+                    padding: '0 10px',
+                    borderRadius: 10,
+                    border: `1px solid ${confirmClose === position.id ? 'rgba(255,90,84,0.42)' : 'rgba(255,90,84,0.22)'}`,
+                    background: confirmClose === position.id ? 'rgba(255,90,84,0.16)' : 'rgba(255,90,84,0.08)',
+                    color: actionColor,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 5,
+                    cursor: 'pointer',
+                    fontSize: 9,
+                    fontWeight: 900,
+                    fontFamily: "'Cairo', sans-serif",
+                  }}
+                >
+                  {closing === position.id ? (
+                    <RefreshCw size={11} style={{ animation: 'spin 1s linear infinite' }} />
+                  ) : confirmClose === position.id ? (
+                    'تأكيد'
+                  ) : (
+                    <>
+                      <X size={11} />
+                      إغلاق
+                    </>
+                  )}
+                </button>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+                  gap: 6,
+                }}
+              >
+                {[
+                  { label: 'الكمية', value: position.qty },
+                  { label: 'الدخول', value: fmtPrice(position.avgEntryPrice) },
+                  { label: 'الحالي', value: fmtPrice(position.currentPrice) },
+                  { label: 'TP', value: position.tp ? fmtPrice(position.tp) : '—', tone: T.success },
+                  { label: 'SL', value: position.sl ? fmtPrice(position.sl) : '—', tone: T.danger },
+                ].map(item => (
+                  <div
+                    key={item.label}
+                    style={{
+                      minWidth: 0,
+                      borderRadius: 11,
+                      border: '1px solid rgba(255,255,255,0.07)',
+                      background: 'rgba(255,255,255,0.03)',
+                      padding: '7px 6px 6px',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div style={{ fontSize: 7.5, color: T.text3, marginBottom: 4 }}>{item.label}</div>
+                    <div
                       style={{
-                        background: confirmClose === pos.id ? T.danger : 'rgba(255,68,68,0.1)',
-                        border: '1px solid rgba(255,68,68,0.25)',
-                        color: confirmClose === pos.id ? '#fff' : T.danger,
-                        borderRadius: 8,
-                        cursor: 'pointer',
-                        minHeight: 48,
-                        minWidth: 48,
-                        padding: '8px 10px',
-                        fontSize: 9,
-                        fontFamily: "'Cairo', sans-serif",
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: 4,
-                        transition: 'all 0.15s',
-                        fontWeight: confirmClose === pos.id ? 800 : 600,
+                        fontSize: 10.5,
+                        fontWeight: 800,
+                        color: item.tone || T.text,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                       }}
                     >
-                      {closing === pos.id ? (
-                        <RefreshCw size={9} style={{ animation: 'spin 1s linear infinite' }} />
-                      ) : confirmClose === pos.id ? (
-                        <>تأكيد؟</>
-                      ) : (
-                        <>
-                          <X size={9} />
-                          إغلاق
-                        </>
-                      )}
-                    </button>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                      {item.value}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div
+                style={{
+                  borderRadius: 12,
+                  border: `1px solid ${pnlUp ? 'rgba(0,200,83,0.22)' : 'rgba(255,90,84,0.22)'}`,
+                  background: pnlUp ? 'rgba(0,200,83,0.08)' : 'rgba(255,90,84,0.08)',
+                  padding: '8px 10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 8, color: T.text3, marginBottom: 3 }}>الربح والخسارة غير المحقق</div>
+                  <div
+                    style={{
+                      fontSize: 11.5,
+                      fontWeight: 900,
+                      color: pnlUp ? T.success : T.danger,
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}
+                  >
+                    {fmtPnl(position.unrealizedPnl)}
+                  </div>
+                </div>
+                <div
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: 999,
+                    background: 'rgba(0,0,0,0.18)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    color: pnlUp ? T.success : T.danger,
+                    fontSize: 10,
+                    fontWeight: 900,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {position.unrealizedPct >= 0 ? '+' : ''}
+                  {position.unrealizedPct.toFixed(2)}%
+                </div>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       <div
         style={{
+          flexShrink: 0,
+          padding: '9px 10px',
+          borderTop: `1px solid ${T.border}`,
+          background: 'rgba(255,255,255,0.025)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '8px 10px',
-          borderTop: `1px solid ${T.border}`,
-          background: 'rgba(255,255,255,0.02)',
-          fontSize: 10,
-          color: T.text3,
-          fontFamily: "'Cairo', sans-serif",
+          gap: 10,
         }}
       >
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
           <AlertTriangle size={11} color={T.text3} />
-          {loading ? 'جاري التحديث...' : error ? 'تعذر تحميل المراكز' : `آخر تحديث: ${lastUpdate ? new Date(lastUpdate).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '—'}`}
-        </span>
-        <span style={{ color: totalPnl >= 0 ? T.success : T.danger, fontWeight: 700 }}>
-          {totalPnl >= 0 ? '+' : ''}{totalPnl.toFixed(2)}$
-        </span>
+          <span style={{ fontSize: 9, color: T.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {loading
+              ? 'جاري تحديث المراكز...'
+              : error
+                ? 'تعذر تحميل المراكز'
+                : `آخر تحديث ${lastUpdate ? new Date(lastUpdate).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '—'}`}
+          </span>
+        </div>
+        <div
+          style={{
+            fontSize: 10.5,
+            fontWeight: 900,
+            color: totalPnl >= 0 ? T.success : T.danger,
+            fontFamily: "'JetBrains Mono', monospace",
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {fmtPnl(totalPnl)}
+        </div>
       </div>
 
       <style>{`
-        @keyframes spin { from { transform: rotate(0deg) } to { transform: rotate(360deg) } }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
       `}</style>
     </div>
   )

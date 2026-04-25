@@ -25,6 +25,6 @@ import { IExchangeAdapter } from './exchange.types';
       inject: [TwelveDataAdapter, BinanceAdapter],
     },
   ],
-  exports: [ExchangeService],
+  exports: [ExchangeService, ExchangeGateway],
 })
 export class ExchangeModule {}

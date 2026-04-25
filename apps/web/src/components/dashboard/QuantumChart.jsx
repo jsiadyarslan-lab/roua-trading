@@ -14,7 +14,7 @@ import {
 import { useSymbolStore } from '../../hooks/useSymbolStore';
 import { usePositionsStore } from '../../hooks/usePositionsStore';
 import { usePaperTradesStore } from '../../hooks/usePaperTradesStore';
-import { formatFreshness } from '../../lib/dashboard-live';
+import { formatFreshness, getStatusTone } from '../../lib/dashboard-live';
 
 // ── CSS injected once globally ────────────────────────────
 const CHART_CSS = `
@@ -274,6 +274,7 @@ export default function QuantumChart({
   const overlayPairSize = mobile ? 9 : 11
   const showDesktopTools = !mobile
   const showSessions = !compact
+  const statusTone = getStatusTone(dataStatus)
   const feedLabel = feedState === 'fallback' ? 'Using fallback series' : feedState === 'waiting' ? 'Waiting for feed' : 'Chart live'
 
   /* ─── JSX ─────────────────────────────────────────────── */

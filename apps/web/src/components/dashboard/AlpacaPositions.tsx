@@ -197,102 +197,131 @@ export function AlpacaPositions() {
             <div
               key={position.id}
               style={{
-                borderRadius: 14,
-                border: `1px solid ${pnlUp ? 'rgba(0,200,83,0.18)' : 'rgba(255,90,84,0.18)'}`,
+                borderRadius: 12,
+                border: `1px solid ${pnlUp ? 'rgba(0,200,83,0.16)' : 'rgba(255,90,84,0.16)'}`,
                 background: `linear-gradient(180deg, ${T.card}, ${T.cardAlt})`,
-                boxShadow: `inset 0 1px 0 rgba(255,255,255,0.025), 0 8px 18px rgba(0,0,0,0.16)`,
-                padding: '7px 9px',
+                boxShadow: `inset 0 1px 0 rgba(255,255,255,0.025), 0 6px 14px rgba(0,0,0,0.14)`,
+                padding: '8px 10px',
                 display: 'grid',
-                gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 2.7fr) minmax(0, 0.95fr) auto',
-                gap: 8,
+                gridTemplateColumns: 'minmax(0, 1.5fr) minmax(108px, 1.1fr) minmax(0, 1.75fr) minmax(112px, 0.95fr) auto',
+                gap: 10,
                 alignItems: 'center',
               }}
             >
               <div
                 style={{
                   minWidth: 0,
-                  display: 'grid',
-                  gap: 3,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  paddingLeft: 10,
+                  borderLeft: '1px solid rgba(255,255,255,0.06)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, minWidth: 0, flexWrap: 'wrap' }}>
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 900,
-                      color: T.text,
-                      fontFamily: "'JetBrains Mono', monospace",
-                      letterSpacing: '-0.02em',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {position.symbol}
-                  </span>
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 3,
-                      padding: '1px 6px',
-                      borderRadius: 999,
-                      background: isLong ? 'rgba(0,200,83,0.14)' : 'rgba(255,90,84,0.14)',
-                      border: `1px solid ${isLong ? 'rgba(0,200,83,0.28)' : 'rgba(255,90,84,0.28)'}`,
-                      color: sideTone,
-                      fontSize: 7.5,
-                      fontWeight: 900,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {isLong ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
-                    {isLong ? 'شراء' : 'بيع'}
-                  </span>
-                  {position.isPaper && (
+                <div style={{ minWidth: 0, display: 'grid', gap: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flexWrap: 'wrap' }}>
                     <span
                       style={{
-                        padding: '1px 5px',
-                        borderRadius: 999,
-                        background: 'rgba(0,229,255,0.10)',
-                        border: '1px solid rgba(0,229,255,0.20)',
-                        color: T.cyan,
-                        fontSize: 7,
-                        fontWeight: 800,
+                        fontSize: 11,
+                        fontWeight: 900,
+                        color: T.text,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        letterSpacing: '-0.02em',
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      PAPER
+                      {position.symbol}
                     </span>
-                  )}
-                  {position.source === 'bot' && (
                     <span
                       style={{
-                        padding: '1px 5px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 3,
+                        padding: '1px 6px',
                         borderRadius: 999,
-                        background: 'rgba(245,185,66,0.12)',
-                        border: '1px solid rgba(245,185,66,0.20)',
-                        color: T.amber,
-                        fontSize: 7,
-                        fontWeight: 800,
+                        background: isLong ? 'rgba(0,200,83,0.14)' : 'rgba(255,90,84,0.14)',
+                        border: `1px solid ${isLong ? 'rgba(0,200,83,0.28)' : 'rgba(255,90,84,0.28)'}`,
+                        color: sideTone,
+                        fontSize: 7.5,
+                        fontWeight: 900,
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      BOT
+                      {isLong ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
+                      {isLong ? 'شراء' : 'بيع'}
                     </span>
-                  )}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', color: T.text3, fontSize: 7.5 }}>
-                  <span>{openedAt}</span>
-                  <span>الكمية {position.qty}</span>
+                    {position.isPaper && (
+                      <span
+                        style={{
+                          padding: '1px 5px',
+                          borderRadius: 999,
+                          background: 'rgba(0,229,255,0.10)',
+                          border: '1px solid rgba(0,229,255,0.20)',
+                          color: T.cyan,
+                          fontSize: 7,
+                          fontWeight: 800,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        PAPER
+                      </span>
+                    )}
+                    {position.source === 'bot' && (
+                      <span
+                        style={{
+                          padding: '1px 5px',
+                          borderRadius: 999,
+                          background: 'rgba(245,185,66,0.12)',
+                          border: '1px solid rgba(245,185,66,0.20)',
+                          color: T.amber,
+                          fontSize: 7,
+                          fontWeight: 800,
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        BOT
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 7.5, color: T.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    الكمية {position.qty}
+                  </div>
                 </div>
               </div>
 
               <div
                 style={{
                   minWidth: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  justifyContent: 'space-between',
-                  overflow: 'hidden',
+                  display: 'grid',
+                  gap: 3,
+                  paddingLeft: 10,
+                  borderLeft: '1px solid rgba(255,255,255,0.06)',
+                }}
+              >
+                <div style={{ fontSize: 6.5, color: T.text3 }}>تاريخ الفتح</div>
+                <div
+                  style={{
+                    fontSize: 8.5,
+                    fontWeight: 800,
+                    color: T.text,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {openedAt}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  minWidth: 0,
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+                  gap: 8,
+                  paddingLeft: 10,
+                  borderLeft: '1px solid rgba(255,255,255,0.06)',
                 }}
               >
                 {[
@@ -301,21 +330,11 @@ export function AlpacaPositions() {
                   { label: 'TP', value: position.tp ? fmtPrice(position.tp) : '—', tone: position.tp ? T.success : T.text3 },
                   { label: 'SL', value: position.sl ? fmtPrice(position.sl) : '—', tone: position.sl ? T.danger : T.text3 },
                 ].map(item => (
-                  <div
-                    key={item.label}
-                    style={{
-                      minWidth: 0,
-                      flex: 1,
-                      display: 'grid',
-                      gap: 2,
-                      padding: '0 2px',
-                      textAlign: 'center',
-                    }}
-                  >
+                  <div key={item.label} style={{ minWidth: 0, display: 'grid', gap: 3, textAlign: 'center' }}>
                     <div style={{ fontSize: 6.5, color: T.text3 }}>{item.label}</div>
                     <div
                       style={{
-                        fontSize: 9.5,
+                        fontSize: 9,
                         fontWeight: 800,
                         color: item.tone,
                         fontFamily: "'JetBrains Mono', monospace",
@@ -333,32 +352,14 @@ export function AlpacaPositions() {
               <div
                 style={{
                   minWidth: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  justifyContent: 'flex-end',
+                  display: 'grid',
+                  gap: 3,
+                  paddingLeft: 10,
+                  borderLeft: '1px solid rgba(255,255,255,0.06)',
+                  justifyItems: 'end',
                 }}
               >
-                <div
-                  style={{
-                    fontSize: 8,
-                    color: T.text3,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  القيمة
-                </div>
-                <div
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 800,
-                    color: T.text,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {fmtPrice(position.marketValue)}$
-                </div>
+                <div style={{ fontSize: 6.5, color: T.text3 }}>الربح والخسارة</div>
                 <div
                   style={{
                     color: pnlUp ? T.success : T.danger,
@@ -376,9 +377,9 @@ export function AlpacaPositions() {
                   disabled={closing === position.id}
                   style={{
                     flexShrink: 0,
-                    minWidth: 58,
+                    minWidth: 56,
                     height: 26,
-                    padding: '0 8px',
+                    padding: '0 7px',
                     borderRadius: 8,
                     border: `1px solid ${confirmClose === position.id ? 'rgba(255,90,84,0.42)' : 'rgba(255,90,84,0.22)'}`,
                     background: confirmClose === position.id ? 'rgba(255,90,84,0.16)' : 'rgba(255,90,84,0.08)',
@@ -388,7 +389,7 @@ export function AlpacaPositions() {
                     justifyContent: 'center',
                     gap: 4,
                     cursor: 'pointer',
-                    fontSize: 7.5,
+                    fontSize: 7,
                     fontWeight: 900,
                     fontFamily: "'Cairo', sans-serif",
                     whiteSpace: 'nowrap',

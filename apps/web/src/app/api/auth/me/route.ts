@@ -9,6 +9,21 @@ import { db, ensureDbReady } from '@/lib/db'
  */
 export async function GET(request: NextRequest) {
   try {
+    // ── DEV_MODE: auto-authenticate with a dev user ──
+    // When DEV_MODE=1, all requests are treated as authenticated
+    // using a built-in dev user. No login required.
+    if (process.env.DEV_MODE === '1') {
+      return NextResponse.json({
+        authenticated: true,
+        user: {
+          id: 'dev-user-00000000',
+          email: 'dev@roua.local',
+          displayName: 'Dev User',
+          tier: 'PREMIUM',
+        },
+      })
+    }
+
     await ensureDbReady()
 
     const sessionToken = request.cookies.get('roua_session')?.value

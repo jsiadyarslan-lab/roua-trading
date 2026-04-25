@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
 import {
   LineChart,
   Line,
@@ -53,7 +52,6 @@ interface BacktestResult {
 }
 
 export default function BacktestPanel() {
-  const { user, loading: authLoading } = useAuth();
   const [symbol, setSymbol] = useState('BTC/USDT');
   const [strategy, setStrategy] = useState('MOMENTUM');
   const [periodStart, setPeriodStart] = useState('2025-01-01');
@@ -64,10 +62,6 @@ export default function BacktestPanel() {
   const [error, setError] = useState('');
 
   const runBacktest = async () => {
-    if (!user) {
-      setError('يرجى تسجيل الدخول أولاً لاستخدام مختبر التداول');
-      return;
-    }
     setLoading(true);
     setError('');
     setResult(null);
@@ -99,22 +93,8 @@ export default function BacktestPanel() {
     }
   };
 
-  // Show auth prompt if not logged in
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-gray-400">جاري التحقق من الهوية...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {!user && (
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5 text-center">
-          <p className="text-sm text-amber-300">يرجى تسجيل الدخول أولاً لاستخدام مختبر التداول الذكي</p>
-        </div>
-      )}
       {/* Configuration Card */}
       <div className="rounded-xl border border-white/5 bg-[#111827] p-5">
         <h2 className="mb-4 text-lg font-semibold text-white flex items-center gap-2">

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
 
 const SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT', 'DOGE/USDT', 'AVAX/USDT', 'DOT/USDT', 'MATIC/USDT'];
 
@@ -33,7 +32,6 @@ interface SwarmResult {
 }
 
 export default function SwarmPanel() {
-  const { user, loading: authLoading } = useAuth();
   const [agentCount, setAgentCount] = useState(3);
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>(['BTC/USDT', 'ETH/USDT', 'SOL/USDT']);
   const [riskTolerance, setRiskTolerance] = useState(50);
@@ -48,10 +46,6 @@ export default function SwarmPanel() {
   };
 
   const startSwarm = async () => {
-    if (!user) {
-      setError('يرجى تسجيل الدخول أولاً لاستخدام مختبر التداول');
-      return;
-    }
     setLoading(true);
     setError('');
     setSwarm(null);
@@ -107,22 +101,8 @@ export default function SwarmPanel() {
     }
   };
 
-  // Show auth prompt if not logged in
-  if (authLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="text-gray-400">جاري التحقق من الهوية...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
-      {!user && (
-        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5 text-center">
-          <p className="text-sm text-amber-300">يرجى تسجيل الدخول أولاً لاستخدام مختبر التداول الذكي</p>
-        </div>
-      )}
       {/* Configuration */}
       <div className="rounded-xl border border-white/5 bg-[#111827] p-5">
         <h2 className="mb-4 text-lg font-semibold text-white flex items-center gap-2">

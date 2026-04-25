@@ -56,13 +56,6 @@ function normalizeRouteSymbol(parts: string[] | string) {
   }
 }
 
-// ── No mock data — return null when real APIs are unavailable ──
-// Previously had hardcoded stock prices (AAPL, MSFT, etc.) and random price
-// generation for unknown symbols. Removed to avoid displaying fake data.
-function getUnavailableQuote(symbol: string): null {
-  return null
-}
-
 // ── Fetch from Twelve Data API ──
 let twelveDataExhausted = false;
 let twelveDataResetTimeout: NodeJS.Timeout | null = null;

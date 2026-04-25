@@ -5,7 +5,7 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area, BarChart, Bar,
 } from 'recharts'
-import { TrendingUp, TrendingDown, Award, Target, BarChart2, X, Shield, Activity, RefreshCw, Loader2, AlertTriangle, ChevronRight, Clock, History, Eye } from 'lucide-react'
+import { TrendingUp, TrendingDown, Award, Target, BarChart2, X, Shield, Activity, RefreshCw, Loader2, AlertTriangle, ChevronRight, Clock, History } from 'lucide-react'
 
 /* ── Theme ── */
 const T = {

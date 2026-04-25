@@ -3,7 +3,9 @@
 # Production startup with full stack: NestJS API + Next.js Web
 # Uses Bun runtime (oven/bun:1 Docker image)
 
-set -e
+# Don't use 'set -e' — we want to continue even if some steps fail
+# so Next.js can start regardless of API/database issues
+# set -e
 
 # Load local environment fallback when running outside Railway or when env vars are absent.
 if [ -z "${DATABASE_URL:-}" ] && [ -f ".env" ]; then
@@ -183,31 +185,36 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "🔧 Starting NestJS API server (port 3001)..."
 cd apps/api
 
+API_PID=""
 # Use the compiled JS entrypoint in production
 if [ -d "dist" ]; then
   node dist/main &
   API_PID=$!
   echo "📋 NestJS started from dist/ (PID: $API_PID)"
 else
-  echo "⚠️ dist/ not found — API build output is missing"
-  exit 1
+  echo "⚠️ dist/ not found — API will not be available"
+  echo "⚠️ Next.js will still start but API routes will fail"
 fi
 
-# Wait for API to be ready
-echo "⏳ Waiting for API to be ready..."
-# Use a public endpoint for readiness; /api/engine/health is protected by AuthGuard.
-API_HEALTH_URL="http://127.0.0.1:3001/api/auth/session"
-for i in $(seq 1 45); do
-  if curl -fsS "$API_HEALTH_URL" > /dev/null 2>&1; then
-    echo "✅ API is ready! (attempt $i)"
-    break
-  fi
-  if [ $i -eq 45 ]; then
-    echo "⚠️ API did not start in 45s — critical routes will fail!"
-    echo "⚠️ Check logs above for NestJS startup errors."
-  fi
-  sleep 1
-done
+# Wait for API to be ready (only if API was started)
+if [ -n "$API_PID" ]; then
+  echo "⏳ Waiting for API to be ready..."
+  # Use a public endpoint for readiness; /api/engine/health is protected by AuthGuard.
+  API_HEALTH_URL="http://127.0.0.1:3001/api/auth/session"
+  for i in $(seq 1 45); do
+    if curl -fsS "$API_HEALTH_URL" > /dev/null 2>&1; then
+      echo "✅ API is ready! (attempt $i)"
+      break
+    fi
+    if [ $i -eq 45 ]; then
+      echo "⚠️ API did not start in 45s — critical routes will fail!"
+      echo "⚠️ Check logs above for NestJS startup errors."
+    fi
+    sleep 1
+  done
+else
+  echo "⏩ Skipping API readiness check (API not started)"
+fi
 
 cd "$PROJECT_ROOT"
 
@@ -215,4 +222,7 @@ cd "$PROJECT_ROOT"
 echo "🌐 Starting Next.js server (port 3000)..."
 cd apps/web
 trap "kill $API_PID 2>/dev/null || true" EXIT
-bunx next start -H 0.0.0.0
+bunx next start -H 0.0.0.0 || {
+  echo "❌ Next.js failed to start — retrying with port auto-detect..."
+  bunx next start -H 0.0.0.0 -p ${PORT:-3000}
+}

@@ -3,6 +3,15 @@ import { NextRequest, NextResponse } from 'next/server'
 // ── Known crypto base currencies (used for symbol normalization) ──
 const CRYPTO_BASE_CURRENCIES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
 
+function normalizeRouteSymbol(parts: string[] | string) {
+  const joined = Array.isArray(parts) ? parts.join('/') : parts
+  try {
+    return decodeURIComponent(joined)
+  } catch {
+    return joined
+  }
+}
+
 /**
  * GET /api/exchange/history/[symbol]
  * Fetches historical OHLCV data for a symbol.
@@ -21,7 +30,7 @@ export async function GET(
   try {
     // Catch-all route: /api/exchange/history/BTC/USDT → symbol = ['BTC', 'USDT']
     const symbolParts = await params
-    const symbol = symbolParts.symbol.join('/')
+    const symbol = normalizeRouteSymbol(symbolParts.symbol)
     const url = request.nextUrl
     const interval = url.searchParams.get('interval') || '1day'
     const source = url.searchParams.get('source')

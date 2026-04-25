@@ -47,6 +47,15 @@ function toNum(v: any): number {
 // ── Known crypto base currencies (used for symbol normalization) ──
 const CRYPTO_BASE_CURRENCIES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
 
+function normalizeRouteSymbol(parts: string[] | string) {
+  const joined = Array.isArray(parts) ? parts.join('/') : parts
+  try {
+    return decodeURIComponent(joined)
+  } catch {
+    return joined
+  }
+}
+
 // ── Mock data for when API keys are not configured ──
 const MOCK_QUOTES: Record<string, any> = {
   'AAPL': { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ', currency: 'USD', price: 189.84, change: 1.23, changePercent: 0.65, open: 188.50, high: 190.12, low: 188.10, close: 189.84, volume: 52347890, marketCap: 2950000000000, fiftyTwoWeekHigh: 199.62, fiftyTwoWeekLow: 164.08 },
@@ -306,7 +315,7 @@ export async function GET(
   try {
     // Catch-all route: /api/exchange/quote/BTC/USDT → symbol = ['BTC', 'USDT']
     const symbolParts = await params
-    const symbol = symbolParts.symbol.join('/')
+    const symbol = normalizeRouteSymbol(symbolParts.symbol)
     const source = request.nextUrl.searchParams.get('source')
 
     // Check cache first
@@ -385,8 +394,7 @@ export async function GET(
     // Even on unexpected errors, try to return mock data instead of 500
     try {
       const { symbol: symParts } = await params
-      const sym = Array.isArray(symParts) ? symParts.join('/') : symParts
-      const mockQuote = getMockQuote(sym)
+      const mockQuote = getMockQuote(normalizeRouteSymbol(symParts))
       return NextResponse.json({ success: true, data: mockQuote, fallback: true })
     } catch {
       return NextResponse.json(

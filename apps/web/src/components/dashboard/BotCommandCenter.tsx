@@ -110,25 +110,25 @@ export function BotCommandCenter() {
   }
 
   return (
-    <div className="custom-scrollbar no-scrollbar" style={{ height: '100%', overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: 12, background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 16, border: `1px solid ${T.border}` }}>
+    <div className="custom-scrollbar no-scrollbar" style={{ height: '100%', overflowY: 'auto', padding: '10px', display: 'flex', flexDirection: 'column', gap: 10, background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 16, border: `1px solid ${T.border}` }}>
       
       {/* Bot Master Switch */}
       <div style={{
         background: isActive ? 'rgba(0,200,83,0.05)' : 'rgba(255,59,48,0.05)',
         border: `1px solid ${isActive ? 'rgba(0,200,83,0.2)' : 'rgba(255,59,48,0.2)'}`,
-        borderRadius: 14, padding: '14px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+        borderRadius: 12, padding: '10px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
-            width: 32, height: 32, borderRadius: 8, background: isActive ? T.success : T.danger,
+            width: 24, height: 24, borderRadius: 7, background: isActive ? T.success : T.danger,
             display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff',
             boxShadow: `0 0 12px ${isActive ? T.success : T.danger}40`
           }}>
-            {isActive ? <Zap size={16} /> : <Pause size={16} />}
+            {isActive ? <Zap size={12} /> : <Pause size={12} />}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: 12, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>محرك التداول الذكي</span>
-            <span style={{ fontSize: 9, color: isActive ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+            <span style={{ fontSize: 10, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>محرك التداول الذكي</span>
+            <span style={{ fontSize: 7, color: isActive ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
               {isActive ? `SYSTEM ONLINE - ${engineState.toUpperCase()}` : 'SYSTEM PAUSED - MANUAL ONLY'}
             </span>
           </div>
@@ -139,7 +139,8 @@ export function BotCommandCenter() {
             background: isActive ? 'transparent' : T.success,
             border: `1px solid ${isActive ? T.danger : T.success}`,
             color: isActive ? T.danger : '#fff',
-            padding: '6px 12px', borderRadius: 6, fontSize: 10, fontWeight: 800, cursor: 'pointer',
+            minHeight: 24,
+            padding: '4px 8px', borderRadius: 6, fontSize: 7.5, fontWeight: 800, cursor: 'pointer',
             fontFamily: "'Cairo', sans-serif", transition: '0.2s'
           }}
         >
@@ -148,10 +149,10 @@ export function BotCommandCenter() {
       </div>
 
       {/* Risk Management */}
-      <div className="card" style={{ border: `1px solid ${T.border}`, borderRadius: 14, padding: '12px' }}>
+      <div className="card" style={{ border: `1px solid ${T.border}`, borderRadius: 12, padding: '10px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
           <Settings2 size={12} color={T.text2} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>إدارة المخاطر (لحجم الإشارة)</span>
+          <span style={{ fontSize: 9, fontWeight: 700, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>إدارة المخاطر</span>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {[
@@ -163,28 +164,28 @@ export function BotCommandCenter() {
               key={r.id}
               onClick={() => setRisk(r.id as any)}
               style={{
-                flex: 1, padding: '8px 4px', borderRadius: 6, cursor: 'pointer', transition: '0.2s',
+                flex: 1, minHeight: 32, padding: '4px 3px', borderRadius: 6, cursor: 'pointer', transition: '0.2s',
                 background: risk === r.id ? `${r.color}15` : 'transparent',
                 border: `1px solid ${risk === r.id ? r.color : T.border}`,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4
               }}
             >
-              <span style={{ fontSize: 10, fontWeight: risk === r.id ? 800 : 500, color: risk === r.id ? r.color : T.text, fontFamily: "'Cairo', sans-serif" }}>{r.label}</span>
-              <span style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{r.desc}</span>
+              <span style={{ fontSize: 7, fontWeight: risk === r.id ? 800 : 600, color: risk === r.id ? r.color : T.text, fontFamily: "'Cairo', sans-serif", lineHeight: 1 }}>{r.label}</span>
+              <span style={{ fontSize: 6.5, color: T.text3, fontFamily: "'JetBrains Mono', monospace", lineHeight: 1 }}>{r.desc}</span>
             </button>
           ))}
         </div>
       </div>
 
       {/* Live Signals Stream */}
-      <div className="card" style={{ flex: 1, border: `1px solid ${T.border}`, borderRadius: 14, padding: '12px', display: 'flex', flexDirection: 'column' }}>
+      <div className="card" style={{ flex: 1, border: `1px solid ${T.border}`, borderRadius: 12, padding: '10px', display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <ShieldAlert size={12} color={T.accent} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>بث الإشارات الحية (Live Signals)</span>
+            <span style={{ fontSize: 9, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>بث الإشارات الحية</span>
           </div>
           <button onClick={fetchSignals} disabled={loading} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
-            <RefreshCw size={12} color={T.text2} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={10} color={T.text2} className={loading ? 'animate-spin' : ''} />
           </button>
         </div>
         
@@ -205,7 +206,7 @@ export function BotCommandCenter() {
 
               return (
                 <div key={i} onClick={() => setSelectedSymbol(sig.pair)} className="card" style={{
-                  background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, borderRadius: 12, padding: '10px 11px',
+                  background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, borderRadius: 10, padding: '8px 9px',
                   display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer', transition: '0.2s'
                 }} onMouseEnter={e => e.currentTarget.style.borderColor = c} onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
                   
@@ -213,27 +214,27 @@ export function BotCommandCenter() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{
-                        fontSize: 9, fontWeight: 800, color: c, background: `${c}15`, padding: '2px 6px', borderRadius: 4, fontFamily: "'JetBrains Mono', monospace"
+                        fontSize: 7, fontWeight: 800, color: c, background: `${c}15`, padding: '2px 5px', borderRadius: 4, fontFamily: "'JetBrains Mono', monospace"
                       }}>{sig.type}</span>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{sig.pair}</span>
+                      <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{sig.pair}</span>
                     </div>
-                    <span style={{ fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>الثقة: {sig.conf}%</span>
+                    <span style={{ fontSize: 7, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>الثقة: {sig.conf}%</span>
                   </div>
 
                   {/* Middle Row: Details */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', padding: '4px 6px', borderRadius: 4 }}>
-                    <span style={{ fontSize: 9, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>{sig.reason}</span>
-                     <span style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <span style={{ fontSize: 7.5, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>{sig.reason}</span>
+                     <span style={{ fontSize: 6.5, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
                        {sig.timeframe || '1H'} · {sig.time}
                      </span>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <span style={{ fontSize: 6.5, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
                       {sig.sourceEngine || 'scanner-engine'} {sig.freshness ? `· ${sig.freshness}` : ''}
                     </span>
                     {sig.invalidatesWhen && (
-                      <span style={{ fontSize: 8, color: T.amber, fontFamily: "'Cairo', sans-serif", textAlign: 'left' }}>
+                      <span style={{ fontSize: 6.5, color: T.amber, fontFamily: "'Cairo', sans-serif", textAlign: 'left' }}>
                         {sig.invalidatesWhen}
                       </span>
                     )}
@@ -241,7 +242,7 @@ export function BotCommandCenter() {
 
                   {/* Bottom Row: Execute Button */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: 8, fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: T.text2 }}>
+                    <div style={{ display: 'flex', gap: 8, fontSize: 7, fontFamily: "'JetBrains Mono', monospace", color: T.text2 }}>
                        <span>TP: <span style={{ color: T.success }}>{sig.tp.toFixed(2)}</span></span>
                        <span>SL: <span style={{ color: T.danger }}>{sig.sl.toFixed(2)}</span></span>
                     </div>
@@ -252,12 +253,13 @@ export function BotCommandCenter() {
                         background: executed ? 'rgba(255,255,255,0.05)' : `${c}15`,
                         border: `1px solid ${executed ? 'rgba(255,255,255,0.1)' : `${c}40`}`,
                         color: executed ? T.text3 : c,
-                        padding: '4px 10px', borderRadius: 4, fontSize: 9, fontWeight: 800,
+                        minHeight: 22,
+                        padding: '3px 7px', borderRadius: 4, fontSize: 6.5, fontWeight: 800,
                         cursor: executed ? 'default' : 'pointer', fontFamily: "'Cairo', sans-serif",
                         display: 'flex', alignItems: 'center', gap: 4
                       }}
                     >
-                      {executed ? <><CheckCircle size={10} /> تم التنفيذ</> : 'تنفيذ ⚡'}
+                      {executed ? <><CheckCircle size={8} /> تم</> : 'تنفيذ'}
                     </button>
                   </div>
 

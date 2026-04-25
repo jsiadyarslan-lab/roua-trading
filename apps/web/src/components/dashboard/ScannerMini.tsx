@@ -63,18 +63,18 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
       overflow: 'hidden'
     }}>
       {!compact && <div style={{
-        padding: '14px 14px 12px',
+        padding: '10px 10px 8px',
         background: 'linear-gradient(90deg, rgba(255,184,0,0.12), transparent)',
         borderBottom: '1px solid rgba(0,229,255,0.08)',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         flexShrink: 0
       }}>
         <div>
-          <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--accent)', fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--accent)', fontFamily: "'Cairo', sans-serif" }}>
             📡 سكانر الأسواق
           </span>
           {lastScan && (
-            <span style={{ fontSize: 10, color: 'var(--text3)', marginRight: 8, fontFamily: 'monospace' }}>
+            <span style={{ fontSize: 7, color: 'var(--text3)', marginRight: 6, fontFamily: 'monospace' }}>
               · {lastScan}
             </span>
           )}
@@ -84,7 +84,9 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
           disabled={scanning}
           className="btn-cyan-active"
           style={{
-            fontSize: 10, padding: '3px 10px', borderRadius: 4, cursor: scanning ? 'not-allowed' : 'pointer'
+            minHeight: 22,
+            fontSize: 6.5, padding: '3px 7px', borderRadius: 4, cursor: scanning ? 'not-allowed' : 'pointer',
+            lineHeight: 1,
           }}
         >
           {scanning ? '⟳ جارٍ...' : 'فحص الآن'}

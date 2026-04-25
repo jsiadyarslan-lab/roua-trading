@@ -40,7 +40,7 @@ export function BotMini() {
       <div
         className="bot-mini-header"
         style={{
-          padding: '14px 16px 12px',
+          padding: '10px 12px 9px',
           background: 'linear-gradient(90deg, rgba(0,229,255,0.12), transparent)',
           borderBottom: '1px solid rgba(0,229,255,0.08)',
           display: 'flex',
@@ -62,7 +62,7 @@ export function BotMini() {
           />
           <span
             style={{
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: 800,
               color: 'var(--foreground)',
               whiteSpace: 'nowrap',
@@ -74,8 +74,8 @@ export function BotMini() {
           </span>
           <span
             style={{
-              fontSize: 8,
-              padding: '1px 6px',
+              fontSize: 6.5,
+              padding: '1px 5px',
               borderRadius: 4,
               background: 'rgba(255,184,0,0.15)',
               color: '#FFB800',
@@ -88,8 +88,8 @@ export function BotMini() {
           </span>
           <span
             style={{
-              fontSize: 8,
-              padding: '1px 6px',
+              fontSize: 6.5,
+              padding: '1px 5px',
               borderRadius: 4,
               background: 'rgba(0,229,255,0.12)',
               color: 'var(--accent)',
@@ -108,12 +108,13 @@ export function BotMini() {
             onClick={() => setIsOn(!isOn)}
             className={isOn ? 'btn-danger-active' : 'btn-cyan-active'}
             style={{
-              fontSize: 10,
-              minHeight: 48,
-              minWidth: 88,
-              padding: '10px 14px',
-              borderRadius: 8,
+              fontSize: 8,
+              minHeight: 26,
+              minWidth: 54,
+              padding: '4px 8px',
+              borderRadius: 7,
               touchAction: 'manipulation',
+              lineHeight: 1,
             }}
           >
             {isOn ? 'إيقاف' : 'تشغيل'}
@@ -122,21 +123,22 @@ export function BotMini() {
       </div>
 
       {/* Tabs */}
-      <div className="bot-mini-tabs" style={{ display: 'flex', background: 'var(--bg2)', borderBottom: '1px solid var(--border)' }}>
+      <div className="bot-mini-tabs" style={{ display: 'flex', background: '#09111a', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '4px 6px', gap: 4 }}>
         <button
           type="button"
           onClick={() => setActiveTab('log')}
           style={{
             flex: 1,
-            minHeight: 48,
-            padding: '12px 8px',
-            fontSize: 11,
-            background: 'transparent',
-            border: 'none',
+            minHeight: 24,
+            padding: '4px 6px',
+            fontSize: 8,
+            background: activeTab === 'log' ? 'rgba(0,229,255,0.14)' : 'rgba(255,255,255,0.03)',
+            border: `1px solid ${activeTab === 'log' ? 'rgba(0,229,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
+            borderRadius: 7,
             color: activeTab === 'log' ? 'var(--accent)' : 'var(--text3)',
-            borderBottom: activeTab === 'log' ? '2px solid var(--accent)' : '2px solid transparent',
             cursor: 'pointer',
             touchAction: 'manipulation',
+            lineHeight: 1,
           }}
         >
           السجل
@@ -146,15 +148,16 @@ export function BotMini() {
           onClick={() => setActiveTab('config')}
           style={{
             flex: 1,
-            minHeight: 48,
-            padding: '12px 8px',
-            fontSize: 11,
-            background: 'transparent',
-            border: 'none',
+            minHeight: 24,
+            padding: '4px 6px',
+            fontSize: 8,
+            background: activeTab === 'config' ? 'rgba(0,229,255,0.14)' : 'rgba(255,255,255,0.03)',
+            border: `1px solid ${activeTab === 'config' ? 'rgba(0,229,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
+            borderRadius: 7,
             color: activeTab === 'config' ? 'var(--accent)' : 'var(--text3)',
-            borderBottom: activeTab === 'config' ? '2px solid var(--accent)' : '2px solid transparent',
             cursor: 'pointer',
             touchAction: 'manipulation',
+            lineHeight: 1,
           }}
         >
           الإعدادات
@@ -176,17 +179,17 @@ export function BotMini() {
               flexShrink: 0,
             }}
           >
-            <div className="card" style={{ padding: 10, textAlign: 'center', minHeight: 48 }}>
-              <div style={{ fontSize: 9, color: 'var(--text3)' }}>الصفقات</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--accent)' }}>{stats.trades}</div>
+            <div className="card" style={{ padding: 8, textAlign: 'center', minHeight: 40 }}>
+              <div style={{ fontSize: 8, color: 'var(--text3)' }}>الصفقات</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent)' }}>{stats.trades}</div>
             </div>
-            <div className="card" style={{ padding: 10, textAlign: 'center', minHeight: 48 }}>
-              <div style={{ fontSize: 9, color: 'var(--text3)' }}>الربح</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--success)' }}>${stats.profit}</div>
+            <div className="card" style={{ padding: 8, textAlign: 'center', minHeight: 40 }}>
+              <div style={{ fontSize: 8, color: 'var(--text3)' }}>الربح</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--success)' }}>${stats.profit}</div>
             </div>
-            <div className="card" style={{ padding: 10, textAlign: 'center', minHeight: 48 }}>
-              <div style={{ fontSize: 9, color: 'var(--text3)' }}>نسبة الفوز</div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--amber)' }}>{stats.winRate}%</div>
+            <div className="card" style={{ padding: 8, textAlign: 'center', minHeight: 40 }}>
+              <div style={{ fontSize: 8, color: 'var(--text3)' }}>نسبة الفوز</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--amber)' }}>{stats.winRate}%</div>
             </div>
           </div>
 
@@ -201,17 +204,17 @@ export function BotMini() {
               flexShrink: 0,
             }}
           >
-            <div className="card" style={{ padding: 8, textAlign: 'center', minHeight: 44 }}>
-              <div style={{ fontSize: 9, color: 'var(--text3)' }}>مفتوحة</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--accent)' }}>{stats.openPositions}</div>
+            <div className="card" style={{ padding: 7, textAlign: 'center', minHeight: 36 }}>
+              <div style={{ fontSize: 8, color: 'var(--text3)' }}>مفتوحة</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent)' }}>{stats.openPositions}</div>
             </div>
-            <div className="card" style={{ padding: 8, textAlign: 'center', minHeight: 44 }}>
-              <div style={{ fontSize: 9, color: 'var(--text3)' }}>فوز / خسارة</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--foreground)' }}>{stats.wins}/{stats.losses}</div>
+            <div className="card" style={{ padding: 7, textAlign: 'center', minHeight: 36 }}>
+              <div style={{ fontSize: 8, color: 'var(--text3)' }}>فوز / خسارة</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--foreground)' }}>{stats.wins}/{stats.losses}</div>
             </div>
-            <div className="card" style={{ padding: 8, textAlign: 'center', minHeight: 44 }}>
-              <div style={{ fontSize: 9, color: 'var(--text3)' }}>خسارة الجلسة</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: stats.sessionLoss < 0 ? 'var(--danger)' : 'var(--text3)' }}>
+            <div className="card" style={{ padding: 7, textAlign: 'center', minHeight: 36 }}>
+              <div style={{ fontSize: 8, color: 'var(--text3)' }}>خسارة الجلسة</div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: stats.sessionLoss < 0 ? 'var(--danger)' : 'var(--text3)' }}>
                 ${stats.sessionLoss}
               </div>
             </div>
@@ -236,7 +239,7 @@ export function BotMini() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {logs.map((log, i) => (
-                  <div key={i} className="card" style={{ fontSize: 10.5, padding: '9px 10px', lineHeight: 1.6 }}>
+                  <div key={i} className="card" style={{ fontSize: 9, padding: '7px 8px', lineHeight: 1.5 }}>
                     <span style={{ color: 'var(--text4)', marginRight: 5 }}>[{log.time}]</span>
                     <span
                       style={{

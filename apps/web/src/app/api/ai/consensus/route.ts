@@ -63,13 +63,26 @@ export async function POST(req: NextRequest) {
     const spreadRisk = Math.abs(scanner.change) > 3.5 ? 'مرتفع' : Math.abs(scanner.change) > 1.5 ? 'متوسط' : 'منخفض'
 
     const technicalVote = toVote(scanner.dir)
-    const sentimentVote: Vote = scanner.change > 0.7 ? 'BUY' : scanner.change < -0.7 ? 'SELL' : 'HOLD'
-    const riskVote: Vote = scanner.freshness !== 'fresh' ? 'HOLD' : scanner.strength >= 75 ? technicalVote : 'HOLD'
-    const macroVote: Vote = mtf.regime === 'buy' ? 'BUY' : mtf.regime === 'sell' ? 'SELL' : 'HOLD'
+    const sentimentVote: Vote = scanner.change > 0.45 ? 'BUY' : scanner.change < -0.45 ? 'SELL' : 'HOLD'
+    const hasDirectionalBias = scanner.dir !== 'neutral' && scanner.strength >= 55
+    const riskVote: Vote = hasDirectionalBias
+      ? technicalVote
+      : scanner.freshness !== 'fresh'
+        ? 'HOLD'
+        : scanner.strength >= 72
+          ? technicalVote
+          : 'HOLD'
+    const macroVote: Vote = mtf.regime === 'buy'
+      ? 'BUY'
+      : mtf.regime === 'sell'
+        ? 'SELL'
+        : 'HOLD'
     const patternVote: Vote = scanner.signalClass === 'reversion'
       ? (scanner.dir === 'buy' ? 'BUY' : scanner.dir === 'sell' ? 'SELL' : 'HOLD')
       : technicalVote
-    const executionVote: Vote = mtf.alignment === 'counter-trend' ? 'HOLD' : technicalVote
+    const executionVote: Vote = mtf.alignment === 'counter-trend' && scanner.strength < 65
+      ? 'HOLD'
+      : technicalVote
 
     const analyses = [
       {
@@ -84,7 +97,7 @@ export async function POST(req: NextRequest) {
         role: 'محلل المشاعر',
         model: 'Scanner/MomentumLayer',
         vote: sentimentVote,
-        confidence: Math.min(90, Math.round(55 + Math.abs(scanner.change) * 8)),
+        confidence: Math.min(90, Math.round(52 + Math.abs(scanner.change) * 9)),
         reason: `تغير 24 ساعة ${scanner.change >= 0 ? '+' : ''}${scanner.change.toFixed(2)}%، مع سياق ${directionLabel(scanner.dir)} على الإطار ${scanner.timeframe}.`,
         featuresUsed: ['changePercent', 'freshness'],
       },
@@ -92,15 +105,15 @@ export async function POST(req: NextRequest) {
         role: 'خبير المخاطر',
         model: 'Risk/GuardRail',
         vote: riskVote,
-        confidence: scanner.freshness === 'fresh' ? 74 : 42,
-        reason: `مستوى الخطر ${spreadRisk}. حالة البيانات: ${scanner.freshness}. ${scanner.freshness !== 'fresh' ? 'تم تقييد التوصية لحين تحسن التغذية.' : 'يمكن السماح بالمخاطرة المقننة.'}`,
+        confidence: scanner.freshness === 'fresh' ? 76 : scanner.freshness === 'stale' ? 58 : 44,
+        reason: `مستوى الخطر ${spreadRisk}. حالة البيانات: ${scanner.freshness}. ${scanner.freshness !== 'fresh' ? 'تم تخفيض الثقة فقط، لا إلغاء الإشارة بالكامل.' : 'يمكن السماح بالمخاطرة المقننة.'}`,
         featuresUsed: ['freshness', 'rangeExpansion'],
       },
       {
         role: 'خبير الماكرو',
         model: 'MTF/RegimeEngine',
         vote: macroVote,
-        confidence: mtf.alignment === 'strong' ? 84 : mtf.alignment === 'mixed' ? 64 : 48,
+        confidence: mtf.alignment === 'strong' ? 84 : mtf.alignment === 'mixed' ? 64 : 50,
         reason: `الإطار اليومي ${directionLabel(mtf.regime)}، و4H ${directionLabel(mtf.bias)}. ${mtf.executionHint}.`,
         featuresUsed: ['regime', 'bias', 'alignment'],
       },
@@ -116,7 +129,7 @@ export async function POST(req: NextRequest) {
         role: 'استراتيجي التنفيذ',
         model: 'Execution/AlignmentPolicy',
         vote: executionVote,
-        confidence: mtf.alignment === 'strong' ? 86 : mtf.alignment === 'mixed' ? 67 : 38,
+        confidence: mtf.alignment === 'strong' ? 86 : mtf.alignment === 'mixed' ? 67 : 45,
         reason: `النظام: يومي ${directionLabel(mtf.regime)} → 4H ${directionLabel(mtf.bias)} → 1H ${directionLabel(mtf.setup)} → 15m ${directionLabel(mtf.trigger)}.`,
         featuresUsed: ['regime', 'bias', 'setup', 'trigger'],
       },
@@ -133,19 +146,22 @@ export async function POST(req: NextRequest) {
       { buy: 0, sell: 0, hold: 0, total: 0 }
     )
 
-    const buyPct = score.total ? score.buy / score.total : 0
-    const sellPct = score.total ? score.sell / score.total : 0
-    const recommendation: Vote = buyPct > 0.55 ? 'BUY' : sellPct > 0.55 ? 'SELL' : 'HOLD'
+    const directionalTotal = score.buy + score.sell
+    const buyPct = directionalTotal ? score.buy / directionalTotal : 0
+    const sellPct = directionalTotal ? score.sell / directionalTotal : 0
+    const recommendation: Vote = buyPct >= 0.54 ? 'BUY' : sellPct >= 0.54 ? 'SELL' : 'HOLD'
     const consensusScore = recommendation === 'HOLD'
-      ? Math.round(50 - Math.abs(buyPct - sellPct) * 30)
+      ? Math.round(42 + Math.abs(buyPct - sellPct) * 20)
       : Math.round(Math.max(buyPct, sellPct) * 100)
 
     const conflictExplanation =
-      mtf.alignment === 'counter-trend'
-        ? 'هناك تعارض بين الإطار الأعلى والزناد القصير، لذلك خفّض المجلس التوصية إلى الحياد أو الحذر.'
+      mtf.alignment === 'counter-trend' && recommendation !== 'HOLD'
+        ? 'هناك تعارض بين الإطار الأعلى والزناد القصير، لكن الزخم الحالي كافٍ لإبقاء المجلس حذرًا بدلًا من إلغاء التوصية بالكامل.'
         : riskVote === 'HOLD' && technicalVote !== 'HOLD'
-          ? 'التحليل الفني يرى فرصة، لكن طبقة المخاطر كبحت التوصية بسبب جودة البيانات أو التذبذب.'
-          : 'الأدوار الأساسية متوافقة نسبيًا ولا يوجد تعارض جوهري في القرار الحالي.'
+          ? 'التحليل الفني يرى فرصة، لكن طبقة المخاطر خفّضت الاندفاع بسبب جودة البيانات أو التذبذب.'
+          : recommendation === 'HOLD'
+            ? 'الأدوار الأساسية متوازنة، لذلك يكتفي المجلس بمتابعة السوق حتى يظهر فرق أوضح.'
+            : 'الأدوار الأساسية متوافقة نسبيًا ولا يوجد تعارض جوهري في القرار الحالي.'
 
     const masterStrategy = `${recommendation === 'BUY' ? 'الشراء' : recommendation === 'SELL' ? 'البيع' : 'الانتظار'} على ${symbol} بإجماع ${consensusScore}%، مع تصنيف ${scanner.signalClass} وانحياز ${scanner.entryBias}. ${mtf.executionHint} ${conflictExplanation}`
 

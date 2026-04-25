@@ -4,11 +4,9 @@ import type { NextRequest } from 'next/server'
 /**
  * Middleware for dashboard routes
  *
- * During development (NODE_ENV !== 'production'), authentication is skipped
- * so the developer can access the dashboard without logging in.
- *
- * In production, checks for the roua_session cookie and redirects to /login
- * if not authenticated. API routes (/api/*) and static assets are excluded.
+ * Currently DISABLED — all routes are accessible without authentication.
+ * To re-enable auth later, uncomment the session check below and set
+ * ENABLE_AUTH=1 in your environment variables.
  */
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -18,17 +16,17 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Skip authentication in development or when DEV_MODE is set
-  // This allows accessing the dashboard without login during development.
-  // Remove DEV_MODE env var when ready for production auth.
-  if (process.env.NODE_ENV !== 'production' || process.env.DEV_MODE === '1') {
+  // ── Auth is currently DISABLED for development ──
+  // To re-enable: set ENABLE_AUTH=1 env var, then the middleware
+  // will check for the roua_session cookie and redirect to /login
+  // if missing. Make sure you also create a /login page first!
+  if (process.env.ENABLE_AUTH !== '1') {
     return NextResponse.next()
   }
 
-  // Production: check for session cookie
+  // ── Auth enabled: check for session cookie ──
   const sessionToken = request.cookies.get('roua_session')?.value
 
-  // If no session cookie, redirect to login
   if (!sessionToken) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('callbackUrl', pathname)

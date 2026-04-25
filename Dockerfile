@@ -14,7 +14,10 @@ RUN bun install
 # Generate Prisma client
 RUN bunx prisma generate --schema=./prisma/schema.prisma
 
-# Build Next.js directly via bunx to ensure binary is found
+# ── Build NestJS API ──
+RUN cd apps/api && bun run build
+
+# ── Build Next.js Web ──
 RUN cd apps/web && bunx next build --webpack
 
 # Runtime environment

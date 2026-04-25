@@ -31,18 +31,31 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 # Start the NestJS API in the background
 echo "🔧 Starting NestJS API server (port 3001)..."
 cd apps/api
-bun run start:prod &
-API_PID=$!
+
+# Use bun to run compiled JS directly (more reliable than node in Bun runtime)
+if [ -d "dist" ]; then
+  bun run dist/main.js &
+  API_PID=$!
+  echo "📋 NestJS started from dist/ (PID: $API_PID)"
+else
+  echo "⚠️ dist/ not found — attempting TypeScript execution with Bun..."
+  bun run src/main.ts &
+  API_PID=$!
+  echo "📋 NestJS started from src/ via Bun TS loader (PID: $API_PID)"
+fi
 
 # Wait for API to be ready
 echo "⏳ Waiting for API to be ready..."
-for i in {1..30}; do
+API_READY=false
+for i in $(seq 1 45); do
   if curl -s http://localhost:3001/api > /dev/null 2>&1; then
-    echo "✅ API is ready!"
+    echo "✅ API is ready! (attempt $i)"
+    API_READY=true
     break
   fi
-  if [ $i -eq 30 ]; then
-    echo "⚠️ API did not start in time, continuing anyway..."
+  if [ $i -eq 45 ]; then
+    echo "⚠️ API did not start in 45s — critical routes will fail!"
+    echo "⚠️ Check logs above for NestJS startup errors."
   fi
   sleep 1
 done

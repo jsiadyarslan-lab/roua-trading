@@ -66,6 +66,21 @@ function mapUnifiedSignal(result: ScannerResult) {
   } satisfies SmartSignalPayload
 }
 
+/**
+ * GET /api/signals/smart
+ *
+ * Smart signal scanner — scans multiple symbols using the
+ * trading-intelligence module and returns ranked signals.
+ *
+ * This route is intentionally kept in Next.js (not proxied to NestJS)
+ * because it is READ-ONLY and uses the frontend-specific
+ * trading-intelligence scanner module.
+ *
+ * Query params:
+ *   pair  — target a single pair (optional)
+ *   limit — max signals to return (1-20, default 8)
+ *   tf    — timeframe (default 1h)
+ */
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url)

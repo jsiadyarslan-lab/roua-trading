@@ -1,8 +1,22 @@
 import type { NextConfig } from "next";
 
-// API target for server-side rewrites:
-// - Local dev:  http://localhost:3001 (default)
-// - Docker:     http://api:3001       (via API_INTERNAL_URL env var)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// API Routing Architecture
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//
+// CRITICAL routes → NestJS (enforces RiskGatekeeper, AI Council, etc.):
+//   /api/trading/*   — Orders, positions, risk, bot (MUST go through safety pipeline)
+//   /api/signals/*   — Signal generation (MUST use AI Council, not simple heuristic)
+//   /api/portfolio/* — Credentials & sanctuary (MUST use proper AES-256-GCM)
+//
+// LOCAL routes → Next.js (read-only or no NestJS equivalent):
+//   /api/auth/*      — NextAuth, WebAuthn (Next.js native)
+//   /api/exchange/*  — Quotes & history (sophisticated multi-source with caching)
+//   /api/alpaca/*    — Direct Alpaca proxy (no NestJS equivalent)
+//   /api/ai/*        — Frontend-specific AI (trading-intelligence module)
+//   /api/news/*, /api/calendar/*, etc. — Read-only data
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 const apiTarget = process.env.API_INTERNAL_URL || "http://localhost:3001";
 
 const nextConfig: NextConfig = {
@@ -14,45 +28,31 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: false,
   async rewrites() {
-    // Only rewrite /api/ai/* — exchange, signals, and portfolio now have
-    // their own Next.js route handlers (no NestJS backend needed).
-    // To re-enable NestJS rewrites, set API_INTERNAL_URL env var.
-    if (!process.env.API_INTERNAL_URL) {
-      return [
-        {
-          source: '/api/ai/:path*',
-          destination: `${apiTarget}/api/ai/:path*`,
-        },
-        {
-          source: '/api/trading/:path*',
-          destination: `${apiTarget}/api/trading/:path*`,
-        },
-      ]
-    }
-
-    // If API_INTERNAL_URL is set, proxy all API routes to NestJS backend
     return [
-      {
-        source: '/api/exchange/:path*',
-        destination: `${apiTarget}/api/exchange/:path*`,
-      },
-      {
-        source: '/api/ai/:path*',
-        destination: `${apiTarget}/api/ai/:path*`,
-      },
-      {
-        source: '/api/portfolio/:path*',
-        destination: `${apiTarget}/api/portfolio/:path*`,
-      },
-      {
-        source: '/api/signals/:path*',
-        destination: `${apiTarget}/api/signals/:path*`,
-      },
+      // ── CRITICAL: Trading routes → NestJS ──
+      // All trading operations MUST go through RiskGatekeeper (5 safety checks),
+      // IdempotencyService (prevent duplicates), and BullMQ execution queue.
       {
         source: '/api/trading/:path*',
         destination: `${apiTarget}/api/trading/:path*`,
       },
-    ]
+
+      // ── CRITICAL: Signal routes → NestJS ──
+      // Signal generation MUST use AI Council (Gemini + Groq + GLM),
+      // RAG context, and sentiment analysis — not simple price heuristic.
+      {
+        source: '/api/signals/:path*',
+        destination: `${apiTarget}/api/signals/:path*`,
+      },
+
+      // ── CRITICAL: Portfolio routes → NestJS ──
+      // Credentials MUST use proper AES-256-GCM encryption (no base64 fallback).
+      // Sanctuary MUST use NestJS risk analysis with live P&L tracking.
+      {
+        source: '/api/portfolio/:path*',
+        destination: `${apiTarget}/api/portfolio/:path*`,
+      },
+    ];
   },
 };
 

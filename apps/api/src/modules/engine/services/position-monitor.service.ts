@@ -76,9 +76,19 @@ export class PositionMonitorService {
 
     try {
       // Step 1: Get all open positions
-      const positions = await this.prisma.position.findMany({
-        where: { status: 'OPEN' },
-      });
+      let positions: any[];
+      try {
+        positions = await this.prisma.position.findMany({
+          where: { status: 'OPEN' },
+        });
+      } catch (dbError: any) {
+        // Table may not exist yet (e.g., Prisma db:push hasn't run or Position model is new)
+        if (dbError.message?.includes('does not exist')) {
+          this.logger.warn('🛡️ Position table not found — skipping monitor cycle. Run `prisma db push` to create it.');
+          return;
+        }
+        throw dbError;
+      }
 
       if (positions.length === 0) {
         return;
@@ -144,34 +154,43 @@ export class PositionMonitorService {
     const lastCycleRaw = await this.redis.get('monitor:last_cycle');
     const lastCycle = lastCycleRaw ? JSON.parse(lastCycleRaw) : null;
 
-    const openPositions = await this.prisma.position.count({
-      where: { status: 'OPEN' },
-    });
-
-    // Count positions near SL/TP (within 1%)
-    const allPositions = await this.prisma.position.findMany({
-      where: { status: 'OPEN' },
-    });
-
+    let openPositions = 0;
     let nearSL = 0;
     let nearTP = 0;
 
-    for (const pos of allPositions) {
-      try {
-        const quote = await this.exchangeService.getQuote(pos.symbol);
-        const currentPrice = quote.price;
+    try {
+      openPositions = await this.prisma.position.count({
+        where: { status: 'OPEN' },
+      });
 
-        if (pos.stopLoss) {
-          const slDistance = Math.abs(currentPrice - pos.stopLoss) / pos.entryPrice;
-          if (slDistance < 0.01) nearSL++;
-        }
+      // Count positions near SL/TP (within 1%)
+      const allPositions = await this.prisma.position.findMany({
+        where: { status: 'OPEN' },
+      });
 
-        if (pos.takeProfit) {
-          const tpDistance = Math.abs(currentPrice - pos.takeProfit) / pos.entryPrice;
-          if (tpDistance < 0.01) nearTP++;
+      for (const pos of allPositions) {
+        try {
+          const quote = await this.exchangeService.getQuote(pos.symbol);
+          const currentPrice = quote.price;
+
+          if (pos.stopLoss) {
+            const slDistance = Math.abs(currentPrice - pos.stopLoss) / pos.entryPrice;
+            if (slDistance < 0.01) nearSL++;
+          }
+
+          if (pos.takeProfit) {
+            const tpDistance = Math.abs(currentPrice - pos.takeProfit) / pos.entryPrice;
+            if (tpDistance < 0.01) nearTP++;
+          }
+        } catch {
+          // Ignore
         }
-      } catch {
-        // Ignore
+      }
+    } catch (dbError: any) {
+      if (dbError.message?.includes('does not exist')) {
+        this.logger.warn('🛡️ Position table not found — returning empty monitor status.');
+      } else {
+        throw dbError;
       }
     }
 

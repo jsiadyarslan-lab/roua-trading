@@ -25,13 +25,22 @@ export class TwelveDataAdapter implements IExchangeAdapter {
   private readonly apiKey: string;
   private readonly baseUrl = 'https://api.twelvedata.com';
 
-  // Cache TTLs
-  private readonly QUOTE_CACHE_TTL = 5_000;       // 5 seconds
-  private readonly HISTORY_CACHE_TTL = 300_000;    // 5 minutes
+  // Cache TTLs — optimized for free tier sustainability
+  // Free tier: 800 credits/day. With 9 non-crypto symbols polled every 15s:
+  //   9 symbols * 4 polls/min * 60 min/hr * 24 hr = 51,840 — WAY too many.
+  // With 60s cache: 9 symbols * 1 poll/min * 60 min/hr * 24 hr = 12,960 — still too many.
+  // With 120s cache: 9 symbols * 0.5 polls/min * 60 * 24 = 6,480 — still over.
+  // With daily budget + 120s cache: we limit to ~700/day max, keeping 100 buffer.
+  private readonly QUOTE_CACHE_TTL = 120_000;       // 2 minutes (was 5s)
+  private readonly HISTORY_CACHE_TTL = 600_000;    // 10 minutes (was 5m)
 
   // Rate limit: 8 calls per minute for free tier
   private readonly RATE_LIMIT_WINDOW = 60_000;     // 1 minute
   private readonly RATE_LIMIT_MAX = 8;
+
+  // Daily credit budget — stay within free tier
+  private readonly DAILY_CREDIT_LIMIT = 700; // Leave 100 buffer under 800/day limit
+  private readonly DAILY_CREDIT_WINDOW = 86_400_000; // 24 hours in ms
 
   constructor(
     private readonly configService: ConfigService,
@@ -197,6 +206,7 @@ export class TwelveDataAdapter implements IExchangeAdapter {
   // ── Private: Rate Limiting ──
 
   private async _checkRateLimit(): Promise<void> {
+    // ── Per-minute rate limit (8 calls/min) ──
     const key = 'ratelimit:twelvedata';
 
     const result = await this.redisService.checkRateLimit(
@@ -215,8 +225,26 @@ export class TwelveDataAdapter implements IExchangeAdapter {
       );
     }
 
+    // ── Daily credit budget (700/day for free tier) ──
+    const dailyKey = 'ratelimit:twelvedata:daily';
+    const dailyResult = await this.redisService.checkRateLimit(
+      dailyKey,
+      this.DAILY_CREDIT_LIMIT,
+      this.DAILY_CREDIT_WINDOW,
+    );
+
+    if (!dailyResult.allowed) {
+      this.logger.warn(
+        `⚠️ Daily credit limit reached for Twelve Data (${this.DAILY_CREDIT_LIMIT}/day). Remaining credits reset at midnight.`,
+      );
+      throw new HttpException(
+        `تم تجاوز الحد اليومي لطلبات Twelve Data. يرجى المحاولة غداً.`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     this.logger.debug(
-      `Rate limit: ${result.remaining} requests remaining (reset in ${result.resetIn}ms)`,
+      `Rate limit: ${result.remaining}/min, ${dailyResult.remaining}/day remaining`,
     );
   }
 

@@ -50,10 +50,26 @@ export class ExchangeService {
     return Object.keys(this.adapters);
   }
 
+  /** Crypto quote currencies that Binance supports */
+  private static readonly CRYPTO_QUOTE_CURRENCIES = new Set([
+    'USDT', 'BUSD', 'USD', 'BTC', 'ETH', 'BNB', 'DAI', 'TUSD', 'FDUSD', 'USDC',
+  ]);
+
+  /** Well-known crypto base currencies (top 100 by market cap) */
+  private static readonly CRYPTO_BASE_CURRENCIES = new Set([
+    'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'LTC',
+    'AVAX', 'LINK', 'UNI', 'ATOM', 'ETC', 'XLM', 'BCH', 'ALGO', 'VET', 'ICP',
+    'FIL', 'TRX', 'NEAR', 'FTM', 'AAVE', 'GRT', 'EOS', 'AXS', 'SAND', 'MANA',
+    'SHIB', 'APE', 'CRV', 'MKR', 'COMP', 'SNX', 'DYDX', 'OP', 'ARB', 'PEPE',
+    'WIF', 'SUI', 'SEI', 'TIA', 'INJ', 'STX', 'IMX', 'RUNE', 'KAVA', '1INCH',
+  ]);
+
   /**
    * Select the best adapter for a given symbol
-   * Crypto pairs (BTC/USDT, ETH/USDT) → Binance
-   * Everything else → TwelveData (stocks, forex, commodities)
+   * Crypto pairs (BTC/USDT, ETH/USDT, etc.) → Binance
+   * Forex (EUR/USD, GBP/USD) → TwelveData only
+   * Commodities (XAU/USD) → TwelveData only
+   * Stocks (AAPL, TSLA) → TwelveData only
    */
   private _selectAdapter(symbol: string, source?: string): IExchangeAdapter {
     // Explicit source override
@@ -61,8 +77,8 @@ export class ExchangeService {
       return this.adapters[source];
     }
 
-    // Auto-detect: crypto pairs contain '/' like BTC/USDT
-    if (symbol.includes('/')) {
+    // Auto-detect: route to Binance ONLY for crypto pairs
+    if (this._isCryptoSymbol(symbol)) {
       if (this.adapters['Binance']) {
         return this.adapters['Binance'];
       }
@@ -80,5 +96,40 @@ export class ExchangeService {
     }
 
     throw new Error('No exchange adapters available');
+  }
+
+  /**
+   * Determine if a symbol is a crypto pair supported by Binance.
+   * Crypto pairs have the form BASE/QUOTE where both are known crypto currencies.
+   * Forex pairs like EUR/USD, GBP/USD, USD/JPY are NOT crypto.
+   * Commodities like XAU/USD, XAG/USD are NOT crypto.
+   */
+  private _isCryptoSymbol(symbol: string): boolean {
+    if (!symbol.includes('/')) {
+      return false; // Stocks like AAPL, TSLA — not crypto
+    }
+
+    const [base, quote] = symbol.split('/');
+
+    // Forex fiat currencies — NOT crypto
+    const fiatCurrencies = new Set([
+      'USD', 'EUR', 'GBP', 'JPY', 'CHF', 'AUD', 'CAD', 'NZD', 'SEK', 'NOK',
+      'DKK', 'ZAR', 'HKD', 'SGD', 'MXN', 'PLN', 'CZK', 'HUF', 'TRY', 'KRW',
+    ]);
+
+    // Commodities — NOT crypto
+    const commodityBases = new Set(['XAU', 'XAG', 'XPT', 'XPD', 'CL', 'NG', 'HG']);
+
+    // If base is a commodity → not crypto
+    if (commodityBases.has(base)) return false;
+
+    // If base is a fiat currency (forex pair like EUR/USD) → not crypto
+    if (fiatCurrencies.has(base)) return false;
+
+    // If base is a known crypto and quote is a supported crypto quote → crypto
+    const isCryptoBase = ExchangeService.CRYPTO_BASE_CURRENCIES.has(base);
+    const isCryptoQuote = ExchangeService.CRYPTO_QUOTE_CURRENCIES.has(quote);
+
+    return isCryptoBase && isCryptoQuote;
   }
 }

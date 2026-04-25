@@ -127,7 +127,7 @@ export class MarketDataAggregatorService {
     this.logger.debug(`📊 Setting up quote stream for ${symbol}`);
 
     return new Observable<AggregatedQuoteDto>((subscriber) => {
-      // Poll-based stream (every 10 seconds)
+      // Poll-based stream (every 30 seconds — balanced for TwelveData free tier sustainability)
       const interval = setInterval(async () => {
         try {
           const quote = await this.getAggregatedQuote(symbol);
@@ -136,7 +136,7 @@ export class MarketDataAggregatorService {
           // Don't break the stream on error
           this.logger.debug(`Stream poll failed for ${symbol}: ${error.message}`);
         }
-      }, 10_000);
+      }, 30_000);
 
       // Initial fetch
       this.getAggregatedQuote(symbol)

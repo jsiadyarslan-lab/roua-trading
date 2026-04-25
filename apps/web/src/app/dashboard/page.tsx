@@ -145,6 +145,8 @@ export default function DashboardPage() {
           display: grid;
           grid-template-columns: minmax(240px, 280px) minmax(0, 1fr) minmax(300px, 350px);
           min-height: calc(100dvh - ${HEADER_H}px);
+          height: calc(100dvh - ${HEADER_H}px);
+          max-height: calc(100dvh - ${HEADER_H}px);
           background: ${T.bg};
           gap: 12px;
           padding: 12px;
@@ -160,6 +162,9 @@ export default function DashboardPage() {
         .dash-col-right {
           min-width: 0;
           min-height: 0;
+          height: 100%;
+          max-height: 100%;
+          overflow: hidden;
         }
 
         .dash-col-right-mobile {
@@ -400,7 +405,7 @@ export default function DashboardPage() {
 
       {!isMobileViewport && <div className="dash-grid">
         {/* ══════════ COL 1 — Tabbed Left Sidebar ══════════ */}
-        <div className="dash-col dash-col-left" style={{ minHeight: 0 }}>
+        <div className="dash-col dash-col-left" style={{ minHeight: 0, height: '100%' }}>
           <LeftSidebarLayout />
         </div>
 
@@ -486,7 +491,7 @@ export default function DashboardPage() {
 
         {/* ══════════ COL 3 — Tabs Panel ══════════ */}
         {!isCompactDesktopViewport && (
-          <div className="dash-col dash-col-right">
+          <div className="dash-col dash-col-right" style={{ height: '100%' }}>
             <RightPanelLayout quotes={quotes} />
           </div>
         )}

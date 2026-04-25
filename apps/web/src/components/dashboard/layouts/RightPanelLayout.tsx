@@ -83,17 +83,18 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
         height: '100%',
         minHeight: 0,
         maxHeight: '100%',
-        background: 'linear-gradient(180deg, rgba(0,229,255,0.05), rgba(255,255,255,0.01))',
-        border: `1px solid ${T.border}`,
+        background: 'linear-gradient(180deg, rgba(8,16,24,0.98), rgba(11,17,24,0.98))',
+        border: `1px solid rgba(0, 229, 255, 0.16)`,
         borderRadius: 14,
         overflow: 'hidden',
+        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 16px 34px rgba(0,0,0,0.22)',
       }}
     >
       <div
         style={{
-          padding: '12px 12px 10px',
-          borderBottom: `1px solid ${T.border}`,
-          background: `linear-gradient(90deg, ${activeTab.accent}14, transparent)`,
+          padding: '10px 11px 9px',
+          borderBottom: `1px solid rgba(0, 229, 255, 0.12)`,
+          background: `linear-gradient(90deg, ${activeTab.accent}18, rgba(255,255,255,0.01))`,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
@@ -143,9 +144,9 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
 
       <div
         style={{
-          padding: '10px 12px',
-          borderBottom: `1px solid ${T.border}`,
-          background: 'rgba(255,255,255,0.02)',
+          padding: '9px 11px',
+          borderBottom: `1px solid rgba(0, 229, 255, 0.10)`,
+          background: 'rgba(255,255,255,0.03)',
           display: 'grid',
           gap: 8,
         }}
@@ -164,9 +165,9 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
             style={{
               minWidth: 0,
               borderRadius: 12,
-              border: `1px solid ${T.border}`,
-              background: 'rgba(255,255,255,0.02)',
-              padding: '9px 10px',
+              border: `1px solid rgba(255,255,255,0.10)`,
+              background: 'rgba(0,0,0,0.18)',
+              padding: '7px 8px',
             }}
           >
             <div style={{ fontSize: 8, color: T.text3, marginBottom: 4 }}>{spotlight.statLabel}</div>
@@ -177,10 +178,10 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           <div
             style={{
               borderRadius: 12,
-              border: `1px solid ${T.border}`,
-              background: 'rgba(255,255,255,0.02)',
-              padding: '9px 10px',
-              minWidth: 88,
+              border: `1px solid rgba(255,255,255,0.10)`,
+              background: 'rgba(0,0,0,0.18)',
+              padding: '7px 8px',
+              minWidth: 76,
             }}
           >
             <div style={{ fontSize: 8, color: T.text3, marginBottom: 4 }}>التركيز</div>
@@ -193,11 +194,11 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-          gap: 8,
-          padding: '10px',
+          gap: 6,
+          padding: '8px',
           flexShrink: 0,
-          background: 'rgba(255,255,255,0.02)',
-          borderBottom: `1px solid ${T.border}`,
+          background: 'rgba(255,255,255,0.03)',
+          borderBottom: `1px solid rgba(0, 229, 255, 0.10)`,
         }}
       >
         {TABS.map(t => {
@@ -209,11 +210,11 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
               onClick={() => setActive(t.id)}
               style={{
                 minWidth: 0,
-                minHeight: 58,
-                padding: '7px 6px',
-                background: isActive ? `${t.accent}12` : 'rgba(255,255,255,0.02)',
-                border: `1px solid ${isActive ? `${t.accent}35` : T.border}`,
-                borderRadius: 12,
+                minHeight: 30,
+                padding: '4px 4px',
+                background: isActive ? `${t.accent}20` : 'rgba(255,255,255,0.045)',
+                border: `1px solid ${isActive ? `${t.accent}70` : 'rgba(255,255,255,0.10)'}`,
+                borderRadius: 10,
                 color: isActive ? T.text : T.text3,
                 cursor: 'pointer',
                 fontFamily: "'Cairo', sans-serif",
@@ -222,14 +223,14 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 3,
-                boxShadow: isActive ? `0 0 0 1px ${t.accent}10 inset` : 'none',
+                gap: 1,
+                boxShadow: isActive ? `0 0 0 1px ${t.accent}24 inset, 0 0 18px ${t.accent}18` : 'inset 0 1px 0 rgba(255,255,255,0.02)',
                 overflow: 'hidden',
               }}
             >
-              <Icon size={13} color={isActive ? t.accent : T.text3} />
-              <span style={{ fontSize: 9, fontWeight: isActive ? 800 : 700, lineHeight: 1.1 }}>{t.label}</span>
-              <span style={{ fontSize: 7.5, color: isActive ? T.text3 : '#6E7B8F', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.1 }}>
+              <Icon size={10} color={isActive ? t.accent : '#93A7C3'} />
+              <span style={{ fontSize: 7, fontWeight: isActive ? 800 : 700, lineHeight: 1, color: isActive ? T.text : '#AEC0D6' }}>{t.label}</span>
+              <span style={{ fontSize: 6, color: isActive ? T.text3 : '#708299', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1 }}>
                 {t.subtitle}
               </span>
             </button>
@@ -245,7 +246,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           padding: 10,
           display: 'flex',
           flexDirection: 'column',
-          background: T.bg,
+          background: '#071019',
         }}
       >
         <div
@@ -254,9 +255,9 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
             minHeight: 0,
             overflow: 'hidden',
             borderRadius: 16,
-            border: `1px solid ${T.border}`,
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015))',
-            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.03), 0 18px 40px rgba(0,0,0,0.22)`,
+            border: `1px solid rgba(255,255,255,0.10)`,
+            background: 'linear-gradient(180deg, rgba(14,20,30,0.98), rgba(8,13,20,0.98))',
+            boxShadow: `inset 0 1px 0 rgba(255,255,255,0.035), 0 18px 40px rgba(0,0,0,0.26)`,
           }}
         >
         {active === 'bot' && (

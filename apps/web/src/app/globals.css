@@ -231,11 +231,11 @@
 
 /* Standardized Card (Refined) */
 .card {
-  background: var(--pulse-surface);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(11, 18, 28, 0.98), rgba(7, 12, 20, 0.99));
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: calc(var(--radius) + 2px);
   padding: 16px;
-  box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,0.03);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255,255,255,0.04);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
@@ -260,8 +260,8 @@
   pointer-events: none;
 }
 .card:hover {
-  border-color: var(--pulse-border);
-  box-shadow: var(--shadow-pulse), var(--pulse-glow), inset 0 1px 0 rgba(255,255,255,0.04);
+  border-color: rgba(0, 229, 255, 0.26);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.42), 0 0 18px rgba(0, 229, 255, 0.10), inset 0 1px 0 rgba(255,255,255,0.05);
 }
 .card:hover::after {
   opacity: 1;

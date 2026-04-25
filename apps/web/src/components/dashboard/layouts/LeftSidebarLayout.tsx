@@ -58,10 +58,12 @@ export function LeftSidebarLayout() {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', height: '100%',
-      background: T.card, border: `1px solid ${T.border}`,
+      minHeight: 0,
+      background: 'linear-gradient(180deg, rgba(17,18,20,0.98), rgba(8,12,18,0.98))', border: `1px solid rgba(0, 229, 255, 0.14)`,
       borderRadius: 12, overflow: 'hidden',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 14px 30px rgba(0,0,0,0.18)',
     }}>
-      <div style={{ flexShrink: 0, background: T.bg2, borderBottom: `1px solid ${T.border}`, padding: '8px 8px 6px', display: 'grid', gap: 8 }}>
+      <div style={{ flexShrink: 0, background: '#0b1017', borderBottom: `1px solid rgba(0, 229, 255, 0.12)`, padding: '7px 7px 6px', display: 'grid', gap: 7 }}>
         {groups.map(group => (
           <div key={group.id} style={{ display: 'grid', gap: 6 }}>
             <div style={{ fontSize: 9, color: T.text3, fontWeight: 800, paddingInline: 4 }}>{group.label}</div>
@@ -76,27 +78,28 @@ export function LeftSidebarLayout() {
                     title={t.label}
                     style={{
                       minWidth: 0,
-                      minHeight: 52,
-                      padding: '6px 4px',
-                      background: isActive ? `${t.accent}12` : 'rgba(255,255,255,0.02)',
-                      border: `1px solid ${isActive ? `${t.accent}44` : T.border}`,
-                      borderRadius: 11,
+                      minHeight: 28,
+                      padding: '3px 3px',
+                      background: isActive ? `${t.accent}18` : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${isActive ? `${t.accent}66` : 'rgba(255,255,255,0.08)'}`,
+                      borderRadius: 9,
                       cursor: 'pointer',
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: 3,
+                      gap: 2,
                       transition: 'all 0.16s ease',
-                      boxShadow: isActive ? `0 0 0 1px ${t.accent}14 inset` : 'none',
+                      boxShadow: isActive ? `0 0 0 1px ${t.accent}20 inset, 0 0 16px ${t.accent}18` : 'inset 0 1px 0 rgba(255,255,255,0.02)',
                       overflow: 'hidden',
                     }}
                   >
-                    <Icon size={12} color={isActive ? t.accent : T.text2} />
+                    <Icon size={10} color={isActive ? t.accent : '#8FA2BC'} />
                     <span style={{
-                      fontFamily: "'Cairo', sans-serif", fontSize: 8.5, fontWeight: isActive ? 800 : 600,
-                      color: isActive ? t.accent : T.text2, transition: 'color 0.15s',
+                      fontFamily: "'Cairo', sans-serif", fontSize: 7, fontWeight: isActive ? 800 : 700,
+                      color: isActive ? t.accent : '#A7B6C9', transition: 'color 0.15s',
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%',
+                      lineHeight: 1,
                     }}>{t.label}</span>
                   </button>
                 )
@@ -109,8 +112,8 @@ export function LeftSidebarLayout() {
       {/* Panel Label */}
       <div style={{
         padding: '8px 12px 4px', flexShrink: 0,
-        borderBottom: `1px solid ${T.border}`,
-        background: `linear-gradient(90deg, ${active.accent}0a, transparent)`,
+        borderBottom: `1px solid rgba(0, 229, 255, 0.10)`,
+        background: `linear-gradient(90deg, ${active.accent}12, rgba(255,255,255,0.01))`,
         display: 'flex', alignItems: 'center', gap: 6,
       }}>
         <div style={{
@@ -126,7 +129,7 @@ export function LeftSidebarLayout() {
       </div>
 
       {/* Tab Content */}
-      <div style={{ flex: 1, overflow: 'hidden', minHeight: 0 }}>
+      <div style={{ flex: 1, overflow: 'hidden', minHeight: 0, background: '#081018' }}>
         {tab === 'portfolio' && <PortfolioMini />}
         {tab === 'execute'   && <QuickExecutionMini />}
         {tab === 'book'      && <OrderBookMini />}

@@ -48,7 +48,7 @@ const DEFAULT_SETTINGS: BotState['settings'] = {
   riskPct: 2,
   confLimit: 65,
   strategy: 'Trend Follow',
-  useAIConsensus: false,
+  useAIConsensus: true, // Enable AI consensus by default for smarter signals
 }
 
 export const useBotStore = create<BotState>()(

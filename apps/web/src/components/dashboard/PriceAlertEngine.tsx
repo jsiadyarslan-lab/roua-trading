@@ -64,10 +64,8 @@ export function PriceAlertEngine() {
           confidence: 100,
         })
 
-        // Auto-remove triggered alert from sidebar after 3 seconds to keep it clean
-        setTimeout(() => {
-          usePriceAlertStore.getState().removeAlert(alert.id)
-        }, 3000)
+        // Mark alert as triggered but keep it in the list so user can review
+        // User can manually dismiss it from the alerts panel
       }
     }
   }, [globalQuotes, alerts, triggerAlert, addNotification])

@@ -76,6 +76,22 @@
   --font-mono: var(--mono);
   --font-ui: var(--ui);
   
+  /* Navigation & TopBar variables */
+  --bg-nav: rgba(10, 12, 16, 0.94);
+  --accent-bg: rgba(0, 229, 255, 0.06);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
+  --bg-active: rgba(0, 229, 255, 0.08);
+  --accent-border: rgba(0, 229, 255, 0.2);
+  --bg-row-hover: rgba(255, 255, 255, 0.04);
+  --text-muted: var(--muted);
+  --profit-bg: rgba(0, 255, 136, 0.08);
+  --border-profit: rgba(0, 255, 136, 0.2);
+  --profit: var(--success);
+  --loss: var(--danger);
+  --bg-input: rgba(255, 255, 255, 0.04);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --purple: #B388FF;
+  
   /* shadcn dark theme compatibility */
   --background: var(--bg);
   --foreground: #E6E7E8;

@@ -468,8 +468,8 @@ export default function DashboardPage() {
                   <span style={{ color: T.success, fontFamily: "'JetBrains Mono', monospace" }}>${formatMoney(account?.buyingPower)}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <span style={{ color: T.text3 }}>الهامش المستخدم:</span>
-                  <span style={{ color: T.danger, fontFamily: "'JetBrains Mono', monospace" }}>${formatMoney((account?.equity ?? 0) - (account?.cash ?? 0))}</span>
+                  <span style={{ color: T.text3 }}>قيمة المراكز:</span>
+                  <span style={{ color: T.cyan, fontFamily: "'JetBrains Mono', monospace" }}>${formatMoney((account?.equity ?? 0) - (account?.cash ?? 0))}</span>
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <span style={{ color: T.text3 }}>كمية الهامش:</span>

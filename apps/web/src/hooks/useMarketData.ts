@@ -49,8 +49,8 @@ export function useMarketQuotes(symbols: string[]) {
   return { quotes: quotesMap, refetch }
 }
 
-export function useSingleQuote(symbol: string, refreshInterval = 6000) {
-  const { quotes, refetch } = useMarketQuotes([symbol], refreshInterval)
+export function useSingleQuote(symbol: string, _refreshInterval = 6000) {
+  const { quotes, refetch } = useMarketQuotes([symbol])
   return {
     quote: quotes.get(symbol) || null,
     refetch,

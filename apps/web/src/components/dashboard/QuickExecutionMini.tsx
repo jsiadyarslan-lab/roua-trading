@@ -89,6 +89,41 @@ export function QuickExecutionMini({
       return;
     }
 
+    // Validate SL/TP logic
+    const tpNum = parseFloat(takeProfit)
+    const slNum = parseFloat(stopLoss)
+    const price = currentPrice > 0 ? currentPrice : 0
+
+    if (price > 0) {
+      if (side === 'buy') {
+        if (slNum > 0 && slNum >= price) {
+          setExecutionState('rejected')
+          setStatus({ msg: '❌ وقف الخسارة يجب أن يكون أقل من سعر الشراء', type: 'error' });
+          setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
+          return;
+        }
+        if (tpNum > 0 && tpNum <= price) {
+          setExecutionState('rejected')
+          setStatus({ msg: '❌ جني الأرباح يجب أن يكون أعلى من سعر الشراء', type: 'error' });
+          setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
+          return;
+        }
+      } else {
+        if (slNum > 0 && slNum <= price) {
+          setExecutionState('rejected')
+          setStatus({ msg: '❌ وقف الخسارة يجب أن يكون أعلى من سعر البيع', type: 'error' });
+          setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
+          return;
+        }
+        if (tpNum > 0 && tpNum >= price) {
+          setExecutionState('rejected')
+          setStatus({ msg: '❌ جني الأرباح يجب أن يكون أقل من سعر البيع', type: 'error' });
+          setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
+          return;
+        }
+      }
+    }
+
     setPendingAction(side);
     setExecutionState('ready')
     setStatus({ 

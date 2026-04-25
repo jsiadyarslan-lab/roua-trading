@@ -47,8 +47,9 @@ export function AlNarratorMini({
       if (json.success) {
         setData({
           ...json.data,
-          confidence: json.data.confidence ?? Math.floor(Math.random() * 40 + 60),
-          risk: json.data.risk ?? (['Low', 'Medium', 'High'][Math.floor(Math.random() * 3)])
+          // Do NOT generate fake confidence/risk — show real data or nothing
+          confidence: json.data.confidence ?? 0,
+          risk: json.data.risk ?? 'Medium'
         })
       }
     } catch {

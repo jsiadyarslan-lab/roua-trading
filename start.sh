@@ -20,11 +20,11 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 
 # Apply Prisma schema to database (safe for production)
 echo "📦 Applying Prisma schema..."
-bunx prisma db push --schema=./prisma/schema.prisma --accept-data-loss || true
+npx --yes prisma db push --schema=./prisma/schema.prisma --accept-data-loss || true
 
 # Generate Prisma client (ensure latest)
 echo "📦 Generating Prisma client..."
-bunx prisma generate --schema=./prisma/schema.prisma
+npx --yes prisma generate --schema=./prisma/schema.prisma
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
@@ -32,25 +32,22 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "🔧 Starting NestJS API server (port 3001)..."
 cd apps/api
 
-# Use bun to run compiled JS directly (more reliable than node in Bun runtime)
+# Use the compiled JS entrypoint in production
 if [ -d "dist" ]; then
-  bun run dist/main.js &
+  npm run start:prod &
   API_PID=$!
   echo "📋 NestJS started from dist/ (PID: $API_PID)"
 else
-  echo "⚠️ dist/ not found — attempting TypeScript execution with Bun..."
-  bun run src/main.ts &
-  API_PID=$!
-  echo "📋 NestJS started from src/ via Bun TS loader (PID: $API_PID)"
+  echo "⚠️ dist/ not found — API build output is missing"
+  exit 1
 fi
 
 # Wait for API to be ready
 echo "⏳ Waiting for API to be ready..."
-API_READY=false
+API_HEALTH_URL="http://127.0.0.1:3001/api/engine/health"
 for i in $(seq 1 45); do
-  if curl -s http://localhost:3001/api > /dev/null 2>&1; then
+  if curl -fsS "$API_HEALTH_URL" > /dev/null 2>&1; then
     echo "✅ API is ready! (attempt $i)"
-    API_READY=true
     break
   fi
   if [ $i -eq 45 ]; then
@@ -65,7 +62,5 @@ cd "$PROJECT_ROOT"
 # Start the Next.js web application
 echo "🌐 Starting Next.js server (port 3000)..."
 cd apps/web
-HOSTNAME=0.0.0.0 exec bun x next start -H 0.0.0.0
-
-# If Next.js exits, kill the API too
-trap "kill $API_PID 2>/dev/null; exit" EXIT
+trap "kill $API_PID 2>/dev/null || true" EXIT
+npm run start

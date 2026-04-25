@@ -20,9 +20,9 @@ function getWebAuthnConfig() {
   return { rpId, rpName, origin }
 }
 
-function getUserIdBuffer(email: string): Uint8Array {
-  // Return raw bytes directly — avoid base64url/atob incompatibility
-  return crypto.createHash('sha256').update(email).digest()
+function getUserIdBuffer(email: string): Uint8Array<ArrayBuffer> {
+  const digest = crypto.createHash('sha256').update(email).digest()
+  return new Uint8Array(digest.buffer.slice(digest.byteOffset, digest.byteOffset + digest.byteLength))
 }
 
 export async function POST(request: NextRequest) {

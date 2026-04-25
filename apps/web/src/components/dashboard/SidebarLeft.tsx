@@ -14,7 +14,7 @@ import {
   Cpu,
 } from 'lucide-react'
 import { useDashboardStore } from '@/lib/dashboard-store'
-import { useMarketQuotes, type QuoteData } from '@/hooks/useMarketData'
+import { useMarketQuotes } from '@/hooks/useMarketData'
 
 const NAV_SECTIONS = [
   {
@@ -60,7 +60,7 @@ const MARKET_PAIRS = [
 export default function SidebarLeft() {
   const { sidebarCollapsed, toggleSidebar, selectedPair, setSelectedPair } = useDashboardStore()
   const [activeNav, setActiveNav] = useState('dashboard')
-  const { quotes } = useMarketQuotes(MARKET_PAIRS, 8000)
+  const { quotes } = useMarketQuotes(MARKET_PAIRS)
 
   return (
     <div

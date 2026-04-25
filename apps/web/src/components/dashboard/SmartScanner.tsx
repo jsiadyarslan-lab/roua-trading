@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Bot, Info, Zap, ShieldAlert, Brain, TrendingUp, TrendingDown, RefreshCw, Activity, Target } from 'lucide-react'
 import { useMarketQuotes } from '@/hooks/useMarketData'

@@ -132,15 +132,16 @@ export function PasskeyLogin({ onClose }: PasskeyLoginProps) {
 
       setAuthState('verifying')
 
-      const attestationResponse = credential.response as AuthenticatorAttestationResponse
+      const publicKeyCredential = credential as PublicKeyCredential
+      const attestationResponse = publicKeyCredential.response as AuthenticatorAttestationResponse
 
       const verifyRes = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           credential: {
-            id: credential.id,
-            rawId: bufferToBase64url(credential.rawId),
+            id: publicKeyCredential.id,
+            rawId: bufferToBase64url(publicKeyCredential.rawId),
             response: {
               clientDataJSON: bufferToBase64url(attestationResponse.clientDataJSON),
               attestationObject: bufferToBase64url(attestationResponse.attestationObject),
@@ -202,15 +203,16 @@ export function PasskeyLogin({ onClose }: PasskeyLoginProps) {
 
       setAuthState('verifying')
 
-      const assertionResponse = assertion.response as AuthenticatorAssertionResponse
+      const publicKeyAssertion = assertion as PublicKeyCredential
+      const assertionResponse = publicKeyAssertion.response as AuthenticatorAssertionResponse
 
       const verifyRes = await fetch('/api/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           assertion: {
-            id: assertion.id,
-            rawId: bufferToBase64url(assertion.rawId),
+            id: publicKeyAssertion.id,
+            rawId: bufferToBase64url(publicKeyAssertion.rawId),
             response: {
               clientDataJSON: bufferToBase64url(assertionResponse.clientDataJSON),
               authenticatorData: bufferToBase64url(assertionResponse.authenticatorData),

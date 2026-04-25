@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useDashboardStore } from '@/lib/dashboard-store'
 import { useSingleQuote } from '@/hooks/useMarketData'
+import { useBotStore } from '@/hooks/useBotStore'
 import QuantumOrb from './QuantumOrb'
 
 interface Signal {
@@ -152,16 +153,15 @@ export default function SidebarRight() {
             key={tab.id}
             onClick={() => setRightTab(tab.id)}
             className="flex-1 py-2 cursor-pointer"
-            style={{
-              fontFamily: 'var(--font-ui)',
-              fontSize: '11px',
-              fontWeight: rightTab === tab.id ? 700 : 500,
-              color: rightTab === tab.id ? '#000' : 'var(--text3)',
-              background: rightTab === tab.id ? 'var(--accent)' : 'transparent',
-              fontWeight: rightTab === tab.id ? 800 : 500,
-              transition: 'all 0.15s',
-              boxShadow: rightTab === tab.id ? '0 0 10px rgba(0, 242, 255, 0.25)' : 'none',
-            }}
+              style={{
+                fontFamily: 'var(--font-ui)',
+                fontSize: '11px',
+                fontWeight: rightTab === tab.id ? 800 : 500,
+                color: rightTab === tab.id ? '#000' : 'var(--text3)',
+                background: rightTab === tab.id ? 'var(--accent)' : 'transparent',
+                transition: 'all 0.15s',
+                boxShadow: rightTab === tab.id ? '0 0 10px rgba(0, 242, 255, 0.25)' : 'none',
+              }}
           >
             {tab.label}
           </button>
@@ -360,6 +360,7 @@ export default function SidebarRight() {
             {/* Leverage */}
             <div>
               <label
+                htmlFor="leverage"
                 style={{
                   fontFamily: 'var(--font-ui)',
                   fontSize: '10px',
@@ -371,9 +372,11 @@ export default function SidebarRight() {
                 الرافعة المالية
               </label>
               <input
+                id="leverage"
                 type="number"
                 value={leverage}
                 onChange={(e) => setLeverage(e.target.value)}
+                placeholder="10"
                 className="w-full px-2 rounded outline-none"
                 style={{
                   height: 32,

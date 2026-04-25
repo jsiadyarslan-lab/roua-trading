@@ -83,7 +83,7 @@ export default function StrategyBuilderPage() {
             <div style={{ color: T.text2, fontSize: 14, fontWeight: 700 }}>
               اسحب المكونات هنا لبناء استراتيجيتك
             </div>
-            <div style={{ color: T.text3, fontSize: 12, marginTop: 8 }}>
+            <div style={{ color: T.text2, fontSize: 12, marginTop: 8 }}>
               قريباً سيتم دعم ربط العقد بصرياً
             </div>
           </div>

@@ -71,10 +71,10 @@ export default function TradingViewChart() {
         vertLines: { color: '#ffffff0f' },
         horzLines: { color: '#ffffff0f' },
       },
-      crosshair: {
-        vertLine: { color: '#0A84FF40', labelBackgroundColor: '#1a2332' },
-        horxLine: { color: '#0A84FF40', labelBackgroundColor: '#1a2332' },
-      },
+        crosshair: {
+          vertLine: { color: '#0A84FF40', labelBackgroundColor: '#1a2332' },
+          horzLine: { color: '#0A84FF40', labelBackgroundColor: '#1a2332' },
+        },
       rightPriceScale: {
         borderColor: '#ffffff0f',
         scaleMargins: { top: 0.1, bottom: 0.2 },

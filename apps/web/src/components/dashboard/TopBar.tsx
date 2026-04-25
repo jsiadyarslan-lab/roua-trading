@@ -78,7 +78,7 @@ export default function TopBar() {
             width: '100%',
           }}
         >
-          <Search size={14} style={{ color: 'var(--text3)', shrink: 0 }} />
+          <Search size={14} style={{ color: 'var(--text3)', flexShrink: 0 }} />
           <input
             type="text"
             placeholder="بحث عن زوج، إشارة..."
@@ -179,6 +179,9 @@ export default function TopBar() {
 
         {/* Notification Bell */}
         <button
+          type="button"
+          aria-label="الإشعارات"
+          title="الإشعارات"
           className="relative flex items-center justify-center rounded-lg cursor-pointer"
           style={{
             width: 28,
@@ -204,6 +207,9 @@ export default function TopBar() {
 
         {/* User Avatar */}
         <button
+          type="button"
+          aria-label="الملف الشخصي"
+          title="الملف الشخصي"
           className="flex items-center justify-center rounded-lg cursor-pointer"
           style={{
             width: 28,

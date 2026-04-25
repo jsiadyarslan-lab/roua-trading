@@ -77,6 +77,7 @@ export function usePortfolioSummary() {
         }
 
         let totalPnl = 0, totalPositions = 0, pnlPercent = 0
+        let totalProfit = 0, totalLoss = 0
         let win = 0, loss = 0
         
         // Sum up Alpaca real positions
@@ -84,8 +85,13 @@ export function usePortfolioSummary() {
           totalPositions += pos.data.length
           pos.data.forEach((p: any) => {
             totalPnl += p.unrealizedPnl
-            if (p.unrealizedPnl >= 0) win++
-            else loss++
+            if (p.unrealizedPnl >= 0) {
+              totalProfit += p.unrealizedPnl
+              win++
+            } else {
+              totalLoss += Math.abs(p.unrealizedPnl)
+              loss++
+            }
           })
         }
 
@@ -99,8 +105,13 @@ export function usePortfolioSummary() {
         totalPositions += ptList.length
         ptList.forEach(pt => {
            totalPnl += pt.unrealizedPnl
-           if (pt.unrealizedPnl >= 0) win++
-           else loss++
+           if (pt.unrealizedPnl >= 0) {
+             totalProfit += pt.unrealizedPnl
+             win++
+           } else {
+             totalLoss += Math.abs(pt.unrealizedPnl)
+             loss++
+           }
         })
 
         if (balance > 0) pnlPercent = (totalPnl / (balance - totalPnl)) * 100
@@ -111,6 +122,8 @@ export function usePortfolioSummary() {
           totalPnl,
           totalPositions,
           pnlPercent,
+          totalProfit,
+          totalLoss,
           winCount: win,
           lossCount: loss,
           totalTrades: win + loss,

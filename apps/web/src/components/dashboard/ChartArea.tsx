@@ -268,13 +268,13 @@ export default function ChartArea() {
         isPaper: true
       }))
     ].filter(p => {
-      const pSym = p.symbol || p.rawSymbol || '';
+      const pSym = p.symbol || ''
       return pSym.replace('/', '') === selectedPair.replace('/', '')
     })
 
     allPositions.forEach(p => {
-      // Handle both Alpaca (avg_entry_price string) and Paper (entryPrice number)
-      const entryPrice = p.isPaper ? p.entryPrice : parseFloat(p.avg_entry_price || p.avgEntryPrice || '0');
+      // Handle both Alpaca and Paper positions
+      const entryPrice = 'entryPrice' in p ? p.entryPrice : p.avgEntryPrice
       const side = (p.side || '').toLowerCase();
       const isLong = side === 'long' || side === 'buy';
       const pnlColor = p.unrealizedPnl >= 0 ? '#00C853' : '#FF3B30';
@@ -320,30 +320,32 @@ export default function ChartArea() {
 
   // Live price update
   useEffect(() => {
-    if (!quote) return
-    const series = candleSeriesRef.current || lineSeriesRef.current
-    if (!series) return
+    if (!quote || !candles.length) return
 
-    const allData = series.data()
-    if (!allData.length) return
-    const last = allData[allData.length - 1]
-    if (!last) return
+    const validCandles = candles
+      .filter((c) => c.open > 0 || c.close > 0)
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 
-    if (candleSeriesRef.current && 'open' in last) {
+    const lastCandle = validCandles[validCandles.length - 1]
+    if (!lastCandle) return
+
+    const lastTime = Math.floor(new Date(lastCandle.timestamp).getTime() / 1000) as Time
+
+    if (candleSeriesRef.current) {
       candleSeriesRef.current.update({
-        time: last.time,
-        open: last.open,
-        high: Math.max(last.high, quote.price),
-        low: Math.min(last.low, quote.price),
+        time: lastTime,
+        open: lastCandle.open,
+        high: Math.max(lastCandle.high, quote.price),
+        low: Math.min(lastCandle.low, quote.price),
         close: quote.price,
       })
     } else if (lineSeriesRef.current) {
       lineSeriesRef.current.update({
-        time: last.time,
+        time: lastTime,
         value: quote.price,
       })
     }
-  }, [quote, chartType])
+  }, [quote, candles, chartType])
 
   return (
     <div

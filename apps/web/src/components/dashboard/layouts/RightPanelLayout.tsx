@@ -41,7 +41,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
     { id: 'signals', label: 'إشارات', accent: T.green, icon: Sparkles, subtitle: 'التحويل للتنفيذ' },
   ]
   const activeTab = TABS.find((tab) => tab.id === active) || TABS[0]
-  const spotlight = {
+  const spotlightMap = {
     bot: {
       headline: engineState === 'armed' ? 'المحرك جاهز' : engineState === 'scanning' ? 'المحرك يمسح السوق' : 'المحرك تحت السيطرة',
       detail: scanner?.entryBias || '—',
@@ -72,7 +72,9 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
       statLabel: 'المصدر',
       statValue: scanner?.source || 'unified',
     },
-  }[active]
+  } as const
+
+  const spotlight = spotlightMap[active as keyof typeof spotlightMap] ?? spotlightMap.bot
 
   return (
     <div

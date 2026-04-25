@@ -82,6 +82,8 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    let exchange = 'demo'
+
     // Validate credential belongs to user
     if (credentialId) {
       const cred = await db.exchangeCredential.findUnique({
@@ -93,6 +95,7 @@ export async function POST(req: NextRequest) {
           { status: 400 }
         )
       }
+      exchange = cred.exchange || 'demo'
     }
 
     // Get current price from our exchange API
@@ -120,6 +123,7 @@ export async function POST(req: NextRequest) {
       data: {
         userId: session.userId,
         exchangeCredentialId: credentialId || '',
+        exchange,
         symbol,
         side: side.toUpperCase() === 'BUY' ? 'BUY' : 'SELL',
         type: (type || 'MARKET').toUpperCase() === 'LIMIT' ? 'LIMIT' : 'MARKET',

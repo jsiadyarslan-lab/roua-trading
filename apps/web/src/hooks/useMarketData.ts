@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { useMarketStore, binanceWS, QuoteData } from './useMarketStore'
+import { useState, useEffect, useCallback } from 'react'
+import { useMarketStore } from './useMarketStore'
+import type { QuoteData } from './useMarketStore'
 
+export type { QuoteData } from './useMarketStore'
 
 const CRYPTO_BASES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
 
@@ -34,17 +36,35 @@ async function fetchQuoteFromAPI(symbol: string): Promise<QuoteData | null> {
   return null
 }
 
-export function useMarketQuotes(symbols: string[]) {
+export function useMarketQuotes(symbols: string[], refreshInterval = 0) {
   const globalQuotes = useMarketStore(state => state.quotes)
-  
-  // Derive local map for compatibility
+
   const quotesMap = new Map<string, QuoteData>()
-  symbols.forEach(s => {
-    if (globalQuotes[s]) quotesMap.set(s, globalQuotes[s])
+  symbols.forEach((symbol) => {
+    const quote = globalQuotes[symbol]
+    if (quote) quotesMap.set(symbol, quote)
   })
 
-  // Expose a dummy refetch that doesn't do anything because MarketProvider polls globally
-  const refetch = useCallback(() => {}, [])
+  const refetch = useCallback(async () => {
+    const results = await Promise.all(symbols.map(symbol => fetchQuoteFromAPI(symbol)))
+    results.forEach((quote, index) => {
+      if (quote) {
+        useMarketStore.getState().setQuote(symbols[index], quote)
+      }
+    })
+  }, [symbols])
+
+  useEffect(() => {
+    void refetch()
+
+    if (refreshInterval <= 0) return
+
+    const intervalId = window.setInterval(() => {
+      void refetch()
+    }, refreshInterval)
+
+    return () => window.clearInterval(intervalId)
+  }, [refetch, refreshInterval])
 
   return { quotes: quotesMap, refetch }
 }

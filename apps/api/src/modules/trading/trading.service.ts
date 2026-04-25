@@ -10,7 +10,7 @@ import { CredentialsService } from '../portfolio/credentials/credentials.service
 import { ExchangeService } from '../exchange/exchange.service';
 import { RiskManagerService } from './risk-manager.service';
 import { AuditService } from '../../audit/audit.service';
-import ccxt from 'ccxt';
+import * as ccxt from 'ccxt';
 import {
   PlaceOrderRequest,
   ClosePositionRequest,

@@ -5,7 +5,7 @@ import { CredentialsService } from '../../portfolio/credentials/credentials.serv
 import { OrderStateManagerService } from './order-state-manager.service';
 import { AuditService } from '../../../audit/audit.service';
 import { OrderQueueMessage } from '../events/order.events';
-import ccxt from 'ccxt';
+import * as ccxt from 'ccxt';
 
 /**
  * Order Consumer Service — RabbitMQ Order Processor

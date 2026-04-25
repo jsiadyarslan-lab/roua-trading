@@ -11,7 +11,7 @@ import {
   UnifiedBalance,
 } from './base-adapter.interface';
 import { AuditService } from '../../../audit/audit.service';
-import ccxt from 'ccxt';
+import * as ccxt from 'ccxt';
 
 /**
  * BinanceAdapter — CCXT-based Binance Exchange Adapter

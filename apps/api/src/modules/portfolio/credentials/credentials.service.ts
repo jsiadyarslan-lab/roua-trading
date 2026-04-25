@@ -9,7 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AuditService } from '../../../audit/audit.service';
 import * as crypto from 'crypto';
-import ccxt from 'ccxt';
+import * as ccxt from 'ccxt';
 
 /**
  * Credentials Service — Secure Exchange API Key Management

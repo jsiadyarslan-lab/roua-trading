@@ -2,7 +2,7 @@ import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../../../common/redis/redis.service';
 import { IExchangeAdapter, UnifiedQuoteDto, UnifiedCandleDto } from '../exchange.types';
-import ccxt from 'ccxt';
+import * as ccxt from 'ccxt';
 
 /**
  * Binance Adapter via CCXT

@@ -4,7 +4,7 @@ import { CredentialsService } from '../credentials/credentials.service';
 import { ExchangeService } from '../../exchange/exchange.service';
 import { AIOrchestratorService } from '../../ai/services/ai-orchestrator.service';
 import { AuditService } from '../../../audit/audit.service';
-import ccxt from 'ccxt';
+import * as ccxt from 'ccxt';
 
 /**
  * Risk Report — Output of Portfolio Sanctuary Analysis

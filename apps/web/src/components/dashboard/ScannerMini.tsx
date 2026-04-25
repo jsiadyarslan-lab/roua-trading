@@ -198,12 +198,13 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ 
-                      fontSize: 10, fontWeight: 800, 
-                      color: sig.dir === 'buy' ? 'var(--success)' : 'var(--danger)',
+                    <div style={{
+                      fontSize: 10,
+                      fontWeight: 800,
+                      color: sig.dir === 'buy' ? 'var(--success)' : sig.dir === 'sell' ? 'var(--danger)' : 'var(--amber)',
                       textTransform: 'uppercase'
                     }}>
-                      {sig.dir === 'buy' ? 'إشارة شراء' : 'إشارة بيع'}
+                      {sig.dir === 'buy' ? 'إشارة شراء' : sig.dir === 'sell' ? 'إشارة بيع' : 'ترقب / حياد'}
                     </div>
                     <div style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>{sig.strength}%</div>
                     <div style={{ fontSize: 9, color: 'var(--text3)', marginTop: 3 }}>{sig.timestamp ? formatFreshness(sig.timestamp) : (lastScan || 'الآن')}</div>
@@ -221,10 +222,17 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
 
                 {/* Progress Bar */}
                 <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden', marginBottom: 10 }}>
-                  <div style={{ 
-                    height: '100%', width: `${sig.strength}%`, 
-                    background: sig.dir === 'buy' ? 'var(--success)' : 'var(--danger)',
-                    boxShadow: `0 0 8px ${sig.dir === 'buy' ? 'rgba(0,200,83,0.4)' : 'rgba(255,68,68,0.4)'}`
+                  <div style={{
+                    height: '100%',
+                    width: `${sig.strength}%`,
+                    background: sig.dir === 'buy' ? 'var(--success)' : sig.dir === 'sell' ? 'var(--danger)' : 'var(--amber)',
+                    boxShadow: `0 0 8px ${
+                      sig.dir === 'buy'
+                        ? 'rgba(0,200,83,0.4)'
+                        : sig.dir === 'sell'
+                          ? 'rgba(255,68,48,0.4)'
+                          : 'rgba(255,184,0,0.4)'
+                    }`
                   }} />
                 </div>
 

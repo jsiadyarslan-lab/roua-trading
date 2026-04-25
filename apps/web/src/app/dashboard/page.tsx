@@ -18,6 +18,7 @@ import OrderBookPanel from '@/components/dashboard/OrderBookPanel'
 import { PortfolioMini } from '@/components/portfolio/PortfolioMini'
 import { ScannerMini } from '@/components/dashboard/ScannerMini'
 import { AlNarratorMini } from '@/components/ai/AlNarratorMini'
+import { MarketProvider } from '@/components/dashboard/MarketProvider'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone } from '@/lib/dashboard-live'
 
@@ -127,7 +128,7 @@ export default function DashboardPage() {
   const sourceLabel = getSourceLabel(activeQuote?.source)
 
   return (
-    <>
+    <MarketProvider>
       <style>{`
         @keyframes drop-pulse {
           0%,100% { opacity: 0.5 }
@@ -478,6 +479,8 @@ export default function DashboardPage() {
               </div>
               <button
                 onClick={() => setPosOpen(p => !p)}
+                title={posOpen ? 'إخفاء المراكز' : 'إظهار المراكز'}
+                aria-label={posOpen ? 'إخفاء المراكز' : 'إظهار المراكز'}
                 style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.text3, padding: 4 }}
               >
                 <ChevronDown size={14} style={{ transform: posOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.3s' }} />
@@ -538,6 +541,8 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setChartExpanded(value => !value)}
+                title={chartExpanded ? 'تصغير الرسم البياني' : 'توسيع الرسم البياني'}
+                aria-label={chartExpanded ? 'تصغير الرسم البياني' : 'توسيع الرسم البياني'}
                 style={{ background: 'transparent', border: 'none', color: T.text3, cursor: 'pointer' }}
               >
                 <ChevronDown size={16} style={{ transform: chartExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
@@ -632,6 +637,8 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => setActiveMobileView(item.id as MobileView)}
                 className={`mobile-bottom-nav__button${active ? ' mobile-bottom-nav__button--active' : ''}`}
+                title={item.label}
+                aria-label={item.label}
               >
                 <Icon size={18} />
                 <span className="mobile-bottom-nav__label">{item.label}</span>
@@ -640,6 +647,6 @@ export default function DashboardPage() {
           })}
         </div>
       </nav>}
-    </>
+    </MarketProvider>
   )
 }

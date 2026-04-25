@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { AlertTriangle, RefreshCw, TrendingDown, TrendingUp, X } from 'lucide-react'
+import { RefreshCw, TrendingDown, TrendingUp, X } from 'lucide-react'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 
@@ -40,7 +40,7 @@ const fmtPnl = (value: number) =>
   `${value >= 0 ? '+' : ''}${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}$`
 
 export function AlpacaPositions() {
-  const { positions, loading, error, lastUpdate, fetchPositions, fetchAccount } = usePositionsStore()
+  const { positions, fetchPositions, fetchAccount } = usePositionsStore()
   const { trades: paperTrades, removeTrade: removePaperTrade } = usePaperTradesStore()
   const [closing, setClosing] = useState<string | null>(null)
   const [confirmClose, setConfirmClose] = useState<string | null>(null)
@@ -134,8 +134,6 @@ export function AlpacaPositions() {
     }
   }
 
-  const totalPnl = allPositions.reduce((sum, position) => sum + position.unrealizedPnl, 0)
-
   return (
     <div
       style={{
@@ -185,6 +183,15 @@ export function AlpacaPositions() {
           const isLong = position.side === 'long'
           const pnlUp = position.unrealizedPnl >= 0
           const sideTone = isLong ? T.success : T.danger
+          const openedAt = position.entryTime
+            ? new Date(position.entryTime).toLocaleString('ar-SA', {
+                year: '2-digit',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : 'غير محدد'
 
           return (
             <div
@@ -273,7 +280,7 @@ export function AlpacaPositions() {
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', color: T.text3, fontSize: 7.5 }}>
-                  <span>{position.entryTime ? new Date(position.entryTime).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : 'مركز تجميعي'}</span>
+                  <span>{openedAt}</span>
                   <span>الكمية {position.qty}</span>
                 </div>
               </div>
@@ -363,22 +370,6 @@ export function AlpacaPositions() {
                 >
                   {fmtPnl(position.unrealizedPnl)}
                 </div>
-                <div
-                  style={{
-                    padding: '3px 7px',
-                    borderRadius: 999,
-                    background: 'rgba(0,0,0,0.18)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    color: pnlUp ? T.success : T.danger,
-                    fontSize: 9,
-                    fontWeight: 900,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {position.unrealizedPct >= 0 ? '+' : ''}
-                  {position.unrealizedPct.toFixed(2)}%
-                </div>
                 <button
                   type="button"
                   onClick={() => closePosition(position.id, position.isPaper, position.rawSymbol)}
@@ -418,41 +409,6 @@ export function AlpacaPositions() {
             </div>
           )
         })}
-      </div>
-
-      <div
-        style={{
-          flexShrink: 0,
-          padding: '9px 10px',
-          borderTop: `1px solid ${T.border}`,
-          background: 'rgba(255,255,255,0.025)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: 10,
-        }}
-      >
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-          <AlertTriangle size={11} color={T.text3} />
-          <span style={{ fontSize: 9, color: T.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {loading
-              ? 'جاري تحديث المراكز...'
-              : error
-                ? 'تعذر تحميل المراكز'
-                : `آخر تحديث ${lastUpdate ? new Date(lastUpdate).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' }) : '—'}`}
-          </span>
-        </div>
-        <div
-          style={{
-            fontSize: 10.5,
-            fontWeight: 900,
-            color: totalPnl >= 0 ? T.success : T.danger,
-            fontFamily: "'JetBrains Mono', monospace",
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {fmtPnl(totalPnl)}
-        </div>
       </div>
 
       <style>{`

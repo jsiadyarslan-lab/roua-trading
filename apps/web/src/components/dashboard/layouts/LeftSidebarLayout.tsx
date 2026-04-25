@@ -248,19 +248,6 @@ export function LeftSidebarLayout() {
             </div>
           </div>
 
-          <div
-            style={{
-              padding: '9px 11px',
-              borderRadius: 12,
-              border: '1px solid rgba(255,255,255,0.07)',
-              background: 'rgba(255,255,255,0.028)',
-              fontSize: 9,
-              color: '#C8D5E4',
-              lineHeight: 1.7,
-            }}
-          >
-            اختر من العمود الأيسر ثم ركّز على وحدة واحدة فقط بدل تكديس أدوات كثيرة في نفس اللحظة.
-          </div>
         </div>
 
         <div

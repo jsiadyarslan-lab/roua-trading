@@ -44,7 +44,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
   const spotlight = {
     bot: {
       headline: engineState === 'armed' ? 'المحرك جاهز' : engineState === 'scanning' ? 'المحرك يمسح السوق' : 'المحرك تحت السيطرة',
-      detail: scanner?.entryBias ? `سياسة الدخول الحالية: ${scanner.entryBias}` : 'راقب دورة التنفيذ وإدارة المخاطر والصفقات المفتوحة.',
+      detail: scanner?.entryBias || '—',
       statLabel: 'الحالة',
       statValue: engineState.toUpperCase(),
     },
@@ -151,9 +151,6 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           gap: 8,
         }}
       >
-        <div style={{ fontSize: 10, color: T.text, lineHeight: 1.8, fontFamily: "'Cairo', sans-serif" }}>
-          {loading ? 'جاري مزامنة محركات القرار...' : spotlight.detail}
-        </div>
         <div
           style={{
             display: 'grid',

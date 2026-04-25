@@ -59,35 +59,16 @@ export function fromAlpacaSymbol(alpacaSym: string): string {
   return alpacaSym
 }
 
-function createFallbackResponse(path: string): Response {
-  if (path === '/v2/account') {
-    return NextResponse.json(
-      {
-        id: 'mock-alpaca-account',
-        status: 'ACTIVE',
-        currency: 'USD',
-        cash: '10000',
-        equity: '10000',
-        buying_power: '40000',
-        portfolio_value: '10000',
-        daytrade_count: 0,
-        account_number: 'PA-MOCK',
-        trading_blocked: false,
-        account_blocked: false,
-      },
-      { status: 200 }
-    )
-  }
-
-  if (path === '/v2/positions') {
-    return NextResponse.json([], { status: 200 })
-  }
-
+function createFallbackResponse(_path: string): Response {
+  // When Alpaca keys are not configured, return a clear error instead of
+  // fake data. The UI should show "Alpaca not configured" instead of
+  // displaying misleading $10,000 balances.
   return NextResponse.json(
     {
       success: false,
       degraded: true,
-      error: 'Alpaca credentials not configured',
+      error: 'Alpaca credentials not configured. Set ALPACA_API_KEY and ALPACA_API_SECRET environment variables.',
+      mock: true,
     },
     { status: 503 }
   )

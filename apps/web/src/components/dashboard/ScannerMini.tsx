@@ -9,8 +9,9 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
   const [scanning, setScanning] = useState(false);
   const [lastScan, setLastScan] = useState<string | null>(null);
   const scanningRef = useRef(false);
-  const { setSelectedSymbol } = useSymbolStore();
-  const spotlight = signals.find(sig => sig.pair === selectedSymbol) || signals[0] || null
+  const { selectedSymbol: storeSelectedSymbol, setSelectedSymbol } = useSymbolStore();
+  const activeSymbol = selectedSymbol || storeSelectedSymbol;
+  const spotlight = signals.find(sig => sig.pair === activeSymbol) || signals[0] || null
 
   const doScan = useCallback(async () => {
     if (scanningRef.current) return;
@@ -19,7 +20,8 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
     setScanning(true);
 
     try {
-      const res = await fetch('/api/market-scan');
+      const querySymbol = activeSymbol ? `?pair=${encodeURIComponent(activeSymbol)}&tf=1h` : '';
+      const res = await fetch(`/api/market-scan${querySymbol}`);
 
       if (!res.ok) {
         throw new Error(`Scan failed with status ${res.status}`);
@@ -45,7 +47,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
       scanningRef.current = false;
       setScanning(false);
     }
-  }, []);
+  }, [activeSymbol]);
 
   useEffect(() => {
     void doScan();
@@ -53,7 +55,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
       void doScan();
     }, 60000); // Auto scan every minute
     return () => clearInterval(iv);
-  }, [doScan]);
+  }, [doScan, activeSymbol]);
 
   return (
     <div style={{

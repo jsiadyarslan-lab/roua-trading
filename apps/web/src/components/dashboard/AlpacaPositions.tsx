@@ -157,6 +157,28 @@ export function AlpacaPositions() {
           gap: 8,
         }}
       >
+        {allPositions.length > 0 && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 1.5fr) minmax(108px, 1.1fr) minmax(0, 1.75fr) minmax(112px, 0.95fr) auto',
+              gap: 10,
+              alignItems: 'center',
+              padding: '0 10px 4px',
+              color: T.text3,
+              fontSize: 7,
+              fontWeight: 800,
+              fontFamily: "'Cairo', sans-serif",
+            }}
+          >
+            <div>العقد</div>
+            <div>الفتح</div>
+            <div>أسعار الصفقة</div>
+            <div style={{ textAlign: 'left' }}>P&L</div>
+            <div style={{ textAlign: 'left' }}>إجراء</div>
+          </div>
+        )}
+
         {allPositions.length === 0 && (
           <div
             style={{
@@ -349,17 +371,17 @@ export function AlpacaPositions() {
                 ))}
               </div>
 
-              <div
-                style={{
-                  minWidth: 0,
-                  display: 'grid',
-                  gap: 3,
-                  paddingLeft: 10,
-                  borderLeft: '1px solid rgba(255,255,255,0.06)',
-                  justifyItems: 'end',
-                }}
-              >
-                <div style={{ fontSize: 6.5, color: T.text3 }}>الربح والخسارة</div>
+                <div
+                  style={{
+                    minWidth: 0,
+                    display: 'grid',
+                    gap: 3,
+                    paddingLeft: 10,
+                    borderLeft: '1px solid rgba(255,255,255,0.06)',
+                    justifyItems: 'end',
+                  }}
+                >
+                  <div style={{ fontSize: 6.5, color: T.text3 }}>الربح والخسارة</div>
                 <div
                   style={{
                     color: pnlUp ? T.success : T.danger,
@@ -371,41 +393,45 @@ export function AlpacaPositions() {
                 >
                   {fmtPnl(position.unrealizedPnl)}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => closePosition(position.id, position.isPaper, position.rawSymbol)}
-                  disabled={closing === position.id}
-                  style={{
-                    flexShrink: 0,
-                    minWidth: 56,
-                    height: 26,
-                    padding: '0 7px',
-                    borderRadius: 8,
-                    border: `1px solid ${confirmClose === position.id ? 'rgba(255,90,84,0.42)' : 'rgba(255,90,84,0.22)'}`,
-                    background: confirmClose === position.id ? 'rgba(255,90,84,0.16)' : 'rgba(255,90,84,0.08)',
-                    color: T.danger,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 4,
-                    cursor: 'pointer',
-                    fontSize: 7,
-                    fontWeight: 900,
-                    fontFamily: "'Cairo', sans-serif",
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {closing === position.id ? (
-                    <RefreshCw size={10} style={{ animation: 'spin 1s linear infinite' }} />
-                  ) : confirmClose === position.id ? (
-                    'تأكيد'
-                  ) : (
-                    <>
-                      <X size={10} />
-                      إغلاق
-                    </>
-                  )}
-                </button>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={() => closePosition(position.id, position.isPaper, position.rawSymbol)}
+                    disabled={closing === position.id}
+                    style={{
+                      flexShrink: 0,
+                      minWidth: 56,
+                      height: 26,
+                      padding: '0 7px',
+                      borderRadius: 8,
+                      border: `1px solid ${confirmClose === position.id ? 'rgba(255,90,84,0.42)' : 'rgba(255,90,84,0.22)'}`,
+                      background: confirmClose === position.id ? 'rgba(255,90,84,0.16)' : 'rgba(255,90,84,0.08)',
+                      color: T.danger,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 4,
+                      cursor: 'pointer',
+                      fontSize: 7,
+                      fontWeight: 900,
+                      fontFamily: "'Cairo', sans-serif",
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {closing === position.id ? (
+                      <RefreshCw size={10} style={{ animation: 'spin 1s linear infinite' }} />
+                    ) : confirmClose === position.id ? (
+                      'تأكيد'
+                    ) : (
+                      <>
+                        <X size={10} />
+                        إغلاق
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           )

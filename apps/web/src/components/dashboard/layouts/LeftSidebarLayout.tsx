@@ -85,10 +85,10 @@ function TabButton({
         minHeight: 24,
         padding: '4px 8px',
         borderRadius: 8,
-        border: `1px solid ${active ? `${accent}52` : 'rgba(148, 163, 184, 0.10)'}`,
+        border: `1px solid ${active ? `${accent}6a` : 'rgba(148, 163, 184, 0.18)'}`,
         background: active
-          ? `linear-gradient(90deg, ${accent}16, rgba(255,255,255,0.02))`
-          : 'linear-gradient(180deg, rgba(255,255,255,0.020), rgba(255,255,255,0.012))',
+          ? `linear-gradient(90deg, ${accent}22, rgba(255,255,255,0.035))`
+          : 'linear-gradient(180deg, rgba(255,255,255,0.040), rgba(255,255,255,0.020))',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -96,7 +96,7 @@ function TabButton({
         cursor: 'pointer',
         textAlign: 'center',
         boxShadow: active
-          ? `inset 2px 0 0 ${accent}, 0 0 0 1px ${accent}12`
+          ? `inset 2px 0 0 ${accent}, 0 0 0 1px ${accent}18, 0 0 18px ${accent}10`
           : 'inset 0 1px 0 rgba(255,255,255,0.02)',
       }}
     >
@@ -105,7 +105,7 @@ function TabButton({
           style={{
             fontSize: 7.5,
             lineHeight: 1,
-            color: active ? T.text : '#D7E2EF',
+            color: active ? '#FFFFFF' : '#C6D3E2',
             fontWeight: 900,
             fontFamily: "'Cairo', sans-serif",
             whiteSpace: 'nowrap',
@@ -270,16 +270,25 @@ export function LeftSidebarLayout() {
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.025), 0 10px 22px rgba(0,0,0,0.18)',
             }}
           >
-            {tab === 'portfolio' && <PortfolioMini compact />}
-            {tab === 'execute' && <QuickExecutionMini mobile />}
-            {tab === 'book' && <OrderBookMini />}
-            {tab === 'watch' && <WatchlistMini />}
-            {tab === 'alerts' && <PriceAlertsPanel />}
-            {tab === 'ai' && <AlNarratorMini compact />}
-            {tab === 'news' && <DesktopNewsPanel />}
-            {tab === 'calendar' && <DesktopCalendarPanel />}
-            {tab === 'backtest' && <DesktopBacktestPanel />}
-            {tab === 'correlation' && <DesktopCorrelationPanel />}
+            <div
+              style={{
+                width: '100%',
+                height: '100%',
+                overflow: 'hidden',
+                zoom: 0.82,
+              }}
+            >
+              {tab === 'portfolio' && <PortfolioMini compact />}
+              {tab === 'execute' && <QuickExecutionMini mobile />}
+              {tab === 'book' && <OrderBookMini />}
+              {tab === 'watch' && <WatchlistMini />}
+              {tab === 'alerts' && <PriceAlertsPanel />}
+              {tab === 'ai' && <AlNarratorMini compact />}
+              {tab === 'news' && <DesktopNewsPanel />}
+              {tab === 'calendar' && <DesktopCalendarPanel />}
+              {tab === 'backtest' && <DesktopBacktestPanel />}
+              {tab === 'correlation' && <DesktopCorrelationPanel />}
+            </div>
           </div>
         </div>
       </section>

@@ -21,11 +21,16 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
   const [hydrated, setHydrated] = useState(false)
 
   // On hydration, skip all existing logs — only process NEW ones after mount
+  // Also initialize ALL timestamp refs to now() to prevent phantom alerts on page load
   useEffect(() => {
     setHydrated(true)
     // Initialize ref to current length so old persisted logs are NOT treated as new
     const currentLogs = useBotStore.getState().logs
     prevLogLengthRef.current = currentLogs.length
+    // CRITICAL: Initialize timestamp refs to now so the first interval check
+    // doesn't fire immediately (which was causing phantom alerts)
+    lastAiCheckRef.current = Date.now()
+    lastScanCheckRef.current = Date.now()
   }, [])
   useEffect(() => { quotesRef.current = quotes }, [quotes])
 
@@ -82,9 +87,9 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
     }
 
     // fetchAiAlert() // Don't fire immediately on mount to avoid spamming on refresh
-    const iv = setInterval(fetchAiAlert, 10_000) // check every 10s, but skips if < 90s since last fire
+    const iv = setInterval(fetchAiAlert, 15_000) // check every 15s, but skips if < 90s since last fire
     return () => clearInterval(iv)
-  }, [hydrated, settings.aiAlerts, settings.minConfidence, addNotification])
+  }, [hydrated, settings.aiAlerts, settings.minConfidence, addNotification, selectedSymbol])
 
   // ── 3. مراقبة السكانر كل 2 دقيقة ──────────────────────────
   useEffect(() => {
@@ -117,7 +122,7 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
     }
 
     // Don't fire immediately on mount to avoid phantom alerts on page load
-    const iv = setInterval(fetchScanAlert, 30_000) // check every 30s, but skips if < 2min since last fire
+    const iv = setInterval(fetchScanAlert, 60_000) // check every 60s, but skips if < 2min since last fire
     return () => clearInterval(iv)
   }, [hydrated, settings.scannerAlerts, settings.minConfidence, addNotification])
 
@@ -125,11 +130,15 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
   useEffect(() => {
     if (!hydrated || !settings.tradeAlerts) return
 
+    let lastTradeAlerts: Record<string, number> = {}
     const iv = setInterval(() => {
       const currentQuotes = quotesRef.current
       currentQuotes.forEach((q, symbol) => {
         const change = Math.abs(q.changePercent || 0)
-        if (change > 4) {
+        const now = Date.now()
+        // Only alert once per symbol per 5 minutes to avoid spam
+        if (change > 4 && (!lastTradeAlerts[symbol] || now - lastTradeAlerts[symbol] > 300_000)) {
+          lastTradeAlerts[symbol] = now
           addNotification({
             source: 'trade',
             priority: change > 8 ? 'urgent' : 'high',

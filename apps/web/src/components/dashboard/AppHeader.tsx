@@ -440,7 +440,8 @@ function MainNav() {
       WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
       background: T.navGlass,
       display: 'flex', alignItems: 'center',
-      padding: '0 8px', gap: 0, overflowX: 'hidden', overflowY: 'visible',
+      padding: '0 8px', gap: 0,
+      overflowX: 'clip', overflowY: 'visible',
       borderBottomRightRadius: ORB_D / 2,
     }}>
       {NAV_LINKS.slice(0, 8).map(({ href, label, icon: Icon }) => {

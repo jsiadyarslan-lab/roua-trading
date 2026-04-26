@@ -168,3 +168,45 @@ Stage Summary:
 - CRITICAL: Portfolio credentials now use proper AES-256-GCM (no base64 fallback)
 - Single Prisma schema (PostgreSQL) instead of two conflicting schemas
 - Root config files cleaned up
+
+---
+Task ID: 9
+Agent: Scanner Components Agent
+Task: Build Scanner Shared Components, Context, and Hooks
+
+Work Log:
+- Created directory structure: apps/web/src/components/scanner/{hooks,shared,modals,tabs}
+- Created useScannerData.ts hook with smart caching, auto-refresh, abort controller, countdown
+- Created useScannerFilters.ts hook with debounced search, category/direction/signal filters, multi-sort
+- Created ScannerProvider.tsx context with SSE fallback to polling, full state exposure
+- Created ScoreGauge.tsx circular SVG gauge with gradient fill, score-based coloring, RTL scaleX(-1)
+- Created SparklineChart.tsx with smooth polyline, gradient area fill, min/max dot markers
+- Created IndicatorBadge.tsx compact pill badge with status-based color mapping (6 statuses)
+- Created DirectionTag.tsx with Arabic direction/signal labels, size variants (sm/md/lg)
+- Created VolumeBar.tsx horizontal bar with average line overlay, volume-level coloring
+- Created SmartScoreBar.tsx 5-bar display for trend/momentum/volatility/volume/composite scores
+
+Files Created (9):
+1. apps/web/src/components/scanner/hooks/useScannerData.ts
+2. apps/web/src/components/scanner/hooks/useScannerFilters.ts
+3. apps/web/src/components/scanner/ScannerProvider.tsx
+4. apps/web/src/components/scanner/shared/ScoreGauge.tsx
+5. apps/web/src/components/scanner/shared/SparklineChart.tsx
+6. apps/web/src/components/scanner/shared/IndicatorBadge.tsx
+7. apps/web/src/components/scanner/shared/DirectionTag.tsx
+8. apps/web/src/components/scanner/shared/VolumeBar.tsx
+9. apps/web/src/components/scanner/shared/SmartScoreBar.tsx
+
+Verification:
+- All files under 150 lines each
+- TypeScript check passes (no scanner-related TS errors)
+- All components use 'use client' directive
+- All components use inline styles (no Tailwind classes or CSS modules)
+- All text in Arabic with Cairo/JetBrains Mono fonts
+- All named exports (no default exports)
+- Design tokens T used consistently
+
+Stage Summary:
+- Scanner shared component library complete
+- Context provider with SSE+polling ready for scanner page refactor
+- All components RTL-compatible with Arabic labels

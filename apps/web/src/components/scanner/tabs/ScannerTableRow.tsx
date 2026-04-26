@@ -1,0 +1,189 @@
+'use client'
+
+import React, { useState } from 'react'
+import { Eye, Layers } from 'lucide-react'
+import { DirectionTag } from '../shared/DirectionTag'
+import { ScoreGauge } from '../shared/ScoreGauge'
+import { IndicatorBadge } from '../shared/IndicatorBadge'
+import { SparklineChart } from '../shared/SparklineChart'
+import type { ScannerItem } from '../hooks/useScannerData'
+
+const T = {
+  bg2: '#0D1117', card: '#08090F', cardHover: '#0B0F19', surface: '#1A1D29',
+  green: '#00FFA3', greenDim: '#00CC82', red: '#FF4757', redDim: '#FF3344',
+  amber: '#FFB800', blue: '#0A84FF', cyan: '#00D4FF', purple: '#B388FF',
+  text: '#F0F2F5', text2: '#94a3b8', text3: '#8B92A8',
+  border: 'rgba(255,255,255,0.06)',
+}
+
+interface ScannerTableRowProps {
+  item: ScannerItem
+  index: number
+  isSelected: boolean
+  onSelect: (symbol: string) => void
+}
+
+function getRsiStatus(v: number | null): 'bullish' | 'bearish' | 'oversold' | 'overbought' | 'neutral' {
+  if (v === null) return 'neutral'
+  if (v <= 30) return 'oversold'
+  if (v >= 70) return 'overbought'
+  if (v < 50) return 'bearish'
+  return 'bullish'
+}
+
+function getMacdStatus(s: string | null): 'bullish' | 'bearish' | 'neutral' {
+  if (!s) return 'neutral'
+  const u = s.toUpperCase()
+  if (u.includes('BUY') || u.includes('BULL')) return 'bullish'
+  if (u.includes('SELL') || u.includes('BEAR')) return 'bearish'
+  return 'neutral'
+}
+
+function TinyBar({ value, maxVal, color }: { value: number; maxVal: number; color: string }) {
+  const pct = Math.min(Math.max(Math.abs(value) / maxVal * 100, 2), 100)
+  return (
+    <div style={{ width: 32, height: 3, borderRadius: 1.5, background: T.surface, overflow: 'hidden' }}>
+      <div style={{
+        width: `${pct}%`, height: '100%', borderRadius: 1.5,
+        background: color, transition: 'width 0.3s',
+      }} />
+    </div>
+  )
+}
+
+function ScannerTableRowInner({ item, index, isSelected, onSelect }: ScannerTableRowProps) {
+  const [hovered, setHovered] = useState(false)
+  const dimmed = !item.marketOpen
+  const chgColor = item.changePercent >= 0 ? T.green : T.red
+
+  const scores = [
+    { v: item.technicalScore, max: 100, c: item.technicalScore >= 50 ? T.green : T.amber },
+    { v: item.confidence, max: 100, c: T.cyan },
+    { v: item.rsi ?? 0, max: 100, c: T.blue },
+    { v: item.adx ?? 0, max: 100, c: T.purple },
+  ]
+
+  return (
+    <tr
+      onClick={() => onSelect(item.symbol)}
+      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+      style={{
+        background: isSelected ? `${T.cyan}08` : hovered ? T.cardHover : 'transparent',
+        cursor: 'pointer', transition: 'background 0.2s',
+        opacity: dimmed ? 0.45 : 1,
+        animation: `fadeInRow 0.3s ease ${index * 30}ms both`,
+      }}
+    >
+      {/* Symbol */}
+      <td style={{ padding: '8px 10px', borderBottom: `1px solid ${T.border}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div>
+            <div style={{
+              fontSize: 12, fontWeight: 800, color: T.text,
+              fontFamily: "'JetBrains Mono', monospace",
+            }}>
+              {item.symbol}
+            </div>
+            <div style={{
+              fontSize: 8, color: T.text3, fontWeight: 600,
+              fontFamily: "'Cairo', sans-serif",
+            }}>
+              {item.name}
+            </div>
+          </div>
+          <DirectionTag direction={item.direction} signalClass={item.signalClass} size="sm" />
+        </div>
+      </td>
+
+      {/* Composite score */}
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}`, textAlign: 'center' }}>
+        <ScoreGauge score={item.technicalScore} size={32} showValue label="" />
+      </td>
+
+      {/* Change% */}
+      <td style={{ padding: '8px 8px', borderBottom: `1px solid ${T.border}` }}>
+        <div style={{ fontSize: 11, fontWeight: 800, color: chgColor, fontFamily: "'JetBrains Mono', monospace" }}>
+          {item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%
+        </div>
+        <div style={{ fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+          ${item.price.toLocaleString()}
+        </div>
+      </td>
+
+      {/* SmartScore mini bars */}
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}` }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {scores.map((s, i) => (
+            <TinyBar key={i} value={s.v} maxVal={s.max} color={s.c} />
+          ))}
+        </div>
+      </td>
+
+      {/* RSI */}
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}` }}>
+        <IndicatorBadge label="RSI" value={item.rsi ?? '—'} status={getRsiStatus(item.rsi)} />
+      </td>
+
+      {/* MACD */}
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}` }}>
+        <IndicatorBadge label="MACD" value={item.macdSignal ?? '—'} status={getMacdStatus(item.macdSignal)} />
+      </td>
+
+      {/* Stoch */}
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}`, textAlign: 'center' }}>
+        <div style={{ fontSize: 9, fontWeight: 700, color: T.text2, fontFamily: "'JetBrains Mono', monospace" }}>
+          {item.stochK !== null ? `${item.stochK.toFixed(0)}/${item.stochD?.toFixed(0)}` : '—'}
+        </div>
+      </td>
+
+      {/* ADX */}
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}`, textAlign: 'center' }}>
+        <span style={{
+          fontSize: 10, fontWeight: 800,
+          color: (item.adx ?? 0) > 25 ? T.green : T.text3,
+          fontFamily: "'JetBrains Mono', monospace",
+        }}>
+          {item.adx !== null ? item.adx.toFixed(1) : '—'}
+        </span>
+      </td>
+
+      {/* Sparkline */}
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}` }}>
+        <SparklineChart
+          data={item.sparkline} color={chgColor}
+          width={72} height={24}
+        />
+      </td>
+
+      {/* Actions */}
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}` }}>
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button
+            onClick={e => { e.stopPropagation(); onSelect(item.symbol) }}
+            title="تحليل عميق"
+            style={{
+              padding: 4, borderRadius: 4, border: `0.5px solid ${T.border}`,
+              background: T.surface, color: T.text3, cursor: 'pointer', transition: 'all 0.2s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <Eye size={12} />
+          </button>
+          <button
+            onClick={e => { e.stopPropagation() }}
+            title="متعدد الأطر"
+            style={{
+              padding: 4, borderRadius: 4, border: `0.5px solid ${T.border}`,
+              background: T.surface, color: T.text3, cursor: 'pointer', transition: 'all 0.2s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <Layers size={12} />
+          </button>
+        </div>
+      </td>
+    </tr>
+  )
+}
+
+export const ScannerTableRow = React.memo(ScannerTableRowInner)

@@ -73,6 +73,88 @@ export class PatternDetection {
   descriptionAr: string;
 }
 
+// ════════════════════════════════════════════════
+//  NEW — Smart Scoring Engine Types
+// ════════════════════════════════════════════════
+
+export interface SmartScore {
+  trendScore: number;       // 0-100: Trend strength (EMA + Ichimoku + ADX)
+  momentumScore: number;   // 0-100: Momentum (RSI + MACD + Stoch + CCI)
+  volatilityScore: number; // 0-100: Volatility level (ATR + BB + Volatility)
+  volumeScore: number;     // 0-100: Volume confirmation (OBV + Volume Profile)
+  compositeScore: number;  // -100 to +100
+  signalType: 'STRONG_TREND' | 'REVERSAL' | 'BREAKOUT' | 'CONSOLIDATION' | 'DIVERGENCE';
+  confidence: number;      // 0-100
+  action: 'STRONG_BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG_SELL';
+  tradeTimeframe: 'SCALP' | 'DAY' | 'SWING' | 'POSITION';
+}
+
+export class IchimokuResult {
+  tenkanSen: number;
+  kijunSen: number;
+  senkouSpanA: number;
+  senkouSpanB: number;
+  chikouSpan: number;
+  cloudColor: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  priceVsCloud: 'ABOVE' | 'BELOW' | 'INSIDE';
+  tkCross: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+}
+
+export class ObvResult {
+  values: number[];
+  trend: 'RISING' | 'FALLING' | 'FLAT';
+  divergence: 'BULLISH_DIVERGENCE' | 'BEARISH_DIVERGENCE' | 'NONE';
+}
+
+export class CciResult {
+  value: number;
+  interpretation: 'OVERBOUGHT' | 'OVERSOLD' | 'NEUTRAL';
+}
+
+export class ParabolicSarResult {
+  value: number;
+  trend: 'RISING' | 'FALLING';
+  accelerationFactor: number;
+}
+
+export class FibonacciLevel {
+  level: number;    // 0, 0.236, 0.382, 0.5, 0.618, 0.786, 1
+  price: number;
+  label: string;    // e.g. "23.6%", "38.2%"
+  labelAr: string;  // e.g. "23.6٪"
+}
+
+export class DivergenceResult {
+  type: 'BULLISH' | 'BEARISH' | 'HIDDEN_BULLISH' | 'HIDDEN_BEARISH' | 'NONE';
+  indicator: string; // 'rsi', 'macd', 'stoch', etc.
+  description: string;
+  descriptionAr: string;
+  strength: 'WEAK' | 'MODERATE' | 'STRONG';
+}
+
+export class VolumeProfileLevel {
+  priceStart: number;
+  priceEnd: number;
+  volume: number;
+  percentage: number; // % of total volume
+}
+
+export class VolumeProfileResult {
+  levels: VolumeProfileLevel[];
+  poc: number;           // Point of Control — price with highest volume
+  valueAreaHigh: number; // 70% of volume — high boundary
+  valueAreaLow: number;  // 70% of volume — low boundary
+}
+
+export class CandlePattern {
+  name: string;
+  nameAr: string;
+  type: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  confidence: number; // 0-100
+  description: string;
+  descriptionAr: string;
+}
+
 // ── Scanner Item (Table Row) ──
 
 export class ScannerItemDto {
@@ -102,6 +184,9 @@ export class ScannerItemDto {
   signalClass: SignalClass;
   technicalScore: number; // -100 to +100
   confidence: number; // 0-100
+
+  // Smart Score (NEW)
+  smartScore: SmartScore | null;
 
   // Visual
   sparkline: number[];
@@ -190,6 +275,17 @@ export class DeepAnalysisDto {
     technicalScore: number;
     summary: string;
   };
+
+  // NEW — Advanced Indicators
+  smartScore: SmartScore | null;
+  ichimoku: IchimokuResult | null;
+  obv: ObvResult | null;
+  cci: CciResult | null;
+  sar: ParabolicSarResult | null;
+  fibonacci: FibonacciLevel[] | null;
+  divergence: DivergenceResult | null;
+  volumeProfile: VolumeProfileResult | null;
+  candlePatterns: CandlePattern[];
 
   supportResistance: SupportResistanceLevel[];
   patterns: PatternDetection[];

@@ -28,6 +28,17 @@ import {
   VwapResult,
   SupportResistanceLevel,
   PatternDetection,
+  // New types
+  SmartScore,
+  IchimokuResult,
+  ObvResult,
+  CciResult,
+  ParabolicSarResult,
+  FibonacciLevel,
+  DivergenceResult,
+  VolumeProfileLevel,
+  VolumeProfileResult,
+  CandlePattern,
 } from './scanner.types';
 
 @Injectable()
@@ -263,6 +274,17 @@ export class ScannerService {
     let supportResistance: SupportResistanceLevel[] = [];
     let patterns: PatternDetection[] = [];
 
+    // New advanced indicators
+    let ichimokuResult: IchimokuResult | null = null;
+    let obvResult: ObvResult | null = null;
+    let cciResult: CciResult | null = null;
+    let sarResult: ParabolicSarResult | null = null;
+    let fibonacciResult: FibonacciLevel[] | null = null;
+    let divergenceResult: DivergenceResult | null = null;
+    let volumeProfileResult: VolumeProfileResult | null = null;
+    let candlePatterns: CandlePattern[] = [];
+    let smartScore: SmartScore | null = null;
+
     if (candles.length >= 30) {
       technical = await this.indicators.analyze(candles, symbol, '1day');
 
@@ -276,6 +298,33 @@ export class ScannerService {
       vwapResult = this._vwap(highs, lows, closes, volumes);
       supportResistance = this._supportResistance(closes);
       patterns = this._detectPatterns(candles);
+
+      // New advanced indicators
+      ichimokuResult = this._ichimoku(highs, lows, closes);
+      obvResult = this._obv(closes, volumes);
+      cciResult = this._cci(highs, lows, closes);
+      sarResult = this._parabolicSar(highs, lows);
+      fibonacciResult = this._fibonacci(
+        Math.max(...highs.slice(-52)),
+        Math.min(...lows.slice(-52)),
+      );
+
+      // Divergence detection (use RSI values if available)
+      const rsiValues = technical.rsi?.values ?? closes;
+      divergenceResult = this._detectDivergence(closes, rsiValues, 'rsi');
+
+      // Volume Profile
+      volumeProfileResult = this._volumeProfile(highs, lows, closes, volumes);
+
+      // Candlestick patterns
+      candlePatterns = this._detectCandlePatterns(candles);
+
+      // Smart Score
+      smartScore = this._calculateSmartScore(
+        technical, stochResult, adxResult,
+        ichimokuResult, obvResult, cciResult, sarResult,
+        quote, volumeProfileResult, divergenceResult,
+      );
     }
 
     // Signal classification
@@ -327,6 +376,22 @@ export class ScannerService {
     if (adxResult?.trendStrength === 'STRONG' || adxResult?.trendStrength === 'VERY_STRONG') {
       reasons.push(`Strong ${adxResult.trendDirection} trend`);
       reasonsAr.push(`اتجاه ${adxResult.trendDirection === 'BULLISH' ? 'صاعد' : 'هابط'} قوي`);
+    }
+    // New indicator reasons
+    if (ichimokuResult?.cloudColor === 'BULLISH' && ichimokuResult.priceVsCloud === 'ABOVE') {
+      reasons.push('Above bullish cloud'); reasonsAr.push('فوق سحابة إتشيموكو صاعدة');
+    } else if (ichimokuResult?.cloudColor === 'BEARISH' && ichimokuResult.priceVsCloud === 'BELOW') {
+      reasons.push('Below bearish cloud'); reasonsAr.push('تحت سحابة إتشيموكو هابطة');
+    }
+    if (obvResult?.divergence === 'BULLISH_DIVERGENCE') {
+      reasons.push('OBV Bullish Divergence'); reasonsAr.push('تباعد صعودي OBV');
+    } else if (obvResult?.divergence === 'BEARISH_DIVERGENCE') {
+      reasons.push('OBV Bearish Divergence'); reasonsAr.push('تباعد هبوطي OBV');
+    }
+    if (divergenceResult?.type === 'BULLISH') {
+      reasons.push('Bullish RSI Divergence'); reasonsAr.push('تباعد صعودي RSI');
+    } else if (divergenceResult?.type === 'BEARISH') {
+      reasons.push('Bearish RSI Divergence'); reasonsAr.push('تباعد هبوطي RSI');
     }
 
     // AI Analysis (on demand, with caching)
@@ -399,6 +464,16 @@ export class ScannerService {
         technicalScore,
         summary: technical?.summary ?? 'لا تتوفر بيانات كافية للتحليل',
       },
+      // New advanced indicator fields
+      smartScore,
+      ichimoku: ichimokuResult,
+      obv: obvResult,
+      cci: cciResult,
+      sar: sarResult,
+      fibonacci: fibonacciResult,
+      divergence: divergenceResult,
+      volumeProfile: volumeProfileResult,
+      candlePatterns,
       supportResistance,
       patterns,
       signal: {
@@ -851,6 +926,1057 @@ export class ScannerService {
     return patterns;
   }
 
+  // ══════════════════════════════════════════════════
+  //  NEW — Advanced Technical Indicators
+  // ═════════════════════════════════════════━━═══════
+
+  /**
+   * Ichimoku Cloud (一行)
+   * Multi-component indicator showing support/resistance, trend, and momentum
+   */
+  private _ichimoku(
+    highs: number[],
+    lows: number[],
+    closes: number[],
+    tenkanPeriod: number = 9,
+    kijunPeriod: number = 26,
+    senkouBPeriod: number = 52,
+  ): IchimokuResult | null {
+    if (closes.length < senkouBPeriod) return null;
+
+    // Helper: period midpoint (highest high + lowest low) / 2
+    const midPoint = (data: number[], period: number, endIdx: number): number => {
+      const slice = data.slice(Math.max(0, endIdx - period + 1), endIdx + 1);
+      return (Math.max(...slice) + Math.min(...slice)) / 2;
+    };
+
+    const lastIdx = closes.length - 1;
+
+    // Tenkan-sen (Conversion Line) — 9-period
+    const tenkanSen = midPoint(highs, tenkanPeriod, lastIdx)
+      + midPoint(lows, tenkanPeriod, lastIdx);
+    const tenkanSenValue = (Math.max(...highs.slice(lastIdx - tenkanPeriod + 1, lastIdx + 1))
+      + Math.min(...lows.slice(lastIdx - tenkanPeriod + 1, lastIdx + 1))) / 2;
+
+    // Kijun-sen (Base Line) — 26-period
+    const kijunSenValue = (Math.max(...highs.slice(lastIdx - kijunPeriod + 1, lastIdx + 1))
+      + Math.min(...lows.slice(lastIdx - kijunPeriod + 1, lastIdx + 1))) / 2;
+
+    // Senkou Span A (Leading Span A) — (Tenkan + Kijun) / 2, shifted 26 ahead
+    const senkouSpanA = (tenkanSenValue + kijunSenValue) / 2;
+
+    // Senkou Span B (Leading Span B) — 52-period midpoint, shifted 26 ahead
+    const senkouSpanB = (Math.max(...highs.slice(lastIdx - senkouBPeriod + 1, lastIdx + 1))
+      + Math.min(...lows.slice(lastIdx - senkouBPeriod + 1, lastIdx + 1))) / 2;
+
+    // Chikou Span (Lagging Span) — close shifted 26 back
+    const chikouSpan = lastIdx >= kijunPeriod ? closes[lastIdx - kijunPeriod] : closes[0];
+
+    // Cloud color
+    let cloudColor: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+    if (senkouSpanA > senkouSpanB * 1.001) cloudColor = 'BULLISH';
+    else if (senkouSpanB > senkouSpanA * 1.001) cloudColor = 'BEARISH';
+    else cloudColor = 'NEUTRAL';
+
+    // Price vs Cloud position
+    const currentPrice = closes[lastIdx];
+    const cloudTop = Math.max(senkouSpanA, senkouSpanB);
+    const cloudBottom = Math.min(senkouSpanA, senkouSpanB);
+    let priceVsCloud: 'ABOVE' | 'BELOW' | 'INSIDE';
+    if (currentPrice > cloudTop) priceVsCloud = 'ABOVE';
+    else if (currentPrice < cloudBottom) priceVsCloud = 'BELOW';
+    else priceVsCloud = 'INSIDE';
+
+    // TK Cross signal
+    let tkCross: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+    if (tenkanSenValue > kijunSenValue * 1.001) tkCross = 'BULLISH';
+    else if (kijunSenValue > tenkanSenValue * 1.001) tkCross = 'BEARISH';
+    else tkCross = 'NEUTRAL';
+
+    return {
+      tenkanSen: Math.round(tenkanSenValue * 100) / 100,
+      kijunSen: Math.round(kijunSenValue * 100) / 100,
+      senkouSpanA: Math.round(senkouSpanA * 100) / 100,
+      senkouSpanB: Math.round(senkouSpanB * 100) / 100,
+      chikouSpan: Math.round(chikouSpan * 100) / 100,
+      cloudColor,
+      priceVsCloud,
+      tkCross,
+    };
+  }
+
+  /**
+   * On-Balance Volume (OBV)
+   * Measures buying/selling pressure as cumulative volume
+   */
+  private _obv(
+    closes: number[],
+    volumes: number[],
+  ): ObvResult | null {
+    if (closes.length < 3 || volumes.length < 3) return null;
+
+    const obvValues: number[] = [0];
+
+    for (let i = 1; i < closes.length; i++) {
+      if (closes[i] > closes[i - 1]) {
+        obvValues.push(obvValues[i - 1] + volumes[i]);
+      } else if (closes[i] < closes[i - 1]) {
+        obvValues.push(obvValues[i - 1] - volumes[i]);
+      } else {
+        obvValues.push(obvValues[i - 1]);
+      }
+    }
+
+    // Determine OBV trend using last 20% of values
+    const trendLookback = Math.max(5, Math.floor(obvValues.length * 0.2));
+    const recentObv = obvValues.slice(-trendLookback);
+    const obvSlope = (recentObv[recentObv.length - 1] - recentObv[0]) / trendLookback;
+
+    let trend: 'RISING' | 'FALLING' | 'FLAT';
+    if (obvSlope > 0) trend = 'RISING';
+    else if (obvSlope < 0) trend = 'FALLING';
+    else trend = 'FLAT';
+
+    // Divergence detection — price making new highs/lows without OBV confirmation
+    let divergence: 'BULLISH_DIVERGENCE' | 'BEARISH_DIVERGENCE' | 'NONE' = 'NONE';
+
+    const lookback = Math.min(20, closes.length - 1);
+    const recentCloses = closes.slice(-lookback);
+    const recentObvFinal = obvValues.slice(-lookback);
+
+    // Check for bearish divergence: price higher high, OBV lower high
+    const priceHighIdx = recentCloses.indexOf(Math.max(...recentCloses));
+    const obvHighIdx = recentObvFinal.indexOf(Math.max(...recentObvFinal));
+
+    if (priceHighIdx > lookback / 2 && obvHighIdx < lookback / 2) {
+      divergence = 'BEARISH_DIVERGENCE';
+    }
+
+    // Check for bullish divergence: price lower low, OBV higher low
+    const priceLowIdx = recentCloses.indexOf(Math.min(...recentCloses));
+    const obvLowIdx = recentObvFinal.indexOf(Math.min(...recentObvFinal));
+
+    if (priceLowIdx > lookback / 2 && obvLowIdx < lookback / 2) {
+      divergence = 'BULLISH_DIVERGENCE';
+    }
+
+    return {
+      values: obvValues.slice(-20).map(v => Math.round(v * 100) / 100),
+      trend,
+      divergence,
+    };
+  }
+
+  /**
+   * Commodity Channel Index (CCI)
+   * Measures deviation from statistical average price
+   */
+  private _cci(
+    highs: number[],
+    lows: number[],
+    closes: number[],
+    period: number = 20,
+  ): CciResult | null {
+    if (closes.length < period) return null;
+
+    const typicalPrices: number[] = [];
+    for (let i = 0; i < closes.length; i++) {
+      typicalPrices.push((highs[i] + lows[i] + closes[i]) / 3);
+    }
+
+    // SMA of typical price
+    const smaTp: number[] = [];
+    for (let i = period - 1; i < typicalPrices.length; i++) {
+      const sum = typicalPrices.slice(i - period + 1, i + 1).reduce((a, b) => a + b, 0);
+      smaTp.push(sum / period);
+    }
+
+    // Mean Deviation
+    const meanDev: number[] = [];
+    for (let i = 0; i < smaTp.length; i++) {
+      const startIdx = i;
+      let devSum = 0;
+      for (let j = startIdx; j < startIdx + period; j++) {
+        devSum += Math.abs(typicalPrices[j] - smaTp[i]);
+      }
+      meanDev.push(devSum / period);
+    }
+
+    // CCI calculation
+    const cciValues: number[] = [];
+    for (let i = 0; i < smaTp.length; i++) {
+      const tpIdx = i + period - 1;
+      if (meanDev[i] === 0) {
+        cciValues.push(0);
+      } else {
+        cciValues.push((typicalPrices[tpIdx] - smaTp[i]) / (0.015 * meanDev[i]));
+      }
+    }
+
+    const latestCci = cciValues[cciValues.length - 1];
+
+    let interpretation: 'OVERBOUGHT' | 'OVERSOLD' | 'NEUTRAL';
+    if (latestCci > 100) interpretation = 'OVERBOUGHT';
+    else if (latestCci < -100) interpretation = 'OVERSOLD';
+    else interpretation = 'NEUTRAL';
+
+    return {
+      value: Math.round(latestCci * 100) / 100,
+      interpretation,
+    };
+  }
+
+  /**
+   * Parabolic SAR (Stop and Reverse)
+   * Trailing stop and reverse system for trend following
+   */
+  private _parabolicSar(
+    highs: number[],
+    lows: number[],
+    af: number = 0.02,
+    maxAf: number = 0.2,
+  ): ParabolicSarResult | null {
+    if (highs.length < 5) return null;
+
+    let isRising = highs[1] > highs[0]; // Initial trend guess
+    let sar = isRising ? lows[0] : highs[0];
+    let ep = isRising ? highs[0] : lows[0];
+    let currentAf = af;
+
+    for (let i = 1; i < highs.length; i++) {
+      // Calculate next SAR
+      let prevSar = sar;
+      sar = prevSar + currentAf * (ep - prevSar);
+
+      if (isRising) {
+        // Uptrend: SAR should not exceed previous two lows
+        if (i >= 2) {
+          sar = Math.min(sar, lows[i - 1], lows[i - 2]);
+        } else {
+          sar = Math.min(sar, lows[i - 1]);
+        }
+
+        if (lows[i] < sar) {
+          // Reversal to downtrend
+          isRising = false;
+          sar = ep;
+          ep = lows[i];
+          currentAf = af;
+        } else {
+          // Continue uptrend
+          if (highs[i] > ep) {
+            ep = highs[i];
+            currentAf = Math.min(currentAf + af, maxAf);
+          }
+        }
+      } else {
+        // Downtrend: SAR should not fall below previous two highs
+        if (i >= 2) {
+          sar = Math.max(sar, highs[i - 1], highs[i - 2]);
+        } else {
+          sar = Math.max(sar, highs[i - 1]);
+        }
+
+        if (highs[i] > sar) {
+          // Reversal to uptrend
+          isRising = true;
+          sar = ep;
+          ep = highs[i];
+          currentAf = af;
+        } else {
+          // Continue downtrend
+          if (lows[i] < ep) {
+            ep = lows[i];
+            currentAf = Math.min(currentAf + af, maxAf);
+          }
+        }
+      }
+    }
+
+    return {
+      value: Math.round(sar * 100) / 100,
+      trend: isRising ? 'RISING' : 'FALLING',
+      accelerationFactor: Math.round(currentAf * 1000) / 1000,
+    };
+  }
+
+  /**
+   * Fibonacci Retracement Levels
+   * Key retracement levels based on recent price swing
+   */
+  private _fibonacci(high: number, low: number): FibonacciLevel[] {
+    const diff = high - low;
+    const levels = [
+      { level: 0,     label: '0%',     labelAr: '0٪' },
+      { level: 0.236, label: '23.6%',  labelAr: '23.6٪' },
+      { level: 0.382, label: '38.2%',  labelAr: '38.2٪' },
+      { level: 0.5,   label: '50%',    labelAr: '50٪' },
+      { level: 0.618, label: '61.8%',  labelAr: '61.8٪' },
+      { level: 0.786, label: '78.6%',  labelAr: '78.6٪' },
+      { level: 1,     label: '100%',   labelAr: '100٪' },
+    ];
+
+    return levels.map(l => ({
+      level: l.level,
+      price: Math.round((high - diff * l.level) * 100) / 100,
+      label: l.label,
+      labelAr: l.labelAr,
+    }));
+  }
+
+  /**
+   * Divergence Detection
+   * Detects regular and hidden divergences between price and an indicator
+   */
+  private _detectDivergence(
+    closes: number[],
+    indicatorValues: number[],
+    type: string = 'rsi',
+  ): DivergenceResult | null {
+    if (closes.length < 10 || indicatorValues.length < 10) return null;
+
+    // Use last 20 bars for divergence detection
+    const lookback = Math.min(20, closes.length, indicatorValues.length);
+    const recentCloses = closes.slice(-lookback);
+    const recentIndicator = indicatorValues.slice(-lookback);
+
+    // Find local extrema
+    const findPeaks = (data: number[], minDistance: number = 3): number[] => {
+      const peaks: number[] = [];
+      for (let i = minDistance; i < data.length - minDistance; i++) {
+        let isPeak = true;
+        for (let j = 1; j <= minDistance; j++) {
+          if (data[i] < data[i - j] || data[i] < data[i + j]) {
+            isPeak = false;
+            break;
+          }
+        }
+        if (isPeak) peaks.push(i);
+      }
+      return peaks;
+    };
+
+    const findTroughs = (data: number[], minDistance: number = 3): number[] => {
+      const troughs: number[] = [];
+      for (let i = minDistance; i < data.length - minDistance; i++) {
+        let isTrough = true;
+        for (let j = 1; j <= minDistance; j++) {
+          if (data[i] > data[i - j] || data[i] > data[i + j]) {
+            isTrough = false;
+            break;
+          }
+        }
+        if (isTrough) troughs.push(i);
+      }
+      return troughs;
+    };
+
+    const pricePeaks = findPeaks(recentCloses);
+    const priceTroughs = findTroughs(recentCloses);
+    const indPeaks = findPeaks(recentIndicator);
+    const indTroughs = findTroughs(recentIndicator);
+
+    // Bearish Divergence: price higher high, indicator lower high
+    if (pricePeaks.length >= 2 && indPeaks.length >= 2) {
+      const lastPricePeak = pricePeaks[pricePeaks.length - 1];
+      const prevPricePeak = pricePeaks[pricePeaks.length - 2];
+      const lastIndPeak = indPeaks[indPeaks.length - 1];
+      const prevIndPeak = indPeaks[indPeaks.length - 2];
+
+      if (recentCloses[lastPricePeak] > recentCloses[prevPricePeak]
+        && recentIndicator[lastIndPeak] < recentIndicator[prevIndPeak]) {
+        return {
+          type: 'BEARISH',
+          indicator: type,
+          description: `Bearish divergence: price making higher highs while ${type.toUpperCase()} makes lower highs`,
+          descriptionAr: `تباعد هبوطي: السعر يسجل قمم أعلى بينما ${type.toUpperCase()} يسجل قمم أدنى`,
+          strength: 'MODERATE',
+        };
+      }
+    }
+
+    // Bullish Divergence: price lower low, indicator higher low
+    if (priceTroughs.length >= 2 && indTroughs.length >= 2) {
+      const lastPriceTrough = priceTroughs[priceTroughs.length - 1];
+      const prevPriceTrough = priceTroughs[priceTroughs.length - 2];
+      const lastIndTrough = indTroughs[indTroughs.length - 1];
+      const prevIndTrough = indTroughs[indTroughs.length - 2];
+
+      if (recentCloses[lastPriceTrough] < recentCloses[prevPriceTrough]
+        && recentIndicator[lastIndTrough] > recentIndicator[prevIndTrough]) {
+        return {
+          type: 'BULLISH',
+          indicator: type,
+          description: `Bullish divergence: price making lower lows while ${type.toUpperCase()} makes higher lows`,
+          descriptionAr: `تباعد صعودي: السعر يسجل قيعان أدنى بينما ${type.toUpperCase()} يسجل قيعان أعلى`,
+          strength: 'MODERATE',
+        };
+      }
+    }
+
+    // Hidden Bearish Divergence: price lower high, indicator higher high
+    if (pricePeaks.length >= 2 && indPeaks.length >= 2) {
+      const lastPricePeak = pricePeaks[pricePeaks.length - 1];
+      const prevPricePeak = pricePeaks[pricePeaks.length - 2];
+      const lastIndPeak = indPeaks[indPeaks.length - 1];
+      const prevIndPeak = indPeaks[indPeaks.length - 2];
+
+      if (recentCloses[lastPricePeak] < recentCloses[prevPricePeak]
+        && recentIndicator[lastIndPeak] > recentIndicator[prevIndPeak]) {
+        return {
+          type: 'HIDDEN_BEARISH',
+          indicator: type,
+          description: `Hidden bearish divergence: trend continuation signal`,
+          descriptionAr: `تباعد هبوطي مخفي: إشارة استمرار الاتجاه`,
+          strength: 'WEAK',
+        };
+      }
+    }
+
+    // Hidden Bullish Divergence: price higher low, indicator lower low
+    if (priceTroughs.length >= 2 && indTroughs.length >= 2) {
+      const lastPriceTrough = priceTroughs[priceTroughs.length - 1];
+      const prevPriceTrough = priceTroughs[priceTroughs.length - 2];
+      const lastIndTrough = indTroughs[indTroughs.length - 1];
+      const prevIndTrough = indTroughs[indTroughs.length - 2];
+
+      if (recentCloses[lastPriceTrough] > recentCloses[prevPriceTrough]
+        && recentIndicator[lastIndTrough] < recentIndicator[prevIndTrough]) {
+        return {
+          type: 'HIDDEN_BULLISH',
+          indicator: type,
+          description: `Hidden bullish divergence: trend continuation signal`,
+          descriptionAr: `تباعد صعودي مخفي: إشارة استمرار الاتجاه`,
+          strength: 'WEAK',
+        };
+      }
+    }
+
+    return {
+      type: 'NONE',
+      indicator: type,
+      description: 'No divergence detected',
+      descriptionAr: 'لم يتم كشف تباعد',
+      strength: 'WEAK',
+    };
+  }
+
+  /**
+   * Volume Profile
+   * Distributes volume across price levels to find support/resistance zones
+   */
+  private _volumeProfile(
+    highs: number[],
+    lows: number[],
+    closes: number[],
+    volumes: number[],
+    bins: number = 10,
+  ): VolumeProfileResult | null {
+    if (closes.length < 10 || volumes.length < 10) return null;
+
+    const priceMin = Math.min(...lows.slice(-60));
+    const priceMax = Math.max(...highs.slice(-60));
+    const priceRange = priceMax - priceMin;
+
+    if (priceRange === 0) return null;
+
+    const binSize = priceRange / bins;
+    const levels: VolumeProfileLevel[] = [];
+
+    // Initialize bins
+    for (let i = 0; i < bins; i++) {
+      levels.push({
+        priceStart: priceMin + i * binSize,
+        priceEnd: priceMin + (i + 1) * binSize,
+        volume: 0,
+        percentage: 0,
+      });
+    }
+
+    // Distribute volume across bins
+    const lookback = Math.min(60, closes.length);
+    let totalVolume = 0;
+
+    for (let i = closes.length - lookback; i < closes.length; i++) {
+      const typicalPrice = (highs[i] + lows[i] + closes[i]) / 3;
+      const binIdx = Math.min(bins - 1, Math.floor((typicalPrice - priceMin) / binSize));
+      if (binIdx >= 0 && binIdx < bins) {
+        levels[binIdx].volume += volumes[i];
+        totalVolume += volumes[i];
+      }
+    }
+
+    // Calculate percentages
+    if (totalVolume > 0) {
+      for (const level of levels) {
+        level.percentage = Math.round((level.volume / totalVolume) * 10000) / 100;
+      }
+    }
+
+    // Find POC (Point of Control) — bin with highest volume
+    let pocIdx = 0;
+    let maxVolume = 0;
+    for (let i = 0; i < levels.length; i++) {
+      if (levels[i].volume > maxVolume) {
+        maxVolume = levels[i].volume;
+        pocIdx = i;
+      }
+    }
+    const poc = (levels[pocIdx].priceStart + levels[pocIdx].priceEnd) / 2;
+
+    // Calculate Value Area (70% of total volume)
+    const valueAreaTarget = totalVolume * 0.7;
+    let valueAreaVolume = levels[pocIdx].volume;
+    let vaHighIdx = pocIdx;
+    let vaLowIdx = pocIdx;
+
+    while (valueAreaVolume < valueAreaTarget) {
+      const aboveVol = vaHighIdx < bins - 1 ? levels[vaHighIdx + 1].volume : 0;
+      const belowVol = vaLowIdx > 0 ? levels[vaLowIdx - 1].volume : 0;
+
+      if (aboveVol >= belowVol && vaHighIdx < bins - 1) {
+        vaHighIdx++;
+        valueAreaVolume += levels[vaHighIdx].volume;
+      } else if (vaLowIdx > 0) {
+        vaLowIdx--;
+        valueAreaVolume += levels[vaLowIdx].volume;
+      } else {
+        break;
+      }
+    }
+
+    return {
+      levels: levels.map(l => ({
+        priceStart: Math.round(l.priceStart * 100) / 100,
+        priceEnd: Math.round(l.priceEnd * 100) / 100,
+        volume: Math.round(l.volume * 100) / 100,
+        percentage: l.percentage,
+      })),
+      poc: Math.round(poc * 100) / 100,
+      valueAreaHigh: Math.round(levels[vaHighIdx].priceEnd * 100) / 100,
+      valueAreaLow: Math.round(levels[vaLowIdx].priceStart * 100) / 100,
+    };
+  }
+
+  /**
+   * Candlestick Pattern Detection
+   * Detects individual candlestick patterns with Arabic names and descriptions
+   */
+  private _detectCandlePatterns(candles: any[]): CandlePattern[] {
+    if (candles.length < 5) return [];
+
+    const patterns: CandlePattern[] = [];
+    const last = candles.length - 1;
+    const c = candles[last];
+    const prev = candles[last - 1];
+    const prev2 = candles[last - 2];
+
+    const body = Math.abs(c.close - c.open);
+    const upperWick = c.high - Math.max(c.close, c.open);
+    const lowerWick = Math.min(c.close, c.open) - c.low;
+    const totalRange = c.high - c.low;
+    const isBullish = c.close > c.open;
+    const isBearish = c.close < c.open;
+
+    // Avoid division by zero
+    if (totalRange === 0) return patterns;
+
+    // ── Doji (دوجي) ──
+    // Standard Doji: very small body relative to range
+    if (body / totalRange < 0.05 && totalRange > 0) {
+      // Dragonfly Doji: long lower wick, no upper wick
+      if (lowerWick / totalRange > 0.6 && upperWick / totalRange < 0.1) {
+        patterns.push({
+          name: 'Dragonfly Doji',
+          nameAr: 'دوجي يعسوب',
+          type: 'BULLISH',
+          confidence: 65,
+          description: 'Dragonfly doji indicating potential reversal with buying pressure',
+          descriptionAr: 'دوجي يعسوب يشير إلى احتمال انعكاس مع ضغط شرائي',
+        });
+      }
+      // Gravestone Doji: long upper wick, no lower wick
+      else if (upperWick / totalRange > 0.6 && lowerWick / totalRange < 0.1) {
+        patterns.push({
+          name: 'Gravestone Doji',
+          nameAr: 'دوجي شاهد القبر',
+          type: 'BEARISH',
+          confidence: 65,
+          description: 'Gravestone doji indicating potential reversal with selling pressure',
+          descriptionAr: 'دوجي شاهد القبر يشير إلى احتمال انعكاس مع ضغط بيعي',
+        });
+      }
+      // Standard Doji
+      else {
+        patterns.push({
+          name: 'Doji',
+          nameAr: 'دوجي',
+          type: 'NEUTRAL',
+          confidence: 50,
+          description: 'Doji indicating indecision in the market',
+          descriptionAr: 'دوجي يشير إلى تردد في السوق',
+        });
+      }
+    }
+
+    // ── Hammer (مطرقة) ──
+    // Bullish hammer at bottom: small body at top, long lower wick
+    if (lowerWick / totalRange > 0.6 && body / totalRange < 0.25 && upperWick / totalRange < 0.1) {
+      // Confirm in downtrend
+      const recentTrend = prev.close < prev2.close;
+      if (recentTrend) {
+        patterns.push({
+          name: 'Hammer',
+          nameAr: 'مطرقة',
+          type: 'BULLISH',
+          confidence: 70,
+          description: 'Hammer pattern after downtrend, potential bullish reversal',
+          descriptionAr: 'نمط المطرقة بعد هبوط، احتمال انعكاس صعودي',
+        });
+      } else {
+        patterns.push({
+          name: 'Hammer',
+          nameAr: 'مطرقة',
+          type: 'BULLISH',
+          confidence: 55,
+          description: 'Hammer pattern indicating buying pressure',
+          descriptionAr: 'نمط المطرقة يشير إلى ضغط شرائي',
+        });
+      }
+    }
+
+    // ── Inverted Hammer (مطرقة مقلوبة) ──
+    // Bullish: small body at bottom, long upper wick
+    if (upperWick / totalRange > 0.6 && body / totalRange < 0.25 && lowerWick / totalRange < 0.1) {
+      patterns.push({
+        name: 'Inverted Hammer',
+        nameAr: 'مطرقة مقلوبة',
+        type: 'BULLISH',
+        confidence: 60,
+        description: 'Inverted hammer indicating potential bullish reversal',
+        descriptionAr: 'مطرقة مقلوبة تشير إلى احتمال انعكاس صعودي',
+      });
+    }
+
+    // ── Bullish Engulfing (ابتلاع صعودي) ──
+    if (prev.close < prev.open && isBullish
+      && c.open < prev.close && c.close > prev.open) {
+      patterns.push({
+        name: 'Bullish Engulfing',
+        nameAr: 'ابتلاع صعودي',
+        type: 'BULLISH',
+        confidence: 75,
+        description: 'Bullish engulfing pattern — strong reversal signal',
+        descriptionAr: 'نمط الابتلاع الصعودي — إشارة انعكاس قوية',
+      });
+    }
+
+    // ── Bearish Engulfing (ابتلاع هبوطي) ──
+    if (prev.close > prev.open && isBearish
+      && c.open > prev.close && c.close < prev.open) {
+      patterns.push({
+        name: 'Bearish Engulfing',
+        nameAr: 'ابتلاع هبوطي',
+        type: 'BEARISH',
+        confidence: 75,
+        description: 'Bearish engulfing pattern — strong reversal signal',
+        descriptionAr: 'نمط الابتلاع الهبوطي — إشارة انعكاس قوية',
+      });
+    }
+
+    // ── Morning Star (نجمة الصباح) ──
+    if (candles.length >= 3) {
+      const c2 = candles[last - 2];
+      const c1 = candles[last - 1];
+      const c0 = candles[last];
+      const c2Body = Math.abs(c2.close - c2.open);
+      const c1Body = Math.abs(c1.close - c1.open);
+      const c0Body = Math.abs(c0.close - c0.open);
+
+      if (c2.close < c2.open // First candle bearish
+        && c1Body < c2Body * 0.3 // Second candle small body (star)
+        && c0.close > c0.open // Third candle bullish
+        && c0Body > c1Body * 2) { // Third candle large body
+        patterns.push({
+          name: 'Morning Star',
+          nameAr: 'نجمة الصباح',
+          type: 'BULLISH',
+          confidence: 80,
+          description: 'Morning star pattern — strong bullish reversal signal',
+          descriptionAr: 'نمط نجمة الصباح — إشارة انعكاس صعودي قوية',
+        });
+      }
+    }
+
+    // ── Evening Star (نجمة المساء) ──
+    if (candles.length >= 3) {
+      const c2 = candles[last - 2];
+      const c1 = candles[last - 1];
+      const c0 = candles[last];
+      const c2Body = Math.abs(c2.close - c2.open);
+      const c1Body = Math.abs(c1.close - c1.open);
+      const c0Body = Math.abs(c0.close - c0.open);
+
+      if (c2.close > c2.open // First candle bullish
+        && c1Body < c2Body * 0.3 // Second candle small body (star)
+        && c0.close < c0.open // Third candle bearish
+        && c0Body > c1Body * 2) { // Third candle large body
+        patterns.push({
+          name: 'Evening Star',
+          nameAr: 'نجمة المساء',
+          type: 'BEARISH',
+          confidence: 80,
+          description: 'Evening star pattern — strong bearish reversal signal',
+          descriptionAr: 'نمط نجمة المساء — إشارة انعكاس هبوطي قوية',
+        });
+      }
+    }
+
+    // ── Three White Soldiers (ثلاثة جنود بيض) ──
+    if (candles.length >= 3) {
+      const c2 = candles[last - 2];
+      const c1 = candles[last - 1];
+      const c0 = candles[last];
+
+      if (c2.close > c2.open && c1.close > c1.open && c0.close > c0.open
+        && c1.close > c2.close && c0.close > c1.close
+        && c1.open > c2.open && c0.open > c1.open) {
+        patterns.push({
+          name: 'Three White Soldiers',
+          nameAr: 'ثلاثة جنود بيض',
+          type: 'BULLISH',
+          confidence: 85,
+          description: 'Three white soldiers — strong bullish continuation pattern',
+          descriptionAr: 'ثلاثة جنود بيض — نمط استمرار صعودي قوي',
+        });
+      }
+    }
+
+    // ── Three Black Crows (ثلاثة غربان سود) ──
+    if (candles.length >= 3) {
+      const c2 = candles[last - 2];
+      const c1 = candles[last - 1];
+      const c0 = candles[last];
+
+      if (c2.close < c2.open && c1.close < c1.open && c0.close < c0.open
+        && c1.close < c2.close && c0.close < c1.close
+        && c1.open < c2.open && c0.open < c1.open) {
+        patterns.push({
+          name: 'Three Black Crows',
+          nameAr: 'ثلاثة غربان سود',
+          type: 'BEARISH',
+          confidence: 85,
+          description: 'Three black crows — strong bearish continuation pattern',
+          descriptionAr: 'ثلاثة غربان سود — نمط استمرار هبوطي قوي',
+        });
+      }
+    }
+
+    // ── Spinning Top (قمة دوارة) ──
+    if (body / totalRange < 0.15 && upperWick / totalRange > 0.25 && lowerWick / totalRange > 0.25) {
+      patterns.push({
+        name: 'Spinning Top',
+        nameAr: 'قمة دوارة',
+        type: 'NEUTRAL',
+        confidence: 45,
+        description: 'Spinning top indicating market indecision',
+        descriptionAr: 'قمة دوارة تشير إلى تردد في السوق',
+      });
+    }
+
+    return patterns;
+  }
+
+  // ═════════════════════════════════════════━━━━═════
+  //  NEW — Smart Scoring Engine
+  // ═════════════════════════════════════════━━═══════
+
+  /**
+   * Smart Scoring Engine
+   * Multi-dimensional scoring combining trend, momentum, volatility, and volume
+   */
+  private _calculateSmartScore(
+    technical: TechnicalAnalysisDto,
+    stoch: StochResult | null,
+    adx: AdxResult | null,
+    ichimoku: IchimokuResult | null,
+    obv: ObvResult | null,
+    cci: CciResult | null,
+    sar: ParabolicSarResult | null,
+    quote: any,
+    volumeProfile: VolumeProfileResult | null,
+    divergence: DivergenceResult | null,
+  ): SmartScore {
+    // ── 1. Trend Score (0-100) ──
+    let trendScore = 0;
+
+    // ADX strength (0-30 points)
+    if (adx) {
+      if (adx.trendStrength === 'VERY_STRONG') trendScore += 30;
+      else if (adx.trendStrength === 'STRONG') trendScore += 22;
+      else if (adx.trendStrength === 'WEAK') trendScore += 10;
+      // NO_TREND adds 0
+
+      // Directional bonus
+      if (adx.trendDirection === 'BULLISH') trendScore = Math.min(30, trendScore + 3);
+      else if (adx.trendDirection === 'BEARISH') trendScore = Math.min(30, trendScore + 3);
+    } else {
+      trendScore += 10; // Default if no ADX data
+    }
+
+    // Ichimoku cloud alignment (0-30 points)
+    if (ichimoku) {
+      let ichimokuPts = 0;
+      if (ichimoku.cloudColor === 'BULLISH' && ichimoku.priceVsCloud === 'ABOVE') ichimokuPts = 30;
+      else if (ichimoku.cloudColor === 'BULLISH' && ichimoku.priceVsCloud === 'INSIDE') ichimokuPts = 20;
+      else if (ichimoku.cloudColor === 'BULLISH' && ichimoku.priceVsCloud === 'BELOW') ichimokuPts = 10;
+      else if (ichimoku.cloudColor === 'BEARISH' && ichimoku.priceVsCloud === 'BELOW') ichimokuPts = 30;
+      else if (ichimoku.cloudColor === 'BEARISH' && ichimoku.priceVsCloud === 'INSIDE') ichimokuPts = 20;
+      else if (ichimoku.cloudColor === 'BEARISH' && ichimoku.priceVsCloud === 'ABOVE') ichimokuPts = 10;
+      else ichimokuPts = 15; // NEUTRAL
+
+      // TK Cross bonus
+      if (ichimoku.tkCross === 'BULLISH' && ichimoku.cloudColor === 'BULLISH') ichimokuPts = Math.min(30, ichimokuPts + 5);
+      else if (ichimoku.tkCross === 'BEARISH' && ichimoku.cloudColor === 'BEARISH') ichimokuPts = Math.min(30, ichimokuPts + 5);
+
+      trendScore += ichimokuPts;
+    } else {
+      trendScore += 15; // Default
+    }
+
+    // EMA alignment (0-20 points)
+    if (technical.ema && technical.ema.length >= 2) {
+      const shortEma = technical.ema.find(e => e.period <= 12);
+      const longEma = technical.ema.find(e => e.period >= 26);
+      if (shortEma && longEma) {
+        const shortLast = shortEma.values[shortEma.values.length - 1];
+        const longLast = longEma.values[longEma.values.length - 1];
+        if (shortLast > longLast) trendScore += 20; // Bullish EMA alignment
+        else if (shortLast < longLast) trendScore += 20; // Bearish EMA alignment (still trending)
+        else trendScore += 10;
+      } else {
+        trendScore += 10;
+      }
+    } else {
+      trendScore += 10; // Default
+    }
+
+    // SAR direction (0-20 points)
+    if (sar) {
+      trendScore += 20; // SAR is active = trending
+    } else {
+      trendScore += 10;
+    }
+
+    trendScore = Math.min(100, Math.max(0, trendScore));
+
+    // ── 2. Momentum Score (0-100) ──
+    let momentumScore = 0;
+
+    // RSI position (0-25 points)
+    const rsiValue = technical.rsi?.values?.[technical.rsi.values.length - 1] ?? null;
+    if (rsiValue !== null) {
+      if (rsiValue < 30) momentumScore += 25; // Oversold = potential bullish momentum
+      else if (rsiValue < 45) momentumScore += 20;
+      else if (rsiValue < 55) momentumScore += 12;
+      else if (rsiValue < 70) momentumScore += 20;
+      else momentumScore += 25; // Overbought = potential bearish momentum
+    } else {
+      momentumScore += 12;
+    }
+
+    // MACD signal + histogram (0-25 points)
+    if (technical.macd) {
+      const histogram = technical.macd.histogram?.slice(-1)[0] ?? 0;
+      const crossover = technical.macd.crossover;
+
+      if (crossover === 'BULLISH_CROSSOVER') momentumScore += 25;
+      else if (crossover === 'BEARISH_CROSSOVER') momentumScore += 25;
+      else if (Math.abs(histogram) > 0) momentumScore += 15;
+      else momentumScore += 5;
+    } else {
+      momentumScore += 10;
+    }
+
+    // Stochastic (0-25 points)
+    if (stoch) {
+      if (stoch.interpretation === 'OVERSOLD') momentumScore += 25;
+      else if (stoch.interpretation === 'OVERBOUGHT') momentumScore += 25;
+      else if (stoch.k > 50) momentumScore += 18;
+      else momentumScore += 15;
+    } else {
+      momentumScore += 12;
+    }
+
+    // CCI (0-25 points)
+    if (cci) {
+      if (cci.interpretation === 'OVERSOLD') momentumScore += 25;
+      else if (cci.interpretation === 'OVERBOUGHT') momentumScore += 25;
+      else momentumScore += 15;
+    } else {
+      momentumScore += 12;
+    }
+
+    momentumScore = Math.min(100, Math.max(0, momentumScore));
+
+    // ── 3. Volatility Score (0-100) ──
+    let volatilityScore = 0;
+
+    // ATR level (0-35 points)
+    if (technical.atr) {
+      if (technical.atr.volatilityLevel === 'HIGH') volatilityScore += 35;
+      else if (technical.atr.volatilityLevel === 'NORMAL') volatilityScore += 20;
+      else volatilityScore += 10; // LOW
+    } else {
+      volatilityScore += 15;
+    }
+
+    // Bollinger Bandwidth (0-35 points)
+    if (technical.bollingerBands) {
+      const bandwidth = technical.bollingerBands.bandwidth?.slice(-1)[0] ?? 0;
+      if (bandwidth > 0.04) volatilityScore += 35;
+      else if (bandwidth > 0.02) volatilityScore += 25;
+      else if (bandwidth > 0.01) volatilityScore += 15;
+      else volatilityScore += 5;
+    } else {
+      volatilityScore += 15;
+    }
+
+    // BB position (0-30 points)
+    if (technical.bollingerBands) {
+      if (technical.bollingerBands.position === 'ABOVE_UPPER'
+        || technical.bollingerBands.position === 'BELOW_LOWER') {
+        volatilityScore += 30; // Breakout-level volatility
+      } else {
+        volatilityScore += 15;
+      }
+    } else {
+      volatilityScore += 10;
+    }
+
+    volatilityScore = Math.min(100, Math.max(0, volatilityScore));
+
+    // ── 4. Volume Score (0-100) ──
+    let volumeScore = 0;
+
+    // OBV trend alignment (0-35 points)
+    if (obv) {
+      if (obv.trend === 'RISING' && (technical.technicalScore > 0)) volumeScore += 35;
+      else if (obv.trend === 'FALLING' && (technical.technicalScore < 0)) volumeScore += 35;
+      else if (obv.trend === 'RISING') volumeScore += 20;
+      else if (obv.trend === 'FALLING') volumeScore += 20;
+      else volumeScore += 10; // FLAT
+
+      // Divergence bonus
+      if (obv.divergence === 'BULLISH_DIVERGENCE' || obv.divergence === 'BEARISH_DIVERGENCE') {
+        volumeScore = Math.min(35, volumeScore + 5);
+      }
+    } else {
+      volumeScore += 15;
+    }
+
+    // Volume vs average (0-30 points)
+    const quoteVolume = quote.volume ?? 0;
+    if (quoteVolume > 0) {
+      // Simplified: use change magnitude as proxy for volume surge
+      const changePct = Math.abs(quote.changePercent ?? 0);
+      if (changePct > 3) volumeScore += 30; // Large moves usually have high volume
+      else if (changePct > 1.5) volumeScore += 22;
+      else if (changePct > 0.5) volumeScore += 15;
+      else volumeScore += 8;
+    } else {
+      volumeScore += 10;
+    }
+
+    // Volume Profile POC position (0-35 points)
+    if (volumeProfile) {
+      const currentPrice = quote.price ?? 0;
+      if (currentPrice >= volumeProfile.valueAreaLow && currentPrice <= volumeProfile.valueAreaHigh) {
+        volumeScore += 35; // Price in value area = strong volume support
+      } else if (currentPrice > volumeProfile.valueAreaHigh) {
+        volumeScore += 20;
+      } else {
+        volumeScore += 15;
+      }
+    } else {
+      volumeScore += 15;
+    }
+
+    volumeScore = Math.min(100, Math.max(0, volumeScore));
+
+    // ── 5. Composite Score (-100 to +100) ──
+    const directionMultiplier = technical.technicalScore >= 0 ? 1 : -1;
+    const rawComposite = (trendScore * 0.40 + momentumScore * 0.30 + volumeScore * 0.20 + volatilityScore * 0.10);
+    const compositeScore = Math.round(Math.min(100, Math.max(-100, rawComposite * directionMultiplier)));
+
+    // ── 6. Signal Type Classification ──
+    let signalType: SmartScore['signalType'];
+    const hasDivergence = divergence && divergence.type !== 'NONE';
+    const hasExtremeRsi = rsiValue !== null && (rsiValue < 30 || rsiValue > 70);
+    const hasExtremeStoch = stoch !== null && (stoch.k < 20 || stoch.k > 80);
+
+    if (trendScore > 70 && momentumScore > 50) {
+      signalType = 'STRONG_TREND';
+    } else if (hasDivergence && (hasExtremeRsi || hasExtremeStoch)) {
+      signalType = 'REVERSAL';
+    } else if (volatilityScore > 70 && Math.abs(compositeScore) > 30 && volumeScore > 60) {
+      signalType = 'BREAKOUT';
+    } else if (hasDivergence && !hasExtremeRsi && !hasExtremeStoch) {
+      signalType = 'DIVERGENCE';
+    } else if (volatilityScore < 30) {
+      signalType = 'CONSOLIDATION';
+    } else {
+      signalType = 'CONSOLIDATION';
+    }
+
+    // ── 7. Confidence ──
+    const indicatorCount = [rsiValue !== null, technical.macd !== null, technical.bollingerBands !== null,
+      technical.atr !== null, stoch !== null, adx !== null, ichimoku !== null, obv !== null,
+      cci !== null, sar !== null].filter(Boolean).length;
+    const maxIndicators = 10;
+    const dataQuality = Math.round((indicatorCount / maxIndicators) * 40);
+
+    const agreementScore = Math.abs(compositeScore) > 60 ? 30 : Math.abs(compositeScore) > 30 ? 20 : 10;
+
+    const divergenceBonus = hasDivergence ? 10 : 0;
+
+    const confidence = Math.min(98, dataQuality + agreementScore + divergenceBonus + 20);
+
+    // ── 8. Action Recommendation ──
+    let action: SmartScore['action'];
+    if (compositeScore >= 50 && confidence >= 70) action = 'STRONG_BUY';
+    else if (compositeScore >= 20) action = 'BUY';
+    else if (compositeScore <= -20 && compositeScore > -50) action = 'SELL';
+    else if (compositeScore <= -50 && confidence >= 70) action = 'STRONG_SELL';
+    else if (compositeScore <= -20) action = 'SELL';
+    else action = 'HOLD';
+
+    // ── 9. Trade Timeframe ──
+    let tradeTimeframe: SmartScore['tradeTimeframe'];
+    // Simplified: based on signal strength and data available
+    if (Math.abs(compositeScore) >= 60 && confidence >= 70) {
+      tradeTimeframe = 'SWING'; // Strong signals favor swing
+    } else if (Math.abs(compositeScore) >= 40 && confidence >= 50) {
+      tradeTimeframe = 'DAY';
+    } else if (Math.abs(compositeScore) >= 60) {
+      tradeTimeframe = 'SCALP';
+    } else {
+      tradeTimeframe = 'POSITION';
+    }
+
+    return {
+      trendScore: Math.round(trendScore),
+      momentumScore: Math.round(momentumScore),
+      volatilityScore: Math.round(volatilityScore),
+      volumeScore: Math.round(volumeScore),
+      compositeScore,
+      signalType,
+      confidence: Math.round(confidence),
+      action,
+      tradeTimeframe,
+    };
+  }
+
   // ══════════════════════════════════════════
   //  PRIVATE HELPERS
   // ══════════════════════════════════════════
@@ -889,6 +2015,7 @@ export class ScannerService {
           signalClass: SignalClass.WATCH,
           technicalScore: 0,
           confidence: 0,
+          smartScore: null,
           sparkline: [],
           reasons: ['السوق مغلق'],
           reasonsAr: ['السوق مغلق'],
@@ -921,19 +2048,23 @@ export class ScannerService {
       let sparkline: number[] = [];
       let reasons: string[] = [];
       let reasonsAr: string[] = [];
+      let smartScore: SmartScore | null = null;
 
       if (candles.length >= 30) {
         const analysis = await this.indicators.analyze(candles, symbol, timeframe);
-        const stochResult = this._stochastic(
-          candles.map(c => c.high),
-          candles.map(c => c.low),
-          candles.map(c => c.close),
-        );
-        const adxResult = this._adx(
-          candles.map(c => c.high),
-          candles.map(c => c.low),
-          candles.map(c => c.close),
-        );
+        const highs = candles.map(c => c.high);
+        const lows = candles.map(c => c.low);
+        const closes = candles.map(c => c.close);
+        const volumes = candles.map(c => c.volume);
+
+        const stochResult = this._stochastic(highs, lows, closes);
+        const adxResult = this._adx(highs, lows, closes);
+
+        // New indicators for smart scoring
+        const ichimokuResult = this._ichimoku(highs, lows, closes);
+        const obvResult = this._obv(closes, volumes);
+        const cciResult = this._cci(highs, lows, closes);
+        const sarResult = this._parabolicSar(highs, lows);
 
         technicalScore = analysis.technicalScore;
         direction = this._scoreToDirection(technicalScore);
@@ -949,6 +2080,17 @@ export class ScannerService {
         atr = analysis.atr?.values?.slice(-1)[0] ?? null;
         atrVolatility = analysis.atr?.volatilityLevel ?? null;
         signalClass = this._classifySignalClass(analysis, stochResult, adxResult);
+
+        // Smart Score calculation
+        const rsiValues = analysis.rsi?.values ?? closes;
+        const divergenceResult = this._detectDivergence(closes, rsiValues, 'rsi');
+        const volumeProfileResult = this._volumeProfile(highs, lows, closes, volumes);
+
+        smartScore = this._calculateSmartScore(
+          analysis, stochResult, adxResult,
+          ichimokuResult, obvResult, cciResult, sarResult,
+          quote, volumeProfileResult, divergenceResult,
+        );
 
         // Sparkline from last 20 closes
         sparkline = candles.slice(-20).map(c => c.close);
@@ -967,6 +2109,27 @@ export class ScannerService {
         if (adxResult?.trendStrength === 'STRONG' || adxResult?.trendStrength === 'VERY_STRONG') {
           reasons.push(`Strong Trend (${adxResult.trendDirection})`);
           reasonsAr.push(`اتجاه قوي (${adxResult.trendDirection === 'BULLISH' ? 'صاعد' : 'هابط'})`);
+        }
+        // New indicator reasons
+        if (ichimokuResult?.cloudColor === 'BULLISH' && ichimokuResult.priceVsCloud === 'ABOVE') {
+          reasons.push('Above bullish cloud'); reasonsAr.push('فوق سحابة إتشيموكو صاعدة');
+        } else if (ichimokuResult?.cloudColor === 'BEARISH' && ichimokuResult.priceVsCloud === 'BELOW') {
+          reasons.push('Below bearish cloud'); reasonsAr.push('تحت سحابة إتشيموكو هابطة');
+        }
+        if (obvResult?.divergence === 'BULLISH_DIVERGENCE') {
+          reasons.push('OBV Bullish Divergence'); reasonsAr.push('تباعد صعودي OBV');
+        } else if (obvResult?.divergence === 'BEARISH_DIVERGENCE') {
+          reasons.push('OBV Bearish Divergence'); reasonsAr.push('تباعد هبوطي OBV');
+        }
+        if (cciResult?.interpretation === 'OVERSOLD') {
+          reasons.push('CCI Oversold'); reasonsAr.push('CCI تشبع بيعي');
+        } else if (cciResult?.interpretation === 'OVERBOUGHT') {
+          reasons.push('CCI Overbought'); reasonsAr.push('CCI تشبع شرائي');
+        }
+        if (divergenceResult?.type === 'BULLISH') {
+          reasons.push('Bullish RSI Divergence'); reasonsAr.push('تباعد صعودي RSI');
+        } else if (divergenceResult?.type === 'BEARISH') {
+          reasons.push('Bearish RSI Divergence'); reasonsAr.push('تباعد هبوطي RSI');
         }
       }
 
@@ -993,6 +2156,7 @@ export class ScannerService {
         signalClass,
         technicalScore,
         confidence,
+        smartScore,
         sparkline,
         reasons,
         reasonsAr,

@@ -169,13 +169,23 @@ function LogoCircle({ state }: { state: MarketState }) {
 /* ══ Strip 1: News Ticker ══ */
 function NewsTicker() {
   const [items, setItems] = useState<
-    { text: string; categoryAr: string; color: string; impact: string }[]
+    { text: string; textAr: string; categoryAr: string; color: string; impact: string }[]
   >([])
 
   useEffect(() => {
     fetch('/api/news/feed')
       .then(r => r.ok ? r.json() : [])
-      .then(d => { if (Array.isArray(d) && d.length) setItems(d) })
+      .then(d => {
+        if (Array.isArray(d) && d.length) {
+          setItems(d.map((item: any) => ({
+            text: item.text || item.headline || item.title || '',
+            textAr: item.textAr || item.translatedTitle || item.textAr || item.text || item.headline || item.title || '',
+            categoryAr: item.categoryAr || 'عام',
+            color: item.color || '#94a3b8',
+            impact: item.impact || 'medium',
+          })))
+        }
+      })
       .catch(() => {})
   }, [])
 
@@ -207,7 +217,7 @@ function NewsTicker() {
                   fontFamily: "'JetBrains Mono', monospace",
                 }}>{item.categoryAr || 'عام'}</span>
                 {item.impact === 'high' && <span style={{ color: T.amber, fontSize: 7 }}>●</span>}
-                {item.text}
+                {item.textAr || item.text}
               </span>
             ))}
           </div>
@@ -332,9 +342,9 @@ const NAV_LINKS = [
   { href: '/dashboard/neural',                  label: 'Neural Lab',         icon: FlaskConical },
   { href: '/dashboard/scanner',                label: 'السكانر المتقدم',    icon: ScanSearch },
   { href: '/dashboard/strategies',             label: 'تحليلات استراتيجية', icon: BarChart2 },
+  { href: '/dashboard/news',                   label: 'الأخبار',            icon: Newspaper },
   { href: '/dashboard/copy-trading',           label: 'نسخ الصفقات',        icon: Copy },
   { href: '/dashboard/social',                 label: 'التداول الاجتماعي',  icon: Users },
-  { href: '/dashboard/news',                   label: 'الأخبار',            icon: Newspaper },
   { href: '/dashboard/calendar',               label: 'الأجندة الاقتصادية', icon: CalendarDays },
   { href: '/dashboard/strategies/backtest',    label: 'اختبار الاستراتيجيات', icon: Activity },
   { href: '/dashboard/correlation',            label: 'مصفوفة الارتباط',    icon: GitMerge },
@@ -355,7 +365,7 @@ function MainNav() {
       padding: '0 8px', gap: 0, overflow: 'hidden',
       borderBottomRightRadius: ORB_D / 2,
     }}>
-      {NAV_LINKS.slice(0, 6).map(({ href, label, icon: Icon }) => {
+      {NAV_LINKS.slice(0, 8).map(({ href, label, icon: Icon }) => {
         const active = pathname === href ||
           (href !== '/dashboard' && (pathname ?? '').startsWith(href))
         return (
@@ -403,7 +413,7 @@ function MainNav() {
             padding: '5px', minWidth: 148, zIndex: 999,
             boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
           }}>
-            {NAV_LINKS.slice(6).map(item => (
+            {NAV_LINKS.slice(8).map(item => (
               <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }}>
                 <div
                   onClick={() => setMoreOpen(false)}

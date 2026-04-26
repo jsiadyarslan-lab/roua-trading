@@ -36,6 +36,9 @@ export const useMarketStore = create<MarketStore>((set) => ({
   }))
 }))
 
+// Only these base currencies are available on Binance
+const BINANCE_CRYPTO_BASES = new Set(['BTC','ETH','SOL','BNB','XRP','ADA','DOGE','AVAX','DOT','MATIC','LINK','UNI'])
+
 // Singleton WebSocket Manager — with exponential backoff + ping/pong
 class BinanceWSManager {
   private ws: WebSocket | null = null
@@ -57,7 +60,18 @@ class BinanceWSManager {
     return s.toLowerCase()
   }
 
+  /** Check if a symbol is a Binance-tradable crypto pair */
+  private isBinancePair(symbol: string): boolean {
+    const base = symbol.split('/')[0]
+    const quote = symbol.split('/')[1]
+    return BINANCE_CRYPTO_BASES.has(base) && ['USD','USDT','BUSD'].includes(quote)
+  }
+
   subscribe(symbol: string) {
+    // Skip non-Binance symbols (forex, stocks, commodities) — they'll be polled via REST
+    if (!this.isBinancePair(symbol)) {
+      return
+    }
     this.subscribers.add(symbol)
     this.scheduleReconnect()
   }

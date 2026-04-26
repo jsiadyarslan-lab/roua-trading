@@ -38,15 +38,15 @@ export function getDataStatus(quote?: QuoteData | null): DataStatus {
 export function getStatusLabel(status: DataStatus) {
   switch (status) {
     case 'live':
-      return 'LIVE'
+      return 'مباشر'
     case 'delayed':
-      return 'DELAYED'
+      return 'متأخر'
     case 'fallback':
-      return 'FALLBACK'
+      return 'احتياطي'
     case 'demo':
-      return 'DEMO'
+      return 'تجريبي'
     default:
-      return 'OFFLINE'
+      return 'بانتظار الربط'
   }
 }
 
@@ -61,13 +61,29 @@ export function getStatusTone(status: DataStatus) {
     case 'demo':
       return '#B388FF'
     default:
-      return '#FF3B30'
+      return '#FFB800' // Amber instead of red — "waiting for connection" is not an error
   }
 }
 
 export function getSourceLabel(source?: string | null) {
-  if (!source) return 'Unknown source'
-  return source.replace(/\s+/g, ' ').trim()
+  if (!source) return 'في انتظار ربط API'
+  // Translate known source names to Arabic
+  const sourceMap: Record<string, string> = {
+    'Binance WS': 'بينانس مباشر',
+    'Binance': 'بينانس',
+    'CoinGecko': 'كوين جيكو',
+    'TwelveData': 'تويلف داتا',
+    'Yahoo Finance': 'ياهو فاينانس',
+    'Metals.dev': 'ميتالز',
+    'FCSAPI': 'FCSAPI',
+    'GoldPrice': 'غولد برايس',
+    'ECB/Frankfurter': 'البنك المركزي الأوروبي',
+    'Aggregated': 'مجمّع',
+  }
+  const mapped = sourceMap[source.trim()] || source.replace(/\s+/g, ' ').trim()
+  // Append (مؤقت) for stale sources
+  if (mapped.includes('(مؤقت)')) return mapped
+  return mapped
 }
 
 export function formatFreshness(timestamp?: string | number | null) {

@@ -13,6 +13,9 @@ import {
   DesktopCorrelationPanel,
   DesktopNewsPanel,
 } from '@/components/dashboard/DesktopContextPanels'
+import { useMarketStore } from '@/hooks/useMarketStore'
+import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { getDataStatus, getSourceLabel } from '@/lib/dashboard-live'
 
 const T = {
   shell: '#0B0E14',
@@ -134,6 +137,13 @@ function TabButton({
 export function LeftSidebarLayout() {
   const [tab, setTab] = useState<TabId>('portfolio')
   const active = useMemo(() => TABS.find(item => item.id === tab) || TABS[0], [tab])
+  
+  // Get current symbol and derive data status from market store
+  const selectedSymbol = useSymbolStore((s) => s.selectedSymbol)
+  const quotes = useMarketStore((s) => s.quotes)
+  const activeQuote = selectedSymbol ? quotes[selectedSymbol] : null
+  const quoteStatus = getDataStatus(activeQuote)
+  const sourceLabel = getSourceLabel(activeQuote?.source)
 
   return (
     <div
@@ -281,7 +291,7 @@ export function LeftSidebarLayout() {
                 zoom: 0.82,
               }}
             >
-              {tab === 'portfolio' && <PortfolioMini compact />}
+              {tab === 'portfolio' && <PortfolioMini compact dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />}
               {tab === 'execute' && <QuickExecutionMini mobile />}
               {tab === 'book' && <OrderBookMini />}
               {tab === 'watch' && <WatchlistMini />}

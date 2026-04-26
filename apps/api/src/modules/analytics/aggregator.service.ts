@@ -86,7 +86,8 @@ export class MarketDataAggregatorService {
     this.logger.debug(`📊 Aggregating candles for ${symbol} (${interval})`);
 
     const endDate = end || new Date();
-    const startDate = start || new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+    // Fetch 60 days of data to ensure MACD (needs 35+ bars) and other indicators have sufficient history
+    const startDate = start || new Date(endDate.getTime() - 60 * 24 * 60 * 60 * 1000);
 
     const sources$ = {
       primary: from(

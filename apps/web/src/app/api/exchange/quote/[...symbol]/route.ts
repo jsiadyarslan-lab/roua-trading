@@ -133,12 +133,14 @@ async function fetchYahooFinance(symbol: string): Promise<any | null> {
   const yahooSymbol = toYahooSymbol(symbol)
 
   try {
-    // Yahoo Finance quoteSummary endpoint — returns comprehensive quote data
+    // Yahoo Finance chart endpoint — returns comprehensive quote data
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?range=1d&interval=1d&includePrePost=false`
     const res = await fetch(url, {
       cache: 'no-store',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; RouaTrading/1.0)',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
       },
     })
 
@@ -262,6 +264,65 @@ async function fetchMetalsDev(symbol: string): Promise<any | null> {
       fiftyTwoWeekLow: null,
       timestamp: new Date().toISOString(),
       source: 'Metals.dev',
+    }
+  } catch {
+    return null
+  }
+}
+
+// ── FREE Gold Fallback: FCSAPI.com ──
+// Covers XAU/USD, XAG/USD, and other metals via free forex/commodity API
+async function fetchFcsApi(symbol: string): Promise<any | null> {
+  const [base, quote] = symbol.split('/')
+  // FCSAPI uses different symbol format
+  const symbolMap: Record<string, string> = {
+    'XAU/USD': '1',   // Gold
+    'XAG/USD': '2',   // Silver
+    'EUR/USD': '1',   // EUR/USD
+    'GBP/USD': '2',   // GBP/USD
+    'USD/JPY': '3',   // USD/JPY
+    'AUD/USD': '5',   // AUD/USD
+    'USD/CHF': '6',   // USD/CHF
+  }
+  const fcsId = symbolMap[symbol]
+  if (!fcsId) return null
+
+  try {
+    // FCSAPI free endpoint for latest price
+    const isCommodity = ['XAU', 'XAG', 'XPT', 'XPD'].includes(base)
+    const endpoint = isCommodity ? 'commodity' : 'forex'
+    const url = `https://fcsapi.com/api-v3/${endpoint}/latest?symbol=${encodeURIComponent(symbol)}&access_key=API_FREE_DEMO`
+    const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000) })
+    if (!res.ok) return null
+    const data = await res.json()
+    if (data.status !== true || !data.response || !data.response[0]) return null
+    const item = data.response[0]
+    const price = parseFloat(item.p || item.c || '0')
+    if (price <= 0) return null
+    const change = parseFloat(item.ch || '0')
+    const changePercent = parseFloat(item.chp || '0')
+    const high = parseFloat(item.h || '0') || price
+    const low = parseFloat(item.l || '0') || price
+    const open = parseFloat(item.o || '0') || price
+
+    return {
+      symbol,
+      name: symbol.replace('/', ' / '),
+      exchange: isCommodity ? 'COMMODITY' : 'FOREX',
+      currency: quote || 'USD',
+      price: toNum(price),
+      change: toNum(change),
+      changePercent: toNum(changePercent),
+      open: toNum(open),
+      high: toNum(high),
+      low: toNum(low),
+      close: toNum(price),
+      volume: 0,
+      marketCap: null,
+      fiftyTwoWeekHigh: null,
+      fiftyTwoWeekLow: null,
+      timestamp: new Date().toISOString(),
+      source: 'FCSAPI',
     }
   } catch {
     return null
@@ -525,7 +586,15 @@ export async function GET(
         }
       }
 
-      // Step 3: Try Metals.dev for commodities (XAU, XAG, etc.)
+      // Step 3: Try FCSAPI for forex and commodities (free, no key needed)
+      if (!quote) {
+        quote = await fetchFcsApi(symbol)
+        if (quote) {
+          console.info(`[exchange/quote] Using FCSAPI for ${symbol}`)
+        }
+      }
+
+      // Step 4: Try Metals.dev for commodities (XAU, XAG, etc.)
       if (!quote) {
         quote = await fetchMetalsDev(symbol)
         if (quote) {
@@ -533,7 +602,7 @@ export async function GET(
         }
       }
 
-      // Step 4: Try GoldPrice.org for gold/silver
+      // Step 5: Try GoldPrice.org for gold/silver
       if (!quote) {
         quote = await fetchGoldPriceFallback(symbol)
         if (quote) {
@@ -541,7 +610,7 @@ export async function GET(
         }
       }
 
-      // Step 5: Try free ECB rates for fiat pairs (last resort for forex)
+      // Step 6: Try free ECB rates for fiat pairs (last resort for forex)
       if (!quote) {
         quote = await fetchFrankfurter(symbol)
         if (quote) {
@@ -578,8 +647,8 @@ export async function GET(
       )
     }
 
-    // Cache: 5s for crypto, 30s for stocks/forex/commodities (longer to reduce API pressure)
-    const ttl = isCryptoPair ? 5000 : 30000
+    // Cache: 5s for crypto, 60s for stocks/forex/commodities (longer to reduce API pressure)
+    const ttl = isCryptoPair ? 5000 : 60000
     setCache(cacheKey, quote, ttl)
 
     // Save to stale cache for fallback when all live sources fail

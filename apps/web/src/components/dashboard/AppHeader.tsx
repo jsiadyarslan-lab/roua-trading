@@ -625,18 +625,8 @@ function MainNav({ mode, onModeChange }: { mode: 'trader' | 'investor' | 'ai', o
          ))}
       </div>
 
-      {/* LED Connection Indicator */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        marginInlineStart: 12,
-      }}>
-        <div className="led-online" style={{
-          width: 6, height: 6, borderRadius: '50%',
-          background: 'var(--success)',
-          flexShrink: 0,
-        }} />
-        <span style={{ fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>LIVE</span>
-      </div>
+      {/* LED Connection Indicator — dynamic based on market data */}
+      <HeaderStatusLED />
 
       <div style={{
         flexShrink: 0, display: 'flex', alignItems: 'center',
@@ -649,6 +639,35 @@ function MainNav({ mode, onModeChange }: { mode: 'trader' | 'investor' | 'ai', o
         <User size={16} color="var(--accent)" />
         <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>حسابي</span>
       </div>
+    </div>
+  )
+}
+
+/* ─── Dynamic Header Status LED ─── */
+function HeaderStatusLED() {
+  const quotes = useMarketStore((s) => s.quotes)
+  // Check if we have ANY live quote data
+  const quoteEntries = Object.values(quotes)
+  const hasLive = quoteEntries.length > 0 && quoteEntries.some(q => {
+    const age = Date.now() - new Date(q.timestamp).getTime()
+    return age < 120000 // Less than 2 minutes old
+  })
+  
+  const color = hasLive ? 'var(--success)' : T.amber
+  const label = hasLive ? 'مباشر' : 'بانتظار الربط'
+  
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 6,
+      marginInlineStart: 12,
+    }}>
+      <div className="led-online" style={{
+        width: 6, height: 6, borderRadius: '50%',
+        background: color,
+        flexShrink: 0,
+        boxShadow: hasLive ? '0 0 6px var(--success)' : '0 0 6px ' + T.amber,
+      }} />
+      <span style={{ fontSize: 9, color: T.text3, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>{label}</span>
     </div>
   )
 }

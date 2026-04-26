@@ -39,7 +39,8 @@ export class ExchangeService {
   ): Promise<UnifiedCandleDto[]> {
     const adapter = this._selectAdapter(symbol, source);
     const endDate = end || new Date();
-    const startDate = start || new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000);
+    // 60 days default to ensure MACD (26+9=35 bars minimum) and other indicators have enough data
+    const startDate = start || new Date(endDate.getTime() - 60 * 24 * 60 * 60 * 1000);
     return adapter.fetchHistoricalData(symbol, interval, startDate, endDate);
   }
 

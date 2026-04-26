@@ -169,20 +169,32 @@ model AuditLog {
 
 // ── News Article for RAG (Phase 4) ──
 model NewsArticle {
-  id          String   @id @default(cuid())
-  source      String
-  title       String
-  content     String
-  summary     String?
-  url         String?
-  sentiment   Float?
-  entities    String?
-  embedding   String?   // JSON-encoded 384-dim vector (upgrade to pgvector for Postgres)
-  publishedAt DateTime
-  createdAt   DateTime @default(now())
+  id              String   @id @default(cuid())
+  source          String
+  title           String   // Original title (source language)
+  translatedTitle String?  // Arabic translation
+  content         String   // Original content/description
+  translatedContent String? // Arabic translation of content
+  summary         String?  // AI-generated summary in Arabic
+  url             String?
+  sentiment       Float?   // -1.0 (very negative) to 1.0 (very positive)
+  sentimentLabel  String?  // "positive", "negative", "neutral"
+  impactLevel     String?  // "high", "medium", "low"
+  affectedAssets  String?  // JSON array of affected symbols: ["BTC", "ETH"]
+  entities        String?  // JSON: named entities extracted
+  aiAnalysis      String?  // Full AI analysis from 6 models (JSON)
+  category        String?  // News category: Crypto, Forex, Economy, etc.
+  categoryAr      String?  // Arabic category name
+  embedding       String?  // JSON-encoded 384-dim vector (upgrade to pgvector for Postgres)
+  imageUrl        String?  // Optional article image
+  publishedAt     DateTime
+  fetchedAt       DateTime @default(now())
+  createdAt       DateTime @default(now())
 
   @@index([source])
   @@index([publishedAt])
+  @@index([sentimentLabel])
+  @@index([category])
 }
 
 // ── Exchange Credential model (encrypted API keys) ──

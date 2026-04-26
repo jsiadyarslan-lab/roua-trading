@@ -1,133 +1,319 @@
-'use client'
+'use client';
 
-import { useEffect, useMemo, useState } from 'react'
-import { Newspaper, Globe, Filter, RefreshCw, ExternalLink } from 'lucide-react'
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import {
+  Newspaper,
+  Globe,
+  Filter,
+  RefreshCw,
+  ExternalLink,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  ChevronDown,
+  ChevronUp,
+  Brain,
+  Search,
+  Zap,
+  Clock,
+} from 'lucide-react';
 
 const T = {
-  blue: '#0A84FF', cyan: '#00C8FF', green: '#00FFC6', red: '#FF4D4D', amber: '#FFB800',
-  text: '#E6EBF5', text2: '#8090A8', border: 'rgba(10,132,255,0.14)',
+  blue: '#0A84FF',
+  cyan: '#00C8FF',
+  green: '#00FFC6',
+  red: '#FF4D4D',
+  amber: '#FFB800',
+  text: '#E6EBF5',
+  text2: '#8090A8',
+  text3: '#5A6A80',
+  border: 'rgba(10,132,255,0.14)',
   card: 'rgba(13,21,32,0.9)',
-}
+  bg: '#04050C',
+};
 
 type NewsItem = {
-  category: string
-  categoryAr: string
-  color: string
-  bgColor: string
-  text: string
-  link?: string | null
-  publishedAt?: string | null
-  impact: 'high' | 'medium'
-  source?: string
-}
+  id: string;
+  source: string;
+  title: string;
+  translatedTitle?: string;
+  content: string;
+  translatedContent?: string;
+  summary?: string;
+  url?: string | null;
+  sentiment?: number;
+  sentimentLabel?: string;
+  impactLevel?: string;
+  affectedAssets?: string[];
+  category?: string;
+  categoryAr?: string;
+  aiAnalysis?: string;
+  publishedAt?: string;
+};
 
 export default function NewsPage() {
-  const [items, setItems] = useState<NewsItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [activeFilter, setActiveFilter] = useState<'all' | 'high' | 'medium'>('all')
+  const [items, setItems] = useState<NewsItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [symbolFilter, setSymbolFilter] = useState('all');
+  const [sentimentFilter, setSentimentFilter] = useState('all');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const fetchNews = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (symbolFilter !== 'all') params.set('symbol', symbolFilter);
+      if (sentimentFilter !== 'all') params.set('sentiment', sentimentFilter);
+      params.set('limit', '50');
+
+      const res = await fetch(`/api/news/latest?${params.toString()}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data)) {
+        setItems(data.data);
+      } else {
+        setItems([]);
+      }
+    } catch {
+      setItems([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [symbolFilter, sentimentFilter]);
 
   useEffect(() => {
-    let cancelled = false
+    fetchNews();
+    const interval = setInterval(fetchNews, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchNews]);
 
-    async function loadNews() {
-      try {
-        const res = await fetch('/api/news/feed', { cache: 'no-store' })
-        const data = await res.json()
-        if (!cancelled && Array.isArray(data)) {
-          setItems(data)
-        }
-      } catch {
-        if (!cancelled) setItems([])
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    loadNews()
-    const interval = setInterval(loadNews, 5 * 60 * 1000)
-    return () => {
-      cancelled = true
-      clearInterval(interval)
-    }
-  }, [])
+  const handleRefresh = () => {
+    setRefreshing(true);
+    fetchNews();
+  };
 
   const filteredItems = useMemo(() => {
-    if (activeFilter === 'all') return items
-    return items.filter(item => item.impact === activeFilter)
-  }, [activeFilter, items])
+    let filtered = items;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (item) =>
+          item.title?.toLowerCase().includes(q) ||
+          item.translatedTitle?.toLowerCase().includes(q) ||
+          item.content?.toLowerCase().includes(q) ||
+          item.summary?.toLowerCase().includes(q),
+      );
+    }
+    return filtered;
+  }, [items, searchQuery]);
+
+  const stats = useMemo(() => {
+    const positive = items.filter((i) => i.sentimentLabel === 'positive').length;
+    const negative = items.filter((i) => i.sentimentLabel === 'negative').length;
+    const high = items.filter((i) => i.impactLevel === 'high').length;
+    return { total: items.length, positive, negative, high };
+  }, [items]);
+
+  const getSentimentBadge = (label?: string) => {
+    switch (label) {
+      case 'positive':
+        return { bg: `${T.green}14`, color: T.green, text: 'إيجابي', icon: TrendingUp };
+      case 'negative':
+        return { bg: `${T.red}14`, color: T.red, text: 'سلبي', icon: TrendingDown };
+      default:
+        return { bg: `${T.text3}14`, color: T.text3, text: 'محايد', icon: Minus };
+    }
+  };
+
+  const getImpactBadge = (level?: string) => {
+    switch (level) {
+      case 'high':
+        return { bg: `${T.red}14`, color: T.red, text: 'تأثير عالي' };
+      case 'low':
+        return { bg: `${T.text3}14`, color: T.text3, text: 'تأثير منخفض' };
+      default:
+        return { bg: `${T.amber}14`, color: T.amber, text: 'تأثير متوسط' };
+    }
+  };
+
+  const formatTime = (value?: string | null) => {
+    if (!value) return 'غير متاح';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'غير متاح';
+    return date.toLocaleString('ar-SA', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const timeAgo = (value?: string | null) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const diff = Date.now() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 60) return `منذ ${minutes} دقيقة`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `منذ ${hours} ساعة`;
+    const days = Math.floor(hours / 24);
+    return `منذ ${days} يوم`;
+  };
 
   return (
-    <div style={{ padding: '32px 24px', direction: 'rtl', fontFamily: "'Cairo', sans-serif" }}>
+    <div style={{ padding: '32px 24px', direction: 'rtl', fontFamily: "'Cairo', sans-serif", maxWidth: 1200, margin: '0 auto' }}>
+      {/* Header */}
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
-          <Newspaper size={20} color={T.blue} />
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>الأخبار</h1>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 40, height: 40, borderRadius: 12,
+            background: 'linear-gradient(135deg, #0A84FF, #00C8FF)',
+          }}>
+            <Newspaper size={20} color="white" />
+          </div>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>الأخبار الذكية</h1>
           <span style={{
             fontSize: 10, padding: '2px 8px', borderRadius: 20,
             background: `${T.blue}18`, color: T.blue,
             fontFamily: "'JetBrains Mono', monospace",
-          }}>NEWS ROOM</span>
+          }}>SMART NEWS</span>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 5,
             padding: '3px 10px', borderRadius: 20,
             background: `${T.red}14`, border: `0.5px solid ${T.red}33`,
           }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.red }} />
-            <span style={{ fontSize: 10, color: T.red, fontFamily: "'JetBrains Mono', monospace" }}>LIVE FEED</span>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.red, animation: 'live-dot 1.8s ease-in-out infinite' }} />
+            <span style={{ fontSize: 10, color: T.red, fontFamily: "'JetBrains Mono', monospace" }}>LIVE</span>
           </div>
         </div>
         <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
-          موجز حي للأخبار مع تصنيف الأثر والمصدر ووقت النشر. عند غياب المصدر الخارجي ستظهر تغذية احتياطية واضحة.
+          أخبار مالية مترجمة تلقائياً مع تحليل AI Council — مشاعر السوق، التأثير المتوقع، والأصول المتأثرة
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 20 }}>
+      {/* Stats Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
         {[
-          { icon: Globe, label: `${items.length || 0} خبر`, color: T.blue },
-          { icon: Filter, label: `${items.filter(item => item.impact === 'high').length} عالي الأثر`, color: T.green },
-          { icon: RefreshCw, label: 'تحديث كل 5 دقائق', color: T.amber },
+          { icon: Globe, label: `${stats.total} خبر`, color: T.blue },
+          { icon: TrendingUp, label: `${stats.positive} إيجابي`, color: T.green },
+          { icon: TrendingDown, label: `${stats.negative} سلبي`, color: T.red },
+          { icon: Zap, label: `${stats.high} عالي الأثر`, color: T.amber },
         ].map((f, i) => (
           <div key={i} style={{
             background: T.card, border: `0.5px solid ${T.border}`,
-            borderRadius: 14, padding: '20px', textAlign: 'center',
+            borderRadius: 14, padding: '16px', textAlign: 'center',
           }}>
-            <f.icon size={28} color={f.color} style={{ marginBottom: 10 }} />
+            <f.icon size={24} color={f.color} style={{ marginBottom: 8 }} />
             <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{f.label}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
-        {[
-          { id: 'all', label: 'الكل' },
-          { id: 'high', label: 'عالي الأثر' },
-          { id: 'medium', label: 'متوسط الأثر' },
-        ].map(filter => (
-          <button
-            key={filter.id}
-            onClick={() => setActiveFilter(filter.id as 'all' | 'high' | 'medium')}
+      {/* Filter Bar */}
+      <div style={{
+        background: T.card, border: `0.5px solid ${T.border}`,
+        borderRadius: 14, padding: '14px 18px', marginBottom: 20,
+        display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
+      }}>
+        {/* Search */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          background: `${T.bg}`, borderRadius: 10, padding: '6px 12px', flex: '1 1 200px',
+          border: `0.5px solid ${T.border}`,
+        }}>
+          <Search size={14} color={T.text3} />
+          <input
+            type="text"
+            placeholder="بحث في الأخبار..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             style={{
-              padding: '8px 14px',
-              borderRadius: 999,
-              border: `0.5px solid ${activeFilter === filter.id ? T.blue : T.border}`,
-              background: activeFilter === filter.id ? `${T.blue}18` : T.card,
-              color: activeFilter === filter.id ? T.blue : T.text2,
-              cursor: 'pointer',
-              fontSize: 12,
-              fontWeight: 700,
+              background: 'transparent', border: 'none', outline: 'none',
+              color: T.text, fontSize: 12, width: '100%', fontFamily: "'Cairo', sans-serif",
+            }}
+          />
+        </div>
+
+        {/* Symbol Filter */}
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <Filter size={14} color={T.text3} />
+          <select
+            value={symbolFilter}
+            onChange={(e) => setSymbolFilter(e.target.value)}
+            style={{
+              padding: '6px 12px', borderRadius: 10, border: `0.5px solid ${T.border}`,
+              background: T.bg, color: T.text, fontSize: 12,
+              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
             }}
           >
-            {filter.label}
-          </button>
-        ))}
+            <option value="all">كل الأصول</option>
+            <option value="BTC">BTC</option>
+            <option value="ETH">ETH</option>
+            <option value="SOL">SOL</option>
+            <option value="XRP">XRP</option>
+            <option value="BNB">BNB</option>
+            <option value="ADA">ADA</option>
+          </select>
+        </div>
+
+        {/* Sentiment Filter */}
+        <div style={{ display: 'flex', gap: 4 }}>
+          {[
+            { id: 'all', label: 'الكل', color: T.text3 },
+            { id: 'positive', label: 'إيجابي', color: T.green },
+            { id: 'negative', label: 'سلبي', color: T.red },
+            { id: 'neutral', label: 'محايد', color: T.text3 },
+          ].map((filter) => (
+            <button
+              key={filter.id}
+              onClick={() => setSentimentFilter(filter.id)}
+              style={{
+                padding: '6px 14px', borderRadius: 999,
+                border: `0.5px solid ${sentimentFilter === filter.id ? filter.color : T.border}`,
+                background: sentimentFilter === filter.id ? `${filter.color}18` : T.bg,
+                color: sentimentFilter === filter.id ? filter.color : T.text2,
+                cursor: 'pointer', fontSize: 11, fontWeight: 700,
+                fontFamily: "'Cairo', sans-serif", transition: 'all 0.2s',
+              }}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Refresh */}
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '6px 14px', borderRadius: 10,
+            border: `0.5px solid ${T.border}`, background: T.bg,
+            color: T.text2, cursor: 'pointer', fontSize: 11,
+            fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+          }}
+        >
+          <RefreshCw size={14} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+          تحديث
+        </button>
       </div>
 
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes live-dot { 0%, 100% { transform: scale(1); opacity: 0.65; } 50% { transform: scale(1.35); opacity: 1; } }
+      `}</style>
+
+      {/* News List */}
       {loading ? (
         <div style={{
           background: T.card, border: `0.5px solid ${T.border}`,
           borderRadius: 20, padding: '32px', textAlign: 'center', color: T.text2,
         }}>
-          جارٍ تحميل الأخبار...
+          <RefreshCw size={28} color={T.blue} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
+          <p style={{ fontSize: 14 }}>جارٍ تحميل الأخبار مع تحليل AI...</p>
         </div>
       ) : filteredItems.length === 0 ? (
         <div style={{
@@ -136,100 +322,239 @@ export default function NewsPage() {
         }}>
           <Newspaper size={34} color={T.blue} style={{ marginBottom: 14 }} />
           <h2 style={{ color: T.text, fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>
-            لا توجد أخبار مطابقة الآن
+            لا توجد أخبار مطابقة
           </h2>
           <p style={{ color: T.text2, fontSize: 13, margin: 0 }}>
-            غيّر الفلتر أو انتظر التحديث القادم للتغذية.
+            غيّر الفلتر أو انتظر التحديث القادم
           </p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
-          {filteredItems.map((item, index) => (
-            <article
-              key={`${item.text}-${index}`}
-              style={{
-                background: T.card,
-                border: `0.5px solid ${T.border}`,
-                borderRight: `3px solid ${item.color}`,
-                borderRadius: 16,
-                padding: '18px 18px 16px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-                <span style={{
-                  fontSize: 10,
-                  padding: '3px 8px',
-                  borderRadius: 99,
-                  background: item.bgColor,
-                  color: item.color,
-                  fontWeight: 800,
-                }}>
-                  {item.categoryAr}
-                </span>
-                <span style={{
-                  fontSize: 10,
-                  padding: '3px 8px',
-                  borderRadius: 99,
-                  background: item.impact === 'high' ? `${T.red}14` : `${T.amber}14`,
-                  color: item.impact === 'high' ? T.red : T.amber,
-                  fontWeight: 800,
-                }}>
-                  {item.impact === 'high' ? 'عالي الأثر' : 'متوسط الأثر'}
-                </span>
-                <span style={{ fontSize: 10, color: T.text2, marginInlineStart: 'auto' }}>
-                  {formatPublishedAt(item.publishedAt)}
-                </span>
-              </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {filteredItems.map((item, index) => {
+            const sentiment = getSentimentBadge(item.sentimentLabel);
+            const impact = getImpactBadge(item.impactLevel);
+            const SentimentIcon = sentiment.icon;
+            const isExpanded = expandedId === item.id;
 
-              <p style={{ color: T.text, fontSize: 14, lineHeight: 1.8, margin: '0 0 14px' }}>
-                {item.text}
-              </p>
+            return (
+              <article
+                key={item.id || index}
+                style={{
+                  background: T.card,
+                  border: `0.5px solid ${T.border}`,
+                  borderRight: `3px solid ${sentiment.color}`,
+                  borderRadius: 16,
+                  overflow: 'hidden',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <div style={{ padding: '18px 20px' }}>
+                  {/* Top bar: badges and time */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                    {item.categoryAr && (
+                      <span style={{
+                        fontSize: 10, padding: '3px 8px', borderRadius: 99,
+                        background: `${T.blue}14`, color: T.blue, fontWeight: 800,
+                      }}>
+                        {item.categoryAr}
+                      </span>
+                    )}
+                    <span style={{
+                      fontSize: 10, padding: '3px 8px', borderRadius: 99,
+                      background: sentiment.bg, color: sentiment.color, fontWeight: 800,
+                      display: 'flex', alignItems: 'center', gap: 4,
+                    }}>
+                      <SentimentIcon size={10} />
+                      {sentiment.text}
+                    </span>
+                    <span style={{
+                      fontSize: 10, padding: '3px 8px', borderRadius: 99,
+                      background: impact.bg, color: impact.color, fontWeight: 800,
+                    }}>
+                      {impact.text}
+                    </span>
+                    {item.affectedAssets && item.affectedAssets.length > 0 && item.affectedAssets.map((asset) => (
+                      <span key={asset} style={{
+                        fontSize: 9, padding: '2px 6px', borderRadius: 6,
+                        background: `${T.cyan}14`, color: T.cyan, fontWeight: 800,
+                        fontFamily: "'JetBrains Mono', monospace",
+                      }}>
+                        {asset}
+                      </span>
+                    ))}
+                    <span style={{ fontSize: 10, color: T.text3, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Clock size={10} />
+                      {timeAgo(item.publishedAt)}
+                    </span>
+                  </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                <span style={{ fontSize: 11, color: T.text2 }}>
-                  المصدر: {item.source || 'Unknown'}
-                </span>
-                {item.link ? (
-                  <a
-                    href={item.link}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      color: T.blue,
-                      fontSize: 11,
-                      fontWeight: 800,
-                      textDecoration: 'none',
-                    }}
-                  >
-                    فتح المصدر <ExternalLink size={12} />
-                  </a>
-                ) : (
-                  <span style={{ fontSize: 11, color: T.text2 }}>
-                    تغذية احتياطية
-                  </span>
+                  {/* Translated Title (Arabic - main) */}
+                  {item.translatedTitle && item.translatedTitle !== item.title && (
+                    <h3 style={{
+                      color: T.text, fontSize: 16, fontWeight: 800, margin: '0 0 6px',
+                      lineHeight: 1.6,
+                    }}>
+                      {item.translatedTitle}
+                    </h3>
+                  )}
+
+                  {/* Original Title */}
+                  <p style={{
+                    color: T.text3, fontSize: 12, margin: '0 0 10px',
+                    direction: 'ltr', textAlign: 'left',
+                    fontFamily: "'JetBrains Mono', monospace",
+                  }}>
+                    {item.title}
+                  </p>
+
+                  {/* Summary */}
+                  {item.summary && (
+                    <p style={{
+                      color: T.text2, fontSize: 13, margin: '0 0 12px',
+                      lineHeight: 1.7, padding: '8px 12px',
+                      background: 'rgba(10,132,255,0.06)', borderRadius: 10,
+                      borderRight: `2px solid ${T.blue}44`,
+                    }}>
+                      {item.summary}
+                    </p>
+                  )}
+
+                  {/* Bottom bar */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 11, color: T.text3 }}>
+                        المصدر: {item.source || 'غير معروف'}
+                      </span>
+                      <span style={{ fontSize: 10, color: T.text3 }}>
+                        {formatTime(item.publishedAt)}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {item.aiAnalysis && (
+                        <button
+                          onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 4,
+                            padding: '4px 10px', borderRadius: 8,
+                            background: `${T.blue}14`, border: `0.5px solid ${T.blue}33`,
+                            color: T.blue, cursor: 'pointer', fontSize: 10,
+                            fontWeight: 800, fontFamily: "'Cairo', sans-serif",
+                          }}
+                        >
+                          <Brain size={12} />
+                          اقرأ التحليل الكامل
+                          {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        </button>
+                      )}
+                      {item.url && (
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            color: T.blue, fontSize: 10, fontWeight: 800,
+                            textDecoration: 'none', fontFamily: "'Cairo', sans-serif",
+                          }}
+                        >
+                          المصدر <ExternalLink size={10} />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Expanded AI Analysis */}
+                {isExpanded && item.aiAnalysis && (
+                  <div style={{
+                    padding: '16px 20px',
+                    borderTop: `0.5px solid ${T.border}`,
+                    background: 'rgba(10,132,255,0.03)',
+                  }}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      marginBottom: 10,
+                    }}>
+                      <Brain size={16} color={T.blue} />
+                      <span style={{ fontSize: 13, fontWeight: 800, color: T.blue }}>
+                        تحليل AI Council
+                      </span>
+                    </div>
+                    <AIAnalysisRenderer analysis={item.aiAnalysis} />
+                  </div>
                 )}
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       )}
     </div>
-  )
+  );
 }
 
-function formatPublishedAt(value?: string | null) {
-  if (!value) return 'غير متاح'
+/**
+ * AI Analysis Renderer
+ * Parses JSON analysis from multiple models and renders them
+ */
+function AIAnalysisRenderer({ analysis }: { analysis: string }) {
+  const T = {
+    text: '#E6EBF5',
+    text2: '#8090A8',
+    blue: '#0A84FF',
+    green: '#00FFC6',
+    red: '#FF4D4D',
+    amber: '#FFB800',
+  };
 
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'غير متاح'
+  try {
+    const parsed = JSON.parse(analysis);
 
-  return date.toLocaleString('ar-SA', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+    if (Array.isArray(parsed)) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {parsed.map((item: any, i: number) => {
+            const modelColors: Record<string, string> = {
+              'Groq': T.amber,
+              'GLM': T.green,
+              'Gemini': T.blue,
+            };
+            const color = modelColors[item.model] || T.blue;
+
+            return (
+              <div key={i} style={{
+                padding: '12px', borderRadius: 10,
+                background: 'rgba(255,255,255,0.02)',
+                borderRight: `2px solid ${color}44`,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                  <span style={{
+                    fontSize: 10, padding: '2px 8px', borderRadius: 6,
+                    background: `${color}14`, color, fontWeight: 800,
+                  }}>
+                    {item.model}
+                  </span>
+                  {item.confidence > 0 && (
+                    <span style={{ fontSize: 10, color: T.text2 }}>
+                      ثقة: {Math.round(item.confidence * 100)}%
+                    </span>
+                  )}
+                </div>
+                <p style={{ color: T.text2, fontSize: 12, lineHeight: 1.7, margin: 0 }}>
+                  {item.content || 'لا يوجد تحليل متاح'}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+  } catch {
+    // Not JSON, render as plain text
+  }
+
+  return (
+    <p style={{ color: T.text2, fontSize: 12, lineHeight: 1.8, margin: 0, whiteSpace: 'pre-wrap' }}>
+      {analysis}
+    </p>
+  );
 }

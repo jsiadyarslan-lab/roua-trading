@@ -14,6 +14,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { ExecutionModule } from './modules/execution/execution.module';
 import { EngineModule } from './modules/engine/engine.module';
 import { NeuralModule } from './modules/neural/neural.module';
+import { NewsModule } from './modules/news/news.module';
 import { AuditModule } from './audit/audit.module';
 
 @Module({
@@ -83,6 +84,7 @@ import { AuditModule } from './audit/audit.module';
     ExecutionModule,
     EngineModule,
     NeuralModule,
+    NewsModule,
   ],
 })
 export class AppModule {}

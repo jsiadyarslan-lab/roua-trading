@@ -105,6 +105,22 @@ const nextConfig: NextConfig = {
         source: '/api/health',
         destination: `${apiTarget}/api/health`,
       },
+
+      // ── News routes → NestJS (fallback) ──
+      // News has local Next.js API routes that try NestJS first
+      // and fall back to local RSS + simulation.
+      {
+        source: '/api/news/nest/latest',
+        destination: `${apiTarget}/api/news/latest`,
+      },
+      {
+        source: '/api/news/nest/analyze',
+        destination: `${apiTarget}/api/news/analyze`,
+      },
+      {
+        source: '/api/news/nest/fetch',
+        destination: `${apiTarget}/api/news/fetch`,
+      },
     ];
   },
 };

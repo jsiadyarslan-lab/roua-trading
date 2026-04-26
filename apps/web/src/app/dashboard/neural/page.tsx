@@ -34,7 +34,7 @@ export default function NeuralLabPage() {
           <div>
             <h1 className="text-xl font-bold text-white">AI Trading Lab</h1>
             <p className="text-sm text-gray-400">
-              مختبر التداول الذكي — مدعوم بـ AI Council (6 نماذج: Gemini, Groq, GLM-4, DeepSeek, GPT-4o, Claude)
+              مختبر التداول الذكي — مدعوم بـ AI Council (6 نماذج: Gemini, Groq, GLM-4, HuggingFace, Ollama, Bedrock)
             </p>
           </div>
         </div>

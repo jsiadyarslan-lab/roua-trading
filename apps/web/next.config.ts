@@ -53,6 +53,31 @@ const nextConfig: NextConfig = {
         destination: `${apiTarget}/api/portfolio/:path*`,
       },
 
+      // ── AI routes → NestJS ──
+      // AI analysis, consensus council, and model status MUST use the real
+      // AI orchestrator (Gemini + Groq + GLM-4 + RAG), not local heuristics.
+      // Falls back to local Next.js routes when NestJS is unavailable.
+      {
+        source: '/api/ai/analyze',
+        destination: `${apiTarget}/api/ai/analyze`,
+      },
+      {
+        source: '/api/ai/analyze/all',
+        destination: `${apiTarget}/api/ai/analyze/all`,
+      },
+      {
+        source: '/api/ai/models',
+        destination: `${apiTarget}/api/ai/models`,
+      },
+      {
+        source: '/api/ai/consensus-nest',
+        destination: `${apiTarget}/api/ai/consensus`,
+      },
+      {
+        source: '/api/analytics/:path*',
+        destination: `${apiTarget}/api/analytics/:path*`,
+      },
+
       // ── Health check → NestJS ──
       // Proxies /api/health to NestJS for DB connectivity and schema verification.
       {

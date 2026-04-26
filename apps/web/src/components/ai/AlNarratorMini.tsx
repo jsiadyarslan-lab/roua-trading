@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Activity, ShieldCheck, Zap, Bell, CheckCircle2, TrendingUp, TrendingDown } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
+import { Activity, ShieldCheck, Zap, Bell, CheckCircle2, TrendingUp, TrendingDown, Brain, Crosshair } from 'lucide-react'
 import { formatFreshness, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
 
 interface Keyword {
@@ -23,6 +23,14 @@ interface NarrativeData {
   timestamp: string
 }
 
+interface SmartRecommendation {
+  action: string
+  entry: string
+  sl: string
+  tp: string
+  reason: string
+}
+
 export function AlNarratorMini({
   mobile = false,
   compact = false,
@@ -37,8 +45,11 @@ export function AlNarratorMini({
   const [data, setData] = useState<NarrativeData | null>(null)
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(false)
+  const [showRecommendation, setShowRecommendation] = useState(false)
+  const [recommendation, setRecommendation] = useState<SmartRecommendation | null>(null)
+  const [recLoading, setRecLoading] = useState(false)
 
-  const fetchNarrative = async () => {
+  const fetchNarrative = useCallback(async () => {
     setLoading(true)
     try {
       const symbolQuery = selectedSymbol ? `?symbol=${encodeURIComponent(selectedSymbol)}` : ''
@@ -47,7 +58,6 @@ export function AlNarratorMini({
       if (json.success) {
         setData({
           ...json.data,
-          // Do NOT generate fake confidence/risk — show real data or nothing
           confidence: json.data.confidence ?? 0,
           risk: json.data.risk ?? 'Medium'
         })
@@ -57,26 +67,112 @@ export function AlNarratorMini({
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedSymbol])
 
   useEffect(() => {
     fetchNarrative()
     const interval = setInterval(fetchNarrative, 30000)
     return () => clearInterval(interval)
-  }, [selectedSymbol])
+  }, [fetchNarrative])
+
+  // ── Smart Recommendation (functional) ──
+  const handleSmartRecommendation = async () => {
+    if (!selectedSymbol) return
+    setRecLoading(true)
+    setShowRecommendation(true)
+    setRecommendation(null)
+
+    try {
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `أعطني توصية تداول مباشرة لـ ${selectedSymbol} مع تحديد نقطة الدخول ووقف الخسارة والهدف. أجب بهذا التنسيق فقط: الإجراء | الدخول | وقف الخسارة | الهدف | السبب`,
+          symbol: selectedSymbol,
+          type: 'signal_generation',
+          style: 'abbreviated',
+        }),
+      })
+
+      const json = await res.json()
+      if (json.success && json.data) {
+        const content = json.data.content
+        // Try to parse structured recommendation from AI response
+        const actionMatch = content.match(/(?:الإجراء|العمل|التوصية|Action)[:\s]*(شراء|بيع|انتظار|BUY|SELL|HOLD)/i)
+        const entryMatch = content.match(/(?:الدخول|Entry)[:\s]*([\d.,]+)/i)
+        const slMatch = content.match(/(?:وقف الخسارة|SL|Stop\s*Loss)[:\s]*([\d.,]+)/i)
+        const tpMatch = content.match(/(?:الهدف|TP|Take\s*Profit)[:\s]*([\d.,]+)/i)
+        const reasonMatch = content.match(/(?:السبب|Reason)[:\s]*(.+)/i)
+
+        setRecommendation({
+          action: actionMatch ? actionMatch[1] : (content.includes('شراء') || content.includes('BUY') ? 'شراء' : content.includes('بيع') || content.includes('SELL') ? 'بيع' : 'انتظار'),
+          entry: entryMatch ? entryMatch[1] : '—',
+          sl: slMatch ? slMatch[1] : '—',
+          tp: tpMatch ? tpMatch[1] : '—',
+          reason: reasonMatch ? reasonMatch[1].slice(0, 100) : content.slice(0, 120),
+        })
+      } else {
+        setRecommendation({
+          action: 'انتظار',
+          entry: '—',
+          sl: '—',
+          tp: '—',
+          reason: 'لم أتمكن من الحصول على توصية حالياً',
+        })
+      }
+    } catch {
+      setRecommendation({
+        action: 'انتظار',
+        entry: '—',
+        sl: '—',
+        tp: '—',
+        reason: 'حدث خطأ في الاتصال بنماذج AI',
+      })
+    } finally {
+      setRecLoading(false)
+    }
+  }
+
+  // ── Alert (functional) ──
+  const handleAlert = () => {
+    if (!selectedSymbol || !data) return
+
+    const sentimentAr = data.sentiment === 'bullish' ? 'صاعد' : data.sentiment === 'bearish' ? 'هابط' : 'محايد'
+
+    if ('Notification' in window) {
+      if (Notification.permission === 'granted') {
+        new Notification(`رؤى — تنبيه ${selectedSymbol}`, {
+          body: `التوجه: ${sentimentAr} | المخاطرة: ${data.risk === 'Low' ? 'منخفضة' : data.risk === 'Medium' ? 'متوسطة' : 'عالية'} | الثقة: ${data.confidence}%`,
+          icon: '/favicon.ico',
+        })
+      } else if (Notification.permission !== 'denied') {
+        Notification.requestPermission().then(perm => {
+          if (perm === 'granted') {
+            new Notification(`رؤى — تنبيه ${selectedSymbol}`, {
+              body: `التوجه: ${sentimentAr} | المخاطرة: ${data.risk === 'Low' ? 'منخفضة' : data.risk === 'Medium' ? 'متوسطة' : 'عالية'} | الثقة: ${data.confidence}%`,
+              icon: '/favicon.ico',
+            })
+          }
+        })
+      }
+    }
+
+    // Also show a visual alert within the component
+    alert(`🔔 تنبيه ${selectedSymbol}\n\nالتوجه: ${sentimentAr}\nالمخاطرة: ${data.risk === 'Low' ? 'منخفضة' : data.risk === 'Medium' ? 'متوسطة' : 'عالية'}\nالثقة: ${data.confidence}%\n\n${data.summary || data.narrative?.slice(0, 100) || ''}`)
+  }
 
   const sentimentColor = {
     bullish:  'var(--success)',
     bearish:  'var(--danger)',
     neutral:  'var(--primary)',
-    volatile: '#FFB800', // Amber
+    volatile: '#FFB800',
   }
 
   const isHighConfidence = (data?.confidence ?? 0) > 85
   const statusTone = getStatusTone(dataStatus)
 
   return (
-    <div 
+    <div
       className="card"
       style={{
         width: '100%', height: '100%',
@@ -101,7 +197,7 @@ export function AlNarratorMini({
             {selectedSymbol ? `ما الذي يحدث في ${selectedSymbol}؟` : 'رؤى الذكاء الاصطناعي'}
           </span>
         </div>
-        
+
         {data && (
           <div style={{
              fontSize: 10, padding: '2px 8px', borderRadius: 20,
@@ -125,7 +221,7 @@ export function AlNarratorMini({
                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   {data.sentiment === 'bullish' ? <TrendingUp size={16} color="var(--success)" /> : <TrendingDown size={16} color="var(--danger)" />}
                   <span style={{ fontSize: 13, fontWeight: 900, color: sentimentColor[data.sentiment], fontFamily: "'Cairo', sans-serif" }}>
-                    {data.sentiment === 'bullish' ? 'صعود مؤسسي' : data.sentiment === 'bearish' ? 'هبوط سيادي' : 'تذبذب جانبي'}
+                    {data.sentiment === 'bullish' ? 'صعود مؤسسي' : data.sentiment === 'bearish' ? 'هبوط سيادي' : data.sentiment === 'volatile' ? 'تذبذب حاد' : 'تذبذب جانبي'}
                   </span>
                </div>
             </div>
@@ -136,10 +232,10 @@ export function AlNarratorMini({
                <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700 }}>مستوى المخاطرة</span>
                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <ShieldCheck size={16} color={data.risk === 'Low' ? 'var(--success)' : data.risk === 'Medium' ? '#FFB800' : 'var(--danger)'} />
-                  <span style={{ 
-                    fontSize: 13, fontWeight: 900, 
+                  <span style={{
+                    fontSize: 13, fontWeight: 900,
                     color: data.risk === 'Low' ? 'var(--success)' : data.risk === 'Medium' ? '#FFB800' : 'var(--danger)',
-                    fontFamily: "'Cairo', sans-serif" 
+                    fontFamily: "'Cairo', sans-serif"
                   }}>
                     {data.risk === 'Low' ? 'منخفضة جداً' : data.risk === 'Medium' ? 'متوسطة' : 'عالية المخاطر'}
                   </span>
@@ -150,7 +246,7 @@ export function AlNarratorMini({
           {/* Institutional Confidence Meter */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 9, color: 'var(--text-muted-safe)', fontWeight: 800 }}>مؤشر الثقة الرقمي (CONFIDENCE)</span>
+                <span style={{ fontSize: 9, color: 'var(--text-muted-safe)', fontWeight: 800 }}>مؤشر الثقة الرقمي</span>
                 <span className="price" style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 900 }}>{data.confidence}%</span>
              </div>
              <div style={{ width: '100%', height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 10, overflow: 'hidden', padding: 1.5 }}>
@@ -164,18 +260,18 @@ export function AlNarratorMini({
              </div>
           </div>
 
-          {/* AI Reasoning Steps (The Revolutionary Part) */}
+          {/* AI Reasoning Steps */}
           {!compact && <div style={{
             display: 'flex', flexDirection: 'column', gap: 6,
             padding: '10px', background: 'rgba(0,229,255,0.03)',
             borderRadius: 10, border: '1px solid rgba(0,229,255,0.1)'
           }}>
-             <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 800, marginBottom: 4 }}>تحليل المحرك الرقمي (QUANTUM REASONING)</span>
+             <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 800, marginBottom: 4 }}>خطوات التحليل</span>
              {[
                { label: 'تحليل الأخبار العالمية', status: 'checked' },
                { label: 'فحص المؤشرات الفنية (RSI/MACD)', status: 'checked' },
-               { label: 'قياس تدفق السيولة المؤسسية', status: data.confidence > 80 ? 'checked' : 'loading' },
-               { label: 'تقييم المخاطر الجيوسياسية', status: 'checked' }
+               { label: 'قياس تدفق السيولة', status: data.confidence > 80 ? 'checked' : 'loading' },
+               { label: 'تقييم المخاطر', status: 'checked' }
              ].map((step, si) => (
                <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: step.status === 'checked' ? 1 : 0.4 }}>
                   {step.status === 'checked' ? <CheckCircle2 size={12} color="var(--success)" /> : <Activity size={12} className="spinning" />}
@@ -195,7 +291,7 @@ export function AlNarratorMini({
             lineHeight: 1.7,
           }}>
             {data.summary || (selectedSymbol
-              ? `المساعد يقرأ ${selectedSymbol} الآن ويربط السرد بالاتجاه والبيانات الحية بدل عرض رؤية عامة منفصلة.`
+              ? `المساعد يقرأ ${selectedSymbol} الآن ويربط السرد بالاتجاه والبيانات الحية.`
               : 'المساعد يربط السرد بحركة السوق الحالية.')}
           </div>
 
@@ -213,7 +309,7 @@ export function AlNarratorMini({
             </div>
           )}
 
-          <div 
+          <div
             onClick={() => setExpanded(!expanded)}
             style={{
                flex: 1, cursor: 'pointer', overflow: 'hidden', padding: compact ? '10px' : '12px',
@@ -234,33 +330,86 @@ export function AlNarratorMini({
              )}
           </div>
 
-          {/* Global Action Buttons */}
+          {/* ── Smart Recommendation Panel (functional) ── */}
+          {showRecommendation && (
+            <div style={{
+              padding: '10px 12px', borderRadius: 10,
+              background: 'rgba(0,229,255,0.04)', border: '1px solid rgba(0,229,255,0.15)',
+            }}>
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
+              }}>
+                <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Crosshair size={10} /> التوصية الذكية — {selectedSymbol}
+                </span>
+                <button
+                  onClick={() => setShowRecommendation(false)}
+                  style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 10 }}
+                >
+                  ✕
+                </button>
+              </div>
+              {recLoading ? (
+                <div style={{ fontSize: 10, color: 'var(--text2)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Activity size={10} className="spinning" /> جاري التحليل...
+                </div>
+              ) : recommendation ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 10, color: 'var(--text2)' }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <span style={{
+                      padding: '2px 8px', borderRadius: 4, fontWeight: 800,
+                      background: recommendation.action === 'شراء' ? 'rgba(0,255,198,0.1)' : recommendation.action === 'بيع' ? 'rgba(255,77,77,0.1)' : 'rgba(255,184,0,0.1)',
+                      color: recommendation.action === 'شراء' ? 'var(--success)' : recommendation.action === 'بيع' ? 'var(--danger)' : '#FFB800',
+                    }}>
+                      {recommendation.action}
+                    </span>
+                    <span>دخول: <strong style={{ color: 'var(--text)' }}>{recommendation.entry}</strong></span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <span>SL: <strong style={{ color: 'var(--danger)' }}>{recommendation.sl}</strong></span>
+                    <span>TP: <strong style={{ color: 'var(--success)' }}>{recommendation.tp}</strong></span>
+                  </div>
+                  <div style={{ fontSize: 9, color: 'var(--text2)', lineHeight: 1.4, marginTop: 2 }}>
+                    {recommendation.reason}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {/* Global Action Buttons (functional) */}
           <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
-             <button 
+             <button
+               onClick={handleSmartRecommendation}
+               disabled={recLoading}
                className="btn-cyan-active"
                style={{
                   flex: 1.5, padding: '8px', borderRadius: 8, border: 'none',
-                  fontSize: 11, fontWeight: 800, cursor: 'pointer',
+                  fontSize: 11, fontWeight: 800, cursor: recLoading ? 'not-allowed' : 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   fontFamily: "'Cairo', sans-serif",
+                  opacity: recLoading ? 0.6 : 1,
                }}
              >
                 <Zap size={13} fill="currentColor" /> توصية ذكية
              </button>
-             <button style={{
-                flex: 1, padding: '8px', borderRadius: 8, border: '1px solid var(--border)', 
-                background: 'rgba(255,255,255,0.05)',
-                color: 'var(--text)', fontSize: 10, fontWeight: 700, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                fontFamily: "'Cairo', sans-serif"
-             }}>
+             <button
+               onClick={handleAlert}
+               style={{
+                  flex: 1, padding: '8px', borderRadius: 8, border: '1px solid var(--border)',
+                  background: 'rgba(255,255,255,0.05)',
+                  color: 'var(--text)', fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                  fontFamily: "'Cairo', sans-serif"
+               }}
+             >
                 <Bell size={12} /> تنبيه
              </button>
           </div>
         </>
       ) : (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {/* Institutional Skeleton Loader */}
+          {/* Skeleton Loader */}
           <div style={{ display: 'flex', gap: 10 }}>
             <div className="skeleton" style={{ flex: 1, height: 52, borderRadius: 12 }} />
             <div className="skeleton" style={{ flex: 1, height: 52, borderRadius: 12 }} />
@@ -270,7 +419,7 @@ export function AlNarratorMini({
           <div className="skeleton" style={{ width: '100%', flex: 1, borderRadius: 10 }} />
         </div>
       )}
-      
+
       <style>{`
         @keyframes orb-pulse {
           0%, 100% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 10px currentColor; }
@@ -293,6 +442,6 @@ export function AlNarratorMini({
           to { background-position: -200% 0; }
         }
       `}</style>
-</div>
+    </div>
   )
 }

@@ -427,6 +427,7 @@ function MoreDropdown({
   anchorRef: React.RefObject<HTMLDivElement | null>
 }) {
   const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 })
+  const dropdownRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
 
   useEffect(() => {
@@ -441,26 +442,42 @@ function MoreDropdown({
 
   useEffect(() => {
     if (!open) return
-    const handleClick = (e: MouseEvent) => {
-      if (anchorRef.current && !anchorRef.current.contains(e.target as Node)) {
+    // Use a small delay to avoid the click that opened the dropdown from closing it
+    const timeoutId = setTimeout(() => {
+      const handleClick = (e: MouseEvent) => {
+        // Don't close if clicking inside the dropdown or the anchor button
+        if (
+          dropdownRef.current?.contains(e.target as Node) ||
+          anchorRef.current?.contains(e.target as Node)
+        ) {
+          return
+        }
         onClose()
       }
-    }
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('mousedown', handleClick)
-    document.addEventListener('keydown', handleEsc)
+      const handleEsc = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') onClose()
+      }
+      document.addEventListener('mousedown', handleClick)
+      document.addEventListener('keydown', handleEsc)
+      // Store cleanup function
+      ;(window as any).__moreDropdownCleanup = () => {
+        document.removeEventListener('mousedown', handleClick)
+        document.removeEventListener('keydown', handleEsc)
+      }
+    }, 50)
     return () => {
-      document.removeEventListener('mousedown', handleClick)
-      document.removeEventListener('keydown', handleEsc)
+      clearTimeout(timeoutId)
+      if ((window as any).__moreDropdownCleanup) {
+        ;(window as any).__moreDropdownCleanup()
+        delete (window as any).__moreDropdownCleanup
+      }
     }
   }, [open, onClose, anchorRef])
 
   if (!open || typeof document === 'undefined') return null
 
   return createPortal(
-    <div style={{
+    <div ref={dropdownRef} style={{
       position: 'fixed',
       top: pos.top,
       right: pos.right,

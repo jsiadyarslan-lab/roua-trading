@@ -141,13 +141,24 @@ export const useNotificationStore = create<NotificationState>()(
       toasts: [],
 
       addNotification: (n) => {
-        const { settings } = get()
+        const { settings, notifications } = get()
         if (!settings.enabled) return
         if (n.source === 'bot' && !settings.botAlerts) return
         if (n.source === 'ai' && !settings.aiAlerts) return
         if (n.source === 'scanner' && !settings.scannerAlerts) return
         if (n.source === 'trade' && !settings.tradeAlerts) return
         if (n.confidence !== undefined && n.confidence < settings.minConfidence) return
+
+        // ── Deduplication: skip if same source + action + pair within last 10 minutes ──
+        const DEDUP_WINDOW = 10 * 60 * 1000 // 10 minutes
+        const isDuplicate = notifications.some(
+          (existing) =>
+            existing.source === n.source &&
+            existing.action === n.action &&
+            existing.pair === n.pair &&
+            (Date.now() - existing.timestamp) < DEDUP_WINDOW
+        )
+        if (isDuplicate) return
 
         const notif: Notification = {
           ...n,

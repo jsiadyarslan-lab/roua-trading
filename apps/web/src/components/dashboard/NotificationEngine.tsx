@@ -59,13 +59,15 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
     }
   }, [botLogs, botOn, hydrated, addNotification, selectedSymbol])
 
-  // ── 2. مراقبة AI Narrator كل 90 ثانية ─────────────────────
+  // ── 2. مراقبة AI Narrator كل 10 دقائق ────────────────────
   useEffect(() => {
     if (!hydrated || !settings.aiAlerts) return
 
+    const AI_ALERT_COOLDOWN = 600_000 // 10 minutes — was 90s which caused spam
+
     const fetchAiAlert = async () => {
       const now = Date.now()
-      if (now - lastAiCheckRef.current < 90_000) return
+      if (now - lastAiCheckRef.current < AI_ALERT_COOLDOWN) return
       lastAiCheckRef.current = now
 
       try {
@@ -82,12 +84,13 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
           title: `🧠 تحليل AI: ${sentiment === 'bullish' ? 'توقع صعود' : sentiment === 'bearish' ? 'توقع هبوط' : 'تحليل محايد'}`,
           body: narrative.slice(0, 120) + (narrative.length > 120 ? '...' : ''),
           confidence: confidence ?? 70,
+          pair: selectedSymbol,
         })
       } catch {}
     }
 
-    // fetchAiAlert() // Don't fire immediately on mount to avoid spamming on refresh
-    const iv = setInterval(fetchAiAlert, 15_000) // check every 15s, but skips if < 90s since last fire
+    // Don't fire immediately on mount to avoid spamming on refresh
+    const iv = setInterval(fetchAiAlert, 60_000) // check every 60s, but only fires if 10min cooldown passed
     return () => clearInterval(iv)
   }, [hydrated, settings.aiAlerts, settings.minConfidence, addNotification, selectedSymbol])
 
@@ -97,7 +100,7 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
 
     const fetchScanAlert = async () => {
       const now = Date.now()
-      if (now - lastScanCheckRef.current < 120_000) return
+      if (now - lastScanCheckRef.current < 300_000) return // 5 min cooldown (was 2min)
       lastScanCheckRef.current = now
 
       try {
@@ -122,7 +125,7 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
     }
 
     // Don't fire immediately on mount to avoid phantom alerts on page load
-    const iv = setInterval(fetchScanAlert, 60_000) // check every 60s, but skips if < 2min since last fire
+    const iv = setInterval(fetchScanAlert, 60_000) // check every 60s, but skips if < 5min since last fire
     return () => clearInterval(iv)
   }, [hydrated, settings.scannerAlerts, settings.minConfidence, addNotification])
 

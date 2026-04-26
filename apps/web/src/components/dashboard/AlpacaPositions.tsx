@@ -40,7 +40,7 @@ const fmtPnl = (value: number) =>
 
 export function AlpacaPositions() {
   const { positions, fetchPositions, fetchAccount } = usePositionsStore()
-  const { trades: paperTrades, removeTrade: removePaperTrade } = usePaperTradesStore()
+  const { trades: paperTrades, closeTrade: closePaperTrade } = usePaperTradesStore()
   const [closing, setClosing] = useState<string | null>(null)
   const [confirmClose, setConfirmClose] = useState<string | null>(null)
 
@@ -112,7 +112,7 @@ export function AlpacaPositions() {
     setClosing(id)
 
     if (isPaper) {
-      removePaperTrade(id)
+      closePaperTrade(id)
       setClosing(null)
       return
     }

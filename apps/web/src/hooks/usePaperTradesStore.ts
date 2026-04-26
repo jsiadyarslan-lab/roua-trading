@@ -17,18 +17,39 @@ export interface PaperTrade {
   source: 'bot' | 'manual'
 }
 
+export interface ClosedPaperTrade {
+  id: string
+  symbol: string
+  side: 'long' | 'short'
+  qty: number
+  entryPrice: number
+  exitPrice: number
+  realizedPnl: number
+  realizedPct: number
+  tp?: number
+  sl?: number
+  entryTime: number
+  closeTime: number
+  strategy?: string
+  source: 'bot' | 'manual'
+}
+
 interface PaperTradesState {
   trades: PaperTrade[]
+  closedTrades: ClosedPaperTrade[]
   addTrade: (t: Omit<PaperTrade, 'id' | 'unrealizedPnl' | 'unrealizedPct'>) => void
   updatePrice: (symbol: string, price: number) => void
   removeTrade: (id: string) => void
+  closeTrade: (id: string) => void
   clearAll: () => void
+  clearClosedTrades: () => void
 }
 
 export const usePaperTradesStore = create<PaperTradesState>()(
   persist(
     (set, get) => ({
       trades: [],
+      closedTrades: [],
 
       addTrade: (t) =>
         set((state) => ({
@@ -77,7 +98,43 @@ export const usePaperTradesStore = create<PaperTradesState>()(
       removeTrade: (id) =>
         set((state) => ({ trades: state.trades.filter((t) => t.id !== id) })),
 
+      closeTrade: (id) =>
+        set((state) => {
+          const trade = state.trades.find((t) => t.id === id)
+          if (!trade) return state
+
+          const exitPrice = trade.currentPrice || trade.entryPrice
+          const diff = trade.side === 'long'
+            ? exitPrice - trade.entryPrice
+            : trade.entryPrice - exitPrice
+          const realizedPnl = diff * trade.qty
+          const realizedPct = trade.entryPrice > 0 ? (diff / trade.entryPrice) * 100 : 0
+
+          const closedTrade: ClosedPaperTrade = {
+            id: trade.id,
+            symbol: trade.symbol,
+            side: trade.side,
+            qty: trade.qty,
+            entryPrice: trade.entryPrice,
+            exitPrice,
+            realizedPnl,
+            realizedPct,
+            tp: trade.tp,
+            sl: trade.sl,
+            entryTime: trade.entryTime,
+            closeTime: Date.now(),
+            strategy: trade.strategy,
+            source: trade.source,
+          }
+
+          return {
+            trades: state.trades.filter((t) => t.id !== id),
+            closedTrades: [closedTrade, ...state.closedTrades].slice(0, 200), // Keep last 200
+          }
+        }),
+
       clearAll: () => set({ trades: [] }),
+      clearClosedTrades: () => set({ closedTrades: [] }),
     }),
     { name: 'roua-paper-trades' }
   )

@@ -186,7 +186,7 @@ export class RiskManagerService {
       _sum: { totalValue: true },
     });
 
-    const manualValue = portfolios._sum.totalValue || 0;
+    const manualValue = Number(portfolios._sum.totalValue || 0);
 
     // Also add current value of open positions
     const openPositions = await this.prisma.position.findMany({
@@ -194,7 +194,7 @@ export class RiskManagerService {
     });
 
     const positionsValue = openPositions.reduce((sum, p) => {
-      return sum + p.quantity * (p.currentPrice || p.entryPrice);
+      return sum + Number(p.quantity) * (Number(p.currentPrice) || Number(p.entryPrice));
     }, 0);
 
     return manualValue + positionsValue;
@@ -212,7 +212,7 @@ export class RiskManagerService {
       },
     });
 
-    return todayTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+    return todayTrades.reduce((sum, t) => sum + Number(t.pnl || 0), 0);
   }
 
   private _calculateRiskScore(

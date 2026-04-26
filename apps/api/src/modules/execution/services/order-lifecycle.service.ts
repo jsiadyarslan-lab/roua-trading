@@ -281,9 +281,9 @@ export class OrderLifecycleService {
 
       if (existingPosition) {
         // Add to existing position (average price calculation)
-        const totalQuantity = existingPosition.quantity + result.filledQuantity;
+        const totalQuantity = Number(existingPosition.quantity) + result.filledQuantity;
         const avgPrice =
-          (existingPosition.entryPrice * existingPosition.quantity +
+          (Number(existingPosition.entryPrice) * Number(existingPosition.quantity) +
             result.averagePrice * result.filledQuantity) /
           totalQuantity;
 

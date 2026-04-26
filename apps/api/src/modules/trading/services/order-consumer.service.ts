@@ -249,9 +249,9 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
     if (existingPosition) {
       // Add to existing position (average price)
       // Position model uses Float — no Decimal conversion needed
-      const totalQuantity = existingPosition.quantity + filledQuantity;
+      const totalQuantity = Number(existingPosition.quantity) + filledQuantity;
       const avgPrice =
-        (existingPosition.entryPrice * existingPosition.quantity +
+        (Number(existingPosition.entryPrice) * Number(existingPosition.quantity) +
           fillPrice * filledQuantity) /
         totalQuantity;
 

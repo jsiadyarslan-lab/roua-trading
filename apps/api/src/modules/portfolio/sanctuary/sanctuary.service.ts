@@ -118,7 +118,7 @@ export class SanctuaryService {
         // Check if already included from exchange
         const existing = allPositions.find((p) => p.symbol === asset.symbol);
         if (!existing) {
-          let currentPrice = asset.currentPrice || asset.avgPrice;
+          let currentPrice = Number(asset.currentPrice || asset.avgPrice);
           try {
             const quote = await this.exchangeService.getQuote(asset.symbol);
             currentPrice = quote.price;
@@ -126,13 +126,13 @@ export class SanctuaryService {
             // Use stored price
           }
 
-          const value = asset.quantity * currentPrice;
+          const value = Number(asset.quantity) * currentPrice;
           totalValue += value;
 
           allPositions.push({
             symbol: asset.symbol,
             exchange: asset.exchange || 'manual',
-            quantity: asset.quantity,
+            quantity: Number(asset.quantity),
             currentPrice,
             value,
             weight: 0, // calculated below

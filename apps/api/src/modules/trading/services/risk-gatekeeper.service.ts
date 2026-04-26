@@ -353,7 +353,7 @@ export class RiskGatekeeperService {
         },
       });
 
-      const dailyPnL = todayTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+      const dailyPnL = todayTrades.reduce((sum, t) => sum + Number(t.pnl || 0), 0);
 
       if (dailyPnL < 0) {
         const portfolioValue = await this._estimatePortfolioValue(userId);
@@ -444,14 +444,14 @@ export class RiskGatekeeperService {
       _sum: { totalValue: true },
     });
 
-    const manualValue = portfolios._sum.totalValue || 0;
+    const manualValue = Number(portfolios._sum.totalValue || 0);
 
     const openPositions = await this.prisma.position.findMany({
       where: { userId, status: 'OPEN' },
     });
 
     const positionsValue = openPositions.reduce((sum, p) => {
-      return sum + p.quantity * (p.currentPrice || p.entryPrice);
+      return sum + Number(p.quantity) * (Number(p.currentPrice) || Number(p.entryPrice));
     }, 0);
 
     return manualValue + positionsValue;
@@ -494,7 +494,7 @@ export class RiskGatekeeperService {
         type: { in: ['EXIT', 'PARTIAL_EXIT'] },
       },
     });
-    const dailyPnL = todayTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+    const dailyPnL = todayTrades.reduce((sum, t) => sum + Number(t.pnl || 0), 0);
     if (dailyPnL < 0 && portfolioValue > 0) {
       score += Math.min(40, (Math.abs(dailyPnL) / portfolioValue) * 100 * 8);
     }

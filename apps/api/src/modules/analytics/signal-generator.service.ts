@@ -201,13 +201,13 @@ export class SignalGeneratorService {
       symbol: s.pair,
       action: s.action as SignalAction,
       confidence: s.confidence,
-      stopLoss: s.stopLoss ?? 0,
-      takeProfit: s.takeProfit,
-      entryPrice: s.entryPrice,
+      stopLoss: Number(s.stopLoss ?? 0),
+      takeProfit: s.takeProfit != null ? Number(s.takeProfit) : null,
+      entryPrice: s.entryPrice != null ? Number(s.entryPrice) : null,
       reason: s.reason,
       supportingIndicators: [],
       riskRewardRatio: s.stopLoss && s.takeProfit && s.entryPrice
-        ? this._calculateRiskReward(s.entryPrice, s.stopLoss, s.takeProfit, s.action as SignalAction)
+        ? this._calculateRiskReward(Number(s.entryPrice), Number(s.stopLoss), Number(s.takeProfit), s.action as SignalAction)
         : null,
       expiresAt: s.expiresAt,
       id: s.id,

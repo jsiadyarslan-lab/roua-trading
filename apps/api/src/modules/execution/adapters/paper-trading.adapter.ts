@@ -190,13 +190,13 @@ export class PaperTradingAdapter implements IBrokerAdapter {
       });
 
       const usedMargin = openPositions.reduce(
-        (sum, p) => sum + p.quantity * (p.currentPrice || p.entryPrice),
+        (sum, p) => sum + Number(p.quantity) * (Number(p.currentPrice) || Number(p.entryPrice)),
         0,
       );
 
       // Calculate unrealized P&L
       const unrealizedPnL = openPositions.reduce(
-        (sum, p) => sum + (p.unrealizedPnl || 0),
+        (sum, p) => sum + Number(p.unrealizedPnl || 0),
         0,
       );
 

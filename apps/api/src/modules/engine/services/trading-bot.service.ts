@@ -204,7 +204,7 @@ export class TradingBotService {
       },
     });
 
-    const todayPnl = todayTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+    const todayPnl = todayTrades.reduce((sum, t) => sum + Number(t.pnl || 0), 0);
 
     return {
       enabled: !!config?.enabled,
@@ -344,8 +344,8 @@ export class TradingBotService {
         }
 
         // Calculate position size based on risk
-        const entryPrice = signal.entryPrice || 0;
-        const stopLoss = signal.stopLoss || 0;
+        const entryPrice = Number(signal.entryPrice) || 0;
+        const stopLoss = Number(signal.stopLoss) || 0;
 
         if (!entryPrice || !stopLoss) {
           results.skipped++;
@@ -353,7 +353,7 @@ export class TradingBotService {
         }
 
         const riskAmount = portfolio * (config.riskPerTrade || this.RISK_PER_TRADE);
-        const priceRisk = Math.abs(entryPrice - stopLoss);
+        const priceRisk = Math.abs(Number(entryPrice) - Number(stopLoss));
 
         if (priceRisk === 0) {
           results.skipped++;
@@ -375,8 +375,8 @@ export class TradingBotService {
           side: signal.action === 'BUY' ? OrderSide.BUY : OrderSide.SELL,
           type: OrderType.MARKET,
           quantity: parseFloat(quantity.toFixed(6)),
-          stopLoss: signal.stopLoss || undefined,
-          takeProfit: signal.takeProfit || undefined,
+          stopLoss: signal.stopLoss != null ? Number(signal.stopLoss) : undefined,
+          takeProfit: signal.takeProfit != null ? Number(signal.takeProfit) : undefined,
           signalId: signal.id,
         };
 

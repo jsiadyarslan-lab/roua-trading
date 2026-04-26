@@ -395,26 +395,26 @@ export class TradingService {
           const currentPrice = result.value.price;
           const unrealizedPnl =
             position.side === 'BUY'
-              ? (currentPrice - position.entryPrice) * position.quantity
-              : (position.entryPrice - currentPrice) * position.quantity;
+              ? (currentPrice - Number(position.entryPrice)) * Number(position.quantity)
+              : (Number(position.entryPrice) - currentPrice) * Number(position.quantity);
 
           updates.push({
             id: position.id,
             currentPrice,
             unrealizedPnl,
             highestPrice: Math.max(
-              position.highestPrice || currentPrice,
+              Number(position.highestPrice || currentPrice),
               currentPrice,
             ),
             lowestPrice: Math.min(
-              position.lowestPrice || currentPrice,
+              Number(position.lowestPrice || currentPrice),
               currentPrice,
             ),
           });
 
           // Update in-memory for response
-          position.currentPrice = currentPrice;
-          position.unrealizedPnl = unrealizedPnl;
+          (position as any).currentPrice = currentPrice;
+          (position as any).unrealizedPnl = unrealizedPnl;
         } else {
           // Log warning for failed quotes
           const reason = result.status === 'rejected' ? result.reason?.message : 'no price';
@@ -514,10 +514,10 @@ export class TradingService {
       throw new BadRequestException('المركز ليس مفتوحاً');
     }
 
-    const closeQuantity = request.quantity || position.quantity;
-    if (closeQuantity > position.quantity) {
+    const closeQuantity = request.quantity ?? Number(position.quantity);
+    if (closeQuantity > Number(position.quantity)) {
       throw new BadRequestException(
-        `كمية الإغلاق (${closeQuantity}) أكبر من حجم المركز (${position.quantity})`,
+        `كمية الإغلاق (${closeQuantity}) أكبر من حجم المركز (${Number(position.quantity)})`,
       );
     }
 
@@ -556,14 +556,14 @@ export class TradingService {
     const exitPrice =
       execution.averagePrice != null && execution.averagePrice > 0
         ? execution.averagePrice
-        : (position.currentPrice != null && position.currentPrice > 0
-          ? position.currentPrice
-          : position.entryPrice);
+        : (position.currentPrice != null && Number(position.currentPrice) > 0
+          ? Number(position.currentPrice)
+          : Number(position.entryPrice));
 
     const pnl =
       position.side === 'BUY'
-        ? (exitPrice - position.entryPrice) * closeQuantity
-        : (position.entryPrice - exitPrice) * closeQuantity;
+        ? (exitPrice - Number(position.entryPrice)) * closeQuantity
+        : (Number(position.entryPrice) - exitPrice) * closeQuantity;
 
     // Record closing order
     // Note: averagePrice (not averageFillPrice) is the correct field name
@@ -597,7 +597,7 @@ export class TradingService {
         exchange: position.exchange,
         symbol: position.symbol,
         side: closeSide as OrderSide,
-        type: closeQuantity >= position.quantity ? 'EXIT' : 'PARTIAL_EXIT',
+        type: closeQuantity >= Number(position.quantity) ? 'EXIT' : 'PARTIAL_EXIT',
         quantity: closeQuantity,
         price: exitPrice,
         fee: execution.fee,
@@ -607,21 +607,21 @@ export class TradingService {
     });
 
     // Update position
-    if (closeQuantity >= position.quantity) {
+    if (closeQuantity >= Number(position.quantity)) {
       await this.prisma.position.update({
         where: { id: position.id },
         data: {
           status: 'CLOSED',
           closedAt: new Date(),
-          realizedPnl: (position.realizedPnl || 0) + pnl,
+          realizedPnl: Number(position.realizedPnl || 0) + pnl,
         },
       });
     } else {
       await this.prisma.position.update({
         where: { id: position.id },
         data: {
-          quantity: position.quantity - closeQuantity,
-          realizedPnl: (position.realizedPnl || 0) + pnl,
+          quantity: Number(position.quantity) - closeQuantity,
+          realizedPnl: Number(position.realizedPnl || 0) + pnl,
         },
       });
     }
@@ -635,7 +635,7 @@ export class TradingService {
         symbol: position.symbol,
         quantity: closeQuantity,
         pnl,
-        partial: closeQuantity < position.quantity,
+        partial: closeQuantity < Number(position.quantity),
       }),
       ipAddress,
       userAgent,
@@ -886,9 +886,9 @@ export class TradingService {
 
       if (existingPosition) {
         // Add to existing position (average up)
-        const totalQuantity = existingPosition.quantity + filledQty;
+        const totalQuantity = Number(existingPosition.quantity) + filledQty;
         const avgPrice =
-          (existingPosition.entryPrice * existingPosition.quantity +
+          (Number(existingPosition.entryPrice) * Number(existingPosition.quantity) +
             fillPrice * filledQty) /
           totalQuantity;
 
@@ -935,9 +935,9 @@ export class TradingService {
 
       if (existingPosition) {
         // Add to existing short position
-        const totalQuantity = existingPosition.quantity + filledQty;
+        const totalQuantity = Number(existingPosition.quantity) + filledQty;
         const avgPrice =
-          (existingPosition.entryPrice * existingPosition.quantity +
+          (Number(existingPosition.entryPrice) * Number(existingPosition.quantity) +
             fillPrice * filledQty) /
           totalQuantity;
 

@@ -68,27 +68,27 @@ export class PositionManagerService {
         dbUpdates.push({
           id: position.id,
           currentPrice,
-          highestPrice: Math.max(position.highestPrice || currentPrice, currentPrice),
-          lowestPrice: Math.min(position.lowestPrice || currentPrice, currentPrice),
+          highestPrice: Math.max(Number(position.highestPrice || currentPrice), currentPrice),
+          lowestPrice: Math.min(Number(position.lowestPrice || currentPrice), currentPrice),
         });
 
         const unrealizedPnL = this.calculateUnrealizedPnL({
           side: position.side,
-          entryPrice: position.entryPrice,
+          entryPrice: Number(position.entryPrice),
           currentPrice,
-          quantity: position.quantity,
+          quantity: Number(position.quantity),
         });
 
         positionInfos.push({
           id: position.id,
           symbol: position.symbol,
           side: position.side,
-          quantity: position.quantity,
-          entryPrice: position.entryPrice,
+          quantity: Number(position.quantity),
+          entryPrice: Number(position.entryPrice),
           currentPrice,
           unrealizedPnL,
-          stopLoss: position.stopLoss,
-          takeProfit: position.takeProfit,
+          stopLoss: position.stopLoss != null ? Number(position.stopLoss) : null,
+          takeProfit: position.takeProfit != null ? Number(position.takeProfit) : null,
           exchange: position.exchange,
           openedAt: position.openedAt,
         });
@@ -96,21 +96,21 @@ export class PositionManagerService {
         // If we can't get current price, use last known price
         const unrealizedPnL = this.calculateUnrealizedPnL({
           side: position.side,
-          entryPrice: position.entryPrice,
-          currentPrice: position.currentPrice || position.entryPrice,
-          quantity: position.quantity,
+          entryPrice: Number(position.entryPrice),
+          currentPrice: Number(position.currentPrice || position.entryPrice),
+          quantity: Number(position.quantity),
         });
 
         positionInfos.push({
           id: position.id,
           symbol: position.symbol,
           side: position.side,
-          quantity: position.quantity,
-          entryPrice: position.entryPrice,
-          currentPrice: position.currentPrice || position.entryPrice,
+          quantity: Number(position.quantity),
+          entryPrice: Number(position.entryPrice),
+          currentPrice: Number(position.currentPrice || position.entryPrice),
           unrealizedPnL,
-          stopLoss: position.stopLoss,
-          takeProfit: position.takeProfit,
+          stopLoss: position.stopLoss != null ? Number(position.stopLoss) : null,
+          takeProfit: position.takeProfit != null ? Number(position.takeProfit) : null,
           exchange: position.exchange,
           openedAt: position.openedAt,
         });
@@ -177,7 +177,7 @@ export class PositionManagerService {
       where: { userId },
       _sum: { totalValue: true },
     });
-    const baseBalance = portfolios._sum.totalValue || 0;
+    const baseBalance = Number(portfolios._sum.totalValue || 0);
 
     // Get open positions with current prices
     const positions = await this.getOpenPositions(userId);
@@ -206,7 +206,7 @@ export class PositionManagerService {
       },
     });
 
-    const dailyPnL = todayTrades.reduce((sum, t) => sum + (t.pnl || 0), 0);
+    const dailyPnL = todayTrades.reduce((sum, t) => sum + Number(t.pnl || 0), 0);
 
     // Calculate daily P&L percentage
     const totalBalance = baseBalance + totalExposure;
@@ -225,7 +225,7 @@ export class PositionManagerService {
     let maxDrawdown = 0;
 
     for (const trade of allTimeTrades) {
-      cumulativePnL += trade.pnl || 0;
+      cumulativePnL += Number(trade.pnl || 0);
       peak = Math.max(peak, cumulativePnL);
       const drawdown = peak - cumulativePnL;
       maxDrawdown = Math.max(maxDrawdown, drawdown);

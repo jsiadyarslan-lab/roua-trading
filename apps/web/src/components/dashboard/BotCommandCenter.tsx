@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { Play, Pause, ShieldAlert, Zap, Settings2, RefreshCw, Layers, CheckCircle } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Play, Pause, ShieldAlert, Zap, Settings2, RefreshCw, Layers, CheckCircle, Cpu, Wifi, WifiOff, Brain } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
@@ -38,6 +38,7 @@ interface SmartSignal {
   freshness?: string
   invalidatesWhen?: string
   expiresAt?: string
+  source?: string
 }
 
 function formatSignalPrice(value: unknown) {
@@ -50,19 +51,26 @@ export function BotCommandCenter() {
   const { setSelectedSymbol } = useSymbolStore()
   const { addTrade } = usePaperTradesStore()
   const { addNotification } = useNotificationStore()
-  const { isOn: isActive, setIsOn: setBotActive, engineState } = useBotStore()
+  const { isOn: isActive, setIsOn: setBotActive, engineState, settings } = useBotStore()
 
   const [signals, setSignals] = useState<SmartSignal[]>([])
   const [loading, setLoading] = useState(false)
   const [executedIds, setExecutedIds] = useState<Record<string, boolean>>({})
+  const [lastRefresh, setLastRefresh] = useState<string>('')
+  const [aiScanResult, setAiScanResult] = useState<{ symbol: string; recommendation: string; confidence: number } | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [countdown, setCountdown] = useState(30)
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchSignals = useCallback(async () => {
     setLoading(true)
+    setCountdown(30)
     try {
       const res = await fetch('/api/signals/smart', { signal: AbortSignal.timeout(15000) })
       const j = await res.json()
       if (j.success && j.data) {
         setSignals(j.data)
+        setLastRefresh(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
       }
     } catch (e) {
       console.error('Failed to fetch signals', e)
@@ -71,17 +79,55 @@ export function BotCommandCenter() {
     }
   }, [])
 
+  // Fetch AI analysis for the active symbol
+  const fetchAISignal = useCallback(async (symbol: string) => {
+    setAiLoading(true)
+    try {
+      const res = await fetch('/api/ai/consensus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol }),
+        signal: AbortSignal.timeout(30000),
+      })
+      const j = await res.json()
+      if (j.success && j.data) {
+        setAiScanResult({
+          symbol,
+          recommendation: j.data.recommendation,
+          confidence: j.data.consensusScore,
+        })
+      }
+    } catch {
+      setAiScanResult(null)
+    } finally {
+      setAiLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchSignals()
-    const int = setInterval(fetchSignals, 30000) // Refresh every 30s
+    const int = setInterval(fetchSignals, 30000)
     return () => clearInterval(int)
   }, [fetchSignals])
 
+  // Countdown timer — makes the panel feel alive
+  useEffect(() => {
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) return 30
+        return prev - 1
+      })
+    }, 1000)
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current)
+    }
+  }, [])
+
   const handleExecute = (sig: SmartSignal, e: React.MouseEvent) => {
-    e.stopPropagation() // Prevent triggering the row click (setSelectedSymbol)
-    
+    e.stopPropagation()
+
     const qty = risk === 'low' ? 0.05 : risk === 'med' ? 0.15 : 0.30
-    
+
     addTrade({
       symbol: sig.pair,
       side: sig.type === 'BUY' ? 'long' : 'short',
@@ -111,7 +157,7 @@ export function BotCommandCenter() {
 
   return (
     <div className="custom-scrollbar no-scrollbar" style={{ height: '100%', overflowY: 'auto', padding: '10px', display: 'flex', flexDirection: 'column', gap: 10, background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 16, border: `1px solid ${T.border}` }}>
-      
+
       {/* Bot Master Switch */}
       <div style={{
         background: isActive ? 'rgba(0,200,83,0.05)' : 'rgba(255,59,48,0.05)',
@@ -131,6 +177,11 @@ export function BotCommandCenter() {
             <span style={{ fontSize: 7, color: isActive ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
               {isActive ? `SYSTEM ONLINE - ${engineState.toUpperCase()}` : 'SYSTEM PAUSED - MANUAL ONLY'}
             </span>
+            {isActive && settings.useAIConsensus && (
+              <span style={{ fontSize: 6.5, color: T.purple, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, marginTop: 1 }}>
+                🧠 AI CONSENSUS ACTIVE
+              </span>
+            )}
           </div>
         </div>
         <button
@@ -177,6 +228,41 @@ export function BotCommandCenter() {
         </div>
       </div>
 
+      {/* AI Quick Scan */}
+      <div className="card" style={{ border: `1px solid rgba(179,136,255,0.12)`, borderRadius: 12, padding: '10px', background: 'rgba(179,136,255,0.03)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Brain size={12} color={T.purple} />
+            <span style={{ fontSize: 9, fontWeight: 700, color: T.purple, fontFamily: "'Cairo', sans-serif" }}>فحص AI سريع</span>
+          </div>
+          <button
+            onClick={() => fetchAISignal(useSymbolStore.getState().selectedSymbol)}
+            disabled={aiLoading}
+            style={{ background: 'transparent', border: 'none', cursor: aiLoading ? 'not-allowed' : 'pointer' }}
+          >
+            <RefreshCw size={10} color={T.purple} className={aiLoading ? 'animate-spin' : ''} />
+          </button>
+        </div>
+        {aiLoading ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 0' }}>
+            <div className="animate-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: T.purple }} />
+            <span style={{ fontSize: 8, color: T.purple, fontFamily: "'Cairo', sans-serif" }}>جاري استشارة AI...</span>
+          </div>
+        ) : aiScanResult ? (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{aiScanResult.symbol}</span>
+              <span style={{ fontSize: 8, marginRight: 6, fontWeight: 700, color: aiScanResult.recommendation === 'BUY' ? T.success : aiScanResult.recommendation === 'SELL' ? T.danger : T.amber }}>
+                {aiScanResult.recommendation === 'BUY' ? '⬆ شراء' : aiScanResult.recommendation === 'SELL' ? '⬇ بيع' : '◆ انتظار'}
+              </span>
+            </div>
+            <span style={{ fontSize: 8, color: T.text3, fontFamily: 'monospace' }}>{aiScanResult.confidence}%</span>
+          </div>
+        ) : (
+          <div style={{ fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>اضغط لفحص الأصل النشط عبر AI</div>
+        )}
+      </div>
+
       {/* Live Signals Stream */}
       <div className="card" style={{ flex: 1, border: `1px solid ${T.border}`, borderRadius: 12, padding: '10px', display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -184,11 +270,20 @@ export function BotCommandCenter() {
             <ShieldAlert size={12} color={T.accent} />
             <span style={{ fontSize: 9, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>بث الإشارات الحية</span>
           </div>
-          <button onClick={fetchSignals} disabled={loading} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
-            <RefreshCw size={10} color={T.text2} className={loading ? 'animate-spin' : ''} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 7, color: T.text3, fontFamily: 'monospace' }}>{countdown}s</span>
+            <button onClick={fetchSignals} disabled={loading} style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
+              <RefreshCw size={10} color={T.text2} className={loading ? 'animate-spin' : ''} />
+            </button>
+          </div>
         </div>
-        
+
+        {lastRefresh && (
+          <div style={{ fontSize: 7, color: T.text3, fontFamily: 'monospace', marginBottom: 6 }}>
+            آخر تحديث: {lastRefresh}
+          </div>
+        )}
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {loading && signals.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 80, gap: 8 }}>
@@ -209,7 +304,7 @@ export function BotCommandCenter() {
                   background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, borderRadius: 10, padding: '8px 9px',
                   display: 'flex', flexDirection: 'column', gap: 6, cursor: 'pointer', transition: '0.2s'
                 }} onMouseEnter={e => e.currentTarget.style.borderColor = c} onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
-                  
+
                   {/* Top Row: Asset & Signal */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -246,7 +341,7 @@ export function BotCommandCenter() {
                        <span>TP: <span style={{ color: T.success }}>{sig.tp.toFixed(2)}</span></span>
                        <span>SL: <span style={{ color: T.danger }}>{sig.sl.toFixed(2)}</span></span>
                     </div>
-                    <button 
+                    <button
                       onClick={(e) => !executed && handleExecute(sig, e)}
                       disabled={executed}
                       style={{
@@ -269,7 +364,7 @@ export function BotCommandCenter() {
           )}
         </div>
       </div>
-      
+
     </div>
   )
 }

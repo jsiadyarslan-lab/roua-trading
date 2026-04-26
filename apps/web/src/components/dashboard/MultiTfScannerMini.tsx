@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { RefreshCw, Layers, Activity } from 'lucide-react'
 
 const T = {
   bg:      '#0F1113',
@@ -21,6 +22,10 @@ export function MultiTfScannerMini() {
   const [data, setData] = useState<any[]>([])
   const [summary, setSummary] = useState<{ alignment: string; executionHint: string } | null>(null)
   const [loading, setLoading] = useState(true)
+  const [countdown, setCountdown] = useState(60)
+  const [scanCount, setScanCount] = useState(0)
+  const [lastUpdate, setLastUpdate] = useState<string>('')
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -28,14 +33,15 @@ export function MultiTfScannerMini() {
       setLoading(true)
       try {
         const timeframes = ['15m', '1h', '4h', '1d']
-        const promises = timeframes.map(tf => 
+        const promises = timeframes.map(tf =>
           fetch(`/api/market-scan?pair=${encodeURIComponent(selectedSymbol)}&tf=${tf}`, { signal: AbortSignal.timeout(15000) }).then(r => r.json())
         )
         const results = await Promise.all(promises)
-        
+
         if (!mounted) return
 
         const processed = results.map((res, i) => {
+          const timeframes = ['15m', '1h', '4h', '1d']
           if (!res.success || !res.data || res.data.length === 0) {
              return { tf: timeframes[i].toUpperCase(), state: 'Neutral', strength: 50, color: T.amber, entryBias: 'wait', signalClass: 'watch' }
           }
@@ -51,6 +57,8 @@ export function MultiTfScannerMini() {
           }
         })
         setData(processed)
+        setScanCount(prev => prev + 1)
+        setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
 
         const score = processed.reduce((sum, item, index) => {
           const weight = index === 3 ? 2 : index === 2 ? 1.5 : index === 1 ? 1 : 0.5
@@ -77,6 +85,20 @@ export function MultiTfScannerMini() {
     return () => { mounted = false; clearInterval(iv) }
   }, [selectedSymbol])
 
+  // Countdown timer
+  useEffect(() => {
+    setCountdown(60)
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) return 60
+        return prev - 1
+      })
+    }, 1000)
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current)
+    }
+  }, [lastUpdate])
+
   // Determine overall strategy based on TFs
   const overallStrength = data.reduce((sum, item) => sum + (item.state === 'Bullish' ? item.strength : item.state === 'Bearish' ? -item.strength : 0), 0)
   const strategy = overallStrength > 100 ? 'Trend Follow (Long)' : overallStrength < -100 ? 'Trend Follow (Short)' : 'Wait / Pullback'
@@ -84,12 +106,24 @@ export function MultiTfScannerMini() {
   return (
     <div className="custom-scrollbar" style={{ height: '100%', padding: '14px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 16, border: `1px solid ${T.border}` }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, padding: '0 2px' }}>
-        <span style={{ fontSize: 11, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol}</span>
-        <span style={{ fontSize: 6.5, background: `${T.purple}15`, border: `0.5px solid ${T.purple}30`, color: T.purple, padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>
-          {loading ? 'جاري المسح...' : 'Live Sync'}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Activity size={12} color={T.purple} className={loading ? 'animate-pulse' : ''} />
+          <span style={{ fontSize: 11, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol}</span>
+          {lastUpdate && (
+            <span style={{ fontSize: 7, color: T.text2, fontFamily: 'monospace' }}>· {lastUpdate}</span>
+          )}
+          <span style={{ fontSize: 7, color: T.text2, fontFamily: 'monospace', background: 'rgba(255,255,255,0.04)', padding: '1px 5px', borderRadius: 3 }}>
+            #{scanCount}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 7, color: T.text2, fontFamily: 'monospace' }}>{countdown}s</span>
+          <span style={{ fontSize: 6.5, background: `${T.purple}15`, border: `0.5px solid ${T.purple}30`, color: T.purple, padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>
+            {loading ? 'جاري المسح...' : 'Live Sync'}
+          </span>
+        </div>
       </div>
-      
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, justifyContent: 'center' }}>
         {data.length === 0 && !loading ? (
            <div style={{ textAlign: 'center', color: T.text2, fontSize: 10 }}>لا تتوفر بيانات للرمز المحدد</div>
@@ -106,6 +140,11 @@ export function MultiTfScannerMini() {
                 <div style={{ height: '100%', width: `${t.strength}%`, background: t.color, boxShadow: `0 0 6px ${t.color}80`, transition: 'width 0.5s ease-out' }} />
               </div>
               <span style={{ fontSize: 9, color: t.color, fontWeight: 800, width: 24, textAlign: 'right', fontFamily: "'JetBrains Mono', monospace" }}>{t.strength}%</span>
+              {t.state && t.state !== '...' && (
+                <span style={{ fontSize: 7, fontWeight: 700, color: t.color, fontFamily: 'monospace', minWidth: 42 }}>
+                  {t.state === 'Bullish' ? '⬆' : t.state === 'Bearish' ? '⬇' : '◆'} {t.state}
+                </span>
+              )}
             </div>
           ))
         )}

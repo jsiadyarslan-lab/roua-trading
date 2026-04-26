@@ -3,15 +3,19 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSymbolStore } from '@/hooks/useSymbolStore';
 import { formatFreshness } from '@/lib/dashboard-live';
+import { RefreshCw, Activity } from 'lucide-react';
 
 export function ScannerMini({ mobile = false, compact = false, selectedSymbol }: { mobile?: boolean; compact?: boolean; selectedSymbol?: string }) {
   const [signals, setSignals] = useState<any[]>([]);
   const [scanning, setScanning] = useState(false);
   const [lastScan, setLastScan] = useState<string | null>(null);
+  const [scanCount, setScanCount] = useState(0);
+  const [countdown, setCountdown] = useState(60);
   const scanningRef = useRef(false);
   const { selectedSymbol: storeSelectedSymbol, setSelectedSymbol } = useSymbolStore();
   const activeSymbol = selectedSymbol || storeSelectedSymbol;
   const spotlight = signals.find(sig => sig.pair === activeSymbol) || signals[0] || null
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const doScan = useCallback(async () => {
     if (scanningRef.current) return;
@@ -31,6 +35,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
 
       if (data?.success && Array.isArray(data.data)) {
         setSignals(data.data);
+        setScanCount(prev => prev + 1);
         setLastScan(
           new Date().toLocaleTimeString('ar-EG', {
             hour: '2-digit',
@@ -53,9 +58,23 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
     void doScan();
     const iv = setInterval(() => {
       void doScan();
-    }, 60000); // Auto scan every minute
+    }, 60000);
     return () => clearInterval(iv);
   }, [doScan, activeSymbol]);
+
+  // Countdown timer
+  useEffect(() => {
+    setCountdown(60)
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) return 60
+        return prev - 1
+      })
+    }, 1000)
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current)
+    }
+  }, [lastScan])
 
   return (
     <div style={{
@@ -71,7 +90,8 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         flexShrink: 0
       }}>
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Activity size={12} color="var(--accent)" className={scanning ? 'animate-pulse' : ''} />
           <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--accent)', fontFamily: "'Cairo', sans-serif" }}>
             📡 سكانر الأسواق
           </span>
@@ -80,19 +100,26 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
               · {lastScan}
             </span>
           )}
+          <span style={{ fontSize: 7, color: 'var(--text3)', fontFamily: 'monospace', background: 'rgba(255,255,255,0.04)', padding: '1px 5px', borderRadius: 3 }}>
+            #{scanCount}
+          </span>
         </div>
-        <button
-          onClick={doScan}
-          disabled={scanning}
-          className="btn-cyan-active"
-          style={{
-            minHeight: 22,
-            fontSize: 6.5, padding: '3px 7px', borderRadius: 4, cursor: scanning ? 'not-allowed' : 'pointer',
-            lineHeight: 1,
-          }}
-        >
-          {scanning ? '⟳ جارٍ...' : 'فحص الآن'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 7, color: 'var(--text3)', fontFamily: 'monospace' }}>{countdown}s</span>
+          <button
+            onClick={doScan}
+            disabled={scanning}
+            className="btn-cyan-active"
+            style={{
+              minHeight: 22,
+              fontSize: 6.5, padding: '3px 7px', borderRadius: 4, cursor: scanning ? 'not-allowed' : 'pointer',
+              lineHeight: 1, display: 'flex', alignItems: 'center', gap: 3,
+            }}
+          >
+            <RefreshCw size={8} className={scanning ? 'animate-spin' : ''} />
+            {scanning ? 'جارٍ...' : 'فحص الآن'}
+          </button>
+        </div>
       </div>}
 
       {/* Results */}
@@ -249,9 +276,9 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                     {sig.pair === selectedSymbol ? 'هذا الأصل يهمك الآن' : 'فرصة مرصودة'}
                   </span>
                   {Array.isArray(sig.reasons) ? sig.reasons.map((reason: string, ri: number) => (
-                    <span key={ri} style={{ 
-                      fontSize: 9, background: 'rgba(255,255,255,0.05)', 
-                      padding: '2px 6px', borderRadius: 4, color: 'var(--text2)' 
+                    <span key={ri} style={{
+                      fontSize: 9, background: 'rgba(255,255,255,0.05)',
+                      padding: '2px 6px', borderRadius: 4, color: 'var(--text2)'
                     }}>{reason}</span>
                   )) : null}
                 </div>

@@ -15,6 +15,12 @@ function directionLabel(dir: 'buy' | 'sell' | 'neutral') {
   return dir === 'buy' ? 'صاعد' : dir === 'sell' ? 'هابط' : 'محايد'
 }
 
+/**
+ * POST /api/ai/consensus
+ *
+ * Hybrid approach: Tries the REAL NestJS AI Council first (6 actual AI models),
+ * falls back to rule-based scanner consensus if NestJS is unavailable.
+ */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
@@ -22,6 +28,46 @@ export async function POST(req: NextRequest) {
     const origin = req.nextUrl.origin
     const startedAt = Date.now()
 
+    // ═══════════════════════════════════════════════════════════
+    // PHASE 1: Try REAL NestJS AI Council (6 actual AI models)
+    // ═══════════════════════════════════════════════════════════
+    try {
+      const nestjsRes = await fetch(`${origin}/api/ai/consensus-nest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol }),
+        signal: AbortSignal.timeout(45000), // 45s timeout for AI calls
+      })
+
+      if (nestjsRes.ok) {
+        const nestjsData = await nestjsRes.json()
+        if (nestjsData.success && nestjsData.data?.analyses?.length > 0) {
+          // Real AI Council succeeded! Add meta info
+          const aiData = nestjsData.data
+          return NextResponse.json({
+            success: true,
+            source: 'real-ai',
+            data: {
+              ...aiData,
+              meta: {
+                ...aiData.meta,
+                symbol,
+                processingTimeMs: Date.now() - startedAt,
+                timestamp: new Date().toISOString(),
+                aiEngine: 'NestJS-6-Models',
+                modelsUsed: aiData.analyses.map((a: any) => a.model).filter(Boolean),
+              },
+            },
+          })
+        }
+      }
+    } catch (aiError: any) {
+      console.warn('[consensus] NestJS AI Council unavailable, using scanner fallback:', aiError?.message || aiError)
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // PHASE 2: Fallback — Rule-based scanner consensus
+    // ═══════════════════════════════════════════════════════════
     const context = await fetchMarketContext(origin, symbol, '1h')
     const scanner = buildScannerResult(context)
     const mtf = await buildMultiTimeframeSnapshot(origin, symbol)
@@ -29,6 +75,7 @@ export async function POST(req: NextRequest) {
     if (!scanner) {
       return NextResponse.json({
         success: true,
+        source: 'fallback',
         degraded: true,
         data: {
           consensusScore: 42,
@@ -54,6 +101,7 @@ export async function POST(req: NextRequest) {
             processingTimeMs: Date.now() - startedAt,
             timeframe: context.timeframe,
             timestamp: new Date().toISOString(),
+            aiEngine: 'Scanner-Rules (NestJS unavailable)',
           },
         },
       })
@@ -167,6 +215,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      source: 'scanner-rules',
       data: {
         consensusScore,
         recommendation,
@@ -182,6 +231,7 @@ export async function POST(req: NextRequest) {
           processingTimeMs: Date.now() - startedAt,
           timeframe: scanner.timeframe,
           timestamp: new Date().toISOString(),
+          aiEngine: 'Scanner-Rules (NestJS AI unavailable)',
         },
       },
     })
@@ -189,6 +239,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: true,
+        source: 'error-fallback',
         degraded: true,
         data: {
           consensusScore: 35,
@@ -214,6 +265,7 @@ export async function POST(req: NextRequest) {
             processingTimeMs: 0,
             timeframe: '1h',
             timestamp: new Date().toISOString(),
+            aiEngine: 'Error-Fallback',
           },
         },
       },

@@ -50,9 +50,41 @@ export function BotEngine() {
     setEngineState(isOn ? 'armed' : 'idle')
     if (isOn) {
       const mode = PAPER_TRADING_MODE ? '[Paper Trading 📄]' : '[Live Trading ⚡]'
-      addLog(`${mode} تم تسليح المحرك — استراتيجية: ${settings.strategy}`, 'info')
+      const aiMode = settings.useAIConsensus ? '[AI Consensus 🧠]' : '[Technical Only 📊]'
+      addLog(`${mode} ${aiMode} تم تسليح المحرك — استراتيجية: ${settings.strategy}`, 'info')
     }
-  }, [isOn, hydrated, settings.strategy, addLog, setEngineState])
+  }, [isOn, hydrated, settings.strategy, settings.useAIConsensus, addLog, setEngineState])
+
+  /**
+   * Consult the REAL NestJS AI Council for a given symbol.
+   * Returns the consensus recommendation or null if unavailable.
+   */
+  const consultAICouncil = async (symbol: string): Promise<{
+    recommendation: 'BUY' | 'SELL' | 'HOLD'
+    consensusScore: number
+    isRealAI: boolean
+  } | null> => {
+    try {
+      const res = await fetch('/api/ai/consensus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol }),
+        signal: AbortSignal.timeout(30000),
+      })
+
+      if (!res.ok) return null
+      const j = await res.json()
+      if (!j.success || !j.data) return null
+
+      return {
+        recommendation: j.data.recommendation,
+        consensusScore: j.data.consensusScore,
+        isRealAI: j.source === 'real-ai',
+      }
+    } catch {
+      return null
+    }
+  }
 
   useEffect(() => {
     if (!hydrated || !isOn) return
@@ -125,8 +157,39 @@ export function BotEngine() {
           if (!isOn) break
           if (!shouldExecuteSignal(signal)) continue
 
+          // ═══════════════════════════════════════════════════
+          // AI CONSENSUS GATE: If enabled, consult AI Council
+          // before executing. Only execute if AI agrees.
+          // ═══════════════════════════════════════════════════
+          if (settings.useAIConsensus) {
+            setEngineState('scanning')
+            addLog(`[AI Council] جاري استشارة النماذج لـ ${signal.pair}...`, 'info')
+
+            const councilResult = await consultAICouncil(signal.pair)
+
+            if (!councilResult) {
+              addLog(`[AI Council] ⚠️ المجلس غير متاح — تخطي ${signal.pair} للسلامة`, 'warn')
+              continue
+            }
+
+            const aiDirection = councilResult.recommendation === 'BUY' ? 'buy' : councilResult.recommendation === 'SELL' ? 'sell' : 'neutral'
+            const aiSource = councilResult.isRealAI ? '🧠 AI حقيقي' : '📊 تحليل فني'
+
+            if (councilResult.recommendation === 'HOLD') {
+              addLog(`[AI Council] ${aiSource} — المجلس يوصي بالانتظار على ${signal.pair} (إجماع ${councilResult.consensusScore}%)`, 'warn')
+              continue
+            }
+
+            if (aiDirection !== signal.dir) {
+              addLog(`[AI Council] ${aiSource} — تعارض: السكانر=${signal.dir} لكن المجلس=${councilResult.recommendation} — تخطي ${signal.pair}`, 'warn')
+              continue
+            }
+
+            addLog(`[AI Council] ${aiSource} — ✅ المجلس يؤكد ${councilResult.recommendation} على ${signal.pair} (إجماع ${councilResult.consensusScore}%)`, 'buy')
+          }
+
           setEngineState('entering')
-          executeTrade(signal)
+          executeTrade(signal, settings.useAIConsensus ? 'ai-consensus' : 'scanner')
           executionTimestampsRef.current.push(Date.now())
           lastExecutionRef.current[`${signal.pair}:${signal.dir}`] = Date.now()
           executedCount += 1
@@ -135,10 +198,10 @@ export function BotEngine() {
         }
 
         if (executedCount === 0) {
-          addLog(`[تحليل] لا توجد فرص منسجمة مع سياسة البوت الآن (${new Date().toLocaleTimeString('ar-SA')})`, 'info')
+          addLog(`[تحليل] لا توجد فرص منسجمة مع ${settings.useAIConsensus ? 'إجماع AI و' : ''}سياسة البوت الآن (${new Date().toLocaleTimeString('ar-SA')})`, 'info')
           setEngineState('armed')
         } else {
-          addLog(`[تنفيذ آلي] تم فتح ${executedCount} صفقة من محرك السكانر`, 'buy')
+          addLog(`[تنفيذ آلي] تم فتح ${executedCount} صفقة من محرك ${settings.useAIConsensus ? 'AI + السكانر' : 'السكانر'}`, 'buy')
           setEngineState('cooldown')
           window.setTimeout(() => {
             if (useBotStore.getState().isOn) setEngineState('armed')
@@ -156,7 +219,7 @@ export function BotEngine() {
     scanAndExecute()
     const interval = setInterval(scanAndExecute, 30000)
     return () => clearInterval(interval)
-  }, [hydrated, isOn, settings.confLimit, settings.riskPct, settings.strategy, addLog, addNotification, addPaperTrade, updatePaperTradePrice, removePaperTrade, patchStats, setEngineState])
+  }, [hydrated, isOn, settings.confLimit, settings.riskPct, settings.strategy, settings.useAIConsensus, addLog, addNotification, addPaperTrade, updatePaperTradePrice, removePaperTrade, patchStats, setEngineState])
 
   const shouldExecuteSignal = (signal: SmartSignalLike) => {
     const confidence = Number(signal.strength || 0)
@@ -177,7 +240,7 @@ export function BotEngine() {
     )
   }
 
-  const executeTrade = (signal: SmartSignalLike) => {
+  const executeTrade = (signal: SmartSignalLike, strategySource: string = 'scanner') => {
     const price = Number(signal.price || 0)
     const confidence = Number(signal.strength || 0)
     const tradeAmount = Math.max(10, settings.riskPct * 50)
@@ -207,7 +270,7 @@ export function BotEngine() {
       })
 
       addLog(
-        `[دخول] ${isBuy ? 'شراء' : 'بيع'} ${signal.pair} @ $${price.toFixed(2)} | ثقة ${confidence}% | ${signal.reasons?.[0] || 'إشارة موحدة'}`,
+        `[دخول] ${isBuy ? 'شراء' : 'بيع'} ${signal.pair} @ $${price.toFixed(2)} | ثقة ${confidence}% | ${strategySource === 'ai-consensus' ? '🧠 AI إجماع' : '📊 فني'} | ${signal.reasons?.[0] || 'إشارة موحدة'}`,
         isBuy ? 'buy' : 'sell'
       )
 
@@ -216,7 +279,7 @@ export function BotEngine() {
         priority: confidence >= 80 ? 'high' : 'medium',
         action: isBuy ? 'BUY' : 'SELL',
         title: `البوت فتح مركز ${isBuy ? 'شراء' : 'بيع'} على ${signal.pair}`,
-        body: `${signal.reasons?.[0] || 'إشارة scanner-engine'} · ثقة ${confidence}%`,
+        body: `${strategySource === 'ai-consensus' ? '🧠 إجماع AI' : '📊 فني'} · ${signal.reasons?.[0] || 'إشارة scanner-engine'} · ثقة ${confidence}%`,
         pair: signal.pair,
         price,
         confidence,

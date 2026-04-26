@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { Brain, Shield, Zap, TrendingUp, TrendingDown, Minus, Info, RefreshCw, Layers, AlertCircle } from 'lucide-react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Brain, Shield, Zap, TrendingUp, TrendingDown, Minus, Info, RefreshCw, Layers, AlertCircle, Cpu, Wifi, WifiOff } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 
 const T = {
@@ -12,6 +12,7 @@ const T = {
   amber: '#FFB800',
   text: '#E6EBF5',
   text2: '#8090A8',
+  purple: '#B388FF',
 }
 
 interface Analysis {
@@ -28,7 +29,7 @@ interface ConsensusData {
   analyses: Analysis[]
   masterStrategy: string
   conflictExplanation?: string
-  meta?: { symbol: string; price: number; rsi: number; processingTimeMs: number; source?: string; freshness?: string }
+  meta?: { symbol: string; price: number; rsi: number; processingTimeMs: number; source?: string; freshness?: string; aiEngine?: string; modelsUsed?: string[]; timestamp?: string }
 }
 
 export function AICouncilPanel() {
@@ -37,17 +38,21 @@ export function AICouncilPanel() {
   const [data, setData] = useState<ConsensusData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<string | null>(null)
+  const [dataSource, setDataSource] = useState<'real-ai' | 'scanner-rules' | 'fallback' | 'unknown'>('unknown')
+  const [countdown, setCountdown] = useState(180)
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const fetchConsensus = useCallback(async () => {
     setLoading(true)
     setError(null)
+    setCountdown(180)
     try {
       const res = await fetch('/api/ai/consensus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol: selectedSymbol }),
       })
-      
+
       if (!res.ok) {
         const text = await res.text()
         throw new Error(`خطأ ${res.status}: ${text.slice(0, 100)}`)
@@ -56,6 +61,7 @@ export function AICouncilPanel() {
       const j = await res.json()
       if (j.success) {
         setData(j.data)
+        setDataSource(j.source || 'unknown')
         setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
       } else {
         throw new Error(j.error || 'فشل في الحصول على الإجماع')
@@ -69,43 +75,88 @@ export function AICouncilPanel() {
 
   useEffect(() => {
     fetchConsensus()
-    
-    // Auto-refresh every 3 minutes to keep the council "alive"
+
+    // Auto-refresh every 3 minutes
     const interval = setInterval(fetchConsensus, 180000)
     return () => clearInterval(interval)
   }, [fetchConsensus])
+
+  // Countdown timer — makes the panel feel alive
+  useEffect(() => {
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) return 180
+        return prev - 1
+      })
+    }, 1000)
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current)
+    }
+  }, [])
+
+  // Reset countdown on fetch
+  useEffect(() => {
+    setCountdown(180)
+  }, [loading])
 
   // Auto-fetch when symbol changes
   useEffect(() => {
     fetchConsensus()
   }, [selectedSymbol, fetchConsensus])
 
+  const isRealAI = dataSource === 'real-ai'
   const recColor = data?.recommendation === 'BUY' ? T.green : data?.recommendation === 'SELL' ? T.red : T.amber
+  const formatCountdown = `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', fontFamily: "'Cairo', sans-serif", direction: 'rtl', border: '1px solid rgba(0,229,255,0.08)', borderRadius: 16 }}>
+    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', fontFamily: "'Cairo', sans-serif", direction: 'rtl', border: `1px solid ${isRealAI ? 'rgba(0,229,255,0.15)' : 'rgba(0,229,255,0.08)'}`, borderRadius: 16 }}>
       {/* Header */}
-      <div className="p-3 border-b border-white/5 flex items-center justify-between" style={{ background: 'linear-gradient(90deg, rgba(0,229,255,0.12), transparent)' }}>
+      <div className="p-3 border-b border-white/5 flex items-center justify-between" style={{ background: isRealAI ? 'linear-gradient(90deg, rgba(0,229,255,0.18), rgba(179,136,255,0.08), transparent)' : 'linear-gradient(90deg, rgba(0,229,255,0.12), transparent)' }}>
         <div className="flex items-center gap-2">
           <div className="relative">
-            <Brain size={16} color={T.accent} />
-            {!loading && data && <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full" />}
+            <Brain size={16} color={isRealAI ? T.purple : T.accent} />
+            {!loading && data && (
+              <div className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${isRealAI ? 'bg-purple-500' : 'bg-green-500'} animate-ping`} />
+            )}
           </div>
           <div>
             <h3 className="text-[11px] font-bold text-white">مجلس الذكاء الاصطناعي</h3>
-            <p className="text-[8px] font-mono" style={{ color: T.accent + '80' }}>
-              {data?.meta ? `${data.meta.symbol} • RSI: ${data.meta.rsi} • ${data.meta.processingTimeMs}ms` : `AI COUNCIL CONSENSUS ${lastUpdate ? `· ${lastUpdate}` : ''}`}
+            <p className="text-[8px] font-mono" style={{ color: isRealAI ? T.purple + 'cc' : T.accent + '80' }}>
+              {data?.meta ? (
+                <>
+                  {data.meta.symbol} • RSI: {data.meta.rsi} • {data.meta.processingTimeMs}ms
+                  {isRealAI && ' • 🧠 AI حقيقي'}
+                </>
+              ) : `AI COUNCIL CONSENSUS ${lastUpdate ? `· ${lastUpdate}` : ''}`}
             </p>
           </div>
         </div>
-        <button
-          onClick={fetchConsensus}
-          disabled={loading}
-          className="p-1.5 rounded-md transition-colors hover:bg-white/5"
-          title="تحديث التحليل"
-        >
-          <RefreshCw size={12} className={loading ? 'animate-spin' : ''} color={T.text2} />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Data Source Badge */}
+          <div className="flex items-center gap-1" style={{
+            padding: '2px 6px',
+            borderRadius: 4,
+            background: isRealAI ? 'rgba(179,136,255,0.15)' : 'rgba(255,184,0,0.12)',
+            border: `1px solid ${isRealAI ? 'rgba(179,136,255,0.3)' : 'rgba(255,184,0,0.2)'}`,
+          }}>
+            {isRealAI ? <Cpu size={8} color={T.purple} /> : <WifiOff size={8} color={T.amber} />}
+            <span style={{ fontSize: 7, fontWeight: 700, color: isRealAI ? T.purple : T.amber, fontFamily: 'monospace' }}>
+              {isRealAI ? '6 AI Models' : dataSource === 'scanner-rules' ? 'Rules' : 'FB'}
+            </span>
+          </div>
+          {/* Countdown */}
+          <span style={{ fontSize: 7, color: T.text2, fontFamily: 'monospace', minWidth: 24, textAlign: 'center' }}>
+            {formatCountdown}
+          </span>
+          <button
+            onClick={fetchConsensus}
+            disabled={loading}
+            className="p-1.5 rounded-md transition-colors hover:bg-white/5"
+            title="تحديث التحليل"
+          >
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} color={T.text2} />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-2.5 space-y-3">
@@ -116,9 +167,14 @@ export function AICouncilPanel() {
               <Layers size={28} color={T.accent + '40'} />
               <div className="absolute inset-0 animate-ping" style={{ background: T.accent + '10', borderRadius: '50%' }} />
             </div>
-            <span className="text-[10px] animate-pulse" style={{ color: T.accent + '80' }}>
-              جاري استشارة النماذج الستة...
+            <span className="text-[10px] animate-pulse" style={{ color: isRealAI ? T.purple + '80' : T.accent + '80' }}>
+              {isRealAI ? 'جاري استشارة النماذج الستة عبر AI...' : 'جاري بناء تحليل المجلس...'}
             </span>
+            <div className="flex gap-1 mt-1">
+              {['Gemini', 'Groq', 'GLM-4', 'HF', 'Ollama', 'Bedrock'].map((m, i) => (
+                <div key={i} className="animate-pulse" style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(179,136,255,0.15)', color: T.purple, fontFamily: 'monospace' }}>{m}</div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -137,11 +193,34 @@ export function AICouncilPanel() {
         {/* Data State */}
         {!loading && data && (
           <>
+            {/* Data Source Indicator */}
+            {!isRealAI && (
+              <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(255,184,0,0.06)', border: '1px solid rgba(255,184,0,0.12)' }}>
+                <Wifi size={10} color={T.amber} />
+                <span className="text-[8px]" style={{ color: T.amber }}>
+                  {dataSource === 'scanner-rules'
+                    ? 'خادم AI غير متصل — يُستخدم التحليل الفني كبديل'
+                    : 'بيانات محدودة — وضع الانتظار الوقائي'}
+                </span>
+              </div>
+            )}
+
+            {isRealAI && (
+              <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(179,136,255,0.06)', border: '1px solid rgba(179,136,255,0.15)' }}>
+                <Cpu size={10} color={T.purple} />
+                <span className="text-[8px]" style={{ color: T.purple }}>
+                  تحليل AI حقيقي من {data.meta?.modelsUsed?.length || 6} نماذج — {data.meta?.processingTimeMs || 0}ms
+                </span>
+              </div>
+            )}
+
             {/* Consensus Gauge */}
             <div className="relative p-3 rounded-xl text-center" style={{ background: '#0d0f12', border: `1px solid ${recColor}20` }}>
               <div className="absolute top-2 left-2 flex items-center gap-1">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" />
-                <span className="text-[7px] text-green-500/80 font-bold font-mono">LIVE</span>
+                <div className={`w-1.5 h-1.5 rounded-full ${isRealAI ? 'bg-purple-500' : 'bg-green-500'} animate-ping`} />
+                <span className={`text-[7px] ${isRealAI ? 'text-purple-500' : 'text-green-500'}/80 font-bold font-mono`}>
+                  {isRealAI ? 'AI LIVE' : 'LIVE'}
+                </span>
               </div>
 
               <div className="text-[9px] mb-1 uppercase tracking-widest" style={{ color: T.text2 }}>درجة الإجماع</div>
@@ -166,10 +245,10 @@ export function AICouncilPanel() {
             </div>
 
             {/* Master Strategy */}
-            <div className="card" style={{ padding: '10px 11px', border: `1px solid ${T.accent}15` }}>
+            <div className="card" style={{ padding: '10px 11px', border: `1px solid ${isRealAI ? T.purple + '20' : T.accent + '15'}` }}>
               <div className="flex items-center gap-1.5 mb-1.5">
-                <Zap size={9} color={T.accent} />
-                <span className="text-[9px] font-bold" style={{ color: T.accent }}>الاستراتيجية الموحدة</span>
+                <Zap size={9} color={isRealAI ? T.purple : T.accent} />
+                <span className="text-[9px] font-bold" style={{ color: isRealAI ? T.purple : T.accent }}>الاستراتيجية الموحدة</span>
               </div>
               <p className="text-[10px] leading-5" style={{ color: T.text + 'cc' }}>
                 {data.masterStrategy}
@@ -193,11 +272,16 @@ export function AICouncilPanel() {
               <div className="text-[8px] font-bold px-1 uppercase tracking-widest" style={{ color: T.text2 }}>توزيع أصوات المجلس</div>
               {data.analyses.map((a, i) => {
                 const voteColor = a.vote === 'BUY' ? T.green : a.vote === 'SELL' ? T.red : T.amber
+                const isAIModel = isRealAI && !a.model.includes('Scanner') && !a.model.includes('Risk/') && !a.model.includes('MTF/') && !a.model.includes('Execution/')
                 return (
                   <div
                     key={i}
                     className="card transition-colors group"
-                    style={{ padding: '10px 11px', border: '1px solid rgba(255,255,255,0.05)' }}
+                    style={{
+                      padding: '10px 11px',
+                      border: `1px solid ${isAIModel ? 'rgba(179,136,255,0.15)' : 'rgba(255,255,255,0.05)'}`,
+                      background: isAIModel ? 'rgba(179,136,255,0.03)' : undefined,
+                    }}
                   >
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-1.5">
@@ -209,6 +293,9 @@ export function AICouncilPanel() {
                             : <Minus size={9} color={voteColor} />}
                         </div>
                         <span className="text-[10px] font-bold text-white/90">{a.role}</span>
+                        {isAIModel && (
+                          <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(179,136,255,0.15)', color: T.purple, fontFamily: 'monospace', fontWeight: 700 }}>AI</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-[8px] font-bold px-1.5 py-px rounded" style={{ background: `${voteColor}15`, color: voteColor }}>
@@ -226,6 +313,10 @@ export function AICouncilPanel() {
                     <p className="text-[8px] leading-relaxed" style={{ color: T.text2 }}>
                       {a.reason}
                     </p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <Cpu size={6} color={T.text2} style={{ opacity: 0.5 }} />
+                      <span style={{ fontSize: 6, color: T.text2, opacity: 0.6, fontFamily: 'monospace' }}>{a.model}</span>
+                    </div>
                   </div>
                 )
               })}
@@ -238,11 +329,11 @@ export function AICouncilPanel() {
       <div className="p-2 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255,255,255,0.04)', background: '#080a0c' }}>
         <div className="flex items-center gap-1" style={{ opacity: 0.4 }}>
           <Shield size={9} />
-          <span className="text-[7px] font-bold uppercase">Quantum AI Engine</span>
+          <span className="text-[7px] font-bold uppercase">{isRealAI ? 'Real AI Engine' : 'Quantum AI Engine'}</span>
         </div>
         <div className="flex items-center gap-1" style={{ opacity: 0.4 }}>
           <Info size={9} />
-          <span className="text-[7px] font-bold">Council v3.0 — 6 Roles</span>
+          <span className="text-[7px] font-bold">Council v3.0 — {isRealAI ? '6 AI Models' : '6 Roles'}</span>
         </div>
       </div>
     </div>

@@ -61,8 +61,20 @@ export class AllExceptionsFilter implements ExceptionFilter {
         message.includes('prisma') ||
         message.includes('database')
       ) {
-        status = HttpStatus.SERVICE_UNAVAILABLE;
-        message = 'خطأ في قاعدة البيانات — يرجى المحاولة لاحقاً';
+        // Distinguish schema mismatch from connection errors
+        if (
+          message.includes('does not exist') ||
+          message.includes('column') ||
+          message.includes('schema') ||
+          message.includes('relation') ||
+          message.includes('Invalid')
+        ) {
+          status = HttpStatus.SERVICE_UNAVAILABLE;
+          message = 'خطأ في هيكل قاعدة البيانات — يتم إصلاحه تلقائياً عند إعادة النشر';
+        } else {
+          status = HttpStatus.SERVICE_UNAVAILABLE;
+          message = 'خطأ في قاعدة البيانات — يرجى المحاولة لاحقاً';
+        }
       } else if (
         message.includes('Redis') ||
         message.includes('redis') ||

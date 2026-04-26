@@ -175,6 +175,91 @@ EOSQL
   bunx prisma db execute --schema=./prisma/schema.prisma --file /tmp/ensure_tables.sql 2>&1 && echo "📦 Safety-net SQL executed successfully" || echo "⚠️ Safety-net SQL had issues (non-fatal — tables may already exist with different schema)"
 
   rm -f /tmp/ensure_tables.sql
+
+  # ── Step 3b: ALTER existing tables to add missing columns ──
+  # CREATE TABLE IF NOT EXISTS does NOT add new columns to tables that already exist.
+  # When Prisma generates queries referencing columns that don't exist in the DB yet,
+  # it throws a schema mismatch error that bubbles up as a 503.
+  # These ALTER TABLE statements are idempotent (IF NOT EXISTS) so they are safe to run every deploy.
+  echo "📦 Adding missing columns to existing tables..."
+  cat > /tmp/alter_tables.sql <<'EOSQL'
+    -- ── Position table: add credentialId ──
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Position' AND column_name = 'credentialId'
+      ) THEN
+        ALTER TABLE "Position" ADD COLUMN "credentialId" TEXT NOT NULL DEFAULT 'unknown';
+      END IF;
+    END $$;
+
+    -- ── Trade table: add positionId and exchangeTradeId ──
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Trade' AND column_name = 'positionId'
+      ) THEN
+        ALTER TABLE "Trade" ADD COLUMN "positionId" TEXT;
+      END IF;
+    END $$;
+
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Trade' AND column_name = 'exchangeTradeId'
+      ) THEN
+        ALTER TABLE "Trade" ADD COLUMN "exchangeTradeId" TEXT;
+      END IF;
+    END $$;
+
+    -- ── Order table: add idempotencyKey, clientOrderId, averagePrice ──
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Order' AND column_name = 'idempotencyKey'
+      ) THEN
+        ALTER TABLE "Order" ADD COLUMN "idempotencyKey" TEXT NOT NULL DEFAULT 'legacy-' || gen_random_uuid();
+      END IF;
+    END $$;
+
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Order' AND column_name = 'clientOrderId'
+      ) THEN
+        ALTER TABLE "Order" ADD COLUMN "clientOrderId" TEXT;
+      END IF;
+    END $$;
+
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Order' AND column_name = 'averagePrice'
+      ) THEN
+        ALTER TABLE "Order" ADD COLUMN "averagePrice" DECIMAL(65,30);
+      END IF;
+    END $$;
+
+    -- ── PaperOrder table: add slippage ──
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'PaperOrder' AND column_name = 'slippage'
+      ) THEN
+        ALTER TABLE "PaperOrder" ADD COLUMN "slippage" DECIMAL(65,30);
+      END IF;
+    END $$;
+
+    -- ── Missing indexes ──
+    CREATE INDEX IF NOT EXISTS "Position_credentialId_idx" ON "Position"("credentialId");
+    CREATE INDEX IF NOT EXISTS "Trade_positionId_idx" ON "Trade"("positionId");
+    CREATE UNIQUE INDEX IF NOT EXISTS "Order_idempotencyKey_key" ON "Order"("idempotencyKey");
+EOSQL
+
+  echo "📦 Executing ALTER TABLE SQL via prisma db execute..."
+  bunx prisma db execute --schema=./prisma/schema.prisma --file /tmp/alter_tables.sql 2>&1 && echo "📦 ALTER TABLE SQL executed successfully" || echo "⚠️ ALTER TABLE SQL had issues (non-fatal — columns may already exist)"
+
+  rm -f /tmp/alter_tables.sql
 else
   echo "⚠️ No DATABASE_URL — skipping table verification"
 fi

@@ -2,6 +2,18 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 
+export interface SmartScore {
+  trendScore: number
+  momentumScore: number
+  volatilityScore: number
+  volumeScore: number
+  compositeScore: number
+  signalType: 'STRONG_TREND' | 'REVERSAL' | 'BREAKOUT' | 'CONSOLIDATION' | 'DIVERGENCE'
+  confidence: number
+  action: 'STRONG_BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG_SELL'
+  tradeTimeframe: 'SCALP' | 'DAY' | 'SWING' | 'POSITION'
+}
+
 export interface ScannerItem {
   symbol: string; name: string; category: string
   price: number; change: number; changePercent: number
@@ -10,6 +22,7 @@ export interface ScannerItem {
   bollingerPosition: string | null; stochK: number | null; stochD: number | null
   adx: number | null; atr: number | null; atrVolatility: string | null
   direction: string; signalClass: string; technicalScore: number; confidence: number
+  smartScore: SmartScore | null
   sparkline: number[]; reasons: string[]; reasonsAr: string[]
   marketOpen: boolean; source: string; timestamp: string
 }

@@ -51,16 +51,36 @@ function TinyBar({ value, maxVal, color }: { value: number; maxVal: number; colo
   )
 }
 
+function ActionBadge({ action }: { action: string }) {
+  const map: Record<string, { bg: string; color: string; label: string }> = {
+    'STRONG_BUY': { bg: `${T.green}15`, color: T.green, label: 'شراء قوي' },
+    'BUY': { bg: `${T.green}10`, color: T.greenDim, label: 'شراء' },
+    'HOLD': { bg: `${T.amber}10`, color: T.amber, label: 'انتظار' },
+    'SELL': { bg: `${T.red}10`, color: T.redDim, label: 'بيع' },
+    'STRONG_SELL': { bg: `${T.red}15`, color: T.red, label: 'بيع قوي' },
+  }
+  const cfg = map[action] ?? map['HOLD']
+  return (
+    <span style={{
+      fontSize: 8, fontWeight: 800, padding: '2px 6px', borderRadius: 3,
+      background: cfg.bg, color: cfg.color, fontFamily: "'Cairo', sans-serif",
+    }}>
+      {cfg.label}
+    </span>
+  )
+}
+
 function ScannerTableRowInner({ item, index, isSelected, onSelect }: ScannerTableRowProps) {
   const [hovered, setHovered] = useState(false)
   const dimmed = !item.marketOpen
   const chgColor = item.changePercent >= 0 ? T.green : T.red
+  const ss = item.smartScore
 
   const scores = [
-    { v: item.technicalScore, max: 100, c: item.technicalScore >= 50 ? T.green : T.amber },
-    { v: item.confidence, max: 100, c: T.cyan },
-    { v: item.rsi ?? 0, max: 100, c: T.blue },
-    { v: item.adx ?? 0, max: 100, c: T.purple },
+    { v: ss?.trendScore ?? Math.abs(item.technicalScore), max: 100, c: (ss?.trendScore ?? Math.abs(item.technicalScore)) >= 50 ? T.green : T.amber },
+    { v: ss?.momentumScore ?? item.confidence, max: 100, c: T.cyan },
+    { v: ss?.volumeScore ?? (item.rsi ?? 0), max: 100, c: T.blue },
+    { v: ss?.volatilityScore ?? (item.adx ?? 0), max: 100, c: T.purple },
   ]
 
   return (
@@ -155,31 +175,34 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect }: ScannerTabl
         />
       </td>
 
-      {/* Actions */}
+      {/* SmartScore Action + Actions */}
       <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}` }}>
-        <div style={{ display: 'flex', gap: 4 }}>
-          <button
-            onClick={e => { e.stopPropagation(); onSelect(item.symbol) }}
-            title="تحليل عميق"
-            style={{
-              padding: 4, borderRadius: 4, border: `0.5px solid ${T.border}`,
-              background: T.surface, color: T.text3, cursor: 'pointer', transition: 'all 0.2s',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <Eye size={12} />
-          </button>
-          <button
-            onClick={e => { e.stopPropagation() }}
-            title="متعدد الأطر"
-            style={{
-              padding: 4, borderRadius: 4, border: `0.5px solid ${T.border}`,
-              background: T.surface, color: T.text3, cursor: 'pointer', transition: 'all 0.2s',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <Layers size={12} />
-          </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'center' }}>
+          {ss && <ActionBadge action={ss.action} />}
+          <div style={{ display: 'flex', gap: 3 }}>
+            <button
+              onClick={e => { e.stopPropagation(); onSelect(item.symbol) }}
+              title="تحليل عميق"
+              style={{
+                padding: 3, borderRadius: 3, border: `0.5px solid ${T.border}`,
+                background: T.surface, color: T.text3, cursor: 'pointer', transition: 'all 0.2s',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Eye size={11} />
+            </button>
+            <button
+              onClick={e => { e.stopPropagation() }}
+              title="متعدد الأطر"
+              style={{
+                padding: 3, borderRadius: 3, border: `0.5px solid ${T.border}`,
+                background: T.surface, color: T.text3, cursor: 'pointer', transition: 'all 0.2s',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Layers size={11} />
+            </button>
+          </div>
         </div>
       </td>
     </tr>

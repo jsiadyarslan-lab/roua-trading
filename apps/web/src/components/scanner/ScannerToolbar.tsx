@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, Clock, Filter } from 'lucide-react'
 import { useScannerContext } from './ScannerProvider'
 import type { CategoryFilter, DirectionFilter, SignalFilter } from './hooks/useScannerFilters'
@@ -53,6 +54,22 @@ export function ScannerToolbar() {
   const ctx = useScannerContext()
   const count = ctx.filteredData.length
   const tfLabel = TIMEFRAMES.find(t => t.key === ctx.timeframe)?.label || ctx.timeframe
+
+  // Debounced search
+  const [localSearch, setLocalSearch] = useState(ctx.search)
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
+
+  const handleSearchChange = useCallback((value: string) => {
+    setLocalSearch(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      ctx.setSearch(value)
+    }, 300)
+  }, [ctx.setSearch])
+
+  useEffect(() => {
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [])
 
   return (
     <div style={{
@@ -142,8 +159,8 @@ export function ScannerToolbar() {
         }}>
           <Search size={13} color={T.text3} style={{ position: 'absolute', right: 8 }} />
           <input
-            type="text" placeholder="بحث..." value={ctx.search}
-            onChange={e => ctx.setSearch(e.target.value)}
+            type="text" placeholder="بحث..." value={localSearch}
+            onChange={e => handleSearchChange(e.target.value)}
             style={{
               padding: '4px 28px 4px 10px', borderRadius: 6, fontSize: 10,
               fontFamily: "'Cairo', sans-serif", background: T.surface, color: T.text,

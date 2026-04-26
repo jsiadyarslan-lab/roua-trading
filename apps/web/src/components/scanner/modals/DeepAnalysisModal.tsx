@@ -19,15 +19,21 @@ const T = {
 interface DeepData {
   symbol: string; name: string; category: string; price: number; changePercent: number
   direction: string; signalClass: string; confidence: number; marketOpen: boolean
-  smartScore: { trendScore: number; momentumScore: number; volatilityScore: number; volumeScore: number; compositeScore: number } | null
+  smartScore: { trendScore: number; momentumScore: number; volatilityScore: number; volumeScore: number; compositeScore: number; signalType: string; action: string; tradeTimeframe: string } | null
   indicators: Record<string, any>
+  ichimoku: { tenkanSen: number; kijunSen: number; senkouSpanA: number; senkouSpanB: number; cloudColor: string; priceVsCloud: string; tkCross: string } | null
+  cci: { value: number; interpretation: string } | null
+  sar: { value: number; trend: string; accelerationFactor: number } | null
+  obv: { trend: string; divergence: string } | null
+  vwap: { value: number; position: string } | null
+  fibonacci: { level: number; label: string; labelAr: string; price: number }[]
   support: { price: number; strength: string }[]
   resistance: { price: number; strength: string }[]
-  fibonacci: { level: string; label: string; price: number }[]
-  patterns: { name: string; nameAr: string; type: string; confidence: number; description: string }[]
-  candlePatterns: string[]
+  patterns: { name: string; nameAr: string; type: string; confidence: number; description: string; descriptionAr: string }[]
+  candlePatterns: { name: string; nameAr: string; type: string; confidence: number; description: string; descriptionAr: string }[]
   aiAnalysis: { model: string; sentiment: string; riskLevel: string; analysisAr: string }
-  signal: { direction: string; entry: number; tp: number; sl: number; reasons: string[]; timeframe: string }
+  signal: { direction: string; entry: number; tp: number; sl: number; reasons: string[]; reasonsAr: string[]; timeframe: string }
+  volumeProfile: { poc: number; valueAreaHigh: number; valueAreaLow: number } | null
 }
 
 function IndCard({ label, value, interp, color, bar }: { label: string; value: string; interp?: string; color: string; bar?: number }) {
@@ -153,9 +159,40 @@ export function DeepAnalysisModal() {
                 <IndCard label="Stochastic" value={item?.stochK != null ? `${item.stochK.toFixed(0)}/${item.stochD?.toFixed(0)}` : '—'} color={T.amber} bar={item?.stochK ?? 0} />
                 <IndCard label="ADX" value={item?.adx?.toFixed(1) ?? '—'} interp={(item?.adx ?? 0) > 25 ? 'اتجاه قوي' : 'اتجاه ضعيف'} color={(item?.adx ?? 0) > 25 ? T.green : T.text3} bar={item?.adx ?? 0} />
                 <IndCard label="ATR" value={item?.atr?.toFixed(2) ?? '—'} interp={item?.atrVolatility ?? ''} color={T.purple} />
-                <IndCard label="CCI" value="—" color={T.text3} />
-                <IndCard label="VWAP" value="—" color={T.blue} />
+                {/* New Advanced Indicators */}
+                <IndCard label="CCI" value={data?.cci?.value?.toFixed(1) ?? '—'} interp={data?.cci?.interpretation === 'OVERBOUGHT' ? 'تشبع شرائي' : data?.cci?.interpretation === 'OVERSOLD' ? 'تشبع بيعي' : 'محايد'} color={data?.cci?.interpretation === 'OVERBOUGHT' ? T.purple : data?.cci?.interpretation === 'OVERSOLD' ? T.cyan : T.text3} bar={data?.cci ? Math.min(Math.abs(data.cci.value), 200) / 2 : 0} />
+                <IndCard label="VWAP" value={data?.vwap?.value?.toFixed(2) ?? '—'} interp={data?.vwap?.position === 'ABOVE' ? 'فوق VWAP' : data?.vwap?.position === 'BELOW' ? 'تحت VWAP' : 'عند VWAP'} color={data?.vwap?.position === 'ABOVE' ? T.green : data?.vwap?.position === 'BELOW' ? T.red : T.text3} />
               </div>
+
+              {/* Ichimoku Cloud Section */}
+              {data?.ichimoku && (
+                <>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>سحابة إتشيموكو</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 14 }}>
+                    <IndCard label="Tenkan" value={data.ichimoku.tenkanSen.toFixed(2)} color={T.cyan} />
+                    <IndCard label="Kijun" value={data.ichimoku.kijunSen.toFixed(2)} color={T.amber} />
+                    <IndCard label="TK Cross" value={data.ichimoku.tkCross === 'BULLISH' ? 'صعودي' : data.ichimoku.tkCross === 'BEARISH' ? 'هبوطي' : 'محايد'} color={data.ichimoku.tkCross === 'BULLISH' ? T.green : data.ichimoku.tkCross === 'BEARISH' ? T.red : T.text3} />
+                    <IndCard label="Cloud" value={data.ichimoku.cloudColor === 'BULLISH' ? 'صاعدة' : data.ichimoku.cloudColor === 'BEARISH' ? 'هابطة' : 'محايدة'} color={data.ichimoku.cloudColor === 'BULLISH' ? T.green : data.ichimoku.cloudColor === 'BEARISH' ? T.red : T.amber} />
+                    <IndCard label="Price vs Cloud" value={data.ichimoku.priceVsCloud === 'ABOVE' ? 'فوق' : data.ichimoku.priceVsCloud === 'BELOW' ? 'تحت' : 'داخل'} color={data.ichimoku.priceVsCloud === 'ABOVE' ? T.green : data.ichimoku.priceVsCloud === 'BELOW' ? T.red : T.amber} />
+                    <IndCard label="SAR" value={data.sar?.value?.toFixed(2) ?? '—'} interp={data.sar?.trend === 'RISING' ? 'صعودي' : 'هبوطي'} color={data.sar?.trend === 'RISING' ? T.green : T.red} />
+                  </div>
+                </>
+              )}
+
+              {/* OBV & Volume Profile */}
+              {(data?.obv || data?.volumeProfile) && (
+                <>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>تحليل الحجم</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 14 }}>
+                    {data.obv && (
+                      <IndCard label="OBV" value={data.obv.trend === 'RISING' ? 'صاعد' : data.obv.trend === 'FALLING' ? 'هابط' : 'ثابت'} interp={data.obv.divergence === 'BULLISH_DIVERGENCE' ? 'تباعد صعودي' : data.obv.divergence === 'BEARISH_DIVERGENCE' ? 'تباعد هبوطي' : 'لا تباعد'} color={data.obv.trend === 'RISING' ? T.green : data.obv.trend === 'FALLING' ? T.red : T.text3} />
+                    )}
+                    {data.volumeProfile && (
+                      <IndCard label="Volume Profile" value={`POC: ${data.volumeProfile.poc.toFixed(2)}`} interp={`VA: ${data.volumeProfile.valueAreaLow.toFixed(2)} - ${data.volumeProfile.valueAreaHigh.toFixed(2)}`} color={T.blue} />
+                    )}
+                  </div>
+                </>
+              )}
 
               {/* Support / Resistance */}
               <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>مستويات الدعم والمقاومة</div>
@@ -193,8 +230,22 @@ export function DeepAnalysisModal() {
               {data?.candlePatterns?.length ? (
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>أنماط الشموع</div>
-                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                    {data.candlePatterns.map((cp, i) => <IndicatorBadge key={i} label="" value={cp} status="neutral" />)}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {data.candlePatterns.map((cp, i) => {
+                      const cpColor = cp.type === 'BULLISH' ? T.green : cp.type === 'BEARISH' ? T.red : T.amber
+                      return (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 6, background: T.bg, border: `0.5px solid ${T.border}` }}>
+                          <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{cp.nameAr}</span>
+                          <span style={{ fontSize: 7, padding: '1px 5px', borderRadius: 3, background: `${cpColor}15`, color: cpColor, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+                            {cp.type === 'BULLISH' ? 'صعودي' : cp.type === 'BEARISH' ? 'هبوطي' : 'محايد'}
+                          </span>
+                          <div style={{ flex: 1, height: 3, borderRadius: 2, background: T.surface, overflow: 'hidden' }}>
+                            <div style={{ width: `${cp.confidence}%`, height: '100%', borderRadius: 2, background: cpColor }} />
+                          </div>
+                          <span style={{ fontSize: 7, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{cp.descriptionAr || cp.description}</span>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               ) : null}

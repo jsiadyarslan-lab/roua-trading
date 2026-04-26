@@ -131,7 +131,7 @@ export function BotEngine() {
             ? typeof trade.tp === 'number' && latestPrice >= trade.tp
             : typeof trade.tp === 'number' && latestPrice <= trade.tp
           const shouldStopLoss = trade.side === 'long'
-            ? typeof trade.tp === 'number' && latestPrice <= trade.sl
+            ? typeof trade.sl === 'number' && latestPrice <= trade.sl
             : typeof trade.sl === 'number' && latestPrice >= trade.sl
 
           if (shouldTakeProfit || shouldStopLoss) {

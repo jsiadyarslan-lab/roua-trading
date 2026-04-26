@@ -42,6 +42,10 @@ interface RiskMetrics {
   positionCount: number
   varEstimate: number
   volatilityEstimate: number
+  sharpeRatio?: number
+  winRate?: number
+  totalTrades?: number
+  profitTrades?: number
 }
 
 interface RiskReport {

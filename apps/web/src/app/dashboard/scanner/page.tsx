@@ -8,6 +8,7 @@ import { HeatmapGrid } from '@/components/scanner/tabs/HeatmapGrid'
 import { PatternsView } from '@/components/scanner/tabs/PatternsView'
 import { MultiTfPanel } from '@/components/scanner/tabs/MultiTfPanel'
 import { MarketOverview } from '@/components/scanner/tabs/MarketOverview'
+import { ScreenerTab } from '@/components/scanner/tabs/ScreenerTab'
 import { DeepAnalysisModal } from '@/components/scanner/modals/DeepAnalysisModal'
 
 // ── Design Tokens ──
@@ -54,6 +55,8 @@ function ScannerContent() {
         return <MultiTfPanel />
       case 'overview':
         return <MarketOverview />
+      case 'screener':
+        return <ScreenerTab />
       default:
         return (
           <>

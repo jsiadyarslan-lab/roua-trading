@@ -18,6 +18,9 @@ export interface TabAlert {
   color: string       // the accent color to flash
 }
 
+/** Auto-dismiss duration in ms — alerts disappear after 5 seconds */
+const ALERT_TTL_MS = 5000
+
 interface TabAlertState {
   alerts: Record<TabId, TabAlert | null>
   pushAlert: (tab: TabId, info: { action: TabAlert['lastAction']; label: string; color?: string }) => void
@@ -44,21 +47,32 @@ export const useTabAlertStore = create<TabAlertState>()((set, get) => ({
     'signals': null,
   },
 
-  pushAlert: (tab, info) => set((state) => {
-    const existing = state.alerts[tab]
-    return {
-      alerts: {
-        ...state.alerts,
-        [tab]: {
-          count: (existing?.count || 0) + 1,
-          lastAction: info.action,
-          lastLabel: info.label,
-          lastTime: Date.now(),
-          color: info.color || DEFAULT_COLORS[tab],
+  pushAlert: (tab, info) => {
+    set((state) => {
+      const existing = state.alerts[tab]
+      return {
+        alerts: {
+          ...state.alerts,
+          [tab]: {
+            count: (existing?.count || 0) + 1,
+            lastAction: info.action,
+            lastLabel: info.label,
+            lastTime: Date.now(),
+            color: info.color || DEFAULT_COLORS[tab],
+          },
         },
-      },
-    }
-  }),
+      }
+    })
+
+    // Auto-dismiss alert after ALERT_TTL_MS
+    setTimeout(() => {
+      const current = get().alerts[tab]
+      // Only clear if the alert hasn't been replaced by a newer one
+      if (current && Date.now() - current.lastTime >= ALERT_TTL_MS - 100) {
+        set((state) => ({ alerts: { ...state.alerts, [tab]: null } }))
+      }
+    }, ALERT_TTL_MS)
+  },
 
   clearAlert: (tab) => set((state) => ({
     alerts: { ...state.alerts, [tab]: null }

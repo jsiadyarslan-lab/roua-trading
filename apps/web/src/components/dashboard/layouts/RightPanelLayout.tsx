@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Bot, Brain, ScanSearch, Sparkles, Waves } from 'lucide-react'
 import { BotMini } from '@/components/dashboard/BotMini'
 import { ScannerMini } from '@/components/dashboard/ScannerMini'
@@ -33,8 +33,8 @@ const T = {
 
 export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
   const [active, setActive] = useState('bot')
-  const { selectedSymbol, scanner, council, engineState, narrator, loading } = useDecisionFlow()
-  const { alerts, clearAlert, getCount } = useTabAlertStore()
+  const { selectedSymbol, scanner, council, engineState } = useDecisionFlow()
+  const { alerts, clearAlert } = useTabAlertStore()
 
   // Clear alerts when user opens a tab
   const handleTabClick = (tabId: string) => {
@@ -50,40 +50,15 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
     { id: 'signals', label: 'إشارات', accent: T.green, icon: Sparkles, subtitle: 'التحويل للتنفيذ' },
   ]
   const activeTab = TABS.find((tab) => tab.id === active) || TABS[0]
-  const spotlightMap = {
-    bot: {
-      headline: engineState === 'armed' ? 'المحرك جاهز' : engineState === 'scanning' ? 'المحرك يمسح السوق' : 'المحرك تحت السيطرة',
-      detail: scanner?.entryBias || '—',
-      statLabel: 'الحالة',
-      statValue: engineState.toUpperCase(),
-    },
-    council: {
-      headline: council?.recommendation ? `المجلس يميل إلى ${council.recommendation}` : 'المجلس يزن الأدلة',
-      detail: council?.conflictExplanation || council?.masterStrategy || 'قراءة إجماعية للأصل الحالي مع ترجيح المخاطر.',
-      statLabel: 'الإجماع',
-      statValue: council ? `${council.consensusScore}%` : '—',
-    },
-    scanner: {
-      headline: scanner ? `${scanner.pair} تحت المجهر` : 'السكانر يفتش عن فرصة',
-      detail: scanner?.reasons?.[0] || 'يرتب الفرص حسب الزخم والاتجاه والانحياز التنفيذي.',
-      statLabel: 'القوة',
-      statValue: scanner ? `${scanner.strength}%` : '—',
-    },
-    'multi-tf': {
-      headline: 'انحياز متعدد الأطر',
-      detail: 'اقرأ من اليومي حتى 15M قبل أن تفكر في الزر.',
-      statLabel: 'الرمز',
-      statValue: selectedSymbol,
-    },
-    signals: {
-      headline: 'الإشارات الجاهزة للتنفيذ',
-      detail: narrator?.nextTrigger || 'صف الإشارات الآن يربط الرصد بالتنفيذ الورقي مباشرة.',
-      statLabel: 'المصدر',
-      statValue: scanner?.source || 'unified',
-    },
+  const headlineMap = {
+    bot: engineState === 'armed' ? 'المحرك جاهز' : engineState === 'scanning' ? 'المحرك يمسح السوق' : 'المحرك تحت السيطرة',
+    council: council?.recommendation ? `المجلس يميل إلى ${council.recommendation}` : 'المجلس يزن الأدلة',
+    scanner: scanner ? `${scanner.pair} تحت المجهر` : 'السكانر يفتش عن فرصة',
+    'multi-tf': 'انحياز متعدد الأطر',
+    signals: 'الإشارات الجاهزة للتنفيذ',
   } as const
 
-  const spotlight = spotlightMap[active as keyof typeof spotlightMap] ?? spotlightMap.bot
+  const headline = headlineMap[active as keyof typeof headlineMap] ?? headlineMap.bot
 
   return (
     <div
@@ -128,7 +103,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
               </div>
             </div>
             <div style={{ marginTop: 4, fontSize: 9, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
-              {spotlight.headline}
+              {headline}
             </div>
           </div>
           <div style={{ display: 'grid', gap: 4, justifyItems: 'end' }}>
@@ -152,51 +127,6 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
             </div>
           </div>
         </div>
-
-      <div
-        style={{
-          padding: '9px 11px',
-          borderBottom: `1px solid rgba(0, 229, 255, 0.10)`,
-          background: 'rgba(255,255,255,0.03)',
-          display: 'grid',
-          gap: 8,
-        }}
-      >
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1fr) auto',
-            gap: 8,
-          }}
-        >
-          <div
-            style={{
-              minWidth: 0,
-              borderRadius: 12,
-              border: `1px solid rgba(255,255,255,0.10)`,
-              background: 'rgba(0,0,0,0.18)',
-              padding: '7px 8px',
-            }}
-          >
-            <div style={{ fontSize: 8, color: T.text3, marginBottom: 4 }}>{spotlight.statLabel}</div>
-            <div style={{ fontSize: 11, color: activeTab.accent, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {spotlight.statValue}
-            </div>
-          </div>
-          <div
-            style={{
-              borderRadius: 12,
-              border: `1px solid rgba(255,255,255,0.10)`,
-              background: 'rgba(0,0,0,0.18)',
-              padding: '7px 8px',
-              minWidth: 76,
-            }}
-          >
-            <div style={{ fontSize: 8, color: T.text3, marginBottom: 4 }}>التركيز</div>
-            <div style={{ fontSize: 11, color: T.text, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol}</div>
-          </div>
-        </div>
-      </div>
 
       <div
         style={{
@@ -317,7 +247,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           flex: 1,
           minHeight: 0,
           overflow: 'hidden',
-          padding: 10,
+          padding: 6,
           display: 'flex',
           flexDirection: 'column',
           background: '#071019',
@@ -327,97 +257,20 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           style={{
             flex: 1,
             minHeight: 0,
-            overflow: 'hidden',
+            height: '100%',
+            overflowY: 'auto',
             borderRadius: 16,
             border: `1px solid rgba(255,255,255,0.10)`,
             background: 'linear-gradient(180deg, rgba(14,20,30,0.98), rgba(8,13,20,0.98))',
             boxShadow: `inset 0 1px 0 rgba(255,255,255,0.035), 0 18px 40px rgba(0,0,0,0.26)`,
           }}
+          className="custom-scrollbar"
         >
-        {active === 'bot' && (
-          <div
-            className="custom-scrollbar"
-            style={{
-              flex: 1,
-              minHeight: 0,
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              borderRadius: 14,
-              overflowX: 'hidden',
-            }}
-          >
-            <BotMini />
-          </div>
-        )}
-
-        {active === 'council' && (
-          <div
-            className="custom-scrollbar"
-            style={{
-              flex: 1,
-              minHeight: 0,
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              borderRadius: 14,
-              overflowX: 'hidden',
-            }}
-          >
-            <AICouncilPanel />
-          </div>
-        )}
-
-        {active === 'scanner' && (
-          <div
-            className="custom-scrollbar"
-            style={{
-              flex: 1,
-              minHeight: 0,
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              borderRadius: 14,
-              overflowX: 'hidden',
-            }}
-          >
-            <ScannerMini />
-          </div>
-        )}
-
-        {active === 'signals' && (
-          <div
-            className="custom-scrollbar"
-            style={{
-              flex: 1,
-              minHeight: 0,
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              borderRadius: 14,
-              overflowX: 'hidden',
-            }}
-          >
-            <BotCommandCenter />
-          </div>
-        )}
-
-        {active === 'multi-tf' && (
-          <div
-            className="custom-scrollbar"
-            style={{
-              flex: 1,
-              minHeight: 0,
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              borderRadius: 14,
-              overflowX: 'hidden',
-            }}
-          >
-            <MultiTfScannerMini />
-          </div>
-        )}
+        {active === 'bot' && <BotMini />}
+        {active === 'council' && <AICouncilPanel />}
+        {active === 'scanner' && <ScannerMini />}
+        {active === 'signals' && <BotCommandCenter />}
+        {active === 'multi-tf' && <MultiTfScannerMini />}
         </div>
       </div>
     </div>

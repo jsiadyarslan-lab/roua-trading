@@ -16,6 +16,7 @@ import { EngineModule } from './modules/engine/engine.module';
 import { NeuralModule } from './modules/neural/neural.module';
 import { NewsModule } from './modules/news/news.module';
 import { AuditModule } from './audit/audit.module';
+import { CoachModule } from './modules/coach/coach.module';
 
 @Module({
   imports: [
@@ -85,6 +86,7 @@ import { AuditModule } from './audit/audit.module';
     EngineModule,
     NeuralModule,
     NewsModule,
+    CoachModule,
   ],
 })
 export class AppModule {}

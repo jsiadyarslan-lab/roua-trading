@@ -5,8 +5,9 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area, BarChart, Bar,
 } from 'recharts'
-import { TrendingUp, TrendingDown, Award, Target, BarChart2, X, Shield, Activity, RefreshCw, Loader2, AlertTriangle, ChevronRight, Clock, History } from 'lucide-react'
+import { TrendingUp, TrendingDown, Award, Target, BarChart2, X, Shield, Activity, RefreshCw, Loader2, AlertTriangle, ChevronRight, Clock, History, Brain } from 'lucide-react'
 import { usePaperTradesStore, ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
+import AICoachPanel from '@/components/portfolio/AICoachPanel'
 
 /* ── Theme ── */
 const T = {
@@ -186,7 +187,7 @@ function ApiErrorBanner({ error, onRetry }: { error: string; onRetry: () => void
 
 /* ── Main page ── */
 export default function PortfolioPage() {
-  const [tab, setTab] = useState<'positions' | 'performance' | 'risk'>('positions')
+  const [tab, setTab] = useState<'positions' | 'performance' | 'risk' | 'coach'>('positions')
   const [positions, setPositions] = useState<Position[]>([])
   const [closedPositions, setClosedPositions] = useState<Position[]>([])
   const [trades, setTrades] = useState<Trade[]>([])
@@ -426,6 +427,7 @@ export default function PortfolioPage() {
         <TabButton label="الصفقات" icon={Activity} active={tab === 'positions'} onClick={() => setTab('positions')} count={positions.length + closedPositions.length + closedPaperTrades.length} />
         <TabButton label="الأداء" icon={TrendingUp} active={tab === 'performance'} onClick={() => setTab('performance')} />
         <TabButton label="المخاطر" icon={Shield} active={tab === 'risk'} onClick={() => setTab('risk')} />
+        <TabButton label="المُدرّب الذكي" icon={Brain} active={tab === 'coach'} onClick={() => setTab('coach')} />
       </div>
 
       {/* ════════════════════════════════════════════ */}
@@ -1062,6 +1064,13 @@ export default function PortfolioPage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* ════════════════════════════════════════════ */}
+      {/* TAB: المُدرّب الذكي                            */}
+      {/* ════════════════════════════════════════════ */}
+      {tab === 'coach' && (
+        <AICoachPanel />
       )}
     </div>
   )

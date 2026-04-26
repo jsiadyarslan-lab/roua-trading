@@ -464,6 +464,21 @@ model TradingBot {
   @@index([userId])
 }
 
+// ── AI Coach Advice ──
+model CoachAdvice {
+  id                String   @id @default(cuid())
+  userId            String
+  rating            String   @default("needs_improvement") // excellent, good, needs_improvement
+  statisticsSnapshot String  @default("{}") // JSON: win rate, avg win/loss, max DD, etc.
+  adviceText        String   // Full advice text from AI
+  adviceItems       String   @default("[]") // JSON array of { type, icon, text }
+  isRead            Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
 // ── Chart Preferences (Drawings & Settings) ──
 model ChartPreference {
   id        String   @id @default(cuid())

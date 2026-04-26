@@ -457,7 +457,7 @@ function MoreDropdown({
     }
   }, [open, onClose, anchorRef])
 
-  if (!open) return null
+  if (!open || typeof document === 'undefined') return null
 
   return createPortal(
     <div style={{

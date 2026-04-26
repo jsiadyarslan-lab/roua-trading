@@ -37,6 +37,13 @@ const nextConfig: NextConfig = {
         destination: `${apiTarget}/api/trading/:path*`,
       },
 
+      // ── Engine Bot routes → NestJS ──
+      // Bot enable/disable/status and engine health checks.
+      {
+        source: '/api/engine/:path*',
+        destination: `${apiTarget}/api/engine/:path*`,
+      },
+
       // ── CRITICAL: Signal routes → NestJS ──
       // Signal generation MUST use AI Council (Gemini + Groq + GLM),
       // RAG context, and sentiment analysis — not simple price heuristic.

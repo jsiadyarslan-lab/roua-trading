@@ -6,7 +6,8 @@ import { usePaperTradesStore, type PaperTrade } from '@/hooks/usePaperTradesStor
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 
-const PAPER_TRADING_MODE = process.env.NEXT_PUBLIC_PAPER_TRADING === 'true'
+// Default to paper trading for safety — only go live if explicitly enabled
+const PAPER_TRADING_MODE = process.env.NEXT_PUBLIC_PAPER_TRADING !== 'false'
 const COOLDOWN_MS = 5 * 60 * 1000
 const MAX_OPEN_BOT_POSITIONS = 3
 const MAX_TRADES_PER_HOUR = 6
@@ -225,8 +226,12 @@ export function BotEngine() {
   const shouldExecuteSignal = (signal: SmartSignalLike) => {
     const confidence = Number(signal.strength || 0)
     const price = Number(signal.price || 0)
-    if (!price || signal.dir === 'neutral' || confidence < settings.confLimit) return false
-    if (signal.freshness && signal.freshness !== 'fresh') return false
+    if (!price || signal.dir === 'neutral') return false
+
+    // Apply confidence penalty for non-fresh data instead of blocking entirely
+    const freshnessPenalty = signal.freshness === 'degraded' ? 10 : signal.freshness === 'stale' ? 5 : 0
+    const effectiveConfidence = confidence - freshnessPenalty
+    if (effectiveConfidence < settings.confLimit) return false
 
     const executionKey = `${signal.pair}:${signal.dir}`
     const lastExecutedAt = lastExecutionRef.current[executionKey] || 0

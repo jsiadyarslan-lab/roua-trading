@@ -79,7 +79,7 @@ export const useBotStore = create<BotState>()(
     }),
     {
       name: 'roua-bot-storage',
-      version: 3,
+      version: 4,
       migrate: (persistedState: any) => ({
         ...persistedState,
         isOn: true,
@@ -87,12 +87,10 @@ export const useBotStore = create<BotState>()(
         settings: {
           ...DEFAULT_SETTINGS,
           ...(persistedState?.settings ?? {}),
-          confLimit: Math.min(
-            typeof persistedState?.settings?.confLimit === 'number'
-              ? persistedState.settings.confLimit
-              : DEFAULT_SETTINGS.confLimit,
-            DEFAULT_SETTINGS.confLimit
-          ),
+          // Allow user to set any confLimit they want (no artificial cap)
+          confLimit: typeof persistedState?.settings?.confLimit === 'number'
+            ? persistedState.settings.confLimit
+            : DEFAULT_SETTINGS.confLimit,
         },
         logs: Array.isArray(persistedState?.logs) ? persistedState.logs.slice(0, 50) : [],
         stats: {

@@ -354,6 +354,19 @@ const NAV_LINKS = [
 function MainNav() {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
+  const moreRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!moreOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [moreOpen])
 
   return (
     <div style={{
@@ -388,7 +401,7 @@ function MainNav() {
         )
       })}
 
-      <div style={{ position: 'relative', flexShrink: 0 }}>
+      <div ref={moreRef} style={{ position: 'relative', flexShrink: 0 }}>
         <button
           onClick={() => setMoreOpen(!moreOpen)}
           style={{

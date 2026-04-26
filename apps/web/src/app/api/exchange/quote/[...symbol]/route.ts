@@ -6,11 +6,10 @@ import { NextRequest, NextResponse } from 'next/server'
  * Fetches real-time market quote for a given symbol.
  * Routes to the appropriate data provider:
  *   - Crypto pairs (BTC/USDT, ETH/USDT) → Binance public API → CoinGecko fallback
- *   - Stocks/forex/commodities → Twelve Data API → Mock fallback
+ *   - Stocks/forex/commodities → Twelve Data API → Yahoo Finance fallback → ECB/Frankfurter fallback
  *
- * This replaces the need for the NestJS backend exchange service.
  * Includes in-memory caching to respect API rate limits.
- * Returns mock/demo data when API keys are not configured.
+ * Yahoo Finance is used as a free, no-key-needed fallback for stocks, commodities, and forex.
  */
 
 // ── Simple in-memory cache ──
@@ -54,6 +53,18 @@ function normalizeRouteSymbol(parts: string[] | string) {
   } catch {
     return joined
   }
+}
+
+// ── Convert symbol to Yahoo Finance format ──
+// Examples: AAPL → AAPL, XAU/USD → XAUUSD=X, EUR/USD → EURUSD=X, MSFT → MSFT
+function toYahooSymbol(symbol: string): string {
+  if (symbol.includes('/')) {
+    const [base, quote] = symbol.split('/')
+    // Commodities and forex pairs use =X suffix in Yahoo Finance
+    return `${base}${quote}=X`
+  }
+  // Plain stock tickers stay as-is
+  return symbol
 }
 
 // ── Fetch from Twelve Data API ──
@@ -108,6 +119,108 @@ async function fetchTwelveData(symbol: string) {
     fiftyTwoWeekLow:  data.fifty_two_week?.low  ? toNum(data.fifty_two_week.low)  : null,
     timestamp: new Date().toISOString(),
     source: 'TwelveData',
+  }
+}
+
+// ── FREE Stock/Commodity/Forex Fallback: Yahoo Finance (no key needed) ──
+// Covers stocks (AAPL, TSLA, MSFT...), commodities (XAU/USD, XAG/USD...), forex (EUR/USD...)
+// Uses the unofficial Yahoo Finance v8 API endpoint.
+async function fetchYahooFinance(symbol: string): Promise<any | null> {
+  const yahooSymbol = toYahooSymbol(symbol)
+
+  try {
+    // Yahoo Finance quoteSummary endpoint — returns comprehensive quote data
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?range=1d&interval=1d&includePrePost=false`
+    const res = await fetch(url, {
+      cache: 'no-store',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; RouaTrading/1.0)',
+      },
+    })
+
+    if (!res.ok) {
+      console.warn(`[exchange/quote] Yahoo Finance returned ${res.status} for ${yahooSymbol}`)
+      return null
+    }
+
+    const data = await res.json()
+    const result = data?.chart?.result?.[0]
+    if (!result) return null
+
+    const meta = result.meta || {}
+    const quote = result.indicators?.quote?.[0] || {}
+
+    // Extract price data from meta (most reliable)
+    const price = meta.regularMarketPrice || meta.previousClose || 0
+    const previousClose = meta.chartPreviousClose || meta.previousClose || price
+    const change = price - previousClose
+    const changePercent = previousClose > 0 ? (change / previousClose) * 100 : 0
+
+    // Get open/high/low/close from the quote indicators
+    const opens = quote.open || []
+    const highs = quote.high || []
+    const lows = quote.low || []
+    const closes = quote.close || []
+    const volumes = quote.volume || []
+
+    // Get the last valid values from the arrays
+    const lastValid = (arr: (number | null)[]) => {
+      for (let i = arr.length - 1; i >= 0; i--) {
+        if (arr[i] !== null && arr[i] !== undefined) return arr[i]
+      }
+      return 0
+    }
+
+    const openPrice = lastValid(opens) || price
+    const highPrice = lastValid(highs) || price
+    const lowPrice = lastValid(lows) || price
+    const volume = lastValid(volumes) || 0
+
+    // Determine exchange type from symbol
+    let exchange = 'UNKNOWN'
+    let currency = meta.currency || 'USD'
+    if (yahooSymbol.endsWith('=X')) {
+      if (yahooSymbol.startsWith('XAU') || yahooSymbol.startsWith('XAG') || yahooSymbol.startsWith('XPT')) {
+        exchange = 'COMMODITY'
+      } else {
+        exchange = 'FOREX'
+      }
+    } else {
+      exchange = meta.exchangeName || meta.exchange || 'STOCK'
+    }
+
+    // Build a display name
+    let name = symbol
+    if (symbol.includes('/')) {
+      name = symbol.replace('/', ' / ')
+    }
+
+    // Get the 52-week range if available
+    const fiftyTwoWeekHigh = meta.fiftyTwoWeekHigh || null
+    const fiftyTwoWeekLow = meta.fiftyTwoWeekLow || null
+
+    return {
+      symbol,
+      name,
+      exchange,
+      currency,
+      price: toNum(price),
+      change: toNum(change),
+      changePercent: toNum(changePercent),
+      open: toNum(openPrice),
+      high: toNum(highPrice),
+      low: toNum(lowPrice),
+      close: toNum(price),
+      volume: toNum(volume),
+      marketCap: null,
+      fiftyTwoWeekHigh: fiftyTwoWeekHigh ? toNum(fiftyTwoWeekHigh) : null,
+      fiftyTwoWeekLow: fiftyTwoWeekLow ? toNum(fiftyTwoWeekLow) : null,
+      timestamp: new Date(meta.regularMarketTime ? meta.regularMarketTime * 1000 : Date.now()).toISOString(),
+      source: 'Yahoo Finance',
+    }
+  } catch (error: any) {
+    console.warn(`[exchange/quote] Yahoo Finance failed for ${symbol} (${yahooSymbol}): ${error.message}`)
+    return null
   }
 }
 
@@ -301,7 +414,8 @@ export async function GET(
         }
       }
     } else if (source === 'TwelveData' || (!isCryptoPair && (!source || source === 'auto'))) {
-      // Forex/Stocks → Twelve Data (if key set) → ECB Frankfurter (free)
+      // Forex/Stocks/Commodities → Twelve Data → Yahoo Finance → ECB Frankfurter
+      // Step 1: Try TwelveData (if API key is configured)
       try {
         quote = await fetchTwelveData(symbol)
       } catch (tdErr: any) {
@@ -309,7 +423,15 @@ export async function GET(
         quote = null
       }
 
-      // If no Twelve Data key or failed → try free ECB rates for fiat pairs
+      // Step 2: Try Yahoo Finance (free, no key needed — covers stocks, commodities, forex)
+      if (!quote) {
+        quote = await fetchYahooFinance(symbol)
+        if (quote) {
+          console.info(`[exchange/quote] Using Yahoo Finance for ${symbol}`)
+        }
+      }
+
+      // Step 3: Try free ECB rates for fiat pairs (last resort for forex)
       if (!quote) {
         quote = await fetchFrankfurter(symbol)
         if (quote) {

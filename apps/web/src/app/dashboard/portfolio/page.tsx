@@ -6,6 +6,7 @@ import {
   PieChart, Pie, Cell, Legend, AreaChart, Area, BarChart, Bar,
 } from 'recharts'
 import { TrendingUp, TrendingDown, Award, Target, BarChart2, X, Shield, Activity, RefreshCw, Loader2, AlertTriangle, ChevronRight, Clock, History } from 'lucide-react'
+import { usePaperTradesStore, ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
 
 /* ── Theme ── */
 const T = {
@@ -194,6 +195,7 @@ export default function PortfolioPage() {
   const [closing, setClosing] = useState<string | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
   const [showClosed, setShowClosed] = useState(false)
+  const { closedTrades: closedPaperTrades } = usePaperTradesStore()
 
   const fetchPositions = useCallback(async () => {
     try {
@@ -278,19 +280,26 @@ export default function PortfolioPage() {
 
   // ── Computed values ──
   const totalUnrealizedPnl = positions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)
-  const totalRealizedPnl = closedPositions.reduce((sum, p) => sum + (p.realizedPnl || 0), 0)
-  const totalTradePnl = trades.reduce((sum, t) => sum + (t.pnl || 0), 0)
-  const winningTrades = trades.filter(t => (t.pnl || 0) > 0)
-  const losingTrades = trades.filter(t => (t.pnl || 0) < 0)
-  const winRate = trades.length > 0 ? (winningTrades.length / trades.length) * 100 : 0
+  const totalRealizedPnl = closedPositions.reduce((sum, p) => sum + (p.realizedPnl || 0), 0) + closedPaperTrades.reduce((sum, p) => sum + (p.realizedPnl || 0), 0)
+  const totalTradePnl = trades.reduce((sum, t) => sum + (t.pnl || 0), 0) + closedPaperTrades.reduce((sum, p) => sum + (p.realizedPnl || 0), 0)
+  const winningTrades = [...trades.filter(t => (t.pnl || 0) > 0), ...closedPaperTrades.filter(p => (p.realizedPnl || 0) > 0)]
+  const losingTrades = [...trades.filter(t => (t.pnl || 0) < 0), ...closedPaperTrades.filter(p => (p.realizedPnl || 0) < 0)]
+  const totalTradeCount = trades.length + closedPaperTrades.length
+  const winRate = totalTradeCount > 0 ? (winningTrades.length / totalTradeCount) * 100 : 0
 
-  // ── Performance chart data (daily P&L from trades) ──
+  // ── Performance chart data (daily P&L from trades + closed paper trades) ──
   const performanceData = (() => {
     const dailyMap: Record<string, { date: string; pnl: number; trades: number }> = {}
     trades.forEach(t => {
       const day = new Date(t.executedAt).toISOString().split('T')[0]
       if (!dailyMap[day]) dailyMap[day] = { date: day, pnl: 0, trades: 0 }
       dailyMap[day].pnl += (t.pnl || 0)
+      dailyMap[day].trades++
+    })
+    closedPaperTrades.forEach(p => {
+      const day = new Date(p.closeTime).toISOString().split('T')[0]
+      if (!dailyMap[day]) dailyMap[day] = { date: day, pnl: 0, trades: 0 }
+      dailyMap[day].pnl += (p.realizedPnl || 0)
       dailyMap[day].trades++
     })
     return Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date))
@@ -317,8 +326,9 @@ export default function PortfolioPage() {
   })()
 
   // ── Risk metrics ──
-  const avgWin = winningTrades.length > 0 ? winningTrades.reduce((s, t) => s + (t.pnl || 0), 0) / winningTrades.length : 0
-  const avgLoss = losingTrades.length > 0 ? Math.abs(losingTrades.reduce((s, t) => s + (t.pnl || 0), 0) / losingTrades.length) : 0
+  const allPnlValues = [...trades.map(t => t.pnl || 0), ...closedPaperTrades.map(p => p.realizedPnl || 0)]
+  const avgWin = winningTrades.length > 0 ? winningTrades.reduce((s, t) => s + ('pnl' in t ? (t.pnl || 0) : (t as ClosedPaperTrade).realizedPnl || 0), 0) / winningTrades.length : 0
+  const avgLoss = losingTrades.length > 0 ? Math.abs(losingTrades.reduce((s, t) => s + ('pnl' in t ? (t.pnl || 0) : -(t as ClosedPaperTrade).realizedPnl || 0), 0) / losingTrades.length) : 0
   const profitFactor = avgLoss > 0 ? avgWin / avgLoss : avgWin > 0 ? Infinity : 0
   const maxDrawdown = (() => {
     let peak = 0, maxDD = 0, cumPnl = 0
@@ -413,7 +423,7 @@ export default function PortfolioPage() {
 
       {/* ── Tabs ── */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-        <TabButton label="الصفقات" icon={Activity} active={tab === 'positions'} onClick={() => setTab('positions')} count={positions.length + closedPositions.length} />
+        <TabButton label="الصفقات" icon={Activity} active={tab === 'positions'} onClick={() => setTab('positions')} count={positions.length + closedPositions.length + closedPaperTrades.length} />
         <TabButton label="الأداء" icon={TrendingUp} active={tab === 'performance'} onClick={() => setTab('performance')} />
         <TabButton label="المخاطر" icon={Shield} active={tab === 'risk'} onClick={() => setTab('risk')} />
       </div>
@@ -629,7 +639,7 @@ export default function PortfolioPage() {
                 fontSize: 12, color: T.text, flex: 1,
               }}>الصفقات المغلقة</span>
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text3 }}>
-                {closedPositions.length} صفقة
+                {closedPositions.length + closedPaperTrades.length} صفقة
               </span>
               {totalRealizedPnl !== 0 && (
                 <span style={{
@@ -644,7 +654,7 @@ export default function PortfolioPage() {
             </div>
 
             {showClosed && (
-              closedPositions.length === 0 ? (
+              (closedPositions.length + closedPaperTrades.length) === 0 ? (
                 <div style={{ padding: 24, textAlign: 'center' }}>
                   <History size={28} style={{ color: T.text3, opacity: 0.3, margin: '0 auto 8px' }} />
                   <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.text3 }}>لا توجد صفقات مغلقة بعد</p>
@@ -665,12 +675,13 @@ export default function PortfolioPage() {
                       }}>{h}</div>
                     ))}
                   </div>
+                  {/* Backend closed positions */}
                   {closedPositions.map((pos, i) => (
                     <div key={pos.id} style={{
                       display: 'grid',
                       gridTemplateColumns: '100px 70px 70px 90px 90px 90px 90px 120px',
                       padding: '6px 14px', gap: 0,
-                      borderBottom: i < closedPositions.length - 1 ? `0.5px solid ${T.border}` : 'none',
+                      borderBottom: `0.5px solid ${T.border}`,
                       alignItems: 'center',
                       background: i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent',
                     }}>
@@ -702,6 +713,55 @@ export default function PortfolioPage() {
                       </div>
                       <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>
                         {pos.closedAt ? new Date(pos.closedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </div>
+                    </div>
+                  ))}
+                  {/* Paper trading closed positions */}
+                  {closedPaperTrades.map((pt, i) => (
+                    <div key={pt.id} style={{
+                      display: 'grid',
+                      gridTemplateColumns: '100px 70px 70px 90px 90px 90px 90px 120px',
+                      padding: '6px 14px', gap: 0,
+                      borderBottom: i < closedPaperTrades.length - 1 ? `0.5px solid ${T.border}` : 'none',
+                      alignItems: 'center',
+                      background: (closedPositions.length + i) % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 600, color: T.text }}>{pt.symbol}</span>
+                        <span style={{
+                          padding: '0px 3px', borderRadius: 3,
+                          fontFamily: "'JetBrains Mono', monospace", fontSize: 7, fontWeight: 700,
+                          background: `${T.cyan}14`, color: T.cyan,
+                          border: `0.5px solid ${T.cyan}33`,
+                        }}>ورقي</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <span style={{
+                          padding: '1px 6px', borderRadius: 3,
+                          fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700,
+                          background: pt.side === 'long' ? `${T.green}18` : `${T.red}18`,
+                          color: pt.side === 'long' ? T.green : T.red,
+                        }}>{pt.side === 'long' ? 'شراء' : 'بيع'}</span>
+                      </div>
+                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{pt.qty}</div>
+                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{formatPrice(pt.entryPrice)}</div>
+                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{formatPrice(pt.exitPrice)}</div>
+                      <div style={{
+                        textAlign: 'center', fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: 10, fontWeight: 700,
+                        color: (pt.realizedPnl || 0) >= 0 ? T.green : T.red,
+                      }}>
+                        {(pt.realizedPnl || 0) >= 0 ? '+' : ''}${fmt(Math.abs(pt.realizedPnl || 0))}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <span style={{
+                          padding: '1px 6px', borderRadius: 3,
+                          fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 700,
+                          background: `${T.blue}18`, color: T.blue,
+                        }}>مغلقة</span>
+                      </div>
+                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>
+                        {pt.closeTime ? new Date(pt.closeTime).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
                       </div>
                     </div>
                   ))}

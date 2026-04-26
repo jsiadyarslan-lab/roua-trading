@@ -1,8 +1,15 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Brain, Search, Send, Activity, BarChart2, Cpu, FileText, AlertTriangle, MessageSquare, TrendingUp, TrendingDown, Target, Info, Zap, ChevronDown } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import {
+  Brain, Send, Activity, BarChart2, Cpu, AlertTriangle,
+  TrendingUp, TrendingDown, Target, Zap, ChevronDown,
+  RefreshCw, Shield, MessageSquare, Sparkles, Bot,
+  CircleDot, Flame, Eye, Crosshair, ArrowUpRight, ArrowDownRight, Minus
+} from 'lucide-react'
+import { PRIMARY_SYMBOLS } from '@/lib/trading-intelligence'
 
+// ── Theme ──
 const T = {
   bg:      '#04050C',
   bg2:     '#0D1117',
@@ -18,365 +25,806 @@ const T = {
   text3:   '#A0AFC3',
   border:  'rgba(10,132,255,0.12)',
   border2: 'rgba(10,132,255,0.20)',
+  glass:   'rgba(10,132,255,0.04)',
 }
 
-const AI_MODELS = [
-  { name: 'Google Gemini 2.5 Pro', role: 'العقل المدبر', color: T.cyan,   dot: '#00C8FF' },
-  { name: 'Groq — Llama 3',        role: 'السرعة الصاروخية', color: T.blue, dot: '#0A84FF' },
-  { name: 'GLM-4 (Zhipu)',         role: 'المحلل المالي',   color: T.amber, dot: '#FFB800' },
-  { name: 'Amazon Bedrock',        role: 'المستشار الخاص',  color: T.purple,dot: '#A259FF' },
-]
-
-const ASSETS = ['EUR/USD', 'XAU/USD', 'BTC/USD', 'GBP/USD', 'USD/JPY', 'SOL/USD', 'زوج آخر ..']
-
+// ── Types ──
 interface Message {
   id: string
   role: 'user' | 'ai'
   content: string
   timestamp: string
+  model?: string
+  confidence?: number
+  source?: string
 }
 
-const DEMO_CHAT: Message[] = [
-  { id: '1', role: 'ai', content: 'مرحباً بك في المحلل الذكي! أنا هنا لمساعدتك في تحليل أي أصل مالي، قراءة المؤشرات الفنية، أو تقديم استشارات تداول بناءً على حالة السوق الحية. ماذا نراجع اليوم؟', timestamp: '10:00 ص' }
-]
+interface TechIndicators {
+  rsi: number
+  ema20: number
+  ema50: number
+  dir: string
+  strength: number
+  change: number
+  price: number
+  signalClass: string
+  entryBias: string
+  freshness: string
+  reasons: string[]
+}
 
+interface CouncilVote {
+  role: string
+  model: string
+  vote: 'BUY' | 'SELL' | 'HOLD'
+  confidence: number
+  reason: string
+}
+
+interface CouncilResult {
+  consensusScore: number
+  recommendation: 'BUY' | 'SELL' | 'HOLD'
+  analyses: CouncilVote[]
+  masterStrategy: string
+  source?: string
+}
+
+interface AIModelStatus {
+  model: string
+  available: boolean
+  specialty: string
+}
+
+interface NarratorData {
+  narrative: string
+  summary: string
+  sentiment: 'bullish' | 'bearish' | 'neutral' | 'volatile'
+  confidence: number
+  risk: 'Low' | 'Medium' | 'High'
+  bullCase?: string
+  bearCase?: string
+  keyRisk?: string
+  nextTrigger?: string
+}
+
+// ── Local Storage Helpers ──
+const STORAGE_KEY = 'roua-ai-chat-history'
+
+function loadMessages(): Message[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    }
+  } catch {}
+  return [{
+    id: '1',
+    role: 'ai',
+    content: 'مرحباً بك في مركز التحليل الذكي! أنا متصل بنماذج AI حقيقية (Gemini, Groq, GLM-4) مع دعم RAG. يمكنني:\n\n• تحليل أي أصل مالي بتفصيل\n• تقديم توصيات شراء/بيع مبنيّة على البيانات\n• قراءة المؤشرات الفنية الحية\n• تقديم تحليل المخاطر\n\nماذا تريد أن تحلل اليوم؟',
+    timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+    model: 'رؤى AI',
+    confidence: 100,
+    source: 'system',
+  }]
+}
+
+function saveMessages(messages: Message[]) {
+  if (typeof window === 'undefined') return
+  try {
+    // Keep last 50 messages
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-50)))
+  } catch {}
+}
+
+// ── Main Component ──
 export default function AIPage() {
-  const [messages, setMessages] = useState<Message[]>(DEMO_CHAT)
+  // Chat State
+  const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
-  
-  // Generator State
-  const [genAsset, setGenAsset] = useState('EUR/USD')
-  const [genType, setGenType] = useState('تحليل شامل')
-  const [genTimeframe, setGenTimeframe] = useState('قصير • 1-4 ساعات')
-  const [genStyle, setGenStyle] = useState('احترافي')
+  const [selectedSymbol, setSelectedSymbol] = useState('BTC/USD')
 
-  // Real-time sentiment
-  const [marketAnalysis, setMarketAnalysis] = useState<{ narrative: string, sentiment: string } | null>(null)
+  // Technical Indicators (live from market)
+  const [techData, setTechData] = useState<TechIndicators | null>(null)
+  const [techLoading, setTechLoading] = useState(true)
 
-  useEffect(() => {
-    fetch('/api/ai/narrator')
-      .then(res => res.json())
-      .then(json => {
-        if (json.success) setMarketAnalysis(json.data)
-      })
-      .catch(() => {})
-  }, [])
+  // AI Council
+  const [councilResult, setCouncilResult] = useState<CouncilResult | null>(null)
+  const [councilLoading, setCouncilLoading] = useState(false)
 
-  // Strategy Testing State
-  const [isTesting, setIsTesting] = useState(false)
-  const [btStrategy, setBtStrategy] = useState('EMA Cross')
-  const [btPair, setBtPair] = useState('EUR/USD')
-  const [btEmaFast, setBtEmaFast] = useState(12)
-  const [btEmaSlow, setBtEmaSlow] = useState(26)
-  const [btRisk, setBtRisk] = useState(2)
-  const [btResults, setBtResults] = useState<{
-    winRate: string, pnl: string, maxDd: string, sharpe: string, pFactor: string, tradesCount: string
-  } | null>(null)
+  // Narrator
+  const [narratorData, setNarratorData] = useState<NarratorData | null>(null)
 
-  // AINarrator Readout State
-  const [isNarrating, setIsNarrating] = useState(false)
-  const [narratorResult, setNarratorResult] = useState('')
+  // AI Models Status
+  const [modelsStatus, setModelsStatus] = useState<AIModelStatus[]>([])
+  const [nestjsConnected, setNestjsConnected] = useState(false)
 
-  const handleRunBacktest = async () => {
-    setIsTesting(true)
-    setBtResults(null)
-    try {
-      const res = await fetch('/api/ai/backtest', {
-        method: 'POST', body: JSON.stringify({
-          strategyType: btStrategy, pair: btPair, emaFast: btEmaFast, emaSlow: btEmaSlow, risk: btRisk
-        })
-      })
-      const json = await res.json()
-      if (json.success) setBtResults(json.data)
-    } finally {
-      setIsTesting(false)
-    }
-  }
-
-  const handleRunNarrator = async () => {
-    setIsNarrating(true)
-    setNarratorResult('')
-    try {
-      const res = await fetch('/api/ai/narrator')
-      const json = await res.json()
-      if (json.success && json.data) {
-        setNarratorResult(json.data.narrative)
-      } else {
-        setNarratorResult('تعذر جلب قراءة السوق من قاعدة البيانات.')
-      }
-    } finally {
-      setIsNarrating(false)
-    }
-  }
+  // Active tab for right panel
+  const [rightTab, setRightTab] = useState<'council' | 'narrator'>('council')
 
   const chatEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // ── Initialize ──
+  useEffect(() => {
+    setMessages(loadMessages())
+    fetchAIStatus()
+    fetchTechIndicators()
+    fetchNarrator()
+  }, [])
+
+  useEffect(() => {
+    fetchTechIndicators()
+    fetchNarrator()
+  }, [selectedSymbol])
+
+  // ── Auto-scroll chat ──
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
 
-  const sendMsg = (text: string) => {
-    if (!text.trim()) return
-    const newMsg: Message = { id: Date.now().toString(), role: 'user', content: text, timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) }
-    setMessages(p => [...p, newMsg])
+  // ── Fetch AI Models Status ──
+  const fetchAIStatus = async () => {
+    try {
+      const res = await fetch('/api/ai/status')
+      const json = await res.json()
+      if (json.success && json.data) {
+        setModelsStatus(json.data.models || [])
+        setNestjsConnected(json.data.connected || false)
+      }
+    } catch {}
+  }
+
+  // ── Fetch Technical Indicators ──
+  const fetchTechIndicators = async () => {
+    setTechLoading(true)
+    try {
+      const res = await fetch(`/api/market-scan?pair=${encodeURIComponent(selectedSymbol)}&tf=1h`)
+      const json = await res.json()
+      if (json.success && json.data && json.data.length > 0) {
+        const scan = json.data[0]
+        setTechData({
+          rsi: Math.round(scan.features?.rsi || 50),
+          ema20: scan.features?.ema20 || 0,
+          ema50: scan.features?.ema50 || 0,
+          dir: scan.dir || 'neutral',
+          strength: scan.strength || 50,
+          change: scan.change || 0,
+          price: scan.price || 0,
+          signalClass: scan.signalClass || 'watch',
+          entryBias: scan.entryBias || 'wait',
+          freshness: scan.freshness || 'degraded',
+          reasons: scan.reasons || [],
+        })
+      }
+    } catch {} finally {
+      setTechLoading(false)
+    }
+  }
+
+  // ── Fetch Narrator ──
+  const fetchNarrator = async () => {
+    try {
+      const res = await fetch(`/api/ai/narrator?symbol=${encodeURIComponent(selectedSymbol)}`)
+      const json = await res.json()
+      if (json.success && json.data) {
+        setNarratorData(json.data)
+      }
+    } catch {}
+  }
+
+  // ── Fetch Council ──
+  const fetchCouncil = async () => {
+    setCouncilLoading(true)
+    try {
+      // Try NestJS first
+      try {
+        const nestRes = await fetch('/api/ai/consensus-nest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol: selectedSymbol }),
+          signal: AbortSignal.timeout(45000),
+        })
+        if (nestRes.ok) {
+          const nestJson = await nestRes.json()
+          if (nestJson.success && nestJson.data && nestJson.data.analyses?.length > 0) {
+            setCouncilResult({ ...nestJson.data, source: 'nestjs' })
+            setCouncilLoading(false)
+            return
+          }
+        }
+      } catch {}
+
+      // Fallback to local consensus
+      const localRes = await fetch('/api/ai/consensus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol: selectedSymbol }),
+      })
+      const localJson = await localRes.json()
+      if (localJson.success && localJson.data) {
+        setCouncilResult({ ...localJson.data, source: 'local' })
+      }
+    } catch {} finally {
+      setCouncilLoading(false)
+    }
+  }
+
+  // ── Send Chat Message ──
+  const sendMessage = useCallback(async (text: string) => {
+    if (!text.trim() || isTyping) return
+
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: text,
+      timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+    }
+
+    setMessages(prev => {
+      const updated = [...prev, userMsg]
+      saveMessages(updated)
+      return updated
+    })
     setInputValue('')
     setIsTyping(true)
-    
-    // Simulate AI response
-    setTimeout(() => {
-      let aiResponse = ''
-      if (text.toLowerCase().includes('eur/usd') || text.includes('يورو')) {
-        aiResponse = 'تحليل EUR/USD: الزوج يختبر حالياً منطقة المقاومة 1.0870. مؤشر القوة النسبية (RSI) عند 62 مما يظهر زخماً إيجابياً، لكن مؤشر MACD يظهر تباعداً بسيطاً. الاستراتيجية المقترحة: الشراء عند اختراق 1.0880 بثبات، أو البيع من المستويات الحالية بوقف خسارة قريب.'
-      } else if (text.toLowerCase().includes('gold') || text.includes('ذهب') || text.includes('xau')) {
-        aiResponse = 'تحليل الذهب (XAU/USD): يتداول الذهب بضغط بيعي دون 2340$. كسر الدعم 2320$ قد يفتح الطريق لمزيد من التراجع. أنصح بالحذر وعدم اتخاذ مراكز شرائية إلا بعد استقرار الأسعار.'
-      } else {
-        aiResponse = 'بناءً على المعطيات المتاحة والتحليل الشامل للمؤشرات، أرى أن السوق حاليا يمر بمرحلة تجميع. يرجى الحذر من التقلبات المفاجئة الناتجة عن الأخبار القادمة.'
+
+    try {
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: text,
+          symbol: selectedSymbol,
+          type: 'market_analysis',
+          style: 'professional',
+        }),
+      })
+
+      const json = await res.json()
+      if (json.success && json.data) {
+        const aiMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'ai',
+          content: json.data.content,
+          timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+          model: json.data.model,
+          confidence: json.data.confidence,
+          source: json.data.source,
+        }
+        setMessages(prev => {
+          const updated = [...prev, aiMsg]
+          saveMessages(updated)
+          return updated
+        })
       }
-      
-      setMessages(p => [...p, { id: Date.now().toString(), role: 'ai', content: aiResponse, timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) }])
+    } catch {
+      const errorMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'ai',
+        content: 'عذراً، لم أتمكن من معالجة طلبك. يرجى المحاولة مرة أخرى.',
+        timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+        model: 'fallback',
+        confidence: 0,
+        source: 'error',
+      }
+      setMessages(prev => {
+        const updated = [...prev, errorMsg]
+        saveMessages(updated)
+        return updated
+      })
+    } finally {
       setIsTyping(false)
-    }, 2000)
+    }
+  }, [isTyping, selectedSymbol])
+
+  // ── Smart Recommendation ──
+  const handleSmartRecommendation = () => {
+    sendMessage(`أعطني توصية تداول مباشرة لـ ${selectedSymbol} مع تحديد نقطة الدخول ووقف الخسارة والهدف`)
   }
 
-  const handleSend = () => sendMsg(inputValue)
-
-  const handleGenerate = () => {
-    const prompt = `أرجو توليد ${genType} لزوج ${genAsset} على إطار ${genTimeframe} بأسلوب ${genStyle}.`
-    sendMsg(prompt)
+  // ── Comprehensive Analysis ──
+  const handleComprehensiveAnalysis = () => {
+    sendMessage(`أرجو توليد تحليل شامل لزوج ${selectedSymbol} يشمل التحليل الفني والمشاعر والمخاطر مع التوصية النهائية`)
   }
 
-  const sentimentColor = marketAnalysis?.sentiment === 'bullish' ? T.green 
-    : marketAnalysis?.sentiment === 'bearish' ? T.red 
-    : marketAnalysis?.sentiment === 'volatile' ? T.amber : T.cyan
+  // ── Clear Chat ──
+  const handleClearChat = () => {
+    const initialMsg: Message = {
+      id: '1',
+      role: 'ai',
+      content: 'تم مسح المحادثة. كيف يمكنني مساعدتك الآن؟',
+      timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+      model: 'رؤى AI',
+      source: 'system',
+    }
+    setMessages([initialMsg])
+    saveMessages([initialMsg])
+  }
 
-  const sentimentAr = marketAnalysis?.sentiment === 'bullish' ? 'صاعد' 
-    : marketAnalysis?.sentiment === 'bearish' ? 'هابط' 
-    : marketAnalysis?.sentiment === 'volatile' ? 'متقلب' : 'حيادي'
+  // ── Computed values ──
+  const sentimentColor = narratorData?.sentiment === 'bullish' ? T.green
+    : narratorData?.sentiment === 'bearish' ? T.red
+    : narratorData?.sentiment === 'volatile' ? T.amber : T.cyan
 
+  const sentimentAr = narratorData?.sentiment === 'bullish' ? 'صاعد'
+    : narratorData?.sentiment === 'bearish' ? 'هابط'
+    : narratorData?.sentiment === 'volatile' ? 'متقلب' : 'حيادي'
+
+  const dirAr = techData?.dir === 'buy' ? 'صاعد' : techData?.dir === 'sell' ? 'هابط' : 'محايد'
+  const dirColor = techData?.dir === 'buy' ? T.green : techData?.dir === 'sell' ? T.red : T.cyan
+  const dirIcon = techData?.dir === 'buy' ? ArrowUpRight : techData?.dir === 'sell' ? ArrowDownRight : Minus
+
+  const recColor = councilResult?.recommendation === 'BUY' ? T.green
+    : councilResult?.recommendation === 'SELL' ? T.red : T.amber
+  const recAr = councilResult?.recommendation === 'BUY' ? 'شراء'
+    : councilResult?.recommendation === 'SELL' ? 'بيع' : 'انتظار'
+
+  // ── Render ──
   return (
-    <div style={{ height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column', boxSizing: 'border-box', overflowY: 'auto', overflowX: 'hidden' }}>
-      <div style={{ padding: '24px', direction: 'rtl', fontFamily: "'Cairo', sans-serif", display: 'flex', flexDirection: 'column', boxSizing: 'border-box', minHeight: '100%' }}>
-      
+    <div style={{
+      height: 'calc(100vh - 80px)',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      direction: 'rtl',
+      fontFamily: "'Cairo', sans-serif",
+      background: T.bg,
+    }}>
       <style>{`
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: rgba(10,132,255,0.3); border-radius: 4px; }
-        .gen-select {
+        ::-webkit-scrollbar-track { background: transparent; }
+        .ai-select {
           appearance: none;
           background: ${T.bg2};
           border: 1px solid ${T.border};
           color: ${T.text};
-          padding: 10px 16px;
+          padding: 8px 14px;
           border-radius: 8px;
           font-family: 'Cairo', sans-serif;
-          font-size: 13px;
+          font-size: 12px;
           outline: none;
-          width: 100%;
           cursor: pointer;
+          width: 100%;
         }
-        .gen-select-wrapper {
-          position: relative;
-          flex: 1;
+        .ai-select:focus { border-color: ${T.cyan}; }
+        @keyframes dot-pulse {
+          0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+          40% { opacity: 1; transform: scale(1.1); }
         }
-        .gen-select-wrapper::after {
-          content: '▼';
-          font-size: 8px;
-          color: ${T.text3};
-          position: absolute;
-          left: 14px;
-          top: 50%;
-          transform: translateY(-50%);
-          pointer-events: none;
+        @keyframes glow-pulse {
+          0%, 100% { box-shadow: 0 0 8px currentColor; }
+          50% { box-shadow: 0 0 20px currentColor, 0 0 40px currentColor; }
+        }
+        .glow-dot {
+          animation: glow-pulse 2s ease-in-out infinite;
+        }
+        .chat-msg-ai {
+          animation: fadeSlideIn 0.3s ease-out;
+        }
+        @keyframes fadeSlideIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
-      
-      {/* ── Page Header (Titling & Models) ── */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexShrink: 0 }}>
-        <div style={{ textAlign: 'right' }}>
-          <h1 style={{ margin: '0 0 6px 0', fontSize: 26, fontWeight: 900, color: T.text, display: 'flex', alignItems: 'center', gap: 8 }}>
-            مركز التحليل الذكي
-          </h1>
-          <p style={{ margin: 0, fontSize: 13, color: T.text2, wordSpacing: '2px' }}>
-            تحليل AI فوري • أدوات متقدمة • رسم بياني تفاعلي • حاسبة الصفقات
-          </p>
-        </div>
 
-        {/* Distributed Models */}
-        <div style={{ display: 'flex', gap: 8 }}>
-          {AI_MODELS.map((m, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 20 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: m.dot, boxShadow: `0 0 6px ${m.dot}` }} />
-              <span style={{ fontSize: 10, color: T.text }}>{m.name}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── AI Analysis Generator Card ── */}
-      <div style={{ 
-        flexShrink: 0, marginBottom: 20,
-        background: T.card, borderRadius: 12,
-        border: `1px solid ${T.border2}`,
-        position: 'relative', overflow: 'hidden',
-        padding: '20px 24px'
+      {/* ── Top Bar: Asset Selector + AI Status + Quick Actions ── */}
+      <div style={{
+        flexShrink: 0,
+        padding: '12px 20px',
+        borderBottom: `1px solid ${T.border}`,
+        background: T.bg2,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
       }}>
-        {/* Top gradient blur line */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: `linear-gradient(90deg, ${T.purple}, ${T.cyan})` }} />
-
-        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 24 }}>
-          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexDirection: 'row-reverse' }}>
-              <span style={{ fontSize: 16, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>AI Analysis Generator</span>
-              <div style={{ width: 32, height: 32, background: 'rgba(255,100,150,0.1)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Brain size={18} color="#FF7B9C" />
-              </div>
+        {/* Title */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 16 }}>
+          <div style={{
+            width: 34, height: 34, borderRadius: 10,
+            background: `linear-gradient(135deg, ${T.purple}20, ${T.cyan}20)`,
+            border: `1px solid ${T.purple}40`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Brain size={18} color={T.cyan} />
+          </div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>مركز التحليل الذكي</div>
+            <div style={{ fontSize: 10, color: T.text3, marginTop: -2 }}>
+              {nestjsConnected ? 'متصل بنماذج AI الحقيقية' : 'وضع محلي — مفاتيح API غير مفعلة'}
             </div>
-            <span style={{ fontSize: 11, color: T.text3, marginTop: 4, paddingLeft: 42 }}>مدعوم بـ Claude Anthropic • تحليل احترافي في ثوانٍ</span>
           </div>
         </div>
 
-        {/* Row 1: Asset Selection */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 11, color: T.text3, marginBottom: 10, textAlign: 'right' }}>اختر الأصل</div>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-start', flexWrap: 'wrap' }}>
-            {ASSETS.map((asset) => {
-              const isActive = genAsset === asset
-              return (
-                <button
-                  key={asset}
-                  onClick={() => setGenAsset(asset)}
-                  style={{
-                    background: isActive ? `${T.cyan}15` : T.bg,
-                    border: `1px solid ${isActive ? T.cyan : T.border}`,
-                    color: isActive ? T.cyan : T.text2,
-                    padding: '8px 16px', borderRadius: 8,
-                    cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", fontSize: 12,
-                    fontWeight: isActive ? 700 : 500,
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  {asset}
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        {/* Divider */}
+        <div style={{ width: 1, height: 28, background: T.border }} />
 
-        {/* Row 2: Parameters & Action */}
-        <div style={{ display: 'flex', gap: 16, alignItems: 'flex-end', justifyContent: 'space-between' }}>
-          
-          {/* Selects */}
-          <div style={{ display: 'flex', gap: 16, flex: 1, justifyContent: 'flex-start' }}>
-            <div className="gen-select-wrapper">
-               <div style={{ fontSize: 11, color: T.text3, marginBottom: 8, textAlign: 'right' }}>نوع التحليل</div>
-               <select className="gen-select" value={genType} onChange={e => setGenType(e.target.value)}>
-                 <option>تحليل شامل</option>
-                 <option>تحليل فني فقط (مؤشرات)</option>
-                 <option>تحليل أساسي (أخبار)</option>
-                 <option>استخراج نقاط الدعم والمقاومة</option>
-               </select>
-            </div>
-
-            <div className="gen-select-wrapper">
-               <div style={{ fontSize: 11, color: T.text3, marginBottom: 8, textAlign: 'right' }}>الإطار الزمني</div>
-               <select className="gen-select" value={genTimeframe} onChange={e => setGenTimeframe(e.target.value)}>
-                 <option>قصير • 1-4 ساعات</option>
-                 <option>متوسط • يومي</option>
-                 <option>طويل • أسبوعي</option>
-                 <option>للمضاربة • 15 دقيقة</option>
-               </select>
-            </div>
-
-            <div className="gen-select-wrapper">
-               <div style={{ fontSize: 11, color: T.text3, marginBottom: 8, textAlign: 'right' }}>الأسلوب</div>
-               <select className="gen-select" value={genStyle} onChange={e => setGenStyle(e.target.value)}>
-                 <option>احترافي</option>
-                 <option>مختصر</option>
-                 <option>مفصل مع الشرح</option>
-               </select>
-            </div>
-          </div>
-
-          {/* Generate Button (will be on the far left in RTL) */}
-          <button 
-            onClick={handleGenerate}
-            disabled={isTyping}
-            style={{
-              height: 44, width: 140, borderRadius: 10, border: 'none',
-              background: `linear-gradient(90deg, #00A3D9, #00E5FF)`,
-              color: '#000', fontWeight: 800, fontSize: 15, fontFamily: "'Cairo', sans-serif",
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              cursor: isTyping ? 'not-allowed' : 'pointer', flexShrink: 0,
-              opacity: isTyping ? 0.7 : 1, transition: 'transform 0.1s'
-            }}
-            onMouseDown={e => !isTyping && (e.currentTarget.style.transform = 'scale(0.97)')}
-            onMouseUp={e => !isTyping && (e.currentTarget.style.transform = 'scale(1)')}
-            onMouseLeave={e => !isTyping && (e.currentTarget.style.transform = 'scale(1)')}
+        {/* Symbol Selector */}
+        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          <select
+            className="ai-select"
+            value={selectedSymbol}
+            onChange={e => setSelectedSymbol(e.target.value)}
+            style={{ width: 130, fontSize: 13, fontWeight: 700 }}
           >
-            توليد
-            <Zap size={16} fill="#000" />
-          </button>
+            {PRIMARY_SYMBOLS.map(s => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
         </div>
+
+        {/* Live Price */}
+        {techData && (
+          <div style={{
+            padding: '6px 12px', borderRadius: 8,
+            background: `${dirColor}08`, border: `1px solid ${dirColor}25`,
+            display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700,
+            color: dirColor, fontFamily: "'JetBrains Mono', monospace",
+          }}>
+            {techData.dir === 'buy' ? <ArrowUpRight size={14} /> : techData.dir === 'sell' ? <ArrowDownRight size={14} /> : <Minus size={14} />}
+            {techData.price > 1000 ? techData.price.toFixed(2) : techData.price.toFixed(5)}
+            <span style={{ fontSize: 10, color: T.text3, fontWeight: 500 }}>
+              {techData.change >= 0 ? '+' : ''}{techData.change.toFixed(2)}%
+            </span>
+          </div>
+        )}
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* AI Models Status */}
+        <div style={{ display: 'flex', gap: 6 }}>
+          {[
+            { name: 'Gemini', color: T.cyan, key: 'GOOGLE_AI_STUDIO_API_KEY' },
+            { name: 'Groq', color: T.blue, key: 'GROQ_API_KEY' },
+            { name: 'GLM-4', color: T.amber, key: 'GLM_API_KEY' },
+          ].map(m => {
+            const modelInfo = modelsStatus.find(ms => ms.model.includes(m.name))
+            const available = nestjsConnected && (modelInfo?.available ?? false)
+            return (
+              <div key={m.name} style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                padding: '4px 10px', borderRadius: 16,
+                background: available ? `${m.color}10` : T.bg,
+                border: `1px solid ${available ? `${m.color}30` : T.border}`,
+                fontSize: 10, fontWeight: 700, color: available ? m.color : T.text3,
+              }}>
+                <div style={{
+                  width: 5, height: 5, borderRadius: '50%',
+                  background: available ? m.color : T.text3,
+                  boxShadow: available ? `0 0 6px ${m.color}` : 'none',
+                }} />
+                {m.name}
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Quick Actions */}
+        <button
+          onClick={handleSmartRecommendation}
+          disabled={isTyping}
+          style={{
+            padding: '7px 14px', borderRadius: 8, border: 'none',
+            background: `linear-gradient(90deg, ${T.cyan}, ${T.blue})`,
+            color: '#000', fontWeight: 800, fontSize: 11,
+            cursor: isTyping ? 'not-allowed' : 'pointer',
+            opacity: isTyping ? 0.6 : 1,
+            display: 'flex', alignItems: 'center', gap: 5,
+            fontFamily: "'Cairo', sans-serif",
+          }}
+        >
+          <Zap size={13} fill="#000" />
+          توصية ذكية
+        </button>
+        <button
+          onClick={handleComprehensiveAnalysis}
+          disabled={isTyping}
+          style={{
+            padding: '7px 14px', borderRadius: 8,
+            border: `1px solid ${T.purple}40`,
+            background: `${T.purple}10`,
+            color: T.purple, fontWeight: 700, fontSize: 11,
+            cursor: isTyping ? 'not-allowed' : 'pointer',
+            opacity: isTyping ? 0.6 : 1,
+            display: 'flex', alignItems: 'center', gap: 5,
+            fontFamily: "'Cairo', sans-serif",
+          }}
+        >
+          <Sparkles size={13} />
+          تحليل شامل
+        </button>
       </div>
 
-      <div style={{ display: 'flex', gap: 16, flex: 1, minHeight: 450, flexShrink: 0 }}>
-        
-        {/* ── Right Column: AI Chat Interface ── */}
-        <div style={{ 
-          flex: '1', display: 'flex', flexDirection: 'column', 
-          background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 16, 
-          overflow: 'hidden', position: 'relative', minHeight: 450
+      {/* ── Main Content: 3-Column Layout ── */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+
+        {/* ═══════ Right Column: Technical Indicators & Market Context ═══════ */}
+        <div style={{
+          flex: '0 0 300px',
+          borderLeft: `1px solid ${T.border}`,
+          display: 'flex', flexDirection: 'column',
+          overflowY: 'auto',
+        }}>
+          {/* Sentiment Card */}
+          <div style={{ padding: '16px', borderBottom: `1px solid ${T.border}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontSize: 11, color: T.text3, fontWeight: 700 }}>مزاج السوق</span>
+              <Activity size={14} color={sentimentColor} />
+            </div>
+            <div style={{
+              textAlign: 'center', padding: '12px 0',
+            }}>
+              <div style={{
+                fontSize: 26, fontWeight: 900, color: sentimentColor,
+                fontFamily: "'JetBrains Mono', monospace",
+                textShadow: `0 0 20px ${sentimentColor}30`,
+              }}>
+                {narratorData ? sentimentAr : '—'}
+              </div>
+              {narratorData && (
+                <div style={{
+                  fontSize: 10, color: T.text3, marginTop: 6,
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}>
+                  ثقة: {narratorData.confidence}% | مخاطرة: {narratorData.risk === 'Low' ? 'منخفضة' : narratorData.risk === 'Medium' ? 'متوسطة' : 'عالية'}
+                </div>
+              )}
+            </div>
+            {narratorData?.summary && (
+              <div style={{
+                padding: '10px', borderRadius: 8, background: T.bg,
+                border: `1px solid ${T.border}`,
+                fontSize: 10, color: T.text2, lineHeight: 1.6,
+              }}>
+                {narratorData.summary}
+              </div>
+            )}
+          </div>
+
+          {/* Technical Indicators */}
+          <div style={{ padding: '16px', borderBottom: `1px solid ${T.border}`, flex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontSize: 11, color: T.text3, fontWeight: 700 }}>المؤشرات الفنية ({selectedSymbol})</span>
+              <button
+                onClick={fetchTechIndicators}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}
+              >
+                <RefreshCw size={12} color={T.text3} />
+              </button>
+            </div>
+
+            {techLoading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} style={{
+                    height: 52, borderRadius: 8,
+                    background: `linear-gradient(90deg, ${T.bg} 25%, ${T.bg2} 50%, ${T.bg} 75%)`,
+                    backgroundSize: '200% 100%',
+                    animation: 'fadeSlideIn 1.5s infinite',
+                  }} />
+                ))}
+              </div>
+            ) : techData ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {/* Direction */}
+                <IndicatorCard
+                  label="التوجه"
+                  value={dirAr}
+                  subValue={`${techData.strength}%`}
+                  color={dirColor}
+                  icon={dirIcon}
+                />
+
+                {/* RSI */}
+                <IndicatorCard
+                  label="RSI (14)"
+                  value={String(techData.rsi)}
+                  subValue={techData.rsi < 30 ? 'تشبع بيعي' : techData.rsi > 70 ? 'تشبع شرائي' : 'محايد'}
+                  color={techData.rsi < 30 ? T.green : techData.rsi > 70 ? T.red : T.cyan}
+                />
+
+                {/* EMA Cross */}
+                <IndicatorCard
+                  label="EMA (20/50)"
+                  value={techData.ema20 > techData.ema50 ? 'تقاطع صاعد' : 'تقاطع هابط'}
+                  subValue={`Δ ${Math.abs(techData.ema20 - techData.ema50).toFixed(2)}`}
+                  color={techData.ema20 > techData.ema50 ? T.green : T.red}
+                />
+
+                {/* Signal Class */}
+                <IndicatorCard
+                  label="تصنيف الإشارة"
+                  value={techData.signalClass === 'trend' ? 'اتجاهي' : techData.signalClass === 'reversion' ? 'ارتداد' : techData.signalClass === 'breakout' ? 'اختراق' : 'مراقبة'}
+                  subValue={`دخول: ${techData.entryBias === 'follow' ? 'متابعة' : techData.entryBias === 'fade' ? 'عكسي' : 'انتظار'}`}
+                  color={techData.signalClass === 'trend' ? T.green : techData.signalClass === 'breakout' ? T.amber : T.purple}
+                />
+
+                {/* Reasons */}
+                {techData.reasons.length > 0 && (
+                  <div style={{
+                    padding: '10px', borderRadius: 8,
+                    background: T.bg, border: `1px solid ${T.border}`,
+                    fontSize: 10, color: T.text2, lineHeight: 1.5,
+                  }}>
+                    <div style={{ fontSize: 9, color: T.text3, fontWeight: 700, marginBottom: 6 }}>الأسباب</div>
+                    {techData.reasons.map((r, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: 3 }}>
+                        <CircleDot size={8} color={T.cyan} style={{ marginTop: 3, flexShrink: 0 }} />
+                        {r}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{
+                padding: '20px', textAlign: 'center', color: T.text3, fontSize: 11,
+              }}>
+                لا توجد بيانات فنية متاحة حالياً
+              </div>
+            )}
+          </div>
+
+          {/* Narrator Quick Insights */}
+          {narratorData && (
+            <div style={{ padding: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: 11, color: T.text3, fontWeight: 700 }}>رؤى سريعة</span>
+                <Eye size={12} color={T.purple} />
+              </div>
+              {narratorData.bullCase && (
+                <InsightBox label="سيناريو صاعد" text={narratorData.bullCase} color={T.green} />
+              )}
+              {narratorData.bearCase && (
+                <InsightBox label="سيناريو هابط" text={narratorData.bearCase} color={T.red} />
+              )}
+              {narratorData.keyRisk && (
+                <InsightBox label="المخاطرة الرئيسية" text={narratorData.keyRisk} color={T.amber} />
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ═══════ Center: AI Chat ═══════ */}
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
         }}>
           {/* Chat Header */}
-          <div style={{ padding: '16px 20px', borderBottom: `0.5px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: `linear-gradient(90deg, ${T.cyan}08, transparent)` }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Cpu size={18} color={T.cyan} />
-              <span style={{ fontSize: 14, fontWeight: 700, color: T.text }}>نتائج التحليل والمحادثة المستمرة</span>
+          <div style={{
+            padding: '12px 20px',
+            borderBottom: `1px solid ${T.border}`,
+            background: T.bg2,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Cpu size={16} color={T.cyan} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>محادثة التحليل الذكي</span>
+              <span style={{
+                fontSize: 9, padding: '2px 8px', borderRadius: 10,
+                background: nestjsConnected ? `${T.green}12` : `${T.amber}12`,
+                border: `1px solid ${nestjsConnected ? `${T.green}30` : `${T.amber}30`}`,
+                color: nestjsConnected ? T.green : T.amber,
+                fontWeight: 700,
+              }}>
+                {nestjsConnected ? 'AI حقيقي' : 'وضع محلي'}
+              </span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: T.text3 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.green }} />
-              جاهز لتلقي الطلبات
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button
+                onClick={handleClearChat}
+                style={{
+                  padding: '4px 10px', borderRadius: 6,
+                  border: `1px solid ${T.border}`, background: T.bg,
+                  color: T.text3, fontSize: 10, cursor: 'pointer',
+                  fontFamily: "'Cairo', sans-serif",
+                }}
+              >
+                مسح المحادثة
+              </button>
             </div>
           </div>
 
           {/* Chat Messages */}
-          <div style={{ flex: 1, padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{
+            flex: 1, padding: '20px', overflowY: 'auto',
+            display: 'flex', flexDirection: 'column', gap: 16,
+          }}>
             {messages.map((msg) => (
-              <div key={msg.id} style={{
-                display: 'flex', flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
-                gap: 12, alignItems: 'flex-start',
-                alignSelf: msg.role === 'user' ? 'flex-start' : 'flex-end',
-                maxWidth: '85%'
+              <div key={msg.id} className={msg.role === 'ai' ? 'chat-msg-ai' : ''} style={{
+                display: 'flex',
+                flexDirection: msg.role === 'user' ? 'row-reverse' : 'row',
+                gap: 10, alignItems: 'flex-start',
+                maxWidth: '85%',
               }}>
                 {msg.role === 'ai' && (
-                  <div style={{ width: 32, height: 32, borderRadius: 8, background: `${T.cyan}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1px solid ${T.cyan}40` }}>
-                    <Brain size={16} color={T.cyan} />
+                  <div style={{
+                    width: 30, height: 30, borderRadius: 8,
+                    background: `${T.cyan}15`,
+                    border: `1px solid ${T.cyan}30`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    <Bot size={14} color={T.cyan} />
                   </div>
                 )}
                 <div style={{
                   background: msg.role === 'user' ? T.blue : T.card,
-                  color: T.text, fontSize: 13, lineHeight: 1.7,
-                  padding: '14px 18px', borderRadius: 12,
+                  color: T.text, fontSize: 13, lineHeight: 1.8,
+                  padding: '12px 16px', borderRadius: 12,
                   border: msg.role === 'ai' ? `0.5px solid ${T.border}` : 'none',
                   borderTopRightRadius: msg.role === 'user' ? 4 : 12,
                   borderTopLeftRadius: msg.role === 'ai' ? 4 : 12,
+                  whiteSpace: 'pre-wrap',
+                  minWidth: 200,
                 }}>
                   {msg.content}
-                  <div style={{ fontSize: 9, color: msg.role === 'user' ? 'rgba(255,255,255,0.5)' : T.text3, marginTop: 6, textAlign: msg.role === 'user' ? 'left' : 'right' }}>
-                    {msg.timestamp}
+                  <div style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    marginTop: 8, paddingTop: 6, borderTop: `0.5px solid ${msg.role === 'user' ? 'rgba(255,255,255,0.1)' : T.border}`,
+                  }}>
+                    <span style={{
+                      fontSize: 8, color: msg.role === 'user' ? 'rgba(255,255,255,0.4)' : T.text3,
+                    }}>
+                      {msg.timestamp}
+                    </span>
+                    {msg.role === 'ai' && msg.model && (
+                      <span style={{
+                        fontSize: 8, padding: '1px 6px', borderRadius: 4,
+                        background: msg.source === 'ai-orchestrator' ? `${T.green}12` :
+                          msg.source === 'local-fallback' ? `${T.amber}12` : `${T.text3}12`,
+                        color: msg.source === 'ai-orchestrator' ? T.green :
+                          msg.source === 'local-fallback' ? T.amber : T.text3,
+                        fontWeight: 600,
+                      }}>
+                        {msg.model} {msg.confidence ? `• ${msg.confidence}%` : ''}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
             ))}
-            
+
             {isTyping && (
-              <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', maxWidth: '80%', alignSelf: 'flex-end' }}>
-                <div style={{ width: 32, height: 32, borderRadius: 8, background: `${T.cyan}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `1px solid ${T.cyan}40` }}>
-                  <Brain size={16} color={T.cyan} />
+              <div style={{
+                display: 'flex', gap: 10, alignItems: 'flex-start',
+                maxWidth: '80%',
+              }}>
+                <div style={{
+                  width: 30, height: 30, borderRadius: 8,
+                  background: `${T.cyan}15`,
+                  border: `1px solid ${T.cyan}30`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  <Bot size={14} color={T.cyan} />
                 </div>
-                <div style={{ background: T.card, padding: '14px 20px', borderRadius: 12, borderTopLeftRadius: 4, display: 'flex', gap: 4, border: `0.5px solid ${T.border}` }}>
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.text3, animation: 'pulse 1.5s infinite ease-in-out' }} />
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.text3, animation: 'pulse 1.5s infinite ease-in-out 0.2s' }} />
-                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.text3, animation: 'pulse 1.5s infinite ease-in-out 0.4s' }} />
+                <div style={{
+                  background: T.card, padding: '14px 20px', borderRadius: 12, borderTopLeftRadius: 4,
+                  border: `0.5px solid ${T.border}`,
+                  display: 'flex', gap: 6, alignItems: 'center',
+                }}>
+                  <div style={{
+                    width: 6, height: 6, borderRadius: '50%', background: T.cyan,
+                    animation: 'dot-pulse 1.4s infinite ease-in-out',
+                  }} />
+                  <div style={{
+                    width: 6, height: 6, borderRadius: '50%', background: T.cyan,
+                    animation: 'dot-pulse 1.4s infinite ease-in-out 0.2s',
+                  }} />
+                  <div style={{
+                    width: 6, height: 6, borderRadius: '50%', background: T.cyan,
+                    animation: 'dot-pulse 1.4s infinite ease-in-out 0.4s',
+                  }} />
+                  <span style={{ fontSize: 10, color: T.text3, marginRight: 6 }}>
+                    {nestjsConnected ? 'AI يحلل...' : 'تحليل محلي...'}
+                  </span>
                 </div>
               </div>
             )}
@@ -384,28 +832,65 @@ export default function AIPage() {
           </div>
 
           {/* Chat Input */}
-          <div style={{ padding: '16px 20px', borderTop: `0.5px solid ${T.border}`, background: T.bg2 }}>
+          <div style={{
+            padding: '14px 20px',
+            borderTop: `1px solid ${T.border}`,
+            background: T.bg2,
+          }}>
+            {/* Quick Prompts */}
+            <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+              {[
+                { label: 'تحليل فني', prompt: `حلل ${selectedSymbol} فنياً مع المؤشرات والمستويات` },
+                { label: 'مستويات الدعم والمقاومة', prompt: `ما هي مستويات الدعم والمقاومة لـ ${selectedSymbol}؟` },
+                { label: 'تحليل مخاطر', prompt: `حلل مخاطر التداول على ${selectedSymbol} الآن` },
+                { label: 'أفضل وقت للدخول', prompt: `ما هو أفضل توقيت للدخول في ${selectedSymbol} حالياً؟` },
+              ].map(qp => (
+                <button
+                  key={qp.label}
+                  onClick={() => sendMessage(qp.prompt)}
+                  disabled={isTyping}
+                  style={{
+                    padding: '4px 10px', borderRadius: 6,
+                    border: `1px solid ${T.border}`, background: T.bg,
+                    color: T.text3, fontSize: 10, cursor: isTyping ? 'not-allowed' : 'pointer',
+                    fontFamily: "'Cairo', sans-serif",
+                    opacity: isTyping ? 0.5 : 1,
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = T.cyan; e.currentTarget.style.color = T.cyan }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.text3 }}
+                >
+                  {qp.label}
+                </button>
+              ))}
+            </div>
+
             <div style={{ display: 'flex', gap: 10 }}>
               <input
+                ref={inputRef}
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleSend()}
-                placeholder="أرسل استفساراً إضافياً أو اطلب توضيحاً..."
+                onKeyDown={e => e.key === 'Enter' && sendMessage(inputValue)}
+                placeholder={`اسأل عن ${selectedSymbol} أو أي أصل مالي...`}
                 style={{
-                  flex: 1, background: T.bg, border: `1px solid ${T.border}`, borderRadius: 10,
-                  padding: '12px 16px', color: T.text, fontFamily: "'Cairo', sans-serif", fontSize: 13,
-                  outline: 'none', transition: 'border-color 0.2s'
+                  flex: 1, background: T.bg, border: `1px solid ${T.border}`,
+                  borderRadius: 10, padding: '12px 16px',
+                  color: T.text, fontFamily: "'Cairo', sans-serif", fontSize: 13,
+                  outline: 'none', transition: 'border-color 0.2s',
                 }}
-                onFocus={e => e.target.style.borderColor = T.blue}
+                onFocus={e => e.target.style.borderColor = T.cyan}
                 onBlur={e => e.target.style.borderColor = T.border}
               />
               <button
-                onClick={handleSend}
-                disabled={isTyping}
+                onClick={() => sendMessage(inputValue)}
+                disabled={isTyping || !inputValue.trim()}
                 style={{
-                  width: 46, borderRadius: 10, border: 'none', background: T.blue, color: '#fff',
-                  cursor: isTyping ? 'not-allowed' : 'pointer', opacity: isTyping ? 0.5 : 1,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s'
+                  width: 46, borderRadius: 10, border: 'none',
+                  background: T.cyan, color: '#000',
+                  cursor: isTyping || !inputValue.trim() ? 'not-allowed' : 'pointer',
+                  opacity: isTyping || !inputValue.trim() ? 0.4 : 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all 0.2s',
                 }}
               >
                 <Send size={18} style={{ transform: 'rotate(180deg)' }} />
@@ -414,228 +899,357 @@ export default function AIPage() {
           </div>
         </div>
 
-        {/* ── Left Column: Active Market Context & Indicators ── */}
-        <div style={{ flex: '0 0 320px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          
-          {/* Sentiment Meter */}
-          <div style={{ background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 16, padding: '20px', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: T.text, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Activity size={16} color={sentimentColor} />
-                مزاج السوق العام (الآن)
-              </div>
-            </div>
-            
-            <div style={{ textAlign: 'center', padding: '10px 0' }}>
-              <div style={{ 
-                fontSize: 28, fontWeight: 900, color: sentimentColor, 
-                fontFamily: "'JetBrains Mono', monospace", letterSpacing: '-0.02em',
-                textShadow: `0 0 16px ${sentimentColor}40`
-              }}>
-                {sentimentAr}
-              </div>
-            </div>
-
-            <div style={{ background: T.bg, padding: '12px', borderRadius: 8, border: `0.5px solid ${T.border}`, fontSize: 11, color: T.text2, lineHeight: 1.6 }}>
-              {marketAnalysis ? marketAnalysis.narrative : 'جاري تحليل معنويات السوق الكلية...'}
-            </div>
-            
-            <div style={{ position: 'absolute', top: -30, left: -30, width: 100, height: 100, background: `radial-gradient(circle, ${sentimentColor}15 0%, transparent 70%)`, pointerEvents: 'none' }} />
-          </div>
-
-          {/* Quick Technical Scan */}
-          <div style={{ flex: 1, background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 16, padding: '20px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Target size={16} color={T.purple} />
-              رصد مؤشرات فنية (مباشر)
-            </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {/* RSI */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: T.bg, borderRadius: 8, border: `0.5px solid ${T.border}` }}>
-                <div>
-                  <div style={{ fontSize: 10, color: T.text3, marginBottom: 4 }}>RSI (14) - EUR/USD</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: T.green }}>62.5</div>
-                </div>
-                <div style={{ padding: '4px 8px', background: `${T.green}18`, color: T.green, borderRadius: 4, fontSize: 10, fontWeight: 700 }}>إيجابي</div>
-              </div>
-              
-              {/* MACD */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: T.bg, borderRadius: 8, border: `0.5px solid ${T.border}` }}>
-                <div>
-                  <div style={{ fontSize: 10, color: T.text3, marginBottom: 4 }}>MACD - XAU/USD</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: T.red }}>-1.24</div>
-                </div>
-                <div style={{ padding: '4px 8px', background: `${T.red}18`, color: T.red, borderRadius: 4, fontSize: 10, fontWeight: 700 }}>سلبي</div>
-              </div>
-              
-              {/* EMA 20/50 */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px', background: T.bg, borderRadius: 8, border: `0.5px solid ${T.border}` }}>
-                <div>
-                  <div style={{ fontSize: 10, color: T.text3, marginBottom: 4 }}>تقاطع EMA (20/50) - BTC/USD</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: T.cyan }}>صاعد الدعم: 65k</div>
-                </div>
-                <div style={{ padding: '4px 8px', background: `${T.cyan}18`, color: T.cyan, borderRadius: 4, fontSize: 10, fontWeight: 700 }}>محايد يميل للشراء</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Component 1: Strategy Testing ── */}
-      <div style={{ 
-        flexShrink: 0, marginTop: 16,
-        background: T.card, borderRadius: 12,
-        border: `0.5px solid ${T.border}`,
-        padding: '24px'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          {/* Left Side: Buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ 
-              background: `${T.green}15`, border: `0.5px solid ${T.green}40`, 
-              padding: '6px 12px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 6 
-            }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.red, boxShadow: `0 0 6px ${T.red}` }} />
-              <span style={{ color: T.green, fontSize: 11, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>Deriv حية</span>
-            </div>
-            <button 
-              onClick={handleRunBacktest}
-              disabled={isTesting}
-              style={{ 
-                background: T.cyan, color: '#000', border: 'none', borderRadius: 6, 
-                padding: '6px 16px', fontSize: 12, fontWeight: 800, 
-                cursor: isTesting ? 'not-allowed' : 'pointer', opacity: isTesting ? 0.7 : 1,
-                display: 'flex', alignItems: 'center', gap: 6, fontFamily: "'Cairo', sans-serif" 
-            }}>
-              {isTesting ? 'جاري...' : 'تشغيل'}
-              {!isTesting && <span style={{ fontSize: 10 }}>▶</span>}
-            </button>
-          </div>
-
-          {/* Right Side: Title */}
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end', color: T.text, fontSize: 16, fontWeight: 800 }}>
-              اختبار الاستراتيجيات <span style={{ fontSize: 14 }}>🧪</span>
-            </div>
-            <div style={{ color: T.text3, fontSize: 11, marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>Backtesting</div>
-          </div>
-        </div>
-
-        {/* 3 Columns Layout */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1fr) minmax(200px, 1.5fr) minmax(200px, 1fr)', gap: 30 }}>
-          
-          {/* Section 1 (Right visually in RTL, left in DOM if dir=rtl) - Results */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ fontSize: 11, color: T.cyan, textAlign: 'right', fontWeight: 700, marginBottom: 8 }}>النتائج</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              {[
-                { label: '%Win', color: T.green, val: btResults?.winRate },
-                { label: 'P&L', color: T.green, val: btResults?.pnl },
-                { label: 'Max DD', color: T.red, val: btResults?.maxDd },
-                { label: 'Sharpe', color: T.cyan, val: btResults?.sharpe },
-                { label: 'P.Factor', color: T.purple, val: btResults?.pFactor },
-                { label: 'صفقات', color: T.text, val: btResults?.tradesCount }
-              ].map((stat, i) => (
-                <div key={i} style={{ background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 6, padding: '10px 14px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                   <div style={{ fontSize: 10, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{stat.label}</div>
-                   <div style={{ fontSize: 14, fontWeight: 800, color: stat.color, fontFamily: "'JetBrains Mono', monospace" }}>{isTesting ? '...' : stat.val || '-'}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Section 2 - Parameters */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingLeft: 20, borderLeft: `0.5px solid ${T.border}` }}>
-            <div style={{ fontSize: 11, color: T.cyan, textAlign: 'right', fontWeight: 700, marginBottom: 8 }}>المعاملات</div>
-            
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 12, color: T.amber, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", width: '40px' }}>{btEmaFast}</span>
-              <input type="range" min="5" max="50" value={btEmaFast} onChange={e => setBtEmaFast(parseInt(e.target.value))} style={{ flex: 1, margin: '0 16px', accentColor: T.cyan }} />
-              <span style={{ fontSize: 11, color: T.text3, width: '60px', textAlign: 'right', fontFamily: "'JetBrains Mono', monospace" }}>EMA Fast</span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 12, color: T.amber, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", width: '40px' }}>{btEmaSlow}</span>
-              <input type="range" min="20" max="200" value={btEmaSlow} onChange={e => setBtEmaSlow(parseInt(e.target.value))} style={{ flex: 1, margin: '0 16px', accentColor: T.cyan }} />
-              <span style={{ fontSize: 11, color: T.text3, width: '60px', textAlign: 'right', fontFamily: "'JetBrains Mono', monospace" }}>EMA Slow</span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 12, color: T.amber, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", width: '40px' }}>{btRisk}%</span>
-              <input type="range" min="1" max="10" value={btRisk} onChange={e => setBtRisk(parseInt(e.target.value))} style={{ flex: 1, margin: '0 16px', accentColor: T.cyan }} />
-              <span style={{ fontSize: 11, color: T.text3, width: '60px', textAlign: 'right', fontFamily: "'JetBrains Mono', monospace" }}>مخاطرة%</span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 12, color: T.amber, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", width: '40px' }}>1:2</span>
-              <div style={{ flex: 1, margin: '0 16px', position: 'relative', height: 2, background: T.bg }}>
-                 <div style={{ position: 'absolute', right: 0, top: 0, height: '100%', width: '40%', background: T.cyan }} />
-                 <div style={{ position: 'absolute', right: '40%', top: -4, width: 10, height: 10, borderRadius: '50%', background: T.cyan, boxShadow: `0 0 6px ${T.cyan}` }} />
-              </div>
-              <span style={{ fontSize: 11, color: T.text3, width: '60px', textAlign: 'right', fontFamily: "'JetBrains Mono', monospace" }}>TP:SL</span>
-            </div>
-          </div>
-
-          {/* Section 3 - Strategy Selection */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingLeft: 20, borderLeft: `0.5px solid ${T.border}` }}>
-             <div style={{ fontSize: 11, color: T.cyan, textAlign: 'right', fontWeight: 700, marginBottom: 2 }}>الاستراتيجية</div>
-             
-             <div className="gen-select-wrapper">
-               <div style={{ fontSize: 11, color: T.text3, marginBottom: 8, textAlign: 'right' }}>النوع</div>
-               <select className="gen-select" style={{ background: T.bg }} value={btStrategy} onChange={e => setBtStrategy(e.target.value)}>
-                 <option>EMA Cross</option>
-                 <option>MACD Divergence</option>
-                 <option>RSI Oversold</option>
-               </select>
-             </div>
-
-             <div className="gen-select-wrapper">
-               <div style={{ fontSize: 11, color: T.text3, marginBottom: 8, textAlign: 'right' }}>الزوج</div>
-               <select className="gen-select" style={{ background: T.bg }} value={btPair} onChange={e => setBtPair(e.target.value)}>
-                 <option>EUR/USD</option>
-                 <option>XAU/USD</option>
-                 <option>BTC/USD</option>
-               </select>
-             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Component 2: AINarrator Market Readout ── */}
-      <div style={{ 
-        flexShrink: 0, marginTop: 16,
-        background: T.card, borderRadius: 12,
-        border: `0.5px solid ${T.border}`,
-        padding: '20px 24px'
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <button 
-            onClick={handleRunNarrator}
-            disabled={isNarrating}
-            style={{ 
-              background: T.cyan, color: '#000', border: 'none', borderRadius: 6, 
-              padding: '6px 20px', fontSize: 12, fontWeight: 800, 
-              cursor: isNarrating ? 'not-allowed' : 'pointer', opacity: isNarrating ? 0.7 : 1,
-              display: 'flex', alignItems: 'center', gap: 6, fontFamily: "'Cairo', sans-serif" 
-          }}>
-            {isNarrating ? 'جاري التحليل...' : 'تحليل'} {!isNarrating && <Zap size={14} fill="#000" />}
-          </button>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: T.cyan, fontSize: 15, fontWeight: 800 }}>
-            سرد السوق — AINarrator <Brain size={18} color="#FF7B9C" />
-          </div>
-        </div>
-        
-        <div style={{ 
-          background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 8, 
-          padding: '28px', textAlign: 'center', color: isNarrating ? T.text2 : (narratorResult ? T.text : T.text3), 
-          fontSize: 13, fontFamily: "'Cairo', sans-serif", lineHeight: 1.8
+        {/* ═══════ Left Column: AI Council + Narrator ═══════ */}
+        <div style={{
+          flex: '0 0 320px',
+          borderRight: `1px solid ${T.border}`,
+          display: 'flex', flexDirection: 'column',
+          overflowY: 'auto',
         }}>
-          {isNarrating ? 'حسناً، جاري قراءة سجلات الأخبار وفحص المؤشرات من قاعدة البيانات...' : (narratorResult || 'اضغط "تحليل" لقراءة حالة السوق الحالية وتلخيص الأخبار المؤثرة...')}
+          {/* Tab Switcher */}
+          <div style={{
+            display: 'flex', borderBottom: `1px solid ${T.border}`,
+            background: T.bg2,
+          }}>
+            <TabButton
+              active={rightTab === 'council'}
+              onClick={() => setRightTab('council')}
+              icon={<Shield size={14} />}
+              label="مجلس AI"
+            />
+            <TabButton
+              active={rightTab === 'narrator'}
+              onClick={() => setRightTab('narrator')}
+              icon={<MessageSquare size={14} />}
+              label="السرد الذكي"
+            />
+          </div>
+
+          {/* ── Council Tab ── */}
+          {rightTab === 'council' && (
+            <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+              {/* Council Header */}
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                marginBottom: 16,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Flame size={14} color={T.amber} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>مجلس النماذج الذكية</span>
+                </div>
+                <button
+                  onClick={fetchCouncil}
+                  disabled={councilLoading}
+                  style={{
+                    padding: '5px 12px', borderRadius: 6,
+                    border: 'none', background: T.cyan, color: '#000',
+                    fontWeight: 800, fontSize: 10, cursor: councilLoading ? 'not-allowed' : 'pointer',
+                    fontFamily: "'Cairo', sans-serif",
+                    opacity: councilLoading ? 0.6 : 1,
+                    display: 'flex', alignItems: 'center', gap: 4,
+                  }}
+                >
+                  <RefreshCw size={10} className={councilLoading ? 'spinning' : ''} />
+                  {councilLoading ? 'جاري...' : 'تفعيل المجلس'}
+                </button>
+              </div>
+
+              {/* Council Result */}
+              {councilLoading ? (
+                <div style={{
+                  flex: 1, display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center', gap: 12,
+                  color: T.text3, fontSize: 11,
+                }}>
+                  <RefreshCw size={24} color={T.cyan} className="spinning" />
+                  <span>المجلس ي deliberates على {selectedSymbol}...</span>
+                </div>
+              ) : councilResult ? (
+                <>
+                  {/* Consensus Score */}
+                  <div style={{
+                    textAlign: 'center', padding: '16px', borderRadius: 12,
+                    background: `${recColor}06`, border: `1px solid ${recColor}20`,
+                    marginBottom: 16,
+                  }}>
+                    <div style={{
+                      fontSize: 36, fontWeight: 900, color: recColor,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      textShadow: `0 0 20px ${recColor}30`,
+                    }}>
+                      {recAr}
+                    </div>
+                    <div style={{
+                      fontSize: 12, color: T.text2, marginTop: 4,
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}>
+                      إجماع {councilResult.consensusScore}%
+                      {councilResult.source === 'nestjs' && (
+                        <span style={{ color: T.green, marginRight: 6 }}>• AI حقيقي</span>
+                      )}
+                    </div>
+                    {/* Score Bar */}
+                    <div style={{
+                      width: '100%', height: 6, background: T.bg,
+                      borderRadius: 4, marginTop: 10, overflow: 'hidden',
+                    }}>
+                      <div style={{
+                        width: `${councilResult.consensusScore}%`,
+                        height: '100%',
+                        background: `linear-gradient(90deg, ${recColor}, ${T.cyan})`,
+                        borderRadius: 4,
+                        transition: 'width 1s ease-out',
+                      }} />
+                    </div>
+                  </div>
+
+                  {/* Individual Votes */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
+                    {councilResult.analyses.map((vote, i) => (
+                      <div key={i} style={{
+                        padding: '10px 12px', borderRadius: 8,
+                        background: T.bg, border: `1px solid ${T.border}`,
+                      }}>
+                        <div style={{
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                          marginBottom: 4,
+                        }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: T.text }}>
+                            {vote.role}
+                          </span>
+                          <span style={{
+                            fontSize: 9, padding: '2px 6px', borderRadius: 4,
+                            background: vote.vote === 'BUY' ? `${T.green}12` : vote.vote === 'SELL' ? `${T.red}12` : `${T.amber}12`,
+                            color: vote.vote === 'BUY' ? T.green : vote.vote === 'SELL' ? T.red : T.amber,
+                            fontWeight: 700,
+                          }}>
+                            {vote.vote === 'BUY' ? 'شراء' : vote.vote === 'SELL' ? 'بيع' : 'انتظار'} • {vote.confidence}%
+                          </span>
+                        </div>
+                        <div style={{
+                          fontSize: 9, color: T.text3, lineHeight: 1.5,
+                          overflow: 'hidden', textOverflow: 'ellipsis',
+                          display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+                        }}>
+                          {vote.reason}
+                        </div>
+                        {vote.model && (
+                          <div style={{ fontSize: 8, color: T.text3, marginTop: 3, fontFamily: "'JetBrains Mono', monospace" }}>
+                            {vote.model}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Master Strategy */}
+                  {councilResult.masterStrategy && (
+                    <div style={{
+                      marginTop: 12, padding: '12px', borderRadius: 8,
+                      background: `${T.cyan}05`, border: `1px solid ${T.cyan}20`,
+                      fontSize: 10, color: T.text2, lineHeight: 1.6,
+                    }}>
+                      <div style={{ fontSize: 9, color: T.cyan, fontWeight: 700, marginBottom: 4 }}>الاستراتيجية الرئيسية</div>
+                      {councilResult.masterStrategy}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{
+                  flex: 1, display: 'flex', flexDirection: 'column',
+                  alignItems: 'center', justifyContent: 'center', gap: 10,
+                  color: T.text3, fontSize: 11, textAlign: 'center',
+                }}>
+                  <Shield size={28} color={T.text3} style={{ opacity: 0.3 }} />
+                  <span>اضغط "تفعيل المجلس" لبدء تصويت<br />نماذج AI على {selectedSymbol}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Narrator Tab ── */}
+          {rightTab === 'narrator' && (
+            <div style={{ padding: '16px', flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* Narrator Header */}
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Brain size={14} color={T.purple} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>السرد الذكي</span>
+                </div>
+                <button
+                  onClick={fetchNarrator}
+                  style={{
+                    padding: '4px 10px', borderRadius: 6,
+                    border: `1px solid ${T.border}`, background: T.bg,
+                    color: T.text3, fontSize: 9, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 4,
+                  }}
+                >
+                  <RefreshCw size={10} /> تحديث
+                </button>
+              </div>
+
+              {narratorData ? (
+                <>
+                  {/* Sentiment & Risk */}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <NarratorBadge
+                      label="التوجه"
+                      value={sentimentAr}
+                      color={sentimentColor}
+                    />
+                    <NarratorBadge
+                      label="المخاطرة"
+                      value={narratorData.risk === 'Low' ? 'منخفضة' : narratorData.risk === 'Medium' ? 'متوسطة' : 'عالية'}
+                      color={narratorData.risk === 'Low' ? T.green : narratorData.risk === 'Medium' ? T.amber : T.red}
+                    />
+                    <NarratorBadge
+                      label="الثقة"
+                      value={`${narratorData.confidence}%`}
+                      color={T.cyan}
+                    />
+                  </div>
+
+                  {/* Narrative Text */}
+                  <div style={{
+                    padding: '14px', borderRadius: 10,
+                    background: T.bg, border: `1px solid ${T.border}`,
+                    fontSize: 11, color: T.text, lineHeight: 1.8,
+                    flex: 1, overflowY: 'auto',
+                  }}>
+                    {narratorData.narrative}
+                  </div>
+
+                  {/* Bull/Bear Cases */}
+                  {narratorData.bullCase && (
+                    <CaseBox label="السيناريو الصاعد" text={narratorData.bullCase} color={T.green} icon={<TrendingUp size={12} />} />
+                  )}
+                  {narratorData.bearCase && (
+                    <CaseBox label="السيناريو الهابط" text={narratorData.bearCase} color={T.red} icon={<TrendingDown size={12} />} />
+                  )}
+                  {narratorData.nextTrigger && (
+                    <div style={{
+                      padding: '10px 12px', borderRadius: 8,
+                      background: `${T.cyan}05`, border: `1px solid ${T.cyan}20`,
+                      fontSize: 10, color: T.text2, lineHeight: 1.6,
+                    }}>
+                      <strong style={{ color: T.cyan }}>المحفز التالي:</strong> {narratorData.nextTrigger}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{
+                  flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: T.text3, fontSize: 11,
+                }}>
+                  جاري تحميل السرد الذكي...
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Spinning animation for RefreshCw */}
+      <style>{`
+        .spinning { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
+    </div>
+  )
+}
+
+// ── Sub-Components ──
+
+function IndicatorCard({ label, value, subValue, color, icon: Icon }: {
+  label: string; value: string; subValue: string; color: string; icon?: any
+}) {
+  return (
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '10px 12px', background: T.bg, borderRadius: 8,
+      border: `0.5px solid ${T.border}`,
+    }}>
+      <div>
+        <div style={{ fontSize: 9, color: T.text3, marginBottom: 3 }}>{label}</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color, display: 'flex', alignItems: 'center', gap: 4 }}>
+          {Icon && <Icon size={14} />}
+          {value}
+        </div>
       </div>
+      <div style={{
+        padding: '3px 8px', borderRadius: 4,
+        background: `${color}12`, color,
+        fontSize: 9, fontWeight: 700,
+      }}>
+        {subValue}
+      </div>
+    </div>
+  )
+}
+
+function TabButton({ active, onClick, icon, label }: {
+  active: boolean; onClick: () => void; icon: React.ReactNode; label: string
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        flex: 1, padding: '10px',
+        background: active ? `${T.cyan}08` : 'transparent',
+        border: 'none', borderBottom: active ? `2px solid ${T.cyan}` : '2px solid transparent',
+        color: active ? T.cyan : T.text3,
+        fontSize: 11, fontWeight: 700, cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+        fontFamily: "'Cairo', sans-serif",
+        transition: 'all 0.2s',
+      }}
+    >
+      {icon}
+      {label}
+    </button>
+  )
+}
+
+function NarratorBadge({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div style={{
+      flex: 1, padding: '8px', borderRadius: 8,
+      background: `${color}06`, border: `1px solid ${color}20`,
+      textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 8, color: T.text3, marginBottom: 2 }}>{label}</div>
+      <div style={{ fontSize: 12, fontWeight: 800, color, fontFamily: "'JetBrains Mono', monospace" }}>{value}</div>
+    </div>
+  )
+}
+
+function InsightBox({ label, text, color }: { label: string; text: string; color: string }) {
+  return (
+    <div style={{
+      padding: '8px 10px', borderRadius: 8,
+      background: `${color}05`, border: `1px solid ${color}15`,
+      marginBottom: 6,
+    }}>
+      <div style={{ fontSize: 9, color, fontWeight: 700, marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.5 }}>{text}</div>
+    </div>
+  )
+}
+
+function CaseBox({ label, text, color, icon }: { label: string; text: string; color: string; icon: React.ReactNode }) {
+  return (
+    <div style={{
+      padding: '10px 12px', borderRadius: 8,
+      background: `${color}05`, border: `1px solid ${color}15`,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+        {icon}
+        <span style={{ fontSize: 10, color, fontWeight: 700 }}>{label}</span>
+      </div>
+      <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.5 }}>{text}</div>
     </div>
   )
 }

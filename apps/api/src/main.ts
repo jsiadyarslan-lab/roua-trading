@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap() {
   try {
@@ -13,6 +14,9 @@ async function bootstrap() {
 
     // Global prefix for all routes
     app.setGlobalPrefix('api');
+
+    // Global exception filter — returns actual error messages instead of "Internal server error"
+    app.useGlobalFilters(new AllExceptionsFilter());
 
     // Enable CORS for Next.js frontend
     app.enableCors({

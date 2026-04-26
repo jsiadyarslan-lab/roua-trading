@@ -8,6 +8,9 @@ import {
   Body,
   Req,
   UseGuards,
+  Logger,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { TradingService } from './trading.service';
 import { RiskManagerService } from './risk-manager.service';
@@ -23,11 +26,15 @@ import {
 /**
  * Trading Controller — REST API for Trading Engine
  *
- * All endpoints require authentication via AuthGuard
+ * All endpoints require authentication via AuthGuard.
+ * Each handler wraps service calls in try/catch to return
+ * meaningful Arabic error messages instead of generic 500s.
  */
 @Controller('trading')
 @UseGuards(AuthGuard)
 export class TradingController {
+  private readonly logger = new Logger(TradingController.name);
+
   constructor(
     private readonly tradingService: TradingService,
     private readonly riskManager: RiskManagerService,
@@ -64,23 +71,25 @@ export class TradingController {
       !request.type ||
       !request.quantity
     ) {
-      throw new Error(
+      throw new BadRequestException(
         'بيانات الطلب غير مكتملة — يرجى تعبئة جميع الحقول المطلوبة',
       );
     }
 
     if (!['BUY', 'SELL'].includes(request.side)) {
-      throw new Error('جانب الطلب يجب أن يكون BUY أو SELL');
+      throw new BadRequestException(
+        'جانب الطلب يجب أن يكون BUY أو SELL',
+      );
     }
 
-    if (
-      !['MARKET', 'LIMIT'].includes(request.type)
-    ) {
-      throw new Error('نوع الطلب غير صالح');
+    if (!['MARKET', 'LIMIT'].includes(request.type)) {
+      throw new BadRequestException('نوع الطلب غير صالح');
     }
 
     if (request.quantity <= 0) {
-      throw new Error('الكمية يجب أن تكون أكبر من صفر');
+      throw new BadRequestException(
+        'الكمية يجب أن تكون أكبر من صفر',
+      );
     }
 
     return this.tradingService.placeOrder(
@@ -141,7 +150,19 @@ export class TradingController {
    */
   @Get('positions')
   async getOpenPositions(@Req() req: any) {
-    return this.tradingService.getOpenPositions(req.user.id);
+    try {
+      const userId = req.user.id;
+      this.logger.log(`📋 Fetching open positions for user: ${userId}`);
+      const positions = await this.tradingService.getOpenPositions(userId);
+      this.logger.log(`📋 Found ${positions.length} open positions`);
+      return positions;
+    } catch (error: any) {
+      this.logger.error(
+        `❌ Failed to fetch open positions: ${error.message}`,
+        error.stack,
+      );
+      throw error; // Let the global exception filter handle it
+    }
   }
 
   /**
@@ -153,10 +174,20 @@ export class TradingController {
     @Req() req: any,
     @Query('limit') limit?: string,
   ) {
-    return this.tradingService.getClosedPositions(
-      req.user.id,
-      limit ? parseInt(limit, 10) : 100,
-    );
+    try {
+      const userId = req.user.id;
+      this.logger.log(`📋 Fetching closed positions for user: ${userId}`);
+      return await this.tradingService.getClosedPositions(
+        userId,
+        limit ? parseInt(limit, 10) : 100,
+      );
+    } catch (error: any) {
+      this.logger.error(
+        `❌ Failed to fetch closed positions: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
   }
 
   /**
@@ -168,10 +199,20 @@ export class TradingController {
     @Req() req: any,
     @Query('limit') limit?: string,
   ) {
-    return this.tradingService.getAllPositions(
-      req.user.id,
-      limit ? parseInt(limit, 10) : 100,
-    );
+    try {
+      const userId = req.user.id;
+      this.logger.log(`📋 Fetching all positions for user: ${userId}`);
+      return await this.tradingService.getAllPositions(
+        userId,
+        limit ? parseInt(limit, 10) : 100,
+      );
+    } catch (error: any) {
+      this.logger.error(
+        `❌ Failed to fetch all positions: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
   }
 
   /**
@@ -180,7 +221,16 @@ export class TradingController {
    */
   @Get('positions/summary')
   async getPositionSummary(@Req() req: any) {
-    return this.tradingService.getPositionSummary(req.user.id);
+    try {
+      const userId = req.user.id;
+      return await this.tradingService.getPositionSummary(userId);
+    } catch (error: any) {
+      this.logger.error(
+        `❌ Failed to fetch position summary: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
   }
 
   /**
@@ -196,7 +246,7 @@ export class TradingController {
     };
 
     if (!request.positionId) {
-      throw new Error('معرف المركز مطلوب');
+      throw new BadRequestException('معرف المركز مطلوب');
     }
 
     return this.tradingService.closePosition(
@@ -234,10 +284,19 @@ export class TradingController {
     @Req() req: any,
     @Query('limit') limit?: string,
   ) {
-    return this.tradingService.getTradeHistory(
-      req.user.id,
-      limit ? parseInt(limit, 10) : 50,
-    );
+    try {
+      const userId = req.user.id;
+      return await this.tradingService.getTradeHistory(
+        userId,
+        limit ? parseInt(limit, 10) : 50,
+      );
+    } catch (error: any) {
+      this.logger.error(
+        `❌ Failed to fetch trade history: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
   }
 
   // ── Risk Management ──
@@ -263,7 +322,7 @@ export class TradingController {
     const riskPercent = parseFloat(body.riskPercent) || 1;
 
     if (!portfolioValue || !entryPrice || !stopLossPrice) {
-      throw new Error(
+      throw new BadRequestException(
         'قيمة المحفظة وسعر الدخول ووقف الخسارة مطلوبة',
       );
     }

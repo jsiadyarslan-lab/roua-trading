@@ -55,7 +55,7 @@ import {
  * - GET    /api/trading/positions       — Get open positions
  * - GET    /api/trading/portfolio       — Get portfolio summary
  */
-@Controller('trading')
+@Controller('trading/v2')
 @UseGuards(AuthGuard)
 export class OrderController {
   private readonly logger = new Logger(OrderController.name);

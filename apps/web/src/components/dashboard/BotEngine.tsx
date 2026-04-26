@@ -5,6 +5,7 @@ import { useBotStore } from '@/hooks/useBotStore'
 import { usePaperTradesStore, type PaperTrade } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
+import { useMarketStore } from '@/hooks/useMarketStore'
 
 // Default to paper trading for safety — only go live if explicitly enabled
 const PAPER_TRADING_MODE = process.env.NEXT_PUBLIC_PAPER_TRADING !== 'false'
@@ -26,7 +27,7 @@ export function BotEngine() {
   const { isOn, addLog, settings, setEngineState, patchStats } = useBotStore()
   const addPaperTrade = usePaperTradesStore((state) => state.addTrade)
   const updatePaperTradePrice = usePaperTradesStore((state) => state.updatePrice)
-  const removePaperTrade = usePaperTradesStore((state) => state.removeTrade)
+  const closePaperTrade = usePaperTradesStore((state) => state.closeTrade)
   const addNotification = useNotificationStore((state) => state.addNotification)
 
   const tradesRef = useRef(usePaperTradesStore.getState().trades)
@@ -101,12 +102,18 @@ export function BotEngine() {
 
       for (const trade of botTrades) {
         try {
-          const res = await fetch(`/api/market-scan?pair=${encodeURIComponent(trade.symbol)}&tf=15m`, { cache: 'no-store' })
-          const payload = await res.json()
-          const signal = Array.isArray(payload?.data) ? payload.data[0] : null
-          const latestPrice = Number(signal?.price || trade.currentPrice || trade.entryPrice)
+          // Use REAL market price from the market store (updated every 1s by GlobalLogicEngine)
+          // NOT the scanner price which can be stale/fallback
+          const quotes = useMarketStore.getState().quotes
+          const quoteKey = Object.keys(quotes).find(k =>
+            k.toUpperCase().replace('/', '') === trade.symbol.toUpperCase().replace('/', '')
+          )
+          const livePrice = quoteKey ? Number(quotes[quoteKey]?.price) : 0
+          const latestPrice = livePrice > 0 ? livePrice : trade.currentPrice || trade.entryPrice
 
-          updatePaperTradePrice(trade.symbol, latestPrice)
+          if (livePrice > 0) {
+            updatePaperTradePrice(trade.symbol, latestPrice)
+          }
 
           const shouldTakeProfit = trade.side === 'long'
             ? typeof trade.tp === 'number' && latestPrice >= trade.tp
@@ -221,7 +228,7 @@ export function BotEngine() {
     scanAndExecute()
     const interval = setInterval(scanAndExecute, 30000)
     return () => clearInterval(interval)
-  }, [hydrated, isOn, settings.confLimit, settings.riskPct, settings.strategy, settings.useAIConsensus, addLog, addNotification, addPaperTrade, updatePaperTradePrice, removePaperTrade, patchStats, setEngineState])
+  }, [hydrated, isOn, settings.confLimit, settings.riskPct, settings.strategy, settings.useAIConsensus, addLog, addNotification, addPaperTrade, updatePaperTradePrice, closePaperTrade, patchStats, setEngineState])
 
   const shouldExecuteSignal = (signal: SmartSignalLike) => {
     const confidence = Number(signal.strength || 0)
@@ -252,8 +259,10 @@ export function BotEngine() {
     const tradeAmount = Math.max(10, settings.riskPct * 50)
     const qty = parseFloat((tradeAmount / price).toFixed(6))
     const isBuy = signal.dir === 'buy'
-    const tp = isBuy ? price * 1.02 : price * 0.98
-    const sl = isBuy ? price * 0.99 : price * 1.01
+    // Wider TP/SL: 2.5% TP, 1.5% SL — gives trades room to breathe
+    // Risk:Reward = 1.5:2.5 ≈ 1:1.67
+    const tp = isBuy ? price * 1.025 : price * 0.975
+    const sl = isBuy ? price * 0.985 : price * 1.015
 
     if (PAPER_TRADING_MODE) {
       addPaperTrade({
@@ -316,7 +325,8 @@ export function BotEngine() {
     const winRate = closedTrades > 0 ? Math.round((wins / closedTrades) * 100) : 0
     const sessionLoss = pnl < 0 ? currentStats.sessionLoss + pnl : currentStats.sessionLoss
 
-    removePaperTrade(trade.id)
+    // Properly archive the trade to closedTrades[] instead of just deleting it
+    closePaperTrade(trade.id)
     patchStats({
       profit: Number(profit.toFixed(2)),
       wins,

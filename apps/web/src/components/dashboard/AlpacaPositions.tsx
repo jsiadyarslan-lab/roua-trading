@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { RefreshCw, TrendingDown, TrendingUp, X } from 'lucide-react'
+import { RefreshCw, TrendingDown, TrendingUp, X, History } from 'lucide-react'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
-import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
+import { usePaperTradesStore, type ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
 
 interface Position {
   symbol: string
@@ -40,9 +40,10 @@ const fmtPnl = (value: number) =>
 
 export function AlpacaPositions() {
   const { positions, fetchPositions, fetchAccount } = usePositionsStore()
-  const { trades: paperTrades, closeTrade: closePaperTrade } = usePaperTradesStore()
+  const { trades: paperTrades, closeTrade: closePaperTrade, closedTrades, clearClosedTrades } = usePaperTradesStore()
   const [closing, setClosing] = useState<string | null>(null)
   const [confirmClose, setConfirmClose] = useState<string | null>(null)
+  const [showClosed, setShowClosed] = useState(false)
 
   const allPositions: Array<
     Position & {
@@ -373,6 +374,70 @@ export function AlpacaPositions() {
           )
         })}
       </div>
+
+      {/* Closed Trades Section */}
+      {closedTrades.length > 0 && (
+        <div style={{ borderTop: `1px solid ${T.border}`, marginTop: 4 }}>
+          <button
+            onClick={() => setShowClosed(!showClosed)}
+            style={{
+              width: '100%', padding: '8px 10px', background: 'transparent', border: 'none',
+              color: T.text2, cursor: 'pointer', display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between', fontFamily: "'Cairo', sans-serif", fontSize: 10, fontWeight: 700,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <History size={12} />
+              الصفقات المغلقة ({closedTrades.length})
+            </div>
+            <span style={{ fontSize: 8, transform: showClosed ? 'rotate(180deg)' : 'rotate(0)', transition: '0.2s' }}>▼</span>
+          </button>
+
+          {showClosed && (
+            <div className="custom-scrollbar" style={{ maxHeight: 200, overflowY: 'auto', padding: '0 8px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {closedTrades.map((ct: ClosedPaperTrade) => {
+                const isLong = ct.side === 'long'
+                const pnlUp = ct.realizedPnl >= 0
+                return (
+                  <div key={ct.id} style={{
+                    borderRadius: 8, border: `1px solid ${pnlUp ? 'rgba(0,200,83,0.12)' : 'rgba(255,90,84,0.12)'}`,
+                    background: T.cardAlt, padding: '6px 8px', display: 'flex', alignItems: 'center',
+                    justifyContent: 'space-between', gap: 8,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 9, fontWeight: 900, color: isLong ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace" }}>
+                        {isLong ? '⬆' : '⬇'}
+                      </span>
+                      <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{ct.symbol}</span>
+                      {ct.source === 'bot' && (
+                        <span style={{ padding: '1px 4px', borderRadius: 999, background: 'rgba(245,185,66,0.12)', border: '1px solid rgba(245,185,66,0.20)', color: T.amber, fontSize: 5.5, fontWeight: 800 }}>BOT</span>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 7, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+                        {fmtPrice(ct.entryPrice)} → {fmtPrice(ct.exitPrice)}
+                      </span>
+                      <span style={{ fontSize: 9, fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace" }}>
+                        {fmtPnl(ct.realizedPnl)}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+              <button
+                onClick={clearClosedTrades}
+                style={{
+                  padding: '4px 8px', background: 'transparent', border: `1px solid ${T.border}`,
+                  color: T.text3, borderRadius: 6, cursor: 'pointer', fontSize: 7,
+                  fontFamily: "'Cairo', sans-serif", fontWeight: 700, alignSelf: 'center',
+                }}
+              >
+                مسح السجل
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       <style>{`
         @keyframes spin {

@@ -50,13 +50,13 @@ export function BotMini() {
       <div
         className="bot-mini-header"
         style={{
-          padding: '10px 12px 9px',
+          padding: '7px 10px 6px',
           background: 'linear-gradient(90deg, rgba(0,229,255,0.12), transparent)',
           borderBottom: '1px solid rgba(0,229,255,0.08)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: 12,
+          gap: 8,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
@@ -72,7 +72,7 @@ export function BotMini() {
           />
           <span
             style={{
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: 800,
               color: 'var(--foreground)',
               whiteSpace: 'nowrap',
@@ -133,18 +133,18 @@ export function BotMini() {
       </div>
 
       {/* Tabs */}
-      <div className="bot-mini-tabs" style={{ display: 'flex', background: '#09111a', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '4px 6px', gap: 4 }}>
+      <div className="bot-mini-tabs" style={{ display: 'flex', background: '#09111a', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '3px 5px', gap: 3 }}>
         <button
           type="button"
           onClick={() => setActiveTab('log')}
           style={{
             flex: 1,
-            minHeight: 24,
-            padding: '4px 6px',
-            fontSize: 8,
+            minHeight: 20,
+            padding: '3px 5px',
+            fontSize: 7.5,
             background: activeTab === 'log' ? 'rgba(0,229,255,0.14)' : 'rgba(255,255,255,0.03)',
             border: `1px solid ${activeTab === 'log' ? 'rgba(0,229,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
-            borderRadius: 7,
+            borderRadius: 6,
             color: activeTab === 'log' ? 'var(--accent)' : 'var(--text3)',
             cursor: 'pointer',
             touchAction: 'manipulation',
@@ -158,12 +158,12 @@ export function BotMini() {
           onClick={() => setActiveTab('config')}
           style={{
             flex: 1,
-            minHeight: 24,
-            padding: '4px 6px',
-            fontSize: 8,
+            minHeight: 20,
+            padding: '3px 5px',
+            fontSize: 7.5,
             background: activeTab === 'config' ? 'rgba(0,229,255,0.14)' : 'rgba(255,255,255,0.03)',
             border: `1px solid ${activeTab === 'config' ? 'rgba(0,229,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
-            borderRadius: 7,
+            borderRadius: 6,
             color: activeTab === 'config' ? 'var(--accent)' : 'var(--text3)',
             cursor: 'pointer',
             touchAction: 'manipulation',
@@ -182,24 +182,24 @@ export function BotMini() {
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-              gap: 8,
-              padding: 10,
+              gap: 5,
+              padding: 6,
               background: 'transparent',
               borderBottom: '1px solid rgba(0,229,255,0.08)',
               flexShrink: 0,
             }}
           >
-            <div className="card" style={{ padding: 8, textAlign: 'center', minHeight: 40 }}>
-              <div style={{ fontSize: 8, color: 'var(--text3)' }}>الصفقات</div>
-              <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--accent)' }}>{stats.trades}</div>
+            <div className="card" style={{ padding: 5, textAlign: 'center', minHeight: 30 }}>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>الصفقات</div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--accent)' }}>{stats.trades}</div>
             </div>
-            <div className="card" style={{ padding: 8, textAlign: 'center', minHeight: 40 }}>
-              <div style={{ fontSize: 8, color: 'var(--text3)' }}>الربح</div>
-              <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--success)' }}>${stats.profit}</div>
+            <div className="card" style={{ padding: 5, textAlign: 'center', minHeight: 30 }}>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>الربح</div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--success)' }}>${stats.profit}</div>
             </div>
-            <div className="card" style={{ padding: 8, textAlign: 'center', minHeight: 40 }}>
-              <div style={{ fontSize: 8, color: 'var(--text3)' }}>نسبة الفوز</div>
-              <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--amber)' }}>{stats.winRate}%</div>
+            <div className="card" style={{ padding: 5, textAlign: 'center', minHeight: 30 }}>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>نسبة الفوز</div>
+              <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--amber)' }}>{stats.winRate}%</div>
             </div>
           </div>
 
@@ -207,24 +207,24 @@ export function BotMini() {
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-              gap: 8,
-              padding: '0 10px 10px',
+              gap: 5,
+              padding: '0 6px 6px',
               background: 'transparent',
               borderBottom: '1px solid rgba(0,229,255,0.08)',
               flexShrink: 0,
             }}
           >
-            <div className="card" style={{ padding: 7, textAlign: 'center', minHeight: 36 }}>
-              <div style={{ fontSize: 8, color: 'var(--text3)' }}>مفتوحة</div>
-              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--accent)' }}>{stats.openPositions}</div>
+            <div className="card" style={{ padding: 4, textAlign: 'center', minHeight: 26 }}>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>مفتوحة</div>
+              <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--accent)' }}>{stats.openPositions}</div>
             </div>
-            <div className="card" style={{ padding: 7, textAlign: 'center', minHeight: 36 }}>
-              <div style={{ fontSize: 8, color: 'var(--text3)' }}>فوز / خسارة</div>
-              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--foreground)' }}>{stats.wins}/{stats.losses}</div>
+            <div className="card" style={{ padding: 4, textAlign: 'center', minHeight: 26 }}>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>فوز / خسارة</div>
+              <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--foreground)' }}>{stats.wins}/{stats.losses}</div>
             </div>
-            <div className="card" style={{ padding: 7, textAlign: 'center', minHeight: 36 }}>
-              <div style={{ fontSize: 8, color: 'var(--text3)' }}>خسارة الجلسة</div>
-              <div style={{ fontSize: 11, fontWeight: 800, color: stats.sessionLoss < 0 ? 'var(--danger)' : 'var(--text3)' }}>
+            <div className="card" style={{ padding: 4, textAlign: 'center', minHeight: 26 }}>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>خسارة الجلسة</div>
+              <div style={{ fontSize: 9, fontWeight: 800, color: stats.sessionLoss < 0 ? 'var(--danger)' : 'var(--text3)' }}>
                 ${stats.sessionLoss}
               </div>
             </div>
@@ -238,18 +238,18 @@ export function BotMini() {
               minHeight: 0,
               maxHeight: '40vh',
               overflowY: 'auto',
-              padding: 10,
+              padding: 6,
               background: 'rgba(5,10,18,0.45)',
               scrollbarGutter: 'stable',
               WebkitOverflowScrolling: 'touch',
             }}
           >
             {logs.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center', opacity: 0.3, fontSize: 11 }}>السجل فارغ</div>
+              <div style={{ padding: 30, textAlign: 'center', opacity: 0.3, fontSize: 9 }}>السجل فارغ</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {logs.map((log, i) => (
-                  <div key={i} className="card" style={{ fontSize: 9, padding: '7px 8px', lineHeight: 1.5 }}>
+                  <div key={i} className="card" style={{ fontSize: 8, padding: '5px 6px', lineHeight: 1.4 }}>
                     <span style={{ color: 'var(--text4)', marginRight: 5 }}>[{log.time}]</span>
                     <span
                       style={{
@@ -272,7 +272,7 @@ export function BotMini() {
           </div>
         </div>
       ) : (
-        <div className="bot-mini-config" style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="bot-mini-config" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
             <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>الاستراتيجية</label>
             <select

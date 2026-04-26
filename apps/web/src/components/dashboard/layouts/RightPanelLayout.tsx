@@ -87,45 +87,45 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
 
       <div
         style={{
-          padding: '10px 11px 9px',
+          padding: '6px 10px 5px',
           borderBottom: `1px solid rgba(0, 212, 255, 0.10)`,
           background: `linear-gradient(90deg, ${activeTab.accent}15, rgba(255,255,255,0.01))`,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: 12,
+          gap: 8,
           position: 'relative',
           zIndex: 1,
         }}
         >
           <div style={{ minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div
                 style={{
-                  width: 8,
-                  height: 8,
+                  width: 6,
+                  height: 6,
                   borderRadius: '50%',
                   background: activeTab.accent,
-                  boxShadow: `0 0 12px ${activeTab.accent}66`,
+                  boxShadow: `0 0 10px ${activeTab.accent}66`,
                 }}
               />
-              <div style={{ fontSize: 12, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
                 مركز القرار التشغيلي
               </div>
             </div>
-            <div style={{ marginTop: 4, fontSize: 9, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
+            <div style={{ marginTop: 2, fontSize: 7.5, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
               {headline}
             </div>
           </div>
-          <div style={{ display: 'grid', gap: 4, justifyItems: 'end' }}>
+          <div style={{ display: 'grid', gap: 3, justifyItems: 'end' }}>
             <div
               style={{
-                fontSize: 9,
+                fontSize: 8,
                 color: activeTab.accent,
                 background: `${activeTab.accent}12`,
                 border: `1px solid ${activeTab.accent}25`,
                 borderRadius: 999,
-                padding: '4px 8px',
+                padding: '2px 6px',
                 fontWeight: 800,
                 fontFamily: "'JetBrains Mono', monospace",
                 whiteSpace: 'nowrap',
@@ -133,7 +133,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
             >
               {activeTab.label}
             </div>
-            <div style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+            <div style={{ fontSize: 7, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
               {selectedSymbol}
             </div>
           </div>
@@ -143,8 +143,8 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-          gap: 5,
-          padding: '8px',
+          gap: 3,
+          padding: '5px 6px',
           flexShrink: 0,
           background: 'rgba(255,255,255,0.02)',
           borderBottom: `1px solid rgba(0, 212, 255, 0.08)`,
@@ -165,17 +165,18 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
             <button
               key={t.id}
               onClick={() => handleTabClick(t.id)}
+              className="decision-center-tab"
               style={{
                 minWidth: 0,
-                minHeight: 32,
-                padding: '5px 4px',
+                minHeight: 28,
+                padding: '3px 3px',
                 background: isActive ? `${t.accent}18` : hasAlert ? `${alertColor}06` : 'rgba(255,255,255,0.035)',
                 border: `1px solid ${isActive ? `${t.accent}55` : hasAlert ? `${alertColor}35` : 'rgba(255,255,255,0.08)'}`,
-                borderRadius: 10,
+                borderRadius: 8,
                 color: isActive ? T.text : T.text3,
                 cursor: 'pointer',
                 fontFamily: "'Cairo', sans-serif",
-                transition: '0.18s ease',
+                transition: 'all 0.2s ease',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -238,9 +239,9 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                 </div>
               )}
 
-              <Icon size={10} color={isActive ? t.accent : hasAlert ? alertColor : '#93A7C3'} />
-              <span style={{ fontSize: 7, fontWeight: isActive ? 800 : hasAlert ? 800 : 700, lineHeight: 1, color: isActive ? T.text : hasAlert ? alertColor : '#AEC0D6' }}>{t.label}</span>
-              <span style={{ fontSize: 6, color: isActive ? T.text3 : '#708299', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1 }}>
+              <Icon size={9} color={isActive ? t.accent : hasAlert ? alertColor : '#93A7C3'} />
+              <span style={{ fontSize: 6.5, fontWeight: isActive ? 800 : hasAlert ? 800 : 700, lineHeight: 1, color: isActive ? T.text : hasAlert ? alertColor : '#AEC0D6' }}>{t.label}</span>
+              <span style={{ fontSize: 5.5, color: isActive ? T.text3 : '#708299', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1 }}>
                 {t.subtitle}
               </span>
             </button>
@@ -253,6 +254,15 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           0%, 100% { transform: scale(1); opacity: 1; }
           50% { transform: scale(1.15); opacity: 0.8; }
         }
+        .decision-center-tab:hover:not(:disabled) {
+          transform: translateY(-2px) scale(1.02);
+          box-shadow: 0 4px 16px rgba(0,212,255,0.15), 0 0 0 1px rgba(0,212,255,0.12) inset !important;
+          border-color: rgba(0,212,255,0.35) !important;
+          background-image: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,212,255,0.04)) !important;
+        }
+        .decision-center-tab:active:not(:disabled) {
+          transform: translateY(0) scale(0.98);
+        }
       `}</style>
 
       <div
@@ -260,7 +270,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           flex: 1,
           minHeight: 0,
           overflow: 'hidden',
-          padding: 6,
+          padding: 4,
           display: 'flex',
           flexDirection: 'column',
           background: '#071019',
@@ -274,7 +284,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
             minHeight: 0,
             height: '100%',
             overflowY: 'auto',
-            borderRadius: 14,
+            borderRadius: 10,
             border: `1px solid rgba(0,212,255,0.10)`,
             background: 'linear-gradient(180deg, rgba(14,20,30,0.98), rgba(8,13,20,0.98))',
             boxShadow: `inset 0 1px 0 rgba(255,255,255,0.035), 0 18px 40px rgba(0,0,0,0.26)`,

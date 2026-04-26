@@ -325,7 +325,7 @@
 
 button {
   transition:
-    transform 0.18s ease,
+    transform 0.2s cubic-bezier(0.4,0,0.2,1),
     box-shadow 0.22s ease,
     border-color 0.22s ease,
     background-color 0.22s ease,
@@ -334,13 +334,14 @@ button {
   border-radius: 10px;
 }
 button:hover:not(:disabled) {
-  transform: none;
-  border-color: rgba(0, 212, 255, 0.24);
-  background-image: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,212,255,0.04));
-  box-shadow: 0 0 0 1px rgba(0,212,255,0.08) inset, 0 8px 18px rgba(0,0,0,0.18), 0 0 14px rgba(0,212,255,0.08);
+  transform: translateY(-2px) scale(1.02);
+  border-color: rgba(0, 212, 255, 0.30);
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,212,255,0.06));
+  box-shadow: 0 0 0 1px rgba(0,212,255,0.10) inset, 0 8px 20px rgba(0,0,0,0.22), 0 0 18px rgba(0,212,255,0.10);
 }
 button:active:not(:disabled) {
-  transform: translateY(0) scale(0.985);
+  transform: translateY(0) scale(0.97);
+  transition-duration: 0.08s;
 }
 button svg,
 button [data-icon] {
@@ -348,10 +349,30 @@ button [data-icon] {
 }
 button:hover:not(:disabled) svg,
 button:hover:not(:disabled) [data-icon] {
-  filter: drop-shadow(0 0 6px rgba(0,212,255,0.22));
+  filter: drop-shadow(0 0 6px rgba(0,212,255,0.28));
 }
 button:disabled {
   opacity: 0.72;
+}
+
+/* ── Platform Button Hover (explicit class for buttons that shouldn't use global hover transform) ── */
+.btn-platform-hover:hover:not(:disabled) {
+  transform: translateY(-1px) scale(1.03);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3), 0 0 12px rgba(0,212,255,0.12);
+}
+
+/* ── Signal Card Interactive Hover ── */
+.signal-card-interactive:hover {
+  transform: translateY(-3px) scale(1.015);
+  border-color: rgba(0, 212, 255, 0.25) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35), 0 0 20px rgba(0,212,255,0.08);
+}
+.signal-card-interactive:hover .signal-glow-overlay {
+  opacity: 1 !important;
+}
+.signal-card-interactive:active {
+  transform: translateY(-1px) scale(0.99);
+  transition-duration: 0.08s;
 }
 
 .btn-cyan-active::before,

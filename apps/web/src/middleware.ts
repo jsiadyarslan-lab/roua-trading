@@ -2,24 +2,77 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 /**
- * Middleware for dashboard routes
+ * Middleware for dashboard routes and API auth injection
  *
- * Currently DISABLED — all routes are accessible without authentication.
- * To re-enable auth later, uncomment the session check below and set
- * ENABLE_AUTH=1 in your environment variables.
+ * 1. For API routes that are rewritten to NestJS (trading, engine, signals,
+ *    portfolio, ai, analytics, neural, health, news/nest):
+ *    → Extracts roua_session cookie and injects Authorization: Bearer header
+ *    → This ensures NestJS AuthGuard can validate the session
+ *
+ * 2. For dashboard routes:
+ *    → Checks for roua_session cookie and redirects to /login if missing
+ *    → Currently disabled (ENABLE_AUTH !== '1')
  */
+
+// API paths that are rewritten to NestJS and need auth header injection
+const NESTJS_PROXY_PATHS = [
+  '/api/trading/',
+  '/api/engine/',
+  '/api/signals/',
+  '/api/portfolio/',
+  '/api/ai/analyze',
+  '/api/ai/models',
+  '/api/ai/consensus-nest',
+  '/api/analytics/',
+  '/api/neural/optimize',
+  '/api/neural/compare',
+  '/api/neural/export',
+  '/api/neural/apply-recommendation',
+  '/api/health',
+  '/api/news/nest/',
+]
+
+function isNestjsProxiedPath(pathname: string): boolean {
+  return NESTJS_PROXY_PATHS.some(
+    (prefix) => pathname === prefix || pathname.startsWith(prefix),
+  )
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Allow API routes and static assets through
-  if (pathname.startsWith('/api/') || pathname.startsWith('/_next/')) {
+  // ── API routes: inject Authorization header from cookie ──
+  if (pathname.startsWith('/api/')) {
+    // Only inject auth for routes that are proxied to NestJS
+    if (isNestjsProxiedPath(pathname)) {
+      const sessionToken = request.cookies.get('roua_session')?.value
+
+      if (sessionToken) {
+        // Clone request headers and add Authorization
+        const requestHeaders = new Headers(request.headers)
+        requestHeaders.set('Authorization', `Bearer ${sessionToken}`)
+
+        return NextResponse.next({
+          request: {
+            headers: requestHeaders,
+          },
+        })
+      }
+    }
+
+    // For other API routes (auth, exchange, alpaca, etc.) or when no session,
+    // just pass through — the NestJS AuthGuard will handle 401 if needed
     return NextResponse.next()
   }
 
-  // ── Auth is currently DISABLED for development ──
-  // To re-enable: set ENABLE_AUTH=1 env var, then the middleware
-  // will check for the roua_session cookie and redirect to /login
-  // if missing. Make sure you also create a /login page first!
+  // ── Static assets: pass through ──
+  if (pathname.startsWith('/_next/')) {
+    return NextResponse.next()
+  }
+
+  // ── Dashboard routes: auth check ──
+  // Currently DISABLED — all routes are accessible without authentication.
+  // To re-enable: set ENABLE_AUTH=1 env var
   if (process.env.ENABLE_AUTH !== '1') {
     return NextResponse.next()
   }
@@ -38,7 +91,18 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    // Dashboard routes (auth protection)
     '/dashboard/:path*',
-    '/dashboard'
+    '/dashboard',
+    // API routes (auth header injection for NestJS proxies)
+    '/api/trading/:path*',
+    '/api/engine/:path*',
+    '/api/signals/:path*',
+    '/api/portfolio/:path*',
+    '/api/ai/:path*',
+    '/api/analytics/:path*',
+    '/api/neural/:path*',
+    '/api/health',
+    '/api/news/nest/:path*',
   ],
 }

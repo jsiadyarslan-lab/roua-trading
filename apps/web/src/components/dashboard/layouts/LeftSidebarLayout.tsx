@@ -16,17 +16,17 @@ import {
 
 const T = {
   shell: '#0B0E14',
-  rail: '#0F1219',
-  railSoft: '#141821',
+  rail: '#0A0D14',
+  railSoft: '#0E1118',
   panel: '#1A1D29',
   panelTop: '#1E2233',
-  border: 'rgba(255,255,255,0.05)',
-  borderStrong: 'rgba(0,212,255,0.20)',
+  border: 'rgba(255,255,255,0.06)',
+  borderStrong: 'rgba(0,212,255,0.18)',
   text: '#E8EEF8',
   textSoft: '#A2B4C8',
   textMute: '#6F849C',
   cyan: '#00D4FF',
-  blue: '#3B82F6',
+  blue: '#0A84FF',
   green: '#00FFA3',
   red: '#FF4757',
   amber: '#FFB800',
@@ -82,13 +82,13 @@ function TabButton({
       style={{
         width: 'fit-content',
         maxWidth: '100%',
-        minHeight: 24,
-        padding: '4px 8px',
+        minHeight: 26,
+        padding: '5px 8px',
         borderRadius: 8,
-        border: `1px solid ${active ? `${accent}6a` : 'rgba(148, 163, 184, 0.18)'}`,
+        border: `1px solid ${active ? `${accent}55` : 'rgba(148, 163, 184, 0.14)'}`,
         background: active
-          ? `linear-gradient(90deg, ${accent}22, rgba(255,255,255,0.035))`
-          : 'linear-gradient(180deg, rgba(255,255,255,0.040), rgba(255,255,255,0.020))',
+          ? `linear-gradient(135deg, ${accent}18, rgba(255,255,255,0.03))`
+          : 'linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.015))',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -96,8 +96,9 @@ function TabButton({
         cursor: 'pointer',
         textAlign: 'center',
         boxShadow: active
-          ? `inset 2px 0 0 ${accent}, 0 0 0 1px ${accent}18, 0 0 18px ${accent}10`
+          ? `inset 2px 0 0 ${accent}, 0 0 0 1px ${accent}15, 0 0 14px ${accent}08`
           : 'inset 0 1px 0 rgba(255,255,255,0.02)',
+        transition: 'all 0.2s ease',
       }}
     >
       <div style={{ minWidth: 0, maxWidth: '100%' }}>
@@ -122,8 +123,8 @@ function TabButton({
           width: 3,
           height: 3,
           borderRadius: 999,
-          background: active ? accent : 'rgba(255,255,255,0.16)',
-          boxShadow: active ? `0 0 10px ${accent}66` : 'none',
+          background: active ? accent : 'rgba(255,255,255,0.14)',
+          boxShadow: active ? `0 0 8px ${accent}66` : 'none',
         }}
       />
     </button>
@@ -141,13 +142,13 @@ export function LeftSidebarLayout() {
         gridTemplateColumns: '74px minmax(0, 1fr)',
         height: '100%',
         minHeight: 0,
-        borderRadius: 16,
+        borderRadius: 14,
         overflow: 'hidden',
         border: `1px solid ${T.borderStrong}`,
-        background: 'rgba(26, 29, 41, 0.7)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+        background: 'rgba(26, 29, 41, 0.65)',
+        backdropFilter: 'blur(16px) saturate(1.4)',
+        WebkitBackdropFilter: 'blur(16px) saturate(1.4)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)',
       }}
     >
       <aside
@@ -157,13 +158,13 @@ export function LeftSidebarLayout() {
           display: 'flex',
           flexDirection: 'column',
           background: `linear-gradient(180deg, ${T.rail}, ${T.railSoft})`,
-          borderLeft: `1px solid rgba(0,229,255,0.16)`,
+          borderLeft: `1px solid rgba(0,212,255,0.12)`,
         }}
       >
         <div
           style={{
             padding: '8px 5px 7px',
-            borderBottom: `1px solid rgba(0,229,255,0.12)`,
+            borderBottom: `1px solid rgba(0,212,255,0.10)`,
             display: 'grid',
             gap: 3,
           }}
@@ -209,7 +210,7 @@ export function LeftSidebarLayout() {
         <div
           style={{
             padding: '10px 11px 9px',
-            borderBottom: `1px solid rgba(0,229,255,0.12)`,
+            borderBottom: `1px solid rgba(0,212,255,0.10)`,
             display: 'grid',
             gap: 5,
             background: `linear-gradient(90deg, ${active.accent}10, rgba(255,255,255,0.01))`,
@@ -223,7 +224,7 @@ export function LeftSidebarLayout() {
                   height: 8,
                   borderRadius: 999,
                   background: active.accent,
-                  boxShadow: `0 0 12px ${active.accent}66`,
+                  boxShadow: `0 0 10px ${active.accent}55`,
                   flexShrink: 0,
                 }}
               />
@@ -237,8 +238,8 @@ export function LeftSidebarLayout() {
                 flexShrink: 0,
                 padding: '4px 7px',
                 borderRadius: 999,
-                border: `1px solid ${active.accent}40`,
-                background: `${active.accent}14`,
+                border: `1px solid ${active.accent}35`,
+                background: `${active.accent}12`,
                 color: active.accent,
                 fontSize: 6.5,
                 fontWeight: 900,
@@ -267,7 +268,7 @@ export function LeftSidebarLayout() {
               minHeight: 0,
               overflow: 'hidden',
               borderRadius: 12,
-              border: '1px solid rgba(0,229,255,0.14)',
+              border: '1px solid rgba(0,212,255,0.12)',
               background: 'linear-gradient(180deg, rgba(14,20,30,0.98), rgba(8,12,19,0.98))',
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.025), 0 10px 22px rgba(0,0,0,0.18)',
             }}

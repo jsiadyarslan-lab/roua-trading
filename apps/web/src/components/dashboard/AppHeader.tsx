@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -27,8 +28,8 @@ const T = {
   text:     '#F0F2F5',
   text2:    '#8B92A8',
   text3:    '#8B92A8',
-  border:   'var(--card-border)',
-  border2:  'rgba(255, 255, 255, 0.12)',
+  border:   'rgba(255,255,255,0.05)',
+  border2:  'rgba(255,255,255,0.12)',
   navGlass: 'rgba(11, 14, 20, 0.85)',
   card:     'var(--surface)',
   success:  '#00FFA3',
@@ -37,11 +38,11 @@ const T = {
   info:     '#00D4FF',
 }
 
-const H_NEWS  = 26
-const H_CURR  = 32
-const H_NAV   = 42
+const H_NEWS  = 28
+const H_CURR  = 34
+const H_NAV   = 46
 const H_TOTAL = H_NEWS + H_CURR + H_NAV
-const MOBILE_HEADER_H = 44
+const MOBILE_HEADER_H = 48
 const ORB_D   = 108
 const ORB_GAP = 120
 
@@ -184,12 +185,10 @@ function NewsTicker() {
           setItems(d.map((item: any) => {
             const rawTextAr = item.textAr || item.translatedTitle || ''
             const rawText = item.text || item.headline || item.title || ''
-            // If textAr is identical to text or empty, it means translation failed
-            // In that case, mark it so we can show a proper Arabic fallback
-            const hasRealArabic = rawTextAr && rawTextAr !== rawText && /[\u0600-\u06FF]/.test(rawTextAr)
+            const hasRealArabic = rawTextAr && /[\u0600-\u06FF]/.test(rawTextAr)
             return {
               text: rawText,
-              textAr: hasRealArabic ? rawTextAr : '',
+              textAr: hasRealArabic ? rawTextAr : rawText,
               categoryAr: item.categoryAr || 'عام',
               color: item.color || '#94a3b8',
               impact: item.impact || 'medium',
@@ -260,11 +259,9 @@ const SYMBOLS = [
 
 function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
   const globalQuotes = useMarketStore(state => state.quotes)
-  // Build a Map for backward compatibility with existing rendering code
   const quotes = new Map(SYMBOLS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
 
-  // Track previous prices to detect direction
   const prevPrices = useRef<Record<string, number>>({})
   const [flashState, setFlashState] = useState<Record<string, 'up' | 'down' | null>>({})
 
@@ -306,9 +303,9 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
     }}>
       {finalRows.map(({ sym, q, flash }, i) => {
         const flashBg = flash === 'up'
-          ? 'rgba(0,255,198,0.12)'
+          ? 'rgba(0,255,163,0.10)'
           : flash === 'down'
-            ? 'rgba(255,77,77,0.12)'
+            ? 'rgba(255,71,87,0.10)'
             : 'transparent'
         const chg = q?.changePercent ?? 0
         const isUp = chg >= 0
@@ -322,9 +319,9 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
             padding: isMobile ? '0 4px' : '2px 6px',
             borderLeft: i < finalRows.length - 1 ? `0.5px solid ${T.border}` : 'none',
             borderRadius: 4,
-            background: sym === selectedSymbol ? 'rgba(255,255,255,0.06)' : flashBg,
+            background: sym === selectedSymbol ? 'rgba(0,212,255,0.08)' : flashBg,
             cursor: 'pointer',
-            borderBottom: sym === selectedSymbol ? `2px solid ${T.blue}` : '2px solid transparent',
+            borderBottom: sym === selectedSymbol ? `2px solid var(--accent)` : '2px solid transparent',
             transition: 'background 0.15s',
           }}>
             <span style={{
@@ -360,7 +357,7 @@ function MobileNewsTicker() {
           setItems(d.slice(0, 10).map((item: any) => {
             const rawTextAr = item.textAr || item.translatedTitle || ''
             const rawText = item.text || item.headline || item.title || ''
-            const hasRealArabic = rawTextAr && rawTextAr !== rawText && /[\u0600-\u06FF]/.test(rawTextAr)
+            const hasRealArabic = rawTextAr && /[\u0600-\u06FF]/.test(rawTextAr)
             return {
               textAr: hasRealArabic ? rawTextAr : rawText,
               categoryAr: item.categoryAr || 'عام',
@@ -420,32 +417,114 @@ const NAV_LINKS = [
   { href: '/dashboard/settings',               label: 'الإعدادات',          icon: Settings },
 ]
 
+function MoreDropdown({
+  open,
+  onClose,
+  anchorRef,
+}: {
+  open: boolean
+  onClose: () => void
+  anchorRef: React.RefObject<HTMLDivElement | null>
+}) {
+  const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 })
+  const pathname = usePathname()
+
+  useEffect(() => {
+    if (open && anchorRef.current) {
+      const rect = anchorRef.current.getBoundingClientRect()
+      setPos({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right,
+      })
+    }
+  }, [open, anchorRef])
+
+  useEffect(() => {
+    if (!open) return
+    const handleClick = (e: MouseEvent) => {
+      if (anchorRef.current && !anchorRef.current.contains(e.target as Node)) {
+        onClose()
+      }
+    }
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('mousedown', handleClick)
+    document.addEventListener('keydown', handleEsc)
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      document.removeEventListener('keydown', handleEsc)
+    }
+  }, [open, onClose, anchorRef])
+
+  if (!open) return null
+
+  return createPortal(
+    <div style={{
+      position: 'fixed',
+      top: pos.top,
+      right: pos.right,
+      background: 'rgba(26, 29, 41, 0.95)',
+      backdropFilter: 'blur(32px) saturate(1.8)',
+      WebkitBackdropFilter: 'blur(32px) saturate(1.8)',
+      border: '1px solid rgba(0,212,255,0.15)',
+      borderRadius: 14,
+      padding: '6px',
+      minWidth: 200,
+      zIndex: 9999,
+      boxShadow: '0 20px 60px rgba(0,0,0,0.7), 0 0 20px rgba(0,212,255,0.06)',
+      animation: 'fadeInSlideDown 0.18s ease-out',
+    }}>
+      {NAV_LINKS.slice(8).map(({ href, label, icon: Icon }) => {
+        const active = pathname === href ||
+          (href !== '/dashboard' && (pathname ?? '').startsWith(href))
+        return (
+          <Link key={href} href={href} style={{ textDecoration: 'none' }} onClick={onClose}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+              fontFamily: "'Cairo', sans-serif", fontSize: 13,
+              color: active ? 'var(--accent)' : T.text2,
+              background: active ? 'rgba(0,212,255,0.08)' : 'transparent',
+              fontWeight: active ? 700 : 500,
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => {
+              const el = e.currentTarget as HTMLDivElement
+              if (!active) { el.style.background = 'rgba(0,212,255,0.06)'; el.style.color = T.text }
+            }}
+            onMouseLeave={e => {
+              const el = e.currentTarget as HTMLDivElement
+              if (!active) { el.style.background = 'transparent'; el.style.color = T.text2 }
+            }}
+            >
+              <Icon size={15} strokeWidth={active ? 2.5 : 2} />
+              {label}
+            </div>
+          </Link>
+        )
+      })}
+    </div>,
+    document.body
+  )
+}
+
 function MainNav() {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
   const moreRef = useRef<HTMLDivElement>(null)
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    if (!moreOpen) return
-    const handleClickOutside = (e: MouseEvent) => {
-      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
-        setMoreOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [moreOpen])
+  const handleCloseMore = useCallback(() => setMoreOpen(false), [])
 
   return (
     <div style={{
       height: H_NAV,
       backdropFilter: 'blur(20px) saturate(1.6)',
       WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
-      background: 'rgba(11, 14, 20, 0.85)',
+      background: 'rgba(11, 14, 20, 0.88)',
       display: 'flex', alignItems: 'center',
       padding: '0 8px', gap: 0,
-      overflowX: 'clip', overflowY: 'visible',
+      overflow: 'hidden',
       borderBottomRightRadius: ORB_D / 2,
     }}>
       {NAV_LINKS.slice(0, 8).map(({ href, label, icon: Icon }) => {
@@ -456,10 +535,10 @@ function MainNav() {
             <div style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '0 12px', borderRadius: 8, cursor: 'pointer',
-              height: 44, // Enhanced touch target
-              background: active ? `${T.blue}18` : 'transparent',
-              borderBottom: active ? `2px solid ${T.blue}` : '2px solid transparent',
-              color: active ? T.blue : T.text2,
+              height: 46,
+              background: active ? 'rgba(0,212,255,0.10)' : 'transparent',
+              borderBottom: active ? `2px solid var(--accent)` : '2px solid transparent',
+              color: active ? 'var(--accent)' : T.text2,
               fontFamily: "'Cairo', sans-serif",
               fontSize: 12, fontWeight: active ? 800 : 500,
               whiteSpace: 'nowrap', transition: 'all 0.15s',
@@ -476,9 +555,13 @@ function MainNav() {
           onClick={() => setMoreOpen(!moreOpen)}
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            padding: '0 12px', cursor: 'pointer', height: 44,
-            background: 'transparent', border: 'none',
-            color: T.text2, fontFamily: "'Cairo', sans-serif", fontSize: 12,
+            padding: '0 12px', cursor: 'pointer', height: 46,
+            background: moreOpen ? 'rgba(0,212,255,0.08)' : 'transparent',
+            border: 'none',
+            borderBottom: moreOpen ? `2px solid var(--accent)` : '2px solid transparent',
+            color: moreOpen ? 'var(--accent)' : T.text2,
+            fontFamily: "'Cairo', sans-serif", fontSize: 12,
+            transition: 'all 0.15s',
           }}
         >
           <MoreHorizontal size={14} />
@@ -488,46 +571,11 @@ function MainNav() {
             transition: 'transform 0.2s',
           }} />
         </button>
-        {moreOpen && (
-          <div style={{
-            position: 'absolute', top: '100%', right: 0, marginTop: 4,
-            background: T.card, backdropFilter: 'blur(32px) saturate(1.8)',
-            border: `0.5px solid ${T.border2}`, borderRadius: 10,
-            padding: '5px', minWidth: 180, zIndex: 999,
-            boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
-          }}>
-            {NAV_LINKS.slice(8).map(({ href, label, icon: Icon }) => {
-              const active = pathname === href ||
-                (href !== '/dashboard' && (pathname ?? '').startsWith(href))
-              return (
-                <Link key={href} href={href} style={{ textDecoration: 'none' }}>
-                  <div
-                    onClick={() => setMoreOpen(false)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 8,
-                      padding: '8px 12px', borderRadius: 6, cursor: 'pointer',
-                      fontFamily: "'Cairo', sans-serif", fontSize: 12,
-                      color: active ? T.blue : T.text2,
-                      background: active ? `${T.blue}12` : 'transparent',
-                      fontWeight: active ? 700 : 500,
-                    }}
-                    onMouseEnter={e => {
-                      const el = e.currentTarget as HTMLDivElement
-                      if (!active) { el.style.background = `${T.blue}14`; el.style.color = T.text }
-                    }}
-                    onMouseLeave={e => {
-                      const el = e.currentTarget as HTMLDivElement
-                      if (!active) { el.style.background = 'transparent'; el.style.color = T.text2 }
-                    }}
-                  >
-                    <Icon size={14} strokeWidth={active ? 2.5 : 2} />
-                    {label}
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-        )}
+        <MoreDropdown
+          open={moreOpen}
+          onClose={handleCloseMore}
+          anchorRef={moreRef}
+        />
       </div>
 
       <div style={{ flex: 1 }} />
@@ -541,9 +589,9 @@ function MainNav() {
            <button 
              key={mode}
              style={{
-                padding: '4px 10px', fontSize: 9.5, fontWeight: mode === 'Trader' ? 800 : 500,
-                background: mode === 'Trader' ? 'var(--primary)' : 'transparent',
-                color: mode === 'Trader' ? '#fff' : 'var(--muted)',
+                padding: '5px 10px', fontSize: 9.5, fontWeight: mode === 'Trader' ? 800 : 500,
+                background: mode === 'Trader' ? 'var(--accent)' : 'transparent',
+                color: mode === 'Trader' ? '#000' : 'var(--muted)',
                 borderRadius: 6, border: 'none', cursor: 'pointer',
                 fontFamily: 'var(--mono)', transition: '0.2s',
                 textTransform: 'uppercase'
@@ -554,12 +602,26 @@ function MainNav() {
          ))}
       </div>
 
+      {/* LED Connection Indicator */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        marginInlineStart: 12,
+      }}>
+        <div className="led-online" style={{
+          width: 6, height: 6, borderRadius: '50%',
+          background: 'var(--success)',
+          flexShrink: 0,
+        }} />
+        <span style={{ fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>LIVE</span>
+      </div>
+
       <div style={{
         flexShrink: 0, display: 'flex', alignItems: 'center',
         gap: 8, cursor: 'pointer',
-        padding: '0 16px', borderRadius: 22, height: 44,
+        padding: '0 16px', borderRadius: 22, height: 46,
         background: 'rgba(255,255,255,0.05)',
         border: '1px solid var(--card-border)', marginInlineStart: 8,
+        transition: 'all 0.2s',
       }}>
         <User size={16} color="var(--accent)" />
         <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>حسابي</span>
@@ -579,6 +641,10 @@ const KF = `
 }
 @keyframes star-blink {
   0%,100%{ opacity:0.25 } 50%{ opacity:0.9 }
+}
+@keyframes fadeInSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 header *            { scrollbar-width:none; -ms-overflow-style:none; }
 header *::-webkit-scrollbar { display:none; }
@@ -621,7 +687,7 @@ export function AppHeader() {
         }} onClick={() => setMenuOpen(false)}>
           <div style={{
             position: 'absolute', left: 0, top: 0, bottom: 0, width: '280px',
-            background: T.bg2, borderRight: `1px solid ${T.border}`,
+            background: 'rgba(26,29,41,0.95)', borderRight: `1px solid rgba(0,212,255,0.12)`,
             display: 'flex', flexDirection: 'column', padding: '20px',
             overflowY: 'auto',
           }} className="custom-scrollbar" onClick={e => e.stopPropagation()}>
@@ -629,29 +695,34 @@ export function AppHeader() {
                 <span style={{ fontSize: 18, fontWeight: 900, color: T.text, fontFamily: "'Cairo', sans-serif" }}>القائمة</span>
                 <X size={24} color={T.text} onClick={() => setMenuOpen(false)} style={{ cursor: 'pointer' }} />
              </div>
-             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {NAV_LINKS.map(({ href, label, icon: Icon }) => (
-                  <Link key={href} href={href} style={{ textDecoration: 'none' }} onClick={() => setMenuOpen(false)}>
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
-                      borderRadius: 8, background: pathname === href ? `${T.blue}15` : 'transparent',
-                      color: pathname === href ? T.blue : T.text2,
-                      fontSize: 14, fontWeight: 600, fontFamily: "'Cairo', sans-serif"
-                    }}>
-                      <Icon size={18} />
-                      {label}
-                    </div>
-                  </Link>
-                ))}
+             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {NAV_LINKS.map(({ href, label, icon: Icon }) => {
+                  const active = pathname === href || (href !== '/dashboard' && (pathname ?? '').startsWith(href))
+                  return (
+                    <Link key={href} href={href} style={{ textDecoration: 'none' }} onClick={() => setMenuOpen(false)}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
+                        borderRadius: 10, background: active ? 'rgba(0,212,255,0.10)' : 'transparent',
+                        color: active ? 'var(--accent)' : T.text2,
+                        borderRight: active ? '3px solid var(--accent)' : '3px solid transparent',
+                        fontSize: 14, fontWeight: 600, fontFamily: "'Cairo', sans-serif",
+                        transition: 'all 0.15s',
+                      }}>
+                        <Icon size={18} />
+                        {label}
+                      </div>
+                    </Link>
+                  )
+                })}
              </div>
              {/* Mode Switcher + Account (mobile) */}
-             <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: 12 }}>
+             <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid rgba(0,212,255,0.10)`, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 8, border: `1px solid ${T.border}` }}>
                   {['Trader', 'Investor', 'AI'].map((mode) => (
                     <button key={mode} style={{
                       flex: 1, padding: '8px 10px', fontSize: 10, fontWeight: mode === 'Trader' ? 800 : 500,
-                      background: mode === 'Trader' ? T.blue : 'transparent',
-                      color: mode === 'Trader' ? '#fff' : T.text2,
+                      background: mode === 'Trader' ? 'var(--accent)' : 'transparent',
+                      color: mode === 'Trader' ? '#000' : T.text2,
                       borderRadius: 6, border: 'none', cursor: 'pointer',
                       fontFamily: "'Cairo', sans-serif", transition: '0.2s',
                     }}>
@@ -661,10 +732,10 @@ export function AppHeader() {
                 </div>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
-                  borderRadius: 8, background: 'rgba(255,255,255,0.05)',
-                  border: `1px solid ${T.border}`, cursor: 'pointer',
+                  borderRadius: 10, background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(0,212,255,0.10)', cursor: 'pointer',
                 }}>
-                  <User size={18} color={T.accent} />
+                  <User size={18} color="var(--accent)" />
                   <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, color: T.text, fontWeight: 700 }}>حسابي</span>
                 </div>
              </div>
@@ -691,15 +762,16 @@ export function AppHeader() {
       {/* Mobile Header Layout */}
       <header className="mobile-header" style={{
         display: 'none', position: 'sticky', top: 0, zIndex: 100,
-        background: T.navGlass, borderBottom: `1px solid ${T.border}`,
-        backdropFilter: 'blur(20px)'
+        background: 'rgba(11, 14, 20, 0.92)', borderBottom: `1px solid rgba(0,212,255,0.10)`,
+        backdropFilter: 'blur(20px) saturate(1.6)',
+        WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
       }}>
         {/* Mobile top row: hamburger + ticker + orb */}
         <div style={{
           display: 'flex', alignItems: 'center', height: MOBILE_HEADER_H,
           padding: '0 10px', justifyContent: 'space-between',
         }}>
-          <button onClick={() => setMenuOpen(true)} style={{ background: 'transparent', border: 'none', color: T.text, cursor: 'pointer', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button onClick={() => setMenuOpen(true)} style={{ background: 'transparent', border: 'none', color: T.text, cursor: 'pointer', width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}>
              <Menu size={20} />
           </button>
 
@@ -713,7 +785,7 @@ export function AppHeader() {
         </div>
         {/* Mobile news ticker */}
         <div style={{
-          height: 24, overflow: 'hidden', background: T.bg,
+          height: 26, overflow: 'hidden', background: T.bg,
           borderBottom: `0.5px solid ${T.border}`, display: 'flex', alignItems: 'center',
         }}>
           <MobileNewsTicker />

@@ -48,11 +48,12 @@
 
 :root,
 [data-theme="dark"] {
-  /* ── QUANTUM V5 DESIGN CLONE ── */
+  /* ── ROUA PROFESSIONAL DESIGN SYSTEM ── */
   --bg: #0B0E14;
+  --bg2: #0F1117;
   --surface: #1A1D29;
   --primary: #0A84FF;
-  --accent: #00f2ff;
+  --accent: #00D4FF;
   --success: #00FFA3;
   --success-deep: #00CC82;
   --danger: #FF4757;
@@ -60,56 +61,60 @@
   --warning: #FFB800;
   --info: #00D4FF;
   --muted: #94a3b8;
-  --card-border: rgba(255, 255, 255, 0.05);
-  --radius: 8px;
-  --shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --card-border: rgba(255, 255, 255, 0.06);
+  --radius: 10px;
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   --shadow-pulse: 0 18px 40px rgba(0, 0, 0, 0.32);
   --pulse-surface: linear-gradient(180deg, rgba(10, 20, 33, 0.96), rgba(7, 12, 20, 0.98));
-  --pulse-border: rgba(0, 229, 255, 0.16);
-  --pulse-border-strong: rgba(0, 229, 255, 0.34);
-  --pulse-glow: 0 0 18px rgba(0, 229, 255, 0.14);
-  --pulse-glow-strong: 0 0 28px rgba(0, 229, 255, 0.22);
-  --pulse-sheen: linear-gradient(120deg, transparent 0%, rgba(0, 229, 255, 0.09) 46%, rgba(255, 255, 255, 0.07) 52%, transparent 100%);
+  --pulse-border: rgba(0, 212, 255, 0.16);
+  --pulse-border-strong: rgba(0, 212, 255, 0.34);
+  --pulse-glow: 0 0 18px rgba(0, 212, 255, 0.14);
+  --pulse-glow-strong: 0 0 28px rgba(0, 212, 255, 0.22);
+  --pulse-sheen: linear-gradient(120deg, transparent 0%, rgba(0, 212, 255, 0.09) 46%, rgba(255, 255, 255, 0.07) 52%, transparent 100%);
   --mono: 'JetBrains Mono', monospace;
   --ui: 'Inter', system-ui, sans-serif;
 
-  /* NEW: Text hierarchy */
+  /* Text hierarchy */
   --text-heading: #F0F2F5;
   --text-body: #8B92A8;
   --text-data: #FFFFFF;
 
-  /* NEW: Card system */
+  /* Card system with enhanced glassmorphism */
   --card-bg: #1A1D29;
-  --card-shadow: 0 4px 20px rgba(0,0,0,0.3);
-  --card-glass: rgba(26, 29, 41, 0.7);
-  --card-glass-blur: blur(10px);
-  --card-glass-border: rgba(255,255,255,0.02);
+  --card-shadow: 0 8px 32px rgba(0,0,0,0.35);
+  --card-glass: rgba(26, 29, 41, 0.65);
+  --card-glass-blur: blur(16px);
+  --card-glass-border: rgba(255,255,255,0.06);
 
-  /* NEW: Balance card gradient */
-  --balance-gradient: linear-gradient(135deg, rgba(0,212,255,0.1), transparent);
+  /* Balance card gradient */
+  --balance-gradient: linear-gradient(135deg, rgba(0,212,255,0.12), rgba(0,255,163,0.06), rgba(26,29,41,0.8));
 
-  /* NEW: Divider */
+  /* Gradients */
+  --gradient-profit: linear-gradient(135deg, #00FFA3, #00CC82);
+  --gradient-loss: linear-gradient(135deg, #FF4757, #FF3344);
+  --gradient-info: linear-gradient(135deg, #00D4FF, #0A84FF);
+
+  /* Divider */
   --divider: rgba(255,255,255,0.06);
 
-  /* NEW: Striped row for tables */
-  --row-stripe: rgba(255,255,255,0.02);
+  /* Striped row for tables */
+  --row-stripe: rgba(255,255,255,0.015);
 
-  /* NEW: Hover lift */
+  /* Hover lift */
   --hover-lift: translateY(-1px);
 
   /* Legacy & compatibility mapping */
   --green: var(--success);
   --red: var(--danger);
-  --bg2: var(--surface);
   --font-mono: var(--mono);
   --font-ui: var(--ui);
   
   /* Navigation variables */
-  --bg-nav: rgba(11, 14, 20, 0.94);
+  --bg-nav: rgba(11, 14, 20, 0.92);
   --accent-bg: rgba(0, 212, 255, 0.06);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
-  --bg-active: rgba(0, 212, 255, 0.08);
-  --accent-border: rgba(0, 212, 255, 0.2);
+  --bg-active: rgba(0, 212, 255, 0.10);
+  --accent-border: rgba(0, 212, 255, 0.20);
   --bg-row-hover: rgba(255, 255, 255, 0.04);
   --text-muted: var(--muted);
   --profit-bg: rgba(0, 255, 163, 0.08);
@@ -134,20 +139,20 @@
   --accent-foreground: #ffffff;
   --destructive: var(--danger);
   --input: rgba(255, 255, 255, 0.04);
-  --ring: var(--primary);
-  --chart-1: var(--primary);
+  --ring: var(--accent);
+  --chart-1: var(--accent);
   --chart-2: var(--success);
   --chart-3: #FFB800;
   --chart-4: #B388FF;
   --chart-5: var(--danger);
   --sidebar: var(--bg);
   --sidebar-foreground: #F0F2F5;
-  --sidebar-primary: var(--primary);
+  --sidebar-primary: var(--accent);
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: rgba(0, 212, 255, 0.08);
   --sidebar-accent-foreground: #F0F2F5;
   --sidebar-border: var(--card-border);
-  --sidebar-ring: var(--primary);
+  --sidebar-ring: var(--accent);
 }
 
 @layer base {
@@ -164,62 +169,66 @@
   }
 }
 
-/* ── Quantum V5 Buttons & Neon Effects ── */
+/* ── Neon Buttons & Effects ── */
 .btn-danger-active,
 .btn-neon-buy {
-  background: rgba(0, 255, 136, 0.1);
+  background: rgba(0, 255, 163, 0.08);
   color: var(--success);
-  border: 1px solid rgba(0, 255, 136, 0.3);
+  border: 1px solid rgba(0, 255, 163, 0.25);
   transition: all 0.18s ease-in-out;
   position: relative;
   overflow: hidden;
+  border-radius: 10px;
 }
 .btn-neon-buy:hover:not(:disabled) {
-  background: rgba(0, 255, 136, 0.2);
+  background: rgba(0, 255, 163, 0.16);
   border-color: var(--success);
-  box-shadow: 0 0 12px rgba(0, 255, 136, 0.3), inset 0 0 0 1px rgba(255,255,255,0.04);
+  box-shadow: 0 0 16px rgba(0, 255, 163, 0.25), inset 0 0 0 1px rgba(255,255,255,0.04);
   color: #fff;
 }
 
 .btn-neon-sell {
-  background: rgba(255, 68, 68, 0.1);
+  background: rgba(255, 71, 87, 0.08);
   color: var(--danger);
-  border: 1px solid rgba(255, 68, 68, 0.3);
+  border: 1px solid rgba(255, 71, 87, 0.25);
   transition: all 0.18s ease-in-out;
   position: relative;
   overflow: hidden;
+  border-radius: 10px;
 }
 .btn-neon-sell:hover:not(:disabled) {
-  background: rgba(255, 68, 68, 0.2);
+  background: rgba(255, 71, 87, 0.16);
   border-color: var(--danger);
-  box-shadow: 0 0 12px rgba(255, 68, 68, 0.3), inset 0 0 0 1px rgba(255,255,255,0.04);
+  box-shadow: 0 0 16px rgba(255, 71, 87, 0.25), inset 0 0 0 1px rgba(255,255,255,0.04);
   color: #fff;
 }
 
 .btn-cyan-active {
-  background: linear-gradient(135deg, rgba(0, 229, 255, 0.94), rgba(0, 255, 234, 0.88)) !important;
-  color: #021318 !important;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.94), rgba(0, 168, 255, 0.88)) !important;
+  color: #000 !important;
   font-weight: 700 !important;
-  border: 1px solid rgba(0, 229, 255, 0.46) !important;
-  box-shadow: 0 0 8px rgba(0, 242, 255, 0.28), 0 8px 24px rgba(0, 229, 255, 0.16);
+  border: 1px solid rgba(0, 212, 255, 0.46) !important;
+  box-shadow: 0 0 10px rgba(0, 212, 255, 0.28), 0 8px 24px rgba(0, 212, 255, 0.16);
   position: relative;
   overflow: hidden;
+  border-radius: 10px;
 }
 .btn-cyan-active:hover:not(:disabled) {
-  box-shadow: 0 0 12px rgba(0, 242, 255, 0.34), 0 12px 28px rgba(0, 229, 255, 0.2);
+  box-shadow: 0 0 16px rgba(0, 212, 255, 0.34), 0 12px 28px rgba(0, 212, 255, 0.2);
 }
 
 .btn-danger-active {
-  background: linear-gradient(135deg, rgba(255, 79, 79, 0.94), rgba(255, 60, 60, 0.88)) !important;
+  background: linear-gradient(135deg, rgba(255, 71, 87, 0.94), rgba(255, 51, 68, 0.88)) !important;
   color: #fff !important;
   font-weight: 700 !important;
   border: 1px solid rgba(255, 90, 90, 0.4) !important;
-  box-shadow: 0 0 10px rgba(255, 68, 68, 0.22), 0 10px 24px rgba(255, 68, 68, 0.14);
+  box-shadow: 0 0 10px rgba(255, 71, 87, 0.22), 0 10px 24px rgba(255, 71, 87, 0.14);
   position: relative;
   overflow: hidden;
+  border-radius: 10px;
 }
 .btn-danger-active:hover:not(:disabled) {
-  box-shadow: 0 0 14px rgba(255, 68, 68, 0.28), 0 14px 28px rgba(255, 68, 68, 0.18);
+  box-shadow: 0 0 14px rgba(255, 71, 87, 0.28), 0 14px 28px rgba(255, 71, 87, 0.18);
 }
 
 /* ── Pulse Live Indicator ── */
@@ -238,7 +247,7 @@
 }
 
 /* ── Price typography ── */
-/* ── Institutional Design Hotfix v1 (RTL/Contrast/Typography) ── */
+/* ── Institutional Design Hotfix v2 (RTL/Contrast/Typography) ── */
 :root {
   --text-primary: var(--foreground);
   --text-muted-safe: #B2BDCD; /* WCAG AA Contrast safe on --bg */
@@ -268,20 +277,19 @@
 .card, .panel, header, .dash-col {
   direction: rtl;
   text-align: right;
-  /* Use logical properties instead of physical ones */
   margin-inline-start: initial;
   padding-inline-start: initial;
 }
 
-/* Standardized Card (Glassmorphism) */
+/* Standardized Card (Glassmorphism V2) */
 .card {
   background: var(--card-glass);
-  backdrop-filter: var(--card-glass-blur);
-  -webkit-backdrop-filter: var(--card-glass-blur);
-  border: 1px solid var(--card-border);
-  border-radius: 12px;
+  backdrop-filter: var(--card-glass-blur) saturate(1.4);
+  -webkit-backdrop-filter: var(--card-glass-blur) saturate(1.4);
+  border: 1px solid var(--card-glass-border);
+  border-radius: 14px;
   padding: 16px;
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--card-shadow), inset 0 1px 0 rgba(255,255,255,0.04);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
@@ -291,8 +299,8 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at top right, rgba(0, 212, 255, 0.06), transparent 38%),
-    radial-gradient(circle at bottom left, rgba(10, 132, 255, 0.04), transparent 34%);
+    radial-gradient(circle at top right, rgba(0, 212, 255, 0.05), transparent 38%),
+    radial-gradient(circle at bottom left, rgba(0, 255, 163, 0.03), transparent 34%);
   opacity: 1;
   pointer-events: none;
 }
@@ -306,8 +314,8 @@
   pointer-events: none;
 }
 .card:hover {
-  border-color: rgba(0,212,255,0.15);
-  box-shadow: 0 8px 30px rgba(0,0,0,0.4), 0 0 15px rgba(0,212,255,0.05);
+  border-color: rgba(0,212,255,0.18);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.45), 0 0 20px rgba(0,212,255,0.06), inset 0 1px 0 rgba(255,255,255,0.06);
 }
 .card:hover::after {
   opacity: 1;
@@ -323,12 +331,13 @@ button {
     background-color 0.22s ease,
     color 0.22s ease,
     opacity 0.18s ease;
+  border-radius: 10px;
 }
 button:hover:not(:disabled) {
   transform: none;
-  border-color: rgba(0, 229, 255, 0.24);
-  background-image: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,229,255,0.04));
-  box-shadow: 0 0 0 1px rgba(0,229,255,0.08) inset, 0 8px 18px rgba(0,0,0,0.18), 0 0 14px rgba(0,229,255,0.08);
+  border-color: rgba(0, 212, 255, 0.24);
+  background-image: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,212,255,0.04));
+  box-shadow: 0 0 0 1px rgba(0,212,255,0.08) inset, 0 8px 18px rgba(0,0,0,0.18), 0 0 14px rgba(0,212,255,0.08);
 }
 button:active:not(:disabled) {
   transform: translateY(0) scale(0.985);
@@ -339,7 +348,7 @@ button [data-icon] {
 }
 button:hover:not(:disabled) svg,
 button:hover:not(:disabled) [data-icon] {
-  filter: drop-shadow(0 0 6px rgba(0,229,255,0.22));
+  filter: drop-shadow(0 0 6px rgba(0,212,255,0.22));
 }
 button:disabled {
   opacity: 0.72;
@@ -366,18 +375,18 @@ button:disabled {
 
 .price-pulse {
   animation: pricePulse 0.45s cubic-bezier(0.4, 0, 0.2, 1);
-  border-color: rgba(0, 229, 255, 0.4) !important;
+  border-color: rgba(0, 212, 255, 0.4) !important;
 }
 
 @keyframes pricePulse {
-  0% { box-shadow: 0 0 0 rgba(0, 229, 255, 0); transform: scale(1); }
-  50% { box-shadow: 0 0 12px rgba(0, 229, 255, 0.25); transform: scale(1.01); }
-  100% { box-shadow: 0 0 0 rgba(0, 229, 255, 0); transform: scale(1); }
+  0% { box-shadow: 0 0 0 rgba(0, 212, 255, 0); transform: scale(1); }
+  50% { box-shadow: 0 0 12px rgba(0, 212, 255, 0.25); transform: scale(1.01); }
+  100% { box-shadow: 0 0 0 rgba(0, 212, 255, 0); transform: scale(1); }
 }
 
 /* 4. Common Component Styles */
 .btn-buy { 
-  background: linear-gradient(180deg, var(--success), #00A645); 
+  background: var(--gradient-profit); 
   color: #fff; 
   padding: 10px 16px; 
   border-radius: 10px;
@@ -385,13 +394,13 @@ button:disabled {
   border: none;
   cursor: pointer;
   font-family: 'Cairo', sans-serif;
-  box-shadow: 0 4px 12px rgba(0, 200, 83, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 255, 163, 0.2);
   transition: all 0.2s;
 }
-.btn-buy:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0, 200, 83, 0.3); }
+.btn-buy:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0, 255, 163, 0.3); }
 
 .btn-sell { 
-  background: linear-gradient(180deg, var(--danger), #D32F2F); 
+  background: var(--gradient-loss); 
   color: #fff; 
   padding: 10px 16px; 
   border-radius: 10px;
@@ -399,29 +408,29 @@ button:disabled {
   border: none;
   cursor: pointer;
   font-family: 'Cairo', sans-serif;
-  box-shadow: 0 4px 12px rgba(255, 59, 48, 0.2);
+  box-shadow: 0 4px 12px rgba(255, 71, 87, 0.2);
   transition: all 0.2s;
 }
-.btn-sell:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(255, 59, 48, 0.3); }
+.btn-sell:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(255, 71, 87, 0.3); }
 
-/* ── Glass morphism ── */
+/* ── Glass morphism V2 ── */
 .glass {
-  background: rgba(19, 26, 40, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(26, 29, 41, 0.65);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
   border: 1px solid var(--border-subtle);
 }
 
 /* ── Custom scrollbar ── */
-.custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+.custom-scrollbar::-webkit-scrollbar { width: 3px; height: 3px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.15); border-radius: 2px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.30); }
 
 /* ── Hide scrollbar but keep functionality ── */
 .no-scrollbar {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
@@ -480,8 +489,8 @@ button:disabled {
   grid-template-columns: 280px minmax(0, 1fr) 350px;
   width: 100%;
   min-height: 100dvh;
-  gap: 4px;
-  padding: 4px;
+  gap: 8px;
+  padding: 8px;
   overflow: hidden;
   direction: rtl;
   box-sizing: border-box;
@@ -517,7 +526,7 @@ button:disabled {
 .dash-col {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
   min-width: 0;
   overflow-y: auto;
   overflow-x: hidden;
@@ -528,23 +537,23 @@ button:disabled {
   min-height: 400px;
 }
 
-/* ── New Animation Keyframes ── */
+/* ── Animation Keyframes V2 ── */
 @keyframes fadeInSlideUp {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes countUp {
-  from { opacity: 0.5; transform: translateY(4px); }
+  from { opacity: 0.4; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes ledPulse {
-  0%, 100% { opacity: 0.6; box-shadow: 0 0 4px currentColor; }
-  50% { opacity: 1; box-shadow: 0 0 8px currentColor, 0 0 12px currentColor; }
+  0%, 100% { opacity: 0.7; box-shadow: 0 0 4px currentColor; }
+  50% { opacity: 1; box-shadow: 0 0 8px currentColor, 0 0 16px currentColor; }
 }
 
-/* ── New Utility Classes ── */
+/* ── Utility Classes V2 ── */
 .animate-fade-in { animation: fadeInSlideUp 0.4s ease-out forwards; }
 .animate-stagger-1 { animation-delay: 0.05s; }
 .animate-stagger-2 { animation-delay: 0.1s; }
@@ -574,8 +583,10 @@ button:disabled {
 
 .balance-card {
   background: var(--balance-gradient);
-  border: 1px solid var(--card-border);
-  border-radius: 12px;
+  border: 1px solid rgba(0,212,255,0.15);
+  border-radius: 14px;
+  position: relative;
+  overflow: hidden;
 }
 
 .striped-rows > :nth-child(even) {
@@ -583,9 +594,38 @@ button:disabled {
 }
 
 .btn-action {
-  border-radius: 8px;
+  border-radius: 10px;
   transition: all 0.2s ease;
 }
 .btn-action:hover {
   transform: translateY(-1px);
+}
+
+/* ── Hover Glow Border ── */
+.hover-glow {
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.hover-glow:hover {
+  border-color: rgba(0,212,255,0.20) !important;
+  box-shadow: 0 0 20px rgba(0,212,255,0.08), 0 12px 40px rgba(0,0,0,0.4) !important;
+}
+
+/* ── Count-up Animation ── */
+.count-up {
+  animation: countUp 0.5s ease-out;
+}
+
+/* ── Gradient Text ── */
+.gradient-profit-text {
+  background: var(--gradient-profit);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-loss-text {
+  background: var(--gradient-loss);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }

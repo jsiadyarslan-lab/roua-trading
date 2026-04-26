@@ -26,6 +26,7 @@ const DASHBOARD_SYMBOLS = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD'
 
 const T = {
   bg: '#0B0E14',
+  bg2: '#0F1117',
   card: '#1A1D29',
   border: 'rgba(255,255,255,0.05)',
   cyan: '#00D4FF',
@@ -35,9 +36,12 @@ const T = {
   info: '#00D4FF',
   text: '#F0F2F5',
   text3: '#8B92A8',
+  gradientProfit: 'linear-gradient(135deg, #00FFA3, #00CC82)',
+  gradientLoss: 'linear-gradient(135deg, #FF4757, #FF3344)',
+  gradientInfo: 'linear-gradient(135deg, #00D4FF, #0A84FF)',
 }
 
-const HEADER_H = 100
+const HEADER_H = 108
 const PANEL_H = 30
 const ANIM = 'height 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease'
 
@@ -128,13 +132,22 @@ export default function DashboardPage() {
   const quoteStatus = getDataStatus(activeQuote)
   const sourceLabel = getSourceLabel(activeQuote?.source)
 
+  // Calculate P&L for balance card
+  const equityValue = Number(account?.equity) || 0
+  const cashValue = Number(account?.cash) || 0
+  const positionsValue = equityValue - cashValue
+  const unrealizedPnl = Number(account?.unrealizedPnl) || 0
+  const isProfitable = unrealizedPnl >= 0
+
   return (
     <>
       <style>{`
         .dashboard-shell {
           min-height: calc(100dvh - ${HEADER_H}px);
           background: #0B0E14;
-          background-image: radial-gradient(circle at top, rgba(26,35,50,0.3), transparent 50%);
+          background-image:
+            radial-gradient(ellipse at 20% 0%, rgba(0,212,255,0.04) 0%, transparent 50%),
+            radial-gradient(ellipse at 80% 100%, rgba(0,255,163,0.02) 0%, transparent 50%);
           color: #F0F2F5;
           overflow: hidden;
         }
@@ -142,10 +155,10 @@ export default function DashboardPage() {
         .dash-grid {
           display: grid;
           grid-template-columns: minmax(240px, 280px) minmax(0, 1fr) minmax(300px, 350px);
-          gap: 16px;
+          gap: 8px;
           min-height: calc(100dvh - ${HEADER_H}px);
           height: calc(100dvh - ${HEADER_H}px);
-          padding: 16px;
+          padding: 8px;
           box-sizing: border-box;
           overflow: hidden;
         }
@@ -156,26 +169,40 @@ export default function DashboardPage() {
           overflow: hidden;
         }
 
+        /* ── Glassmorphism Panel ── */
         .panel {
-          background: rgba(26, 29, 41, 0.7);
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
-          border: 1px solid rgba(255,255,255,0.05);
-          border-radius: 12px;
+          background: rgba(26, 29, 41, 0.65);
+          backdrop-filter: blur(16px) saturate(1.4);
+          -webkit-backdrop-filter: blur(16px) saturate(1.4);
+          border: 1px solid rgba(255,255,255,0.06);
+          border-radius: 14px;
           overflow: hidden;
           min-width: 0;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+          box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
+          position: relative;
         }
+        .panel::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background:
+            radial-gradient(circle at top right, rgba(0, 212, 255, 0.05), transparent 40%),
+            radial-gradient(circle at bottom left, rgba(0, 255, 163, 0.03), transparent 35%);
+          pointer-events: none;
+          z-index: 0;
+        }
+
+        .panel > * { position: relative; z-index: 1; }
 
         .panel-header {
           min-height: ${PANEL_H}px;
-          padding: 0 12px;
+          padding: 0 14px;
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
           border-bottom: 1px solid rgba(255,255,255,0.06);
-          background: linear-gradient(90deg, rgba(0,212,255,0.05), transparent);
+          background: linear-gradient(90deg, rgba(0,212,255,0.05), transparent 60%);
           box-sizing: border-box;
         }
 
@@ -187,7 +214,7 @@ export default function DashboardPage() {
 
         .summary-row {
           display: flex;
-          gap: 18px;
+          gap: 20px;
           flex-wrap: wrap;
           align-items: center;
           font-size: 11px;
@@ -218,6 +245,83 @@ export default function DashboardPage() {
         .summary-value--accent {
           color: ${T.cyan};
         }
+
+        /* ── Balance Card ── */
+        .balance-card {
+          background: linear-gradient(135deg, rgba(0,212,255,0.12), rgba(0,255,163,0.06), rgba(26,29,41,0.8));
+          border: 1px solid rgba(0,212,255,0.15);
+          border-radius: 14px;
+          padding: 14px 18px;
+          position: relative;
+          overflow: hidden;
+        }
+        .balance-card::before {
+          content: '';
+          position: absolute;
+          top: -50%;
+          right: -30%;
+          width: 200px;
+          height: 200px;
+          background: radial-gradient(circle, rgba(0,212,255,0.08), transparent 60%);
+          pointer-events: none;
+        }
+        .balance-card::after {
+          content: '';
+          position: absolute;
+          bottom: -40%;
+          left: -20%;
+          width: 180px;
+          height: 180px;
+          background: radial-gradient(circle, rgba(0,255,163,0.06), transparent 60%);
+          pointer-events: none;
+        }
+
+        /* ── LED Connection Indicator ── */
+        .led-indicator {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: ${T.success};
+          box-shadow: 0 0 6px ${T.success}, 0 0 12px rgba(0,255,163,0.3);
+          animation: ledPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes ledPulse {
+          0%, 100% { opacity: 0.7; box-shadow: 0 0 4px ${T.success}; }
+          50% { opacity: 1; box-shadow: 0 0 8px ${T.success}, 0 0 16px rgba(0,255,163,0.4); }
+        }
+
+        /* ── Striped Rows ── */
+        .striped-rows > :nth-child(even) {
+          background: rgba(255,255,255,0.015);
+        }
+
+        /* ── Hover Glow Effect ── */
+        .hover-glow {
+          transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .hover-glow:hover {
+          border-color: rgba(0,212,255,0.20) !important;
+          box-shadow: 0 0 20px rgba(0,212,255,0.08), 0 12px 40px rgba(0,0,0,0.4) !important;
+        }
+
+        /* ── Count-up Animation ── */
+        @keyframes countUp {
+          from { opacity: 0.4; transform: translateY(3px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .count-up {
+          animation: countUp 0.5s ease-out;
+        }
+
+        /* ── Stagger Animation ── */
+        @keyframes fadeInSlideUp {
+          from { opacity: 0; transform: translateY(14px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-in-1 { animation: fadeInSlideUp 0.4s ease-out 0.05s both; }
+        .animate-in-2 { animation: fadeInSlideUp 0.4s ease-out 0.1s both; }
+        .animate-in-3 { animation: fadeInSlideUp 0.4s ease-out 0.15s both; }
 
         .mobile-dashboard-shell,
         .mobile-bottom-nav,
@@ -253,7 +357,7 @@ export default function DashboardPage() {
           .mobile-dashboard-shell {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
             padding: 10px 10px calc(124px + env(safe-area-inset-bottom));
             background: ${T.bg};
             box-sizing: border-box;
@@ -278,31 +382,34 @@ export default function DashboardPage() {
             min-width: 0;
             padding: 10px 8px;
             border-radius: 14px;
-            border: 1px solid rgba(0, 229, 255, 0.12);
-            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(0, 212, 255, 0.12);
+            background: rgba(26, 29, 41, 0.6);
+            backdrop-filter: blur(8px);
             text-align: center;
+            transition: all 0.2s;
           }
 
           .mobile-market-pill--active {
-            border-color: rgba(0, 229, 255, 0.32);
-            background: rgba(0, 229, 255, 0.08);
-            box-shadow: 0 0 0 1px rgba(0, 229, 255, 0.08) inset;
+            border-color: rgba(0, 212, 255, 0.35);
+            background: rgba(0, 212, 255, 0.08);
+            box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.08) inset, 0 0 16px rgba(0, 212, 255, 0.06);
           }
 
           .mobile-hero-card {
-            border-radius: 18px;
+            border-radius: 16px;
             overflow: hidden;
-            border: 1px solid rgba(0, 229, 255, 0.10);
-            background: linear-gradient(180deg, rgba(0, 229, 255, 0.06), rgba(255, 255, 255, 0.02));
+            border: 1px solid rgba(0, 212, 255, 0.10);
+            background: rgba(26, 29, 41, 0.6);
+            backdrop-filter: blur(10px);
           }
 
           .mobile-hero-card__header {
             min-height: 44px;
             padding: 0 12px;
             display: flex;
-            align-items: center;
+            alignItems: 'center';
             justify-content: space-between;
-            border-bottom: 1px solid rgba(0, 229, 255, 0.08);
+            border-bottom: 1px solid rgba(0, 212, 255, 0.08);
           }
 
           .mobile-hero-chart {
@@ -321,9 +428,10 @@ export default function DashboardPage() {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 8px;
-            padding: 8px 10px;
-            border-radius: 16px;
-            background: rgba(255, 255, 255, 0.02);
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: rgba(26, 29, 41, 0.6);
+            backdrop-filter: blur(8px);
             border: 1px solid rgba(255, 255, 255, 0.06);
           }
 
@@ -334,17 +442,19 @@ export default function DashboardPage() {
           }
 
           .mobile-primary-ticket {
-            border-radius: 18px;
-            border: 1px solid rgba(0, 229, 255, 0.10);
-            background: rgba(255, 255, 255, 0.02);
+            border-radius: 16px;
+            border: 1px solid rgba(0, 212, 255, 0.10);
+            background: rgba(26, 29, 41, 0.6);
+            backdrop-filter: blur(8px);
             overflow: hidden;
           }
 
           .mobile-panel-shell {
-            border-radius: 18px;
+            border-radius: 16px;
             overflow: hidden;
-            border: 1px solid rgba(0, 229, 255, 0.10);
-            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(0, 212, 255, 0.10);
+            background: rgba(26, 29, 41, 0.6);
+            backdrop-filter: blur(8px);
             min-height: 240px;
           }
 
@@ -356,9 +466,10 @@ export default function DashboardPage() {
             bottom: 0;
             z-index: 80;
             padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-            background: rgba(10, 12, 16, 0.94);
-            border-top: 1px solid rgba(0, 229, 255, 0.12);
-            backdrop-filter: blur(16px);
+            background: rgba(11, 14, 20, 0.94);
+            border-top: 1px solid rgba(0, 212, 255, 0.10);
+            backdrop-filter: blur(20px) saturate(1.5);
+            -webkit-backdrop-filter: blur(20px) saturate(1.5);
             box-sizing: border-box;
           }
 
@@ -369,10 +480,10 @@ export default function DashboardPage() {
           }
 
           .mobile-bottom-nav__button {
-            min-height: 48px;
+            min-height: 50px;
             padding: 8px 4px;
             border: 1px solid transparent;
-            border-radius: 14px;
+            border-radius: 12px;
             background: rgba(255, 255, 255, 0.03);
             color: ${T.text3};
             display: flex;
@@ -387,10 +498,10 @@ export default function DashboardPage() {
           }
 
           .mobile-bottom-nav__button--active {
-            background: rgba(0, 229, 255, 0.12);
+            background: rgba(0, 212, 255, 0.10);
             color: ${T.text};
-            border-color: rgba(0, 229, 255, 0.2);
-            box-shadow: 0 0 0 1px rgba(0, 229, 255, 0.08) inset;
+            border-color: rgba(0, 212, 255, 0.20);
+            box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.08) inset, 0 0 12px rgba(0, 212, 255, 0.06);
           }
 
           .mobile-bottom-nav__label {
@@ -417,7 +528,7 @@ export default function DashboardPage() {
             justify-content: space-between;
             gap: 10px;
             border-bottom: 1px solid ${T.border};
-            background: linear-gradient(90deg, rgba(0, 229, 255, 0.06), transparent);
+            background: linear-gradient(90deg, rgba(0, 212, 255, 0.06), transparent);
             box-sizing: border-box;
           }
 
@@ -447,7 +558,7 @@ export default function DashboardPage() {
         }
 
         .dash-col::-webkit-scrollbar {
-          width: 4px;
+          width: 3px;
         }
 
         .dash-col::-webkit-scrollbar-track {
@@ -455,12 +566,12 @@ export default function DashboardPage() {
         }
 
         .dash-col::-webkit-scrollbar-thumb {
-          background: #0A84FF22;
+          background: rgba(0,212,255,0.15);
           border-radius: 10px;
         }
 
         .dash-col::-webkit-scrollbar-thumb:hover {
-          background: #0A84FF44;
+          background: rgba(0,212,255,0.30);
         }
 
         .live-status-dot {
@@ -480,12 +591,15 @@ export default function DashboardPage() {
 
       {!isMobileViewport && (
         <div className="dash-grid dashboard-shell">
-          <div className="dash-col dash-col-left panel" style={{ height: '100%' }}>
+          {/* Left Sidebar */}
+          <div className="dash-col dash-col-left animate-in-1" style={{ height: '100%' }}>
             <LeftSidebarLayout />
           </div>
 
-          <div className="dash-col dash-col-center" style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
-            <div className="panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {/* Center Column: Chart + Balance + Positions */}
+          <div className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
+            {/* Chart Panel */}
+            <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
                 <QuantumChart
                   currentPrice={currentPrice}
@@ -496,12 +610,15 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="panel" style={{ flexShrink: 0, height: posOpen ? 220 : PANEL_H, transition: ANIM, display: 'flex', flexDirection: 'column' }}>
+            {/* Balance Card + Positions Panel */}
+            <div className="panel hover-glow" style={{ flexShrink: 0, height: posOpen ? 240 : PANEL_H, transition: ANIM, display: 'flex', flexDirection: 'column' }}>
               <div className="panel-header">
                 <div className="summary-row">
-                  <div className="summary-item">
+                  {/* Balance with gradient */}
+                  <div className="summary-item" style={{ gap: 8 }}>
+                    <div className="led-indicator" />
                     <span className="summary-label">الرصيد:</span>
-                    <span className="summary-value">${formatMoney(account?.equity)}</span>
+                    <span className="summary-value count-up" style={{ fontSize: 13, fontWeight: 800 }}>${formatMoney(account?.equity)}</span>
                   </div>
                   <div className="summary-item">
                     <span className="summary-label">الهامش الحر:</span>
@@ -509,32 +626,46 @@ export default function DashboardPage() {
                   </div>
                   <div className="summary-item">
                     <span className="summary-label">قيمة المراكز:</span>
-                    <span className="summary-value summary-value--accent">${formatMoney((account?.equity ?? 0) - (account?.cash ?? 0))}</span>
+                    <span className="summary-value summary-value--accent">${formatMoney(positionsValue)}</span>
                   </div>
                   <div className="summary-item">
                     <span className="summary-label">كمية الهامش:</span>
                     <span className="summary-value">${formatMoney(account?.initialMargin)}</span>
                   </div>
+                  {unrealizedPnl !== 0 && (
+                    <div className="summary-item">
+                      <span className="summary-label">P&L:</span>
+                      <span className="summary-value" style={{
+                        color: isProfitable ? T.success : T.danger,
+                        fontWeight: 800,
+                      }}>
+                        {isProfitable ? '+' : ''}{formatMoney(unrealizedPnl)}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <button
                   onClick={() => setPosOpen(prev => !prev)}
                   title={posOpen ? 'إخفاء المراكز' : 'إظهار المراكز'}
                   aria-label={posOpen ? 'إخفاء المراكز' : 'إظهار المراكز'}
-                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.text3, padding: 4 }}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.text3, padding: 4, borderRadius: 6, transition: 'all 0.2s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = T.cyan)}
+                  onMouseLeave={e => (e.currentTarget.style.color = T.text3)}
                 >
                   <ChevronDown size={14} style={{ transform: posOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.3s' }} />
                 </button>
               </div>
 
-              <div style={{ flex: 1, opacity: posOpen ? 1 : 0, transition: 'opacity 0.2s', overflow: 'hidden' }}>
+              <div className="striped-rows" style={{ flex: 1, opacity: posOpen ? 1 : 0, transition: 'opacity 0.2s', overflow: 'hidden' }}>
                 <AlpacaPositions />
               </div>
             </div>
           </div>
 
+          {/* Right Panel */}
           {!isCompactDesktopViewport && (
-            <div className="dash-col dash-col-right panel" style={{ height: '100%' }}>
+            <div className="dash-col dash-col-right animate-in-3" style={{ height: '100%' }}>
               <RightPanelLayout quotes={quotes} />
             </div>
           )}

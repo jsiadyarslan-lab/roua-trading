@@ -15,7 +15,7 @@ const T = {
   bg2: '#1A1D29',
   bg3: '#16181A',
   card: '#1A1D29',
-  border: 'rgba(255,255,255,0.05)',
+  border: 'rgba(255,255,255,0.06)',
   border2: 'rgba(0,212,255,0.12)',
   primary: '#0A84FF',
   accent: '#00D4FF',
@@ -69,24 +69,33 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
         height: '100%',
         minHeight: 0,
         maxHeight: '100%',
-        background: 'rgba(26, 29, 41, 0.7)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255,255,255,0.05)',
+        background: 'rgba(26, 29, 41, 0.65)',
+        backdropFilter: 'blur(16px) saturate(1.4)',
+        WebkitBackdropFilter: 'blur(16px) saturate(1.4)',
+        border: '1px solid rgba(255,255,255,0.06)',
         borderRadius: 14,
         overflow: 'hidden',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)',
+        position: 'relative',
       }}
     >
+      {/* Subtle radial glow */}
+      <div style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none',
+        background: `radial-gradient(circle at top right, ${activeTab.accent}06, transparent 40%)`,
+      }} />
+
       <div
         style={{
           padding: '10px 11px 9px',
-          borderBottom: `1px solid rgba(0, 229, 255, 0.12)`,
-          background: `linear-gradient(90deg, ${activeTab.accent}18, rgba(255,255,255,0.01))`,
+          borderBottom: `1px solid rgba(0, 212, 255, 0.10)`,
+          background: `linear-gradient(90deg, ${activeTab.accent}15, rgba(255,255,255,0.01))`,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           gap: 12,
+          position: 'relative',
+          zIndex: 1,
         }}
         >
           <div style={{ minWidth: 0 }}>
@@ -97,7 +106,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                   height: 8,
                   borderRadius: '50%',
                   background: activeTab.accent,
-                  boxShadow: `0 0 14px ${activeTab.accent}88`,
+                  boxShadow: `0 0 12px ${activeTab.accent}66`,
                 }}
               />
               <div style={{ fontSize: 12, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
@@ -113,8 +122,8 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
               style={{
                 fontSize: 9,
                 color: activeTab.accent,
-                background: `${activeTab.accent}14`,
-                border: `1px solid ${activeTab.accent}28`,
+                background: `${activeTab.accent}12`,
+                border: `1px solid ${activeTab.accent}25`,
                 borderRadius: 999,
                 padding: '4px 8px',
                 fontWeight: 800,
@@ -134,11 +143,13 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-          gap: 6,
+          gap: 5,
           padding: '8px',
           flexShrink: 0,
-          background: 'rgba(255,255,255,0.03)',
-          borderBottom: `1px solid rgba(0, 229, 255, 0.10)`,
+          background: 'rgba(255,255,255,0.02)',
+          borderBottom: `1px solid rgba(0, 212, 255, 0.08)`,
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         {TABS.map(t => {
@@ -156,10 +167,10 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
               onClick={() => handleTabClick(t.id)}
               style={{
                 minWidth: 0,
-                minHeight: 30,
-                padding: '4px 4px',
-                background: isActive ? `${t.accent}20` : hasAlert ? `${alertColor}08` : 'rgba(255,255,255,0.045)',
-                border: `1px solid ${isActive ? `${t.accent}70` : hasAlert ? `${alertColor}50` : 'rgba(255,255,255,0.10)'}`,
+                minHeight: 32,
+                padding: '5px 4px',
+                background: isActive ? `${t.accent}18` : hasAlert ? `${alertColor}06` : 'rgba(255,255,255,0.035)',
+                border: `1px solid ${isActive ? `${t.accent}55` : hasAlert ? `${alertColor}35` : 'rgba(255,255,255,0.08)'}`,
                 borderRadius: 10,
                 color: isActive ? T.text : T.text3,
                 cursor: 'pointer',
@@ -171,9 +182,9 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                 justifyContent: 'center',
                 gap: 1,
                 boxShadow: isActive
-                  ? `0 0 0 1px ${t.accent}24 inset, 0 0 18px ${t.accent}18`
+                  ? `0 0 0 1px ${t.accent}20 inset, 0 0 14px ${t.accent}10`
                   : hasAlert
-                    ? `0 0 0 1px ${alertColor}15 inset, 0 0 12px ${alertColor}10`
+                    ? `0 0 0 1px ${alertColor}10 inset, 0 0 10px ${alertColor}08`
                     : 'inset 0 1px 0 rgba(255,255,255,0.02)',
                 overflow: 'hidden',
                 position: 'relative',
@@ -205,14 +216,14 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                 </div>
               )}
 
-              {/* Alert label flash — shows latest alert briefly */}
+              {/* Alert label flash */}
               {hasAlert && !isActive && alertLabel && (
                 <div style={{
                   position: 'absolute',
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  background: `${alertColor}25`,
+                  background: `${alertColor}20`,
                   color: alertColor,
                   fontSize: 5.5,
                   fontWeight: 700,
@@ -253,6 +264,8 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           display: 'flex',
           flexDirection: 'column',
           background: '#071019',
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         <div
@@ -261,8 +274,8 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
             minHeight: 0,
             height: '100%',
             overflowY: 'auto',
-            borderRadius: 16,
-            border: `1px solid rgba(255,255,255,0.10)`,
+            borderRadius: 14,
+            border: `1px solid rgba(0,212,255,0.10)`,
             background: 'linear-gradient(180deg, rgba(14,20,30,0.98), rgba(8,13,20,0.98))',
             boxShadow: `inset 0 1px 0 rgba(255,255,255,0.035), 0 18px 40px rgba(0,0,0,0.26)`,
           }}

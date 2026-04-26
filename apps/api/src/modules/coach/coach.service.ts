@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AIOrchestratorService } from '../ai/services/ai-orchestrator.service';
 
-interface TradeStats {
+export interface TradeStats {
   totalTrades: number;
   winningTrades: number;
   losingTrades: number;

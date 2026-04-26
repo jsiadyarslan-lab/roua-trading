@@ -1684,6 +1684,195 @@ export class ScannerService {
       });
     }
 
+    // ── Shooting Star (نجمة ساقطة) ──
+    // Bearish: small body at bottom, long upper wick after uptrend
+    if (upperWick / totalRange > 0.6 && body / totalRange < 0.25 && lowerWick / totalRange < 0.1
+      && prev.close > prev2.close) {
+      patterns.push({
+        name: 'Shooting Star',
+        nameAr: 'نجمة ساقطة',
+        type: 'BEARISH',
+        confidence: 70,
+        description: 'Shooting star after uptrend, potential bearish reversal',
+        descriptionAr: 'نجمة ساقطة بعد صعود، احتمال انعكاس هبوطي',
+      });
+    }
+
+    // ── Hanging Man (رجل معلق) ──
+    // Bearish: same shape as hammer but after uptrend
+    if (lowerWick / totalRange > 0.6 && body / totalRange < 0.25 && upperWick / totalRange < 0.1
+      && prev.close > prev2.close) {
+      patterns.push({
+        name: 'Hanging Man',
+        nameAr: 'رجل معلق',
+        type: 'BEARISH',
+        confidence: 65,
+        description: 'Hanging man after uptrend, potential bearish reversal',
+        descriptionAr: 'رجل معلق بعد صعود، احتمال انعكاس هبوطي',
+      });
+    }
+
+    // ── Bullish Harami (هارامي صعودي) ──
+    if (prev.close < prev.open && isBullish
+      && c.open > prev.close && c.close < prev.open
+      && body < Math.abs(prev.close - prev.open) * 0.6) {
+      patterns.push({
+        name: 'Bullish Harami',
+        nameAr: 'هارامي صعودي',
+        type: 'BULLISH',
+        confidence: 60,
+        description: 'Bullish harami — potential reversal after downtrend',
+        descriptionAr: 'هارامي صعودي — احتمال انعكاس بعد هبوط',
+      });
+    }
+
+    // ── Bearish Harami (هارامي هبوطي) ──
+    if (prev.close > prev.open && isBearish
+      && c.open < prev.close && c.close > prev.open
+      && body < Math.abs(prev.close - prev.open) * 0.6) {
+      patterns.push({
+        name: 'Bearish Harami',
+        nameAr: 'هارامي هبوطي',
+        type: 'BEARISH',
+        confidence: 60,
+        description: 'Bearish harami — potential reversal after uptrend',
+        descriptionAr: 'هارامي هبوطي — احتمال انعكاس بعد صعود',
+      });
+    }
+
+    // ── Piercing Line (خط اختراق) ──
+    if (prev.close < prev.open && isBullish
+      && c.open < prev.close && c.close > (prev.open + prev.close) / 2
+      && c.close < prev.open) {
+      patterns.push({
+        name: 'Piercing Line',
+        nameAr: 'خط اختراق',
+        type: 'BULLISH',
+        confidence: 70,
+        description: 'Piercing line — bullish reversal pattern',
+        descriptionAr: 'خط اختراق — نمط انعكاس صعودي',
+      });
+    }
+
+    // ── Dark Cloud Cover (سحابة مظلمة) ──
+    if (prev.close > prev.open && isBearish
+      && c.open > prev.close && c.close < (prev.open + prev.close) / 2
+      && c.close > prev.open) {
+      patterns.push({
+        name: 'Dark Cloud Cover',
+        nameAr: 'سحابة مظلمة',
+        type: 'BEARISH',
+        confidence: 70,
+        description: 'Dark cloud cover — bearish reversal pattern',
+        descriptionAr: 'سحابة مظلمة — نمط انعكاس هبوطي',
+      });
+    }
+
+    // ── Tweezer Top (قمة ملقاط) ──
+    if (candles.length >= 2) {
+      const prevHigh = Math.max(prev.open, prev.close);
+      const currHigh = Math.max(c.open, c.close);
+      if (Math.abs(prevHigh - currHigh) / prevHigh < 0.001
+        && prev.close > prev.open && isBearish) {
+        patterns.push({
+          name: 'Tweezer Top',
+          nameAr: 'قمة ملقاط',
+          type: 'BEARISH',
+          confidence: 60,
+          description: 'Tweezer top — bearish reversal signal',
+          descriptionAr: 'قمة ملقاط — إشارة انعكاس هبوطي',
+        });
+      }
+    }
+
+    // ── Tweezer Bottom (قاع ملقاط) ──
+    if (candles.length >= 2) {
+      const prevLow = Math.min(prev.open, prev.close);
+      const currLow = Math.min(c.open, c.close);
+      if (Math.abs(prevLow - currLow) / prevLow < 0.001
+        && prev.close < prev.open && isBullish) {
+        patterns.push({
+          name: 'Tweezer Bottom',
+          nameAr: 'قاع ملقاط',
+          type: 'BULLISH',
+          confidence: 60,
+          description: 'Tweezer bottom — bullish reversal signal',
+          descriptionAr: 'قاع ملقاط — إشارة انعكاس صعودي',
+        });
+      }
+    }
+
+    // ── Rising Three Methods (ثلاث صاعد) ──
+    if (candles.length >= 5) {
+      const c4 = candles[last - 4];
+      const c3 = candles[last - 3];
+      const c2 = candles[last - 2];
+      const c1 = candles[last - 1];
+      const c0 = candles[last];
+      const bigBull = c4.close > c4.open && (c4.close - c4.open) / c4.open > 0.01;
+      const smallBodies = c3.close < c3.open && c2.close < c2.open && c1.close < c1.open;
+      const insideRange = Math.max(c3.open, c3.close, c2.open, c2.close, c1.open, c1.close) < c4.close
+        && Math.min(c3.open, c3.close, c2.open, c2.close, c1.open, c1.close) > c4.open;
+      const finalBull = c0.close > c0.open && c0.close > c4.close;
+      if (bigBull && smallBodies && insideRange && finalBull) {
+        patterns.push({
+          name: 'Rising Three Methods',
+          nameAr: 'ثلاث صاعد',
+          type: 'BULLISH',
+          confidence: 75,
+          description: 'Rising three methods — bullish continuation pattern',
+          descriptionAr: 'ثلاث صاعد — نمط استمرار صعودي',
+        });
+      }
+    }
+
+    // ── Falling Three Methods (ثلاث هابط) ──
+    if (candles.length >= 5) {
+      const c4 = candles[last - 4];
+      const c3 = candles[last - 3];
+      const c2 = candles[last - 2];
+      const c1 = candles[last - 1];
+      const c0 = candles[last];
+      const bigBear = c4.close < c4.open && (c4.open - c4.close) / c4.open > 0.01;
+      const smallBodies = c3.close > c3.open && c2.close > c2.open && c1.close > c1.open;
+      const insideRange = Math.max(c3.open, c3.close, c2.open, c2.close, c1.open, c1.close) < c4.open
+        && Math.min(c3.open, c3.close, c2.open, c2.close, c1.open, c1.close) > c4.close;
+      const finalBear = c0.close < c0.open && c0.close < c4.close;
+      if (bigBear && smallBodies && insideRange && finalBear) {
+        patterns.push({
+          name: 'Falling Three Methods',
+          nameAr: 'ثلاث هابط',
+          type: 'BEARISH',
+          confidence: 75,
+          description: 'Falling three methods — bearish continuation pattern',
+          descriptionAr: 'ثلاث هابط — نمط استمرار هبوطي',
+        });
+      }
+    }
+
+    // ── Marubozu (ماروبوزو) ──
+    if (body / totalRange > 0.9 && totalRange > 0) {
+      if (isBullish) {
+        patterns.push({
+          name: 'Bullish Marubozu',
+          nameAr: 'ماروبوزو صعودي',
+          type: 'BULLISH',
+          confidence: 80,
+          description: 'Bullish marubozu — strong buying pressure with no wicks',
+          descriptionAr: 'ماروبوزو صعودي — ضغط شرائي قوي بلا ظلال',
+        });
+      } else {
+        patterns.push({
+          name: 'Bearish Marubozu',
+          nameAr: 'ماروبوزو هبوطي',
+          type: 'BEARISH',
+          confidence: 80,
+          description: 'Bearish marubozu — strong selling pressure with no wicks',
+          descriptionAr: 'ماروبوزو هبوطي — ضغط بيعي قوي بلا ظلال',
+        });
+      }
+    }
+
     return patterns;
   }
 
@@ -1707,131 +1896,137 @@ export class ScannerService {
     volumeProfile: VolumeProfileResult | null,
     divergence: DivergenceResult | null,
   ): SmartScore {
-    // ── 1. Trend Score (0-100) ──
-    let trendScore = 0;
+    const rsiValue = technical.rsi?.values?.[technical.rsi.values.length - 1] ?? null;
 
-    // ADX strength (0-30 points)
+    // ── 1. Trend Dimension (strength 0-100, direction -1/+1) ──
+    let trendStrength = 0;
+    let trendDir = 0;
+
     if (adx) {
-      if (adx.trendStrength === 'VERY_STRONG') trendScore += 30;
-      else if (adx.trendStrength === 'STRONG') trendScore += 22;
-      else if (adx.trendStrength === 'WEAK') trendScore += 10;
-      // NO_TREND adds 0
-
-      // Directional bonus
-      if (adx.trendDirection === 'BULLISH') trendScore = Math.min(30, trendScore + 3);
-      else if (adx.trendDirection === 'BEARISH') trendScore = Math.min(30, trendScore + 3);
+      if (adx.trendStrength === 'VERY_STRONG') trendStrength += 30;
+      else if (adx.trendStrength === 'STRONG') trendStrength += 22;
+      else if (adx.trendStrength === 'WEAK') trendStrength += 10;
+      if (adx.trendDirection === 'BULLISH') trendDir += 1;
+      else if (adx.trendDirection === 'BEARISH') trendDir -= 1;
     } else {
-      trendScore += 10; // Default if no ADX data
+      trendStrength += 10;
     }
 
-    // Ichimoku cloud alignment (0-30 points)
     if (ichimoku) {
-      let ichimokuPts = 0;
-      if (ichimoku.cloudColor === 'BULLISH' && ichimoku.priceVsCloud === 'ABOVE') ichimokuPts = 30;
-      else if (ichimoku.cloudColor === 'BULLISH' && ichimoku.priceVsCloud === 'INSIDE') ichimokuPts = 20;
-      else if (ichimoku.cloudColor === 'BULLISH' && ichimoku.priceVsCloud === 'BELOW') ichimokuPts = 10;
-      else if (ichimoku.cloudColor === 'BEARISH' && ichimoku.priceVsCloud === 'BELOW') ichimokuPts = 30;
-      else if (ichimoku.cloudColor === 'BEARISH' && ichimoku.priceVsCloud === 'INSIDE') ichimokuPts = 20;
-      else if (ichimoku.cloudColor === 'BEARISH' && ichimoku.priceVsCloud === 'ABOVE') ichimokuPts = 10;
-      else ichimokuPts = 15; // NEUTRAL
+      let ichimokuStrength = 0;
+      if (ichimoku.priceVsCloud === 'ABOVE' || ichimoku.priceVsCloud === 'BELOW') ichimokuStrength = 30;
+      else if (ichimoku.priceVsCloud === 'INSIDE') ichimokuStrength = 18;
 
-      // TK Cross bonus
-      if (ichimoku.tkCross === 'BULLISH' && ichimoku.cloudColor === 'BULLISH') ichimokuPts = Math.min(30, ichimokuPts + 5);
-      else if (ichimoku.tkCross === 'BEARISH' && ichimoku.cloudColor === 'BEARISH') ichimokuPts = Math.min(30, ichimokuPts + 5);
+      if (ichimoku.cloudColor === 'BULLISH' && ichimoku.priceVsCloud === 'ABOVE') trendDir += 1;
+      else if (ichimoku.cloudColor === 'BEARISH' && ichimoku.priceVsCloud === 'BELOW') trendDir -= 1;
+      else if (ichimoku.cloudColor === 'BULLISH' && ichimoku.priceVsCloud === 'INSIDE') trendDir += 0.5;
+      else if (ichimoku.cloudColor === 'BEARISH' && ichimoku.priceVsCloud === 'INSIDE') trendDir -= 0.5;
 
-      trendScore += ichimokuPts;
+      if (ichimoku.tkCross === 'BULLISH') { trendDir += 0.5; ichimokuStrength = Math.min(30, ichimokuStrength + 3); }
+      else if (ichimoku.tkCross === 'BEARISH') { trendDir -= 0.5; ichimokuStrength = Math.min(30, ichimokuStrength + 3); }
+
+      trendStrength += ichimokuStrength;
     } else {
-      trendScore += 15; // Default
+      trendStrength += 15;
     }
 
-    // EMA alignment (0-20 points)
     if (technical.ema && technical.ema.length >= 2) {
       const shortEma = technical.ema.find(e => e.period <= 12);
       const longEma = technical.ema.find(e => e.period >= 26);
       if (shortEma && longEma) {
         const shortLast = shortEma.values[shortEma.values.length - 1];
         const longLast = longEma.values[longEma.values.length - 1];
-        if (shortLast > longLast) trendScore += 20; // Bullish EMA alignment
-        else if (shortLast < longLast) trendScore += 20; // Bearish EMA alignment (still trending)
-        else trendScore += 10;
+        const diff = (shortLast - longLast) / longLast;
+        if (Math.abs(diff) > 0.005) {
+          trendStrength += 20;
+          trendDir += diff > 0 ? 1 : -1;
+        } else {
+          trendStrength += 10;
+        }
       } else {
-        trendScore += 10;
+        trendStrength += 10;
       }
     } else {
-      trendScore += 10; // Default
+      trendStrength += 10;
     }
 
-    // SAR direction (0-20 points)
     if (sar) {
-      trendScore += 20; // SAR is active = trending
+      trendStrength += 20;
+      trendDir += sar.trend === 'RISING' ? 0.5 : -0.5;
     } else {
-      trendScore += 10;
+      trendStrength += 10;
     }
 
-    trendScore = Math.min(100, Math.max(0, trendScore));
+    trendStrength = Math.min(100, Math.max(0, trendStrength));
+    const trendDirection = trendDir > 0.5 ? 1 : trendDir < -0.5 ? -1 : 0;
+    const trendScore = trendStrength;
 
-    // ── 2. Momentum Score (0-100) ──
-    let momentumScore = 0;
+    // ── 2. Momentum Dimension (strength 0-100, direction -1/+1) ──
+    let momentumStrength = 0;
+    let momentumDir = 0;
 
-    // RSI position (0-25 points)
-    const rsiValue = technical.rsi?.values?.[technical.rsi.values.length - 1] ?? null;
     if (rsiValue !== null) {
-      if (rsiValue < 30) momentumScore += 25; // Oversold = potential bullish momentum
-      else if (rsiValue < 45) momentumScore += 20;
-      else if (rsiValue < 55) momentumScore += 12;
-      else if (rsiValue < 70) momentumScore += 20;
-      else momentumScore += 25; // Overbought = potential bearish momentum
+      if (rsiValue < 20) { momentumStrength += 25; momentumDir += 1; }
+      else if (rsiValue < 30) { momentumStrength += 22; momentumDir += 0.8; }
+      else if (rsiValue < 45) { momentumStrength += 18; momentumDir += 0.3; }
+      else if (rsiValue < 55) { momentumStrength += 10; }
+      else if (rsiValue < 70) { momentumStrength += 18; momentumDir -= 0.3; }
+      else if (rsiValue < 80) { momentumStrength += 22; momentumDir -= 0.8; }
+      else { momentumStrength += 25; momentumDir -= 1; }
     } else {
-      momentumScore += 12;
+      momentumStrength += 12;
     }
 
-    // MACD signal + histogram (0-25 points)
     if (technical.macd) {
       const histogram = technical.macd.histogram?.slice(-1)[0] ?? 0;
       const crossover = technical.macd.crossover;
-
-      if (crossover === 'BULLISH_CROSSOVER') momentumScore += 25;
-      else if (crossover === 'BEARISH_CROSSOVER') momentumScore += 25;
-      else if (Math.abs(histogram) > 0) momentumScore += 15;
-      else momentumScore += 5;
+      if (crossover === 'BULLISH_CROSSOVER') { momentumStrength += 25; momentumDir += 1; }
+      else if (crossover === 'BEARISH_CROSSOVER') { momentumStrength += 25; momentumDir -= 1; }
+      else if (Math.abs(histogram) > 0) {
+        momentumStrength += 15;
+        momentumDir += histogram > 0 ? 0.3 : -0.3;
+      } else {
+        momentumStrength += 5;
+      }
     } else {
-      momentumScore += 10;
+      momentumStrength += 10;
     }
 
-    // Stochastic (0-25 points)
     if (stoch) {
-      if (stoch.interpretation === 'OVERSOLD') momentumScore += 25;
-      else if (stoch.interpretation === 'OVERBOUGHT') momentumScore += 25;
-      else if (stoch.k > 50) momentumScore += 18;
-      else momentumScore += 15;
+      if (stoch.k < 20) { momentumStrength += 25; momentumDir += 0.8; }
+      else if (stoch.k < 30) { momentumStrength += 20; momentumDir += 0.5; }
+      else if (stoch.k > 80) { momentumStrength += 25; momentumDir -= 0.8; }
+      else if (stoch.k > 70) { momentumStrength += 20; momentumDir -= 0.5; }
+      else { momentumStrength += 15; }
     } else {
-      momentumScore += 12;
+      momentumStrength += 12;
     }
 
-    // CCI (0-25 points)
     if (cci) {
-      if (cci.interpretation === 'OVERSOLD') momentumScore += 25;
-      else if (cci.interpretation === 'OVERBOUGHT') momentumScore += 25;
-      else momentumScore += 15;
+      if (cci.value < -200) { momentumStrength += 25; momentumDir += 0.8; }
+      else if (cci.interpretation === 'OVERSOLD') { momentumStrength += 22; momentumDir += 0.5; }
+      else if (cci.value > 200) { momentumStrength += 25; momentumDir -= 0.8; }
+      else if (cci.interpretation === 'OVERBOUGHT') { momentumStrength += 22; momentumDir -= 0.5; }
+      else { momentumStrength += 15; }
     } else {
-      momentumScore += 12;
+      momentumStrength += 12;
     }
 
-    momentumScore = Math.min(100, Math.max(0, momentumScore));
+    momentumStrength = Math.min(100, Math.max(0, momentumStrength));
+    const momentumDirection = momentumDir > 0.5 ? 1 : momentumDir < -0.5 ? -1 : 0;
+    const momentumScore = momentumStrength;
 
-    // ── 3. Volatility Score (0-100) ──
+    // ── 3. Volatility Dimension (strength 0-100, no direction) ──
     let volatilityScore = 0;
 
-    // ATR level (0-35 points)
     if (technical.atr) {
       if (technical.atr.volatilityLevel === 'HIGH') volatilityScore += 35;
       else if (technical.atr.volatilityLevel === 'NORMAL') volatilityScore += 20;
-      else volatilityScore += 10; // LOW
+      else volatilityScore += 10;
     } else {
       volatilityScore += 15;
     }
 
-    // Bollinger Bandwidth (0-35 points)
     if (technical.bollingerBands) {
       const bandwidth = technical.bollingerBands.bandwidth?.slice(-1)[0] ?? 0;
       if (bandwidth > 0.04) volatilityScore += 35;
@@ -1842,11 +2037,10 @@ export class ScannerService {
       volatilityScore += 15;
     }
 
-    // BB position (0-30 points)
     if (technical.bollingerBands) {
       if (technical.bollingerBands.position === 'ABOVE_UPPER'
         || technical.bollingerBands.position === 'BELOW_LOWER') {
-        volatilityScore += 30; // Breakout-level volatility
+        volatilityScore += 30;
       } else {
         volatilityScore += 15;
       }
@@ -1856,58 +2050,55 @@ export class ScannerService {
 
     volatilityScore = Math.min(100, Math.max(0, volatilityScore));
 
-    // ── 4. Volume Score (0-100) ──
-    let volumeScore = 0;
+    // ── 4. Volume Dimension (strength 0-100, direction) ──
+    let volumeStrength = 0;
+    let volumeDir = 0;
 
-    // OBV trend alignment (0-35 points)
     if (obv) {
-      if (obv.trend === 'RISING' && (technical.technicalScore > 0)) volumeScore += 35;
-      else if (obv.trend === 'FALLING' && (technical.technicalScore < 0)) volumeScore += 35;
-      else if (obv.trend === 'RISING') volumeScore += 20;
-      else if (obv.trend === 'FALLING') volumeScore += 20;
-      else volumeScore += 10; // FLAT
-
-      // Divergence bonus
-      if (obv.divergence === 'BULLISH_DIVERGENCE' || obv.divergence === 'BEARISH_DIVERGENCE') {
-        volumeScore = Math.min(35, volumeScore + 5);
-      }
+      if (obv.trend === 'RISING') { volumeStrength += 35; volumeDir += 1; }
+      else if (obv.trend === 'FALLING') { volumeStrength += 35; volumeDir -= 1; }
+      else { volumeStrength += 15; }
+      if (obv.divergence === 'BULLISH_DIVERGENCE') { volumeStrength = Math.min(40, volumeStrength + 5); volumeDir += 0.5; }
+      else if (obv.divergence === 'BEARISH_DIVERGENCE') { volumeStrength = Math.min(40, volumeStrength + 5); volumeDir -= 0.5; }
     } else {
-      volumeScore += 15;
+      volumeStrength += 15;
     }
 
-    // Volume vs average (0-30 points)
     const quoteVolume = quote.volume ?? 0;
     if (quoteVolume > 0) {
-      // Simplified: use change magnitude as proxy for volume surge
       const changePct = Math.abs(quote.changePercent ?? 0);
-      if (changePct > 3) volumeScore += 30; // Large moves usually have high volume
-      else if (changePct > 1.5) volumeScore += 22;
-      else if (changePct > 0.5) volumeScore += 15;
-      else volumeScore += 8;
+      if (changePct > 3) { volumeStrength += 30; volumeDir += (quote.changePercent ?? 0) > 0 ? 0.5 : -0.5; }
+      else if (changePct > 1.5) { volumeStrength += 22; volumeDir += (quote.changePercent ?? 0) > 0 ? 0.3 : -0.3; }
+      else if (changePct > 0.5) { volumeStrength += 15; }
+      else { volumeStrength += 8; }
     } else {
-      volumeScore += 10;
+      volumeStrength += 10;
     }
 
-    // Volume Profile POC position (0-35 points)
     if (volumeProfile) {
       const currentPrice = quote.price ?? 0;
       if (currentPrice >= volumeProfile.valueAreaLow && currentPrice <= volumeProfile.valueAreaHigh) {
-        volumeScore += 35; // Price in value area = strong volume support
+        volumeStrength += 35;
       } else if (currentPrice > volumeProfile.valueAreaHigh) {
-        volumeScore += 20;
+        volumeStrength += 22;
+        volumeDir += 0.3;
       } else {
-        volumeScore += 15;
+        volumeStrength += 18;
+        volumeDir -= 0.3;
       }
     } else {
-      volumeScore += 15;
+      volumeStrength += 15;
     }
 
-    volumeScore = Math.min(100, Math.max(0, volumeScore));
+    volumeStrength = Math.min(100, Math.max(0, volumeStrength));
+    const volumeDirection = volumeDir > 0.5 ? 1 : volumeDir < -0.5 ? -1 : 0;
+    const volumeScore = volumeStrength;
 
     // ── 5. Composite Score (-100 to +100) ──
-    const directionMultiplier = technical.technicalScore >= 0 ? 1 : -1;
-    const rawComposite = (trendScore * 0.40 + momentumScore * 0.30 + volumeScore * 0.20 + volatilityScore * 0.10);
-    const compositeScore = Math.round(Math.min(100, Math.max(-100, rawComposite * directionMultiplier)));
+    const weightedStrength = (trendStrength * 0.40 + momentumStrength * 0.30 + volumeStrength * 0.20 + volatilityScore * 0.10);
+    const directionConsensus = (trendDirection * 0.40 + momentumDirection * 0.30 + volumeDirection * 0.20);
+    const finalDirection = directionConsensus > 0.15 ? 1 : directionConsensus < -0.15 ? -1 : 0;
+    const compositeScore = Math.round(Math.min(100, Math.max(-100, weightedStrength * finalDirection)));
 
     // ── 6. Signal Type Classification ──
     let signalType: SmartScore['signalType'];
@@ -1915,11 +2106,11 @@ export class ScannerService {
     const hasExtremeRsi = rsiValue !== null && (rsiValue < 30 || rsiValue > 70);
     const hasExtremeStoch = stoch !== null && (stoch.k < 20 || stoch.k > 80);
 
-    if (trendScore > 70 && momentumScore > 50) {
+    if (trendStrength > 70 && momentumStrength > 50 && finalDirection !== 0) {
       signalType = 'STRONG_TREND';
     } else if (hasDivergence && (hasExtremeRsi || hasExtremeStoch)) {
       signalType = 'REVERSAL';
-    } else if (volatilityScore > 70 && Math.abs(compositeScore) > 30 && volumeScore > 60) {
+    } else if (volatilityScore > 70 && Math.abs(compositeScore) > 30 && volumeStrength > 60) {
       signalType = 'BREAKOUT';
     } else if (hasDivergence && !hasExtremeRsi && !hasExtremeStoch) {
       signalType = 'DIVERGENCE';
@@ -1935,31 +2126,28 @@ export class ScannerService {
       cci !== null, sar !== null].filter(Boolean).length;
     const maxIndicators = 10;
     const dataQuality = Math.round((indicatorCount / maxIndicators) * 40);
-
-    const agreementScore = Math.abs(compositeScore) > 60 ? 30 : Math.abs(compositeScore) > 30 ? 20 : 10;
-
+    const dirVotes = [trendDirection, momentumDirection, volumeDirection].filter(d => d !== 0);
+    const allAgree = dirVotes.length >= 2 && (dirVotes.every(d => d > 0) || dirVotes.every(d => d < 0));
+    const agreementScore = allAgree ? 30 : Math.abs(compositeScore) > 60 ? 20 : Math.abs(compositeScore) > 30 ? 15 : 10;
     const divergenceBonus = hasDivergence ? 10 : 0;
-
     const confidence = Math.min(98, dataQuality + agreementScore + divergenceBonus + 20);
 
     // ── 8. Action Recommendation ──
     let action: SmartScore['action'];
     if (compositeScore >= 50 && confidence >= 70) action = 'STRONG_BUY';
     else if (compositeScore >= 20) action = 'BUY';
-    else if (compositeScore <= -20 && compositeScore > -50) action = 'SELL';
     else if (compositeScore <= -50 && confidence >= 70) action = 'STRONG_SELL';
     else if (compositeScore <= -20) action = 'SELL';
     else action = 'HOLD';
 
     // ── 9. Trade Timeframe ──
     let tradeTimeframe: SmartScore['tradeTimeframe'];
-    // Simplified: based on signal strength and data available
-    if (Math.abs(compositeScore) >= 60 && confidence >= 70) {
-      tradeTimeframe = 'SWING'; // Strong signals favor swing
+    if (volatilityScore > 70 && Math.abs(compositeScore) >= 40 && trendStrength > 60) {
+      tradeTimeframe = 'SCALP';
+    } else if (Math.abs(compositeScore) >= 60 && confidence >= 70) {
+      tradeTimeframe = 'SWING';
     } else if (Math.abs(compositeScore) >= 40 && confidence >= 50) {
       tradeTimeframe = 'DAY';
-    } else if (Math.abs(compositeScore) >= 60) {
-      tradeTimeframe = 'SCALP';
     } else {
       tradeTimeframe = 'POSITION';
     }

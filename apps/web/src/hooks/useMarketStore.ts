@@ -144,7 +144,7 @@ class BinanceWSManager {
 
     // Check if we've exceeded max reconnect attempts
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.warn(`[BinanceWS] Max reconnect attempts (${this.maxReconnectAttempts}) reached. Falling back to polling.`)
+      // Max reconnect attempts reached — falling back to polling
       return
     }
 
@@ -166,17 +166,17 @@ class BinanceWSManager {
     this.currentStreams = streams
     const wsUrl = `wss://stream.binance.com:9443/stream?streams=${streams}`
 
-    console.log(`[BinanceWS] Connecting to: ${streams} (attempt ${this.reconnectAttempts + 1})`)
+    // Connecting to streams
     try {
       this.ws = new WebSocket(wsUrl)
     } catch (e) {
-      console.error('[BinanceWS] Init error', e)
+      // WebSocket init error — will retry
       this.scheduleReconnectWithBackoff()
       return
     }
 
     this.ws.onopen = () => {
-      console.log(`[BinanceWS] Connected to ${streamNames.length} streams`)
+      // Connected successfully
       this.reconnectAttempts = 0 // Reset on successful connection
       this.startPing()
     }
@@ -236,10 +236,9 @@ class BinanceWSManager {
       }
       
       if (e.code === 1006) {
-        // Abnormal closure — likely network issue
-        console.warn(`[BinanceWS] Abnormal closure (1006). Network may be unstable.`)
+        // Abnormal closure — network may be unstable
       } else {
-        console.warn(`[BinanceWS] Closed (Code: ${e.code})`)
+        // WebSocket closed
       }
       
       this.scheduleReconnectWithBackoff()
@@ -249,7 +248,7 @@ class BinanceWSManager {
   private scheduleReconnectWithBackoff() {
     this.reconnectAttempts++
     const delay = this.getReconnectDelay()
-    console.log(`[BinanceWS] Reconnecting in ${Math.round(delay / 1000)}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
+    // Reconnecting with backoff
     this.reconnectTimer = setTimeout(() => this.reconnect(), delay)
   }
 }

@@ -2,8 +2,7 @@
 
 import { useState } from 'react'
 import { Play, TrendingUp, TrendingDown, BarChart2, Activity, Target, Award } from 'lucide-react'
-
-const T = { bg: '#04050C', bg2: '#0D1117', card: '#08090F', blue: '#0A84FF', cyan: '#00C8FF', green: '#00FFC6', red: '#FF4D4D', amber: '#FFB800', purple: '#B388FF', text: '#E6EBF5', text2: '#8090A8', border: 'rgba(10,132,255,0.12)' }
+import { T } from '@/lib/theme-tokens'
 
 const STRATEGIES = [
   { id: 'EMA_CROSSOVER', label: 'تقاطع EMA', desc: 'شراء عند تقاطع EMA سريع فوق بطيء والعكس', color: T.cyan },

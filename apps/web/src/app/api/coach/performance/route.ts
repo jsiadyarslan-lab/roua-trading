@@ -1,18 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
 
 /**
  * POST /api/coach/performance
  *
  * Get AI-powered performance advice by:
- * 1. Fetching user's trades locally (from Next.js trading API)
- * 2. Computing statistics client-side
+ * 1. Fetching user's trades and closed positions directly from DB
+ * 2. Computing statistics
  * 3. Sending to NestJS AI orchestrator for analysis
  * 4. Falling back to rule-based advice if AI unavailable
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { userId } = body
+    const { userId: bodyUserId } = body
+
+    // Resolve userId: prefer session cookie over body param for security
+    let userId = bodyUserId
+    const sessionToken = req.cookies.get('roua_session')?.value
+    if (sessionToken) {
+      try {
+        const session = await db.session.findUnique({
+          where: { token: sessionToken },
+          select: { userId: true, expiresAt: true },
+        })
+        if (session && session.expiresAt > new Date()) {
+          userId = session.userId
+        }
+      } catch { /* non-critical — DB may be unavailable */ }
+    }
 
     if (!userId) {
       return NextResponse.json({ success: false, error: 'userId is required' }, { status: 400 })
@@ -20,29 +36,41 @@ export async function POST(req: NextRequest) {
 
     const origin = req.nextUrl.origin
 
-    // 1. Fetch trades from local trading API
+    // 1. Fetch trades from database
     let trades: any[] = []
     try {
-      const tradesRes = await fetch(`${origin}/api/trading/trades?limit=50`, {
-        signal: AbortSignal.timeout(5000),
+      trades = await db.trade.findMany({
+        where: { userId },
+        orderBy: { executedAt: 'desc' },
+        take: 50,
+        select: {
+          symbol: true,
+          side: true,
+          pnl: true,
+          executedAt: true,
+        },
       })
-      if (tradesRes.ok) {
-        const tradesData = await tradesRes.json()
-        trades = Array.isArray(tradesData) ? tradesData : (tradesData.data || tradesData.trades || [])
-      }
-    } catch { /* non-critical */ }
+    } catch (dbError: any) {
+      console.warn('[coach/performance] Trades query failed:', dbError?.message || dbError)
+    }
 
-    // 2. Fetch closed positions
+    // 2. Fetch closed positions from database
     let closedPositions: any[] = []
     try {
-      const closedRes = await fetch(`${origin}/api/trading/positions/history?limit=50`, {
-        signal: AbortSignal.timeout(5000),
+      closedPositions = await db.position.findMany({
+        where: { userId, status: 'CLOSED' },
+        orderBy: { closedAt: 'desc' },
+        take: 50,
+        select: {
+          symbol: true,
+          side: true,
+          realizedPnl: true,
+          closedAt: true,
+        },
       })
-      if (closedRes.ok) {
-        const closedData = await closedRes.json()
-        closedPositions = Array.isArray(closedData) ? closedData : (closedData.data || closedData.positions || [])
-      }
-    } catch { /* non-critical */ }
+    } catch (dbError: any) {
+      console.warn('[coach/performance] Closed positions query failed:', dbError?.message || dbError)
+    }
 
     // 3. Calculate statistics
     const allPnl = [

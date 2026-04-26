@@ -45,22 +45,31 @@ export class PositionManagerService {
       orderBy: { openedAt: 'desc' },
     });
 
+    if (positions.length === 0) return [];
+
+    // Batch: Fetch all quotes in parallel using Promise.allSettled
+    const quoteResults = await Promise.allSettled(
+      positions.map((position) =>
+        this.aggregator.getAggregatedQuote(position.symbol),
+      ),
+    );
+
     const positionInfos: PositionInfo[] = [];
+    const dbUpdates: { id: string; currentPrice: number; highestPrice: number; lowestPrice: number }[] = [];
 
-    for (const position of positions) {
-      try {
-        // Get current price from aggregator
-        const quote = await this.aggregator.getAggregatedQuote(position.symbol);
-        const currentPrice = quote.price;
+    for (let i = 0; i < positions.length; i++) {
+      const position = positions[i];
+      const result = quoteResults[i];
 
-        // Update position in DB with latest price
-        await this.prisma.position.update({
-          where: { id: position.id },
-          data: {
-            currentPrice,
-            highestPrice: Math.max(position.highestPrice || currentPrice, currentPrice),
-            lowestPrice: Math.min(position.lowestPrice || currentPrice, currentPrice),
-          },
+      if (result.status === 'fulfilled') {
+        const currentPrice = result.value.price;
+
+        // Queue DB update
+        dbUpdates.push({
+          id: position.id,
+          currentPrice,
+          highestPrice: Math.max(position.highestPrice || currentPrice, currentPrice),
+          lowestPrice: Math.min(position.lowestPrice || currentPrice, currentPrice),
         });
 
         const unrealizedPnL = this.calculateUnrealizedPnL({
@@ -83,7 +92,7 @@ export class PositionManagerService {
           exchange: position.exchange,
           openedAt: position.openedAt,
         });
-      } catch (error: any) {
+      } else {
         // If we can't get current price, use last known price
         const unrealizedPnL = this.calculateUnrealizedPnL({
           side: position.side,
@@ -106,6 +115,22 @@ export class PositionManagerService {
           openedAt: position.openedAt,
         });
       }
+    }
+
+    // Batch DB updates in a transaction
+    if (dbUpdates.length > 0) {
+      await this.prisma.$transaction(
+        dbUpdates.map((u) =>
+          this.prisma.position.update({
+            where: { id: u.id },
+            data: {
+              currentPrice: u.currentPrice,
+              highestPrice: u.highestPrice,
+              lowestPrice: u.lowestPrice,
+            },
+          }),
+        ),
+      );
     }
 
     return positionInfos;

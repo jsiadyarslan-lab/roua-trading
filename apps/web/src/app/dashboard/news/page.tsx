@@ -60,8 +60,10 @@ export default function NewsPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [displayCount, setDisplayCount] = useState(50);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchNews = useCallback(async () => {
+    setFetchError(null);
     try {
       const params = new URLSearchParams();
       if (symbolFilter !== 'all') params.set('symbol', symbolFilter);
@@ -74,9 +76,11 @@ export default function NewsPage() {
         setItems(data.data);
       } else {
         setItems([]);
+        setFetchError('لم يتم العثور على أخبار. جرّب تغيير الفلتر.');
       }
     } catch {
       setItems([]);
+      setFetchError('تعذر الاتصال بخادم الأخبار. تحقق من اتصالك بالإنترنت وحاول مرة أخرى.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -231,6 +235,7 @@ export default function NewsPage() {
             placeholder="بحث في الأخبار..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="بحث في الأخبار"
             style={{
               background: 'transparent', border: 'none', outline: 'none',
               color: T.text, fontSize: 12, width: '100%', fontFamily: "'Cairo', sans-serif",
@@ -244,6 +249,7 @@ export default function NewsPage() {
           <select
             value={symbolFilter}
             onChange={(e) => setSymbolFilter(e.target.value)}
+            aria-label="تصفية حسب الأصل"
             style={{
               padding: '6px 12px', borderRadius: 10, border: `0.5px solid ${T.border}`,
               background: T.bg, color: T.text, fontSize: 12,
@@ -271,6 +277,7 @@ export default function NewsPage() {
             <button
               key={filter.id}
               onClick={() => setSentimentFilter(filter.id)}
+              aria-label={`تصفية حسب المشاعر: ${filter.label}`}
               style={{
                 padding: '6px 14px', borderRadius: 999,
                 border: `0.5px solid ${sentimentFilter === filter.id ? filter.color : T.border}`,
@@ -289,6 +296,7 @@ export default function NewsPage() {
         <button
           onClick={handleRefresh}
           disabled={refreshing}
+          aria-label="تحديث الأخبار"
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '6px 14px', borderRadius: 10,
@@ -306,6 +314,24 @@ export default function NewsPage() {
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes live-dot { 0%, 100% { transform: scale(1); opacity: 0.65; } 50% { transform: scale(1.35); opacity: 1; } }
       `}</style>
+
+      {/* Error Banner */}
+      {fetchError && (
+        <div style={{
+          background: `${T.red}08`, border: `0.5px solid ${T.red}22`,
+          borderRadius: 10, padding: '10px 14px', marginBottom: 16,
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <AlertTriangle size={14} style={{ color: T.red, flexShrink: 0 }} />
+          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.red, flex: 1 }}>{fetchError}</span>
+          <button onClick={handleRefresh} style={{
+            padding: '3px 10px', borderRadius: 5,
+            background: `${T.red}18`, color: T.red,
+            border: `0.5px solid ${T.red}44`,
+            fontFamily: "'Cairo', sans-serif", fontSize: 9.5, cursor: 'pointer',
+          }}>إعادة المحاولة</button>
+        </div>
+      )}
 
       {/* News List */}
       {loading ? (

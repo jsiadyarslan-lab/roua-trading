@@ -24,8 +24,8 @@ export function useChartPreference(symbol: string) {
         if (data.settings) setSettings(JSON.parse(data.settings))
         if (data.drawings) setDrawings(JSON.parse(data.drawings))
       }
-    } catch (e) {
-      console.error('Failed to fetch chart preferences', e)
+    } catch {
+      // Error handled silently
     } finally {
       setLoading(false)
     }
@@ -44,8 +44,8 @@ export function useChartPreference(symbol: string) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ settings: newSettings, drawings: newDrawings })
       })
-    } catch (e) {
-      console.error('Failed to save chart preferences', e)
+    } catch {
+      // Error handled silently
     }
   }, [symbol])
 

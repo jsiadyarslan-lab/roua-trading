@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { 
   Building2, Globe, TrendingUp, TrendingDown, Activity, 
   FileText, Search, ShieldAlert, Cpu, Eye, Filter, Zap, Target, LineChart,
@@ -143,6 +144,15 @@ export default function StrategiesPage() {
     load()
   }, [])
 
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const isMobile = useMediaQuery('(max-width: 767px)')
+
+  // Auto-close sidebar on mobile
+  useEffect(() => {
+    if (isMobile) setSidebarOpen(false)
+    else setSidebarOpen(true)
+  }, [isMobile])
+
   const active = data[activeIdx]
 
   if (loading) {
@@ -181,8 +191,16 @@ export default function StrategiesPage() {
       direction: 'rtl', fontFamily: "'Cairo', sans-serif",
       display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden'
     }}>
+      <style>{`
+        @media (max-width: 767px) {
+          .strategies-top-bar { display: none !important; }
+          .strategies-sidebar { display: none !important; }
+          .strategies-sidebar.strategies-sidebar-open { display: flex !important; position: fixed; top: 0; right: 0; bottom: 0; z-index: 50; width: 280px !important; box-shadow: -4px 0 20px rgba(0,0,0,0.5); }
+          .strategies-main { flex: 1 !important; }
+        }
+      `}</style>
       {/* ── 1. Top Bar: Macroeconomic Radar (Ultra-Micro) ── */}
-      <div style={{ 
+      <div className="strategies-top-bar" style={{ 
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
         background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: '6px 12px',
         flexShrink: 0
@@ -216,11 +234,32 @@ export default function StrategiesPage() {
         </div>
       </div>
 
+      {/* Mobile sidebar toggle */}
+      {isMobile && (
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          style={{
+            position: 'fixed', top: 12, right: 12, zIndex: 60,
+            width: 36, height: 36, borderRadius: 8,
+            background: T.card, border: `1px solid ${T.border}`,
+            color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', fontSize: 14,
+          }}
+        >
+          ☰
+        </button>
+      )}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 40 }}
+        />
+      )}
       {/* ── Main Content Grid ── */}
       <div style={{ display: 'flex', gap: 12, flex: 1, overflow: 'hidden' }}>
         
         {/* 2. Left Sidebar: RMS */}
-        <div style={{ 
+        <div className={`strategies-sidebar${sidebarOpen ? ' strategies-sidebar-open' : ''}`} style={{ 
           width: 260, background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 8, 
           display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden'
         }}>
@@ -244,7 +283,7 @@ export default function StrategiesPage() {
 
             <div style={{ display: 'flex', alignItems: 'center', background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 6, padding: '0 8px', height: 30 }}>
               <Search size={12} color={T.text3} />
-              <input placeholder="البحث في التقارير..." style={{ background: 'transparent', border: 'none', color: T.text, fontSize: 11, outline: 'none', padding: '0 8px', width: '100%', fontFamily: "'Cairo', sans-serif" }} />
+              <input placeholder="البحث في التقارير..." aria-label="البحث في التقارير" style={{ background: 'transparent', border: 'none', color: T.text, fontSize: 11, outline: 'none', padding: '0 8px', width: '100%', fontFamily: "'Cairo', sans-serif" }} />
             </div>
           </div>
           
@@ -279,7 +318,7 @@ export default function StrategiesPage() {
         </div>
 
         {/* 3. Center Area: Mega Institutional Tear Sheet */}
-        <div style={{ 
+        <div className="strategies-main" style={{ 
           flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', gap: 12
         }}>
           

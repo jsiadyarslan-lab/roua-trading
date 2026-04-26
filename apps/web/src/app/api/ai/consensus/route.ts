@@ -32,7 +32,8 @@ export async function POST(req: NextRequest) {
     // PHASE 1: Try REAL NestJS AI Council (6 actual AI models)
     // ═══════════════════════════════════════════════════════════
     try {
-      const nestjsRes = await fetch(`${origin}/api/ai/consensus-nest`, {
+      const apiTarget = process.env.API_INTERNAL_URL || 'http://localhost:3001'
+      const nestjsRes = await fetch(`${apiTarget}/api/ai/consensus`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol }),

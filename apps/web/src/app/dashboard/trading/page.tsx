@@ -194,8 +194,8 @@ export default function TradingPage() {
           setQuote(data.data)
         }
       }
-    } catch (err) {
-      console.error('Failed to fetch quote:', err)
+    } catch {
+      // Error handled silently
     } finally {
       setLoadingQuote(false)
     }
@@ -211,8 +211,8 @@ export default function TradingPage() {
           setHistoryData(data.data)
         }
       }
-    } catch (err) {
-      console.error('Failed to fetch history:', err)
+    } catch {
+      // Error handled silently
     }
   }, [symbol])
 
@@ -229,8 +229,8 @@ export default function TradingPage() {
           }
         }
       }
-    } catch (err) {
-      console.error('Failed to fetch credentials:', err)
+    } catch {
+      // Error handled silently
     }
   }, [])
 
@@ -374,8 +374,8 @@ export default function TradingPage() {
       if (res.ok) {
         setPositions((prev) => prev.filter((p) => p.id !== closePositionDialog.id))
       }
-    } catch (err) {
-      console.error('Failed to close position:', err)
+    } catch {
+      // Error handled silently
     } finally {
       setClosingPosition(false)
       setClosePositionDialog(null)
@@ -399,8 +399,8 @@ export default function TradingPage() {
           )
         )
       }
-    } catch (err) {
-      console.error('Failed to cancel order:', err)
+    } catch {
+      // Error handled silently
     } finally {
       setCancellingOrder(false)
       setCancelOrderDialog(null)
@@ -977,6 +977,7 @@ export default function TradingPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => setClosePositionDialog(pos)}
+                              aria-label="إغلاق المركز"
                               className="text-muted-foreground hover:text-red-400 h-8 w-8 p-0"
                             >
                               <XCircle className="w-4 h-4" />
@@ -1129,6 +1130,7 @@ export default function TradingPage() {
             <Button
               variant="outline"
               onClick={() => setClosePositionDialog(null)}
+              aria-label="إلغاء إغلاق المركز"
               className="flex-1"
             >
               إلغاء
@@ -1184,6 +1186,7 @@ export default function TradingPage() {
             <Button
               variant="outline"
               onClick={() => setCancelOrderDialog(null)}
+              aria-label="إلغاء إلغاء الطلب"
               className="flex-1"
             >
               تراجع

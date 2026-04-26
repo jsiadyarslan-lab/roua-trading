@@ -375,42 +375,70 @@ export class TradingService {
         orderBy: { openedAt: 'desc' },
       });
 
-      // Update current prices and PnL
-      for (const position of positions) {
-        try {
-          const quote = await this.exchangeService.getQuote(position.symbol);
-          if (quote && quote.price) {
-            const currentPrice = quote.price;
-            const unrealizedPnl =
-              position.side === 'BUY'
-                ? (currentPrice - position.entryPrice) * position.quantity
-                : (position.entryPrice - currentPrice) * position.quantity;
+      if (positions.length === 0) return positions;
 
-            await this.prisma.position.update({
-              where: { id: position.id },
-              data: {
-                currentPrice,
-                unrealizedPnl,
-                highestPrice: Math.max(
-                  position.highestPrice || currentPrice,
-                  currentPrice,
-                ),
-                lowestPrice: Math.min(
-                  position.lowestPrice || currentPrice,
-                  currentPrice,
-                ),
-              },
-            });
+      // Batch: Fetch all quotes in parallel using Promise.allSettled
+      const quoteResults = await Promise.allSettled(
+        positions.map((position) =>
+          this.exchangeService.getQuote(position.symbol),
+        ),
+      );
 
-            // Update in-memory for response
-            position.currentPrice = currentPrice;
-            position.unrealizedPnl = unrealizedPnl;
-          }
-        } catch (error: any) {
+      // Compute updates for positions that got valid quotes
+      const updates: { id: string; currentPrice: number; unrealizedPnl: number; highestPrice: number; lowestPrice: number }[] = [];
+
+      for (let i = 0; i < positions.length; i++) {
+        const position = positions[i];
+        const result = quoteResults[i];
+
+        if (result.status === 'fulfilled' && result.value?.price) {
+          const currentPrice = result.value.price;
+          const unrealizedPnl =
+            position.side === 'BUY'
+              ? (currentPrice - position.entryPrice) * position.quantity
+              : (position.entryPrice - currentPrice) * position.quantity;
+
+          updates.push({
+            id: position.id,
+            currentPrice,
+            unrealizedPnl,
+            highestPrice: Math.max(
+              position.highestPrice || currentPrice,
+              currentPrice,
+            ),
+            lowestPrice: Math.min(
+              position.lowestPrice || currentPrice,
+              currentPrice,
+            ),
+          });
+
+          // Update in-memory for response
+          position.currentPrice = currentPrice;
+          position.unrealizedPnl = unrealizedPnl;
+        } else {
+          // Log warning for failed quotes
+          const reason = result.status === 'rejected' ? result.reason?.message : 'no price';
           this.logger.warn(
-            `Failed to update price for ${position.symbol}: ${error.message}`,
+            `Failed to update price for ${position.symbol}: ${reason}`,
           );
         }
+      }
+
+      // Batch DB updates in a transaction
+      if (updates.length > 0) {
+        await this.prisma.$transaction(
+          updates.map((u) =>
+            this.prisma.position.update({
+              where: { id: u.id },
+              data: {
+                currentPrice: u.currentPrice,
+                unrealizedPnl: u.unrealizedPnl,
+                highestPrice: u.highestPrice,
+                lowestPrice: u.lowestPrice,
+              },
+            }),
+          ),
+        );
       }
 
       return positions;

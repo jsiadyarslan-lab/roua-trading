@@ -21,11 +21,13 @@ export async function POST(req: Request) {
     // In production, this would stream historical data from DB and run the algorithm
     const baseWinRate = strategyType === 'EMA Cross' ? 55 : strategyType === 'MACD Divergence' ? 62 : 58
     
-    // Slight variance based on parameters to make it feel real
+    // Deterministic variance based on input parameters (no Math.random)
     const variance = (Number(emaFast) % 5) + (tradeCount > 0 ? 2 : -2)
     const finalWinRate = baseWinRate + variance
 
-    const tradesSimulated = 150 + Math.floor(Math.random() * 100) + tradeCount
+    // Deterministic trade count based on pair hash and parameters
+    const pairHash = pair.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+    const tradesSimulated = 150 + (pairHash % 100) + tradeCount
     
     // Profit factor between 1.1 and 2.5
     const pFactor = (1.2 + (finalWinRate - 50) * 0.08).toFixed(2)

@@ -1,15 +1,20 @@
 'use client'
 
+import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { ScannerProvider, useScannerContext } from '@/components/scanner/ScannerProvider'
 import { ScannerSidebar } from '@/components/scanner/ScannerSidebar'
 import { ScannerToolbar } from '@/components/scanner/ScannerToolbar'
-import { ScannerTable } from '@/components/scanner/tabs/ScannerTable'
-import { HeatmapGrid } from '@/components/scanner/tabs/HeatmapGrid'
-import { PatternsView } from '@/components/scanner/tabs/PatternsView'
-import { MultiTfPanel } from '@/components/scanner/tabs/MultiTfPanel'
-import { MarketOverview } from '@/components/scanner/tabs/MarketOverview'
-import { ScreenerTab } from '@/components/scanner/tabs/ScreenerTab'
-import { DeepAnalysisModal } from '@/components/scanner/modals/DeepAnalysisModal'
+
+// Dynamic imports for heavy tab components (lazy-loaded per tab)
+const ScannerTable = dynamic(() => import('@/components/scanner/tabs/ScannerTable').then(m => ({ default: m.ScannerTable })), { ssr: false })
+const HeatmapGrid = dynamic(() => import('@/components/scanner/tabs/HeatmapGrid').then(m => ({ default: m.HeatmapGrid })), { ssr: false })
+const PatternsView = dynamic(() => import('@/components/scanner/tabs/PatternsView').then(m => ({ default: m.PatternsView })), { ssr: false })
+const MultiTfPanel = dynamic(() => import('@/components/scanner/tabs/MultiTfPanel').then(m => ({ default: m.MultiTfPanel })), { ssr: false })
+const MarketOverview = dynamic(() => import('@/components/scanner/tabs/MarketOverview').then(m => ({ default: m.MarketOverview })), { ssr: false })
+const ScreenerTab = dynamic(() => import('@/components/scanner/tabs/ScreenerTab').then(m => ({ default: m.ScreenerTab })), { ssr: false })
+const DeepAnalysisModal = dynamic(() => import('@/components/scanner/modals/DeepAnalysisModal').then(m => ({ default: m.DeepAnalysisModal })), { ssr: false })
 
 // ── Design Tokens ──
 const T = {
@@ -37,6 +42,14 @@ const T = {
 // ── Main Content Router ──
 function ScannerContent() {
   const { activeTab, selectedSymbol, setSelectedSymbol } = useScannerContext()
+  const [sidebarVisible, setSidebarVisible] = useState(true)
+  const isMobile = useMediaQuery('(max-width: 767px)')
+
+  // Auto-hide sidebar on mobile
+  useEffect(() => {
+    if (isMobile) setSidebarVisible(false)
+    else setSidebarVisible(true)
+  }, [isMobile])
 
   const renderTab = () => {
     switch (activeTab) {
@@ -81,10 +94,39 @@ function ScannerContent() {
         ::-webkit-scrollbar-thumb:hover { background: #0A84FF44; }
         @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         @keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:0.5; } }
+        .scanner-sidebar-wrapper { display: flex; }
+        @media (max-width: 767px) {
+          .scanner-sidebar-wrapper { display: none !important; }
+          .scanner-sidebar-wrapper.scanner-sidebar-visible { display: flex !important; position: fixed; top: 0; right: 0; bottom: 0; z-index: 50; box-shadow: -4px 0 20px rgba(0,0,0,0.5); }
+        }
       `}</style>
 
+      {/* Mobile sidebar toggle */}
+      {isMobile && (
+        <button
+          onClick={() => setSidebarVisible(!sidebarVisible)}
+          style={{
+            position: 'fixed', top: 12, right: 12, zIndex: 60,
+            width: 36, height: 36, borderRadius: 8,
+            background: T.card, border: `1px solid ${T.border}`,
+            color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', fontSize: 14,
+          }}
+        >
+          ☰
+        </button>
+      )}
+      {isMobile && sidebarVisible && (
+        <div
+          onClick={() => setSidebarVisible(false)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 40 }}
+        />
+      )}
+
       {/* ── Sidebar ── */}
-      <ScannerSidebar />
+      <div className={`scanner-sidebar-wrapper${sidebarVisible ? ' scanner-sidebar-visible' : ''}`}>
+        <ScannerSidebar />
+      </div>
 
       {/* ── Main Content ── */}
       <div style={{

@@ -15,10 +15,13 @@ const T = {
   border: 'rgba(255,255,255,0.06)', border2: 'rgba(0,212,255,0.16)',
 }
 
-function Toggle({ checked, onChange, color }: { checked: boolean; onChange: () => void; color: string }) {
+function Toggle({ checked, onChange, color, ariaLabel }: { checked: boolean; onChange: () => void; color: string; ariaLabel?: string }) {
   return (
     <button
       onClick={onChange}
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
       style={{
         width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer',
         background: checked ? `${color}30` : T.surface,
@@ -152,7 +155,7 @@ export default function SettingsPage() {
                 <Eye size={14} color={T.text2} />
                 <span style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>تفعيل الإشعارات</span>
               </div>
-              <Toggle checked={settings.enabled} onChange={() => updateSettings({ enabled: !settings.enabled })} color={T.cyan} />
+              <Toggle checked={settings.enabled} onChange={() => updateSettings({ enabled: !settings.enabled })} color={T.cyan} ariaLabel="تفعيل الإشعارات" />
             </div>
 
             {/* Sound Toggle */}
@@ -161,7 +164,7 @@ export default function SettingsPage() {
                 <Volume2 size={14} color={T.text2} />
                 <span style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>الأصوات</span>
               </div>
-              <Toggle checked={settings.soundEnabled} onChange={() => updateSettings({ soundEnabled: !settings.soundEnabled })} color={T.green} />
+              <Toggle checked={settings.soundEnabled} onChange={() => updateSettings({ soundEnabled: !settings.soundEnabled })} color={T.green} ariaLabel="الأصوات" />
             </div>
 
             <div style={{ height: 1, background: T.border, margin: '4px 0' }} />
@@ -172,28 +175,28 @@ export default function SettingsPage() {
                 <Bot size={14} color={T.text2} />
                 <span style={{ fontSize: 12, color: T.text2 }}>تنبيهات البوت</span>
               </div>
-              <Toggle checked={settings.botAlerts} onChange={() => updateSettings({ botAlerts: !settings.botAlerts })} color={T.purple} />
+              <Toggle checked={settings.botAlerts} onChange={() => updateSettings({ botAlerts: !settings.botAlerts })} color={T.purple} ariaLabel="تنبيهات البوت" />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Brain size={14} color={T.text2} />
                 <span style={{ fontSize: 12, color: T.text2 }}>تنبيهات الذكاء الاصطناعي</span>
               </div>
-              <Toggle checked={settings.aiAlerts} onChange={() => updateSettings({ aiAlerts: !settings.aiAlerts })} color={T.cyan} />
+              <Toggle checked={settings.aiAlerts} onChange={() => updateSettings({ aiAlerts: !settings.aiAlerts })} color={T.cyan} ariaLabel="تنبيهات الذكاء الاصطناعي" />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Radar size={14} color={T.text2} />
                 <span style={{ fontSize: 12, color: T.text2 }}>تنبيهات الماسح</span>
               </div>
-              <Toggle checked={settings.scannerAlerts} onChange={() => updateSettings({ scannerAlerts: !settings.scannerAlerts })} color={T.amber} />
+              <Toggle checked={settings.scannerAlerts} onChange={() => updateSettings({ scannerAlerts: !settings.scannerAlerts })} color={T.amber} ariaLabel="تنبيهات الماسح" />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <BarChart3 size={14} color={T.text2} />
                 <span style={{ fontSize: 12, color: T.text2 }}>تنبيهات التداول</span>
               </div>
-              <Toggle checked={settings.tradeAlerts} onChange={() => updateSettings({ tradeAlerts: !settings.tradeAlerts })} color={T.green} />
+              <Toggle checked={settings.tradeAlerts} onChange={() => updateSettings({ tradeAlerts: !settings.tradeAlerts })} color={T.green} ariaLabel="تنبيهات التداول" />
             </div>
 
             {/* Confidence Slider */}
@@ -244,7 +247,7 @@ export default function SettingsPage() {
                 {isDark ? <Moon size={14} color={T.text2} /> : <Sun size={14} color={T.amber} />}
                 <span style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>الوضع الداكن</span>
               </div>
-              <Toggle checked={isDark} onChange={() => setIsDark(!isDark)} color={T.blue} />
+              <Toggle checked={isDark} onChange={() => setIsDark(!isDark)} color={T.blue} ariaLabel="الوضع الداكن" />
             </div>
 
             {/* Language (read-only info) */}

@@ -68,20 +68,28 @@ export async function DELETE(request: NextRequest) {
     const sessionToken = request.cookies.get('roua_session')?.value
 
     if (sessionToken) {
-      await db.session.deleteMany({
-        where: { token: sessionToken },
-      })
-
+      // Find the session first so we can log the userId before deleting
       const session = await db.session.findUnique({
         where: { token: sessionToken },
+        select: { id: true, userId: true },
       })
+
       if (session) {
+        // Audit log before deletion
         await db.auditLog.create({
           data: {
             userId: session.userId,
             action: 'AUTH_LOGOUT',
             resource: 'session',
           },
+        })
+
+        // Now delete the session
+        await db.session.delete({ where: { id: session.id } })
+      } else {
+        // Session already gone or expired — clean up any remaining records
+        await db.session.deleteMany({
+          where: { token: sessionToken },
         })
       }
     }

@@ -378,6 +378,7 @@ export default function PositionsPage() {
               /* Desktop Table */
               <div className="custom-scrollbar" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <caption className="sr-only">جدول المراكز المفتوحة</caption>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
                       {['الزوج', 'البورصة', 'الاتجاه', 'الكمية', 'سعر الدخول', 'السعر الحالي', 'ر/خ', 'وقف الخسارة', 'جني الأرباح', 'إجراءات'].map(h => (
@@ -433,13 +434,13 @@ export default function PositionsPage() {
                         </td>
                         <td style={{ padding: '8px 10px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <button onClick={() => openEditDialog(pos)} style={{ width: '26px', height: '26px', borderRadius: '6px', border: '1px solid var(--border-subtle)', background: 'var(--bg-input)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                            <button onClick={() => openEditDialog(pos)} aria-label="تعديل مستويات المركز" style={{ width: '26px', height: '26px', borderRadius: '6px', border: '1px solid var(--border-subtle)', background: 'var(--bg-input)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
                               onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent-border)'; e.currentTarget.style.color = 'var(--accent)' }}
                               onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-muted)' }}
                             >
                               <Edit3 size={11} style={{ color: 'inherit' }} />
                             </button>
-                            <button onClick={() => openCloseDialog(pos)} style={{ width: '26px', height: '26px', borderRadius: '6px', border: '1px solid var(--border-subtle)', background: 'var(--bg-input)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                            <button onClick={() => openCloseDialog(pos)} aria-label="إغلاق المركز" style={{ width: '26px', height: '26px', borderRadius: '6px', border: '1px solid var(--border-subtle)', background: 'var(--bg-input)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
                               onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--border-loss)'; e.currentTarget.style.color = 'var(--loss)' }}
                               onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.color = 'var(--text-muted)' }}
                             >
@@ -466,12 +467,12 @@ export default function PositionsPage() {
       {/* Close Position Dialog */}
       {closeDialog && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} onClick={() => setCloseDialog(null)}>
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', maxWidth: '440px', width: '90%', boxShadow: 'var(--shadow-modal)' }} onClick={(e) => e.stopPropagation()} dir="rtl">
+          <div role="dialog" aria-modal="true" aria-labelledby="close-dialog-title" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', maxWidth: '440px', width: '90%', boxShadow: 'var(--shadow-modal)' }} onClick={(e) => e.stopPropagation()} dir="rtl">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
               <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'linear-gradient(135deg, #FF4D4D, #FF6B6B)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <XCircle size={13} stroke="#fff" strokeWidth={2} />
               </div>
-              <span style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-ar)', color: 'var(--text-main)' }}>تأكيد إغلاق المركز</span>
+              <span id="close-dialog-title" style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-ar)', color: 'var(--text-main)' }}>تأكيد إغلاق المركز</span>
             </div>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)', marginBottom: '16px' }}>هل أنت متأكد من إغلاق مركز {closeDialog.symbol}؟ يمكنك إغلاق المركز بالكامل أو جزئياً.</p>
 
@@ -510,7 +511,7 @@ export default function PositionsPage() {
             )}
 
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => setCloseDialog(null)} style={{ flex: 1, padding: '8px', borderRadius: '7px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-ar)', cursor: 'pointer' }}>إلغاء</button>
+              <button onClick={() => setCloseDialog(null)} aria-label="إلغاء إغلاق المركز" style={{ flex: 1, padding: '8px', borderRadius: '7px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-ar)', cursor: 'pointer' }}>إلغاء</button>
               <button onClick={handleClosePosition} disabled={closing || (closeQuantity ? parseFloat(closeQuantity) > closeDialog.quantity || parseFloat(closeQuantity) <= 0 : false)}
                 style={{ flex: 1, padding: '8px', borderRadius: '7px', border: 'none', background: 'var(--loss)', color: '#fff', fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-ar)', cursor: closing ? 'not-allowed' : 'pointer', opacity: closing ? 0.7 : 1 }}>
                 {closing ? 'جارٍ التنفيذ...' : closeQuantity && parseFloat(closeQuantity) < closeDialog.quantity ? 'إغلاق جزئي' : 'إغلاق المركز'}
@@ -523,12 +524,12 @@ export default function PositionsPage() {
       {/* Edit SL/TP Dialog */}
       {editDialog && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }} onClick={() => setEditDialog(null)}>
-          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', maxWidth: '400px', width: '90%', boxShadow: 'var(--shadow-modal)' }} onClick={(e) => e.stopPropagation()} dir="rtl">
+          <div role="dialog" aria-modal="true" aria-labelledby="edit-dialog-title" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px', maxWidth: '400px', width: '90%', boxShadow: 'var(--shadow-modal)' }} onClick={(e) => e.stopPropagation()} dir="rtl">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
               <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'linear-gradient(135deg, #0A84FF, #5E5CE6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Shield size={13} stroke="#fff" strokeWidth={2} />
               </div>
-              <span style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-ar)', color: 'var(--text-main)' }}>تعديل مستويات الوقف والأرباح</span>
+              <span id="edit-dialog-title" style={{ fontSize: '14px', fontWeight: 700, fontFamily: 'var(--font-ar)', color: 'var(--text-main)' }}>تعديل مستويات الوقف والأرباح</span>
             </div>
             <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)', marginBottom: '16px' }}>تحديث مستويات وقف الخسارة وجني الأرباح لمركز {editDialog.symbol}</p>
 
@@ -555,7 +556,7 @@ export default function PositionsPage() {
             )}
 
             <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => setEditDialog(null)} style={{ flex: 1, padding: '8px', borderRadius: '7px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-ar)', cursor: 'pointer' }}>إلغاء</button>
+              <button onClick={() => setEditDialog(null)} aria-label="إلغاء تعديل المستويات" style={{ flex: 1, padding: '8px', borderRadius: '7px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-muted)', fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-ar)', cursor: 'pointer' }}>إلغاء</button>
               <button onClick={handleUpdateLevels} disabled={updating}
                 style={{ flex: 1, padding: '8px', borderRadius: '7px', border: 'none', background: 'var(--accent)', color: '#fff', fontSize: '11px', fontWeight: 700, fontFamily: 'var(--font-ar)', cursor: updating ? 'not-allowed' : 'pointer', opacity: updating ? 0.7 : 1, boxShadow: 'var(--glow-accent)' }}>
                 {updating ? 'جارٍ التحديث...' : 'تحديث'}

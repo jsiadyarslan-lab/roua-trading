@@ -1,6 +1,17 @@
 import { NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
 
+/**
+ * Safe JSON.parse with fallback value
+ */
+function safeJsonParse(jsonString: string, fallback: any): any {
+  try {
+    return JSON.parse(jsonString)
+  } catch {
+    return fallback
+  }
+}
+
 export async function GET() {
   try {
     await ensureDbReady()
@@ -13,11 +24,11 @@ export async function GET() {
     const decodedReports = reports.map(r => ({
       ...r,
       date: formatPublishedAt(r.publishedAt),
-      decision: JSON.parse(r.decision),
-      matrix: JSON.parse(r.matrix),
-      risk: JSON.parse(r.risk),
-      flow: JSON.parse(r.flow),
-      deepAnalysis: JSON.parse(r.deepAnalysis),
+      decision: safeJsonParse(r.decision, {}),
+      matrix: safeJsonParse(r.matrix, []),
+      risk: safeJsonParse(r.risk, {}),
+      flow: safeJsonParse(r.flow, {}),
+      deepAnalysis: safeJsonParse(r.deepAnalysis, []),
     }))
 
     return NextResponse.json({

@@ -177,6 +177,7 @@ async function localAnalysisFallback(
       },
     })
   } catch (error: any) {
+    console.error('[ai/chat] Local analysis fallback failed:', error?.message || error)
     return NextResponse.json({
       success: true,
       data: {

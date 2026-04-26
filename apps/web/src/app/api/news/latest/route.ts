@@ -51,8 +51,9 @@ export async function GET(request: NextRequest) {
           return NextResponse.json({ ...data, data: normalizedData });
         }
       }
-    } catch {
+    } catch (error: any) {
       // NestJS unavailable, use local fallback
+      console.warn('[news/latest] NestJS news endpoint unavailable, using local RSS fallback:', error?.message || error)
     }
 
     // Local fallback: Fetch RSS + simulate analysis
@@ -70,6 +71,64 @@ export async function GET(request: NextRequest) {
       { status: 502 },
     );
   }
+}
+
+/**
+ * Extract text content from an XML element, handling CDATA sections.
+ * e.g. <title><![CDATA[Hello & World]]></title>  →  "Hello & World"
+ *      <title>Hello &amp; World</title>           →  "Hello & World"
+ */
+function extractXmlElement(parent: string, tagName: string): string | null {
+  // Try CDATA version first: <tag><![CDATA[...]]></tag>
+  const cdataRegex = new RegExp(`<${tagName}><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></${tagName}>`, 'i')
+  const cdataMatch = cdataRegex.exec(parent)
+  if (cdataMatch) return cdataMatch[1].trim()
+
+  // Try normal version: <tag>...</tag>
+  // Use a non-greedy match that doesn't cross into sibling elements
+  const normalRegex = new RegExp(`<${tagName}>([\\s\\S]*?)</${tagName}>`, 'i')
+  const normalMatch = normalRegex.exec(parent)
+  if (normalMatch) {
+    // Decode common XML entities
+    return normalMatch[1].trim()
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+  }
+
+  return null
+}
+
+/**
+ * Extract all text content for a repeating XML element, handling CDATA sections.
+ * e.g. multiple <category> elements
+ */
+function extractXmlElements(parent: string, tagName: string): string[] {
+  const results: string[] = []
+
+  // CDATA version
+  const cdataRegex = new RegExp(`<${tagName}><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></${tagName}>`, 'gi')
+  let match
+  while ((match = cdataRegex.exec(parent)) !== null) {
+    results.push(match[1].trim())
+  }
+
+  // If no CDATA matches, try normal version
+  if (results.length === 0) {
+    const normalRegex = new RegExp(`<${tagName}>([\\s\\S]*?)</${tagName}>`, 'gi')
+    while ((match = normalRegex.exec(parent)) !== null) {
+      results.push(match[1].trim()
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'"))
+    }
+  }
+
+  return results
 }
 
 /**
@@ -94,21 +153,22 @@ async function fetchLocalNews(
     if (res.ok) {
       const xml = await res.text();
       const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-      let match;
+      let itemMatch;
 
-      while ((match = itemRegex.exec(xml)) !== null && allNews.length < 30) {
-        const content = match[1];
-        const titleMatch = /<title><!\[CDATA\[(.*?)\]\]><\/title>/.exec(content) || /<title>(.*?)<\/title>/.exec(content);
-        const descMatch = /<description><!\[CDATA\[(.*?)\]\]><\/description>/.exec(content) || /<description>(.*?)<\/description>/.exec(content);
-        const linkMatch = /<link>(.*?)<\/link>/.exec(content);
-        const pubDateMatch = /<pubDate>(.*?)<\/pubDate>/.exec(content);
-        const categoryMatch = /<category><!\[CDATA\[(.*?)\]\]><\/category>/.exec(content) || /<category>(.*?)<\/category>/.exec(content);
+      while ((itemMatch = itemRegex.exec(xml)) !== null && allNews.length < 30) {
+        const content = itemMatch[1];
 
-        if (titleMatch) {
-          const category = categoryMatch ? categoryMatch[1].trim() : 'Crypto';
-          const title = titleMatch[1].trim();
-          const lowerTitle = title.toLowerCase();
-          const description = descMatch ? descMatch[1].trim().replace(/<[^>]*>/g, '') : '';
+        // Use robust XML element extraction that handles CDATA properly
+        const title = extractXmlElement(content, 'title')
+        const description = extractXmlElement(content, 'description')
+        const link = extractXmlElement(content, 'link')
+        const pubDate = extractXmlElement(content, 'pubDate')
+        const categories = extractXmlElements(content, 'category')
+
+        if (title) {
+          const category = categories.length > 0 ? categories[0] : 'Crypto'
+          const lowerTitle = title.toLowerCase()
+          const cleanDesc = description ? description.replace(/<[^>]*>/g, '') : ''
 
           // Simulate sentiment analysis
           let sentimentScore = 0;
@@ -138,17 +198,17 @@ async function fetchLocalNews(
             source: 'CoinTelegraph',
             title,
             translatedTitle,
-            content: description,
+            content: cleanDesc,
             translatedContent: '',
             summary: generateSummary(title, sentimentLabel, affectedAssets),
-            url: linkMatch ? linkMatch[1].trim() : null,
+            url: link || null,
             sentiment: sentimentScore,
             sentimentLabel,
             impactLevel,
             affectedAssets,
             category,
             categoryAr: mapCategoryToArabic(category),
-            publishedAt: pubDateMatch ? new Date(pubDateMatch[1]).toISOString() : new Date().toISOString(),
+            publishedAt: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
           });
         }
       }

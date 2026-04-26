@@ -1,5 +1,6 @@
 import { AppHeader } from '@/components/dashboard/AppHeader'
 import { MarketProvider } from '@/components/dashboard/MarketProvider'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Metadata, Viewport } from 'next'
 
 export const dynamic = 'force-dynamic'
@@ -33,7 +34,9 @@ export default function DashboardLayout({
       <div style={{ minHeight: '100vh', background: '#0B0E14', direction: 'rtl', display: 'flex', flexDirection: 'column' }}>
         <AppHeader />
         <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </main>
       </div>
     </MarketProvider>

@@ -128,6 +128,7 @@ export default function NeuralPanel() {
             <select
               value={symbol}
               onChange={(e) => setSymbol(e.target.value)}
+              aria-label="اختيار الأصل"
               className="w-full rounded-lg border border-white/10 bg-[#0a0e17] px-3 py-2 text-sm text-white focus:border-violet-500 focus:outline-none"
             >
               {SYMBOLS.map((s) => (
@@ -142,6 +143,7 @@ export default function NeuralPanel() {
             <select
               value={architecture}
               onChange={(e) => setArchitecture(e.target.value)}
+              aria-label="اختيار البنية العصبية"
               className="w-full rounded-lg border border-white/10 bg-[#0a0e17] px-3 py-2 text-sm text-white focus:border-violet-500 focus:outline-none"
             >
               {ARCHITECTURES.map((a) => (
@@ -156,6 +158,7 @@ export default function NeuralPanel() {
             <select
               value={horizon}
               onChange={(e) => setHorizon(e.target.value)}
+              aria-label="اختيار أفق التنبؤ"
               className="w-full rounded-lg border border-white/10 bg-[#0a0e17] px-3 py-2 text-sm text-white focus:border-violet-500 focus:outline-none"
             >
               {HORIZONS.map((h) => (

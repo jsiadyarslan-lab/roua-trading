@@ -67,8 +67,8 @@ export default function ExchangeSettingsPage() {
           setCredentials(data.data)
         }
       }
-    } catch (err) {
-      console.error('Failed to fetch credentials:', err)
+    } catch {
+      // Error handled silently
     } finally {
       setLoading(false)
     }
@@ -120,8 +120,8 @@ export default function ExchangeSettingsPage() {
       if (res.ok) {
         setCredentials(prev => prev.filter(c => c.id !== id))
       }
-    } catch (err) {
-      console.error('Failed to delete credential:', err)
+    } catch {
+      // Error handled silently
     }
   }
 

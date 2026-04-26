@@ -322,6 +322,7 @@ export default function SignalsPage() {
       actions={
         <button
           onClick={() => fetchSignals()}
+          aria-label="تحديث الإشارات"
           style={{
             display: 'flex', alignItems: 'center', gap: '6px',
             padding: '6px 14px', borderRadius: '8px',
@@ -336,6 +337,14 @@ export default function SignalsPage() {
         </button>
       }
     >
+      <style>{`
+        @media (max-width: 767px) {
+          .signals-quick-pairs { grid-template-columns: repeat(3, 1fr) !important; }
+        }
+        @media (max-width: 480px) {
+          .signals-quick-pairs { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+      `}</style>
       {/* ── Quick Generate Section ── */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -375,7 +384,7 @@ export default function SignalsPage() {
         </div>
 
         {/* Quick Pair Buttons */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }} className="signals-quick-pairs">
           {QUICK_PAIRS.map((pair, i) => {
             const isGenerating = generating === pair.symbol
             const isDisabled = generating !== null && !isGenerating

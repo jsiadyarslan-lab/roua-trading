@@ -2,14 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { CalendarDays, Clock, TrendingUp, TrendingDown, Minus, Filter, RefreshCw, Brain } from 'lucide-react'
-
-const T = {
-  bg: '#04050C', bg2: '#0D1117', card: '#08090F',
-  blue: '#0A84FF', cyan: '#00C8FF', green: '#00FFC6',
-  red: '#FF4D4D', amber: '#FFB800', purple: '#B388FF',
-  text: '#E6EBF5', text2: '#8090A8', text3: '#A0AFC3',
-  border: 'rgba(10,132,255,0.12)',
-}
+import { T } from '@/lib/theme-tokens'
 
 const IMPACT_STYLE = {
   high:   { color: T.red,   label: 'عالي',    bullets: 3 },

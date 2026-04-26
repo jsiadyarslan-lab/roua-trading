@@ -127,6 +127,7 @@ export function ScannerToolbar() {
         <select
           value={ctx.timeframe}
           onChange={e => ctx.setTimeframe(e.target.value)}
+          aria-label="اختيار الإطار الزمني"
           style={{
             padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 700,
             fontFamily: "'Cairo', sans-serif", background: T.surface, color: T.text2,
@@ -142,6 +143,7 @@ export function ScannerToolbar() {
         <select
           value={ctx.signalFilter}
           onChange={e => ctx.setSignalFilter(e.target.value as SignalFilter)}
+          aria-label="تصفية حسب الإشارة"
           style={{
             padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 700,
             fontFamily: "'Cairo', sans-serif", background: T.surface, color: T.text2,
@@ -161,6 +163,7 @@ export function ScannerToolbar() {
           <input
             type="text" placeholder="بحث..." value={localSearch}
             onChange={e => handleSearchChange(e.target.value)}
+            aria-label="بحث في الماسح"
             style={{
               padding: '4px 28px 4px 10px', borderRadius: 6, fontSize: 10,
               fontFamily: "'Cairo', sans-serif", background: T.surface, color: T.text,

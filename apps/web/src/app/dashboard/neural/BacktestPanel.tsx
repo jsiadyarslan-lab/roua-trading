@@ -128,8 +128,8 @@ export default function BacktestPanel() {
       if (data.success && data.data?.backtestResult) {
         setResult(data.data.backtestResult);
       }
-    } catch (err: any) {
-      console.error('Apply recommendation failed:', err);
+    } catch {
+      // Error handled silently
     } finally {
       setApplyingRec(false);
     }
@@ -169,8 +169,8 @@ export default function BacktestPanel() {
         a.click();
         URL.revokeObjectURL(url);
       }
-    } catch (err: any) {
-      console.error('Export failed:', err);
+    } catch {
+      // Error handled silently
     } finally {
       setExporting(null);
     }
@@ -194,6 +194,7 @@ export default function BacktestPanel() {
             <select
               value={symbol}
               onChange={(e) => setSymbol(e.target.value)}
+              aria-label="اختيار الأصل"
               className="w-full rounded-lg border border-white/10 bg-[#0a0e17] px-3 py-2 text-sm text-white focus:border-violet-500 focus:outline-none"
             >
               {SYMBOLS.map((s) => (
@@ -208,6 +209,7 @@ export default function BacktestPanel() {
             <select
               value={strategy}
               onChange={(e) => setStrategy(e.target.value)}
+              aria-label="اختيار الاستراتيجية"
               className="w-full rounded-lg border border-white/10 bg-[#0a0e17] px-3 py-2 text-sm text-white focus:border-violet-500 focus:outline-none"
             >
               {STRATEGIES.map((s) => (
@@ -323,6 +325,7 @@ export default function BacktestPanel() {
               <h3 className="mb-4 text-sm font-semibold text-gray-300">📋 سجل الصفقات ({result.trades.length})</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
+                  <caption className="sr-only">جدول نتائج صفقات الباك تست</caption>
                   <thead>
                     <tr className="border-b border-white/5 text-gray-400">
                       <th className="px-2 py-2 text-right">الاتجاه</th>
@@ -387,6 +390,7 @@ export default function BacktestPanel() {
                   key={btn.format}
                   onClick={() => exportReport(btn.format)}
                   disabled={exporting !== null}
+                  aria-label={`تصدير كـ ${btn.label}`}
                   className={`rounded-lg bg-gradient-to-r ${btn.color} px-4 py-2 text-sm font-medium text-white transition-all hover:opacity-90 disabled:opacity-50`}
                 >
                   {exporting === btn.format ? '⏳ جاري...' : `${btn.icon} ${btn.label}`}

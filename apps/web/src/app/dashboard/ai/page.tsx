@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import {
   Brain, Send, Activity, BarChart2, Cpu, AlertTriangle,
   TrendingUp, TrendingDown, Target, Zap, ChevronDown,
@@ -8,25 +9,7 @@ import {
   CircleDot, Flame, Eye, Crosshair, ArrowUpRight, ArrowDownRight, Minus
 } from 'lucide-react'
 import { PRIMARY_SYMBOLS } from '@/lib/trading-intelligence'
-
-// ── Theme ──
-const T = {
-  bg:      '#04050C',
-  bg2:     '#0D1117',
-  card:    '#08090F',
-  blue:    '#0A84FF',
-  cyan:    '#00C8FF',
-  green:   '#00FFC6',
-  red:     '#FF4D4D',
-  amber:   '#FFB800',
-  purple:  '#B388FF',
-  text:    '#E6EBF5',
-  text2:   '#8090A8',
-  text3:   '#A0AFC3',
-  border:  'rgba(10,132,255,0.12)',
-  border2: 'rgba(10,132,255,0.20)',
-  glass:   'rgba(10,132,255,0.04)',
-}
+import { T } from '@/lib/theme-tokens'
 
 // ── Types ──
 interface Message {
@@ -143,6 +126,8 @@ export default function AIPage() {
 
   // Active tab for right panel
   const [rightTab, setRightTab] = useState<'council' | 'narrator'>('council')
+  const [fetchError, setFetchError] = useState<string | null>(null)
+  const isMobile = useMediaQuery('(max-width: 767px)')
 
   const chatEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -174,7 +159,9 @@ export default function AIPage() {
         setModelsStatus(json.data.models || [])
         setNestjsConnected(json.data.connected || false)
       }
-    } catch {}
+    } catch {
+      setFetchError('تعذر الاتصال بخدمة AI')
+    }
   }
 
   // ── Fetch Technical Indicators ──
@@ -199,7 +186,9 @@ export default function AIPage() {
           reasons: scan.reasons || [],
         })
       }
-    } catch {} finally {
+    } catch {
+      setFetchError('تعذر جلب المؤشرات الفنية')
+    } finally {
       setTechLoading(false)
     }
   }
@@ -212,7 +201,9 @@ export default function AIPage() {
       if (json.success && json.data) {
         setNarratorData(json.data)
       }
-    } catch {}
+    } catch {
+      setFetchError('تعذر جلب بيانات السرد الذكي')
+    }
   }
 
   // ── Fetch Council ──
@@ -409,10 +400,55 @@ export default function AIPage() {
           from { opacity: 0; transform: translateY(8px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        .ai-right-col {
+          flex: 0 0 300px;
+          border-left: 1px solid ${T.border};
+          display: flex; flex-direction: column;
+          overflow-y: auto;
+        }
+        .ai-left-col {
+          flex: 0 0 320px;
+          border-right: 1px solid ${T.border};
+          display: flex; flex-direction: column;
+          overflow-y: auto;
+        }
+        .ai-top-bar {
+          flex-wrap: wrap;
+        }
+        .ai-model-status {
+          display: flex; gap: 6px;
+        }
+        @media (max-width: 767px) {
+          .ai-main-content {
+            flex-direction: column !important;
+            overflow-y: auto !important;
+          }
+          .ai-right-col {
+            flex: 0 0 auto !important;
+            border-left: none !important;
+            border-bottom: 1px solid ${T.border};
+            max-height: 300px;
+          }
+          .ai-left-col {
+            flex: 0 0 auto !important;
+            border-right: none !important;
+            border-top: 1px solid ${T.border};
+          }
+          .ai-top-bar {
+            flex-wrap: wrap;
+            gap: 8px !important;
+          }
+          .ai-model-status {
+            display: none !important;
+          }
+          .ai-quick-actions {
+            display: none !important;
+          }
+        }
       `}</style>
 
       {/* ── Top Bar: Asset Selector + AI Status + Quick Actions ── */}
-      <div style={{
+      <div className="ai-top-bar" style={{
         flexShrink: 0,
         padding: '12px 20px',
         borderBottom: `1px solid ${T.border}`,
@@ -476,7 +512,7 @@ export default function AIPage() {
         <div style={{ flex: 1 }} />
 
         {/* AI Models Status */}
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="ai-model-status" style={{ display: 'flex', gap: 6 }}>
           {[
             { name: 'Gemini', color: T.cyan, key: 'GOOGLE_AI_STUDIO_API_KEY' },
             { name: 'Groq', color: T.blue, key: 'GROQ_API_KEY' },
@@ -508,6 +544,7 @@ export default function AIPage() {
 
         {/* Quick Actions */}
         <button
+          className="ai-quick-actions"
           onClick={handleSmartRecommendation}
           disabled={isTyping}
           style={{
@@ -543,10 +580,24 @@ export default function AIPage() {
       </div>
 
       {/* ── Main Content: 3-Column Layout ── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      {fetchError && (
+        <div style={{
+          padding: '8px 16px', background: `${T.red}10`,
+          border: `1px solid ${T.red}30`, borderRadius: 8,
+          margin: '8px 16px', display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <AlertTriangle size={14} color={T.red} />
+          <span style={{ fontSize: 11, color: T.red }}>{fetchError}</span>
+          <button onClick={() => setFetchError(null)} style={{
+            background: 'none', border: 'none', color: T.text3,
+            cursor: 'pointer', marginRight: 'auto', fontSize: 10,
+          }}>✕</button>
+        </div>
+      )}
+      <div className="ai-main-content" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
         {/* ═══════ Right Column: Technical Indicators & Market Context ═══════ */}
-        <div style={{
+        <div className="ai-right-col" style={{
           flex: '0 0 300px',
           borderLeft: `1px solid ${T.border}`,
           display: 'flex', flexDirection: 'column',
@@ -738,7 +789,7 @@ export default function AIPage() {
           <div style={{
             flex: 1, padding: '20px', overflowY: 'auto',
             display: 'flex', flexDirection: 'column', gap: 16,
-          }}>
+          }} role="log" aria-live="polite" aria-label="سجل المحادثة">
             {messages.map((msg) => (
               <div key={msg.id} className={msg.role === 'ai' ? 'chat-msg-ai' : ''} style={{
                 display: 'flex',
@@ -875,6 +926,7 @@ export default function AIPage() {
                 onChange={e => setInputValue(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && sendMessage(inputValue)}
                 placeholder={`اسأل عن ${selectedSymbol} أو أي أصل مالي...`}
+                aria-label="رسالة الدردشة"
                 style={{
                   flex: 1, background: T.bg, border: `1px solid ${T.border}`,
                   borderRadius: 10, padding: '12px 16px',
@@ -887,6 +939,7 @@ export default function AIPage() {
               <button
                 onClick={() => sendMessage(inputValue)}
                 disabled={isTyping || !inputValue.trim()}
+                aria-label="إرسال الرسالة"
                 style={{
                   width: 46, borderRadius: 10, border: 'none',
                   background: T.cyan, color: '#000',
@@ -903,7 +956,7 @@ export default function AIPage() {
         </div>
 
         {/* ═══════ Left Column: AI Council + Narrator ═══════ */}
-        <div style={{
+        <div className="ai-left-col" style={{
           flex: '0 0 320px',
           borderRight: `1px solid ${T.border}`,
           display: 'flex', flexDirection: 'column',

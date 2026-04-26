@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { GitMerge, RefreshCw, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
-
-const T = { bg: '#04050C', card: '#08090F', blue: '#0A84FF', cyan: '#00C8FF', green: '#00FFC6', red: '#FF4D4D', amber: '#FFB800', purple: '#B388FF', text: '#E6EBF5', text2: '#8090A8', border: 'rgba(10,132,255,0.12)' }
+import { T } from '@/lib/theme-tokens'
 
 function corrColor(v: number): string {
   if (isNaN(v)) return '#1A1D29' // default for NaN

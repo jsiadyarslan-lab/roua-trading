@@ -1,11 +1,40 @@
-import { NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { NextRequest, NextResponse } from 'next/server'
+import { db, ensureDbReady } from '@/lib/db'
+
+/**
+ * Resolve userId from session cookie, with DEV_MODE fallback.
+ * Returns 'default-user' only when no session is found (anonymous mode).
+ */
+async function resolveUserId(req: Request): Promise<string> {
+  // DEV_MODE auto-authenticate (mirrors /api/auth/me logic)
+  if (process.env.DEV_MODE === '1' && process.env.NODE_ENV !== 'production') {
+    return 'dev-user-00000000'
+  }
+
+  try {
+    await ensureDbReady()
+    const sessionToken = (req as NextRequest).cookies.get('roua_session')?.value
+    if (sessionToken) {
+      const session = await db.session.findUnique({
+        where: { token: sessionToken },
+        select: { userId: true, expiresAt: true },
+      })
+      if (session && session.expiresAt > new Date()) {
+        return session.userId
+      }
+    }
+  } catch (error) {
+    console.warn('[chart-preference] Session lookup failed, using anonymous:', error)
+  }
+
+  return 'default-user'
+}
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
     const symbol = searchParams.get('symbol') || 'global'
-    const userId = 'default-user' // In production, get from session
+    const userId = await resolveUserId(req)
 
     const pref = await db.chartPreference.findUnique({
       where: { userId_symbol: { userId, symbol } }
@@ -22,16 +51,16 @@ export async function POST(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
     const symbol = searchParams.get('symbol') || 'global'
-    const userId = 'default-user'
+    const userId = await resolveUserId(req)
     
     const body = await req.json()
     const { settings, drawings } = body
 
-    // Ensure the default user exists for development/demo purposes
+    // Ensure the user exists for development/demo purposes
     await db.user.upsert({
       where: { id: userId },
       update: {},
-      create: { id: userId, email: 'demo@rouatrading.com', displayName: 'Demo User' }
+      create: { id: userId, email: `user-${userId}@rouatrading.com`, displayName: `User ${userId.slice(0, 8)}` }
     })
 
     const pref = await db.chartPreference.upsert({

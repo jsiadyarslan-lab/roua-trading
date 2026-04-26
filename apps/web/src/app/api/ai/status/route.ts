@@ -28,8 +28,9 @@ export async function GET(req: NextRequest) {
         })
       }
     }
-  } catch {
-    // NestJS unavailable
+  } catch (error: any) {
+    // NestJS unavailable — log the reason
+    console.warn('[ai/status] NestJS models endpoint unavailable:', error?.message || error)
   }
 
   // Fallback: return local status

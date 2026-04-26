@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
 
 /**
  * POST /api/coach/ask
@@ -17,26 +18,44 @@ export async function POST(req: NextRequest) {
 
     const origin = req.nextUrl.origin
 
-    // Fetch user's recent trades for context
+    // Resolve userId from session cookie
+    const sessionToken = req.cookies.get('roua_session')?.value
+    let userId: string | undefined
+    if (sessionToken) {
+      try {
+        const session = await db.session.findUnique({
+          where: { token: sessionToken },
+          select: { userId: true, expiresAt: true },
+        })
+        if (session && session.expiresAt > new Date()) {
+          userId = session.userId
+        }
+      } catch { /* non-critical — DB may be unavailable */ }
+    }
+
+    // Fetch user's recent trades for context via direct DB query
     let statsSummary = 'لا توجد بيانات أداء متاحة.'
     try {
-      const tradesRes = await fetch(`${origin}/api/trading/trades?limit=30`, {
-        signal: AbortSignal.timeout(5000),
-      })
-      if (tradesRes.ok) {
-        const tradesData = await tradesRes.json()
-        const trades = Array.isArray(tradesData) ? tradesData : (tradesData.data || tradesData.trades || [])
+      const trades = userId
+        ? await db.trade.findMany({
+            where: { userId },
+            orderBy: { executedAt: 'desc' },
+            take: 30,
+            select: { pnl: true },
+          })
+        : []
 
-        if (trades.length > 0) {
-          const allPnl = trades.map((t: any) => t.pnl || 0)
-          const winningTrades = allPnl.filter((p: number) => p > 0)
-          const winRate = allPnl.length > 0 ? Math.round((winningTrades.length / allPnl.length) * 100) : 0
-          const totalPnl = allPnl.reduce((s: number, v: number) => s + v, 0)
+      if (trades.length > 0) {
+        const allPnl = trades.map((t) => t.pnl || 0)
+        const winningTrades = allPnl.filter((p) => p > 0)
+        const winRate = allPnl.length > 0 ? Math.round((winningTrades.length / allPnl.length) * 100) : 0
+        const totalPnl = allPnl.reduce((s, v) => s + v, 0)
 
-          statsSummary = `إجمالي الصفقات: ${allPnl.length} | نسبة الفوز: ${winRate}% | إجمالي ربح/خسارة: $${Math.round(totalPnl * 100) / 100}`
-        }
+        statsSummary = `إجمالي الصفقات: ${allPnl.length} | نسبة الفوز: ${winRate}% | إجمالي ربح/خسارة: $${Math.round(totalPnl * 100) / 100}`
       }
-    } catch { /* non-critical */ }
+    } catch (dbError: any) {
+      console.warn('[coach/ask] DB query failed, proceeding without trades:', dbError?.message || dbError)
+    }
 
     // Try NestJS AI orchestrator
     const aiPrompt = `أنت مُدرّب تداول خبير في منصة "رؤى". المتداول يسألك سؤالاً حول أدائه. أجب بالعربية بشكل مهني ومفيد ومباشر. قدم خطوات عملية واضحة.

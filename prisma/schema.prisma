@@ -15,6 +15,9 @@ model User {
   passkeyId           String?
   passkeyPub          String?
   tier                Tier                 @default(FREE)
+  maxPositionSize     Decimal?             @db.Decimal(19, 4)
+  maxDailyLoss        Decimal?             @db.Decimal(19, 4)
+  riskTolerance       String?              @default("moderate")
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   apiKeys             ApiKey[]
@@ -29,6 +32,8 @@ model User {
   trades              Trade[]
   tradingBots         TradingBot[]
   chartPreferences    ChartPreference[]
+  paperOrders         PaperOrder[]
+  coachAdvices        CoachAdvice[]
 }
 
 enum Tier {
@@ -58,7 +63,7 @@ model Portfolio {
   userId      String
   name        String
   description String?
-  totalValue  Float            @default(0)
+  totalValue  Decimal          @default(0) @db.Decimal(19, 4)
   currency    String           @default("USD")
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -73,13 +78,16 @@ model PortfolioAsset {
   portfolioId  String
   symbol       String
   name         String
-  quantity     Float
-  avgPrice     Float
-  currentPrice Float?
+  quantity     Decimal     @db.Decimal(19, 8)
+  avgPrice     Decimal     @db.Decimal(19, 4)
+  currentPrice Decimal?    @db.Decimal(19, 4)
   exchange     String?
   assetType    AssetType
   addedAt      DateTime    @default(now())
   portfolio    Portfolio   @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+  @@unique([portfolioId, symbol])
 }
 
 enum AssetType {
@@ -111,14 +119,15 @@ model Signal {
   action      SignalAction
   confidence  Int
   reason      String
-  entryPrice  Float?
-  stopLoss    Float?
-  takeProfit  Float?
+  entryPrice  Decimal?     @db.Decimal(19, 4)
+  stopLoss    Decimal?     @db.Decimal(19, 4)
+  takeProfit  Decimal?     @db.Decimal(19, 4)
   status      SignalStatus @default(ACTIVE)
   expiresAt   DateTime
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders      Order[]
 
   @@index([userId])
   @@index([pair])
@@ -131,13 +140,14 @@ model SignalUsage {
   userId     String
   signalType String
   asset      String
-  confidence Float
+  confidence Decimal  @db.Decimal(5, 4)
   analysis   String
   signedHash String?
   createdAt  DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([createdAt])
 }
 
 model Session {
@@ -177,7 +187,7 @@ model NewsArticle {
   translatedContent String? // Arabic translation of content
   summary         String?  // AI-generated summary in Arabic
   url             String?
-  sentiment       Float?   // -1.0 (very negative) to 1.0 (very positive)
+  sentiment       Decimal? @db.Decimal(5, 4)  // -1.0 (very negative) to 1.0 (very positive)
   sentimentLabel  String?  // "positive", "negative", "neutral"
   impactLevel     String?  // "high", "medium", "low"
   affectedAssets  String?  // JSON array of affected symbols: ["BTC", "ETH"]
@@ -195,6 +205,7 @@ model NewsArticle {
   @@index([publishedAt])
   @@index([sentimentLabel])
   @@index([category])
+  @@unique([url])
 }
 
 // ── Exchange Credential model (encrypted API keys) ──
@@ -213,6 +224,8 @@ model ExchangeCredential {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders           Order[]
+  positions        Position[]
 
   @@index([userId])
   @@index([exchange])
@@ -268,14 +281,15 @@ model Order {
   symbol              String
   side                OrderSide
   type                OrderType
-  quantity            Decimal
-  price               Decimal?
-  stopLoss            Decimal?
-  takeProfit          Decimal?
+  timeInForce         String?     // GTC, IOC, FOK
+  quantity            Decimal     @db.Decimal(19, 8)
+  price               Decimal?    @db.Decimal(19, 4)
+  stopLoss            Decimal?    @db.Decimal(19, 4)
+  takeProfit          Decimal?    @db.Decimal(19, 4)
   status              OrderStatus @default(PENDING)
-  filledQuantity      Decimal     @default(0)
-  averagePrice        Decimal?
-  fee                 Decimal?
+  filledQuantity      Decimal     @default(0) @db.Decimal(19, 8)
+  averagePrice        Decimal?    @db.Decimal(19, 4)
+  fee                 Decimal?    @db.Decimal(19, 4)
   feeCurrency         String?
   exchangeOrderId     String?
   rejectReason        String?
@@ -285,13 +299,17 @@ model Order {
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
   user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exchangeCredential  ExchangeCredential @relation(fields: [exchangeCredentialId], references: [id], onDelete: Cascade)
+  signal              Signal?     @relation(fields: [signalId], references: [id], onDelete: SetNull)
   events              OrderEvent[]
+  trades              Trade[]
 
   @@index([userId])
   @@index([symbol])
   @@index([status])
   @@index([exchange])
   @@index([createdAt])
+  @@index([exchangeCredentialId])
 }
 
 model OrderEvent {
@@ -308,31 +326,36 @@ model OrderEvent {
 }
 
 model Position {
-  id             String         @id @default(cuid())
-  userId         String
-  credentialId   String
-  exchange       String
-  symbol         String
-  side           OrderSide
-  status         PositionStatus @default(OPEN)
-  quantity       Float
-  entryPrice     Float
-  currentPrice   Float?
-  unrealizedPnl  Float?
-  realizedPnl    Float?
-  stopLoss       Float?
-  takeProfit     Float?
-  highestPrice   Float?
-  lowestPrice    Float?
-  openedAt       DateTime       @default(now())
-  closedAt       DateTime?
-  updatedAt      DateTime       @updatedAt
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String         @id @default(cuid())
+  userId           String
+  credentialId     String
+  exchange         String
+  symbol           String
+  side             OrderSide
+  status           PositionStatus @default(OPEN)
+  quantity         Decimal        @db.Decimal(19, 8)
+  entryPrice       Decimal        @db.Decimal(19, 4)
+  currentPrice     Decimal?       @db.Decimal(19, 4)
+  unrealizedPnl    Decimal?       @db.Decimal(19, 4)
+  realizedPnl      Decimal?       @db.Decimal(19, 4)
+  stopLoss         Decimal?       @db.Decimal(19, 4)
+  takeProfit       Decimal?       @db.Decimal(19, 4)
+  highestPrice     Decimal?       @db.Decimal(19, 4)
+  lowestPrice      Decimal?       @db.Decimal(19, 4)
+  leverage         Decimal?       @db.Decimal(5, 2)
+  liquidationPrice Decimal?       @db.Decimal(19, 4)
+  openedAt         DateTime       @default(now())
+  closedAt         DateTime?
+  updatedAt        DateTime       @updatedAt
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credential       ExchangeCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  trades           Trade[]
 
   @@index([userId])
   @@index([symbol])
   @@index([status])
   @@index([exchange])
+  @@index([credentialId])
 }
 
 model Trade {
@@ -344,19 +367,22 @@ model Trade {
   symbol          String
   side            OrderSide
   type            TradeType
-  quantity        Float
-  price           Float
-  fee             Float?
+  quantity        Decimal   @db.Decimal(19, 8)
+  price           Decimal   @db.Decimal(19, 4)
+  fee             Decimal?  @db.Decimal(19, 4)
   feeCurrency     String?
-  pnl             Float?
+  pnl             Decimal?  @db.Decimal(19, 4)
   exchangeTradeId String?
   executedAt      DateTime  @default(now())
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order           Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  position        Position? @relation(fields: [positionId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([symbol])
   @@index([positionId])
   @@index([executedAt])
+  @@index([orderId])
 }
 
 // ── Paper Trading Orders (Execution Engine) ──
@@ -366,21 +392,22 @@ model PaperOrder {
   symbol          String
   side            OrderSide
   type            OrderType
-  quantity        Decimal
-  price           Decimal?
-  stopLoss        Decimal?
-  takeProfit      Decimal?
+  quantity        Decimal     @db.Decimal(19, 8)
+  price           Decimal?    @db.Decimal(19, 4)
+  stopLoss        Decimal?    @db.Decimal(19, 4)
+  takeProfit      Decimal?    @db.Decimal(19, 4)
   status          OrderStatus @default(PENDING)
-  filledQuantity   Decimal     @default(0)
-  averagePrice    Decimal?
-  fee             Decimal?
+  filledQuantity   Decimal     @default(0) @db.Decimal(19, 8)
+  averagePrice    Decimal?    @db.Decimal(19, 4)
+  fee             Decimal?    @db.Decimal(19, 4)
   feeCurrency     String?
-  slippage        Decimal?
+  slippage        Decimal?    @db.Decimal(19, 4)
   idempotencyKey  String      @unique
   clientOrderId   String?
   exchangeOrderId String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([symbol])
@@ -428,8 +455,8 @@ model StrategyReport {
   title           String
   type            String
   severity        String
-  price           Float
-  change          Float
+  price           Decimal  @db.Decimal(19, 4)
+  change          Decimal  @db.Decimal(10, 4)
   isUp            Boolean
   tag             String?
   decision        String   // JSON stringified { title, color, desc }
@@ -444,6 +471,7 @@ model StrategyReport {
 
   @@index([symbol])
   @@index([type])
+  @@index([publishedAt])
 }
 
 // ── Trading Bot (Automation Engine) ──
@@ -453,9 +481,9 @@ model TradingBot {
   name            String   @default("HFT-Alpha")
   strategy        String   @default("Scalp AI")
   isActive        Boolean  @default(false)
-  winRate         Float    @default(0)
+  winRate         Decimal  @default(0) @db.Decimal(5, 4)
   totalTrades     Int      @default(0)
-  dailyPnl        Float    @default(0)
+  dailyPnl        Decimal  @default(0) @db.Decimal(19, 4)
   statusMessage   String   @default("SYSTEM_IDLE")
   updatedAt       DateTime @updatedAt
   createdAt       DateTime @default(now())
@@ -474,6 +502,7 @@ model CoachAdvice {
   adviceItems       String   @default("[]") // JSON array of { type, icon, text }
   isRead            Boolean  @default(false)
   createdAt         DateTime @default(now())
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([createdAt])

@@ -88,8 +88,8 @@ export function useDecisionFlow() {
             setNarrator(narratorJson?.success ? narratorJson.data : null)
           } catch { /* ignore parse errors */ }
         }
-      } catch (error) {
-        console.error('[useDecisionFlow] failed to load', error)
+      } catch {
+        // Error handled silently
       } finally {
         if (mounted) setLoading(false)
       }

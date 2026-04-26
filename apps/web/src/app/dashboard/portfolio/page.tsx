@@ -1,31 +1,17 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import dynamic from 'next/dynamic'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area, BarChart, Bar,
 } from 'recharts'
 import { TrendingUp, TrendingDown, Award, Target, BarChart2, X, Shield, Activity, RefreshCw, Loader2, AlertTriangle, ChevronRight, Clock, History, Brain } from 'lucide-react'
 import { usePaperTradesStore, ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
-import AICoachPanel from '@/components/portfolio/AICoachPanel'
+import { T } from '@/lib/theme-tokens'
 
-/* ── Theme ── */
-const T = {
-  bg:      '#04050C',
-  bg2:     '#0D1117',
-  card:    '#08090F',
-  blue:    '#0A84FF',
-  cyan:    '#00C8FF',
-  green:   '#00FFC6',
-  red:     '#FF4D4D',
-  amber:   '#FFB800',
-  purple:  '#B388FF',
-  text:    '#E6EBF5',
-  text2:   '#8090A8',
-  text3:   '#A0AFC3',
-  border:  'rgba(10,132,255,0.12)',
-  border2: 'rgba(10,132,255,0.20)',
-}
+// Dynamic import for AICoachPanel (heavy component with AI features)
+const AICoachPanel = dynamic(() => import('@/components/portfolio/AICoachPanel'), { ssr: false })
 
 function fmt(n: number, decimals = 2) {
   return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
@@ -224,7 +210,7 @@ export default function PortfolioPage() {
       // Don't override apiError from open positions fetch
     } catch (e: any) {
       // Closed positions fetch failure is non-critical, but log a user-friendly message
-      console.warn('تعذر جلب الصفقات المغلقة:', e?.message || 'خطأ غير معروف')
+      // Error handled silently — closed positions fetch is non-critical
     }
   }, [])
 
@@ -236,7 +222,7 @@ export default function PortfolioPage() {
         setSummary(data.data || data.summary || null)
       }
     } catch (e: any) {
-      console.warn('تعذر جلب ملخص المحفظة:', e?.message || 'خطأ غير معروف')
+      // Error handled silently
     }
   }, [])
 
@@ -248,7 +234,7 @@ export default function PortfolioPage() {
         setTrades(Array.isArray(data) ? data : (data.data || data.trades || []))
       }
     } catch (e: any) {
-      console.warn('تعذر جلب سجل الصفقات:', e?.message || 'خطأ غير معروف')
+      // Error handled silently
     }
   }, [])
 
@@ -371,6 +357,14 @@ export default function PortfolioPage() {
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: #04050C; }
         ::-webkit-scrollbar-thumb { background: #0A84FF44; border-radius: 4px; }
+        .portfolio-charts-row { display: flex; gap: 10px; margin-bottom: 12px; }
+        .portfolio-distribution { flex: 0 0 300px; }
+        @media (max-width: 767px) {
+          .portfolio-charts-row { flex-direction: column !important; }
+          .portfolio-distribution { flex: 0 0 auto !important; }
+          .portfolio-table-wrap { overflow-x: auto; }
+          .portfolio-table-wrap > div { min-width: 700px; }
+        }
       `}</style>
 
       {/* ── Header ── */}
@@ -444,9 +438,9 @@ export default function PortfolioPage() {
       {tab === 'positions' && (
         <>
           {/* Charts row */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+          <div className="portfolio-charts-row" style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
             {/* Distribution donut */}
-            <div style={{
+            <div className="portfolio-distribution" style={{
               flex: '0 0 300px',
               background: T.card, border: `0.5px solid ${T.border}`,
               borderRadius: 10, padding: '12px 14px',
@@ -515,6 +509,7 @@ export default function PortfolioPage() {
             </div>
           </div>
 
+          <div className="portfolio-table-wrap">
           {/* ── Open Positions table ── */}
           <div style={{
             background: T.card, border: `0.5px solid ${T.border}`,
@@ -558,6 +553,7 @@ export default function PortfolioPage() {
             ) : (
               <>
                 {/* Table head */}
+                <div role="table" aria-label="الصفقات المفتوحة">
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: '100px 70px 70px 90px 90px 80px 80px 80px 80px',
@@ -623,6 +619,7 @@ export default function PortfolioPage() {
                     </div>
                   </div>
                 ))}
+                </div>
               </>
             )}
           </div>
@@ -672,7 +669,7 @@ export default function PortfolioPage() {
                 </div>
               ) : (
                 <>
-                  <div style={{
+                  <div role="table" aria-label="الصفقات المغلقة" style={{
                     display: 'grid',
                     gridTemplateColumns: '100px 70px 70px 90px 90px 90px 90px 120px',
                     padding: '5px 14px', gap: 0,
@@ -817,7 +814,7 @@ export default function PortfolioPage() {
               </div>
             ) : (
               <>
-                <div style={{
+                <div role="table" aria-label="سجل الصفقات المنفذة" style={{
                   display: 'grid',
                   gridTemplateColumns: '100px 70px 70px 90px 90px 90px 120px',
                   padding: '5px 14px', gap: 0,
@@ -868,6 +865,7 @@ export default function PortfolioPage() {
               </>
             )}
           </div>
+          </div>{/* end portfolio-table-wrap */}
         </>
       )}
 

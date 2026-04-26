@@ -135,8 +135,8 @@ export function useWebSocketTicker({
       socket.on('connect_error', () => {
         setConnected(false)
       })
-    }).catch((err) => {
-      console.warn('[useWebSocketTicker] Failed to initialize WebSocket:', err)
+    }).catch(() => {
+      // WebSocket initialization failed — polling fallback will be used
     })
 
     return () => {

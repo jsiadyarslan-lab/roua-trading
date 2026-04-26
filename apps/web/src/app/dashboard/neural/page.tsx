@@ -2,13 +2,22 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import BacktestPanel from './BacktestPanel';
-import NeuralPanel from './NeuralPanel';
-import SwarmPanel from './SwarmPanel';
 
-// Dynamic imports for new panels (they use browser-only features)
-const OptimizerPanel = dynamic(() => import('./OptimizerPanel'), { ssr: false });
-const ComparisonPanel = dynamic(() => import('./ComparisonPanel'), { ssr: false });
+// Loading fallback spinner for dynamic imports
+function PanelLoader() {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <div className="w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
+// Dynamic imports for all panels (they use browser-only features)
+const BacktestPanel = dynamic(() => import('./BacktestPanel'), { ssr: false, loading: () => <PanelLoader /> });
+const NeuralPanel = dynamic(() => import('./NeuralPanel'), { ssr: false, loading: () => <PanelLoader /> });
+const SwarmPanel = dynamic(() => import('./SwarmPanel'), { ssr: false, loading: () => <PanelLoader /> });
+const OptimizerPanel = dynamic(() => import('./OptimizerPanel'), { ssr: false, loading: () => <PanelLoader /> });
+const ComparisonPanel = dynamic(() => import('./ComparisonPanel'), { ssr: false, loading: () => <PanelLoader /> });
 
 const TABS = [
   { id: 'backtest', label: 'الباك تست', icon: '📊', desc: 'اختبار الاستراتيجيات على البيانات التاريخية' },
@@ -42,11 +51,15 @@ export default function NeuralLabPage() {
 
       {/* Tab Navigation */}
       <div className="border-b border-white/5 px-6">
-        <div className="flex gap-1 overflow-x-auto">
+        <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label="AI Trading Lab tabs">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              role="tab"
+              aria-selected={activeTab === tab.id}
+              aria-controls={`panel-${tab.id}`}
+              id={`tab-${tab.id}`}
               className={`flex items-center gap-2 whitespace-nowrap px-4 py-3 text-sm font-medium transition-all border-b-2 ${
                 activeTab === tab.id
                   ? 'border-violet-500 text-white bg-white/5'
@@ -63,11 +76,11 @@ export default function NeuralLabPage() {
 
       {/* Content */}
       <div className="p-6">
-        {activeTab === 'backtest' && <BacktestPanel />}
-        {activeTab === 'optimizer' && <OptimizerPanel />}
-        {activeTab === 'comparison' && <ComparisonPanel />}
-        {activeTab === 'neural' && <NeuralPanel />}
-        {activeTab === 'swarm' && <SwarmPanel />}
+        {activeTab === 'backtest' && <div role="tabpanel" aria-labelledby="tab-backtest" id="panel-backtest"><BacktestPanel /></div>}
+        {activeTab === 'optimizer' && <div role="tabpanel" aria-labelledby="tab-optimizer" id="panel-optimizer"><OptimizerPanel /></div>}
+        {activeTab === 'comparison' && <div role="tabpanel" aria-labelledby="tab-comparison" id="panel-comparison"><ComparisonPanel /></div>}
+        {activeTab === 'neural' && <div role="tabpanel" aria-labelledby="tab-neural" id="panel-neural"><NeuralPanel /></div>}
+        {activeTab === 'swarm' && <div role="tabpanel" aria-labelledby="tab-swarm" id="panel-swarm"><SwarmPanel /></div>}
       </div>
     </div>
   );

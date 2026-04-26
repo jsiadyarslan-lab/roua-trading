@@ -95,7 +95,71 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
     }
 
     // ── Stocks: Return last known price or a placeholder ──
-    throw new Error(`Free fallback does not support stock symbol: ${symbol}`);
+    return this._fetchStockQuote(symbol);
+  }
+
+  /**
+   * Fetch stock quote from Yahoo Finance (free, no API key required)
+   * Uses the unofficial Yahoo Finance v8 API endpoint
+   */
+  private async _fetchStockQuote(symbol: string): Promise<UnifiedQuoteDto> {
+    try {
+      // Yahoo Finance v8 API — free, no key required
+      const yahooSymbol = symbol.replace('/', '-');
+      const response = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}`, {
+        params: {
+          range: '1d',
+          interval: '1d',
+        },
+        timeout: 10000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; RouaTrading/1.0)',
+        },
+      });
+
+      if (response.data?.chart?.result?.[0]?.meta) {
+        const meta = response.data.chart.result[0].meta;
+        const price = meta.regularMarketPrice ?? 0;
+        const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? price;
+
+        if (price > 0) {
+          const change = price - prevClose;
+          const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+          const result: UnifiedQuoteDto = {
+            symbol,
+            name: meta.shortName || symbol,
+            exchange: meta.exchangeName || 'Yahoo Finance',
+            currency: meta.currency || 'USD',
+            price,
+            change,
+            changePercent,
+            open: meta.regularMarketDayOpen ?? price,
+            high: meta.regularMarketDayHigh ?? price,
+            low: meta.regularMarketDayLow ?? price,
+            close: price,
+            volume: meta.regularMarketVolume ?? 0,
+            marketCap: null,
+            fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh ?? null,
+            fiftyTwoWeekLow: meta.fiftyTwoWeekLow ?? null,
+            timestamp: new Date(meta.regularMarketTime * 1000 || Date.now()),
+            source: 'Yahoo Finance',
+          };
+          await this._saveLastKnownPrice(symbol, result);
+          return result;
+        }
+      }
+    } catch (error: any) {
+      this.logger.warn(`Yahoo Finance failed for ${symbol}: ${error.message}`);
+    }
+
+    // Try last known price from cache
+    const lastKnown = await this._getLastKnownPrice(symbol);
+    if (lastKnown) {
+      this.logger.warn(`Returning cached price for stock ${symbol}`);
+      return lastKnown;
+    }
+
+    throw new Error(`All free sources failed for stock (${symbol})`);
   }
 
   /**
@@ -136,7 +200,6 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
             timestamp: new Date(),
             source: 'Metals.dev',
           };
-          // Cache as last known price
           await this._saveLastKnownPrice(symbol, result);
           return result;
         }
@@ -145,44 +208,53 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
       this.logger.warn(`metals.dev failed for gold: ${error.message}`);
     }
 
-    // Fallback: Try frankfurter.app with XAU currency
+    // Fallback: Try Yahoo Finance for GC=F (Gold Futures)
     try {
-      const response = await axios.get(`https://api.frankfurter.app/latest`, {
-        params: {
-          from: 'XAU',
-          to: 'USD',
-        },
+      const response = await axios.get('https://query1.finance.yahoo.com/v8/finance/chart/GC%3DF', {
+        params: { range: '1d', interval: '1d' },
         timeout: 10000,
+        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RouaTrading/1.0)' },
       });
 
-      if (response.data && response.data.rates && response.data.rates.USD) {
-        const price = parseFloat(response.data.rates.USD);
+      if (response.data?.chart?.result?.[0]?.meta) {
+        const meta = response.data.chart.result[0].meta;
+        const price = meta.regularMarketPrice ?? 0;
         if (price > 0) {
+          const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? price;
+          const change = price - prevClose;
+          const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
           const result: UnifiedQuoteDto = {
             symbol,
             name: 'Gold/US Dollar',
-            exchange: 'ECB/Frankfurter',
+            exchange: 'Yahoo Finance',
             currency: 'USD',
             price,
-            change: 0,
-            changePercent: 0,
-            open: price,
-            high: price,
-            low: price,
+            change,
+            changePercent,
+            open: meta.regularMarketDayOpen ?? price,
+            high: meta.regularMarketDayHigh ?? price,
+            low: meta.regularMarketDayLow ?? price,
             close: price,
-            volume: 0,
+            volume: meta.regularMarketVolume ?? 0,
             marketCap: null,
-            fiftyTwoWeekHigh: null,
-            fiftyTwoWeekLow: null,
-            timestamp: new Date(),
-            source: 'ECB/Frankfurter',
+            fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh ?? null,
+            fiftyTwoWeekLow: meta.fiftyTwoWeekLow ?? null,
+            timestamp: new Date(meta.regularMarketTime * 1000 || Date.now()),
+            source: 'Yahoo Finance',
           };
           await this._saveLastKnownPrice(symbol, result);
           return result;
         }
       }
     } catch (error: any) {
-      this.logger.warn(`Frankfurter XAU failed: ${error.message}`);
+      this.logger.warn(`Yahoo Finance gold failed: ${error.message}`);
+    }
+
+    // Try last known price from cache
+    const lastKnown = await this._getLastKnownPrice(symbol);
+    if (lastKnown) {
+      this.logger.warn(`Returning cached price for gold ${symbol}`);
+      return lastKnown;
     }
 
     throw new Error(`All free sources failed for gold (${symbol})`);

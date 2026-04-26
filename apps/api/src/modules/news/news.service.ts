@@ -44,12 +44,15 @@ export class NewsService implements OnModuleInit {
   async onModuleInit() {
     // Start periodic news fetching every 15 minutes
     this.startScheduledFetching();
-    // Initial fetch
-    try {
-      await this.fetchAndAnalyzeNews();
-    } catch (error: any) {
-      this.logger.warn(`Initial news fetch failed: ${error.message}`);
-    }
+    // Defer initial fetch — don't block app startup with AI analysis
+    // This prevents the 45s+ startup delay that blocks all API routes
+    setTimeout(async () => {
+      try {
+        await this.fetchAndAnalyzeNews();
+      } catch (error: any) {
+        this.logger.warn(`Initial news fetch failed: ${error.message}`);
+      }
+    }, 5000); // Wait 5s after startup before fetching
   }
 
   /**

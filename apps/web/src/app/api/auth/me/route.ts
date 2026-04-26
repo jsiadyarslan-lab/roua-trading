@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
     // ── DEV_MODE: auto-authenticate with a dev user ──
     // When DEV_MODE=1, all requests are treated as authenticated
     // using a built-in dev user. No login required.
-    if (process.env.DEV_MODE === '1') {
+    // 🔒 PRODUCTION SAFETY: Block DEV_MODE in production environment
+    if (process.env.DEV_MODE === '1' && process.env.NODE_ENV !== 'production') {
       return NextResponse.json({
         authenticated: true,
         user: {

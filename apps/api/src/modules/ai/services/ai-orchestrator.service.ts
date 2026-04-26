@@ -39,6 +39,10 @@ import { RagService } from './rag.service';
 export class AIOrchestratorService {
   private readonly logger = new Logger(AIOrchestratorService.name);
 
+  /** Circuit breaker: track 429 failures per model to avoid spamming */
+  private readonly modelCooldowns = new Map<string, number>();
+  private readonly COOLDOWN_MS = 60_000; // Skip model for 60s after 429
+
   /** Model routing — 6 models with smart fallbacks */
   private readonly ROUTING: Record<string, { primary: string; fallback: string[] }> = {
     sentiment:        { primary: 'groq',       fallback: ['glm', 'huggingface', 'ollama', 'gemini', 'bedrock'] },
@@ -77,6 +81,12 @@ export class AIOrchestratorService {
     this.logger.debug(`🎼 Orchestrating ${enrichedRequest.type} → models: ${models.join(' → ')}`);
 
     for (const model of models) {
+      // Circuit breaker: skip models that recently returned 429
+      const cooldownUntil = this.modelCooldowns.get(model) || 0;
+      if (Date.now() < cooldownUntil) {
+        continue; // Skip this model — still in cooldown
+      }
+
       try {
         const response = await this._callModel(model, enrichedRequest);
         if (response.confidence === 0) {
@@ -85,7 +95,13 @@ export class AIOrchestratorService {
         }
         return response;
       } catch (error: any) {
-        this.logger.warn(`❌ Model ${model} failed: ${error.message} — trying next`);
+        // If 429 (rate limited), put model in cooldown to prevent spam
+        if (error.response?.status === 429 || error.message?.includes('429')) {
+          this.modelCooldowns.set(model, Date.now() + this.COOLDOWN_MS);
+          this.logger.warn(`🚫 Model ${model} rate-limited (429) — cooling down for ${this.COOLDOWN_MS / 1000}s`);
+        } else {
+          this.logger.warn(`❌ Model ${model} failed: ${error.message} — trying next`);
+        }
         continue;
       }
     }

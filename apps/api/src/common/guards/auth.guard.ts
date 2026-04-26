@@ -16,7 +16,8 @@ export class AuthGuard implements CanActivate {
     // When DEV_MODE=1, allow all requests without authentication.
     // A default dev user is created/attached so downstream code works.
     // ⚠️ NEVER use DEV_MODE in production!
-    if (process.env.DEV_MODE === '1') {
+    // 🔒 PRODUCTION SAFETY: Block DEV_MODE in production environment
+    if (process.env.DEV_MODE === '1' && process.env.NODE_ENV !== 'production') {
       if (!this.devUser) {
         this.devUser = await this._ensureDevUser();
       }

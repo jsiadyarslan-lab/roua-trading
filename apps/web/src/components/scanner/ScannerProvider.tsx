@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
 import { useScannerData } from './hooks/useScannerData'
 import { useScannerFilters } from './hooks/useScannerFilters'
+import { useBrowserNotifications } from './hooks/useBrowserNotifications'
 import type { SortKey, SortDir, CategoryFilter, DirectionFilter, SignalFilter } from './hooks/useScannerFilters'
 import type { ScannerItem, HeatmapItem, ScannerOverview } from './hooks/useScannerData'
 
@@ -35,6 +36,8 @@ interface ScannerContextValue {
   toggleSort: (key: SortKey) => void
   activeTab: string
   setActiveTab: (tab: string) => void
+  handleBellClick: (symbol: string) => void
+  hasAlertForSymbol: (symbol: string) => boolean
 }
 
 const ScannerContext = createContext<ScannerContextValue | null>(null)
@@ -54,6 +57,23 @@ export function ScannerProvider({ children }: { children: React.ReactNode }) {
   } = useScannerData({})
 
   const filters = useScannerFilters(scanData)
+
+  const notifications = useBrowserNotifications()
+
+  const handleBellClick = useCallback((symbol: string) => {
+    // Request notification permission if not yet granted
+    if (notifications.permission !== 'granted') {
+      notifications.requestPermission()
+    }
+    // Add a default RSI alert for the symbol
+    notifications.addAlert({
+      symbol,
+      type: 'RSI_OVERBOUGHT',
+      value: 70,
+      label: `RSI Overbought Alert - ${symbol}`,
+      labelAr: `تنبيه تشبع شرائي RSI - ${symbol}`,
+    })
+  }, [notifications])
 
   // SSE fallback: try EventSource, fall back to polling (already handled by useScannerData)
   const sseRef = useRef<EventSource | null>(null)
@@ -85,6 +105,8 @@ export function ScannerProvider({ children }: { children: React.ReactNode }) {
     signalFilter: filters.signalFilter, setSignalFilter: filters.setSignalFilter,
     toggleSort: filters.toggleSort,
     activeTab, setActiveTab,
+    handleBellClick,
+    hasAlertForSymbol: notifications.hasAlertForSymbol,
   }
 
   return (

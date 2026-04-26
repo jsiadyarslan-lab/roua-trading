@@ -25,6 +25,7 @@ const STATUS_STYLES: Record<BadgeStatus, { color: string; bg: string; border: st
 
 export function IndicatorBadge({ label, value, status = 'neutral' }: IndicatorBadgeProps) {
   const s = STATUS_STYLES[status]
+  const displayValue = typeof value === 'number' ? value.toFixed(2) : value
 
   return (
     <span style={{
@@ -39,7 +40,7 @@ export function IndicatorBadge({ label, value, status = 'neutral' }: IndicatorBa
       <span style={{ color: T.text2, fontWeight: 600, fontFamily: "'Cairo', sans-serif", fontSize: 8 }}>
         {label}
       </span>
-      {value}
+      {displayValue}
     </span>
   )
 }

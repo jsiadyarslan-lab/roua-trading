@@ -21,7 +21,8 @@ const COLUMNS: { key: SortKey | null; label: string; width?: number }[] = [
   { key: null, label: 'Stoch', width: 60 },
   { key: null, label: 'ADX', width: 50 },
   { key: null, label: 'الخط البياني', width: 84 },
-  { key: null, label: 'إجراء', width: 70 },
+  { key: null, label: 'رأي AI', width: 90 },
+  { key: null, label: 'إجراء', width: 90 },
 ]
 
 function SortIcon({ colKey, sortKey, sortDir }: { colKey: SortKey | null; sortKey: SortKey; sortDir: string }) {
@@ -102,6 +103,8 @@ export function ScannerTable() {
                 index={i}
                 isSelected={ctx.selectedSymbol === item.symbol}
                 onSelect={ctx.setSelectedSymbol}
+                onBellClick={ctx.handleBellClick}
+                hasActiveAlert={ctx.hasAlertForSymbol(item.symbol)}
               />
             ))}
           </tbody>

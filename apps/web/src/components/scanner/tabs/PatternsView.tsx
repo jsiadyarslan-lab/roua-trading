@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { Brain, Sparkles } from 'lucide-react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
+import { Brain, Sparkles, Filter, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
 import { useScannerContext } from '../ScannerProvider'
 import { DirectionTag } from '../shared/DirectionTag'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
@@ -16,40 +16,75 @@ const T = {
 }
 
 type PatternFilter = 'all' | 'bullish' | 'bearish' | 'neutral'
+type ConfidenceFilter = 'all' | 'high' | 'medium' | 'low'
 
 const FILTERS: { key: PatternFilter; label: string }[] = [
   { key: 'all', label: 'الكل' }, { key: 'bullish', label: 'صعودي' },
   { key: 'bearish', label: 'هبوطي' }, { key: 'neutral', label: 'محايد' },
 ]
 
+const CONFIDENCE_FILTERS: { key: ConfidenceFilter; label: string }[] = [
+  { key: 'all', label: 'كل الثقات' }, { key: 'high', label: 'ثقة عالية' },
+  { key: 'medium', label: 'ثقة متوسطة' }, { key: 'low', label: 'ثقة منخفضة' },
+]
+
+// All known patterns with Arabic translations
+const PATTERN_NAMES: Record<string, string> = {
+  // Candlestick patterns
+  HAMMER: 'مطرقة', INVERTED_HAMMER: 'مطرقة مقلوبة',
+  BULLISH_ENGULFING: 'ابتلاع صعودي', BEARISH_ENGULFING: 'ابتلاع هبوطي',
+  DOJI: 'دوجي', DRAGONFLY_DOJI: 'دوجي يعسوب', GRAVESTONE_DOJI: 'دوجي شاهد القبر',
+  MORNING_STAR: 'نجمة الصباح', EVENING_STAR: 'نجمة المساء',
+  THREE_WHITE_SOLDIERS: 'ثلاثة جنود بيض', THREE_BLACK_CROWS: 'ثلاثة غربان سوداء',
+  SHOOTING_STAR: 'نجمة ساقطة', HANGING_MAN: 'رجل معلق',
+  BULLISH_HARAMI: 'هارامي صعودي', BEARISH_HARAMI: 'هارامي هبوطي',
+  PIERCING_LINE: 'خط اختراق', DARK_CLOUD_COVER: 'سحابة مظلمة',
+  TWEEZER_TOP: 'قمة ملقاط', TWEEZER_BOTTOM: 'قاع ملقاط',
+  SPINNING_TOP: 'قمة دوارة',
+  RISING_THREE_METHODS: 'ثلاث صاعد', FALLING_THREE_METHODS: 'ثلاث هابط',
+  BULLISH_MARUBOZU: 'ماروبوزو صعودي', BEARISH_MARUBOZU: 'ماروبوزو هبوطي',
+  // Chart patterns
+  BULL_FLAG: 'علم صعودي', BEAR_FLAG: 'علم هبوطي',
+  DOUBLE_TOP: 'قمة مزدوجة', DOUBLE_BOTTOM: 'قاع مزدوج',
+  BREAKOUT_BULLISH: 'اختراق صعودي', BREAKOUT_BEARISH: 'اختراق هبوطي',
+  CONSOLIDATION: 'تماسك',
+  HEAD_AND_SHOULDERS: 'رأس وكتفين', INVERSE_HEAD_SHOULDERS: 'رأس وكتفين معكوس',
+  ASCENDING_TRIANGLE: 'مثلث صاعد', DESCENDING_TRIANGLE: 'مثلث هابط',
+  CUP_HANDLE: 'كوب وعروة', ASCENDING_WEDGE: 'وتد صاعد', DESCENDING_WEDGE: 'وتد هابط',
+  CHANNEL: 'قناة',
+  // Divergence patterns
+  BULL_DIV: 'تباعد صعودي', BEAR_DIV: 'تباعد هبوطي',
+  BULLISH_DIVERGENCE: 'تباعد صعودي', BEARISH_DIVERGENCE: 'تباعد هبوطي',
+  HIDDEN_BULLISH: 'تباعد صعودي مخفي', HIDDEN_BEARISH: 'تباعد هبوطي مخفي',
+}
+
+interface DetectedPattern {
+  name: string
+  nameAr: string
+  type: 'BULLISH' | 'BEARISH' | 'NEUTRAL'
+  confidence: number
+  descriptionAr: string
+}
+
 function getPatternDirection(pType: string): 'bullish' | 'bearish' | 'neutral' {
-  if (pType.includes('BULL') || pType.includes('bull')) return 'bullish'
-  if (pType.includes('BEAR') || pType.includes('bear')) return 'bearish'
+  if (pType === 'BULLISH') return 'bullish'
+  if (pType === 'BEARISH') return 'bearish'
   return 'neutral'
 }
 
-const PATTERN_NAMES: Record<string, string> = {
-  HAMMER: 'مطرقة', INVERTED_HAMMER: 'مطرقة مقلوبة', ENGULFING_BULL: 'ابتلاع صعودي',
-  ENGULFING_BEAR: 'ابتلاع هبوطي', DOJI: 'دوجي', MORNING_STAR: 'نجمة صباحية',
-  EVENING_STAR: 'نجمة مسائية', THREE_WHITE_SOLDIERS: 'ثلاثة جنود بيض',
-  THREE_BLACK_CROWS: 'ثلاثة غربان سوداء', HEAD_SHOULDERS: 'رأس وكتفين',
-  DOUBLE_TOP: 'قمة مزدوجة', DOUBLE_BOTTOM: 'قاع مزدوج', TRIANGLE: 'مثلث',
-  ASCENDING_WEDGE: 'وتد صاعد', DESCENDING_WEDGE: 'وتد هابط', CHANNEL: 'قناة',
-  BULL_DIV: 'تباعد صعودي', BEAR_DIV: 'تباعد هبوطي', CUP_HANDLE: 'كوب وعروة',
-  FLAG_BULL: 'علم صعودي', FLAG_BEAR: 'علم هبوطي',
-}
-
-function PatternPill({ name, pType }: { name: string; pType: string }) {
-  const dir = getPatternDirection(pType)
+function PatternPill({ pattern }: { pattern: DetectedPattern }) {
+  const dir = getPatternDirection(pattern.type)
   const color = dir === 'bullish' ? T.green : dir === 'bearish' ? T.red : T.amber
-  const arName = PATTERN_NAMES[name] || name
+  const arName = pattern.nameAr || PATTERN_NAMES[pattern.name] || pattern.name
   return (
     <span style={{
-      display: 'inline-flex', padding: '2px 8px', borderRadius: 4, fontSize: 8, fontWeight: 700,
+      display: 'inline-flex', alignItems: 'center', gap: 3,
+      padding: '2px 8px', borderRadius: 4, fontSize: 8, fontWeight: 700,
       background: `${color}12`, color, border: `0.5px solid ${color}30`,
       fontFamily: "'Cairo', sans-serif", whiteSpace: 'nowrap',
     }}>
       {arName}
+      <span style={{ fontSize: 7, opacity: 0.7 }}>{pattern.confidence}%</span>
     </span>
   )
 }
@@ -75,91 +110,373 @@ function MiniScoreBar({ item }: { item: { technicalScore: number; rsi: number | 
   )
 }
 
-// Generate mock patterns from item data
-function detectPatterns(item: { rsi: number | null; direction: string; adx: number | null; stochK: number | null; changePercent: number }): { name: string; pType: string }[] {
-  const patterns: { name: string; pType: string }[] = []
-  if (item.rsi !== null && item.rsi <= 30) patterns.push({ name: 'BULL_DIV', pType: 'bull' })
-  if (item.rsi !== null && item.rsi >= 70) patterns.push({ name: 'BEAR_DIV', pType: 'bear' })
-  if (item.direction?.includes('BUY')) patterns.push({ name: 'ENGULFING_BULL', pType: 'bull' })
-  if (item.direction?.includes('SELL')) patterns.push({ name: 'ENGULFING_BEAR', pType: 'bear' })
-  if (item.adx !== null && item.adx > 25) patterns.push({ name: 'CHANNEL', pType: 'neutral' })
-  if (item.stochK !== null && item.stochK < 20) patterns.push({ name: 'HAMMER', pType: 'bull' })
-  if (item.stochK !== null && item.stochK > 80) patterns.push({ name: 'EVENING_STAR', pType: 'bear' })
-  if (item.changePercent > 2) patterns.push({ name: 'FLAG_BULL', pType: 'bull' })
-  if (item.changePercent < -2) patterns.push({ name: 'FLAG_BEAR', pType: 'bear' })
-  if (patterns.length === 0) patterns.push({ name: 'DOJI', pType: 'neutral' })
+// Detect patterns from scanner item data using real indicator values
+function detectRealPatterns(item: {
+  rsi: number | null
+  direction: string
+  adx: number | null
+  stochK: number | null
+  stochD: number | null
+  changePercent: number
+  macdSignal: string | null
+  bollingerPosition: string | null
+  smartScore: {
+    signalType: string
+    action: string
+    trendScore: number
+    momentumScore: number
+    confidence: number
+  } | null
+}): DetectedPattern[] {
+  const patterns: DetectedPattern[] = []
+
+  // RSI-based patterns
+  if (item.rsi !== null && item.rsi <= 30) {
+    patterns.push({
+      name: 'BULL_DIV', nameAr: 'تباعد صعودي RSI', type: 'BULLISH',
+      confidence: Math.round(60 + (30 - item.rsi) * 1.5),
+      descriptionAr: 'مؤشر القوة النسبية في منطقة التشبع البيعي، إشارة انعكاس صعودي محتمل',
+    })
+  }
+  if (item.rsi !== null && item.rsi >= 70) {
+    patterns.push({
+      name: 'BEAR_DIV', nameAr: 'تباعد هبوطي RSI', type: 'BEARISH',
+      confidence: Math.round(60 + (item.rsi - 70) * 1.5),
+      descriptionAr: 'مؤشر القوة النسبية في منطقة التشبع الشرائي، إشارة انعكاس هبوطي محتمل',
+    })
+  }
+
+  // MACD patterns
+  if (item.macdSignal === 'BULLISH_CROSSOVER') {
+    patterns.push({
+      name: 'BULLISH_ENGULFING', nameAr: 'تقاطع صعودي MACD', type: 'BULLISH',
+      confidence: 75,
+      descriptionAr: 'تقاطع صعودي لخطوط MACD، إشارة شرائية قوية',
+    })
+  }
+  if (item.macdSignal === 'BEARISH_CROSSOVER') {
+    patterns.push({
+      name: 'BEARISH_ENGULFING', nameAr: 'تقاطع هبوطي MACD', type: 'BEARISH',
+      confidence: 75,
+      descriptionAr: 'تقاطع هبوطي لخطوط MACD، إشارة بيعية قوية',
+    })
+  }
+
+  // Direction + ADX patterns
+  if (item.direction?.includes('BUY') && (item.adx ?? 0) > 25) {
+    patterns.push({
+      name: 'BULL_FLAG', nameAr: 'علم صعودي', type: 'BULLISH',
+      confidence: Math.round(55 + (item.adx ?? 0)),
+      descriptionAr: 'اتجاه صاعد قوي مع زخم متزايد، احتمال استمرار الصعود',
+    })
+  }
+  if (item.direction?.includes('SELL') && (item.adx ?? 0) > 25) {
+    patterns.push({
+      name: 'BEAR_FLAG', nameAr: 'علم هبوطي', type: 'BEARISH',
+      confidence: Math.round(55 + (item.adx ?? 0)),
+      descriptionAr: 'اتجاه هابط قوي مع زخم متزايد، احتمال استمرار الهبوط',
+    })
+  }
+
+  // Stochastic patterns
+  if (item.stochK !== null && item.stochK < 20) {
+    patterns.push({
+      name: 'HAMMER', nameAr: 'مطرقة', type: 'BULLISH',
+      confidence: 65,
+      descriptionAr: 'ستوكاستيك في منطقة التشبع البيعي، إشارة ارتداد صعودي',
+    })
+  }
+  if (item.stochK !== null && item.stochK > 80) {
+    patterns.push({
+      name: 'SHOOTING_STAR', nameAr: 'نجمة ساقطة', type: 'BEARISH',
+      confidence: 65,
+      descriptionAr: 'ستوكاستيك في منطقة التشبع الشرائي، إشارة ارتداد هبوطي',
+    })
+  }
+
+  // Bollinger patterns
+  if (item.bollingerPosition === 'BELOW_LOWER') {
+    patterns.push({
+      name: 'DOUBLE_BOTTOM', nameAr: 'قاع مزدوج (بولنجر)', type: 'BULLISH',
+      confidence: 70,
+      descriptionAr: 'السعر أسفل بولنجر السفلي، احتمال ارتداد قوي',
+    })
+  }
+  if (item.bollingerPosition === 'ABOVE_UPPER') {
+    patterns.push({
+      name: 'DOUBLE_TOP', nameAr: 'قمة مزدوجة (بولنجر)', type: 'BEARISH',
+      confidence: 70,
+      descriptionAr: 'السعر فوق بولنجر العلوي، احتمال تراجع',
+    })
+  }
+
+  // Smart Score based patterns
+  if (item.smartScore) {
+    if (item.smartScore.signalType === 'REVERSAL') {
+      patterns.push({
+        name: item.smartScore.action.includes('BUY') ? 'DOUBLE_BOTTOM' : 'DOUBLE_TOP',
+        nameAr: item.smartScore.action.includes('BUY') ? 'انعكاس صعودي' : 'انعكاس هبوطي',
+        type: item.smartScore.action.includes('BUY') ? 'BULLISH' : 'BEARISH',
+        confidence: Math.round((item.smartScore.confidence ?? 50) * 0.8),
+        descriptionAr: 'محرك التقييم الذكي يكتشف نمط انعكاس',
+      })
+    }
+    if (item.smartScore.signalType === 'BREAKOUT') {
+      patterns.push({
+        name: item.smartScore.action.includes('BUY') ? 'BREAKOUT_BULLISH' : 'BREAKOUT_BEARISH',
+        nameAr: item.smartScore.action.includes('BUY') ? 'اختراق صعودي' : 'اختراق هبوطي',
+        type: item.smartScore.action.includes('BUY') ? 'BULLISH' : 'BEARISH',
+        confidence: Math.round((item.smartScore.confidence ?? 50) * 0.85),
+        descriptionAr: 'محرك التقييم الذكي يكتشف نمط اختراق',
+      })
+    }
+    if (item.smartScore.signalType === 'CONSOLIDATION') {
+      patterns.push({
+        name: 'CONSOLIDATION', nameAr: 'تماسك',
+        type: 'NEUTRAL', confidence: 50,
+        descriptionAr: 'السوق في مرحلة تماسك، بانتظار تحديد الاتجاه',
+      })
+    }
+  }
+
+  // Large move patterns
+  if (item.changePercent > 3) {
+    patterns.push({
+      name: 'BREAKOUT_BULLISH', nameAr: 'اختراق صعودي قوي', type: 'BULLISH',
+      confidence: 80,
+      descriptionAr: `حركة صعودية قوية ${item.changePercent.toFixed(1)}%، اختراق محتمل`,
+    })
+  }
+  if (item.changePercent < -3) {
+    patterns.push({
+      name: 'BREAKOUT_BEARISH', nameAr: 'اختراق هبوطي قوي', type: 'BEARISH',
+      confidence: 80,
+      descriptionAr: `حركة هبوطية قوية ${item.changePercent.toFixed(1)}%، ضغط بيعي`,
+    })
+  }
+
+  // Default if no patterns
+  if (patterns.length === 0) {
+    patterns.push({
+      name: 'DOJI', nameAr: 'دوجي (تردد)', type: 'NEUTRAL',
+      confidence: 40,
+      descriptionAr: 'لا توجد أنماط واضحة، السوق في حالة تردد',
+    })
+  }
+
   return patterns
 }
+
+// Pattern-specific search filter
+const PATTERN_SEARCH_OPTIONS: { value: string; label: string }[] = [
+  { value: 'ALL', label: 'كل الأنماط' },
+  { value: 'HAMMER', label: 'مطرقة' },
+  { value: 'ENGULFING', label: 'ابتلاع' },
+  { value: 'DOJI', label: 'دوجي' },
+  { value: 'BREAKOUT', label: 'اختراق' },
+  { value: 'REVERSAL', label: 'انعكاس' },
+  { value: 'FLAG', label: 'علم' },
+  { value: 'DIV', label: 'تباعد' },
+  { value: 'CONSOLIDATION', label: 'تماسك' },
+]
 
 export function PatternsView() {
   const ctx = useScannerContext()
   const [filter, setFilter] = useState<PatternFilter>('all')
+  const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceFilter>('all')
+  const [patternSearch, setPatternSearch] = useState('ALL')
+  const [expandedFilters, setExpandedFilters] = useState(false)
 
   const openItems = useMemo(() => ctx.filteredData.filter(d => d.marketOpen), [ctx.filteredData])
 
+  // Build items with detected patterns
+  const itemsWithPatterns = useMemo(() => {
+    return openItems.map(item => ({
+      item,
+      patterns: detectRealPatterns(item),
+    }))
+  }, [openItems])
+
+  // Apply filters
   const filteredItems = useMemo(() => {
-    if (filter === 'all') return openItems
-    return openItems.filter(item => {
-      const pDir = getPatternDirection(item.direction.includes('BUY') ? 'bull' : item.direction.includes('SELL') ? 'bear' : 'neutral')
-      return pDir === filter
+    return itemsWithPatterns.filter(({ item, patterns }) => {
+      // Direction filter
+      if (filter !== 'all') {
+        const hasMatchingPattern = patterns.some(p => getPatternDirection(p.type) === filter)
+        if (!hasMatchingPattern) return false
+      }
+
+      // Confidence filter
+      if (confidenceFilter !== 'all') {
+        const maxConf = Math.max(...patterns.map(p => p.confidence))
+        if (confidenceFilter === 'high' && maxConf < 70) return false
+        if (confidenceFilter === 'medium' && maxConf < 50) return false
+        if (confidenceFilter === 'low' && maxConf >= 50) return false
+      }
+
+      // Pattern search filter
+      if (patternSearch !== 'ALL') {
+        const hasPattern = patterns.some(p =>
+          p.name.toUpperCase().includes(patternSearch)
+        )
+        if (!hasPattern) return false
+      }
+
+      return true
+    }).sort((a, b) => {
+      // Sort by highest pattern confidence first
+      const aMax = Math.max(...a.patterns.map(p => p.confidence))
+      const bMax = Math.max(...b.patterns.map(p => p.confidence))
+      return bMax - aMax
     })
-  }, [openItems, filter])
+  }, [itemsWithPatterns, filter, confidenceFilter, patternSearch])
+
+  // Stats
+  const stats = useMemo(() => {
+    const bullish = filteredItems.filter(({ patterns }) => patterns.some(p => p.type === 'BULLISH')).length
+    const bearish = filteredItems.filter(({ patterns }) => patterns.some(p => p.type === 'BEARISH')).length
+    const neutral = filteredItems.filter(({ patterns }) => patterns.some(p => p.type === 'NEUTRAL')).length
+    return { bullish, bearish, neutral, total: filteredItems.length }
+  }, [filteredItems])
 
   return (
-    <div style={{ flex: 1, overflow: 'auto', direction: 'rtl', background: T.card, padding: 16 }}>
+    <div style={{ flex: 1, overflow: 'auto', direction: 'rtl', background: T.card, display: 'flex', flexDirection: 'column' }}>
       <style>{`
         @keyframes fadeInPV { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .pv-scroll::-webkit-scrollbar { width: 5px; }
         .pv-scroll::-webkit-scrollbar-track { background: ${T.bg2}; }
         .pv-scroll::-webkit-scrollbar-thumb { background: ${T.surface}; border-radius: 3px; }
       `}</style>
-      <div style={{ animation: 'fadeInPV 0.4s ease' }}>
-        {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <Brain size={18} color={T.cyan} />
-          <span style={{ fontSize: 15, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>الأنماط الفنية المكتشفة</span>
-        </div>
 
-        {/* Filter pills */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-          {FILTERS.map(f => (
-            <button key={f.key} onClick={() => setFilter(f.key)}
+      {/* Header + Stats */}
+      <div style={{ padding: '12px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Brain size={18} color={T.cyan} />
+          <span style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>الأنماط الفنية المكتشفة</span>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.green}12`, color: T.green, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+            {stats.bullish} صعودي
+          </span>
+          <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.red}12`, color: T.red, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+            {stats.bearish} هبوطي
+          </span>
+          <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.amber}12`, color: T.amber, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+            {stats.neutral} محايد
+          </span>
+        </div>
+      </div>
+
+      {/* Filter bar */}
+      <div style={{ padding: '8px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        {/* Direction filters */}
+        {FILTERS.map(f => (
+          <button key={f.key} onClick={() => setFilter(f.key)}
+            style={{
+              padding: '4px 12px', borderRadius: 6, fontSize: 9, fontWeight: 700,
+              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+              background: filter === f.key ? `${T.cyan}20` : T.surface,
+              color: filter === f.key ? T.cyan : T.text3,
+              border: `0.5px solid ${filter === f.key ? T.border2 : T.border}`,
+              transition: 'all 0.2s',
+            }}
+          >{f.label}</button>
+        ))}
+
+        <div style={{ width: 1, height: 20, background: T.border, margin: '0 4px' }} />
+
+        {/* Confidence filters */}
+        {CONFIDENCE_FILTERS.map(f => (
+          <button key={f.key} onClick={() => setConfidenceFilter(f.key)}
+            style={{
+              padding: '4px 12px', borderRadius: 6, fontSize: 9, fontWeight: 700,
+              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+              background: confidenceFilter === f.key ? `${T.purple}20` : T.surface,
+              color: confidenceFilter === f.key ? T.purple : T.text3,
+              border: `0.5px solid ${confidenceFilter === f.key ? `${T.purple}30` : T.border}`,
+              transition: 'all 0.2s',
+            }}
+          >{f.label}</button>
+        ))}
+
+        {/* Pattern search toggle */}
+        <button
+          onClick={() => setExpandedFilters(!expandedFilters)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            padding: '4px 10px', borderRadius: 6, fontSize: 9, fontWeight: 700,
+            fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+            background: patternSearch !== 'ALL' ? `${T.amber}20` : T.surface,
+            color: patternSearch !== 'ALL' ? T.amber : T.text3,
+            border: `0.5px solid ${patternSearch !== 'ALL' ? `${T.amber}30` : T.border}`,
+            transition: 'all 0.2s',
+          }}
+        >
+          <Filter size={10} />
+          نمط محدد
+          {expandedFilters ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+        </button>
+      </div>
+
+      {/* Expanded pattern search */}
+      {expandedFilters && (
+        <div style={{ padding: '8px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {PATTERN_SEARCH_OPTIONS.map(opt => (
+            <button key={opt.value} onClick={() => setPatternSearch(opt.value)}
               style={{
-                padding: '4px 14px', borderRadius: 6, fontSize: 10, fontWeight: 700,
+                padding: '3px 10px', borderRadius: 4, fontSize: 8, fontWeight: 700,
                 fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
-                background: filter === f.key ? `${T.cyan}20` : T.surface,
-                color: filter === f.key ? T.cyan : T.text3,
-                border: `0.5px solid ${filter === f.key ? T.border2 : T.border}`,
+                background: patternSearch === opt.value ? `${T.amber}15` : T.bg,
+                color: patternSearch === opt.value ? T.amber : T.text3,
+                border: `0.5px solid ${patternSearch === opt.value ? `${T.amber}30` : T.border}`,
                 transition: 'all 0.2s',
               }}
-            >{f.label}</button>
+            >{opt.label}</button>
           ))}
         </div>
+      )}
 
-        {/* Pattern Cards */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {/* Pattern Cards */}
+      <div style={{ flex: 1, overflow: 'auto', padding: 12 }} className="pv-scroll">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {filteredItems.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 40, color: T.text3, fontSize: 12, fontFamily: "'Cairo', sans-serif" }}>
-              لا توجد أنماط مطابقة
+              لا توجد أنماط مطابقة للفلاتر المحددة
             </div>
-          ) : filteredItems.map((item, i) => {
-            const patterns = detectPatterns(item)
+          ) : filteredItems.map(({ item, patterns }, i) => {
             const chgColor = item.changePercent >= 0 ? T.green : T.red
+            const topPattern = patterns.reduce((a, b) => a.confidence > b.confidence ? a : b, patterns[0])
             return (
               <div key={item.symbol} onClick={() => ctx.setSelectedSymbol(item.symbol)}
                 style={{
-                  padding: 12, borderRadius: 8, background: T.bg2,
-                  border: `0.5px solid ${T.border}`, cursor: 'pointer',
-                  transition: 'border-color 0.2s', animation: `fadeInPV 0.35s ease ${i * 40}ms both`,
+                  padding: '10px 12px', borderRadius: 8, background: T.bg2,
+                  border: `0.5px solid ${
+                    topPattern.type === 'BULLISH' ? `${T.green}20` :
+                    topPattern.type === 'BEARISH' ? `${T.red}20` : T.border
+                  }`,
+                  cursor: 'pointer', transition: 'all 0.2s',
+                  animation: `fadeInPV 0.35s ease ${i * 30}ms both`,
                 }}
                 onMouseEnter={e => (e.currentTarget.style.borderColor = T.border2)}
-                onMouseLeave={e => (e.currentTarget.style.borderColor = T.border)}
+                onMouseLeave={e => (e.currentTarget.style.borderColor =
+                  topPattern.type === 'BULLISH' ? `${T.green}20` :
+                  topPattern.type === 'BEARISH' ? `${T.red}20` : T.border
+                )}
               >
                 {/* Symbol row */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ fontSize: 12, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{item.symbol}</span>
                     <DirectionTag direction={item.direction} signalClass={item.signalClass} size="sm" />
+                    {/* Top pattern confidence indicator */}
+                    <span style={{
+                      fontSize: 7, fontWeight: 800, padding: '1px 5px', borderRadius: 3,
+                      background: topPattern.confidence >= 70 ? `${T.green}15` : topPattern.confidence >= 50 ? `${T.amber}15` : `${T.text3}10`,
+                      color: topPattern.confidence >= 70 ? T.green : topPattern.confidence >= 50 ? T.amber : T.text3,
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}>
+                      {topPattern.confidence}%
+                    </span>
                   </div>
                   <span style={{ fontSize: 10, fontWeight: 800, color: chgColor, fontFamily: "'JetBrains Mono', monospace" }}>
                     {item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%
@@ -167,26 +484,31 @@ export function PatternsView() {
                 </div>
 
                 {/* Pattern tags */}
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
-                  {patterns.map((p, pi) => <PatternPill key={pi} name={p.name} pType={p.pType} />)}
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 6 }}>
+                  {patterns.map((p, pi) => <PatternPill key={pi} pattern={p} />)}
                 </div>
+
+                {/* Top pattern description */}
+                {topPattern.descriptionAr && (
+                  <div style={{
+                    fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif",
+                    lineHeight: 1.5, marginBottom: 6,
+                    display: 'flex', alignItems: 'flex-start', gap: 4,
+                  }}>
+                    <AlertTriangle size={9} color={T.amber} style={{ flexShrink: 0, marginTop: 1 }} />
+                    {topPattern.descriptionAr}
+                  </div>
+                )}
 
                 {/* Indicators row */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6, flexWrap: 'wrap' }}>
-                  <IndicatorBadge label="RSI" value={item.rsi !== null ? item.rsi.toFixed(0) : '—'} status={item.rsi !== null ? (item.rsi <= 30 ? 'oversold' : item.rsi >= 70 ? 'overbought' : 'neutral') : 'neutral'} />
-                  <IndicatorBadge label="ADX" value={item.adx !== null ? item.adx.toFixed(0) : '—'} status={(item.adx ?? 0) > 25 ? 'bullish' : 'neutral'} />
-                  <IndicatorBadge label="Stoch" value={item.stochK !== null ? `${item.stochK.toFixed(0)}` : '—'} status="neutral" />
-                </div>
-
-                {/* Bottom row */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                    <IndicatorBadge label="RSI" value={item.rsi !== null ? item.rsi.toFixed(1) : '—'} status={item.rsi !== null ? (item.rsi <= 30 ? 'oversold' : item.rsi >= 70 ? 'overbought' : 'neutral') : 'neutral'} />
+                    <IndicatorBadge label="ADX" value={item.adx !== null ? item.adx.toFixed(1) : '—'} status={(item.adx ?? 0) > 25 ? 'bullish' : 'neutral'} />
+                    <IndicatorBadge label="Stoch" value={item.stochK !== null ? `${item.stochK.toFixed(1)}` : '—'} status="neutral" />
                     <MiniScoreBar item={item} />
-                    <span style={{ fontSize: 8, fontWeight: 700, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
-                      ثقة: {item.confidence.toFixed(0)}%
-                    </span>
                   </div>
-                  <button onClick={e => { e.stopPropagation(); ctx.setSelectedSymbol(item.symbol); ctx.setActiveTab('deep') }}
+                  <button onClick={e => { e.stopPropagation(); ctx.setSelectedSymbol(item.symbol) }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 4,
                       padding: '3px 8px', borderRadius: 4, border: `0.5px solid ${T.purple}30`,
@@ -194,7 +516,7 @@ export function PatternsView() {
                       fontWeight: 700, fontFamily: "'Cairo', sans-serif", cursor: 'pointer', transition: 'all 0.2s',
                     }}
                   >
-                    <Sparkles size={10} /> تحليل AI عميق
+                    <Sparkles size={10} /> تحليل عميق
                   </button>
                 </div>
               </div>

@@ -1,11 +1,11 @@
 'use client'
 
 import React, { useState } from 'react'
-import { Eye, Layers } from 'lucide-react'
+import { Eye, Layers, Bell } from 'lucide-react'
 import { DirectionTag } from '../shared/DirectionTag'
 import { ScoreGauge } from '../shared/ScoreGauge'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
-import { SparklineChart } from '../shared/SparklineChart'
+import { MiniHeatmap } from '../shared/MiniHeatmap'
 import type { ScannerItem } from '../hooks/useScannerData'
 
 const T = {
@@ -21,6 +21,8 @@ interface ScannerTableRowProps {
   index: number
   isSelected: boolean
   onSelect: (symbol: string) => void
+  onBellClick: (symbol: string) => void
+  hasActiveAlert: boolean
 }
 
 function getRsiStatus(v: number | null): 'bullish' | 'bearish' | 'oversold' | 'overbought' | 'neutral' {
@@ -70,7 +72,7 @@ function ActionBadge({ action }: { action: string }) {
   )
 }
 
-function ScannerTableRowInner({ item, index, isSelected, onSelect }: ScannerTableRowProps) {
+function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, hasActiveAlert }: ScannerTableRowProps) {
   const [hovered, setHovered] = useState(false)
   const dimmed = !item.marketOpen
   const chgColor = item.changePercent >= 0 ? T.green : T.red
@@ -126,7 +128,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect }: ScannerTabl
           {item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(2)}%
         </div>
         <div style={{ fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
-          ${item.price.toLocaleString()}
+          ${item.price > 0 ? item.price.toLocaleString() : '—'}
         </div>
       </td>
 
@@ -167,12 +169,27 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect }: ScannerTabl
         </span>
       </td>
 
-      {/* Sparkline */}
+      {/* MiniHeatmap */}
       <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}` }}>
-        <SparklineChart
+        <MiniHeatmap
           data={item.sparkline} color={chgColor}
           width={72} height={24}
         />
+      </td>
+
+      {/* AI Opinion */}
+      <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}`, textAlign: 'center' }}>
+        {item.aiOpinion ? (
+          <div style={{
+            fontSize: 8, fontWeight: 700, color: T.cyan,
+            fontFamily: "'Cairo', sans-serif",
+            lineHeight: 1.4,
+          }}>
+            {item.aiOpinion}
+          </div>
+        ) : (
+          <span style={{ fontSize: 9, color: T.text3 }}>—</span>
+        )}
       </td>
 
       {/* SmartScore Action + Actions */}
@@ -201,6 +218,18 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect }: ScannerTabl
               }}
             >
               <Layers size={11} />
+            </button>
+            <button
+              onClick={e => { e.stopPropagation(); onBellClick(item.symbol) }}
+              title="تنبيهات"
+              style={{
+                padding: 3, borderRadius: 3, border: `0.5px solid ${T.border}`,
+                background: T.surface, color: hasActiveAlert ? T.amber : T.text3,
+                cursor: 'pointer', transition: 'all 0.2s',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+            >
+              <Bell size={11} />
             </button>
           </div>
         </div>

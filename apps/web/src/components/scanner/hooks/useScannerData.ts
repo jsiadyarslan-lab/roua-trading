@@ -24,6 +24,7 @@ export interface ScannerItem {
   direction: string; signalClass: string; technicalScore: number; confidence: number
   smartScore: SmartScore | null
   sparkline: number[]; reasons: string[]; reasonsAr: string[]
+  aiOpinion: string | null
   marketOpen: boolean; source: string; timestamp: string
 }
 

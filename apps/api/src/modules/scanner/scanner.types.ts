@@ -188,6 +188,9 @@ export class ScannerItemDto {
   // Smart Score (NEW)
   smartScore: SmartScore | null;
 
+  // AI Opinion (lightweight, derived from smartScore)
+  aiOpinion: string | null;
+
   // Visual
   sparkline: number[];
   reasons: string[];

@@ -2180,45 +2180,17 @@ export class ScannerService {
 
       // Skip non-crypto symbols when market is closed
       if (!marketInfo.open && category !== MarketCategory.CRYPTO) {
-        return {
-          symbol,
-          name,
-          category,
-          price: 0,
-          change: 0,
-          changePercent: 0,
-          volume: 0,
-          high: 0,
-          low: 0,
-          rsi: null,
-          macdSignal: null,
-          macdHistogram: null,
-          bollingerPosition: null,
-          stochK: null,
-          stochD: null,
-          adx: null,
-          atr: null,
-          atrVolatility: null,
-          direction: SignalDirection.NEUTRAL,
-          signalClass: SignalClass.WATCH,
-          technicalScore: 0,
-          confidence: 0,
-          smartScore: null,
-          sparkline: [],
-          reasons: ['السوق مغلق'],
-          reasonsAr: ['السوق مغلق'],
-          marketOpen: false,
-          source: 'N/A',
-          timestamp: new Date(),
-        };
+        return null; // Don't show closed-market assets with $0 price
       }
 
+      // Always fetch '1day' candles for sufficient historical data for MACD and other indicators
+      // MACD needs minimum 35 bars (26 slow EMA + 9 signal), but we fetch more for accuracy
       const [quote, candles] = await Promise.all([
         this.aggregator.getAggregatedQuote(symbol).catch(() => null),
-        this.aggregator.getAggregatedCandles(symbol, timeframe).catch(() => []),
+        this.aggregator.getAggregatedCandles(symbol, '1day').catch(() => []),
       ]);
 
-      if (!quote) return null;
+      if (!quote || quote.price === 0) return null;
 
       let rsi: number | null = null;
       let macdSignal: 'BULLISH_CROSSOVER' | 'BEARISH_CROSSOVER' | 'NONE' | null = null;
@@ -2321,6 +2293,19 @@ export class ScannerService {
         }
       }
 
+      // Derive lightweight AI opinion from smartScore (no extra API call)
+      let aiOpinion: string | null = null;
+      if (smartScore) {
+        const actionMap: Record<string, string> = {
+          'STRONG_BUY': 'إجماع الذكاء الاصطناعي: شراء قوي',
+          'BUY': 'إجماع الذكاء الاصطناعي: شراء',
+          'HOLD': 'إجماع الذكاء الاصطناعي: انتظار',
+          'SELL': 'إجماع الذكاء الاصطناعي: بيع',
+          'STRONG_SELL': 'إجماع الذكاء الاصطناعي: بيع قوي',
+        };
+        aiOpinion = actionMap[smartScore.action] ?? null;
+      }
+
       return {
         symbol,
         name,
@@ -2331,20 +2316,21 @@ export class ScannerService {
         volume: quote.volume,
         high: quote.high,
         low: quote.low,
-        rsi,
+        rsi: rsi !== null ? Math.round(rsi * 100) / 100 : null,
         macdSignal,
-        macdHistogram,
+        macdHistogram: macdHistogram !== null ? Math.round(macdHistogram * 100) / 100 : null,
         bollingerPosition,
-        stochK,
-        stochD,
+        stochK: stochK !== null ? Math.round(stochK * 100) / 100 : null,
+        stochD: stochD !== null ? Math.round(stochD * 100) / 100 : null,
         adx,
-        atr,
+        atr: atr !== null ? Math.round(atr * 100) / 100 : null,
         atrVolatility,
         direction,
         signalClass,
         technicalScore,
         confidence,
         smartScore,
+        aiOpinion,
         sparkline,
         reasons,
         reasonsAr,

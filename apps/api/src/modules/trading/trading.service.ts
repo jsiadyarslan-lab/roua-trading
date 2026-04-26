@@ -369,76 +369,100 @@ export class TradingService {
    * Get all open positions for a user
    */
   async getOpenPositions(userId: string): Promise<any[]> {
-    const positions = await this.prisma.position.findMany({
-      where: { userId, status: 'OPEN' },
-      orderBy: { openedAt: 'desc' },
-    });
+    try {
+      const positions = await this.prisma.position.findMany({
+        where: { userId, status: 'OPEN' },
+        orderBy: { openedAt: 'desc' },
+      });
 
-    // Update current prices and PnL
-    for (const position of positions) {
-      try {
-        const quote = await this.exchangeService.getQuote(position.symbol);
-        const currentPrice = quote.price;
-        const unrealizedPnl =
-          position.side === 'BUY'
-            ? (currentPrice - position.entryPrice) * position.quantity
-            : (position.entryPrice - currentPrice) * position.quantity;
+      // Update current prices and PnL
+      for (const position of positions) {
+        try {
+          const quote = await this.exchangeService.getQuote(position.symbol);
+          if (quote && quote.price) {
+            const currentPrice = quote.price;
+            const unrealizedPnl =
+              position.side === 'BUY'
+                ? (currentPrice - position.entryPrice) * position.quantity
+                : (position.entryPrice - currentPrice) * position.quantity;
 
-        await this.prisma.position.update({
-          where: { id: position.id },
-          data: {
-            currentPrice,
-            unrealizedPnl,
-            highestPrice: Math.max(
-              position.highestPrice || currentPrice,
-              currentPrice,
-            ),
-            lowestPrice: Math.min(
-              position.lowestPrice || currentPrice,
-              currentPrice,
-            ),
-          },
-        });
+            await this.prisma.position.update({
+              where: { id: position.id },
+              data: {
+                currentPrice,
+                unrealizedPnl,
+                highestPrice: Math.max(
+                  position.highestPrice || currentPrice,
+                  currentPrice,
+                ),
+                lowestPrice: Math.min(
+                  position.lowestPrice || currentPrice,
+                  currentPrice,
+                ),
+              },
+            });
 
-        // Update in-memory for response
-        position.currentPrice = currentPrice;
-        position.unrealizedPnl = unrealizedPnl;
-      } catch (error: any) {
-        this.logger.warn(
-          `Failed to update price for ${position.symbol}: ${error.message}`,
-        );
+            // Update in-memory for response
+            position.currentPrice = currentPrice;
+            position.unrealizedPnl = unrealizedPnl;
+          }
+        } catch (error: any) {
+          this.logger.warn(
+            `Failed to update price for ${position.symbol}: ${error.message}`,
+          );
+        }
       }
-    }
 
-    return positions;
+      return positions;
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to fetch open positions: ${error.message}`,
+        error.stack,
+      );
+      return []; // Return empty array instead of crashing
+    }
   }
 
   /**
    * Get position summary
    */
   async getPositionSummary(userId: string) {
-    const positions = await this.getOpenPositions(userId);
+    try {
+      const positions = await this.getOpenPositions(userId);
 
-    const totalValue = positions.reduce(
-      (sum, p) => sum + p.quantity * (p.currentPrice || p.entryPrice),
-      0,
-    );
-    const totalUnrealizedPnl = positions.reduce(
-      (sum, p) => sum + (p.unrealizedPnl || 0),
-      0,
-    );
-    const totalRealizedPnl = positions.reduce(
-      (sum, p) => sum + (p.realizedPnl || 0),
-      0,
-    );
+      const totalValue = positions.reduce(
+        (sum, p) => sum + p.quantity * (p.currentPrice || p.entryPrice),
+        0,
+      );
+      const totalUnrealizedPnl = positions.reduce(
+        (sum, p) => sum + (p.unrealizedPnl || 0),
+        0,
+      );
+      const totalRealizedPnl = positions.reduce(
+        (sum, p) => sum + (p.realizedPnl || 0),
+        0,
+      );
 
-    return {
-      totalPositions: positions.length,
-      totalValue,
-      totalUnrealizedPnl,
-      totalRealizedPnl,
-      positions,
-    };
+      return {
+        totalPositions: positions.length,
+        totalValue,
+        totalUnrealizedPnl,
+        totalRealizedPnl,
+        positions,
+      };
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to get position summary: ${error.message}`,
+        error.stack,
+      );
+      return {
+        totalPositions: 0,
+        totalValue: 0,
+        totalUnrealizedPnl: 0,
+        totalRealizedPnl: 0,
+        positions: [],
+      };
+    }
   }
 
   /**
@@ -637,33 +661,57 @@ export class TradingService {
    * Get closed positions for a user
    */
   async getClosedPositions(userId: string, limit: number = 100) {
-    return this.prisma.position.findMany({
-      where: { userId, status: 'CLOSED' },
-      orderBy: { closedAt: 'desc' },
-      take: limit,
-    });
+    try {
+      return await this.prisma.position.findMany({
+        where: { userId, status: 'CLOSED' },
+        orderBy: { closedAt: 'desc' },
+        take: limit,
+      });
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to fetch closed positions: ${error.message}`,
+        error.stack,
+      );
+      return [];
+    }
   }
 
   /**
    * Get all positions (open + closed) for a user
    */
   async getAllPositions(userId: string, limit: number = 100) {
-    return this.prisma.position.findMany({
-      where: { userId },
-      orderBy: { openedAt: 'desc' },
-      take: limit,
-    });
+    try {
+      return await this.prisma.position.findMany({
+        where: { userId },
+        orderBy: { openedAt: 'desc' },
+        take: limit,
+      });
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to fetch all positions: ${error.message}`,
+        error.stack,
+      );
+      return [];
+    }
   }
 
   /**
    * Get trade history
    */
   async getTradeHistory(userId: string, limit: number = 50) {
-    return this.prisma.trade.findMany({
-      where: { userId },
-      orderBy: { executedAt: 'desc' },
-      take: limit,
-    });
+    try {
+      return await this.prisma.trade.findMany({
+        where: { userId },
+        orderBy: { executedAt: 'desc' },
+        take: limit,
+      });
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to fetch trade history: ${error.message}`,
+        error.stack,
+      );
+      return [];
+    }
   }
 
   // ── Private Methods ──

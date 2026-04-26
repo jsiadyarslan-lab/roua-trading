@@ -17,6 +17,7 @@ import { NeuralModule } from './modules/neural/neural.module';
 import { NewsModule } from './modules/news/news.module';
 import { AuditModule } from './audit/audit.module';
 import { CoachModule } from './modules/coach/coach.module';
+import { ScannerModule } from './modules/scanner/scanner.module';
 
 @Module({
   imports: [
@@ -87,6 +88,7 @@ import { CoachModule } from './modules/coach/coach.module';
     NeuralModule,
     NewsModule,
     CoachModule,
+    ScannerModule,
   ],
 })
 export class AppModule {}

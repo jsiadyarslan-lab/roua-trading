@@ -33,57 +33,49 @@ export function MultiTfScannerMini() {
     const fetchData = async () => {
       setLoading(true)
       try {
-        const timeframes = ['15m', '1h', '4h', '1d']
-        const promises = timeframes.map(tf =>
-          fetch(`/api/market-scan?pair=${encodeURIComponent(selectedSymbol)}&tf=${tf}`, { signal: AbortSignal.timeout(15000) }).then(r => r.json())
-        )
-        const results = await Promise.all(promises)
+        // Use new multi-timeframe backend API
+        const res = await fetch(`/api/scanner/multi-tf/${encodeURIComponent(selectedSymbol)}`, { signal: AbortSignal.timeout(30000) })
+        const result = await res.json()
 
         if (!mounted) return
 
-        const processed = results.map((res, i) => {
-          const timeframes = ['15m', '1h', '4h', '1d']
-          if (!res.success || !res.data || res.data.length === 0) {
-             return { tf: timeframes[i].toUpperCase(), state: 'Neutral', strength: 50, color: T.amber, entryBias: 'wait', signalClass: 'watch' }
-          }
-          const item = res.data[0]
-          return {
-             tf: timeframes[i].toUpperCase(),
-             state: item.dir === 'buy' ? 'Bullish' : item.dir === 'sell' ? 'Bearish' : 'Neutral',
-             strength: item.strength,
-             color: item.dir === 'buy' ? T.green : item.dir === 'sell' ? T.red : T.amber,
-             entryBias: item.entryBias,
-             signalClass: item.signalClass,
-             reasons: item.reasons || [],
-          }
-        })
-        setData(processed)
-        setScanCount(prev => prev + 1)
-        setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+        if (result.success && result.data) {
+          const mtData = result.data
+          const tfLabels: Record<string, string> = { '15min': '15M', '1h': '1H', '4h': '4H', '1day': '1D' }
 
-        const score = processed.reduce((sum, item, index) => {
-          const weight = index === 3 ? 2 : index === 2 ? 1.5 : index === 1 ? 1 : 0.5
-          return sum + (item.state === 'Bullish' ? item.strength * weight : item.state === 'Bearish' ? -item.strength * weight : 0)
-        }, 0)
+          const processed = mtData.timeframes.map((tf: any) => ({
+            tf: tfLabels[tf.timeframe] || tf.timeframe.toUpperCase(),
+            state: tf.direction === 'STRONG_BUY' || tf.direction === 'BUY' ? 'Bullish' : tf.direction === 'STRONG_SELL' || tf.direction === 'SELL' ? 'Bearish' : 'Neutral',
+            strength: tf.confidence,
+            color: tf.direction === 'STRONG_BUY' || tf.direction === 'BUY' ? T.green : tf.direction === 'STRONG_SELL' || tf.direction === 'SELL' ? T.red : T.amber,
+            technicalScore: tf.technicalScore,
+            rsi: tf.rsi,
+            macdSignal: tf.macdSignal,
+            adx: tf.adx,
+          }))
 
-        setSummary({
-          alignment: Math.abs(score) > 260 ? 'Strong Alignment' : Math.abs(score) > 140 ? 'Mixed Alignment' : 'Counter Trend',
-          executionHint: Math.abs(score) > 260
-            ? score > 0 ? 'الدخول مع الاتجاه مسموح' : 'الدخول البيعي مع الاتجاه مسموح'
-            : Math.abs(score) > 140
-              ? 'انتظار تأكيد من 15M قبل التنفيذ'
-              : 'لا تدخل ضد الإطار الأعلى الآن',
-        })
+          setData(processed)
+          setScanCount(prev => prev + 1)
+          setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
 
-        // Push alert for strong alignment
-        const alignmentLabel = Math.abs(score) > 260 ? 'Strong' : Math.abs(score) > 140 ? 'Mixed' : 'Counter'
-        if (Math.abs(score) > 140) {
-          const direction = score > 0 ? 'BUY' : 'SELL'
-          useTabAlertStore.getState().pushAlert('multi-tf', {
-            action: direction,
-            label: `${direction === 'BUY' ? '⬆' : '⬇'} توافق ${alignmentLabel} ${selectedSymbol}`,
-            color: direction === 'BUY' ? '#00C853' : '#FF3B30',
+          setSummary({
+            alignment: mtData.alignment === 'STRONG_BULLISH' ? 'توافق صعودي قوي' : mtData.alignment === 'BULLISH' ? 'توافق صعودي' : mtData.alignment === 'STRONG_BEARISH' ? 'توافق هبوطي قوي' : mtData.alignment === 'BEARISH' ? 'توافق هبوطي' : 'إشارات مختلطة',
+            executionHint: mtData.executionHintAr || mtData.executionHint || '',
           })
+
+          // Push alert for strong alignment
+          if (Math.abs(mtData.alignmentScore) > 30) {
+            const direction = mtData.alignmentScore > 0 ? 'BUY' : 'SELL'
+            useTabAlertStore.getState().pushAlert('multi-tf', {
+              action: direction,
+              label: `${direction === 'BUY' ? '⬆' : '⬇'} ${mtData.alignment} ${selectedSymbol}`,
+              color: direction === 'BUY' ? '#00C853' : '#FF3B30',
+            })
+          }
+        } else {
+          // Fallback: no data available
+          setData([])
+          setSummary(null)
         }
       } catch (e) {
         console.error(e)

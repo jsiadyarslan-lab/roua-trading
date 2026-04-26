@@ -96,28 +96,28 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
       lastScanCheckRef.current = now
 
       try {
-        const res = await fetch('/api/market-scan')
+        const res = await fetch('/api/scanner/scan?timeframe=1h')
         const data = await res.json()
-        if (!data.success || !data.data?.length) return
+        if (!data.success || !data.items?.length) return
 
-        const top = data.data[0]
-        if (top.strength < settings.minConfidence) return
+        const top = data.items[0]
+        if (top.confidence < settings.minConfidence) return
 
         addNotification({
           source: 'scanner',
-          priority: top.strength >= 80 ? 'high' : 'medium',
-          action: top.dir === 'buy' ? 'BUY' : 'SELL',
-          title: `📡 سكانر: ${top.pair} — ${top.dir === 'buy' ? 'إشارة شراء' : 'إشارة بيع'}`,
-          body: `قوة الإشارة ${top.strength}% | ${(top.reasons || []).slice(0, 2).join(' · ')}`,
-          pair: top.pair,
+          priority: top.confidence >= 80 ? 'high' : 'medium',
+          action: top.direction === 'STRONG_BUY' || top.direction === 'BUY' ? 'BUY' : top.direction === 'STRONG_SELL' || top.direction === 'SELL' ? 'SELL' : 'INFO',
+          title: `📡 سكانر: ${top.symbol} — ${top.direction === 'STRONG_BUY' || top.direction === 'BUY' ? 'إشارة شراء' : top.direction === 'STRONG_SELL' || top.direction === 'SELL' ? 'إشارة بيع' : 'مراقبة'}`,
+          body: `قوة الإشارة ${top.confidence}% | ${(top.reasonsAr || top.reasons || []).slice(0, 2).join(' · ')}`,
+          pair: top.symbol,
           price: top.price,
-          confidence: top.strength,
+          confidence: top.confidence,
         })
       } catch {}
     }
 
-    // fetchScanAlert() // Don't fire immediately on mount to avoid spamming on refresh
-    const iv = setInterval(fetchScanAlert, 10_000)
+    // Don't fire immediately on mount to avoid phantom alerts on page load
+    const iv = setInterval(fetchScanAlert, 30_000) // check every 30s, but skips if < 2min since last fire
     return () => clearInterval(iv)
   }, [hydrated, settings.scannerAlerts, settings.minConfidence, addNotification])
 

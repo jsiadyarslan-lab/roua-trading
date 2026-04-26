@@ -13,6 +13,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
   const [scanCount, setScanCount] = useState(0);
   const [countdown, setCountdown] = useState(60);
   const scanningRef = useRef(false);
+  const isFirstScanRef = useRef(true); // Suppress alerts on first scan
   const { selectedSymbol: storeSelectedSymbol, setSelectedSymbol } = useSymbolStore();
   const activeSymbol = selectedSymbol || storeSelectedSymbol;
   const spotlight = signals.find(sig => sig.pair === activeSymbol) || signals[0] || null
@@ -26,12 +27,10 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
 
     try {
       // ═══════════════════════════════════════════════════════
-      // FULL MARKET SCAN — Always scan ALL PRIMARY_SYMBOLS,
-      // not just the selected pair. The Scanner's job is to
-      // discover opportunities across the entire market.
-      // The selected pair is highlighted in results.
+      // FULL MARKET SCAN — Uses the new backend scanner API
+      // which provides 10+ technical indicators per symbol
       // ═══════════════════════════════════════════════════════
-      const res = await fetch('/api/market-scan?tf=1h', { signal: AbortSignal.timeout(30000) });
+      const res = await fetch('/api/scanner/scan?timeframe=1h', { signal: AbortSignal.timeout(30000) });
 
       if (!res.ok) {
         throw new Error(`Scan failed with status ${res.status}`);
@@ -39,13 +38,34 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
 
       const data = await res.json();
 
-      if (data?.success && Array.isArray(data.data)) {
-        // Sort: selected pair first, then by strength descending
-        const sorted = [...data.data].sort((a: any, b: any) => {
+      if (data?.success && Array.isArray(data.items)) {
+        // Map new API format to existing signal format for compatibility
+        const mapped = data.items.map((item: any) => ({
+          pair: item.symbol,
+          dir: item.direction === 'STRONG_BUY' ? 'buy' : item.direction === 'BUY' ? 'buy' : item.direction === 'STRONG_SELL' ? 'sell' : item.direction === 'SELL' ? 'sell' : 'neutral',
+          strength: item.confidence,
+          signalClass: item.signalClass?.toLowerCase() || 'watch',
+          entryBias: item.direction === 'STRONG_BUY' || item.direction === 'BUY' ? 'follow' : item.direction === 'STRONG_SELL' || item.direction === 'SELL' ? 'follow' : 'wait',
+          price: item.price,
+          reasons: item.reasonsAr || item.reasons || [],
+          source: item.source || 'scanner',
+          freshness: item.marketOpen ? 'fresh' : 'closed',
+          timestamp: item.timestamp,
+          // Extended data from new API
+          technicalScore: item.technicalScore,
+          rsi: item.rsi,
+          macdSignal: item.macdSignal,
+          adx: item.adx,
+          stochK: item.stochK,
+          changePercent: item.changePercent,
+        }));
+
+        // Sort: selected pair first, then by |technicalScore| descending
+        const sorted = [...mapped].sort((a: any, b: any) => {
           const aSelected = a.pair === activeSymbol ? 1 : 0
           const bSelected = b.pair === activeSymbol ? 1 : 0
           if (aSelected !== bSelected) return bSelected - aSelected
-          return (b.strength || 0) - (a.strength || 0)
+          return Math.abs(b.technicalScore || 0) - Math.abs(a.technicalScore || 0)
         })
 
         setSignals(sorted);
@@ -58,15 +78,18 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
           })
         );
 
-        // Push alerts for strong signals
-        const strongSignals = data.data.filter((s: any) => s.dir !== 'neutral' && s.strength >= 70)
-        for (const sig of strongSignals) {
-          useTabAlertStore.getState().pushAlert('scanner', {
-            action: sig.dir === 'buy' ? 'BUY' : 'SELL',
-            label: `${sig.dir === 'buy' ? '⬆' : '⬇'} ${sig.pair} ${sig.strength}%`,
-            color: sig.dir === 'buy' ? '#00C853' : '#FF3B30',
-          })
+        // Push alerts for strong signals — skip first scan to avoid phantom alerts on page load
+        if (!isFirstScanRef.current) {
+          const strongSignals = mapped.filter((s: any) => s.dir !== 'neutral' && s.strength >= 60)
+          for (const sig of strongSignals.slice(0, 3)) { // Limit to 3 alerts per scan
+            useTabAlertStore.getState().pushAlert('scanner', {
+              action: sig.dir === 'buy' ? 'BUY' : 'SELL',
+              label: `${sig.dir === 'buy' ? '⬆' : '⬇'} ${sig.pair} ${sig.strength}%`,
+              color: sig.dir === 'buy' ? '#00C853' : '#FF3B30',
+            })
+          }
         }
+        isFirstScanRef.current = false;
       } else {
         console.warn('Scan returned unexpected payload:', data);
       }

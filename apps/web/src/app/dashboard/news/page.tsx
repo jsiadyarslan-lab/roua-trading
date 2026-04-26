@@ -373,7 +373,7 @@ export default function NewsPage() {
                     }}>
                       {impact.text}
                     </span>
-                    {item.affectedAssets && item.affectedAssets.length > 0 && item.affectedAssets.map((asset) => (
+                    {Array.isArray(item.affectedAssets) && item.affectedAssets.length > 0 && item.affectedAssets.map((asset) => (
                       <span key={asset} style={{
                         fontSize: 9, padding: '2px 6px', borderRadius: 6,
                         background: `${T.cyan}14`, color: T.cyan, fontWeight: 800,

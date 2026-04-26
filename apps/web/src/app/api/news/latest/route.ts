@@ -39,7 +39,16 @@ export async function GET(request: NextRequest) {
       if (res.ok) {
         const data = await res.json();
         if (data.success && data.data && data.data.length > 0) {
-          return NextResponse.json(data);
+          // Normalize affectedAssets: Prisma stores as JSON string, frontend expects array
+          const normalizedData = data.data.map((item: any) => ({
+            ...item,
+            affectedAssets: typeof item.affectedAssets === 'string'
+              ? (() => { try { return JSON.parse(item.affectedAssets); } catch { return []; } })()
+              : Array.isArray(item.affectedAssets)
+                ? item.affectedAssets
+                : [],
+          }));
+          return NextResponse.json({ ...data, data: normalizedData });
         }
       }
     } catch {

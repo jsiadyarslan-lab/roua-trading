@@ -224,6 +224,96 @@ async function fetchYahooFinance(symbol: string): Promise<any | null> {
   }
 }
 
+// ── FREE Gold/Commodity Fallback: Metals.dev (no key needed) ──
+// Covers: XAU/USD (Gold), XAG/USD (Silver), XPT/USD (Platinum)
+async function fetchMetalsDev(symbol: string): Promise<any | null> {
+  const [base] = symbol.split('/')
+  const metalMap: Record<string, string> = { 'XAU': 'gold', 'XAG': 'silver', 'XPT': 'platinum', 'XPD': 'palladium' }
+  const metal = metalMap[base]
+  if (!metal) return null
+
+  try {
+    const url = `https://api.metals.dev/v1/latest?api_key=demo&currency=USD&unit=toz`
+    const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000) })
+    if (!res.ok) return null
+    const data = await res.json()
+    const price = data?.metals?.[metal]?.USD
+    if (!price || price <= 0) return null
+
+    return {
+      symbol,
+      name: symbol.replace('/', ' / '),
+      exchange: 'COMMODITY',
+      currency: 'USD',
+      price: toNum(price),
+      change: 0,
+      changePercent: 0,
+      open: toNum(price),
+      high: toNum(price * 1.001),
+      low: toNum(price * 0.999),
+      close: toNum(price),
+      volume: 0,
+      marketCap: null,
+      fiftyTwoWeekHigh: null,
+      fiftyTwoWeekLow: null,
+      timestamp: new Date().toISOString(),
+      source: 'Metals.dev',
+    }
+  } catch {
+    return null
+  }
+}
+
+// ── FREE Commodity Fallback: GoldPrice.org scraping ──
+// Covers: XAU/USD, XAG/USD when all other sources fail
+async function fetchGoldPriceFallback(symbol: string): Promise<any | null> {
+  const [base] = symbol.split('/')
+  const metalMap: Record<string, { name: string; price: number }> = {
+    'XAU': { name: 'Gold', price: 2330 },  // reasonable fallback estimate
+    'XAG': { name: 'Silver', price: 27.5 },
+  }
+  const metal = metalMap[base]
+  if (!metal) return null
+
+  // Try to get real price from goldpricez.com API
+  try {
+    const metalKey = base === 'XAU' ? 'gold' : base === 'XAG' ? 'silver' : null
+    if (!metalKey) return null
+    const url = `https://data-asg.goldprice.org/dbXRates/${metalKey.toUpperCase()}`
+    const res = await fetch(url, {
+      cache: 'no-store',
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RouaTrading/1.0)' },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const price = data?.items?.[0]?.xauPrice || data?.items?.[0]?.xagPrice || data?.items?.[0]?.price
+    if (!price || price <= 0) return null
+
+    return {
+      symbol,
+      name: `${metal.name} / USD`,
+      exchange: 'COMMODITY',
+      currency: 'USD',
+      price: toNum(price),
+      change: toNum(data?.items?.[0]?.chg || 0),
+      changePercent: toNum(data?.items?.[0]?.pc || 0),
+      open: toNum(price),
+      high: toNum(data?.items?.[0]?.high || price * 1.002),
+      low: toNum(data?.items?.[0]?.low || price * 0.998),
+      close: toNum(price),
+      volume: 0,
+      marketCap: null,
+      fiftyTwoWeekHigh: null,
+      fiftyTwoWeekLow: null,
+      timestamp: new Date().toISOString(),
+      source: 'GoldPrice',
+    }
+  } catch {
+    return null
+  }
+}
+
 // ── FREE Forex Fallback: Frankfurter (ECB rates, no key needed) ──
 // Covers major fiat pairs: EUR/USD, GBP/USD, USD/JPY, GBP/JPY, etc.
 const FRANKFURTER_BASES = ['EUR','GBP','CHF','JPY','AUD','CAD','NZD','SEK','NOK','DKK']
@@ -431,7 +521,23 @@ export async function GET(
         }
       }
 
-      // Step 3: Try free ECB rates for fiat pairs (last resort for forex)
+      // Step 3: Try Metals.dev for commodities (XAU, XAG, etc.)
+      if (!quote) {
+        quote = await fetchMetalsDev(symbol)
+        if (quote) {
+          console.info(`[exchange/quote] Using Metals.dev for ${symbol}`)
+        }
+      }
+
+      // Step 4: Try GoldPrice.org for gold/silver
+      if (!quote) {
+        quote = await fetchGoldPriceFallback(symbol)
+        if (quote) {
+          console.info(`[exchange/quote] Using GoldPrice for ${symbol}`)
+        }
+      }
+
+      // Step 5: Try free ECB rates for fiat pairs (last resort for forex)
       if (!quote) {
         quote = await fetchFrankfurter(symbol)
         if (quote) {

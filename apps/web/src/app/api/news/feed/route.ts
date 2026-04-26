@@ -4,7 +4,39 @@ export const revalidate = 300 // Cache for 5 minutes
 
 export async function GET() {
   try {
-    // Fetch CoinTelegraph RSS feed
+    // Try NestJS first for AI-translated news
+    const apiTarget = process.env.API_INTERNAL_URL || 'http://localhost:3001';
+    try {
+      const nestRes = await fetch(`${apiTarget}/api/news/latest?limit=15`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (nestRes.ok) {
+        const nestData = await nestRes.json();
+        if (nestData.success && Array.isArray(nestData.data) && nestData.data.length > 0) {
+          // Transform NestJS data to feed format
+          const items = nestData.data.map((article: any) => ({
+            category: article.category || 'Crypto',
+            categoryAr: article.categoryAr || mapCategoryToArabic(article.category || 'Crypto'),
+            color: mapCategoryColor(article.category || 'Crypto'),
+            bgColor: `${mapCategoryColor(article.category || 'Crypto')}12`,
+            text: article.title || '',
+            textAr: article.translatedTitle || article.title || '',
+            link: article.url || null,
+            publishedAt: article.publishedAt || null,
+            impact: article.impactLevel || 'medium',
+            source: article.source || 'NestJS',
+          }));
+          return NextResponse.json(items);
+        }
+      }
+    } catch {
+      // NestJS unavailable, fall through to RSS
+    }
+
+    // Fallback: Fetch CoinTelegraph RSS feed + translate locally
     const res = await fetch('https://cointelegraph.com/rss', {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; RouaTradingBot/1.0)',
@@ -17,7 +49,6 @@ export async function GET() {
 
     const xml = await res.text()
 
-    // Simple regex-based XML parsing to avoid installing external xml parsers.
     const items: Array<{
       category: string
       categoryAr: string
@@ -73,6 +104,7 @@ export async function GET() {
 
 /**
  * Translate English news title to Arabic using comprehensive keyword mapping
+ * Note: When NestJS is available, AI models handle translation instead
  */
 function translateToArabic(title: string, category: string): string {
   const translations: [RegExp, string][] = [
@@ -110,9 +142,6 @@ function translateToArabic(title: string, category: string): string {
     [/\brises?\b/gi, 'يرتفع'],
     [/\bsoars?\b/gi, 'يقفز'],
     [/\bjumps?\b/gi, 'يقفز'],
-    [/\bpumps?\b/gi, 'يرتفع'],
-    [/\bdumps?\b/gi, 'ينخفض بقوة'],
-    [/\bpumps?\b/gi, 'يرتفع'],
     [/\bgains?\b/gi, 'يكسب'],
     [/\bloses?\b/gi, 'يخسر'],
     [/\brecovers?\b/gi, 'يتعافى'],
@@ -122,7 +151,7 @@ function translateToArabic(title: string, category: string): string {
     [/\bfluctuates?\b/gi, 'يتذبذب'],
     [/\bbreaks?\s+(?:out|above|below|through)\b/gi, 'يكسر'],
     [/\bhits?\b/gi, 'يصل إلى'],
-    [/\b reaches?\b/gi, 'يصل إلى'],
+    [/\breaches?\b/gi, 'يصل إلى'],
     [/\bcross(?:es|ed)?\b/gi, 'يتجاوز'],
     [/\btumbles?\b/gi, 'يتهاوى'],
     [/\bslides?\b/gi, 'ينزلق'],
@@ -133,16 +162,13 @@ function translateToArabic(title: string, category: string): string {
     [/\bbreakout\b/gi, 'اختراق'],
     [/\bresistance\b/gi, 'مقاومة'],
     [/\bsupport\b/gi, 'دعم'],
-    [/\brally\b/gi, 'صعود'],
 
     // Financial terms
-    [/\bETF\b/g, 'صندوق ETF'],
-    [/\bETFs\b/g, 'صناديق ETF'],
+    [/\bETFs?\b/g, 'صندوق ETF'],
     [/\bFed\b/g, 'الاحتياطي الفيدرالي'],
     [/\bFederal Reserve\b/gi, 'الاحتياطي الفيدرالي'],
     [/\binterest rate\b/gi, 'سعر الفائدة'],
     [/\brate cut\b/gi, 'خفض الفائدة'],
-    [/\bhike\b/gi, 'رفع'],
     [/\binflation\b/gi, 'التضخم'],
     [/\bGDP\b/g, 'الناتج المحلي'],
     [/\brecession\b/gi, 'ركود'],
@@ -150,13 +176,8 @@ function translateToArabic(title: string, category: string): string {
     [/\bmarkets\b/gi, 'الأسواق'],
     [/\bstock\b/gi, 'الأسهم'],
     [/\bstocks\b/gi, 'الأسهم'],
-    [/\btreasury\b/gi, 'الخزانة'],
-    [/\bbond\b/gi, 'سند'],
-    [/\byield\b/gi, 'عائد'],
-    [/\bportfolio\b/gi, 'محفظة'],
     [/\bvolatility\b/gi, 'تقلب'],
     [/\bliquidity\b/gi, 'سيولة'],
-    [/\bcapital\b/gi, 'رأس مال'],
     [/\binvestment\b/gi, 'استثمار'],
     [/\binvestor\b/gi, 'مستثمر'],
     [/\bprofit\b/gi, 'ربح'],
@@ -164,120 +185,69 @@ function translateToArabic(title: string, category: string): string {
 
     // Regulation terms
     [/\bregulation\b/gi, 'تنظيم'],
-    [/\bregulator\b/gi, 'جهة تنظيمية'],
     [/\bSEC\b/g, 'لجنة الأوراق المالية'],
     [/\bban\b/gi, 'حظر'],
     [/\bapprove(?:d|s)?\b/gi, 'يوافق'],
     [/\bapproval\b/gi, 'موافقة'],
     [/\breject(?:s|ed)?\b/gi, 'يرفض'],
     [/\bcompliance\b/gi, 'امتثال'],
-    [/\blawsuit\b/gi, 'دعوى قضائية'],
-    [/\benforcement\b/gi, 'إنفاذ'],
 
-    // Tech terms
+    // Tech & trading terms
     [/\bupgrade\b/gi, 'ترقية'],
     [/\bpartnership\b/gi, 'شراكة'],
     [/\blaunch\b/gi, 'إطلاق'],
     [/\badoption\b/gi, 'تبني'],
-    [/\bintegration\b/gi, 'تكامل'],
-    [/\bscalability\b/gi, 'قابلية التوسع'],
-    [/\bprotocol\b/gi, 'بروتوكول'],
     [/\bnetwork\b/gi, 'شبكة'],
     [/\bplatform\b/gi, 'منصة'],
     [/\bexchange\b/gi, 'منصة تداول'],
     [/\btrading\b/gi, 'تداول'],
     [/\btrader\b/gi, 'متداول'],
 
-    // Common words
+    // Common connector words
     [/\bcould\b/gi, 'قد'],
     [/\bmay\b/gi, 'قد'],
     [/\bwill\b/gi, 'سوف'],
-    [/\bnew\b/gi, 'جديد'],
     [/\bmajor\b/gi, 'كبير'],
     [/\bkey\b/gi, 'مهم'],
     [/\bsignificant\b/gi, 'كبير'],
     [/\bmassive\b/gi, 'ضخم'],
-    [/\bhuge\b/gi, 'كبير'],
     [/\brecord\b/gi, 'قياسي'],
     [/\bhistoric\b/gi, 'تاريخي'],
     [/\bpotential\b/gi, 'محتمل'],
-    [/\bpossible\b/gi, 'ممكن'],
     [/\bexpected\b/gi, 'متوقع'],
-    [/\bsurprise\b/gi, 'مفاجأة'],
-    [/\bwarns?\b/gi, 'يحذر'],
+    [/\bannounces?\b/gi, 'يعلن'],
     [/\bsignals?\b/gi, 'يشير'],
     [/\bhints?\b/gi, 'يلمح'],
-    [/\bannounces?\b/gi, 'يعلن'],
-    [/\breports?\b/gi, 'يبلّغ'],
-    [/\baccording to\b/gi, 'وفقاً لـ'],
+    [/\bwarns?\b/gi, 'يحذر'],
     [/\bamid\b/gi, 'وسط'],
-    [/\bdespite\b/gi, 'على الرغم من'],
-    [/\bafter\b/gi, 'بعد'],
-    [/\bbefore\b/gi, 'قبل'],
-    [/\bover\b/gi, 'فوق'],
     [/\babove\b/gi, 'فوق'],
     [/\bbelow\b/gi, 'أدنى'],
-    [/\bbetween\b/gi, 'بين'],
-    [/\bagainst\b/gi, 'ضد'],
-    [/\bfrom\b/gi, 'من'],
-    [/\bwith\b/gi, 'مع'],
-    [/\bas\b/gi, 'كـ'],
-    [/\bmore\b/gi, 'المزيد'],
-    [/\bless\b/gi, 'أقل'],
-    [/\bhigh\b/gi, 'مرتفع'],
-    [/\blow\b/gi, 'منخفض'],
-    [/\btop\b/gi, 'أعلى'],
-    [/\bbottom\b/gi, 'أدنى'],
-    [/\bfirst\b/gi, 'أول'],
-    [/\blast\b/gi, 'آخر'],
-    [/\blatest\b/gi, 'أحدث'],
-    [/\bnext\b/gi, 'التالي'],
-    [/\bfuture\b/gi, 'مستقبل'],
-    [/\bglobal\b/gi, 'عالمي'],
-    [/\bnational\b/gi, 'وطني'],
-    [/\bUS\b/g, 'أمريكي'],
-    [/\bAmerican\b/gi, 'أمريكي'],
-    [/\bEuropean\b/gi, 'أوروبي'],
-    [/\bChinese\b/gi, 'صيني'],
-    [/\bJapan(?:ese)?\b/gi, 'ياباني'],
-    [/\bUK\b/g, 'بريطاني'],
-    [/\bmonth\b/gi, 'شهر'],
-    [/\bquarter\b/gi, 'ربع'],
-    [/\byear\b/gi, 'سنة'],
-    [/\bweek\b/gi, 'أسبوع'],
-    [/\bday\b/gi, 'يوم'],
     [/\bprice\b/gi, 'سعر'],
     [/\bprices\b/gi, 'أسعار'],
     [/\blevel\b/gi, 'مستوى'],
-    [/\bpoint\b/gi, 'نقطة'],
     [/\bbillion\b/gi, 'مليار'],
     [/\bmillion\b/gi, 'مليون'],
-    [/\btrillion\b/gi, 'تريليون'],
+    [/\bUS\b/g, 'أمريكي'],
   ]
 
   let translated = title
-
-  // Apply translations from most specific to least specific
   for (const [regex, arabic] of translations) {
     translated = translated.replace(regex, arabic)
   }
 
-  // If no significant translations were applied, add Arabic category prefix
   if (translated === title) {
     const categoryAr = mapCategoryToArabic(category)
     translated = `[${categoryAr}] ${title}`
   }
 
-  // Clean up: remove extra spaces
   translated = translated.replace(/\s+/g, ' ').trim()
-
   return translated
 }
 
 function getFallbackNews() {
   return [
     { category: 'Fed', categoryAr: 'الاحتياطي', color: '#d4af37', bgColor: '#d4af3712', text: 'Federal Reserve signals potential rate cuts in Q3', textAr: 'الاحتياطي الفيدرالي يشير إلى خفض محتمل للفائدة في الربع الثالث', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
-    { category: 'Forex', categoryAr: 'فوركس', color: '#0d9488', bgColor: '#0d948812', text: 'EUR/USD breaks key resistance at 1.0850', textAr: 'اليورو/دولار يكسر مقاومة رئيسية عند 1.0850', link: null, publishedAt: null, impact: 'medium', source: 'Fallback' },
+    { category: 'Forex', categoryAr: 'فوركس', color: '#0d9488', bgColor: '#0d948812', text: 'EUR/USD breaks key resistance at 1.0850', textAr: 'اليورو/دولار يكسر مقاومة مهمة عند 1.0850', link: null, publishedAt: null, impact: 'medium', source: 'Fallback' },
     { category: 'Crypto', categoryAr: 'كريبتو', color: '#f97316', bgColor: '#f9731612', text: 'Bitcoin surges past $67K amid ETF inflows', textAr: 'بيتكوين يرتفع بقوة فوق 67 ألف دولار بفعل تدفقات صناديق ETF', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
     { category: 'Metals', categoryAr: 'معادن', color: '#f59e0b', bgColor: '#f59e0b12', text: 'Gold consolidates above $2,340', textAr: 'الذهب يستقر فوق 2,340 دولار', link: null, publishedAt: null, impact: 'medium', source: 'Fallback' },
     { category: 'Stocks', categoryAr: 'أسهم', color: '#3b82f6', bgColor: '#3b82f612', text: 'S&P 500 reaches new all-time high', textAr: 'إس آند بي 500 يصل إلى أعلى مستوى تاريخي جديد', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },

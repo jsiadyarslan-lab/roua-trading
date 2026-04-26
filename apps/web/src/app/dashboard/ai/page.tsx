@@ -102,7 +102,7 @@ function loadMessages(): Message[] {
   return [{
     id: '1',
     role: 'ai',
-    content: 'مرحباً بك في مركز التحليل الذكي! أنا متصل بنماذج AI حقيقية (Gemini, Groq, GLM-4) مع دعم RAG. يمكنني:\n\n• تحليل أي أصل مالي بتفصيل\n• تقديم توصيات شراء/بيع مبنيّة على البيانات\n• قراءة المؤشرات الفنية الحية\n• تقديم تحليل المخاطر\n\nماذا تريد أن تحلل اليوم؟',
+    content: 'مرحباً بك في مركز التحليل الذكي! أنا متصل بـ 6 نماذج AI حقيقية (Gemini, Groq, GLM-4, DeepSeek, GPT-4o, Claude) مع دعم RAG. يمكنني:\n\n• تحليل أي أصل مالي بتفصيل\n• تقديم توصيات شراء/بيع مبنيّة على البيانات\n• قراءة المؤشرات الفنية الحية\n• تقديم تحليل المخاطر المتقدم\n• ترجمة وتحليل الأخبار المالية\n\nماذا تريد أن تحلل اليوم؟',
     timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
     model: 'رؤى AI',
     confidence: 100,
@@ -481,6 +481,9 @@ export default function AIPage() {
             { name: 'Gemini', color: T.cyan, key: 'GOOGLE_AI_STUDIO_API_KEY' },
             { name: 'Groq', color: T.blue, key: 'GROQ_API_KEY' },
             { name: 'GLM-4', color: T.amber, key: 'GLM_API_KEY' },
+            { name: 'DeepSeek', color: T.green, key: 'DEEPSEEK_API_KEY' },
+            { name: 'GPT-4o', color: '#10a37f', key: 'OPENAI_API_KEY' },
+            { name: 'Claude', color: T.purple, key: 'ANTHROPIC_API_KEY' },
           ].map(m => {
             const modelInfo = modelsStatus.find(ms => ms.model.includes(m.name))
             const available = nestjsConnected && (modelInfo?.available ?? false)

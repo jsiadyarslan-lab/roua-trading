@@ -2,50 +2,70 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import { GroqService, AIAnalysisRequest, AIAnalysisResponse } from './groq.service';
 import { GlmService } from './glm.service';
 import { GeminiService } from './gemini.service';
+import { DeepSeekService } from './deepseek.service';
+import { OpenAIService } from './openai.service';
+import { ClaudeService } from './claude.service';
 import { RagService } from './rag.service';
 
 /**
  * AI Orchestrator — Routes tasks to the optimal AI model
  *
+ * 6 AI Models Available:
+ * ┌──────────────────────────────────────────────────────────────────────┐
+ * │ Model            │ Specialty                                    │
+ * ├──────────────────┼──────────────────────────────────────────────────┤
+ * │ Groq/Llama 3.3   │ ⚡ Ultra-fast — sentiment, real-time          │
+ * │ Gemini 2.0 Flash │ 💎 Creative — strategy, structured output     │
+ * │ GLM-4 (Zhipu AI) │ 🧠 Arabic-optimized — long context 200k      │
+ * │ DeepSeek-V3      │ 🔬 Deep reasoning — quantitative, math        │
+ * │ GPT-4o (OpenAI)  │ 🤖 Versatile — multi-asset, macro synthesis   │
+ * │ Claude 3.5       │ 🛡️ Safety-focused — risk, compliance          │
+ * └──────────────────┴──────────────────────────────────────────────────┘
+ *
  * Task → Model Routing Logic:
- * ┌──────────────────────┬─────────────────────────────────────┐
- * │ Task Type            │ Best Model                          │
- * ├──────────────────────┼─────────────────────────────────────┤
- * │ sentiment            │ Groq (fastest, real-time)           │
- * │ market_analysis      │ Gemini (creative, deep reasoning)   │
- * │ prediction           │ GLM-4 (Arabic-optimized, long ctx)  │
- * │ signal_generation    │ Gemini (structured output)          │
- * │ risk_analysis        │ GLM-4 (quantitative, Arabic)        │
- * │ general              │ Gemini (most capable)               │
- * └──────────────────────┴─────────────────────────────────────┘
+ * ┌──────────────────────┬──────────────────────────────────────────────┐
+ * │ Task Type            │ Best Model + Fallback Chain                  │
+ * ├──────────────────────┼──────────────────────────────────────────────┤
+ * │ sentiment            │ Groq → GLM → DeepSeek                       │
+ * │ market_analysis      │ Gemini → GPT-4o → DeepSeek → GLM            │
+ * │ prediction           │ GLM-4 → DeepSeek → Gemini → GPT-4o          │
+ * │ signal_generation    │ Gemini → GPT-4o → Groq → DeepSeek           │
+ * │ risk_analysis        │ Claude → GLM-4 → DeepSeek → GPT-4o          │
+ * │ general              │ Gemini → GPT-4o → Groq → GLM → DeepSeek     │
+ * │ translation          │ Groq → GLM → DeepSeek → Gemini              │
+ * └──────────────────────┴──────────────────────────────────────────────┘
  *
  * RAG Integration:
  * - Before sending to model, retrieves relevant context from news archive
  * - Context is prepended to the prompt for enriched responses
  *
- * Fallback chain: Primary → Secondary → Tertiary
+ * Fallback chain: Primary → Secondary → Tertiary → etc.
  */
 @Injectable()
 export class AIOrchestratorService {
   private readonly logger = new Logger(AIOrchestratorService.name);
 
-  /** Model routing configuration */
+  /** Model routing configuration — 6 models */
   private readonly ROUTING: Record<string, { primary: string; fallback: string[] }> = {
-    sentiment: { primary: 'groq', fallback: ['glm', 'gemini'] },
-    market_analysis: { primary: 'gemini', fallback: ['glm', 'groq'] },
-    prediction: { primary: 'glm', fallback: ['gemini', 'groq'] },
-    signal_generation: { primary: 'gemini', fallback: ['glm', 'groq'] },
-    risk_analysis: { primary: 'glm', fallback: ['gemini', 'groq'] },
-    general: { primary: 'gemini', fallback: ['groq', 'glm'] },
+    sentiment:       { primary: 'groq',     fallback: ['glm', 'deepseek', 'gemini', 'openai', 'claude'] },
+    market_analysis: { primary: 'gemini',   fallback: ['openai', 'deepseek', 'glm', 'groq', 'claude'] },
+    prediction:      { primary: 'glm',      fallback: ['deepseek', 'gemini', 'openai', 'groq', 'claude'] },
+    signal_generation:{ primary: 'gemini',  fallback: ['openai', 'groq', 'deepseek', 'glm', 'claude'] },
+    risk_analysis:   { primary: 'claude',   fallback: ['glm', 'deepseek', 'openai', 'gemini', 'groq'] },
+    general:         { primary: 'gemini',   fallback: ['openai', 'groq', 'glm', 'deepseek', 'claude'] },
+    translation:     { primary: 'groq',     fallback: ['glm', 'deepseek', 'gemini', 'openai', 'claude'] },
   };
 
   constructor(
     private readonly groqService: GroqService,
     private readonly glmService: GlmService,
     private readonly geminiService: GeminiService,
+    private readonly deepseekService: DeepSeekService,
+    private readonly openaiService: OpenAIService,
+    private readonly claudeService: ClaudeService,
     @Optional() private readonly ragService?: RagService,
   ) {
-    this.logger.log('🎼 AI Orchestrator initialized — routing tasks to optimal models');
+    this.logger.log('🎼 AI Orchestrator initialized — 6 models available (Gemini, Groq, GLM-4, DeepSeek, GPT-4o, Claude)');
     if (this.ragService) {
       this.logger.log('📚 RAG integration enabled — context retrieval active');
     }
@@ -96,7 +116,7 @@ export class AIOrchestratorService {
   }
 
   /**
-   * Perform a comprehensive consensus analysis using all available models as specialists
+   * Perform a comprehensive consensus analysis using all 6 AI models as specialists
    * Returns a master analysis with individual votes and a consensus score
    */
   async getConsensusAnalysis(symbol: string): Promise<{
@@ -105,17 +125,17 @@ export class AIOrchestratorService {
     analyses: { role: string; model: string; vote: string; confidence: number; reason: string }[];
     masterStrategy: string;
   }> {
-    this.logger.log(`🎼 Initiating AI Council Consensus for ${symbol}`);
+    this.logger.log(`🎼 Initiating AI Council Consensus for ${symbol} — 6 models`);
 
     try {
-      // Roles and their assigned models/prompts
+      // 6 specialist roles distributed across 6 AI models
       const roles = [
-        { id: 'tech', name: 'المحلل الفني', model: 'gemini', prompt: `حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.` },
-        { id: 'sent', name: 'محلل المشاعر', model: 'groq', prompt: `حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.` },
-        { id: 'risk', name: 'خبير المخاطر', model: 'glm', prompt: `حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة المثالية.` },
-        { id: 'macro', name: 'خبير الماكرو', model: 'gemini', prompt: `حلل الوضع الاقتصادي العام وتأثيره على ${symbol}.` },
-        { id: 'pattern', name: 'خبير الأنماط', model: 'glm', prompt: `هل ترى أي أنماط تاريخية متكررة (Fractals) في حركة ${symbol} الحالية؟` },
-        { id: 'exec', name: 'استراتيجي التنفيذ', model: 'groq', prompt: `ما هو أفضل توقيت (Entry Timing) للدخول في ${symbol} بناءً على السيولة؟` },
+        { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',   prompt: `حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.` },
+        { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',     prompt: `حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.` },
+        { id: 'risk',   name: 'خبير المخاطر',     model: 'claude',   prompt: `حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة المثالية مع تقييم السيناريو الأسوأ.` },
+        { id: 'macro',  name: 'خبير الماكرو',     model: 'openai',   prompt: `حلل الوضع الاقتصادي العام وتأثيره على ${symbol} مع مراعاة العلاقات بين الأصول.` },
+        { id: 'pattern',name: 'خبير الأنماط',     model: 'deepseek', prompt: `هل ترى أي أنماط تاريخية متكررة (Fractals) في حركة ${symbol} الحالية؟ حلل رياضياً.` },
+        { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'glm',      prompt: `ما هو أفضل توقيت (Entry Timing) للدخول في ${symbol} بناءً على السيولة والسياق العربي؟` },
       ];
 
       // Call all roles in parallel
@@ -186,25 +206,34 @@ export class AIOrchestratorService {
         }
       }
 
-      // Fallback for Master Strategy if Gemini fails or analyses is empty
+      // Master Strategy — try Gemini first, then OpenAI
       let masterStrategyContent = 'لم يتم التوصل لاستراتيجية موحدة حالياً.';
       
       if (analyses.length > 0) {
         try {
           const masterStrategy = await this.geminiService.analyze({
             symbol,
-            prompt: `بناءً على تحليلات المجلس التالية، لخص الاستراتيجية النهائية للتداول على ${symbol} بالعربية بشكل احترافي ومختصر:\n${analyses.map(a => `${a.role}: ${a.vote} (${a.confidence}%)`).join('\n')}`,
+            prompt: `بناءً على تحليلات المجلس التالية من 6 نماذج AI، لخص الاستراتيجية النهائية للتداول على ${symbol} بالعربية بشكل احترافي ومختصر:\n${analyses.map(a => `${a.role} (${a.model}): ${a.vote} (${a.confidence}%)`).join('\n')}`,
             type: 'signal_generation',
             language: 'ar',
           });
           masterStrategyContent = masterStrategy.content;
-        } catch (e) {
-          this.logger.warn(`Failed to generate master strategy: ${e.message}`);
-          masterStrategyContent = `إجماع المجلس: ${recommendation === 'BUY' ? 'شراء قوي' : recommendation === 'SELL' ? 'بيع قوي' : 'انتظار'} بنسبة ثقة ${consensusScore}%.`;
+        } catch {
+          try {
+            const masterStrategy = await this.openaiService.analyze({
+              symbol,
+              prompt: `بناءً على تحليلات المجلس التالية من 6 نماذج AI، لخص الاستراتيجية النهائية للتداول على ${symbol} بالعربية:\n${analyses.map(a => `${a.role} (${a.model}): ${a.vote} (${a.confidence}%)`).join('\n')}`,
+              type: 'signal_generation',
+              language: 'ar',
+            });
+            masterStrategyContent = masterStrategy.content;
+          } catch {
+            masterStrategyContent = `إجماع المجلس (6 نماذج): ${recommendation === 'BUY' ? 'شراء قوي' : recommendation === 'SELL' ? 'بيع قوي' : 'انتظار'} بنسبة ثقة ${consensusScore}%.`;
+          }
         }
       }
 
-      this.logger.log(`✅ Consensus achieved: ${recommendation} (${consensusScore}%) in ${Date.now() - start}ms`);
+      this.logger.log(`✅ Consensus achieved: ${recommendation} (${consensusScore}%) from ${analyses.length}/6 models in ${Date.now() - start}ms`);
 
       return {
         consensusScore,
@@ -225,7 +254,7 @@ export class AIOrchestratorService {
   }
 
   /**
-   * Analyze with ALL models and combine results
+   * Analyze with ALL 6 models and combine results
    * Returns a comprehensive multi-model analysis
    */
   async analyzeWithAllModels(request: AIAnalysisRequest): Promise<{
@@ -235,12 +264,15 @@ export class AIOrchestratorService {
     // Enrich with RAG context
     const enrichedRequest = await this._enrichWithContext(request);
 
-    this.logger.debug(`🎼 Multi-model analysis for ${enrichedRequest.type}`);
+    this.logger.debug(`🎼 Multi-model analysis for ${enrichedRequest.type} — 6 models`);
 
     const results = await Promise.allSettled([
       this.groqService.analyze(enrichedRequest),
       this.glmService.analyze(enrichedRequest),
       this.geminiService.analyze(enrichedRequest),
+      this.deepseekService.analyze(enrichedRequest),
+      this.openaiService.analyze(enrichedRequest),
+      this.claudeService.analyze(enrichedRequest),
     ]);
 
     const analyses: AIAnalysisResponse[] = [];
@@ -252,20 +284,23 @@ export class AIOrchestratorService {
 
     const consensus =
       analyses.length > 0
-        ? `تم الحصول على ${analyses.length} تحليل من ${analyses.length} نماذج ذكاء اصطناعي`
+        ? `تم الحصول على ${analyses.length} تحليل من ${analyses.length}/6 نماذج ذكاء اصطناعي`
         : 'لا توجد نماذج متاحة حالياً';
 
     return { analyses, consensus };
   }
 
   /**
-   * Get available models and their status
+   * Get available models and their status — 6 models
    */
   getModelsStatus(): { model: string; available: boolean; specialty: string }[] {
     return [
-      { model: 'Groq/Llama 3.3 70B', available: true, specialty: 'سرعة فائقة — تحليل المشاعر' },
-      { model: 'GLM-4 (Zhipu AI)', available: true, specialty: 'تحليل عربي — سياق طويل 200k' },
-      { model: 'Gemini 2.0 Flash', available: true, specialty: 'تحليل إبداعي — استراتيجية' },
+      { model: 'Groq/Llama 3.3 70B',   available: true, specialty: '⚡ سرعة فائقة — تحليل المشاعر والترجمة الفورية' },
+      { model: 'GLM-4 (Zhipu AI)',      available: true, specialty: '🧠 تحليل عربي — سياق طويل 200k' },
+      { model: 'Gemini 2.0 Flash',      available: true, specialty: '💎 تحليل إبداعي — استراتيجية ومنطق مهيكل' },
+      { model: 'DeepSeek-V3',           available: true, specialty: '🔬 استدلال عميق — تحليل كمّي ورياضي' },
+      { model: 'GPT-4o (OpenAI)',        available: true, specialty: '🤖 متعدد المهارات — ماكرو وتحليل الأصول المتقاطعة' },
+      { model: 'Claude 3.5 Sonnet',      available: true, specialty: '🛡️ تركيز على السلامة — مخاطر وامتثال' },
     ];
   }
 
@@ -319,6 +354,12 @@ export class AIOrchestratorService {
         return this.glmService.analyze(request);
       case 'gemini':
         return this.geminiService.analyze(request);
+      case 'deepseek':
+        return this.deepseekService.analyze(request);
+      case 'openai':
+        return this.openaiService.analyze(request);
+      case 'claude':
+        return this.claudeService.analyze(request);
       default:
         return this.geminiService.analyze(request);
     }

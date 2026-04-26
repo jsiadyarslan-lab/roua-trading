@@ -3,11 +3,11 @@
   "start": "bash start.sh",
   "build": {
     "commands": [
-      "bunx prisma generate --schema=./prisma/schema.prisma",
-      "bun run build"
+      "npx prisma generate --schema=./prisma/schema.prisma",
+      "npm run build"
     ]
   },
   "install": {
-    "commands": ["bun install --no-frozen-lockfile"]
+    "commands": ["npm ci --workspaces --include-workspace-root"]
   }
 }

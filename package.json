@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
-    "start": "cd apps/web && bun x next start -H 0.0.0.0",
+    "start": "bash start.sh",
     "lint": "turbo lint",
     "dev:web": "turbo dev --filter=@roua/web",
     "dev:api": "turbo dev --filter=@roua/api",

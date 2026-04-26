@@ -1,9 +1,9 @@
 #!/bin/bash
 # Railway startup script for Roua Trading
 # Production startup with full stack: NestJS API + Next.js Web
-# Uses Bun runtime (oven/bun:1 Docker image)
+# Supports Bun when available, otherwise falls back to npm/npx
 
-set -e
+set -euo pipefail
 
 # Load local environment fallback when running outside Railway or when env vars are absent.
 if [ -z "${DATABASE_URL:-}" ] && [ -f ".env" ]; then
@@ -19,6 +19,43 @@ if [ -z "${DATABASE_URL:-}" ] && [ -f ".env" ]; then
   done < .env
 fi
 
+USE_BUN=0
+if command -v bun >/dev/null 2>&1; then
+  USE_BUN=1
+fi
+
+run_prisma() {
+  if [ "$USE_BUN" -eq 1 ]; then
+    bunx prisma "$@"
+  else
+    npx --yes prisma "$@"
+  fi
+}
+
+run_api_build() {
+  if [ "$USE_BUN" -eq 1 ]; then
+    bun run build
+  else
+    npm run build
+  fi
+}
+
+run_web_build() {
+  if [ "$USE_BUN" -eq 1 ]; then
+    bunx next build --webpack
+  else
+    npm run build
+  fi
+}
+
+run_web_start() {
+  if [ "$USE_BUN" -eq 1 ]; then
+    bunx next start -H 0.0.0.0
+  else
+    npm run start
+  fi
+}
+
 # Determine the project root (Railway runs from /app)
 PROJECT_ROOT="$(pwd)"
 
@@ -30,15 +67,16 @@ echo "RP_ID: ${RP_ID:-localhost}"
 echo "ORIGIN: ${ORIGIN:-not set}"
 echo "NODE_ENV: ${NODE_ENV:-development}"
 echo "DEV_MODE: ${DEV_MODE:-not set}"
+echo "RUNNER: $([ "$USE_BUN" -eq 1 ] && echo bun || echo npm)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # ── Step 1: Generate Prisma client (must be done before db push) ──
 echo "📦 Generating Prisma client..."
-bunx prisma generate --schema=./prisma/schema.prisma
+run_prisma generate --schema=./prisma/schema.prisma
 
 # ── Step 2: Apply Prisma schema to database ──
 echo "📦 Applying Prisma schema..."
-bunx prisma db push --schema=./prisma/schema.prisma --accept-data-loss 2>&1 || echo "⚠️ prisma db push had issues — will verify tables below"
+run_prisma db push --schema=./prisma/schema.prisma --accept-data-loss 2>&1 || echo "⚠️ prisma db push had issues — will verify tables below"
 
 # ── Step 3: Verify critical tables exist ──
 # Prisma db:push sometimes silently fails to create new tables when
@@ -170,7 +208,7 @@ if [ -n "${DATABASE_URL:-}" ]; then
 EOSQL
 
   echo "📦 Executing safety-net SQL via prisma db execute..."
-  bunx prisma db execute --schema=./prisma/schema.prisma --file /tmp/ensure_tables.sql 2>&1 && echo "📦 Safety-net SQL executed successfully" || echo "⚠️ Safety-net SQL had issues (non-fatal — tables may already exist with different schema)"
+  run_prisma db execute --schema=./prisma/schema.prisma --file /tmp/ensure_tables.sql 2>&1 && echo "📦 Safety-net SQL executed successfully" || echo "⚠️ Safety-net SQL had issues (non-fatal — tables may already exist with different schema)"
 
   rm -f /tmp/ensure_tables.sql
 else
@@ -178,6 +216,17 @@ else
 fi
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Build artifacts on the fly if they are missing
+if [ ! -f "apps/api/dist/main.js" ]; then
+  echo "⚠️ API dist missing — building API..."
+  (cd apps/api && run_api_build)
+fi
+
+if [ ! -d "apps/web/.next" ]; then
+  echo "⚠️ Next build missing — building web..."
+  (cd apps/web && run_web_build)
+fi
 
 # Start the NestJS API in the background
 echo "🔧 Starting NestJS API server (port 3001)..."
@@ -195,7 +244,7 @@ fi
 
 # Wait for API to be ready
 echo "⏳ Waiting for API to be ready..."
-# Use a public endpoint for readiness; /api/engine/health is protected by AuthGuard.
+# Use a public endpoint for readiness; /api/auth/session is public and returns authenticated=false when no session exists.
 API_HEALTH_URL="http://127.0.0.1:3001/api/auth/session"
 for i in $(seq 1 45); do
   if curl -fsS "$API_HEALTH_URL" > /dev/null 2>&1; then
@@ -215,4 +264,4 @@ cd "$PROJECT_ROOT"
 echo "🌐 Starting Next.js server (port 3000)..."
 cd apps/web
 trap "kill $API_PID 2>/dev/null || true" EXIT
-bunx next start -H 0.0.0.0
+run_web_start

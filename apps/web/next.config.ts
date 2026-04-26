@@ -52,6 +52,13 @@ const nextConfig: NextConfig = {
         source: '/api/portfolio/:path*',
         destination: `${apiTarget}/api/portfolio/:path*`,
       },
+
+      // ── Health check → NestJS ──
+      // Proxies /api/health to NestJS for DB connectivity and schema verification.
+      {
+        source: '/api/health',
+        destination: `${apiTarget}/api/health`,
+      },
     ];
   },
 };

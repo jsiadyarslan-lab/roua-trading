@@ -16,21 +16,25 @@ import { NotificationCenter } from '@/components/dashboard/NotificationCenter'
 
 /* ─── Design tokens ─── */
 const T = {
-  bg:       'var(--bg)',
-  bg2:      'var(--surface)',
+  bg:       '#0B0E14',
+  bg2:      '#1A1D29',
   blue:     'var(--primary)',
   accent:   'var(--accent)',
   green:    'var(--success)',
   red:      'var(--danger)',
   amber:    '#FFB800',
   purple:   '#B388FF',
-  text:     'var(--foreground)',
-  text2:    'var(--muted)',
-  text3:    'var(--muted)',
+  text:     '#F0F2F5',
+  text2:    '#8B92A8',
+  text3:    '#8B92A8',
   border:   'var(--card-border)',
   border2:  'rgba(255, 255, 255, 0.12)',
-  navGlass: 'rgba(15, 17, 19, 0.85)',
+  navGlass: 'rgba(11, 14, 20, 0.85)',
   card:     'var(--surface)',
+  success:  '#00FFA3',
+  danger:   '#FF4757',
+  warning:  '#FFB800',
+  info:     '#00D4FF',
 }
 
 const H_NEWS  = 26
@@ -438,7 +442,7 @@ function MainNav() {
       height: H_NAV,
       backdropFilter: 'blur(20px) saturate(1.6)',
       WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
-      background: T.navGlass,
+      background: 'rgba(11, 14, 20, 0.85)',
       display: 'flex', alignItems: 'center',
       padding: '0 8px', gap: 0,
       overflowX: 'clip', overflowY: 'visible',

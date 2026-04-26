@@ -49,12 +49,16 @@
 :root,
 [data-theme="dark"] {
   /* ── QUANTUM V5 DESIGN CLONE ── */
-  --bg: #060b13;
-  --surface: #0d1421;
+  --bg: #0B0E14;
+  --surface: #1A1D29;
   --primary: #0A84FF;
   --accent: #00f2ff;
-  --success: #00ff88;
-  --danger: #ff4444;
+  --success: #00FFA3;
+  --success-deep: #00CC82;
+  --danger: #FF4757;
+  --danger-deep: #FF3344;
+  --warning: #FFB800;
+  --info: #00D4FF;
   --muted: #94a3b8;
   --card-border: rgba(255, 255, 255, 0.05);
   --radius: 8px;
@@ -69,6 +73,30 @@
   --mono: 'JetBrains Mono', monospace;
   --ui: 'Inter', system-ui, sans-serif;
 
+  /* NEW: Text hierarchy */
+  --text-heading: #F0F2F5;
+  --text-body: #8B92A8;
+  --text-data: #FFFFFF;
+
+  /* NEW: Card system */
+  --card-bg: #1A1D29;
+  --card-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  --card-glass: rgba(26, 29, 41, 0.7);
+  --card-glass-blur: blur(10px);
+  --card-glass-border: rgba(255,255,255,0.02);
+
+  /* NEW: Balance card gradient */
+  --balance-gradient: linear-gradient(135deg, rgba(0,212,255,0.1), transparent);
+
+  /* NEW: Divider */
+  --divider: rgba(255,255,255,0.06);
+
+  /* NEW: Striped row for tables */
+  --row-stripe: rgba(255,255,255,0.02);
+
+  /* NEW: Hover lift */
+  --hover-lift: translateY(-1px);
+
   /* Legacy & compatibility mapping */
   --green: var(--success);
   --red: var(--danger);
@@ -77,15 +105,15 @@
   --font-ui: var(--ui);
   
   /* Navigation variables */
-  --bg-nav: rgba(10, 12, 16, 0.94);
-  --accent-bg: rgba(0, 229, 255, 0.06);
+  --bg-nav: rgba(11, 14, 20, 0.94);
+  --accent-bg: rgba(0, 212, 255, 0.06);
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
-  --bg-active: rgba(0, 229, 255, 0.08);
-  --accent-border: rgba(0, 229, 255, 0.2);
+  --bg-active: rgba(0, 212, 255, 0.08);
+  --accent-border: rgba(0, 212, 255, 0.2);
   --bg-row-hover: rgba(255, 255, 255, 0.04);
   --text-muted: var(--muted);
-  --profit-bg: rgba(0, 255, 136, 0.08);
-  --border-profit: rgba(0, 255, 136, 0.2);
+  --profit-bg: rgba(0, 255, 163, 0.08);
+  --border-profit: rgba(0, 255, 163, 0.2);
   --profit: var(--success);
   --loss: var(--danger);
   --bg-input: rgba(255, 255, 255, 0.04);
@@ -94,14 +122,14 @@
   
   /* shadcn dark theme compatibility */
   --background: var(--bg);
-  --foreground: #E6E7E8;
+  --foreground: #F0F2F5;
   --card: var(--surface);
-  --card-foreground: #E6E7E8;
+  --card-foreground: #F0F2F5;
   --popover: var(--surface);
-  --popover-foreground: #E6E7E8;
+  --popover-foreground: #F0F2F5;
   --primary-foreground: #ffffff;
   --secondary: #16181A;
-  --secondary-foreground: #E6EBF5;
+  --secondary-foreground: #F0F2F5;
   --muted-foreground: var(--muted);
   --accent-foreground: #ffffff;
   --destructive: var(--danger);
@@ -113,11 +141,11 @@
   --chart-4: #B388FF;
   --chart-5: var(--danger);
   --sidebar: var(--bg);
-  --sidebar-foreground: #E6EBF5;
+  --sidebar-foreground: #F0F2F5;
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: rgba(0, 229, 255, 0.08);
-  --sidebar-accent-foreground: #E6EBF5;
+  --sidebar-accent: rgba(0, 212, 255, 0.08);
+  --sidebar-accent-foreground: #F0F2F5;
   --sidebar-border: var(--card-border);
   --sidebar-ring: var(--primary);
 }
@@ -245,13 +273,15 @@
   padding-inline-start: initial;
 }
 
-/* Standardized Card (Refined) */
+/* Standardized Card (Glassmorphism) */
 .card {
-  background: linear-gradient(180deg, rgba(11, 18, 28, 0.98), rgba(7, 12, 20, 0.99));
-  border: 1px solid rgba(255, 255, 255, 0.10);
-  border-radius: calc(var(--radius) + 2px);
+  background: var(--card-glass);
+  backdrop-filter: var(--card-glass-blur);
+  -webkit-backdrop-filter: var(--card-glass-blur);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
   padding: 16px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255,255,255,0.04);
+  box-shadow: var(--card-shadow);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   overflow: hidden;
@@ -261,8 +291,8 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at top right, rgba(0, 229, 255, 0.08), transparent 38%),
-    radial-gradient(circle at bottom left, rgba(10, 132, 255, 0.06), transparent 34%);
+    radial-gradient(circle at top right, rgba(0, 212, 255, 0.06), transparent 38%),
+    radial-gradient(circle at bottom left, rgba(10, 132, 255, 0.04), transparent 34%);
   opacity: 1;
   pointer-events: none;
 }
@@ -276,8 +306,8 @@
   pointer-events: none;
 }
 .card:hover {
-  border-color: rgba(0, 229, 255, 0.26);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.42), 0 0 18px rgba(0, 229, 255, 0.10), inset 0 1px 0 rgba(255,255,255,0.05);
+  border-color: rgba(0,212,255,0.15);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.4), 0 0 15px rgba(0,212,255,0.05);
 }
 .card:hover::after {
   opacity: 1;
@@ -496,4 +526,66 @@ button:disabled {
 .dash-main-chart {
   flex: 1;
   min-height: 400px;
+}
+
+/* ── New Animation Keyframes ── */
+@keyframes fadeInSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes countUp {
+  from { opacity: 0.5; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ledPulse {
+  0%, 100% { opacity: 0.6; box-shadow: 0 0 4px currentColor; }
+  50% { opacity: 1; box-shadow: 0 0 8px currentColor, 0 0 12px currentColor; }
+}
+
+/* ── New Utility Classes ── */
+.animate-fade-in { animation: fadeInSlideUp 0.4s ease-out forwards; }
+.animate-stagger-1 { animation-delay: 0.05s; }
+.animate-stagger-2 { animation-delay: 0.1s; }
+.animate-stagger-3 { animation-delay: 0.15s; }
+.animate-stagger-4 { animation-delay: 0.2s; }
+.animate-stagger-5 { animation-delay: 0.25s; }
+
+.led-online { animation: ledPulse 2s ease-in-out infinite; color: var(--success); }
+.led-offline { animation: ledPulse 2s ease-in-out infinite; color: var(--danger); }
+
+.data-number {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  color: var(--text-data);
+  font-variant-numeric: tabular-nums;
+}
+
+.text-heading {
+  color: var(--text-heading);
+  font-family: 'Cairo', sans-serif;
+}
+
+.text-body {
+  color: var(--text-body);
+  font-family: 'Cairo', sans-serif;
+}
+
+.balance-card {
+  background: var(--balance-gradient);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+}
+
+.striped-rows > :nth-child(even) {
+  background: var(--row-stripe);
+}
+
+.btn-action {
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+.btn-action:hover {
+  transform: translateY(-1px);
 }

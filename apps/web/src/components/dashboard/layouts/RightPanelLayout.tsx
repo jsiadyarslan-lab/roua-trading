@@ -11,24 +11,24 @@ import { useDecisionFlow } from '@/hooks/useDecisionFlow'
 import { useTabAlertStore, type TabId } from '@/hooks/useTabAlertStore'
 
 const T = {
-  bg: '#0F1113',
-  bg2: '#111214',
+  bg: '#0B0E14',
+  bg2: '#1A1D29',
   bg3: '#16181A',
-  card: '#111214',
-  border: 'rgba(0, 229, 255, 0.08)',
-  border2: 'rgba(0, 229, 255, 0.15)',
+  card: '#1A1D29',
+  border: 'rgba(255,255,255,0.05)',
+  border2: 'rgba(0,212,255,0.12)',
   primary: '#0A84FF',
-  accent: '#00E5FF',
-  success: '#00C853',
-  danger: '#FF3B30',
+  accent: '#00D4FF',
+  success: '#00FFA3',
+  danger: '#FF4757',
   amber: '#FFB800',
   purple: '#B388FF',
-  cyan: '#00E5FF',
-  green: '#00C853',
-  red: '#FF3B30',
-  text: '#E6EBF5',
-  text2: '#8090A8',
-  text3: '#A0AFC3',
+  cyan: '#00D4FF',
+  green: '#00FFA3',
+  red: '#FF4757',
+  text: '#F0F2F5',
+  text2: '#8B92A8',
+  text3: '#8B92A8',
 }
 
 export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
@@ -69,11 +69,13 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
         height: '100%',
         minHeight: 0,
         maxHeight: '100%',
-        background: 'linear-gradient(180deg, rgba(8,16,24,0.98), rgba(11,17,24,0.98))',
-        border: `1px solid rgba(0, 229, 255, 0.16)`,
+        background: 'rgba(26, 29, 41, 0.7)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.05)',
         borderRadius: 14,
         overflow: 'hidden',
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 16px 34px rgba(0,0,0,0.22)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
       }}
     >
       <div

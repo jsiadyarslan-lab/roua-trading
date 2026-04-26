@@ -25,13 +25,16 @@ import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone } from '@/
 const DASHBOARD_SYMBOLS = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA']
 
 const T = {
-  bg: '#0F1113',
-  card: '#111214',
-  border: 'rgba(0, 229, 255, 0.08)',
-  cyan: '#00E5FF',
-  success: '#00C853',
-  text: '#E6EBF5',
-  text3: '#A0AFC3',
+  bg: '#0B0E14',
+  card: '#1A1D29',
+  border: 'rgba(255,255,255,0.05)',
+  cyan: '#00D4FF',
+  success: '#00FFA3',
+  danger: '#FF4757',
+  warning: '#FFB800',
+  info: '#00D4FF',
+  text: '#F0F2F5',
+  text3: '#8B92A8',
 }
 
 const HEADER_H = 100
@@ -130,18 +133,19 @@ export default function DashboardPage() {
       <style>{`
         .dashboard-shell {
           min-height: calc(100dvh - ${HEADER_H}px);
-          background: ${T.bg};
-          color: ${T.text};
+          background: #0B0E14;
+          background-image: radial-gradient(circle at top, rgba(26,35,50,0.3), transparent 50%);
+          color: #F0F2F5;
           overflow: hidden;
         }
 
         .dash-grid {
           display: grid;
           grid-template-columns: minmax(240px, 280px) minmax(0, 1fr) minmax(300px, 350px);
-          gap: 8px;
+          gap: 16px;
           min-height: calc(100dvh - ${HEADER_H}px);
           height: calc(100dvh - ${HEADER_H}px);
-          padding: 8px;
+          padding: 16px;
           box-sizing: border-box;
           overflow: hidden;
         }
@@ -153,11 +157,14 @@ export default function DashboardPage() {
         }
 
         .panel {
-          background: ${T.card};
-          border: 1px solid ${T.border};
+          background: rgba(26, 29, 41, 0.7);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          border: 1px solid rgba(255,255,255,0.05);
           border-radius: 12px;
           overflow: hidden;
           min-width: 0;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.3);
         }
 
         .panel-header {
@@ -167,8 +174,8 @@ export default function DashboardPage() {
           align-items: center;
           justify-content: space-between;
           gap: 12px;
-          border-bottom: 1px solid ${T.border};
-          background: linear-gradient(90deg, rgba(0, 229, 255, 0.06), transparent);
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+          background: linear-gradient(90deg, rgba(0,212,255,0.05), transparent);
           box-sizing: border-box;
         }
 

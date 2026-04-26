@@ -15,21 +15,21 @@ import {
 } from '@/components/dashboard/DesktopContextPanels'
 
 const T = {
-  shell: '#09111A',
-  rail: '#0C1621',
-  railSoft: '#111D2A',
-  panel: '#0E1824',
-  panelTop: '#122030',
-  border: 'rgba(148, 163, 184, 0.12)',
-  borderStrong: 'rgba(0, 229, 255, 0.30)',
+  shell: '#0B0E14',
+  rail: '#0F1219',
+  railSoft: '#141821',
+  panel: '#1A1D29',
+  panelTop: '#1E2233',
+  border: 'rgba(255,255,255,0.05)',
+  borderStrong: 'rgba(0,212,255,0.20)',
   text: '#E8EEF8',
   textSoft: '#A2B4C8',
   textMute: '#6F849C',
-  cyan: '#00E5FF',
+  cyan: '#00D4FF',
   blue: '#3B82F6',
-  green: '#00C853',
-  red: '#FF5A54',
-  amber: '#F5B942',
+  green: '#00FFA3',
+  red: '#FF4757',
+  amber: '#FFB800',
   purple: '#B388FF',
 }
 
@@ -144,8 +144,10 @@ export function LeftSidebarLayout() {
         borderRadius: 16,
         overflow: 'hidden',
         border: `1px solid ${T.borderStrong}`,
-        background: `linear-gradient(180deg, ${T.shell}, #060B12)`,
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03), 0 14px 26px rgba(0,0,0,0.22)',
+        background: 'rgba(26, 29, 41, 0.7)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
       }}
     >
       <aside

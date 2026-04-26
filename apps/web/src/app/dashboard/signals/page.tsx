@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Zap,
@@ -75,7 +76,7 @@ function getSignalConfig(action: 'BUY' | 'SELL' | 'WAIT') {
 }
 
 // ── Signal Card Component ──
-function SignalCard({ signal, index, onRefresh, onCancel }: { signal: Signal; index: number; onRefresh: (pair: string) => void; onCancel: (id: string) => void }) {
+function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal: Signal; index: number; onRefresh: (pair: string) => void; onCancel: (id: string) => void; onExecute: (signal: Signal) => void }) {
   const config = getSignalConfig(signal.action)
   const { Icon } = config
 
@@ -217,8 +218,7 @@ function SignalCard({ signal, index, onRefresh, onCancel }: { signal: Signal; in
             <RefreshCw size={10} /> تجديد
           </button>
           <button
-            disabled
-            title="قريباً — ميزة التنفيذ التلقائي قيد التطوير"
+            onClick={() => onExecute(signal)}
             style={{
               display: 'flex', alignItems: 'center', gap: '4px',
               padding: '5px 10px', borderRadius: '6px',
@@ -226,19 +226,13 @@ function SignalCard({ signal, index, onRefresh, onCancel }: { signal: Signal; in
               background: 'linear-gradient(135deg, var(--purple-bg), rgba(162, 89, 255, 0.08))',
               color: 'var(--purple)', fontSize: '10px',
               fontFamily: 'var(--font-ar), Inter, sans-serif',
-              cursor: 'default',
+              cursor: 'pointer',
               position: 'relative',
               overflow: 'hidden',
+              transition: 'all 0.15s',
             }}
           >
             <Sparkles size={10} /> تنفيذ
-            <span style={{
-              fontSize: '7px', fontWeight: 700,
-              padding: '0px 4px', borderRadius: '3px',
-              background: 'var(--purple-bg)', border: '1px solid var(--purple-border)',
-              color: 'var(--purple)', marginLeft: '2px',
-              fontFamily: 'var(--font-ar), Inter, sans-serif',
-            }}>قريباً</span>
           </button>
           <button
             onClick={() => onCancel(signal.id)}
@@ -261,6 +255,7 @@ function SignalCard({ signal, index, onRefresh, onCancel }: { signal: Signal; in
 
 // ── Main Page ──
 export default function SignalsPage() {
+  const router = useRouter()
   const { loading: authLoading } = useAuth()
   const [signals, setSignals] = useState<Signal[]>([])
   const [loading, setLoading] = useState(true)
@@ -296,6 +291,16 @@ export default function SignalsPage() {
       await fetch(`/api/signals/${id}`, { method: 'DELETE' })
       setSignals(prev => prev.filter(s => s.id !== id))
     } catch { /* silent */ }
+  }
+
+  const handleExecute = (signal: Signal) => {
+    // Navigate to trading page with signal context via query params
+    const params = new URLSearchParams({
+      symbol: signal.pair,
+      side: signal.action === 'BUY' ? 'BUY' : signal.action === 'SELL' ? 'SELL' : 'BUY',
+    })
+    if (signal.entryPrice) params.set('price', String(signal.entryPrice))
+    router.push(`/dashboard/trading?${params.toString()}`)
   }
 
   if (authLoading) {
@@ -532,6 +537,7 @@ export default function SignalsPage() {
                 index={i}
                 onRefresh={handleGenerate}
                 onCancel={handleCancel}
+                onExecute={handleExecute}
               />
             ))}
           </AnimatePresence>

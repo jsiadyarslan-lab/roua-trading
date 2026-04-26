@@ -222,8 +222,9 @@ export default function PortfolioPage() {
         setClosedPositions(Array.isArray(data) ? data : (data.data || data.positions || []))
       }
       // Don't override apiError from open positions fetch
-    } catch {
-      // Closed positions fetch failure is non-critical
+    } catch (e: any) {
+      // Closed positions fetch failure is non-critical, but log a user-friendly message
+      console.warn('تعذر جلب الصفقات المغلقة:', e?.message || 'خطأ غير معروف')
     }
   }, [])
 
@@ -234,7 +235,9 @@ export default function PortfolioPage() {
         const data = await res.json()
         setSummary(data.data || data.summary || null)
       }
-    } catch { /* */ }
+    } catch (e: any) {
+      console.warn('تعذر جلب ملخص المحفظة:', e?.message || 'خطأ غير معروف')
+    }
   }, [])
 
   const fetchTrades = useCallback(async () => {
@@ -244,7 +247,9 @@ export default function PortfolioPage() {
         const data = await res.json()
         setTrades(Array.isArray(data) ? data : (data.data || data.trades || []))
       }
-    } catch { /* */ }
+    } catch (e: any) {
+      console.warn('تعذر جلب سجل الصفقات:', e?.message || 'خطأ غير معروف')
+    }
   }, [])
 
   const fetchAll = useCallback(async () => {
@@ -329,8 +334,11 @@ export default function PortfolioPage() {
   // ── Risk metrics ──
   const allPnlValues = [...trades.map(t => t.pnl || 0), ...closedPaperTrades.map(p => p.realizedPnl || 0)]
   const avgWin = winningTrades.length > 0 ? winningTrades.reduce((s, t) => s + ('pnl' in t ? (t.pnl || 0) : (t as ClosedPaperTrade).realizedPnl || 0), 0) / winningTrades.length : 0
-  const avgLoss = losingTrades.length > 0 ? Math.abs(losingTrades.reduce((s, t) => s + ('pnl' in t ? (t.pnl || 0) : -(t as ClosedPaperTrade).realizedPnl || 0), 0) / losingTrades.length) : 0
-  const profitFactor = avgLoss > 0 ? avgWin / avgLoss : avgWin > 0 ? Infinity : 0
+  const avgLoss = losingTrades.length > 0 ? losingTrades.reduce((s, t) => {
+      const loss = 'pnl' in t ? (t.pnl || 0) : (t as ClosedPaperTrade).realizedPnl || 0
+      return s + Math.abs(loss)
+    }, 0) / losingTrades.length : 0
+  const profitFactor = avgLoss > 0 ? Math.min(avgWin / avgLoss, 999) : avgWin > 0 ? 999 : 0
   const maxDrawdown = (() => {
     let peak = 0, maxDD = 0, cumPnl = 0
     performanceData.forEach(d => {
@@ -949,7 +957,7 @@ export default function PortfolioPage() {
         <>
           {/* Risk Stats */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-            <StatCard label="معامل الربح" value={profitFactor === Infinity ? '∞' : profitFactor.toFixed(2)} color={T.green} icon={TrendingUp}
+            <StatCard label="معامل الربح" value={profitFactor >= 999 ? '999+' : profitFactor.toFixed(2)} color={T.green} icon={TrendingUp}
               note={profitFactor >= 2 ? 'ممتاز' : profitFactor >= 1.5 ? 'جيد' : profitFactor >= 1 ? 'مقبول' : 'خطر'} />
             <StatCard label="أقصى انخفاض" value={`$${fmt(maxDrawdown, 2)}`} color={T.red} icon={TrendingDown}
               note={maxDrawdown === 0 ? 'لا انخفاض' : undefined} />

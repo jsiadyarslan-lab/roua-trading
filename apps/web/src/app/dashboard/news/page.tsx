@@ -59,6 +59,7 @@ export default function NewsPage() {
   const [sentimentFilter, setSentimentFilter] = useState('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [displayCount, setDisplayCount] = useState(50);
 
   const fetchNews = useCallback(async () => {
     try {
@@ -195,7 +196,7 @@ export default function NewsPage() {
       </div>
 
       {/* Stats Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 20 }}>
         {[
           { icon: Globe, label: `${stats.total} خبر`, color: T.blue },
           { icon: TrendingUp, label: `${stats.positive} إيجابي`, color: T.green },
@@ -329,8 +330,9 @@ export default function NewsPage() {
           </p>
         </div>
       ) : (
+        <>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {filteredItems.map((item, index) => {
+          {filteredItems.slice(0, displayCount).map((item, index) => {
             const sentiment = getSentimentBadge(item.sentimentLabel);
             const impact = getImpactBadge(item.impactLevel);
             const SentimentIcon = sentiment.icon;
@@ -487,6 +489,23 @@ export default function NewsPage() {
             );
           })}
         </div>
+        {filteredItems.length > displayCount && (
+          <div style={{ textAlign: 'center', marginTop: 20 }}>
+            <button
+              onClick={() => setDisplayCount(prev => prev + 50)}
+              style={{
+                padding: '10px 32px', borderRadius: 12,
+                border: `0.5px solid ${T.border}`, background: T.card,
+                color: T.text2, fontSize: 12, fontWeight: 800,
+                fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              تحميل المزيد ({filteredItems.length - displayCount} متبقي)
+            </button>
+          </div>
+        )}
+        </>
       )}
     </div>
   );

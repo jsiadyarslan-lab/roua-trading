@@ -77,29 +77,45 @@ export const useNotificationStore = create<NotificationState>()(
 
         set((state) => ({
           notifications: [notif, ...state.notifications].slice(0, 100),
-          toasts: [notif, ...state.toasts].slice(0, 5),
+          toasts: [notif, ...state.toasts].slice(0, 10),
         }))
 
         // Play sound for urgent/high priority
         if (
           settings.soundEnabled &&
           (n.priority === 'urgent' || n.priority === 'high') &&
-          typeof navigator !== 'undefined' &&
-          // @ts-ignore
-          (navigator.userActivation?.hasBeenActive ?? true)
+          typeof window !== 'undefined'
         ) {
           try {
             const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
             const osc = ctx.createOscillator()
             const gain = ctx.createGain()
+            gain.gain.value = 0.15
             osc.connect(gain)
             gain.connect(ctx.destination)
-            osc.frequency.value = n.action === 'BUY' ? 880 : n.action === 'SELL' ? 660 : 440
-            osc.type = 'sine'
-            gain.gain.setValueAtTime(0.15, ctx.currentTime)
-            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4)
-            osc.start()
-            osc.stop(ctx.currentTime + 0.4)
+
+            if (n.action === 'BUY') {
+              osc.frequency.value = 523.25
+              osc.type = 'sine'
+              osc.start()
+              setTimeout(() => {
+                osc.frequency.value = 659.25
+                setTimeout(() => { osc.stop(); ctx.close() }, 150)
+              }, 150)
+            } else if (n.action === 'SELL') {
+              osc.frequency.value = 392
+              osc.type = 'sine'
+              osc.start()
+              setTimeout(() => {
+                osc.frequency.value = 329.63
+                setTimeout(() => { osc.stop(); ctx.close() }, 150)
+              }, 150)
+            } else {
+              osc.frequency.value = 440
+              osc.type = 'sine'
+              osc.start()
+              setTimeout(() => { osc.stop(); ctx.close() }, 200)
+            }
           } catch {}
         }
       },
@@ -134,12 +150,9 @@ export const useNotificationStore = create<NotificationState>()(
         settings: {
           ...DEFAULT_SETTINGS,
           ...(persistedState?.settings ?? {}),
-          minConfidence: Math.min(
-            typeof persistedState?.settings?.minConfidence === 'number'
+          minConfidence: typeof persistedState?.settings?.minConfidence === 'number'
               ? persistedState.settings.minConfidence
               : DEFAULT_SETTINGS.minConfidence,
-            DEFAULT_SETTINGS.minConfidence
-          ),
         },
       }),
       partialize: (state) => ({

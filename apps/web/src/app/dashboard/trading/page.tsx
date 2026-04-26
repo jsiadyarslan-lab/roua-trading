@@ -174,6 +174,13 @@ export default function TradingPage() {
   // Auto-refresh timer
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // Ref to avoid credentialId dependency loop in fetchCredentials
+  const credentialIdRef = useRef<string | null>(null)
+  useEffect(() => { credentialIdRef.current = credentialId }, [credentialId])
+
+  // Minimum quantity for order validation
+  const MIN_QUANTITY = 0.001
+
   // Auth handled by useAuth hook
 
   // ── Fetch quote data from API ──
@@ -217,7 +224,7 @@ export default function TradingPage() {
         const data = await res.json()
         if (data.success) {
           setCredentials(data.data)
-          if (data.data.length > 0 && !credentialId) {
+          if (data.data.length > 0 && !credentialIdRef.current) {
             setCredentialId(data.data[0].id)
           }
         }
@@ -225,7 +232,7 @@ export default function TradingPage() {
     } catch (err) {
       console.error('Failed to fetch credentials:', err)
     }
-  }, [credentialId])
+  }, [])
 
   // ── Fetch positions ──
   const fetchPositions = useCallback(async () => {
@@ -299,9 +306,15 @@ export default function TradingPage() {
 
   // ── Execute order ──
   const handleExecuteOrder = async () => {
-    setSubmitting(true)
     setOrderError('')
     setOrderSuccess('')
+
+    if (!quantity || quantity < MIN_QUANTITY) {
+      setOrderError(`الكمية يجب أن تكون على الأقل ${MIN_QUANTITY}`)
+      return
+    }
+
+    setSubmitting(true)
 
     try {
       const body: Record<string, unknown> = {
@@ -678,7 +691,7 @@ export default function TradingPage() {
                 {/* Execute Button */}
                 <Button
                   onClick={handleExecuteOrder}
-                  disabled={submitting || quantity <= 0 || credentials.length === 0}
+                  disabled={submitting || quantity < MIN_QUANTITY || credentials.length === 0}
                   className={`w-full text-base font-medium ${
                     side === 'BUY'
                       ? 'bg-emerald-500 hover:bg-emerald-600 text-white'

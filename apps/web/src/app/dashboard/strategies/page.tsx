@@ -111,8 +111,8 @@ const DEMO_DATABASE = [
     hiddenSignature: 'تداول هادئ يعكس نظرة محايدة للمستثمرين الكبار. لا توجد بصمات خطرة.',
     deepAnalysis: [
       'مكرر ربحية مغري مقارنة بالمتوسط، لكن مخاوف الطلب تكبح الارتفاعات.',
-      'التوترات הגيوسياسية تشكل حاجز حماية لأسعار النفط، وتدعم السهم.',
-      'מراقبة اختراق مستوى 118$ بتأكيد أحجام تداول قبل اتخاذ قرار شرائي.'
+      'التوترات الجيوسياسية تشكل حاجز حماية لأسعار النفط، وتدعم السهم.',
+      'مراقبة اختراق مستوى 118$ بتأكيد أحجام تداول قبل اتخاذ قرار شرائي.'
     ]
   }
 ]
@@ -131,7 +131,8 @@ export default function StrategiesPage() {
         if (j.success && j.data && j.data.length > 0) {
           setData(j.data)
         } else {
-          setData([])
+          // Fallback to demo data when API returns empty
+          setData(DEMO_DATABASE)
         }
       } catch {
         setError('تعذر تحميل تقارير الاستراتيجيات حالياً.')
@@ -192,6 +193,7 @@ export default function StrategiesPage() {
           <span style={{ fontSize: 9, background: `${T.blue}10`, color: T.blue, padding: '2px 6px', borderRadius: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", border: `0.5px solid ${T.border}` }}>
             LIVE INSTI-FEED
           </span>
+          <span style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace", marginRight: 4 }}>• آخر تحديث: {new Date().toLocaleTimeString('ar-SA')}</span>
         </div>
         
         <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>

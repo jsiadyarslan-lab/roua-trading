@@ -221,7 +221,7 @@ export default function AIPage() {
     try {
       // Try NestJS first
       try {
-        const nestRes = await fetch('/api/ai/consensus-nest', {
+        const nestRes = await fetch('/api/ai/council', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ symbol: selectedSymbol }),
@@ -365,7 +365,7 @@ export default function AIPage() {
   // ── Render ──
   return (
     <div style={{
-      height: 'calc(100vh - 80px)',
+      height: 'calc(100vh - 108px)',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
@@ -465,9 +465,9 @@ export default function AIPage() {
             color: dirColor, fontFamily: "'JetBrains Mono', monospace",
           }}>
             {techData.dir === 'buy' ? <ArrowUpRight size={14} /> : techData.dir === 'sell' ? <ArrowDownRight size={14} /> : <Minus size={14} />}
-            {techData.price > 1000 ? techData.price.toFixed(2) : techData.price.toFixed(5)}
+            {techData.price > 1000 ? (techData.price?.toFixed(2) ?? '—') : (techData.price?.toFixed(5) ?? '—')}
             <span style={{ fontSize: 10, color: T.text3, fontWeight: 500 }}>
-              {techData.change >= 0 ? '+' : ''}{techData.change.toFixed(2)}%
+              {techData.change >= 0 ? '+' : ''}{techData.change?.toFixed(2) ?? '—'}%
             </span>
           </div>
         )}

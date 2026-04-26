@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { GitMerge, RefreshCw, TrendingUp, TrendingDown } from 'lucide-react'
+import { GitMerge, RefreshCw, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
 
 const T = { bg: '#04050C', card: '#08090F', blue: '#0A84FF', cyan: '#00C8FF', green: '#00FFC6', red: '#FF4D4D', amber: '#FFB800', purple: '#B388FF', text: '#E6EBF5', text2: '#8090A8', border: 'rgba(10,132,255,0.12)' }
 
 function corrColor(v: number): string {
+  if (isNaN(v)) return '#1A1D29' // default for NaN
   if (v >= 0.7)  return '#00FFC6'
   if (v >= 0.4)  return '#4ade80'
   if (v >= 0.1)  return '#86efac'
@@ -18,14 +19,19 @@ function corrColor(v: number): string {
 export default function CorrelationPage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const fetchCorr = async () => {
     setLoading(true)
+    setError('')
     try {
       const res = await fetch('/api/correlation')
       const d = await res.json()
       if (d.success) setData(d)
-    } catch {} finally { setLoading(false) }
+      else setError(d.error || 'فشل في حساب بيانات الارتباط')
+    } catch {
+      setError('تعذر الاتصال بخادم الارتباط. تأكد من تشغيل الخادم وحاول مجدداً.')
+    } finally { setLoading(false) }
   }
 
   useEffect(() => { fetchCorr() }, [])
@@ -54,6 +60,19 @@ export default function CorrelationPage() {
             <div style={{ width: 40, height: 40, border: `3px solid ${T.cyan}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
             <div style={{ fontSize: 13 }}>جارٍ حساب الارتباطات...</div>
           </div>
+        </div>
+      )}
+
+      {!loading && error && !data && (
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          padding: '48px 24px', background: T.card, border: `1px solid ${T.border}`, borderRadius: 16,
+          textAlign: 'center',
+        }}>
+          <AlertTriangle size={36} style={{ color: T.amber, marginBottom: 12, opacity: 0.5 }} />
+          <p style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: '0 0 8px' }}>تعذر تحميل بيانات الارتباط</p>
+          <p style={{ fontSize: 12, color: T.text2, margin: '0 0 16px' }}>{error}</p>
+          <button onClick={fetchCorr} style={{ padding: '8px 20px', background: `${T.cyan}18`, border: `1px solid ${T.cyan}40`, borderRadius: 10, color: T.cyan, fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>إعادة المحاولة</button>
         </div>
       )}
 

@@ -305,8 +305,22 @@ export default function SanctuaryPage() {
     return formatCurrency(val)
   }
 
-  // Performance line — use real data only, no mock/fake chart data
-  const performanceData: number[] = []
+  // Performance line — generate from position history or show empty
+  const performanceData: number[] = report && report.positions.length > 0
+    ? report.positions.reduce((acc: number[], pos, i) => {
+        // Build a simple cumulative performance series from 24h changes
+        const baseVal = 100
+        const prevVal = acc.length > 0 ? acc[acc.length - 1] : baseVal
+        const change = pos.change24h ?? 0
+        acc.push(prevVal + (prevVal * change / 100 / report.positions.length))
+        return acc
+      }, [])
+    : []
+
+  // Compute portfolio return from positions data, or show dash
+  const portfolioReturn = report && report.positions.length > 0
+    ? report.positions.reduce((sum, pos) => sum + (pos.change24h ?? 0) * pos.weight / 100, 0)
+    : null
 
   // Pie chart segments from positions
   const pieSegments = report ? report.positions.slice(0, 5).map(pos => ({
@@ -476,8 +490,8 @@ export default function SanctuaryPage() {
                     <ArrowUpRight size={11} style={{ color: 'var(--profit)' }} />
                     <span style={{
                       fontSize: '10px', fontWeight: 800, fontFamily: 'var(--font-mono)',
-                      color: 'var(--profit)',
-                    }} dir="ltr">+4.35%</span>
+                      color: portfolioReturn !== null && portfolioReturn >= 0 ? 'var(--profit)' : portfolioReturn !== null ? 'var(--loss)' : 'var(--text-muted)',
+                    }} dir="ltr">{portfolioReturn !== null ? `${portfolioReturn >= 0 ? '+' : ''}${portfolioReturn.toFixed(2)}%` : '—'}</span>
                   </div>
                 </motion.div>
 
@@ -544,17 +558,24 @@ export default function SanctuaryPage() {
                     />
                     <span style={{
                       fontSize: '9px', fontWeight: 800, fontFamily: 'var(--font-mono)',
-                      color: 'var(--profit)',
-                      background: 'var(--profit-bg)', padding: '3px 8px', borderRadius: '6px',
-                      border: '1px solid var(--border-profit)',
-                    }} dir="ltr">+4.35%</span>
+                      color: portfolioReturn !== null && portfolioReturn >= 0 ? 'var(--profit)' : portfolioReturn !== null ? 'var(--loss)' : 'var(--text-muted)',
+                      background: portfolioReturn !== null && portfolioReturn >= 0 ? 'var(--profit-bg)' : portfolioReturn !== null ? 'var(--loss-bg)' : 'rgba(128,128,128,0.08)',
+                      padding: '3px 8px', borderRadius: '6px',
+                      border: `1px solid ${portfolioReturn !== null && portfolioReturn >= 0 ? 'var(--border-profit)' : portfolioReturn !== null ? 'var(--border-loss)' : 'var(--border)'}`,
+                    }} dir="ltr">{portfolioReturn !== null ? `${portfolioReturn >= 0 ? '+' : ''}${portfolioReturn.toFixed(2)}%` : '—'}</span>
                   </div>
-                  <LineChart data={performanceData} color="#0A84FF" height={120} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', paddingInline: '4px' }}>
-                    {['يناير', 'مارس', 'مايو', 'يوليو', 'سبتمبر', 'نوفمبر'].map(m => (
-                      <span key={m} style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar)' }}>{m}</span>
-                    ))}
-                  </div>
+                  {performanceData.length > 0 ? (
+                    <LineChart data={performanceData} color="#0A84FF" height={120} />
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 120, color: 'var(--text-faint)', fontSize: '12px', fontFamily: 'var(--font-ar)' }}>لا توجد بيانات أداء</div>
+                  )}
+                  {performanceData.length > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', paddingInline: '4px' }}>
+                      {['يناير', 'مارس', 'مايو', 'يوليو', 'سبتمبر', 'نوفمبر'].map(m => (
+                        <span key={m} style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar)' }}>{m}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -598,7 +619,7 @@ export default function SanctuaryPage() {
 
                   {/* Table header */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 0.8fr 0.8fr 0.6fr 0.8fr', padding: '8px 16px', background: 'rgba(0,0,0,0.15)', borderBottom: '1px solid var(--border)' }}>
-                    {['الزوج', 'الدخول', 'جني الأرباح', 'وقف الخسارة', 'الحجم', 'P&L'].map(h => (
+                    {['الزوج', 'الدخول', 'جني الأرباح †', 'وقف الخسارة †', 'الحجم', 'P&L'].map(h => (
                       <span key={h} style={{ fontSize: '10px', fontWeight: 600, color: 'var(--text-muted)', fontFamily: 'var(--font-ar)' }}>{h}</span>
                     ))}
                   </div>
@@ -628,9 +649,9 @@ export default function SanctuaryPage() {
                         </div>
                         <span style={{ fontSize: '12px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }} dir="ltr">{pos.symbol}</span>
                       </div>
-                      <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }} dir="ltr">{formatCurrency(pos.currentPrice * 0.98)}</span>
-                      <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--profit)' }} dir="ltr">{formatCurrency(pos.currentPrice * 1.02)}</span>
-                      <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--loss)' }} dir="ltr">{formatCurrency(pos.currentPrice * 0.97)}</span>
+                      <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }} dir="ltr">{formatCurrency(pos.currentPrice)}</span>
+                      <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--profit)' }} dir="ltr">—</span>
+                      <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--loss)' }} dir="ltr">—</span>
                       <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }} dir="ltr">{pos.quantity.toFixed(2)}</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <span style={{
@@ -653,6 +674,7 @@ export default function SanctuaryPage() {
                   ))}
                 </motion.div>
               )}
+              <div style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar)', marginTop: '4px', paddingInline: '8px' }}>† مستويات افتراضية — لم يتم تحديد جني أرباح / وقف خسارة من المستخدم</div>
             </motion.div>
           )}
 

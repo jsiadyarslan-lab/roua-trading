@@ -20,7 +20,7 @@ import { PortfolioMini } from '@/components/portfolio/PortfolioMini'
 import { ScannerMini } from '@/components/dashboard/ScannerMini'
 import { AlNarratorMini } from '@/components/ai/AlNarratorMini'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
-import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone } from '@/lib/dashboard-live'
+import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
 
 const DASHBOARD_SYMBOLS = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA']
 
@@ -47,9 +47,13 @@ const ANIM = 'height 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease'
 
 type MobileView = 'execution' | 'market' | 'portfolio' | 'insight'
 
-const formatMoney = (value: unknown) => {
-  const num = Number(value)
-  return Number.isFinite(num) ? num.toLocaleString() : '---'
+const formatMoney = (value: unknown): string => {
+  if (value === null || value === undefined || value === '') return '$—'
+  const num = typeof value === 'string' ? parseFloat(value) : Number(value)
+  if (!Number.isFinite(num)) return '$—'
+  const abs = Math.abs(num)
+  const formatted = abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return num < 0 ? `-$${formatted}` : `$${formatted}`
 }
 
 const formatQuotePrice = (value: unknown) => {
@@ -66,6 +70,8 @@ export default function DashboardPage() {
   const activeQuote = globalQuotes[selectedSymbol] ?? null
   const account = usePositionsStore(state => state.account)
   const positions = usePositionsStore(state => state.positions)
+  const lastUpdate = usePositionsStore(state => state.lastUpdate)
+  const positionsError = usePositionsStore(state => state.error)
   const fetchAccount = usePositionsStore(state => state.fetchAccount)
   const fetchPositions = usePositionsStore(state => state.fetchPositions)
   const [posOpen, setPosOpen] = useState(true)
@@ -124,13 +130,21 @@ export default function DashboardPage() {
   }, [globalQuotes, selectedSymbol])
 
   const mobileSummaryCards = [
-    { label: 'الرصيد', value: `$${formatMoney(account?.equity)}`, tone: T.text },
-    { label: 'قوة الشراء', value: `$${formatMoney(account?.buyingPower)}`, tone: T.success },
+    { label: 'الرصيد', value: formatMoney(account?.equity), tone: T.text },
+    { label: 'قوة الشراء', value: formatMoney(account?.buyingPower), tone: T.success },
     { label: 'المراكز', value: `${positions.length}`, tone: T.cyan },
   ]
 
   const quoteStatus = getDataStatus(activeQuote)
   const sourceLabel = getSourceLabel(activeQuote?.source)
+
+  // Derive account data status
+  const accountDataStatus: DataStatus = (() => {
+    if (positionsError) return 'disconnected'
+    if (!account) return 'disconnected'
+    if (!lastUpdate) return 'demo'
+    return quoteStatus === 'live' ? 'live' : quoteStatus === 'delayed' ? 'delayed' : 'fallback'
+  })()
 
   // Calculate P&L for balance card
   const equityValue = Number(account?.equity) || 0
@@ -616,21 +630,24 @@ export default function DashboardPage() {
                 <div className="summary-row">
                   {/* Balance with gradient */}
                   <div className="summary-item" style={{ gap: 8 }}>
-                    <div className="led-indicator" />
+                    <div className="led-indicator" style={{ background: getStatusTone(accountDataStatus), boxShadow: `0 0 6px ${getStatusTone(accountDataStatus)}, 0 0 12px ${getStatusTone(accountDataStatus)}33` }} />
                     <span className="summary-label">الرصيد:</span>
-                    <span className="summary-value count-up" style={{ fontSize: 13, fontWeight: 800 }}>${formatMoney(account?.equity)}</span>
+                    <span className="summary-value count-up" style={{ fontSize: 13, fontWeight: 800 }}>{formatMoney(account?.equity)}</span>
+                    <span style={{ fontSize: 9, color: getStatusTone(accountDataStatus), fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 0.5 }}>
+                      {getStatusLabel(accountDataStatus)}
+                    </span>
                   </div>
                   <div className="summary-item">
                     <span className="summary-label">الهامش الحر:</span>
-                    <span className="summary-value summary-value--success">${formatMoney(account?.buyingPower)}</span>
+                    <span className="summary-value summary-value--success">{formatMoney(account?.buyingPower)}</span>
                   </div>
                   <div className="summary-item">
                     <span className="summary-label">قيمة المراكز:</span>
-                    <span className="summary-value summary-value--accent">${formatMoney(positionsValue)}</span>
+                    <span className="summary-value summary-value--accent">{formatMoney(positionsValue)}</span>
                   </div>
                   <div className="summary-item">
                     <span className="summary-label">كمية الهامش:</span>
-                    <span className="summary-value">${formatMoney(account?.initialMargin)}</span>
+                    <span className="summary-value">{formatMoney(account?.initialMargin)}</span>
                   </div>
                   {unrealizedPnl !== 0 && (
                     <div className="summary-item">
@@ -671,7 +688,7 @@ export default function DashboardPage() {
           )}
 
           {isCompactDesktopViewport && (
-            <div className="dash-col dash-col-right-mobile panel" style={{ display: 'none', padding: '0 4px 20px' }}>
+            <div className="dash-col dash-col-right-mobile panel" style={{ padding: '0 4px 20px' }}>
               <RightPanelLayout quotes={quotes} />
               <div style={{ height: 10 }} />
               <WatchlistMini />

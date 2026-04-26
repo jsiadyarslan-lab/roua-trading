@@ -9,7 +9,7 @@ import {
   Copy, Users, Newspaper, CalendarDays, Settings,
   ChevronDown, Bell, User, MoreHorizontal,
   TrendingUp, TrendingDown, Menu, X, GitMerge, Activity,
-  FlaskConical
+  FlaskConical, Shield, Hammer
 } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
@@ -172,31 +172,46 @@ function LogoCircle({ state }: { state: MarketState }) {
 }
 
 /* ══ Strip 1: News Ticker ══ */
+/* ─── Shared news data (single fetch) ─── */
+type NewsItem = { text: string; textAr: string; categoryAr: string; color: string; impact: string }
+let _newsCache: NewsItem[] | null = null
+let _newsPromise: Promise<NewsItem[]> | null = null
+
+function fetchNewsData(): Promise<NewsItem[]> {
+  if (_newsCache) return Promise.resolve(_newsCache)
+  if (_newsPromise) return _newsPromise
+  _newsPromise = fetch('/api/news/feed')
+    .then(r => r.ok ? r.json() : [])
+    .then((d: unknown) => {
+      if (Array.isArray(d) && d.length) {
+        _newsCache = d.map((item: any) => {
+          const rawTextAr = item.textAr || item.translatedTitle || ''
+          const rawText = item.text || item.headline || item.title || ''
+          const hasRealArabic = rawTextAr && /[\u0600-\u06FF]/.test(rawTextAr)
+          return {
+            text: rawText,
+            textAr: hasRealArabic ? rawTextAr : rawText,
+            categoryAr: item.categoryAr || 'عام',
+            color: item.color || '#94a3b8',
+            impact: item.impact || 'medium',
+          }
+        })
+      } else {
+        _newsCache = []
+      }
+      return _newsCache!
+    })
+    .catch(() => { _newsCache = []; return _newsCache! })
+  return _newsPromise
+}
+
 function NewsTicker() {
   const [items, setItems] = useState<
     { text: string; textAr: string; categoryAr: string; color: string; impact: string }[]
   >([])
 
   useEffect(() => {
-    fetch('/api/news/feed')
-      .then(r => r.ok ? r.json() : [])
-      .then(d => {
-        if (Array.isArray(d) && d.length) {
-          setItems(d.map((item: any) => {
-            const rawTextAr = item.textAr || item.translatedTitle || ''
-            const rawText = item.text || item.headline || item.title || ''
-            const hasRealArabic = rawTextAr && /[\u0600-\u06FF]/.test(rawTextAr)
-            return {
-              text: rawText,
-              textAr: hasRealArabic ? rawTextAr : rawText,
-              categoryAr: item.categoryAr || 'عام',
-              color: item.color || '#94a3b8',
-              impact: item.impact || 'medium',
-            }
-          }))
-        }
-      })
-      .catch(() => {})
+    fetchNewsData().then(data => { if (data.length) setItems(data) })
   }, [])
 
   const doubled = items.length ? [...items, ...items] : []
@@ -350,23 +365,11 @@ function MobileNewsTicker() {
   >([])
 
   useEffect(() => {
-    fetch('/api/news/feed')
-      .then(r => r.ok ? r.json() : [])
-      .then(d => {
-        if (Array.isArray(d) && d.length) {
-          setItems(d.slice(0, 10).map((item: any) => {
-            const rawTextAr = item.textAr || item.translatedTitle || ''
-            const rawText = item.text || item.headline || item.title || ''
-            const hasRealArabic = rawTextAr && /[\u0600-\u06FF]/.test(rawTextAr)
-            return {
-              textAr: hasRealArabic ? rawTextAr : rawText,
-              categoryAr: item.categoryAr || 'عام',
-              color: item.color || '#94a3b8',
-            }
-          }))
-        }
-      })
-      .catch(() => {})
+    fetchNewsData().then(data => {
+      if (data.length) {
+        setItems(data.slice(0, 10).map(({ textAr, categoryAr, color }) => ({ textAr, categoryAr, color })))
+      }
+    })
   }, [])
 
   const doubled = items.length ? [...items, ...items] : []
@@ -413,6 +416,8 @@ const NAV_LINKS = [
   { href: '/dashboard/social',                 label: 'التداول الاجتماعي',  icon: Users },
   { href: '/dashboard/calendar',               label: 'الأجندة الاقتصادية', icon: CalendarDays },
   { href: '/dashboard/strategies/backtest',    label: 'اختبار الاستراتيجيات', icon: Activity },
+  { href: '/dashboard/sanctuary',             label: 'الملاذ',              icon: Shield },
+  { href: '/dashboard/strategy-builder',       label: 'بناء الاستراتيجية',   icon: Hammer },
   { href: '/dashboard/correlation',            label: 'مصفوفة الارتباط',    icon: GitMerge },
   { href: '/dashboard/settings',               label: 'الإعدادات',          icon: Settings },
 ]
@@ -526,7 +531,7 @@ function MoreDropdown({
   )
 }
 
-function MainNav() {
+function MainNav({ mode, onModeChange }: { mode: 'trader' | 'investor' | 'ai', onModeChange: (m: 'trader' | 'investor' | 'ai') => void }) {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
   const moreRef = useRef<HTMLDivElement>(null)
@@ -602,19 +607,20 @@ function MainNav() {
          display: 'flex', background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 8,
          border: '1px solid var(--card-border)', marginLeft: 12
       }}>
-         {['Trader', 'Investor', 'AI'].map((mode) => (
-           <button 
-             key={mode}
+         {([['trader', 'Trader'], ['investor', 'Investor'], ['ai', 'AI']] as const).map(([m, label]) => (
+           <button
+             key={m}
+             onClick={() => onModeChange(m)}
              style={{
-                padding: '5px 10px', fontSize: 9.5, fontWeight: mode === 'Trader' ? 800 : 500,
-                background: mode === 'Trader' ? 'var(--accent)' : 'transparent',
-                color: mode === 'Trader' ? '#000' : 'var(--muted)',
+                padding: '5px 10px', fontSize: 9.5, fontWeight: m === mode ? 800 : 500,
+                background: m === mode ? 'var(--accent)' : 'transparent',
+                color: m === mode ? '#000' : 'var(--muted)',
                 borderRadius: 6, border: 'none', cursor: 'pointer',
                 fontFamily: 'var(--mono)', transition: '0.2s',
                 textTransform: 'uppercase'
              }}
            >
-             {mode}
+             {label}
            </button>
          ))}
       </div>
@@ -676,7 +682,18 @@ header *::-webkit-scrollbar { display:none; }
 /* ══ Root export ══ */
 export function AppHeader() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [mode, setMode] = useState<'trader' | 'investor' | 'ai'>('trader')
   const pathname = usePathname()
+
+  useEffect(() => {
+    const saved = localStorage.getItem('roua-mode')
+    if (saved === 'investor' || saved === 'ai' || saved === 'trader') setMode(saved)
+  }, [])
+
+  const handleModeChange = (m: 'trader' | 'investor' | 'ai') => {
+    setMode(m)
+    localStorage.setItem('roua-mode', m)
+  }
   const globalQuotes = useMarketStore(state => state.quotes)
   const ORBS = ['BTC/USD','ETH/USD','EUR/USD','GBP/USD','USD/JPY','XAU/USD']
   const quotes = new Map(ORBS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
@@ -735,15 +752,15 @@ export function AppHeader() {
              {/* Mode Switcher + Account (mobile) */}
              <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid rgba(0,212,255,0.10)`, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 8, border: `1px solid ${T.border}` }}>
-                  {['Trader', 'Investor', 'AI'].map((mode) => (
-                    <button key={mode} style={{
-                      flex: 1, padding: '8px 10px', fontSize: 10, fontWeight: mode === 'Trader' ? 800 : 500,
-                      background: mode === 'Trader' ? 'var(--accent)' : 'transparent',
-                      color: mode === 'Trader' ? '#000' : T.text2,
+                  {([['trader', 'تاجر'], ['investor', 'مستثمر'], ['ai', 'AI']] as const).map(([m, label]) => (
+                    <button key={m} onClick={() => handleModeChange(m)} style={{
+                      flex: 1, padding: '8px 10px', fontSize: 10, fontWeight: m === mode ? 800 : 500,
+                      background: m === mode ? 'var(--accent)' : 'transparent',
+                      color: m === mode ? '#000' : T.text2,
                       borderRadius: 6, border: 'none', cursor: 'pointer',
                       fontFamily: "'Cairo', sans-serif", transition: '0.2s',
                     }}>
-                      {mode === 'Trader' ? 'تاجر' : mode === 'Investor' ? 'مستثمر' : 'AI'}
+                      {label}
                     </button>
                   ))}
                 </div>
@@ -772,7 +789,7 @@ export function AppHeader() {
         }}>
           <NewsTicker />
           <CurrencyTicker />
-          <MainNav />
+          <MainNav mode={mode} onModeChange={handleModeChange} />
         </div>
       </header>
 
@@ -796,7 +813,8 @@ export function AppHeader() {
              <CurrencyTicker isMobile />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+             <NotificationCenter />
              <CosmicOrb state={marketState} size={24} />
           </div>
         </div>

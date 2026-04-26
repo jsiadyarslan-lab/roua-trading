@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, startTransition } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
@@ -129,10 +129,8 @@ export default function PositionsPage() {
   }, [])
 
   useEffect(() => {
-    startTransition(() => {
-      fetchPositions()
-      fetchSummary()
-    })
+    fetchPositions()
+    fetchSummary()
   }, [])
 
   const openCloseDialog = (pos: Position) => {
@@ -284,7 +282,7 @@ export default function PositionsPage() {
       }
     >
       {/* Summary Cards */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}>
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '16px' }}>
         <StatCard
           icon={<BarChart3 size={12} stroke="#fff" strokeWidth={2} />}
           label="إجمالي المراكز"

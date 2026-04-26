@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { CalendarDays, Clock, TrendingUp, TrendingDown, Minus, Filter, RefreshCw, Brain } from 'lucide-react'
 
 const T = {
@@ -48,6 +48,7 @@ export default function CalendarPage() {
   const [impact, setImpact] = useState('All')
   const [expanded, setExpanded] = useState<string | null>(null)
   const [lastFetch, setLastFetch] = useState<Date | null>(null)
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const fetchCalendar = async () => {
     setLoading(true)
@@ -66,7 +67,14 @@ export default function CalendarPage() {
     finally { setLoading(false) }
   }
 
-  useEffect(() => { fetchCalendar() }, [currency, impact])
+  useEffect(() => {
+    fetchCalendar()
+    // Auto-refresh every 60 seconds for live events
+    refreshIntervalRef.current = setInterval(fetchCalendar, 60000)
+    return () => {
+      if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current)
+    }
+  }, [currency, impact])
 
   const highImpact = events.filter(e => e.impact === 'high').length
   const todayEvents = grouped['اليوم']?.length ?? 0

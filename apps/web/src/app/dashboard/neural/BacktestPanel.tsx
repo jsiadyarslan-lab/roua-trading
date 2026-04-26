@@ -26,7 +26,16 @@ const STRATEGIES = [
   { value: 'AI_COUNCIL', label: 'مجلس الذكاء (AI Council)', desc: 'توافق Gemini + Groq + GLM' },
 ];
 
-const SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT'];
+const SYMBOLS = [
+  // Crypto
+  'BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD', 'ADA/USD',
+  // Forex
+  'EUR/USD', 'GBP/USD', 'USD/JPY',
+  // Commodities
+  'XAU/USD',
+  // Stocks
+  'AAPL', 'TSLA', 'NVDA',
+];
 
 interface BacktestTrade {
   entryDate: string;
@@ -56,10 +65,10 @@ interface BacktestResult {
 }
 
 export default function BacktestPanel() {
-  const [symbol, setSymbol] = useState('BTC/USDT');
+  const [symbol, setSymbol] = useState('BTC/USD');
   const [strategy, setStrategy] = useState('MOMENTUM');
-  const [periodStart, setPeriodStart] = useState('2025-01-01');
-  const [periodEnd, setPeriodEnd] = useState('2025-12-31');
+  const [periodStart, setPeriodStart] = useState('2026-01-01');
+  const [periodEnd, setPeriodEnd] = useState('2026-04-27');
   const [capital, setCapital] = useState(10000);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BacktestResult | null>(null);

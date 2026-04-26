@@ -25,8 +25,13 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
     setScanning(true);
 
     try {
-      const querySymbol = activeSymbol ? `?pair=${encodeURIComponent(activeSymbol)}&tf=1h` : '';
-      const res = await fetch(`/api/market-scan${querySymbol}`, { signal: AbortSignal.timeout(15000) });
+      // ═══════════════════════════════════════════════════════
+      // FULL MARKET SCAN — Always scan ALL PRIMARY_SYMBOLS,
+      // not just the selected pair. The Scanner's job is to
+      // discover opportunities across the entire market.
+      // The selected pair is highlighted in results.
+      // ═══════════════════════════════════════════════════════
+      const res = await fetch('/api/market-scan?tf=1h', { signal: AbortSignal.timeout(30000) });
 
       if (!res.ok) {
         throw new Error(`Scan failed with status ${res.status}`);
@@ -35,7 +40,15 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
       const data = await res.json();
 
       if (data?.success && Array.isArray(data.data)) {
-        setSignals(data.data);
+        // Sort: selected pair first, then by strength descending
+        const sorted = [...data.data].sort((a: any, b: any) => {
+          const aSelected = a.pair === activeSymbol ? 1 : 0
+          const bSelected = b.pair === activeSymbol ? 1 : 0
+          if (aSelected !== bSelected) return bSelected - aSelected
+          return (b.strength || 0) - (a.strength || 0)
+        })
+
+        setSignals(sorted);
         setScanCount(prev => prev + 1);
         setLastScan(
           new Date().toLocaleTimeString('ar-EG', {
@@ -106,6 +119,9 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
           <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--accent)', fontFamily: "'Cairo', sans-serif" }}>
             📡 سكانر الأسواق
           </span>
+          <span style={{ fontSize: 6.5, background: 'rgba(255,184,0,0.12)', border: '0.5px solid rgba(255,184,0,0.25)', color: 'var(--amber)', padding: '1px 5px', borderRadius: 3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
+            مسح شامل {signals.length > 0 ? `(${signals.length} زوج)` : ''}
+          </span>
           {lastScan && (
             <span style={{ fontSize: 7, color: 'var(--text3)', marginRight: 6, fontFamily: 'monospace' }}>
               · {lastScan}
@@ -149,8 +165,12 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
         {spotlight && (
           <div style={{
             marginBottom: 8,
-            background: 'linear-gradient(180deg, rgba(255,184,0,0.08), rgba(255,255,255,0.02))',
-            border: '1px solid rgba(255,184,0,0.16)',
+            background: spotlight.pair === activeSymbol
+              ? 'linear-gradient(180deg, rgba(0,229,255,0.10), rgba(255,255,255,0.02))'
+              : 'linear-gradient(180deg, rgba(255,184,0,0.08), rgba(255,255,255,0.02))',
+            border: spotlight.pair === activeSymbol
+              ? '1px solid rgba(0,229,255,0.25)'
+              : '1px solid rgba(255,184,0,0.16)',
             borderRadius: 14,
             padding: compact ? 10 : 12,
             display: 'flex',
@@ -159,7 +179,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--foreground)', fontFamily: "'Cairo', sans-serif" }}>
-                {spotlight.pair === selectedSymbol ? 'هذا الأصل تحت المجهر الآن' : 'الفرصة الأهم الآن'}
+                {spotlight.pair === activeSymbol ? '🎯 الأصل المحدد تحت المجهر' : 'الفرصة الأهم الآن'}
               </span>
               <span style={{
                 fontSize: 9,
@@ -225,16 +245,17 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                 key={i}
                 onClick={() => setSelectedSymbol(sig.pair)}
                 style={{
-                  background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(0,229,255,0.08)',
+                  background: sig.pair === activeSymbol ? 'rgba(0,229,255,0.05)' : 'rgba(255,255,255,0.02)',
+                  border: sig.pair === activeSymbol ? '1px solid rgba(0,229,255,0.20)' : '1px solid rgba(0,229,255,0.08)',
                   borderRadius: 14, padding: compact ? 10 : 12, cursor: 'pointer', transition: 'all 0.2s',
-                  boxShadow: sig.pair === selectedSymbol ? '0 0 0 1px rgba(0,229,255,0.16) inset' : 'none',
+                  boxShadow: sig.pair === activeSymbol ? '0 0 0 1px rgba(0,229,255,0.16) inset, 0 0 12px rgba(0,229,255,0.08)' : 'none',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', fontFamily: 'monospace' }}>{sig.pair}</div>
                     <div style={{ fontSize: 10, color: 'var(--text3)' }}>
-                      {sig.price} {sig.pair === selectedSymbol ? '· الأصل النشط' : ''}
+                      {sig.price} {sig.pair === activeSymbol ? '· 🎯 الأصل النشط' : ''}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
@@ -279,12 +300,12 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                   <span style={{
                     fontSize: 9,
-                    background: sig.pair === selectedSymbol ? 'rgba(0,229,255,0.10)' : 'rgba(255,255,255,0.05)',
+                    background: sig.pair === activeSymbol ? 'rgba(0,229,255,0.10)' : 'rgba(255,255,255,0.05)',
                     padding: '2px 6px',
                     borderRadius: 4,
-                    color: sig.pair === selectedSymbol ? 'var(--accent)' : 'var(--text2)',
+                    color: sig.pair === activeSymbol ? 'var(--accent)' : 'var(--text2)',
                   }}>
-                    {sig.pair === selectedSymbol ? 'هذا الأصل يهمك الآن' : 'فرصة مرصودة'}
+                    {sig.pair === activeSymbol ? '🎯 الأصل المحدد' : 'فرصة مرصودة'}
                   </span>
                   {Array.isArray(sig.reasons) ? sig.reasons.map((reason: string, ri: number) => (
                     <span key={ri} style={{

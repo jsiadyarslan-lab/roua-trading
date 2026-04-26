@@ -275,9 +275,17 @@ export function BotEngine() {
       }
     }
 
-    scanAndExecute()
+    // Don't fire immediately on mount — wait 15 seconds to let the system stabilize
+    // and avoid generating fake notifications on page refresh
+    const startupDelay = window.setTimeout(() => {
+      scanAndExecute()
+    }, 15000)
+
     const interval = setInterval(scanAndExecute, 30000)
-    return () => clearInterval(interval)
+    return () => {
+      window.clearTimeout(startupDelay)
+      clearInterval(interval)
+    }
   }, [hydrated, isOn, settings.confLimit, settings.riskPct, settings.strategy, settings.useAIConsensus, addLog, addNotification, addPaperTrade, updatePaperTradePrice, closePaperTrade, patchStats, setEngineState])
 
   const shouldExecuteSignal = (signal: SmartSignalLike) => {

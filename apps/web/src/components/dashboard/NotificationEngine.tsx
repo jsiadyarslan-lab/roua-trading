@@ -20,7 +20,13 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
   const quotesRef = useRef(quotes)
   const [hydrated, setHydrated] = useState(false)
 
-  useEffect(() => { setHydrated(true) }, [])
+  // On hydration, skip all existing logs — only process NEW ones after mount
+  useEffect(() => {
+    setHydrated(true)
+    // Initialize ref to current length so old persisted logs are NOT treated as new
+    const currentLogs = useBotStore.getState().logs
+    prevLogLengthRef.current = currentLogs.length
+  }, [])
   useEffect(() => { quotesRef.current = quotes }, [quotes])
 
   // ── 1. مراقبة سجلات البوت وتحويلها لتنبيهات ──────────────

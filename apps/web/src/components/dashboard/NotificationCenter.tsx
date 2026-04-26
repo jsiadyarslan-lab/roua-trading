@@ -68,7 +68,7 @@ function ToastCard({
     dismissTimerRef.current = window.setTimeout(() => {
       setVisible(false)
       window.setTimeout(() => dismissCallbackRef.current(notif.id), 350)
-    }, 3000)
+    }, 5000)
 
     return () => {
       if (dismissTimerRef.current !== null) {
@@ -145,7 +145,7 @@ function ToastCard({
           height: 2,
           background: color,
           width: '100%',
-          animation: 'toast-progress 3s linear forwards',
+          animation: 'toast-progress 5s linear forwards',
         }}
       />
 

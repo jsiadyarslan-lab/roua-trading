@@ -46,26 +46,48 @@ export function useDecisionFlow() {
     const load = async () => {
       try {
         if (mounted) setLoading(true)
-        const [scanRes, councilRes, narratorRes] = await Promise.all([
-          fetch(`/api/market-scan?pair=${encodeURIComponent(selectedSymbol)}&tf=1h`, { cache: 'no-store' }),
+        const [scanRes, councilRes, narratorRes] = await Promise.allSettled([
+          fetch(`/api/market-scan?pair=${encodeURIComponent(selectedSymbol)}&tf=1h`, {
+            cache: 'no-store',
+            signal: AbortSignal.timeout(15000),
+          }),
           fetch('/api/ai/consensus', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ symbol: selectedSymbol }),
+            signal: AbortSignal.timeout(20000),
           }),
-          fetch(`/api/ai/narrator?symbol=${encodeURIComponent(selectedSymbol)}`, { cache: 'no-store' }),
-        ])
-
-        const [scanJson, councilJson, narratorJson] = await Promise.all([
-          scanRes.json(),
-          councilRes.json(),
-          narratorRes.json(),
+          fetch(`/api/ai/narrator?symbol=${encodeURIComponent(selectedSymbol)}`, {
+            cache: 'no-store',
+            signal: AbortSignal.timeout(15000),
+          }),
         ])
 
         if (!mounted) return
-        setScanner(Array.isArray(scanJson?.data) ? scanJson.data[0] ?? null : null)
-        setCouncil(councilJson?.success ? councilJson.data : null)
-        setNarrator(narratorJson?.success ? narratorJson.data : null)
+
+        // Process scanner result
+        if (scanRes.status === 'fulfilled') {
+          try {
+            const scanJson = await scanRes.value.json()
+            setScanner(Array.isArray(scanJson?.data) ? scanJson.data[0] ?? null : null)
+          } catch { /* ignore parse errors */ }
+        }
+
+        // Process council result
+        if (councilRes.status === 'fulfilled') {
+          try {
+            const councilJson = await councilRes.value.json()
+            setCouncil(councilJson?.success ? councilJson.data : null)
+          } catch { /* ignore parse errors */ }
+        }
+
+        // Process narrator result
+        if (narratorRes.status === 'fulfilled') {
+          try {
+            const narratorJson = await narratorRes.value.json()
+            setNarrator(narratorJson?.success ? narratorJson.data : null)
+          } catch { /* ignore parse errors */ }
+        }
       } catch (error) {
         console.error('[useDecisionFlow] failed to load', error)
       } finally {

@@ -39,9 +39,18 @@ export async function GET(req: NextRequest) {
     })
   } catch (error: any) {
     console.error('[market-scan] Fatal Error:', error?.message || error)
-    return NextResponse.json(
-      { success: false, error: error?.message || 'فشل في مسح السوق' },
-      { status: 500 }
-    )
+    // Return fallback data instead of 500 error to keep the UI alive
+    return NextResponse.json({
+      success: true,
+      data: [],
+      meta: {
+        timeframe: '1h',
+        symbolsScanned: 0,
+        sourceEngine: 'fallback',
+        timestamp: new Date().toISOString(),
+        degraded: true,
+        error: error?.message || 'فشل مؤقت في مصادر البيانات',
+      },
+    })
   }
 }

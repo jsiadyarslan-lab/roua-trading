@@ -59,7 +59,7 @@ export function BotCommandCenter() {
   const fetchSignals = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/signals/smart')
+      const res = await fetch('/api/signals/smart', { signal: AbortSignal.timeout(15000) })
       const j = await res.json()
       if (j.success && j.data) {
         setSignals(j.data)

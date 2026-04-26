@@ -21,7 +21,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
 
     try {
       const querySymbol = activeSymbol ? `?pair=${encodeURIComponent(activeSymbol)}&tf=1h` : '';
-      const res = await fetch(`/api/market-scan${querySymbol}`);
+      const res = await fetch(`/api/market-scan${querySymbol}`, { signal: AbortSignal.timeout(15000) });
 
       if (!res.ok) {
         throw new Error(`Scan failed with status ${res.status}`);

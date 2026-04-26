@@ -75,6 +75,11 @@ export function AICouncilPanel() {
     return () => clearInterval(interval)
   }, [fetchConsensus])
 
+  // Auto-fetch when symbol changes
+  useEffect(() => {
+    fetchConsensus()
+  }, [selectedSymbol, fetchConsensus])
+
   const recColor = data?.recommendation === 'BUY' ? T.green : data?.recommendation === 'SELL' ? T.red : T.amber
 
   return (

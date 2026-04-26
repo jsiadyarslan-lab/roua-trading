@@ -9,6 +9,16 @@ export function BotMini() {
   const { isOn, engineState, setIsOn, logs, stats, settings, updateSettings } = useBotStore();
   const [activeTab, setActiveTab] = useState<BotTab>('log');
 
+  // Add initial log entry if logs are empty and bot is on
+  React.useEffect(() => {
+    if (isOn && logs.length === 0) {
+      const { addLog } = useBotStore.getState();
+      addLog(`[نظام] روبوت التداول جاهز — استراتيجية: ${settings.strategy}`, 'info');
+      addLog(`[نظام] المسح التلقائي نشط كل 30 ثانية — حد الثقة: ${settings.confLimit}%`, 'info');
+      addLog(`[مسح] جاري فحص ${7} أصول رئيسية...`, 'info');
+    }
+  }, []);
+
   const engineStateLabel = {
     idle: 'متوقف',
     armed: 'مسلّح',

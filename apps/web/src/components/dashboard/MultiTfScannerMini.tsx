@@ -29,7 +29,7 @@ export function MultiTfScannerMini() {
       try {
         const timeframes = ['15m', '1h', '4h', '1d']
         const promises = timeframes.map(tf => 
-          fetch(`/api/market-scan?pair=${encodeURIComponent(selectedSymbol)}&tf=${tf}`).then(r => r.json())
+          fetch(`/api/market-scan?pair=${encodeURIComponent(selectedSymbol)}&tf=${tf}`, { signal: AbortSignal.timeout(15000) }).then(r => r.json())
         )
         const results = await Promise.all(promises)
         

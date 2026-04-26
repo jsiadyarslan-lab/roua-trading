@@ -177,13 +177,20 @@ function NewsTicker() {
       .then(r => r.ok ? r.json() : [])
       .then(d => {
         if (Array.isArray(d) && d.length) {
-          setItems(d.map((item: any) => ({
-            text: item.text || item.headline || item.title || '',
-            textAr: item.textAr || item.translatedTitle || item.textAr || item.text || item.headline || item.title || '',
-            categoryAr: item.categoryAr || 'عام',
-            color: item.color || '#94a3b8',
-            impact: item.impact || 'medium',
-          })))
+          setItems(d.map((item: any) => {
+            const rawTextAr = item.textAr || item.translatedTitle || ''
+            const rawText = item.text || item.headline || item.title || ''
+            // If textAr is identical to text or empty, it means translation failed
+            // In that case, mark it so we can show a proper Arabic fallback
+            const hasRealArabic = rawTextAr && rawTextAr !== rawText && /[\u0600-\u06FF]/.test(rawTextAr)
+            return {
+              text: rawText,
+              textAr: hasRealArabic ? rawTextAr : '',
+              categoryAr: item.categoryAr || 'عام',
+              color: item.color || '#94a3b8',
+              impact: item.impact || 'medium',
+            }
+          }))
         }
       })
       .catch(() => {})
@@ -210,11 +217,12 @@ function NewsTicker() {
                 fontFamily: "'Cairo', sans-serif", fontSize: 11,
                 color: item.color || T.text2, flexShrink: 0,
                 display: 'inline-flex', alignItems: 'center', gap: 5,
+                direction: 'rtl',
               }}>
                 <span style={{
                   fontSize: 8, padding: '1px 5px', borderRadius: 3,
                   background: `${item.color}18`, color: item.color,
-                  fontFamily: "'JetBrains Mono', monospace",
+                  fontFamily: "'Cairo', sans-serif", fontWeight: 700,
                 }}>{item.categoryAr || 'عام'}</span>
                 {item.impact === 'high' && <span style={{ color: T.amber, fontSize: 7 }}>●</span>}
                 {item.textAr || item.text}
@@ -334,6 +342,63 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
   )
 }
 
+/* ══ Mobile News Ticker (compact) ══ */
+function MobileNewsTicker() {
+  const [items, setItems] = useState<
+    { textAr: string; categoryAr: string; color: string }[]
+  >([])
+
+  useEffect(() => {
+    fetch('/api/news/feed')
+      .then(r => r.ok ? r.json() : [])
+      .then(d => {
+        if (Array.isArray(d) && d.length) {
+          setItems(d.slice(0, 10).map((item: any) => {
+            const rawTextAr = item.textAr || item.translatedTitle || ''
+            const rawText = item.text || item.headline || item.title || ''
+            const hasRealArabic = rawTextAr && rawTextAr !== rawText && /[\u0600-\u06FF]/.test(rawTextAr)
+            return {
+              textAr: hasRealArabic ? rawTextAr : rawText,
+              categoryAr: item.categoryAr || 'عام',
+              color: item.color || '#94a3b8',
+            }
+          }))
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const doubled = items.length ? [...items, ...items] : []
+
+  return doubled.length > 0 ? (
+    <div style={{
+      display: 'flex', gap: 36, whiteSpace: 'nowrap',
+      animation: `news-scroll ${Math.max(doubled.length * 2, 14)}s linear infinite`,
+    }}>
+      {doubled.map((item, i) => (
+        <span key={i} style={{
+          fontFamily: "'Cairo', sans-serif", fontSize: 10,
+          color: item.color || T.text2, flexShrink: 0,
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          direction: 'rtl',
+        }}>
+          <span style={{
+            fontSize: 7, padding: '0px 4px', borderRadius: 2,
+            background: `${item.color}18`, color: item.color,
+            fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+          }}>{item.categoryAr}</span>
+          {item.textAr}
+        </span>
+      ))}
+    </div>
+  ) : (
+    <span style={{
+      padding: '0 10px', fontFamily: "'Cairo', sans-serif",
+      fontSize: 9, color: T.text3,
+    }}>جارٍ تحميل الأخبار...</span>
+  )
+}
+
 /* ══ Strip 3: Main Nav ══ */
 const NAV_LINKS = [
   { href: '/dashboard',                        label: 'الرئيسية',           icon: Home },
@@ -375,7 +440,7 @@ function MainNav() {
       WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
       background: T.navGlass,
       display: 'flex', alignItems: 'center',
-      padding: '0 8px', gap: 0, overflow: 'hidden',
+      padding: '0 8px', gap: 0, overflowX: 'hidden', overflowY: 'visible',
       borderBottomRightRadius: ORB_D / 2,
     }}>
       {NAV_LINKS.slice(0, 8).map(({ href, label, icon: Icon }) => {
@@ -423,28 +488,39 @@ function MainNav() {
             position: 'absolute', top: '100%', right: 0, marginTop: 4,
             background: T.card, backdropFilter: 'blur(32px) saturate(1.8)',
             border: `0.5px solid ${T.border2}`, borderRadius: 10,
-            padding: '5px', minWidth: 148, zIndex: 999,
+            padding: '5px', minWidth: 180, zIndex: 999,
             boxShadow: '0 16px 40px rgba(0,0,0,0.6)',
           }}>
-            {NAV_LINKS.slice(8).map(item => (
-              <Link key={item.href} href={item.href} style={{ textDecoration: 'none' }}>
-                <div
-                  onClick={() => setMoreOpen(false)}
-                  style={{
-                    padding: '7px 12px', borderRadius: 6, cursor: 'pointer',
-                    fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.text2,
-                  }}
-                  onMouseEnter={e => {
-                    const el = e.currentTarget as HTMLDivElement
-                    el.style.background = `${T.blue}14`; el.style.color = T.text
-                  }}
-                  onMouseLeave={e => {
-                    const el = e.currentTarget as HTMLDivElement
-                    el.style.background = 'transparent'; el.style.color = T.text2
-                  }}
-                >{item.label}</div>
-              </Link>
-            ))}
+            {NAV_LINKS.slice(8).map(({ href, label, icon: Icon }) => {
+              const active = pathname === href ||
+                (href !== '/dashboard' && (pathname ?? '').startsWith(href))
+              return (
+                <Link key={href} href={href} style={{ textDecoration: 'none' }}>
+                  <div
+                    onClick={() => setMoreOpen(false)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '8px 12px', borderRadius: 6, cursor: 'pointer',
+                      fontFamily: "'Cairo', sans-serif", fontSize: 12,
+                      color: active ? T.blue : T.text2,
+                      background: active ? `${T.blue}12` : 'transparent',
+                      fontWeight: active ? 700 : 500,
+                    }}
+                    onMouseEnter={e => {
+                      const el = e.currentTarget as HTMLDivElement
+                      if (!active) { el.style.background = `${T.blue}14`; el.style.color = T.text }
+                    }}
+                    onMouseLeave={e => {
+                      const el = e.currentTarget as HTMLDivElement
+                      if (!active) { el.style.background = 'transparent'; el.style.color = T.text2 }
+                    }}
+                  >
+                    <Icon size={14} strokeWidth={active ? 2.5 : 2} />
+                    {label}
+                  </div>
+                </Link>
+              )
+            })}
           </div>
         )}
       </div>
@@ -541,8 +617,9 @@ export function AppHeader() {
           <div style={{
             position: 'absolute', left: 0, top: 0, bottom: 0, width: '280px',
             background: T.bg2, borderRight: `1px solid ${T.border}`,
-            display: 'flex', flexDirection: 'column', padding: '20px'
-          }} onClick={e => e.stopPropagation()}>
+            display: 'flex', flexDirection: 'column', padding: '20px',
+            overflowY: 'auto',
+          }} className="custom-scrollbar" onClick={e => e.stopPropagation()}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                 <span style={{ fontSize: 18, fontWeight: 900, color: T.text, fontFamily: "'Cairo', sans-serif" }}>القائمة</span>
                 <X size={24} color={T.text} onClick={() => setMenuOpen(false)} style={{ cursor: 'pointer' }} />
@@ -561,6 +638,30 @@ export function AppHeader() {
                     </div>
                   </Link>
                 ))}
+             </div>
+             {/* Mode Switcher + Account (mobile) */}
+             <div style={{ marginTop: 16, paddingTop: 16, borderTop: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 8, border: `1px solid ${T.border}` }}>
+                  {['Trader', 'Investor', 'AI'].map((mode) => (
+                    <button key={mode} style={{
+                      flex: 1, padding: '8px 10px', fontSize: 10, fontWeight: mode === 'Trader' ? 800 : 500,
+                      background: mode === 'Trader' ? T.blue : 'transparent',
+                      color: mode === 'Trader' ? '#fff' : T.text2,
+                      borderRadius: 6, border: 'none', cursor: 'pointer',
+                      fontFamily: "'Cairo', sans-serif", transition: '0.2s',
+                    }}>
+                      {mode === 'Trader' ? 'تاجر' : mode === 'Investor' ? 'مستثمر' : 'AI'}
+                    </button>
+                  ))}
+                </div>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
+                  borderRadius: 8, background: 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${T.border}`, cursor: 'pointer',
+                }}>
+                  <User size={18} color={T.accent} />
+                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, color: T.text, fontWeight: 700 }}>حسابي</span>
+                </div>
              </div>
           </div>
         </div>
@@ -585,20 +686,32 @@ export function AppHeader() {
       {/* Mobile Header Layout */}
       <header className="mobile-header" style={{
         display: 'none', position: 'sticky', top: 0, zIndex: 100,
-        height: MOBILE_HEADER_H, background: T.navGlass, borderBottom: `1px solid ${T.border}`,
-        alignItems: 'center', padding: '0 10px', justifyContent: 'space-between',
+        background: T.navGlass, borderBottom: `1px solid ${T.border}`,
         backdropFilter: 'blur(20px)'
       }}>
-        <button onClick={() => setMenuOpen(true)} style={{ background: 'transparent', border: 'none', color: T.text, cursor: 'pointer', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-           <Menu size={20} />
-        </button>
+        {/* Mobile top row: hamburger + ticker + orb */}
+        <div style={{
+          display: 'flex', alignItems: 'center', height: MOBILE_HEADER_H,
+          padding: '0 10px', justifyContent: 'space-between',
+        }}>
+          <button onClick={() => setMenuOpen(true)} style={{ background: 'transparent', border: 'none', color: T.text, cursor: 'pointer', width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+             <Menu size={20} />
+          </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0, paddingInline: 6 }}>
-           <CurrencyTicker isMobile />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0, paddingInline: 6 }}>
+             <CurrencyTicker isMobile />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+             <CosmicOrb state={marketState} size={24} />
+          </div>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-           <CosmicOrb state={marketState} size={24} />
+        {/* Mobile news ticker */}
+        <div style={{
+          height: 24, overflow: 'hidden', background: T.bg,
+          borderBottom: `0.5px solid ${T.border}`, display: 'flex', alignItems: 'center',
+        }}>
+          <MobileNewsTicker />
         </div>
       </header>
     </>

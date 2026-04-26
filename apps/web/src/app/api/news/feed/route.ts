@@ -103,10 +103,75 @@ export async function GET() {
 }
 
 /**
- * Translate English news title to Arabic using comprehensive keyword mapping
- * Note: When NestJS is available, AI models handle translation instead
+ * Translate English news title to Arabic using full-sentence pattern matching first,
+ * then falling back to keyword replacement.
+ * Note: When NestJS is available, AI models handle translation instead.
  */
 function translateToArabic(title: string, category: string): string {
+  // ── Step 1: Try full-sentence pattern matching for common headline structures ──
+  const sentencePatterns: [RegExp, string][] = [
+    // "[Asset] surges/rises/climbs past $X" → "[الأصل] يرتفع فوق $X"
+    [/\b(Bitcoin|BTC)\b.*?\b(surges?|rises?|climbs?|soars?|jumps?)\b.*?\bpast?\s*\$?([\d,.]+)/gi, 'بيتكوين يرتفع فوق $$$3'],
+    [/\b(Ethereum|ETH)\b.*?\b(surges?|rises?|climbs?|soars?|jumps?)\b.*?\bpast?\s*\$?([\d,.]+)/gi, 'إيثيريوم يرتفع فوق $$$3'],
+    [/\b(Solana|SOL)\b.*?\b(surges?|rises?|climbs?|soars?|jumps?)\b.*?\bpast?\s*\$?([\d,.]+)/gi, 'سولانا يرتفع فوق $$$3'],
+    // "[Asset] drops/falls/plummets below $X"
+    [/\b(Bitcoin|BTC)\b.*?\b(drops?|falls?|plummets?|tumbles?|slides?)\b.*?\bbelow\s*\$?([\d,.]+)/gi, 'بيتكوين ينخفض تحت $$$3'],
+    [/\b(Ethereum|ETH)\b.*?\b(drops?|falls?|plummets?|tumbles?|slides?)\b.*?\bbelow\s*\$?([\d,.]+)/gi, 'إيثيريوم ينخفض تحت $$$3'],
+    // "[Asset] surges/rises amid X"
+    [/\b(Bitcoin|BTC)\b.*?\b(surges?|rises?|rallies?)\b.*?\bamid\b/gi, 'بيتكوين يرتفع وسط'],
+    [/\b(Ethereum|ETH)\b.*?\b(surges?|rises?|rallies?)\b.*?\bamid\b/gi, 'إيثيريوم يرتفع وسط'],
+    // "[Asset] drops/falls amid X"
+    [/\b(Bitcoin|BTC)\b.*?\b(drops?|falls?|declines?)\b.*?\bamid\b/gi, 'بيتكوين ينخفض وسط'],
+    [/\b(Ethereum|ETH)\b.*?\b(drops?|falls?|declines?)\b.*?\bamid\b/gi, 'إيثيريوم ينخفض وسط'],
+    // "Fed signals/hints X"
+    [/\bFed\b.*?\b(signals?|hints?|indicates?)\b/gi, 'الاحتياطي الفيدرالي يشير إلى'],
+    // "SEC approves/rejects X"
+    [/\bSEC\b.*?\b(approves?|rejects?)\b/gi, 'لجنة الأوراق المالية توافق/ترفض'],
+    // "Gold consolidates above $X"
+    [/\bGold\b.*?\bconsolidates?\b.*?\babove\s*\$?([\d,.]+)/gi, 'الذهب يستقر فوق $$$1'],
+    // "S&P 500 reaches new high"
+    [/\bS&P\s*500\b.*?\b(reaches?|hits?|sets?)\b.*?\b(high|record|all-time)/gi, 'إس آند بي 500 يصل إلى مستوى قياسي جديد'],
+    // "Crude oil drops/falls amid X"
+    [/\bCrude oil\b.*?\b(drops?|falls?|declines?)\b.*?\bamid\b/gi, 'النفط الخام ينخفض وسط'],
+    // "X breaks (key) resistance at Y"
+    [/\bbreaks?\s+(?:key\s+)?resistance\s+(?:at\s+)?/gi, 'يكسر مقاومة عند'],
+    // "X breaks (key) support at Y"
+    [/\bbreaks?\s+(?:key\s+)?support\s+(?:at\s+)?/gi, 'يكسر دعم عند'],
+    // "ETF inflows/outflows"
+    [/\bETF\s*inflows?\b/gi, 'تدفقات صناديق ETF'],
+    [/\bETF\s*outflows?\b/gi, 'تدفقات خارجة من صناديق ETF'],
+  ]
+
+  for (const [pattern, arabic] of sentencePatterns) {
+    if (pattern.test(title)) {
+      // Reset lastIndex after test
+      pattern.lastIndex = 0
+      let result = title.replace(pattern, arabic)
+      // Clean up any remaining English filler words
+      result = result
+        .replace(/\bamid\b/gi, 'وسط')
+        .replace(/\bas\b/gi, '')
+        .replace(/\bthe\b/gi, '')
+        .replace(/\bin\b/gi, 'في')
+        .replace(/\bon\b/gi, 'على')
+        .replace(/\bof\b/gi, '')
+        .replace(/\bto\b/gi, 'إلى')
+        .replace(/\bfor\b/gi, '')
+        .replace(/\bwith\b/gi, 'مع')
+        .replace(/\bfrom\b/gi, 'من')
+        .replace(/\bby\b/gi, 'بـ')
+        .replace(/\bat\b/gi, 'عند')
+        .replace(/\bnew\b/gi, 'جديد')
+        .replace(/\bhigh\b/gi, 'مرتفع')
+        .replace(/\blow\b/gi, 'منخفض')
+        .replace(/\s{2,}/g, ' ')
+        .trim()
+      return result
+    }
+    pattern.lastIndex = 0
+  }
+
+  // ── Step 2: Keyword-by-keyword replacement (fallback) ──
   const translations: [RegExp, string][] = [
     // Crypto terms
     [/\bBitcoin\b/gi, 'بيتكوين'],
@@ -182,6 +247,9 @@ function translateToArabic(title: string, category: string): string {
     [/\binvestor\b/gi, 'مستثمر'],
     [/\bprofit\b/gi, 'ربح'],
     [/\bloss\b/gi, 'خسارة'],
+    [/\bGold\b/gi, 'الذهب'],
+    [/\bCrude oil\b/gi, 'النفط الخام'],
+    [/\boil\b/gi, 'النفط'],
 
     // Regulation terms
     [/\bregulation\b/gi, 'تنظيم'],
@@ -235,12 +303,13 @@ function translateToArabic(title: string, category: string): string {
     translated = translated.replace(regex, arabic)
   }
 
+  // If nothing was translated, prepend Arabic category
   if (translated === title) {
     const categoryAr = mapCategoryToArabic(category)
     translated = `[${categoryAr}] ${title}`
   }
 
-  translated = translated.replace(/\s+/g, ' ').trim()
+  translated = translated.replace(/\s{2,}/g, ' ').trim()
   return translated
 }
 

@@ -1,12 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import BacktestPanel from './BacktestPanel';
 import NeuralPanel from './NeuralPanel';
 import SwarmPanel from './SwarmPanel';
 
+// Dynamic imports for new panels (they use browser-only features)
+const OptimizerPanel = dynamic(() => import('./OptimizerPanel'), { ssr: false });
+const ComparisonPanel = dynamic(() => import('./ComparisonPanel'), { ssr: false });
+
 const TABS = [
   { id: 'backtest', label: 'الباك تست', icon: '📊', desc: 'اختبار الاستراتيجيات على البيانات التاريخية' },
+  { id: 'optimizer', label: 'المُحسِّن', icon: '🔧', desc: 'تحسين بارامترات الاستراتيجية تلقائياً' },
+  { id: 'comparison', label: 'المقارنة', icon: '⚖️', desc: 'مقارنة أداء استراتيجيتين على نفس الأصل' },
   { id: 'neural', label: 'الشبكة العصبية', icon: '🧠', desc: 'تنبؤات الأسعار عبر AI Council' },
   { id: 'swarm', label: 'سرب الوكلاء', icon: '🐝', desc: 'تنسيق وكلاء التداول المتعددين' },
 ] as const;
@@ -35,16 +42,17 @@ export default function NeuralLabPage() {
 
       {/* Tab Navigation */}
       <div className="border-b border-white/5 px-6">
-        <div className="flex gap-1">
+        <div className="flex gap-1 overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium transition-all border-b-2 ${
+              className={`flex items-center gap-2 whitespace-nowrap px-4 py-3 text-sm font-medium transition-all border-b-2 ${
                 activeTab === tab.id
                   ? 'border-violet-500 text-white bg-white/5'
                   : 'border-transparent text-gray-400 hover:text-gray-200 hover:bg-white/[0.02]'
               }`}
+              title={tab.desc}
             >
               <span>{tab.icon}</span>
               {tab.label}
@@ -56,6 +64,8 @@ export default function NeuralLabPage() {
       {/* Content */}
       <div className="p-6">
         {activeTab === 'backtest' && <BacktestPanel />}
+        {activeTab === 'optimizer' && <OptimizerPanel />}
+        {activeTab === 'comparison' && <ComparisonPanel />}
         {activeTab === 'neural' && <NeuralPanel />}
         {activeTab === 'swarm' && <SwarmPanel />}
       </div>

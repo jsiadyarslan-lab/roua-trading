@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import {
   LineChart,
   Line,
@@ -12,6 +13,9 @@ import {
   AreaChart,
   Area,
 } from 'recharts';
+
+// Dynamic import for TradeChart (uses lightweight-charts which needs browser)
+const TradeChart = dynamic(() => import('./TradeChart'), { ssr: false });
 
 const STRATEGIES = [
   { value: 'MOMENTUM', label: 'زخم (Momentum)', desc: 'شراء عند الصعود، بيع عند النزول' },
@@ -60,6 +64,8 @@ export default function BacktestPanel() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BacktestResult | null>(null);
   const [error, setError] = useState('');
+  const [exporting, setExporting] = useState<string | null>(null);
+  const [applyingRec, setApplyingRec] = useState(false);
 
   const runBacktest = async () => {
     setLoading(true);
@@ -90,6 +96,74 @@ export default function BacktestPanel() {
       setError(err.message || 'خطأ في الاتصال');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const applyRecommendation = async (recommendation: string) => {
+    if (!result) return;
+    setApplyingRec(true);
+    try {
+      const res = await fetch('/api/neural/apply-recommendation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          recommendation,
+          symbol: result.symbol,
+          periodStart,
+          periodEnd,
+          initialCapital: capital,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.data?.backtestResult) {
+        setResult(data.data.backtestResult);
+      }
+    } catch (err: any) {
+      console.error('Apply recommendation failed:', err);
+    } finally {
+      setApplyingRec(false);
+    }
+  };
+
+  const exportReport = async (format: string) => {
+    if (!result) return;
+    setExporting(format);
+
+    try {
+      const res = await fetch('/api/neural/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          format,
+          reportType: 'باك تست',
+          reportData: result,
+        }),
+      });
+
+      if (format === 'json') {
+        const data = await res.json();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'neural-report.json';
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `neural-report.${format}`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch (err: any) {
+      console.error('Export failed:', err);
+    } finally {
+      setExporting(null);
     }
   };
 
@@ -206,6 +280,9 @@ export default function BacktestPanel() {
             ))}
           </div>
 
+          {/* Candlestick Chart with Entry/Exit Points */}
+          <TradeChart trades={result.trades} symbol={result.symbol} />
+
           {/* Equity Curve */}
           {result.equityCurve.length > 0 && (
             <div className="rounded-xl border border-white/5 bg-[#111827] p-5">
@@ -273,10 +350,41 @@ export default function BacktestPanel() {
           {/* AI Insights */}
           {result.aiInsights && (
             <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-5">
-              <h3 className="mb-3 text-sm font-semibold text-violet-300">🤖 تحليل AI Council</h3>
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-violet-300">🤖 تحليل AI Council</h3>
+                <button
+                  onClick={() => applyRecommendation(result.aiInsights)}
+                  disabled={applyingRec}
+                  className="rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 px-3 py-1.5 text-xs font-semibold text-white transition-all hover:from-violet-500 hover:to-fuchsia-500 disabled:opacity-50"
+                >
+                  {applyingRec ? '⏳ جاري التطبيق...' : '⚡ تطبيق التوصية'}
+                </button>
+              </div>
               <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-300">{result.aiInsights}</p>
             </div>
           )}
+
+          {/* Export Buttons */}
+          <div className="rounded-xl border border-white/5 bg-[#111827] p-5">
+            <h3 className="mb-3 text-sm font-semibold text-gray-300">📥 تصدير التقرير</h3>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { format: 'pdf', label: 'PDF', icon: '📄', color: 'from-red-600 to-rose-600' },
+                { format: 'xlsx', label: 'Excel', icon: '📊', color: 'from-green-600 to-emerald-600' },
+                { format: 'csv', label: 'CSV', icon: '📋', color: 'from-blue-600 to-cyan-600' },
+                { format: 'json', label: 'JSON', icon: '🔧', color: 'from-amber-600 to-yellow-600' },
+              ].map((btn) => (
+                <button
+                  key={btn.format}
+                  onClick={() => exportReport(btn.format)}
+                  disabled={exporting !== null}
+                  className={`rounded-lg bg-gradient-to-r ${btn.color} px-4 py-2 text-sm font-medium text-white transition-all hover:opacity-90 disabled:opacity-50`}
+                >
+                  {exporting === btn.format ? '⏳ جاري...' : `${btn.icon} ${btn.label}`}
+                </button>
+              ))}
+            </div>
+          </div>
         </>
       )}
     </div>

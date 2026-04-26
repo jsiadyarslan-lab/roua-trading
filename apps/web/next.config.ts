@@ -78,6 +78,27 @@ const nextConfig: NextConfig = {
         destination: `${apiTarget}/api/analytics/:path*`,
       },
 
+      // ── Neural Lab routes → NestJS (fallback) ──
+      // Neural Lab has local Next.js API routes that try NestJS first
+      // and fall back to local simulation. These rewrites are for direct
+      // NestJS access when the local routes are not available.
+      {
+        source: '/api/neural/optimize',
+        destination: `${apiTarget}/api/neural/optimize`,
+      },
+      {
+        source: '/api/neural/compare',
+        destination: `${apiTarget}/api/neural/compare`,
+      },
+      {
+        source: '/api/neural/export',
+        destination: `${apiTarget}/api/neural/export`,
+      },
+      {
+        source: '/api/neural/apply-recommendation',
+        destination: `${apiTarget}/api/neural/apply-recommendation`,
+      },
+
       // ── Health check → NestJS ──
       // Proxies /api/health to NestJS for DB connectivity and schema verification.
       {

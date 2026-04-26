@@ -10,6 +10,7 @@ import { SignalGeneratorService } from '../../analytics/signal-generator.service
 import { AnalyticalAIService } from '../../analytics/analytical-ai.service';
 import { MarketDataAggregatorService } from '../../analytics/aggregator.service';
 import { AuditService } from '../../../audit/audit.service';
+import { isMarketOpen } from '../../../common/utils/market-hours.util';
 
 /**
  * Market Scanner Service — Autonomous Market Surveillance
@@ -219,6 +220,17 @@ export class MarketScannerService {
     for (const symbol of symbols) {
       try {
         results.scanned++;
+
+        // ═══════════════════════════════════════════════════
+        // MARKET HOURS GATE: Skip symbols whose markets are
+        // currently closed (e.g., forex/stocks on weekends).
+        // Crypto (24/7) is always allowed.
+        // ═══════════════════════════════════════════════════
+        const marketStatus = isMarketOpen(symbol);
+        if (!marketStatus.open) {
+          this.logger.debug(`🔍 Skipping ${symbol} — market closed: ${marketStatus.reason}`);
+          continue;
+        }
 
         // Step 1: Quick quote check
         const quote = await this.aggregator.getAggregatedQuote(symbol);

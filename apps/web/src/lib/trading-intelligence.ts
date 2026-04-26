@@ -228,6 +228,25 @@ export function buildScannerResult(context: MarketContext): ScannerResult | null
   const quote = context.quote
   if (!quote || !quote.price) return null
 
+  // ═══════════════════════════════════════════════════
+  // MARKET HOURS GATE: For non-crypto markets that are
+  // currently closed, return null to prevent generating
+  // signals from stale/fake weekend data.
+  // Crypto (24/7) is always allowed.
+  // ═══════════════════════════════════════════════════
+  const base = context.symbol.split('/')[0].toUpperCase()
+  const CRYPTO_BASES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
+  const isCrypto = CRYPTO_BASES.includes(base)
+
+  if (!isCrypto && context.freshness === 'degraded') {
+    // Degraded data for non-crypto means fake/fallback data
+    // (e.g., weekend forex/stock prices). Don't generate signals.
+    return null
+  }
+
+  // For non-crypto with stale data, add a heavy warning
+  const isStaleNonCrypto = !isCrypto && context.freshness === 'stale'
+
   const closes = context.closes
   const change = safeNumber(quote.changePercent)
   const price = safeNumber(quote.price)
@@ -304,6 +323,7 @@ export function buildScannerResult(context: MarketContext): ScannerResult | null
   }
 
   if (context.freshness === 'degraded') reasons.push('بيانات جزئية')
+  else if (isStaleNonCrypto) reasons.push('بيانات قديمة — السوق قد يكون مغلقاً')
   else reasons.push(`المصدر: ${context.source}`)
 
   const dir: ScannerDirection = score > 0.45 ? 'buy' : score < -0.45 ? 'sell' : 'neutral'

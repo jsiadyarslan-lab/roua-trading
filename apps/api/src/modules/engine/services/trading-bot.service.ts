@@ -11,6 +11,7 @@ import { TradingService } from '../../trading/trading.service';
 import { ExchangeService } from '../../exchange/exchange.service';
 import { AuditService } from '../../../audit/audit.service';
 import { PlaceOrderRequest, OrderSide, OrderType } from '../../trading/trading.types';
+import { isMarketOpen } from '../../../common/utils/market-hours.util';
 
 /**
  * Trading Bot Service — Autonomous Signal Executor
@@ -287,6 +288,21 @@ export class TradingBotService {
 
         // Skip WAIT signals
         if (signal.action === 'WAIT') {
+          results.skipped++;
+          continue;
+        }
+
+        // ═══════════════════════════════════════════════════
+        // MARKET HOURS GATE: Check if the market for this
+        // symbol is currently open. Skip if market is closed.
+        // This prevents executing trades on stale/fake prices
+        // from closed markets (e.g., forex on weekends).
+        // ═══════════════════════════════════════════════════
+        const marketStatus = isMarketOpen(signal.pair);
+        if (!marketStatus.open) {
+          this.logger.debug(
+            `🤖 Skipping ${signal.pair} — market closed: ${marketStatus.reason}`,
+          );
           results.skipped++;
           continue;
         }

@@ -6,6 +6,7 @@ import { usePaperTradesStore, type PaperTrade } from '@/hooks/usePaperTradesStor
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
+import { isMarketOpen } from '@/lib/market-hours'
 
 // Default to paper trading for safety — only go live if explicitly enabled
 const PAPER_TRADING_MODE = process.env.NEXT_PUBLIC_PAPER_TRADING !== 'false'
@@ -33,6 +34,8 @@ export function BotEngine() {
   const tradesRef = useRef(usePaperTradesStore.getState().trades)
   const lastExecutionRef = useRef<Record<string, number>>({})
   const executionTimestampsRef = useRef<number[]>([])
+  /** Track the last time we logged a market-closed message per symbol to avoid spam */
+  const lastMarketClosedLogRef = useRef<Record<string, number>>({})
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
@@ -115,11 +118,20 @@ export function BotEngine() {
             updatePaperTradePrice(trade.symbol, latestPrice)
           }
 
+          // For non-crypto markets, check if market is still open before managing
+          // If market is closed, we still need to manage existing positions but with caution
+          const marketStatus = isMarketOpen(trade.symbol)
+          if (!marketStatus.open) {
+            // Market is closed — don't update prices or trigger TP/SL with stale data
+            // Wait for market to reopen. Only close if we have a real live price.
+            continue
+          }
+
           const shouldTakeProfit = trade.side === 'long'
             ? typeof trade.tp === 'number' && latestPrice >= trade.tp
             : typeof trade.tp === 'number' && latestPrice <= trade.tp
           const shouldStopLoss = trade.side === 'long'
-            ? typeof trade.sl === 'number' && latestPrice <= trade.sl
+            ? typeof trade.tp === 'number' && latestPrice <= trade.sl
             : typeof trade.sl === 'number' && latestPrice >= trade.sl
 
           if (shouldTakeProfit || shouldStopLoss) {
@@ -162,8 +174,41 @@ export function BotEngine() {
         const signals = Array.isArray(payload?.data) ? payload.data : []
 
         let executedCount = 0
+        let marketClosedCount = 0
+
         for (const signal of signals as SmartSignalLike[]) {
           if (!isOn) break
+
+          // ═══════════════════════════════════════════════════
+          // MARKET HOURS GATE: Check if the market for this
+          // symbol is currently open. Skip if market is closed.
+          // ═══════════════════════════════════════════════════
+          const marketStatus = isMarketOpen(signal.pair)
+          if (!marketStatus.open) {
+            marketClosedCount++
+            // Log market-closed message at most once per symbol per 10 minutes to avoid spam
+            const lastLogTime = lastMarketClosedLogRef.current[signal.pair] || 0
+            if (Date.now() - lastLogTime > 10 * 60 * 1000) {
+              addLog(`[حماية السوق] ${signal.pair} — ${marketStatus.reason} — تم تخطي الإشارة`, 'warn')
+              lastMarketClosedLogRef.current[signal.pair] = Date.now()
+            }
+            continue
+          }
+
+          // ═══════════════════════════════════════════════════
+          // DATA QUALITY GATE: Block signals that rely on
+          // degraded/fallback data (fake prices generated when
+          // real APIs are unavailable, e.g. on weekends).
+          // ═══════════════════════════════════════════════════
+          if (signal.freshness === 'degraded') {
+            // Only allow degraded data for crypto (24/7 market — data should be fresh)
+            // For forex/stocks/commodities, degraded data means fake prices
+            const marketType = marketStatus.marketType
+            if (marketType !== 'crypto') {
+              continue
+            }
+          }
+
           if (!shouldExecuteSignal(signal)) continue
 
           // ═══════════════════════════════════════════════════
@@ -207,7 +252,12 @@ export function BotEngine() {
         }
 
         if (executedCount === 0) {
-          addLog(`[تحليل] لا توجد فرص منسجمة مع ${settings.useAIConsensus ? 'إجماع AI و' : ''}سياسة البوت الآن (${new Date().toLocaleTimeString('ar-SA')})`, 'info')
+          if (marketClosedCount > 0 && marketClosedCount === signals.length) {
+            // All signals were for closed markets — don't spam, just note it once
+            addLog(`[حماية السوق] جميع الأسواق مغلقة حالياً — سيتم استئناف التداول عند الافتتاح`, 'warn')
+          } else {
+            addLog(`[تحليل] لا توجد فرص منسجمة مع ${settings.useAIConsensus ? 'إجماع AI و' : ''}سياسة البوت الآن (${new Date().toLocaleTimeString('ar-SA')})`, 'info')
+          }
           setEngineState('armed')
         } else {
           addLog(`[تنفيذ آلي] تم فتح ${executedCount} صفقة من محرك ${settings.useAIConsensus ? 'AI + السكانر' : 'السكانر'}`, 'buy')

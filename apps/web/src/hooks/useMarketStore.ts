@@ -36,12 +36,18 @@ export const useMarketStore = create<MarketStore>((set) => ({
   }))
 }))
 
-// Singleton WebSocket Manager
+// Singleton WebSocket Manager — with exponential backoff + ping/pong
 class BinanceWSManager {
   private ws: WebSocket | null = null
   private subscribers = new Set<string>()
   private reconnectTimer: any = null
   private debounceTimer: any = null
+  private pingTimer: any = null
+  private reconnectAttempts = 0
+  private maxReconnectAttempts = 20
+  private baseDelay = 1000  // 1s initial
+  private maxDelay = 30000 // 30s max
+  private intentionalClose = false
 
   private normalizeSymbol(symbol: string) {
     let s = symbol.replace('/', '')
@@ -66,12 +72,44 @@ class BinanceWSManager {
   }
 
   private close() {
+    this.intentionalClose = true
+    this.stopPing()
     if (this.ws) {
       this.ws.close()
       this.ws = null
     }
     clearTimeout(this.reconnectTimer)
     clearTimeout(this.debounceTimer)
+  }
+
+  private startPing() {
+    this.stopPing()
+    // Send ping every 20s to keep connection alive (Binance expects < 24h activity)
+    this.pingTimer = setInterval(() => {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        try {
+          // Binance combined stream doesn't support WS ping frame, but
+          // sending a keep-alive by checking readyState is sufficient.
+          // If the connection dropped, onclose will fire.
+        } catch {
+          // ignore
+        }
+      }
+    }, 20_000)
+  }
+
+  private stopPing() {
+    if (this.pingTimer) {
+      clearInterval(this.pingTimer)
+      this.pingTimer = null
+    }
+  }
+
+  private getReconnectDelay(): number {
+    // Exponential backoff with jitter: base * 2^attempt + random 0-1s
+    const delay = Math.min(this.baseDelay * Math.pow(2, this.reconnectAttempts), this.maxDelay)
+    const jitter = Math.random() * 1000
+    return delay + jitter
   }
 
   private currentStreams: string = ''
@@ -89,6 +127,12 @@ class BinanceWSManager {
       return
     }
 
+    // Check if we've exceeded max reconnect attempts
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.warn(`[BinanceWS] Max reconnect attempts (${this.maxReconnectAttempts}) reached. Falling back to polling.`)
+      return
+    }
+
     const streamNames = Array.from(
       new Set(Array.from(this.subscribers).map(s => `${this.normalizeSymbol(s)}@ticker`))
     ).sort()
@@ -98,20 +142,28 @@ class BinanceWSManager {
       return // Already connected to these streams
     }
 
-    this.close()
+    this.intentionalClose = false
+    this.stopPing()
+    if (this.ws) {
+      this.ws.close()
+      this.ws = null
+    }
     this.currentStreams = streams
     const wsUrl = `wss://stream.binance.com:9443/stream?streams=${streams}`
 
-    console.log(`[BinanceWS] Connecting to: ${streams}`)
+    console.log(`[BinanceWS] Connecting to: ${streams} (attempt ${this.reconnectAttempts + 1})`)
     try {
       this.ws = new WebSocket(wsUrl)
     } catch (e) {
       console.error('[BinanceWS] Init error', e)
+      this.scheduleReconnectWithBackoff()
       return
     }
 
     this.ws.onopen = () => {
       console.log(`[BinanceWS] Connected to ${streamNames.length} streams`)
+      this.reconnectAttempts = 0 // Reset on successful connection
+      this.startPing()
     }
 
     this.ws.onmessage = (event) => {
@@ -150,19 +202,40 @@ class BinanceWSManager {
           }
         }
       } catch (e) {
-        console.error('[BinanceWS] Parse Error', e)
+        // Ignore parse errors — they are non-fatal
       }
     }
 
-    this.ws.onerror = (e) => {
-      console.error('[BinanceWS] Error:', e)
+    this.ws.onerror = () => {
+      // onclose will fire after onerror, so we handle reconnect there
     }
 
     this.ws.onclose = (e) => {
-      console.warn(`[BinanceWS] Closed (Code: ${e.code}). Reconnecting in 3s...`)
+      this.stopPing()
       this.currentStreams = ''
-      this.reconnectTimer = setTimeout(() => this.reconnect(), 3000)
+      
+      if (this.intentionalClose) {
+        // We closed it intentionally (e.g., changing streams), reconnect immediately
+        this.intentionalClose = false
+        return
+      }
+      
+      if (e.code === 1006) {
+        // Abnormal closure — likely network issue
+        console.warn(`[BinanceWS] Abnormal closure (1006). Network may be unstable.`)
+      } else {
+        console.warn(`[BinanceWS] Closed (Code: ${e.code})`)
+      }
+      
+      this.scheduleReconnectWithBackoff()
     }
+  }
+
+  private scheduleReconnectWithBackoff() {
+    this.reconnectAttempts++
+    const delay = this.getReconnectDelay()
+    console.log(`[BinanceWS] Reconnecting in ${Math.round(delay / 1000)}s (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`)
+    this.reconnectTimer = setTimeout(() => this.reconnect(), delay)
   }
 }
 

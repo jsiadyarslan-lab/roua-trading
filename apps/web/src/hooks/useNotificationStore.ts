@@ -1,6 +1,80 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
+/* ══════════════════════════════════════════════════════
+   AudioContext Manager — Respects browser autoplay policy
+   AudioContext is only created after user gesture (click/keydown)
+   to prevent "AudioContext was not allowed to start" errors.
+══════════════════════════════════════════════════════ */
+let _audioCtx: AudioContext | null = null
+let _audioResumed = false
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null
+  if (!_audioCtx) {
+    try {
+      _audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+    } catch {
+      return null
+    }
+  }
+  return _audioCtx
+}
+
+// Resume AudioContext on first user interaction
+if (typeof window !== 'undefined') {
+  const resumeAudio = () => {
+    const ctx = getAudioContext()
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => {})
+    }
+    _audioResumed = true
+  }
+  // Listen for first user gesture
+  window.addEventListener('click', resumeAudio, { once: true })
+  window.addEventListener('keydown', resumeAudio, { once: true })
+  window.addEventListener('touchstart', resumeAudio, { once: true })
+}
+
+function playNotifSound(action: string) {
+  const ctx = getAudioContext()
+  if (!ctx) return
+
+  // Try to resume if suspended (after user gesture)
+  if (ctx.state === 'suspended') {
+    ctx.resume().catch(() => {})
+  }
+
+  const osc = ctx.createOscillator()
+  const gain = ctx.createGain()
+  gain.gain.value = 0.15
+  osc.connect(gain)
+  gain.connect(ctx.destination)
+
+  if (action === 'BUY') {
+    osc.frequency.value = 523.25
+    osc.type = 'sine'
+    osc.start()
+    setTimeout(() => {
+      osc.frequency.value = 659.25
+      setTimeout(() => { osc.stop(); osc.disconnect(); gain.disconnect() }, 150)
+    }, 150)
+  } else if (action === 'SELL') {
+    osc.frequency.value = 392
+    osc.type = 'sine'
+    osc.start()
+    setTimeout(() => {
+      osc.frequency.value = 329.63
+      setTimeout(() => { osc.stop(); osc.disconnect(); gain.disconnect() }, 150)
+    }, 150)
+  } else {
+    osc.frequency.value = 440
+    osc.type = 'sine'
+    osc.start()
+    setTimeout(() => { osc.stop(); osc.disconnect(); gain.disconnect() }, 200)
+  }
+}
+
 export type NotifSource = 'bot' | 'ai' | 'scanner' | 'trade' | 'system'
 export type NotifPriority = 'urgent' | 'high' | 'medium' | 'low'
 export type NotifAction = 'BUY' | 'SELL' | 'INFO' | 'WARN' | 'CLOSE'
@@ -87,36 +161,10 @@ export const useNotificationStore = create<NotificationState>()(
           typeof window !== 'undefined'
         ) {
           try {
-            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
-            const osc = ctx.createOscillator()
-            const gain = ctx.createGain()
-            gain.gain.value = 0.15
-            osc.connect(gain)
-            gain.connect(ctx.destination)
-
-            if (n.action === 'BUY') {
-              osc.frequency.value = 523.25
-              osc.type = 'sine'
-              osc.start()
-              setTimeout(() => {
-                osc.frequency.value = 659.25
-                setTimeout(() => { osc.stop(); ctx.close() }, 150)
-              }, 150)
-            } else if (n.action === 'SELL') {
-              osc.frequency.value = 392
-              osc.type = 'sine'
-              osc.start()
-              setTimeout(() => {
-                osc.frequency.value = 329.63
-                setTimeout(() => { osc.stop(); ctx.close() }, 150)
-              }, 150)
-            } else {
-              osc.frequency.value = 440
-              osc.type = 'sine'
-              osc.start()
-              setTimeout(() => { osc.stop(); ctx.close() }, 200)
-            }
-          } catch {}
+            playNotifSound(n.action)
+          } catch {
+            // AudioContext not available — silent fallback
+          }
         }
       },
 

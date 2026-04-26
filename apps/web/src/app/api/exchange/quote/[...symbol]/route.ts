@@ -15,6 +15,10 @@ import { NextRequest, NextResponse } from 'next/server'
 // ── Simple in-memory cache ──
 const cache = new Map<string, { data: any; expiresAt: number }>()
 
+// ── Stale cache: serves expired data when all live sources fail ──
+const staleCache = new Map<string, { data: any; fetchedAt: number }>()
+const STALE_TTL = 86_400_000 // Keep stale data for up to 24 hours
+
 function getCached(key: string): any | null {
   const entry = cache.get(key)
   if (!entry) return null
@@ -557,17 +561,36 @@ export async function GET(
       )
     }
 
-    // If no real data available, return error instead of fake data
+    // If no real data available, try stale cache before returning error
     if (!quote) {
+      const stale = staleCache.get(`quote:${symbol}`)
+      if (stale && Date.now() - stale.fetchedAt < STALE_TTL) {
+        console.info(`[exchange/quote] All live sources failed for ${symbol}, serving stale data from ${new Date(stale.fetchedAt).toISOString()}`)
+        return NextResponse.json({
+          success: true,
+          data: { ...stale.data, source: `${stale.data.source} (مؤقت)` },
+          stale: true,
+        })
+      }
       return NextResponse.json(
         { success: false, error: `لا تتوفر بيانات حقيقية لـ ${symbol} — تحقق من اتصال الإنترنت أو مفاتيح API` },
         { status: 503 }
       )
     }
 
-    // Cache: 5s for crypto, 15s for stocks/forex
-    const ttl = isCryptoPair ? 5000 : 15000
+    // Cache: 5s for crypto, 30s for stocks/forex/commodities (longer to reduce API pressure)
+    const ttl = isCryptoPair ? 5000 : 30000
     setCache(cacheKey, quote, ttl)
+
+    // Save to stale cache for fallback when all live sources fail
+    staleCache.set(`quote:${symbol}`, { data: quote, fetchedAt: Date.now() })
+    // Prune stale cache if too large
+    if (staleCache.size > 100) {
+      const cutoff = Date.now() - STALE_TTL
+      for (const [k, v] of staleCache) {
+        if (v.fetchedAt < cutoff) staleCache.delete(k)
+      }
+    }
 
     return NextResponse.json({ success: true, data: quote })
   } catch (error: any) {

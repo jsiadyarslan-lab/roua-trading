@@ -41,8 +41,9 @@ const NON_CRYPTO_SYMBOLS = GLOBAL_SYMBOLS.filter(s => {
 async function fetchAndStore(symbol: string) {
   try {
     const res = await fetch(`/api/exchange/quote/${encodeURIComponent(symbol)}`)
+    if (!res.ok) return // Silently skip failed requests
     const data = await res.json()
-    if (data.success && data.data) {
+    if (data.success && data.data && data.data.price > 0) {
       useMarketStore.getState().setQuote(symbol, data.data)
     }
   } catch { /* silent */ }
@@ -92,9 +93,22 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     Promise.allSettled(GLOBAL_SYMBOLS.map(fetchAndStore))
 
     // 3. Poll non-crypto (Forex + Stocks) every 60 seconds to respect TwelveData limit (8 req/min)
-    const pollInterval = setInterval(() => {
-      Promise.allSettled(NON_CRYPTO_SYMBOLS.map(fetchAndStore))
-    }, 60_000)
+    //    Stagger requests: fetch a few at a time instead of all at once
+    const pollNonCrypto = () => {
+      // Split into batches of 3 to avoid rate limits
+      const batch = NON_CRYPTO_SYMBOLS.slice(0, 3)
+      const remaining = NON_CRYPTO_SYMBOLS.slice(3)
+      Promise.allSettled(batch.map(fetchAndStore)).then(() => {
+        if (remaining.length > 0) {
+          // Fetch remaining after 2s delay
+          setTimeout(() => {
+            Promise.allSettled(remaining.map(fetchAndStore))
+          }, 2000)
+        }
+      })
+    }
+    pollNonCrypto()
+    const pollInterval = setInterval(pollNonCrypto, 60_000)
 
     return () => {
       clearInterval(pollInterval)

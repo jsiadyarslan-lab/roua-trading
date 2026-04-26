@@ -42,14 +42,14 @@ export function useMarketQuotes(symbols: string[], refreshInterval = 0) {
   const quotesMap = new Map<string, QuoteData>()
   symbols.forEach((symbol) => {
     const quote = globalQuotes[symbol]
-    if (quote) quotesMap.set(symbol, quote)
+    if (quote && quote.price > 0) quotesMap.set(symbol, quote)
   })
 
   const refetch = useCallback(async () => {
-    const results = await Promise.all(symbols.map(symbol => fetchQuoteFromAPI(symbol)))
-    results.forEach((quote, index) => {
-      if (quote) {
-        useMarketStore.getState().setQuote(symbols[index], quote)
+    const results = await Promise.allSettled(symbols.map(symbol => fetchQuoteFromAPI(symbol)))
+    results.forEach((result, index) => {
+      if (result.status === 'fulfilled' && result.value && result.value.price > 0) {
+        useMarketStore.getState().setQuote(symbols[index], result.value)
       }
     })
   }, [symbols])

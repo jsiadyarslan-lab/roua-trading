@@ -656,7 +656,7 @@ export default function DashboardPage() {
                         color: isProfitable ? T.success : T.danger,
                         fontWeight: 800,
                       }}>
-                        {isProfitable ? '+' : ''}{formatMoney(unrealizedPnl)}
+                        {isProfitable ? '+' : '-'}{formatMoney(Math.abs(unrealizedPnl))}
                       </span>
                     </div>
                   )}

@@ -94,7 +94,7 @@ export default function QuantumChart({
   onExpand = null,
   dataStatus = 'disconnected',
   lastUpdatedAt = null,
-  sourceLabel = 'Unknown source',
+  sourceLabel = 'في انتظار ربط API',
 } = {}) {
   const { selectedSymbol, timeframe, setTimeframe } = useSymbolStore();
   

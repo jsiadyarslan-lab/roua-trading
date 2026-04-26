@@ -36,7 +36,7 @@ const fmtPrice = (value: number) =>
     : '—'
 
 const fmtPnl = (value: number) =>
-  `${value >= 0 ? '+' : ''}${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}$`
+  `${value >= 0 ? '+' : '-'}${Math.abs(value).toLocaleString('en-US', { maximumFractionDigits: 2 })}$`
 
 export function AlpacaPositions() {
   const { positions, fetchPositions, fetchAccount } = usePositionsStore()

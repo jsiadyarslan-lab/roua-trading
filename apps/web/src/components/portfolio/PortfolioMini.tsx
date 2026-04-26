@@ -150,7 +150,7 @@ export function PortfolioMini({
   compact = false,
   dataStatus = 'disconnected',
   lastUpdatedAt = null,
-  sourceLabel = 'Unknown source',
+  sourceLabel = 'في انتظار ربط API',
   selectedSymbol,
 }: {
   mobile?: boolean
@@ -186,7 +186,7 @@ export function PortfolioMini({
         background: 'rgba(255,255,255,0.025)',
       }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 8.5, color: T.text3, marginBottom: 3 }}>Account status</div>
+          <div style={{ fontSize: 8.5, color: T.text3, marginBottom: 3 }}>حالة الحساب</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
             <span style={{
               display: 'inline-flex',
@@ -237,7 +237,7 @@ export function PortfolioMini({
             fontSize: 10, fontWeight: 700,
             color: pnlUp ? T.green : T.red,
           }}>
-            {pnlUp ? '+' : ''}{fmt(data.pnlPercent)}%
+            {pnlUp ? '+' : '-'}{fmt(Math.abs(data.pnlPercent))}%
           </span>
         </div>
       </div>
@@ -255,7 +255,7 @@ export function PortfolioMini({
           fontSize: 11, fontWeight: 700,
           color: pnlUp ? T.green : T.red,
         }}>
-          {pnlUp ? '+' : ''}${fmt(data.totalPnl, 0)}
+          {pnlUp ? '+' : '-'}${fmt(Math.abs(data.totalPnl), 0)}
         </span>
       </div>
 

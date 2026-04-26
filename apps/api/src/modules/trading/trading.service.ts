@@ -523,18 +523,19 @@ export class TradingService {
       );
     }
 
+    // Safe exit price: use explicit null checks instead of || operator
+    // The || operator treats 0 as falsy, causing incorrect fallback to entry price
+    const exitPrice =
+      execution.averagePrice != null && execution.averagePrice > 0
+        ? execution.averagePrice
+        : (position.currentPrice != null && position.currentPrice > 0
+          ? position.currentPrice
+          : position.entryPrice);
+
     const pnl =
       position.side === 'BUY'
-        ? ((execution.averagePrice ||
-            position.currentPrice ||
-            position.entryPrice) -
-            position.entryPrice) *
-          closeQuantity
-        : (position.entryPrice -
-            (execution.averagePrice ||
-              position.currentPrice ||
-              position.entryPrice)) *
-          closeQuantity;
+        ? (exitPrice - position.entryPrice) * closeQuantity
+        : (position.entryPrice - exitPrice) * closeQuantity;
 
     // Record closing order
     // Note: averagePrice (not averageFillPrice) is the correct field name
@@ -570,10 +571,7 @@ export class TradingService {
         side: closeSide as OrderSide,
         type: closeQuantity >= position.quantity ? 'EXIT' : 'PARTIAL_EXIT',
         quantity: closeQuantity,
-        price:
-          execution.averagePrice ||
-          position.currentPrice ||
-          position.entryPrice,
+        price: exitPrice,
         fee: execution.fee,
         feeCurrency: execution.feeCurrency,
         pnl,

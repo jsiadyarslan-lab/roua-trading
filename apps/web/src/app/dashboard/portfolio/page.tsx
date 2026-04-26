@@ -408,12 +408,12 @@ export default function PortfolioPage() {
           sub={`القيمة: $${fmt(summary?.totalValue || 0, 0)}`}
         />
         <StatCard
-          label="أ.خ غير محققة" value={`${totalUnrealizedPnl >= 0 ? '+' : ''}$${fmt(Math.abs(totalUnrealizedPnl), 2)}`}
+          label="أ.خ غير محققة" value={`${totalUnrealizedPnl >= 0 ? '+' : '-'}$${fmt(Math.abs(totalUnrealizedPnl), 2)}`}
           color={totalUnrealizedPnl >= 0 ? T.green : T.red}
           icon={totalUnrealizedPnl >= 0 ? TrendingUp : TrendingDown}
         />
         <StatCard
-          label="أرباح محققة" value={`${totalRealizedPnl >= 0 ? '+' : ''}$${fmt(Math.abs(totalRealizedPnl), 2)}`}
+          label="أرباح محققة" value={`${totalRealizedPnl >= 0 ? '+' : '-'}$${fmt(Math.abs(totalRealizedPnl), 2)}`}
           color={totalRealizedPnl >= 0 ? T.green : T.red}
           icon={TrendingUp}
           sub={`${closedPositions.length} صفقة مغلقة`}
@@ -540,7 +540,7 @@ export default function PortfolioPage() {
                   color: totalUnrealizedPnl >= 0 ? T.green : T.red, fontWeight: 700,
                   marginRight: 8,
                 }}>
-                  P&L: {totalUnrealizedPnl >= 0 ? '+' : ''}${fmt(totalUnrealizedPnl, 2)}
+                  P&L: {totalUnrealizedPnl >= 0 ? '+' : '-'}${fmt(Math.abs(totalUnrealizedPnl), 2)}
                 </span>
               )}
             </div>
@@ -601,7 +601,7 @@ export default function PortfolioPage() {
                       fontSize: 11, fontWeight: 700,
                       color: (pos.unrealizedPnl || 0) >= 0 ? T.green : T.red,
                     }}>
-                      {(pos.unrealizedPnl || 0) >= 0 ? '+' : ''}${fmt(Math.abs(pos.unrealizedPnl || 0))}
+                      {(pos.unrealizedPnl || 0) >= 0 ? '+' : '-'}${fmt(Math.abs(pos.unrealizedPnl || 0))}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
                       <button
@@ -657,7 +657,7 @@ export default function PortfolioPage() {
                   color: totalRealizedPnl >= 0 ? T.green : T.red, fontWeight: 700,
                   marginRight: 8,
                 }}>
-                  P&L: {totalRealizedPnl >= 0 ? '+' : ''}${fmt(Math.abs(totalRealizedPnl), 2)}
+                  P&L: {totalRealizedPnl >= 0 ? '+' : '-'}${fmt(Math.abs(totalRealizedPnl), 2)}
                 </span>
               )}
               <ChevronRight size={14} style={{ color: T.text3, transform: showClosed ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform 0.2s' }} />
@@ -712,7 +712,7 @@ export default function PortfolioPage() {
                         fontSize: 10, fontWeight: 700,
                         color: (pos.realizedPnl || 0) >= 0 ? T.green : T.red,
                       }}>
-                        {(pos.realizedPnl || 0) >= 0 ? '+' : ''}${fmt(Math.abs(pos.realizedPnl || 0))}
+                        {(pos.realizedPnl || 0) >= 0 ? '+' : '-'}${fmt(Math.abs(pos.realizedPnl || 0))}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <span style={{
@@ -761,7 +761,7 @@ export default function PortfolioPage() {
                         fontSize: 10, fontWeight: 700,
                         color: (pt.realizedPnl || 0) >= 0 ? T.green : T.red,
                       }}>
-                        {(pt.realizedPnl || 0) >= 0 ? '+' : ''}${fmt(Math.abs(pt.realizedPnl || 0))}
+                        {(pt.realizedPnl || 0) >= 0 ? '+' : '-'}${fmt(Math.abs(pt.realizedPnl || 0))}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <span style={{
@@ -804,7 +804,7 @@ export default function PortfolioPage() {
                   color: totalTradePnl >= 0 ? T.green : T.red, fontWeight: 700,
                   marginRight: 8,
                 }}>
-                  P&L: {totalTradePnl >= 0 ? '+' : ''}${fmt(Math.abs(totalTradePnl), 2)}
+                  P&L: {totalTradePnl >= 0 ? '+' : '-'}${fmt(Math.abs(totalTradePnl), 2)}
                 </span>
               )}
             </div>
@@ -858,7 +858,7 @@ export default function PortfolioPage() {
                       fontSize: 10, fontWeight: 700,
                       color: (trade.pnl || 0) >= 0 ? T.green : (trade.pnl || 0) < 0 ? T.red : T.text3,
                     }}>
-                      {trade.pnl !== null ? `${(trade.pnl) >= 0 ? '+' : ''}$${fmt(Math.abs(trade.pnl), 2)}` : '—'}
+                      {trade.pnl !== null ? `${(trade.pnl) >= 0 ? '+' : '-'}$${fmt(Math.abs(trade.pnl), 2)}` : '—'}
                     </div>
                     <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>
                       {new Date(trade.executedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -1017,7 +1017,7 @@ export default function PortfolioPage() {
               <div style={{ padding: '12px', background: T.bg, borderRadius: 8, border: `0.5px solid ${T.border}` }}>
                 <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2, marginBottom: 6 }}>التعرض المفتوح</div>
                 <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 18, fontWeight: 800, color: totalUnrealizedPnl >= 0 ? T.green : T.red }}>
-                  {totalUnrealizedPnl >= 0 ? '+' : ''}${fmt(Math.abs(totalUnrealizedPnl), 2)}
+                  {totalUnrealizedPnl >= 0 ? '+' : '-'}${fmt(Math.abs(totalUnrealizedPnl), 2)}
                 </div>
                 <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>عبر {positions.length} مركز مفتوح</span>
               </div>

@@ -222,7 +222,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                 : `السكانر يراقب ${spotlight.pair} بانتظار تأكيد أقوى.`}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, fontSize: 9, color: 'var(--text3)', fontFamily: 'monospace' }}>
-              <span>{spotlight.source || 'Unknown source'} {spotlight.freshness ? `· ${spotlight.freshness}` : ''}</span>
+              <span>{spotlight.source || 'في انتظار الربط'} {spotlight.freshness ? `· ${spotlight.freshness}` : ''}</span>
               <span>{spotlight.timestamp ? formatFreshness(spotlight.timestamp) : (lastScan || 'الآن')}</span>
             </div>
           </div>

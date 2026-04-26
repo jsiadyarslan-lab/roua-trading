@@ -21,14 +21,29 @@ export class ExchangeService {
   /**
    * Fetch real-time quote for a symbol
    * Auto-selects the best adapter based on the symbol
+   * Falls back to FreeFallback if primary adapter fails
    */
   async getQuote(symbol: string, source?: string): Promise<UnifiedQuoteDto> {
     const adapter = this._selectAdapter(symbol, source);
-    return adapter.fetchQuote(symbol);
+    try {
+      return await adapter.fetchQuote(symbol);
+    } catch (error: any) {
+      // If primary adapter fails (rate limit, 503, etc.), try fallback
+      if (adapter.name !== 'FreeFallback' && this.adapters['FreeFallback']) {
+        this.logger.warn(`⚠️ ${adapter.name} failed for ${symbol}: ${error.message}. Trying FreeFallback...`);
+        try {
+          return await this.adapters['FreeFallback'].fetchQuote(symbol);
+        } catch (fallbackError: any) {
+          this.logger.error(`FreeFallback also failed for ${symbol}: ${fallbackError.message}`);
+        }
+      }
+      throw error;
+    }
   }
 
   /**
    * Fetch historical OHLCV data for a symbol
+   * Falls back to FreeFallback if primary adapter fails
    */
   async getHistoricalData(
     symbol: string,
@@ -41,7 +56,22 @@ export class ExchangeService {
     const endDate = end || new Date();
     // 60 days default to ensure MACD (26+9=35 bars minimum) and other indicators have enough data
     const startDate = start || new Date(endDate.getTime() - 60 * 24 * 60 * 60 * 1000);
-    return adapter.fetchHistoricalData(symbol, interval, startDate, endDate);
+    try {
+      const candles = await adapter.fetchHistoricalData(symbol, interval, startDate, endDate);
+      if (candles.length > 0) return candles;
+    } catch (error: any) {
+      this.logger.warn(`⚠️ ${adapter.name} history failed for ${symbol}: ${error.message}`);
+    }
+    // Try fallback if primary returned empty or failed
+    if (adapter.name !== 'FreeFallback' && this.adapters['FreeFallback']) {
+      try {
+        const fallbackCandles = await this.adapters['FreeFallback'].fetchHistoricalData(symbol, interval, startDate, endDate);
+        if (fallbackCandles.length > 0) return fallbackCandles;
+      } catch (fallbackError: any) {
+        this.logger.warn(`FreeFallback history also failed for ${symbol}: ${fallbackError.message}`);
+      }
+    }
+    return [];
   }
 
   /**

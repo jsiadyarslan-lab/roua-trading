@@ -17,7 +17,7 @@ export function QuickExecutionMini({
   mobile = false,
   dataStatus = 'disconnected',
   lastUpdatedAt = null,
-  sourceLabel = 'Unknown source',
+  sourceLabel = 'في انتظار ربط API',
 }: {
   mobile?: boolean
   dataStatus?: DataStatus

@@ -897,7 +897,7 @@ export default function TradingPage() {
                     <div className="text-left">
                       <p className="text-xs text-muted-foreground">إجمالي الربح/الخسارة</p>
                       <p className={`text-sm font-bold ${totalUnrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`} dir="ltr">
-                        {totalUnrealizedPnl >= 0 ? '+' : ''}{formatCurrency(totalUnrealizedPnl)}
+                        {totalUnrealizedPnl >= 0 ? '+' : '-'}{formatCurrency(Math.abs(totalUnrealizedPnl))}
                       </p>
                     </div>
                   )}
@@ -965,7 +965,7 @@ export default function TradingPage() {
                               <p className={`text-sm font-bold ${
                                 (pos.unrealizedPnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
                               }`} dir="ltr">
-                                {(pos.unrealizedPnl || 0) >= 0 ? '+' : ''}{formatCurrency(pos.unrealizedPnl || 0)}
+                                {(pos.unrealizedPnl || 0) >= 0 ? '+' : '-'}{formatCurrency(Math.abs(pos.unrealizedPnl || 0))}
                               </p>
                               <p className={`text-[10px] ${
                                 (pos.unrealizedPnl || 0) >= 0 ? 'text-emerald-400/70' : 'text-red-400/70'

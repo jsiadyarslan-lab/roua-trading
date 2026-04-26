@@ -76,7 +76,7 @@ export function OrderBookPanelInner({
   collapsedByDefault = false,
   dataStatus = 'disconnected',
   lastUpdatedAt = null,
-  sourceLabel = 'Unknown source',
+  sourceLabel = 'في انتظار ربط API',
 }: OrderBookPanelProps = {}) {
   const [expanded, setExpanded] = useState(!collapsedByDefault)
   const selectedPair = useSymbolStore(state => state.selectedSymbol)

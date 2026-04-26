@@ -21,7 +21,9 @@ function getAudioContext(): AudioContext | null {
   return _audioCtx
 }
 
-// Resume AudioContext on first user interaction
+// Resume AudioContext on user interaction
+// Re-attach listeners after each resume to handle Chrome's
+// auto-suspend policy (AudioContext suspends after inactivity)
 if (typeof window !== 'undefined') {
   const resumeAudio = () => {
     const ctx = getAudioContext()
@@ -29,8 +31,13 @@ if (typeof window !== 'undefined') {
       ctx.resume().catch(() => {})
     }
     _audioResumed = true
+    // Re-attach listeners so that if Chrome suspends the context again
+    // after a period of inactivity, the next interaction will resume it
+    window.addEventListener('click', resumeAudio, { once: true })
+    window.addEventListener('keydown', resumeAudio, { once: true })
+    window.addEventListener('touchstart', resumeAudio, { once: true })
   }
-  // Listen for first user gesture
+  // Initial listeners — will re-attach after each resume
   window.addEventListener('click', resumeAudio, { once: true })
   window.addEventListener('keydown', resumeAudio, { once: true })
   window.addEventListener('touchstart', resumeAudio, { once: true })

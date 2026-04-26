@@ -2210,7 +2210,7 @@ export class ScannerService {
       let reasonsAr: string[] = [];
       let smartScore: SmartScore | null = null;
 
-      if (candles.length >= 30) {
+      if (candles.length >= 35) {
         const analysis = await this.indicators.analyze(candles, symbol, timeframe);
         const highs = candles.map(c => c.high);
         const lows = candles.map(c => c.low);

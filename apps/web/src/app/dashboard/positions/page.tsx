@@ -302,7 +302,7 @@ export default function PositionsPage() {
         <StatCard
           icon={<Activity size={12} stroke="#fff" strokeWidth={2} />}
           label="أ.خ غير محققة"
-          value={`${(summary?.unrealizedPnl ?? totalUnrealizedPnl) >= 0 ? '+' : ''}${formatCurrency(summary?.unrealizedPnl ?? totalUnrealizedPnl)}`}
+          value={`${(summary?.unrealizedPnl ?? totalUnrealizedPnl) >= 0 ? '+' : '-'}${formatCurrency(Math.abs(summary?.unrealizedPnl ?? totalUnrealizedPnl))}`}
           gradientFrom="#00FFC6"
           gradientTo="#0A84FF"
           color={(summary?.unrealizedPnl ?? totalUnrealizedPnl) >= 0 ? 'var(--profit)' : 'var(--loss)'}
@@ -310,7 +310,7 @@ export default function PositionsPage() {
         <StatCard
           icon={<Target size={12} stroke="#fff" strokeWidth={2} />}
           label="الأرباح المحققة"
-          value={`${(summary?.realizedPnl ?? 0) >= 0 ? '+' : ''}${formatCurrency(summary?.realizedPnl ?? 0)}`}
+          value={`${(summary?.realizedPnl ?? 0) >= 0 ? '+' : '-'}${formatCurrency(Math.abs(summary?.realizedPnl ?? 0))}`}
           gradientFrom="#A259FF"
           gradientTo="#7C3AED"
           color={(summary?.realizedPnl ?? 0) >= 0 ? 'var(--profit)' : 'var(--loss)'}
@@ -339,7 +339,7 @@ export default function PositionsPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <span style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar)' }}>الإجمالي:</span>
                 <span dir="ltr" style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: totalUnrealizedPnl >= 0 ? 'var(--profit)' : 'var(--loss)' }}>
-                  {totalUnrealizedPnl >= 0 ? '+' : ''}{formatCurrency(totalUnrealizedPnl)}
+                  {totalUnrealizedPnl >= 0 ? '+' : '-'}{formatCurrency(Math.abs(totalUnrealizedPnl))}
                 </span>
               </div>
             )}
@@ -416,7 +416,7 @@ export default function PositionsPage() {
                         <td dir="ltr" style={{ padding: '8px 10px', fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{formatPrice(pos.currentPrice)}</td>
                         <td style={{ padding: '8px 10px' }}>
                           <span dir="ltr" style={{ fontSize: '10px', fontWeight: 700, fontFamily: 'var(--font-mono)', color: (pos.unrealizedPnl || 0) >= 0 ? 'var(--profit)' : 'var(--loss)' }}>
-                            {(pos.unrealizedPnl || 0) >= 0 ? '+' : ''}{formatCurrency(pos.unrealizedPnl || 0)}
+                            {(pos.unrealizedPnl || 0) >= 0 ? '+' : '-'}{formatCurrency(Math.abs(pos.unrealizedPnl || 0))}
                           </span>
                         </td>
                         <td style={{ padding: '8px 10px' }}>

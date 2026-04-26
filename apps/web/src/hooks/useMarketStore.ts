@@ -98,15 +98,16 @@ class BinanceWSManager {
 
   private startPing() {
     this.stopPing()
-    // Send ping every 20s to keep connection alive (Binance expects < 24h activity)
+    // Send actual ping data every 20s to keep connection alive
+    // Binance combined streams don't support WS ping frames, but
+    // sending a JSON ping frame keeps the connection active and
+    // prevents proxy/firewall idle timeouts (Code 1006 disconnections)
     this.pingTimer = setInterval(() => {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         try {
-          // Binance combined stream doesn't support WS ping frame, but
-          // sending a keep-alive by checking readyState is sufficient.
-          // If the connection dropped, onclose will fire.
+          this.ws.send(JSON.stringify({ method: 'ping' }))
         } catch {
-          // ignore
+          // ignore send errors on closing sockets
         }
       }
     }, 20_000)

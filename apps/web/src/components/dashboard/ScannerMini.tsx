@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSymbolStore } from '@/hooks/useSymbolStore';
+import { useTabAlertStore } from '@/hooks/useTabAlertStore';
 import { formatFreshness } from '@/lib/dashboard-live';
 import { RefreshCw, Activity } from 'lucide-react';
 
@@ -43,6 +44,16 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
             second: '2-digit',
           })
         );
+
+        // Push alerts for strong signals
+        const strongSignals = data.data.filter((s: any) => s.dir !== 'neutral' && s.strength >= 70)
+        for (const sig of strongSignals) {
+          useTabAlertStore.getState().pushAlert('scanner', {
+            action: sig.dir === 'buy' ? 'BUY' : 'SELL',
+            label: `${sig.dir === 'buy' ? '⬆' : '⬇'} ${sig.pair} ${sig.strength}%`,
+            color: sig.dir === 'buy' ? '#00C853' : '#FF3B30',
+          })
+        }
       } else {
         console.warn('Scan returned unexpected payload:', data);
       }

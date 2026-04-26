@@ -6,6 +6,7 @@ import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useBotStore } from '@/hooks/useBotStore'
+import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 
 const T = {
   bg:      '#0F1113',
@@ -71,6 +72,16 @@ export function BotCommandCenter() {
       if (j.success && j.data) {
         setSignals(j.data)
         setLastRefresh(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+
+        // Push alerts for high-confidence signals
+        const strongSignals = j.data.filter((s: SmartSignal) => s.conf >= 70)
+        for (const sig of strongSignals) {
+          useTabAlertStore.getState().pushAlert('signals', {
+            action: sig.type,
+            label: `${sig.type === 'BUY' ? '⬆' : '⬇'} ${sig.pair} ${sig.conf}%`,
+            color: sig.type === 'BUY' ? '#00C853' : '#FF3B30',
+          })
+        }
       }
     } catch (e) {
       console.error('Failed to fetch signals', e)

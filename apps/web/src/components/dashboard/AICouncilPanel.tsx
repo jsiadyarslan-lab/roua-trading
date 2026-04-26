@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Brain, Shield, Zap, TrendingUp, TrendingDown, Minus, Info, RefreshCw, Layers, AlertCircle, Cpu, Wifi, WifiOff } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 
 const T = {
   bg: '#0F1113',
@@ -63,6 +64,15 @@ export function AICouncilPanel() {
         setData(j.data)
         setDataSource(j.source || 'unknown')
         setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+
+        // Push alert when council has a directional recommendation with high consensus
+        if (j.data?.recommendation && j.data.recommendation !== 'HOLD' && j.data.consensusScore >= 60) {
+          useTabAlertStore.getState().pushAlert('council', {
+            action: j.data.recommendation,
+            label: `${j.data.recommendation === 'BUY' ? '⬆ شراء' : '⬇ بيع'} ${j.data.consensusScore}%`,
+            color: j.source === 'real-ai' ? '#B388FF' : '#FFB800',
+          })
+        }
       } else {
         throw new Error(j.error || 'فشل في الحصول على الإجماع')
       }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Bot, Brain, ScanSearch, Sparkles, Waves } from 'lucide-react'
 import { BotMini } from '@/components/dashboard/BotMini'
 import { ScannerMini } from '@/components/dashboard/ScannerMini'
@@ -8,6 +8,7 @@ import { BotCommandCenter } from '@/components/dashboard/BotCommandCenter'
 import { AICouncilPanel } from '@/components/dashboard/AICouncilPanel'
 import { MultiTfScannerMini } from '@/components/dashboard/MultiTfScannerMini'
 import { useDecisionFlow } from '@/hooks/useDecisionFlow'
+import { useTabAlertStore, type TabId } from '@/hooks/useTabAlertStore'
 
 const T = {
   bg: '#0F1113',
@@ -33,6 +34,14 @@ const T = {
 export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
   const [active, setActive] = useState('bot')
   const { selectedSymbol, scanner, council, engineState, narrator, loading } = useDecisionFlow()
+  const { alerts, clearAlert, getCount } = useTabAlertStore()
+
+  // Clear alerts when user opens a tab
+  const handleTabClick = (tabId: string) => {
+    setActive(tabId)
+    clearAlert(tabId as TabId)
+  }
+
   const TABS = [
     { id: 'bot', label: 'البوت', accent: T.cyan, icon: Bot, subtitle: 'التنفيذ والإدارة' },
     { id: 'council', label: 'المجلس', accent: T.accent, icon: Brain, subtitle: 'الترجيح والحكم' },
@@ -203,16 +212,22 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
         {TABS.map(t => {
           const isActive = active === t.id
           const Icon = t.icon
+          const alert = alerts[t.id as TabId]
+          const hasAlert = alert !== null && alert.count > 0
+          const alertCount = alert?.count || 0
+          const alertColor = alert?.color || t.accent
+          const alertLabel = alert?.lastLabel || ''
+
           return (
             <button
               key={t.id}
-              onClick={() => setActive(t.id)}
+              onClick={() => handleTabClick(t.id)}
               style={{
                 minWidth: 0,
                 minHeight: 30,
                 padding: '4px 4px',
-                background: isActive ? `${t.accent}20` : 'rgba(255,255,255,0.045)',
-                border: `1px solid ${isActive ? `${t.accent}70` : 'rgba(255,255,255,0.10)'}`,
+                background: isActive ? `${t.accent}20` : hasAlert ? `${alertColor}08` : 'rgba(255,255,255,0.045)',
+                border: `1px solid ${isActive ? `${t.accent}70` : hasAlert ? `${alertColor}50` : 'rgba(255,255,255,0.10)'}`,
                 borderRadius: 10,
                 color: isActive ? T.text : T.text3,
                 cursor: 'pointer',
@@ -223,12 +238,65 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 1,
-                boxShadow: isActive ? `0 0 0 1px ${t.accent}24 inset, 0 0 18px ${t.accent}18` : 'inset 0 1px 0 rgba(255,255,255,0.02)',
+                boxShadow: isActive
+                  ? `0 0 0 1px ${t.accent}24 inset, 0 0 18px ${t.accent}18`
+                  : hasAlert
+                    ? `0 0 0 1px ${alertColor}15 inset, 0 0 12px ${alertColor}10`
+                    : 'inset 0 1px 0 rgba(255,255,255,0.02)',
                 overflow: 'hidden',
+                position: 'relative',
               }}
             >
-              <Icon size={10} color={isActive ? t.accent : '#93A7C3'} />
-              <span style={{ fontSize: 7, fontWeight: isActive ? 800 : 700, lineHeight: 1, color: isActive ? T.text : '#AEC0D6' }}>{t.label}</span>
+              {/* Alert badge — pulsing dot with count */}
+              {hasAlert && !isActive && (
+                <div style={{
+                  position: 'absolute',
+                  top: 2,
+                  left: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minWidth: 12,
+                  height: 12,
+                  borderRadius: 6,
+                  background: alertColor,
+                  color: '#000',
+                  fontSize: 7,
+                  fontWeight: 900,
+                  fontFamily: 'monospace',
+                  padding: '0 3px',
+                  boxShadow: `0 0 8px ${alertColor}80`,
+                  animation: 'tab-alert-pulse 2s ease-in-out infinite',
+                  zIndex: 2,
+                }}>
+                  {alertCount > 9 ? '9+' : alertCount}
+                </div>
+              )}
+
+              {/* Alert label flash — shows latest alert briefly */}
+              {hasAlert && !isActive && alertLabel && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  background: `${alertColor}25`,
+                  color: alertColor,
+                  fontSize: 5.5,
+                  fontWeight: 700,
+                  fontFamily: "'Cairo', sans-serif",
+                  textAlign: 'center',
+                  padding: '1px 2px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}>
+                  {alertLabel}
+                </div>
+              )}
+
+              <Icon size={10} color={isActive ? t.accent : hasAlert ? alertColor : '#93A7C3'} />
+              <span style={{ fontSize: 7, fontWeight: isActive ? 800 : hasAlert ? 800 : 700, lineHeight: 1, color: isActive ? T.text : hasAlert ? alertColor : '#AEC0D6' }}>{t.label}</span>
               <span style={{ fontSize: 6, color: isActive ? T.text3 : '#708299', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1 }}>
                 {t.subtitle}
               </span>
@@ -236,6 +304,13 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           )
         })}
       </div>
+
+      <style>{`
+        @keyframes tab-alert-pulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.15); opacity: 0.8; }
+        }
+      `}</style>
 
       <div
         style={{

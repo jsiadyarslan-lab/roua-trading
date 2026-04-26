@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 import { RefreshCw, Layers, Activity } from 'lucide-react'
 
 const T = {
@@ -73,6 +74,17 @@ export function MultiTfScannerMini() {
               ? 'انتظار تأكيد من 15M قبل التنفيذ'
               : 'لا تدخل ضد الإطار الأعلى الآن',
         })
+
+        // Push alert for strong alignment
+        const alignmentLabel = Math.abs(score) > 260 ? 'Strong' : Math.abs(score) > 140 ? 'Mixed' : 'Counter'
+        if (Math.abs(score) > 140) {
+          const direction = score > 0 ? 'BUY' : 'SELL'
+          useTabAlertStore.getState().pushAlert('multi-tf', {
+            action: direction,
+            label: `${direction === 'BUY' ? '⬆' : '⬇'} توافق ${alignmentLabel} ${selectedSymbol}`,
+            color: direction === 'BUY' ? '#00C853' : '#FF3B30',
+          })
+        }
       } catch (e) {
         console.error(e)
       } finally {

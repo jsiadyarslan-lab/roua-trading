@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useBotStore } from '@/hooks/useBotStore'
 import { usePaperTradesStore, type PaperTrade } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
+import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 
 const PAPER_TRADING_MODE = process.env.NEXT_PUBLIC_PAPER_TRADING === 'true'
 const COOLDOWN_MS = 5 * 60 * 1000
@@ -274,6 +275,13 @@ export function BotEngine() {
         isBuy ? 'buy' : 'sell'
       )
 
+      // Push tab alert for bot trade
+      useTabAlertStore.getState().pushAlert('bot', {
+        action: isBuy ? 'BUY' : 'SELL',
+        label: `${isBuy ? '⬆' : '⬇'} ${signal.pair} $${price.toFixed(0)}`,
+        color: isBuy ? '#00C853' : '#FF3B30',
+      })
+
       addNotification({
         source: 'bot',
         priority: confidence >= 80 ? 'high' : 'medium',
@@ -318,6 +326,13 @@ export function BotEngine() {
       `[خروج] ${trade.symbol} أُغلق عبر ${reason} @ $${exitPrice.toFixed(2)} | PnL ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}`,
       profitable ? 'buy' : 'sell'
     )
+
+    // Push tab alert for bot exit
+    useTabAlertStore.getState().pushAlert('bot', {
+      action: profitable ? 'BUY' : 'SELL',
+      label: `${reason === 'TP' ? '✅ ربح' : '❌ خسارة'} ${trade.symbol} ${pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}$`,
+      color: profitable ? '#00C853' : '#FF3B30',
+    })
     addNotification({
       source: 'bot',
       priority: profitable ? 'medium' : 'high',

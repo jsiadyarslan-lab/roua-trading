@@ -62,7 +62,7 @@ export class AuthController {
       res.cookie('roua_session', result.sessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
         path: '/',
       });
@@ -85,7 +85,7 @@ export class AuthController {
       res.cookie('roua_session', result.sessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000,
         path: '/',
       });

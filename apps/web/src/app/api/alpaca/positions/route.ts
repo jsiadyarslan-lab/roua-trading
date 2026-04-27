@@ -1,5 +1,20 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { alpacaFetch, fromAlpacaSymbol } from '@/lib/alpacaClient'
+
+/**
+ * Verify that the request has a valid roua_session cookie.
+ * Returns null if authenticated (passes), or a NextResponse error if not.
+ */
+function requireAuth(request: NextRequest): NextResponse | null {
+  const sessionToken = request.cookies.get('roua_session')?.value
+  if (!sessionToken) {
+    return NextResponse.json(
+      { success: false, error: 'لم يتم تقديم رمز المصادقة' },
+      { status: 401 }
+    )
+  }
+  return null // Auth check passed
+}
 
 /**
  * GET /api/alpaca/positions
@@ -7,7 +22,10 @@ import { alpacaFetch, fromAlpacaSymbol } from '@/lib/alpacaClient'
  */
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = requireAuth(request)
+  if (authError) return authError
+
   try {
     const res = await alpacaFetch('/v2/positions')
 
@@ -23,7 +41,7 @@ export async function GET() {
 
     const positions = (data || []).map((p: any) => ({
       symbol:        fromAlpacaSymbol(p.symbol),
-      rawSymbol:     p.symbol,           // ← الرمز الأصلي من Alpaca للإغلاق
+      rawSymbol:     p.symbol,
       side:          p.side,
       qty:           parseFloat(p.qty)           || 0,
       avgEntryPrice: parseFloat(p.avg_entry_price) || 0,

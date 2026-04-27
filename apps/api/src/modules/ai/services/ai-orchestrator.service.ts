@@ -81,6 +81,7 @@ export class AIOrchestratorService {
   };
 
   constructor(
+    private readonly configService: ConfigService,
     private readonly groqService: GroqService,
     private readonly glmService: GlmService,
     private readonly geminiService: GeminiService,
@@ -104,19 +105,19 @@ export class AIOrchestratorService {
    * Falls back through the model chain if primary fails
    */
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
-    // Check cache first
-    const cacheKey = `ai:analysis:${this._hashPrompt(JSON.stringify(request))}`;
+    // Check Redis cache first
+    const redisCacheKey = `ai:analysis:${this._hashPrompt(JSON.stringify(request))}`;
     try {
-      const cached = await this.redis?.get(cacheKey);
+      const cached = await this.redis?.get(redisCacheKey);
       if (cached) {
-        this.logger.debug(`🎼 Cache hit for ${request.type} analysis`);
+        this.logger.debug(`🎼 Redis cache hit for ${request.type} analysis`);
         return JSON.parse(cached);
       }
     } catch {}
 
     const enrichedRequest = await this._enrichWithContext(request);
 
-    // Check cache first
+    // Check in-memory cache
     const cacheKey = this._getCacheKey(enrichedRequest);
     const cached = this._getCachedResult(cacheKey);
     if (cached) {
@@ -173,9 +174,11 @@ export class AIOrchestratorService {
       };
     }
 
-    // Cache the result with 5-minute TTL
+    // Cache the result (in-memory with per-type TTL + Redis)
+    this._setCachedResult(cacheKey, result, enrichedRequest.type);
     try {
-      await this.redis?.set(cacheKey, JSON.stringify(result), 300000); // 5 min TTL in ms
+      const redisTtl = this.CACHE_TTL[enrichedRequest.type] || this.CACHE_TTL.general;
+      await this.redis?.set(redisCacheKey, JSON.stringify(result), redisTtl);
     } catch {}
 
     return result;
@@ -449,7 +452,7 @@ export class AIOrchestratorService {
    */
   private _getCacheKey(request: AIAnalysisRequest): string {
     const raw = `${request.type}:${request.symbol || ''}:${request.language || ''}:${request.prompt}`;
-    return createHash('sha256').update(raw).digest('hex');
+    return crypto.createHash('sha256').update(raw).digest('hex');
   }
 
   /**

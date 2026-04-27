@@ -3,23 +3,27 @@ import { alpacaFetch, toAlpacaSymbol } from '@/lib/alpacaClient'
 import { randomUUID } from 'crypto'
 
 /**
+ * Verify that the request has a valid roua_session cookie.
+ */
+function requireAuth(request: NextRequest): NextResponse | null {
+  const sessionToken = request.cookies.get('roua_session')?.value
+  if (!sessionToken) {
+    return NextResponse.json(
+      { success: false, error: 'لم يتم تقديم رمز المصادقة' },
+      { status: 401 }
+    )
+  }
+  return null
+}
+
+/**
  * POST /api/alpaca/orders
  * تنفيذ صفقة عبر Alpaca Paper Trading
- *
- * Body:
- * {
- *   symbol:     "AAPL" | "BTCUSD" | "BTC/USD"   (مطلوب)
- *   side:       "buy" | "sell"                    (مطلوب)
- *   qty:        number                            (مطلوب إذا لم يُحدَّد notional)
- *   notional:   number                            (بالدولار بدلاً من qty — اختياري)
- *   type:       "market" | "limit"                (افتراضي: market)
- *   limit_price: number                           (مطلوب إذا type=limit)
- *   time_in_force: "ioc" | "gtc" | "day"         (افتراضي: ioc للـ market)
- *   stop_loss:  number                            (اختياري)
- *   take_profit: number                           (اختياري)
- * }
  */
 export async function POST(req: NextRequest) {
+  const authError = requireAuth(req)
+  if (authError) return authError
+
   try {
     const body = await req.json()
     const {
@@ -33,7 +37,6 @@ export async function POST(req: NextRequest) {
       take_profit,
     } = body
 
-    // ── التحقق من المدخلات ──
     if (!symbol) {
       return NextResponse.json({ success: false, error: 'symbol مطلوب' }, { status: 400 })
     }
@@ -47,7 +50,6 @@ export async function POST(req: NextRequest) {
     const alpacaSymbol = toAlpacaSymbol(symbol)
     const orderType    = type.toLowerCase()
 
-    // ── بناء الـ payload ──
     const payload: Record<string, any> = {
       symbol:          alpacaSymbol,
       side:            side.toLowerCase(),
@@ -56,7 +58,6 @@ export async function POST(req: NextRequest) {
       client_order_id: randomUUID(),
     }
 
-    // الكمية: يمكن تحديد qty (قطعة) أو notional (مبلغ بالدولار)
     if (notional) {
       payload.notional = notional.toString()
     } else {
@@ -67,15 +68,12 @@ export async function POST(req: NextRequest) {
       payload.limit_price = limit_price.toString()
     }
 
-    // وقف الخسارة وجني الأرباح (bracket order)
     if (stop_loss || take_profit) {
       const isCrypto = symbol.includes('/') || ['BTC', 'ETH', 'SOL', 'XRP', 'BNB'].some(c => symbol.toUpperCase().startsWith(c));
       
-      // Alpaca does NOT support bracket orders for Crypto (e.g. BTC/USD, ETH/USD)
-      // If it's crypto, we just execute the market order. The frontend will save TP/SL locally.
       if (!isCrypto) {
         payload.order_class = 'bracket'
-        payload.time_in_force = 'day' // Fractional shares require 'day'
+        payload.time_in_force = 'day'
         if (stop_loss) {
           payload.stop_loss = { stop_price: stop_loss.toString() }
         }
@@ -85,9 +83,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    console.log('[alpaca/orders] Placing order:', JSON.stringify(payload))
-
-    // ── إرسال الطلب لـ Alpaca ──
     const res = await alpacaFetch('/v2/orders', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -96,14 +91,12 @@ export async function POST(req: NextRequest) {
     const data = await res.json()
 
     if (!res.ok) {
-      console.error('[alpaca/orders] Alpaca rejected:', data)
       return NextResponse.json(
         { success: false, error: data.message || `Alpaca Error ${res.status}` },
         { status: res.status }
       )
     }
 
-    // ── تنسيق الرد ──
     return NextResponse.json({
       success:        true,
       orderId:        data.id,
@@ -117,7 +110,6 @@ export async function POST(req: NextRequest) {
       filledAvgPrice: data.filled_avg_price,
       submittedAt:    data.submitted_at,
       createdAt:      data.created_at,
-      raw:            data,        // الرد الكامل للـ debugging
     })
   } catch (error: any) {
     console.error('[alpaca/orders] Error:', error.message)
@@ -133,6 +125,9 @@ export async function POST(req: NextRequest) {
  * جلب قائمة الأوامر (مفتوحة أو كل الأوامر)
  */
 export async function GET(req: NextRequest) {
+  const authError = requireAuth(req)
+  if (authError) return authError
+
   try {
     const { searchParams } = new URL(req.url)
     const status = searchParams.get('status') || 'open'

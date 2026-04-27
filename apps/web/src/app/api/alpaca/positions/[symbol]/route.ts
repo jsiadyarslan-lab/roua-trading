@@ -1,14 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { alpacaFetch, toAlpacaSymbol } from '@/lib/alpacaClient'
+import { alpacaFetch } from '@/lib/alpacaClient'
+
+/**
+ * Verify that the request has a valid roua_session cookie.
+ */
+function requireAuth(request: NextRequest): NextResponse | null {
+  const sessionToken = request.cookies.get('roua_session')?.value
+  if (!sessionToken) {
+    return NextResponse.json(
+      { success: false, error: 'لم يتم تقديم رمز المصادقة' },
+      { status: 401 }
+    )
+  }
+  return null
+}
 
 /**
  * DELETE /api/alpaca/positions/[symbol]
  * إغلاق مركز محدد عبر Alpaca
  */
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ symbol: string }> }
 ) {
+  const authError = requireAuth(req)
+  if (authError) return authError
+
   try {
     const resolvedParams = await params
     const symbol = decodeURIComponent(resolvedParams.symbol)

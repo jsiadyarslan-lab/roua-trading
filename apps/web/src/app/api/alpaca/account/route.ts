@@ -1,5 +1,19 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { alpacaFetch } from '@/lib/alpacaClient'
+
+/**
+ * Verify that the request has a valid roua_session cookie.
+ */
+function requireAuth(request: NextRequest): NextResponse | null {
+  const sessionToken = request.cookies.get('roua_session')?.value
+  if (!sessionToken) {
+    return NextResponse.json(
+      { success: false, error: 'لم يتم تقديم رمز المصادقة' },
+      { status: 401 }
+    )
+  }
+  return null
+}
 
 /**
  * GET /api/alpaca/account
@@ -7,7 +21,10 @@ import { alpacaFetch } from '@/lib/alpacaClient'
  */
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authError = requireAuth(request)
+  if (authError) return authError
+
   try {
     const res = await alpacaFetch('/v2/account')
 

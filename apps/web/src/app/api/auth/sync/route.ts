@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
     response.cookies.set('roua_session', sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      sameSite: 'lax',
       maxAge: 24 * 60 * 60,
       path: '/',
     })

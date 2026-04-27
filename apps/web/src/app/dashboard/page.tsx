@@ -432,7 +432,7 @@ export default function DashboardPage() {
             min-height: 44px;
             padding: 0 12px;
             display: flex;
-            alignItems: 'center';
+            align-items: center;
             justify-content: space-between;
             border-bottom: 1px solid rgba(0, 212, 255, 0.08);
           }

@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { NewsService } from './news.service';
 import { AuthGuard } from '../../common/guards/auth.guard';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('news')
 @UseGuards(AuthGuard)
@@ -25,6 +26,7 @@ export class NewsController {
    * Query params: ?symbol=BTC&sentiment=positive&category=Crypto&limit=20
    */
   @Get('latest')
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   async getLatestNews(
     @Query('symbol') symbol?: string,
     @Query('sentiment') sentiment?: string,
@@ -54,6 +56,7 @@ export class NewsController {
    * Body: { text: string, symbol?: string }
    */
   @Post('analyze')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async analyzeNewsText(@Body() body: { text: string; symbol?: string }) {
     if (!body.text) {
       throw new BadRequestException('النص مطلوب للتحليل');
@@ -76,6 +79,7 @@ export class NewsController {
    * Trigger manual news fetch (normally runs on schedule)
    */
   @Post('fetch')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   async triggerFetch() {
     try {
       await this.newsService.fetchAndAnalyzeNews();

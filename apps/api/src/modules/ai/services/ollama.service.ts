@@ -69,7 +69,7 @@ export class OllamaService {
             ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
             'Content-Type': 'application/json',
           },
-          timeout: 30000, // Reduced from 120s to prevent blocking fallback chain
+          timeout: 5000, // Reduced from 30s — on cloud, Ollama will never respond; 5s is enough for local
         },
       );
 

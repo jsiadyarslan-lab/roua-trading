@@ -26,7 +26,7 @@ import { ExchangeGateway } from '../../exchange/gateway/exchange.gateway';
  * │ 5. Publish to Redis pub/sub for microservices              │
  * └─────────────────────────────────────────────────────────────┘
  *
- * Frequency: Every 15 seconds (was 5s — reduced to conserve TwelveData API credits)
+ * Frequency: Every 45 seconds (was 15s — reduced further to conserve TwelveData API credits)
  */
 @Injectable()
 export class MarketBroadcasterService {
@@ -57,11 +57,11 @@ export class MarketBroadcasterService {
   }
 
   /**
-   * Main broadcast cycle — runs every 15 seconds
+   * Main broadcast cycle — runs every 45 seconds
    *
    * Fetches quotes and broadcasts updates to all channels.
    */
-  @Interval(15000)
+  @Interval(45000)
   async broadcastMarketData(): Promise<void> {
     if (this.isBroadcasting) {
       return;

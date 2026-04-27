@@ -414,7 +414,7 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
     const apiKey = process.env.CRYPTOPANIC_API_KEY;
     const url = apiKey
       ? `https://cryptopanic.com/api/v1/posts/?auth_token=${apiKey}&currencies=BTC,ETH,SOL&kind=news&filter=hot`
-      : `https://cryptopanic.com/api/v1/posts/?currencies=BTC,ETH,SOL&kind=news&filter=hot`;
+      : `https://cryptopanic.com/api/v1/posts/?currencies=BTC,ETH,SOL&kind=news&filter=hot&public=true`;
 
     const res = await fetch(url, {
       headers: { 'User-Agent': 'RouaTradingBot/1.0' },

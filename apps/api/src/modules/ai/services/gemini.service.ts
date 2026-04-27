@@ -34,39 +34,44 @@ export class GeminiService {
 
     const url = `${this.baseUrl}/${this.model}:generateContent`;
 
-    const response = await axios.post(
-      url,
-      {
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: `${systemPrompt}\n\n${request.prompt}` }],
+    try {
+      const response = await axios.post(
+        url,
+        {
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: `${systemPrompt}\n\n${request.prompt}` }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 2048,
           },
-        ],
-        generationConfig: {
-          temperature: 0.4,
-          maxOutputTokens: 2048,
         },
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': this.apiKey,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': this.apiKey,
+          },
+          timeout: 60000,
         },
-        timeout: 60000,
-      },
-    );
+      );
 
-    const content =
-      response.data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const content =
+        response.data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-    return {
-      model: `Gemini/${this.model}`,
-      content,
-      confidence: this._calculateConfidence(content, 'gemini'),
-      processingTimeMs: Date.now() - startTime,
-      language: request.language || 'ar',
-    };
+      return {
+        model: `Gemini/${this.model}`,
+        content,
+        confidence: this._calculateConfidence(content, 'gemini'),
+        processingTimeMs: Date.now() - startTime,
+        language: request.language || 'ar',
+      };
+    } catch (error: any) {
+      this.logger.warn(`Gemini inference failed: ${error.message}`);
+      return this._stubResponse(request);
+    }
   }
 
   private _buildSystemPrompt(request: AIAnalysisRequest): string {

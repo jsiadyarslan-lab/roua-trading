@@ -13,6 +13,7 @@ import {
   ConflictException,
   ForbiddenException,
   BadRequestException,
+  NotFoundException,
   Logger,
   Inject,
 } from '@nestjs/common';
@@ -261,6 +262,10 @@ export class OrderController {
   async getOrder(@Req() req: any, @Param('id') orderId: string) {
     const order = await this.stateManager.findOrderById(orderId);
 
+    if (!order) {
+      throw new NotFoundException('الطلب غير موجود');
+    }
+
     // Verify ownership
     if (order.userId !== req.user.id) {
       throw new ForbiddenException('ليس لديك صلاحية الوصول لهذا الطلب');
@@ -277,6 +282,10 @@ export class OrderController {
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async cancelOrder(@Req() req: any, @Param('id') orderId: string) {
     const order = await this.stateManager.findOrderById(orderId);
+
+    if (!order) {
+      throw new NotFoundException('الطلب غير موجود');
+    }
 
     if (order.userId !== req.user.id) {
       throw new ForbiddenException('ليس لديك صلاحية إلغاء هذا الطلب');

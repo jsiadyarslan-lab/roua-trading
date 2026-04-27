@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Wallet, Zap, BookOpen, BarChart3, Bell, Brain, Newspaper, CalendarDays, FlaskConical, GitMerge, type LucideIcon } from 'lucide-react'
 import { PortfolioMini } from '@/components/portfolio/PortfolioMini'
 import { AlNarratorMini } from '@/components/ai/AlNarratorMini'
 import { QuickExecutionMini } from '@/components/dashboard/QuickExecutionMini'
@@ -55,18 +54,17 @@ const TABS: Array<{
   helper: string
   accent: string
   tone: string
-  icon: LucideIcon
 }> = [
-  { id: 'portfolio', label: 'المحفظة', helper: 'الرصيد والمراكز', accent: T.blue, tone: 'المركز المالي', icon: Wallet },
-  { id: 'execute', label: 'التنفيذ', helper: 'أمر سريع', accent: T.green, tone: 'أمر السوق', icon: Zap },
-  { id: 'book', label: 'دفتر الأوامر', helper: 'العمق والسيولة', accent: T.red, tone: 'بنية السوق', icon: BookOpen },
-  { id: 'watch', label: 'قائمة السوق', helper: 'المراقبة الحية', accent: T.cyan, tone: 'الرموز النشطة', icon: BarChart3 },
-  { id: 'alerts', label: 'التنبيهات', helper: 'قواعد المتابعة', accent: T.amber, tone: 'الشروط والتنبيه', icon: Bell },
-  { id: 'ai', label: 'رؤى AI', helper: 'الشرح والسياق', accent: T.purple, tone: 'القراءة التفسيرية', icon: Brain },
-  { id: 'news', label: 'الأخبار', helper: 'تدفق السوق', accent: T.cyan, tone: 'السياق الإخباري', icon: Newspaper },
-  { id: 'calendar', label: 'الأجندة', helper: 'أحداث مؤثرة', accent: T.amber, tone: 'الماكرو القادم', icon: CalendarDays },
-  { id: 'backtest', label: 'المختبر', helper: 'اختبار سريع', accent: T.purple, tone: 'صلاحية الفكرة', icon: FlaskConical },
-  { id: 'correlation', label: 'الارتباط', helper: 'ترابط الأصول', accent: T.green, tone: 'مخاطر التداخل', icon: GitMerge },
+  { id: 'portfolio', label: 'المحفظة', helper: 'الرصيد والمراكز', accent: T.blue, tone: 'المركز المالي' },
+  { id: 'execute', label: 'التنفيذ', helper: 'أمر سريع', accent: T.green, tone: 'أمر السوق' },
+  { id: 'book', label: 'دفتر الأوامر', helper: 'العمق والسيولة', accent: T.red, tone: 'بنية السوق' },
+  { id: 'watch', label: 'قائمة السوق', helper: 'المراقبة الحية', accent: T.cyan, tone: 'الرموز النشطة' },
+  { id: 'alerts', label: 'التنبيهات', helper: 'قواعد المتابعة', accent: T.amber, tone: 'الشروط والتنبيه' },
+  { id: 'ai', label: 'رؤى AI', helper: 'الشرح والسياق', accent: T.purple, tone: 'القراءة التفسيرية' },
+  { id: 'news', label: 'الأخبار', helper: 'تدفق السوق', accent: T.cyan, tone: 'السياق الإخباري' },
+  { id: 'calendar', label: 'الأجندة', helper: 'أحداث مؤثرة', accent: T.amber, tone: 'الماكرو القادم' },
+  { id: 'backtest', label: 'المختبر', helper: 'اختبار سريع', accent: T.purple, tone: 'صلاحية الفكرة' },
+  { id: 'correlation', label: 'الارتباط', helper: 'ترابط الأصول', accent: T.green, tone: 'مخاطر التداخل' },
 ]
 
 function TabButton({
@@ -74,19 +72,16 @@ function TabButton({
   accent,
   active,
   onClick,
-  icon: Icon,
 }: {
   label: string
   accent: string
   active: boolean
   onClick: () => void
-  icon: LucideIcon
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      title={label}
       style={{
         width: 'fit-content',
         maxWidth: '100%',
@@ -100,7 +95,7 @@ function TabButton({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 5,
+        gap: 6,
         cursor: 'pointer',
         textAlign: 'center',
         boxShadow: active
@@ -109,7 +104,6 @@ function TabButton({
         transition: 'all 0.2s ease',
       }}
     >
-      <Icon size={11} color={active ? accent : '#A0AEC0'} style={{ flexShrink: 0 }} />
       <div style={{ minWidth: 0, maxWidth: '100%' }}>
         <div
           style={{
@@ -126,6 +120,16 @@ function TabButton({
           {label}
         </div>
       </div>
+      <div
+        style={{
+          flexShrink: 0,
+          width: 3,
+          height: 3,
+          borderRadius: 999,
+          background: active ? accent : 'rgba(255,255,255,0.14)',
+          boxShadow: active ? `0 0 8px ${accent}66` : 'none',
+        }}
+      />
     </button>
   )
 }
@@ -192,19 +196,15 @@ export function LeftSidebarLayout() {
             gap: 4,
           }}
         >
-          {TABS.map(item => {
-            const Icon = item.icon
-            return (
-              <TabButton
-                key={item.id}
-                label={item.label}
-                accent={item.accent}
-                active={item.id === tab}
-                onClick={() => setTab(item.id)}
-                icon={Icon}
-              />
-            )
-          })}
+          {TABS.map(item => (
+            <TabButton
+              key={item.id}
+              label={item.label}
+              accent={item.accent}
+              active={item.id === tab}
+              onClick={() => setTab(item.id)}
+            />
+          ))}
         </div>
       </aside>
 

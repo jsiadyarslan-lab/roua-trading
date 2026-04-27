@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { QuoteData } from '@/hooks/useMarketStore'
-import { BarChart3, Brain, ChevronDown, ChevronRight, ScanSearch, Wallet, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { BarChart3, Brain, ChevronDown, ScanSearch, Wallet } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { NotificationToasts } from '@/components/dashboard/NotificationCenter'
@@ -26,7 +26,6 @@ const OrderBookPanel = dynamic(() => import('@/components/dashboard/OrderBookPan
 const ScannerMini = dynamic(() => import('@/components/dashboard/ScannerMini').then(m => ({ default: m.ScannerMini })), { ssr: false })
 const AlNarratorMini = dynamic(() => import('@/components/ai/AlNarratorMini').then(m => ({ default: m.AlNarratorMini })), { ssr: false })
 const PortfolioMini = dynamic(() => import('@/components/portfolio/PortfolioMini').then(m => ({ default: m.PortfolioMini })), { ssr: false })
-const WalletDrawer = dynamic(() => import('@/components/dashboard/WalletDrawer').then(m => ({ default: m.WalletDrawer })), { ssr: false })
 
 const T = {
   bg: '#0B0E14',
@@ -83,8 +82,6 @@ export default function DashboardPage() {
   const [chartExpanded, setChartExpanded] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
   const [isCompactDesktopViewport, setIsCompactDesktopViewport] = useState(false)
-  const [walletDrawerOpen, setWalletDrawerOpen] = useState(false)
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   useEffect(() => {
     fetchAccount()
@@ -621,41 +618,6 @@ export default function DashboardPage() {
           0%, 100% { transform: scale(1); opacity: 0.65; }
           50% { transform: scale(1.35); opacity: 1; }
         }
-
-        @keyframes fab-pulse {
-          0%, 100% { box-shadow: 0 4px 20px rgba(0,212,255,0.45), 0 0 0 3px rgba(0,212,255,0.15); }
-          50% { box-shadow: 0 4px 28px rgba(0,212,255,0.65), 0 0 0 6px rgba(0,212,255,0.10); }
-        }
-
-        .wallet-drawer-overlay {
-          position: fixed; inset: 0; z-index: 100;
-          background: rgba(0,0,0,0.55);
-          backdrop-filter: blur(4px);
-          animation: fadeIn 0.2s ease;
-        }
-
-        .wallet-drawer-panel {
-          position: fixed; left: 0; top: 0; bottom: 0;
-          width: min(88vw, 360px); z-index: 101;
-          background: rgba(16, 18, 28, 0.97);
-          backdrop-filter: blur(20px) saturate(1.4);
-          -webkit-backdrop-filter: blur(20px) saturate(1.4);
-          border-right: 1px solid rgba(0,212,255,0.15);
-          box-shadow: 8px 0 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,212,255,0.08);
-          animation: slideInRight 0.3s cubic-bezier(0.22,1,0.36,1);
-          display: flex; flex-direction: column;
-          overflow: hidden;
-        }
-
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        @keyframes slideInRight {
-          from { transform: translateX(-100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
       `}</style>
 
       <BotEngine />
@@ -663,58 +625,11 @@ export default function DashboardPage() {
       <GlobalLogicEngine />
       <NotificationToasts />
 
-      {/* FAB — Floating Action Button for Mobile Wallet Drawer */}
-      {isMobileViewport && (
-        <button
-          type="button"
-          onClick={() => setWalletDrawerOpen(true)}
-          aria-label="فتح المحفظة"
-          style={{
-            position: 'fixed',
-            bottom: 90,
-            left: 16,
-            zIndex: 90,
-            width: 52,
-            height: 52,
-            borderRadius: '50%',
-            border: 'none',
-            background: 'linear-gradient(135deg, #00D4FF, #0A84FF)',
-            color: '#000',
-            boxShadow: '0 4px 20px rgba(0,212,255,0.45), 0 0 0 3px rgba(0,212,255,0.15)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'transform 0.2s, box-shadow 0.2s',
-            animation: 'fab-pulse 3s ease-in-out infinite',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.08)'; e.currentTarget.style.boxShadow = '0 6px 28px rgba(0,212,255,0.6), 0 0 0 4px rgba(0,212,255,0.2)' }}
-          onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,212,255,0.45), 0 0 0 3px rgba(0,212,255,0.15)' }}
-        >
-          <Wallet size={22} strokeWidth={2.5} />
-        </button>
-      )}
-
-      {/* Wallet Drawer for Mobile */}
-      {isMobileViewport && (
-        <WalletDrawer open={walletDrawerOpen} onClose={() => setWalletDrawerOpen(false)} />
-      )}
-
       {!isMobileViewport && (
-        <div className="dash-grid dashboard-shell" style={{ position: 'relative' }}>
-          {/* Left Sidebar with Collapse/Expand */}
-          <div
-            className="dash-col dash-col-left animate-in-1"
-            style={{
-              height: '100%',
-              overflow: 'hidden',
-              opacity: sidebarCollapsed ? 0 : 1,
-              maxWidth: sidebarCollapsed ? 0 : undefined,
-              minWidth: sidebarCollapsed ? 0 : undefined,
-              transition: 'max-width 0.35s cubic-bezier(0.4,0,0.2,1), min-width 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease',
-            }}
-          >
-            {!sidebarCollapsed && <LeftSidebarLayout />}
+        <div className="dash-grid dashboard-shell">
+          {/* Left Sidebar */}
+          <div className="dash-col dash-col-left animate-in-1" style={{ height: '100%' }}>
+            <LeftSidebarLayout />
           </div>
 
           {/* Center Column: Chart + Balance + Positions */}
@@ -802,38 +717,6 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-
-        {/* Collapse/Expand toggle — fixed position, outside grid so it doesn't break layout */}
-        {!isMobileViewport && (
-          <button
-            type="button"
-            onClick={() => setSidebarCollapsed(prev => !prev)}
-            aria-label={sidebarCollapsed ? 'توسيع الشريط الجانبي' : 'طي الشريط الجانبي'}
-            style={{
-              position: 'fixed',
-              top: HEADER_H + 12,
-              left: sidebarCollapsed ? 4 : 250,
-              zIndex: 50,
-              width: 22,
-              height: 36,
-              borderRadius: '0 7px 7px 0',
-              border: '1px solid rgba(0,212,255,0.20)',
-              borderLeft: 'none',
-              background: 'rgba(11,14,20,0.92)',
-              color: T.cyan,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'left 0.35s cubic-bezier(0.4,0,0.2,1), background 0.2s, border-color 0.2s',
-              boxShadow: '2px 0 8px rgba(0,0,0,0.3)',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.10)'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.4)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(11,14,20,0.92)'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.20)' }}
-          >
-            {sidebarCollapsed ? <PanelLeftOpen size={11} /> : <PanelLeftClose size={11} />}
-          </button>
-        )}
       )}
 
       {isMobileViewport && (

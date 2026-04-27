@@ -1,28 +1,31 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import dynamic from 'next/dynamic'
 import type { QuoteData } from '@/hooks/useMarketStore'
 import { BarChart3, Brain, ChevronDown, ScanSearch, Wallet } from 'lucide-react'
-import QuantumChart from '@/components/dashboard/QuantumChart'
-import { AlpacaPositions } from '@/components/dashboard/AlpacaPositions'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
-import { BotEngine } from '@/components/dashboard/BotEngine'
-import { NotificationEngine } from '@/components/dashboard/NotificationEngine'
-import { GlobalLogicEngine } from '@/components/dashboard/GlobalLogicEngine'
 import { NotificationToasts } from '@/components/dashboard/NotificationCenter'
 import { LeftSidebarLayout } from '@/components/dashboard/layouts/LeftSidebarLayout'
 import { RightPanelLayout } from '@/components/dashboard/layouts/RightPanelLayout'
 import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
 import { QuickExecutionMini } from '@/components/dashboard/QuickExecutionMini'
-import OrderBookPanel from '@/components/dashboard/OrderBookPanel'
-import { PortfolioMini } from '@/components/portfolio/PortfolioMini'
-import { ScannerMini } from '@/components/dashboard/ScannerMini'
-import { AlNarratorMini } from '@/components/ai/AlNarratorMini'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
 
 const DASHBOARD_SYMBOLS = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA']
+
+// Dynamic imports for heavy components (code splitting)
+const QuantumChart = dynamic(() => import('@/components/dashboard/QuantumChart'), { ssr: false })
+const AlpacaPositions = dynamic(() => import('@/components/dashboard/AlpacaPositions').then(m => ({ default: m.AlpacaPositions })), { ssr: false })
+const BotEngine = dynamic(() => import('@/components/dashboard/BotEngine').then(m => ({ default: m.BotEngine })), { ssr: false })
+const NotificationEngine = dynamic(() => import('@/components/dashboard/NotificationEngine').then(m => ({ default: m.NotificationEngine })), { ssr: false })
+const GlobalLogicEngine = dynamic(() => import('@/components/dashboard/GlobalLogicEngine').then(m => ({ default: m.GlobalLogicEngine })), { ssr: false })
+const OrderBookPanel = dynamic(() => import('@/components/dashboard/OrderBookPanel'), { ssr: false })
+const ScannerMini = dynamic(() => import('@/components/dashboard/ScannerMini').then(m => ({ default: m.ScannerMini })), { ssr: false })
+const AlNarratorMini = dynamic(() => import('@/components/ai/AlNarratorMini').then(m => ({ default: m.AlNarratorMini })), { ssr: false })
+const PortfolioMini = dynamic(() => import('@/components/portfolio/PortfolioMini').then(m => ({ default: m.PortfolioMini })), { ssr: false })
 
 const T = {
   bg: '#0B0E14',

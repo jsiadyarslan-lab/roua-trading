@@ -11,6 +11,7 @@ import {
   UseGuards,
   Request,
   Logger,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
@@ -55,48 +56,53 @@ export class EngineController {
    */
   @Get('health')
   async getEngineHealth() {
-    const [
-      lastScan,
-      lastBotCycle,
-      lastCouncilSession,
-      monitorStatus,
-      trackedSymbols,
-    ] = await Promise.all([
-      this.scanner.getLastScan(),
-      this.bot.getLastCycle(),
-      this.council.getLastSession(),
-      this.monitor.getMonitorStatus(),
-      this.broadcaster.getTrackedSymbols(),
-    ]);
+    try {
+      const [
+        lastScan,
+        lastBotCycle,
+        lastCouncilSession,
+        monitorStatus,
+        trackedSymbols,
+      ] = await Promise.all([
+        this.scanner.getLastScan(),
+        this.bot.getLastCycle(),
+        this.council.getLastSession(),
+        this.monitor.getMonitorStatus(),
+        this.broadcaster.getTrackedSymbols(),
+      ]);
 
-    return {
-      success: true,
-      data: {
-        engines: {
-          scanner: {
-            status: lastScan ? 'active' : 'idle',
-            lastScan,
+      return {
+        success: true,
+        data: {
+          engines: {
+            scanner: {
+              status: lastScan ? 'active' : 'idle',
+              lastScan,
+            },
+            bot: {
+              status: lastBotCycle ? 'active' : 'idle',
+              lastCycle: lastBotCycle,
+            },
+            council: {
+              status: lastCouncilSession ? 'active' : 'idle',
+              lastSession: lastCouncilSession,
+            },
+            monitor: {
+              status: monitorStatus.openPositions > 0 ? 'active' : 'idle',
+              ...monitorStatus,
+            },
+            broadcaster: {
+              status: trackedSymbols.length > 0 ? 'active' : 'idle',
+              trackedSymbols: trackedSymbols.length,
+            },
           },
-          bot: {
-            status: lastBotCycle ? 'active' : 'idle',
-            lastCycle: lastBotCycle,
-          },
-          council: {
-            status: lastCouncilSession ? 'active' : 'idle',
-            lastSession: lastCouncilSession,
-          },
-          monitor: {
-            status: monitorStatus.openPositions > 0 ? 'active' : 'idle',
-            ...monitorStatus,
-          },
-          broadcaster: {
-            status: trackedSymbols.length > 0 ? 'active' : 'idle',
-            trackedSymbols: trackedSymbols.length,
-          },
+          timestamp: new Date().toISOString(),
         },
-        timestamp: new Date().toISOString(),
-      },
-    };
+      };
+    } catch (error: any) {
+      this.logger.error(`Engine health check failed: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('فشل في فحص حالة المحرك');
+    }
   }
 
   // ── Scanner Controls ──

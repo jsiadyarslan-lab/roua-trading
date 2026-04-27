@@ -9,7 +9,25 @@ import {
   CircleDot, Flame, Eye, Crosshair, ArrowUpRight, ArrowDownRight, Minus
 } from 'lucide-react'
 import { PRIMARY_SYMBOLS } from '@/lib/trading-intelligence'
-import { T } from '@/lib/theme-tokens'
+
+// ── Theme ──
+const T = {
+  bg:      '#0B0E14',
+  bg2:     '#0F1117',
+  card:    '#1A1D29',
+  blue:    '#0A84FF',
+  cyan:    '#00D4FF',
+  green:   '#00FFA3',
+  red:     '#FF4757',
+  amber:   '#FFB800',
+  purple:  '#B388FF',
+  text:    '#E6EBF5',
+  text2:   '#8090A8',
+  text3:   '#A0AFC3',
+  border:  'rgba(10,132,255,0.12)',
+  border2: 'rgba(10,132,255,0.20)',
+  glass:   'rgba(10,132,255,0.04)',
+}
 
 // ── Types ──
 interface Message {

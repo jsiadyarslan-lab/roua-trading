@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ExchangeService } from '../exchange/exchange.service';
 import { AIOrchestratorService } from '../ai/services/ai-orchestrator.service';
-import { GroqService } from '../ai/services/groq.service';
 import { RagService } from '../ai/services/rag.service';
 import { AuditService } from '../../audit/audit.service';
 
@@ -29,7 +28,6 @@ export class SignalService {
     private readonly prisma: PrismaService,
     private readonly exchangeService: ExchangeService,
     private readonly orchestrator: AIOrchestratorService,
-    private readonly groqService: GroqService,
     private readonly ragService: RagService,
     private readonly auditService: AuditService,
   ) {
@@ -79,10 +77,10 @@ export class SignalService {
       this.logger.warn(`RAG retrieval failed for ${pair}: ${error.message}`);
     }
 
-    // Step 3: Analyze sentiment via Groq (fast)
+    // Step 3: Analyze sentiment via AI Orchestrator (was using groqService directly, bypassing orchestrator)
     let sentiment = '';
     try {
-      const sentimentResult = await this.groqService.analyze({
+      const sentimentResult = await this.orchestrator.analyze({
         prompt: `حلل مشاعر السوق تجاه ${pair} بناءً على البيانات التالية:
 السعر الحالي: ${marketData?.price || 'غير متاح'}
 التغير: ${marketData?.changePercent || 'غير متاح'}%

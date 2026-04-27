@@ -24,50 +24,14 @@ async function bootstrap() {
         // Check database connection
         await prisma.$queryRaw`SELECT 1`;
 
-        // Check if Position table has credentialId column
-        let hasCredentialId = false;
-        let positionExists = false;
-        let openPositionCount = 0;
-        try {
-          const columnCheck: any = await prisma.$queryRaw`
-            SELECT column_name FROM information_schema.columns
-            WHERE table_name = 'Position' AND column_name = 'credentialId'
-          `;
-          hasCredentialId = columnCheck.length > 0;
-          positionExists = true;
-        } catch {
-          positionExists = false;
-        }
-
-        try {
-          const countResult: any = await prisma.$queryRaw`
-            SELECT COUNT(*)::int as count FROM "Position" WHERE status = 'OPEN'
-          `;
-          openPositionCount = countResult[0]?.count || 0;
-        } catch {
-          // Ignore count errors
-        }
-
         res.status(200).json({
           status: 'ok',
           timestamp: new Date().toISOString(),
-          database: {
-            status: 'connected',
-            positionTable: {
-              exists: positionExists,
-              hasCredentialId,
-            },
-            openPositionCount,
-          },
         });
       } catch (error: any) {
         res.status(503).json({
           status: 'error',
           timestamp: new Date().toISOString(),
-          database: {
-            status: 'disconnected',
-            error: error.message,
-          },
         });
       }
     });

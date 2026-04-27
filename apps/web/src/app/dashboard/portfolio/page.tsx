@@ -10,8 +10,23 @@ import { TrendingUp, TrendingDown, Award, Target, BarChart2, X, Shield, Activity
 import { usePaperTradesStore, ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
 import { T } from '@/lib/theme-tokens'
 
-// Dynamic import for AICoachPanel (heavy component with AI features)
-const AICoachPanel = dynamic(() => import('@/components/portfolio/AICoachPanel'), { ssr: false })
+/* ── Theme ── */
+const T = {
+  bg:      '#0B0E14',
+  bg2:     '#0F1117',
+  card:    '#1A1D29',
+  blue:    '#0A84FF',
+  cyan:    '#00D4FF',
+  green:   '#00FFA3',
+  red:     '#FF4757',
+  amber:   '#FFB800',
+  purple:  '#B388FF',
+  text:    '#E6EBF5',
+  text2:   '#8090A8',
+  text3:   '#A0AFC3',
+  border:  'rgba(10,132,255,0.12)',
+  border2: 'rgba(10,132,255,0.20)',
+}
 
 function fmt(n: number, decimals = 2) {
   return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
@@ -311,7 +326,7 @@ export default function PortfolioPage() {
     const symMap: Record<string, number> = {}
     positions.forEach(p => { symMap[p.symbol] = (symMap[p.symbol] || 0) + Math.abs(p.unrealizedPnl || 0) })
     const total = Object.values(symMap).reduce((s, v) => s + v, 0) || 1
-    const colors = ['#0A84FF', '#FFB800', '#F7931A', '#00FFC6', '#B388FF', '#FF4D4D', '#00C8FF']
+    const colors = ['#0A84FF', '#FFB800', '#F7931A', '#00FFA3', '#B388FF', '#FF4757', '#00D4FF']
     return Object.entries(symMap).map(([name, value], i) => ({
       name, value: Math.round((value / total) * 100), color: colors[i % colors.length],
     }))
@@ -355,7 +370,7 @@ export default function PortfolioPage() {
     }}>
       <style>{`
         ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: #04050C; }
+        ::-webkit-scrollbar-track { background: #0B0E14; }
         ::-webkit-scrollbar-thumb { background: #0A84FF44; border-radius: 4px; }
         .portfolio-charts-row { display: flex; gap: 10px; margin-bottom: 12px; }
         .portfolio-distribution { flex: 0 0 300px; }
@@ -402,12 +417,12 @@ export default function PortfolioPage() {
           sub={`القيمة: $${fmt(summary?.totalValue || 0, 0)}`}
         />
         <StatCard
-          label="أ.خ غير محققة" value={`${totalUnrealizedPnl >= 0 ? '+' : '-'}$${fmt(Math.abs(totalUnrealizedPnl), 2)}`}
+          label="أ.خ غير محققة" value={`${totalUnrealizedPnl > 0 ? '+' : totalUnrealizedPnl < 0 ? '-' : ''}$${fmt(Math.abs(totalUnrealizedPnl), 2)}`}
           color={totalUnrealizedPnl >= 0 ? T.green : T.red}
           icon={totalUnrealizedPnl >= 0 ? TrendingUp : TrendingDown}
         />
         <StatCard
-          label="أرباح محققة" value={`${totalRealizedPnl >= 0 ? '+' : '-'}$${fmt(Math.abs(totalRealizedPnl), 2)}`}
+          label="أرباح محققة" value={`${totalRealizedPnl > 0 ? '+' : totalRealizedPnl < 0 ? '-' : ''}$${fmt(Math.abs(totalRealizedPnl), 2)}`}
           color={totalRealizedPnl >= 0 ? T.green : T.red}
           icon={TrendingUp}
           sub={`${closedPositions.length} صفقة مغلقة`}
@@ -535,7 +550,7 @@ export default function PortfolioPage() {
                   color: totalUnrealizedPnl >= 0 ? T.green : T.red, fontWeight: 700,
                   marginRight: 8,
                 }}>
-                  P&L: {totalUnrealizedPnl >= 0 ? '+' : '-'}${fmt(Math.abs(totalUnrealizedPnl), 2)}
+                  P&L: {totalUnrealizedPnl > 0 ? '+' : totalUnrealizedPnl < 0 ? '-' : ''}${fmt(Math.abs(totalUnrealizedPnl), 2)}
                 </span>
               )}
             </div>
@@ -597,7 +612,7 @@ export default function PortfolioPage() {
                       fontSize: 11, fontWeight: 700,
                       color: (pos.unrealizedPnl || 0) >= 0 ? T.green : T.red,
                     }}>
-                      {(pos.unrealizedPnl || 0) >= 0 ? '+' : '-'}${fmt(Math.abs(pos.unrealizedPnl || 0))}
+                      {(pos.unrealizedPnl || 0) > 0 ? '+' : (pos.unrealizedPnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pos.unrealizedPnl || 0))}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
                       <button
@@ -654,7 +669,7 @@ export default function PortfolioPage() {
                   color: totalRealizedPnl >= 0 ? T.green : T.red, fontWeight: 700,
                   marginRight: 8,
                 }}>
-                  P&L: {totalRealizedPnl >= 0 ? '+' : '-'}${fmt(Math.abs(totalRealizedPnl), 2)}
+                  P&L: {totalRealizedPnl > 0 ? '+' : totalRealizedPnl < 0 ? '-' : ''}${fmt(Math.abs(totalRealizedPnl), 2)}
                 </span>
               )}
               <ChevronRight size={14} style={{ color: T.text3, transform: showClosed ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform 0.2s' }} />
@@ -709,7 +724,7 @@ export default function PortfolioPage() {
                         fontSize: 10, fontWeight: 700,
                         color: (pos.realizedPnl || 0) >= 0 ? T.green : T.red,
                       }}>
-                        {(pos.realizedPnl || 0) >= 0 ? '+' : '-'}${fmt(Math.abs(pos.realizedPnl || 0))}
+                        {(pos.realizedPnl || 0) > 0 ? '+' : (pos.realizedPnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pos.realizedPnl || 0))}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <span style={{
@@ -758,7 +773,7 @@ export default function PortfolioPage() {
                         fontSize: 10, fontWeight: 700,
                         color: (pt.realizedPnl || 0) >= 0 ? T.green : T.red,
                       }}>
-                        {(pt.realizedPnl || 0) >= 0 ? '+' : '-'}${fmt(Math.abs(pt.realizedPnl || 0))}
+                        {(pt.realizedPnl || 0) > 0 ? '+' : (pt.realizedPnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pt.realizedPnl || 0))}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <span style={{
@@ -801,7 +816,7 @@ export default function PortfolioPage() {
                   color: totalTradePnl >= 0 ? T.green : T.red, fontWeight: 700,
                   marginRight: 8,
                 }}>
-                  P&L: {totalTradePnl >= 0 ? '+' : '-'}${fmt(Math.abs(totalTradePnl), 2)}
+                  P&L: {totalTradePnl > 0 ? '+' : totalTradePnl < 0 ? '-' : ''}${fmt(Math.abs(totalTradePnl), 2)}
                 </span>
               )}
             </div>
@@ -855,7 +870,7 @@ export default function PortfolioPage() {
                       fontSize: 10, fontWeight: 700,
                       color: (trade.pnl || 0) >= 0 ? T.green : (trade.pnl || 0) < 0 ? T.red : T.text3,
                     }}>
-                      {trade.pnl !== null ? `${(trade.pnl) >= 0 ? '+' : '-'}$${fmt(Math.abs(trade.pnl), 2)}` : '—'}
+                      {trade.pnl !== null ? `${(trade.pnl) > 0 ? '+' : (trade.pnl) < 0 ? '-' : ''}$${fmt(Math.abs(trade.pnl), 2)}` : '—'}
                     </div>
                     <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>
                       {new Date(trade.executedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
@@ -1015,7 +1030,7 @@ export default function PortfolioPage() {
               <div style={{ padding: '12px', background: T.bg, borderRadius: 8, border: `0.5px solid ${T.border}` }}>
                 <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2, marginBottom: 6 }}>التعرض المفتوح</div>
                 <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 18, fontWeight: 800, color: totalUnrealizedPnl >= 0 ? T.green : T.red }}>
-                  {totalUnrealizedPnl >= 0 ? '+' : '-'}${fmt(Math.abs(totalUnrealizedPnl), 2)}
+                  {totalUnrealizedPnl > 0 ? '+' : totalUnrealizedPnl < 0 ? '-' : ''}${fmt(Math.abs(totalUnrealizedPnl), 2)}
                 </div>
                 <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>عبر {positions.length} مركز مفتوح</span>
               </div>

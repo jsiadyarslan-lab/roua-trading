@@ -271,7 +271,8 @@ export class MarketScannerService {
               // Get a system user or first admin to generate signal for
               const systemUser = await this._getSystemUser();
               if (systemUser) {
-                const signal = await this.signalGenerator.generateSignal(systemUser.id, symbol);
+                // Pass pre-computed analysis to avoid double analysis
+                const signal = await this.signalGenerator.generateSignal(systemUser.id, symbol, analysis);
                 results.signalsGenerated++;
 
                 this.logger.log(

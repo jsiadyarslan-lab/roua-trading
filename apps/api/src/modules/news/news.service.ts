@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AIOrchestratorService } from '../ai/services/ai-orchestrator.service';
 
@@ -30,9 +30,10 @@ interface RawNewsItem {
  * 5. Scheduled periodic fetching (every 15 minutes)
  */
 @Injectable()
-export class NewsService implements OnModuleInit {
+export class NewsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(NewsService.name);
   private fetchInterval: NodeJS.Timeout | null = null;
+  private isFetchingNews = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -46,13 +47,16 @@ export class NewsService implements OnModuleInit {
     this.startScheduledFetching();
     // Defer initial fetch — don't block app startup with AI analysis
     // This prevents the 45s+ startup delay that blocks all API routes
-    setTimeout(async () => {
-      try {
-        await this.fetchAndAnalyzeNews();
-      } catch (error: any) {
-        this.logger.warn(`Initial news fetch failed: ${error.message}`);
-      }
+    setTimeout(() => {
+      this._scheduledFetch();
     }, 5000); // Wait 5s after startup before fetching
+  }
+
+  async onModuleDestroy() {
+    if (this.fetchInterval) {
+      clearInterval(this.fetchInterval);
+      this.fetchInterval = null;
+    }
   }
 
   /**
@@ -60,14 +64,29 @@ export class NewsService implements OnModuleInit {
    */
   private startScheduledFetching() {
     const INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
-    this.fetchInterval = setInterval(async () => {
-      try {
-        await this.fetchAndAnalyzeNews();
-      } catch (error: any) {
-        this.logger.error(`Scheduled fetch failed: ${error.message}`);
-      }
+    this.fetchInterval = setInterval(() => {
+      this._scheduledFetch();
     }, INTERVAL_MS);
     this.logger.log('⏰ Scheduled news fetching every 15 minutes');
+  }
+
+  /**
+   * Scheduled fetch wrapper with overlap protection.
+   * Prevents concurrent fetches if the previous cycle is still running.
+   */
+  private async _scheduledFetch() {
+    if (this.isFetchingNews) {
+      this.logger.warn('📰 News fetch already in progress, skipping');
+      return;
+    }
+    this.isFetchingNews = true;
+    try {
+      await this.fetchAndAnalyzeNews();
+    } catch (error: any) {
+      this.logger.error(`Scheduled fetch failed: ${error.message}`);
+    } finally {
+      this.isFetchingNews = false;
+    }
   }
 
   /**
@@ -199,71 +218,108 @@ export class NewsService implements OnModuleInit {
 
     this.logger.log(`📰 Fetched ${rawNews.length} raw news items`);
 
-    // Process each news item: translate, analyze, store
+    // Process news items in batches with concurrency limit
+    await this._processNewsBatch(rawNews.slice(0, 20), 3);
+  }
+
+  /**
+   * Process news items in batches with concurrency limit
+   * Duplicate check happens BEFORE AI calls to avoid wasted work
+   */
+  private async _processNewsBatch(items: RawNewsItem[], concurrency: number = 3): Promise<void> {
     let processed = 0;
-    for (const item of rawNews.slice(0, 20)) {
-      try {
-        // Check if already exists (by URL or title)
-        const existing = await this.prisma.newsArticle.findFirst({
-          where: {
-            OR: [
-              { url: item.link || undefined },
-              { title: item.title },
-            ],
-          },
-        });
 
-        if (existing) continue;
+    for (let i = 0; i < items.length; i += concurrency) {
+      const batch = items.slice(i, i + concurrency);
 
-        // Translate title to Arabic
-        const translatedTitle = await this._translateToArabic(item.title);
+      const results = await Promise.allSettled(batch.map(async (item) => {
+        try {
+          // Check duplicate FIRST before AI calls
+          const existing = await this.prisma.newsArticle.findFirst({
+            where: {
+              OR: [
+                { url: item.link || undefined },
+                { title: item.title },
+              ],
+            },
+          });
 
-        // Translate description if available
-        let translatedContent = '';
-        if (item.description) {
-          translatedContent = await this._translateToArabic(item.description);
+          if (existing) return; // Skip — already processed
+
+          // Now do AI analysis
+          const translatedTitle = await this._translateToArabic(item.title);
+
+          let translatedContent = '';
+          if (item.description) {
+            translatedContent = await this._translateToArabic(item.description);
+          }
+
+          const analysis = await this._analyzeSentiment(
+            item.title + (item.description ? '. ' + item.description : ''),
+            item.category,
+          );
+
+          // Map category to Arabic
+          const categoryAr = this._mapCategoryToArabic(item.category || 'General');
+
+          // Store in database
+          await this.prisma.newsArticle.create({
+            data: {
+              source: item.source,
+              title: item.title,
+              translatedTitle,
+              content: item.description || '',
+              translatedContent: translatedContent || item.description || '',
+              summary: analysis.summary || '',
+              url: item.link || null,
+              sentiment: analysis.sentimentScore || 0,
+              sentimentLabel: analysis.sentiment || 'neutral',
+              impactLevel: analysis.impactLevel || 'medium',
+              affectedAssets: JSON.stringify(analysis.affectedAssets || []),
+              category: item.category || 'General',
+              categoryAr,
+              aiAnalysis: analysis.fullAnalysis || '',
+              imageUrl: item.imageUrl || null,
+              publishedAt: item.publishedAt
+                ? new Date(item.publishedAt)
+                : new Date(),
+            },
+          });
+
+          processed++;
+        } catch (error: any) {
+          this.logger.warn(`Failed to process news item: ${error.message}`);
         }
+      }));
 
-        // Analyze sentiment and impact
-        const analysis = await this._analyzeSentiment(
-          item.title + (item.description ? '. ' + item.description : ''),
-          item.category,
-        );
-
-        // Map category to Arabic
-        const categoryAr = this._mapCategoryToArabic(item.category || 'General');
-
-        // Store in database
-        await this.prisma.newsArticle.create({
-          data: {
-            source: item.source,
-            title: item.title,
-            translatedTitle,
-            content: item.description || '',
-            translatedContent: translatedContent || item.description || '',
-            summary: analysis.summary || '',
-            url: item.link || null,
-            sentiment: analysis.sentimentScore || 0,
-            sentimentLabel: analysis.sentiment || 'neutral',
-            impactLevel: analysis.impactLevel || 'medium',
-            affectedAssets: JSON.stringify(analysis.affectedAssets || []),
-            category: item.category || 'General',
-            categoryAr,
-            aiAnalysis: analysis.fullAnalysis || '',
-            imageUrl: item.imageUrl || null,
-            publishedAt: item.publishedAt
-              ? new Date(item.publishedAt)
-              : new Date(),
-          },
-        });
-
-        processed++;
-      } catch (error: any) {
-        this.logger.warn(`Failed to process news item: ${error.message}`);
+      // Delay between batches to avoid overwhelming AI services
+      if (i + concurrency < items.length) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
 
     this.logger.log(`📰 Processed and stored ${processed} new articles`);
+  }
+
+  /**
+   * Generic concurrency-limited batch processor.
+   * Processes items in batches of `concurrency` size, collecting
+   * fulfilled results and silently dropping rejected ones.
+   */
+  private async _processBatch<T, R>(
+    items: T[],
+    processor: (item: T) => Promise<R>,
+    concurrency: number = 3,
+  ): Promise<R[]> {
+    const results: R[] = [];
+    for (let i = 0; i < items.length; i += concurrency) {
+      const batch = items.slice(i, i + concurrency);
+      const batchResults = await Promise.allSettled(batch.map(processor));
+      for (const result of batchResults) {
+        if (result.status === 'fulfilled') results.push(result.value);
+      }
+    }
+    return results;
   }
 
   // ── Private Methods ──
@@ -272,31 +328,27 @@ export class NewsService implements OnModuleInit {
    * Fetch news from all configured sources
    */
   private async _fetchAllSources(): Promise<RawNewsItem[]> {
-    const allNews: RawNewsItem[] = [];
+    const [ctResult, cpResult, cdResult] = await Promise.allSettled([
+      this._fetchCoinTelegraph(),
+      this._fetchCryptoPanic(),
+      this._fetchCoinDesk(),
+    ]);
 
-    // Source 1: CoinTelegraph RSS
-    try {
-      const ctNews = await this._fetchCoinTelegraph();
-      allNews.push(...ctNews);
-    } catch (error: any) {
-      this.logger.warn(`CoinTelegraph fetch failed: ${error.message}`);
+    const ctNews = ctResult.status === 'fulfilled' ? ctResult.value : [];
+    const cpNews = cpResult.status === 'fulfilled' ? cpResult.value : [];
+    const cdNews = cdResult.status === 'fulfilled' ? cdResult.value : [];
+
+    if (ctResult.status === 'rejected') {
+      this.logger.warn(`CoinTelegraph fetch failed: ${ctResult.reason?.message || ctResult.reason}`);
+    }
+    if (cpResult.status === 'rejected') {
+      this.logger.warn(`CryptoPanic fetch failed: ${cpResult.reason?.message || cpResult.reason}`);
+    }
+    if (cdResult.status === 'rejected') {
+      this.logger.warn(`CoinDesk fetch failed: ${cdResult.reason?.message || cdResult.reason}`);
     }
 
-    // Source 2: CryptoPanic API (free tier)
-    try {
-      const cpNews = await this._fetchCryptoPanic();
-      allNews.push(...cpNews);
-    } catch (error: any) {
-      this.logger.warn(`CryptoPanic fetch failed: ${error.message}`);
-    }
-
-    // Source 3: CoinDesk RSS
-    try {
-      const cdNews = await this._fetchCoinDesk();
-      allNews.push(...cdNews);
-    } catch (error: any) {
-      this.logger.warn(`CoinDesk fetch failed: ${error.message}`);
-    }
+    const allNews = [...ctNews, ...cpNews, ...cdNews];
 
     // Deduplicate by title
     const seen = new Set<string>();
@@ -316,6 +368,7 @@ export class NewsService implements OnModuleInit {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; RouaTradingBot/1.0)',
       },
+      signal: AbortSignal.timeout(15000), // 15s timeout
     });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -365,6 +418,7 @@ export class NewsService implements OnModuleInit {
 
     const res = await fetch(url, {
       headers: { 'User-Agent': 'RouaTradingBot/1.0' },
+      signal: AbortSignal.timeout(15000), // 15s timeout
     });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -390,6 +444,7 @@ export class NewsService implements OnModuleInit {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; RouaTradingBot/1.0)',
       },
+      signal: AbortSignal.timeout(15000), // 15s timeout
     });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);

@@ -67,8 +67,8 @@ interface BacktestResult {
 export default function BacktestPanel() {
   const [symbol, setSymbol] = useState('BTC/USD');
   const [strategy, setStrategy] = useState('MOMENTUM');
-  const [periodStart, setPeriodStart] = useState('2026-01-01');
-  const [periodEnd, setPeriodEnd] = useState('2026-04-27');
+  const [periodStart, setPeriodStart] = useState('2025-01-01');
+  const [periodEnd, setPeriodEnd] = useState('2025-12-31');
   const [capital, setCapital] = useState(10000);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BacktestResult | null>(null);

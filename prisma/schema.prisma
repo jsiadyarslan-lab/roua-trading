@@ -53,6 +53,7 @@ model ApiKey {
   isActive        Boolean   @default(true)
   lastValidated   DateTime?
   createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -63,7 +64,7 @@ model Portfolio {
   userId      String
   name        String
   description String?
-  totalValue  Decimal          @default(0) @db.Decimal(19, 4)
+  totalValue  Decimal          @default(0) @db.Decimal(18,4)
   currency    String           @default("USD")
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -78,12 +79,13 @@ model PortfolioAsset {
   portfolioId  String
   symbol       String
   name         String
-  quantity     Decimal     @db.Decimal(19, 8)
-  avgPrice     Decimal     @db.Decimal(19, 4)
-  currentPrice Decimal?    @db.Decimal(19, 4)
+  quantity     Decimal     @default(0) @db.Decimal(18,8)
+  avgPrice     Decimal     @default(0) @db.Decimal(18,8)
+  currentPrice Decimal?    @db.Decimal(18,8)
   exchange     String?
   assetType    AssetType
   addedAt      DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
   portfolio    Portfolio   @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
 
   @@index([portfolioId])
@@ -133,6 +135,7 @@ model Signal {
   @@index([pair])
   @@index([status])
   @@index([expiresAt])
+  @@index([userId, status, expiresAt])
 }
 
 model SignalUsage {
@@ -140,10 +143,11 @@ model SignalUsage {
   userId     String
   signalType String
   asset      String
-  confidence Decimal  @db.Decimal(5, 4)
+  confidence Decimal @default(0)
   analysis   String
   signedHash String?
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -156,6 +160,7 @@ model Session {
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
@@ -175,6 +180,7 @@ model AuditLog {
   @@index([userId])
   @@index([action])
   @@index([createdAt])
+  @@index([action, createdAt])
 }
 
 // ── News Article for RAG (Phase 4) ──
@@ -200,6 +206,7 @@ model NewsArticle {
   publishedAt     DateTime
   fetchedAt       DateTime @default(now())
   createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([source])
   @@index([publishedAt])
@@ -218,6 +225,8 @@ model ExchangeCredential {
   encryptedSecret  String
   iv               String
   authTag          String
+  secretIv         String?
+  secretAuthTag    String?
   permissions      String    @default("read")
   isValid          Boolean   @default(true)
   lastValidatedAt  DateTime?
@@ -229,6 +238,7 @@ model ExchangeCredential {
 
   @@index([userId])
   @@index([exchange])
+  @@index([userId, isValid])
 }
 
 // ── Trading Engine (Phase 5) ──
@@ -309,7 +319,7 @@ model Order {
   @@index([status])
   @@index([exchange])
   @@index([createdAt])
-  @@index([exchangeCredentialId])
+  @@index([userId, status, createdAt])
 }
 
 model OrderEvent {
@@ -326,36 +336,33 @@ model OrderEvent {
 }
 
 model Position {
-  id               String         @id @default(cuid())
-  userId           String
-  credentialId     String
-  exchange         String
-  symbol           String
-  side             OrderSide
-  status           PositionStatus @default(OPEN)
-  quantity         Decimal        @db.Decimal(19, 8)
-  entryPrice       Decimal        @db.Decimal(19, 4)
-  currentPrice     Decimal?       @db.Decimal(19, 4)
-  unrealizedPnl    Decimal?       @db.Decimal(19, 4)
-  realizedPnl      Decimal?       @db.Decimal(19, 4)
-  stopLoss         Decimal?       @db.Decimal(19, 4)
-  takeProfit       Decimal?       @db.Decimal(19, 4)
-  highestPrice     Decimal?       @db.Decimal(19, 4)
-  lowestPrice      Decimal?       @db.Decimal(19, 4)
-  leverage         Decimal?       @db.Decimal(5, 2)
-  liquidationPrice Decimal?       @db.Decimal(19, 4)
-  openedAt         DateTime       @default(now())
-  closedAt         DateTime?
-  updatedAt        DateTime       @updatedAt
-  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  credential       ExchangeCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
-  trades           Trade[]
+  id             String         @id @default(cuid())
+  userId         String
+  credentialId   String
+  exchange       String
+  symbol         String
+  side           OrderSide
+  status         PositionStatus @default(OPEN)
+  quantity       Decimal        @default(0) @db.Decimal(18,8)
+  entryPrice     Decimal        @default(0) @db.Decimal(18,8)
+  currentPrice   Decimal?       @db.Decimal(18,8)
+  unrealizedPnl  Decimal        @default(0) @db.Decimal(18,4)
+  realizedPnl    Decimal        @default(0) @db.Decimal(18,4)
+  stopLoss       Decimal?       @db.Decimal(18,8)
+  takeProfit     Decimal?       @db.Decimal(18,8)
+  highestPrice   Decimal?       @db.Decimal(18,8)
+  lowestPrice    Decimal?       @db.Decimal(18,8)
+  openedAt       DateTime       @default(now())
+  closedAt       DateTime?
+  updatedAt      DateTime       @updatedAt
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([symbol])
   @@index([status])
   @@index([exchange])
-  @@index([credentialId])
+  @@index([userId, status])
+  @@index([userId, symbol, status])
 }
 
 model Trade {
@@ -367,11 +374,11 @@ model Trade {
   symbol          String
   side            OrderSide
   type            TradeType
-  quantity        Decimal   @db.Decimal(19, 8)
-  price           Decimal   @db.Decimal(19, 4)
-  fee             Decimal?  @db.Decimal(19, 4)
+  quantity        Decimal   @default(0) @db.Decimal(18,8)
+  price           Decimal   @default(0) @db.Decimal(18,8)
+  fee             Decimal   @default(0) @db.Decimal(18,4)
   feeCurrency     String?
-  pnl             Decimal?  @db.Decimal(19, 4)
+  pnl             Decimal?  @db.Decimal(18,4)
   exchangeTradeId String?
   executedAt      DateTime  @default(now())
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -382,7 +389,7 @@ model Trade {
   @@index([symbol])
   @@index([positionId])
   @@index([executedAt])
-  @@index([orderId])
+  @@index([userId, type, executedAt])
 }
 
 // ── Paper Trading Orders (Execution Engine) ──
@@ -441,6 +448,7 @@ model Account {
   scope             String?
   id_token          String?
   session_state     String?
+  updatedAt       DateTime  @updatedAt
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
@@ -468,6 +476,7 @@ model StrategyReport {
   deepAnalysis    String   // JSON stringified string[]
   publishedAt     DateTime @default(now())
   createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([symbol])
   @@index([type])
@@ -502,7 +511,7 @@ model CoachAdvice {
   adviceItems       String   @default("[]") // JSON array of { type, icon, text }
   isRead            Boolean  @default(false)
   createdAt         DateTime @default(now())
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt         DateTime @updatedAt
 
   @@index([userId])
   @@index([createdAt])

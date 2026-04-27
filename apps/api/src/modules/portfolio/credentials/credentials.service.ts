@@ -103,11 +103,11 @@ export class CredentialsService {
       }
     }
 
-    // Step 3: Encrypt the API key and secret
+    // Step 3: Encrypt the API key and secret (each gets its own IV/authTag)
     const encryptedApiKey = this._encrypt(apiKey);
     const encryptedSecret = this._encrypt(apiSecret);
 
-    // Step 4: Store in database
+    // Step 4: Store in database with separate IV/authTag for each field
     const credential = await this.prisma.exchangeCredential.create({
       data: {
         userId,
@@ -117,6 +117,8 @@ export class CredentialsService {
         encryptedSecret: encryptedSecret.encrypted,
         iv: encryptedApiKey.iv,
         authTag: encryptedApiKey.authTag,
+        secretIv: encryptedSecret.iv,
+        secretAuthTag: encryptedSecret.authTag,
         permissions: JSON.stringify(validation.permissions || ['read']),
         isValid: true,
         lastValidatedAt: new Date(),
@@ -216,12 +218,11 @@ export class CredentialsService {
       authTag: credential.authTag,
     });
 
-    // For the secret, we use the same IV and authTag pattern
-    // In production, each field should have its own IV/authTag
+    // Use the secret's own IV and authTag (fallback to shared for legacy data)
     const apiSecret = this._decrypt({
       encrypted: credential.encryptedSecret,
-      iv: credential.iv,
-      authTag: credential.authTag,
+      iv: credential.secretIv ?? credential.iv,
+      authTag: credential.secretAuthTag ?? credential.authTag,
     });
 
     return { apiKey, apiSecret };

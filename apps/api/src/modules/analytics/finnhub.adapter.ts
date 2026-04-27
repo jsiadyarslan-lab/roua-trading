@@ -1,4 +1,4 @@
-import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, Logger, HttpException, HttpStatus, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../../common/redis/redis.service';
 import { UnifiedQuoteDto, UnifiedCandleDto } from '../exchange/exchange.types';
@@ -25,7 +25,7 @@ import { switchMap, catchError, map, filter, debounceTime, tap } from 'rxjs/oper
  * - Basic financials (peers, earnings)
  */
 @Injectable()
-export class FinnhubAdapter implements IExchangeAdapter {
+export class FinnhubAdapter implements IExchangeAdapter, OnModuleDestroy {
   readonly name = 'Finnhub';
   private readonly logger = new Logger(FinnhubAdapter.name);
   private readonly apiKey: string;
@@ -42,6 +42,10 @@ export class FinnhubAdapter implements IExchangeAdapter {
   // WebSocket streaming
   private wsConnection: any = null;
   private readonly priceSubject = new Subject<FinnhubQuoteDto>();
+  private reconnectAttempts = 0;
+  private readonly maxReconnectAttempts = 10;
+  private readonly baseReconnectDelay = 5000;
+  private reconnectTimer: NodeJS.Timeout | null = null;
 
   constructor(
     private readonly configService: ConfigService,
@@ -271,6 +275,7 @@ export class FinnhubAdapter implements IExchangeAdapter {
       this.wsConnection = new WebSocket(`wss://ws.finnhub.io?token=${this.apiKey}`);
 
       this.wsConnection.on('open', () => {
+        this.reconnectAttempts = 0; // Reset on successful connection
         this.logger.log('🔌 Finnhub WebSocket connected');
       });
 
@@ -302,12 +307,38 @@ export class FinnhubAdapter implements IExchangeAdapter {
       });
 
       this.wsConnection.on('close', () => {
-        this.logger.warn('🔌 Finnhub WebSocket closed — will reconnect');
-        setTimeout(() => this._initWebSocket(), 5000);
+        this.logger.warn('🔌 Finnhub WebSocket closed');
+        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+          const delay = Math.min(
+            this.baseReconnectDelay * Math.pow(2, this.reconnectAttempts),
+            60000,
+          );
+          this.reconnectAttempts++;
+          this.logger.log(`Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+          this.reconnectTimer = setTimeout(() => this._initWebSocket(), delay);
+        } else {
+          this.logger.error('Max Finnhub WebSocket reconnect attempts reached');
+        }
       });
     } catch (error: any) {
       this.logger.warn(`Finnhub WebSocket unavailable: ${error.message}`);
     }
+  }
+
+  onModuleDestroy() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.wsConnection) {
+      try {
+        this.wsConnection.close();
+      } catch {
+        // Ignore close errors
+      }
+      this.wsConnection = null;
+    }
+    this.priceSubject.complete();
   }
 
   // ── Private: Helpers ──

@@ -228,11 +228,26 @@ export class CouncilSchedulerService {
   }
 
   /**
+   * SCAN-based key retrieval (avoids blocking KEYS command)
+   */
+  private async _scanKeys(pattern: string): Promise<string[]> {
+    const keys: string[] = [];
+    let cursor = '0';
+    const client = (this.redis as any)['client'];
+    do {
+      const result = await client.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      cursor = result[0];
+      keys.push(...result[1]);
+    } while (cursor !== '0');
+    return keys;
+  }
+
+  /**
    * Get all active council alerts
    */
   async getActiveAlerts(): Promise<any[]> {
     try {
-      const keys = await (this.redis as any)['client'].keys('council:alert:*');
+      const keys = await this._scanKeys('council:alert:*');
       const alerts: any[] = [];
 
       for (const key of keys) {
@@ -261,7 +276,7 @@ export class CouncilSchedulerService {
 
     // Add symbols with recent alerts (extreme moves)
     try {
-      const alertKeys = await this.redis['client'].keys('scanner:alert:*');
+      const alertKeys = await this._scanKeys('scanner:alert:*');
       for (const key of alertKeys) {
         const data = await this.redis.get(key);
         if (data) {

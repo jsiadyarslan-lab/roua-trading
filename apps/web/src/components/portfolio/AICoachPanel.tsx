@@ -6,16 +6,17 @@ import {
   ChevronDown, ChevronUp, MessageCircle, RefreshCw, Star,
   Award, Sparkles, X
 } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
 
 /* ── Theme ── */
 const T = {
-  bg:      '#04050C',
-  card:    '#08090F',
-  card2:   '#0D1117',
+  bg:      '#0B0E14',
+  card:    '#1A1D29',
+  card2:   '#0F1117',
   blue:    '#0A84FF',
-  cyan:    '#00C8FF',
-  green:   '#00FFC6',
-  red:     '#FF4D4D',
+  cyan:    '#00D4FF',
+  green:   '#00FFA3',
+  red:     '#FF4757',
   amber:   '#FFB800',
   purple:  '#B388FF',
   text:    '#E6EBF5',
@@ -198,6 +199,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
 
 /* ── Main AICoachPanel Component ── */
 export default function AICoachPanel() {
+  const { user } = useAuth()
   const [coachData, setCoachData] = useState<CoachData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -215,7 +217,7 @@ export default function AICoachPanel() {
       const res = await fetch('/api/coach/performance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: 'current' }),
+        body: JSON.stringify({ userId: user?.id || 'anonymous' }),
       })
       const data = await res.json()
       if (data.success) {
@@ -227,7 +229,7 @@ export default function AICoachPanel() {
       setError('خطأ في الاتصال بالمُدرّب الذكي')
     }
     setLoading(false)
-  }, [])
+  }, [user])
 
   useEffect(() => { fetchAdvice() }, [fetchAdvice])
 

@@ -27,6 +27,17 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+
+  // Bundle optimizations
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      'recharts',
+      'date-fns',
+      'framer-motion',
+    ],
+  },
+
   async rewrites() {
     return [
       // ── CRITICAL: Trading routes → NestJS ──

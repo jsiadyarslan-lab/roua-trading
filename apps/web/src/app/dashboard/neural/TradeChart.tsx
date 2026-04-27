@@ -74,12 +74,15 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
     }
 
     const container = chartContainerRef.current;
+    let chart: any = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let isMounted = true;
 
     // Dynamic import for lightweight-charts (ESM only)
     import('lightweight-charts').then(({ createChart, CandlestickSeries }) => {
-      if (!container) return;
+      if (!isMounted || !container) return;
 
-      const chart = createChart(container, {
+      chart = createChart(container, {
         width: container.clientWidth,
         height: 400,
         layout: {
@@ -168,27 +171,32 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
       setChartReady(true);
 
       // Handle resize
-      const handleResize = () => {
-        if (chartRef.current && container) {
-          chartRef.current.applyOptions({ width: container.clientWidth });
+      resizeObserver = new ResizeObserver(entries => {
+        if (chart && entries[0]) {
+          chart.applyOptions({
+            width: entries[0].contentRect.width,
+          });
         }
-      };
+      });
 
-      const resizeObserver = new ResizeObserver(handleResize);
-      resizeObserver.observe(container);
-
-      return () => {
-        resizeObserver.disconnect();
-        if (chartRef.current) {
-          chartRef.current.remove();
-          chartRef.current = null;
-        }
-      };
+      if (container) {
+        resizeObserver.observe(container);
+      }
     }).catch((err) => {
       console.error('Failed to load lightweight-charts:', err);
     });
 
     return () => {
+      isMounted = false;
+      if (resizeObserver && container) {
+        resizeObserver.unobserve(container);
+        resizeObserver.disconnect();
+        resizeObserver = null;
+      }
+      if (chart) {
+        chart.remove();
+        chart = null;
+      }
       if (chartRef.current) {
         chartRef.current.remove();
         chartRef.current = null;

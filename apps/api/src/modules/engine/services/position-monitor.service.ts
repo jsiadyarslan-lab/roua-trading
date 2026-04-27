@@ -101,10 +101,23 @@ export class PositionMonitorService {
       let trailingUpdated = 0;
       let alertsSent = 0;
 
-      // Step 2: Process each position
-      for (const position of positions) {
+      // Step 2: Fetch all quotes in parallel first
+      const quotePromises = positions.map((pos) =>
+        this.exchangeService.getQuote(pos.symbol).catch(() => null),
+      );
+      const quotes = await Promise.allSettled(quotePromises);
+
+      // Step 3: Process each position with its pre-fetched quote
+      for (let i = 0; i < positions.length; i++) {
+        const position = positions[i];
+        const quoteResult = quotes[i];
+        const currentPrice =
+          quoteResult.status === 'fulfilled' && quoteResult.value?.price
+            ? quoteResult.value.price
+            : null;
+
         try {
-          const result = await this._monitorPosition(position);
+          const result = await this._monitorPosition(position, currentPrice);
           if (result.slTriggered) slTriggered++;
           if (result.tpTriggered) tpTriggered++;
           if (result.trailingUpdated) trailingUpdated++;
@@ -168,22 +181,27 @@ export class PositionMonitorService {
         where: { status: 'OPEN' },
       });
 
-      for (const pos of allPositions) {
-        try {
-          const quote = await this.exchangeService.getQuote(pos.symbol);
-          const currentPrice = quote.price;
+      // Fetch all quotes in parallel
+      const quotePromises = allPositions.map((pos) =>
+        this.exchangeService.getQuote(pos.symbol).catch(() => null),
+      );
+      const quotes = await Promise.allSettled(quotePromises);
 
-          if (pos.stopLoss) {
-            const slDistance = Math.abs(currentPrice - Number(pos.stopLoss)) / Number(pos.entryPrice);
-            if (slDistance < 0.01) nearSL++;
-          }
+      for (let i = 0; i < allPositions.length; i++) {
+        const pos = allPositions[i];
+        const quoteResult = quotes[i];
+        if (quoteResult.status !== 'fulfilled' || !quoteResult.value?.price) continue;
 
-          if (pos.takeProfit) {
-            const tpDistance = Math.abs(currentPrice - Number(pos.takeProfit)) / Number(pos.entryPrice);
-            if (tpDistance < 0.01) nearTP++;
-          }
-        } catch {
-          // Ignore
+        const currentPrice = quoteResult.value.price;
+
+        if (pos.stopLoss) {
+          const slDistance = Math.abs(currentPrice - pos.stopLoss) / pos.entryPrice;
+          if (slDistance < 0.01) nearSL++;
+        }
+
+        if (pos.takeProfit) {
+          const tpDistance = Math.abs(currentPrice - pos.takeProfit) / pos.entryPrice;
+          if (tpDistance < 0.01) nearTP++;
         }
       }
     } catch (dbError: any) {
@@ -199,7 +217,7 @@ export class PositionMonitorService {
 
   // ── Private: Position Monitoring ──
 
-  private async _monitorPosition(position: any): Promise<{
+  private async _monitorPosition(position: any, currentPrice: number | null): Promise<{
     slTriggered: boolean;
     tpTriggered: boolean;
     trailingUpdated: boolean;
@@ -212,12 +230,8 @@ export class PositionMonitorService {
       alertSent: false,
     };
 
-    // Fetch current price
-    let currentPrice: number;
-    try {
-      const quote = await this.exchangeService.getQuote(position.symbol);
-      currentPrice = quote.price;
-    } catch {
+    // Use pre-fetched price or skip
+    if (currentPrice === null) {
       return result; // Skip if can't get price
     }
 

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, Logger, Req } from '@nestjs/common';
 import { CoachService } from './coach.service';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
@@ -16,9 +16,10 @@ export class CoachController {
    */
   @Post('performance')
   @Throttle({ default: { limit: 5, ttl: 60000 } })
-  async getPerformanceAdvice(@Body() body: { userId: string }) {
-    this.logger.log(`Performance advice request for user ${body.userId}`);
-    return this.coachService.getPerformanceAdvice(body.userId);
+  async getPerformanceAdvice(@Req() req: any) {
+    const userId = req.user.id;
+    this.logger.log(`Performance advice request for user ${userId}`);
+    return this.coachService.getPerformanceAdvice(userId);
   }
 
   /**
@@ -27,9 +28,10 @@ export class CoachController {
    */
   @Post('ask')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  async askCoach(@Body() body: { userId: string; question: string; contextAdviceId?: string }) {
-    this.logger.log(`Coach question from user ${body.userId}`);
-    return this.coachService.askCoach(body.userId, body.question, body.contextAdviceId);
+  async askCoach(@Req() req: any, @Body() body: { question: string; contextAdviceId?: string }) {
+    const userId = req.user.id;
+    this.logger.log(`Coach question from user ${userId}`);
+    return this.coachService.askCoach(userId, body.question, body.contextAdviceId);
   }
 
   /**
@@ -37,7 +39,8 @@ export class CoachController {
    * Query: { userId }
    */
   @Get('history')
-  async getAdviceHistory(@Query('userId') userId: string) {
+  async getAdviceHistory(@Req() req: any) {
+    const userId = req.user.id;
     return this.coachService.getAdviceHistory(userId);
   }
 }

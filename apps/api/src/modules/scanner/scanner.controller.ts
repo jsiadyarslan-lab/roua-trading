@@ -10,12 +10,20 @@ import {
   Post,
   HttpCode,
   HttpStatus,
+  Logger,
+  InternalServerErrorException,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { ScannerService } from './scanner.service';
 import { MarketCategory } from './scanner.types';
+import { AuthGuard } from '../../common/guards/auth.guard';
 
 @Controller('scanner')
+@UseGuards(AuthGuard)
 export class ScannerController {
+  private readonly logger = new Logger(ScannerController.name);
+
   constructor(private readonly scannerService: ScannerService) {}
 
   /**
@@ -33,7 +41,12 @@ export class ScannerController {
       ? (category as MarketCategory)
       : undefined;
 
-    return this.scannerService.fullScan(tf, cat);
+    try {
+      return await this.scannerService.fullScan(tf, cat);
+    } catch (error: any) {
+      this.logger.error(`Full scan failed: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('فشل في إجراء المسح الكامل للسوق');
+    }
   }
 
   /**
@@ -47,7 +60,12 @@ export class ScannerController {
       ? (category as MarketCategory)
       : undefined;
 
-    return this.scannerService.heatmapData(cat);
+    try {
+      return await this.scannerService.heatmapData(cat);
+    } catch (error: any) {
+      this.logger.error(`Heatmap failed: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('فشل في جلب بيانات خريطة الحرارة');
+    }
   }
 
   /**
@@ -57,7 +75,12 @@ export class ScannerController {
    */
   @Get('analysis/:symbol')
   async deepAnalysis(@Param('symbol') symbol: string) {
-    return this.scannerService.deepAnalysis(symbol);
+    try {
+      return await this.scannerService.deepAnalysis(symbol);
+    } catch (error: any) {
+      this.logger.error(`Deep analysis failed for ${symbol}: ${error.message}`, error.stack);
+      throw new InternalServerErrorException(`فشل في تحليل ${symbol}`);
+    }
   }
 
   /**
@@ -67,7 +90,12 @@ export class ScannerController {
    */
   @Get('multi-tf/:symbol')
   async multiTimeframeAnalysis(@Param('symbol') symbol: string) {
-    return this.scannerService.multiTimeframeAnalysis(symbol);
+    try {
+      return await this.scannerService.multiTimeframeAnalysis(symbol);
+    } catch (error: any) {
+      this.logger.error(`Multi-TF analysis failed for ${symbol}: ${error.message}`, error.stack);
+      throw new InternalServerErrorException(`فشل في التحليل متعدد الأطر الزمنية لـ ${symbol}`);
+    }
   }
 
   /**
@@ -76,7 +104,12 @@ export class ScannerController {
    */
   @Get('overview')
   async marketOverview() {
-    return this.scannerService.marketOverview();
+    try {
+      return await this.scannerService.marketOverview();
+    } catch (error: any) {
+      this.logger.error(`Market overview failed: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('فشل في جلب نظرة عامة على السوق');
+    }
   }
 
   /**
@@ -86,6 +119,7 @@ export class ScannerController {
   @Post('run')
   @HttpCode(HttpStatus.OK)
   async forceScan(
+    @Req() req: any,
     @Query('timeframe') timeframe?: string,
     @Query('category') category?: string,
   ) {
@@ -94,7 +128,12 @@ export class ScannerController {
       ? (category as MarketCategory)
       : undefined;
 
-    // Clear cache first to force fresh data
-    return this.scannerService.fullScan(tf, cat);
+    try {
+      // Clear cache first to force fresh data
+      return await this.scannerService.fullScan(tf, cat);
+    } catch (error: any) {
+      this.logger.error(`Force scan failed: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('فشل في إجراء المسح الإجباري');
+    }
   }
 }

@@ -113,33 +113,46 @@ export class SanctuaryService {
       include: { assets: true },
     });
 
+    // Collect manual assets that need live quotes (parallel fetch)
+    const manualAssets: any[] = [];
     for (const portfolio of portfolios) {
       for (const asset of portfolio.assets) {
-        // Check if already included from exchange
         const existing = allPositions.find((p) => p.symbol === asset.symbol);
         if (!existing) {
-          let currentPrice = Number(asset.currentPrice || asset.avgPrice);
-          try {
-            const quote = await this.exchangeService.getQuote(asset.symbol);
-            currentPrice = quote.price;
-          } catch {
-            // Use stored price
-          }
-
-          const value = Number(asset.quantity) * currentPrice;
-          totalValue += value;
-
-          allPositions.push({
-            symbol: asset.symbol,
-            exchange: asset.exchange || 'manual',
-            quantity: Number(asset.quantity),
-            currentPrice,
-            value,
-            weight: 0, // calculated below
-            change24h: 0,
-            assetType: asset.assetType,
-          });
+          manualAssets.push(asset);
         }
+      }
+    }
+
+    if (manualAssets.length > 0) {
+      // Fetch all quotes in parallel
+      const quotePromises = manualAssets.map((asset) =>
+        this.exchangeService.getQuote(asset.symbol).catch(() => null),
+      );
+      const quotes = await Promise.allSettled(quotePromises);
+
+      for (let i = 0; i < manualAssets.length; i++) {
+        const asset = manualAssets[i];
+        const quoteResult = quotes[i];
+        let currentPrice = asset.currentPrice || asset.avgPrice;
+
+        if (quoteResult.status === 'fulfilled' && quoteResult.value?.price) {
+          currentPrice = quoteResult.value.price;
+        }
+
+        const value = asset.quantity * currentPrice;
+        totalValue += value;
+
+        allPositions.push({
+          symbol: asset.symbol,
+          exchange: asset.exchange || 'manual',
+          quantity: asset.quantity,
+          currentPrice,
+          value,
+          weight: 0, // calculated below
+          change24h: 0,
+          assetType: asset.assetType,
+        });
       }
     }
 
@@ -216,46 +229,74 @@ export class SanctuaryService {
 
       const balance = await instance.fetchBalance();
 
-      // Extract non-zero balances
+      // Collect currencies that need quotes
+      const currencyEntries: { currency: string; amount: number }[] = [];
       for (const [currency, amount] of Object.entries(balance.total || {})) {
         if (!amount || (amount as number) <= 0) continue;
         if (['free', 'used', 'total'].includes(currency)) continue;
+        currencyEntries.push({ currency, amount: amount as number });
+      }
 
-        const numAmount = amount as number;
+      // Phase 1: Fetch all USDT pair quotes in parallel
+      const usdtQuotePromises = currencyEntries.map(({ currency }) => {
+        if (currency === 'USDT' || currency === 'USD') return Promise.resolve(null);
+        return this.exchangeService.getQuote(`${currency}/USDT`).catch(() => null);
+      });
+      const usdtQuotes = await Promise.allSettled(usdtQuotePromises);
 
-        // Try to get current price
+      // Phase 2: For currencies where USDT pair failed, try USD pair in parallel
+      const usdRetryIndices: number[] = [];
+      const usdRetryPromises: Promise<any>[] = [];
+
+      for (let i = 0; i < currencyEntries.length; i++) {
+        const { currency } = currencyEntries[i];
+        if (currency === 'USDT' || currency === 'USD') continue;
+        const quoteResult = usdtQuotes[i];
+        if (quoteResult.status !== 'fulfilled' || !quoteResult.value?.price) {
+          usdRetryIndices.push(i);
+          usdRetryPromises.push(
+            this.exchangeService.getQuote(`${currency}/USD`).catch(() => null),
+          );
+        }
+      }
+
+      const usdQuotes = usdRetryPromises.length > 0
+        ? await Promise.allSettled(usdRetryPromises)
+        : [];
+
+      // Build results
+      let usdRetryCursor = 0;
+      for (let i = 0; i < currencyEntries.length; i++) {
+        const { currency, amount: numAmount } = currencyEntries[i];
+
         let currentPrice = 0;
         let change24h = 0;
         let symbol = currency;
 
-        // For non-USDT currencies, try to get price in USDT
-        if (currency !== 'USDT' && currency !== 'USD') {
-          try {
-            const tradingPair = `${currency}/USDT`;
-            const quote = await this.exchangeService.getQuote(tradingPair);
-            currentPrice = quote.price;
-            change24h = quote.changePercent;
-            symbol = tradingPair;
-          } catch {
-            // If USDT pair fails, try USD
-            try {
-              const tradingPair = `${currency}/USD`;
-              const quote = await this.exchangeService.getQuote(tradingPair);
-              currentPrice = quote.price;
-              change24h = quote.changePercent;
-              symbol = tradingPair;
-            } catch {
-              currentPrice = 0;
+        if (currency === 'USDT' || currency === 'USD') {
+          currentPrice = 1;
+        } else {
+          // Try USDT quote first
+          const usdtResult = usdtQuotes[i];
+          if (usdtResult.status === 'fulfilled' && usdtResult.value?.price) {
+            currentPrice = usdtResult.value.price;
+            change24h = usdtResult.value.changePercent;
+            symbol = `${currency}/USDT`;
+          } else {
+            // Fall back to USD quote
+            const usdResult = usdQuotes[usdRetryCursor];
+            usdRetryCursor++;
+            if (usdResult?.status === 'fulfilled' && usdResult.value?.price) {
+              currentPrice = usdResult.value.price;
+              change24h = usdResult.value.changePercent;
+              symbol = `${currency}/USD`;
             }
           }
-        } else {
-          currentPrice = 1; // USDT/USD = 1
         }
 
         const value = numAmount * currentPrice;
 
         if (value > 1) {
-          // Only include positions > $1
           positions.push({
             symbol,
             exchange,

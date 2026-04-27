@@ -5,10 +5,15 @@ import {
   Query,
   Body,
   Logger,
+  InternalServerErrorException,
+  BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { NewsService } from './news.service';
+import { AuthGuard } from '../../common/guards/auth.guard';
 
 @Controller('news')
+@UseGuards(AuthGuard)
 export class NewsController {
   private readonly logger = new Logger(NewsController.name);
 
@@ -39,12 +44,7 @@ export class NewsController {
       return { success: true, data: news, count: news.length };
     } catch (error: any) {
       this.logger.error(`Failed to fetch news: ${error.message}`, error.stack);
-      return {
-        success: false,
-        error: 'فشل في جلب الأخبار',
-        data: [],
-        count: 0,
-      };
+      throw new InternalServerErrorException('فشل في جلب الأخبار');
     }
   }
 
@@ -56,7 +56,7 @@ export class NewsController {
   @Post('analyze')
   async analyzeNewsText(@Body() body: { text: string; symbol?: string }) {
     if (!body.text) {
-      return { success: false, error: 'النص مطلوب للتحليل' };
+      throw new BadRequestException('النص مطلوب للتحليل');
     }
 
     try {
@@ -67,7 +67,7 @@ export class NewsController {
       return { success: true, data: analysis };
     } catch (error: any) {
       this.logger.error(`Failed to analyze news: ${error.message}`, error.stack);
-      return { success: false, error: 'فشل في تحليل الخبر' };
+      throw new InternalServerErrorException('فشل في تحليل الخبر');
     }
   }
 
@@ -82,7 +82,7 @@ export class NewsController {
       return { success: true, message: 'تم جلب وتحليل الأخبار بنجاح' };
     } catch (error: any) {
       this.logger.error(`Manual fetch failed: ${error.message}`, error.stack);
-      return { success: false, error: 'فشل في جلب الأخبار' };
+      throw new InternalServerErrorException('فشل في جلب الأخبار');
     }
   }
 }

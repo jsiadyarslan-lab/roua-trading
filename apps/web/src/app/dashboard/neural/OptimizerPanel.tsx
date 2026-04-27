@@ -21,7 +21,7 @@ const STRATEGIES = [
   { value: 'AI_COUNCIL', label: 'مجلس الذكاء (AI Council)', desc: 'توافق Gemini + Groq + GLM' },
 ];
 
-const SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT'];
+const SYMBOLS = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD', 'ADA/USD'];
 
 interface OptimizeResult {
   strategy: string;
@@ -52,7 +52,7 @@ interface OptimizeResult {
 }
 
 export default function OptimizerPanel() {
-  const [symbol, setSymbol] = useState('BTC/USDT');
+  const [symbol, setSymbol] = useState('BTC/USD');
   const [strategy, setStrategy] = useState('MOMENTUM');
   const [periodStart, setPeriodStart] = useState('2025-01-01');
   const [periodEnd, setPeriodEnd] = useState('2025-12-31');

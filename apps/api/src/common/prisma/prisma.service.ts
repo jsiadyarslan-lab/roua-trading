@@ -10,17 +10,32 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   private connected = false;
 
   constructor() {
+    const isDev = process.env.NODE_ENV !== 'production';
+
     super({
       log: [
-        { emit: 'event', level: 'query' },
+        ...(isDev ? [{ emit: 'event' as const, level: 'query' as const }] : []),
         { emit: 'stdout', level: 'info' },
         { emit: 'stdout', level: 'warn' },
         { emit: 'stdout', level: 'error' },
       ],
     });
+
+    // Only attach query event listener in development mode
+    if (isDev) {
+      this.$on('query' as any, (e: any) => {
+        this.logger.debug(`Query: ${e.query} — ${e.duration}ms`);
+      });
+    }
   }
 
   async onModuleInit() {
+    // Warn about connection pool if not configured
+    const dbUrl = process.env.DATABASE_URL || '';
+    if (!dbUrl.includes('connection_limit')) {
+      this.logger.warn('DATABASE_URL does not include connection_limit. Consider adding ?connection_limit=10 for production.');
+    }
+
     const connected = await this.tryConnect();
 
     if (!connected) {

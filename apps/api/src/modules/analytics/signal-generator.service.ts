@@ -9,6 +9,7 @@ import {
   SignalAction,
   AggregatedQuoteDto,
   TechnicalAnalysisDto,
+  AnalysisCardDto,
 } from './analytics.types';
 
 /**
@@ -76,11 +77,11 @@ export class SignalGeneratorService {
    * @param userId The user requesting the signal
    * @param symbol Asset symbol (e.g., BTC/USDT, AAPL)
    */
-  async generateSignal(userId: string, symbol: string): Promise<GeneratedSignalDto> {
+  async generateSignal(userId: string, symbol: string, preComputedAnalysis?: AnalysisCardDto): Promise<GeneratedSignalDto> {
     this.logger.log(`📡 Generating signal for ${symbol} (user: ${userId})`);
 
-    // Step 1: Run full analysis
-    const analysisCard = await this.analyticalAI.analyzeAsset(symbol);
+    // Step 1: Use pre-computed analysis if provided, otherwise run full analysis
+    const analysisCard = preComputedAnalysis || await this.analyticalAI.analyzeAsset(symbol);
 
     // Step 2: Determine signal action based on technical score + AI analysis
     const action = this._determineAction(analysisCard.technical, analysisCard.confidence);

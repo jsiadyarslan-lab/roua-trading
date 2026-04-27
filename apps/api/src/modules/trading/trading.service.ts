@@ -30,15 +30,14 @@ import {
  * 6. Risk management checks before execution
  * 7. Automatic position opening/closing
  *
- * Note: Order model uses Decimal for quantity, price, stopLoss, takeProfit,
- * filledQuantity, averagePrice, fee. When writing, pass as number/string
- * (Prisma accepts both). When reading, Decimal fields return Prisma.Decimal
- * objects — convert using Number() or .toNumber().
- * Position and Trade models still use Float types.
+ * Note: Order, Position, and Trade models use Decimal for financial fields.
+ * When writing, pass as number/string (Prisma accepts both). When reading,
+ * Decimal fields return Prisma.Decimal objects — convert using .toNumber().
  */
 @Injectable()
 export class TradingService {
   private readonly logger = new Logger(TradingService.name);
+  private readonly exchangeCache = new Map<string, any>(); // credentialId:exchangeName -> exchange instance
 
   constructor(
     private readonly prisma: PrismaService,
@@ -180,61 +179,65 @@ export class TradingService {
       );
     }
 
-    // Step 6: Record successful order
+    // Step 6-9: Record order, update position, record trade, update signal — all in one transaction
     // Note: averagePrice (not averageFillPrice) is the correct field name
     // idempotencyKey is required (String @unique)
-    const order = await this.prisma.order.create({
-      data: {
-        userId,
-        exchangeCredentialId: request.credentialId,
-        exchange: credential.exchange,
-        symbol: request.symbol,
-        side: request.side as any,
-        type: request.type as any,
-        status:
-          (execution.filledQuantity || 0) >= request.quantity
-            ? 'FILLED' as any
-            : 'PARTIALLY_FILLED' as any,
-        quantity: request.quantity,
-        price: request.price ?? null,
-        stopLoss: request.stopLoss ?? null,
-        filledQuantity: execution.filledQuantity || 0,
-        averagePrice: execution.averagePrice,
-        fee: execution.fee ?? null,
-        feeCurrency: execution.feeCurrency ?? null,
-        exchangeOrderId: execution.exchangeOrderId,
-        idempotencyKey: `legacy-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      },
+    const order = await this.prisma.$transaction(async (tx) => {
+      const createdOrder = await tx.order.create({
+        data: {
+          userId,
+          exchangeCredentialId: request.credentialId,
+          exchange: credential.exchange,
+          symbol: request.symbol,
+          side: request.side as any,
+          type: request.type as any,
+          status:
+            (execution.filledQuantity || 0) >= request.quantity
+              ? 'FILLED' as any
+              : 'PARTIALLY_FILLED' as any,
+          quantity: request.quantity,
+          price: request.price ?? null,
+          stopLoss: request.stopLoss ?? null,
+          filledQuantity: execution.filledQuantity || 0,
+          averagePrice: execution.averagePrice,
+          fee: execution.fee ?? null,
+          feeCurrency: execution.feeCurrency ?? null,
+          exchangeOrderId: execution.exchangeOrderId,
+          idempotencyKey: `legacy-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        },
+      });
+
+      // Step 7: Update or open position
+      await this._updatePosition(userId, createdOrder, request, execution, tx);
+
+      // Step 8: Record trade
+      await tx.trade.create({
+        data: {
+          userId,
+          orderId: createdOrder.id,
+          exchange: credential.exchange,
+          symbol: request.symbol,
+          side: request.side,
+          type: 'ENTRY',
+          quantity: execution.filledQuantity || 0,
+          price: execution.averagePrice || currentPrice,
+          fee: execution.fee,
+          feeCurrency: execution.feeCurrency,
+        },
+      });
+
+      // Step 9: If this was triggered by a signal, update signal status
+      if (request.signalId) {
+        await tx.signal
+          .update({
+            where: { id: request.signalId },
+            data: { status: 'EXECUTED' },
+          })
+          .catch(() => {}); // Don't fail if signal not found
+      }
+
+      return createdOrder;
     });
-
-    // Step 7: Update or open position
-    await this._updatePosition(userId, order, request, execution);
-
-    // Step 8: Record trade
-    await this.prisma.trade.create({
-      data: {
-        userId,
-        orderId: order.id,
-        exchange: credential.exchange,
-        symbol: request.symbol,
-        side: request.side,
-        type: 'ENTRY',
-        quantity: execution.filledQuantity || 0,
-        price: execution.averagePrice || currentPrice,
-        fee: execution.fee,
-        feeCurrency: execution.feeCurrency,
-      },
-    });
-
-    // Step 9: If this was triggered by a signal, update signal status
-    if (request.signalId) {
-      await this.prisma.signal
-        .update({
-          where: { id: request.signalId },
-          data: { status: 'EXECUTED' },
-        })
-        .catch(() => {}); // Don't fail if signal not found
-    }
 
     // Audit log
     await this.auditService.log({
@@ -295,15 +298,10 @@ export class TradingService {
         if (credential) {
           const { apiKey, apiSecret } =
             await this.credentialsService.decryptCredential(credential.id);
-          const ExchangeClass = ccxt[
-            credential.exchange as keyof typeof ccxt
-          ] as any;
-          const exchange = new ExchangeClass({
-            apiKey,
-            secret: apiSecret,
-            enableRateLimit: true,
-          });
-          await exchange.cancelOrder(order.exchangeOrderId, order.symbol);
+          const exchange = this._getExchangeInstance(credential.exchange, apiKey, apiSecret, credential.id);
+          if (exchange) {
+            await exchange.cancelOrder(order.exchangeOrderId, order.symbol);
+          }
         }
       } catch (error: any) {
         this.logger.warn(
@@ -367,88 +365,81 @@ export class TradingService {
 
   /**
    * Get all open positions for a user
+   * Uses parallel quote fetching and batch DB updates to avoid N+1 queries
    */
   async getOpenPositions(userId: string): Promise<any[]> {
-    try {
-      const positions = await this.prisma.position.findMany({
-        where: { userId, status: 'OPEN' },
-        orderBy: { openedAt: 'desc' },
-      });
+    const positions = await this.prisma.position.findMany({
+      where: { userId, status: 'OPEN' },
+      orderBy: { openedAt: 'desc' },
+    });
 
-      if (positions.length === 0) return positions;
+    if (positions.length === 0) return [];
 
-      // Batch: Fetch all quotes in parallel using Promise.allSettled
-      const quoteResults = await Promise.allSettled(
-        positions.map((position) =>
-          this.exchangeService.getQuote(position.symbol),
-        ),
-      );
+    // Fetch all quotes in parallel
+    const quotePromises = positions.map((pos) =>
+      this.exchangeService.getQuote(pos.symbol).catch(() => null),
+    );
+    const quotes = await Promise.allSettled(quotePromises);
 
-      // Compute updates for positions that got valid quotes
-      const updates: { id: string; currentPrice: number; unrealizedPnl: number; highestPrice: number; lowestPrice: number }[] = [];
+    // Build updates and results
+    const updates: Promise<any>[] = [];
+    const results: any[] = [];
 
-      for (let i = 0; i < positions.length; i++) {
-        const position = positions[i];
-        const result = quoteResults[i];
+    for (let i = 0; i < positions.length; i++) {
+      const position = positions[i];
+      const quoteResult = quotes[i];
+      const quote = quoteResult.status === 'fulfilled' ? quoteResult.value : null;
 
-        if (result.status === 'fulfilled' && result.value?.price) {
-          const currentPrice = result.value.price;
-          const unrealizedPnl =
-            position.side === 'BUY'
-              ? (currentPrice - Number(position.entryPrice)) * Number(position.quantity)
-              : (Number(position.entryPrice) - currentPrice) * Number(position.quantity);
+      if (quote && quote.price) {
+        const currentPrice = quote.price;
+        const entryPrice = position.entryPrice.toNumber();
+        const quantity = position.quantity.toNumber();
+        const unrealizedPnl =
+          position.side === 'BUY'
+            ? (currentPrice - entryPrice) * quantity
+            : (entryPrice - currentPrice) * quantity;
 
-          updates.push({
-            id: position.id,
-            currentPrice,
-            unrealizedPnl,
-            highestPrice: Math.max(
-              Number(position.highestPrice || currentPrice),
+        updates.push(
+          this.prisma.position.update({
+            where: { id: position.id },
+            data: {
               currentPrice,
-            ),
-            lowestPrice: Math.min(
-              Number(position.lowestPrice || currentPrice),
-              currentPrice,
-            ),
-          });
-
-          // Update in-memory for response
-          (position as any).currentPrice = currentPrice;
-          (position as any).unrealizedPnl = unrealizedPnl;
-        } else {
-          // Log warning for failed quotes
-          const reason = result.status === 'rejected' ? result.reason?.message : 'no price';
-          this.logger.warn(
-            `Failed to update price for ${position.symbol}: ${reason}`,
-          );
-        }
-      }
-
-      // Batch DB updates in a transaction
-      if (updates.length > 0) {
-        await this.prisma.$transaction(
-          updates.map((u) =>
-            this.prisma.position.update({
-              where: { id: u.id },
-              data: {
-                currentPrice: u.currentPrice,
-                unrealizedPnl: u.unrealizedPnl,
-                highestPrice: u.highestPrice,
-                lowestPrice: u.lowestPrice,
-              },
-            }),
-          ),
+              unrealizedPnl,
+              highestPrice: Math.max(
+                position.highestPrice?.toNumber() ?? currentPrice,
+                currentPrice,
+              ),
+              lowestPrice: Math.min(
+                position.lowestPrice?.toNumber() ?? currentPrice,
+                currentPrice,
+              ),
+            },
+          }),
         );
-      }
 
-      return positions;
-    } catch (error: any) {
-      this.logger.error(
-        `Failed to fetch open positions: ${error.message}`,
-        error.stack,
-      );
-      return []; // Return empty array instead of crashing
+        // Build enriched position for response
+        results.push({
+          ...position,
+          currentPrice,
+          unrealizedPnl,
+        });
+      } else {
+        // No quote available — return position as-is
+        this.logger.warn(
+          `Failed to update price for ${position.symbol}: quote unavailable`,
+        );
+        results.push(position);
+      }
     }
+
+    // Batch update in transaction
+    if (updates.length > 0) {
+      await this.prisma.$transaction(updates).catch((err: any) => {
+        this.logger.warn(`Batch position update failed: ${err.message}`);
+      });
+    }
+
+    return results;
   }
 
   /**
@@ -459,15 +450,15 @@ export class TradingService {
       const positions = await this.getOpenPositions(userId);
 
       const totalValue = positions.reduce(
-        (sum, p) => sum + p.quantity * (p.currentPrice || p.entryPrice),
+        (sum, p) => sum + (typeof p.quantity === 'number' ? p.quantity : Number(p.quantity)) * (Number(p.currentPrice) || Number(p.entryPrice)),
         0,
       );
       const totalUnrealizedPnl = positions.reduce(
-        (sum, p) => sum + (p.unrealizedPnl || 0),
+        (sum, p) => sum + (Number(p.unrealizedPnl) || 0),
         0,
       );
       const totalRealizedPnl = positions.reduce(
-        (sum, p) => sum + (p.realizedPnl || 0),
+        (sum, p) => sum + (Number(p.realizedPnl) || 0),
         0,
       );
 
@@ -514,10 +505,16 @@ export class TradingService {
       throw new BadRequestException('المركز ليس مفتوحاً');
     }
 
-    const closeQuantity = request.quantity ?? Number(position.quantity);
-    if (closeQuantity > Number(position.quantity)) {
+    const posQuantity = position.quantity.toNumber();
+    const posEntryPrice = position.entryPrice.toNumber();
+    const posCurrentPrice = position.currentPrice?.toNumber() ?? null;
+    const posRealizedPnl = position.realizedPnl?.toNumber() ?? 0;
+    const posStopLoss = position.stopLoss?.toNumber() ?? null;
+
+    const closeQuantity = request.quantity ?? posQuantity;
+    if (closeQuantity > posQuantity) {
       throw new BadRequestException(
-        `كمية الإغلاق (${closeQuantity}) أكبر من حجم المركز (${Number(position.quantity)})`,
+        `كمية الإغلاق (${closeQuantity}) أكبر من حجم المركز (${posQuantity})`,
       );
     }
 
@@ -556,75 +553,79 @@ export class TradingService {
     const exitPrice =
       execution.averagePrice != null && execution.averagePrice > 0
         ? execution.averagePrice
-        : (position.currentPrice != null && Number(position.currentPrice) > 0
-          ? Number(position.currentPrice)
-          : Number(position.entryPrice));
+        : (posCurrentPrice != null && posCurrentPrice > 0
+          ? posCurrentPrice
+          : posEntryPrice);
 
     const pnl =
       position.side === 'BUY'
-        ? (exitPrice - Number(position.entryPrice)) * closeQuantity
-        : (Number(position.entryPrice) - exitPrice) * closeQuantity;
+        ? (exitPrice - posEntryPrice) * closeQuantity
+        : (posEntryPrice - exitPrice) * closeQuantity;
 
-    // Record closing order
-    // Note: averagePrice (not averageFillPrice) is the correct field name
-    // idempotencyKey is required (String @unique)
-    const order = await this.prisma.order.create({
-      data: {
-        userId,
-        exchangeCredentialId: position.credentialId,
-        exchange: position.exchange,
-        symbol: position.symbol,
-        side: closeSide as any,
-        type: 'MARKET' as any,
-        status: 'FILLED' as any,
-        quantity: closeQuantity,
-        stopLoss: position.stopLoss ?? null,
-        filledQuantity: execution.filledQuantity || closeQuantity,
-        averagePrice: execution.averagePrice,
-        fee: execution.fee ?? null,
-        feeCurrency: execution.feeCurrency ?? null,
-        exchangeOrderId: execution.exchangeOrderId,
-        idempotencyKey: `close-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      },
-    });
-
-    // Record exit trade
-    await this.prisma.trade.create({
-      data: {
-        userId,
-        orderId: order.id,
-        positionId: position.id,
-        exchange: position.exchange,
-        symbol: position.symbol,
-        side: closeSide as OrderSide,
-        type: closeQuantity >= Number(position.quantity) ? 'EXIT' : 'PARTIAL_EXIT',
-        quantity: closeQuantity,
-        price: exitPrice,
-        fee: execution.fee,
-        feeCurrency: execution.feeCurrency,
-        pnl,
-      },
-    });
-
-    // Update position
-    if (closeQuantity >= Number(position.quantity)) {
-      await this.prisma.position.update({
-        where: { id: position.id },
+    // Record closing order, exit trade, and update position — all in one transaction
+    const { order: closedOrder } = await this.prisma.$transaction(async (tx) => {
+      // Note: averagePrice (not averageFillPrice) is the correct field name
+      // idempotencyKey is required (String @unique)
+      const order = await tx.order.create({
         data: {
-          status: 'CLOSED',
-          closedAt: new Date(),
-          realizedPnl: Number(position.realizedPnl || 0) + pnl,
+          userId,
+          exchangeCredentialId: position.credentialId,
+          exchange: position.exchange,
+          symbol: position.symbol,
+          side: closeSide as any,
+          type: 'MARKET' as any,
+          status: 'FILLED' as any,
+          quantity: closeQuantity,
+          stopLoss: posStopLoss,
+          filledQuantity: execution.filledQuantity || closeQuantity,
+          averagePrice: execution.averagePrice,
+          fee: execution.fee ?? null,
+          feeCurrency: execution.feeCurrency ?? null,
+          exchangeOrderId: execution.exchangeOrderId,
+          idempotencyKey: `close-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         },
       });
-    } else {
-      await this.prisma.position.update({
-        where: { id: position.id },
+
+      // Record exit trade
+      await tx.trade.create({
         data: {
-          quantity: Number(position.quantity) - closeQuantity,
-          realizedPnl: Number(position.realizedPnl || 0) + pnl,
+          userId,
+          orderId: order.id,
+          positionId: position.id,
+          exchange: position.exchange,
+          symbol: position.symbol,
+          side: closeSide as OrderSide,
+          type: closeQuantity >= posQuantity ? 'EXIT' : 'PARTIAL_EXIT',
+          quantity: closeQuantity,
+          price: exitPrice,
+          fee: execution.fee,
+          feeCurrency: execution.feeCurrency,
+          pnl,
         },
       });
-    }
+
+      // Update position
+      if (closeQuantity >= posQuantity) {
+        await tx.position.update({
+          where: { id: position.id },
+          data: {
+            status: 'CLOSED',
+            closedAt: new Date(),
+            realizedPnl: posRealizedPnl + pnl,
+          },
+        });
+      } else {
+        await tx.position.update({
+          where: { id: position.id },
+          data: {
+            quantity: posQuantity - closeQuantity,
+            realizedPnl: posRealizedPnl + pnl,
+          },
+        });
+      }
+
+      return { order };
+    });
 
     await this.auditService.log({
       userId,
@@ -646,7 +647,7 @@ export class TradingService {
     );
 
     return {
-      order,
+      order: closedOrder,
       pnl,
       position: await this.prisma.position.findUnique({
         where: { id: position.id },
@@ -698,26 +699,99 @@ export class TradingService {
         `Failed to fetch closed positions: ${error.message}`,
         error.stack,
       );
-      return [];
+      throw error;
     }
   }
 
   /**
    * Get all positions (open + closed) for a user
+   * Enriches open positions with live quotes using parallel fetching
    */
   async getAllPositions(userId: string, limit: number = 100) {
     try {
-      return await this.prisma.position.findMany({
+      const positions = await this.prisma.position.findMany({
         where: { userId },
         orderBy: { openedAt: 'desc' },
         take: limit,
+      });
+
+      if (positions.length === 0) return [];
+
+      // Separate open positions that need live quote enrichment
+      const openPositions = positions.filter((p) => p.status === 'OPEN');
+
+      if (openPositions.length === 0) return positions;
+
+      // Fetch all quotes for open positions in parallel
+      const quotePromises = openPositions.map((pos) =>
+        this.exchangeService.getQuote(pos.symbol).catch(() => null),
+      );
+      const quotes = await Promise.allSettled(quotePromises);
+
+      // Build batch updates for open positions
+      const updates: Promise<any>[] = [];
+      const enrichedMap = new Map<string, any>();
+
+      for (let i = 0; i < openPositions.length; i++) {
+        const position = openPositions[i];
+        const quoteResult = quotes[i];
+        const quote = quoteResult.status === 'fulfilled' ? quoteResult.value : null;
+
+        if (quote && quote.price) {
+          const currentPrice = quote.price;
+          const entryPrice = position.entryPrice.toNumber();
+          const quantity = position.quantity.toNumber();
+          const unrealizedPnl =
+            position.side === 'BUY'
+              ? (currentPrice - entryPrice) * quantity
+              : (entryPrice - currentPrice) * quantity;
+
+          updates.push(
+            this.prisma.position.update({
+              where: { id: position.id },
+              data: {
+                currentPrice,
+                unrealizedPnl,
+                highestPrice: Math.max(
+                  position.highestPrice?.toNumber() ?? currentPrice,
+                  currentPrice,
+                ),
+                lowestPrice: Math.min(
+                  position.lowestPrice?.toNumber() ?? currentPrice,
+                  currentPrice,
+                ),
+              },
+            }),
+          );
+
+          enrichedMap.set(position.id, {
+            currentPrice,
+            unrealizedPnl,
+          });
+        }
+      }
+
+      // Batch update in transaction
+      if (updates.length > 0) {
+        await this.prisma.$transaction(updates).catch((err: any) => {
+          this.logger.warn(`Batch position update failed: ${err.message}`);
+        });
+      }
+
+      // Merge enriched data into results
+      return positions.map((pos) => {
+        const enriched = enrichedMap.get(pos.id);
+        if (enriched) {
+          return { ...pos, ...enriched };
+        }
+        return pos;
       });
     } catch (error: any) {
       this.logger.error(
         `Failed to fetch all positions: ${error.message}`,
         error.stack,
       );
-      return [];
+      throw error;
     }
   }
 
@@ -736,11 +810,40 @@ export class TradingService {
         `Failed to fetch trade history: ${error.message}`,
         error.stack,
       );
-      return [];
+      throw error;
     }
   }
 
   // ── Private Methods ──
+
+  /**
+   * Get or create a cached CCXT exchange instance
+   * Caches per credential+exchange combo to avoid recreating for every order
+   */
+  private _getExchangeInstance(exchangeName: string, apiKey: string, apiSecret: string, credentialId: string): any {
+    const cacheKey = `${credentialId}:${exchangeName}`;
+    let exchange = this.exchangeCache.get(cacheKey);
+
+    if (!exchange) {
+      const ExchangeClass = ccxt[exchangeName as keyof typeof ccxt] as any;
+      if (!ExchangeClass) {
+        return null;
+      }
+      exchange = new ExchangeClass({
+        apiKey,
+        secret: apiSecret,
+        enableRateLimit: true,
+        timeout: 10000, // 10 second timeout
+        options: { defaultType: 'spot' },
+      });
+      this.exchangeCache.set(cacheKey, exchange);
+
+      // Auto-cleanup after 10 minutes
+      setTimeout(() => this.exchangeCache.delete(cacheKey), 10 * 60 * 1000);
+    }
+
+    return exchange;
+  }
 
   /**
    * Execute an order on the exchange via CCXT
@@ -763,21 +866,13 @@ export class TradingService {
       const { apiKey, apiSecret } =
         await this.credentialsService.decryptCredential(credentialId);
 
-      const ExchangeClass = ccxt[
-        exchangeName as keyof typeof ccxt
-      ] as any;
-      if (!ExchangeClass) {
+      const exchange = this._getExchangeInstance(exchangeName, apiKey, apiSecret, credentialId);
+      if (!exchange) {
         return {
           success: false,
           error: `البورصة "${exchangeName}" غير مدعومة`,
         };
       }
-
-      const exchange = new ExchangeClass({
-        apiKey,
-        secret: apiSecret,
-        enableRateLimit: true,
-      });
 
       let result: any;
 
@@ -861,116 +956,129 @@ export class TradingService {
     order: any,
     request: PlaceOrderRequest,
     execution: any,
+    tx?: any,
   ) {
     const filledQty = execution.filledQuantity || 0;
     const fillPrice = execution.averagePrice || (order.price ? Number(order.price) : 0);
 
     if (filledQty <= 0) return;
 
-    // Get exchange name from credential
-    const credential = await this.prisma.exchangeCredential.findUnique({
-      where: { id: request.credentialId },
-    });
-    const exchangeName = credential?.exchange || 'unknown';
-
-    if (request.side === 'BUY') {
-      // For BUY orders, check if there's an existing position to add to
-      const existingPosition = await this.prisma.position.findFirst({
-        where: {
-          userId,
-          symbol: request.symbol,
-          status: 'OPEN',
-          side: 'BUY',
-        },
+    const executeUpdate = async (db: any) => {
+      // Get exchange name from credential (use transaction client for consistency)
+      const credential = await db.exchangeCredential.findUnique({
+        where: { id: request.credentialId },
       });
+      const exchangeName = credential?.exchange || 'unknown';
 
-      if (existingPosition) {
-        // Add to existing position (average up)
-        const totalQuantity = Number(existingPosition.quantity) + filledQty;
-        const avgPrice =
-          (Number(existingPosition.entryPrice) * Number(existingPosition.quantity) +
-            fillPrice * filledQty) /
-          totalQuantity;
-
-        await this.prisma.position.update({
-          where: { id: existingPosition.id },
-          data: {
-            quantity: totalQuantity,
-            entryPrice: avgPrice,
-          },
-        });
-      } else {
-        // Open new position
-        const { stopLoss, takeProfit } =
-          this.riskManager.getDefaultLevels(fillPrice, 'BUY');
-
-        await this.prisma.position.create({
-          data: {
+      if (request.side === 'BUY') {
+        // For BUY orders, check if there's an existing position to add to
+        const existingPosition = await db.position.findFirst({
+          where: {
             userId,
-            credentialId: request.credentialId,
-            exchange: exchangeName,
             symbol: request.symbol,
+            status: 'OPEN',
             side: 'BUY',
-            status: 'OPEN',
-            quantity: filledQty,
-            entryPrice: fillPrice,
-            currentPrice: fillPrice,
-            highestPrice: fillPrice,
-            lowestPrice: fillPrice,
-            stopLoss: request.stopLoss ?? stopLoss,
-            takeProfit,
           },
         });
-      }
-    } else {
-      // For SELL orders (short positions)
-      const existingPosition = await this.prisma.position.findFirst({
-        where: {
-          userId,
-          symbol: request.symbol,
-          status: 'OPEN',
-          side: 'SELL',
-        },
-      });
 
-      if (existingPosition) {
-        // Add to existing short position
-        const totalQuantity = Number(existingPosition.quantity) + filledQty;
-        const avgPrice =
-          (Number(existingPosition.entryPrice) * Number(existingPosition.quantity) +
-            fillPrice * filledQty) /
-          totalQuantity;
+        if (existingPosition) {
+          // Add to existing position (average up)
+          const existingQty = existingPosition.quantity.toNumber();
+          const existingPrice = existingPosition.entryPrice.toNumber();
+          const totalQuantity = existingQty + filledQty;
+          const avgPrice =
+            (existingPrice * existingQty + fillPrice * filledQty) /
+            totalQuantity;
 
-        await this.prisma.position.update({
-          where: { id: existingPosition.id },
-          data: {
-            quantity: totalQuantity,
-            entryPrice: avgPrice,
-          },
-        });
+          await db.position.update({
+            where: { id: existingPosition.id },
+            data: {
+              quantity: totalQuantity,
+              entryPrice: avgPrice,
+            },
+          });
+        } else {
+          // Open new position
+          const { stopLoss, takeProfit } =
+            this.riskManager.getDefaultLevels(fillPrice, 'BUY');
+
+          await db.position.create({
+            data: {
+              userId,
+              credentialId: request.credentialId,
+              exchange: exchangeName,
+              symbol: request.symbol,
+              side: 'BUY',
+              status: 'OPEN',
+              quantity: filledQty,
+              entryPrice: fillPrice,
+              currentPrice: fillPrice,
+              highestPrice: fillPrice,
+              lowestPrice: fillPrice,
+              stopLoss: request.stopLoss ?? stopLoss,
+              takeProfit,
+            },
+          });
+        }
       } else {
-        // Open new short position
-        const { stopLoss, takeProfit } =
-          this.riskManager.getDefaultLevels(fillPrice, 'SELL');
-
-        await this.prisma.position.create({
-          data: {
+        // For SELL orders (short positions)
+        const existingPosition = await db.position.findFirst({
+          where: {
             userId,
-            credentialId: request.credentialId,
-            exchange: exchangeName,
             symbol: request.symbol,
-            side: 'SELL',
             status: 'OPEN',
-            quantity: filledQty,
-            entryPrice: fillPrice,
-            currentPrice: fillPrice,
-            highestPrice: fillPrice,
-            lowestPrice: fillPrice,
-            stopLoss: request.stopLoss ?? stopLoss,
-            takeProfit,
+            side: 'SELL',
           },
         });
+
+        if (existingPosition) {
+          // Add to existing short position
+          const existingQty = existingPosition.quantity.toNumber();
+          const existingPrice = existingPosition.entryPrice.toNumber();
+          const totalQuantity = existingQty + filledQty;
+          const avgPrice =
+            (existingPrice * existingQty + fillPrice * filledQty) /
+            totalQuantity;
+
+          await db.position.update({
+            where: { id: existingPosition.id },
+            data: {
+              quantity: totalQuantity,
+              entryPrice: avgPrice,
+            },
+          });
+        } else {
+          // Open new short position
+          const { stopLoss, takeProfit } =
+            this.riskManager.getDefaultLevels(fillPrice, 'SELL');
+
+          await db.position.create({
+            data: {
+              userId,
+              credentialId: request.credentialId,
+              exchange: exchangeName,
+              symbol: request.symbol,
+              side: 'SELL',
+              status: 'OPEN',
+              quantity: filledQty,
+              entryPrice: fillPrice,
+              currentPrice: fillPrice,
+              highestPrice: fillPrice,
+              lowestPrice: fillPrice,
+              stopLoss: request.stopLoss ?? stopLoss,
+              takeProfit,
+            },
+          });
+        }
       }
+    };
+
+    // If already in a transaction, reuse it; otherwise create a new one
+    // to ensure findFirst + create/update atomicity and prevent race conditions
+    if (tx) {
+      return executeUpdate(tx);
+    } else {
+      return this.prisma.$transaction(async (innerTx) => executeUpdate(innerTx));
     }
   }
 }

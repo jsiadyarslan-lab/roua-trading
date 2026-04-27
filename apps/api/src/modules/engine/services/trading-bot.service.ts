@@ -224,10 +224,25 @@ export class TradingBotService {
 
   // ── Private: User Processing ──
 
+  /**
+   * SCAN-based key retrieval (avoids blocking KEYS command)
+   */
+  private async _scanKeys(pattern: string): Promise<string[]> {
+    const keys: string[] = [];
+    let cursor = '0';
+    const client = this.redis['client'];
+    do {
+      const result = await client.scan(cursor, 'MATCH', pattern, 'COUNT', 100);
+      cursor = result[0];
+      keys.push(...result[1]);
+    } while (cursor !== '0');
+    return keys;
+  }
+
   private async _getBotUsers(): Promise<{ id: string }[]> {
     try {
-      // Find all users who have bot config
-      const keys = await this.redis['client'].keys('bot:config:*');
+      // Find all users who have bot config using SCAN instead of KEYS
+      const keys = await this._scanKeys('bot:config:*');
       const userIds = keys.map((k: string) => k.replace('bot:config:', ''));
 
       // Verify users exist

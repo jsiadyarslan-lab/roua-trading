@@ -237,13 +237,15 @@ export class OrderController {
   @Get('orders')
   async getOrders(
     @Req() req: any,
-    @Body() body: any,
+    @Query('symbol') symbol?: string,
+    @Query('status') status?: string,
+    @Query('limit') limitStr?: string,
   ) {
     const userId = req.user.id;
     const filters = {
-      symbol: body?.symbol,
-      status: body?.status,
-      limit: body?.limit ? parseInt(body.limit, 10) : undefined,
+      symbol,
+      status,
+      limit: limitStr ? parseInt(limitStr, 10) : undefined,
     };
 
     const orders = await this.stateManager.findOrders(userId, filters);

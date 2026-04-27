@@ -7,7 +7,8 @@ import { HuggingFaceService } from './huggingface.service';
 import { OllamaService } from './ollama.service';
 import { BedrockService } from './bedrock.service';
 import { RagService } from './rag.service';
-import { createHash } from 'crypto';
+import { RedisService } from '../../../common/redis/redis.service';
+import * as crypto from 'crypto';
 
 /**
  * AI Orchestrator — Routes tasks to the optimal AI model
@@ -87,7 +88,7 @@ export class AIOrchestratorService {
     private readonly ollamaService: OllamaService,
     private readonly bedrockService: BedrockService,
     @Optional() private readonly ragService?: RagService,
-    private readonly configService?: ConfigService,
+    @Optional() private readonly redis?: RedisService,
   ) {
     this.logger.log('🎼 AI Orchestrator initialized — 6 models (Groq, Gemini, GLM-4, HuggingFace, Ollama, Bedrock)');
     if (this.ragService) {
@@ -103,6 +104,16 @@ export class AIOrchestratorService {
    * Falls back through the model chain if primary fails
    */
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
+    // Check cache first
+    const cacheKey = `ai:analysis:${this._hashPrompt(JSON.stringify(request))}`;
+    try {
+      const cached = await this.redis?.get(cacheKey);
+      if (cached) {
+        this.logger.debug(`🎼 Cache hit for ${request.type} analysis`);
+        return JSON.parse(cached);
+      }
+    } catch {}
+
     const enrichedRequest = await this._enrichWithContext(request);
 
     // Check cache first
@@ -117,6 +128,8 @@ export class AIOrchestratorService {
     const models = [routing.primary, ...routing.fallback];
 
     this.logger.debug(`🎼 Orchestrating ${enrichedRequest.type} → models: ${models.join(' → ')}`);
+
+    let result: AIAnalysisResponse | null = null;
 
     for (const model of models) {
       // Skip models without API keys
@@ -136,9 +149,8 @@ export class AIOrchestratorService {
           this.logger.debug(`⚠️ Model ${model} returned stub — trying next`);
           continue;
         }
-        // Cache the successful result
-        this._setCachedResult(cacheKey, response, enrichedRequest.type);
-        return response;
+        result = response;
+        break;
       } catch (error: any) {
         // If 429 (rate limited), put model in cooldown to prevent spam
         if (error.response?.status === 429 || error.message?.includes('429')) {
@@ -151,13 +163,22 @@ export class AIOrchestratorService {
       }
     }
 
-    return {
-      model: 'Orchestrator/Fallback',
-      content: '⚠️ جميع نماذج الذكاء الاصطناعي غير متاحة حالياً. يرجى التحقق من مفاتيح API في ملف .env',
-      confidence: 0,
-      processingTimeMs: 0,
-      language: enrichedRequest.language || 'ar',
-    };
+    if (!result) {
+      result = {
+        model: 'Orchestrator/Fallback',
+        content: '⚠️ جميع نماذج الذكاء الاصطناعي غير متاحة حالياً. يرجى التحقق من مفاتيح API في ملف .env',
+        confidence: 0,
+        processingTimeMs: 0,
+        language: enrichedRequest.language || 'ar',
+      };
+    }
+
+    // Cache the result with 5-minute TTL
+    try {
+      await this.redis?.set(cacheKey, JSON.stringify(result), 300000); // 5 min TTL in ms
+    } catch {}
+
+    return result;
   }
 
   /**
@@ -207,7 +228,7 @@ export class AIOrchestratorService {
           if (response.confidence <= 0) continue;
 
           const content = response.content || '';
-          const vote = this._parseVote(content);
+          const vote = this._detectRecommendation(content);
 
           const conf = response.confidence || 0.5;
           if (vote === 'BUY') buyWeight += conf;
@@ -501,5 +522,33 @@ export class AIOrchestratorService {
       case 'bedrock':     return this.bedrockService.analyze(request);
       default:            return this.geminiService.analyze(request);
     }
+  }
+
+  // ── Private: Cache Key Hashing ──
+  private _hashPrompt(prompt: string): string {
+    return crypto.createHash('md5').update(prompt).digest('hex');
+  }
+
+  // ── Private: Recommendation Detection with Negation ──
+  private _detectRecommendation(text: string): 'BUY' | 'SELL' | 'HOLD' {
+    const lower = text.toLowerCase();
+
+    // Negation patterns — if these precede a keyword, it's the opposite
+    const negationPatterns = /لا أنصح|لا أنصح بال|لا ت|لا تشتري|لا تبع|don't buy|not recommend|avoid|لا ينصح/i;
+
+    const buyKeywords = /شراء|صعود|شرٍ|ارتفاع|bullish|buy|long|upgrade|إيجابي/i;
+    const sellKeywords = /بيع|هبوط|بيعٍ|انخفاض|bearish|sell|short|downgrade|سلبي/i;
+
+    const hasNegation = negationPatterns.test(lower);
+    const hasBuy = buyKeywords.test(lower);
+    const hasSell = sellKeywords.test(lower);
+
+    if (hasNegation && hasBuy) return 'SELL'; // "لا أنصح بالشراء" = SELL
+    if (hasNegation && hasSell) return 'BUY'; // "لا تبع" = BUY
+
+    if (hasBuy && !hasSell) return 'BUY';
+    if (hasSell && !hasBuy) return 'SELL';
+
+    return 'HOLD';
   }
 }

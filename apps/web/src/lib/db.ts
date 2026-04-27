@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client'
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
   dbInitialized: boolean | undefined
+  dbInitError: string | undefined
 }
 
 // In production, also cache the PrismaClient on globalThis to prevent
@@ -21,11 +22,11 @@ if (!globalForPrisma.prisma) {
 /**
  * Ensure the database is ready for queries.
  *
- * Improvement over the previous version:
  * - Explicitly calls $connect() before querying, instead of relying on
  *   Prisma's lazy connection which can silently fail
  * - Retries up to 3 times with increasing delay (1s, 2s, 3s)
  * - Returns true if DB is ready, false otherwise
+ * - Stores the last error in globalForPrisma.dbInitError for diagnostics
  * - Calling code can check the return value to decide fallback behavior
  *
  * If DB was previously initialized but a query fails later, call
@@ -35,6 +36,9 @@ export async function ensureDbReady(): Promise<boolean> {
   if (globalForPrisma.dbInitialized) return true
 
   const MAX_RETRIES = 3
+  const dbUrl = process.env.DATABASE_URL || '(not set)'
+
+  console.log(`[db] ensureDbReady() called — DATABASE_URL prefix: ${dbUrl.substring(0, 35)}...`)
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
@@ -46,10 +50,13 @@ export async function ensureDbReady(): Promise<boolean> {
       await db.user.findFirst()
 
       globalForPrisma.dbInitialized = true
+      globalForPrisma.dbInitError = undefined
       console.log('[db] Database connection established and verified')
       return true
     } catch (error: any) {
       const message = error?.message || 'Database is not ready'
+      const code = error?.code || '(no code)'
+      globalForPrisma.dbInitError = `[${code}] ${message}`
 
       if (message.includes('does not exist') || message.includes('no such table')) {
         console.error('[db] User table not found — Prisma schema may not be applied:', message)
@@ -59,7 +66,7 @@ export async function ensureDbReady(): Promise<boolean> {
 
       console.error(
         `[db] Database readiness check failed (attempt ${attempt + 1}/${MAX_RETRIES}):`,
-        message,
+        `[${code}] ${message}`,
       )
 
       if (attempt < MAX_RETRIES - 1) {
@@ -72,6 +79,13 @@ export async function ensureDbReady(): Promise<boolean> {
 
   console.error('[db] All connection attempts failed — DB is unavailable')
   return false
+}
+
+/**
+ * Get the last DB initialization error message (for diagnostics).
+ */
+export function getDbInitError(): string | undefined {
+  return globalForPrisma.dbInitError
 }
 
 /**

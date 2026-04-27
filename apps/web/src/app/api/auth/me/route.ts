@@ -53,9 +53,20 @@ async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
 
 export async function GET(request: NextRequest) {
   try {
-    // ensureDbReady is non-throwing — it logs warnings but won't
-    // block the auth flow. DB errors below are caught and handled.
-    await ensureDbReady()
+    // Check if DB is ready — if not, return immediately instead of
+    // attempting queries that will definitely fail
+    const dbReady = await ensureDbReady()
+    if (!dbReady) {
+      console.warn('[auth/me] Database is not ready — returning AUTH_SERVICE_UNAVAILABLE')
+      return NextResponse.json(
+        {
+          authenticated: false,
+          error: 'AUTH_SERVICE_UNAVAILABLE',
+          message: 'Database is temporarily unavailable. Please try again.',
+        },
+        { status: 200 }
+      )
+    }
 
     const sessionToken = request.cookies.get('roua_session')?.value
 

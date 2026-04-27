@@ -28,6 +28,18 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: false,
 
+  // ── CRITICAL: Prisma must NOT be bundled by webpack ──
+  // Prisma uses native binaries (libquery_engine) that cannot be webpack'd.
+  // Without this, Next.js tries to bundle @prisma/client and silently fails
+  // at runtime — DB operations throw cryptic errors, and ensureDbReady()
+  // returns false, causing ALL trading endpoints to return 401.
+  serverExternalPackages: [
+    '@prisma/client',
+    'prisma',
+    '@simplewebauthn/server',
+    'crypto',
+  ],
+
   // Bundle optimizations
   experimental: {
     optimizePackageImports: [

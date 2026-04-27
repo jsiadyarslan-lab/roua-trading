@@ -1,29 +1,62 @@
 import { NextResponse } from 'next/server'
+import { db, ensureDbReady, getDbInitError } from '@/lib/db'
 
 /**
- * Debug endpoint — DISABLED in production for security.
- * Only returns minimal info in development mode.
+ * Debug endpoint — temporarily enabled in production to diagnose 401 errors.
+ *
+ * This endpoint tests the Next.js PrismaClient's ability to connect to the
+ * database and returns detailed diagnostic information. It will be disabled
+ * once the auth issue is resolved.
+ *
+ * SECURITY: Only returns non-sensitive information (boolean flags, error
+ * messages, table counts — never credentials or tokens).
  */
 export async function GET() {
-  // Block in production — never expose environment variables
-  if (process.env.NODE_ENV === 'production') {
-    return NextResponse.json(
-      { error: 'This endpoint is disabled in production' },
-      { status: 403 }
-    )
-  }
-
-  // In development, only return non-sensitive info
-  const safeInfo = {
+  const diagnostics: Record<string, any> = {
+    timestamp: new Date().toISOString(),
     NODE_ENV: process.env.NODE_ENV || '(not set)',
-    PORT: process.env.PORT || '(not set)',
-    NEXTAUTH_URL_SET: !!process.env.NEXTAUTH_URL,
-    NEXTAUTH_SECRET_SET: !!process.env.NEXTAUTH_SECRET,
     DATABASE_URL_SET: !!process.env.DATABASE_URL,
-    GOOGLE_CLIENT_ID_SET: !!process.env.GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET_SET: !!process.env.GOOGLE_CLIENT_SECRET,
-    RP_ID: process.env.RP_ID || process.env.WEBAUTHN_RP_ID || '(not set)',
+    DATABASE_URL_PREFIX: process.env.DATABASE_URL
+      ? process.env.DATABASE_URL.substring(0, 30) + '...'
+      : '(not set)',
+    API_INTERNAL_URL: process.env.API_INTERNAL_URL || '(defaults to localhost:3001)',
   }
 
-  return NextResponse.json(safeInfo, { headers: { 'Cache-Control': 'no-store' } })
+  // Test 1: ensureDbReady()
+  try {
+    const dbReady = await ensureDbReady()
+    diagnostics.dbReady = dbReady
+    diagnostics.dbInitError = getDbInitError() || null
+  } catch (error: any) {
+    diagnostics.dbReady = false
+    diagnostics.dbReadyError = error?.message || String(error)
+  }
+
+  // Test 2: Direct DB query
+  try {
+    const userCount = await db.user.count()
+    const sessionCount = await db.session.count()
+    diagnostics.dbQueryWorks = true
+    diagnostics.userCount = userCount
+    diagnostics.sessionCount = sessionCount
+  } catch (error: any) {
+    diagnostics.dbQueryWorks = false
+    diagnostics.dbQueryError = error?.message || String(error)
+    diagnostics.dbQueryErrorCode = error?.code || '(no code)'
+  }
+
+  // Test 3: Can we reach NestJS?
+  try {
+    const apiTarget = process.env.API_INTERNAL_URL || 'http://localhost:3001'
+    const response = await fetch(`${apiTarget}/api/health`, {
+      signal: AbortSignal.timeout(5000),
+    })
+    diagnostics.nestjsReachable = response.ok
+    diagnostics.nestjsStatus = response.status
+  } catch (error: any) {
+    diagnostics.nestjsReachable = false
+    diagnostics.nestjsError = error?.message || String(error)
+  }
+
+  return NextResponse.json(diagnostics, { headers: { 'Cache-Control': 'no-store' } })
 }

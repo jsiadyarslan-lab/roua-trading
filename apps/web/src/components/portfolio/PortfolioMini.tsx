@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Zap, XCircle, Plus, ArrowUpDown, TrendingUp, TrendingDown } from 'lucide-react'
 import { formatFreshness, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
 
 const T = {
@@ -134,6 +135,141 @@ export function usePortfolioSummary() {
   return { data, loading }
 }
 
+/* ══ Sparkline Component ══ */
+function BalanceSparkline({ balance, height = 32 }: { balance: number; height?: number }) {
+  const historyRef = useRef<number[]>([])
+  const maxPoints = 30
+
+  useEffect(() => {
+    historyRef.current = [...historyRef.current.slice(-(maxPoints - 1)), balance]
+  }, [balance])
+
+  const pts = historyRef.current
+  if (pts.length < 2) return null
+
+  const min = Math.min(...pts)
+  const max = Math.max(...pts)
+  const range = max - min || 1
+  const w = 100
+  const h = height
+  const step = w / (pts.length - 1)
+
+  const coords = pts.map((v, i) => `${i * step},${h - ((v - min) / range) * (h - 4) - 2}`)
+  const pathD = `M${coords.join(' L')}`
+  const areaD = `${pathD} L${(pts.length - 1) * step},${h} L0,${h} Z`
+  const lastPnl = pts[pts.length - 1] - pts[0]
+  const color = lastPnl >= 0 ? T.green : T.red
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: '100%', height, display: 'block' }}>
+      <defs>
+        <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={areaD} fill="url(#sparkGrad)" />
+      <path d={pathD} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={coords[coords.length - 1].split(',')[0]} cy={coords[coords.length - 1].split(',')[1]} r="2" fill={color} />
+    </svg>
+  )
+}
+
+/* ══ Positions Heatmap ══ */
+function PositionsHeatmap({ totalPositions, winCount, lossCount, totalProfit, totalLoss, balance }: {
+  totalPositions: number; winCount: number; lossCount: number
+  totalProfit: number; totalLoss: number; balance: number
+}) {
+  if (totalPositions === 0 && winCount === 0 && lossCount === 0) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '6px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.05)' }}>
+        <div style={{ fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif", fontWeight: 800 }}>خريطة الحرارة</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 2 }}>
+          {Array.from({ length: 16 }).map((_, i) => (
+            <div key={i} style={{ aspectRatio: '1', borderRadius: 3, background: `rgba(255,255,255,${0.02 + Math.random() * 0.03})` }} />
+          ))}
+        </div>
+        <div style={{ fontSize: 7, color: T.text3, fontFamily: "'Cairo', sans-serif", textAlign: 'center' }}>لا توجد مراكز مفتوحة</div>
+      </div>
+    )
+  }
+
+  const blocks = [
+    ...Array.from({ length: Math.min(winCount, 8) }).map(() => ({ color: T.green, opacity: 0.4 + Math.random() * 0.4 })),
+    ...Array.from({ length: Math.min(lossCount, 8) }).map(() => ({ color: T.red, opacity: 0.4 + Math.random() * 0.4 })),
+  ]
+  while (blocks.length < 16) blocks.push({ color: 'rgba(255,255,255,0.04)', opacity: 1 })
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '6px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif", fontWeight: 800 }}>خريطة الحرارة</div>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <div style={{ width: 5, height: 5, borderRadius: 2, background: T.green }} />
+            <span style={{ fontSize: 6.5, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{winCount}R</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <div style={{ width: 5, height: 5, borderRadius: 2, background: T.red }} />
+            <span style={{ fontSize: 6.5, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{lossCount}R</span>
+          </div>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 2 }}>
+        {blocks.map((b, i) => (
+          <div key={i} style={{
+            aspectRatio: '1',
+            borderRadius: 3,
+            background: b.color,
+            opacity: b.opacity,
+            transition: 'all 0.3s',
+          }} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ══ Quick Actions ══ */
+function QuickActions({ onAction }: { onAction?: (action: string) => void }) {
+  const actions = [
+    { id: 'buy', label: 'شراء سريع', icon: TrendingUp, color: T.green },
+    { id: 'sell', label: 'بيع سريع', icon: TrendingDown, color: T.red },
+    { id: 'deposit', label: 'إيداع', icon: Plus, color: T.blue },
+    { id: 'close-all', label: 'إغلاق الكل', icon: XCircle, color: T.amber },
+  ]
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '6px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif", fontWeight: 800 }}>إجراءات سريعة</div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 4 }}>
+        {actions.map(a => {
+          const Icon = a.icon
+          return (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => onAction?.(a.id)}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                padding: '5px 4px', borderRadius: 7,
+                background: `${a.color}10`, border: `0.5px solid ${a.color}30`,
+                cursor: 'pointer', transition: 'all 0.2s',
+                fontFamily: "'Cairo', sans-serif", fontSize: 8, fontWeight: 700, color: a.color,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = `${a.color}22` }}
+              onMouseLeave={e => { e.currentTarget.style.background = `${a.color}10` }}
+            >
+              <Icon size={10} />
+              {a.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 /* ══ Mini Portfolio Widget (for dashboard sidebar panel) ══ */
 export function PortfolioMini({
   mobile = false,
@@ -152,9 +288,9 @@ export function PortfolioMini({
 }) {
   const { data } = usePortfolioSummary()
   const pnlUp = data.totalPnl >= 0
-  const cardGap = compact ? 6 : 8
-  const pad = compact ? '10px 12px' : '8px 10px'
-  const balanceSize = compact ? 16 : 18
+  const cardGap = compact ? 4 : 6
+  const pad = compact ? '8px 10px' : '8px 10px'
+  const balanceSize = compact ? 14 : 16
   const statusTone = getStatusTone(dataStatus)
 
   return (
@@ -296,6 +432,27 @@ export function PortfolioMini({
           }} />
         </div>
       </div>
+
+      {/* Balance Sparkline */}
+      <BalanceSparkline balance={data.balance} height={28} />
+
+      {/* Positions Heatmap */}
+      <PositionsHeatmap
+        totalPositions={data.totalPositions}
+        winCount={data.winCount}
+        lossCount={data.lossCount}
+        totalProfit={data.totalProfit}
+        totalLoss={data.totalLoss}
+        balance={data.balance}
+      />
+
+      {/* Quick Actions */}
+      <QuickActions onAction={(action) => {
+        // Dispatch custom events for the dashboard to handle
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('roua-quick-action', { detail: { action } }))
+        }
+      }} />
 
       {/* Margin */}
       {!compact && <div style={{

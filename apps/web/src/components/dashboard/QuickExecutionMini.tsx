@@ -60,7 +60,7 @@ export function QuickExecutionMini({
   const currentPrice = globalQuotes[localSymbol]?.price ?? 0
 
   // Risk Calculator: auto-compute position size
-  const riskAmount = account ? (account.cash * (parseFloat(riskPct) / 100)) : 0
+  const riskAmount = account?.cash ? (account.cash * (parseFloat(riskPct) / 100)) : 0
   const slPips = stopLoss && currentPrice > 0 ? Math.abs(currentPrice - parseFloat(stopLoss)) : null
   const autoQty = slPips && slPips > 0 ? (riskAmount / slPips).toFixed(4) : null
   const potentialLoss = slPips && parseFloat(quantity) > 0 ? (slPips * parseFloat(quantity)) : null

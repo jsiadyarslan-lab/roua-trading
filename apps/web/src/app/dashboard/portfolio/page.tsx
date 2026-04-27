@@ -4,14 +4,26 @@ import { useState, useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 
 // Lazy-load AICoachPanel to avoid blocking initial render
-const AICoachPanel = dynamic(() => import('@/components/portfolio/AICoachPanel'), {
-  ssr: false,
-  loading: () => (
-    <div style={{ padding: 24, textAlign: 'center' }}>
-      <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: '#8090A8' }}>جاري تحميل المُدرّب الذكي...</div>
-    </div>
-  ),
-})
+// Uses error-safe dynamic import to prevent ReferenceError
+const AICoachPanel = dynamic(
+  () => import('@/components/portfolio/AICoachPanel').catch(() => ({
+    default: () => (
+      <div style={{ padding: 24, textAlign: 'center', background: '#1A1D29', borderRadius: 12 }}>
+        <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: '#FF4757' }}>
+          تعذر تحميل المُدرّب الذكي. يرجى تحديث الصفحة.
+        </div>
+      </div>
+    ),
+  })),
+  {
+    ssr: false,
+    loading: () => (
+      <div style={{ padding: 24, textAlign: 'center' }}>
+        <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: '#8090A8' }}>جاري تحميل المُدرّب الذكي...</div>
+      </div>
+    ),
+  },
+)
 
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,

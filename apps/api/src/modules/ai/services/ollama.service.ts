@@ -40,6 +40,12 @@ export class OllamaService {
   }
 
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
+    // Skip Ollama call entirely if running on cloud with localhost URL
+    // This prevents 30s timeouts on Railway/Render/etc.
+    if (this._isCloudWithLocalhost()) {
+      return this._stubResponse(request);
+    }
+
     const startTime = Date.now();
     const systemPrompt = this._buildSystemPrompt(request);
 
@@ -91,6 +97,23 @@ export class OllamaService {
   private _isOllamaReachable(): boolean {
     // This is a synchronous check during init; actual reachability tested per-request
     return this.baseUrl !== 'http://localhost:11434' || this.apiKey !== '';
+  }
+
+  /**
+   * Check if running on a cloud platform with localhost Ollama URL.
+   * On Railway/Render/AWS/etc., localhost Ollama will never work.
+   * Detects cloud via RAILWAY_ENVIRONMENT, RENDER, or similar env vars.
+   */
+  private _isCloudWithLocalhost(): boolean {
+    const isCloud = !!(
+      process.env.RAILWAY_ENVIRONMENT ||
+      process.env.RENDER ||
+      process.env.AWS_EXECUTION_ENV ||
+      process.env.VERCEL ||
+      process.env.DYNO // Heroku
+    );
+    const isLocalhost = this.baseUrl.includes('localhost') || this.baseUrl.includes('127.0.0.1');
+    return isCloud && isLocalhost;
   }
 
   /**

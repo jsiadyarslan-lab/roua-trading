@@ -21,7 +21,13 @@ const STRATEGIES = [
   { value: 'AI_COUNCIL', label: 'مجلس الذكاء' },
 ];
 
-const SYMBOLS = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD', 'ADA/USD'];
+const SYMBOLS = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD', 'ADA/USD', 'EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD', 'AAPL', 'TSLA', 'NVDA'];
+
+// Dynamic default dates
+const _today2 = new Date();
+const _oneYearAgo2 = new Date(_today2.getFullYear() - 1, _today2.getMonth(), _today2.getDate());
+const _defaultEnd2 = _today2.toISOString().split('T')[0];
+const _defaultStart2 = _oneYearAgo2.toISOString().split('T')[0];
 
 interface StrategyResult {
   strategy: string;
@@ -52,8 +58,8 @@ export default function ComparisonPanel() {
   const [symbol, setSymbol] = useState('BTC/USD');
   const [strategy1, setStrategy1] = useState('MOMENTUM');
   const [strategy2, setStrategy2] = useState('MEAN_REVERSION');
-  const [periodStart, setPeriodStart] = useState('2025-01-01');
-  const [periodEnd, setPeriodEnd] = useState('2025-12-31');
+  const [periodStart, setPeriodStart] = useState(_defaultStart2);
+  const [periodEnd, setPeriodEnd] = useState(_defaultEnd2);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CompareResult | null>(null);
   const [error, setError] = useState('');

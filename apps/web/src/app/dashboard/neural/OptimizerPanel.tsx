@@ -21,7 +21,13 @@ const STRATEGIES = [
   { value: 'AI_COUNCIL', label: 'مجلس الذكاء (AI Council)', desc: 'توافق Gemini + Groq + GLM' },
 ];
 
-const SYMBOLS = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD', 'ADA/USD'];
+const SYMBOLS = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD', 'ADA/USD', 'EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD', 'AAPL', 'TSLA', 'NVDA'];
+
+// Dynamic default dates
+const _today = new Date();
+const _oneYearAgo = new Date(_today.getFullYear() - 1, _today.getMonth(), _today.getDate());
+const _defaultEnd = _today.toISOString().split('T')[0];
+const _defaultStart = _oneYearAgo.toISOString().split('T')[0];
 
 interface OptimizeResult {
   strategy: string;
@@ -54,8 +60,8 @@ interface OptimizeResult {
 export default function OptimizerPanel() {
   const [symbol, setSymbol] = useState('BTC/USD');
   const [strategy, setStrategy] = useState('MOMENTUM');
-  const [periodStart, setPeriodStart] = useState('2025-01-01');
-  const [periodEnd, setPeriodEnd] = useState('2025-12-31');
+  const [periodStart, setPeriodStart] = useState(_defaultStart);
+  const [periodEnd, setPeriodEnd] = useState(_defaultEnd);
   const [capital, setCapital] = useState(10000);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<OptimizeResult | null>(null);

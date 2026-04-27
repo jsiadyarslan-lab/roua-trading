@@ -10,41 +10,41 @@
  */
 
 export const T = {
-  // ── Background ──
-  bg: '#04050C',
-  bg2: '#0D1117',
+  // ── Background (aligned with globals.css --bg and --bg2) ──
+  bg: '#0B0E14',
+  bg2: '#0F1117',
 
-  // ── Surface / Card ──
-  card: '#08090F',
-  cardHover: '#0B0F19',
+  // ── Surface / Card (aligned with globals.css --card-bg and --surface) ──
+  card: '#1A1D29',
+  cardHover: '#1E2233',
   card2: '#0B0E14',
   surface: '#1A1D29',
 
   // ── Borders ──
-  border: 'rgba(10,132,255,0.12)',
+  border: 'rgba(255,255,255,0.06)',
   border2: 'rgba(10,132,255,0.20)',
   borderWhite: 'rgba(255,255,255,0.06)',
   borderCyan: 'rgba(0,212,255,0.16)',
 
-  // ── Accent Colors ──
+  // ── Accent Colors (aligned with globals.css --success, --danger, etc.) ──
   blue: '#0A84FF',
-  cyan: '#00C8FF',
+  cyan: '#00D4FF',
   cyanBright: '#00D4FF',
-  green: '#00FFC6',
-  greenAlt: '#00FFA3',
+  green: '#00FFA3',
+  greenAlt: '#00FFC6',
   greenDim: '#00CC82',
-  red: '#FF4D4D',
-  redAlt: '#FF4757',
+  red: '#FF4757',
+  redAlt: '#FF4D4D',
   redDim: '#FF3344',
   amber: '#FFB800',
   amber2: '#E6A23C',
   purple: '#B388FF',
 
   // ── Text ──
-  text: '#E6EBF5',
+  text: '#F0F2F5',
   textBright: '#F0F2F5',
-  text2: '#8090A8',
-  text3: '#A0AFC3',
+  text2: '#8B92A8',
+  text3: '#94a3b8',
   text3Alt: '#8B92A8',
   textMuted: '#5A6A80',
   text2Alt: '#94a3b8',

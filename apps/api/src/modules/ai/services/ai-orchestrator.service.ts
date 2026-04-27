@@ -105,8 +105,10 @@ export class AIOrchestratorService {
    * Falls back through the model chain if primary fails
    */
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
-    // Check Redis cache first
+    // Generate a single consistent cache key for Redis
     const redisCacheKey = `ai:analysis:${this._hashPrompt(JSON.stringify(request))}`;
+
+    // Check Redis cache first (shared across instances)
     try {
       const cached = await this.redis?.get(redisCacheKey);
       if (cached) {
@@ -117,12 +119,12 @@ export class AIOrchestratorService {
 
     const enrichedRequest = await this._enrichWithContext(request);
 
-    // Check in-memory cache
-    const cacheKey = this._getCacheKey(enrichedRequest);
-    const cached = this._getCachedResult(cacheKey);
-    if (cached) {
-      this.logger.debug(`🎯 Cache hit for ${enrichedRequest.type} analysis`);
-      return cached;
+    // Check in-memory cache as fallback (faster, per-instance)
+    const memCacheKey = this._getCacheKey(enrichedRequest);
+    const memCached = this._getCachedResult(memCacheKey);
+    if (memCached) {
+      this.logger.debug(`🎯 Memory cache hit for ${enrichedRequest.type} analysis`);
+      return memCached;
     }
 
     const routing = this.ROUTING[enrichedRequest.type] || this.ROUTING.general;
@@ -174,12 +176,14 @@ export class AIOrchestratorService {
       };
     }
 
-    // Cache the result (in-memory with per-type TTL + Redis)
-    this._setCachedResult(cacheKey, result, enrichedRequest.type);
+    // Cache the result in both Redis and in-memory with type-specific TTL
+    const redisTTL = this.CACHE_TTL[enrichedRequest.type] || this.CACHE_TTL.general;
     try {
-      const redisTtl = this.CACHE_TTL[enrichedRequest.type] || this.CACHE_TTL.general;
-      await this.redis?.set(redisCacheKey, JSON.stringify(result), redisTtl);
+      await this.redis?.set(redisCacheKey, JSON.stringify(result), redisTTL);
     } catch {}
+
+    // Also cache in memory for faster subsequent access
+    this._setCachedResult(memCacheKey, result, enrichedRequest.type);
 
     return result;
   }

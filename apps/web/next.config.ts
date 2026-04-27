@@ -37,7 +37,6 @@ const nextConfig: NextConfig = {
     '@prisma/client',
     'prisma',
     '@simplewebauthn/server',
-    'crypto',
   ],
 
   // Bundle optimizations

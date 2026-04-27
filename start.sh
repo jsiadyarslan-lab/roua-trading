@@ -280,7 +280,138 @@ EOSQL
   echo "📦 Executing safety-net SQL via prisma db execute..."
   run_prisma db execute --schema=./prisma/schema.prisma --file /tmp/ensure_tables.sql 2>&1 && echo "📦 Safety-net SQL executed successfully" || echo "⚠️ Safety-net SQL had issues (non-fatal — tables may already exist with different schema)"
 
-  rm -f /tmp/ensure_tables.sql
+  # ── Step 3b: Add missing columns to existing tables ──
+  # The CREATE TABLE IF NOT EXISTS above only creates NEW tables.
+  # If a table already exists from a previous deploy but is missing
+  # columns that were added later to the Prisma schema, we need
+  # ALTER TABLE to add them. This is the #1 cause of 401 errors:
+  # Prisma's @updatedAt field is required but the DB doesn't have it.
+  cat > /tmp/add_missing_columns.sql <<'EOSQL'
+    -- Session table: add updatedAt if missing (Prisma @updatedAt requires it)
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Session' AND column_name = 'updatedAt'
+      ) THEN
+        ALTER TABLE "Session" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      END IF;
+    END $$;
+
+    -- User table: add updatedAt if missing
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'User' AND column_name = 'updatedAt'
+      ) THEN
+        ALTER TABLE "User" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      END IF;
+    END $$;
+
+    -- User table: add riskTolerance if missing
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'User' AND column_name = 'riskTolerance'
+      ) THEN
+        ALTER TABLE "User" ADD COLUMN "riskTolerance" TEXT DEFAULT 'moderate';
+      END IF;
+    END $$;
+
+    -- Position table: add updatedAt if missing
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Position' AND column_name = 'updatedAt'
+      ) THEN
+        ALTER TABLE "Position" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      END IF;
+    END $$;
+
+    -- AuditLog table: add userId column if missing
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'AuditLog' AND column_name = 'userId'
+      ) THEN
+        ALTER TABLE "AuditLog" ADD COLUMN "userId" TEXT;
+      END IF;
+    END $$;
+
+    -- ExchangeCredential table: add updatedAt if missing
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'ExchangeCredential' AND column_name = 'updatedAt'
+      ) THEN
+        ALTER TABLE "ExchangeCredential" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      END IF;
+    END $$;
+
+    -- PaperOrder table: add updatedAt if missing
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'PaperOrder' AND column_name = 'updatedAt'
+      ) THEN
+        ALTER TABLE "PaperOrder" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      END IF;
+    END $$;
+
+    -- TradingBot table: add createdAt if missing
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'TradingBot' AND column_name = 'createdAt'
+      ) THEN
+        ALTER TABLE "TradingBot" ADD COLUMN "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      END IF;
+    END $$;
+
+    -- ChartPreference table: add updatedAt and createdAt if missing
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'ChartPreference' AND column_name = 'updatedAt'
+      ) THEN
+        ALTER TABLE "ChartPreference" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      END IF;
+    END $$;
+
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'ChartPreference' AND column_name = 'createdAt'
+      ) THEN
+        ALTER TABLE "ChartPreference" ADD COLUMN "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      END IF;
+    END $$;
+
+    -- Session table: add foreign key constraint if missing
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'Session_userId_fkey'
+      ) THEN
+        ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey"
+          FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+
+    -- User table: add unique constraint on email if missing
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'User_email_key'
+      ) THEN
+        ALTER TABLE "User" ADD CONSTRAINT "User_email_key" UNIQUE ("email");
+      END IF;
+    END $$;
+EOSQL
+
+  echo "📦 Adding missing columns via ALTER TABLE..."
+  run_prisma db execute --schema=./prisma/schema.prisma --file /tmp/add_missing_columns.sql 2>&1 && echo "📦 Missing columns SQL executed successfully" || echo "⚠️ Missing columns SQL had issues (non-fatal — columns may already exist)"
+
+  rm -f /tmp/ensure_tables.sql /tmp/add_missing_columns.sql
 else
   echo "⚠️ No DATABASE_URL — skipping table verification"
 fi

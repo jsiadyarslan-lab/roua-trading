@@ -149,7 +149,11 @@ export default function DashboardPage() {
   // Calculate P&L for balance card
   const equityValue = Number(account?.equity) || 0
   const cashValue = Number(account?.cash) || 0
-  const positionsValue = equityValue - cashValue
+  const longMarketValue = Number(account?.longMarketValue) || 0
+  const shortMarketValue = Number(account?.shortMarketValue) || 0
+  const positionsValue = longMarketValue + shortMarketValue
+  const initialMargin = Number(account?.initialMargin) || 0
+  const freeMargin = cashValue // الهامش الحر = الرصيد النقدي المتاح
   const unrealizedPnl = Number(account?.unrealizedPnl) || 0
   const isProfitable = unrealizedPnl >= 0
 
@@ -639,7 +643,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="summary-item">
                     <span className="summary-label">الهامش الحر:</span>
-                    <span className="summary-value summary-value--success">{formatMoney(account?.buyingPower)}</span>
+                    <span className="summary-value summary-value--success">{formatMoney(freeMargin)}</span>
                   </div>
                   <div className="summary-item">
                     <span className="summary-label">قيمة المراكز:</span>
@@ -647,7 +651,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="summary-item">
                     <span className="summary-label">كمية الهامش:</span>
-                    <span className="summary-value">{formatMoney(account?.initialMargin)}</span>
+                    <span className="summary-value">{formatMoney(initialMargin)}</span>
                   </div>
                   {unrealizedPnl !== 0 && (
                     <div className="summary-item">

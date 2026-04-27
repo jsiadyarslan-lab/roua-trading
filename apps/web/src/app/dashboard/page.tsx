@@ -707,42 +707,49 @@ export default function DashboardPage() {
             className="dash-col dash-col-left animate-in-1"
             style={{
               height: '100%',
-              transition: 'width 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease',
+              width: sidebarCollapsed ? 0 : undefined,
+              minWidth: sidebarCollapsed ? 0 : undefined,
+              maxWidth: sidebarCollapsed ? 0 : undefined,
+              transition: 'width 0.35s cubic-bezier(0.4,0,0.2,1), min-width 0.35s cubic-bezier(0.4,0,0.2,1), max-width 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.3s ease, padding 0.35s ease',
+              opacity: sidebarCollapsed ? 0 : 1,
               overflow: 'hidden',
+              padding: sidebarCollapsed ? 0 : undefined,
             }}
           >
             <div style={{ position: 'relative', height: '100%' }}>
-              <LeftSidebarLayout />
-              {/* Collapse/Expand toggle */}
-              <button
-                type="button"
-                onClick={() => setSidebarCollapsed(prev => !prev)}
-                aria-label={sidebarCollapsed ? 'توسيع الشريط الجانبي' : 'طي الشريط الجانبي'}
-                style={{
-                  position: 'absolute',
-                  top: 6,
-                  left: -14,
-                  zIndex: 20,
-                  width: 22,
-                  height: 22,
-                  borderRadius: '50%',
-                  border: '1px solid rgba(0,212,255,0.25)',
-                  background: 'rgba(11,14,20,0.95)',
-                  color: T.cyan,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.2s',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(0,212,255,0.5)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,212,255,0.2)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,212,255,0.25)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)' }}
-              >
-                {sidebarCollapsed ? <PanelLeftOpen size={11} /> : <PanelLeftClose size={11} />}
-              </button>
+              {!sidebarCollapsed && <LeftSidebarLayout />}
             </div>
           </div>
+
+          {/* Collapse/Expand toggle — rendered outside sidebar so it stays visible */}
+          <button
+            type="button"
+            onClick={() => setSidebarCollapsed(prev => !prev)}
+            aria-label={sidebarCollapsed ? 'توسيع الشريط الجانبي' : 'طي الشريط الجانبي'}
+            style={{
+              position: 'relative',
+              zIndex: 20,
+              width: 24,
+              height: 48,
+              borderRadius: '0 8px 8px 0',
+              border: '1px solid rgba(0,212,255,0.20)',
+              borderLeft: 'none',
+              background: 'rgba(11,14,20,0.95)',
+              color: T.cyan,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'all 0.2s',
+              boxShadow: '2px 0 8px rgba(0,0,0,0.3)',
+              alignSelf: 'center',
+              flexShrink: 0,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.10)'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.4)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(11,14,20,0.95)'; e.currentTarget.style.borderColor = 'rgba(0,212,255,0.20)' }}
+          >
+            {sidebarCollapsed ? <PanelLeftOpen size={12} /> : <PanelLeftClose size={12} />}
+          </button>
 
           {/* Center Column: Chart + Balance + Positions */}
           <div className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, minHeight: 0, overflow: 'hidden' }}>

@@ -210,3 +210,49 @@ Stage Summary:
 - Scanner shared component library complete
 - Context provider with SSE+polling ready for scanner page refactor
 - All components RTL-compatible with Arabic labels
+
+---
+Task ID: 1
+Agent: Sidebar Redesign Agent
+Task: Create sidebar redesign files — hooks, layout components, portfolio widgets
+
+Work Log:
+- Analyzed existing LeftSidebarLayout.tsx, all mini components (PortfolioMini, QuickExecutionMini, OrderBookMini, WatchlistMini, PriceAlertsPanel, AlNarratorMini, DesktopContextPanels), and stores (usePositionsStore, useSymbolStore, useMarketStore)
+- Studied theme-tokens.ts and dashboard-live.ts for consistent design language
+- Created useSidebarState.ts hook with tab management, collapse state (localStorage-persisted), drawer state, search query, and keyboard shortcuts (1-0 for tabs, Ctrl+B for collapse, Escape for drawer)
+- Created SidebarIconRail.tsx — 56px vertical icon rail with 10 tab icons (Wallet, Zap, BookOpen, Eye, Bell, Brain, Newspaper, CalendarDays, FlaskConical, GitBranch), accent-colored active indicator bar on right side (RTL), hover tooltips with Arabic labels, badge counter support, theme tokens
+- Created SidebarContentPanel.tsx — content panel with header (accent dot, label, helper, tone badge), search bar with clear button, tab content rendering (all 10 panels), smooth fade-in transitions on tab switch, NO zoom:0.82
+- Created SidebarDrawer.tsx — slide-in drawer from right side (RTL), semi-transparent backdrop with blur, Escape/click-outside close, pin/unpin toggle, CSS transition animation, z-index 50
+- Created PortfolioHeatMap.tsx — SVG grid heatmap with green/red shading based on P&L%, proportional sizing by market value, hover title with symbol + P&L%, Arabic empty state
+- Created PortfolioSparkline.tsx — SVG sparkline with gradient fill, smooth bezier curves, end dot with glow, color adapts to trend direction, CSS mount animation, fallback "—" for empty data
+- Created QuickActionsBar.tsx — 4 glassmorphism action buttons (إغلاق الكل, تحوط, إعادة توازن, إيداع) with Lucide icons (XCircle, Shield, RefreshCw, ArrowDownToLine), hover glow effects
+- Created PositionCard.tsx — compact position card (~40px height) with side indicator bar, symbol/side/qty, entry/current price, P&L with color coding and direction arrow, inline SL/TP editing buttons, close with confirmation dialog
+
+Files Created (8):
+1. apps/web/src/hooks/useSidebarState.ts
+2. apps/web/src/components/dashboard/layouts/SidebarIconRail.tsx
+3. apps/web/src/components/dashboard/layouts/SidebarContentPanel.tsx
+4. apps/web/src/components/dashboard/layouts/SidebarDrawer.tsx
+5. apps/web/src/components/portfolio/PortfolioHeatMap.tsx
+6. apps/web/src/components/portfolio/PortfolioSparkline.tsx
+7. apps/web/src/components/portfolio/QuickActionsBar.tsx
+8. apps/web/src/components/portfolio/PositionCard.tsx
+
+Verification:
+- All 8 files created and verified on disk
+- TypeScript compilation check: no new errors introduced (7 pre-existing errors in unrelated files)
+- All components use 'use client' directive
+- All components use inline styles matching existing codebase approach
+- All text in Arabic with Cairo/JetBrains Mono fonts
+- All imports resolve to existing files in the project
+- No zoom CSS property used anywhere
+- RTL layout direction properly handled
+- Theme tokens (T) from @/lib/theme-tokens used consistently
+
+Stage Summary:
+- Complete sidebar redesign component library created
+- Hook with keyboard shortcuts and localStorage persistence
+- Icon rail with badges, tooltips, and active indicators
+- Content panel with search and smooth tab transitions
+- Drawer for mobile/compact views with pin support
+- Portfolio widgets: heatmap, sparkline, quick actions, position cards

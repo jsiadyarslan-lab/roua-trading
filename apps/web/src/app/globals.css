@@ -473,6 +473,94 @@ button:disabled {
   100% { background-position: 200% 0; }
 }
 
+/* ── Sidebar Redesign Styles ── */
+.sidebar-shell {
+  position: relative;
+}
+
+.sidebar-collapse-btn {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar-shell:hover .sidebar-collapse-btn {
+  opacity: 1;
+}
+
+/* Sidebar drawer for compact desktop */
+.sidebar-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 49;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-drawer-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 320px;
+  max-width: 85vw;
+  z-index: 50;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.4);
+}
+
+.sidebar-drawer-panel[data-open="true"] {
+  transform: translateX(0);
+}
+
+.sidebar-drawer-overlay[data-open="true"] {
+  opacity: 1;
+}
+
+.sidebar-drawer-overlay[data-open="false"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* FAB button for mobile sidebar access */
+.sidebar-fab {
+  position: fixed;
+  bottom: calc(80px + env(safe-area-inset-bottom));
+  right: 16px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0A84FF, #00D4FF);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 45;
+  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3);
+  transition: all 0.2s ease;
+}
+
+.sidebar-fab:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 28px rgba(0, 212, 255, 0.4);
+}
+
+.sidebar-fab:active {
+  transform: scale(0.95);
+}
+
+@keyframes sidebarFabPulse {
+  0%, 100% { box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3); }
+  50% { box-shadow: 0 4px 28px rgba(0, 212, 255, 0.5), 0 0 0 8px rgba(0, 212, 255, 0.08); }
+}
+
+.sidebar-fab--pulsing {
+  animation: sidebarFabPulse 2.5s ease-in-out infinite;
+}
+
 .shimmer {
   background: linear-gradient(90deg, var(--bg-input) 25%, var(--bg-card) 50%, var(--bg-input) 75%);
   background-size: 200% 100%;

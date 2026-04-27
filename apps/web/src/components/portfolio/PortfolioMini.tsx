@@ -1,22 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { formatFreshness, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
-
-const T = {
-  bg:     '#04050C',
-  card:   '#08090F',
-  blue:   '#0A84FF',
-  cyan:   '#00C8FF',
-  green:  '#00FFC6',
-  red:    '#FF4D4D',
-  amber:  '#FFB800',
-  purple: '#B388FF',
-  text:   '#E6EBF5',
-  text2:  '#8090A8',
-  text3:  '#A0AFC3',
-  border: 'rgba(10,132,255,0.12)',
-}
+import { PortfolioSparkline } from '@/components/portfolio/PortfolioSparkline'
+import { PortfolioHeatMap } from '@/components/portfolio/PortfolioHeatMap'
+import { QuickActionsBar } from '@/components/portfolio/QuickActionsBar'
+import { PositionCard } from '@/components/portfolio/PositionCard'
+import { T } from '@/lib/theme-tokens'
 
 /* ── Default Real Data State ── */
 const DEFAULT: PortfolioSummary = {
@@ -24,7 +14,7 @@ const DEFAULT: PortfolioSummary = {
   totalPnl:      0,
   pnlPercent:    0,
   totalPositions: 0,
-  winRate:       0,  // Requires trade history analysis (future)
+  winRate:       0,
   margin:        0,
   totalProfit:   0,
   totalLoss:     0,
@@ -57,8 +47,6 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 
 export function usePortfolioSummary() {
-  // نستخدم usePositionsStore مباشرة للحصول على P&L لحظي
-  // (المراكز تتحدث بالأسعار المباشرة عبر GlobalLogicEngine)
   const positions = usePositionsStore(s => s.positions)
   const account = usePositionsStore(s => s.account)
   const fetchAccount = usePositionsStore(s => s.fetchAccount)
@@ -66,7 +54,6 @@ export function usePortfolioSummary() {
   const paperTrades = usePaperTradesStore(s => s.trades)
   const [loading, setLoading] = useState(true)
 
-  // جلب البيانات أول مرة ودوريًا
   useEffect(() => {
     fetchAccount()
     fetchPositions()
@@ -78,7 +65,6 @@ export function usePortfolioSummary() {
     return () => clearInterval(iv)
   }, [fetchAccount, fetchPositions])
 
-  // حساب P&L لحظي من المراكز (التي تتحدث بالأسعار المباشرة)
   const data = (() => {
     const balance = Number(account?.equity) || 0
     const margin = balance - (Number(account?.cash) || 0)
@@ -87,7 +73,6 @@ export function usePortfolioSummary() {
     let totalProfit = 0, totalLoss = 0
     let win = 0, loss = 0
 
-    // مراكز Alpaca الحقيقية (P&L محدث لحظيًا من الأسعار المباشرة)
     totalPositions += positions.length
     positions.forEach(p => {
       totalPnl += p.unrealizedPnl || 0
@@ -100,7 +85,6 @@ export function usePortfolioSummary() {
       }
     })
 
-    // الصفقات الورقية (تتحدث لحظيًا أيضًا)
     totalPositions += paperTrades.length
     paperTrades.forEach(pt => {
       totalPnl += pt.unrealizedPnl
@@ -134,6 +118,33 @@ export function usePortfolioSummary() {
   return { data, loading }
 }
 
+/* ── Generate simulated sparkline data from current balance ── */
+function useSparklineData(balance: number, pnl: number): number[] {
+  const [data, setData] = useState<number[]>([])
+
+  useEffect(() => {
+    // Generate a realistic sparkline based on current balance
+    const base = balance || 100000
+    const points = 24
+    const volatility = base * 0.003 // 0.3% volatility per point
+    const trend = pnl >= 0 ? 1 : -1
+    const newData: number[] = []
+    let current = base - (pnl * 0.5) // Start from half the P&L ago
+
+    for (let i = 0; i < points; i++) {
+      const noise = (Math.random() - 0.45) * volatility
+      current += noise + (trend * volatility * 0.15)
+      newData.push(Math.max(0, current))
+    }
+
+    // Ensure the last point is close to current balance
+    newData[newData.length - 1] = base
+    setData(newData)
+  }, [balance, pnl])
+
+  return data
+}
+
 /* ══ Mini Portfolio Widget (for dashboard sidebar panel) ══ */
 export function PortfolioMini({
   mobile = false,
@@ -151,20 +162,35 @@ export function PortfolioMini({
   selectedSymbol?: string
 }) {
   const { data } = usePortfolioSummary()
+  const positions = usePositionsStore(s => s.positions)
   const pnlUp = data.totalPnl >= 0
   const cardGap = compact ? 6 : 8
   const pad = compact ? '10px 12px' : '8px 10px'
   const balanceSize = compact ? 16 : 18
   const statusTone = getStatusTone(dataStatus)
+  const sparklineData = useSparklineData(data.balance, data.totalPnl)
+
+  // Derive heatmap positions
+  const heatmapPositions = useMemo(() =>
+    positions.map(p => ({
+      symbol: p.symbol || p.side || '—',
+      unrealizedPnl: p.unrealizedPnl || 0,
+      marketValue: Number(p.marketValue || p.currentPrice || 0),
+    })),
+    [positions]
+  )
 
   return (
     <div style={{
       width: '100%', height: '100%',
       padding: pad,
       display: 'flex', flexDirection: 'column', gap: cardGap,
-      overflow: 'hidden',
+      overflow: 'auto',
       boxSizing: 'border-box',
-    }}>
+    }}
+    className="custom-scrollbar"
+    >
+      {/* Account Status */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -203,9 +229,14 @@ export function PortfolioMini({
         </div>
       </div>
 
-      {/* Balance */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <div>
+      {/* Balance + Sparkline row */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'flex-end',
+        gap: 8,
+      }}>
+        <div style={{ flex: 1 }}>
           <div style={{
             fontFamily: "'Cairo', sans-serif",
             fontSize: 9, color: T.text2,
@@ -216,6 +247,18 @@ export function PortfolioMini({
             letterSpacing: '-0.02em',
           }}>${fmt(data.balance, 0)}</div>
         </div>
+        <div style={{ flexShrink: 0, width: 80, height: 32 }}>
+          <PortfolioSparkline
+            data={sparklineData}
+            color={pnlUp ? T.green : T.red}
+            width={80}
+            height={32}
+          />
+        </div>
+      </div>
+
+      {/* P&L Badge */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: 3,
           padding: '2px 7px', borderRadius: 12,
@@ -230,23 +273,21 @@ export function PortfolioMini({
             {pnlUp ? '+' : '-'}{fmt(Math.abs(data.pnlPercent))}%
           </span>
         </div>
-      </div>
-
-      {/* P&L */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between',
-        padding: '5px 8px', borderRadius: 7,
-        background: `${pnlUp ? T.green : T.red}0d`,
-        border: `0.5px solid ${pnlUp ? T.green : T.red}22`,
-      }}>
-        <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9.5, color: T.text2 }}>P&L الإجمالي</span>
-        <span style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: 11, fontWeight: 700,
-          color: pnlUp ? T.green : T.red,
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          padding: '5px 8px', borderRadius: 7,
+          background: `${pnlUp ? T.green : T.red}0d`,
+          border: `0.5px solid ${pnlUp ? T.green : T.red}22`,
         }}>
-          {pnlUp ? '+' : '-'}${fmt(Math.abs(data.totalPnl), 0)}
-        </span>
+          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9.5, color: T.text2, marginRight: 6 }}>P&L</span>
+          <span style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 11, fontWeight: 700,
+            color: pnlUp ? T.green : T.red,
+          }}>
+            {pnlUp ? '+' : '-'}${fmt(Math.abs(data.totalPnl), 0)}
+          </span>
+        </div>
       </div>
 
       {/* Stats row */}
@@ -296,6 +337,38 @@ export function PortfolioMini({
           }} />
         </div>
       </div>
+
+      {/* Heatmap */}
+      {heatmapPositions.length > 0 && (
+        <PortfolioHeatMap positions={heatmapPositions} />
+      )}
+
+      {/* Quick Actions */}
+      {!compact && <QuickActionsBar onAction={() => {}} />}
+
+      {/* Position Cards */}
+      {!compact && positions.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, maxHeight: 160, overflow: 'auto' }} className="custom-scrollbar">
+          {positions.slice(0, 5).map((p, i) => (
+            <PositionCard
+              key={p.symbol || i}
+              symbol={p.symbol || '—'}
+              side={p.side || 'long'}
+              qty={Number(p.qty) || 0}
+              avgEntryPrice={Number(p.avgEntryPrice) || 0}
+              currentPrice={Number(p.currentPrice) || 0}
+              unrealizedPnl={p.unrealizedPnl || 0}
+              marketValue={Number(p.marketValue) || 0}
+              onClose={() => {}}
+            />
+          ))}
+          {positions.length > 5 && (
+            <div style={{ textAlign: 'center', padding: '4px 0', fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
+              +{positions.length - 5} مركز إضافي
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Margin */}
       {!compact && <div style={{

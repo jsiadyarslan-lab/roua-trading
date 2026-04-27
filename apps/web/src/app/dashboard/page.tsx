@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { QuoteData } from '@/hooks/useMarketStore'
-import { BarChart3, Brain, ChevronDown, ScanSearch, Wallet } from 'lucide-react'
+import { BarChart3, Brain, ChevronDown, ScanSearch, Wallet, PanelRight } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { NotificationToasts } from '@/components/dashboard/NotificationCenter'
 import { LeftSidebarLayout } from '@/components/dashboard/layouts/LeftSidebarLayout'
+import { SidebarDrawer } from '@/components/dashboard/layouts/SidebarDrawer'
 import { RightPanelLayout } from '@/components/dashboard/layouts/RightPanelLayout'
 import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
 import { QuickExecutionMini } from '@/components/dashboard/QuickExecutionMini'
@@ -82,6 +83,8 @@ export default function DashboardPage() {
   const [chartExpanded, setChartExpanded] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
   const [isCompactDesktopViewport, setIsCompactDesktopViewport] = useState(false)
+  const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false)
+  const [sidebarPinned, setSidebarPinned] = useState(false)
 
   useEffect(() => {
     fetchAccount()
@@ -627,10 +630,12 @@ export default function DashboardPage() {
 
       {!isMobileViewport && (
         <div className="dash-grid dashboard-shell">
-          {/* Left Sidebar */}
-          <div className="dash-col dash-col-left animate-in-1" style={{ height: '100%' }}>
-            <LeftSidebarLayout />
-          </div>
+          {/* Left Sidebar — hidden on compact desktop when drawer is used */}
+          {!(isCompactDesktopViewport && !sidebarPinned) && (
+            <div className="dash-col dash-col-left animate-in-1" style={{ height: '100%' }}>
+              <LeftSidebarLayout />
+            </div>
+          )}
 
           {/* Center Column: Chart + Balance + Positions */}
           <div className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
@@ -831,6 +836,54 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Sidebar Drawer for compact desktop */}
+      {isCompactDesktopViewport && !sidebarPinned && (
+        <SidebarDrawer
+          open={sidebarDrawerOpen}
+          onClose={() => setSidebarDrawerOpen(false)}
+          onPin={() => setSidebarPinned(true)}
+          pinned={sidebarPinned}
+        >
+          <LeftSidebarLayout />
+        </SidebarDrawer>
+      )}
+
+      {/* FAB button to open sidebar on compact desktop */}
+      {isCompactDesktopViewport && !sidebarDrawerOpen && !sidebarPinned && (
+        <button
+          type="button"
+          className="sidebar-fab sidebar-fab--pulsing"
+          onClick={() => setSidebarDrawerOpen(true)}
+          title="فتح الشريط الجانبي"
+          aria-label="فتح الشريط الجانبي"
+        >
+          <PanelRight size={22} />
+        </button>
+      )}
+
+      {/* FAB button for mobile */}
+      {isMobileViewport && (
+        <button
+          type="button"
+          className="sidebar-fab"
+          onClick={() => setSidebarDrawerOpen(true)}
+          title="المحفظة"
+          aria-label="المحفظة"
+        >
+          <Wallet size={22} />
+        </button>
+      )}
+
+      {/* Mobile drawer */}
+      {isMobileViewport && sidebarDrawerOpen && (
+        <SidebarDrawer
+          open={sidebarDrawerOpen}
+          onClose={() => setSidebarDrawerOpen(false)}
+        >
+          <LeftSidebarLayout />
+        </SidebarDrawer>
       )}
 
       {isMobileViewport && (

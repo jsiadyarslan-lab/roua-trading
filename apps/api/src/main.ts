@@ -44,7 +44,7 @@ async function bootstrap() {
       origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'x-roua-session'],
     });
 
     // Global validation pipe

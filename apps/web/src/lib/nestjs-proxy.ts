@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, ensureDbReady } from '@/lib/db'
+import { db, ensureDbReady, resetDbInitialized } from '@/lib/db'
 import crypto from 'crypto'
 
 /**
@@ -12,6 +12,7 @@ import crypto from 'crypto'
  * Key features:
  * - Validates existing cookie against DB before trusting it (prevents 401 loops)
  * - Auto-creates a guest session if no valid roua_session cookie exists
+ * - Falls back to NestJS /api/auth/guest if Next.js DB is unavailable
  * - Sets the cookie on the response so subsequent requests work
  * - Injects both Authorization and x-roua-session headers
  * - Forwards the roua_session cookie to NestJS (for cookie-based auth)
@@ -24,6 +25,40 @@ const API_TARGET = process.env.API_INTERNAL_URL || 'http://localhost:3001'
 const GUEST_EMAIL = 'guest@roua.auto'
 
 /**
+ * Create a guest session via NestJS's /api/auth/guest endpoint.
+ *
+ * This is the FALLBACK when Next.js can't create sessions directly
+ * (e.g., PrismaClient connection failure). Since NestJS has its own
+ * PrismaService with connection retry logic, it may succeed where
+ * Next.js's direct DB access failed.
+ */
+async function createSessionViaNestJS(): Promise<{
+  token: string
+} | null> {
+  try {
+    const response = await fetch(`${API_TARGET}/api/auth/guest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(10000), // 10s timeout
+    })
+
+    if (response.ok) {
+      const data = await response.json()
+      if (data.success && data.sessionToken) {
+        console.log('[nestjs-proxy] Created guest session via NestJS fallback')
+        return { token: data.sessionToken }
+      }
+    }
+
+    console.warn('[nestjs-proxy] NestJS guest endpoint returned:', response.status)
+    return null
+  } catch (error: any) {
+    console.warn('[nestjs-proxy] NestJS guest session creation failed:', error?.message || error)
+    return null
+  }
+}
+
+/**
  * Force-create a new guest session, ignoring any existing cookie.
  * Used when the existing session is invalid/expired and we need a fresh one.
  */
@@ -31,7 +66,11 @@ async function forceCreateSession(): Promise<{
   token: string
 } | null> {
   try {
-    await ensureDbReady()
+    const dbReady = await ensureDbReady()
+    if (!dbReady) {
+      console.warn('[nestjs-proxy] DB not ready — cannot create session directly')
+      return null
+    }
 
     // Find or create guest user
     let guestUser = await db.user.findUnique({ where: { email: GUEST_EMAIL } })
@@ -72,6 +111,8 @@ async function forceCreateSession(): Promise<{
     return { token: newToken }
   } catch (error: any) {
     console.error('[nestjs-proxy] Failed to force-create session:', error?.message || error)
+    // DB operation failed — reset initialized flag so next call retries connection
+    resetDbInitialized()
     return null
   }
 }
@@ -84,6 +125,10 @@ async function forceCreateSession(): Promise<{
  * Without this validation, an expired/deleted session cookie would be trusted
  * and forwarded to NestJS, causing a 401, and the invalid cookie would persist
  * in the browser causing an infinite 401 loop.
+ *
+ * FALLBACK: If Next.js can't create a session (DB unavailable), it falls back
+ * to calling NestJS's /api/auth/guest endpoint, which creates a session using
+ * NestJS's own PrismaService (which may have a working DB connection).
  */
 async function ensureSession(request: NextRequest): Promise<{
   token: string
@@ -96,34 +141,48 @@ async function ensureSession(request: NextRequest): Promise<{
     // Without this check, an expired/deleted session token would be
     // forwarded to NestJS → 401 → cookie stays in browser → infinite loop
     try {
-      await ensureDbReady()
-      const session = await db.session.findUnique({
-        where: { token: existingToken },
-      })
-      if (session && session.expiresAt > new Date()) {
-        // Cookie is valid — use it
+      const dbReady = await ensureDbReady()
+      if (dbReady) {
+        const session = await db.session.findUnique({
+          where: { token: existingToken },
+        })
+        if (session && session.expiresAt > new Date()) {
+          // Cookie is valid — use it
+          return { token: existingToken, cookieAlreadySet: true }
+        }
+        // Session is invalid/expired — treat as if no cookie exists
+        // Clean up expired session
+        if (session) {
+          await db.session.delete({ where: { id: session.id } }).catch(() => {})
+        }
+        console.log('[nestjs-proxy] Existing cookie is invalid/expired — creating new session')
+        // Fall through to create a new session below
+      } else {
+        // DB not available — trust the cookie and let NestJS validate it.
+        // NestJS will return 401 if the session is invalid,
+        // and our retry mechanism in proxyToNestJS() will handle it
+        console.warn('[nestjs-proxy] DB unavailable — trusting existing cookie, NestJS will validate')
         return { token: existingToken, cookieAlreadySet: true }
       }
-      // Session is invalid/expired — treat as if no cookie exists
-      // Clean up expired session
-      if (session) {
-        await db.session.delete({ where: { id: session.id } }).catch(() => {})
-      }
-      console.log('[nestjs-proxy] Existing cookie is invalid/expired — creating new session')
-      // Fall through to create a new session below
     } catch (dbErr: any) {
       // DB error — can't validate, trust the cookie and let NestJS validate
-      // This is safe because NestJS will return 401 if the session is invalid,
-      // and our retry mechanism in proxyToNestJS() will handle it
       console.warn('[nestjs-proxy] DB error validating cookie:', dbErr?.message || dbErr)
+      resetDbInitialized()
       return { token: existingToken, cookieAlreadySet: true }
     }
   }
 
-  // No valid cookie — try to auto-create a guest session
+  // No valid cookie — try to auto-create a guest session via Next.js DB
   const newSession = await forceCreateSession()
   if (newSession) {
     return { token: newSession.token, cookieAlreadySet: false }
+  }
+
+  // Next.js DB failed — FALLBACK: create session via NestJS
+  console.warn('[nestjs-proxy] Next.js DB unavailable — falling back to NestJS /api/auth/guest')
+  const nestjsSession = await createSessionViaNestJS()
+  if (nestjsSession) {
+    return { token: nestjsSession.token, cookieAlreadySet: false }
   }
 
   return null
@@ -227,7 +286,11 @@ async function proxyWithToken(
     // 3. Or the DB validation in ensureSession() failed and we trusted a stale cookie
     if (response.status === 401 && allowRetryOn401) {
       console.warn(`[nestjs-proxy] 401 on ${method} ${pathname} — retrying with new session`)
-      const newSession = await forceCreateSession()
+      // Try Next.js DB first, then NestJS fallback
+      let newSession = await forceCreateSession()
+      if (!newSession) {
+        newSession = await createSessionViaNestJS()
+      }
       if (newSession) {
         // Retry with the new session token (allowRetryOn401=false to prevent loops)
         return proxyWithToken(request, method, newSession.token, true, false)

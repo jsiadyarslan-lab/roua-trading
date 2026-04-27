@@ -131,4 +131,36 @@ export class AuthController {
     res.clearCookie('roua_session');
     return { success: true };
   }
+
+  /**
+   * POST /api/auth/guest — Create a guest session
+   *
+   * Public endpoint (no authentication required) that creates a guest
+   * user + session. Used by the Next.js proxy as a fallback when it
+   * can't create sessions directly (e.g., DB connection issues).
+   *
+   * Rate-limited to prevent abuse.
+   */
+  @Post('guest')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async createGuestSession(@Res({ passthrough: true }) res: Response) {
+    this.logger.log('Guest session creation requested via /api/auth/guest');
+
+    const result = await this.authService.createGuestSession();
+
+    // Set session cookie so subsequent requests are authenticated
+    res.cookie('roua_session', result.sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      path: '/',
+    });
+
+    return {
+      success: true,
+      sessionToken: result.sessionToken,
+      user: result.user,
+    };
+  }
 }

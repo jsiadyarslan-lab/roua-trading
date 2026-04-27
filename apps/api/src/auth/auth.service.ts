@@ -376,6 +376,53 @@ export class AuthService {
     return { success: true };
   }
 
+  /**
+   * Create a guest session — used by POST /api/auth/guest
+   * as a fallback when Next.js can't create sessions directly.
+   *
+   * This finds or creates the guest@roua.auto user and creates
+   * a new session for them. No authentication required.
+   */
+  async createGuestSession() {
+    const GUEST_EMAIL = 'guest@roua.auto';
+
+    let guestUser = await this.prisma.user.findUnique({ where: { email: GUEST_EMAIL } });
+
+    if (!guestUser) {
+      try {
+        guestUser = await this.prisma.user.create({
+          data: {
+            email: GUEST_EMAIL,
+            displayName: 'ضيف',
+            tier: 'FREE',
+          },
+        });
+        this.logger.log(`Guest user created: ${GUEST_EMAIL}`);
+      } catch (createErr: any) {
+        // Concurrent creation — find the existing one
+        guestUser = await this.prisma.user.findUnique({ where: { email: GUEST_EMAIL } });
+      }
+    }
+
+    if (!guestUser) {
+      throw new BadRequestException('فشل في إنشاء مستخدم ضيف');
+    }
+
+    const session = await this.createSession(guestUser.id);
+
+    this.logger.log(`Guest session created for: ${GUEST_EMAIL}`);
+
+    return {
+      sessionToken: session.token,
+      user: {
+        id: guestUser.id,
+        email: guestUser.email,
+        displayName: guestUser.displayName,
+        tier: guestUser.tier,
+      },
+    };
+  }
+
   // ── Private Helpers ──
 
   private getUserIdBuffer(email: string): string {

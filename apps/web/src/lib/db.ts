@@ -18,29 +18,67 @@ if (!globalForPrisma.prisma) {
   globalForPrisma.prisma = db
 }
 
-export async function ensureDbReady() {
-  if (globalForPrisma.dbInitialized) return
+/**
+ * Ensure the database is ready for queries.
+ *
+ * Improvement over the previous version:
+ * - Explicitly calls $connect() before querying, instead of relying on
+ *   Prisma's lazy connection which can silently fail
+ * - Retries up to 3 times with increasing delay (1s, 2s, 3s)
+ * - Returns true if DB is ready, false otherwise
+ * - Calling code can check the return value to decide fallback behavior
+ *
+ * If DB was previously initialized but a query fails later, call
+ * resetDbInitialized() to force re-connection on the next call.
+ */
+export async function ensureDbReady(): Promise<boolean> {
+  if (globalForPrisma.dbInitialized) return true
 
-  try {
-    // Only check the User table — it's the only one needed for auth.
-    // Previously this also checked db.challenge.findFirst() which would
-    // throw if the Challenge table didn't exist, blocking the entire
-    // auth flow and causing /api/auth/me to return 500.
-    await db.user.findFirst()
-    globalForPrisma.dbInitialized = true
-  } catch (error: any) {
-    const message = error?.message || 'Database is not ready'
+  const MAX_RETRIES = 3
 
-    if (message.includes('does not exist') || message.includes('no such table')) {
-      console.error('[db] User table not found — Prisma schema may not be applied:', message)
-      // Don't throw — let the endpoint handle the error gracefully.
-      // Throwing here causes /api/auth/me to return 500 which cascades
-      // to 401 on all NestJS-proxied endpoints.
-    } else {
-      console.error('[db] Database readiness check failed:', message)
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      // Explicitly connect before querying — this establishes the connection
+      // pool instead of relying on lazy connection which can fail silently
+      await db.$connect()
+
+      // Verify by querying the User table (core table for auth)
+      await db.user.findFirst()
+
+      globalForPrisma.dbInitialized = true
+      console.log('[db] Database connection established and verified')
+      return true
+    } catch (error: any) {
+      const message = error?.message || 'Database is not ready'
+
+      if (message.includes('does not exist') || message.includes('no such table')) {
+        console.error('[db] User table not found — Prisma schema may not be applied:', message)
+        // Table doesn't exist — retrying won't help, break early
+        return false
+      }
+
+      console.error(
+        `[db] Database readiness check failed (attempt ${attempt + 1}/${MAX_RETRIES}):`,
+        message,
+      )
+
+      if (attempt < MAX_RETRIES - 1) {
+        const delay = 1000 * (attempt + 1)
+        console.log(`[db] Retrying in ${delay}ms...`)
+        await new Promise((resolve) => setTimeout(resolve, delay))
+      }
     }
-
-    // Don't throw — return and let the calling code handle DB errors.
-    // This prevents a single table issue from blocking the entire auth flow.
   }
+
+  console.error('[db] All connection attempts failed — DB is unavailable')
+  return false
+}
+
+/**
+ * Reset the DB initialized flag so the next ensureDbReady() call
+ * will attempt to reconnect. Call this when a DB operation fails
+ * with a connection error.
+ */
+export function resetDbInitialized() {
+  globalForPrisma.dbInitialized = false
 }

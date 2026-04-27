@@ -142,10 +142,18 @@ export default function DashboardPage() {
   const sourceLabel = getSourceLabel(activeQuote?.source)
 
   // Derive account data status
+  const dataSource = usePositionsStore(state => state.dataSource)
   const accountDataStatus: DataStatus = (() => {
     if (positionsError) return 'disconnected'
     if (!account) return 'disconnected'
     if (!lastUpdate) return 'demo'
+    // إذا كانت البيانات من NestJS، اعتبرها مباشرة/احتياطية حسب حالة الأسعار
+    if (dataSource === 'nestjs') {
+      return quoteStatus === 'live' ? 'live' : quoteStatus === 'delayed' ? 'delayed' : 'fallback'
+    }
+    if (dataSource === 'alpaca') {
+      return quoteStatus === 'live' ? 'live' : 'fallback'
+    }
     return quoteStatus === 'live' ? 'live' : quoteStatus === 'delayed' ? 'delayed' : 'fallback'
   })()
 

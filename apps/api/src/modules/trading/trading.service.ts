@@ -11,6 +11,7 @@ import { ExchangeService } from '../exchange/exchange.service';
 import { RiskManagerService } from './risk-manager.service';
 import { AuditService } from '../../audit/audit.service';
 import * as ccxt from 'ccxt';
+import * as crypto from 'crypto';
 import {
   PlaceOrderRequest,
   ClosePositionRequest,
@@ -157,7 +158,7 @@ export class TradingService {
           quantity: request.quantity,
           price: request.price ?? null,
           stopLoss: request.stopLoss ?? null,
-          idempotencyKey: `legacy-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          idempotencyKey: `legacy-${Date.now()}-${crypto.randomUUID()}`,
         },
       });
 
@@ -203,7 +204,7 @@ export class TradingService {
           fee: execution.fee ?? null,
           feeCurrency: execution.feeCurrency ?? null,
           exchangeOrderId: execution.exchangeOrderId,
-          idempotencyKey: `legacy-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          idempotencyKey: `legacy-${Date.now()}-${crypto.randomUUID()}`,
         },
       });
 
@@ -583,7 +584,7 @@ export class TradingService {
           fee: execution.fee ?? null,
           feeCurrency: execution.feeCurrency ?? null,
           exchangeOrderId: execution.exchangeOrderId,
-          idempotencyKey: `close-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          idempotencyKey: `close-${Date.now()}-${crypto.randomUUID()}`,
         },
       });
 

@@ -326,17 +326,26 @@ export class PositionMonitorService {
     if (pnlPercent >= this.TRAILING_ACTIVATION_PCT * 100) {
       const trailingStop = this._calculateTrailingStop(position, currentPrice);
 
-      if (trailingStop && trailingStop > (position.stopLoss || 0)) {
-        await this.prisma.position.update({
-          where: { id: position.id },
-          data: { stopLoss: trailingStop },
-        });
+      if (trailingStop) {
+        // For BUY: trailing stop moves UP (higher SL is better)
+        // For SELL: trailing stop moves DOWN (lower SL is better, closer to entry from above)
+        const currentSL = position.stopLoss || 0;
+        const shouldUpdate = position.side === 'BUY'
+          ? trailingStop > currentSL
+          : trailingStop < currentSL;
 
-        this.logger.log(
-          `📈 Trailing stop updated: ${position.symbol} SL → ${trailingStop}`,
-        );
+        if (shouldUpdate) {
+          await this.prisma.position.update({
+            where: { id: position.id },
+            data: { stopLoss: trailingStop },
+          });
 
-        result.trailingUpdated = true;
+          this.logger.log(
+            `📈 Trailing stop updated: ${position.symbol} SL → ${trailingStop}`,
+          );
+
+          result.trailingUpdated = true;
+        }
       }
     }
 

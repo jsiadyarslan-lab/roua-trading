@@ -4,6 +4,7 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { CredentialsService } from '../../portfolio/credentials/credentials.service';
 import { ExchangeService } from '../../exchange/exchange.service';
 import { RiskCheckResult, OrderCommand } from '../events/order.events';
+import * as ccxt from 'ccxt';
 
 /**
  * Risk Gatekeeper Service — Pre-Trade Risk Validation
@@ -228,8 +229,7 @@ export class RiskGatekeeperService {
       // Try to verify actual balance via CCXT
       try {
         const { apiKey, apiSecret } = await this.credentialsService.decryptCredential(credential.id);
-        const ccxt = require('ccxt');
-        const ExchangeClass = ccxt[credential.exchange as keyof typeof ccxt] as any;
+        const ExchangeClass = (ccxt as any)[credential.exchange];
         if (ExchangeClass) {
           const exchange = new ExchangeClass({
             apiKey,

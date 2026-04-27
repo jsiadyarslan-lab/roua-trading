@@ -1,17 +1,24 @@
 import { create } from 'zustand'
+import { ensureAuth } from '@/lib/api-fetch'
 
 interface Position {
+  id?: string
   symbol: string
-  rawSymbol: string
+  rawSymbol?: string
   side: string
   qty: number
   avgEntryPrice: number
   currentPrice:  number
   marketValue:   number
   unrealizedPnl: number
-  unrealizedPnlPct: number
+  unrealizedPnlPct?: number
   sl?: number
   tp?: number
+  stopLoss?: number
+  takeProfit?: number
+  exchange?: string
+  openedAt?: string
+  source?: 'nestjs' | 'alpaca'
 }
 
 interface PositionsState {
@@ -20,6 +27,7 @@ interface PositionsState {
   loading: boolean
   error: string | null
   lastUpdate: string | null
+  dataSource: 'nestjs' | 'alpaca' | null
   setPositions: (positions: Position[]) => void
   setAccount: (account: any) => void
   setLoading: (loading: boolean) => void
@@ -30,38 +38,13 @@ interface PositionsState {
   updatePositionPrice: (symbol: string, price: number) => void
 }
 
-// ── Auto-auth: ensure session cookie exists before Alpaca API calls ──
-let authPromise: Promise<void> | null = null
-
-async function ensureAuth(): Promise<void> {
-  // NOTE: We do NOT check document.cookie.includes('roua_session=')
-  // because roua_session is an httpOnly cookie — it's invisible to
-  // JavaScript. Always call /api/auth/me to verify/create the session.
-  if (authPromise) return authPromise
-
-  authPromise = (async () => {
-    try {
-      const res = await fetch('/api/auth/me')
-      const data = await res.json()
-      if (!data.authenticated) {
-        // Auth failed — reset promise so we can retry on next call
-        authPromise = null
-      }
-    } catch {
-      // Auth init failed — reset promise so we can retry on next call
-      authPromise = null
-    }
-  })()
-
-  return authPromise
-}
-
 export const usePositionsStore = create<PositionsState>((set, get) => ({
   positions: [],
   account: null,
   loading: false,
   error: null,
   lastUpdate: null,
+  dataSource: null,
   setPositions: (positions) => set({ positions }),
   setAccount: (account) => set({ account }),
   setLoading: (loading) => set({ loading }),
@@ -108,25 +91,105 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
     set({ positions })
   },
   fetchAccount: async () => {
+    await ensureAuth()
+
+    // ── المحاولة الأولى: NestJS API ──
+    // يستخدم ملخص المحفظة من NestJS لاشتقاق بيانات الحساب
     try {
-      // Ensure session cookie exists before making Alpaca API calls
-      await ensureAuth()
+      const res = await fetch('/api/trading/positions/summary')
+      if (res.ok) {
+        const data = await res.json()
+        const summary = data.data || data.summary || data
+
+        if (summary && (summary.totalBalance !== undefined || summary.totalExposure !== undefined)) {
+          const account = {
+            equity: summary.totalBalance || 0,
+            cash: (summary.totalBalance || 0) - (summary.totalExposure || 0),
+            buyingPower: (summary.totalBalance || 0) - (summary.totalExposure || 0),
+            portfolioValue: summary.totalBalance || 0,
+            longMarketValue: summary.totalExposure || 0,
+            shortMarketValue: 0,
+            initialMargin: summary.totalExposure || 0,
+            maintenanceMargin: 0,
+            unrealizedPnl: summary.unrealizedPnL || 0,
+            unrealizedPnlPct: summary.dailyPnLPercent || 0,
+            isPaperTrading: true,
+            tradingBlocked: false,
+            accountBlocked: false,
+          }
+          set({ account, dataSource: 'nestjs' })
+          return
+        }
+      }
+    } catch {
+      // NestJS غير متاح — نحاول Alpaca
+    }
+
+    // ── المحاولة الثانية: Alpaca API ──
+    try {
       const res = await fetch('/api/alpaca/account')
       const j = await res.json()
-      if (j.success && j.data) set({ account: j.data })
+      if (j.success && j.data) {
+        set({ account: j.data, dataSource: 'alpaca' })
+      }
     } catch {}
   },
   fetchPositions: async () => {
     set({ loading: true, error: null })
+    await ensureAuth()
+
+    // ── المحاولة الأولى: NestJS API ──
     try {
-      // Ensure session cookie exists before making Alpaca API calls
-      await ensureAuth()
+      const res = await fetch('/api/trading/positions')
+      if (res.ok) {
+        const data = await res.json()
+        const raw = data.data || data.positions || []
+        if (Array.isArray(raw) && raw.length > 0) {
+          const positions: Position[] = raw.map((p: any) => ({
+            id: p.id,
+            symbol: p.symbol,
+            side: p.side === 'long' ? 'long' : p.side === 'short' ? 'short' : p.side,
+            qty: p.quantity ?? p.qty ?? 0,
+            avgEntryPrice: p.entryPrice ?? p.avgEntryPrice ?? 0,
+            currentPrice: p.currentPrice ?? 0,
+            marketValue: (p.quantity ?? p.qty ?? 0) * (p.currentPrice ?? 0),
+            unrealizedPnl: p.unrealizedPnL ?? p.unrealizedPnl ?? 0,
+            stopLoss: p.stopLoss,
+            takeProfit: p.takeProfit,
+            exchange: p.exchange,
+            openedAt: p.openedAt,
+            source: 'nestjs' as const,
+          }))
+          set({
+            positions,
+            lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            dataSource: 'nestjs',
+          })
+          return
+        }
+        // NestJS أرجع قائمة فارغة — لا مراكز مفتوحة
+        if (Array.isArray(raw)) {
+          set({
+            positions: [],
+            lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+            dataSource: 'nestjs',
+          })
+          return
+        }
+      }
+    } catch {
+      // NestJS غير متاح — نحاول Alpaca
+    }
+
+    // ── المحاولة الثانية: Alpaca API ──
+    try {
       const res = await fetch('/api/alpaca/positions')
       const j = await res.json()
       if (j.success && Array.isArray(j.data)) {
         set({
           positions: j.data,
-          lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+          lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+          dataSource: 'alpaca',
         })
       } else {
         set({ error: j.error || 'فشل في جلب المراكز' })

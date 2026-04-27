@@ -45,8 +45,11 @@ let authPromise: Promise<void> | null = null
  * NOTE: We do NOT check document.cookie.includes('roua_session=')
  * because roua_session is an httpOnly cookie — it's invisible to
  * JavaScript. Always call /api/auth/me to verify/create the session.
+ *
+ * This function is shared between api-fetch.ts and usePositionsStore.ts
+ * to avoid duplicate /api/auth/me calls.
  */
-async function ensureAuth(): Promise<void> {
+export async function ensureAuth(): Promise<void> {
   // Reuse in-flight auth request
   if (authPromise) return authPromise
 

@@ -47,6 +47,13 @@ export default function SettingsPage() {
 
   return (
     <div className="custom-scrollbar" style={{ padding: '32px 24px', direction: 'rtl', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto' }}>
+      <style>{`
+        @media (max-width: 767px) {
+          .settings-wrapper { padding: 16px 12px !important; }
+          .settings-profile-card { flex-direction: column; text-align: center; gap: 12px; }
+        }
+      `}</style>
+      <div className="settings-wrapper">
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
@@ -64,7 +71,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Profile Section */}
-      <div style={{
+      <div className="settings-profile-card" style={{
         background: T.card, border: `1px solid ${T.border}`,
         borderRadius: 16, padding: 24, marginBottom: 20,
         display: 'flex', alignItems: 'center', gap: 20,
@@ -325,6 +332,7 @@ export default function SettingsPage() {
             fontFamily: "'JetBrains Mono', monospace",
           }}>قريباً</span>
         </div>
+      </div>
       </div>
     </div>
   )

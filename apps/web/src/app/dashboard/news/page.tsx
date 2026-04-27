@@ -169,6 +169,15 @@ export default function NewsPage() {
 
   return (
     <div style={{ padding: '32px 24px', direction: 'rtl', fontFamily: "'Cairo', sans-serif", maxWidth: 1200, margin: '0 auto' }}>
+      <style>{`
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes live-dot { 0%, 100% { transform: scale(1); opacity: 0.65; } 50% { transform: scale(1.35); opacity: 1; } }
+        @media (max-width: 767px) {
+          .news-wrapper { padding: 16px 12px !important; }
+          .news-article-pad { padding: 12px 14px !important; }
+        }
+      `}</style>
+      <div className="news-wrapper" style={{ padding: '32px 24px' }}>
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
@@ -376,7 +385,7 @@ export default function NewsPage() {
                   transition: 'all 0.2s',
                 }}
               >
-                <div style={{ padding: '18px 20px' }}>
+                <div className="news-article-pad" style={{ padding: '18px 20px' }}>
                   {/* Top bar: badges and time */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
                     {item.categoryAr && (
@@ -533,6 +542,7 @@ export default function NewsPage() {
         )}
         </>
       )}
+      </div>
     </div>
   );
 }

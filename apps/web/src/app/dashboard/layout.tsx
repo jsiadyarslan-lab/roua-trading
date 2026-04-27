@@ -2,6 +2,7 @@ import { AppHeader } from '@/components/dashboard/AppHeader'
 import { MarketProvider } from '@/components/dashboard/MarketProvider'
 import { AuthInitializer } from '@/components/dashboard/AuthInitializer'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import ServiceWorkerRegistrar from '@/components/dashboard/ServiceWorkerRegistrar'
 import { Metadata, Viewport } from 'next'
 
 export const dynamic = 'force-dynamic'
@@ -10,6 +11,11 @@ export const metadata: Metadata = {
   title: 'رؤى | منصة التداول الاحترافية',
   description: 'منصة رؤى للتداول الذكي - Roua Trading Platform',
   manifest: '/manifest.json',
+  applicationName: 'Roua Trading',
+  icons: {
+    icon: '/logo.svg',
+    apple: '/logo-192.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -37,6 +43,7 @@ export default function DashboardLayout({
         <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <ErrorBoundary>
             <AuthInitializer />
+            <ServiceWorkerRegistrar />
             {children}
           </ErrorBoundary>
         </main>

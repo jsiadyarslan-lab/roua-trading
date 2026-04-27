@@ -369,7 +369,7 @@ export default function PositionsPage() {
               </div>
             ) : (
               /* Desktop Table */
-              <div className="custom-scrollbar" style={{ overflowX: 'auto' }}>
+              <div className="custom-scrollbar scroll-touch" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <caption className="sr-only">جدول المراكز المفتوحة</caption>
                   <thead>

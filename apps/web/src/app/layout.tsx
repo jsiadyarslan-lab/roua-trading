@@ -31,7 +31,8 @@ export const metadata: Metadata = {
   title: "رؤى | منصة التداول الذكية",
   description: "منصة رؤى للتداول الذكي - Roua Trading Platform",
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/logo.svg",
+    apple: "/logo-192.png",
   },
 };
 
@@ -48,6 +49,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" className="dark" suppressHydrationWarning>
+      <head>
+        <link rel="apple-touch-icon" href="/logo-192.png" />
+      </head>
       <body
         className={`${cairo.variable} ${inter.variable} ${jetbrains.variable} ${orbitron.variable} antialiased`}
       >

@@ -436,6 +436,15 @@ export default function AIPage() {
         .ai-model-status {
           display: flex; gap: 6px;
         }
+        /* Tablet breakpoint */
+        @media (max-width: 1024px) and (min-width: 768px) {
+          .ai-left-col {
+            flex: 0 0 260px !important;
+          }
+          .ai-right-col {
+            flex: 0 0 240px !important;
+          }
+        }
         @media (max-width: 767px) {
           .ai-main-content {
             flex-direction: column !important;
@@ -455,12 +464,17 @@ export default function AIPage() {
           .ai-top-bar {
             flex-wrap: wrap;
             gap: 8px !important;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
           }
           .ai-model-status {
             display: none !important;
           }
           .ai-quick-actions {
             display: none !important;
+          }
+          .ai-chat-msg {
+            min-width: auto !important;
           }
         }
       `}</style>
@@ -835,7 +849,7 @@ export default function AIPage() {
                   borderTopLeftRadius: msg.role === 'ai' ? 4 : 12,
                   whiteSpace: 'pre-wrap',
                   minWidth: 200,
-                }}>
+                }} className="ai-chat-msg">
                   {msg.content}
                   <div style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',

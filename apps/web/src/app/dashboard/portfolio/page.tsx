@@ -389,11 +389,14 @@ export default function PortfolioPage() {
         ::-webkit-scrollbar-thumb { background: #0A84FF44; border-radius: 4px; }
         .portfolio-charts-row { display: flex; gap: 10px; margin-bottom: 12px; }
         .portfolio-distribution { flex: 0 0 300px; }
+        .portfolio-tabs-row { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
         @media (max-width: 767px) {
           .portfolio-charts-row { flex-direction: column !important; }
-          .portfolio-distribution { flex: 0 0 auto !important; }
-          .portfolio-table-wrap { overflow-x: auto; }
+          .portfolio-distribution { flex: 0 0 auto !important; width: 100% !important; }
+          .portfolio-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
           .portfolio-table-wrap > div { min-width: 700px; }
+          .portfolio-stats-row { flex-wrap: wrap !important; }
+          .portfolio-stats-row > * { flex: 1 1 calc(50% - 4px) !important; min-width: 140px; }
         }
       `}</style>
 
@@ -425,7 +428,7 @@ export default function PortfolioPage() {
       {apiError && <ApiErrorBanner error={apiError} onRetry={fetchAll} />}
 
       {/* ── Stats cards ── */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+      <div className="portfolio-stats-row" style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         <StatCard
           label="المراكز المفتوحة" value={String(positions.length)}
           color={T.cyan} icon={BarChart2}
@@ -455,7 +458,7 @@ export default function PortfolioPage() {
       </div>
 
       {/* ── Tabs ── */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+      <div className="portfolio-tabs-row" style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
         <TabButton label="الصفقات" icon={Activity} active={tab === 'positions'} onClick={() => setTab('positions')} count={positions.length + closedPositions.length + closedPaperTrades.length} />
         <TabButton label="الأداء" icon={TrendingUp} active={tab === 'performance'} onClick={() => setTab('performance')} />
         <TabButton label="المخاطر" icon={Shield} active={tab === 'risk'} onClick={() => setTab('risk')} />

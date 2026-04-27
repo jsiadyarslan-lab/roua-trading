@@ -192,11 +192,15 @@ export default function StrategiesPage() {
       display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden'
     }}>
       <style>{`
+        .strategies-row-2col { display: flex; gap: 12px; }
+        .strategies-quant-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
         @media (max-width: 767px) {
           .strategies-top-bar { display: none !important; }
           .strategies-sidebar { display: none !important; }
           .strategies-sidebar.strategies-sidebar-open { display: flex !important; position: fixed; top: 0; right: 0; bottom: 0; z-index: 50; width: 280px !important; box-shadow: -4px 0 20px rgba(0,0,0,0.5); }
           .strategies-main { flex: 1 !important; }
+          .strategies-row-2col { flex-direction: column !important; }
+          .strategies-quant-grid { grid-template-columns: repeat(2, 1fr) !important; }
         }
       `}</style>
       {/* ── 1. Top Bar: Macroeconomic Radar (Ultra-Micro) ── */}
@@ -364,7 +368,7 @@ export default function StrategiesPage() {
             <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }`}</style>
             
             {/* ROW 1: Risk Matrix (Left) & Decision (Right) From Image */}
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div className="strategies-row-2col">
                {/* Right side: Direct Decision */}
                <div style={{ flex: 1.2, background: T.cardHover, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
@@ -407,7 +411,7 @@ export default function StrategiesPage() {
             </div>
 
             {/* ROW 2: Quantitative Data & Fair Value */}
-            <div style={{ display: 'flex', gap: 12 }}>
+            <div className="strategies-row-2col">
               
               {/* Quant Grid */}
               <div style={{ flex: 1.5, background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 16 }}>
@@ -415,7 +419,7 @@ export default function StrategiesPage() {
                   <Building2 size={14} color={T.blue} />
                   <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: T.text }}>المقاييس الكمية</h3>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+                <div className="strategies-quant-grid">
                   {[
                     { label: 'VaR (95%)', val: active.risk.var, desc: 'القيمة للخطر', alert: false },
                     { label: 'Beta (1Y)', val: active.risk.beta, desc: 'تقلب السوق', alert: Number(active.risk.beta) > 2 },

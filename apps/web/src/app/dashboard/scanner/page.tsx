@@ -82,10 +82,11 @@ function ScannerContent() {
 
   return (
     <div style={{
-      width: '100%', height: 'calc(100vh - 60px)',
+      width: '100%', height: 'calc(100dvh - 60px)',
       background: T.bg, padding: '8px 16px', boxSizing: 'border-box',
       direction: 'rtl', fontFamily: "'Cairo', sans-serif",
-      display: 'flex', gap: 12, overflow: 'hidden'
+      display: 'flex', gap: 12, overflow: 'hidden',
+      paddingTop: isMobile ? '48px' : '8px',
     }}>
       <style>{`
         ::-webkit-scrollbar { width: 4px; height: 4px; }
@@ -95,6 +96,7 @@ function ScannerContent() {
         @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         @keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:0.5; } }
         .scanner-sidebar-wrapper { display: flex; }
+        .scanner-table-scroll { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
         @media (max-width: 767px) {
           .scanner-sidebar-wrapper { display: none !important; }
           .scanner-sidebar-wrapper.scanner-sidebar-visible { display: flex !important; position: fixed; top: 0; right: 0; bottom: 0; z-index: 50; box-shadow: -4px 0 20px rgba(0,0,0,0.5); }

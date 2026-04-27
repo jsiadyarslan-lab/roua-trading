@@ -1,7 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft, Menu, X } from 'lucide-react'
 
 interface SubPageLayoutProps {
   children: React.ReactNode
@@ -27,6 +28,7 @@ export default function SubPageLayout({
   onTabChange,
 }: SubPageLayoutProps) {
   const router = useRouter()
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
     <div dir="rtl" style={{ minHeight: '100vh', background: 'var(--bg-app)', color: 'var(--text-main)' }}>
@@ -54,7 +56,7 @@ export default function SubPageLayout({
           }}
         >
           <ChevronLeft size={16} />
-          لوحة القيادة
+          <span className="hide-mobile">لوحة القيادة</span>
         </button>
 
         <div style={{ width: '1px', height: '20px', background: 'var(--border)' }} />
@@ -73,9 +75,9 @@ export default function SubPageLayout({
 
         <div style={{ flex: 1 }} />
 
-        {/* Tabs */}
+        {/* Desktop Tabs */}
         {tabs && (
-          <div style={{ display: 'flex', gap: '2px', background: 'var(--bg-input)', borderRadius: '8px', padding: '2px' }}>
+          <div className="subpage-tabs-desktop" style={{ display: 'flex', gap: '2px', background: 'var(--bg-input)', borderRadius: '8px', padding: '2px' }}>
             {tabs.map(tab => (
               <button
                 key={tab.id}
@@ -94,14 +96,75 @@ export default function SubPageLayout({
           </div>
         )}
 
+        {/* Mobile tab menu button */}
+        {tabs && (
+          <button
+            className="subpage-tabs-mobile-btn"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            style={{
+              display: 'none', width: 32, height: 32, borderRadius: 6,
+              background: 'var(--bg-input)', border: '1px solid var(--border)',
+              color: 'var(--text-muted)', cursor: 'pointer',
+              alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            {mobileMenuOpen ? <X size={14} /> : <Menu size={14} />}
+          </button>
+        )}
+
         {/* Actions */}
         {actions}
       </div>
 
+      {/* Mobile tab dropdown */}
+      {tabs && mobileMenuOpen && (
+        <div className="subpage-tabs-mobile-dropdown" style={{
+          display: 'none',
+          background: 'var(--bg-nav)',
+          borderBottom: '1px solid var(--border)',
+          padding: '8px 12px',
+          gap: '4px',
+          flexWrap: 'wrap',
+        }}>
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => { onTabChange?.(tab.id); setMobileMenuOpen(false) }}
+              style={{
+                padding: '6px 14px', borderRadius: '6px', border: 'none', cursor: 'pointer',
+                fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-ar)',
+                background: activeTab === tab.id ? 'var(--accent)' : 'var(--bg-input)',
+                color: activeTab === tab.id ? '#fff' : 'var(--text-muted)',
+                transition: 'all 0.15s',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Main Content */}
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px' }}>
+      <div className="subpage-content" style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px' }}>
         {children}
       </div>
+
+      <style>{`
+        @media (max-width: 767px) {
+          .subpage-tabs-desktop {
+            display: none !important;
+          }
+          .subpage-tabs-mobile-btn {
+            display: flex !important;
+          }
+          .subpage-tabs-mobile-dropdown {
+            display: flex !important;
+          }
+          .subpage-content {
+            padding: 20px 12px !important;
+          }
+        }
+      `}</style>
     </div>
   )
 }

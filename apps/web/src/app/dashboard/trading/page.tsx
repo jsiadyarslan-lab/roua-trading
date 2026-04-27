@@ -805,7 +805,7 @@ export default function TradingPage() {
                 )}
 
                 {/* Price Chart */}
-                <div className="h-[300px] md:h-[350px]" dir="ltr">
+                <div className="h-[250px] md:h-[300px] lg:h-[350px]" dir="ltr">
                   {chartData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={chartData}>

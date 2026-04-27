@@ -40,7 +40,7 @@ export function QuickExecutionMini({
   useEffect(() => {
     fetch('/api/alpaca/account')
       .then(r => r.json())
-      .then(j => { if (j.success) setAccount({ cash: j.data.cash, buyingPower: j.data.buyingPower }) })
+      .then(j => { if (j.success && j.data) setAccount({ cash: j.data.cash ?? 0, buyingPower: j.data.buyingPower ?? 0 }) })
       .catch(() => {})
   }, [])
 
@@ -194,7 +194,7 @@ export function QuickExecutionMini({
         })
         // Refresh account balance
         fetch('/api/alpaca/account').then(r=>r.json()).then(j => {
-          if (j.success) setAccount({ cash: j.data.cash, buyingPower: j.data.buyingPower })
+          if (j.success && j.data) setAccount({ cash: j.data.cash ?? 0, buyingPower: j.data.buyingPower ?? 0 })
         })
         // Refresh dashboard account + positions so balance/margin update immediately
         fetchAccount()

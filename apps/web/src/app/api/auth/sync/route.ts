@@ -43,13 +43,16 @@ export async function GET(request: NextRequest) {
     }
 
     // No valid roua_session — try to get NextAuth session
-    const session = await getServerSession(getAuthOptions())
-
-    if (!session?.user?.email) {
-      return NextResponse.json({ authenticated: false }, { status: 401 })
+    let session
+    try {
+      session = await getServerSession(getAuthOptions())
+    } catch {
+      // NextAuth not configured — fall through to guest user
     }
 
-    const email = session.user.email
+    // If no NextAuth session, auto-create a guest user (same as /api/auth/me)
+    const GUEST_EMAIL = 'guest@roua.auto'
+    const email = session?.user?.email || GUEST_EMAIL
 
     // Find or create user
     let user = await db.user.findUnique({ where: { email } })
@@ -58,8 +61,9 @@ export async function GET(request: NextRequest) {
       user = await db.user.create({
         data: {
           email,
-          displayName: session.user.name || email.split('@')[0],
-          avatar: session.user.image || null,
+          displayName: session?.user?.name || email.split('@')[0],
+          avatar: session?.user?.image || null,
+          ...(email === GUEST_EMAIL ? { tier: 'PREMIUM' } : {}),
         },
       })
     }

@@ -9,7 +9,7 @@ interface Position {
   currentPrice:  number
   marketValue:   number
   unrealizedPnl: number
-  unrealizedPct: number
+  unrealizedPnlPct: number
   sl?: number
   tp?: number
 }
@@ -28,6 +28,27 @@ interface PositionsState {
   fetchPositions: () => Promise<void>
   fetchAccount: () => Promise<void>
   updatePositionPrice: (symbol: string, price: number) => void
+}
+
+// ── Auto-auth: ensure session cookie exists before Alpaca API calls ──
+let authPromise: Promise<void> | null = null
+
+async function ensureAuth(): Promise<void> {
+  if (typeof document !== 'undefined') {
+    const hasCookie = document.cookie.includes('roua_session=')
+    if (hasCookie) return
+  }
+  if (authPromise) return authPromise
+
+  authPromise = (async () => {
+    try {
+      await fetch('/api/auth/me')
+    } catch {
+      // Auth init failed — will retry on next call
+    }
+  })()
+
+  return authPromise
 }
 
 export const usePositionsStore = create<PositionsState>((set, get) => ({
@@ -63,19 +84,19 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
 
       // حساب P&L غير المحقق
       let unrealizedPnl = 0
-      let unrealizedPct = 0
+      let unrealizedPnlPct = 0
       if (p.avgEntryPrice > 0) {
         const diff = isLong
           ? currentPrice - p.avgEntryPrice
           : p.avgEntryPrice - currentPrice
         unrealizedPnl = diff * p.qty
-        unrealizedPct = p.avgEntryPrice > 0 ? (diff / p.avgEntryPrice) * 100 : 0
+        unrealizedPnlPct = p.avgEntryPrice > 0 ? (diff / p.avgEntryPrice) * 100 : 0
       }
 
       const marketValue = currentPrice * p.qty
       changed = true
 
-      return { ...p, currentPrice, unrealizedPnl, unrealizedPct, marketValue }
+      return { ...p, currentPrice, unrealizedPnl, unrealizedPnlPct, marketValue }
     })
 
     if (!changed) return
@@ -83,20 +104,24 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
   },
   fetchAccount: async () => {
     try {
+      // Ensure session cookie exists before making Alpaca API calls
+      await ensureAuth()
       const res = await fetch('/api/alpaca/account')
       const j = await res.json()
-      if (j.success) set({ account: j.data })
+      if (j.success && j.data) set({ account: j.data })
     } catch {}
   },
   fetchPositions: async () => {
     set({ loading: true, error: null })
     try {
+      // Ensure session cookie exists before making Alpaca API calls
+      await ensureAuth()
       const res = await fetch('/api/alpaca/positions')
       const j = await res.json()
-      if (j.success) {
-        set({ 
-          positions: j.data, 
-          lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) 
+      if (j.success && Array.isArray(j.data)) {
+        set({
+          positions: j.data,
+          lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
         })
       } else {
         set({ error: j.error || 'فشل في جلب المراكز' })

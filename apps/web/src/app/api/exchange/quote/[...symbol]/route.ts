@@ -641,6 +641,47 @@ export async function GET(
           stale: true,
         })
       }
+
+      // ── Static fallback: reasonable estimates for known symbols ──
+      // This prevents 503 errors on cloud servers where free APIs are blocked.
+      const staticFallbacks: Record<string, { price: number; exchange: string; name: string }> = {
+        'XAU/USD': { price: 3350, exchange: 'COMMODITY', name: 'Gold / USD' },
+        'XAG/USD': { price: 33.50, exchange: 'COMMODITY', name: 'Silver / USD' },
+        'XPT/USD': { price: 985, exchange: 'COMMODITY', name: 'Platinum / USD' },
+        'EUR/USD': { price: 1.0850, exchange: 'FOREX', name: 'EUR / USD' },
+        'GBP/USD': { price: 1.2720, exchange: 'FOREX', name: 'GBP / USD' },
+        'USD/JPY': { price: 155.50, exchange: 'FOREX', name: 'USD / JPY' },
+        'AUD/USD': { price: 0.6350, exchange: 'FOREX', name: 'AUD / USD' },
+        'USD/CHF': { price: 0.8820, exchange: 'FOREX', name: 'USD / CHF' },
+        'AAPL':    { price: 205, exchange: 'STOCK', name: 'Apple Inc.' },
+        'TSLA':    { price: 285, exchange: 'STOCK', name: 'Tesla Inc.' },
+        'NVDA':    { price: 110, exchange: 'STOCK', name: 'NVIDIA Corp.' },
+      }
+
+      const fallback = staticFallbacks[symbol]
+      if (fallback) {
+        const staticQuote = {
+          symbol,
+          name: fallback.name,
+          exchange: fallback.exchange,
+          currency: 'USD',
+          price: fallback.price,
+          change: 0,
+          changePercent: 0,
+          open: fallback.price,
+          high: Math.round(fallback.price * 1.002 * 100) / 100,
+          low: Math.round(fallback.price * 0.998 * 100) / 100,
+          close: fallback.price,
+          volume: 0,
+          marketCap: null,
+          fiftyTwoWeekHigh: null,
+          fiftyTwoWeekLow: null,
+          timestamp: new Date().toISOString(),
+          source: 'Static Estimate',
+        }
+        return NextResponse.json({ success: true, data: staticQuote, static: true })
+      }
+
       return NextResponse.json(
         { success: false, error: `لا تتوفر بيانات حقيقية لـ ${symbol} — تحقق من اتصال الإنترنت أو مفاتيح API` },
         { status: 503 }

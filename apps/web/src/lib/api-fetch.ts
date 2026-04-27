@@ -3,6 +3,9 @@
  *
  * عندما يفشل الطلب إلى NestJS API (مثل 401 غير مصادَق)،
  * يرجع تلقائيًا إلى Alpaca API المباشر الذي لا يتطلب مصادقة.
+ *
+ * يتضمن ضمان المصادقة التلقائية: عند أول طلب، يتصل بـ /api/auth/me
+ * لإنشاء جلسة ضيف إذا لم تكن هناك جلسة موجودة.
  */
 
 /** صيغة المركز الموحدة */
@@ -31,6 +34,39 @@ export interface UnifiedSummary {
   source?: 'nestjs' | 'alpaca'
 }
 
+// ── Auto-auth: ensure session cookie exists before API calls ──
+let authPromise: Promise<void> | null = null
+
+/**
+ * Ensures a roua_session cookie exists by calling /api/auth/me.
+ * This is called lazily before the first API request that needs auth.
+ * The promise is cached so we only do this once per page load.
+ */
+async function ensureAuth(): Promise<void> {
+  // Check if we already have a session cookie
+  if (typeof document !== 'undefined') {
+    const hasCookie = document.cookie.includes('roua_session=')
+    if (hasCookie) return
+  }
+
+  // Reuse in-flight auth request
+  if (authPromise) return authPromise
+
+  authPromise = (async () => {
+    try {
+      const res = await fetch('/api/auth/me')
+      const data = await res.json()
+      if (data.authenticated) {
+        // Session cookie is now set by the server
+      }
+    } catch {
+      // Auth init failed — API calls will fall back gracefully
+    }
+  })()
+
+  return authPromise
+}
+
 /**
  * جلب المراكز المفتوحة مع رجوع تلقائي
  * - يحاول أولاً NestJS API (/api/trading/positions)
@@ -41,6 +77,9 @@ export async function fetchPositionsUnified(): Promise<{
   source: 'nestjs' | 'alpaca'
   error?: string
 }> {
+  // Ensure auth cookie exists before making API calls
+  await ensureAuth()
+
   // المحاولة الأولى: NestJS API
   try {
     const res = await fetch('/api/trading/positions')
@@ -118,6 +157,9 @@ export async function fetchSummaryUnified(): Promise<{
   summary: UnifiedSummary | null
   source: 'nestjs' | 'alpaca'
 }> {
+  // Ensure auth cookie exists before making API calls
+  await ensureAuth()
+
   // المحاولة الأولى: NestJS API
   try {
     const res = await fetch('/api/trading/positions/summary')
@@ -171,6 +213,9 @@ export async function closePositionUnified(
   positionId: string,
   quantity?: number,
 ): Promise<{ success: boolean; error?: string; source: 'nestjs' | 'alpaca' }> {
+  // Ensure auth cookie exists before making API calls
+  await ensureAuth()
+
   // المحاولة الأولى: NestJS API
   try {
     const body: Record<string, unknown> = { positionId }

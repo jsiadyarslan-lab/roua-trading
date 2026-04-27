@@ -1,5 +1,6 @@
 import { AppHeader } from '@/components/dashboard/AppHeader'
 import { MarketProvider } from '@/components/dashboard/MarketProvider'
+import { AuthInitializer } from '@/components/dashboard/AuthInitializer'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { Metadata, Viewport } from 'next'
 
@@ -35,6 +36,7 @@ export default function DashboardLayout({
         <AppHeader />
         <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           <ErrorBoundary>
+            <AuthInitializer />
             {children}
           </ErrorBoundary>
         </main>

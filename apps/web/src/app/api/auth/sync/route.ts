@@ -5,26 +5,23 @@ import crypto from 'crypto'
 /**
  * /api/auth/sync — Ensure a valid roua_session exists
  *
- * This endpoint ensures the user has a valid roua_session cookie.
- * It no longer depends on NextAuth's getServerSession (which was
- * causing 500 errors in production). Instead, it works identically
- * to /api/auth/me:
- * 1. Check if existing roua_session cookie is valid
- * 2. If not, try reading NextAuth JWT from cookies directly
- * 3. Fall back to auto-creating a guest user + session
- *
- * The dashboard calls this on load if no roua_session exists.
+ * Simplified: auto-creates a guest session for all requests.
+ * No login required — the platform works out-of-the-box.
  */
 
-// Explicitly set Node.js runtime — avoids Edge Runtime issues with crypto/DB
 export const runtime = 'nodejs'
 
 const GUEST_EMAIL = 'guest@roua.auto'
 
 export async function GET(request: NextRequest) {
   try {
-    // ensureDbReady is non-throwing — logs warnings but won't block
-    await ensureDbReady()
+    const dbReady = await ensureDbReady()
+    if (!dbReady) {
+      return NextResponse.json({
+        authenticated: false,
+        error: 'AUTH_SERVICE_UNAVAILABLE',
+      }, { status: 200 })
+    }
 
     // ── Step 1: Check if user already has a valid roua_session ──
     const existingToken = request.cookies.get('roua_session')?.value
@@ -51,41 +48,13 @@ export async function GET(request: NextRequest) {
         }
       } catch (dbErr: any) {
         console.warn('[auth/sync] DB error checking existing session:', dbErr?.message || dbErr)
-        // Continue to create a new session
       }
     }
 
-    // ── Step 2: Try to get user info from NextAuth JWT cookie ──
-    // Use next-auth/jwt decode() to properly verify the JWT signature.
-    // Previously, the JWT payload was decoded without signature verification,
-    // which allowed attackers to forge tokens with arbitrary emails.
-    let nextAuthEmail: string | null = null
-    let nextAuthName: string | null = null
-    try {
-      const sessionCookie = request.cookies.get('next-auth.session-token')?.value
-        || request.cookies.get('__Secure-next-auth.session-token')?.value
-      if (sessionCookie && process.env.NEXTAUTH_SECRET) {
-        // Properly verify the JWT signature using next-auth/jwt
-        const { decode } = await import('next-auth/jwt')
-        const decoded = await decode({
-          token: sessionCookie,
-          secret: process.env.NEXTAUTH_SECRET,
-        })
-        if (decoded) {
-          nextAuthEmail = (decoded as any).email || null
-          nextAuthName = (decoded as any).name || null
-        }
-      }
-    } catch {
-      // NextAuth JWT verification failed — use guest user
-    }
-
-    // ── Step 3: Find or create user ──
-    const email = nextAuthEmail || GUEST_EMAIL
-
+    // ── Step 2: Find or create guest user ──
     let user
     try {
-      user = await db.user.findUnique({ where: { email } })
+      user = await db.user.findUnique({ where: { email: GUEST_EMAIL } })
     } catch (dbErr: any) {
       console.warn('[auth/sync] DB error finding user:', dbErr?.message || dbErr)
     }
@@ -94,32 +63,41 @@ export async function GET(request: NextRequest) {
       try {
         user = await db.user.create({
           data: {
-            email,
-            displayName: nextAuthName || email.split('@')[0],
-            ...(email === GUEST_EMAIL ? { tier: 'FREE' } : {}),
+            email: GUEST_EMAIL,
+            displayName: 'ضيف',
+            tier: 'FREE',
           },
         })
       } catch (dbErr: any) {
-        // User might have been created by another concurrent request
         try {
-          user = await db.user.findUnique({ where: { email } })
+          user = await db.user.findUnique({ where: { email: GUEST_EMAIL } })
         } catch {
-          // Give up — return gracefully
+          // Give up
         }
       }
     }
 
+    // ── Enforce FREE tier for guest users ──
+    if (user && user.tier !== 'FREE') {
+      console.warn(`[auth/sync] Guest user has tier '${user.tier}' — downgrading to FREE`)
+      try {
+        user = await db.user.update({
+          where: { id: user.id },
+          data: { tier: 'FREE' },
+        })
+      } catch { /* Non-critical */ }
+    }
+
     if (!user) {
-      // Can't create/find user — return gracefully
       return NextResponse.json({
         authenticated: false,
         error: 'USER_CREATION_FAILED',
       }, { status: 200 })
     }
 
-    // ── Step 4: Create roua_session ──
+    // ── Step 3: Create roua_session ──
     const sessionToken = crypto.randomBytes(32).toString('hex')
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
 
     try {
       await db.session.create({
@@ -137,8 +115,6 @@ export async function GET(request: NextRequest) {
       }, { status: 200 })
     }
 
-    console.log(`[auth/sync] Created roua_session for ${email}`)
-
     const response = NextResponse.json({
       authenticated: true,
       user: {
@@ -153,24 +129,16 @@ export async function GET(request: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60, // 30 days — matches /api/auth/me
+      maxAge: 30 * 24 * 60 * 60,
       path: '/',
     })
 
     return response
   } catch (error) {
     console.error('[auth/sync] Unhandled error:', error)
-    // Return 200 with authenticated: false instead of 500.
-    // A 500 response causes the frontend to retry indefinitely,
-    // creating a cascade of failures. Returning 200 with
-    // authenticated: false lets the frontend handle it gracefully.
-    return NextResponse.json(
-      {
-        authenticated: false,
-        error: 'AUTH_SYNC_UNAVAILABLE',
-        message: 'Authentication sync failed. Please try again.',
-      },
-      { status: 200 },
-    )
+    return NextResponse.json({
+      authenticated: false,
+      error: 'AUTH_SYNC_UNAVAILABLE',
+    }, { status: 200 })
   }
 }

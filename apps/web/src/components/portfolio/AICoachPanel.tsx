@@ -7,6 +7,7 @@ import {
   Award, Sparkles, X
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 
 /* ── Theme ── */
 const T = {
@@ -200,6 +201,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
 /* ── Main AICoachPanel Component ── */
 export default function AICoachPanel() {
   const { user } = useAuth()
+  const { closedTrades, trades: openTrades } = usePaperTradesStore()
   const [coachData, setCoachData] = useState<CoachData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -214,10 +216,28 @@ export default function AICoachPanel() {
     setLoading(true)
     setError(null)
     try {
+      // Send closed trades from localStorage to the coach API
       const res = await fetch('/api/coach/performance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user?.id || 'anonymous' }),
+        body: JSON.stringify({
+          userId: user?.id || 'anonymous',
+          closedPaperTrades: closedTrades.map(t => ({
+            symbol: t.symbol,
+            side: t.side === 'long' ? 'BUY' : 'SELL',
+            realizedPnl: t.realizedPnl,
+            realizedPct: t.realizedPct,
+            entryPrice: t.entryPrice,
+            exitPrice: t.exitPrice,
+            closeTime: t.closeTime,
+          })),
+          openPaperTrades: openTrades.map(t => ({
+            symbol: t.symbol,
+            side: t.side === 'long' ? 'BUY' : 'SELL',
+            unrealizedPnl: t.unrealizedPnl,
+            entryPrice: t.entryPrice,
+          })),
+        }),
       })
       const data = await res.json()
       if (data.success) {

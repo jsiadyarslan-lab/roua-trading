@@ -13,7 +13,7 @@ import { db } from '@/lib/db'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { userId: bodyUserId } = body
+    const { userId: bodyUserId, closedPaperTrades = [], openPaperTrades = [] } = body
 
     // Resolve userId: prefer session cookie over body param for security
     let userId = bodyUserId
@@ -93,13 +93,14 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Calculate statistics
-    // Combine all PnL sources: Trade.pnl + Position.realizedPnl
-    // For PaperOrders without explicit PnL, calculate from buy/sell pairs
+    // Combine all PnL sources: Trade.pnl + Position.realizedPnl + PaperOrder pairs + Client-side closedTrades
     const paperPnl = calculatePaperPnl(paperOrders)
+    const clientClosedPnl = (closedPaperTrades || []).map((t: any) => Number(t.realizedPnl) || 0)
     const allPnl = [
       ...trades.map((t: any) => t.pnl || 0),
       ...closedPositions.map((p: any) => Number(p.realizedPnl) || 0),
       ...paperPnl,
+      ...clientClosedPnl,
     ]
 
     const winningTrades = allPnl.filter((p: number) => p > 0)
@@ -135,12 +136,14 @@ export async function POST(req: NextRequest) {
     const symbolCounts: Record<string, number> = {}
     trades.forEach((t: any) => { symbolCounts[t.symbol] = (symbolCounts[t.symbol] || 0) + 1 })
     paperOrders.forEach((o: any) => { symbolCounts[o.symbol] = (symbolCounts[o.symbol] || 0) + 1 })
+    ;(closedPaperTrades || []).forEach((t: any) => { symbolCounts[t.symbol] = (symbolCounts[t.symbol] || 0) + 1 })
     const mostTradedSymbol = Object.entries(symbolCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '—'
 
-    // Long vs short — include paper orders
+    // Long vs short — include paper orders and client-side trades
     const allTrades = [
       ...trades,
       ...paperOrders.map((o: any) => ({ symbol: o.symbol, side: o.side, pnl: 0 })),
+      ...(closedPaperTrades || []).map((t: any) => ({ symbol: t.symbol, side: t.side || 'BUY', pnl: Number(t.realizedPnl) || 0 })),
     ]
     const longTrades = allTrades.filter((t: any) => t.side === 'BUY')
     const shortTrades = allTrades.filter((t: any) => t.side === 'SELL')

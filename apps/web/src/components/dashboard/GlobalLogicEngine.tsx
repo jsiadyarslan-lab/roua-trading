@@ -8,44 +8,66 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
 /**
  * GlobalLogicEngine
  * Background component that synchronizes market prices with open trades and account data.
- * This fixes the "frozen" prices in the positions table.
+ * This fixes the "frozen" prices/P&L in the positions table by bridging real-time
+ * market quotes (Binance WS, REST polling) to both paper trades AND real Alpaca positions.
  */
 export function GlobalLogicEngine() {
   const quotes = useMarketStore(s => s.quotes)
   const updatePaperPrice = usePaperTradesStore(s => s.updatePrice)
+  const updatePositionPrice = usePositionsStore(s => s.updatePositionPrice)
   const fetchRealPositions = usePositionsStore(s => s.fetchPositions)
+  const fetchAccount = usePositionsStore(s => s.fetchAccount)
   const lastPriceSyncRef = useRef<Record<string, number>>({})
 
   useEffect(() => {
     const now = Date.now()
-    const activeTrades = usePaperTradesStore.getState().trades
+    const activePaperTrades = usePaperTradesStore.getState().trades
+    const realPositions = usePositionsStore.getState().positions
 
     Object.entries(quotes).forEach(([symbol, q]) => {
       const price = q?.price
       if (typeof price !== 'number' || Number.isNaN(price)) return
 
       const normalizedSymbol = symbol.toUpperCase().replace('/', '')
-      const hasMatchingTrade = activeTrades.some(
+
+      // تحقق مما إذا كان هناك صفقة ورقية مطابقة
+      const hasMatchingPaperTrade = activePaperTrades.some(
         trade => trade.symbol.toUpperCase().replace('/', '') === normalizedSymbol
       )
 
-      if (!hasMatchingTrade) return
+      // تحقق مما إذا كان هناك مركز Alpaca حقيقي مطابق
+      const hasMatchingRealPosition = realPositions.some(
+        position => position.symbol.toUpperCase().replace('/', '') === normalizedSymbol
+      )
 
+      if (!hasMatchingPaperTrade && !hasMatchingRealPosition) return
+
+      // تقييد التحديث إلى مرة واحدة في الثانية لكل رمز
       const lastSyncAt = lastPriceSyncRef.current[normalizedSymbol] || 0
       if (now - lastSyncAt < 1000) return
 
       lastPriceSyncRef.current[normalizedSymbol] = now
-      updatePaperPrice(symbol, price)
+
+      // تحديث الصفقات الورقية بالسعر المباشر
+      if (hasMatchingPaperTrade) {
+        updatePaperPrice(symbol, price)
+      }
+
+      // تحديث مراكز Alpaca الحقيقية بالسعر المباشر (حساب P&L فوري)
+      if (hasMatchingRealPosition) {
+        updatePositionPrice(symbol, price)
+      }
     })
-  }, [quotes, updatePaperPrice])
+  }, [quotes, updatePaperPrice, updatePositionPrice])
 
   useEffect(() => {
-    // 2. Periodically refresh real Alpaca positions to ensure sync
+    // تحديث دوري لمراكز Alpaca الحقيقية وحساب الحساب
     const iv = setInterval(() => {
       fetchRealPositions()
+      fetchAccount()
     }, 15000)
     return () => clearInterval(iv)
-  }, [fetchRealPositions])
+  }, [fetchRealPositions, fetchAccount])
 
   return null
 }

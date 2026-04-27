@@ -146,7 +146,9 @@ export default function DashboardPage() {
     return quoteStatus === 'live' ? 'live' : quoteStatus === 'delayed' ? 'delayed' : 'fallback'
   })()
 
-  // Calculate P&L for balance card
+  // Calculate P&L for balance card — use live-calculated P&L from positions
+  // (positions now update in real-time via GlobalLogicEngine + useMarketStore)
+  // Fallback to account's unrealizedPnl if positions aren't loaded yet
   const equityValue = Number(account?.equity) || 0
   const cashValue = Number(account?.cash) || 0
   const longMarketValue = Number(account?.longMarketValue) || 0
@@ -154,7 +156,9 @@ export default function DashboardPage() {
   const positionsValue = longMarketValue + shortMarketValue
   const initialMargin = Number(account?.initialMargin) || 0
   const freeMargin = Math.max(0, equityValue - initialMargin) // الهامش الحر = الرصيد - الهامش المستخدم
-  const unrealizedPnl = Number(account?.unrealizedPnl) || 0
+  // P&L لحظي من المراكز (محسوب من الأسعار المباشرة) بدلاً من account.unrealizedPnl المتجمد
+  const livePositionsPnl = positions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)
+  const unrealizedPnl = positions.length > 0 ? livePositionsPnl : (Number(account?.unrealizedPnl) || 0)
   const isProfitable = unrealizedPnl >= 0
 
   return (

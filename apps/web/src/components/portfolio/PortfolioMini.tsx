@@ -54,92 +54,82 @@ function fmt(n: number, decimals = 2) {
 }
 
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
+import { usePositionsStore } from '@/hooks/usePositionsStore'
 
 export function usePortfolioSummary() {
-  const [data, setData] = useState<PortfolioSummary>(DEFAULT)
+  // نستخدم usePositionsStore مباشرة للحصول على P&L لحظي
+  // (المراكز تتحدث بالأسعار المباشرة عبر GlobalLogicEngine)
+  const positions = usePositionsStore(s => s.positions)
+  const account = usePositionsStore(s => s.account)
+  const fetchAccount = usePositionsStore(s => s.fetchAccount)
+  const fetchPositions = usePositionsStore(s => s.fetchPositions)
+  const paperTrades = usePaperTradesStore(s => s.trades)
   const [loading, setLoading] = useState(true)
 
+  // جلب البيانات أول مرة ودوريًا
   useEffect(() => {
-    async function load() {
-      try {
-        const [accRes, posRes] = await Promise.all([
-          fetch('/api/alpaca/account'),
-          fetch('/api/alpaca/positions'),
-        ])
+    fetchAccount()
+    fetchPositions()
+    setLoading(false)
+    const iv = setInterval(() => {
+      fetchAccount()
+      fetchPositions()
+    }, 10000)
+    return () => clearInterval(iv)
+  }, [fetchAccount, fetchPositions])
 
-        const acc = await accRes.json()
-        const pos = await posRes.json()
+  // حساب P&L لحظي من المراكز (التي تتحدث بالأسعار المباشرة)
+  const data = (() => {
+    const balance = Number(account?.equity) || 0
+    const margin = balance - (Number(account?.cash) || 0)
 
-        let balance = 0, margin = 0
-        if (acc.success) {
-          balance = acc.data.equity
-          margin = acc.data.equity - acc.data.cash
-        }
+    let totalPnl = 0, totalPositions = 0, pnlPercent = 0
+    let totalProfit = 0, totalLoss = 0
+    let win = 0, loss = 0
 
-        let totalPnl = 0, totalPositions = 0, pnlPercent = 0
-        let totalProfit = 0, totalLoss = 0
-        let win = 0, loss = 0
-        
-        // Sum up Alpaca real positions
-        if (pos.success) {
-          totalPositions += pos.data.length
-          pos.data.forEach((p: any) => {
-            totalPnl += p.unrealizedPnl
-            if (p.unrealizedPnl >= 0) {
-              totalProfit += p.unrealizedPnl
-              win++
-            } else {
-              totalLoss += Math.abs(p.unrealizedPnl)
-              loss++
-            }
-          })
-        }
-
-        // Add Paper trades metrics (from the LATEST state)
-        // Note: we'll sum these every time 'load' runs OR when paperTrades changes 
-        // by moving this logic to a separate step or just being careful.
-        // Actually, let's keep it simple: the stats in the sidebar update every 10s 
-        // with the API, but the paper trades themselves are live in the store.
-        
-        const ptList = usePaperTradesStore.getState().trades
-        totalPositions += ptList.length
-        ptList.forEach(pt => {
-           totalPnl += pt.unrealizedPnl
-           if (pt.unrealizedPnl >= 0) {
-             totalProfit += pt.unrealizedPnl
-             win++
-           } else {
-             totalLoss += Math.abs(pt.unrealizedPnl)
-             loss++
-           }
-        })
-
-        if (balance > 0) pnlPercent = (totalPnl / (balance - totalPnl)) * 100
-
-        setData({
-          balance,
-          margin,
-          totalPnl,
-          totalPositions,
-          pnlPercent,
-          totalProfit,
-          totalLoss,
-          winCount: win,
-          lossCount: loss,
-          totalTrades: win + loss,
-          winRate: (win + loss) > 0 ? (win / (win + loss)) * 100 : 0,
-          sharpe: null,
-        })
-
-      } catch { /* Error fetching real data */ } finally {
-        setLoading(false)
+    // مراكز Alpaca الحقيقية (P&L محدث لحظيًا من الأسعار المباشرة)
+    totalPositions += positions.length
+    positions.forEach(p => {
+      totalPnl += p.unrealizedPnl || 0
+      if (p.unrealizedPnl >= 0) {
+        totalProfit += p.unrealizedPnl
+        win++
+      } else {
+        totalLoss += Math.abs(p.unrealizedPnl)
+        loss++
       }
+    })
+
+    // الصفقات الورقية (تتحدث لحظيًا أيضًا)
+    totalPositions += paperTrades.length
+    paperTrades.forEach(pt => {
+      totalPnl += pt.unrealizedPnl
+      if (pt.unrealizedPnl >= 0) {
+        totalProfit += pt.unrealizedPnl
+        win++
+      } else {
+        totalLoss += Math.abs(pt.unrealizedPnl)
+        loss++
+      }
+    })
+
+    if (balance > 0) pnlPercent = (totalPnl / (balance - totalPnl)) * 100
+
+    return {
+      balance,
+      margin,
+      totalPnl,
+      totalPositions,
+      pnlPercent,
+      totalProfit,
+      totalLoss,
+      winCount: win,
+      lossCount: loss,
+      totalTrades: win + loss,
+      winRate: (win + loss) > 0 ? (win / (win + loss)) * 100 : 0,
+      sharpe: null as number | null,
     }
-    
-    load()
-    const interval = setInterval(load, 10000)
-    return () => clearInterval(interval)
-  }, []) // Removed paperTrades dependency to avoid infinite fetch loop
+  })()
 
   return { data, loading }
 }

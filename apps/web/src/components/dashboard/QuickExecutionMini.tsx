@@ -6,6 +6,7 @@ import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
+import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { formatExecutionLabel, formatFreshness, getStatusLabel, getStatusTone, type DataStatus, type ExecutionState } from '@/lib/dashboard-live'
 
 function formatCashValue(value: unknown) {
@@ -29,6 +30,8 @@ export function QuickExecutionMini({
   const [account, setAccount] = useState<{ cash: number; buyingPower: number } | null>(null)
   const { addTrade: addPaperTrade } = usePaperTradesStore()
   const addNotification = useNotificationStore(state => state.addNotification)
+  const fetchAccount = usePositionsStore(state => state.fetchAccount)
+  const fetchPositions = usePositionsStore(state => state.fetchPositions)
 
   // Sync when global symbol changes
   useEffect(() => { setLocalSymbol(selectedSymbol) }, [selectedSymbol])
@@ -193,6 +196,11 @@ export function QuickExecutionMini({
         fetch('/api/alpaca/account').then(r=>r.json()).then(j => {
           if (j.success) setAccount({ cash: j.data.cash, buyingPower: j.data.buyingPower })
         })
+        // Refresh dashboard account + positions so balance/margin update immediately
+        fetchAccount()
+        fetchPositions()
+        // Refresh again after 2 seconds (Alpaca sometimes takes a moment to settle)
+        setTimeout(() => { fetchAccount(); fetchPositions() }, 2000)
       } else {
         setExecutionState('rejected')
         setStatus({ msg: `❌ ${j.error || 'فشل التنفيذ'}`, type: 'error' })

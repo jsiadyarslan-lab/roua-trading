@@ -86,6 +86,7 @@ export async function alpacaFetch(
   const client = alpacaClient()
   return fetch(`${client.baseURL}${path}`, {
     ...options,
+    cache: 'no-store',
     headers: {
       ...client.headers,
       ...(options.headers || {}),

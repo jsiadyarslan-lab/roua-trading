@@ -5,6 +5,8 @@ import { alpacaFetch, fromAlpacaSymbol } from '@/lib/alpacaClient'
  * GET /api/alpaca/positions
  * جلب المراكز المفتوحة من Alpaca
  */
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const res = await alpacaFetch('/v2/positions')

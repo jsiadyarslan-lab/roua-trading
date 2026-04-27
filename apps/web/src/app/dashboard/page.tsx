@@ -153,7 +153,7 @@ export default function DashboardPage() {
   const shortMarketValue = Number(account?.shortMarketValue) || 0
   const positionsValue = longMarketValue + shortMarketValue
   const initialMargin = Number(account?.initialMargin) || 0
-  const freeMargin = cashValue // الهامش الحر = الرصيد النقدي المتاح
+  const freeMargin = Math.max(0, equityValue - initialMargin) // الهامش الحر = الرصيد - الهامش المستخدم
   const unrealizedPnl = Number(account?.unrealizedPnl) || 0
   const isProfitable = unrealizedPnl >= 0
 

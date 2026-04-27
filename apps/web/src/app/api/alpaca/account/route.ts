@@ -5,6 +5,8 @@ import { alpacaFetch } from '@/lib/alpacaClient'
  * GET /api/alpaca/account
  * جلب معلومات حساب Alpaca (الرصيد، القوة الشرائية، الحالة)
  */
+export const dynamic = 'force-dynamic'
+
 export async function GET() {
   try {
     const res = await alpacaFetch('/v2/account')
@@ -33,6 +35,8 @@ export async function GET() {
         maintenanceMargin:parseFloat(data.maintenance_margin)      || 0,
         longMarketValue:  parseFloat(data.long_market_value)       || 0,
         shortMarketValue: parseFloat(data.short_market_value)      || 0,
+        unrealizedPnl:    parseFloat(data.unrealized_pl)           || 0,
+        unrealizedPnlPct: parseFloat(data.unrealized_plpc)         || 0,
         daytradeCount:    data.daytrade_count                      || 0,
         isPaperTrading:   data.account_number?.startsWith('PA')    ?? true,
         tradingBlocked:   data.trading_blocked                     || false,

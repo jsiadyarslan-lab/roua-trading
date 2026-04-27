@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { Search, X } from 'lucide-react'
 import { PortfolioMini } from '@/components/portfolio/PortfolioMini'
 import { AlNarratorMini } from '@/components/ai/AlNarratorMini'
-import { QuickExecutionMini } from '@/components/dashboard/QuickExecutionMini'
+import { ExecutionPanel } from '@/components/dashboard/execution/ExecutionPanel'
 import { OrderBookMini } from '@/components/dashboard/OrderBookMini'
 import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
 import { PriceAlertsPanel } from '@/components/dashboard/PriceAlertsPanel'
@@ -277,7 +277,14 @@ export function SidebarContentPanel({
                 selectedSymbol={selectedSymbol}
               />
             )}
-            {activeTab === 'execute' && <QuickExecutionMini mobile />}
+            {activeTab === 'execute' && (
+              <ExecutionPanel
+                mobile
+                dataStatus={quoteStatus}
+                lastUpdatedAt={activeQuote?.timestamp ?? null}
+                sourceLabel={sourceLabel}
+              />
+            )}
             {activeTab === 'book' && <OrderBookMini />}
             {activeTab === 'watch' && <WatchlistMini />}
             {activeTab === 'alerts' && <PriceAlertsPanel />}

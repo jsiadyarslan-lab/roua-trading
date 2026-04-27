@@ -8,9 +8,12 @@ import { alpacaFetch, fromAlpacaSymbol } from '@/lib/alpacaClient'
 function requireAuth(request: NextRequest): NextResponse | null {
   const sessionToken = request.cookies.get('roua_session')?.value
   if (!sessionToken) {
+    // Return empty data instead of 401 — the portfolio page falls back
+    // to this route when NestJS is unavailable. A 401 here cascades
+    // into a visible error in the UI.
     return NextResponse.json(
-      { success: false, error: 'لم يتم تقديم رمز المصادقة' },
-      { status: 401 }
+      { success: true, data: [] },
+      { status: 200 }
     )
   }
   return null // Auth check passed

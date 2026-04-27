@@ -2,6 +2,17 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import dynamic from 'next/dynamic'
+
+// Lazy-load AICoachPanel to avoid blocking initial render
+const AICoachPanel = dynamic(() => import('@/components/portfolio/AICoachPanel'), {
+  ssr: false,
+  loading: () => (
+    <div style={{ padding: 24, textAlign: 'center' }}>
+      <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: '#8090A8' }}>جاري تحميل المُدرّب الذكي...</div>
+    </div>
+  ),
+})
+
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area, BarChart, Bar,

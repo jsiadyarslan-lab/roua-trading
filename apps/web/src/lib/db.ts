@@ -4,6 +4,7 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
   dbInitialized: boolean | undefined
   dbInitError: string | undefined
+  schemaMigrated: boolean | undefined
 }
 
 // In production, also cache the PrismaClient on globalThis to prevent
@@ -20,14 +21,53 @@ if (!globalForPrisma.prisma) {
 }
 
 /**
+ * Run safety-net migrations to add missing columns.
+ *
+ * This handles schema drift from iterative deploys where:
+ * - `prisma db push` fails silently
+ * - `CREATE TABLE IF NOT EXISTS` skips existing tables with missing columns
+ * - Prisma expects columns that don't exist (causing P2022 errors)
+ *
+ * Uses ALTER TABLE ADD COLUMN IF NOT EXISTS — idempotent and safe.
+ * Runs once per process lifetime (flagged by globalForPrisma.schemaMigrated).
+ */
+async function runSchemaMigrations(): Promise<void> {
+  if (globalForPrisma.schemaMigrated) return
+
+  const migrations = [
+    `ALTER TABLE "Session" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+    `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+    `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "riskTolerance" TEXT DEFAULT 'moderate'`,
+    `ALTER TABLE "Position" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+    `ALTER TABLE "ExchangeCredential" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+    `ALTER TABLE "PaperOrder" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+    `ALTER TABLE "TradingBot" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+    `ALTER TABLE "ChartPreference" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+    `ALTER TABLE "ChartPreference" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
+    `ALTER TABLE "AuditLog" ADD COLUMN IF NOT EXISTS "userId" TEXT`,
+  ]
+
+  for (const sql of migrations) {
+    try {
+      await db.$executeRawUnsafe(sql)
+    } catch {
+      // Column already exists or other non-fatal issue — ignore
+    }
+  }
+
+  globalForPrisma.schemaMigrated = true
+  console.log('[db] Schema migrations completed')
+}
+
+/**
  * Ensure the database is ready for queries.
  *
  * - Explicitly calls $connect() before querying, instead of relying on
  *   Prisma's lazy connection which can silently fail
+ * - Runs safety-net schema migrations for missing columns
  * - Retries up to 3 times with increasing delay (1s, 2s, 3s)
  * - Returns true if DB is ready, false otherwise
  * - Stores the last error in globalForPrisma.dbInitError for diagnostics
- * - Calling code can check the return value to decide fallback behavior
  *
  * If DB was previously initialized but a query fails later, call
  * resetDbInitialized() to force re-connection on the next call.
@@ -45,6 +85,9 @@ export async function ensureDbReady(): Promise<boolean> {
       // Explicitly connect before querying — this establishes the connection
       // pool instead of relying on lazy connection which can fail silently
       await db.$connect()
+
+      // Run safety-net migrations for missing columns before verifying
+      await runSchemaMigrations()
 
       // Verify by querying the User table (core table for auth)
       await db.user.findFirst()

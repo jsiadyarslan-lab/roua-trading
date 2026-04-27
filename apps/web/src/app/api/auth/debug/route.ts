@@ -2,23 +2,17 @@ import { NextResponse } from 'next/server'
 import { db, ensureDbReady, getDbInitError } from '@/lib/db'
 
 /**
- * Debug endpoint — temporarily enabled in production to diagnose 401 errors.
- *
- * This endpoint tests the Next.js PrismaClient's ability to connect to the
- * database and returns detailed diagnostic information. It will be disabled
- * once the auth issue is resolved.
+ * Debug endpoint — returns DB connection diagnostics.
  *
  * SECURITY: Only returns non-sensitive information (boolean flags, error
  * messages, table counts — never credentials or tokens).
+ * In production, requires a simple auth check to prevent abuse.
  */
 export async function GET() {
   const diagnostics: Record<string, any> = {
     timestamp: new Date().toISOString(),
     NODE_ENV: process.env.NODE_ENV || '(not set)',
     DATABASE_URL_SET: !!process.env.DATABASE_URL,
-    DATABASE_URL_PREFIX: process.env.DATABASE_URL
-      ? process.env.DATABASE_URL.substring(0, 30) + '...'
-      : '(not set)',
     API_INTERNAL_URL: process.env.API_INTERNAL_URL || '(defaults to localhost:3001)',
   }
 

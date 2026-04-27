@@ -159,28 +159,28 @@ export async function GET(request: NextRequest) {
 
     return response
   } catch (error: any) {
-    console.error('[auth/me] Session check error:', error?.message || error)
-    console.error('[auth/me] Error code:', error?.code || '(no code)')
-    console.error('[auth/me] Error stack:', error?.stack || '(no stack)')
+    console.error('[auth/me] Session check error:', error?.message || error, error?.code ? `[${error.code}]` : '')
 
     // Return 200 with authenticated: false instead of 500.
     // A 500 response causes the frontend to retry indefinitely,
     // creating a cascade of failures. Returning 200 with
     // authenticated: false lets the frontend handle it gracefully.
-    // Include error details temporarily for debugging the 401 issue.
-    return NextResponse.json(
-      {
-        authenticated: false,
-        error: 'AUTH_SERVICE_UNAVAILABLE',
-        message: 'Database is temporarily unavailable. Please try again.',
-        debug: {
-          errorMessage: error?.message || String(error),
-          errorCode: error?.code || undefined,
-          errorName: error?.constructor?.name || undefined,
-        },
-      },
-      { status: 200 }
-    )
+    const response: Record<string, any> = {
+      authenticated: false,
+      error: 'AUTH_SERVICE_UNAVAILABLE',
+      message: 'Database is temporarily unavailable. Please try again.',
+    }
+
+    // Include error details in development for easier debugging
+    if (process.env.NODE_ENV !== 'production') {
+      response.debug = {
+        errorMessage: error?.message || String(error),
+        errorCode: error?.code || undefined,
+        errorName: error?.constructor?.name || undefined,
+      }
+    }
+
+    return NextResponse.json(response, { status: 200 })
   }
 }
 

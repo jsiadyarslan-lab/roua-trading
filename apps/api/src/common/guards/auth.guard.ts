@@ -77,7 +77,7 @@ export class AuthGuard implements CanActivate {
           data: {
             email: devEmail,
             displayName: 'Dev User',
-            tier: 'PREMIUM',
+            tier: 'FREE',
           },
         });
         this.logger.log('🔧 DEV_MODE: Created default dev user (dev@roua.local)');
@@ -92,7 +92,7 @@ export class AuthGuard implements CanActivate {
         id: 'dev-user-00000000',
         email: 'dev@roua.local',
         displayName: 'Dev User',
-        tier: 'PREMIUM',
+        tier: 'FREE',
       };
     }
   }

@@ -34,6 +34,7 @@ model User {
   chartPreferences    ChartPreference[]
   paperOrders         PaperOrder[]
   coachAdvices        CoachAdvice[]
+  auditLogs           AuditLog[]
 }
 
 enum Tier {
@@ -176,6 +177,7 @@ model AuditLog {
   ipAddress String?
   userAgent String?
   createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([action])
@@ -365,6 +367,7 @@ model Position {
   @@index([exchange])
   @@index([userId, status])
   @@index([userId, symbol, status])
+  @@unique([userId, symbol, side, status])
 }
 
 model Trade {

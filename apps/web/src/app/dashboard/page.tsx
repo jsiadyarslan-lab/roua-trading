@@ -146,7 +146,10 @@ export default function DashboardPage() {
   const accountDataStatus: DataStatus = (() => {
     if (positionsError) return 'disconnected'
     if (!account) return 'disconnected'
-    if (!lastUpdate) return 'demo'
+    // إذا كان الحساب موجود لكن بدون بيانات حقيقية (equity=0 ولا مراكز)، اعتبره "تجريبي"
+    const hasRealData = Number(account.equity) > 0 || Number(account.longMarketValue) > 0 || Number(account.shortMarketValue) > 0 || positions.length > 0
+    if (!lastUpdate && !hasRealData) return 'demo'
+    if (!lastUpdate) return 'fallback'
     // إذا كانت البيانات من NestJS، اعتبرها مباشرة/احتياطية حسب حالة الأسعار
     if (dataSource === 'nestjs') {
       return quoteStatus === 'live' ? 'live' : quoteStatus === 'delayed' ? 'delayed' : 'fallback'

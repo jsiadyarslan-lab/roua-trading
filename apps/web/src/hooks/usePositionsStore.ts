@@ -131,8 +131,56 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
       const j = await res.json()
       if (j.success && j.data) {
         set({ account: j.data, dataSource: 'alpaca' })
+        return
       }
-    } catch {}
+    } catch {
+      // Alpaca غير متاح أيضاً
+    }
+
+    // ── المحاولة الثالثة: حساب من المراكز المحملة ──
+    // إذا كانت لدينا مراكز محملة، نحسب بيانات الحساب منها
+    const currentPositions = get().positions
+    if (currentPositions.length > 0) {
+      const totalExposure = currentPositions.reduce((sum, p) => sum + (p.marketValue || p.qty * p.currentPrice), 0)
+      const totalUnrealizedPnl = currentPositions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)
+      const account = {
+        equity: totalExposure + totalUnrealizedPnl,
+        cash: 0,
+        buyingPower: 0,
+        portfolioValue: totalExposure,
+        longMarketValue: totalExposure,
+        shortMarketValue: 0,
+        initialMargin: totalExposure,
+        maintenanceMargin: 0,
+        unrealizedPnl: totalUnrealizedPnl,
+        unrealizedPnlPct: totalExposure > 0 ? (totalUnrealizedPnl / totalExposure) * 100 : 0,
+        isPaperTrading: true,
+        tradingBlocked: false,
+        accountBlocked: false,
+      }
+      set({ account })
+      return
+    }
+
+    // ── لا بيانات متاحة — لا نترك account = null ──
+    // نضع قيم افتراضية بدل null لتجنب عرض "بانتظار الربط"
+    set({
+      account: {
+        equity: 0,
+        cash: 0,
+        buyingPower: 0,
+        portfolioValue: 0,
+        longMarketValue: 0,
+        shortMarketValue: 0,
+        initialMargin: 0,
+        maintenanceMargin: 0,
+        unrealizedPnl: 0,
+        unrealizedPnlPct: 0,
+        isPaperTrading: true,
+        tradingBlocked: false,
+        accountBlocked: false,
+      },
+    })
   },
   fetchPositions: async () => {
     set({ loading: true, error: null })

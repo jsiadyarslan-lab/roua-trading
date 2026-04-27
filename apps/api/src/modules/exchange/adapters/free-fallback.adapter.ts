@@ -164,51 +164,10 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
 
   /**
    * Fetch gold price from free sources
-   * Tries metals.dev first, then falls back to alternative
+   * Tries metals.dev first, then Yahoo Finance Gold Futures, then goldpricez
    */
   private async _fetchGoldQuote(symbol: string): Promise<UnifiedQuoteDto> {
-    // Try metals.dev free endpoint
-    try {
-      const response = await axios.get('https://api.metals.dev/v1/latest', {
-        params: {
-          api_key: 'FREE',
-          currency: 'USD',
-          unit: 'toz',
-        },
-        timeout: 10000,
-      });
-
-      if (response.data && response.data.metals && response.data.metals.gold) {
-        const price = parseFloat(response.data.metals.gold);
-        if (price > 0) {
-          const result: UnifiedQuoteDto = {
-            symbol,
-            name: 'Gold/US Dollar',
-            exchange: 'Metals.dev',
-            currency: 'USD',
-            price,
-            change: 0,
-            changePercent: 0,
-            open: price,
-            high: price,
-            low: price,
-            close: price,
-            volume: 0,
-            marketCap: null,
-            fiftyTwoWeekHigh: null,
-            fiftyTwoWeekLow: null,
-            timestamp: new Date(),
-            source: 'Metals.dev',
-          };
-          await this._saveLastKnownPrice(symbol, result);
-          return result;
-        }
-      }
-    } catch (error: any) {
-      this.logger.warn(`metals.dev failed for gold: ${error.message}`);
-    }
-
-    // Fallback: Try Yahoo Finance for GC=F (Gold Futures)
+    // Try Yahoo Finance for GC=F (Gold Futures) FIRST — most reliable free source
     try {
       const response = await axios.get('https://query1.finance.yahoo.com/v8/finance/chart/GC%3DF', {
         params: { range: '1d', interval: '1d' },
@@ -248,6 +207,47 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
       }
     } catch (error: any) {
       this.logger.warn(`Yahoo Finance gold failed: ${error.message}`);
+    }
+
+    // Try metals.dev free endpoint as fallback
+    try {
+      const response = await axios.get('https://api.metals.dev/v1/latest', {
+        params: {
+          api_key: 'FREE',
+          currency: 'USD',
+          unit: 'toz',
+        },
+        timeout: 10000,
+      });
+
+      if (response.data && response.data.metals && response.data.metals.gold) {
+        const price = parseFloat(response.data.metals.gold);
+        if (price > 0) {
+          const result: UnifiedQuoteDto = {
+            symbol,
+            name: 'Gold/US Dollar',
+            exchange: 'Metals.dev',
+            currency: 'USD',
+            price,
+            change: 0,
+            changePercent: 0,
+            open: price,
+            high: price,
+            low: price,
+            close: price,
+            volume: 0,
+            marketCap: null,
+            fiftyTwoWeekHigh: null,
+            fiftyTwoWeekLow: null,
+            timestamp: new Date(),
+            source: 'Metals.dev',
+          };
+          await this._saveLastKnownPrice(symbol, result);
+          return result;
+        }
+      }
+    } catch (error: any) {
+      this.logger.warn(`metals.dev failed for gold: ${error.message}`);
     }
 
     // Try last known price from cache

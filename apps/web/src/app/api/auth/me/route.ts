@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
           data: {
             email: GUEST_EMAIL,
             displayName: 'ضيف',
-            tier: 'PREMIUM',
+            tier: 'FREE',
           },
         }),
         'createGuestUser'

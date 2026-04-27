@@ -9,6 +9,7 @@ import {
 import { TrendingUp, TrendingDown, Award, Target, BarChart2, X, Shield, Activity, RefreshCw, Loader2, AlertTriangle, ChevronRight, Clock, History, Brain } from 'lucide-react'
 import { usePaperTradesStore, ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
 import { T } from '@/lib/theme-tokens'
+import { fetchPositionsUnified, fetchSummaryUnified, closePositionUnified } from '@/lib/api-fetch'
 
 /* ── Theme ── */
 const T = {
@@ -201,14 +202,12 @@ export default function PortfolioPage() {
 
   const fetchPositions = useCallback(async () => {
     try {
-      const res = await fetch('/api/trading/positions')
-      if (res.ok) {
-        const data = await res.json()
-        setPositions(data.data || data.positions || [])
-        setApiError(null)
+      const result = await fetchPositionsUnified()
+      setPositions(result.positions as Position[])
+      if (result.error) {
+        setApiError(result.error)
       } else {
-        const text = await res.text().catch(() => '')
-        setApiError(`فشل في جلب المراكز المفتوحة (${res.status})${text ? ': ' + text.slice(0, 100) : ''}`)
+        setApiError(null)
       }
     } catch (e: any) {
       setApiError(`خطأ في الاتصال بخادم التداول: ${e.message || 'غير معروف'}`)
@@ -231,10 +230,9 @@ export default function PortfolioPage() {
 
   const fetchSummary = useCallback(async () => {
     try {
-      const res = await fetch('/api/trading/positions/summary')
-      if (res.ok) {
-        const data = await res.json()
-        setSummary(data.data || data.summary || null)
+      const result = await fetchSummaryUnified()
+      if (result.summary) {
+        setSummary(result.summary as PositionSummary)
       }
     } catch (e: any) {
       // Error handled silently
@@ -265,19 +263,14 @@ export default function PortfolioPage() {
   const handleClosePosition = async (pos: Position) => {
     setClosing(pos.id)
     try {
-      const res = await fetch('/api/trading/positions/close', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ positionId: pos.id }),
-      })
-      if (res.ok) {
+      const result = await closePositionUnified(pos.id)
+      if (result.success) {
         setPositions(prev => prev.filter(p => p.id !== pos.id))
         fetchSummary()
         fetchClosedPositions()
         fetchTrades()
       } else {
-        const data = await res.json().catch(() => ({}))
-        setApiError(`فشل في إغلاق المركز: ${data.error || data.message || res.statusText}`)
+        setApiError(`فشل في إغلاق المركز: ${result.error || 'غير معروف'}`)
       }
     } catch (e: any) {
       setApiError(`خطأ في إغلاق المركز: ${e.message || 'غير معروف'}`)

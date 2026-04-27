@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
+import { fetchPositionsUnified, fetchSummaryUnified, closePositionUnified } from '@/lib/api-fetch'
 
 // ── Types ──
 interface Position {
@@ -104,12 +105,12 @@ export default function PositionsPage() {
   const fetchPositions = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/api/trading/positions')
-      if (res.ok) {
-        const data = await res.json()
-        setPositions(data.data || data.positions || [])
-      } else {
+      const result = await fetchPositionsUnified()
+      setPositions(result.positions as Position[])
+      if (result.error) {
         setApiUnavailable(true)
+      } else {
+        setApiUnavailable(false)
       }
     } catch {
       setApiUnavailable(true)
@@ -120,10 +121,9 @@ export default function PositionsPage() {
 
   const fetchSummary = useCallback(async () => {
     try {
-      const res = await fetch('/api/trading/positions/summary')
-      if (res.ok) {
-        const data = await res.json()
-        setSummary(data.data || data.summary || null)
+      const result = await fetchSummaryUnified()
+      if (result.summary) {
+        setSummary(result.summary as PositionSummary)
       }
     } catch { /* */ }
   }, [])
@@ -146,14 +146,8 @@ export default function PositionsPage() {
     const qty = closeQuantity ? parseFloat(closeQuantity) : closeDialog.quantity
     const isPartial = qty < closeDialog.quantity
     try {
-      const body: Record<string, unknown> = { positionId: closeDialog.id }
-      if (isPartial && qty > 0) body.quantity = qty
-      const res = await fetch('/api/trading/positions/close', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      if (res.ok) {
+      const result = await closePositionUnified(closeDialog.id, isPartial ? qty : undefined)
+      if (result.success) {
         if (isPartial) {
           setPositions((prev) => prev.map((p) => p.id === closeDialog.id ? { ...p, quantity: p.quantity - qty } : p))
         } else {
@@ -162,8 +156,7 @@ export default function PositionsPage() {
         fetchSummary()
         setCloseDialog(null)
       } else {
-        const data = await res.json()
-        throw new Error(data.error || 'فشل في إغلاق المركز')
+        throw new Error(result.error || 'فشل في إغلاق المركز')
       }
     } catch (err: any) {
       setCloseError(err.message)

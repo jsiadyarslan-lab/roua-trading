@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
+import { fetchPositionsUnified } from '@/lib/api-fetch'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -238,14 +239,12 @@ export default function TradingPage() {
   const fetchPositions = useCallback(async () => {
     setLoadingPositions(true)
     try {
-      const res = await fetch('/api/trading/positions')
-      if (res.ok) {
-        const data = await res.json()
-        setPositions(data.data || data.positions || [])
-      } else if (res.status === 401) {
-        // Auth handled above
-      } else {
+      const result = await fetchPositionsUnified()
+      setPositions(result.positions)
+      if (result.error) {
         setApiUnavailable(true)
+      } else {
+        setApiUnavailable(false)
       }
     } catch {
       setApiUnavailable(true)

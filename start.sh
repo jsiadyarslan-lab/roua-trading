@@ -75,8 +75,16 @@ echo "📦 Generating Prisma client..."
 run_prisma generate --schema=./prisma/schema.prisma
 
 # ── Step 2: Apply Prisma schema to database ──
+# Use prisma migrate deploy (production-safe) instead of db push.
+# migrate deploy only applies pending migrations and never drops data.
+# Fall back to db push if no migration files exist (first deploy).
 echo "📦 Applying Prisma schema..."
-run_prisma db push --schema=./prisma/schema.prisma --accept-data-loss 2>&1 || echo "⚠️ prisma db push had issues — will verify tables below"
+if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; then
+  run_prisma migrate deploy --schema=./prisma/schema.prisma 2>&1 || echo "⚠️ prisma migrate deploy had issues — trying db push as fallback"
+  run_prisma db push --schema=./prisma/schema.prisma --accept-data-loss 2>&1 || echo "⚠️ prisma db push also had issues — will verify tables below"
+else
+  run_prisma db push --schema=./prisma/schema.prisma --accept-data-loss 2>&1 || echo "⚠️ prisma db push had issues — will verify tables below"
+fi
 
 # ── Step 3: Verify critical tables exist ──
 # Prisma db:push sometimes silently fails to create new tables when

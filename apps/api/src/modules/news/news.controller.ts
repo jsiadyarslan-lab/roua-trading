@@ -14,7 +14,6 @@ import { AuthGuard } from '../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
 
 @Controller('news')
-@UseGuards(AuthGuard)
 export class NewsController {
   private readonly logger = new Logger(NewsController.name);
 
@@ -24,6 +23,10 @@ export class NewsController {
    * GET /api/news/latest
    * Get latest news with optional filtering
    * Query params: ?symbol=BTC&sentiment=positive&category=Crypto&limit=20
+   *
+   * PUBLIC endpoint — no auth required.
+   * News is read-only and should be accessible without authentication
+   * so that the dashboard news ticker and feed can work for all users.
    */
   @Get('latest')
   @Throttle({ default: { limit: 20, ttl: 60000 } })
@@ -54,8 +57,11 @@ export class NewsController {
    * POST /api/news/analyze
    * Analyze a news text manually
    * Body: { text: string, symbol?: string }
+   *
+   * PROTECTED — requires authentication (uses AI resources)
    */
   @Post('analyze')
+  @UseGuards(AuthGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async analyzeNewsText(@Body() body: { text: string; symbol?: string }) {
     if (!body.text) {
@@ -77,8 +83,11 @@ export class NewsController {
   /**
    * POST /api/news/fetch
    * Trigger manual news fetch (normally runs on schedule)
+   *
+   * PROTECTED — requires authentication (triggers resource-intensive operation)
    */
   @Post('fetch')
+  @UseGuards(AuthGuard)
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   async triggerFetch() {
     try {

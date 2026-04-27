@@ -55,7 +55,6 @@ export function BotMini() {
           borderBottom: '1px solid rgba(0,229,255,0.08)',
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center',
           gap: 8,
         }}
       >
@@ -383,8 +382,14 @@ export function BotMini() {
           }
 
           .bot-mini-header {
+            align-items: center;
             flex-wrap: wrap;
-            align-items: flex-start !important;
+          }
+
+          @media (max-width: 767px) {
+            .bot-mini-header {
+              align-items: flex-start;
+            }
           }
 
           .bot-mini-header__actions {

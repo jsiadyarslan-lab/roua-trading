@@ -528,19 +528,7 @@ button:disabled {
 
 @media (max-width: 767px) {
   .dash-grid {
-    grid-template-columns: 1fr !important;
-    min-height: 100dvh;
-    height: auto !important;
-    overflow: visible !important;
-    padding: 0;
-  }
-  .dash-col-left,
-  .dash-col-right,
-  .dash-col-center {
-    width: 100%;
-  }
-  .dash-col-right-mobile {
-    display: block !important;
+    display: none !important;
   }
 }
 

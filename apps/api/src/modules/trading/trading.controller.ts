@@ -94,10 +94,19 @@ export class TradingController {
       );
     }
 
+    // ── Stop-loss is MANDATORY (enforced by RiskGatekeeper check #1) ──
+    // Validate here BEFORE calling gatekeeper to give a clear error message
+    if (!body.stopLoss || parseFloat(body.stopLoss) <= 0) {
+      throw new BadRequestException(
+        'وقف الخسارة إجباري. لا يمكن تقديم أمر بدون وقف خسارة — هذا القانون الأول في منصة رؤى.',
+      );
+    }
+
     // ── Risk Gatekeeper Check ──
     // Run the same 5-point safety checks as the v2 OrderController:
-    // 1. Max position size  2. Max daily loss  3. Leverage limit
-    // 4. Duplicate order detection  5. Market hours check
+    // 1. Stop-loss enforcement  2. Sufficient balance  3. Position size limit
+    // 4. Daily drawdown limit  5. Circuit breakers
+    // Note: stopLoss is guaranteed > 0 by the validation above
     const riskResult = await this.riskGatekeeper.validateOrder({
       userId,
       exchangeCredentialId: request.credentialId,
@@ -106,7 +115,7 @@ export class TradingController {
       type: request.type as any,
       quantity: request.quantity,
       price: request.price,
-      stopLoss: request.stopLoss ?? 0,
+      stopLoss: request.stopLoss!,
       idempotencyKey: `v1-${Date.now()}-${request.symbol}`,
     });
 

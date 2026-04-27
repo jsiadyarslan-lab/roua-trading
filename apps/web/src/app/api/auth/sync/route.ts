@@ -56,24 +56,28 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Step 2: Try to get user info from NextAuth JWT cookie ──
-    // Instead of calling getServerSession() which causes 500 errors,
-    // we read the next-auth session JWT cookie directly.
+    // Use next-auth/jwt decode() to properly verify the JWT signature.
+    // Previously, the JWT payload was decoded without signature verification,
+    // which allowed attackers to forge tokens with arbitrary emails.
     let nextAuthEmail: string | null = null
     let nextAuthName: string | null = null
     try {
       const sessionCookie = request.cookies.get('next-auth.session-token')?.value
         || request.cookies.get('__Secure-next-auth.session-token')?.value
-      if (sessionCookie) {
-        // The JWT token has a payload we can decode (it's base64)
-        const parts = sessionCookie.split('.')
-        if (parts.length === 3) {
-          const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString())
-          nextAuthEmail = payload?.email || null
-          nextAuthName = payload?.name || null
+      if (sessionCookie && process.env.NEXTAUTH_SECRET) {
+        // Properly verify the JWT signature using next-auth/jwt
+        const { decode } = await import('next-auth/jwt')
+        const decoded = await decode({
+          token: sessionCookie,
+          secret: process.env.NEXTAUTH_SECRET,
+        })
+        if (decoded) {
+          nextAuthEmail = (decoded as any).email || null
+          nextAuthName = (decoded as any).name || null
         }
       }
     } catch {
-      // NextAuth cookie parsing failed — use guest user
+      // NextAuth JWT verification failed — use guest user
     }
 
     // ── Step 3: Find or create user ──
@@ -92,7 +96,7 @@ export async function GET(request: NextRequest) {
           data: {
             email,
             displayName: nextAuthName || email.split('@')[0],
-            ...(email === GUEST_EMAIL ? { tier: 'PREMIUM' } : {}),
+            ...(email === GUEST_EMAIL ? { tier: 'FREE' } : {}),
           },
         })
       } catch (dbErr: any) {

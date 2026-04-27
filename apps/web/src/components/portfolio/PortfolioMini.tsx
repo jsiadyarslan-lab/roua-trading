@@ -298,9 +298,10 @@ export function PortfolioMini({
       width: '100%', height: '100%',
       padding: pad,
       display: 'flex', flexDirection: 'column', gap: cardGap,
-      overflow: 'hidden',
+      overflowY: 'auto',
+      overflowX: 'hidden',
       boxSizing: 'border-box',
-    }}>
+    }} className="custom-scrollbar">
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',

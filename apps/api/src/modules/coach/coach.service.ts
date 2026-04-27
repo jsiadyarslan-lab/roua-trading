@@ -53,8 +53,16 @@ export class CoachService {
       take: 50,
     });
 
-    // 3. Calculate statistics
-    const stats = this.calculateStats(trades, closedPositions);
+    // 3. Fetch paper orders (primary trading data for this platform)
+    const paperOrders = await this.prisma.paperOrder.findMany({
+      where: { userId, status: 'FILLED' },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    // 4. Calculate statistics
+    const paperPnl = this.calculatePaperPnl(paperOrders);
+    const stats = this.calculateStats(trades, closedPositions, paperPnl);
 
     // 4. Determine performance rating
     const rating = this.calculateRating(stats);
@@ -140,8 +148,14 @@ ${contextSummary}
       orderBy: { closedAt: 'desc' },
       take: 30,
     });
+    const paperOrders = await this.prisma.paperOrder.findMany({
+      where: { userId, status: 'FILLED' },
+      orderBy: { createdAt: 'desc' },
+      take: 30,
+    });
 
-    const stats = this.calculateStats(trades, closedPositions);
+    const paperPnl = this.calculatePaperPnl(paperOrders);
+    const stats = this.calculateStats(trades, closedPositions, paperPnl);
     const contextSummary = this.buildContextSummary(stats, trades.slice(0, 10), closedPositions.slice(0, 10));
 
     // Get previous advice if provided
@@ -219,10 +233,11 @@ ${previousAdvice}
   }
 
   // ── Private: Calculate trading statistics ──
-  private calculateStats(trades: any[], closedPositions: any[]): TradeStats {
+  private calculateStats(trades: any[], closedPositions: any[], paperPnl: number[] = []): TradeStats {
     const allPnl = [
-      ...trades.map(t => t.pnl || 0),
-      ...closedPositions.map(p => p.realizedPnl || 0),
+      ...trades.map(t => Number(t.pnl) || 0),
+      ...closedPositions.map(p => Number(p.realizedPnl) || 0),
+      ...paperPnl,
     ];
 
     const winningTrades = allPnl.filter(p => p > 0);
@@ -424,5 +439,58 @@ ${tradeSummary}`;
       return `بناءً على أدائك الحالي (نسبة فوز ${stats.winRate}%)، أنصحك بحجم صفقات صغير ومتسق. استخدم قاعدة 1%: لا تخاطر بأكثر من 1% من رأس المال في أي صفقة. هذا يحميك من الخسائر الكبيرة ويسمح لك بالبقاء في السوق لفترة أطول.`;
     }
     return `بناءً على تحليل أدائك: نسبة الفوز ${stats.winRate}%، عامل الربح ${stats.profitFactor}، أقصى تراجع $${stats.maxDrawdown}. أنصحك بالتركيز على تحسين نقاط الدخول والخروج، واستخدام وقف الخسارة دائماً، وعدم المخاطرة بأكثر من 2% من رأس المال في الصفقة الواحدة. الرجاء كن أكثر تحديداً في سؤالك لأعطيك نصيحة أدق.`;
+  }
+
+  /**
+   * Calculate PnL from paper orders by matching BUY+SELL pairs (FIFO).
+   * PaperOrders don't have explicit PnL, so we estimate it.
+   */
+  private calculatePaperPnl(paperOrders: any[]): number[] {
+    // Group by symbol
+    const bySymbol: Record<string, any[]> = {};
+    for (const order of paperOrders) {
+      const sym = order.symbol;
+      if (!bySymbol[sym]) bySymbol[sym] = [];
+      bySymbol[sym].push({
+        side: order.side,
+        price: Number(order.averagePrice) || 0,
+        qty: Number(order.quantity) || 0,
+        fee: Number(order.fee) || 0,
+      });
+    }
+
+    const pnlResults: number[] = [];
+
+    for (const [symbol, orders] of Object.entries(bySymbol)) {
+      // Sort oldest first
+      orders.reverse();
+
+      // FIFO matching
+      const buyQueue: { price: number; qty: number; fee: number }[] = [];
+
+      for (const order of orders) {
+        if (order.side === 'BUY') {
+          buyQueue.push({ price: order.price, qty: order.qty, fee: order.fee });
+        } else if (order.side === 'SELL' && buyQueue.length > 0) {
+          let remainingQty = order.qty;
+          let totalPnl = -order.fee;
+
+          while (remainingQty > 0 && buyQueue.length > 0) {
+            const buy = buyQueue[0];
+            const matchedQty = Math.min(remainingQty, buy.qty);
+            const pairPnl = (order.price - buy.price) * matchedQty;
+            totalPnl += pairPnl;
+            totalPnl -= buy.fee * (matchedQty / buy.qty);
+            buy.qty -= matchedQty;
+            remainingQty -= matchedQty;
+            if (buy.qty <= 0) buyQueue.shift();
+          }
+
+          pnlResults.push(Math.round(totalPnl * 100) / 100);
+        }
+      }
+    }
+
+    return pnlResults;
   }
 }

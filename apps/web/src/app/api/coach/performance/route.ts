@@ -72,10 +72,34 @@ export async function POST(req: NextRequest) {
       console.warn('[coach/performance] Closed positions query failed:', dbError?.message || dbError)
     }
 
-    // 3. Calculate statistics
+    // 3. Fetch paper orders (the primary trading data for this platform)
+    let paperOrders: any[] = []
+    try {
+      paperOrders = await db.paperOrder.findMany({
+        where: { userId, status: 'FILLED' },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        select: {
+          symbol: true,
+          side: true,
+          quantity: true,
+          averagePrice: true,
+          fee: true,
+          createdAt: true,
+        },
+      })
+    } catch (dbError: any) {
+      console.warn('[coach/performance] Paper orders query failed:', dbError?.message || dbError)
+    }
+
+    // 4. Calculate statistics
+    // Combine all PnL sources: Trade.pnl + Position.realizedPnl
+    // For PaperOrders without explicit PnL, calculate from buy/sell pairs
+    const paperPnl = calculatePaperPnl(paperOrders)
     const allPnl = [
       ...trades.map((t: any) => t.pnl || 0),
-      ...closedPositions.map((p: any) => p.realizedPnl || 0),
+      ...closedPositions.map((p: any) => Number(p.realizedPnl) || 0),
+      ...paperPnl,
     ]
 
     const winningTrades = allPnl.filter((p: number) => p > 0)
@@ -110,11 +134,16 @@ export async function POST(req: NextRequest) {
     // Most traded symbol
     const symbolCounts: Record<string, number> = {}
     trades.forEach((t: any) => { symbolCounts[t.symbol] = (symbolCounts[t.symbol] || 0) + 1 })
+    paperOrders.forEach((o: any) => { symbolCounts[o.symbol] = (symbolCounts[o.symbol] || 0) + 1 })
     const mostTradedSymbol = Object.entries(symbolCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '—'
 
-    // Long vs short
-    const longTrades = trades.filter((t: any) => t.side === 'BUY')
-    const shortTrades = trades.filter((t: any) => t.side === 'SELL')
+    // Long vs short — include paper orders
+    const allTrades = [
+      ...trades,
+      ...paperOrders.map((o: any) => ({ symbol: o.symbol, side: o.side, pnl: 0 })),
+    ]
+    const longTrades = allTrades.filter((t: any) => t.side === 'BUY')
+    const shortTrades = allTrades.filter((t: any) => t.side === 'SELL')
     const longWinRate = longTrades.length > 0 ? Math.round((longTrades.filter((t: any) => (t.pnl || 0) > 0).length / longTrades.length) * 1000) / 10 : 0
     const shortWinRate = shortTrades.length > 0 ? Math.round((shortTrades.filter((t: any) => (t.pnl || 0) > 0).length / shortTrades.length) * 1000) / 10 : 0
 
@@ -279,4 +308,70 @@ function generateRuleBasedAdvice(stats: any): { text: string; items: { type: str
 
   const text = items.map((item, i) => `${i + 1}. [${item.type === 'warning' ? 'تحذير' : item.type === 'opportunity' ? 'فرصة' : 'تعليم'}] ${item.text}`).join('\n')
   return { text, items }
+}
+
+/**
+ * Calculate PnL from paper orders by matching buy/sell pairs per symbol.
+ * 
+ * PaperOrders don't have explicit PnL, so we estimate it by:
+ * 1. Grouping orders by symbol
+ * 2. Matching BUY+SELL pairs (FIFO)
+ * 3. PnL = (sell_price - buy_price) * qty - fees
+ * 
+ * Unpaired orders (open positions) get PnL = 0 (not counted as closed trades).
+ */
+function calculatePaperPnl(paperOrders: any[]): number[] {
+  // Group by symbol
+  const bySymbol: Record<string, any[]> = {}
+  for (const order of paperOrders) {
+    const sym = order.symbol
+    if (!bySymbol[sym]) bySymbol[sym] = []
+    bySymbol[sym].push({
+      side: order.side,
+      price: Number(order.averagePrice) || 0,
+      qty: Number(order.quantity) || 0,
+      fee: Number(order.fee) || 0,
+    })
+  }
+
+  const pnlResults: number[] = []
+
+  for (const [symbol, orders] of Object.entries(bySymbol)) {
+    // Sort by time (oldest first) — orders are already sorted desc, so reverse
+    orders.reverse()
+
+    // FIFO matching: pair BUY with SELL
+    const buyQueue: { price: number; qty: number; fee: number }[] = []
+
+    for (const order of orders) {
+      if (order.side === 'BUY') {
+        buyQueue.push({ price: order.price, qty: order.qty, fee: order.fee })
+      } else if (order.side === 'SELL' && buyQueue.length > 0) {
+        let remainingQty = order.qty
+        let totalPnl = -order.fee // Deduct sell fee
+
+        while (remainingQty > 0 && buyQueue.length > 0) {
+          const buy = buyQueue[0]
+          const matchedQty = Math.min(remainingQty, buy.qty)
+
+          // PnL for this pair
+          const pairPnl = (order.price - buy.price) * matchedQty
+          totalPnl += pairPnl
+          totalPnl -= buy.fee * (matchedQty / buy.qty) // Proportional buy fee
+
+          buy.qty -= matchedQty
+          remainingQty -= matchedQty
+
+          if (buy.qty <= 0) {
+            buyQueue.shift()
+          }
+        }
+
+        // Each sell creates one PnL entry (one closed trade)
+        pnlResults.push(Math.round(totalPnl * 100) / 100)
+      }
+    }
+  }
+
+  return pnlResults
 }

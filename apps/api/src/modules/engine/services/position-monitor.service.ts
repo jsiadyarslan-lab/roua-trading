@@ -195,12 +195,12 @@ export class PositionMonitorService {
         const currentPrice = quoteResult.value.price;
 
         if (pos.stopLoss) {
-          const slDistance = Math.abs(currentPrice - pos.stopLoss) / pos.entryPrice;
+          const slDistance = Math.abs(currentPrice - pos.stopLoss.toNumber()) / pos.entryPrice.toNumber();
           if (slDistance < 0.01) nearSL++;
         }
 
         if (pos.takeProfit) {
-          const tpDistance = Math.abs(currentPrice - pos.takeProfit) / pos.entryPrice;
+          const tpDistance = Math.abs(currentPrice - pos.takeProfit.toNumber()) / pos.entryPrice.toNumber();
           if (tpDistance < 0.01) nearTP++;
         }
       }

@@ -23,7 +23,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
     // Only attach query event listener in development mode
     if (isDev) {
-      this.$on('query' as any, (e: any) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (this as any).$on('query', (e: any) => {
         this.logger.debug(`Query: ${e.query} — ${e.duration}ms`);
       });
     }

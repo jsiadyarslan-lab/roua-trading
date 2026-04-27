@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react'
+import { createContext, useContext, useState, useCallback } from 'react'
 import { useScannerData } from './hooks/useScannerData'
 import { useScannerFilters } from './hooks/useScannerFilters'
 import { useBrowserNotifications } from './hooks/useBrowserNotifications'
@@ -75,22 +75,10 @@ export function ScannerProvider({ children }: { children: React.ReactNode }) {
     })
   }, [notifications])
 
-  // SSE fallback: try EventSource, fall back to polling (already handled by useScannerData)
-  const sseRef = useRef<EventSource | null>(null)
-  useEffect(() => {
-    try {
-      const es = new EventSource('/api/scanner/feed')
-      es.onmessage = (e) => {
-        try {
-          const d = JSON.parse(e.data)
-          if (d?.type === 'scan_update') refresh()
-        } catch { /* ignore parse errors */ }
-      }
-      es.onerror = () => { es.close() }
-      sseRef.current = es
-    } catch { /* SSE not supported, polling is fallback */ }
-    return () => { sseRef.current?.close() }
-  }, [refresh])
+  // NOTE: Previously tried EventSource('/api/scanner/feed') for SSE, but that
+  // endpoint returns application/json, not text/event-stream. This caused
+  // MIME type mismatch errors in the browser console. Removed the SSE connection
+  // since useScannerData already handles polling every 60 seconds.
 
   const value: ScannerContextValue = {
     scanData, heatmapData, overview, loading, lastUpdate, countdown, refresh, error,

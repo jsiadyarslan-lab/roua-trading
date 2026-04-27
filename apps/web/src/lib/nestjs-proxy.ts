@@ -50,7 +50,7 @@ async function ensureSession(request: NextRequest): Promise<{
           data: {
             email: GUEST_EMAIL,
             displayName: 'ضيف',
-            tier: 'PREMIUM',
+            tier: 'FREE',
           },
         })
       } catch (createErr: any) {

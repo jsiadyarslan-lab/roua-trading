@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
 
     // ── No valid session — auto-create guest user + session ──
     // This ensures the platform works out-of-the-box without requiring login.
-    // The guest user gets PREMIUM tier for full feature access.
+    // The guest user gets FREE tier — upgrade by linking a real account.
 
     let guestUser = await withRetry(
       () => db.user.findUnique({ where: { email: GUEST_EMAIL } }),

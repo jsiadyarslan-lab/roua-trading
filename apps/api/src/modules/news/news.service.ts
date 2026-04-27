@@ -412,9 +412,15 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
    */
   private async _fetchCryptoPanic(): Promise<RawNewsItem[]> {
     const apiKey = process.env.CRYPTOPANIC_API_KEY;
-    const url = apiKey
-      ? `https://cryptopanic.com/api/v1/posts/?auth_token=${apiKey}&currencies=BTC,ETH,SOL&kind=news&filter=hot`
-      : `https://cryptopanic.com/api/v1/posts/?currencies=BTC,ETH,SOL&kind=news&filter=hot&public=true`;
+    // CryptoPanic API v1 requires auth_token for all requests.
+    // Without an API key, skip CryptoPanic entirely (it returns 401/403).
+    // The platform still gets news from CoinTelegraph and CoinDesk RSS feeds.
+    if (!apiKey) {
+      this.logger.warn('CRYPTOPANIC_API_KEY not set — skipping CryptoPanic fetch');
+      return [];
+    }
+
+    const url = `https://cryptopanic.com/api/v1/posts/?auth_token=${apiKey}&currencies=BTC,ETH,SOL&kind=news&filter=hot`;
 
     const res = await fetch(url, {
       headers: { 'User-Agent': 'RouaTradingBot/1.0' },

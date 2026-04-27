@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { TradingService } from './trading.service';
 import { RiskManagerService } from './risk-manager.service';
+import { RiskGatekeeperService } from './services/risk-gatekeeper.service';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
 import {
@@ -38,6 +39,7 @@ export class TradingController {
   constructor(
     private readonly tradingService: TradingService,
     private readonly riskManager: RiskManagerService,
+    private readonly riskGatekeeper: RiskGatekeeperService,
   ) {}
 
   // ── Order Endpoints ──
@@ -89,6 +91,28 @@ export class TradingController {
     if (request.quantity <= 0) {
       throw new BadRequestException(
         'الكمية يجب أن تكون أكبر من صفر',
+      );
+    }
+
+    // ── Risk Gatekeeper Check ──
+    // Run the same 5-point safety checks as the v2 OrderController:
+    // 1. Max position size  2. Max daily loss  3. Leverage limit
+    // 4. Duplicate order detection  5. Market hours check
+    const riskResult = await this.riskGatekeeper.validateOrder({
+      userId,
+      exchangeCredentialId: request.credentialId,
+      symbol: request.symbol,
+      side: request.side as any,
+      type: request.type as any,
+      quantity: request.quantity,
+      price: request.price,
+      stopLoss: request.stopLoss ?? 0,
+      idempotencyKey: `v1-${Date.now()}-${request.symbol}`,
+    });
+
+    if (!riskResult.allowed) {
+      throw new ForbiddenException(
+        `🛡️ تم رفض الطلب: ${riskResult.reason || 'فشل في فحص المخاطر'}`,
       );
     }
 

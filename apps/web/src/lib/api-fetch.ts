@@ -41,14 +41,12 @@ let authPromise: Promise<void> | null = null
  * Ensures a roua_session cookie exists by calling /api/auth/me.
  * This is called lazily before the first API request that needs auth.
  * The promise is cached so we only do this once per page load.
+ *
+ * NOTE: We do NOT check document.cookie.includes('roua_session=')
+ * because roua_session is an httpOnly cookie — it's invisible to
+ * JavaScript. Always call /api/auth/me to verify/create the session.
  */
 async function ensureAuth(): Promise<void> {
-  // Check if we already have a session cookie
-  if (typeof document !== 'undefined') {
-    const hasCookie = document.cookie.includes('roua_session=')
-    if (hasCookie) return
-  }
-
   // Reuse in-flight auth request
   if (authPromise) return authPromise
 
@@ -58,9 +56,14 @@ async function ensureAuth(): Promise<void> {
       const data = await res.json()
       if (data.authenticated) {
         // Session cookie is now set by the server
+      } else {
+        // Auth failed — reset promise so we can retry on next call
+        authPromise = null
       }
     } catch {
-      // Auth init failed — API calls will fall back gracefully
+      // Auth init failed — API calls will fall back gracefully.
+      // Reset promise so we can retry on next call.
+      authPromise = null
     }
   })()
 

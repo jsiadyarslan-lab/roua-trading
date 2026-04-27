@@ -34,17 +34,22 @@ interface PositionsState {
 let authPromise: Promise<void> | null = null
 
 async function ensureAuth(): Promise<void> {
-  if (typeof document !== 'undefined') {
-    const hasCookie = document.cookie.includes('roua_session=')
-    if (hasCookie) return
-  }
+  // NOTE: We do NOT check document.cookie.includes('roua_session=')
+  // because roua_session is an httpOnly cookie — it's invisible to
+  // JavaScript. Always call /api/auth/me to verify/create the session.
   if (authPromise) return authPromise
 
   authPromise = (async () => {
     try {
-      await fetch('/api/auth/me')
+      const res = await fetch('/api/auth/me')
+      const data = await res.json()
+      if (!data.authenticated) {
+        // Auth failed — reset promise so we can retry on next call
+        authPromise = null
+      }
     } catch {
-      // Auth init failed — will retry on next call
+      // Auth init failed — reset promise so we can retry on next call
+      authPromise = null
     }
   })()
 

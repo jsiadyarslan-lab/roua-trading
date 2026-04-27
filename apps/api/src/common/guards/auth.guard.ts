@@ -25,14 +25,17 @@ export class AuthGuard implements CanActivate {
       return true;
     }
 
-    // Extract session token from cookie or Authorization header
+    // Extract session token from cookie, Authorization header, or x-roua-session custom header
     const cookieToken = request.cookies?.['roua_session'];
     const authHeader = request.headers.authorization;
     const bearerToken = authHeader?.startsWith('Bearer ')
       ? authHeader.slice(7)
       : authHeader;
+    // Fallback: x-roua-session header injected by Next.js middleware
+    // This ensures auth works even if cookie forwarding by Next.js rewrites fails
+    const headerToken = request.headers['x-roua-session'] as string | undefined;
 
-    const sessionToken = cookieToken || bearerToken;
+    const sessionToken = cookieToken || bearerToken || headerToken;
 
     if (!sessionToken) {
       throw new UnauthorizedException('لم يتم تقديم رمز المصادقة');

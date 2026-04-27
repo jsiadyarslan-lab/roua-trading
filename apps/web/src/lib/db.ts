@@ -22,18 +22,25 @@ export async function ensureDbReady() {
   if (globalForPrisma.dbInitialized) return
 
   try {
+    // Only check the User table — it's the only one needed for auth.
+    // Previously this also checked db.challenge.findFirst() which would
+    // throw if the Challenge table didn't exist, blocking the entire
+    // auth flow and causing /api/auth/me to return 500.
     await db.user.findFirst()
-    await db.challenge.findFirst()
     globalForPrisma.dbInitialized = true
   } catch (error: any) {
     const message = error?.message || 'Database is not ready'
 
     if (message.includes('does not exist') || message.includes('no such table')) {
-      throw new Error(
-        '[db] Prisma schema is not applied. Run migrations or prisma db push during deployment before serving requests.'
-      )
+      console.error('[db] User table not found — Prisma schema may not be applied:', message)
+      // Don't throw — let the endpoint handle the error gracefully.
+      // Throwing here causes /api/auth/me to return 500 which cascades
+      // to 401 on all NestJS-proxied endpoints.
+    } else {
+      console.error('[db] Database readiness check failed:', message)
     }
 
-    throw error
+    // Don't throw — return and let the calling code handle DB errors.
+    // This prevents a single table issue from blocking the entire auth flow.
   }
 }

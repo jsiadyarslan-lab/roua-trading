@@ -205,6 +205,68 @@ if [ -n "${DATABASE_URL:-}" ]; then
     );
     CREATE UNIQUE INDEX IF NOT EXISTS "ChartPreference_userId_symbol_key" ON "ChartPreference"("userId", "symbol");
     CREATE INDEX IF NOT EXISTS "ChartPreference_userId_idx" ON "ChartPreference"("userId");
+
+    -- User table (critical for auth — must exist before /api/auth/me can work)
+    CREATE TABLE IF NOT EXISTS "User" (
+      "id" TEXT NOT NULL,
+      "email" TEXT NOT NULL,
+      "displayName" TEXT,
+      "avatar" TEXT,
+      "passkeyId" TEXT,
+      "passkeyPub" TEXT,
+      "tier" TEXT NOT NULL DEFAULT 'FREE',
+      "maxPositionSize" DECIMAL(19,4),
+      "maxDailyLoss" DECIMAL(19,4),
+      "riskTolerance" TEXT DEFAULT 'moderate',
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL,
+      CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "User_email_key" ON "User"("email");
+
+    -- Session table (critical for auth — /api/auth/me creates/validates sessions)
+    CREATE TABLE IF NOT EXISTS "Session" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "token" TEXT NOT NULL,
+      "expiresAt" TIMESTAMP(3) NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL,
+      CONSTRAINT "Session_pkey" PRIMARY KEY ("id")
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "Session_token_key" ON "Session"("token");
+    CREATE INDEX IF NOT EXISTS "Session_userId_idx" ON "Session"("userId");
+    CREATE INDEX IF NOT EXISTS "Session_token_idx" ON "Session"("token");
+
+    -- Challenge table (used by WebAuthn/passkey auth)
+    CREATE TABLE IF NOT EXISTS "Challenge" (
+      "id" TEXT NOT NULL,
+      "key" TEXT NOT NULL,
+      "challenge" TEXT NOT NULL,
+      "expiresAt" TIMESTAMP(3) NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Challenge_pkey" PRIMARY KEY ("id")
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "Challenge_key_key" ON "Challenge"("key");
+    CREATE INDEX IF NOT EXISTS "Challenge_key_idx" ON "Challenge"("key");
+    CREATE INDEX IF NOT EXISTS "Challenge_expiresAt_idx" ON "Challenge"("expiresAt");
+
+    -- AuditLog table (used by DELETE /api/auth/me for logout auditing)
+    CREATE TABLE IF NOT EXISTS "AuditLog" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT,
+      "action" TEXT NOT NULL,
+      "resource" TEXT NOT NULL,
+      "details" TEXT,
+      "ipAddress" TEXT,
+      "userAgent" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
+    );
+    CREATE INDEX IF NOT EXISTS "AuditLog_userId_idx" ON "AuditLog"("userId");
+    CREATE INDEX IF NOT EXISTS "AuditLog_action_idx" ON "AuditLog"("action");
+    CREATE INDEX IF NOT EXISTS "AuditLog_createdAt_idx" ON "AuditLog"("createdAt");
+    CREATE INDEX IF NOT EXISTS "AuditLog_action_createdAt_idx" ON "AuditLog"("action", "createdAt");
 EOSQL
 
   echo "📦 Executing safety-net SQL via prisma db execute..."

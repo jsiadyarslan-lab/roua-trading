@@ -48,9 +48,13 @@ export function middleware(request: NextRequest) {
       const sessionToken = request.cookies.get('roua_session')?.value
 
       if (sessionToken) {
-        // Clone request headers and add Authorization
+        // Clone request headers and add Authorization + custom x-roua-session header
         const requestHeaders = new Headers(request.headers)
         requestHeaders.set('Authorization', `Bearer ${sessionToken}`)
+        // Also inject x-roua-session as a fallback auth method.
+        // If Next.js rewrites fail to forward the cookie, the NestJS
+        // AuthGuard can still read this custom header.
+        requestHeaders.set('x-roua-session', sessionToken)
 
         return NextResponse.next({
           request: {

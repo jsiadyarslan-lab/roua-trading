@@ -76,10 +76,10 @@ def fetch_usage_stats(
         """, (day_start,))
 
         for row in cur.fetchall():
-            provider = row[0]
-            cost = float(row[1] or 0)
+            provider = str(row[0])
+            cost_val = row[1]
             if provider in results:
-                results[provider]["daily_cost"] = cost
+                results[provider]["daily_cost"] = float(cost_val if cost_val is not None else 0)
 
         # Cost per model per provider (monthly)
         cur.execute("""
@@ -93,11 +93,12 @@ def fetch_usage_stats(
 
         for row in cur.fetchall():
             provider, model, cost, requests, avg_lat = row
+            provider = str(provider)
             if provider in results:
-                results[provider]["models"][model] = {
-                    "cost": float(cost or 0),
-                    "requests": int(requests or 0),
-                    "avg_latency": float(avg_lat or 0),
+                results[provider]["models"][str(model)] = {
+                    "cost": float(cost if cost is not None else 0),
+                    "requests": int(requests if requests is not None else 0),
+                    "avg_latency": float(avg_lat if avg_lat is not None else 0),
                 }
 
         # Cost per endpoint (monthly)
@@ -111,10 +112,12 @@ def fetch_usage_stats(
 
         endpoint_stats = {}
         for row in cur.fetchall():
-            endpoint = row[0] or "unknown"
+            endpoint = str(row[0] or "unknown")
+            cost_val = row[1]
+            req_val = row[2]
             endpoint_stats[endpoint] = {
-                "cost": float(row[1] or 0),
-                "requests": int(row[2] or 0),
+                "cost": float(cost_val if cost_val is not None else 0),
+                "requests": int(req_val if req_val is not None else 0),
             }
 
         cur.close()

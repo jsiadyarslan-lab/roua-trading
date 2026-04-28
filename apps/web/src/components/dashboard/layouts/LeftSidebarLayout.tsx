@@ -62,7 +62,7 @@ export function LeftSidebarLayout() {
       className="sidebar-shell"
       style={{
         display: 'grid',
-        gridTemplateColumns: collapsed ? '56px' : '56px minmax(0, 1fr)',
+        gridTemplateColumns: collapsed ? '40px' : '40px minmax(0, 1fr)',
         height: '100%',
         minHeight: 0,
         borderRadius: 14,

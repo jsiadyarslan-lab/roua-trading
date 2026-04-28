@@ -1,7 +1,6 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Search, X } from 'lucide-react'
 import { PortfolioMini } from '@/components/portfolio/PortfolioMini'
 import { AlNarratorMini } from '@/components/ai/AlNarratorMini'
 import { ExecutionPanel } from '@/components/dashboard/execution/ExecutionPanel'
@@ -38,8 +37,6 @@ export function SidebarContentPanel({
   searchQuery,
   setSearchQuery,
 }: SidebarContentPanelProps) {
-  const [showSearch, setShowSearch] = useState(false)
-
   const selectedSymbol = useSymbolStore((s) => s.selectedSymbol)
   const quotes = useMarketStore((s) => s.quotes)
   const activeQuote = selectedSymbol ? quotes[selectedSymbol] : null
@@ -60,75 +57,9 @@ export function SidebarContentPanel({
         direction: 'rtl',
       }}
     >
-      {/* Compact Header — tab label + search icon only */}
+      {/* Tab content — no header, full height for content */}
       <div
-        className="flex items-center justify-between px-2 py-1.5 border-b border-[rgba(0,212,255,0.08)]"
-        style={{
-          background: `linear-gradient(90deg, ${activeTabInfo.accent}08, rgba(255,255,255,0.01))`,
-        }}
-      >
-        <div className="flex items-center gap-1.5">
-          <span
-            className="w-1.5 h-1.5 rounded-full shrink-0"
-            style={{
-              background: activeTabInfo.accent,
-              boxShadow: `0 0 6px ${activeTabInfo.accent}44`,
-            }}
-          />
-          <span className="text-[10px] font-extrabold text-[var(--foreground)]" style={{ fontFamily: "'Cairo', sans-serif" }}>
-            {activeTabInfo.label}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-1">
-          {/* Search toggle icon */}
-          {!showSearch ? (
-            <button
-              type="button"
-              onClick={() => setShowSearch(true)}
-              className="flex items-center justify-center border-none bg-transparent cursor-pointer p-0.5 text-[#6F849C] hover:text-[var(--foreground)] transition-colors"
-            >
-              <Search size={10} />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => { setShowSearch(false); setSearchQuery('') }}
-              className="flex items-center justify-center border-none bg-transparent cursor-pointer p-0.5 text-[#6F849C] hover:text-[var(--foreground)] transition-colors"
-            >
-              <X size={10} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Search bar — only when toggled */}
-      {showSearch && (
-        <div className="flex items-center gap-1.5 px-2 py-1 border-b border-[rgba(0,212,255,0.06)] bg-[rgba(255,255,255,0.02)]">
-          <Search size={9} color="#6F849C" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="بحث..."
-            className="flex-1 bg-transparent border-none outline-none text-[var(--foreground)] text-[9px] font-bold p-0"
-            style={{ fontFamily: "'Cairo', sans-serif" }}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="border-none bg-transparent cursor-pointer p-0 text-[#6F849C] hover:text-[var(--foreground)]"
-            >
-              <X size={9} />
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Tab content */}
-      <div
-        className="flex-1 min-h-0 overflow-hidden p-1"
+        className="flex-1 min-h-0 overflow-hidden"
         style={{ background: 'linear-gradient(180deg, rgba(8,13,20,0.92), rgba(6,10,16,0.98))' }}
       >
         <div

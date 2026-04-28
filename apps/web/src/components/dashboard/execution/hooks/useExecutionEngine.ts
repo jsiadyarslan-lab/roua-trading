@@ -183,6 +183,21 @@ export function useExecutionEngine() {
       return false
     }
 
+    // Pre-flight balance check
+    const effectivePrice = orderType === 'limit' && limitPrice ? parseFloat(limitPrice) : currentPrice
+    if (effectivePrice > 0 && account && account.buyingPower > 0) {
+      const cost = effectivePrice * qtyNum
+      if (cost > account.buyingPower) {
+        setExecutionState('rejected')
+        setStatus({
+          msg: `رصيد غير كافٍ: المطلوب $${cost.toFixed(2)} — المتاح $${account.buyingPower.toFixed(2)}`,
+          type: 'error'
+        })
+        clearStatusAfter(5000)
+        return false
+      }
+    }
+
     // Validate SL/TP logic
     const tpNum = parseFloat(takeProfit)
     const slNum = parseFloat(stopLoss)

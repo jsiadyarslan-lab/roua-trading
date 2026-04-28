@@ -57,8 +57,8 @@ export function SidebarIconRail({
   return (
     <aside
       style={{
-        width: 40,
-        minWidth: 40,
+        width: 32,
+        minWidth: 32,
         minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
@@ -68,18 +68,18 @@ export function SidebarIconRail({
         position: 'relative',
       }}
     >
-      {/* Icon buttons */}
+      {/* Icon buttons — compact */}
       <div
         className="custom-scrollbar"
         style={{
           flex: 1,
           minHeight: 0,
           overflowY: 'auto',
-          padding: '3px 0',
+          padding: '2px 0',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: 1,
+          gap: 0,
         }}
       >
         {tabs.map((tab) => {
@@ -91,7 +91,7 @@ export function SidebarIconRail({
           return (
             <div
               key={tab.id}
-              style={{ position: 'relative', width: 36 }}
+              style={{ position: 'relative', width: 28 }}
               onMouseEnter={() => setHoveredTab(tab.id)}
               onMouseLeave={() => setHoveredTab(null)}
             >
@@ -100,8 +100,8 @@ export function SidebarIconRail({
                 onClick={() => onTabChange(tab.id)}
                 aria-label={tab.label}
                 style={{
-                  width: 36,
-                  height: 34,
+                  width: 28,
+                  height: 26,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -109,15 +109,15 @@ export function SidebarIconRail({
                   cursor: 'pointer',
                   position: 'relative',
                   background: isActive
-                    ? `linear-gradient(135deg, ${tab.accent}12, rgba(255,255,255,0.02))`
+                    ? `linear-gradient(135deg, ${tab.accent}10, rgba(255,255,255,0.01))`
                     : isHovered
                       ? 'rgba(255,255,255,0.03)'
                       : 'transparent',
                   transition: 'all 0.15s ease',
-                  borderRadius: 6,
+                  borderRadius: 4,
                 }}
               >
-                {/* Active indicator bar on RIGHT side (RTL layout) */}
+                {/* Active indicator bar */}
                 {isActive && (
                   <div
                     style={{
@@ -125,16 +125,16 @@ export function SidebarIconRail({
                       right: 0,
                       top: '20%',
                       bottom: '20%',
-                      width: 2,
-                      borderRadius: '0 2px 2px 0',
+                      width: 1.5,
+                      borderRadius: '0 1px 1px 0',
                       background: tab.accent,
-                      boxShadow: `0 0 6px ${tab.accent}55`,
+                      boxShadow: `0 0 4px ${tab.accent}55`,
                     }}
                   />
                 )}
 
                 <Icon
-                  size={14}
+                  size={10}
                   color={isActive ? tab.accent : '#6F849C'}
                   style={{
                     transition: 'color 0.15s ease',
@@ -144,26 +144,26 @@ export function SidebarIconRail({
                 />
               </button>
 
-              {/* Badge counter */}
+              {/* Badge */}
               {badgeCount !== undefined && badgeCount > 0 && (
                 <div
                   style={{
                     position: 'absolute',
-                    top: 2,
-                    right: 2,
-                    minWidth: 10,
-                    height: 10,
+                    top: 1,
+                    right: 1,
+                    minWidth: 8,
+                    height: 8,
                     borderRadius: 999,
                     background: tab.accent,
                     color: '#fff',
-                    fontSize: 6,
+                    fontSize: 5,
                     fontWeight: 800,
                     fontFamily: "'JetBrains Mono', monospace",
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '0 2px',
-                    boxShadow: `0 0 4px ${tab.accent}44`,
+                    padding: '0 1px',
+                    boxShadow: `0 0 3px ${tab.accent}44`,
                     zIndex: 2,
                   }}
                 >
@@ -171,7 +171,7 @@ export function SidebarIconRail({
                 </div>
               )}
 
-              {/* Tooltip on hover — compact */}
+              {/* Tooltip — micro */}
               {isHovered && (
                 <div
                   style={{
@@ -180,18 +180,18 @@ export function SidebarIconRail({
                     top: '50%',
                     transform: 'translateX(-100%) translateY(-50%)',
                     background: '#1A1D29',
-                    border: `1px solid ${tab.accent}25`,
-                    borderRadius: 6,
-                    padding: '3px 7px',
+                    border: `1px solid ${tab.accent}20`,
+                    borderRadius: 4,
+                    padding: '2px 5px',
                     zIndex: 50,
-                    boxShadow: `0 2px 8px rgba(0,0,0,0.3)`,
+                    boxShadow: `0 2px 6px rgba(0,0,0,0.3)`,
                     pointerEvents: 'none',
                     whiteSpace: 'nowrap',
                   }}
                 >
                   <span
                     style={{
-                      fontSize: 9,
+                      fontSize: 8,
                       fontWeight: 800,
                       color: tab.accent,
                       fontFamily: "'Cairo', sans-serif",

@@ -385,7 +385,7 @@ export async function GET(
       if (fiatCurrencies.has(base) && fiatCurrencies.has(quote)) {
         const endDate = new Date()
         const startDate = new Date(endDate.getTime() - 60 * 24 * 60 * 60 * 1000)
-        const fUrl = `https://api.frankfurter.app/${startDate.toISOString().split('T')[0]}..${endDate.toISOString().split('T')[0]}?from=${base}&to=${quote}`
+        const fUrl = `https://api.frankfurter.dev/v1/${startDate.toISOString().split('T')[0]}..${endDate.toISOString().split('T')[0]}?from=${base}&to=${quote}`
         const fRes = await fetch(fUrl, { signal: AbortSignal.timeout(10000) })
 
         if (fRes.ok) {

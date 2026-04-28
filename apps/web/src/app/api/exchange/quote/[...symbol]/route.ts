@@ -72,21 +72,52 @@ function toYahooSymbol(symbol: string): string {
 }
 
 // ── Fetch from Twelve Data API ──
+// Circuit breaker that auto-resets when API key changes
 let twelveDataExhausted = false;
 let twelveDataResetTimeout: NodeJS.Timeout | null = null;
 let twelveDataLastLog = 0; // Throttle logging to avoid spam
+let lastKnownApiKeyHash = ''; // Track key changes to auto-reset circuit breaker
+
+/**
+ * Compute a simple hash of the API key to detect changes.
+ * When the user updates the API key, the circuit breaker should auto-reset.
+ */
+function getApiKeyHash(key: string): string {
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    const chr = key.charCodeAt(i);
+    hash = ((hash << 5) - hash) + chr;
+    hash |= 0; // Convert to 32-bit integer
+  }
+  return hash.toString(36);
+}
 
 async function fetchTwelveData(symbol: string) {
+  const apiKey = process.env.TWELVE_DATA_API_KEY || ''
+
+  // Auto-reset circuit breaker when API key changes
+  const currentKeyHash = getApiKeyHash(apiKey);
+  if (currentKeyHash !== lastKnownApiKeyHash) {
+    if (lastKnownApiKeyHash && twelveDataExhausted) {
+      console.info(`[exchange/quote] TwelveData API key changed — auto-resetting circuit breaker (old=${lastKnownApiKeyHash}, new=${currentKeyHash})`);
+    }
+    twelveDataExhausted = false;
+    if (twelveDataResetTimeout) {
+      clearTimeout(twelveDataResetTimeout);
+      twelveDataResetTimeout = null;
+    }
+    lastKnownApiKeyHash = currentKeyHash;
+  }
+
   if (twelveDataExhausted) {
     const now = Date.now();
     if (now - twelveDataLastLog > 300_000) { // Log every 5 min max
-      console.warn(`[exchange/quote] TwelveData circuit breaker active for ${symbol} — credits exhausted`);
+      console.warn(`[exchange/quote] TwelveData circuit breaker active for ${symbol} — credits exhausted. Will auto-retry in ${twelveDataResetTimeout ? 'up to 5 min' : 'unknown'}`);
       twelveDataLastLog = now;
     }
     return null; // Skip if we know we're out of credits
   }
 
-  const apiKey = process.env.TWELVE_DATA_API_KEY
   if (!apiKey) {
     const now = Date.now();
     if (now - twelveDataLastLog > 3_600_000) { // Log once per hour
@@ -108,13 +139,13 @@ async function fetchTwelveData(symbol: string) {
       // Detect daily credit exhaustion
       if (msg.includes('run out of API credits') || msg.includes('out of API credits') || msg.includes('limit being')) {
         twelveDataExhausted = true;
-        console.error(`[exchange/quote] TwelveData DAILY CREDITS EXHAUSTED for ${symbol}: ${msg}. Circuit breaker activated for 1 hour.`);
+        console.error(`[exchange/quote] TwelveData DAILY CREDITS EXHAUSTED for ${symbol}: ${msg}. Circuit breaker activated for 5 minutes.`);
         if (!twelveDataResetTimeout) {
           twelveDataResetTimeout = setTimeout(() => {
             twelveDataExhausted = false;
             twelveDataResetTimeout = null;
             console.info(`[exchange/quote] TwelveData circuit breaker reset — will retry`);
-          }, 3600_000); // Reset after 1 hour
+          }, 300_000); // Reset after 5 minutes (was 1 hour — too long!)
         }
       } else {
         console.warn(`[exchange/quote] TwelveData error for ${symbol}: ${msg}`);
@@ -129,7 +160,7 @@ async function fetchTwelveData(symbol: string) {
       return null;
     }
 
-    console.info(`[exchange/quote] TwelveData SUCCESS for ${symbol}: price=${price}`);
+    console.info(`[exchange/quote] ✅ TwelveData SUCCESS for ${symbol}: price=${price}`);
 
     return {
       symbol,
@@ -265,160 +296,67 @@ async function fetchYahooFinance(symbol: string): Promise<any | null> {
 // ── FREE Gold/Commodity Fallback: Metals.dev (no key needed) ──
 // Covers: XAU/USD (Gold), XAG/USD (Silver), XPT/USD (Platinum)
 async function fetchMetalsDev(symbol: string): Promise<any | null> {
-  const [base] = symbol.split('/')
-  const metalMap: Record<string, string> = { 'XAU': 'gold', 'XAG': 'silver', 'XPT': 'platinum', 'XPD': 'palladium' }
-  const metal = metalMap[base]
-  if (!metal) return null
-
-  try {
-    const url = `https://api.metals.dev/v1/latest?api_key=demo&currency=USD&unit=toz`
-    const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000) })
-    if (!res.ok) return null
-    const data = await res.json()
-    const price = data?.metals?.[metal]?.USD
-    if (!price || price <= 0) return null
-
-    return {
-      symbol,
-      name: symbol.replace('/', ' / '),
-      exchange: 'COMMODITY',
-      currency: 'USD',
-      price: toNum(price),
-      change: 0,
-      changePercent: 0,
-      open: toNum(price),
-      high: toNum(price * 1.001),
-      low: toNum(price * 0.999),
-      close: toNum(price),
-      volume: 0,
-      marketCap: null,
-      fiftyTwoWeekHigh: null,
-      fiftyTwoWeekLow: null,
-      timestamp: new Date().toISOString(),
-      source: 'Metals.dev',
-    }
-  } catch {
-    return null
-  }
+  // NOTE: metals.dev no longer offers free/demo access — skip this source
+  // Keeping function signature for compatibility but always returns null
+  return null
 }
 
 // ── FREE Gold Fallback: FCSAPI.com ──
 // Covers XAU/USD, XAG/USD, and other metals via free forex/commodity API
 async function fetchFcsApi(symbol: string): Promise<any | null> {
-  const [base, quote] = symbol.split('/')
-  // FCSAPI uses different symbol format
-  const symbolMap: Record<string, string> = {
-    'XAU/USD': '1',   // Gold
-    'XAG/USD': '2',   // Silver
-    'EUR/USD': '1',   // EUR/USD
-    'GBP/USD': '2',   // GBP/USD
-    'USD/JPY': '3',   // USD/JPY
-    'AUD/USD': '5',   // AUD/USD
-    'USD/CHF': '6',   // USD/CHF
-  }
-  const fcsId = symbolMap[symbol]
-  if (!fcsId) return null
-
-  try {
-    // FCSAPI free endpoint for latest price
-    const isCommodity = ['XAU', 'XAG', 'XPT', 'XPD'].includes(base)
-    const endpoint = isCommodity ? 'commodity' : 'forex'
-    const url = `https://fcsapi.com/api-v3/${endpoint}/latest?symbol=${encodeURIComponent(symbol)}&access_key=API_FREE_DEMO`
-    const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000) })
-    if (!res.ok) return null
-    const data = await res.json()
-    if (data.status !== true || !data.response || !data.response[0]) return null
-    const item = data.response[0]
-    const price = parseFloat(item.p || item.c || '0')
-    if (price <= 0) return null
-    const change = parseFloat(item.ch || '0')
-    const changePercent = parseFloat(item.chp || '0')
-    const high = parseFloat(item.h || '0') || price
-    const low = parseFloat(item.l || '0') || price
-    const open = parseFloat(item.o || '0') || price
-
-    return {
-      symbol,
-      name: symbol.replace('/', ' / '),
-      exchange: isCommodity ? 'COMMODITY' : 'FOREX',
-      currency: quote || 'USD',
-      price: toNum(price),
-      change: toNum(change),
-      changePercent: toNum(changePercent),
-      open: toNum(open),
-      high: toNum(high),
-      low: toNum(low),
-      close: toNum(price),
-      volume: 0,
-      marketCap: null,
-      fiftyTwoWeekHigh: null,
-      fiftyTwoWeekLow: null,
-      timestamp: new Date().toISOString(),
-      source: 'FCSAPI',
-    }
-  } catch {
-    return null
-  }
+  // NOTE: FCSAPI free demo key no longer works — skip this source
+  // Keeping function signature for compatibility but always returns null
+  return null
 }
 
 // ── FREE Commodity Fallback: GoldPrice.org scraping ──
 // Covers: XAU/USD, XAG/USD when all other sources fail
 async function fetchGoldPriceFallback(symbol: string): Promise<any | null> {
   const [base] = symbol.split('/')
-  const metalMap: Record<string, { name: string; price: number }> = {
-    'XAU': { name: 'Gold', price: 2330 },  // reasonable fallback estimate
-    'XAG': { name: 'Silver', price: 27.5 },
-  }
+  const metalMap: Record<string, string> = { 'XAU': 'Gold', 'XAG': 'Silver' }
   const metal = metalMap[base]
   if (!metal) return null
 
-  // Try to get real price from goldpricez.com API
+  // Try goldpricez.com API (may work on some servers)
   try {
-    const metalKey = base === 'XAU' ? 'gold' : base === 'XAG' ? 'silver' : null
+    const metalKey = base === 'XAU' ? 'GOLD' : base === 'XAG' ? 'SILVER' : null
     if (!metalKey) return null
-    const url = `https://data-asg.goldprice.org/dbXRates/${metalKey.toUpperCase()}`
+    const url = `https://data-asg.goldprice.org/dbXRates/${metalKey}`
     const res = await fetch(url, {
       cache: 'no-store',
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RouaTrading/1.0)' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36' },
       signal: AbortSignal.timeout(8000),
     })
     if (!res.ok) return null
     const data = await res.json()
-    // GoldPrice.org returns different field names for gold vs silver
     let price: number | null = null
     let changeVal = 0
     let changePercentVal = 0
-    let highVal = 0
-    let lowVal = 0
     if (data?.items?.[0]) {
       const item = data.items[0]
       if (base === 'XAU') {
         price = item.xauPrice || item.price || null
         changeVal = item.chgXau || item.chg || 0
         changePercentVal = item.pcXau || item.pc || 0
-        highVal = item.xauHigh || item.high || 0
-        lowVal = item.xauLow || item.low || 0
       } else if (base === 'XAG') {
         price = item.xagPrice || item.price || null
         changeVal = item.chgXag || item.chg || 0
         changePercentVal = item.pcXag || item.pc || 0
-        highVal = item.xagHigh || item.high || 0
-        lowVal = item.xagLow || item.low || 0
       }
     }
     if (!price || price <= 0) return null
 
     return {
       symbol,
-      name: `${metal.name} / USD`,
+      name: `${metal} / USD`,
       exchange: 'COMMODITY',
       currency: 'USD',
       price: toNum(price),
       change: toNum(changeVal),
       changePercent: toNum(changePercentVal),
       open: toNum(price),
-      high: toNum(highVal || price * 1.002),
-      low: toNum(lowVal || price * 0.998),
+      high: toNum(price * 1.002),
+      low: toNum(price * 0.998),
       close: toNum(price),
       volume: 0,
       marketCap: null,
@@ -434,6 +372,7 @@ async function fetchGoldPriceFallback(symbol: string): Promise<any | null> {
 
 // ── FREE Forex Fallback: Frankfurter (ECB rates, no key needed) ──
 // Covers major fiat pairs: EUR/USD, GBP/USD, USD/JPY, GBP/JPY, etc.
+// IMPORTANT: Frankfurter API moved from api.frankfurter.app to api.frankfurter.dev/v1
 const FRANKFURTER_BASES = ['EUR','GBP','CHF','JPY','AUD','CAD','NZD','SEK','NOK','DKK']
 
 async function fetchFrankfurter(symbol: string): Promise<any | null> {
@@ -446,8 +385,8 @@ async function fetchFrankfurter(symbol: string): Promise<any | null> {
   if (!FRANKFURTER_BASES.includes(fromCur)) return null // Not a fiat pair we can handle
 
   try {
-    const url = `https://api.frankfurter.app/latest?from=${fromCur}&to=${toCur}`
-    const res  = await fetch(url, { cache: 'no-store' })
+    const url = `https://api.frankfurter.dev/v1/latest?from=${fromCur}&to=${toCur}`
+    const res  = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(10000) })
     if (!res.ok) return null
     const data = await res.json()
     const rawRate = data.rates?.[toCur]
@@ -639,23 +578,7 @@ export async function GET(
         }
       }
 
-      // Step 3: Try FCSAPI for forex and commodities (free, no key needed)
-      if (!quote) {
-        quote = await fetchFcsApi(symbol)
-        if (quote) {
-          console.info(`[exchange/quote] Using FCSAPI for ${symbol}`)
-        }
-      }
-
-      // Step 4: Try Metals.dev for commodities (XAU, XAG, etc.)
-      if (!quote) {
-        quote = await fetchMetalsDev(symbol)
-        if (quote) {
-          console.info(`[exchange/quote] Using Metals.dev for ${symbol}`)
-        }
-      }
-
-      // Step 5: Try GoldPrice.org for gold/silver
+      // Step 3: Try GoldPrice.org for gold/silver (free, no key needed)
       if (!quote) {
         quote = await fetchGoldPriceFallback(symbol)
         if (quote) {
@@ -663,12 +586,22 @@ export async function GET(
         }
       }
 
-      // Step 6: Try free ECB rates for fiat pairs (last resort for forex)
+      // Step 4: Try free ECB/Frankfurter rates for fiat forex pairs (free, no key needed)
       if (!quote) {
         quote = await fetchFrankfurter(symbol)
         if (quote) {
           console.info(`[exchange/quote] Using ECB/Frankfurter for ${symbol}`)
         }
+      }
+
+      // Step 5: Try FCSAPI (currently disabled — free key no longer works)
+      if (!quote) {
+        quote = await fetchFcsApi(symbol)
+      }
+
+      // Step 6: Try Metals.dev (currently disabled — free key no longer works)
+      if (!quote) {
+        quote = await fetchMetalsDev(symbol)
       }
     } else if (source === 'CoinGecko') {
       try {

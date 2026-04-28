@@ -225,9 +225,9 @@ export class TwelveDataAdapter implements IExchangeAdapter {
 
   private async _checkRateLimit(): Promise<void> {
     // ── Circuit breaker: check if TwelveData reported daily credit exhaustion ──
-    // This is set when TwelveData's server says "out of API credits" even though
-    // our Redis counter might have reset (e.g., after container restart).
-    const circuitBreakerKey = 'twelvedata:daily_exhausted';
+    // The key includes the API key hash, so changing the key auto-invalidates old breakers
+    const keyHash = this._getKeyHash();
+    const circuitBreakerKey = `twelvedata:daily_exhausted:${keyHash}`;
     const circuitBreaker = await this.redisService.get(circuitBreakerKey);
     if (circuitBreaker) {
       this.logger.warn(
@@ -284,29 +284,47 @@ export class TwelveDataAdapter implements IExchangeAdapter {
   /**
    * Activate the daily circuit breaker.
    * When TwelveData's server says we're out of credits, we set a Redis key
-   * that blocks ALL subsequent requests until it expires (next day).
-   * This prevents wasting time making requests that will always fail.
+   * that blocks ALL subsequent requests until it expires.
    *
-   * TTL is set to 24 hours to ensure we don't retry until the next day.
+   * TTL is set to 5 minutes instead of 24 hours — this allows the system to
+   * auto-retry sooner, which is important when the user updates their API key.
+   * The key also includes the API key hash so changing the key auto-invalidates it.
    */
   private async _activateDailyCircuitBreaker(): Promise<void> {
-    const circuitBreakerKey = 'twelvedata:daily_exhausted';
-    const ttlMs = 86_400_000; // 24 hours
+    // Include API key hash in the circuit breaker key so changing the key auto-invalidates it
+    const keyHash = this._getKeyHash();
+    const circuitBreakerKey = `twelvedata:daily_exhausted:${keyHash}`;
+    const ttlMs = 300_000; // 5 minutes (was 24 hours — too long!)
 
     await this.redisService.set(
       circuitBreakerKey,
       JSON.stringify({
         activatedAt: new Date().toISOString(),
         reason: 'TwelveData server reported daily credit exhaustion',
+        apiKeyHash: keyHash,
       }),
       ttlMs,
     );
 
     this.logger.error(
-      `🚫 TwelveData DAILY CREDITS EXHAUSTED — circuit breaker activated for 24 hours. ` +
-      `All stock/forex/commodity data will be unavailable until credits reset. ` +
+      `🚫 TwelveData DAILY CREDITS EXHAUSTED — circuit breaker activated for 5 minutes. ` +
+      `Will auto-retry after cooldown. If you updated your API key, it will take effect automatically. ` +
       `Consider upgrading your TwelveData plan at https://twelvedata.com/pricing`,
     );
+  }
+
+  /**
+   * Compute a simple hash of the API key for circuit breaker key scoping.
+   * When the API key changes, the old circuit breaker key becomes irrelevant.
+   */
+  private _getKeyHash(): string {
+    let hash = 0;
+    for (let i = 0; i < this.apiKey.length; i++) {
+      const chr = this.apiKey.charCodeAt(i);
+      hash = ((hash << 5) - hash) + chr;
+      hash |= 0;
+    }
+    return hash.toString(36);
   }
 
   // ── Private: Utility ──

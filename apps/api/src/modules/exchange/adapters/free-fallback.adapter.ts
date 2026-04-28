@@ -317,7 +317,7 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
     quote: string,
   ): Promise<UnifiedQuoteDto> {
     try {
-      const response = await axios.get(`https://api.frankfurter.app/latest`, {
+      const response = await axios.get(`https://api.frankfurter.dev/v1/latest`, {
         params: {
           from: base,
           to: quote,
@@ -381,7 +381,7 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
         const endDate = end.toISOString().split('T')[0];
 
         const response = await axios.get(
-          `https://api.frankfurter.app/${startDate}..${endDate}`,
+          `https://api.frankfurter.dev/v1/${startDate}..${endDate}`,
           {
             params: { from: base, to: quote },
             timeout: 15000,

@@ -901,9 +901,10 @@ export default function AdminAiCostsPage() {
                       <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.muted, fontFamily: "'JetBrains Mono', monospace" }}>
                         {dailyTokenEntries.length > 0
                           ? formatTokens(
-                              Object.values(data?.dailyInputTokens || {}).reduce((a, b) => a + Number(b), 0)
-                              + Object.values(data?.dailyOutputTokens || {}).reduce((a, b) => a + Number(b), 0)
-                            ) / (dailyTokenEntries.length || 1)
+                              (Object.values(data?.dailyInputTokens || {}).reduce((a: number, b) => a + Number(b), 0)
+                              + Object.values(data?.dailyOutputTokens || {}).reduce((a: number, b) => a + Number(b), 0))
+                              / (dailyTokenEntries.length || 1)
+                            )
                           : '—'}
                       </div>
                     </div>

@@ -19,29 +19,7 @@ import {
   Activity,
   DollarSign,
 } from 'lucide-react'
-
-/* ── design tokens ── */
-const COLORS = {
-  bg: '#0B0E14',
-  card: '#111318',
-  accent: '#00E5FF',
-  success: '#00E676',
-  danger: '#FF5252',
-  amber: '#FFB800',
-  text: '#F0F2F5',
-  muted: '#8B92A8',
-  border: 'rgba(0,229,255,0.08)',
-  purple: '#B388FF',
-}
-
-const CARD_STYLE: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.02)',
-  border: '1px solid rgba(0,229,255,0.08)',
-  borderRadius: 10,
-  padding: 20,
-  position: 'relative',
-  overflow: 'hidden',
-}
+import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
 
 /* ── notification events config ── */
 const NOTIFICATION_EVENTS = [
@@ -73,6 +51,7 @@ export default function AdminNotificationsPage() {
   /* Telegram state */
   const [telegramEnabled, setTelegramEnabled] = useState(false)
   const [telegramToken, setTelegramToken] = useState('')
+  const [telegramTokenMasked, setTelegramTokenMasked] = useState(false) // true when loaded token is masked
   const [telegramTokenVisible, setTelegramTokenVisible] = useState(false)
   const [telegramChatId, setTelegramChatId] = useState('')
   const [telegramTesting, setTelegramTesting] = useState(false)
@@ -98,7 +77,11 @@ export default function AdminNotificationsPage() {
         const telegramConfig = data.configs?.find((c: NotifConfig) => c.type === 'telegram')
         if (telegramConfig) {
           setTelegramEnabled(telegramConfig.enabled)
-          setTelegramToken(telegramConfig.config?.botToken || '')
+          // Token is masked by the API — store it but mark as masked
+          // so we don't send the masked value back on save
+          const token = telegramConfig.config?.botToken || ''
+          setTelegramToken(token)
+          setTelegramTokenMasked(!!telegramConfig.config?.botToken_masked)
           setTelegramChatId(telegramConfig.config?.chatId || '')
           if (!telegramConfig.enabled) {
             setTelegramStatus('disabled')
@@ -137,7 +120,9 @@ export default function AdminNotificationsPage() {
           const telegramConfig = data.configs?.find((c: NotifConfig) => c.type === 'telegram')
           if (telegramConfig) {
             setTelegramEnabled(telegramConfig.enabled)
-            setTelegramToken(telegramConfig.config?.botToken || '')
+            const token = telegramConfig.config?.botToken || ''
+            setTelegramToken(token)
+            setTelegramTokenMasked(!!telegramConfig.config?.botToken_masked)
             setTelegramChatId(telegramConfig.config?.chatId || '')
             if (!telegramConfig.enabled) {
               setTelegramStatus('disabled')
@@ -188,8 +173,14 @@ export default function AdminNotificationsPage() {
     setSaving(true)
     setSaveMessage('')
     try {
-      // Save Telegram
-      await saveConfig('telegram', telegramEnabled, { botToken: telegramToken, chatId: telegramChatId })
+      // Save Telegram — only send botToken if user typed a new one (not masked)
+      const telegramPayload: Record<string, any> = { chatId: telegramChatId }
+      if (!telegramTokenMasked) {
+        // User typed a new token — send it
+        telegramPayload.botToken = telegramToken
+      }
+      // If token is masked (unchanged), omit it so the server keeps the existing one
+      await saveConfig('telegram', telegramEnabled, telegramPayload)
       // Save Browser
       await saveConfig('browser', browserEnabled, { vapidKey: '' })
       // Save Events
@@ -360,8 +351,12 @@ export default function AdminNotificationsPage() {
                 <input
                   type={telegramTokenVisible ? 'text' : 'password'}
                   value={telegramToken}
-                  onChange={(e) => setTelegramToken(e.target.value)}
-                  placeholder="أدخل Bot Token"
+                  onChange={(e) => {
+                    setTelegramToken(e.target.value)
+                    // User typed a new token — mark as unmasked
+                    setTelegramTokenMasked(false)
+                  }}
+                  placeholder={telegramTokenMasked ? 'أدخل رمز جديد أو اتركه فارغاً للإبقاء على الحالي' : 'أدخل Bot Token'}
                   dir="ltr"
                   style={{
                     width: '100%', padding: '10px 40px 10px 12px', borderRadius: 8,

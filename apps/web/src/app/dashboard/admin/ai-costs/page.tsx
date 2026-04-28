@@ -20,32 +20,15 @@ import {
   TrendingUp,
   FileText,
 } from 'lucide-react'
+import { COLORS as BASE_COLORS, CARD_STYLE } from '@/lib/admin-ui'
 
-/* ── design tokens ── */
+/* ── design tokens (extends shared palette with AI-specific colors) ── */
 const COLORS = {
-  bg: '#0B0E14',
-  card: '#111318',
-  accent: '#00E5FF',
-  success: '#00E676',
-  danger: '#FF5252',
-  amber: '#FFB800',
-  text: '#F0F2F5',
-  muted: '#8B92A8',
-  border: 'rgba(0,229,255,0.08)',
-  purple: '#B388FF',
+  ...BASE_COLORS,
   blue: '#448AFF',
   pink: '#FF4081',
   teal: '#1DE9B6',
   orange: '#FF6D00',
-}
-
-const CARD_STYLE: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.02)',
-  border: '1px solid rgba(0,229,255,0.08)',
-  borderRadius: 10,
-  padding: 20,
-  position: 'relative',
-  overflow: 'hidden',
 }
 
 /* ── helpers ── */
@@ -324,6 +307,7 @@ export default function AdminAiCostsPage() {
           return (
             <div key={i} style={{
               ...CARD_STYLE,
+              padding: 20,
               display: 'flex', alignItems: 'center', gap: 12,
               animation: `fadeInSlideUp 0.4s ease-out ${i * 0.05}s both`,
             }}>

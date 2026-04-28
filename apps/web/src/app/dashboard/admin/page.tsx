@@ -16,6 +16,7 @@ import {
   CreditCard,
   Brain,
 } from 'lucide-react'
+import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
 
 interface AdminStats {
   users: { total: number; free: number; pro: number; plus: number; premium: number; institutional: number }
@@ -32,27 +33,6 @@ interface ActivityItem {
   userEmail: string | null
   userName: string | null
   createdAt: string
-}
-
-const CARD_STYLE: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.02)',
-  border: '1px solid rgba(0,229,255,0.08)',
-  borderRadius: 10,
-  padding: 20,
-  position: 'relative',
-  overflow: 'hidden',
-}
-
-const COLORS = {
-  bg: '#0B0E14',
-  card: '#111318',
-  accent: '#00E5FF',
-  success: '#00E676',
-  danger: '#FF5252',
-  amber: '#FFB800',
-  text: '#F0F2F5',
-  muted: '#8B92A8',
-  border: 'rgba(0,229,255,0.08)',
 }
 
 function getActivityIcon(action: string) {
@@ -223,6 +203,7 @@ export default function AdminOverviewPage() {
           return (
             <div key={i} style={{
               ...CARD_STYLE,
+              padding: 20,
               animation: `fadeInSlideUp 0.4s ease-out ${i * 0.05}s both`,
             }}>
               <div style={{

@@ -1,21 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { proxyToNestJS } from '@/lib/nestjs-proxy'
+import { NextRequest } from 'next/server'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+export const dynamic = 'force-dynamic'
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ pair: string }> }) {
-  try {
-    const { pair } = await params
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-    req.headers.forEach((value, key) => { headers[key] = value })
-    const body = await req.text()
-    const res = await fetch(`${API_BASE}/signals/generate/${encodeURIComponent(pair)}`, {
-      method: 'POST',
-      headers,
-      body,
-    })
-    const data = await res.json()
-    return NextResponse.json(data, { status: res.status })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 502 })
-  }
+/**
+ * POST /api/signals/generate/:pair — Proxy to NestJS backend
+ *
+ * Uses the shared NestJS proxy utility for consistent auth handling.
+ */
+export async function POST(req: NextRequest) {
+  return proxyToNestJS(req, 'POST')
 }

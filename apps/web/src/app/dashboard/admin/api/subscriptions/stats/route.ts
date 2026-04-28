@@ -1,9 +1,13 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
+import { verifyAdminAuth } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authError = await verifyAdminAuth(req)
+  if (authError) return authError
+
   try {
     const dbReady = await ensureDbReady()
     if (!dbReady) {

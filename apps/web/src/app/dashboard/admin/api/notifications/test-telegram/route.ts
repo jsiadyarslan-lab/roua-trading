@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyAdminAuth } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,6 +13,9 @@ export const dynamic = 'force-dynamic'
  * Returns { ok: boolean, botName?: string, error?: string }
  */
 export async function POST(req: NextRequest) {
+  const authError = await verifyAdminAuth(req)
+  if (authError) return authError
+
   try {
     const { botToken, chatId } = await req.json()
 

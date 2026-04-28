@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
 import { Prisma } from '@prisma/client'
+import { verifyAdminAuth } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +11,10 @@ export const dynamic = 'force-dynamic'
  * Returns aggregated platform stats from the database.
  * Returns zeros if DB is unavailable — NO fake data.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authError = await verifyAdminAuth(req)
+  if (authError) return authError
+
   const emptyResponse = () => ({
     users: { total: 0, free: 0, pro: 0, plus: 0, premium: 0, institutional: 0 },
     trading: { dailyTrades: 0, volume: 0, winRate: 0, activePositions: 0 },

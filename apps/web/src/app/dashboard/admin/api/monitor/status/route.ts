@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { verifyAdminAuth } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -77,7 +78,10 @@ async function pingAgentHealth(agentUrl: string): Promise<{
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authError = await verifyAdminAuth(req)
+  if (authError) return authError
+
   const agentUrl = getMonitorAgentUrl()
   const now = Date.now()
 

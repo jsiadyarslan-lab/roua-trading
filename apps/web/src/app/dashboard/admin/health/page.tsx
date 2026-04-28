@@ -11,6 +11,7 @@ import {
   Server,
   Zap,
 } from 'lucide-react'
+import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
 
 interface EndpointHealth {
   path: string
@@ -18,26 +19,6 @@ interface EndpointHealth {
   responseTime: number
   lastChecked: string
   history: number[]
-}
-
-const COLORS = {
-  bg: '#0B0E14',
-  card: '#111318',
-  accent: '#00E5FF',
-  success: '#00E676',
-  danger: '#FF5252',
-  amber: '#FFB800',
-  text: '#F0F2F5',
-  muted: '#8B92A8',
-  border: 'rgba(0,229,255,0.08)',
-}
-
-const CARD_STYLE: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.02)',
-  border: '1px solid rgba(0,229,255,0.08)',
-  borderRadius: 10,
-  position: 'relative',
-  overflow: 'hidden',
 }
 
 const MONITORED_ENDPOINTS = [

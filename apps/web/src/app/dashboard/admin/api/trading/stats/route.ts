@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
+import { verifyAdminAuth } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,7 +10,10 @@ export const dynamic = 'force-dynamic'
  * Returns active positions, recent orders/trades, trading stats, and bot status.
  * Returns empty arrays / zeros if DB is unavailable — NO fake data.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authError = await verifyAdminAuth(req)
+  if (authError) return authError
+
   const emptyResponse = () => ({
     positions: [] as Record<string, unknown>[],
     recentTrades: [] as Record<string, unknown>[],

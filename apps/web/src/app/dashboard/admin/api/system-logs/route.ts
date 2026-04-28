@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
+import { verifyAdminAuth } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,14 +20,17 @@ interface LogEntry {
  * Fetches from AuditLog and AiUsageLog (error entries).
  * Returns structured log entries — NO fake data.
  */
-export async function GET(request: Request) {
+export async function GET(req: NextRequest) {
+  const authError = await verifyAdminAuth(req)
+  if (authError) return authError
+
   try {
     const dbReady = await ensureDbReady()
     if (!dbReady) {
       return NextResponse.json({ logs: [], error: 'قاعدة البيانات غير متاحة' })
     }
 
-    const { searchParams } = new URL(request.url)
+    const { searchParams } = new URL(req.url)
     const level = searchParams.get('level') as LogLevel | 'all' | null
     const search = searchParams.get('search')?.toLowerCase() || ''
     const limit = Math.min(parseInt(searchParams.get('limit') || '100'), 500)

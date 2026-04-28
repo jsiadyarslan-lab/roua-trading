@@ -19,29 +19,7 @@ import {
   Loader2,
   Save,
 } from 'lucide-react'
-
-/* ── design tokens ── */
-const COLORS = {
-  bg: '#0B0E14',
-  card: '#111318',
-  accent: '#00E5FF',
-  success: '#00E676',
-  danger: '#FF5252',
-  amber: '#FFB800',
-  text: '#F0F2F5',
-  muted: '#8B92A8',
-  border: 'rgba(0,229,255,0.08)',
-  purple: '#B388FF',
-}
-
-const CARD_STYLE: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.02)',
-  border: '1px solid rgba(0,229,255,0.08)',
-  borderRadius: 10,
-  padding: 20,
-  position: 'relative',
-  overflow: 'hidden',
-}
+import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
 
 /* ── toast notification ── */
 interface Toast {
@@ -355,7 +333,7 @@ export default function AdminMonitorPage() {
       {/* Agent Status Card + Control Buttons */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {/* Agent Status Card */}
-        <div style={{ ...CARD_STYLE }}>
+        <div style={{ ...CARD_STYLE, padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
             {/* Pulsing status dot */}
             <div style={{
@@ -408,7 +386,7 @@ export default function AdminMonitorPage() {
         </div>
 
         {/* Control Buttons */}
-        <div style={{ ...CARD_STYLE }}>
+        <div style={{ ...CARD_STYLE, padding: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
             <Settings size={14} color={COLORS.accent} />
             <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>التحكم بالوكيل</span>
@@ -681,7 +659,7 @@ export default function AdminMonitorPage() {
           </div>
 
           {/* Railway Deployment Info Card */}
-          <div style={{ ...CARD_STYLE }}>
+          <div style={{ ...CARD_STYLE, padding: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
               <ExternalLink size={14} color={COLORS.purple} />
               <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>نشر على Railway</span>

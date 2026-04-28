@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
+import { verifyAdminAuth } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +18,10 @@ const DEFAULT_SETTINGS = {
  * Returns the monitor settings stored in NotificationConfig.
  * Falls back to defaults if no row exists.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const authError = await verifyAdminAuth(req)
+  if (authError) return authError
+
   try {
     const dbReady = await ensureDbReady()
     if (!dbReady) {
@@ -58,6 +62,9 @@ export async function GET() {
  * Merges with existing settings and saves to NotificationConfig.
  */
 export async function POST(req: NextRequest) {
+  const authError = await verifyAdminAuth(req)
+  if (authError) return authError
+
   try {
     const dbReady = await ensureDbReady()
     if (!dbReady) {

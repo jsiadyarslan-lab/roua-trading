@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyAdminAuth } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,6 +22,9 @@ function getMonitorAgentUrl(): string | null {
 }
 
 export async function POST(req: NextRequest) {
+  const authError = await verifyAdminAuth(req)
+  if (authError) return authError
+
   try {
     const body = await req.json()
     const { action } = body

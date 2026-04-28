@@ -238,15 +238,15 @@ export default function RouaChart({
         const color = isLong ? '#3fb950' : '#f85149';
         const label = `${isLong ? 'Long' : 'Short'} ${pos.qty || ''}`;
         const entryId = `pos-entry-${pos.id || posSymbol}`;
-        chart.addPriceLine(entryId, entryPrice, color, label, 2, 0, true); // Solid, axis label ON
+        chart.addPriceLine(entryId, entryPrice, color, label, 2, 0, false); // Solid, NO axis label
         positionLineIdsRef.current.push(entryId);
       }
 
-      // SL line — dashed, NO axis label (clean price axis)
+      // SL line — dashed, NO axis label
       const sl = Number(pos.sl || pos.stopLoss || 0);
       if (sl > 0) {
         const slId = `pos-sl-${pos.id || posSymbol}`;
-        chart.addPriceLine(slId, sl, '#f85149', 'SL', 1, 2, false); // Dashed, axis label OFF
+        chart.addPriceLine(slId, sl, '#f85149', 'SL', 1, 2, false);
         positionLineIdsRef.current.push(slId);
       }
 
@@ -254,7 +254,7 @@ export default function RouaChart({
       const tp = Number(pos.tp || pos.takeProfit || 0);
       if (tp > 0) {
         const tpId = `pos-tp-${pos.id || posSymbol}`;
-        chart.addPriceLine(tpId, tp, '#3fb950', 'TP', 1, 2, false); // Dashed, axis label OFF
+        chart.addPriceLine(tpId, tp, '#3fb950', 'TP', 1, 2, false);
         positionLineIdsRef.current.push(tpId);
       }
     });
@@ -271,21 +271,21 @@ export default function RouaChart({
         const sourceTag = trade.source === 'bot' ? 'Bot ' : '';
         const label = `${sourceTag}${isLong ? 'Long' : 'Short'} ${trade.qty}`;
         const entryId = `trade-entry-${trade.id}`;
-        chart.addPriceLine(entryId, entryPrice, color, label, 2, 0, true); // Solid, axis label ON
+        chart.addPriceLine(entryId, entryPrice, color, label, 2, 0, false); // Solid, NO axis label
         positionLineIdsRef.current.push(entryId);
       }
 
-      // SL line — dashed, NO axis label (clean price axis)
+      // SL line — dashed, NO axis label
       if (trade.sl && Number(trade.sl) > 0) {
         const slId = `trade-sl-${trade.id}`;
-        chart.addPriceLine(slId, Number(trade.sl), '#f85149', 'SL', 1, 2, false); // Dashed, axis label OFF
+        chart.addPriceLine(slId, Number(trade.sl), '#f85149', 'SL', 1, 2, false);
         positionLineIdsRef.current.push(slId);
       }
 
       // TP line — dashed, NO axis label (clean price axis)
       if (trade.tp && Number(trade.tp) > 0) {
         const tpId = `trade-tp-${trade.id}`;
-        chart.addPriceLine(tpId, Number(trade.tp), '#3fb950', 'TP', 1, 2, false); // Dashed, axis label OFF
+        chart.addPriceLine(tpId, Number(trade.tp), '#3fb950', 'TP', 1, 2, false);
         positionLineIdsRef.current.push(tpId);
       }
     });

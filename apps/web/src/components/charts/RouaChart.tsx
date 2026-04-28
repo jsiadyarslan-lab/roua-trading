@@ -24,12 +24,15 @@ import { WatchlistOverlay } from './WatchlistOverlay';
 import { AIPatternPanel } from './AIPatternPanel';
 import { ChartTrading } from './ChartTrading';
 import { TemplateManager } from './TemplateManager';
+import { ChartSettingsPanel } from './ChartSettingsPanel';
 
 interface RouaChartProps {
   currentPrice?: number | null;
   mobile?: boolean;
   compact?: boolean;
   onExpand?: (() => void) | null;
+  isChartFullscreen?: boolean;
+  onToggleChartFullscreen?: () => void;
 }
 
 export default function RouaChart({
@@ -37,6 +40,8 @@ export default function RouaChart({
   mobile = false,
   compact = false,
   onExpand = null,
+  isChartFullscreen = false,
+  onToggleChartFullscreen,
 }: RouaChartProps) {
   const { selectedSymbol, timeframe, setTimeframe } = useSymbolStore();
   const [crosshairData, setCrosshairData] = useState<CrosshairData | null>(null);
@@ -53,8 +58,10 @@ export default function RouaChart({
   const [showChartTrading, setShowChartTrading] = useState(false);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [showWatchlist, setShowWatchlist] = useState(false);
+  const [showChartSettings, setShowChartSettings] = useState(false);
   const [aiPatterns, setAiPatterns] = useState<AIPattern[]>([]);
   const [newsMarkers, setNewsMarkers] = useState<NewsMarker[]>([]);
+  const positionLineIdsRef = useRef<string[]>([]);
 
   const candlesRef = useRef<CandleData[]>([]);
   const prevPriceRef = useRef(currentPrice);
@@ -204,6 +211,56 @@ export default function RouaChart({
   const positions = usePositionsStore(s => s.positions);
   const paperTrades = usePaperTradesStore(s => s.trades);
 
+  // ── Apply Position Lines to Chart ──
+  useEffect(() => {
+    // Clear existing lines
+    positionLineIdsRef.current.forEach(id => chart.removePriceLine(id));
+    positionLineIdsRef.current = [];
+
+    // Add lines for positions
+    positions.forEach(pos => {
+      const posSymbol = pos.symbol || '';
+      if (!posSymbol.includes(selectedSymbol.replace('/', ''))) return;
+
+      const entryPrice = Number(pos.avgEntryPrice || 0);
+      if (entryPrice > 0) {
+        const entryId = `pos-entry-${pos.id || posSymbol}`;
+        chart.addPriceLine(entryId, entryPrice, '#00D4FF', `دخول ${pos.side || ''}`, 1);
+        positionLineIdsRef.current.push(entryId);
+      }
+    });
+
+    // Add lines for paper trades
+    paperTrades.forEach(trade => {
+      const symbol = trade.symbol || '';
+      if (!symbol.includes(selectedSymbol.replace('/', ''))) return;
+
+      const entryPrice = Number(trade.entryPrice || 0);
+      if (entryPrice > 0) {
+        const entryId = `trade-entry-${trade.id}`;
+        chart.addPriceLine(entryId, entryPrice, '#00D4FF', `دخول ${trade.side || ''}`, 1);
+        positionLineIdsRef.current.push(entryId);
+      }
+
+      if (trade.sl && Number(trade.sl) > 0) {
+        const slId = `trade-sl-${trade.id}`;
+        chart.addPriceLine(slId, Number(trade.sl), '#f85149', 'SL', 1);
+        positionLineIdsRef.current.push(slId);
+      }
+
+      if (trade.tp && Number(trade.tp) > 0) {
+        const tpId = `trade-tp-${trade.id}`;
+        chart.addPriceLine(tpId, Number(trade.tp), '#3fb950', 'TP', 1);
+        positionLineIdsRef.current.push(tpId);
+      }
+    });
+
+    return () => {
+      positionLineIdsRef.current.forEach(id => chart.removePriceLine(id));
+      positionLineIdsRef.current = [];
+    };
+  }, [positions, paperTrades, selectedSymbol, chart]);
+
   // ── Indicator Management ───────────────────────────────
   const handleToggleIndicator = useCallback((key: string) => {
     const existing = chart.getActiveIndicators().find(i => i.key === key);
@@ -262,6 +319,34 @@ export default function RouaChart({
     // TODO: Connect to actual order placement API
   }, []);
 
+  // ── Apply Combined Markers (News + AI Patterns) to Chart ──
+  useEffect(() => {
+    const combinedMarkers: any[] = [];
+
+    // Add news markers
+    if (newsMarkers.length) {
+      const newsChartMarkers = createNewsChartMarkers(newsMarkers);
+      combinedMarkers.push(...newsChartMarkers);
+    }
+
+    // Add AI pattern markers
+    if (aiPatterns.length) {
+      aiPatterns.forEach(p => {
+        combinedMarkers.push({
+          time: p.time as any,
+          position: (p.direction === 'bullish' ? 'belowBar' : 'aboveBar') as 'belowBar' | 'aboveBar',
+          color: p.direction === 'bullish' ? '#3fb950' : p.direction === 'bearish' ? '#f85149' : '#fbbf24',
+          shape: (p.direction === 'bullish' ? 'arrowUp' : 'arrowDown') as 'arrowUp' | 'arrowDown',
+          text: p.labelAr || p.type,
+        });
+      });
+    }
+
+    // Sort by time and apply
+    combinedMarkers.sort((a, b) => (a.time as number) - (b.time as number));
+    chart.setMarkers(combinedMarkers);
+  }, [newsMarkers, aiPatterns, chart]);
+
   // ── Color Palette ──────────────────────────────────────
   const COLORS = {
     bg: '#0B0E14',
@@ -305,7 +390,8 @@ export default function RouaChart({
         onExportPNG={chart.exportPNG}
         onExportCSV={chart.exportCSV}
         onExportSVG={chart.exportSVG}
-        onToggleFullscreen={chart.toggleFullscreen}
+        onToggleFullscreen={onToggleChartFullscreen || chart.toggleFullscreen}
+        isFullscreen={isChartFullscreen || chart.isFullscreen}
         activeTool={chart.activeTool}
         onSetTool={chart.setTool}
         onClearDrawings={chart.clearDrawings}
@@ -319,6 +405,7 @@ export default function RouaChart({
         onToggleChartTrading={() => setShowChartTrading(!showChartTrading)}
         onToggleTemplateManager={() => setShowTemplateManager(!showTemplateManager)}
         onToggleWatchlist={() => setShowWatchlist(!showWatchlist)}
+        onToggleChartSettings={() => setShowChartSettings(!showChartSettings)}
         showVolumeProfile={showVolumeProfile}
         showAIPanel={showAIPanel}
         showChartTrading={showChartTrading}
@@ -419,6 +506,15 @@ export default function RouaChart({
             onClose={() => setShowTemplateManager(false)}
           />
         )}
+
+        {/* Chart Settings Panel (floating) */}
+        {showChartSettings && (
+          <ChartSettingsPanel
+            settings={chart.settings}
+            onUpdateSettings={chart.updateSettings}
+            onClose={() => setShowChartSettings(false)}
+          />
+        )}
       </div>
 
       {/* ── Watchlist Overlay (bottom bar) ── */}
@@ -444,6 +540,17 @@ export default function RouaChart({
       <style jsx global>{`
         .roua-chart-root [class*="lightweight-charts"] {
           border-radius: 0 !important;
+        }
+        .roua-chart-root a#tv-attr-logo,
+        .roua-chart-root [id*="tv-attr"],
+        .roua-chart-root .tv-lightweight-charts a {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+          width: 0 !important;
+          height: 0 !important;
+          overflow: hidden !important;
         }
       `}</style>
     </div>

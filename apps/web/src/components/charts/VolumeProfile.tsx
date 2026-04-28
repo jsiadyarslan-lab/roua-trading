@@ -118,7 +118,7 @@ export function VolumeProfile({ candles, width = 80, rows = 24, visible = true }
     <div style={{
       position: 'absolute',
       top: 0,
-      right: 0,
+      right: 80, // Offset to avoid overlapping with lightweight-charts price scale
       width: width,
       height: '100%',
       pointerEvents: 'none',

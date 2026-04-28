@@ -13,6 +13,7 @@ import { RightPanelLayout } from '@/components/dashboard/layouts/RightPanelLayou
 import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
 import { QuickExecutionMini } from '@/components/dashboard/QuickExecutionMini'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
+import { useDashboardStore } from '@/lib/dashboard-store'
 import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
 
 const DASHBOARD_SYMBOLS = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA']
@@ -78,6 +79,8 @@ export default function DashboardPage() {
   const positionsError = usePositionsStore(state => state.error)
   const fetchAccount = usePositionsStore(state => state.fetchAccount)
   const fetchPositions = usePositionsStore(state => state.fetchPositions)
+  const chartFullscreen = useDashboardStore(state => state.chartFullscreen)
+  const toggleChartFullscreen = useDashboardStore(state => state.toggleChartFullscreen)
   const [posOpen, setPosOpen] = useState(true)
   const [activeMobileView, setActiveMobileView] = useState<MobileView>('execution')
   const [chartExpanded, setChartExpanded] = useState(false)
@@ -200,6 +203,10 @@ export default function DashboardPage() {
           padding: 8px;
           box-sizing: border-box;
           overflow: hidden;
+        }
+
+        .dash-grid.chart-fullscreen {
+          grid-template-columns: 0px minmax(0, 1fr) 0px !important;
         }
 
         .dash-col {
@@ -629,7 +636,7 @@ export default function DashboardPage() {
       <NotificationToasts />
 
       {!isMobileViewport && (
-        <div className="dash-grid dashboard-shell">
+        <div className={`dash-grid dashboard-shell${chartFullscreen ? ' chart-fullscreen' : ''}`}>
           {/* Left Sidebar — hidden on compact desktop when drawer is used */}
           {!(isCompactDesktopViewport && !sidebarPinned) && (
             <div className="dash-col dash-col-left animate-in-1" style={{ height: '100%' }}>
@@ -644,11 +651,14 @@ export default function DashboardPage() {
               <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
                 <RouaChart
                   currentPrice={currentPrice}
+                  isChartFullscreen={chartFullscreen}
+                  onToggleChartFullscreen={toggleChartFullscreen}
                 />
               </div>
             </div>
 
             {/* Balance Card + Positions Panel */}
+            {!chartFullscreen && (
             <div className="panel hover-glow" style={{ flexShrink: 0, height: posOpen ? 240 : PANEL_H, transition: ANIM, display: 'flex', flexDirection: 'column' }}>
               <div className="panel-header">
                 <div className="summary-row">
@@ -702,6 +712,7 @@ export default function DashboardPage() {
                 <AlpacaPositions />
               </div>
             </div>
+            )}
           </div>
 
           {/* Right Panel */}

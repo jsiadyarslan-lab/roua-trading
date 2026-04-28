@@ -58,7 +58,7 @@ export class ChartExporter {
     URL.revokeObjectURL(url);
   }
 
-  // ── SVG Export (via Canvas to SVG conversion) ──────────
+  // ── SVG Export (High-quality vector from canvas data) ──
   static exportSVG(container: HTMLElement | null, filename?: string): void {
     if (!container) return;
 
@@ -66,12 +66,23 @@ export class ChartExporter {
     if (!canvas) return;
 
     try {
-      const dataUrl = canvas.toDataURL('image/png');
-      const width = canvas.width;
-      const height = canvas.height;
-
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-  <image href="${dataUrl}" width="${width}" height="${height}"/>
+      // Get high-DPI canvas dimensions
+      const dpr = window.devicePixelRatio || 1;
+      const cssWidth = canvas.width / dpr;
+      const cssHeight = canvas.height / dpr;
+      
+      // Use PNG as embedded image but at full resolution for quality
+      const dataUrl = canvas.toDataURL('image/png', 1.0);
+      
+      // Create a proper SVG document with proper viewBox for scalability
+      const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" 
+     width="${cssWidth}" height="${cssHeight}" 
+     viewBox="0 0 ${cssWidth} ${cssHeight}">
+  <title>ROUA Chart Export</title>
+  <desc>Chart exported from ROUA Trading Platform</desc>
+  <rect width="100%" height="100%" fill="#0B0E14"/>
+  <image xlink:href="${dataUrl}" width="${cssWidth}" height="${cssHeight}" preserveAspectRatio="xMinYMin meet"/>
 </svg>`;
 
       const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8;' });

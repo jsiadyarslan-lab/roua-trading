@@ -57,6 +57,9 @@ interface UseChartReturn {
   getTemplates: () => any[];
   currentTool: DrawingTool;
   cancelDrawing: () => void;
+  setMarkers: (markers: any[]) => void;
+  addPriceLine: (id: string, price: number, color: string, label: string, lineWidth?: number) => void;
+  removePriceLine: (id: string) => void;
 }
 
 export function useChart(options: UseChartOptions): UseChartReturn {
@@ -134,6 +137,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         textColor: COLORS.textSecondary,
         fontSize: 11,
         fontFamily: "'JetBrains Mono', monospace",
+        attributionLogo: false,
       },
       grid: {
         vertLines: { color: COLORS.grid },
@@ -436,6 +440,27 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
     // ── Helper: add oscillator sub-panel series ──
     const addOscillatorLine = (key: string, data: { time: Time; value: number }[], color: string, scaleId: string, lineWidth: number = 1) => {
+      // Count how many oscillator scales already exist
+      const existingScaleIds = new Set<string>();
+      oscillatorSeriesRef.current.forEach(s => {
+        try {
+          const opts = s.options() as any;
+          if (opts.priceScaleId) existingScaleIds.add(opts.priceScaleId);
+        } catch {}
+      });
+
+      const totalScales = existingScaleIds.size + 1;
+      const panelHeight = Math.min(0.15, Math.max(0.10, 0.60 / totalScales));
+
+      // Find the slot index for this scale
+      const scaleSlots = Array.from(existingScaleIds);
+      scaleSlots.push(scaleId);
+      scaleSlots.sort();
+      const slotIndex = scaleSlots.indexOf(scaleId);
+
+      const bottomMargin = slotIndex * panelHeight;
+      const topMargin = 1 - bottomMargin - panelHeight;
+
       const series = chart.addSeries(LineSeries, {
         color,
         lineWidth: lineWidth as any,
@@ -445,7 +470,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         priceScaleId: scaleId,
       });
       series.priceScale().applyOptions({
-        scaleMargins: { top: 0.85, bottom: 0 },
+        scaleMargins: { top: Math.max(0.1, topMargin), bottom: bottomMargin },
         borderVisible: false,
       });
       series.setData(data as any);
@@ -460,7 +485,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const data = results.map((r: any) => {
         const val = r.values?.[indicator.key] ?? r.value;
         return val !== null ? { time: r.time as Time, value: val } : null;
-      }).filter(Boolean);
+      }).filter((d): d is { time: Time; value: number } => d !== null);
       addOverlayLine(indicator.key, data, indicator.color);
     }
 
@@ -622,24 +647,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const data = results.map((r: any) => {
         const val = r.values?.rsi;
         return val !== null ? { time: r.time as Time, value: val } : null;
-      }).filter(Boolean);
-
-      const series = chart.addSeries(LineSeries, {
-        color: indicator.color,
-        lineWidth: 1 as any,
-        priceLineVisible: false,
-        lastValueVisible: true,
-        crosshairMarkerVisible: false,
-        priceScaleId: 'rsi-scale',
-      });
-      series.priceScale().applyOptions({
-        scaleMargins: { top: 0.85, bottom: 0 },
-        borderVisible: false,
-        autoScale: true,
-        mode: 0,
-      });
-      series.setData(data as any);
-      oscillatorSeriesRef.current.set('rsi', series);
+      }).filter((d): d is { time: Time; value: number } => d !== null);
+      addOscillatorLine('rsi', data, indicator.color, 'rsi-scale');
     }
 
     else if (indicator.key === 'macd') {
@@ -648,38 +657,18 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const histData: { time: Time; value: number; color: string }[] = [];
 
       results.forEach((r: any) => {
-        if (r.macd !== null) {
-          macdData.push({ time: r.time as Time, value: r.macd });
-        }
-        if (r.signal !== null) {
-          signalData.push({ time: r.time as Time, value: r.signal });
-        }
-        if (r.histogram !== null) {
-          histData.push({
-            time: r.time as Time,
-            value: r.histogram,
-            color: r.histogram >= 0 ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)',
-          });
-        }
+        if (r.macd !== null) macdData.push({ time: r.time as Time, value: r.macd });
+        if (r.signal !== null) signalData.push({ time: r.time as Time, value: r.signal });
+        if (r.histogram !== null) histData.push({
+          time: r.time as Time,
+          value: r.histogram,
+          color: r.histogram >= 0 ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)',
+        });
       });
 
-      // MACD line
-      const macdSeries = chart.addSeries(LineSeries, {
-        color: '#58a6ff',
-        lineWidth: 1 as any,
-        priceLineVisible: false,
-        lastValueVisible: true,
-        crosshairMarkerVisible: false,
-        priceScaleId: 'macd-scale',
-      });
-      macdSeries.priceScale().applyOptions({
-        scaleMargins: { top: 0.85, bottom: 0 },
-        borderVisible: false,
-      });
-      macdSeries.setData(macdData as any);
-      oscillatorSeriesRef.current.set('macd-line', macdSeries);
+      addOscillatorLine('macd-line', macdData, '#58a6ff', 'macd-scale');
 
-      // Signal line
+      // Signal line (same scale)
       const sigSeries = chart.addSeries(LineSeries, {
         color: '#f97316',
         lineWidth: 1 as any,
@@ -691,7 +680,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       sigSeries.setData(signalData as any);
       oscillatorSeriesRef.current.set('macd-signal', sigSeries);
 
-      // Histogram
+      // Histogram (same scale)
       const histSeries = chart.addSeries(LCHistogram, {
         priceScaleId: 'macd-scale',
         priceLineVisible: false,
@@ -709,20 +698,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         if (r.values?.d !== null) dData.push({ time: r.time as Time, value: r.values.d });
       });
 
-      const kSeries = chart.addSeries(LineSeries, {
-        color: '#a855f7',
-        lineWidth: 1 as any,
-        priceLineVisible: false,
-        lastValueVisible: true,
-        crosshairMarkerVisible: false,
-        priceScaleId: 'stoch-scale',
-      });
-      kSeries.priceScale().applyOptions({
-        scaleMargins: { top: 0.85, bottom: 0 },
-        borderVisible: false,
-      });
-      kSeries.setData(kData as any);
-      oscillatorSeriesRef.current.set('stoch-k', kSeries);
+      addOscillatorLine('stoch-k', kData, '#a855f7', 'stoch-scale');
 
       const dSeries = chart.addSeries(LineSeries, {
         color: '#fbbf24',
@@ -740,22 +716,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const data = results.map((r: any) => {
         const val = r.values?.atr;
         return val !== null ? { time: r.time as Time, value: val } : null;
-      }).filter(Boolean);
-
-      const series = chart.addSeries(LineSeries, {
-        color: indicator.color,
-        lineWidth: 1 as any,
-        priceLineVisible: false,
-        lastValueVisible: true,
-        crosshairMarkerVisible: false,
-        priceScaleId: 'atr-scale',
-      });
-      series.priceScale().applyOptions({
-        scaleMargins: { top: 0.85, bottom: 0 },
-        borderVisible: false,
-      });
-      series.setData(data as any);
-      oscillatorSeriesRef.current.set('atr', series);
+      }).filter((d): d is { time: Time; value: number } => d !== null);
+      addOscillatorLine('atr', data, indicator.color, 'atr-scale');
     }
 
     else if (indicator.key === 'adx') {
@@ -768,20 +730,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         if (r.values?.mdi !== null) mdiData.push({ time: r.time as Time, value: r.values.mdi });
       });
 
-      const adxSeries = chart.addSeries(LineSeries, {
-        color: '#fbbf24',
-        lineWidth: 2 as any,
-        priceLineVisible: false,
-        lastValueVisible: true,
-        crosshairMarkerVisible: false,
-        priceScaleId: 'adx-scale',
-      });
-      adxSeries.priceScale().applyOptions({
-        scaleMargins: { top: 0.85, bottom: 0 },
-        borderVisible: false,
-      });
-      adxSeries.setData(adxData as any);
-      oscillatorSeriesRef.current.set('adx-line', adxSeries);
+      addOscillatorLine('adx-line', adxData, '#fbbf24', 'adx-scale', 2);
 
       const pdiSeries = chart.addSeries(LineSeries, {
         color: '#3fb950',
@@ -810,22 +759,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const data = results.map((r: any) => {
         const val = r.values?.cci;
         return val !== null ? { time: r.time as Time, value: val } : null;
-      }).filter(Boolean);
-
-      const series = chart.addSeries(LineSeries, {
-        color: indicator.color,
-        lineWidth: 1 as any,
-        priceLineVisible: false,
-        lastValueVisible: true,
-        crosshairMarkerVisible: false,
-        priceScaleId: 'cci-scale',
-      });
-      series.priceScale().applyOptions({
-        scaleMargins: { top: 0.85, bottom: 0 },
-        borderVisible: false,
-      });
-      series.setData(data as any);
-      oscillatorSeriesRef.current.set('cci', series);
+      }).filter((d): d is { time: Time; value: number } => d !== null);
+      addOscillatorLine('cci', data, indicator.color, 'cci-scale');
     }
   }, []);
 
@@ -931,22 +866,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
   // ── Fullscreen ─────────────────────────────────────────
   const toggleFullscreen = useCallback(() => {
-    setIsFullscreen(f => {
-      const next = !f;
-      if (next) {
-        // Enter fullscreen
-        const el = containerRef.current?.parentElement || containerRef.current;
-        if (el) {
-          if (el.requestFullscreen) el.requestFullscreen();
-          else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
-        }
-      } else {
-        // Exit fullscreen
-        if (document.exitFullscreen) document.exitFullscreen();
-        else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
-      }
-      return next;
-    });
+    setIsFullscreen(f => !f);
   }, []);
 
   // ── Pause ──────────────────────────────────────────────
@@ -976,6 +896,55 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
   const getTemplates = useCallback(() => {
     return ChartTemplateManager.getAll();
+  }, []);
+
+  // ── Set Markers on Candle Series ──
+  const setMarkers = useCallback((markers: any[]) => {
+    if (!candleSeriesRef.current) return;
+    try {
+      (candleSeriesRef.current as any).setMarkers(markers);
+    } catch {
+      // Markers API may fail silently
+    }
+  }, []);
+
+  // ── Price Lines (for positions/trades) ──
+  const priceLinesRef = useRef<Map<string, any>>(new Map());
+
+  const addPriceLine = useCallback((id: string, price: number, color: string, label: string, lineWidth: number = 1) => {
+    if (!candleSeriesRef.current) return;
+
+    // Remove existing line with same id
+    if (priceLinesRef.current.has(id)) {
+      try {
+        priceLinesRef.current.get(id)?.remove();
+      } catch {}
+      priceLinesRef.current.delete(id);
+    }
+
+    try {
+      const line = candleSeriesRef.current.createPriceLine({
+        price,
+        color,
+        lineWidth: lineWidth as any,
+        lineStyle: 2, // Dashed
+        axisLabelVisible: true,
+        title: label,
+      });
+      priceLinesRef.current.set(id, line);
+    } catch {
+      // Price line creation may fail
+    }
+  }, []);
+
+  const removePriceLine = useCallback((id: string) => {
+    const line = priceLinesRef.current.get(id);
+    if (line) {
+      try {
+        line.remove();
+      } catch {}
+      priceLinesRef.current.delete(id);
+    }
   }, []);
 
   // ── Update Settings ────────────────────────────────────
@@ -1043,5 +1012,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     getTemplates,
     currentTool: activeTool,
     cancelDrawing,
+    setMarkers,
+    addPriceLine,
+    removePriceLine,
   };
 }

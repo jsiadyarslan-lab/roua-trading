@@ -1,4 +1,4 @@
-const CACHE_NAME = 'roua-v1';
+const CACHE_NAME = 'roua-v2';
 
 const APP_SHELL = [
   '/',
@@ -33,18 +33,36 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Helper: only GET requests can be cached
+function isCacheable(request) {
+  return request.method === 'GET';
+}
+
 // Fetch: network-first for API, cache-first for static assets
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Network-first for API calls
+  // Non-GET requests: network only, no caching
+  if (!isCacheable(request)) {
+    event.respondWith(
+      fetch(request).catch(() => {
+        return new Response(JSON.stringify({ error: 'Network error' }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      })
+    );
+    return;
+  }
+
+  // Network-first for API calls (GET only)
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Cache successful API responses briefly
-          if (response.ok) {
+          // Cache successful GET API responses briefly
+          if (response.ok && isCacheable(request)) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(request, clone);
@@ -71,7 +89,7 @@ self.addEventListener('fetch', (event) => {
       caches.match(request).then((cached) => {
         if (cached) return cached;
         return fetch(request).then((response) => {
-          if (response.ok) {
+          if (response.ok && isCacheable(request)) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(request, clone);
@@ -88,7 +106,7 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(request)
       .then((response) => {
-        if (response.ok) {
+        if (response.ok && isCacheable(request)) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(request, clone);
@@ -98,7 +116,6 @@ self.addEventListener('fetch', (event) => {
       })
       .catch(() => {
         return caches.match(request).then((cached) => {
-          // Offline fallback: serve cached dashboard or a basic offline page
           return cached || caches.match('/dashboard');
         });
       })

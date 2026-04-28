@@ -115,6 +115,7 @@ export class DrawingRenderer {
     if (!this.started) return;
     this.started = false;
 
+    this.setChartInteractionEnabled(true);
     this.detachEvents();
     this.removeOverlayCanvas();
     this.clickedPoints = [];
@@ -128,6 +129,9 @@ export class DrawingRenderer {
     this.clickedPoints = [];
     this.isDrawing = false;
     this.mousePixel = null;
+    if (tool === 'cursor') {
+      this.setChartInteractionEnabled(true);
+    }
     this.redraw();
   }
 
@@ -313,12 +317,9 @@ export class DrawingRenderer {
             this.isDragging = true;
             this.dragDrawingId = drawing.id;
             this.dragStartY = y;
+            this.setChartInteractionEnabled(false);
 
-            if (this.overlayCanvas) {
-              this.overlayCanvas.style.pointerEvents = 'auto';
-            }
-
-            e.stopPropagation();
+            e.stopImmediatePropagation();
             e.preventDefault();
             return;
           }
@@ -330,13 +331,11 @@ export class DrawingRenderer {
     const point = this.pixelToChartPoint(e);
     if (!point) return;
 
-    e.stopPropagation();
+    e.stopImmediatePropagation();
     e.preventDefault();
 
-    // Enable pointer events on overlay so we can track mouse while drawing
-    if (this.overlayCanvas) {
-      this.overlayCanvas.style.pointerEvents = 'auto';
-    }
+    // Disable chart pan/zoom while drawing
+    this.setChartInteractionEnabled(false);
 
     const required = DrawingManager.requiredPoints(this.currentTool);
 
@@ -355,6 +354,7 @@ export class DrawingRenderer {
   private onMouseMove(e: MouseEvent): void {
     // Handle dragging existing drawings
     if (this.isDragging && this.dragDrawingId) {
+      e.preventDefault();
       const point = this.pixelToChartPoint(e);
       if (!point) return;
 
@@ -370,13 +370,10 @@ export class DrawingRenderer {
     }
 
     if (!this.isDrawing || this.currentTool === 'cursor') {
-      // If we're not drawing, make sure overlay doesn't block chart interaction
-      if (this.overlayCanvas) {
-        this.overlayCanvas.style.pointerEvents = 'none';
-      }
       return;
     }
 
+    e.preventDefault();
     const rect = this.container.getBoundingClientRect();
     this.mousePixel = { x: e.clientX - rect.left, y: e.clientY - rect.top };
 
@@ -387,9 +384,7 @@ export class DrawingRenderer {
     if (this.isDragging) {
       this.isDragging = false;
       this.dragDrawingId = null;
-      if (this.overlayCanvas) {
-        this.overlayCanvas.style.pointerEvents = 'none';
-      }
+      this.setChartInteractionEnabled(true);
       return;
     }
     // Don't reset drawing state on mouseup — we wait for all required clicks
@@ -415,10 +410,8 @@ export class DrawingRenderer {
     this.isDrawing = false;
     this.mousePixel = null;
 
-    // Disable pointer events on overlay so chart pan/zoom works again
-    if (this.overlayCanvas) {
-      this.overlayCanvas.style.pointerEvents = 'none';
-    }
+    // Re-enable chart pan/zoom
+    this.setChartInteractionEnabled(true);
 
     this.redraw();
   }
@@ -1136,9 +1129,29 @@ export class DrawingRenderer {
     this.clickedPoints = [];
     this.isDrawing = false;
     this.mousePixel = null;
-    if (this.overlayCanvas) {
-      this.overlayCanvas.style.pointerEvents = 'none';
-    }
+    this.setChartInteractionEnabled(true);
     this.redraw();
+  }
+
+  /**
+   * Enable or disable chart interaction (scroll, zoom, pan).
+   * Used to prevent chart panning while drawing or dragging.
+   */
+  private setChartInteractionEnabled(enabled: boolean): void {
+    try {
+      this.chart.applyOptions({
+        handleScroll: {
+          mouseWheel: enabled,
+          pressedMouseMove: enabled,
+          horzTouchDrag: enabled,
+          vertTouchDrag: enabled,
+        },
+        handleScale: {
+          axisPressedMouseMove: enabled,
+          mouseWheel: enabled,
+          pinch: enabled,
+        },
+      });
+    } catch {}
   }
 }

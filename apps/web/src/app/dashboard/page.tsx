@@ -221,15 +221,16 @@ export default function DashboardPage() {
           overflow-x: hidden !important;
         }
 
-        .dash-grid.chart-fullscreen .dash-col-center .panel:last-child {
-          flex-shrink: 0 !important;
-          min-height: 220px !important;
-          max-height: 40vh !important;
+        .dash-grid.chart-fullscreen .dash-col-center .panel:first-child {
+          flex: 1 1 auto !important;
+          min-height: 45vh !important;
         }
 
-        .dash-grid.chart-fullscreen .dash-col-center .panel:first-child {
-          flex: 1 !important;
-          min-height: 50vh !important;
+        .dash-grid.chart-fullscreen .dash-col-center .panel:last-child {
+          flex-shrink: 0 !important;
+          min-height: 180px !important;
+          max-height: 35vh !important;
+          height: auto !important;
         }
 
         .dash-col {

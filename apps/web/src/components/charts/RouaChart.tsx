@@ -66,7 +66,7 @@ export default function RouaChart({
   const candlesRef = useRef<CandleData[]>([]);
   const prevPriceRef = useRef(currentPrice);
   const [pricePulse, setPricePulse] = useState(false);
-  const [priceLabelY, setPriceLabelY] = useState<number | null>(null);
+
 
   // ── Chart Hook ─────────────────────────────────────────
   const chart = useChart({
@@ -208,22 +208,7 @@ export default function RouaChart({
     return () => clearInterval(interval);
   }, [timeframe]);
 
-  // ── Price Label Y Position (for time indicator on price scale) ──
-  useEffect(() => {
-    if (!currentPrice || typeof currentPrice !== 'number') {
-      setPriceLabelY(null);
-      return;
-    }
-    const updatePos = () => {
-      const y = chart.getPriceCoordinate(currentPrice);
-      if (y !== null) {
-        setPriceLabelY(y);
-      }
-    };
-    updatePos();
-    const interval = setInterval(updatePos, 500);
-    return () => clearInterval(interval);
-  }, [currentPrice, chart]);
+
 
   // ── Position Overlay ───────────────────────────────────
   const positions = usePositionsStore(s => s.positions);
@@ -527,41 +512,17 @@ export default function RouaChart({
             />
           )}
 
-          {/* ── Candle Timer directly below current price label on price scale ── */}
-          {priceLabelY !== null && candleCountdown && (
-            <div style={{
-              position: 'absolute',
-              right: 0,
-              top: priceLabelY + 18,
-              zIndex: 20,
-              pointerEvents: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '1px 6px',
-              borderRadius: 2,
-              background: '#151A22',
-              border: '1px solid rgba(42,49,60,0.6)',
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: 9,
-              fontWeight: 600,
-              color: '#8B92A8',
-              whiteSpace: 'nowrap',
-            }}>
-              {candleCountdown}
-            </div>
-          )}
 
-          {/* ── Buy/Sell Buttons (below time scale inside chart) ── */}
+
+          {/* ── Buy/Sell Buttons (floating top-right over chart) ── */}
           {!mobile && currentPrice && (
             <div style={{
               position: 'absolute',
-              bottom: 0,
-              left: 60,
-              right: 70,
+              top: 12,
+              right: 12,
+              zIndex: 10,
               display: 'flex',
-              gap: 6,
-              zIndex: 15,
+              gap: 8,
               pointerEvents: 'auto',
             }}>
               {/* Buy Button */}
@@ -580,12 +541,11 @@ export default function RouaChart({
                   });
                 }}
                 style={{
-                  flex: 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 5,
-                  padding: '5px 10px',
+                  padding: '5px 12px',
                   background: 'rgba(63,185,80,0.12)',
                   border: '1px solid rgba(63,185,80,0.25)',
                   borderRadius: 6,
@@ -635,12 +595,11 @@ export default function RouaChart({
                   });
                 }}
                 style={{
-                  flex: 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 5,
-                  padding: '5px 10px',
+                  padding: '5px 12px',
                   background: 'rgba(248,81,73,0.12)',
                   border: '1px solid rgba(248,81,73,0.25)',
                   borderRadius: 6,
@@ -673,6 +632,26 @@ export default function RouaChart({
                   fontWeight: 600,
                 }}>{typeof currentPrice === 'number' ? currentPrice.toFixed(currentPrice > 1000 ? 2 : 5) : '—'}</span>
               </button>
+            </div>
+          )}
+
+          {/* ── Candle Countdown Timer (bottom-left corner, small transparent) ── */}
+          {candleCountdown && (
+            <div style={{
+              position: 'absolute',
+              bottom: 8,
+              left: 8,
+              zIndex: 10,
+              fontSize: 10,
+              color: '#64748b',
+              background: 'rgba(0,0,0,0.5)',
+              padding: '2px 8px',
+              borderRadius: 4,
+              fontFamily: "'JetBrains Mono', monospace",
+              fontWeight: 600,
+              pointerEvents: 'none',
+            }}>
+              {candleCountdown}
             </div>
           )}
         </div>

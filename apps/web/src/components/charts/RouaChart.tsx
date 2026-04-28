@@ -523,42 +523,94 @@ export default function RouaChart({
               left: 10,
               zIndex: 10,
               display: 'flex',
-              flexDirection: 'column',
-              gap: 4,
+              alignItems: 'center',
+              gap: 0,
               pointerEvents: 'auto',
-              background: 'rgba(11,14,20,0.85)',
-              border: '1px solid rgba(42,49,60,0.5)',
+              background: 'rgba(11,14,20,0.88)',
+              border: '1px solid rgba(42,49,60,0.45)',
               borderRadius: 8,
-              padding: '6px 8px',
-              backdropFilter: 'blur(12px)',
+              padding: '3px 4px',
+              backdropFilter: 'blur(14px)',
             }}>
-              {/* Lot Size Row */}
+              {/* Buy Button */}
+              <button
+                onClick={() => {
+                  const { addTrade } = usePaperTradesStore.getState();
+                  addTrade({
+                    symbol: selectedSymbol,
+                    side: 'long',
+                    qty: lotSize,
+                    entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                    currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                    entryTime: Date.now(),
+                    strategy: 'quick',
+                    source: 'manual',
+                  });
+                }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 1,
+                  padding: '5px 14px 4px',
+                  background: 'rgba(63,185,80,0.12)',
+                  border: '1px solid rgba(63,185,80,0.25)',
+                  borderRadius: '6px 0 0 6px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  borderRight: 'none',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'rgba(63,185,80,0.28)';
+                  e.currentTarget.style.boxShadow = '0 0 12px rgba(63,185,80,0.2)';
+                  e.currentTarget.style.borderColor = 'rgba(63,185,80,0.45)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'rgba(63,185,80,0.12)';
+                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.borderColor = 'rgba(63,185,80,0.25)';
+                }}
+                title="شراء سريع"
+              >
+                <span style={{
+                  color: '#3fb950',
+                  fontWeight: 800,
+                  fontSize: 11,
+                  fontFamily: "'Cairo', sans-serif",
+                  lineHeight: 1.2,
+                }}>شراء</span>
+                <span style={{
+                  color: 'rgba(63,185,80,0.5)',
+                  fontSize: 8,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontWeight: 600,
+                  lineHeight: 1,
+                }}>{typeof currentPrice === 'number' ? currentPrice.toFixed(currentPrice > 1000 ? 2 : 5) : '—'}</span>
+              </button>
+
+              {/* Lot Size Input (center, between buttons) */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: 4,
+                height: '100%',
+                border: '1px solid rgba(42,49,60,0.6)',
+                borderRadius: 0,
+                background: 'rgba(21,26,34,0.7)',
+                overflow: 'hidden',
               }}>
-                <span style={{
-                  fontSize: 9,
-                  color: '#8B92A8',
-                  fontFamily: "'Cairo', sans-serif",
-                  fontWeight: 600,
-                  whiteSpace: 'nowrap',
-                  minWidth: 28,
-                }}>حجم</span>
                 <button
                   onClick={() => setLotSize(prev => Math.max(0.001, +(prev - (selectedSymbol.includes('BTC') ? 0.001 : 0.01)).toFixed(3)))}
                   style={{
                     width: 22,
-                    height: 22,
+                    height: 34,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    background: 'rgba(42,49,60,0.6)',
-                    border: '1px solid rgba(42,49,60,0.8)',
-                    borderRadius: 4,
+                    background: 'rgba(42,49,60,0.4)',
+                    border: 'none',
                     color: '#8B92A8',
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: 700,
                     cursor: 'pointer',
                     lineHeight: 1,
@@ -566,52 +618,67 @@ export default function RouaChart({
                     transition: 'all 0.12s ease',
                   }}
                   onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(42,49,60,0.9)';
+                    e.currentTarget.style.background = 'rgba(42,49,60,0.8)';
                     e.currentTarget.style.color = '#F0F2F5';
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(42,49,60,0.6)';
+                    e.currentTarget.style.background = 'rgba(42,49,60,0.4)';
                     e.currentTarget.style.color = '#8B92A8';
                   }}
                 >−</button>
-                <input
-                  type="number"
-                  value={lotSize}
-                  onChange={e => {
-                    const v = parseFloat(e.target.value);
-                    if (!isNaN(v) && v > 0) setLotSize(+v.toFixed(3));
-                  }}
-                  step={selectedSymbol.includes('BTC') ? 0.001 : 0.01}
-                  min={0.001}
-                  style={{
-                    width: 58,
-                    height: 22,
-                    textAlign: 'center',
-                    background: 'rgba(21,26,34,0.9)',
-                    border: '1px solid rgba(42,49,60,0.8)',
-                    borderRadius: 4,
-                    color: '#F0F2F5',
-                    fontSize: 10,
-                    fontWeight: 700,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    outline: 'none',
-                    padding: '0 4px',
-                    MozAppearance: 'textfield' as any,
-                  }}
-                />
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 6px',
+                  minWidth: 48,
+                }}>
+                  <input
+                    type="number"
+                    value={lotSize}
+                    onChange={e => {
+                      const v = parseFloat(e.target.value);
+                      if (!isNaN(v) && v > 0) setLotSize(+v.toFixed(3));
+                    }}
+                    step={selectedSymbol.includes('BTC') ? 0.001 : 0.01}
+                    min={0.001}
+                    style={{
+                      width: 44,
+                      textAlign: 'center',
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#F0F2F5',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      outline: 'none',
+                      padding: 0,
+                      lineHeight: 1.3,
+                      MozAppearance: 'textfield' as any,
+                    }}
+                  />
+                  <span style={{
+                    fontSize: 7,
+                    color: '#64748b',
+                    fontFamily: "'Cairo', sans-serif",
+                    fontWeight: 600,
+                    lineHeight: 1,
+                    marginTop: 1,
+                  }}>حجم</span>
+                </div>
                 <button
                   onClick={() => setLotSize(prev => +(prev + (selectedSymbol.includes('BTC') ? 0.001 : 0.01)).toFixed(3))}
                   style={{
                     width: 22,
-                    height: 22,
+                    height: 34,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    background: 'rgba(42,49,60,0.6)',
-                    border: '1px solid rgba(42,49,60,0.8)',
-                    borderRadius: 4,
+                    background: 'rgba(42,49,60,0.4)',
+                    border: 'none',
                     color: '#8B92A8',
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: 700,
                     cursor: 'pointer',
                     lineHeight: 1,
@@ -619,126 +686,72 @@ export default function RouaChart({
                     transition: 'all 0.12s ease',
                   }}
                   onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(42,49,60,0.9)';
+                    e.currentTarget.style.background = 'rgba(42,49,60,0.8)';
                     e.currentTarget.style.color = '#F0F2F5';
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(42,49,60,0.6)';
+                    e.currentTarget.style.background = 'rgba(42,49,60,0.4)';
                     e.currentTarget.style.color = '#8B92A8';
                   }}
                 >+</button>
               </div>
 
-              {/* Buy / Sell Buttons Row */}
-              <div style={{ display: 'flex', gap: 4 }}>
-                {/* Buy Button */}
-                <button
-                  onClick={() => {
-                    const { addTrade } = usePaperTradesStore.getState();
-                    addTrade({
-                      symbol: selectedSymbol,
-                      side: 'long',
-                      qty: lotSize,
-                      entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
-                      currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
-                      entryTime: Date.now(),
-                      strategy: 'quick',
-                      source: 'manual',
-                    });
-                  }}
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 4,
-                    padding: '4px 10px',
-                    background: 'rgba(63,185,80,0.12)',
-                    border: '1px solid rgba(63,185,80,0.25)',
-                    borderRadius: 5,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(63,185,80,0.25)';
-                    e.currentTarget.style.boxShadow = '0 0 10px rgba(63,185,80,0.15)';
-                    e.currentTarget.style.borderColor = 'rgba(63,185,80,0.45)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(63,185,80,0.12)';
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.borderColor = 'rgba(63,185,80,0.25)';
-                  }}
-                  title="شراء سريع"
-                >
-                  <span style={{
-                    color: '#3fb950',
-                    fontWeight: 800,
-                    fontSize: 11,
-                    fontFamily: "'Cairo', sans-serif",
-                  }}>شراء</span>
-                  <span style={{
-                    color: 'rgba(63,185,80,0.55)',
-                    fontSize: 8,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontWeight: 600,
-                  }}>{typeof currentPrice === 'number' ? currentPrice.toFixed(currentPrice > 1000 ? 2 : 5) : '—'}</span>
-                </button>
-
-                {/* Sell Button */}
-                <button
-                  onClick={() => {
-                    const { addTrade } = usePaperTradesStore.getState();
-                    addTrade({
-                      symbol: selectedSymbol,
-                      side: 'short',
-                      qty: lotSize,
-                      entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
-                      currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
-                      entryTime: Date.now(),
-                      strategy: 'quick',
-                      source: 'manual',
-                    });
-                  }}
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 4,
-                    padding: '4px 10px',
-                    background: 'rgba(248,81,73,0.12)',
-                    border: '1px solid rgba(248,81,73,0.25)',
-                    borderRadius: 5,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(248,81,73,0.25)';
-                    e.currentTarget.style.boxShadow = '0 0 10px rgba(248,81,73,0.15)';
-                    e.currentTarget.style.borderColor = 'rgba(248,81,73,0.45)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(248,81,73,0.12)';
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.borderColor = 'rgba(248,81,73,0.25)';
-                  }}
-                  title="بيع سريع"
-                >
-                  <span style={{
-                    color: '#f85149',
-                    fontWeight: 800,
-                    fontSize: 11,
-                    fontFamily: "'Cairo', sans-serif",
-                  }}>بيع</span>
-                  <span style={{
-                    color: 'rgba(248,81,73,0.55)',
-                    fontSize: 8,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontWeight: 600,
-                  }}>{typeof currentPrice === 'number' ? currentPrice.toFixed(currentPrice > 1000 ? 2 : 5) : '—'}</span>
-                </button>
-              </div>
+              {/* Sell Button */}
+              <button
+                onClick={() => {
+                  const { addTrade } = usePaperTradesStore.getState();
+                  addTrade({
+                    symbol: selectedSymbol,
+                    side: 'short',
+                    qty: lotSize,
+                    entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                    currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                    entryTime: Date.now(),
+                    strategy: 'quick',
+                    source: 'manual',
+                  });
+                }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 1,
+                  padding: '5px 14px 4px',
+                  background: 'rgba(248,81,73,0.12)',
+                  border: '1px solid rgba(248,81,73,0.25)',
+                  borderRadius: '0 6px 6px 0',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  borderLeft: 'none',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'rgba(248,81,73,0.28)';
+                  e.currentTarget.style.boxShadow = '0 0 12px rgba(248,81,73,0.2)';
+                  e.currentTarget.style.borderColor = 'rgba(248,81,73,0.45)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'rgba(248,81,73,0.12)';
+                  e.currentTarget.style.boxShadow = 'none';
+                  e.currentTarget.style.borderColor = 'rgba(248,81,73,0.25)';
+                }}
+                title="بيع سريع"
+              >
+                <span style={{
+                  color: '#f85149',
+                  fontWeight: 800,
+                  fontSize: 11,
+                  fontFamily: "'Cairo', sans-serif",
+                  lineHeight: 1.2,
+                }}>بيع</span>
+                <span style={{
+                  color: 'rgba(248,81,73,0.5)',
+                  fontSize: 8,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontWeight: 600,
+                  lineHeight: 1,
+                }}>{typeof currentPrice === 'number' ? currentPrice.toFixed(currentPrice > 1000 ? 2 : 5) : '—'}</span>
+              </button>
             </div>
           )}
 

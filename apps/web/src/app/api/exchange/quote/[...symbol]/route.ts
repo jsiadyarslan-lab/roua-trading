@@ -193,7 +193,14 @@ async function fetchTwelveData(symbol: string) {
 // Covers stocks (AAPL, TSLA, MSFT...), commodities (XAU/USD, XAG/USD...), forex (EUR/USD...)
 // Uses the unofficial Yahoo Finance v8 API endpoint.
 async function fetchYahooFinance(symbol: string): Promise<any | null> {
-  const yahooSymbol = toYahooSymbol(symbol)
+  // For gold/silver, try commodity futures symbols first (more reliable on cloud servers)
+  const COMMODITY_FUTURES: Record<string, string> = {
+    'XAU/USD': 'GC=F',   // Gold Futures
+    'XAG/USD': 'SI=F',   // Silver Futures
+    'XPT/USD': 'PL=F',   // Platinum Futures
+  }
+
+  const yahooSymbol = COMMODITY_FUTURES[symbol] || toYahooSymbol(symbol)
 
   try {
     // Yahoo Finance chart endpoint — returns comprehensive quote data
@@ -205,6 +212,7 @@ async function fetchYahooFinance(symbol: string): Promise<any | null> {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
       },
+      signal: AbortSignal.timeout(10000),
     })
 
     if (!res.ok) {
@@ -248,7 +256,9 @@ async function fetchYahooFinance(symbol: string): Promise<any | null> {
     // Determine exchange type from symbol
     let exchange = 'UNKNOWN'
     let currency = meta.currency || 'USD'
-    if (yahooSymbol.endsWith('=X')) {
+    if (COMMODITY_FUTURES[symbol] || yahooSymbol.endsWith('=F')) {
+      exchange = 'COMMODITY'
+    } else if (yahooSymbol.endsWith('=X')) {
       if (yahooSymbol.startsWith('XAU') || yahooSymbol.startsWith('XAG') || yahooSymbol.startsWith('XPT')) {
         exchange = 'COMMODITY'
       } else {
@@ -259,8 +269,13 @@ async function fetchYahooFinance(symbol: string): Promise<any | null> {
     }
 
     // Build a display name
-    let name = symbol
-    if (symbol.includes('/')) {
+    const COMMODITY_NAMES: Record<string, string> = {
+      'XAU/USD': 'Gold / USD',
+      'XAG/USD': 'Silver / USD',
+      'XPT/USD': 'Platinum / USD',
+    }
+    let name = COMMODITY_NAMES[symbol] || symbol
+    if (!COMMODITY_NAMES[symbol] && symbol.includes('/')) {
       name = symbol.replace('/', ' / ')
     }
 

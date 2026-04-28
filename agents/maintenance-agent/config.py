@@ -4,7 +4,7 @@ import os
 import sys
 
 # إضافة المسار المشترك لاستيراد الوحدات
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '.'))
 
 from shared.config_base import BaseConfig
 

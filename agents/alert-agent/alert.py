@@ -14,7 +14,7 @@ from collections import defaultdict
 import psycopg2
 
 # إضافة المسار المشترك لاستيراد الوحدات
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '.'))
 
 from shared.config_base import BaseConfig
 from shared.telegram_utils import TelegramAlerter

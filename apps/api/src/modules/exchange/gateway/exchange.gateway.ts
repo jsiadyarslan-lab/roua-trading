@@ -165,8 +165,10 @@ export class ExchangeGateway
     const hasSubscriptions = this.symbolSubscribers.size > 0;
 
     if (hasSubscriptions && !this.refreshInterval) {
-      // Start refreshing every 5 seconds
-      this.refreshInterval = setInterval(() => this._refreshAllSubscriptions(), 5000);
+      // Refresh every 15 seconds — balanced between responsiveness and API sustainability.
+      // With a 120s quote cache, most hits are Redis cache reads (not actual API calls).
+      // FIX: Changed from 5s to 15s to reduce unnecessary load when data hasn't changed.
+      this.refreshInterval = setInterval(() => this._refreshAllSubscriptions(), 15000);
       this.logger.log(`📡 Started refresh cycle for ${this.symbolSubscribers.size} symbols`);
     } else if (!hasSubscriptions && this.refreshInterval) {
       // Stop refreshing when no subscriptions

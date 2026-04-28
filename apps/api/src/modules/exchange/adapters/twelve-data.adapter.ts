@@ -286,15 +286,32 @@ export class TwelveDataAdapter implements IExchangeAdapter {
    * When TwelveData's server says we're out of credits, we set a Redis key
    * that blocks ALL subsequent requests until it expires.
    *
-   * TTL is set to 5 minutes instead of 24 hours — this allows the system to
-   * auto-retry sooner, which is important when the user updates their API key.
+   * TTL is set to 4 hours — long enough to avoid spamming the API every 5 minutes
+   * when credits are truly exhausted for the day, but short enough to auto-recover
+   * if the user updates their API key or if TwelveData resets earlier than expected.
    * The key also includes the API key hash so changing the key auto-invalidates it.
+   *
+   * FIX: Changed from 5 minutes to 4 hours. With 5-min TTL, the system retried
+   * 288 times/day generating massive error spam. With 4-hour TTL, it retries at most
+   * 6 times/day, which is reasonable for a daily credit exhaustion scenario.
    */
   private async _activateDailyCircuitBreaker(): Promise<void> {
     // Include API key hash in the circuit breaker key so changing the key auto-invalidates it
     const keyHash = this._getKeyHash();
     const circuitBreakerKey = `twelvedata:daily_exhausted:${keyHash}`;
-    const ttlMs = 300_000; // 5 minutes (was 24 hours — too long!)
+
+    // Check if this is a re-activation (circuit breaker was already active recently)
+    const reactivationKey = `twelvedata:reactivation_count:${keyHash}`;
+    let reactivationCount = 0;
+    try {
+      const existing = await this.redisService.get(reactivationKey);
+      reactivationCount = existing ? (JSON.parse(existing).count || 0) + 1 : 1;
+    } catch {
+      reactivationCount = 1;
+    }
+
+    // If circuit breaker keeps getting re-activated (3+ times), extend to 8 hours
+    const ttlMs = reactivationCount >= 3 ? 8 * 60 * 60 * 1000 : 4 * 60 * 60 * 1000; // 8h or 4h
 
     await this.redisService.set(
       circuitBreakerKey,
@@ -302,13 +319,24 @@ export class TwelveDataAdapter implements IExchangeAdapter {
         activatedAt: new Date().toISOString(),
         reason: 'TwelveData server reported daily credit exhaustion',
         apiKeyHash: keyHash,
+        reactivationCount,
       }),
       ttlMs,
     );
 
+    // Track reactivation count with 24h TTL (resets daily)
+    await this.redisService.set(
+      reactivationKey,
+      JSON.stringify({ count: reactivationCount, lastActivated: new Date().toISOString() }),
+      86_400_000,
+    );
+
+    const ttlHours = ttlMs / (60 * 60 * 1000);
     this.logger.error(
-      `🚫 TwelveData DAILY CREDITS EXHAUSTED — circuit breaker activated for 5 minutes. ` +
-      `Will auto-retry after cooldown. If you updated your API key, it will take effect automatically. ` +
+      `🚫 TwelveData DAILY CREDITS EXHAUSTED — circuit breaker activated for ${ttlHours} hours ` +
+      `(reactivation #${reactivationCount}). ` +
+      `If you updated your API key, it will take effect automatically. ` +
+      `Set DISABLE_TWELVE_DATA=true to skip TwelveData entirely. ` +
       `Consider upgrading your TwelveData plan at https://twelvedata.com/pricing`,
     );
   }

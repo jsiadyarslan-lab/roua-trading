@@ -39,6 +39,12 @@ export class FinnhubAdapter implements IExchangeAdapter, OnModuleDestroy {
   private readonly RATE_LIMIT_WINDOW = 60_000;
   private readonly RATE_LIMIT_MAX = 55; // Leave some margin
 
+  // Circuit breaker: auto-disable Finnhub after repeated 401 errors
+  // This prevents constant "Request failed with status code 401" error spam
+  // when the API key is invalid or expired.
+  private authFailureCount = 0;
+  private authDisabledUntil = 0; // Timestamp when Finnhub can be retried
+
   // WebSocket streaming
   private wsConnection: any = null;
   private readonly priceSubject = new Subject<FinnhubQuoteDto>();
@@ -171,15 +177,24 @@ export class FinnhubAdapter implements IExchangeAdapter, OnModuleDestroy {
   }
 
   /**
-   * Check if Finnhub is available (API key configured)
+   * Check if Finnhub is available (API key configured AND not circuit-broken)
+   * FIX: Added circuit breaker check — if Finnhub returned 401 multiple times,
+   * we skip it for 1 hour to avoid error spam.
    */
   isAvailable(): boolean {
-    return !!this.apiKey;
+    if (!this.apiKey) return false;
+    if (Date.now() < this.authDisabledUntil) return false; // Circuit breaker active
+    return true;
   }
 
   // ── Private: API Calls ──
 
   private async _fetchQuoteFromApi(symbol: string): Promise<UnifiedQuoteDto> {
+    // Check circuit breaker before making any API call
+    if (Date.now() < this.authDisabledUntil) {
+      throw new HttpException('Finnhub auth circuit breaker active (invalid API key)', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
     await this._checkRateLimit();
 
     this.logger.debug(`📡 Fetching Finnhub quote: ${symbol}`);
@@ -187,37 +202,55 @@ export class FinnhubAdapter implements IExchangeAdapter, OnModuleDestroy {
     // Convert symbol format for Finnhub
     const finnhubSymbol = this._convertSymbol(symbol);
 
-    const response = await axios.get(`${this.baseUrl}/quote`, {
-      params: { symbol: finnhubSymbol, token: this.apiKey },
-      timeout: 10000,
-    });
+    try {
+      const response = await axios.get(`${this.baseUrl}/quote`, {
+        params: { symbol: finnhubSymbol, token: this.apiKey },
+        timeout: 10000,
+      });
 
-    const data = response.data;
+      // Reset failure count on success
+      this.authFailureCount = 0;
 
-    // Finnhub returns { c: current, d: change, dp: changePercent, h: high, l: low, o: open, pc: previousClose }
-    if (!data || data.c === 0 && data.h === 0 && data.l === 0) {
-      throw new Error(`No data available for ${symbol}`);
+      const data = response.data;
+
+      // Finnhub returns { c: current, d: change, dp: changePercent, h: high, l: low, o: open, pc: previousClose }
+      if (!data || data.c === 0 && data.h === 0 && data.l === 0) {
+        throw new Error(`No data available for ${symbol}`);
+      }
+
+      return {
+        symbol,
+        name: symbol,
+        exchange: 'Finnhub',
+        currency: 'USD',
+        price: data.c ?? 0,
+        change: data.d ?? 0,
+        changePercent: data.dp ?? 0,
+        open: data.o ?? 0,
+        high: data.h ?? 0,
+        low: data.l ?? 0,
+        close: data.c ?? 0,
+        volume: 0, // Finnhub quote doesn't include volume
+        marketCap: null,
+        fiftyTwoWeekHigh: null,
+        fiftyTwoWeekLow: null,
+        timestamp: new Date(),
+        source: this.name,
+      };
+    } catch (error: any) {
+      // Circuit breaker: on 401 (invalid key), increment failure counter
+      if (error.response?.status === 401) {
+        this.authFailureCount++;
+        if (this.authFailureCount >= 3) {
+          this.authDisabledUntil = Date.now() + 60 * 60 * 1000; // Disable for 1 hour
+          this.logger.error(
+            `🚫 Finnhub API key invalid (401) — circuit breaker activated for 1 hour. ` +
+            `Check your FINNHUB_API_KEY in Railway env vars.`,
+          );
+        }
+      }
+      throw error;
     }
-
-    return {
-      symbol,
-      name: symbol,
-      exchange: 'Finnhub',
-      currency: 'USD',
-      price: data.c ?? 0,
-      change: data.d ?? 0,
-      changePercent: data.dp ?? 0,
-      open: data.o ?? 0,
-      high: data.h ?? 0,
-      low: data.l ?? 0,
-      close: data.c ?? 0,
-      volume: 0, // Finnhub quote doesn't include volume
-      marketCap: null,
-      fiftyTwoWeekHigh: null,
-      fiftyTwoWeekLow: null,
-      timestamp: new Date(),
-      source: this.name,
-    };
   }
 
   private async _fetchCandlesFromApi(
@@ -226,6 +259,11 @@ export class FinnhubAdapter implements IExchangeAdapter, OnModuleDestroy {
     start: Date,
     end: Date,
   ): Promise<UnifiedCandleDto[]> {
+    // Check circuit breaker before making any API call
+    if (Date.now() < this.authDisabledUntil) {
+      throw new HttpException('Finnhub auth circuit breaker active', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
     await this._checkRateLimit();
 
     this.logger.debug(`📡 Fetching Finnhub candles: ${symbol} (${interval})`);

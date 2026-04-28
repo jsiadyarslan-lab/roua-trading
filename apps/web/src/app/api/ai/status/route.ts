@@ -16,7 +16,8 @@ export async function GET(req: NextRequest) {
 
   try {
     // Try NestJS models endpoint directly (internal URL if available)
-    const internalUrl = process.env.API_INTERNAL_URL || `${origin}/api/ai/models`
+    // Default to localhost:3001 since NestJS runs in the same container on Railway
+    const internalUrl = process.env.API_INTERNAL_URL || 'http://localhost:3001/api/ai/models'
     const res = await fetch(internalUrl, {
       signal: AbortSignal.timeout(15000), // Increased from 5s to 15s for cold starts
     })

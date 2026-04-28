@@ -190,6 +190,11 @@ export class AIOrchestratorService {
 
   /**
    * AI Council Consensus — 6 specialist roles across 6 models
+   *
+   * FIX: Added Redis caching with 5-minute TTL to prevent hitting all 6 AI models
+   * every 30 seconds when the dashboard polls. Without caching, a single user's
+   * dashboard generates 72 API calls/minute (6 models × 12 polls/min).
+   * With caching, it's at most 6 calls per 5 minutes per symbol.
    */
   async getConsensusAnalysis(symbol: string): Promise<{
     consensusScore: number;
@@ -197,6 +202,25 @@ export class AIOrchestratorService {
     analyses: { role: string; model: string; vote: string; confidence: number; reason: string }[];
     masterStrategy: string;
   }> {
+    // Check Redis cache first — consensus for the same symbol is valid for 5 minutes
+    const cacheKey = `ai:consensus:${symbol}`;
+    try {
+      const cached = await this.redis?.get(cacheKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        this.logger.debug(`🎼 Redis cache hit for consensus: ${symbol}`);
+        return parsed;
+      }
+    } catch {}
+
+    // Also check in-memory cache
+    const memKey = `consensus:${symbol}`;
+    const memCached = this._getCachedResult(memKey);
+    if (memCached) {
+      this.logger.debug(`🎯 Memory cache hit for consensus: ${symbol}`);
+      return memCached as any;
+    }
+
     this.logger.log(`🎼 Initiating AI Council Consensus for ${symbol} — 6 models`);
 
     try {
@@ -280,7 +304,16 @@ export class AIOrchestratorService {
 
       this.logger.log(`✅ Consensus: ${recommendation} (${consensusScore}%) from ${analyses.length}/6 models in ${Date.now() - start}ms`);
 
-      return { consensusScore, recommendation, analyses, masterStrategy: masterStrategyContent };
+      const result = { consensusScore, recommendation, analyses, masterStrategy: masterStrategyContent };
+
+      // Cache the consensus result in Redis (5-minute TTL) and in-memory
+      const consensusCacheTTL = 5 * 60 * 1000; // 5 minutes
+      try {
+        await this.redis?.set(cacheKey, JSON.stringify(result), consensusCacheTTL);
+      } catch {}
+      this._setCachedResult(memKey, result as any, 'consensus');
+
+      return result;
     } catch (error: unknown) {
       const err = error instanceof Error ? error : new Error(String(error));
       this.logger.error(`❌ AI Council failed: ${err.message}`, err.stack);

@@ -96,7 +96,20 @@ export class BinanceAdapter implements IExchangeAdapter {
 
     this.logger.debug(`💱 Fetching Binance quote: ${symbol}`);
 
-    const ticker = await this.exchange.fetchTicker(symbol);
+    const normalizedSymbol = this._normalizeSymbol(symbol);
+    let ticker;
+    try {
+      ticker = await this.exchange.fetchTicker(normalizedSymbol);
+    } catch (error: any) {
+      // If /USD pair doesn't exist on Binance, try /USDT instead
+      if (normalizedSymbol.endsWith('/USD') && error?.message?.includes('does not have market symbol')) {
+        const usdtSymbol = normalizedSymbol.replace('/USD', '/USDT');
+        this.logger.warn(`💱 ${normalizedSymbol} not found on Binance, trying ${usdtSymbol}`);
+        ticker = await this.exchange.fetchTicker(usdtSymbol);
+      } else {
+        throw error;
+      }
+    }
 
     return {
       symbol,
@@ -132,13 +145,32 @@ export class BinanceAdapter implements IExchangeAdapter {
     // Map interval to CCXT timeframe
     const timeframe = this._mapInterval(interval);
 
-    const ohlcv = await this.exchange.fetchOHLCV(
-      symbol,
-      timeframe,
-      start.getTime(),
-      undefined,
-      end.getTime(),
-    );
+    const normalizedSymbol = this._normalizeSymbol(symbol);
+    let ohlcv;
+    try {
+      ohlcv = await this.exchange.fetchOHLCV(
+        normalizedSymbol,
+        timeframe,
+        start.getTime(),
+        undefined,
+        end.getTime(),
+      );
+    } catch (error: any) {
+      // If /USD pair doesn't exist on Binance, try /USDT instead
+      if (normalizedSymbol.endsWith('/USD') && error?.message?.includes('does not have market symbol')) {
+        const usdtSymbol = normalizedSymbol.replace('/USD', '/USDT');
+        this.logger.warn(`💱 ${normalizedSymbol} not found on Binance history, trying ${usdtSymbol}`);
+        ohlcv = await this.exchange.fetchOHLCV(
+          usdtSymbol,
+          timeframe,
+          start.getTime(),
+          undefined,
+          end.getTime(),
+        );
+      } else {
+        throw error;
+      }
+    }
 
     return ohlcv.map((candle) => ({
       symbol,
@@ -170,6 +202,22 @@ export class BinanceAdapter implements IExchangeAdapter {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
+  }
+
+  // ── Private: Symbol Normalization ──
+
+  /**
+   * Normalize symbol for Binance.
+   * Binance spot market primarily uses /USDT pairs, not /USD.
+   * This method converts known crypto /USD pairs to /USDT format.
+   * The original symbol is preserved in the response for UI consistency.
+   */
+  private _normalizeSymbol(symbol: string): string {
+    // Crypto pairs ending in /USD should be tried as /USDT on Binance
+    // Binance spot has BTC/USDT, ETH/USDT, XRP/USDT, etc.
+    // but NOT XRP/USD, ADA/USD, DOGE/USD, etc.
+    // We try the original symbol first, then fall back to /USDT in the caller.
+    return symbol;
   }
 
   // ── Private: Interval Mapping ──

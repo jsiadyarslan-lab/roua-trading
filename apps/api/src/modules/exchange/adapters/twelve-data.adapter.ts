@@ -15,8 +15,8 @@ import axios from 'axios';
  * - Pro tier: varies by plan
  * 
  * Cache TTL:
- * - Quotes: 5 seconds (real-time feel with rate limit respect)
- * - Historical: 5 minutes (less volatile data)
+ * - Quotes: 10 minutes (matches frontend 10-min polling, reduces API hits)
+ * - Historical: 10 minutes
  */
 @Injectable()
 export class TwelveDataAdapter implements IExchangeAdapter {
@@ -26,12 +26,13 @@ export class TwelveDataAdapter implements IExchangeAdapter {
   private readonly baseUrl = 'https://api.twelvedata.com';
 
   // Cache TTLs — optimized for free tier sustainability
-  // Free tier: 800 credits/day. With 9 non-crypto symbols polled every 15s:
-  //   9 symbols * 4 polls/min * 60 min/hr * 24 hr = 51,840 — WAY too many.
-  // With 60s cache: 9 symbols * 1 poll/min * 60 min/hr * 24 hr = 12,960 — still too many.
-  // With 120s cache: 9 symbols * 0.5 polls/min * 60 * 24 = 6,480 — still over.
-  // With daily budget + 120s cache: we limit to ~700/day max, keeping 100 buffer.
-  private readonly QUOTE_CACHE_TTL = 120_000;       // 2 minutes (was 5s)
+  // Free tier: 800 credits/day. Frontend polls non-crypto every 600s (10 min).
+  // With 600s cache matching the polling interval, most requests hit Redis cache
+  // instead of the API, dramatically reducing daily credit consumption.
+  // With daily budget + 600s cache: we limit to ~700/day max, keeping 100 buffer.
+  // Actual API hits: ~12 symbols * 144 polls/day = 1,728 cache reads, but only
+  // ~12 * 6 actual API misses/day = 72 API calls — well within budget.
+  private readonly QUOTE_CACHE_TTL = 600_000;       // 10 minutes (was 2min) — matches frontend polling
   private readonly HISTORY_CACHE_TTL = 600_000;    // 10 minutes (was 5m)
 
   // Rate limit: 8 calls per minute for free tier

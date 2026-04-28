@@ -67,6 +67,17 @@ export default function RouaChart({
   const candlesRef = useRef<CandleData[]>([]);
   const prevPriceRef = useRef(currentPrice);
   const [pricePulse, setPricePulse] = useState(false);
+  const [tradeOverlayPositions, setTradeOverlayPositions] = useState<Array<{
+    id: string;
+    y: number;
+    type: 'entry' | 'sl' | 'tp';
+    side: string;
+    qty: number;
+    price: number;
+    pnl?: number;
+    pnlPct?: number;
+    isLong: boolean;
+  }>>([]);
 
 
   // ── Chart Hook ─────────────────────────────────────────
@@ -215,46 +226,84 @@ export default function RouaChart({
   const positions = usePositionsStore(s => s.positions);
   const paperTrades = usePaperTradesStore(s => s.trades);
 
+  // ── Update Paper Trade Prices in Real-Time ──
+  useEffect(() => {
+    if (currentPrice && typeof currentPrice === 'number') {
+      usePaperTradesStore.getState().updatePrice(selectedSymbol, currentPrice);
+      usePositionsStore.getState().updatePositionPrice(selectedSymbol, currentPrice);
+    }
+  }, [currentPrice, selectedSymbol]);
+
+  // ── Helper: Normalize symbol for matching ──
+  const normalizeSymbol = (s: string) => s.toUpperCase().replace(/[/\-_]/g, '');
+
   // ── Apply Position Lines to Chart ──
   useEffect(() => {
     // Clear existing lines
     positionLineIdsRef.current.forEach(id => chart.removePriceLine(id));
     positionLineIdsRef.current = [];
 
+    const chartSymbol = normalizeSymbol(selectedSymbol);
+
     // Add lines for positions
     positions.forEach(pos => {
-      const posSymbol = pos.symbol || '';
-      if (!posSymbol.includes(selectedSymbol.replace('/', ''))) return;
+      const posSymbol = normalizeSymbol(pos.symbol || '');
+      if (!posSymbol.includes(chartSymbol) && !chartSymbol.includes(posSymbol)) return;
 
       const entryPrice = Number(pos.avgEntryPrice || 0);
       if (entryPrice > 0) {
+        const isLong = (pos.side || '').toLowerCase() === 'long';
+        const color = isLong ? '#3fb950' : '#f85149';
+        const label = `${isLong ? 'شراء' : 'بيع'} ${pos.qty || ''} @ ${entryPrice}`;
         const entryId = `pos-entry-${pos.id || posSymbol}`;
-        chart.addPriceLine(entryId, entryPrice, '#00D4FF', `دخول ${pos.side || ''}`, 1);
+        chart.addPriceLine(entryId, entryPrice, color, label, 2, 0); // Solid line
         positionLineIdsRef.current.push(entryId);
+      }
+
+      // SL line
+      const sl = Number(pos.sl || pos.stopLoss || 0);
+      if (sl > 0) {
+        const slId = `pos-sl-${pos.id || posSymbol}`;
+        chart.addPriceLine(slId, sl, '#f85149', 'SL', 1, 2); // Dashed
+        positionLineIdsRef.current.push(slId);
+      }
+
+      // TP line
+      const tp = Number(pos.tp || pos.takeProfit || 0);
+      if (tp > 0) {
+        const tpId = `pos-tp-${pos.id || posSymbol}`;
+        chart.addPriceLine(tpId, tp, '#3fb950', 'TP', 1, 2); // Dashed
+        positionLineIdsRef.current.push(tpId);
       }
     });
 
     // Add lines for paper trades
     paperTrades.forEach(trade => {
-      const symbol = trade.symbol || '';
-      if (!symbol.includes(selectedSymbol.replace('/', ''))) return;
+      const symbol = normalizeSymbol(trade.symbol || '');
+      if (!symbol.includes(chartSymbol) && !chartSymbol.includes(symbol)) return;
 
       const entryPrice = Number(trade.entryPrice || 0);
       if (entryPrice > 0) {
+        const isLong = (trade.side || '').toLowerCase() === 'long';
+        const color = isLong ? '#3fb950' : '#f85149';
+        const pnlStr = trade.unrealizedPnl !== undefined
+          ? ` | ${trade.unrealizedPnl >= 0 ? '+' : ''}${trade.unrealizedPnl.toFixed(2)}`
+          : '';
+        const label = `${isLong ? 'شراء' : 'بيع'} ${trade.qty}${pnlStr}`;
         const entryId = `trade-entry-${trade.id}`;
-        chart.addPriceLine(entryId, entryPrice, '#00D4FF', `دخول ${trade.side || ''}`, 1);
+        chart.addPriceLine(entryId, entryPrice, color, label, 2, 0); // Solid line
         positionLineIdsRef.current.push(entryId);
       }
 
       if (trade.sl && Number(trade.sl) > 0) {
         const slId = `trade-sl-${trade.id}`;
-        chart.addPriceLine(slId, Number(trade.sl), '#f85149', 'SL', 1);
+        chart.addPriceLine(slId, Number(trade.sl), '#f85149', 'SL', 1, 2); // Dashed
         positionLineIdsRef.current.push(slId);
       }
 
       if (trade.tp && Number(trade.tp) > 0) {
         const tpId = `trade-tp-${trade.id}`;
-        chart.addPriceLine(tpId, Number(trade.tp), '#3fb950', 'TP', 1);
+        chart.addPriceLine(tpId, Number(trade.tp), '#3fb950', 'TP', 1, 2); // Dashed
         positionLineIdsRef.current.push(tpId);
       }
     });
@@ -264,6 +313,65 @@ export default function RouaChart({
       positionLineIdsRef.current = [];
     };
   }, [positions, paperTrades, selectedSymbol, chart]);
+
+  // ── Update Trade Overlay Label Positions ──
+  useEffect(() => {
+    const updatePositions = () => {
+      const chartSymbol = normalizeSymbol(selectedSymbol);
+      const overlays: typeof tradeOverlayPositions = [];
+
+      // Paper trades overlays
+      paperTrades.forEach(trade => {
+        const sym = normalizeSymbol(trade.symbol || '');
+        if (!sym.includes(chartSymbol) && !chartSymbol.includes(sym)) return;
+
+        const isLong = (trade.side || '').toLowerCase() === 'long';
+        const entryPrice = Number(trade.entryPrice || 0);
+
+        // Entry line overlay
+        if (entryPrice > 0) {
+          const y = chart.getPriceCoordinate(entryPrice);
+          if (y !== null) {
+            overlays.push({
+              id: `trade-entry-${trade.id}`,
+              y,
+              type: 'entry',
+              side: trade.side,
+              qty: trade.qty,
+              price: entryPrice,
+              pnl: trade.unrealizedPnl,
+              pnlPct: trade.unrealizedPct,
+              isLong,
+            });
+          }
+        }
+
+        // SL overlay
+        const sl = Number(trade.sl || 0);
+        if (sl > 0) {
+          const y = chart.getPriceCoordinate(sl);
+          if (y !== null) {
+            overlays.push({ id: `trade-sl-${trade.id}`, y, type: 'sl', side: trade.side, qty: trade.qty, price: sl, isLong });
+          }
+        }
+
+        // TP overlay
+        const tp = Number(trade.tp || 0);
+        if (tp > 0) {
+          const y = chart.getPriceCoordinate(tp);
+          if (y !== null) {
+            overlays.push({ id: `trade-tp-${trade.id}`, y, type: 'tp', side: trade.side, qty: trade.qty, price: tp, isLong });
+          }
+        }
+      });
+
+      setTradeOverlayPositions(overlays);
+    };
+
+    updatePositions();
+    const interval = setInterval(updatePositions, 500);
+    return () => clearInterval(interval);
+  }, [paperTrades, selectedSymbol, chart, currentPrice]);
 
   // ── Indicator Management ───────────────────────────────
   const handleToggleIndicator = useCallback((key: string) => {
@@ -512,6 +620,136 @@ export default function RouaChart({
               visible={showVolumeProfile}
             />
           )}
+
+          {/* ── Trade Overlay Labels (P&L, SL, TP) ── */}
+          {tradeOverlayPositions.map(overlay => {
+            if (overlay.y < 0 || overlay.y > 2000) return null;
+
+            if (overlay.type === 'entry') {
+              const pnlColor = (overlay.pnl ?? 0) >= 0 ? '#3fb950' : '#f85149';
+              const pnlBg = (overlay.pnl ?? 0) >= 0 ? 'rgba(63,185,80,0.15)' : 'rgba(248,81,73,0.15)';
+              const dirColor = overlay.isLong ? '#3fb950' : '#f85149';
+              const dirLabel = overlay.isLong ? '⬆ شراء' : '⬇ بيع';
+              const pnlStr = overlay.pnl !== undefined
+                ? `${overlay.pnl >= 0 ? '+' : ''}${overlay.pnl.toFixed(2)}`
+                : '';
+              const pnlPctStr = overlay.pnlPct !== undefined
+                ? ` (${overlay.pnlPct >= 0 ? '+' : ''}${overlay.pnlPct.toFixed(2)}%)`
+                : '';
+
+              return (
+                <div key={overlay.id} style={{
+                  position: 'absolute',
+                  left: 8,
+                  top: overlay.y - 12,
+                  zIndex: 15,
+                  pointerEvents: 'auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}>
+                  {/* Direction badge */}
+                  <span style={{
+                    padding: '2px 6px',
+                    borderRadius: 4,
+                    background: `${dirColor}20`,
+                    border: `1px solid ${dirColor}40`,
+                    color: dirColor,
+                    fontSize: 9,
+                    fontWeight: 800,
+                    fontFamily: "'Cairo', sans-serif",
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {dirLabel}
+                  </span>
+                  {/* Lot size */}
+                  <span style={{
+                    padding: '2px 5px',
+                    borderRadius: 3,
+                    background: 'rgba(21,26,34,0.85)',
+                    border: '1px solid rgba(42,49,60,0.6)',
+                    color: '#F0F2F5',
+                    fontSize: 9,
+                    fontWeight: 700,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {overlay.qty}
+                  </span>
+                  {/* P&L */}
+                  {pnlStr && (
+                    <span style={{
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      background: pnlBg,
+                      border: `1px solid ${pnlColor}40`,
+                      color: pnlColor,
+                      fontSize: 9,
+                      fontWeight: 700,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {pnlStr}{pnlPctStr}
+                    </span>
+                  )}
+                </div>
+              );
+            }
+
+            if (overlay.type === 'sl') {
+              return (
+                <div key={overlay.id} style={{
+                  position: 'absolute',
+                  left: 8,
+                  top: overlay.y - 9,
+                  zIndex: 15,
+                  pointerEvents: 'none',
+                }}>
+                  <span style={{
+                    padding: '1px 6px',
+                    borderRadius: 3,
+                    background: 'rgba(248,81,73,0.12)',
+                    border: '1px solid rgba(248,81,73,0.3)',
+                    color: '#f85149',
+                    fontSize: 8,
+                    fontWeight: 700,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    whiteSpace: 'nowrap',
+                  }}>
+                    SL {overlay.price.toFixed(overlay.price > 1000 ? 2 : 5)}
+                  </span>
+                </div>
+              );
+            }
+
+            if (overlay.type === 'tp') {
+              return (
+                <div key={overlay.id} style={{
+                  position: 'absolute',
+                  left: 8,
+                  top: overlay.y - 9,
+                  zIndex: 15,
+                  pointerEvents: 'none',
+                }}>
+                  <span style={{
+                    padding: '1px 6px',
+                    borderRadius: 3,
+                    background: 'rgba(63,185,80,0.12)',
+                    border: '1px solid rgba(63,185,80,0.3)',
+                    color: '#3fb950',
+                    fontSize: 8,
+                    fontWeight: 700,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    whiteSpace: 'nowrap',
+                  }}>
+                    TP {overlay.price.toFixed(overlay.price > 1000 ? 2 : 5)}
+                  </span>
+                </div>
+              );
+            }
+
+            return null;
+          })}
 
 
 

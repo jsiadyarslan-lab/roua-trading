@@ -85,7 +85,7 @@ export function AIPatternPanel({ symbol, candles, onPatternsDetected, onClose }:
           if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
         }
 
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           parsed.forEach((p: any) => {
             const idx = p.timeIndex ?? p.index ?? 0;
             const candle = last50[idx];
@@ -100,6 +100,10 @@ export function AIPatternPanel({ symbol, candles, onPatternsDetected, onClose }:
               direction: p.direction || 'neutral',
             });
           });
+        } else if (Array.isArray(parsed) && parsed.length === 0) {
+          // Server returned empty patterns — try local detection
+          const localPatterns = detectLocalPatterns(last50);
+          detectedPatterns.push(...localPatterns);
         }
       } catch (parseErr) {
         // If AI response parsing fails, try local basic pattern detection

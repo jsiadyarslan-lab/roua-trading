@@ -2,9 +2,88 @@
 // ROUA Trading — AI Chart Analysis API Route
 // POST /api/ai/chart-analysis
 // Uses z-ai-web-dev-sdk for pattern recognition
+// Falls back to local algorithmic detection
 // ═══════════════════════════════════════════════════════════
 
 import { NextRequest, NextResponse } from 'next/server';
+
+// ── Local Pattern Detection (server-side fallback) ──
+function detectLocalPatternsServer(candlesData: string): Array<{
+  type: string;
+  timeIndex: number;
+  confidence: number;
+  direction: string;
+}> {
+  const patterns: Array<{ type: string; timeIndex: number; confidence: number; direction: string }> = [];
+
+  // Parse OHLC data from text format: "t=2024-01-01T08:00 O=42000 H=42100 L=41900 C=42050 V=100"
+  const lines = candlesData.trim().split('\n').filter(Boolean);
+  const candles: Array<{ o: number; h: number; l: number; c: number }> = [];
+
+  for (const line of lines) {
+    const oMatch = line.match(/O=([\d.]+)/);
+    const hMatch = line.match(/H=([\d.]+)/);
+    const lMatch = line.match(/L=([\d.]+)/);
+    const cMatch = line.match(/C=([\d.]+)/);
+    if (oMatch && hMatch && lMatch && cMatch) {
+      candles.push({
+        o: parseFloat(oMatch[1]),
+        h: parseFloat(hMatch[1]),
+        l: parseFloat(lMatch[1]),
+        c: parseFloat(cMatch[1]),
+      });
+    }
+  }
+
+  if (candles.length < 5) return patterns;
+
+  for (let i = 4; i < candles.length; i++) {
+    const c = candles[i];
+    const prev = candles[i - 1];
+    const body = Math.abs(c.c - c.o);
+    const range = c.h - c.l;
+    const upperWick = c.h - Math.max(c.o, c.c);
+    const lowerWick = Math.min(c.o, c.c) - c.l;
+
+    // Doji
+    if (range > 0 && body / range < 0.1) {
+      patterns.push({ type: 'Doji', timeIndex: i, confidence: 0.7, direction: 'neutral' });
+    }
+
+    // Hammer
+    if (lowerWick > body * 2 && upperWick < body * 0.5 && body > 0) {
+      patterns.push({ type: 'Hammer', timeIndex: i, confidence: 0.75, direction: 'bullish' });
+    }
+
+    // Shooting Star
+    if (upperWick > body * 2 && lowerWick < body * 0.5 && body > 0) {
+      patterns.push({ type: 'Shooting Star', timeIndex: i, confidence: 0.7, direction: 'bearish' });
+    }
+
+    // Bullish Engulfing
+    if (prev.c < prev.o && c.c > c.o && c.o <= prev.c && c.c >= prev.o) {
+      patterns.push({ type: 'Engulfing Bullish', timeIndex: i, confidence: 0.8, direction: 'bullish' });
+    }
+
+    // Bearish Engulfing
+    if (prev.c > prev.o && c.c < c.o && c.o >= prev.c && c.c <= prev.o) {
+      patterns.push({ type: 'Engulfing Bearish', timeIndex: i, confidence: 0.8, direction: 'bearish' });
+    }
+
+    // Spinning Top
+    if (body > 0 && range > 0 && body / range < 0.3 && body / range >= 0.1 && upperWick > body * 0.5 && lowerWick > body * 0.5) {
+      patterns.push({ type: 'Spinning Top', timeIndex: i, confidence: 0.6, direction: 'neutral' });
+    }
+
+    // Marubozu (very large body, tiny wicks)
+    if (body > 0 && range > 0 && body / range > 0.85) {
+      const dir = c.c > c.o ? 'bullish' : 'bearish';
+      patterns.push({ type: 'Marubozu', timeIndex: i, confidence: 0.75, direction: dir });
+    }
+  }
+
+  return patterns.slice(-12);
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,17 +122,32 @@ export async function POST(request: NextRequest) {
       // Try to extract JSON from the response
       const jsonMatch = responseText.match(/\[[\s\S]*\]/);
       if (jsonMatch) {
-        const patterns = JSON.parse(jsonMatch[0]);
-        return NextResponse.json({ success: true, patterns });
+        try {
+          const patterns = JSON.parse(jsonMatch[0]);
+          if (Array.isArray(patterns) && patterns.length > 0) {
+            return NextResponse.json({ success: true, patterns, source: 'ai' });
+          }
+        } catch {
+          // JSON parse failed, fall through to local
+        }
       }
 
-      return NextResponse.json({ success: true, patterns: [], raw: responseText });
-    } catch (aiError: any) {
-      // AI SDK not available — return basic local patterns
+      // AI returned no parseable patterns — use local detection
+      const localPatterns = detectLocalPatternsServer(candles);
       return NextResponse.json({
         success: true,
-        patterns: [],
-        note: 'خدمة الذكاء الاصطناعي غير متاحة حالياً، يتم استخدام الكشف المحلي',
+        patterns: localPatterns,
+        source: 'local',
+        note: 'AI لم يُعد أنماطاً صالحة، يتم استخدام الكشف المحلي',
+      });
+    } catch (aiError: any) {
+      // AI SDK not available — use local detection as fallback
+      const localPatterns = detectLocalPatternsServer(candles);
+      return NextResponse.json({
+        success: true,
+        patterns: localPatterns,
+        source: 'local',
+        note: 'خدمة الذكاء الاصطناعي غير متاحة، يتم استخدام الكشف المحلي',
       });
     }
   } catch (error: any) {

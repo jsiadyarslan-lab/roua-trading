@@ -58,7 +58,7 @@ interface UseChartReturn {
   currentTool: DrawingTool;
   cancelDrawing: () => void;
   setMarkers: (markers: any[]) => void;
-  addPriceLine: (id: string, price: number, color: string, label: string, lineWidth?: number) => void;
+  addPriceLine: (id: string, price: number, color: string, label: string, lineWidth?: number, lineStyle?: number) => void;
   removePriceLine: (id: string) => void;
   getPriceCoordinate: (price: number) => number | null;
 }
@@ -1170,7 +1170,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // ── Price Lines (for positions/trades) ──
   const priceLinesRef = useRef<Map<string, any>>(new Map());
 
-  const addPriceLine = useCallback((id: string, price: number, color: string, label: string, lineWidth: number = 1) => {
+  const addPriceLine = useCallback((id: string, price: number, color: string, label: string, lineWidth: number = 1, lineStyle: number = 2) => {
     if (!candleSeriesRef.current) return;
 
     // Remove existing line with same id
@@ -1186,7 +1186,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         price,
         color,
         lineWidth: lineWidth as any,
-        lineStyle: 2, // Dashed
+        lineStyle: lineStyle as any, // 0=Solid, 1=Dotted, 2=Dashed, 3=LargeDashed, 4=SparseDotted
         axisLabelVisible: true,
         title: label,
       });

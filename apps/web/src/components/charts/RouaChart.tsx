@@ -216,14 +216,6 @@ export default function RouaChart({
   const positions = usePositionsStore(s => s.positions);
   const paperTrades = usePaperTradesStore(s => s.trades);
 
-  // ── Update Paper Trade Prices in Real-Time ──
-  useEffect(() => {
-    if (currentPrice && typeof currentPrice === 'number') {
-      usePaperTradesStore.getState().updatePrice(selectedSymbol, currentPrice);
-      usePositionsStore.getState().updatePositionPrice(selectedSymbol, currentPrice);
-    }
-  }, [currentPrice, selectedSymbol]);
-
   // ── Helper: Normalize symbol for matching ──
   const normalizeSymbol = (s: string) => s.toUpperCase().replace(/[/\-_]/g, '');
 
@@ -267,7 +259,7 @@ export default function RouaChart({
       }
     });
 
-    // Add lines for paper trades
+    // Add lines for paper trades (including bot trades)
     paperTrades.forEach(trade => {
       const symbol = normalizeSymbol(trade.symbol || '');
       if (!symbol.includes(chartSymbol) && !chartSymbol.includes(symbol)) return;
@@ -276,10 +268,11 @@ export default function RouaChart({
       if (entryPrice > 0) {
         const isLong = (trade.side || '').toLowerCase() === 'long';
         const color = isLong ? '#3fb950' : '#f85149';
+        const sourceTag = trade.source === 'bot' ? '🤖 ' : '';
         const pnlStr = trade.unrealizedPnl !== undefined
           ? ` | ${trade.unrealizedPnl >= 0 ? '+' : ''}${trade.unrealizedPnl.toFixed(2)}`
           : '';
-        const label = `${isLong ? 'شراء' : 'بيع'} ${trade.qty}${pnlStr}`;
+        const label = `${sourceTag}${isLong ? 'شراء' : 'بيع'} ${trade.qty}${pnlStr}`;
         const entryId = `trade-entry-${trade.id}`;
         chart.addPriceLine(entryId, entryPrice, color, label, 2, 0); // Solid line
         positionLineIdsRef.current.push(entryId);

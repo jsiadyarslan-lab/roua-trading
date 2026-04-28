@@ -223,7 +223,7 @@ export default function TradingPage() {
       const res = await fetch('/api/portfolio/credentials')
       if (res.ok) {
         const data = await res.json()
-        if (data.success) {
+        if (data.success && data.data) {
           setCredentials(data.data)
           if (data.data.length > 0 && !credentialIdRef.current) {
             setCredentialId(data.data[0].id)

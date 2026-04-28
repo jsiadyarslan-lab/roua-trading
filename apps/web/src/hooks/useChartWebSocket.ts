@@ -51,6 +51,8 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
+  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const isClosingRef = useRef(false);
   const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'disconnected' | 'fallback'>('disconnected');
 
   const MAX_RECONNECT_ATTEMPTS = 15;
@@ -60,6 +62,14 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
 
   // ── Cleanup ────────────────────────────────────────────
   const cleanup = useCallback(() => {
+    isClosingRef.current = true;
+
+    // Clear ping interval first to prevent "Ping received after close"
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
+    }
+
     if (wsRef.current) {
       wsRef.current.onopen = null;
       wsRef.current.onmessage = null;
@@ -123,6 +133,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   // ── Connect WebSocket ──────────────────────────────────
   const connect = useCallback(() => {
     cleanup();
+    isClosingRef.current = false;  // Reset closing flag for new connection
     if (!enabled) return;
 
     if (!isCryptoPair(symbol)) {
@@ -189,6 +200,15 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
         setConnectionState('disconnected');
         wsRef.current = null;
 
+        // Clear ping interval to prevent "Ping received after close"
+        if (pingIntervalRef.current) {
+          clearInterval(pingIntervalRef.current);
+          pingIntervalRef.current = null;
+        }
+
+        // Don't reconnect if we're intentionally closing (cleanup)
+        if (isClosingRef.current) return;
+
         // Fallback to REST polling after max reconnect attempts
         if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
           startPolling();
@@ -201,19 +221,19 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
         reconnectTimerRef.current = setTimeout(connect, delay + Math.random() * 1000);
       };
 
-      // Keepalive ping
-      const pingInterval = setInterval(() => {
+      // Keepalive ping — stored in ref for cleanup
+      if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
           try { ws.send(JSON.stringify({ method: 'ping' })); } catch { /* ignore */ }
+        } else {
+          // WS not open — clear ping
+          if (pingIntervalRef.current) {
+            clearInterval(pingIntervalRef.current);
+            pingIntervalRef.current = null;
+          }
         }
       }, 20000);
-
-      // Cleanup ping on close
-      const origClose = ws.close.bind(ws);
-      ws.close = () => {
-        clearInterval(pingInterval);
-        origClose();
-      };
 
     } catch {
       // WebSocket creation failed — fall back to polling

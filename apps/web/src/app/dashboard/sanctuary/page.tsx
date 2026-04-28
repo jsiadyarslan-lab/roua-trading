@@ -255,7 +255,7 @@ export default function SanctuaryPage() {
       const res = await fetch('/api/portfolio/sanctuary')
       if (res.ok) {
         const data = await res.json()
-        if (data.success) setReport(data.data)
+        if (data.success) setReport({ ...data.data, positions: data.data.positions ?? [], metrics: data.data.metrics ?? {} })
       } else {
         const data = await res.json()
         throw new Error(data.error || 'فشل في تحليل المحفظة')
@@ -279,7 +279,7 @@ export default function SanctuaryPage() {
         if (cancelled) return
         if (res.ok) {
           const data = await res.json()
-          if (data.success) setReport(data.data)
+          if (data.success) setReport({ ...data.data, positions: data.data.positions ?? [], metrics: data.data.metrics ?? {} })
         } else {
           const data = await res.json()
           throw new Error(data.error || 'فشل في تحليل المحفظة')
@@ -306,19 +306,19 @@ export default function SanctuaryPage() {
   }
 
   // Performance line — generate from position history or show empty
-  const performanceData: number[] = report && report.positions.length > 0
+  const performanceData: number[] = report && (report.positions ?? []).length > 0
     ? report.positions.reduce((acc: number[], pos, i) => {
         // Build a simple cumulative performance series from 24h changes
         const baseVal = 100
         const prevVal = acc.length > 0 ? acc[acc.length - 1] : baseVal
         const change = pos.change24h ?? 0
-        acc.push(prevVal + (prevVal * change / 100 / report.positions.length))
+        acc.push(prevVal + (prevVal * change / 100 / (report.positions ?? []).length))
         return acc
       }, [])
     : []
 
   // Compute portfolio return from positions data, or show dash
-  const portfolioReturn = report && report.positions.length > 0
+  const portfolioReturn = report && (report.positions ?? []).length > 0
     ? report.positions.reduce((sum, pos) => sum + (pos.change24h ?? 0) * pos.weight / 100, 0)
     : null
 
@@ -580,7 +580,7 @@ export default function SanctuaryPage() {
               </div>
 
               {/* Row 3: Open Positions Table */}
-              {report.positions.length > 0 && (
+              {(report.positions ?? []).length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -608,7 +608,7 @@ export default function SanctuaryPage() {
                           fontSize: '9px', fontWeight: 700,
                           background: 'var(--accent-bg)', border: '1px solid var(--accent-border)',
                           color: 'var(--accent)', padding: '1px 7px', borderRadius: '10px',
-                        }}>{report.positions.length}</span>
+                        }}>{(report.positions ?? []).length}</span>
                       }
                     />
                     <span style={{
@@ -629,7 +629,7 @@ export default function SanctuaryPage() {
                     <div key={`${pos.symbol}-${pos.exchange}`} style={{
                       display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 0.8fr 0.8fr 0.6fr 0.8fr',
                       padding: '10px 16px',
-                      borderBottom: i < report.positions.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                      borderBottom: i < (report.positions ?? []).length - 1 ? '1px solid var(--border-subtle)' : 'none',
                       alignItems: 'center',
                       transition: 'background 0.15s',
                     }}
@@ -718,7 +718,7 @@ export default function SanctuaryPage() {
               </div>
 
               {/* Positions detail list */}
-              {report.positions.length > 0 && report.positions.map((pos, i) => (
+              {(report.positions ?? []).length > 0 && report.positions.map((pos, i) => (
                 <motion.div
                   key={`${pos.symbol}-${pos.exchange}`}
                   initial={{ opacity: 0, x: 12 }}

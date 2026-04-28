@@ -141,10 +141,9 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
 
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-          gap: 3,
-          padding: '5px 6px',
+          display: 'flex',
+          gap: 2,
+          padding: '3px 5px',
           flexShrink: 0,
           background: 'rgba(255,255,255,0.02)',
           borderBottom: `1px solid rgba(0, 212, 255, 0.08)`,
@@ -159,57 +158,56 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           const hasAlert = alert !== null && alert.count > 0
           const alertCount = alert?.count || 0
           const alertColor = alert?.color || t.accent
-          const alertLabel = alert?.lastLabel || ''
 
           return (
             <button
               key={t.id}
               onClick={() => handleTabClick(t.id)}
               className="decision-center-tab"
+              title={t.label}
               style={{
+                flex: 1,
                 minWidth: 0,
-                minHeight: 28,
-                padding: '3px 3px',
+                minHeight: 22,
+                padding: '2px 2px',
                 background: isActive ? `${t.accent}18` : hasAlert ? `${alertColor}06` : 'rgba(255,255,255,0.035)',
                 border: `1px solid ${isActive ? `${t.accent}55` : hasAlert ? `${alertColor}35` : 'rgba(255,255,255,0.08)'}`,
-                borderRadius: 8,
+                borderRadius: 5,
                 color: isActive ? T.text : T.text3,
                 cursor: 'pointer',
                 fontFamily: "'Cairo', sans-serif",
                 transition: 'all 0.2s ease',
                 display: 'flex',
-                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 1,
+                gap: 2,
                 boxShadow: isActive
-                  ? `0 0 0 1px ${t.accent}20 inset, 0 0 14px ${t.accent}10`
+                  ? `0 0 0 1px ${t.accent}20 inset, 0 0 8px ${t.accent}08`
                   : hasAlert
-                    ? `0 0 0 1px ${alertColor}10 inset, 0 0 10px ${alertColor}08`
+                    ? `0 0 0 1px ${alertColor}10 inset`
                     : 'inset 0 1px 0 rgba(255,255,255,0.02)',
                 overflow: 'hidden',
                 position: 'relative',
               }}
             >
-              {/* Alert badge — pulsing dot with count */}
+              {/* Alert badge */}
               {hasAlert && !isActive && (
                 <div style={{
                   position: 'absolute',
-                  top: 2,
-                  left: 2,
+                  top: 1,
+                  left: 1,
+                  minWidth: 8,
+                  height: 8,
+                  borderRadius: 999,
+                  background: alertColor,
+                  color: '#000',
+                  fontSize: 5,
+                  fontWeight: 900,
+                  fontFamily: 'monospace',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  minWidth: 12,
-                  height: 12,
-                  borderRadius: 6,
-                  background: alertColor,
-                  color: '#000',
-                  fontSize: 7,
-                  fontWeight: 900,
-                  fontFamily: 'monospace',
-                  padding: '0 3px',
-                  boxShadow: `0 0 8px ${alertColor}80`,
+                  boxShadow: `0 0 6px ${alertColor}80`,
                   animation: 'tab-alert-pulse 2s ease-in-out infinite',
                   zIndex: 2,
                 }}>
@@ -217,33 +215,8 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                 </div>
               )}
 
-              {/* Alert label flash */}
-              {hasAlert && !isActive && alertLabel && (
-                <div style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  background: `${alertColor}20`,
-                  color: alertColor,
-                  fontSize: 5.5,
-                  fontWeight: 700,
-                  fontFamily: "'Cairo', sans-serif",
-                  textAlign: 'center',
-                  padding: '1px 2px',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}>
-                  {alertLabel}
-                </div>
-              )}
-
-              <Icon size={9} color={isActive ? t.accent : hasAlert ? alertColor : '#93A7C3'} />
-              <span style={{ fontSize: 6.5, fontWeight: isActive ? 800 : hasAlert ? 800 : 700, lineHeight: 1, color: isActive ? T.text : hasAlert ? alertColor : '#AEC0D6' }}>{t.label}</span>
-              <span style={{ fontSize: 5.5, color: isActive ? T.text3 : '#708299', maxWidth: '100%', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1 }}>
-                {t.subtitle}
-              </span>
+              <Icon size={8} color={isActive ? t.accent : hasAlert ? alertColor : '#93A7C3'} />
+              <span style={{ fontSize: 6, fontWeight: isActive ? 800 : 600, lineHeight: 1, color: isActive ? T.text : hasAlert ? alertColor : '#AEC0D6', whiteSpace: 'nowrap' }}>{t.label}</span>
             </button>
           )
         })}

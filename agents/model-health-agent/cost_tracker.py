@@ -45,12 +45,14 @@ def fetch_usage_stats(
         # Ensure sslmode for Railway connections
         connect_url = db_url
         if 'sslmode' not in connect_url:
-            connect_url += '?sslmode=no-verify' if '?' in connect_url else '&sslmode=no-verify'
-            # Only add sslmode for non-internal URLs
-            if 'railway.internal' in db_url:
-                connect_url = db_url  # Internal URLs don't need SSL
+            if 'railway.internal' not in db_url:
+                connect_url += '?sslmode=no-verify' if '?' in connect_url else '&sslmode=no-verify'
 
-        conn = psycopg2.connect(connect_url, connect_timeout=10, application_name="model-health-agent")
+        try:
+            conn = psycopg2.connect(connect_url, connect_timeout=10, application_name="model-health-agent")
+        except TypeError:
+            # Fallback: some psycopg2 versions don't accept application_name
+            conn = psycopg2.connect(connect_url, connect_timeout=10)
         conn.autocommit = True
         cur = conn.cursor()
 
@@ -172,7 +174,8 @@ def fetch_usage_stats(
         return {"_endpoints": {}, "_total_monthly": 0, "_total_daily": 0}
     except Exception as e:
         logger.error(f"خطأ في جلب إحصائيات الاستهلاك: {e}")
-        logger.debug(f"تفاصيل الخطأ:\n{traceback.format_exc()}")
+        logger.error(f"نوع الخطأ: {type(e).__name__}")
+        logger.error(f"تفاصيل الخطأ:\n{traceback.format_exc()}")
         return {"_endpoints": {}, "_total_monthly": 0, "_total_daily": 0}
 
 

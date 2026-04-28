@@ -21,7 +21,7 @@ const NAV_ITEMS = [
   { id: 'health', label: 'صحة النظام', icon: Activity, path: '/dashboard/admin/health' },
   { id: 'trading', label: 'التداول', icon: TrendingUp, path: '/dashboard/admin/trading' },
   { id: 'signals', label: 'الإشارات', icon: Zap, path: '/dashboard/admin/signals' },
-  { id: 'logs', label: 'السجلات', icon: ScrollText, path: '/dashboard/admin/logs' },
+  { id: 'logs', label: 'السجلات', icon: ScrollText, path: '/dashboard/admin/system-logs' },
   { id: 'settings', label: 'الإعدادات', icon: Settings, path: '/dashboard/admin/settings' },
 ]
 

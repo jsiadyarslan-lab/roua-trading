@@ -18,7 +18,7 @@ import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone, type Data
 const DASHBOARD_SYMBOLS = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA']
 
 // Dynamic imports for heavy components (code splitting)
-const QuantumChart = dynamic(() => import('@/components/dashboard/QuantumChart'), { ssr: false })
+const RouaChart = dynamic(() => import('@/components/charts/RouaChart'), { ssr: false })
 const AlpacaPositions = dynamic(() => import('@/components/dashboard/AlpacaPositions').then(m => ({ default: m.AlpacaPositions })), { ssr: false })
 const BotEngine = dynamic(() => import('@/components/dashboard/BotEngine').then(m => ({ default: m.BotEngine })), { ssr: false })
 const NotificationEngine = dynamic(() => import('@/components/dashboard/NotificationEngine').then(m => ({ default: m.NotificationEngine })), { ssr: false })
@@ -642,11 +642,8 @@ export default function DashboardPage() {
             {/* Chart Panel */}
             <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                <QuantumChart
+                <RouaChart
                   currentPrice={currentPrice}
-                  dataStatus={quoteStatus}
-                  lastUpdatedAt={activeQuote?.timestamp ?? null}
-                  sourceLabel={sourceLabel}
                 />
               </div>
             </div>
@@ -766,13 +763,10 @@ export default function DashboardPage() {
               </div>
 
               <div className={`mobile-hero-chart${chartExpanded ? ' mobile-hero-chart--expanded' : ''}`}>
-                <QuantumChart
+                <RouaChart
                   currentPrice={currentPrice}
                   mobile
                   compact={!chartExpanded}
-                  dataStatus={quoteStatus}
-                  lastUpdatedAt={activeQuote?.timestamp ?? null}
-                  sourceLabel={sourceLabel}
                   onExpand={() => setChartExpanded(value => !value)}
                 />
               </div>

@@ -1,0 +1,603 @@
+// ═══════════════════════════════════════════════════════════
+// ROUA Trading Chart — Main Chart Hook
+// Creates and manages the lightweight-charts v5 instance
+// ═══════════════════════════════════════════════════════════
+
+'use client';
+
+import { useEffect, useRef, useCallback, useState } from 'react';
+import type { IChartApi, ISeriesApi, SeriesType, Time, MouseEventParams, DeepPartial, ChartOptions } from 'lightweight-charts';
+import type {
+  CandleData, ChartType, ActiveIndicator, Drawing, DrawingTool,
+  ChartSettings, CrosshairData, SeriesHandle
+} from '../lib/charts/types';
+import { toHeikinAshi } from '../lib/charts/IndicatorCalculator';
+import { DrawingManager } from '../lib/charts/DrawingManager';
+import { KeyboardShortcuts } from '../lib/charts/KeyboardShortcuts';
+import { ChartExporter } from '../lib/charts/ChartExporter';
+import { ChartTemplateManager } from '../lib/charts/ChartTemplate';
+
+interface UseChartOptions {
+  symbol: string;
+  timeframe: string;
+  settings?: Partial<ChartSettings>;
+  onCrosshairMove?: (data: CrosshairData | null) => void;
+}
+
+interface UseChartReturn {
+  chartRef: React.RefObject<IChartApi | null>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  settings: ChartSettings;
+  updateSettings: (updates: Partial<ChartSettings>) => void;
+  setCandles: (candles: CandleData[]) => void;
+  updateLastCandle: (price: number) => void;
+  addIndicator: (indicator: ActiveIndicator) => void;
+  removeIndicator: (key: string) => void;
+  getActiveIndicators: () => ActiveIndicator[];
+  setChartType: (type: ChartType) => void;
+  addDrawing: (tool: DrawingTool, points: { time: number; price: number }[]) => void;
+  removeDrawing: (id: string) => void;
+  clearDrawings: () => void;
+  getDrawings: () => Drawing[];
+  setTool: (tool: DrawingTool) => void;
+  activeTool: DrawingTool;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetView: () => void;
+  exportPNG: () => void;
+  exportCSV: () => void;
+  exportSVG: () => void;
+  toggleFullscreen: () => void;
+  isFullscreen: boolean;
+  isPaused: boolean;
+  togglePause: () => void;
+  saveTemplate: (name: string) => void;
+  loadTemplate: (id: string) => void;
+  getTemplates: () => any[];
+  currentTool: DrawingTool;
+  cancelDrawing: () => void;
+}
+
+export function useChart(options: UseChartOptions): UseChartReturn {
+  const { symbol, timeframe, onCrosshairMove } = options;
+
+  // ── Refs ───────────────────────────────────────────────
+  const chartInstanceRef = useRef<IChartApi | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const candleSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
+  const overlaySeriesRef = useRef<Map<string, ISeriesApi<SeriesType>>>(new Map());
+  const oscillatorSeriesRef = useRef<Map<string, ISeriesApi<SeriesType>>>(new Map());
+  const candlesRef = useRef<CandleData[]>([]);
+  const drawingManagerRef = useRef<DrawingManager | null>(null);
+  const shortcutsRef = useRef<KeyboardShortcuts | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+
+  // ── State ──────────────────────────────────────────────
+  const [settings, setSettings] = useState<ChartSettings>({
+    type: 'candle',
+    showGrid: true,
+    showPriceLine: true,
+    showVolume: true,
+    showSessions: true,
+    showCandleTimer: true,
+    crosshairType: 'cross',
+    upColor: '#3fb950',
+    downColor: '#f85149',
+    bgColor: '#0B0E14',
+    gridColor: 'rgba(42,49,60,0.5)',
+    ...options.settings,
+  });
+
+  const [activeIndicators, setActiveIndicators] = useState<Map<string, ActiveIndicator>>(new Map());
+  const [activeTool, setActiveTool] = useState<DrawingTool>('cursor');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+
+  // ── Chart Colors ───────────────────────────────────────
+  const COLORS = {
+    bg: '#0B0E14',
+    card: '#151A22',
+    border: '#2A313C',
+    text: '#F0F2F5',
+    textSecondary: '#8B92A8',
+    grid: 'rgba(42,49,60,0.5)',
+    crosshair: 'rgba(160,200,220,0.3)',
+    upColor: '#3fb950',
+    downColor: '#f85149',
+    upWick: '#3fb950',
+    downWick: '#f85149',
+  };
+
+  // ── Initialize Chart ───────────────────────────────────
+  const initChart = useCallback(async () => {
+    if (!containerRef.current) return;
+
+    // Dynamic import lightweight-charts v5
+    const { createChart, CandlestickSeries, HistogramSeries } = await import('lightweight-charts');
+
+    // Destroy existing chart
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.remove();
+      chartInstanceRef.current = null;
+    }
+
+    const container = containerRef.current;
+
+    const chartOptions: DeepPartial<ChartOptions> = {
+      width: container.clientWidth,
+      height: container.clientHeight,
+      layout: {
+        background: { color: COLORS.bg },
+        textColor: COLORS.textSecondary,
+        fontSize: 11,
+        fontFamily: "'JetBrains Mono', monospace",
+      },
+      grid: {
+        vertLines: { color: COLORS.grid },
+        horzLines: { color: COLORS.grid },
+      },
+      crosshair: {
+        mode: 0, // Normal
+        vertLine: {
+          color: COLORS.crosshair,
+          width: 1,
+          style: 2,
+          labelBackgroundColor: '#151A22',
+        },
+        horzLine: {
+          color: COLORS.crosshair,
+          width: 1,
+          style: 2,
+          labelBackgroundColor: '#151A22',
+        },
+      },
+      rightPriceScale: {
+        borderColor: COLORS.border,
+        scaleMargins: { top: 0.1, bottom: 0.2 },
+      },
+      timeScale: {
+        borderColor: COLORS.border,
+        timeVisible: true,
+        secondsVisible: true,
+        rightOffset: 5,
+        barSpacing: 8,
+        minBarSpacing: 2,
+      },
+      handleScroll: { vertTouchDrag: false },
+    };
+
+    const chart = createChart(container, chartOptions);
+    chartInstanceRef.current = chart;
+
+    // ── Candlestick Series ──
+    const candleSeries = chart.addSeries(CandlestickSeries, {
+      upColor: COLORS.upColor,
+      downColor: COLORS.downColor,
+      borderUpColor: COLORS.upColor,
+      borderDownColor: COLORS.downColor,
+      wickUpColor: COLORS.upWick,
+      wickDownColor: COLORS.downWick,
+    });
+    candleSeriesRef.current = candleSeries;
+
+    // ── Volume Series ──
+    const volumeSeries = chart.addSeries(HistogramSeries, {
+      priceFormat: { type: 'volume' },
+      priceScaleId: 'volume',
+    });
+    volumeSeries.priceScale().applyOptions({
+      scaleMargins: { top: 0.85, bottom: 0 },
+    });
+    volumeSeriesRef.current = volumeSeries;
+
+    // ── Crosshair Move Handler ──
+    chart.subscribeCrosshairMove((param: MouseEventParams) => {
+      if (!param.time || !param.point || !onCrosshairMove) {
+        onCrosshairMove?.(null);
+        return;
+      }
+
+      const candleData = param.seriesData.get(candleSeries) as any;
+      if (!candleData) {
+        onCrosshairMove?.(null);
+        return;
+      }
+
+      const candles = candlesRef.current;
+      const candleIdx = candles.findIndex(c => c.time === param.time);
+      const prevClose = candleIdx > 0 ? candles[candleIdx - 1].close : candleData.close;
+      const change = candleData.close - prevClose;
+      const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+
+      const d = new Date((param.time as number) * 1000);
+      const dateStr = d.toLocaleDateString('ar-EG', {
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
+
+      onCrosshairMove({
+        time: param.time as number,
+        open: candleData.open,
+        high: candleData.high,
+        low: candleData.low,
+        close: candleData.close,
+        volume: candleData.volume || 0,
+        change,
+        changePercent,
+        dateStr,
+      });
+    });
+
+    // ── Resize Observer ──
+    if (resizeObserverRef.current) {
+      resizeObserverRef.current.disconnect();
+    }
+    const ro = new ResizeObserver(entries => {
+      if (chart && entries[0]) {
+        chart.applyOptions({
+          width: entries[0].contentRect.width,
+          height: entries[0].contentRect.height,
+        });
+      }
+    });
+    ro.observe(container);
+    resizeObserverRef.current = ro;
+
+    // ── Init Drawing Manager ──
+    if (!drawingManagerRef.current) {
+      drawingManagerRef.current = new DrawingManager(symbol);
+    } else {
+      drawingManagerRef.current.setSymbol(symbol);
+    }
+
+    // ── Init Keyboard Shortcuts ──
+    if (!shortcutsRef.current) {
+      shortcutsRef.current = new KeyboardShortcuts({
+        togglePlayPause: () => setIsPaused(p => !p),
+        zoomIn: () => chart.timeScale().applyOptions({ barSpacing: Math.min(50, (chart.timeScale().options().barSpacing || 8) + 2) }),
+        zoomOut: () => chart.timeScale().applyOptions({ barSpacing: Math.max(2, (chart.timeScale().options().barSpacing || 8) - 2) }),
+        setTool: (tool) => setActiveTool(tool),
+        saveChart: () => ChartTemplateManager.save(
+          'auto-save',
+          settings,
+          Array.from(activeIndicators.values()),
+          drawingManagerRef.current?.getAll() || [],
+          timeframe,
+          settings.type
+        ),
+        cancelDrawing: () => setActiveTool('cursor'),
+        toggleFullscreen: () => setIsFullscreen(f => !f),
+      });
+      shortcutsRef.current.attach();
+    }
+
+  }, [symbol, onCrosshairMove]);
+
+  // ── Initialize on mount ────────────────────────────────
+  useEffect(() => {
+    initChart();
+    return () => {
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.remove();
+        chartInstanceRef.current = null;
+      }
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+      }
+      if (shortcutsRef.current) {
+        shortcutsRef.current.detach();
+      }
+    };
+  }, [initChart]);
+
+  // ── Re-init on symbol change ───────────────────────────
+  useEffect(() => {
+    if (drawingManagerRef.current) {
+      drawingManagerRef.current.setSymbol(symbol);
+    }
+    // Clear overlay series when symbol changes
+    overlaySeriesRef.current.forEach((series) => {
+      chartInstanceRef.current?.removeSeries(series);
+    });
+    overlaySeriesRef.current.clear();
+  }, [symbol]);
+
+  // ── Set Candles ────────────────────────────────────────
+  const setCandles = useCallback((candles: CandleData[]) => {
+    if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
+
+    candlesRef.current = candles;
+
+    // Apply Heikin-Ashi if needed
+    const displayCandles = settings.type === 'heikin-ashi' ? toHeikinAshi(candles) : candles;
+
+    // Format for lightweight-charts (time must be Time)
+    const chartData = displayCandles.map(c => ({
+      time: c.time as Time,
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+    }));
+
+    const volumeData = candles.map(c => ({
+      time: c.time as Time,
+      value: c.volume,
+      color: c.close >= c.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
+    }));
+
+    candleSeriesRef.current.setData(chartData as any);
+    volumeSeriesRef.current.setData(volumeData as any);
+
+    // Re-apply indicators
+    activeIndicators.forEach((ind) => {
+      // Will be recalculated in addIndicator
+    });
+  }, [settings.type]);
+
+  // ── Update Last Candle (live tick) ─────────────────────
+  const updateLastCandle = useCallback((price: number) => {
+    if (isPaused || !candleSeriesRef.current || !candlesRef.current.length) return;
+
+    const candles = candlesRef.current;
+    const last = candles[candles.length - 1];
+    const updated = { ...last, close: price, high: Math.max(last.high, price), low: Math.min(last.low, price) };
+    candles[candles.length - 1] = updated;
+    candlesRef.current = candles;
+
+    const displayCandles = settings.type === 'heikin-ashi' ? toHeikinAshi(candles) : candles;
+    const lastDisplay = displayCandles[displayCandles.length - 1];
+
+    candleSeriesRef.current.update({
+      time: lastDisplay.time as Time,
+      open: lastDisplay.open,
+      high: lastDisplay.high,
+      low: lastDisplay.low,
+      close: lastDisplay.close,
+    } as any);
+
+    // Update volume
+    if (volumeSeriesRef.current) {
+      volumeSeriesRef.current.update({
+        time: last.time as Time,
+        value: last.volume,
+        color: last.close >= last.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
+      } as any);
+    }
+  }, [isPaused, settings.type]);
+
+  // ── Add Indicator ──────────────────────────────────────
+  const addIndicator = useCallback(async (indicator: ActiveIndicator) => {
+    const chart = chartInstanceRef.current;
+    if (!chart || !candlesRef.current.length) return;
+
+    setActiveIndicators(prev => {
+      const next = new Map(prev);
+      next.set(indicator.key, indicator);
+      return next;
+    });
+
+    // Remove existing series for this indicator
+    const existingSeries = overlaySeriesRef.current.get(indicator.key);
+    if (existingSeries) {
+      chart.removeSeries(existingSeries);
+      overlaySeriesRef.current.delete(indicator.key);
+    }
+
+    // Calculate indicator data
+    const { calculateIndicator } = await import('../lib/charts/IndicatorCalculator');
+    const results = await calculateIndicator(indicator, candlesRef.current);
+    if (!results.length) return;
+
+    const { LineSeries, AreaSeries } = await import('lightweight-charts');
+
+    // Overlay indicators
+    if (indicator.key === 'sma' || indicator.key === 'ema' || indicator.key === 'vwap' || indicator.key === 'supertrend') {
+      const series = chart.addSeries(LineSeries, {
+        color: indicator.color,
+        lineWidth: 1 as any,
+        priceLineVisible: false,
+        lastValueVisible: true,
+        crosshairMarkerVisible: false,
+      });
+
+      const data = results.map((r: any) => {
+        const val = r.values?.[indicator.key] ?? r.value;
+        return val !== null ? { time: r.time as Time, value: val } : null;
+      }).filter(Boolean);
+
+      series.setData(data as any);
+      overlaySeriesRef.current.set(indicator.key, series);
+    }
+  }, []);
+
+  // ── Remove Indicator ───────────────────────────────────
+  const removeIndicator = useCallback((key: string) => {
+    const chart = chartInstanceRef.current;
+    if (!chart) return;
+
+    const series = overlaySeriesRef.current.get(key);
+    if (series) {
+      chart.removeSeries(series);
+      overlaySeriesRef.current.delete(key);
+    }
+
+    setActiveIndicators(prev => {
+      const next = new Map(prev);
+      next.delete(key);
+      return next;
+    });
+  }, []);
+
+  // ── Get Active Indicators ──────────────────────────────
+  const getActiveIndicators = useCallback((): ActiveIndicator[] => {
+    return Array.from(activeIndicators.values());
+  }, [activeIndicators]);
+
+  // ── Set Chart Type ─────────────────────────────────────
+  const setChartType = useCallback((type: ChartType) => {
+    setSettings(prev => ({ ...prev, type }));
+    // Re-set candles to apply Heikin-Ashi
+    if (candlesRef.current.length) {
+      setCandles(candlesRef.current);
+    }
+  }, [setCandles]);
+
+  // ── Drawing Operations ─────────────────────────────────
+  const addDrawing = useCallback((tool: DrawingTool, points: { time: number; price: number }[]) => {
+    if (!drawingManagerRef.current) return;
+    drawingManagerRef.current.create(tool, points);
+  }, []);
+
+  const removeDrawing = useCallback((id: string) => {
+    drawingManagerRef.current?.delete(id);
+  }, []);
+
+  const clearDrawings = useCallback(() => {
+    drawingManagerRef.current?.clearAll();
+  }, []);
+
+  const getDrawings = useCallback((): Drawing[] => {
+    return drawingManagerRef.current?.getAll() || [];
+  }, []);
+
+  const setTool = useCallback((tool: DrawingTool) => {
+    setActiveTool(tool);
+  }, []);
+
+  const cancelDrawing = useCallback(() => {
+    setActiveTool('cursor');
+  }, []);
+
+  // ── Zoom ───────────────────────────────────────────────
+  const zoomIn = useCallback(() => {
+    chartInstanceRef.current?.timeScale().applyOptions({
+      barSpacing: Math.min(50, (chartInstanceRef.current?.timeScale().options().barSpacing || 8) + 2),
+    });
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    chartInstanceRef.current?.timeScale().applyOptions({
+      barSpacing: Math.max(2, (chartInstanceRef.current?.timeScale().options().barSpacing || 8) - 2),
+    });
+  }, []);
+
+  const resetView = useCallback(() => {
+    chartInstanceRef.current?.timeScale().fitContent();
+  }, []);
+
+  // ── Export ─────────────────────────────────────────────
+  const exportPNG = useCallback(() => {
+    ChartExporter.exportPNG(containerRef.current);
+  }, []);
+
+  const exportCSV = useCallback(() => {
+    ChartExporter.exportCSV(candlesRef.current);
+  }, []);
+
+  const exportSVG = useCallback(() => {
+    ChartExporter.exportSVG(containerRef.current);
+  }, []);
+
+  // ── Fullscreen ─────────────────────────────────────────
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen(f => !f);
+  }, []);
+
+  // ── Pause ──────────────────────────────────────────────
+  const togglePause = useCallback(() => {
+    setIsPaused(p => !p);
+  }, []);
+
+  // ── Templates ──────────────────────────────────────────
+  const saveTemplate = useCallback((name: string) => {
+    ChartTemplateManager.save(
+      name,
+      settings,
+      Array.from(activeIndicators.values()),
+      drawingManagerRef.current?.getAll() || [],
+      timeframe,
+      settings.type
+    );
+  }, [settings, activeIndicators, timeframe]);
+
+  const loadTemplate = useCallback((id: string) => {
+    const template = ChartTemplateManager.load(id);
+    if (!template) return;
+    setSettings(template.settings);
+    // Apply indicators from template
+    template.indicators.forEach(ind => addIndicator(ind));
+  }, [addIndicator]);
+
+  const getTemplates = useCallback(() => {
+    return ChartTemplateManager.getAll();
+  }, []);
+
+  // ── Update Settings ────────────────────────────────────
+  const updateSettings = useCallback((updates: Partial<ChartSettings>) => {
+    setSettings(prev => ({ ...prev, ...updates }));
+
+    // Apply live chart option changes
+    const chart = chartInstanceRef.current;
+    if (chart) {
+      if (updates.showGrid !== undefined) {
+        chart.applyOptions({
+          grid: {
+            vertLines: { color: updates.showGrid ? COLORS.grid : 'transparent' },
+            horzLines: { color: updates.showGrid ? COLORS.grid : 'transparent' },
+          },
+        });
+      }
+      if (updates.upColor !== undefined || updates.downColor !== undefined) {
+        candleSeriesRef.current?.applyOptions({
+          upColor: updates.upColor || COLORS.upColor,
+          downColor: updates.downColor || COLORS.downColor,
+          borderUpColor: updates.upColor || COLORS.upColor,
+          borderDownColor: updates.downColor || COLORS.downColor,
+          wickUpColor: updates.upColor || COLORS.upColor,
+          wickDownColor: updates.downColor || COLORS.downColor,
+        });
+      }
+      if (updates.showVolume !== undefined) {
+        volumeSeriesRef.current?.applyOptions({
+          visible: updates.showVolume,
+        });
+      }
+    }
+  }, []);
+
+  return {
+    chartRef: chartInstanceRef,
+    containerRef,
+    settings,
+    updateSettings,
+    setCandles,
+    updateLastCandle,
+    addIndicator,
+    removeIndicator,
+    getActiveIndicators,
+    setChartType,
+    addDrawing,
+    removeDrawing,
+    clearDrawings,
+    getDrawings,
+    setTool,
+    activeTool,
+    zoomIn,
+    zoomOut,
+    resetView,
+    exportPNG,
+    exportCSV,
+    exportSVG,
+    toggleFullscreen,
+    isFullscreen,
+    isPaused,
+    togglePause,
+    saveTemplate,
+    loadTemplate,
+    getTemplates,
+    currentTool: activeTool,
+    cancelDrawing,
+  };
+}

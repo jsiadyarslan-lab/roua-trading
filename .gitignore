@@ -87,3 +87,5 @@ apps/web/prisma/migrations/
 upload/
 download/
 .turbo/
+__pycache__/
+*.pyc

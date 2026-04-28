@@ -143,3 +143,31 @@ Stage Summary:
 - Audit Agent: running clean, no suspicious patterns detected
 - Sentiment Agent: successfully searching web for brand mentions, finding 9+ results
 - Commits: 8a1f69f (Gen 2 agents), 0002769 (PYTHONUNBUFFERED fix), 1568458 (empty table fix)
+---
+Task ID: gen2-fixes-and-affiliate
+Agent: main
+Task: Fix platform bugs + build Affiliate Agent
+
+Work Log:
+- Diagnosed and fixed NewsArticle.updatedAt missing column in database (ALTER TABLE added it)
+- Fixed Model Health Agent critical bug: `'int' object is not subscriptable` caused by adding `_total_monthly` int to results dict before computing `_total_daily` (generator tried to subscript the int). Fix: compute totals before adding to dict.
+- Added _safe_int/_safe_float helper functions for Decimal handling from psycopg2
+- Added detailed traceback logging to cost_tracker.py for better debugging
+- Fixed Sentiment Agent: added DuckDuckGo Lite + Bing search fallbacks for HTTP 202 errors from DDG HTML
+- Fixed Binance WebSocket race condition: added isClosing flag to prevent ping/pong on closing sockets
+- Fixed Chart sync infinite loop: removed p.pnl from signature dedup (changes every tick)
+- Built Affiliate Agent from scratch: referral tracking, commission estimation, performance alerts, daily reports
+- Deployed Affiliate Agent to Railway (service: roua-affiliate)
+- Redeployed Model Health Agent with all fixes (service: roua-model-health)
+- Redeployed Sentiment Agent with search fallbacks (service: roua-sentiment)
+- Redeployed main platform app with WebSocket + Chart fixes (service: roua-trading)
+
+Stage Summary:
+- NewsArticle.updatedAt: ✅ Fixed in DB
+- Model Health Agent: ✅ Fixed — no more subscript errors, clean checks
+- Sentiment Agent: ✅ Fixed — Bing fallback working (9 mentions found)
+- WebSocket: ✅ Fixed — isClosing flag prevents race condition
+- Chart Sync: ✅ Fixed — no more infinite loop from pnl changes
+- Affiliate Agent: ✅ Deployed and running with Telegram alerts
+- Total agents now: 10 (Gen 1: 6, Gen 2: 4)
+- Commits: c5abf99, 87b6000, 2a0ff47, ab45909

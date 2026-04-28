@@ -209,6 +209,16 @@ export default function DashboardPage() {
           grid-template-columns: 0px minmax(0, 1fr) 0px !important;
         }
 
+        .dash-grid.chart-fullscreen .dash-col-center {
+          overflow-y: auto !important;
+          overflow-x: hidden !important;
+        }
+
+        .dash-grid.chart-fullscreen .dash-col-center .panel:last-child {
+          flex-shrink: 0 !important;
+          min-height: 200px !important;
+        }
+
         .dash-col {
           min-width: 0;
           min-height: 0;

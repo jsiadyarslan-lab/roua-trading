@@ -314,10 +314,44 @@ export default function RouaChart({
 
   // ── Chart Trading Order Handler ────────────────────────
   const handlePlaceOrder = useCallback((order: any) => {
-    // Integrate with the trading system
+    // Validate SL/TP placement
+    if (order.side === 'buy') {
+      if (order.sl && order.sl >= order.entryPrice) {
+        alert('يجب أن يكون وقف الخسارة أقل من سعر الدخول للشراء');
+        return;
+      }
+      if (order.tp && order.tp <= order.entryPrice) {
+        alert('يجب أن يكون جني الأرباح أعلى من سعر الدخول للشراء');
+        return;
+      }
+    } else {
+      if (order.sl && order.sl <= order.entryPrice) {
+        alert('يجب أن يكون وقف الخسارة أعلى من سعر الدخول للبيع');
+        return;
+      }
+      if (order.tp && order.tp >= order.entryPrice) {
+        alert('يجب أن يكون جني الأرباح أقل من سعر الدخول للبيع');
+        return;
+      }
+    }
+
+    // Place order via paper trades store
+    const { addTrade } = usePaperTradesStore.getState();
+    addTrade({
+      symbol: selectedSymbol,
+      side: order.side === 'buy' ? 'long' : 'short',
+      qty: order.quantity,
+      entryPrice: order.entryPrice,
+      currentPrice: order.entryPrice,
+      sl: order.sl || undefined,
+      tp: order.tp || undefined,
+      entryTime: Date.now(),
+      strategy: 'manual',
+      source: 'manual',
+    });
+
     console.log('Chart order placed:', order);
-    // TODO: Connect to actual order placement API
-  }, []);
+  }, [selectedSymbol]);
 
   // ── Apply Combined Markers (News + AI Patterns) to Chart ──
   useEffect(() => {

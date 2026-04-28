@@ -7,7 +7,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { ChartType, DrawingTool } from '@/lib/charts/types';
 import { TIMEFRAMES } from '@/lib/charts/types';
-import { DrawingManager } from '@/lib/charts/DrawingManager';
 
 interface ChartToolbarProps {
   symbol: string;
@@ -84,15 +83,24 @@ export function ChartToolbar(props: ChartToolbarProps) {
   const tfRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
 
-  // Close panels on outside click
+  // Close panels on outside click or scroll
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (chartTypeRef.current && !chartTypeRef.current.contains(e.target as Node)) setShowChartTypePanel(false);
       if (tfRef.current && !tfRef.current.contains(e.target as Node)) setShowTimeframePanel(false);
       if (exportRef.current && !exportRef.current.contains(e.target as Node)) setShowExportPanel(false);
     };
+    const scrollHandler = () => {
+      setShowChartTypePanel(false);
+      setShowTimeframePanel(false);
+      setShowExportPanel(false);
+    };
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('scroll', scrollHandler, true);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('scroll', scrollHandler, true);
+    };
   }, []);
 
   const activeTF = TIMEFRAMES.find(t => t.value === timeframe);

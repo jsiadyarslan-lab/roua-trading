@@ -70,46 +70,60 @@ export function VolumeProfile({ candles, width = 80, rows = 24, visible = true }
     const canvas = canvasRef.current;
     if (!canvas || !visible || !profile.length) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    const h = canvas.parentElement?.clientHeight || 400;
-    canvas.width = width * dpr;
-    canvas.height = h * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${h}px`;
+    const renderCanvas = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const h = canvas.parentElement?.clientHeight || 400;
+      canvas.width = width * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${h}px`;
 
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, width, h);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, width, h);
 
-    const maxVol = Math.max(...profile.map(r => r.volume));
-    if (maxVol === 0) return;
+      const maxVol = Math.max(...profile.map(r => r.volume));
+      if (maxVol === 0) return;
 
-    const rowH = h / rows;
+      const rowH = h / rows;
 
-    profile.forEach((row, i) => {
-      if (row.volume === 0) return;
+      profile.forEach((row, i) => {
+        if (row.volume === 0) return;
 
-      const totalW = (row.volume / maxVol) * (width - 4);
-      const buyW = (row.buyVolume / row.volume) * totalW;
-      const sellW = totalW - buyW;
+        const totalW = (row.volume / maxVol) * (width - 4);
+        const buyW = (row.buyVolume / row.volume) * totalW;
+        const sellW = totalW - buyW;
 
-      const y = i * rowH;
+        const y = i * rowH;
 
-      // Buy volume (green)
-      ctx.fillStyle = 'rgba(63,185,80,0.25)';
-      ctx.fillRect(width - 2 - totalW, y, buyW, rowH - 1);
+        // Buy volume (green)
+        ctx.fillStyle = 'rgba(63,185,80,0.25)';
+        ctx.fillRect(width - 2 - totalW, y, buyW, rowH - 1);
 
-      // Sell volume (red)
-      ctx.fillStyle = 'rgba(248,81,73,0.25)';
-      ctx.fillRect(width - 2 - sellW, y, sellW, rowH - 1);
+        // Sell volume (red)
+        ctx.fillStyle = 'rgba(248,81,73,0.25)';
+        ctx.fillRect(width - 2 - sellW, y, sellW, rowH - 1);
 
-      // Border
-      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-      ctx.lineWidth = 0.5;
-      ctx.strokeRect(width - 2 - totalW, y, totalW, rowH - 1);
-    });
+        // Border
+        ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(width - 2 - totalW, y, totalW, rowH - 1);
+      });
+    };
+
+    renderCanvas();
+
+    // ResizeObserver to re-render on container resize
+    const parent = canvas.parentElement;
+    if (parent) {
+      const ro = new ResizeObserver(() => {
+        renderCanvas();
+      });
+      ro.observe(parent);
+      return () => ro.disconnect();
+    }
   }, [profile, width, rows, visible]);
 
   if (!visible) return null;

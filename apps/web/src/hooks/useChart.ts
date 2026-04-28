@@ -9,7 +9,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import type { IChartApi, ISeriesApi, SeriesType, Time, MouseEventParams, DeepPartial, ChartOptions } from 'lightweight-charts';
 import type {
   CandleData, ChartType, ActiveIndicator, Drawing, DrawingTool,
-  ChartSettings, CrosshairData, SeriesHandle
+  ChartSettings, CrosshairData
 } from '../lib/charts/types';
 import { toHeikinAshi } from '../lib/charts/IndicatorCalculator';
 import { DrawingManager } from '../lib/charts/DrawingManager';
@@ -78,6 +78,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const shortcutsRef = useRef<KeyboardShortcuts | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const mainSeriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
+  const onCrosshairMoveRef = useRef(onCrosshairMove);
+
+  // Keep the ref updated without triggering re-init
+  useEffect(() => {
+    onCrosshairMoveRef.current = onCrosshairMove;
+  }, [onCrosshairMove]);
 
   // ── State ──────────────────────────────────────────────
   const [settings, setSettings] = useState<ChartSettings>({
@@ -207,14 +213,15 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
     // ── Crosshair Move Handler ──
     chart.subscribeCrosshairMove((param: MouseEventParams) => {
-      if (!param.time || !param.point || !onCrosshairMove) {
-        onCrosshairMove?.(null);
+      if (!param.time || !param.point) {
+        onCrosshairMoveRef.current?.(null);
         return;
       }
 
-      const candleData = param.seriesData.get(candleSeries) as any;
+      const mainSeries = mainSeriesRef.current || candleSeriesRef.current;
+      const candleData = param.seriesData.get(mainSeries as any) as any || param.seriesData.get(candleSeries) as any;
       if (!candleData) {
-        onCrosshairMove?.(null);
+        onCrosshairMoveRef.current?.(null);
         return;
       }
 
@@ -230,12 +237,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         hour: '2-digit', minute: '2-digit',
       });
 
-      onCrosshairMove({
+      onCrosshairMoveRef.current?.({
         time: param.time as number,
-        open: candleData.open,
-        high: candleData.high,
-        low: candleData.low,
-        close: candleData.close,
+        open: candleData.open ?? candleData.value,
+        high: candleData.high ?? candleData.value,
+        low: candleData.low ?? candleData.value,
+        close: candleData.close ?? candleData.value,
         volume: candleData.volume || 0,
         change,
         changePercent,
@@ -303,7 +310,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       shortcutsRef.current.attach();
     }
 
-  }, [symbol, onCrosshairMove]);
+  }, [symbol]); // Removed onCrosshairMove dependency to avoid chart re-creation
 
   // ── Initialize on mount ────────────────────────────────
   useEffect(() => {
@@ -338,6 +345,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       chartInstanceRef.current?.removeSeries(series);
     });
     overlaySeriesRef.current.clear();
+    // Clear oscillator series when symbol changes too
+    oscillatorSeriesRef.current.forEach((series) => {
+      chartInstanceRef.current?.removeSeries(series);
+    });
+    oscillatorSeriesRef.current.clear();
   }, [symbol]);
 
 
@@ -349,19 +361,24 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const candles = candlesRef.current;
     const last = candles[candles.length - 1];
     const updated = { ...last, close: price, high: Math.max(last.high, price), low: Math.min(last.low, price) };
-    candles[candles.length - 1] = updated;
-    candlesRef.current = candles;
+    candlesRef.current = [...candles.slice(0, -1), updated]; // Immutable update to avoid stale refs
 
-    const displayCandles = settings.type === 'heikin-ashi' ? toHeikinAshi(candles) : candles;
-    const lastDisplay = displayCandles[displayCandles.length - 1];
-
-    candleSeriesRef.current.update({
-      time: lastDisplay.time as Time,
-      open: lastDisplay.open,
-      high: lastDisplay.high,
-      low: lastDisplay.low,
-      close: lastDisplay.close,
-    } as any);
+    if (settings.type === 'heikin-ashi') {
+      // Only recalculate last candle for HA, not entire series
+      const prevCandle = candles.length > 1 ? candles[candles.length - 2] : updated;
+      const haClose = (updated.open + updated.high + updated.low + updated.close) / 4;
+      const haOpen = prevCandle === updated ? (updated.open + haClose) / 2 : (prevCandle.open + prevCandle.close) / 2;
+      const haHigh = Math.max(updated.high, haOpen, haClose);
+      const haLow = Math.min(updated.low, haOpen, haClose);
+      const lastDisplay = { ...updated, open: haOpen, high: haHigh, low: haLow, close: haClose };
+      candleSeriesRef.current.update({
+        time: lastDisplay.time as Time, open: lastDisplay.open, high: lastDisplay.high, low: lastDisplay.low, close: lastDisplay.close,
+      } as any);
+    } else {
+      candleSeriesRef.current.update({
+        time: updated.time as Time, open: updated.open, high: updated.high, low: updated.low, close: updated.close,
+      } as any);
+    }
 
     // Update volume
     if (volumeSeriesRef.current) {
@@ -499,18 +516,31 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       addOverlayLine('bb-middle', middleData, 'rgba(88,166,255,0.3)');
       addOverlayLine('bb-lower', lowerData, 'rgba(88,166,255,0.5)');
 
-      // Fill area between bands — use middle band with subtle fill
-      const fillArea = chart.addSeries(AreaSeries, {
-        topColor: 'rgba(88,166,255,0.06)',
-        bottomColor: 'rgba(88,166,255,0.01)',
+      // Fill area between upper and lower bands using upper band as top fill
+      const upperFill = chart.addSeries(AreaSeries, {
+        topColor: 'rgba(88,166,255,0.08)',
+        bottomColor: 'rgba(88,166,255,0.02)',
         lineColor: 'transparent',
         lineWidth: 0 as any,
         priceLineVisible: false,
         lastValueVisible: false,
         crosshairMarkerVisible: false,
       });
-      fillArea.setData(middleData as any);
-      overlaySeriesRef.current.set('bb-fill', fillArea);
+      upperFill.setData(upperData as any);
+      overlaySeriesRef.current.set('bb-fill-upper', upperFill);
+
+      // Lower band fill (fills from bottom to lower band)
+      const lowerFill = chart.addSeries(AreaSeries, {
+        topColor: 'rgba(88,166,255,0.02)',
+        bottomColor: 'rgba(88,166,255,0.06)',
+        lineColor: 'transparent',
+        lineWidth: 0 as any,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      lowerFill.setData(lowerData as any);
+      overlaySeriesRef.current.set('bb-fill-lower', lowerFill);
     }
 
     else if (indicator.key === 'psar') {
@@ -579,18 +609,45 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       addOverlayLine('ichimoku-senkouB', senkouBData, 'rgba(248,113,113,0.4)', 1);
       addOverlayLine('ichimoku-chikou', chikouData, 'rgba(255,255,255,0.3)', 1);
 
-      // Cloud fill — use Senkou A with green tint for bullish cloud
-      const cloudFill = chart.addSeries(AreaSeries, {
-        topColor: 'rgba(45,212,191,0.05)',
-        bottomColor: 'rgba(248,113,113,0.02)',
+      // Cloud fill — proper Kumo between Senkou A and Senkou B
+      // When A > B: bullish cloud (green tint), when B > A: bearish cloud (red tint)
+      const cloudTopData: { time: Time; value: number }[] = [];
+      const cloudBottomData: { time: Time; value: number }[] = [];
+      const minLen = Math.min(senkouAData.length, senkouBData.length);
+      for (let i = 0; i < minLen; i++) {
+        const a = senkouAData[i];
+        const b = senkouBData[i];
+        if (a.time === b.time) {
+          cloudTopData.push({ time: a.time, value: Math.max(a.value, b.value) });
+          cloudBottomData.push({ time: a.time, value: Math.min(a.value, b.value) });
+        }
+      }
+
+      // Bullish cloud fill (top of cloud)
+      const cloudTopFill = chart.addSeries(AreaSeries, {
+        topColor: 'rgba(45,212,191,0.08)',
+        bottomColor: 'rgba(45,212,191,0.03)',
         lineColor: 'transparent',
         lineWidth: 0 as any,
         priceLineVisible: false,
         lastValueVisible: false,
         crosshairMarkerVisible: false,
       });
-      cloudFill.setData(senkouAData as any);
-      overlaySeriesRef.current.set('ichimoku-cloud', cloudFill);
+      cloudTopFill.setData(cloudTopData as any);
+      overlaySeriesRef.current.set('ichimoku-cloud-top', cloudTopFill);
+
+      // Bearish cloud fill (bottom of cloud)
+      const cloudBottomFill = chart.addSeries(AreaSeries, {
+        topColor: 'rgba(248,113,113,0.03)',
+        bottomColor: 'rgba(248,113,113,0.08)',
+        lineColor: 'transparent',
+        lineWidth: 0 as any,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      cloudBottomFill.setData(cloudBottomData as any);
+      overlaySeriesRef.current.set('ichimoku-cloud-bottom', cloudBottomFill);
     }
 
     else if (indicator.key === 'pivot') {
@@ -771,8 +828,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     candleSeriesRef.current.setData(chartData as any);
     volumeSeriesRef.current.setData(volumeData as any);
 
-    // Re-apply indicators with fresh data
-    activeIndicators.forEach((ind) => {
+    // Re-apply indicators with fresh data using ref to avoid stale closure
+    activeIndicatorsRef.current.forEach((ind) => {
       addIndicator(ind);
     });
   }, [settings.type, addIndicator]);
@@ -993,9 +1050,67 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   }, []);
 
   // ── Fullscreen ─────────────────────────────────────────
+  // NOTE: Fullscreen is handled by the dashboard store (toggleChartFullscreen)
+  // This local toggle is kept for standalone usage (mobile, other pages)
   const toggleFullscreen = useCallback(() => {
     setIsFullscreen(f => !f);
   }, []);
+
+  // ── Apply Settings to Chart Instance ──────────────────
+  useEffect(() => {
+    const chart = chartInstanceRef.current;
+    if (!chart) return;
+
+    chart.applyOptions({
+      layout: {
+        background: { color: settings.bgColor },
+        textColor: '#8B92A8',
+        attributionLogo: false,
+      },
+      grid: {
+        vertLines: { color: settings.showGrid ? settings.gridColor : 'transparent' },
+        horzLines: { color: settings.showGrid ? settings.gridColor : 'transparent' },
+      },
+      crosshair: {
+        mode: settings.crosshairType === 'none' ? 1 : 0, // 0=Normal, 1=Magnet
+        vertLine: {
+          visible: settings.crosshairType !== 'none',
+          labelBackgroundColor: '#151A22',
+        },
+        horzLine: {
+          visible: settings.crosshairType !== 'none',
+          labelBackgroundColor: '#151A22',
+        },
+      },
+    });
+
+    // Apply candle colors
+    if (candleSeriesRef.current && (settings.type === 'candle' || settings.type === 'heikin-ashi')) {
+      candleSeriesRef.current.applyOptions({
+        upColor: settings.upColor,
+        downColor: settings.downColor,
+        borderUpColor: settings.upColor,
+        borderDownColor: settings.downColor,
+        wickUpColor: settings.upColor,
+        wickDownColor: settings.downColor,
+      });
+    }
+
+    // Apply volume visibility
+    if (volumeSeriesRef.current) {
+      volumeSeriesRef.current.applyOptions({
+        visible: settings.showVolume,
+      });
+    }
+
+    // Apply price line visibility
+    if (candleSeriesRef.current) {
+      candleSeriesRef.current.applyOptions({
+        priceLineVisible: settings.showPriceLine,
+        lastValueVisible: settings.showPriceLine,
+      });
+    }
+  }, [settings]);
 
   // ── Pause ──────────────────────────────────────────────
   const togglePause = useCallback(() => {
@@ -1017,7 +1132,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const loadTemplate = useCallback((id: string) => {
     const template = ChartTemplateManager.load(id);
     if (!template) return;
-    setSettings(template.settings);
+    setSettings(template.settings); // This triggers the settings effect which applies to chart
     // Apply indicators from template
     template.indicators.forEach(ind => addIndicator(ind));
   }, [addIndicator]);
@@ -1026,11 +1141,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     return ChartTemplateManager.getAll();
   }, []);
 
-  // ── Set Markers on Candle Series ──
+  // ── Set Markers on Main Series ──
   const setMarkers = useCallback((markers: any[]) => {
-    if (!candleSeriesRef.current) return;
+    const series = mainSeriesRef.current || candleSeriesRef.current;
+    if (!series) return;
     try {
-      (candleSeriesRef.current as any).setMarkers(markers);
+      (series as any).setMarkers(markers);
     } catch {
       // Markers API may fail silently
     }

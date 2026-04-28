@@ -13,8 +13,9 @@ class ContentConfig(BaseConfig):
     CONTENT_INTERVAL: int = int(os.environ.get("CONTENT_INTERVAL", "28800"))  # 8 hours
     FIRST_POST_HOUR: int = int(os.environ.get("FIRST_POST_HOUR", "6"))  # 6 AM UTC
 
-    # Market data
-    MARKET_SYMBOLS: list = ["BTC-USD", "ETH-USD", "AAPL", "TSLA", "SPY"]
+    # Market data — use slash notation for pairs (BTC/USDT, ETH/USDT)
+    # Crypto pairs auto-route to Binance; stocks to Yahoo/TwelveData
+    MARKET_SYMBOLS: list = ["BTC/USDT", "ETH/USDT", "AAPL", "TSLA", "SPY"]
 
     # Content settings
     CONTENT_LANGUAGE: str = os.environ.get("CONTENT_LANGUAGE", "ar")  # ar or en or both

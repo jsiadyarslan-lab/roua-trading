@@ -17,7 +17,7 @@ def fetch_market_data(
 
     المعاملات:
         platform_url: رابط المنصة الأساسي
-        symbols: قائمة الرموز مثل ["BTC-USD", "ETH-USD", "AAPL"]
+        symbols: قائمة الرموز مثل ["BTC/USDT", "ETH/USDT", "AAPL"]
         logger: مسجل ColoredLogger
 
     يعيد:
@@ -27,33 +27,85 @@ def fetch_market_data(
 
     for symbol in symbols:
         try:
-            url = f"{platform_url.rstrip('/')}/api/exchange/quote/{symbol}"
+            # بناء الرابط — المنصة تستخدم catch-all route:
+            #   /api/exchange/quote/BTC/USDT  (للأزواج)
+            #   /api/exchange/quote/AAPL      (للأسهم)
+            # الرمز يُقسم على "/" ويُضاف كأجزاء مسار منفصلة
+            symbol_path = symbol.replace("/", "/")
+            url = f"{platform_url.rstrip('/')}/api/exchange/quote/{symbol_path}"
+
             resp = requests.get(url, timeout=15)
 
             if resp.status_code == 200:
-                data = resp.json()
-                quote = data if isinstance(data, dict) else {}
+                raw = resp.json()
+
+                # المنصة تُعيد: { "success": true, "data": { ... } }
+                # نحتاج لاستخراج حقل "data" الداخلي
+                if isinstance(raw, dict) and "data" in raw:
+                    quote = raw["data"]
+                elif isinstance(raw, dict) and raw.get("success") is True:
+                    # في حالة عدم وجود حقل data مباشرة
+                    quote = raw.get("data", raw)
+                elif isinstance(raw, dict):
+                    # استجابة بدون غلاف — ربما من مصدر بديل
+                    quote = raw
+                else:
+                    quote = {}
+
+                # استخراج القيم — المنصة تستخدم changePercent (حرفياً)
+                price = _safe_float(
+                    quote.get("price")
+                    or quote.get("close")
+                    or quote.get("c")
+                )
+                change = _safe_float(
+                    quote.get("change")
+                    or quote.get("d")
+                )
+                change_percent = _safe_float(
+                    quote.get("changePercent")
+                    or quote.get("change_percent")
+                    or quote.get("dp")
+                )
+                volume = _safe_float(
+                    quote.get("volume")
+                    or quote.get("v")
+                )
+                high = _safe_float(
+                    quote.get("high")
+                    or quote.get("h")
+                )
+                low = _safe_float(
+                    quote.get("low")
+                    or quote.get("l")
+                )
 
                 results[symbol] = {
-                    "price": _safe_float(quote.get("price") or quote.get("c")),
-                    "change": _safe_float(quote.get("change") or quote.get("d")),
-                    "change_percent": _safe_float(
-                        quote.get("change_percent")
-                        or quote.get("dp")
-                        or quote.get("changePercent")
-                    ),
-                    "volume": _safe_float(quote.get("volume") or quote.get("v")),
-                    "high": _safe_float(quote.get("high") or quote.get("h")),
-                    "low": _safe_float(quote.get("low") or quote.get("l")),
+                    "price": price,
+                    "change": change,
+                    "change_percent": change_percent,
+                    "volume": volume,
+                    "high": high,
+                    "low": low,
                 }
+
+                source = quote.get("source", "unknown")
                 logger.info(
                     f"تم جلب بيانات {symbol}: "
-                    f"السعر={results[symbol]['price']} "
-                    f"التغير={results[symbol]['change_percent']}%"
+                    f"السعر={price} "
+                    f"التغير={change_percent}% "
+                    f"المصدر={source}"
                 )
             else:
+                # محاولة استخراج رسالة الخطأ
+                try:
+                    err_body = resp.json()
+                    err_msg = err_body.get("error", resp.text[:200])
+                except Exception:
+                    err_msg = resp.text[:200]
+
                 logger.warning(
-                    f"فشل جلب بيانات {symbol}: HTTP {resp.status_code}"
+                    f"فشل جلب بيانات {symbol}: HTTP {resp.status_code} — {err_msg}"
                 )
                 results[symbol] = _empty_quote()
 

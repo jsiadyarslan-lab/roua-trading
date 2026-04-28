@@ -22,6 +22,7 @@ interface ChartToolbarProps {
   onToggleIndicators: () => void;
   onExportPNG: () => void;
   onExportCSV: () => void;
+  onExportSVG: () => void;
   onToggleFullscreen: () => void;
   activeTool: DrawingTool;
   onSetTool: (tool: DrawingTool) => void;
@@ -30,14 +31,24 @@ interface ChartToolbarProps {
   onTogglePause: () => void;
   mobile: boolean;
   height: number;
+  // ── New Feature Toggle Props ──
+  onToggleVolumeProfile?: () => void;
+  onToggleAIPanel?: () => void;
+  onToggleChartTrading?: () => void;
+  onToggleTemplateManager?: () => void;
+  onToggleWatchlist?: () => void;
+  showVolumeProfile?: boolean;
+  showAIPanel?: boolean;
+  showChartTrading?: boolean;
+  showWatchlist?: boolean;
 }
 
 const CHART_TYPES: { key: ChartType; label: string }[] = [
-  { key: 'candle',       label: '🕯 شموع' },
-  { key: 'hollow',       label: '⬡ مجوفة' },
-  { key: 'bar',          label: '▐ OHLC' },
-  { key: 'line',         label: '∿ خط' },
-  { key: 'area',         label: '◭ منطقة' },
+  { key: 'candle',       label: 'شموع' },
+  { key: 'hollow',       label: 'مجوفة' },
+  { key: 'bar',          label: 'OHLC' },
+  { key: 'line',         label: 'خط' },
+  { key: 'area',         label: 'منطقة' },
   { key: 'heikin-ashi',  label: 'HA' },
 ];
 
@@ -55,9 +66,12 @@ export function ChartToolbar(props: ChartToolbarProps) {
     onSetTimeframe, onSetChartType,
     onZoomIn, onZoomOut, onResetView,
     onToggleDrawings, onToggleIndicators,
-    onExportPNG, onExportCSV, onToggleFullscreen,
+    onExportPNG, onExportCSV, onExportSVG, onToggleFullscreen,
     activeTool, onSetTool, onClearDrawings,
     isPaused, onTogglePause, mobile, height,
+    onToggleVolumeProfile, onToggleAIPanel, onToggleChartTrading,
+    onToggleTemplateManager, onToggleWatchlist,
+    showVolumeProfile, showAIPanel, showChartTrading, showWatchlist,
   } = props;
 
   const [showChartTypePanel, setShowChartTypePanel] = useState(false);
@@ -113,6 +127,14 @@ export function ChartToolbar(props: ChartToolbarProps) {
     fontSize: 11,
     fontFamily: "'JetBrains Mono', monospace",
   };
+
+  const toggleBtnStyle = (isActive: boolean): React.CSSProperties => ({
+    ...btnStyle,
+    background: isActive ? 'rgba(0,212,255,0.15)' : 'none',
+    border: `1px solid ${isActive ? 'rgba(0,212,255,0.3)' : 'transparent'}`,
+    color: isActive ? COLORS.cyan : COLORS.textSecondary,
+    borderRadius: 4,
+  });
 
   const activeBtnStyle: React.CSSProperties = {
     ...btnStyle,
@@ -326,6 +348,69 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
       <div style={sepStyle} />
 
+      {/* Volume Profile Toggle */}
+      {onToggleVolumeProfile && (
+        <button
+          style={toggleBtnStyle(!!showVolumeProfile)}
+          onClick={onToggleVolumeProfile}
+          title="ملف الحجم"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="2" y="14" width="4" height="8"/><rect x="8" y="8" width="4" height="14"/><rect x="14" y="2" width="4" height="20"/>
+          </svg>
+        </button>
+      )}
+
+      {/* AI Pattern Detection */}
+      {onToggleAIPanel && (
+        <button
+          style={toggleBtnStyle(!!showAIPanel)}
+          onClick={onToggleAIPanel}
+          title="تحليل الأنماط بالذكاء الاصطناعي"
+        >
+          AI
+        </button>
+      )}
+
+      {/* Chart Trading */}
+      {onToggleChartTrading && (
+        <button
+          style={toggleBtnStyle(!!showChartTrading)}
+          onClick={onToggleChartTrading}
+          title="تداول من الشارت"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
+          </svg>
+        </button>
+      )}
+
+      {/* Template Manager */}
+      {onToggleTemplateManager && (
+        <button
+          style={btnStyle}
+          onClick={onToggleTemplateManager}
+          title="إدارة القوالب"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+          </svg>
+        </button>
+      )}
+
+      {/* Watchlist */}
+      {onToggleWatchlist && (
+        <button
+          style={toggleBtnStyle(!!showWatchlist)}
+          onClick={onToggleWatchlist}
+          title="قائمة المراقبة"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+          </svg>
+        </button>
+      )}
+
       {/* Play/Pause */}
       <button
         style={{
@@ -352,7 +437,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           <div style={{ ...panelStyle, right: 0, minWidth: 120 }}>
             {[
               { label: 'PNG صورة', action: onExportPNG },
-              { label: 'SVG صورة', action: () => {} },
+              { label: 'SVG صورة', action: onExportSVG },
               { label: 'CSV بيانات', action: onExportCSV },
             ].map(item => (
               <button

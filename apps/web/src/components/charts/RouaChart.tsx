@@ -11,13 +11,19 @@ import { useChartWebSocket } from '@/hooks/useChartWebSocket';
 import { useSymbolStore } from '@/hooks/useSymbolStore';
 import { usePositionsStore } from '@/hooks/usePositionsStore';
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
-import type { CandleData, CrosshairData, ChartType, DrawingTool, ActiveIndicator } from '@/lib/charts/types';
+import type { CandleData, CrosshairData, ChartType, DrawingTool, ActiveIndicator, AIPattern, NewsMarker } from '@/lib/charts/types';
 import { TIMEFRAMES, INDICATOR_CONFIGS } from '@/lib/charts/types';
 import { ChartToolbar } from './ChartToolbar';
 import { CrosshairOverlay } from './CrosshairOverlay';
 import { DrawingPanel } from './DrawingPanel';
 import { IndicatorPanel } from './IndicatorPanel';
 import { IndicatorSettings } from './IndicatorSettings';
+import { VolumeProfile } from './VolumeProfile';
+import { NewsMarkers, createNewsChartMarkers } from './NewsMarkers';
+import { WatchlistOverlay } from './WatchlistOverlay';
+import { AIPatternPanel } from './AIPatternPanel';
+import { ChartTrading } from './ChartTrading';
+import { TemplateManager } from './TemplateManager';
 
 interface RouaChartProps {
   currentPrice?: number | null;
@@ -40,6 +46,15 @@ export default function RouaChart({
   const [showIndicatorPanel, setShowIndicatorPanel] = useState(false);
   const [settingsIndicator, setSettingsIndicator] = useState<ActiveIndicator | null>(null);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+
+  // ── New Panel States ──
+  const [showVolumeProfile, setShowVolumeProfile] = useState(false);
+  const [showAIPanel, setShowAIPanel] = useState(false);
+  const [showChartTrading, setShowChartTrading] = useState(false);
+  const [showTemplateManager, setShowTemplateManager] = useState(false);
+  const [showWatchlist, setShowWatchlist] = useState(false);
+  const [aiPatterns, setAiPatterns] = useState<AIPattern[]>([]);
+  const [newsMarkers, setNewsMarkers] = useState<NewsMarker[]>([]);
 
   const candlesRef = useRef<CandleData[]>([]);
   const prevPriceRef = useRef(currentPrice);
@@ -230,6 +245,23 @@ export default function RouaChart({
     setSettingsIndicator(null);
   }, [chart]);
 
+  // ── AI Pattern Handler ─────────────────────────────────
+  const handlePatternsDetected = useCallback((patterns: AIPattern[]) => {
+    setAiPatterns(patterns);
+  }, []);
+
+  // ── News Markers Handler ───────────────────────────────
+  const handleNewsUpdate = useCallback((markers: NewsMarker[]) => {
+    setNewsMarkers(markers);
+  }, []);
+
+  // ── Chart Trading Order Handler ────────────────────────
+  const handlePlaceOrder = useCallback((order: any) => {
+    // Integrate with the trading system
+    console.log('Chart order placed:', order);
+    // TODO: Connect to actual order placement API
+  }, []);
+
   // ── Color Palette ──────────────────────────────────────
   const COLORS = {
     bg: '#0B0E14',
@@ -272,6 +304,7 @@ export default function RouaChart({
         onToggleIndicators={() => setShowIndicatorPanel(!showIndicatorPanel)}
         onExportPNG={chart.exportPNG}
         onExportCSV={chart.exportCSV}
+        onExportSVG={chart.exportSVG}
         onToggleFullscreen={chart.toggleFullscreen}
         activeTool={chart.activeTool}
         onSetTool={chart.setTool}
@@ -280,6 +313,16 @@ export default function RouaChart({
         onTogglePause={chart.togglePause}
         mobile={mobile}
         height={toolbarHeight}
+        // ── New Toolbar Props ──
+        onToggleVolumeProfile={() => setShowVolumeProfile(!showVolumeProfile)}
+        onToggleAIPanel={() => setShowAIPanel(!showAIPanel)}
+        onToggleChartTrading={() => setShowChartTrading(!showChartTrading)}
+        onToggleTemplateManager={() => setShowTemplateManager(!showTemplateManager)}
+        onToggleWatchlist={() => setShowWatchlist(!showWatchlist)}
+        showVolumeProfile={showVolumeProfile}
+        showAIPanel={showAIPanel}
+        showChartTrading={showChartTrading}
+        showWatchlist={showWatchlist}
       />
 
       {/* ── CHART AREA ── */}
@@ -305,8 +348,19 @@ export default function RouaChart({
             flex: 1,
             minHeight: 0,
             background: COLORS.bg,
+            position: 'relative',
           }}
-        />
+        >
+          {/* Volume Profile (overlaid on chart) */}
+          {showVolumeProfile && (
+            <VolumeProfile
+              candles={candlesRef.current}
+              width={80}
+              rows={24}
+              visible={showVolumeProfile}
+            />
+          )}
+        </div>
 
         {/* Drawing Panel (floating) */}
         {showDrawingPanel && (
@@ -336,11 +390,59 @@ export default function RouaChart({
             onClose={() => { setShowSettingsPanel(false); setSettingsIndicator(null); }}
           />
         )}
+
+        {/* AI Pattern Panel (floating) */}
+        {showAIPanel && (
+          <AIPatternPanel
+            symbol={selectedSymbol}
+            candles={candlesRef.current}
+            onPatternsDetected={handlePatternsDetected}
+            onClose={() => setShowAIPanel(false)}
+          />
+        )}
+
+        {/* Chart Trading Panel (floating) */}
+        {showChartTrading && currentPrice && (
+          <ChartTrading
+            symbol={selectedSymbol}
+            currentPrice={typeof currentPrice === 'number' ? currentPrice : 0}
+            onClose={() => setShowChartTrading(false)}
+            onPlaceOrder={handlePlaceOrder}
+          />
+        )}
+
+        {/* Template Manager (floating) */}
+        {showTemplateManager && (
+          <TemplateManager
+            onLoadTemplate={chart.loadTemplate}
+            onSaveTemplate={chart.saveTemplate}
+            onClose={() => setShowTemplateManager(false)}
+          />
+        )}
       </div>
+
+      {/* ── Watchlist Overlay (bottom bar) ── */}
+      {showWatchlist && (
+        <WatchlistOverlay
+          selectedSymbol={selectedSymbol}
+          onSelectSymbol={(symbol) => {
+            // Use the symbol store to change symbol
+            const { setSelectedSymbol } = useSymbolStore.getState();
+            setSelectedSymbol(symbol);
+          }}
+          visible={showWatchlist}
+        />
+      )}
+
+      {/* ── News Markers (data provider — invisible) ── */}
+      <NewsMarkers
+        symbol={selectedSymbol}
+        onMarkersUpdate={handleNewsUpdate}
+      />
 
       {/* ── Global Styles ── */}
       <style jsx global>{`
-        .roua-chart-root .tv-lightweight-charts {
+        .roua-chart-root [class*="lightweight-charts"] {
           border-radius: 0 !important;
         }
       `}</style>

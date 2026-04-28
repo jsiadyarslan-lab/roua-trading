@@ -13,6 +13,7 @@ import type {
 } from '../lib/charts/types';
 import { toHeikinAshi } from '../lib/charts/IndicatorCalculator';
 import { DrawingManager } from '../lib/charts/DrawingManager';
+import { DrawingRenderer } from '../lib/charts/DrawingRenderer';
 import { KeyboardShortcuts } from '../lib/charts/KeyboardShortcuts';
 import { ChartExporter } from '../lib/charts/ChartExporter';
 import { ChartTemplateManager } from '../lib/charts/ChartTemplate';
@@ -70,6 +71,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const oscillatorSeriesRef = useRef<Map<string, ISeriesApi<SeriesType>>>(new Map());
   const candlesRef = useRef<CandleData[]>([]);
   const drawingManagerRef = useRef<DrawingManager | null>(null);
+  const drawingRendererRef = useRef<DrawingRenderer | null>(null);
   const shortcutsRef = useRef<KeyboardShortcuts | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
 
@@ -251,6 +253,22 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       drawingManagerRef.current.setSymbol(symbol);
     }
 
+    // ── Init Drawing Renderer ──
+    if (drawingRendererRef.current) {
+      drawingRendererRef.current.stop();
+    }
+    if (drawingManagerRef.current && candleSeriesRef.current) {
+      const renderer = new DrawingRenderer(
+        chart,
+        candleSeriesRef.current,
+        container,
+        drawingManagerRef.current,
+      );
+      renderer.setTool(activeTool);
+      renderer.start();
+      drawingRendererRef.current = renderer;
+    }
+
     // ── Init Keyboard Shortcuts ──
     if (!shortcutsRef.current) {
       shortcutsRef.current = new KeyboardShortcuts({
@@ -278,6 +296,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   useEffect(() => {
     initChart();
     return () => {
+      if (drawingRendererRef.current) {
+        drawingRendererRef.current.stop();
+        drawingRendererRef.current = null;
+      }
       if (chartInstanceRef.current) {
         chartInstanceRef.current.remove();
         chartInstanceRef.current = null;
@@ -296,6 +318,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     if (drawingManagerRef.current) {
       drawingManagerRef.current.setSymbol(symbol);
     }
+    // Redraw renderer for new symbol's drawings
+    drawingRendererRef.current?.redraw();
     // Clear overlay series when symbol changes
     overlaySeriesRef.current.forEach((series) => {
       chartInstanceRef.current?.removeSeries(series);
@@ -378,37 +402,430 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       return next;
     });
 
-    // Remove existing series for this indicator
-    const existingSeries = overlaySeriesRef.current.get(indicator.key);
-    if (existingSeries) {
-      chart.removeSeries(existingSeries);
-      overlaySeriesRef.current.delete(indicator.key);
-    }
+    // Remove existing series for this indicator (could be multiple series)
+    const existingKeys = Array.from(overlaySeriesRef.current.keys()).filter(k => k.startsWith(indicator.key));
+    existingKeys.forEach(k => {
+      const s = overlaySeriesRef.current.get(k);
+      if (s) { chart.removeSeries(s); overlaySeriesRef.current.delete(k); }
+    });
+    const existingOscKeys = Array.from(oscillatorSeriesRef.current.keys()).filter(k => k.startsWith(indicator.key));
+    existingOscKeys.forEach(k => {
+      const s = oscillatorSeriesRef.current.get(k);
+      if (s) { chart.removeSeries(s); oscillatorSeriesRef.current.delete(k); }
+    });
 
     // Calculate indicator data
     const { calculateIndicator } = await import('../lib/charts/IndicatorCalculator');
     const results = await calculateIndicator(indicator, candlesRef.current);
     if (!results.length) return;
 
-    const { LineSeries, AreaSeries } = await import('lightweight-charts');
+    const { LineSeries, AreaSeries, HistogramSeries: LCHistogram } = await import('lightweight-charts');
 
-    // Overlay indicators
-    if (indicator.key === 'sma' || indicator.key === 'ema' || indicator.key === 'vwap' || indicator.key === 'supertrend') {
+    // ── Helper: add overlay line series ──
+    const addOverlayLine = (key: string, data: { time: Time; value: number }[], color: string, lineWidth: number = 1, priceLineVisible = false) => {
+      const series = chart.addSeries(LineSeries, {
+        color,
+        lineWidth: lineWidth as any,
+        priceLineVisible,
+        lastValueVisible: true,
+        crosshairMarkerVisible: false,
+      });
+      series.setData(data as any);
+      overlaySeriesRef.current.set(key, series);
+    };
+
+    // ── Helper: add oscillator sub-panel series ──
+    const addOscillatorLine = (key: string, data: { time: Time; value: number }[], color: string, scaleId: string, lineWidth: number = 1) => {
+      const series = chart.addSeries(LineSeries, {
+        color,
+        lineWidth: lineWidth as any,
+        priceLineVisible: false,
+        lastValueVisible: true,
+        crosshairMarkerVisible: false,
+        priceScaleId: scaleId,
+      });
+      series.priceScale().applyOptions({
+        scaleMargins: { top: 0.85, bottom: 0 },
+        borderVisible: false,
+      });
+      series.setData(data as any);
+      oscillatorSeriesRef.current.set(key, series);
+    };
+
+    // ════════════════════════════════════════════════════════
+    // OVERLAY INDICATORS
+    // ════════════════════════════════════════════════════════
+
+    if (indicator.key === 'sma' || indicator.key === 'ema' || indicator.key === 'vwap') {
+      const data = results.map((r: any) => {
+        const val = r.values?.[indicator.key] ?? r.value;
+        return val !== null ? { time: r.time as Time, value: val } : null;
+      }).filter(Boolean);
+      addOverlayLine(indicator.key, data, indicator.color);
+    }
+
+    else if (indicator.key === 'supertrend') {
+      // SuperTrend: one line, green when up, red when down
+      const upData: { time: Time; value: number }[] = [];
+      const downData: { time: Time; value: number }[] = [];
+      results.forEach((r: any) => {
+        const val = r.value;
+        const dir = r.direction;
+        if (val === null || val === undefined) return;
+        if (dir === 'up') {
+          upData.push({ time: r.time as Time, value: val });
+        } else {
+          downData.push({ time: r.time as Time, value: val });
+        }
+      });
+      addOverlayLine('supertrend-up', upData, '#3fb950', 2);
+      addOverlayLine('supertrend-down', downData, '#f85149', 2);
+    }
+
+    else if (indicator.key === 'bb') {
+      // Bollinger Bands: upper, middle, lower + fill
+      const upperData: { time: Time; value: number }[] = [];
+      const middleData: { time: Time; value: number }[] = [];
+      const lowerData: { time: Time; value: number }[] = [];
+      results.forEach((r: any) => {
+        if (r.upper !== null && r.upper !== undefined) upperData.push({ time: r.time as Time, value: r.upper });
+        if (r.middle !== null && r.middle !== undefined) middleData.push({ time: r.time as Time, value: r.middle });
+        if (r.lower !== null && r.lower !== undefined) lowerData.push({ time: r.time as Time, value: r.lower });
+      });
+      addOverlayLine('bb-upper', upperData, 'rgba(88,166,255,0.5)');
+      addOverlayLine('bb-middle', middleData, 'rgba(88,166,255,0.3)');
+      addOverlayLine('bb-lower', lowerData, 'rgba(88,166,255,0.5)');
+
+      // Fill area between upper and lower
+      const fillArea = chart.addSeries(AreaSeries, {
+        topColor: 'rgba(88,166,255,0.08)',
+        bottomColor: 'rgba(88,166,255,0.02)',
+        lineWidth: 0 as any,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      // Use lower band as the area base
+      fillArea.setData(lowerData as any);
+      overlaySeriesRef.current.set('bb-fill', fillArea);
+    }
+
+    else if (indicator.key === 'psar') {
+      // Parabolic SAR: dots (use LineSeries with point markers)
+      const psarData: { time: Time; value: number; color?: string }[] = [];
+      results.forEach((r: any) => {
+        const val = r.values?.psar;
+        if (val !== null && val !== undefined) {
+          // Determine color based on SAR position relative to candle
+          const candleIdx = candlesRef.current.findIndex(c => c.time === r.time);
+          const candle = candleIdx >= 0 ? candlesRef.current[candleIdx] : null;
+          const isBullish = candle ? val < candle.close : true;
+          psarData.push({ time: r.time as Time, value: val, color: isBullish ? '#3fb950' : '#f85149' });
+        }
+      });
+
+      // Split into bullish and bearish dots
+      const bullData = psarData.filter(d => d.color === '#3fb950').map(d => ({ time: d.time, value: d.value }));
+      const bearData = psarData.filter(d => d.color === '#f85149').map(d => ({ time: d.time, value: d.value }));
+
+      const bullSeries = chart.addSeries(LineSeries, {
+        color: '#3fb950',
+        lineWidth: 0 as any,
+        pointMarkersVisible: true,
+        pointMarkersRadius: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      bullSeries.setData(bullData as any);
+      overlaySeriesRef.current.set('psar-bull', bullSeries);
+
+      const bearSeries = chart.addSeries(LineSeries, {
+        color: '#f85149',
+        lineWidth: 0 as any,
+        pointMarkersVisible: true,
+        pointMarkersRadius: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      bearSeries.setData(bearData as any);
+      overlaySeriesRef.current.set('psar-bear', bearSeries);
+    }
+
+    else if (indicator.key === 'ichimoku') {
+      // Ichimoku: 5 lines + cloud
+      const tenkanData: { time: Time; value: number }[] = [];
+      const kijunData: { time: Time; value: number }[] = [];
+      const senkouAData: { time: Time; value: number }[] = [];
+      const senkouBData: { time: Time; value: number }[] = [];
+      const chikouData: { time: Time; value: number }[] = [];
+
+      results.forEach((r: any) => {
+        if (r.tenkan !== null) tenkanData.push({ time: r.time as Time, value: r.tenkan });
+        if (r.kijun !== null) kijunData.push({ time: r.time as Time, value: r.kijun });
+        if (r.senkouA !== null) senkouAData.push({ time: r.time as Time, value: r.senkouA });
+        if (r.senkouB !== null) senkouBData.push({ time: r.time as Time, value: r.senkouB });
+        if (r.chikou !== null) chikouData.push({ time: r.time as Time, value: r.chikou });
+      });
+
+      addOverlayLine('ichimoku-tenkan', tenkanData, '#2dd4bf', 1);
+      addOverlayLine('ichimoku-kijun', kijunData, '#f87171', 1);
+      addOverlayLine('ichimoku-senkouA', senkouAData, 'rgba(45,212,191,0.4)', 1);
+      addOverlayLine('ichimoku-senkouB', senkouBData, 'rgba(248,113,113,0.4)', 1);
+      addOverlayLine('ichimoku-chikou', chikouData, 'rgba(255,255,255,0.3)', 1);
+
+      // Cloud fill (use AreaSeries for senkouA as the cloud top)
+      const cloudFill = chart.addSeries(AreaSeries, {
+        topColor: 'rgba(45,212,191,0.06)',
+        bottomColor: 'rgba(248,113,113,0.03)',
+        lineWidth: 0 as any,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      cloudFill.setData(senkouAData as any);
+      overlaySeriesRef.current.set('ichimoku-cloud', cloudFill);
+    }
+
+    else if (indicator.key === 'pivot') {
+      // Pivot Points: horizontal lines (PP, R1-R3, S1-S3)
+      const lastCandle = candlesRef.current[candlesRef.current.length - 1];
+      if (!lastCandle) return;
+      const pivotResult = results[results.length - 1] as any;
+      if (!pivotResult || pivotResult.pp === null) return;
+
+      const pivotLines: { key: string; price: number; color: string }[] = [
+        { key: 'pp', price: pivotResult.pp, color: '#a78bfa' },
+        { key: 'r1', price: pivotResult.r1, color: 'rgba(63,185,80,0.6)' },
+        { key: 'r2', price: pivotResult.r2, color: 'rgba(63,185,80,0.4)' },
+        { key: 'r3', price: pivotResult.r3, color: 'rgba(63,185,80,0.25)' },
+        { key: 's1', price: pivotResult.s1, color: 'rgba(248,81,73,0.6)' },
+        { key: 's2', price: pivotResult.s2, color: 'rgba(248,81,73,0.4)' },
+        { key: 's3', price: pivotResult.s3, color: 'rgba(248,81,73,0.25)' },
+      ];
+
+      // Create a line for each pivot level spanning all candles
+      const allCandles = candlesRef.current;
+      pivotLines.forEach(pl => {
+        if (pl.price === null || pl.price === undefined) return;
+        const data = allCandles.map(c => ({ time: c.time as Time, value: pl.price }));
+        addOverlayLine(`pivot-${pl.key}`, data, pl.color, pl.key === 'pp' ? 2 : 1, pl.key === 'pp');
+      });
+    }
+
+    // ════════════════════════════════════════════════════════
+    // OSCILLATOR INDICATORS (sub-panels)
+    // ════════════════════════════════════════════════════════
+
+    else if (indicator.key === 'rsi') {
+      const data = results.map((r: any) => {
+        const val = r.values?.rsi;
+        return val !== null ? { time: r.time as Time, value: val } : null;
+      }).filter(Boolean);
+
       const series = chart.addSeries(LineSeries, {
         color: indicator.color,
         lineWidth: 1 as any,
         priceLineVisible: false,
         lastValueVisible: true,
         crosshairMarkerVisible: false,
+        priceScaleId: 'rsi-scale',
+      });
+      series.priceScale().applyOptions({
+        scaleMargins: { top: 0.85, bottom: 0 },
+        borderVisible: false,
+        autoScale: true,
+        mode: 0,
+      });
+      series.setData(data as any);
+      oscillatorSeriesRef.current.set('rsi', series);
+    }
+
+    else if (indicator.key === 'macd') {
+      const macdData: { time: Time; value: number }[] = [];
+      const signalData: { time: Time; value: number }[] = [];
+      const histData: { time: Time; value: number; color: string }[] = [];
+
+      results.forEach((r: any) => {
+        if (r.macd !== null) {
+          macdData.push({ time: r.time as Time, value: r.macd });
+        }
+        if (r.signal !== null) {
+          signalData.push({ time: r.time as Time, value: r.signal });
+        }
+        if (r.histogram !== null) {
+          histData.push({
+            time: r.time as Time,
+            value: r.histogram,
+            color: r.histogram >= 0 ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)',
+          });
+        }
       });
 
+      // MACD line
+      const macdSeries = chart.addSeries(LineSeries, {
+        color: '#58a6ff',
+        lineWidth: 1 as any,
+        priceLineVisible: false,
+        lastValueVisible: true,
+        crosshairMarkerVisible: false,
+        priceScaleId: 'macd-scale',
+      });
+      macdSeries.priceScale().applyOptions({
+        scaleMargins: { top: 0.85, bottom: 0 },
+        borderVisible: false,
+      });
+      macdSeries.setData(macdData as any);
+      oscillatorSeriesRef.current.set('macd-line', macdSeries);
+
+      // Signal line
+      const sigSeries = chart.addSeries(LineSeries, {
+        color: '#f97316',
+        lineWidth: 1 as any,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+        priceScaleId: 'macd-scale',
+      });
+      sigSeries.setData(signalData as any);
+      oscillatorSeriesRef.current.set('macd-signal', sigSeries);
+
+      // Histogram
+      const histSeries = chart.addSeries(LCHistogram, {
+        priceScaleId: 'macd-scale',
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      histSeries.setData(histData as any);
+      oscillatorSeriesRef.current.set('macd-hist', histSeries);
+    }
+
+    else if (indicator.key === 'stochastic') {
+      const kData: { time: Time; value: number }[] = [];
+      const dData: { time: Time; value: number }[] = [];
+      results.forEach((r: any) => {
+        if (r.values?.k !== null) kData.push({ time: r.time as Time, value: r.values.k });
+        if (r.values?.d !== null) dData.push({ time: r.time as Time, value: r.values.d });
+      });
+
+      const kSeries = chart.addSeries(LineSeries, {
+        color: '#a855f7',
+        lineWidth: 1 as any,
+        priceLineVisible: false,
+        lastValueVisible: true,
+        crosshairMarkerVisible: false,
+        priceScaleId: 'stoch-scale',
+      });
+      kSeries.priceScale().applyOptions({
+        scaleMargins: { top: 0.85, bottom: 0 },
+        borderVisible: false,
+      });
+      kSeries.setData(kData as any);
+      oscillatorSeriesRef.current.set('stoch-k', kSeries);
+
+      const dSeries = chart.addSeries(LineSeries, {
+        color: '#fbbf24',
+        lineWidth: 1 as any,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+        priceScaleId: 'stoch-scale',
+      });
+      dSeries.setData(dData as any);
+      oscillatorSeriesRef.current.set('stoch-d', dSeries);
+    }
+
+    else if (indicator.key === 'atr') {
       const data = results.map((r: any) => {
-        const val = r.values?.[indicator.key] ?? r.value;
+        const val = r.values?.atr;
         return val !== null ? { time: r.time as Time, value: val } : null;
       }).filter(Boolean);
 
+      const series = chart.addSeries(LineSeries, {
+        color: indicator.color,
+        lineWidth: 1 as any,
+        priceLineVisible: false,
+        lastValueVisible: true,
+        crosshairMarkerVisible: false,
+        priceScaleId: 'atr-scale',
+      });
+      series.priceScale().applyOptions({
+        scaleMargins: { top: 0.85, bottom: 0 },
+        borderVisible: false,
+      });
       series.setData(data as any);
-      overlaySeriesRef.current.set(indicator.key, series);
+      oscillatorSeriesRef.current.set('atr', series);
+    }
+
+    else if (indicator.key === 'adx') {
+      const adxData: { time: Time; value: number }[] = [];
+      const pdiData: { time: Time; value: number }[] = [];
+      const mdiData: { time: Time; value: number }[] = [];
+      results.forEach((r: any) => {
+        if (r.values?.adx !== null) adxData.push({ time: r.time as Time, value: r.values.adx });
+        if (r.values?.pdi !== null) pdiData.push({ time: r.time as Time, value: r.values.pdi });
+        if (r.values?.mdi !== null) mdiData.push({ time: r.time as Time, value: r.values.mdi });
+      });
+
+      const adxSeries = chart.addSeries(LineSeries, {
+        color: '#fbbf24',
+        lineWidth: 2 as any,
+        priceLineVisible: false,
+        lastValueVisible: true,
+        crosshairMarkerVisible: false,
+        priceScaleId: 'adx-scale',
+      });
+      adxSeries.priceScale().applyOptions({
+        scaleMargins: { top: 0.85, bottom: 0 },
+        borderVisible: false,
+      });
+      adxSeries.setData(adxData as any);
+      oscillatorSeriesRef.current.set('adx-line', adxSeries);
+
+      const pdiSeries = chart.addSeries(LineSeries, {
+        color: '#3fb950',
+        lineWidth: 1 as any,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+        priceScaleId: 'adx-scale',
+      });
+      pdiSeries.setData(pdiData as any);
+      oscillatorSeriesRef.current.set('adx-pdi', pdiSeries);
+
+      const mdiSeries = chart.addSeries(LineSeries, {
+        color: '#f85149',
+        lineWidth: 1 as any,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+        priceScaleId: 'adx-scale',
+      });
+      mdiSeries.setData(mdiData as any);
+      oscillatorSeriesRef.current.set('adx-mdi', mdiSeries);
+    }
+
+    else if (indicator.key === 'cci') {
+      const data = results.map((r: any) => {
+        const val = r.values?.cci;
+        return val !== null ? { time: r.time as Time, value: val } : null;
+      }).filter(Boolean);
+
+      const series = chart.addSeries(LineSeries, {
+        color: indicator.color,
+        lineWidth: 1 as any,
+        priceLineVisible: false,
+        lastValueVisible: true,
+        crosshairMarkerVisible: false,
+        priceScaleId: 'cci-scale',
+      });
+      series.priceScale().applyOptions({
+        scaleMargins: { top: 0.85, bottom: 0 },
+        borderVisible: false,
+      });
+      series.setData(data as any);
+      oscillatorSeriesRef.current.set('cci', series);
     }
   }, []);
 
@@ -417,11 +834,19 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const chart = chartInstanceRef.current;
     if (!chart) return;
 
-    const series = overlaySeriesRef.current.get(key);
-    if (series) {
-      chart.removeSeries(series);
-      overlaySeriesRef.current.delete(key);
-    }
+    // Remove all overlay series for this indicator key
+    const overlayKeys = Array.from(overlaySeriesRef.current.keys()).filter(k => k === key || k.startsWith(`${key}-`));
+    overlayKeys.forEach(k => {
+      const s = overlaySeriesRef.current.get(k);
+      if (s) { chart.removeSeries(s); overlaySeriesRef.current.delete(k); }
+    });
+
+    // Remove all oscillator series for this indicator key
+    const oscKeys = Array.from(oscillatorSeriesRef.current.keys()).filter(k => k === key || k.startsWith(`${key}-`));
+    oscKeys.forEach(k => {
+      const s = oscillatorSeriesRef.current.get(k);
+      if (s) { chart.removeSeries(s); oscillatorSeriesRef.current.delete(k); }
+    });
 
     setActiveIndicators(prev => {
       const next = new Map(prev);
@@ -456,6 +881,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
   const clearDrawings = useCallback(() => {
     drawingManagerRef.current?.clearAll();
+    drawingRendererRef.current?.clearAndRedraw();
   }, []);
 
   const getDrawings = useCallback((): Drawing[] => {
@@ -464,10 +890,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
   const setTool = useCallback((tool: DrawingTool) => {
     setActiveTool(tool);
+    drawingRendererRef.current?.setTool(tool);
   }, []);
 
   const cancelDrawing = useCallback(() => {
     setActiveTool('cursor');
+    drawingRendererRef.current?.setTool('cursor');
+    drawingRendererRef.current?.cancelDrawing();
   }, []);
 
   // ── Zoom ───────────────────────────────────────────────
@@ -502,7 +931,22 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
   // ── Fullscreen ─────────────────────────────────────────
   const toggleFullscreen = useCallback(() => {
-    setIsFullscreen(f => !f);
+    setIsFullscreen(f => {
+      const next = !f;
+      if (next) {
+        // Enter fullscreen
+        const el = containerRef.current?.parentElement || containerRef.current;
+        if (el) {
+          if (el.requestFullscreen) el.requestFullscreen();
+          else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
+        }
+      } else {
+        // Exit fullscreen
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if ((document as any).webkitExitFullscreen) (document as any).webkitExitFullscreen();
+      }
+      return next;
+    });
   }, []);
 
   // ── Pause ──────────────────────────────────────────────

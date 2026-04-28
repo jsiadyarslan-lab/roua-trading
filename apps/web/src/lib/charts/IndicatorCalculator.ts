@@ -410,13 +410,21 @@ export async function calculateIndicator(
 
 // ── Heikin-Ashi Transform ───────────────────────────────
 export function toHeikinAshi(candles: CandleData[]): CandleData[] {
-  return candles.map((c, i) => {
+  const results: CandleData[] = [];
+  let prevHaOpen = (candles[0].open + candles[0].close) / 2;
+
+  for (let i = 0; i < candles.length; i++) {
+    const c = candles[i];
     const haClose = (c.open + c.high + c.low + c.close) / 4;
     const haOpen = i === 0
       ? (c.open + c.close) / 2
-      : (candles[i - 1].open + candles[i - 1].close) / 2; // simplified prev HA open
+      : (prevHaOpen + results[i - 1].close) / 2; // Correct: use previous HA open and HA close
     const haHigh = Math.max(c.high, haOpen, haClose);
     const haLow = Math.min(c.low, haOpen, haClose);
-    return { time: c.time, open: haOpen, high: haHigh, low: haLow, close: haClose, volume: c.volume };
-  });
+
+    results.push({ time: c.time, open: haOpen, high: haHigh, low: haLow, close: haClose, volume: c.volume });
+    prevHaOpen = haOpen;
+  }
+
+  return results;
 }

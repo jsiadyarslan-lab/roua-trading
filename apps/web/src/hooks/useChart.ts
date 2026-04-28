@@ -77,6 +77,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const drawingRendererRef = useRef<DrawingRenderer | null>(null);
   const shortcutsRef = useRef<KeyboardShortcuts | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const mainSeriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
 
   // ── State ──────────────────────────────────────────────
   const [settings, setSettings] = useState<ChartSettings>({
@@ -98,6 +99,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const [activeTool, setActiveTool] = useState<DrawingTool>('cursor');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+
+  const activeIndicatorsRef = useRef<Map<string, ActiveIndicator>>(new Map());
+
+  useEffect(() => {
+    activeIndicatorsRef.current = activeIndicators;
+  }, [activeIndicators]);
 
   // ── Chart Colors ───────────────────────────────────────
   const COLORS = {
@@ -186,6 +193,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       wickDownColor: COLORS.downWick,
     });
     candleSeriesRef.current = candleSeries;
+    mainSeriesRef.current = candleSeries;
 
     // ── Volume Series ──
     const volumeSeries = chart.addSeries(HistogramSeries, {
@@ -290,6 +298,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         ),
         cancelDrawing: () => setActiveTool('cursor'),
         toggleFullscreen: () => setIsFullscreen(f => !f),
+        resetView: () => chart.timeScale().fitContent(),
       });
       shortcutsRef.current.attach();
     }
@@ -331,38 +340,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     overlaySeriesRef.current.clear();
   }, [symbol]);
 
-  // ── Set Candles ────────────────────────────────────────
-  const setCandles = useCallback((candles: CandleData[]) => {
-    if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
 
-    candlesRef.current = candles;
-
-    // Apply Heikin-Ashi if needed
-    const displayCandles = settings.type === 'heikin-ashi' ? toHeikinAshi(candles) : candles;
-
-    // Format for lightweight-charts (time must be Time)
-    const chartData = displayCandles.map(c => ({
-      time: c.time as Time,
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
-    }));
-
-    const volumeData = candles.map(c => ({
-      time: c.time as Time,
-      value: c.volume,
-      color: c.close >= c.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
-    }));
-
-    candleSeriesRef.current.setData(chartData as any);
-    volumeSeriesRef.current.setData(volumeData as any);
-
-    // Re-apply indicators
-    activeIndicators.forEach((ind) => {
-      // Will be recalculated in addIndicator
-    });
-  }, [settings.type]);
 
   // ── Update Last Candle (live tick) ─────────────────────
   const updateLastCandle = useCallback((price: number) => {
@@ -521,27 +499,26 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       addOverlayLine('bb-middle', middleData, 'rgba(88,166,255,0.3)');
       addOverlayLine('bb-lower', lowerData, 'rgba(88,166,255,0.5)');
 
-      // Fill area between upper and lower
+      // Fill area between bands — use middle band with subtle fill
       const fillArea = chart.addSeries(AreaSeries, {
-        topColor: 'rgba(88,166,255,0.08)',
-        bottomColor: 'rgba(88,166,255,0.02)',
+        topColor: 'rgba(88,166,255,0.06)',
+        bottomColor: 'rgba(88,166,255,0.01)',
+        lineColor: 'transparent',
         lineWidth: 0 as any,
         priceLineVisible: false,
         lastValueVisible: false,
         crosshairMarkerVisible: false,
       });
-      // Use lower band as the area base
-      fillArea.setData(lowerData as any);
+      fillArea.setData(middleData as any);
       overlaySeriesRef.current.set('bb-fill', fillArea);
     }
 
     else if (indicator.key === 'psar') {
-      // Parabolic SAR: dots (use LineSeries with point markers)
+      // Parabolic SAR: dots using small step-like line segments
       const psarData: { time: Time; value: number; color?: string }[] = [];
       results.forEach((r: any) => {
         const val = r.values?.psar;
         if (val !== null && val !== undefined) {
-          // Determine color based on SAR position relative to candle
           const candleIdx = candlesRef.current.findIndex(c => c.time === r.time);
           const candle = candleIdx >= 0 ? candlesRef.current[candleIdx] : null;
           const isBullish = candle ? val < candle.close : true;
@@ -549,30 +526,32 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         }
       });
 
-      // Split into bullish and bearish dots
+      // Split into bullish and bearish
       const bullData = psarData.filter(d => d.color === '#3fb950').map(d => ({ time: d.time, value: d.value }));
       const bearData = psarData.filter(d => d.color === '#f85149').map(d => ({ time: d.time, value: d.value }));
 
+      // Use LineSeries with dashed style to create dot-like appearance
+      // lightweight-charts v5 doesn't support point markers on LineSeries
       const bullSeries = chart.addSeries(LineSeries, {
         color: '#3fb950',
-        lineWidth: 0 as any,
-        pointMarkersVisible: true,
-        pointMarkersRadius: 2,
+        lineWidth: 1 as any,
+        lineStyle: 2, // Dashed - makes it look like dots from a distance
         priceLineVisible: false,
         lastValueVisible: false,
         crosshairMarkerVisible: false,
+        crosshairMarkerRadius: 2,
       });
       bullSeries.setData(bullData as any);
       overlaySeriesRef.current.set('psar-bull', bullSeries);
 
       const bearSeries = chart.addSeries(LineSeries, {
         color: '#f85149',
-        lineWidth: 0 as any,
-        pointMarkersVisible: true,
-        pointMarkersRadius: 2,
+        lineWidth: 1 as any,
+        lineStyle: 2, // Dashed
         priceLineVisible: false,
         lastValueVisible: false,
         crosshairMarkerVisible: false,
+        crosshairMarkerRadius: 2,
       });
       bearSeries.setData(bearData as any);
       overlaySeriesRef.current.set('psar-bear', bearSeries);
@@ -600,10 +579,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       addOverlayLine('ichimoku-senkouB', senkouBData, 'rgba(248,113,113,0.4)', 1);
       addOverlayLine('ichimoku-chikou', chikouData, 'rgba(255,255,255,0.3)', 1);
 
-      // Cloud fill (use AreaSeries for senkouA as the cloud top)
+      // Cloud fill — use Senkou A with green tint for bullish cloud
       const cloudFill = chart.addSeries(AreaSeries, {
-        topColor: 'rgba(45,212,191,0.06)',
-        bottomColor: 'rgba(248,113,113,0.03)',
+        topColor: 'rgba(45,212,191,0.05)',
+        bottomColor: 'rgba(248,113,113,0.02)',
+        lineColor: 'transparent',
         lineWidth: 0 as any,
         priceLineVisible: false,
         lastValueVisible: false,
@@ -764,6 +744,39 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     }
   }, []);
 
+  // ── Set Candles ────────────────────────────────────────
+  const setCandles = useCallback((candles: CandleData[]) => {
+    if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
+
+    candlesRef.current = candles;
+
+    // Apply Heikin-Ashi if needed
+    const displayCandles = settings.type === 'heikin-ashi' ? toHeikinAshi(candles) : candles;
+
+    // Format for lightweight-charts (time must be Time)
+    const chartData = displayCandles.map(c => ({
+      time: c.time as Time,
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+    }));
+
+    const volumeData = candles.map(c => ({
+      time: c.time as Time,
+      value: c.volume,
+      color: c.close >= c.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
+    }));
+
+    candleSeriesRef.current.setData(chartData as any);
+    volumeSeriesRef.current.setData(volumeData as any);
+
+    // Re-apply indicators with fresh data
+    activeIndicators.forEach((ind) => {
+      addIndicator(ind);
+    });
+  }, [settings.type, addIndicator]);
+
   // ── Remove Indicator ───────────────────────────────────
   const removeIndicator = useCallback((key: string) => {
     const chart = chartInstanceRef.current;
@@ -796,13 +809,128 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   }, [activeIndicators]);
 
   // ── Set Chart Type ─────────────────────────────────────
-  const setChartType = useCallback((type: ChartType) => {
+  const setChartType = useCallback(async (type: ChartType) => {
     setSettings(prev => ({ ...prev, type }));
-    // Re-set candles to apply Heikin-Ashi
-    if (candlesRef.current.length) {
-      setCandles(candlesRef.current);
+
+    const chart = chartInstanceRef.current;
+    if (!chart || !candlesRef.current.length) return;
+
+    // For heikin-ashi and candle, just re-set data on existing candlestick series
+    if (type === 'candle' || type === 'heikin-ashi' || type === 'hollow') {
+      const displayCandles = type === 'heikin-ashi' ? toHeikinAshi(candlesRef.current) : candlesRef.current;
+      const chartData = displayCandles.map(c => ({
+        time: c.time as Time,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+      }));
+
+      // Apply hollow candle style
+      if (type === 'hollow' && candleSeriesRef.current) {
+        candleSeriesRef.current.applyOptions({
+          upColor: 'transparent',
+          downColor: COLORS.downColor,
+          borderUpColor: COLORS.upColor,
+          borderDownColor: COLORS.downColor,
+          wickUpColor: COLORS.upWick,
+          wickDownColor: COLORS.downWick,
+        });
+      } else if (candleSeriesRef.current) {
+        candleSeriesRef.current.applyOptions({
+          upColor: COLORS.upColor,
+          downColor: COLORS.downColor,
+          borderUpColor: COLORS.upColor,
+          borderDownColor: COLORS.downColor,
+          wickUpColor: COLORS.upWick,
+          wickDownColor: COLORS.downWick,
+        });
+      }
+
+      if (candleSeriesRef.current) {
+        candleSeriesRef.current.setData(chartData as any);
+      }
+      return;
     }
-  }, [setCandles]);
+
+    // For line/area/bar types, swap the main series
+    const { LineSeries, AreaSeries, BarSeries } = await import('lightweight-charts');
+    const candles = candlesRef.current;
+
+    // Remove existing main series
+    if (mainSeriesRef.current) {
+      try { chart.removeSeries(mainSeriesRef.current); } catch {}
+      mainSeriesRef.current = null;
+    }
+    if (candleSeriesRef.current && candleSeriesRef.current !== mainSeriesRef.current) {
+      try { chart.removeSeries(candleSeriesRef.current); } catch {}
+      candleSeriesRef.current = null;
+    }
+
+    if (type === 'line') {
+      const lineSeries = chart.addSeries(LineSeries, {
+        color: COLORS.upColor,
+        lineWidth: 2 as any,
+        priceLineVisible: true,
+        lastValueVisible: true,
+        crosshairMarkerVisible: true,
+      });
+      const data = candles.map(c => ({ time: c.time as Time, value: c.close }));
+      lineSeries.setData(data as any);
+      mainSeriesRef.current = lineSeries;
+      candleSeriesRef.current = lineSeries as any;
+    }
+    else if (type === 'area') {
+      const areaSeries = chart.addSeries(AreaSeries, {
+        topColor: 'rgba(63,185,80,0.3)',
+        bottomColor: 'rgba(63,185,80,0.02)',
+        lineColor: COLORS.upColor,
+        lineWidth: 2 as any,
+        priceLineVisible: true,
+        lastValueVisible: true,
+        crosshairMarkerVisible: true,
+      });
+      const data = candles.map(c => ({ time: c.time as Time, value: c.close }));
+      areaSeries.setData(data as any);
+      mainSeriesRef.current = areaSeries;
+      candleSeriesRef.current = areaSeries as any;
+    }
+    else if (type === 'bar') {
+      const barSeries = chart.addSeries(BarSeries, {
+        upColor: COLORS.upColor,
+        downColor: COLORS.downColor,
+      });
+      const displayCandles = candles.map(c => ({
+        time: c.time as Time,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+      }));
+      barSeries.setData(displayCandles as any);
+      mainSeriesRef.current = barSeries;
+      candleSeriesRef.current = barSeries as any;
+    }
+
+    // Re-set volume
+    if (volumeSeriesRef.current) {
+      const volumeData = candles.map(c => ({
+        time: c.time as Time,
+        value: c.volume,
+        color: c.close >= c.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
+      }));
+      volumeSeriesRef.current.setData(volumeData as any);
+    }
+
+    // Re-apply indicators
+    overlaySeriesRef.current.forEach(s => { try { chart.removeSeries(s); } catch {} });
+    overlaySeriesRef.current.clear();
+    oscillatorSeriesRef.current.forEach(s => { try { chart.removeSeries(s); } catch {} });
+    oscillatorSeriesRef.current.clear();
+    // Store and re-add
+    const prevIndicators = Array.from(activeIndicatorsRef.current.values());
+    prevIndicators.forEach(ind => addIndicator(ind));
+  }, [addIndicator]);
 
   // ── Drawing Operations ─────────────────────────────────
   const addDrawing = useCallback((tool: DrawingTool, points: { time: number; price: number }[]) => {
@@ -951,14 +1079,22 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const updateSettings = useCallback((updates: Partial<ChartSettings>) => {
     setSettings(prev => ({ ...prev, ...updates }));
 
-    // Apply live chart option changes
     const chart = chartInstanceRef.current;
     if (chart) {
       if (updates.showGrid !== undefined) {
+        const gridColor = updates.gridColor || (updates.showGrid ? COLORS.grid : 'transparent');
         chart.applyOptions({
           grid: {
-            vertLines: { color: updates.showGrid ? COLORS.grid : 'transparent' },
-            horzLines: { color: updates.showGrid ? COLORS.grid : 'transparent' },
+            vertLines: { color: updates.showGrid ? gridColor : 'transparent' },
+            horzLines: { color: updates.showGrid ? gridColor : 'transparent' },
+          },
+        });
+      }
+      if (updates.gridColor !== undefined) {
+        chart.applyOptions({
+          grid: {
+            vertLines: { color: updates.gridColor },
+            horzLines: { color: updates.gridColor },
           },
         });
       }
@@ -968,8 +1104,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           downColor: updates.downColor || COLORS.downColor,
           borderUpColor: updates.upColor || COLORS.upColor,
           borderDownColor: updates.downColor || COLORS.downColor,
-          wickUpColor: updates.upColor || COLORS.upColor,
-          wickDownColor: updates.downColor || COLORS.downColor,
+          wickUpColor: updates.upColor || COLORS.upWick,
+          wickDownColor: updates.downColor || COLORS.downWick,
         });
       }
       if (updates.showVolume !== undefined) {
@@ -977,9 +1113,49 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           visible: updates.showVolume,
         });
       }
+      if (updates.bgColor !== undefined) {
+        chart.applyOptions({
+          layout: {
+            background: { color: updates.bgColor },
+          },
+        });
+      }
+      if (updates.crosshairType !== undefined) {
+        if (updates.crosshairType === 'none') {
+          chart.applyOptions({
+            crosshair: {
+              mode: 2, // Hidden
+              vertLine: { visible: false },
+              horzLine: { visible: false },
+            },
+          });
+        } else if (updates.crosshairType === 'dot') {
+          chart.applyOptions({
+            crosshair: {
+              mode: 0,
+              vertLine: { visible: true, style: 0, width: 0 as any, labelVisible: true },
+              horzLine: { visible: true, style: 0, width: 0 as any, labelVisible: true },
+            },
+          });
+        } else {
+          // cross (default)
+          chart.applyOptions({
+            crosshair: {
+              mode: 0,
+              vertLine: { visible: true, color: COLORS.crosshair, width: 1, style: 2, labelVisible: true },
+              horzLine: { visible: true, color: COLORS.crosshair, width: 1, style: 2, labelVisible: true },
+            },
+          });
+        }
+      }
+      if (updates.showPriceLine !== undefined) {
+        candleSeriesRef.current?.applyOptions({
+          lastValueVisible: updates.showPriceLine,
+          priceLineVisible: updates.showPriceLine,
+        });
+      }
     }
   }, []);
-
   return {
     chartRef: chartInstanceRef,
     containerRef,

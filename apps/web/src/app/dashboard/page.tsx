@@ -658,7 +658,6 @@ export default function DashboardPage() {
             </div>
 
             {/* Balance Card + Positions Panel */}
-            {!chartFullscreen && (
             <div className="panel hover-glow" style={{ flexShrink: 0, height: posOpen ? 240 : PANEL_H, transition: ANIM, display: 'flex', flexDirection: 'column' }}>
               <div className="panel-header">
                 <div className="summary-row">
@@ -712,7 +711,6 @@ export default function DashboardPage() {
                 <AlpacaPositions />
               </div>
             </div>
-            )}
           </div>
 
           {/* Right Panel */}

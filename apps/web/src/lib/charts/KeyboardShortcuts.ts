@@ -12,6 +12,7 @@ export interface ShortcutActions {
   saveChart: () => void;
   cancelDrawing: () => void;
   toggleFullscreen: () => void;
+  resetView: () => void;
 }
 
 export class KeyboardShortcuts {
@@ -58,13 +59,6 @@ export class KeyboardShortcuts {
       return;
     }
 
-    // Ctrl+F — Toggle fullscreen
-    if ((e.ctrlKey || e.metaKey) && key === 'f') {
-      e.preventDefault();
-      this.actions.toggleFullscreen();
-      return;
-    }
-
     // Single key shortcuts
     switch (key) {
       case ' ':
@@ -82,10 +76,10 @@ export class KeyboardShortcuts {
         this.actions.zoomOut();
         break;
       case 'r':
-        this.actions.setTool('rectangle');
+        this.actions.resetView();
         break;
       case 'f':
-        this.actions.setTool('fibonacci');
+        this.actions.toggleFullscreen();
         break;
       case 't':
         this.actions.setTool('trendline');

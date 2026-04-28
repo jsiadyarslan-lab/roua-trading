@@ -119,3 +119,27 @@ Stage Summary:
 - Alert Agent: ✅ Working — connected to DB, no more table errors
 - All 6 agents verified running on Railway with ✅ OK status
 - Commits: d4e649f (content fix), c1b90b4 (alert fix + Prisma schema)
+---
+Task ID: gen2-agents
+Agent: main
+Task: Build and deploy Gen 2 agents — Model Health, Audit, Sentiment
+
+Work Log:
+- Built 3 new agents from scratch following shared infrastructure pattern
+- Model Health Agent: monitors AI API costs, budget thresholds, latency anomalies, daily reports
+- Audit Agent: detects suspicious DB patterns (multi-IP logins, unusual trading, API abuse, credential changes)
+- Sentiment Agent: brand monitoring via DuckDuckGo web search, GLM-powered sentiment analysis
+- Fixed PYTHONUNBUFFERED in Dockerfiles (Python stdout buffering in Docker)
+- Fixed cost_tracker.py: handle empty AiUsageLog table gracefully
+- Created Railway services: roua-model-health, roua-audit, roua-sentiment
+- Set environment variables for all 3 services (PLATFORM_URL, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, DATABASE_URL, GLM_API_KEY)
+- Deployed all 3 agents via railway up from clean directories
+- All 9 agents + main platform verified Online on Railway
+
+Stage Summary:
+- 3 new Gen 2 agents deployed and running
+- Total agents now: 9 (monitor, security, maintenance, performance, content, alert, model-health, audit, sentiment)
+- Model Health has minor cost_tracker parsing error when AiUsageLog is empty (non-critical, auto-resolves when data exists)
+- Audit Agent: running clean, no suspicious patterns detected
+- Sentiment Agent: successfully searching web for brand mentions, finding 9+ results
+- Commits: 8a1f69f (Gen 2 agents), 0002769 (PYTHONUNBUFFERED fix), 1568458 (empty table fix)

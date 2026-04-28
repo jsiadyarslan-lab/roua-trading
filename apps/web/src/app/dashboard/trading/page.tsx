@@ -208,12 +208,16 @@ export default function TradingPage() {
       const res = await fetch(`/api/exchange/history/${encodeURIComponent(symbol)}?interval=1day`)
       if (res.ok) {
         const data = await res.json()
-        if (data.success && data.data) {
+        if (data.success && Array.isArray(data.data)) {
           setHistoryData(data.data)
+        } else {
+          setHistoryData([])
         }
+      } else {
+        setHistoryData([])
       }
     } catch {
-      // Error handled silently
+      setHistoryData([])
     }
   }, [symbol])
 
@@ -260,10 +264,13 @@ export default function TradingPage() {
       const res = await fetch('/api/trading/orders?limit=10')
       if (res.ok) {
         const data = await res.json()
-        setOrders(data.data || data.orders || [])
+        const ordersList = Array.isArray(data.data) ? data.data : Array.isArray(data.orders) ? data.orders : []
+        setOrders(ordersList)
+      } else {
+        setOrders([])
       }
     } catch {
-      // Gracefully handle
+      setOrders([])
     } finally {
       setLoadingOrders(false)
     }

@@ -491,7 +491,7 @@ async function fetchBinance(symbol: string) {
   const binanceSymbol = normalizedSymbol.replace('/', '')
 
   const url = `https://api.binance.com/api/v3/ticker/24hr?symbol=${encodeURIComponent(binanceSymbol)}`
-  const res = await fetch(url, { next: { revalidate: 5 } })
+  const res = await fetch(url, { next: { revalidate: 5 }, signal: AbortSignal.timeout(8000) })
 
   if (!res.ok) {
     throw new Error(`Binance API returned ${res.status}`)
@@ -545,7 +545,7 @@ async function fetchCoinGecko(symbol: string) {
   }
 
   const url = `https://api.coingecko.com/api/v3/simple/price?ids=${coinId}&vs_currencies=usd&include_24hr_change=true&include_24hr_vol=true`
-  const res = await fetch(url, { next: { revalidate: 30 } })
+  const res = await fetch(url, { next: { revalidate: 30 }, signal: AbortSignal.timeout(8000) })
 
   if (!res.ok) {
     throw new Error(`CoinGecko API returned ${res.status}`)
@@ -698,6 +698,22 @@ export async function GET(
       // ── Static fallback: reasonable estimates for known symbols ──
       // This prevents 503 errors on cloud servers where free APIs are blocked.
       const staticFallbacks: Record<string, { price: number; exchange: string; name: string }> = {
+        // Crypto (most likely to need fallback due to Binance blocking on cloud servers)
+        'BTC/USD': { price: 95000, exchange: 'CRYPTO', name: 'Bitcoin / USD' },
+        'BTC/USDT': { price: 95000, exchange: 'CRYPTO', name: 'Bitcoin / USDT' },
+        'ETH/USD': { price: 1800, exchange: 'CRYPTO', name: 'Ethereum / USD' },
+        'ETH/USDT': { price: 1800, exchange: 'CRYPTO', name: 'Ethereum / USDT' },
+        'SOL/USD': { price: 150, exchange: 'CRYPTO', name: 'Solana / USD' },
+        'SOL/USDT': { price: 150, exchange: 'CRYPTO', name: 'Solana / USDT' },
+        'BNB/USD': { price: 600, exchange: 'CRYPTO', name: 'BNB / USD' },
+        'BNB/USDT': { price: 600, exchange: 'CRYPTO', name: 'BNB / USDT' },
+        'XRP/USD': { price: 2.40, exchange: 'CRYPTO', name: 'XRP / USD' },
+        'XRP/USDT': { price: 2.40, exchange: 'CRYPTO', name: 'XRP / USDT' },
+        'ADA/USD': { price: 0.75, exchange: 'CRYPTO', name: 'Cardano / USD' },
+        'ADA/USDT': { price: 0.75, exchange: 'CRYPTO', name: 'Cardano / USDT' },
+        'DOGE/USD': { price: 0.18, exchange: 'CRYPTO', name: 'Dogecoin / USD' },
+        'DOGE/USDT': { price: 0.18, exchange: 'CRYPTO', name: 'Dogecoin / USDT' },
+        // Forex
         'XAU/USD': { price: 3350, exchange: 'COMMODITY', name: 'Gold / USD' },
         'XAG/USD': { price: 33.50, exchange: 'COMMODITY', name: 'Silver / USD' },
         'XPT/USD': { price: 985, exchange: 'COMMODITY', name: 'Platinum / USD' },
@@ -706,6 +722,7 @@ export async function GET(
         'USD/JPY': { price: 155.50, exchange: 'FOREX', name: 'USD / JPY' },
         'AUD/USD': { price: 0.6350, exchange: 'FOREX', name: 'AUD / USD' },
         'USD/CHF': { price: 0.8820, exchange: 'FOREX', name: 'USD / CHF' },
+        // Stocks
         'AAPL':    { price: 205, exchange: 'STOCK', name: 'Apple Inc.' },
         'TSLA':    { price: 285, exchange: 'STOCK', name: 'Tesla Inc.' },
         'NVDA':    { price: 110, exchange: 'STOCK', name: 'NVIDIA Corp.' },

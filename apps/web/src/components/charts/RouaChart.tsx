@@ -67,17 +67,7 @@ export default function RouaChart({
   const candlesRef = useRef<CandleData[]>([]);
   const prevPriceRef = useRef(currentPrice);
   const [pricePulse, setPricePulse] = useState(false);
-  const [tradeOverlayPositions, setTradeOverlayPositions] = useState<Array<{
-    id: string;
-    y: number;
-    type: 'entry' | 'sl' | 'tp';
-    side: string;
-    qty: number;
-    price: number;
-    pnl?: number;
-    pnlPct?: number;
-    isLong: boolean;
-  }>>([]);
+
 
 
   // ── Chart Hook ─────────────────────────────────────────
@@ -314,64 +304,7 @@ export default function RouaChart({
     };
   }, [positions, paperTrades, selectedSymbol, chart]);
 
-  // ── Update Trade Overlay Label Positions ──
-  useEffect(() => {
-    const updatePositions = () => {
-      const chartSymbol = normalizeSymbol(selectedSymbol);
-      const overlays: typeof tradeOverlayPositions = [];
 
-      // Paper trades overlays
-      paperTrades.forEach(trade => {
-        const sym = normalizeSymbol(trade.symbol || '');
-        if (!sym.includes(chartSymbol) && !chartSymbol.includes(sym)) return;
-
-        const isLong = (trade.side || '').toLowerCase() === 'long';
-        const entryPrice = Number(trade.entryPrice || 0);
-
-        // Entry line overlay
-        if (entryPrice > 0) {
-          const y = chart.getPriceCoordinate(entryPrice);
-          if (y !== null) {
-            overlays.push({
-              id: `trade-entry-${trade.id}`,
-              y,
-              type: 'entry',
-              side: trade.side,
-              qty: trade.qty,
-              price: entryPrice,
-              pnl: trade.unrealizedPnl,
-              pnlPct: trade.unrealizedPct,
-              isLong,
-            });
-          }
-        }
-
-        // SL overlay
-        const sl = Number(trade.sl || 0);
-        if (sl > 0) {
-          const y = chart.getPriceCoordinate(sl);
-          if (y !== null) {
-            overlays.push({ id: `trade-sl-${trade.id}`, y, type: 'sl', side: trade.side, qty: trade.qty, price: sl, isLong });
-          }
-        }
-
-        // TP overlay
-        const tp = Number(trade.tp || 0);
-        if (tp > 0) {
-          const y = chart.getPriceCoordinate(tp);
-          if (y !== null) {
-            overlays.push({ id: `trade-tp-${trade.id}`, y, type: 'tp', side: trade.side, qty: trade.qty, price: tp, isLong });
-          }
-        }
-      });
-
-      setTradeOverlayPositions(overlays);
-    };
-
-    updatePositions();
-    const interval = setInterval(updatePositions, 500);
-    return () => clearInterval(interval);
-  }, [paperTrades, selectedSymbol, chart, currentPrice]);
 
   // ── Indicator Management ───────────────────────────────
   const handleToggleIndicator = useCallback((key: string) => {
@@ -621,135 +554,7 @@ export default function RouaChart({
             />
           )}
 
-          {/* ── Trade Overlay Labels (P&L, SL, TP) ── */}
-          {tradeOverlayPositions.map(overlay => {
-            if (overlay.y < 0 || overlay.y > 2000) return null;
 
-            if (overlay.type === 'entry') {
-              const pnlColor = (overlay.pnl ?? 0) >= 0 ? '#3fb950' : '#f85149';
-              const pnlBg = (overlay.pnl ?? 0) >= 0 ? 'rgba(63,185,80,0.15)' : 'rgba(248,81,73,0.15)';
-              const dirColor = overlay.isLong ? '#3fb950' : '#f85149';
-              const dirLabel = overlay.isLong ? '⬆ شراء' : '⬇ بيع';
-              const pnlStr = overlay.pnl !== undefined
-                ? `${overlay.pnl >= 0 ? '+' : ''}${overlay.pnl.toFixed(2)}`
-                : '';
-              const pnlPctStr = overlay.pnlPct !== undefined
-                ? ` (${overlay.pnlPct >= 0 ? '+' : ''}${overlay.pnlPct.toFixed(2)}%)`
-                : '';
-
-              return (
-                <div key={overlay.id} style={{
-                  position: 'absolute',
-                  left: 8,
-                  top: overlay.y - 12,
-                  zIndex: 15,
-                  pointerEvents: 'auto',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}>
-                  {/* Direction badge */}
-                  <span style={{
-                    padding: '2px 6px',
-                    borderRadius: 4,
-                    background: `${dirColor}20`,
-                    border: `1px solid ${dirColor}40`,
-                    color: dirColor,
-                    fontSize: 9,
-                    fontWeight: 800,
-                    fontFamily: "'Cairo', sans-serif",
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {dirLabel}
-                  </span>
-                  {/* Lot size */}
-                  <span style={{
-                    padding: '2px 5px',
-                    borderRadius: 3,
-                    background: 'rgba(21,26,34,0.85)',
-                    border: '1px solid rgba(42,49,60,0.6)',
-                    color: '#F0F2F5',
-                    fontSize: 9,
-                    fontWeight: 700,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    whiteSpace: 'nowrap',
-                  }}>
-                    {overlay.qty}
-                  </span>
-                  {/* P&L */}
-                  {pnlStr && (
-                    <span style={{
-                      padding: '2px 6px',
-                      borderRadius: 4,
-                      background: pnlBg,
-                      border: `1px solid ${pnlColor}40`,
-                      color: pnlColor,
-                      fontSize: 9,
-                      fontWeight: 700,
-                      fontFamily: "'JetBrains Mono', monospace",
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {pnlStr}{pnlPctStr}
-                    </span>
-                  )}
-                </div>
-              );
-            }
-
-            if (overlay.type === 'sl') {
-              return (
-                <div key={overlay.id} style={{
-                  position: 'absolute',
-                  left: 8,
-                  top: overlay.y - 9,
-                  zIndex: 15,
-                  pointerEvents: 'none',
-                }}>
-                  <span style={{
-                    padding: '1px 6px',
-                    borderRadius: 3,
-                    background: 'rgba(248,81,73,0.12)',
-                    border: '1px solid rgba(248,81,73,0.3)',
-                    color: '#f85149',
-                    fontSize: 8,
-                    fontWeight: 700,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    whiteSpace: 'nowrap',
-                  }}>
-                    SL {overlay.price.toFixed(overlay.price > 1000 ? 2 : 5)}
-                  </span>
-                </div>
-              );
-            }
-
-            if (overlay.type === 'tp') {
-              return (
-                <div key={overlay.id} style={{
-                  position: 'absolute',
-                  left: 8,
-                  top: overlay.y - 9,
-                  zIndex: 15,
-                  pointerEvents: 'none',
-                }}>
-                  <span style={{
-                    padding: '1px 6px',
-                    borderRadius: 3,
-                    background: 'rgba(63,185,80,0.12)',
-                    border: '1px solid rgba(63,185,80,0.3)',
-                    color: '#3fb950',
-                    fontSize: 8,
-                    fontWeight: 700,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    whiteSpace: 'nowrap',
-                  }}>
-                    TP {overlay.price.toFixed(overlay.price > 1000 ? 2 : 5)}
-                  </span>
-                </div>
-              );
-            }
-
-            return null;
-          })}
 
 
 

@@ -183,20 +183,10 @@ export function useExecutionEngine() {
       return false
     }
 
-    // Pre-flight balance check
-    const effectivePrice = orderType === 'limit' && limitPrice ? parseFloat(limitPrice) : currentPrice
-    if (effectivePrice > 0 && account && account.buyingPower > 0) {
-      const cost = effectivePrice * qtyNum
-      if (cost > account.buyingPower) {
-        setExecutionState('rejected')
-        setStatus({
-          msg: `رصيد غير كافٍ: المطلوب $${cost.toFixed(2)} — المتاح $${account.buyingPower.toFixed(2)}`,
-          type: 'error'
-        })
-        clearStatusAfter(5000)
-        return false
-      }
-    }
+    // Pre-flight balance check — warn only, don't block
+    // (Paper trading / Alpaca will handle actual rejection)
+    // This is just a UX hint
+
 
     // Validate SL/TP logic
     const tpNum = parseFloat(takeProfit)

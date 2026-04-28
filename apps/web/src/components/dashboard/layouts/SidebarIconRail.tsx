@@ -66,6 +66,7 @@ export function SidebarIconRail({
         borderLeft: '1px solid rgba(0,212,255,0.12)',
         direction: 'rtl',
         position: 'relative',
+        overflow: 'visible',
       }}
     >
       {/* Icon buttons — compact */}
@@ -75,6 +76,7 @@ export function SidebarIconRail({
           flex: 1,
           minHeight: 0,
           overflowY: 'auto',
+          overflowX: 'visible',
           padding: '2px 0',
           display: 'flex',
           flexDirection: 'column',
@@ -99,6 +101,7 @@ export function SidebarIconRail({
                 type="button"
                 onClick={() => onTabChange(tab.id)}
                 aria-label={tab.label}
+                title={tab.label}
                 style={{
                   width: 28,
                   height: 26,
@@ -111,7 +114,7 @@ export function SidebarIconRail({
                   background: isActive
                     ? `linear-gradient(135deg, ${tab.accent}10, rgba(255,255,255,0.01))`
                     : isHovered
-                      ? 'rgba(255,255,255,0.03)'
+                      ? 'rgba(255,255,255,0.06)'
                       : 'transparent',
                   transition: 'all 0.15s ease',
                   borderRadius: 4,
@@ -134,10 +137,10 @@ export function SidebarIconRail({
                 )}
 
                 <Icon
-                  size={10}
-                  color={isActive ? tab.accent : '#6F849C'}
+                  size={isActive ? 11 : 10}
+                  color={isActive ? tab.accent : isHovered ? '#A0B4CC' : '#6F849C'}
                   style={{
-                    transition: 'color 0.15s ease',
+                    transition: 'all 0.15s ease',
                     position: 'relative',
                     zIndex: 1,
                   }}
@@ -171,30 +174,45 @@ export function SidebarIconRail({
                 </div>
               )}
 
-              {/* Tooltip — micro */}
-              {isHovered && (
+              {/* Tooltip — appears on LEFT side in RTL (towards content area) */}
+              {isHovered && !collapsed && (
                 <div
                   style={{
-                    position: 'absolute',
-                    left: -2,
-                    top: '50%',
-                    transform: 'translateX(-100%) translateY(-50%)',
-                    background: '#1A1D29',
-                    border: `1px solid ${tab.accent}20`,
-                    borderRadius: 4,
-                    padding: '2px 5px',
-                    zIndex: 50,
-                    boxShadow: `0 2px 6px rgba(0,0,0,0.3)`,
+                    position: 'fixed',
+                    zIndex: 9999,
                     pointerEvents: 'none',
                     whiteSpace: 'nowrap',
+                    background: 'rgba(26, 29, 41, 0.95)',
+                    border: `1px solid ${tab.accent}30`,
+                    borderRadius: 5,
+                    padding: '3px 8px',
+                    boxShadow: `0 4px 12px rgba(0,0,0,0.4), 0 0 8px ${tab.accent}15`,
+                    backdropFilter: 'blur(8px)',
+                    // Position will be calculated below via ref — but for simplicity use CSS
+                    // This fixed approach avoids overflow clipping
+                    top: 'auto',
+                    right: 'auto',
+                    left: 'auto',
+                    bottom: 'auto',
+                  }}
+                  ref={(el) => {
+                    if (!el) return
+                    // Position tooltip to the left of the icon (in RTL: towards content)
+                    const parent = el.parentElement
+                    if (parent) {
+                      const rect = parent.getBoundingClientRect()
+                      el.style.top = `${rect.top + rect.height / 2 - 12}px`
+                      el.style.left = `${rect.left - el.offsetWidth - 6}px`
+                    }
                   }}
                 >
                   <span
                     style={{
-                      fontSize: 8,
+                      fontSize: 9,
                       fontWeight: 800,
                       color: tab.accent,
                       fontFamily: "'Cairo', sans-serif",
+                      letterSpacing: '0.3px',
                     }}
                   >
                     {tab.label}

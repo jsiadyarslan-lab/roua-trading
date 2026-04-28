@@ -152,9 +152,9 @@ export default function AdminSubscriptionsPage() {
 
   const totalUsers = data?.tiers?.total ?? 0
 
-  const hasSubscriptionData = data && (data.subscriptions.total > 0)
-  const hasRecentChanges = data && data.recentChanges.length > 0
-  const isAllEmpty = data && totalUsers === 0 && data.subscriptions.total === 0 && data.recentChanges.length === 0
+  const hasSubscriptionData = data && (data.subscriptions?.total > 0)
+  const hasRecentChanges = data && Array.isArray(data.recentChanges) && data.recentChanges.length > 0
+  const isAllEmpty = data && totalUsers === 0 && (data.subscriptions?.total ?? 0) === 0 && (!data.recentChanges || data.recentChanges.length === 0)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

@@ -21,8 +21,14 @@ import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
 interface AdminStats {
   users: { total: number; free: number; pro: number; plus: number; premium: number; institutional: number }
   trading: { dailyTrades: number; volume: number; winRate: number; activePositions: number }
-  system: { uptime: string; lastCheck: string; endpoints: { path: string; status: string; responseTime: number }[] }
+  system: { uptime: string; lastCheck: string; dbStatus?: string; endpoints?: { path: string; status: string; responseTime: number }[] }
   error?: string
+}
+
+interface EndpointHealth {
+  path: string
+  status: string
+  responseTime: number
 }
 
 interface ActivityItem {
@@ -57,6 +63,7 @@ function timeAgo(iso: string) {
 export default function AdminOverviewPage() {
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [activities, setActivities] = useState<ActivityItem[]>([])
+  const [endpoints, setEndpoints] = useState<EndpointHealth[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -87,9 +94,23 @@ export default function AdminOverviewPage() {
     }
   }
 
+  const fetchHealth = async () => {
+    try {
+      const res = await fetch('/dashboard/admin/api/health')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.endpoints && Array.isArray(data.endpoints)) {
+          setEndpoints(data.endpoints)
+        }
+      }
+    } catch {
+      // Health check failure is non-critical
+    }
+  }
+
   const fetchAll = async () => {
     setLoading(true)
-    await Promise.all([fetchStats(), fetchActivity()])
+    await Promise.all([fetchStats(), fetchActivity(), fetchHealth()])
     setLoading(false)
   }
 
@@ -286,7 +307,7 @@ export default function AdminOverviewPage() {
             </div>
           </div>
           <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflowY: 'auto' }} className="custom-scrollbar">
-            {stats?.system.endpoints.length ? stats.system.endpoints.map((ep, i) => (
+            {endpoints.length > 0 ? endpoints.map((ep, i) => (
               <div key={i} style={{
                 display: 'flex',
                 alignItems: 'center',

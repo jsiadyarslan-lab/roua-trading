@@ -68,8 +68,8 @@ export default function AdminSignalsPage() {
       const signalsRes = await fetch('/api/signals/smart')
       if (signalsRes.ok) {
         const data = await signalsRes.json()
-        if (data.signals || data.data) {
-          const rawSignals = data.signals || data.data || []
+        const rawSignals = Array.isArray(data.signals) ? data.signals : Array.isArray(data.data) ? data.data : []
+        if (rawSignals.length > 0) {
           setSignals(rawSignals.map((s: any) => ({
             id: s.id || Math.random().toString(),
             pair: s.pair || s.symbol || '—',

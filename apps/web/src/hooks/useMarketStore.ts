@@ -56,9 +56,10 @@ class BinanceWSManager {
   private debounceTimer: ReturnType<typeof setTimeout> | null = null
   private pingTimer: ReturnType<typeof setInterval> | null = null
   private reconnectAttempts = 0
-  private maxReconnectAttempts = 10
-  private baseDelay = 1000  // 1s initial
-  private maxDelay = 30000 // 30s max
+  private maxReconnectAttempts = 15
+  private baseDelay = 2000  // 2s initial (increased from 1s)
+  private maxDelay = 60000 // 60s max (increased from 30s)
+  private lastConnectTime = 0  // Track when we last connected successfully
   private connectionGeneration = 0
   private isReconnecting = false  // Guard against concurrent reconnects
   private closePromise: Promise<void> | null = null  // Track pending close
@@ -266,6 +267,7 @@ class BinanceWSManager {
       if (this.connectionGeneration !== currentGeneration) return
       this.reconnectAttempts = 0
       this.isReconnecting = false
+      this.lastConnectTime = Date.now()
       this.startPing()
     }
 
@@ -326,6 +328,15 @@ class BinanceWSManager {
 
       // Don't reconnect if we're shutting down or if code 1000 (normal close)
       if (this.destroyed || e.code === 1000) return
+
+      // If the connection was open for less than 10 seconds before closing,
+      // it's likely a connection issue — count it as a reconnect attempt.
+      // If it was stable for a while, reset the attempt counter.
+      const connectionDuration = Date.now() - this.lastConnectTime
+      if (this.lastConnectTime > 0 && connectionDuration > 30_000) {
+        // Connection was stable for >30s — this is a new disconnect, not a reconnect loop
+        this.reconnectAttempts = 0
+      }
       
       this.scheduleReconnectWithBackoff()
     }

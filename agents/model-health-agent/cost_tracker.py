@@ -3,10 +3,32 @@
 يجلب بيانات الاستهلاك من جدول AiUsageLog ويحللها.
 """
 
+import traceback
 import psycopg2
 from datetime import datetime, timezone, timedelta
+from decimal import Decimal
 from typing import Optional
 from collections import defaultdict
+
+
+def _safe_int(val) -> int:
+    """تحويل آمن إلى int — يدعم Decimal و None."""
+    if val is None:
+        return 0
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        return 0
+
+
+def _safe_float(val) -> float:
+    """تحويل آمن إلى float — يدعم Decimal و None."""
+    if val is None:
+        return 0.0
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return 0.0
 
 
 def fetch_usage_stats(
@@ -20,7 +42,15 @@ def fetch_usage_stats(
         قاموس: provider → {monthly_cost, daily_cost, total_requests, avg_latency, cache_hit_rate, models}
     """
     try:
-        conn = psycopg2.connect(db_url, connect_timeout=10, application_name="model-health-agent")
+        # Ensure sslmode for Railway connections
+        connect_url = db_url
+        if 'sslmode' not in connect_url:
+            connect_url += '?sslmode=no-verify' if '?' in connect_url else '&sslmode=no-verify'
+            # Only add sslmode for non-internal URLs
+            if 'railway.internal' in db_url:
+                connect_url = db_url  # Internal URLs don't need SSL
+
+        conn = psycopg2.connect(connect_url, connect_timeout=10, application_name="model-health-agent")
         conn.autocommit = True
         cur = conn.cursor()
 
@@ -55,19 +85,20 @@ def fetch_usage_stats(
         results: dict[str, dict] = {}
         for row in rows:
             d = dict(zip(columns, row))
-            provider = d.get("provider", "unknown")
-            total_req = int(d.get("total_requests", 0) or 0)
-            cached = int(d.get("cached_count", 0) or 0)
+            provider = str(d.get("provider", "unknown") or "unknown")
+            total_req = _safe_int(d.get("total_requests"))
+            cached = _safe_int(d.get("cached_count"))
+            error_count = _safe_int(d.get("error_count"))
 
             results[provider] = {
-                "monthly_cost": float(d.get("monthly_cost", 0) or 0),
+                "monthly_cost": _safe_float(d.get("monthly_cost")),
                 "total_requests": total_req,
-                "avg_latency": float(d.get("avg_latency", 0) or 0),
+                "avg_latency": _safe_float(d.get("avg_latency")),
                 "cache_hit_rate": (cached / total_req * 100) if total_req > 0 else 0,
-                "error_count": int(d.get("error_count", 0) or 0),
-                "error_rate": (int(d.get("error_count", 0) or 0) / total_req * 100) if total_req > 0 else 0,
-                "total_input_tokens": int(d.get("total_input_tokens", 0) or 0),
-                "total_output_tokens": int(d.get("total_output_tokens", 0) or 0),
+                "error_count": error_count,
+                "error_rate": (error_count / total_req * 100) if total_req > 0 else 0,
+                "total_input_tokens": _safe_int(d.get("total_input_tokens")),
+                "total_output_tokens": _safe_int(d.get("total_output_tokens")),
                 "daily_cost": 0.0,
                 "models": {},
             }
@@ -84,7 +115,7 @@ def fetch_usage_stats(
             provider = str(row[0])
             cost_val = row[1]
             if provider in results:
-                results[provider]["daily_cost"] = float(cost_val if cost_val is not None else 0)
+                results[provider]["daily_cost"] = _safe_float(cost_val)
 
         # Cost per model per provider (monthly)
         cur.execute("""
@@ -97,13 +128,16 @@ def fetch_usage_stats(
         """, (month_start,))
 
         for row in cur.fetchall():
-            provider, model, cost, requests, avg_lat = row
-            provider = str(provider)
+            provider = str(row[0])
+            model = str(row[1])
+            cost = row[2]
+            requests = row[3]
+            avg_lat = row[4]
             if provider in results:
-                results[provider]["models"][str(model)] = {
-                    "cost": float(cost if cost is not None else 0),
-                    "requests": int(requests if requests is not None else 0),
-                    "avg_latency": float(avg_lat if avg_lat is not None else 0),
+                results[provider]["models"][model] = {
+                    "cost": _safe_float(cost),
+                    "requests": _safe_int(requests),
+                    "avg_latency": _safe_float(avg_lat),
                 }
 
         # Cost per endpoint (monthly)
@@ -118,11 +152,9 @@ def fetch_usage_stats(
         endpoint_stats = {}
         for row in cur.fetchall():
             endpoint = str(row[0] or "unknown")
-            cost_val = row[1]
-            req_val = row[2]
             endpoint_stats[endpoint] = {
-                "cost": float(cost_val if cost_val is not None else 0),
-                "requests": int(req_val if req_val is not None else 0),
+                "cost": _safe_float(row[1]),
+                "requests": _safe_int(row[2]),
             }
 
         cur.close()
@@ -140,6 +172,7 @@ def fetch_usage_stats(
         return {"_endpoints": {}, "_total_monthly": 0, "_total_daily": 0}
     except Exception as e:
         logger.error(f"خطأ في جلب إحصائيات الاستهلاك: {e}")
+        logger.debug(f"تفاصيل الخطأ:\n{traceback.format_exc()}")
         return {"_endpoints": {}, "_total_monthly": 0, "_total_daily": 0}
 
 

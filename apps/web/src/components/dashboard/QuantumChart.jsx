@@ -254,7 +254,8 @@ export default function QuantumChart({
         p.entry,
         p.qty,
         p.side,
-        p.pnl,
+        // p.pnl تم إزالته من التوقيع لتجنب حلقة لا نهائية
+        // لأنه يتغير مع كل تحديث سعر
         p.sl ?? '',
         p.tp ?? ''
       ].join('|'))
@@ -263,8 +264,6 @@ export default function QuantumChart({
     if (signature === openTradesSignatureRef.current) return;
 
     openTradesSignatureRef.current = signature;
-    console.log(`[Chart] Syncing ${active.length} positions for ${selectedSymbol}`, active);
-
     ST.openTrades = active;
     CH_setDirty(true);
   }, [positions, paperTrades, selectedSymbol]);

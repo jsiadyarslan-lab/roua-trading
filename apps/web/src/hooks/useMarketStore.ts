@@ -51,6 +51,7 @@ class BinanceWSManager {
   private baseDelay = 1000  // 1s initial
   private maxDelay = 30000 // 30s max
   private intentionalClose = false
+  private isClosing = false  // منع إرسال ping أثناء إغلاق الاتصال
 
   private normalizeSymbol(symbol: string) {
     let s = symbol.replace('/', '')
@@ -87,11 +88,13 @@ class BinanceWSManager {
 
   private close() {
     this.intentionalClose = true
+    this.isClosing = true
     this.stopPing()
     if (this.ws) {
       this.ws.close()
       this.ws = null
     }
+    this.isClosing = false
     clearTimeout(this.reconnectTimer)
     clearTimeout(this.debounceTimer)
   }
@@ -103,7 +106,7 @@ class BinanceWSManager {
     // sending a JSON ping frame keeps the connection active and
     // prevents proxy/firewall idle timeouts (Code 1006 disconnections)
     this.pingTimer = setInterval(() => {
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN && !this.isClosing) {
         try {
           this.ws.send(JSON.stringify({ method: 'ping' }))
         } catch {
@@ -158,11 +161,13 @@ class BinanceWSManager {
     }
 
     this.intentionalClose = false
+    this.isClosing = true
     this.stopPing()
     if (this.ws) {
       this.ws.close()
       this.ws = null
     }
+    this.isClosing = false
     this.currentStreams = streams
     const wsUrl = `wss://stream.binance.com:9443/stream?streams=${streams}`
 
@@ -178,12 +183,19 @@ class BinanceWSManager {
     this.ws.onopen = () => {
       // Connected successfully
       this.reconnectAttempts = 0 // Reset on successful connection
+      this.isClosing = false
       this.startPing()
     }
 
     this.ws.onmessage = (event) => {
+      // تجاهل الرسائل أثناء إغلاق الاتصال
+      if (this.isClosing || (this.ws && this.ws.readyState !== WebSocket.OPEN)) {
+        return
+      }
       try {
         const msg = JSON.parse(event.data)
+        // تجاهل رسائل pong من Binance
+        if (!msg.data) return
         if (msg.data && msg.data.c) {
           const d = msg.data
           const rawSymbol = d.s.toUpperCase()

@@ -51,58 +51,164 @@ def search_brand_mentions(
 def _search_web(query: str, logger) -> list[dict]:
     """
     يبحث في الويب باستخدام DuckDuckGo HTML API (مجاني، بدون مفتاح).
+    مع بديل DuckDuckGo Lite عند فشل البحث الأول.
     """
     mentions = []
 
+    # المحاولة الأولى: DuckDuckGo HTML
     try:
-        # DuckDuckGo HTML search — no API key needed
-        url = "https://html.duckduckgo.com/html/"
-        params = {"q": f'"{query}"', "kl": "wt-wt"}
-
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-        }
-
-        resp = requests.post(url, data=params, headers=headers, timeout=15)
-
-        if resp.status_code != 200:
-            logger.warning(f"فشل البحث عن '{query}': HTTP {resp.status_code}")
+        mentions = _search_ddg_html(query, logger)
+        if mentions:
             return mentions
-
-        # Parse HTML results simply
-        text = resp.text
-
-        # DuckDuckGo HTML uses result__a for titles and result__snippet for descriptions
-        import re
-
-        # Extract results using regex (simple approach for DDG HTML)
-        result_blocks = re.findall(
-            r'<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>(.*?)</a>.*?'
-            r'<(?:a|td)[^>]*class="result__snippet"[^>]*>(.*?)</(?:a|td)>',
-            text, re.DOTALL
-        )
-
-        for link, title, snippet in result_blocks[:10]:
-            # Clean HTML tags
-            clean_title = re.sub(r'<[^>]+>', '', title).strip()
-            clean_snippet = re.sub(r'<[^>]+>', '', snippet).strip()
-
-            if clean_title and (query.lower() in clean_title.lower() or query.lower() in clean_snippet.lower()):
-                mentions.append({
-                    "title": clean_title[:200],
-                    "snippet": clean_snippet[:300],
-                    "url": link[:500],
-                    "source": "web",
-                    "query": query,
-                })
-
-        logger.info(f"تم العثور على {len(mentions)} إشارة لـ '{query}'")
-
-    except requests.exceptions.Timeout:
-        logger.warning(f"انتهت مهلة البحث عن '{query}'")
     except Exception as e:
-        logger.error(f"خطأ في البحث عن '{query}': {e}")
+        logger.debug(f"DDG HTML فشل لـ '{query}': {e}")
 
+    # المحاولة الثانية: DuckDuckGo Lite (أخف وأقل تقييداً)
+    try:
+        mentions = _search_ddg_lite(query, logger)
+        if mentions:
+            return mentions
+    except Exception as e:
+        logger.debug(f"DDG Lite فشل لـ '{query}': {e}")
+
+    # المحاولة الثالثة: Bing Search (مباشر)
+    try:
+        mentions = _search_bing(query, logger)
+    except Exception as e:
+        logger.debug(f"Bing فشل لـ '{query}': {e}")
+
+    return mentions
+
+
+def _search_ddg_html(query: str, logger) -> list[dict]:
+    """DuckDuckGo HTML search."""
+    mentions = []
+    url = "https://html.duckduckgo.com/html/"
+    params = {"q": f'"{query}"', "kl": "wt-wt"}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    }
+
+    resp = requests.post(url, data=params, headers=headers, timeout=15)
+
+    if resp.status_code != 200:
+        logger.warning(f"فشل البحث DDG عن '{query}': HTTP {resp.status_code}")
+        return mentions
+
+    return _parse_ddg_results(resp.text, query, "ddg-html", logger)
+
+
+def _search_ddg_lite(query: str, logger) -> list[dict]:
+    """DuckDuckGo Lite search (simpler, less rate-limited)."""
+    mentions = []
+    url = "https://lite.duckduckgo.com/lite/"
+    params = {"q": f'"{query}"', "kl": "wt-wt"}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    }
+
+    resp = requests.post(url, data=params, headers=headers, timeout=15)
+
+    if resp.status_code != 200:
+        logger.warning(f"فشل البحث DDG Lite عن '{query}': HTTP {resp.status_code}")
+        return mentions
+
+    # DDG Lite uses different HTML structure
+    import re
+    text = resp.text
+
+    # Extract link snippets from lite version
+    rows = re.findall(
+        r'<a[^>]*class="result-link"[^>]*href="([^"]*)"[^>]*>(.*?)</a>.*?'
+        r'<td[^>]*class="result-snippet"[^>]*>(.*?)</td>',
+        text, re.DOTALL
+    )
+
+    for link, title, snippet in rows[:10]:
+        clean_title = re.sub(r'<[^>]+>', '', title).strip()
+        clean_snippet = re.sub(r'<[^>]+>', '', snippet).strip()
+
+        mentions.append({
+            "title": clean_title[:200],
+            "snippet": clean_snippet[:300],
+            "url": link[:500],
+            "source": "ddg-lite",
+            "query": query,
+        })
+
+    logger.info(f"تم العثور على {len(mentions)} إشارة لـ '{query}' (DDG Lite)")
+    return mentions
+
+
+def _search_bing(query: str, logger) -> list[dict]:
+    """Bing search fallback."""
+    mentions = []
+    url = "https://www.bing.com/search"
+    params = {"q": f'"{query}"'}
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9,ar;q=0.8",
+    }
+
+    resp = requests.get(url, params=params, headers=headers, timeout=15)
+
+    if resp.status_code != 200:
+        logger.warning(f"فشل البحث Bing عن '{query}': HTTP {resp.status_code}")
+        return mentions
+
+    import re
+    text = resp.text
+
+    # Bing search results
+    results = re.findall(
+        r'<li class="b_algo"[^>]*>.*?'
+        r'<a[^>]*href="([^"]*)"[^>]*>(.*?)</a>.*?'
+        r'<p[^>]*>(.*?)</p>',
+        text, re.DOTALL
+    )
+
+    for link, title, snippet in results[:10]:
+        clean_title = re.sub(r'<[^>]+>', '', title).strip()
+        clean_snippet = re.sub(r'<[^>]+>', '', snippet).strip()
+
+        if clean_title:
+            mentions.append({
+                "title": clean_title[:200],
+                "snippet": clean_snippet[:300],
+                "url": link[:500],
+                "source": "bing",
+                "query": query,
+            })
+
+    logger.info(f"تم العثور على {len(mentions)} إشارة لـ '{query}' (Bing)")
+    return mentions
+
+
+def _parse_ddg_results(text: str, query: str, source: str, logger) -> list[dict]:
+    """يحلل نتائج DuckDuckGo HTML."""
+    import re
+    mentions = []
+
+    result_blocks = re.findall(
+        r'<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>(.*?)</a>.*?'
+        r'<(?:a|td)[^>]*class="result__snippet"[^>]*>(.*?)</(?:a|td)>',
+        text, re.DOTALL
+    )
+
+    for link, title, snippet in result_blocks[:10]:
+        clean_title = re.sub(r'<[^>]+>', '', title).strip()
+        clean_snippet = re.sub(r'<[^>]+>', '', snippet).strip()
+
+        if clean_title and (query.lower() in clean_title.lower() or query.lower() in clean_snippet.lower()):
+            mentions.append({
+                "title": clean_title[:200],
+                "snippet": clean_snippet[:300],
+                "url": link[:500],
+                "source": source,
+                "query": query,
+            })
+
+    logger.info(f"تم العثور على {len(mentions)} إشارة لـ '{query}' ({source})")
     return mentions
 
 

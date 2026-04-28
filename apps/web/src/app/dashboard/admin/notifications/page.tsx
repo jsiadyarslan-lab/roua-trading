@@ -18,7 +18,6 @@ import {
   AlertTriangle,
   Activity,
   DollarSign,
-  RefreshCw as RefreshCwIcon,
 } from 'lucide-react'
 
 /* ── design tokens ── */
@@ -51,7 +50,7 @@ const NOTIFICATION_EVENTS = [
   { key: 'system_error', label: 'خطأ في النظام', icon: AlertTriangle },
   { key: 'performance_alert', label: 'تنبيه الأداء', icon: Activity },
   { key: 'large_trade', label: 'صفقة كبيرة', icon: DollarSign },
-  { key: 'system_update', label: 'تحديث النظام', icon: RefreshCwIcon },
+  { key: 'system_update', label: 'تحديث النظام', icon: RefreshCw },
 ]
 
 /* ── types ── */
@@ -78,6 +77,7 @@ export default function AdminNotificationsPage() {
   const [telegramChatId, setTelegramChatId] = useState('')
   const [telegramTesting, setTelegramTesting] = useState(false)
   const [telegramStatus, setTelegramStatus] = useState<'unknown' | 'connected' | 'disconnected' | 'disabled'>('unknown')
+  const [telegramBotName, setTelegramBotName] = useState('')
 
   /* Browser state */
   const [browserEnabled, setBrowserEnabled] = useState(false)
@@ -124,11 +124,51 @@ export default function AdminNotificationsPage() {
   }, [])
 
   useEffect(() => {
-    fetchConfigs()
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setBrowserPermission(Notification.permission)
+    // Use a local flag to avoid calling setState synchronously in the effect body
+    let cancelled = false
+    const load = async () => {
+      setLoading(true)
+      try {
+        const res = await fetch('/dashboard/admin/api/notifications/config')
+        if (res.ok && !cancelled) {
+          const data = await res.json()
+          setConfigs(data.configs || [])
+
+          const telegramConfig = data.configs?.find((c: NotifConfig) => c.type === 'telegram')
+          if (telegramConfig) {
+            setTelegramEnabled(telegramConfig.enabled)
+            setTelegramToken(telegramConfig.config?.botToken || '')
+            setTelegramChatId(telegramConfig.config?.chatId || '')
+            if (!telegramConfig.enabled) {
+              setTelegramStatus('disabled')
+            }
+          }
+
+          const browserConfig = data.configs?.find((c: NotifConfig) => c.type === 'browser')
+          if (browserConfig) {
+            setBrowserEnabled(browserConfig.enabled)
+          }
+
+          const eventsConfig = data.configs?.find((c: NotifConfig) => c.type === 'events')
+          if (eventsConfig?.config?.enabledEvents) {
+            setEnabledEvents(new Set(eventsConfig.config.enabledEvents))
+          }
+        }
+      } catch {
+        // ignore
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+
+      // Check browser notification permission (non-state read, safe to call setState after async)
+      if (!cancelled && typeof window !== 'undefined' && 'Notification' in window) {
+        setBrowserPermission(Notification.permission)
+      }
     }
-  }, [fetchConfigs])
+    load()
+
+    return () => { cancelled = true }
+  }, [])
 
   /* ── save config via POST ── */
   const saveConfig = async (type: string, enabled: boolean, config: Record<string, any>) => {
@@ -164,23 +204,24 @@ export default function AdminNotificationsPage() {
     }
   }
 
-  /* ── telegram test ── */
+  /* ── telegram test — calls server-side endpoint ── */
   const handleTestTelegram = async () => {
     setTelegramTesting(true)
+    setTelegramBotName('')
     try {
       if (!telegramToken || !telegramChatId) {
         setTelegramStatus('disconnected')
       } else {
-        // Attempt real test via Telegram API
         try {
-          const res = await fetch(`https://api.telegram.org/bot${telegramToken}/getMe`)
-          if (res.ok) {
-            const json = await res.json()
-            if (json.ok) {
-              setTelegramStatus('connected')
-            } else {
-              setTelegramStatus('disconnected')
-            }
+          const res = await fetch('/dashboard/admin/api/notifications/test-telegram', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ botToken: telegramToken, chatId: telegramChatId }),
+          })
+          const data = await res.json()
+          if (data.ok) {
+            setTelegramStatus('connected')
+            setTelegramBotName(data.botName || '')
           } else {
             setTelegramStatus('disconnected')
           }
@@ -218,7 +259,7 @@ export default function AdminNotificationsPage() {
   const getTelegramStatusLabel = () => {
     if (!telegramEnabled) return { text: 'غير مفعل', color: COLORS.muted }
     switch (telegramStatus) {
-      case 'connected': return { text: 'متصل', color: COLORS.success }
+      case 'connected': return { text: telegramBotName ? `متصل — @${telegramBotName}` : 'متصل', color: COLORS.success }
       case 'disconnected': return { text: 'غير متصل', color: COLORS.danger }
       default: return { text: 'غير مفحوص', color: COLORS.amber }
     }

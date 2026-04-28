@@ -71,6 +71,10 @@ async function runSchemaMigrations(): Promise<void> {
     // Add PRO/PLUS to Tier enum if not exists
     `ALTER TYPE "Tier" ADD VALUE IF NOT EXISTS 'PRO'`,
     `ALTER TYPE "Tier" ADD VALUE IF NOT EXISTS 'PLUS'`,
+    // Setting table (key-value system settings)
+    `CREATE TABLE IF NOT EXISTS "Setting" ("id" TEXT NOT NULL, "key" TEXT NOT NULL, "value" TEXT NOT NULL DEFAULT '{}', "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Setting_pkey" PRIMARY KEY ("id"))`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Setting_key_key" ON "Setting"("key")`,
+    `CREATE INDEX IF NOT EXISTS "Setting_key_idx" ON "Setting"("key")`,
   ]
 
   for (const sql of migrations) {

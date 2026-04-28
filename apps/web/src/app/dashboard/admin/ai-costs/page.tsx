@@ -12,6 +12,7 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   AlertTriangle,
+  AlertCircle,
   CheckCircle2,
   XCircle,
   Cpu,
@@ -176,6 +177,7 @@ interface AiApiResponse {
 export default function AdminAiCostsPage() {
   const [data, setData] = useState<AiApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [chartMode, setChartMode] = useState<'cost' | 'tokens'>('tokens')
   const [tooltipInfo, setTooltipInfo] = useState<{ date: string; cost: string; inputTokens: string; outputTokens: string; requests: string } | null>(null)
   const [sortField, setSortField] = useState<'cost' | 'inputTokens' | 'outputTokens' | 'requests' | 'avgLatency'>('cost')
@@ -188,9 +190,12 @@ export default function AdminAiCostsPage() {
       if (res.ok) {
         const json = await res.json()
         setData(json)
+        setError(null)
+      } else {
+        setError('فشل في جلب البيانات من الخادم')
       }
     } catch {
-      // ignore
+      setError('فشل في جلب البيانات من الخادم')
     } finally {
       setLoading(false)
     }
@@ -277,6 +282,33 @@ export default function AdminAiCostsPage() {
           <RefreshCw size={14} /> تحديث
         </button>
       </div>
+
+      {/* Error Banner */}
+      {error && (
+        <div style={{
+          padding: '12px 16px', borderRadius: 8,
+          background: `${COLORS.danger}10`, border: `1px solid ${COLORS.danger}25`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <AlertCircle size={16} color={COLORS.danger} />
+            <span style={{ fontSize: 12, color: COLORS.danger, fontFamily: "'Cairo', sans-serif" }}>
+              {error}
+            </span>
+          </div>
+          <button
+            onClick={fetchData}
+            style={{
+              padding: '4px 10px', borderRadius: 6,
+              border: `1px solid ${COLORS.danger}40`, background: `${COLORS.danger}10`,
+              color: COLORS.danger, fontSize: 10, fontWeight: 600,
+              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+            }}
+          >
+            إعادة المحاولة
+          </button>
+        </div>
+      )}
 
       {/* ─── Section 1: Summary Cards ─── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))', gap: 10 }}>

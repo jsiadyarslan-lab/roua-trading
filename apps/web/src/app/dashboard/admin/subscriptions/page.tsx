@@ -7,6 +7,7 @@ import {
   Users,
   TrendingDown,
   Clock,
+  AlertCircle,
 } from 'lucide-react'
 
 /* ── design tokens ── */
@@ -103,6 +104,7 @@ type RegPeriod = 'يومي' | 'أسبوعي' | 'شهري' | 'سنوي'
 export default function AdminSubscriptionsPage() {
   const [data, setData] = useState<SubsApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [regPeriod, setRegPeriod] = useState<RegPeriod>('شهري')
 
   const fetchData = useCallback(async () => {
@@ -112,9 +114,12 @@ export default function AdminSubscriptionsPage() {
       if (res.ok) {
         const json = await res.json()
         setData(json)
+        setError(null)
+      } else {
+        setError('فشل في جلب البيانات من الخادم')
       }
     } catch {
-      // ignore
+      setError('فشل في جلب البيانات من الخادم')
     } finally {
       setLoading(false)
     }
@@ -177,6 +182,33 @@ export default function AdminSubscriptionsPage() {
           <RefreshCw size={14} /> تحديث
         </button>
       </div>
+
+      {/* Error Banner */}
+      {error && (
+        <div style={{
+          padding: '12px 16px', borderRadius: 8,
+          background: `${COLORS.danger}10`, border: `1px solid ${COLORS.danger}25`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <AlertCircle size={16} color={COLORS.danger} />
+            <span style={{ fontSize: 12, color: COLORS.danger, fontFamily: "'Cairo', sans-serif" }}>
+              {error}
+            </span>
+          </div>
+          <button
+            onClick={fetchData}
+            style={{
+              padding: '4px 10px', borderRadius: 6,
+              border: `1px solid ${COLORS.danger}40`, background: `${COLORS.danger}10`,
+              color: COLORS.danger, fontSize: 10, fontWeight: 600,
+              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+            }}
+          >
+            إعادة المحاولة
+          </button>
+        </div>
+      )}
 
       {/* 5 Tier Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>

@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Activity,
+  AlertCircle,
 } from 'lucide-react'
 
 interface AdminUser {
@@ -69,6 +70,7 @@ export default function AdminUsersPage() {
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [tierFilter, setTierFilter] = useState<string>('all')
   const [showFilter, setShowFilter] = useState(false)
@@ -91,9 +93,12 @@ export default function AdminUsersPage() {
         setUsers(data.users || [])
         setTotal(data.total || 0)
         setTotalPages(data.totalPages || 1)
+        setError(null)
+      } else {
+        setError('فشل في جلب البيانات من الخادم')
       }
     } catch {
-      // Don't set fake data
+      setError('فشل في جلب البيانات من الخادم')
     } finally {
       setLoading(false)
     }
@@ -144,6 +149,33 @@ export default function AdminUsersPage() {
           <RefreshCw size={14} /> تحديث
         </button>
       </div>
+
+      {/* Error Banner */}
+      {error && (
+        <div style={{
+          padding: '12px 16px', borderRadius: 8,
+          background: `${COLORS.danger}10`, border: `1px solid ${COLORS.danger}25`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <AlertCircle size={16} color={COLORS.danger} />
+            <span style={{ fontSize: 12, color: COLORS.danger, fontFamily: "'Cairo', sans-serif" }}>
+              {error}
+            </span>
+          </div>
+          <button
+            onClick={fetchUsers}
+            style={{
+              padding: '4px 10px', borderRadius: 6,
+              border: `1px solid ${COLORS.danger}40`, background: `${COLORS.danger}10`,
+              color: COLORS.danger, fontSize: 10, fontWeight: 600,
+              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+            }}
+          >
+            إعادة المحاولة
+          </button>
+        </div>
+      )}
 
       {/* Search + Filter */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>

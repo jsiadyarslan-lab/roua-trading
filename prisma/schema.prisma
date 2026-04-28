@@ -638,3 +638,14 @@ model AdminSession {
   @@index([token])
   @@index([expiresAt])
 }
+
+// ── System Settings (Key-Value) ──
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @default("{}") // JSON-encoded value
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@index([key])
+}

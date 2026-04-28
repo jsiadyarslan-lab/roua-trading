@@ -6,7 +6,15 @@ export const dynamic = 'force-dynamic'
 export async function POST(req: NextRequest) {
   try {
     const { password } = await req.json()
-    const adminPassword = process.env.ADMIN_PASSWORD || 'roua2024'
+    const adminPassword = process.env.ADMIN_PASSWORD
+
+    if (!adminPassword) {
+      console.warn('[admin/auth/login] WARNING: ADMIN_PASSWORD environment variable is not set. Login is disabled for security. Set ADMIN_PASSWORD to enable admin login.')
+      return NextResponse.json(
+        { error: 'تسجيل الدخول معطل — لم يتم تعيين كلمة مرور المسؤول (ADMIN_PASSWORD) في متغيرات البيئة' },
+        { status: 403 }
+      )
+    }
 
     if (password !== adminPassword) {
       return NextResponse.json({ error: 'كلمة المرور غير صحيحة' }, { status: 401 })

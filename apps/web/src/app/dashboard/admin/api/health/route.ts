@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
  * Performs health checks on all monitored API endpoints
  * and returns aggregated results.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   const endpoints = [
     '/api/health',
     '/api/auth/session',
@@ -30,7 +30,7 @@ export async function GET() {
         const controller = new AbortController()
         const timeout = setTimeout(() => controller.abort(), 8000)
 
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+        const baseUrl = req.nextUrl.origin
         const res = await fetch(`${baseUrl}${path}`, {
           signal: controller.signal,
           headers: { 'Cache-Control': 'no-cache' },

@@ -10,8 +10,8 @@ import {
   Target,
   BarChart3,
   Activity,
-  Clock,
   Sparkles,
+  AlertTriangle,
 } from 'lucide-react'
 
 const COLORS = {
@@ -52,40 +52,60 @@ interface ScannerResult {
   change: number
 }
 
+interface SignalStats {
+  totalSignals: number
+  activeSignals: number
+  expiredSignals: number
+  executedSignals: number
+  cancelledSignals: number
+  winRate: number
+  avgConfidence: number
+  avgReturnPerSignal: number
+  bestPair: string | null
+  bestPairReturn: number
+  worstPair: string | null
+  worstPairReturn: number
+  error?: string
+}
+
 export default function AdminSignalsPage() {
   const [signals, setSignals] = useState<Signal[]>([])
   const [scannerResults, setScannerResults] = useState<ScannerResult[]>([])
   const [loading, setLoading] = useState(true)
+  const [signalsError, setSignalsError] = useState<string | null>(null)
+  const [scannerError, setScannerError] = useState<string | null>(null)
+  const [signalStats, setSignalStats] = useState<SignalStats | null>(null)
+  const [statsLoading, setStatsLoading] = useState(true)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
+    setSignalsError(null)
+    setScannerError(null)
+
     try {
       // Fetch smart signals
       const signalsRes = await fetch('/api/signals/smart')
       if (signalsRes.ok) {
         const data = await signalsRes.json()
-        if (data.signals) {
-          setSignals(data.signals.map((s: any) => ({
+        if (data.signals || data.data) {
+          const rawSignals = data.signals || data.data || []
+          setSignals(rawSignals.map((s: any) => ({
             id: s.id || Math.random().toString(),
-            pair: s.pair || 'BTC/USD',
-            action: s.action || 'WAIT',
-            confidence: s.confidence || 50,
+            pair: s.pair || s.symbol || '—',
+            action: s.action || s.type || 'WAIT',
+            confidence: s.confidence || s.conf || 0,
             reason: s.reason || '',
             status: s.status || 'ACTIVE',
-            createdAt: s.createdAt || new Date().toISOString(),
+            createdAt: s.createdAt || s.time || new Date().toISOString(),
             source: 'smart',
           })))
         }
+      } else {
+        setSignalsError('فشل في جلب الإشارات الذكية من الخادم')
       }
     } catch {
-      // Use fallback
-      setSignals([
-        { id: '1', pair: 'BTC/USD', action: 'BUY', confidence: 78, reason: 'نمط اختراق المقاومة مع حجم تداول مرتفع', status: 'ACTIVE', createdAt: new Date().toISOString(), source: 'smart' },
-        { id: '2', pair: 'ETH/USD', action: 'SELL', confidence: 62, reason: 'تشبع شرائي على RSI مع نمط سحابة سلبية', status: 'ACTIVE', createdAt: new Date(Date.now() - 300000).toISOString(), source: 'smart' },
-        { id: '3', pair: 'XAU/USD', action: 'BUY', confidence: 85, reason: 'ارتفاع الطلب على الملاذ الآمن مع ضعف الدولار', status: 'ACTIVE', createdAt: new Date(Date.now() - 600000).toISOString(), source: 'smart' },
-        { id: '4', pair: 'AAPL', action: 'WAIT', confidence: 45, reason: 'بانتظار نتائج الأرباع - عدم وضوح الاتجاه', status: 'EXPIRED', createdAt: new Date(Date.now() - 3600000).toISOString(), source: 'smart' },
-        { id: '5', pair: 'SOL/USD', action: 'BUY', confidence: 71, reason: 'ارتداد من دعم قوي مع إشارة MACD إيجابية', status: 'ACTIVE', createdAt: new Date(Date.now() - 1800000).toISOString(), source: 'smart' },
-      ])
+      setSignalsError('⚠️ بيانات غير متاحة — فشل الاتصال بالخادم')
+      setSignals([])
     }
 
     try {
@@ -93,32 +113,54 @@ export default function AdminSignalsPage() {
       const scanRes = await fetch('/api/scanner/scan')
       if (scanRes.ok) {
         const data = await scanRes.json()
-        if (data.results) {
-          setScannerResults(data.results.slice(0, 8).map((r: any) => ({
+        const rawResults = data.results || data.items || []
+        if (rawResults.length > 0) {
+          setScannerResults(rawResults.slice(0, 8).map((r: any) => ({
             symbol: r.symbol || r.pair || '—',
-            score: r.smartScore || r.score || 50,
+            score: r.smartScore || r.score || 0,
             direction: r.direction || (r.change > 0 ? 'bullish' : r.change < 0 ? 'bearish' : 'neutral'),
             change: r.change || r.priceChange || 0,
           })))
+        } else {
+          // API returned successfully but with empty results — this is okay
+          setScannerResults([])
         }
+        // If the API itself reports a fallback source, show warning
+        if (data.meta?.source === 'fallback' || data.meta?.error) {
+          setScannerError('⚠️ بيانات تجريبية — فشل الاتصال بخادم التحليل')
+        }
+      } else {
+        setScannerError('فشل في جلب نتائج الماسح من الخادم')
+        setScannerResults([])
       }
     } catch {
-      setScannerResults([
-        { symbol: 'BTC/USD', score: 82, direction: 'bullish', change: 2.4 },
-        { symbol: 'ETH/USD', score: 68, direction: 'bearish', change: -1.2 },
-        { symbol: 'SOL/USD', score: 75, direction: 'bullish', change: 4.8 },
-        { symbol: 'XAU/USD', score: 88, direction: 'bullish', change: 0.8 },
-        { symbol: 'AAPL', score: 55, direction: 'neutral', change: 0.1 },
-        { symbol: 'EUR/USD', score: 62, direction: 'bearish', change: -0.3 },
-        { symbol: 'TSLA', score: 70, direction: 'bullish', change: 1.9 },
-        { symbol: 'GBP/USD', score: 58, direction: 'neutral', change: -0.05 },
-      ])
+      setScannerError('⚠️ بيانات غير متاحة — فشل الاتصال بالخادم')
+      setScannerResults([])
     }
 
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  const fetchStats = useCallback(async () => {
+    setStatsLoading(true)
+    try {
+      const res = await fetch('/dashboard/admin/api/signals/stats')
+      if (res.ok) {
+        const data = await res.json()
+        setSignalStats(data)
+      } else {
+        setSignalStats(null)
+      }
+    } catch {
+      setSignalStats(null)
+    }
+    setStatsLoading(false)
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+    fetchStats()
+  }, [fetchData, fetchStats])
 
   const activeSignals = signals.filter(s => s.status === 'ACTIVE')
   const buySignals = signals.filter(s => s.action === 'BUY')
@@ -131,15 +173,42 @@ export default function AdminSignalsPage() {
     return { label: 'انتظار', Icon: Minus, color: COLORS.amber, bg: `${COLORS.amber}10`, border: `${COLORS.amber}25` }
   }
 
+  const hasAnyError = signalsError || scannerError
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Error Banner */}
+      {hasAnyError && (
+        <div style={{
+          padding: '12px 16px',
+          borderRadius: 8,
+          background: `${COLORS.amber}10`,
+          border: `1px solid ${COLORS.amber}30`,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+        }}>
+          <AlertTriangle size={16} color={COLORS.amber} />
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.amber, fontFamily: "'Cairo', sans-serif" }}>
+              فشل في جلب البيانات من الخادم
+            </div>
+            <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>
+              {signalsError && <span>الإشارات: {signalsError}</span>}
+              {signalsError && scannerError && <span> · </span>}
+              {scannerError && <span>الماسح: {scannerError}</span>}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif", margin: 0 }}>إدارة الإشارات</h1>
           <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", margin: '4px 0 0' }}>الإشارات الذكية ونتائج الماسح</p>
         </div>
-        <button onClick={fetchData} style={{
+        <button onClick={() => { fetchData(); fetchStats(); }} style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '8px 16px', borderRadius: 8,
           border: `1px solid ${COLORS.border}`, background: 'rgba(0,229,255,0.06)',
@@ -178,7 +247,7 @@ export default function AdminSignalsPage() {
         })}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }} className="admin-grid-2">
         {/* Smart Signals Feed */}
         <div style={{ ...CARD_STYLE, padding: 0 }}>
           <div style={{
@@ -192,6 +261,10 @@ export default function AdminSignalsPage() {
           <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 400, overflowY: 'auto' }} className="custom-scrollbar">
             {loading ? (
               <div style={{ padding: 30, textAlign: 'center', color: COLORS.muted, fontSize: 12, fontFamily: "'Cairo', sans-serif" }}>جارٍ التحميل...</div>
+            ) : signals.length === 0 ? (
+              <div style={{ padding: 30, textAlign: 'center', color: COLORS.muted, fontSize: 12, fontFamily: "'Cairo', sans-serif" }}>
+                {signalsError ? 'لا توجد بيانات إشارات متاحة' : 'لا توجد إشارات حالياً'}
+              </div>
             ) : signals.map((signal) => {
               const config = getActionConfig(signal.action)
               const ActionIcon = config.Icon
@@ -246,6 +319,10 @@ export default function AdminSignalsPage() {
           <div style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 400, overflowY: 'auto' }} className="custom-scrollbar">
             {loading ? (
               <div style={{ padding: 30, textAlign: 'center', color: COLORS.muted, fontSize: 12, fontFamily: "'Cairo', sans-serif" }}>جارٍ التحميل...</div>
+            ) : scannerResults.length === 0 ? (
+              <div style={{ padding: 30, textAlign: 'center', color: COLORS.muted, fontSize: 12, fontFamily: "'Cairo', sans-serif" }}>
+                {scannerError ? 'لا توجد بيانات ماسح متاحة' : 'لا توجد نتائج ماسح حالياً'}
+              </div>
             ) : scannerResults.map((result, i) => {
               const dirColor = result.direction === 'bullish' ? COLORS.success : result.direction === 'bearish' ? COLORS.danger : COLORS.muted
               const dirLabel = result.direction === 'bullish' ? 'صاعد' : result.direction === 'bearish' ? 'هابط' : 'محايد'
@@ -292,29 +369,73 @@ export default function AdminSignalsPage() {
         </div>
       </div>
 
-      {/* Signal Performance Stats */}
+      {/* Signal Performance Stats — Real Data from DB */}
       <div style={{ ...CARD_STYLE, padding: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
           <Target size={14} color={COLORS.success} />
           <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>أداء الإشارات</span>
+          {signalStats?.error && (
+            <span style={{ fontSize: 9, color: COLORS.amber, fontFamily: "'Cairo', sans-serif", marginRight: 8 }}>
+              (قاعدة البيانات غير متاحة)
+            </span>
+          )}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-          {[
-            { label: 'دقة الإشارات (30 يوم)', value: '68.5%', bar: 68.5, color: COLORS.success },
-            { label: 'متوسط العائد لكل إشارة', value: '+2.3%', bar: 52, color: COLORS.accent },
-            { label: 'أفضل زوج', value: 'BTC/USD +12.4%', bar: 85, color: COLORS.amber },
-            { label: 'أسوأ زوج', value: 'EUR/USD -3.1%', bar: 25, color: COLORS.danger },
-          ].map((stat, i) => (
-            <div key={i} style={{ padding: 12, borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: `1px solid ${COLORS.border}` }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>{stat.label}</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: stat.color, fontFamily: "'JetBrains Mono', monospace" }}>{stat.value}</span>
+          {statsLoading ? (
+            // Loading skeleton
+            Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} style={{ padding: 12, borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: `1px solid ${COLORS.border}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ width: 100, height: 10, borderRadius: 4, background: 'rgba(255,255,255,0.06)' }} />
+                  <div style={{ width: 60, height: 12, borderRadius: 4, background: 'rgba(255,255,255,0.06)' }} />
+                </div>
+                <div style={{ width: '100%', height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)' }} />
               </div>
-              <div style={{ width: '100%', height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)' }}>
-                <div style={{ width: `${stat.bar}%`, height: '100%', background: stat.color, borderRadius: 2, transition: 'width 0.5s ease' }} />
+            ))
+          ) : (
+            [
+              {
+                label: 'دقة الإشارات',
+                value: signalStats ? `${signalStats.winRate}%` : '0%',
+                bar: signalStats?.winRate || 0,
+                color: COLORS.success,
+              },
+              {
+                label: 'متوسط العائد لكل إشارة',
+                value: signalStats && signalStats.avgReturnPerSignal !== 0
+                  ? `${signalStats.avgReturnPerSignal >= 0 ? '+' : ''}${signalStats.avgReturnPerSignal}%`
+                  : '0%',
+                bar: signalStats?.avgReturnPerSignal ? Math.min(Math.abs(signalStats.avgReturnPerSignal) * 10, 100) : 0,
+                color: (signalStats?.avgReturnPerSignal || 0) >= 0 ? COLORS.accent : COLORS.danger,
+              },
+              {
+                label: 'أفضل زوج',
+                value: signalStats?.bestPair
+                  ? `${signalStats.bestPair} ${signalStats.bestPairReturn}%`
+                  : '—',
+                bar: signalStats?.bestPairReturn || 0,
+                color: COLORS.amber,
+              },
+              {
+                label: 'أسوأ زوج',
+                value: signalStats?.worstPair
+                  ? `${signalStats.worstPair} ${signalStats.worstPairReturn}%`
+                  : '—',
+                bar: signalStats?.worstPairReturn || 0,
+                color: COLORS.danger,
+              },
+            ].map((stat, i) => (
+              <div key={i} style={{ padding: 12, borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: `1px solid ${COLORS.border}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <span style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>{stat.label}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: stat.color, fontFamily: "'JetBrains Mono', monospace" }}>{stat.value}</span>
+                </div>
+                <div style={{ width: '100%', height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)' }}>
+                  <div style={{ width: `${Math.max(stat.bar, 2)}%`, height: '100%', background: stat.color, borderRadius: 2, transition: 'width 0.5s ease' }} />
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 

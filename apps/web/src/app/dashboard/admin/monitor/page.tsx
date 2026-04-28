@@ -16,6 +16,8 @@ import {
   AlertTriangle,
   ExternalLink,
   GitBranch,
+  Loader2,
+  Save,
 } from 'lucide-react'
 
 /* ── design tokens ── */
@@ -41,12 +43,19 @@ const CARD_STYLE: React.CSSProperties = {
   overflow: 'hidden',
 }
 
+/* ── toast notification ── */
+interface Toast {
+  id: number
+  message: string
+  type: 'success' | 'error' | 'info'
+}
+
 /* ── types ── */
 interface MonitorStatus {
   running: boolean
   lastCheck: string | null
   message: string
-  agentUrl: string
+  agentUrl: string | null
   checkInterval: number
   endpoints: { path: string; label: string }[]
 }
@@ -99,6 +108,25 @@ export default function AdminMonitorPage() {
   const [alertThreshold, setAlertThreshold] = useState(2000)
   const [telegramToggle, setTelegramToggle] = useState(false)
 
+  /* Control button states */
+  const [agentActionLoading, setAgentActionLoading] = useState<'start' | 'stop' | null>(null)
+  const [agentDeployed, setAgentDeployed] = useState<boolean | null>(null)
+
+  /* Settings saving state */
+  const [settingsSaving, setSettingsSaving] = useState(false)
+  const [settingsMessage, setSettingsMessage] = useState('')
+
+  /* Toast notifications */
+  const [toasts, setToasts] = useState<Toast[]>([])
+
+  const addToast = useCallback((message: string, type: Toast['type'] = 'info') => {
+    const id = Date.now()
+    setToasts(prev => [...prev, { id, message, type }])
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id))
+    }, 4000)
+  }, [])
+
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch('/dashboard/admin/api/monitor/status')
@@ -106,6 +134,7 @@ export default function AdminMonitorPage() {
         const data = await res.json()
         setStatus(data)
         setCheckInterval(data.checkInterval || 60)
+        setAgentDeployed(!!data.agentUrl)
       }
     } catch {
       // ignore
@@ -128,9 +157,27 @@ export default function AdminMonitorPage() {
     }
   }, [])
 
+  /* Load settings from API on mount */
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch('/dashboard/admin/api/monitor/settings')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.settings) {
+          setCheckInterval(data.settings.checkInterval ?? 60)
+          setAlertThreshold(data.settings.alertThreshold ?? 2000)
+          setTelegramToggle(data.settings.telegramEnabled ?? false)
+        }
+      }
+    } catch {
+      // ignore — use defaults
+    }
+  }, [])
+
   useEffect(() => {
     const init = async () => {
       await fetchStatus()
+      await fetchSettings()
       await fetchHealth()
     }
     init()
@@ -139,7 +186,66 @@ export default function AdminMonitorPage() {
       fetchHealth()
     }, 30000)
     return () => clearInterval(interval)
-  }, [fetchStatus, fetchHealth])
+  }, [fetchStatus, fetchHealth, fetchSettings])
+
+  /* ── Agent control handlers ── */
+  const handleAgentAction = async (action: 'start' | 'stop') => {
+    setAgentActionLoading(action)
+    try {
+      const res = await fetch('/dashboard/admin/api/monitor/control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      const data = await res.json()
+
+      if (data.agentDeployed === false) {
+        addToast('وكيل المراقبة غير منشور — قم بتعيين MONITOR_AGENT_URL أولاً', 'error')
+        setAgentDeployed(false)
+      } else if (data.success) {
+        addToast(data.message || (action === 'start' ? 'تم تشغيل الوكيل' : 'تم إيقاف الوكيل'), 'success')
+        // Refresh status after a short delay
+        setTimeout(() => fetchStatus(), 2000)
+      } else {
+        addToast(data.error || 'فشل في تنفيذ الأمر', 'error')
+      }
+    } catch {
+      addToast('خطأ في الاتصال بالخادم', 'error')
+    } finally {
+      setAgentActionLoading(null)
+    }
+  }
+
+  /* ── Save settings handler ── */
+  const handleSaveSettings = async () => {
+    setSettingsSaving(true)
+    setSettingsMessage('')
+    try {
+      const res = await fetch('/dashboard/admin/api/monitor/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          checkInterval,
+          alertThreshold,
+          telegramEnabled: telegramToggle,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSettingsMessage('تم حفظ الإعدادات بنجاح ✓')
+        addToast('تم حفظ إعدادات المراقبة', 'success')
+      } else {
+        setSettingsMessage(data.error || 'فشل في حفظ الإعدادات')
+        addToast(data.error || 'فشل في حفظ الإعدادات', 'error')
+      }
+    } catch {
+      setSettingsMessage('خطأ في الاتصال بالخادم')
+      addToast('خطأ في الاتصال بالخادم', 'error')
+    } finally {
+      setSettingsSaving(false)
+      setTimeout(() => setSettingsMessage(''), 3000)
+    }
+  }
 
   const formatDate = (iso: string | null) => {
     if (!iso) return 'لم يتم بعد'
@@ -174,6 +280,38 @@ export default function AdminMonitorPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Toast Notifications */}
+      {toasts.length > 0 && (
+        <div style={{
+          position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 8,
+          maxWidth: 420, width: '90%',
+        }}>
+          {toasts.map(toast => (
+            <div key={toast.id} style={{
+              padding: '12px 16px', borderRadius: 8,
+              background: toast.type === 'success' ? `${COLORS.success}15` :
+                toast.type === 'error' ? `${COLORS.danger}15` : `${COLORS.accent}15`,
+              border: `1px solid ${
+                toast.type === 'success' ? COLORS.success + '40' :
+                toast.type === 'error' ? COLORS.danger + '40' : COLORS.accent + '40'
+              }`,
+              color: toast.type === 'success' ? COLORS.success :
+                toast.type === 'error' ? COLORS.danger : COLORS.accent,
+              fontSize: 12, fontWeight: 600,
+              fontFamily: "'Cairo', sans-serif",
+              display: 'flex', alignItems: 'center', gap: 8,
+              backdropFilter: 'blur(12px)',
+            }}>
+              {toast.type === 'success' && <CheckCircle2 size={16} />}
+              {toast.type === 'error' && <XCircle size={16} />}
+              {toast.type === 'info' && <AlertTriangle size={16} />}
+              {toast.message}
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
@@ -198,6 +336,21 @@ export default function AdminMonitorPage() {
           <RefreshCw size={14} /> تحديث
         </button>
       </div>
+
+      {/* Agent not deployed warning */}
+      {agentDeployed === false && (
+        <div style={{
+          padding: '12px 16px', borderRadius: 8,
+          background: `${COLORS.amber}10`,
+          border: `1px solid ${COLORS.amber}30`,
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <AlertTriangle size={16} color={COLORS.amber} />
+          <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.amber, fontFamily: "'Cairo', sans-serif" }}>
+            وكيل المراقبة غير منشور — قم بتعيين MONITOR_AGENT_URL في متغيرات البيئة ونشر الوكيل على Railway أولاً
+          </span>
+        </div>
+      )}
 
       {/* Agent Status Card + Control Buttons */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -263,16 +416,22 @@ export default function AdminMonitorPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {/* Start Agent */}
-            <button style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              padding: '12px', borderRadius: 8,
-              border: `1px solid ${COLORS.success}25`,
-              background: `${COLORS.success}08`,
-              color: COLORS.success, fontSize: 13, fontWeight: 700,
-              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}>
-              <Play size={16} /> تشغيل الوكيل
+            <button
+              onClick={() => handleAgentAction('start')}
+              disabled={agentActionLoading !== null}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                padding: '12px', borderRadius: 8,
+                border: `1px solid ${COLORS.success}25`,
+                background: `${COLORS.success}08`,
+                color: COLORS.success, fontSize: 13, fontWeight: 700,
+                fontFamily: "'Cairo', sans-serif", cursor: agentActionLoading ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+                opacity: agentActionLoading ? 0.6 : 1,
+              }}
+            >
+              {agentActionLoading === 'start' ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Play size={16} />}
+              {agentActionLoading === 'start' ? 'جارٍ التشغيل...' : 'تشغيل الوكيل'}
             </button>
             <div style={{
               fontSize: 9, color: COLORS.muted, fontFamily: "'Cairo', sans-serif",
@@ -282,16 +441,22 @@ export default function AdminMonitorPage() {
             </div>
 
             {/* Stop Agent */}
-            <button style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              padding: '12px', borderRadius: 8,
-              border: `1px solid ${COLORS.danger}25`,
-              background: `${COLORS.danger}08`,
-              color: COLORS.danger, fontSize: 13, fontWeight: 700,
-              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}>
-              <Square size={16} /> إيقاف الوكيل
+            <button
+              onClick={() => handleAgentAction('stop')}
+              disabled={agentActionLoading !== null}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                padding: '12px', borderRadius: 8,
+                border: `1px solid ${COLORS.danger}25`,
+                background: `${COLORS.danger}08`,
+                color: COLORS.danger, fontSize: 13, fontWeight: 700,
+                fontFamily: "'Cairo', sans-serif", cursor: agentActionLoading ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+                opacity: agentActionLoading ? 0.6 : 1,
+              }}
+            >
+              {agentActionLoading === 'stop' ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Square size={16} />}
+              {agentActionLoading === 'stop' ? 'جارٍ الإيقاف...' : 'إيقاف الوكيل'}
             </button>
 
             {/* Immediate Check */}
@@ -478,6 +643,40 @@ export default function AdminMonitorPage() {
                   )}
                 </button>
               </div>
+
+              {/* Save Settings Button */}
+              <button
+                onClick={handleSaveSettings}
+                disabled={settingsSaving}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '10px', borderRadius: 8,
+                  border: `1px solid ${COLORS.accent}25`,
+                  background: `${COLORS.accent}08`,
+                  color: COLORS.accent, fontSize: 12, fontWeight: 600,
+                  fontFamily: "'Cairo', sans-serif",
+                  cursor: settingsSaving ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s',
+                  opacity: settingsSaving ? 0.6 : 1,
+                }}
+              >
+                {settingsSaving ? (
+                  <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
+                ) : (
+                  <Save size={14} />
+                )}
+                {settingsSaving ? 'جارٍ الحفظ...' : 'حفظ الإعدادات'}
+              </button>
+              {settingsMessage && (
+                <div style={{
+                  fontSize: 11, fontWeight: 600,
+                  color: settingsMessage.includes('نجاح') ? COLORS.success : COLORS.danger,
+                  fontFamily: "'Cairo', sans-serif",
+                  textAlign: 'center',
+                }}>
+                  {settingsMessage}
+                </div>
+              )}
             </div>
           </div>
 
@@ -542,6 +741,10 @@ export default function AdminMonitorPage() {
         @keyframes pulse {
           0%, 100% { opacity: 0.5; }
           50% { opacity: 1; }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
         @media (max-width: 900px) {
           [style*="grid-template-columns: 1fr 1fr"] {

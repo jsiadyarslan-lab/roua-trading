@@ -8,8 +8,7 @@ import {
   Target,
   Activity,
   RefreshCw,
-  ArrowUpRight,
-  ArrowDownRight,
+  AlertCircle,
   Zap,
   Shield,
   Server,
@@ -79,6 +78,7 @@ export default function AdminOverviewPage() {
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchStats = async () => {
     try {
@@ -86,9 +86,12 @@ export default function AdminOverviewPage() {
       if (res.ok) {
         const data = await res.json()
         setStats(data)
+        setError(null)
+      } else {
+        setError('فشل في جلب البيانات من الخادم')
       }
     } catch {
-      // Don't set fake data - leave as null
+      setError('فشل في جلب البيانات من الخادم')
     }
   }
 
@@ -100,7 +103,7 @@ export default function AdminOverviewPage() {
         setActivities(data.activities || [])
       }
     } catch {
-      // Don't set fake data - leave as empty
+      // Activity fetch failure is non-critical, don't override stats error
     }
   }
 
@@ -171,6 +174,33 @@ export default function AdminOverviewPage() {
           <RefreshCw size={14} /> تحديث
         </button>
       </div>
+
+      {/* Fetch Error Banner */}
+      {error && (
+        <div style={{
+          padding: '12px 16px', borderRadius: 8,
+          background: `${COLORS.danger}10`, border: `1px solid ${COLORS.danger}25`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <AlertCircle size={16} color={COLORS.danger} />
+            <span style={{ fontSize: 12, color: COLORS.danger, fontFamily: "'Cairo', sans-serif" }}>
+              {error}
+            </span>
+          </div>
+          <button
+            onClick={fetchAll}
+            style={{
+              padding: '4px 10px', borderRadius: 6,
+              border: `1px solid ${COLORS.danger}40`, background: `${COLORS.danger}10`,
+              color: COLORS.danger, fontSize: 10, fontWeight: 600,
+              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+            }}
+          >
+            إعادة المحاولة
+          </button>
+        </div>
+      )}
 
       {/* DB Error Banner */}
       {hasDbError && (

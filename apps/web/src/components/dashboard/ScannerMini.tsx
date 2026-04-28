@@ -31,6 +31,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [hoveredPair, setHoveredPair] = useState<string | null>(null)
   const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number } | null>(null)
+  const tooltipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const doScan = useCallback(async () => {
     if (scanningRef.current) return;
@@ -115,14 +116,17 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
   }, [lastScan])
 
   const handleMouseEnter = (pair: string, e: React.MouseEvent) => {
+    if (tooltipTimeoutRef.current) clearTimeout(tooltipTimeoutRef.current)
     setHoveredPair(pair)
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    setTooltipPos({ top: rect.top - 4, left: rect.left })
+    setTooltipPos({ top: rect.top, left: rect.left })
   }
 
   const handleMouseLeave = () => {
-    setHoveredPair(null)
-    setTooltipPos(null)
+    tooltipTimeoutRef.current = setTimeout(() => {
+      setHoveredPair(null)
+      setTooltipPos(null)
+    }, 100)
   }
 
   return (
@@ -184,39 +188,43 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
             border-radius: 4px;
             animation: dash-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
           }
+          @keyframes sig-glow {
+            0%, 100% { box-shadow: 0 0 0 rgba(0,229,255,0); }
+            50% { box-shadow: 0 0 6px rgba(0,229,255,0.08); }
+          }
         `}</style>
         {spotlight && (
           <div style={{
             marginBottom: 6,
             background: spotlight.pair === activeSymbol
-              ? 'linear-gradient(180deg, rgba(0,229,255,0.08), rgba(255,255,255,0.02))'
-              : 'linear-gradient(180deg, rgba(255,184,0,0.06), rgba(255,255,255,0.02))',
+              ? 'linear-gradient(135deg, rgba(0,229,255,0.10), rgba(0,229,255,0.02))'
+              : 'linear-gradient(135deg, rgba(255,184,0,0.08), rgba(255,255,255,0.02))',
             border: spotlight.pair === activeSymbol
-              ? '1px solid rgba(0,229,255,0.20)'
-              : '1px solid rgba(255,184,0,0.12)',
-            borderRadius: 8,
-            padding: 6,
+              ? '1px solid rgba(0,229,255,0.25)'
+              : '1px solid rgba(255,184,0,0.15)',
+            borderRadius: 10,
+            padding: '7px 8px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 3,
+            gap: 4,
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: 8, fontWeight: 800, color: 'var(--foreground)', fontFamily: "'Cairo', sans-serif" }}>
+              <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--foreground)', fontFamily: "'Cairo', sans-serif" }}>
                 {spotlight.pair === activeSymbol ? '🎯 الأصل المحدد تحت المجهر' : 'الفرصة الأهم'}
               </span>
               <span style={{
-                fontSize: 6.5,
-                padding: '1px 5px',
+                fontSize: 7,
+                padding: '1.5px 6px',
                 borderRadius: 999,
-                background: spotlight.dir === 'buy' ? 'rgba(0,200,83,0.12)' : spotlight.dir === 'sell' ? 'rgba(255,59,48,0.12)' : 'rgba(255,184,0,0.12)',
+                background: spotlight.dir === 'buy' ? 'rgba(0,200,83,0.15)' : spotlight.dir === 'sell' ? 'rgba(255,59,48,0.15)' : 'rgba(255,184,0,0.15)',
                 color: spotlight.dir === 'buy' ? 'var(--success)' : spotlight.dir === 'sell' ? 'var(--danger)' : 'var(--amber)',
-                fontFamily: 'monospace',
+                fontFamily: "'Cairo', sans-serif",
                 fontWeight: 800,
               }}>
-                {spotlight.signalClass || 'watch'} · {spotlight.entryBias || 'wait'}
+                {spotlight.dir === 'buy' ? 'شراء' : spotlight.dir === 'sell' ? 'بيع' : 'ترقب'}
               </span>
             </div>
-            <div style={{ fontSize: 7, color: 'var(--text2)', lineHeight: 1.5 }}>
+            <div style={{ fontSize: 7.5, color: 'var(--text2)', lineHeight: 1.6, fontFamily: "'Cairo', sans-serif" }}>
               {Array.isArray(spotlight.reasons) && spotlight.reasons.length > 0
                 ? `ظهر ${spotlight.pair} لأن: ${spotlight.reasons.slice(0, 2).join('، ')}.`
                 : `السكانر يراقب ${spotlight.pair} بانتظار تأكيد.`}
@@ -245,11 +253,14 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
              <div style={{ fontSize: 8, marginTop: 6 }}>لا توجد إشارات الآن.</div>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {signals.map((sig, i) => {
               const isHovered = hoveredPair === sig.pair
-              const dirColor = sig.dir === 'buy' ? 'var(--success)' : sig.dir === 'sell' ? 'var(--danger)' : 'var(--amber)'
-              const dirBg = sig.dir === 'buy' ? 'rgba(0,200,83,0.10)' : sig.dir === 'sell' ? 'rgba(255,59,48,0.10)' : 'rgba(255,184,0,0.10)'
+              const isBuy = sig.dir === 'buy'
+              const isSell = sig.dir === 'sell'
+              const dirColor = isBuy ? '#00E676' : isSell ? '#FF5252' : '#FFB800'
+              const dirBg = isBuy ? 'rgba(0,230,118,0.10)' : isSell ? 'rgba(255,82,82,0.10)' : 'rgba(255,184,0,0.10)'
+              const isActiveSig = sig.pair === activeSymbol
               const signalExplanation = SIGNAL_EXPLANATIONS[sig.dir] || SIGNAL_EXPLANATIONS[sig.direction] || 'إشارة من السكانر'
 
               return (
@@ -258,52 +269,73 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                   onClick={() => setSelectedSymbol(sig.pair)}
                   onMouseEnter={(e) => handleMouseEnter(sig.pair, e)}
                   onMouseLeave={handleMouseLeave}
-                  title={`${sig.pair}: ${signalExplanation}`}
                   style={{
-                    background: sig.pair === activeSymbol
-                      ? 'rgba(0,229,255,0.04)'
+                    background: isActiveSig
+                      ? `linear-gradient(135deg, ${dirBg}, rgba(0,229,255,0.03))`
                       : isHovered
-                        ? 'rgba(255,255,255,0.03)'
+                        ? `linear-gradient(135deg, ${dirBg}, rgba(255,255,255,0.015))`
                         : 'rgba(255,255,255,0.015)',
-                    border: sig.pair === activeSymbol
-                      ? '1px solid rgba(0,229,255,0.16)'
-                      : '1px solid rgba(0,229,255,0.06)',
-                    borderRadius: 6,
-                    padding: '4px 5px',
+                    border: isActiveSig
+                      ? `1px solid ${isBuy ? 'rgba(0,230,118,0.25)' : isSell ? 'rgba(255,82,82,0.25)' : 'rgba(255,184,0,0.25)'}`
+                      : isHovered
+                        ? `1px solid ${isBuy ? 'rgba(0,230,118,0.18)' : isSell ? 'rgba(255,82,82,0.18)' : 'rgba(255,184,0,0.18)'}`
+                        : '1px solid rgba(255,255,255,0.04)',
+                    borderRadius: 8,
+                    padding: '5px 7px',
                     cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    boxShadow: sig.pair === activeSymbol ? '0 0 8px rgba(0,229,255,0.06) inset' : 'none',
+                    transition: 'all 0.2s ease',
+                    position: 'relative',
+                    overflow: 'hidden',
                   }}
                 >
-                  {/* Row 1: Pair + Direction + Strength */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                      <span style={{ fontSize: 9, fontWeight: 800, color: '#fff', fontFamily: 'monospace' }}>{sig.pair}</span>
-                      <span style={{ fontSize: 6, fontWeight: 800, color: dirColor, background: dirBg, padding: '0.5px 3px', borderRadius: 2, textTransform: 'uppercase' }}>
-                        {sig.dir === 'buy' ? 'شراء' : sig.dir === 'sell' ? 'بيع' : 'ترقب'}
+                  {/* Accent line on the right side */}
+                  <div style={{
+                    position: 'absolute', right: 0, top: '15%', bottom: '15%', width: 2.5,
+                    borderRadius: 2,
+                    background: dirColor,
+                    opacity: isActiveSig ? 0.7 : isHovered ? 0.5 : 0.25,
+                    transition: 'opacity 0.2s ease',
+                  }} />
+
+                  {/* Row 1: Pair + Direction badge + Strength */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: '#fff', fontFamily: "'JetBrains Mono', monospace" }}>{sig.pair}</span>
+                      <span style={{
+                        fontSize: 7, fontWeight: 800, color: dirColor, background: dirBg,
+                        padding: '1px 5px', borderRadius: 3,
+                        fontFamily: "'Cairo', sans-serif",
+                      }}>
+                        {isBuy ? 'شراء' : isSell ? 'بيع' : 'ترقب'}
                       </span>
-                      {sig.pair === activeSymbol && (
-                        <span style={{ fontSize: 5, background: 'rgba(0,229,255,0.10)', padding: '0.5px 3px', borderRadius: 2, color: 'var(--accent)' }}>🎯</span>
+                      {isActiveSig && (
+                        <span style={{ fontSize: 6, background: 'rgba(0,229,255,0.12)', padding: '1px 4px', borderRadius: 3, color: 'var(--accent)', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>محدد</span>
                       )}
                     </div>
-                    <span style={{ fontSize: 9, fontWeight: 800, color: '#fff' }}>{sig.strength}%</span>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: dirColor, fontFamily: "'JetBrains Mono', monospace" }}>{sig.strength}</span>
+                      <span style={{ fontSize: 6, fontWeight: 700, color: 'var(--text3)' }}>%</span>
+                    </div>
                   </div>
 
                   {/* Progress bar */}
-                  <div style={{ height: 2.5, background: 'rgba(255,255,255,0.05)', borderRadius: 1, overflow: 'hidden', marginBottom: 3 }}>
+                  <div style={{ height: 3, background: 'rgba(255,255,255,0.04)', borderRadius: 2, overflow: 'hidden', marginBottom: 4 }}>
                     <div style={{
                       height: '100%',
                       width: `${sig.strength}%`,
-                      background: dirColor,
-                      boxShadow: `0 0 4px ${sig.dir === 'buy' ? 'rgba(0,200,83,0.3)' : sig.dir === 'sell' ? 'rgba(255,68,48,0.3)' : 'rgba(255,184,0,0.3)'}`,
-                      borderRadius: 1,
+                      background: `linear-gradient(90deg, ${dirColor}, ${isBuy ? 'rgba(0,230,118,0.4)' : isSell ? 'rgba(255,82,82,0.4)' : 'rgba(255,184,0,0.4)'})`,
+                      borderRadius: 2,
+                      transition: 'width 0.4s ease',
                     }} />
                   </div>
 
                   {/* Meta row */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 5.5, color: 'var(--text3)', fontFamily: 'monospace' }}>
-                    <span>{(sig.signalClass || 'watch').toUpperCase()} · {(sig.entryBias || 'wait').toUpperCase()}</span>
-                    <span>{sig.timestamp ? formatFreshness(sig.timestamp) : (lastScan || 'الآن')}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+                      {sig.rsi != null && <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: "'JetBrains Mono', monospace" }}>RSI {sig.rsi}</span>}
+                      {sig.macdSignal != null && <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: "'JetBrains Mono', monospace" }}>MACD {sig.macdSignal}</span>}
+                    </div>
+                    <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: 'monospace' }}>{sig.timestamp ? formatFreshness(sig.timestamp) : (lastScan || 'الآن')}</span>
                   </div>
                 </div>
               )
@@ -316,28 +348,31 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
       {hoveredPair && tooltipPos && (() => {
         const sig = signals.find(s => s.pair === hoveredPair)
         if (!sig) return null
+        const isBuy = sig.dir === 'buy'
+        const isSell = sig.dir === 'sell'
+        const dirColor = isBuy ? '#00E676' : isSell ? '#FF5252' : '#FFB800'
         const explanation = SIGNAL_EXPLANATIONS[sig.dir] || SIGNAL_EXPLANATIONS[sig.direction] || 'إشارة من السكانر'
         const reasons = Array.isArray(sig.reasons) ? sig.reasons.slice(0, 3).join(' · ') : ''
         return (
           <div style={{
             position: 'fixed',
-            top: tooltipPos.top - 36,
+            top: tooltipPos.top - 42,
             left: tooltipPos.left,
             zIndex: 9999,
             pointerEvents: 'none',
-            maxWidth: 220,
-            background: 'rgba(20, 24, 36, 0.95)',
-            border: `1px solid ${sig.dir === 'buy' ? 'rgba(0,200,83,0.25)' : sig.dir === 'sell' ? 'rgba(255,59,48,0.25)' : 'rgba(255,184,0,0.25)'}`,
-            borderRadius: 6,
-            padding: '4px 7px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-            backdropFilter: 'blur(8px)',
+            maxWidth: 240,
+            background: 'rgba(12, 14, 20, 0.96)',
+            border: `1px solid ${isBuy ? 'rgba(0,230,118,0.30)' : isSell ? 'rgba(255,82,82,0.30)' : 'rgba(255,184,0,0.30)'}`,
+            borderRadius: 8,
+            padding: '5px 9px',
+            boxShadow: `0 8px 24px rgba(0,0,0,0.5), 0 0 12px ${isBuy ? 'rgba(0,230,118,0.06)' : isSell ? 'rgba(255,82,82,0.06)' : 'rgba(255,184,0,0.06)'}`,
+            backdropFilter: 'blur(12px)',
           }}>
-            <div style={{ fontSize: 7, fontWeight: 800, color: sig.dir === 'buy' ? '#00C853' : sig.dir === 'sell' ? '#FF3B30' : '#FFB800', fontFamily: "'Cairo', sans-serif", marginBottom: 2 }}>
-              {hoveredPair}: {explanation}
+            <div style={{ fontSize: 8, fontWeight: 800, color: dirColor, fontFamily: "'Cairo', sans-serif", marginBottom: reasons ? 3 : 0 }}>
+              {sig.pair} — {explanation}
             </div>
             {reasons && (
-              <div style={{ fontSize: 6, color: '#8090A8', fontFamily: "'Cairo', sans-serif" }}>
+              <div style={{ fontSize: 6.5, color: '#90A0B8', fontFamily: "'Cairo', sans-serif", lineHeight: 1.5 }}>
                 {reasons}
               </div>
             )}

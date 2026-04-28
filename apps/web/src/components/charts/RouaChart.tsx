@@ -313,24 +313,30 @@ export default function RouaChart({
   }, []);
 
   // ── Chart Trading Order Handler ────────────────────────
+  const [orderError, setOrderError] = useState<string | null>(null);
+  
   const handlePlaceOrder = useCallback((order: any) => {
     // Validate SL/TP placement
     if (order.side === 'buy') {
       if (order.sl && order.sl >= order.entryPrice) {
-        alert('يجب أن يكون وقف الخسارة أقل من سعر الدخول للشراء');
+        setOrderError('يجب أن يكون وقف الخسارة أقل من سعر الدخول للشراء');
+        setTimeout(() => setOrderError(null), 3500);
         return;
       }
       if (order.tp && order.tp <= order.entryPrice) {
-        alert('يجب أن يكون جني الأرباح أعلى من سعر الدخول للشراء');
+        setOrderError('يجب أن يكون جني الأرباح أعلى من سعر الدخول للشراء');
+        setTimeout(() => setOrderError(null), 3500);
         return;
       }
     } else {
       if (order.sl && order.sl <= order.entryPrice) {
-        alert('يجب أن يكون وقف الخسارة أعلى من سعر الدخول للبيع');
+        setOrderError('يجب أن يكون وقف الخسارة أعلى من سعر الدخول للبيع');
+        setTimeout(() => setOrderError(null), 3500);
         return;
       }
       if (order.tp && order.tp >= order.entryPrice) {
-        alert('يجب أن يكون جني الأرباح أقل من سعر الدخول للبيع');
+        setOrderError('يجب أن يكون جني الأرباح أقل من سعر الدخول للبيع');
+        setTimeout(() => setOrderError(null), 3500);
         return;
       }
     }
@@ -460,6 +466,7 @@ export default function RouaChart({
           compact={compact}
           mobile={mobile}
           candles={candlesRef.current}
+          showCandleTimer={chart.settings.showCandleTimer}
         />
 
         {/* Chart Container */}
@@ -472,6 +479,26 @@ export default function RouaChart({
             position: 'relative',
           }}
         >
+          {/* Symbol Watermark */}
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            pointerEvents: 'none',
+            zIndex: 1,
+            opacity: 0.04,
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: Math.min(120, Math.max(48, 80)),
+            fontWeight: 900,
+            color: COLORS.text,
+            whiteSpace: 'nowrap',
+            letterSpacing: -2,
+            userSelect: 'none',
+          }}>
+            {selectedSymbol.replace('/', '')}
+          </div>
+
           {/* Volume Profile (overlaid on chart) */}
           {showVolumeProfile && (
             <VolumeProfile
@@ -482,6 +509,99 @@ export default function RouaChart({
             />
           )}
         </div>
+
+        {/* Quick Trade Buttons (Buy/Sell) — right side of chart */}
+        {!mobile && currentPrice && (
+          <div style={{
+            position: 'absolute',
+            right: 6,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
+            zIndex: 10,
+          }}>
+            <button
+              onClick={() => {
+                const { addTrade } = usePaperTradesStore.getState();
+                addTrade({
+                  symbol: selectedSymbol,
+                  side: 'long',
+                  qty: 0.01,
+                  entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                  currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                  entryTime: Date.now(),
+                  strategy: 'quick',
+                  source: 'manual',
+                });
+              }}
+              style={{
+                background: 'rgba(63,185,80,0.15)',
+                border: '1px solid rgba(63,185,80,0.35)',
+                borderRadius: 8,
+                padding: '6px 10px',
+                cursor: 'pointer',
+                color: '#3fb950',
+                fontWeight: 800,
+                fontSize: 10,
+                fontFamily: "'Cairo', sans-serif",
+                transition: 'all 0.15s',
+                backdropFilter: 'blur(8px)',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(63,185,80,0.3)';
+                e.currentTarget.style.boxShadow = '0 0 12px rgba(63,185,80,0.2)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(63,185,80,0.15)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              title="شراء سريع"
+            >
+              شراء
+            </button>
+            <button
+              onClick={() => {
+                const { addTrade } = usePaperTradesStore.getState();
+                addTrade({
+                  symbol: selectedSymbol,
+                  side: 'short',
+                  qty: 0.01,
+                  entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                  currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                  entryTime: Date.now(),
+                  strategy: 'quick',
+                  source: 'manual',
+                });
+              }}
+              style={{
+                background: 'rgba(248,81,73,0.15)',
+                border: '1px solid rgba(248,81,73,0.35)',
+                borderRadius: 8,
+                padding: '6px 10px',
+                cursor: 'pointer',
+                color: '#f85149',
+                fontWeight: 800,
+                fontSize: 10,
+                fontFamily: "'Cairo', sans-serif",
+                transition: 'all 0.15s',
+                backdropFilter: 'blur(8px)',
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(248,81,73,0.3)';
+                e.currentTarget.style.boxShadow = '0 0 12px rgba(248,81,73,0.2)';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'rgba(248,81,73,0.15)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              title="بيع سريع"
+            >
+              بيع
+            </button>
+          </div>
+        )}
 
         {/* Drawing Panel (floating) */}
         {showDrawingPanel && (
@@ -586,7 +706,43 @@ export default function RouaChart({
           height: 0 !important;
           overflow: hidden !important;
         }
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutRight {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
       `}</style>
+
+      {/* ── Order Error Toast ── */}
+      {orderError && (
+        <div style={{
+          position: 'absolute',
+          top: 50,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(248,81,73,0.15)',
+          border: '1px solid rgba(248,81,73,0.4)',
+          backdropFilter: 'blur(16px)',
+          borderRadius: 10,
+          padding: '10px 18px',
+          zIndex: 600,
+          animation: 'slideInRight 0.3s ease-out',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          maxWidth: '90%',
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f85149" strokeWidth="2">
+            <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+          <span style={{ fontSize: 12, color: '#f85149', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>
+            {orderError}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

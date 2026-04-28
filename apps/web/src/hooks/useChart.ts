@@ -1071,17 +1071,27 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         vertLines: { color: settings.showGrid ? settings.gridColor : 'transparent' },
         horzLines: { color: settings.showGrid ? settings.gridColor : 'transparent' },
       },
-      crosshair: {
-        mode: settings.crosshairType === 'none' ? 1 : 0, // 0=Normal, 1=Magnet
-        vertLine: {
-          visible: settings.crosshairType !== 'none',
-          labelBackgroundColor: '#151A22',
-        },
-        horzLine: {
-          visible: settings.crosshairType !== 'none',
-          labelBackgroundColor: '#151A22',
-        },
-      },
+      crosshair: (() => {
+        if (settings.crosshairType === 'none') {
+          return {
+            mode: 2, // Hidden
+            vertLine: { visible: false },
+            horzLine: { visible: false },
+          };
+        } else if (settings.crosshairType === 'dot') {
+          return {
+            mode: 0,
+            vertLine: { visible: true, style: 0, width: 0 as any, labelVisible: true, labelBackgroundColor: '#151A22' },
+            horzLine: { visible: true, style: 0, width: 0 as any, labelVisible: true, labelBackgroundColor: '#151A22' },
+          };
+        } else {
+          return {
+            mode: 0, // Normal
+            vertLine: { visible: true, color: COLORS.crosshair, width: 1, style: 2, labelBackgroundColor: '#151A22' },
+            horzLine: { visible: true, color: COLORS.crosshair, width: 1, style: 2, labelBackgroundColor: '#151A22' },
+          };
+        }
+      })(),
     });
 
     // Apply candle colors
@@ -1110,6 +1120,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         lastValueVisible: settings.showPriceLine,
       });
     }
+
+    // Apply session visibility (affects time scale markers)
+    // showSessions controls whether trading session backgrounds are visible
+    // showCandleTimer controls whether the candle countdown is shown in the UI
   }, [settings]);
 
   // ── Pause ──────────────────────────────────────────────

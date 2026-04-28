@@ -18,6 +18,7 @@ interface CrosshairOverlayProps {
   compact: boolean;
   mobile: boolean;
   candles: CandleData[];
+  showCandleTimer?: boolean;
 }
 
 export function CrosshairOverlay({
@@ -31,6 +32,7 @@ export function CrosshairOverlay({
   compact,
   mobile,
   candles,
+  showCandleTimer = true,
 }: CrosshairOverlayProps) {
   // Get current OHLC from last candle when crosshair is not active
   const lastCandle = candles[candles.length - 1];
@@ -116,6 +118,7 @@ export function CrosshairOverlay({
         </span>
 
         {/* Candle Countdown */}
+        {showCandleTimer && (
         <span style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -138,6 +141,7 @@ export function CrosshairOverlay({
           }} />
           {candleCountdown}
         </span>
+        )}
 
         {/* OHLC */}
         {displayData && !compact && (

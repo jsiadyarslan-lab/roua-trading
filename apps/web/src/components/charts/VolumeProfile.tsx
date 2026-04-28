@@ -98,18 +98,26 @@ export function VolumeProfile({ candles, width = 80, rows = 24, visible = true }
 
         const y = i * rowH;
 
-        // Buy volume (green)
+        // Buy volume (green) — starts from left edge of the bar
         ctx.fillStyle = 'rgba(63,185,80,0.25)';
         ctx.fillRect(width - 2 - totalW, y, buyW, rowH - 1);
 
-        // Sell volume (red)
+        // Sell volume (red) — starts right after buy volume
         ctx.fillStyle = 'rgba(248,81,73,0.25)';
-        ctx.fillRect(width - 2 - sellW, y, sellW, rowH - 1);
+        ctx.fillRect(width - 2 - totalW + buyW, y, sellW, rowH - 1);
 
         // Border
         ctx.strokeStyle = 'rgba(255,255,255,0.05)';
         ctx.lineWidth = 0.5;
         ctx.strokeRect(width - 2 - totalW, y, totalW, rowH - 1);
+
+        // Price label (small, right-aligned inside bar)
+        if (i % 4 === 0) {
+          ctx.fillStyle = 'rgba(255,255,255,0.2)';
+          ctx.font = `${Math.max(7, rowH * 0.5)}px 'JetBrains Mono', monospace`;
+          ctx.textAlign = 'right';
+          ctx.fillText(row.price.toFixed(row.price > 1000 ? 0 : 2), width - 4, y + rowH * 0.75);
+        }
       });
     };
 

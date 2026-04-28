@@ -82,6 +82,13 @@ export default function DashboardPage() {
   const chartFullscreen = useDashboardStore(state => state.chartFullscreen)
   const toggleChartFullscreen = useDashboardStore(state => state.toggleChartFullscreen)
   const [posOpen, setPosOpen] = useState(true)
+
+  // Auto-expand positions panel when entering fullscreen
+  useEffect(() => {
+    if (chartFullscreen && !posOpen) {
+      setPosOpen(true)
+    }
+  }, [chartFullscreen])
   const [activeMobileView, setActiveMobileView] = useState<MobileView>('execution')
   const [chartExpanded, setChartExpanded] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
@@ -216,7 +223,13 @@ export default function DashboardPage() {
 
         .dash-grid.chart-fullscreen .dash-col-center .panel:last-child {
           flex-shrink: 0 !important;
-          min-height: 200px !important;
+          min-height: 220px !important;
+          max-height: 40vh !important;
+        }
+
+        .dash-grid.chart-fullscreen .dash-col-center .panel:first-child {
+          flex: 1 !important;
+          min-height: 50vh !important;
         }
 
         .dash-col {
@@ -787,6 +800,8 @@ export default function DashboardPage() {
                   mobile
                   compact={!chartExpanded}
                   onExpand={() => setChartExpanded(value => !value)}
+                  isChartFullscreen={chartFullscreen}
+                  onToggleChartFullscreen={toggleChartFullscreen}
                 />
               </div>
             </div>

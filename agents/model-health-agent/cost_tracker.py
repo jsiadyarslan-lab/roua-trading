@@ -44,6 +44,11 @@ def fetch_usage_stats(
             GROUP BY provider
         """, (month_start,))
 
+        if cur.description is None:
+            cur.close()
+            conn.close()
+            return {"_endpoints": {}, "_total_monthly": 0, "_total_daily": 0}
+
         columns = [desc[0] for desc in cur.description]
         rows = cur.fetchall()
 

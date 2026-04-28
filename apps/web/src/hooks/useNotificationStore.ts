@@ -84,7 +84,7 @@ function playNotifSound(action: string) {
 
 export type NotifSource = 'bot' | 'ai' | 'scanner' | 'trade' | 'system'
 export type NotifPriority = 'urgent' | 'high' | 'medium' | 'low'
-export type NotifAction = 'BUY' | 'SELL' | 'INFO' | 'WARN' | 'CLOSE'
+export type NotifAction = 'BUY' | 'SELL' | 'INFO' | 'WARN' | 'CLOSE' | 'CANCEL'
 
 export interface Notification {
   id: string

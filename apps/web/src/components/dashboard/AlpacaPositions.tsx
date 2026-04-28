@@ -61,7 +61,7 @@ export function AlpacaPositions() {
       )
       return {
         ...position,
-        id: position.rawSymbol,
+        id: position.rawSymbol ?? position.symbol,
         isPaper: false,
         entryTime: manualPaper?.entryTime || null,
         tp: manualPaper?.tp || null,
@@ -72,7 +72,7 @@ export function AlpacaPositions() {
       .filter(
         trade =>
           trade.source === 'bot' ||
-          !positions.some(position => position.rawSymbol.replace('/', '') === trade.symbol.replace('/', '')),
+          !positions.some(position => (position.rawSymbol ?? position.symbol).replace('/', '') === trade.symbol.replace('/', '')),
       )
       .map(trade => ({
         symbol: trade.symbol,
@@ -102,7 +102,7 @@ export function AlpacaPositions() {
     return () => clearInterval(interval)
   }, [fetchPositions, fetchAccount])
 
-  const closePosition = async (id: string, isPaper: boolean, rawSymbol: string) => {
+  const closePosition = async (id: string, isPaper: boolean, rawSymbol: string | undefined) => {
     if (confirmClose !== id) {
       setConfirmClose(id)
       setTimeout(() => setConfirmClose(null), 3000)
@@ -119,7 +119,7 @@ export function AlpacaPositions() {
     }
 
     try {
-      const response = await fetch(`/api/alpaca/positions/${encodeURIComponent(rawSymbol)}`, { method: 'DELETE' })
+      const response = await fetch(`/api/alpaca/positions/${encodeURIComponent(rawSymbol ?? '')}`, { method: 'DELETE' })
       const json = await response.json()
       if (json.success) {
         await fetchPositions()
@@ -337,7 +337,7 @@ export function AlpacaPositions() {
               <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <button
                   type="button"
-                  onClick={() => closePosition(position.id, position.isPaper, position.rawSymbol)}
+                  onClick={() => closePosition(position.id, position.isPaper, position.rawSymbol ?? position.symbol)}
                   disabled={closing === position.id}
                   style={{
                     minWidth: 46,

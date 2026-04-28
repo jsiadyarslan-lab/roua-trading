@@ -16,6 +16,7 @@ import {
   Search,
   Zap,
   Clock,
+  AlertTriangle,
 } from 'lucide-react';
 
 const T = {

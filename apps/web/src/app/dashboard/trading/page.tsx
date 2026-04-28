@@ -56,7 +56,7 @@ import {
 interface Position {
   id: string
   symbol: string
-  side: 'BUY' | 'SELL'
+  side: 'BUY' | 'SELL' | 'long' | 'short'
   quantity: number
   entryPrice: number
   currentPrice: number

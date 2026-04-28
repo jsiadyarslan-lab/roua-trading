@@ -34,6 +34,7 @@ const ACTION_COLOR: Record<NotifAction, string> = {
   INFO: '#00f2ff',
   WARN: '#FFB800',
   CLOSE: '#FF3B30',
+  CANCEL: '#FF9500',
 }
 
 function timeAgo(ts: number) {

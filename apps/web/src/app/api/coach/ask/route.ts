@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
         : []
 
       if (trades.length > 0) {
-        const allPnl = trades.map((t) => t.pnl || 0)
+        const allPnl = trades.map((t) => Number(t.pnl) || 0)
         const winningTrades = allPnl.filter((p) => p > 0)
         const winRate = allPnl.length > 0 ? Math.round((winningTrades.length / allPnl.length) * 100) : 0
         const totalPnl = allPnl.reduce((s, v) => s + v, 0)

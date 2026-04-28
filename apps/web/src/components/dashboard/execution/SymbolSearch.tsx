@@ -110,9 +110,9 @@ export function SymbolSearch({ value, onChange, onSelect, currentPrice }: Symbol
           className="flex-1 bg-transparent text-[var(--foreground)] text-xs font-bold font-mono outline-none placeholder:text-[var(--text3)]"
           aria-label="بحث الأصل"
         />
-        {currentPrice > 0 && (
+        {(currentPrice ?? 0) > 0 && (
           <span className="text-[10px] font-mono font-bold text-[var(--accent)] whitespace-nowrap">
-            ${currentPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            ${(currentPrice ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
           </span>
         )}
         {search && (

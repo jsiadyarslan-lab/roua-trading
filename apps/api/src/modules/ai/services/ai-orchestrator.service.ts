@@ -281,8 +281,9 @@ export class AIOrchestratorService {
       this.logger.log(`✅ Consensus: ${recommendation} (${consensusScore}%) from ${analyses.length}/6 models in ${Date.now() - start}ms`);
 
       return { consensusScore, recommendation, analyses, masterStrategy: masterStrategyContent };
-    } catch (error) {
-      this.logger.error(`❌ AI Council failed: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(`❌ AI Council failed: ${err.message}`, err.stack);
       return { consensusScore: 0, recommendation: 'HOLD', analyses: [], masterStrategy: 'خطأ في معالجة طلب إجماع النماذج.' };
     }
   }

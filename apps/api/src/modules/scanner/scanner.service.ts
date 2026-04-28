@@ -204,8 +204,9 @@ export class ScannerService {
           confidence: this._calculateConfidence(analysis),
           summary: analysis.summary,
         });
-      } catch (e) {
-        this.logger.warn(`Failed to analyze ${symbol} on ${tf}: ${e.message}`);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        this.logger.warn(`Failed to analyze ${symbol} on ${tf}: ${msg}`);
       }
     }
 
@@ -427,8 +428,9 @@ export class ScannerService {
           aiAnalysis, aiModel, aiSentiment, riskLevel,
         }), 300_000).catch(() => {});
       }
-    } catch (e) {
-      this.logger.warn(`AI analysis failed for ${symbol}: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.logger.warn(`AI analysis failed for ${symbol}: ${msg}`);
     }
 
     const result: DeepAnalysisDto = {
@@ -2338,8 +2340,9 @@ export class ScannerService {
         source: quote.primarySource || 'Aggregated',
         timestamp: new Date(),
       };
-    } catch (e) {
-      this.logger.warn(`Failed to scan ${symbol}: ${e.message}`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.logger.warn(`Failed to scan ${symbol}: ${msg}`);
       return null;
     }
   }

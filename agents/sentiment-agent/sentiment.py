@@ -25,6 +25,13 @@ from brand_monitor import (
     format_sentiment_report,
 )
 
+# جسر الربط بموقع الأخبار
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
+try:
+    from news_bridge import NewsBridge
+except ImportError:
+    NewsBridge = None
+
 
 class SentimentAgent:
     """وكيل المشاعر — يراقب سمعة العلامة التجارية عبر الويب."""
@@ -50,6 +57,15 @@ class SentimentAgent:
         self._last_report_day = ""
         self._last_sentiment_score = 0.0
 
+        # جسر الربط بموقع الأخبار المالي
+        self.news: NewsBridge | None = None
+        if NewsBridge and self.config.NEWS_SITE_URL:
+            self.news = NewsBridge(
+                news_url=self.config.NEWS_SITE_URL,
+                api_key=self.config.NEWS_API_KEY,
+                logger=self.logger,
+            )
+
     def start(self) -> None:
         """يبدأ تشغيل وكيل المشاعر."""
         self._running = True
@@ -64,6 +80,7 @@ class SentimentAgent:
             f"  عتبة السلبية: {self.config.NEGATIVE_THRESHOLD}",
             f"  تقرير يومي: الساعة {self.config.DAILY_REPORT_HOUR}:00 UTC",
             f"  Telegram: {'✅' if self.alerter.is_configured else '❌'}",
+            f"  موقع الأخبار: {'✅ مربوط' if self.news and self.news.is_configured else '⚠️ غير مربوط'}",
             "",
             "  بدء مراقبة المشاعر...",
         ])
@@ -113,12 +130,31 @@ class SentimentAgent:
         score = sentiment.get("score", 0)
         label = sentiment.get("label", "neutral")
 
+        # ── جلب بيانات مشاعر السوق من موقع الأخبار ──
+        market_sentiment_str = ""
+        if self.news and self.news.is_configured:
+            try:
+                market_data = self.news.get_market_sentiment()
+                if market_data:
+                    market_sentiment_str = NewsBridge.format_sentiment_summary(market_data)
+                    self.logger.info("تم جلب بيانات مشاعر السوق من موقع الأخبار")
+
+                    # دمج مؤشر الخوف والطمع في النتيجة
+                    fg = market_data.get("fearGreedIndex", {})
+                    fg_value = fg.get("value", 50)
+                    sentiment["fear_greed_index"] = fg_value
+                    sentiment["market_sentiment_source"] = "rouatradingnews"
+
+            except Exception as e:
+                self.logger.error(f"خطأ في جلب مشاعر السوق من الموقع: {e}")
+
         self._total_checks += 1
         self._last_sentiment_score = score
 
         self.logger.info(
             f"اكتمل الفحص — {len(mentions)} إشارة | "
             f"مشاعر: {label} ({score:+.2f})"
+            + (f" | خوف/طمع: {sentiment.get('fear_greed_index', '—')}" if market_sentiment_str else "")
         )
 
         # حفظ في السجل
@@ -167,6 +203,21 @@ class SentimentAgent:
         )
 
         report = format_sentiment_report(mentions, sentiment, self.logger)
+
+        # إضافة بيانات مشاعر السوق من موقع الأخبار
+        if market_sentiment_str:
+            report += f"\n\n── مشاعر السوق (موقع رؤى) ──\n{market_sentiment_str}"
+
+        # إضافة آخر الأخبار المالية
+        if self.news and self.news.is_configured:
+            try:
+                news_data = self.news.get_news(limit=5, lang="ar")
+                if news_data and news_data.get("data"):
+                    news_brief = NewsBridge.format_news_brief(news_data, max_items=5)
+                    report += f"\n\n── آخر الأخبار المالية ──\n{news_brief}"
+            except Exception:
+                pass
+
         self.alerter.send(report, cooldown=0)
 
         save_mention_history(

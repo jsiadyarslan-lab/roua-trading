@@ -28,6 +28,13 @@ from publisher import (
     check_duplicate,
 )
 
+# جسر الربط بموقع الأخبار
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
+try:
+    from news_bridge import NewsBridge
+except ImportError:
+    NewsBridge = None
+
 
 # أوقات النشر اليومية (بالساعات UTC)
 POST_SCHEDULE = {
@@ -60,6 +67,16 @@ class ContentAgent:
             self.config.AGENT_NAME, self.config.HEALTH_PORT
         )
 
+        # جسر الربط بموقع الأخبار المالي
+        self.news: NewsBridge | None = None
+        if NewsBridge and self.config.NEWS_SITE_URL:
+            self.news = NewsBridge(
+                news_url=self.config.NEWS_SITE_URL,
+                api_key=self.config.NEWS_API_KEY,
+                cron_secret=self.config.CRON_SECRET,
+                logger=self.logger,
+            )
+
         # حالة الوكيل
         self._running = False
         self._total_posts = 0
@@ -86,6 +103,7 @@ class ContentAgent:
             f"  منفذ فحص الصحة: {self.config.HEALTH_PORT}",
             f"  Telegram: {'✅ مضبوط' if self.alerter.is_configured else '❌ غير مضبوط'}",
             f"  Twitter: {'✅ مضبوط' if self._twitter_configured() else '❌ غير مضبوط'}",
+            f"  موقع الأخبار: {'✅ مربوط' if self.news and self.news.is_configured else '⚠️ غير مربوط'}",
             "",
             "  بدء خدمة المحتوى...",
         ])
@@ -282,6 +300,46 @@ class ContentAgent:
             if post_type == "morning":
                 tw_sent = publish_to_twitter(content, self.config, self.logger)
 
+            # ── ربط موقع الأخبار المالي ──
+            news_sent = False
+            if self.news and self.news.is_configured:
+                try:
+                    # جلب ملخص المشاعر من موقع الأخبار لإثراء المحتوى
+                    sentiment = self.news.get_market_sentiment()
+                    if sentiment:
+                        sentiment_report = NewsBridge.format_sentiment_summary(sentiment)
+                        self.logger.info("تم جلب بيانات المشاعر من موقع الأخبار")
+
+                        # إرسال بيانات المشاعر عبر Telegram كملحق
+                        if self.alerter.is_configured:
+                            sentiment_msg = f"📊 <b>مشاعر السوق — موقع رؤى</b>\n\n{sentiment_report}"
+                            self.alerter.send(sentiment_msg, cooldown=0)
+
+                    # جلب آخر الأخبار من الموقع
+                    news_data = self.news.get_news(limit=5, lang="ar")
+                    if news_data and news_data.get("data"):
+                        self.logger.info(
+                            f"تم جلب {len(news_data['data'])} خبر من موقع الأخبار"
+                        )
+
+                    # تشغيل خط أنابيب الأخبار (بعد التقرير المفصل)
+                    if post_type == "afternoon" and self.news.is_configured:
+                        self.logger.info("تشغيل خط أنابيب الأخبار على الموقع...")
+                        pipeline_result = self.news.trigger_pipeline(
+                            max_items=10,
+                            min_impact=4,
+                        )
+                        if pipeline_result:
+                            published = pipeline_result.get("articlesPublished", 0)
+                            self.logger.info(
+                                f"خط أنابيب الأخبار: نُشر {published} مقال"
+                            )
+
+                    news_sent = True
+
+                except Exception as e:
+                    self.logger.error(f"خطأ في الربط بموقع الأخبار: {e}")
+
             # حفظ في السجل
             save_to_history(
                 full_content,
@@ -299,7 +357,8 @@ class ContentAgent:
             self.logger.info(
                 f"تم النشر بنجاح — النوع: {POST_TYPE_NAMES[post_type]} | "
                 f"Telegram: {'✅' if tg_sent else '❌'} | "
-                f"Twitter: {'✅' if tw_sent else '—'}"
+                f"Twitter: {'✅' if tw_sent else '—'} | "
+                f"موقع الأخبار: {'✅' if news_sent else '—'}"
             )
 
             self._update_health(

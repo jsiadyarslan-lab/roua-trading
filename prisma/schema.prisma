@@ -602,6 +602,32 @@ model NotificationConfig {
   @@index([enabled])
 }
 
+// ── Price Alert (Alert Agent) ──
+enum AlertCondition {
+  ABOVE
+  BELOW
+  CROSSES_UP
+  CROSSES_DOWN
+}
+
+model Alert {
+  id           String         @id @default(cuid())
+  userId       String
+  symbol       String         // e.g. "BTC/USDT", "AAPL"
+  condition    AlertCondition
+  targetPrice  Decimal        @db.Decimal(19, 4)
+  isActive     Boolean        @default(true)
+  isTriggered  Boolean        @default(false)
+  triggeredAt  DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([isActive, isTriggered])
+  @@index([userId, isActive, isTriggered])
+}
+
 // ── Admin Session (Password Auth) ──
 model AdminSession {
   id        String   @id @default(cuid())

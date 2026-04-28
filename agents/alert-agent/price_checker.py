@@ -21,7 +21,10 @@ def get_current_price(
     يعيد:
         السعر كعدد عشري، أو None في حالة الفشل
     """
-    url = f"{platform_url}/api/exchange/quote/{symbol}"
+    # بناء الرابط — المنصة تستخدم catch-all route:
+    #   /api/exchange/quote/BTC/USDT  (للأزواج)
+    #   /api/exchange/quote/AAPL      (للأسهم)
+    url = f"{platform_url.rstrip('/')}/api/exchange/quote/{symbol}"
 
     try:
         response = requests.get(url, timeout=15)
@@ -31,23 +34,18 @@ def get_current_price(
             )
             return None
 
-        data = response.json()
+        raw = response.json()
+
+        # المنصة تُعيد: { "success": true, "data": { ... } }
+        data = raw.get("data", raw) if isinstance(raw, dict) else raw
 
         # محاولة استخراج السعر من عدة حقول محتملة
         price = None
-        for key in ("price", "currentPrice", "lastPrice", "close", "c"):
-            if key in data:
-                price = data[key]
-                break
-
-        # إذا كانت البيانات داخل حقل فرعي مثل "data" أو "quote"
-        if price is None and "data" in data:
-            inner = data["data"]
-            if isinstance(inner, dict):
-                for key in ("price", "currentPrice", "lastPrice", "close", "c"):
-                    if key in inner:
-                        price = inner[key]
-                        break
+        if isinstance(data, dict):
+            for key in ("price", "currentPrice", "lastPrice", "close", "c"):
+                if key in data and data[key]:
+                    price = data[key]
+                    break
 
         if price is None:
             logger.warning(

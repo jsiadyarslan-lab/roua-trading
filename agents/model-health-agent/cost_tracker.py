@@ -163,9 +163,14 @@ def fetch_usage_stats(
         conn.close()
 
         # Add endpoint stats to a special key
+        # WARNING: must calculate totals BEFORE adding them to results dict
+        # otherwise the generator will try to subscript the int values
+        total_monthly = sum(r["monthly_cost"] for k, r in results.items() if not k.startswith("_"))
+        total_daily = sum(r["daily_cost"] for k, r in results.items() if not k.startswith("_"))
+
         results["_endpoints"] = endpoint_stats
-        results["_total_monthly"] = sum(r["monthly_cost"] for k, r in results.items() if k != "_endpoints")
-        results["_total_daily"] = sum(r["daily_cost"] for k, r in results.items() if k != "_endpoints")
+        results["_total_monthly"] = total_monthly
+        results["_total_daily"] = total_daily
 
         return results
 

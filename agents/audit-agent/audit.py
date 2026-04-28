@@ -58,6 +58,7 @@ class AuditAgent:
             self.news = NewsBridge(
                 news_url=self.config.NEWS_SITE_URL,
                 api_key=self.config.NEWS_API_KEY,
+                cron_secret=self.config.CRON_SECRET,
                 logger=self.logger,
             )
 
@@ -119,6 +120,17 @@ class AuditAgent:
         self._total_checks += 1
         self._total_findings += len(findings)
         self._last_findings_count = len(findings)
+
+        # ── فحص سلامة بيانات الأخبار ──
+        if self.news and self.news.is_configured:
+            try:
+                health = self.news.get_health()
+                if health:
+                    pipeline = health.get("checks", {}).get("pipeline", {})
+                    if pipeline.get("status") == "stale":
+                        self.logger.warning("خط أنابيب الأخبار متوقف — قد يحتاج تدخل يدوي")
+            except Exception:
+                pass
 
         if findings:
             # إرسال تنبيهات فورية للأنماط عالية الخطورة فقط

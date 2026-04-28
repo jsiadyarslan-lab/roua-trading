@@ -4,6 +4,7 @@
 يستخدم GLM-5.1 API لتحليل نتائج الفحوصات ويرسل تنبيهات Telegram.
 """
 
+import os
 import time
 import json
 import signal
@@ -18,13 +19,32 @@ from config import (
     MAX_CONSECUTIVE_FAILURES, HEALTH_ENDPOINTS,
     REDIS_URL, DATABASE_URL, TWELVE_DATA_API_KEY,
     WEBSOCKET_URL, DEPENDENCY_CHECK_INTERVAL, DAILY_SUMMARY_INTERVAL,
-    NEWS_SITE_URL, NEWS_API_KEY,
+    NEWS_SITE_URL, NEWS_API_KEY, CRON_SECRET,
 )
 from tools import (
     check_website_health, query_api_endpoint,
     check_railway_status, send_telegram_alert, format_alert_message,
     check_websocket_health, check_redis_connection, check_database_connection,
 )
+
+# جسر الربط بموقع الأخبار
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
+try:
+    from news_bridge import NewsBridge
+except ImportError:
+    NewsBridge = None
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# جسر الربط بموقع الأخبار المالي
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+news: NewsBridge | None = None
+if NewsBridge and NEWS_SITE_URL:
+    news = NewsBridge(
+        news_url=NEWS_SITE_URL,
+        api_key=NEWS_API_KEY,
+        cron_secret=CRON_SECRET,
+    )
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -204,8 +224,21 @@ def run_dependency_checks() -> dict:
     else:
         dep_results["database"] = None  # غير مضبوط
 
-    # ── فحص موقع الأخبار المالي ──
-    if NEWS_SITE_URL:
+    # ── فحص صحة موقع الأخبار ──
+    if news and news.is_configured:
+        try:
+            health = news.get_health()
+            news_healthy = health is not None and health.get("status") == "ok"
+            dep_results["news_site"] = {
+                "status": "healthy" if news_healthy else "degraded",
+                "url": NEWS_SITE_URL,
+            } if news_healthy else False
+            if not news_healthy:
+                print(f"  ⚠️ موقع الأخبار: حالة متدهورة")
+        except Exception as e:
+            dep_results["news_site"] = False
+            print(f"  ❌ موقع الأخبار: {e}")
+    elif NEWS_SITE_URL:
         try:
             news_health_url = f"{NEWS_SITE_URL}/api/health"
             resp = requests.get(news_health_url, timeout=10)
@@ -284,7 +317,7 @@ def main():
     print(f"💾 Redis: {'مضبوط ✅' if REDIS_URL else 'غير مضبوط ⚠️'}")
     print(f"🗄️ Database: {'مضبوط ✅' if DATABASE_URL else 'غير مضبوط ⚠️'}")
     print(f"📡 Twelve Data: {'مضبوط ✅' if TWELVE_DATA_API_KEY else 'غير مضبوط ⚠️'}")
-    print(f"📰 موقع الأخبار: {'مضبوط ✅' if NEWS_SITE_URL else 'غير مضبوط ⚠️'}")
+    print(f"📰 موقع الأخبار: {'✅ مربوط' if news and news.is_configured else '⚠️ غير مربوط'}")
     print(f"⏰ فحص التبعيات: كل {DEPENDENCY_CHECK_INTERVAL} ثانية")
     print(f"📋 الملخص اليومي: كل {DAILY_SUMMARY_INTERVAL} ثانية")
     print("━" * 55)

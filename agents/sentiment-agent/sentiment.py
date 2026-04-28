@@ -131,12 +131,12 @@ class SentimentAgent:
         label = sentiment.get("label", "neutral")
 
         # ── جلب بيانات مشاعر السوق من موقع الأخبار ──
-        market_sentiment_str = ""
+        self._market_sentiment_str = ""
         if self.news and self.news.is_configured:
             try:
                 market_data = self.news.get_market_sentiment()
                 if market_data:
-                    market_sentiment_str = NewsBridge.format_sentiment_summary(market_data)
+                    self._market_sentiment_str = NewsBridge.format_sentiment_summary(market_data)
                     self.logger.info("تم جلب بيانات مشاعر السوق من موقع الأخبار")
 
                     # دمج مؤشر الخوف والطمع في النتيجة
@@ -205,6 +205,7 @@ class SentimentAgent:
         report = format_sentiment_report(mentions, sentiment, self.logger)
 
         # إضافة بيانات مشاعر السوق من موقع الأخبار
+        market_sentiment_str = getattr(self, '_market_sentiment_str', '')
         if market_sentiment_str:
             report += f"\n\n── مشاعر السوق (موقع رؤى) ──\n{market_sentiment_str}"
 

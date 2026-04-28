@@ -32,6 +32,13 @@ from analyzer import (
     _METRICS_FILE,
 )
 
+# جسر الربط بموقع الأخبار
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
+try:
+    from news_bridge import NewsBridge
+except ImportError:
+    NewsBridge = None
+
 
 class PerformanceAgent:
     """وكيل الأداء — يقيس الأداء ويكتشف التدهور ويرسل التقارير."""
@@ -49,6 +56,16 @@ class PerformanceAgent:
         self.health = HealthCheckServer(
             self.config.AGENT_NAME, self.config.HEALTH_PORT
         )
+
+        # جسر الربط بموقع الأخبار المالي
+        self.news: NewsBridge | None = None
+        if NewsBridge and self.config.NEWS_SITE_URL:
+            self.news = NewsBridge(
+                news_url=self.config.NEWS_SITE_URL,
+                api_key=self.config.NEWS_API_KEY,
+                cron_secret=self.config.CRON_SECRET,
+                logger=self.logger,
+            )
 
         # حالة الوكيل
         self._running = False
@@ -90,6 +107,7 @@ class PerformanceAgent:
             f"  نقاط النهاية المراقبة: {len(self.config.PERF_ENDPOINTS)}",
             f"  منفذ فحص الصحة: {self.config.HEALTH_PORT}",
             f"  Telegram: {'✅ مضبوط' if self.alerter.is_configured else '❌ غير مضبوط'}",
+            f"  موقع الأخبار: {'✅ مربوط' if self.news and self.news.is_configured else '⚠️ غير مربوط'}",
             "",
             "  بدء مراقبة الأداء...",
         ])
@@ -198,6 +216,17 @@ class PerformanceAgent:
 
             # اكتشاف التدهور
             self._check_degradation(current_stats)
+
+            # ── قياس أداء API موقع الأخبار ──
+            if self.news and self.news.is_configured:
+                try:
+                    import time as _time
+                    start = _time.time()
+                    self.news.get_health()
+                    news_latency = round((_time.time() - start) * 1000)
+                    self.logger.info(f"زمن استجابة موقع الأخبار: {news_latency}ms")
+                except Exception:
+                    pass
 
             # تحديث حالة الصحة
             is_healthy = overall_stats.get("avg") is not None and overall_stats.get("avg", float("inf")) < self.config.SLOW_THRESHOLD_MS

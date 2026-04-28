@@ -159,6 +159,15 @@ class MaintenanceAgent:
                             f"المهمة التالية ({action_type}) بعد {int(next_action // 60)} دقيقة"
                         )
 
+                # ── فحص حالة خط أنابيب الأخبار ──
+                if self.news and self.news.is_configured:
+                    try:
+                        stats = self.news.get_pipeline_stats()
+                        if stats:
+                            self.logger.info(f"إحصائيات خط أنابيب الأخبار: {stats.get('totalRuns', 0)} تشغيل")
+                    except Exception:
+                        pass
+
                 # انتظار مع فحص الإشارات كل 30 ثانية
                 self._sleep(30)
 

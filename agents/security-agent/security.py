@@ -26,6 +26,13 @@ from checks import (
     count_findings,
 )
 
+# جسر الربط بموقع الأخبار
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
+try:
+    from news_bridge import NewsBridge
+except ImportError:
+    NewsBridge = None
+
 
 class SecurityAgent:
     """وكيل الأمان — يُجري فحوصات أمنية دورية ويرسل تنبيهات."""
@@ -43,6 +50,16 @@ class SecurityAgent:
         self.health = HealthCheckServer(
             self.config.AGENT_NAME, self.config.HEALTH_PORT
         )
+
+        # جسر الربط بموقع الأخبار المالي
+        self.news: NewsBridge | None = None
+        if NewsBridge and self.config.NEWS_SITE_URL:
+            self.news = NewsBridge(
+                news_url=self.config.NEWS_SITE_URL,
+                api_key=self.config.NEWS_API_KEY,
+                cron_secret=self.config.CRON_SECRET,
+                logger=self.logger,
+            )
 
         # حالة الوكيل
         self._running = False
@@ -68,6 +85,7 @@ class SecurityAgent:
             f"  فحص شامل كل: {self.config.FULL_SCAN_INTERVAL // 3600} ساعات",
             f"  منفذ فحص الصحة: {self.config.HEALTH_PORT}",
             f"  Telegram: {'✅ مضبوط' if self.alerter.is_configured else '❌ غير مضبوط'}",
+            f"  موقع الأخبار: {'✅ مربوط' if self.news and self.news.is_configured else '⚠️ غير مربوط'}",
             "",
             "  بدء المراقبة الأمنية...",
         ])
@@ -198,6 +216,20 @@ class SecurityAgent:
                     "%Y-%m-%d %H:%M UTC"
                 ),
             )
+
+            # ── جلب مشاعر السوق من موقع الأخبار ──
+            if self.news and self.news.is_configured:
+                try:
+                    sentiment = self.news.get_market_sentiment()
+                    if sentiment:
+                        fg = sentiment.get("fearGreedIndex", {})
+                        geo = sentiment.get("geopoliticalRiskIndex", {})
+                        self.logger.info(
+                            f"مؤشر الخوف والطمع: {fg.get('value', '—')} | "
+                            f"المخاطر الجيوسياسية: {geo.get('value', '—')}"
+                        )
+                except Exception as e:
+                    self.logger.debug(f"تعذر جلب مشاعر السوق: {e}")
 
         except Exception as e:
             self._total_errors += 1

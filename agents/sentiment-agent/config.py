@@ -38,6 +38,5 @@ class SentimentConfig(BaseConfig):
     # History file for tracking mentions over time
     HISTORY_FILE: str = os.environ.get("HISTORY_FILE", "/app/data/sentiment_history.json")
 
-    # ── ربط موقع الأخبار المالي ──
-    NEWS_SITE_URL: str = os.environ.get("NEWS_SITE_URL", "")
-    NEWS_API_KEY: str = os.environ.get("NEWS_API_KEY", "")
+    # ── ربط موقع الأخبار المالي ── (موروث من BaseConfig)
+    # NEWS_SITE_URL, NEWS_API_KEY, CRON_SECRET

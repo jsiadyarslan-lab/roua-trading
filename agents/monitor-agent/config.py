@@ -51,6 +51,7 @@ WEBSOCKET_URL = os.environ.get("WEBSOCKET_URL", "")
 # ── ربط موقع الأخبار المالي ──
 NEWS_SITE_URL = os.environ.get("NEWS_SITE_URL", "")  # https://rouatradingnews-production.up.railway.app
 NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "")    # مفتاح API للموقع (rva_...)
+CRON_SECRET = os.environ.get("CRON_SECRET", "")          # مفتاح مصادقة cron
 
 # ── فترات الفحص المتقدمة ──
 DEPENDENCY_CHECK_INTERVAL = int(os.environ.get("DEPENDENCY_CHECK_INTERVAL", "300"))  # 5 دقائق

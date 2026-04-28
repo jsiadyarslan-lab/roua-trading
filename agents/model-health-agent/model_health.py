@@ -26,6 +26,13 @@ from cost_tracker import (
     format_daily_report,
 )
 
+# جسر الربط بموقع الأخبار
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
+try:
+    from news_bridge import NewsBridge
+except ImportError:
+    NewsBridge = None
+
 
 class ModelHealthAgent:
     """وكيل صحة النماذج — يراقب استهلاك وتكلفة نماذج الذكاء الاصطناعي."""
@@ -43,6 +50,16 @@ class ModelHealthAgent:
         self.health = HealthCheckServer(
             self.config.AGENT_NAME, self.config.HEALTH_PORT
         )
+
+        # جسر الربط بموقع الأخبار المالي
+        self.news: NewsBridge | None = None
+        if NewsBridge and self.config.NEWS_SITE_URL:
+            self.news = NewsBridge(
+                news_url=self.config.NEWS_SITE_URL,
+                api_key=self.config.NEWS_API_KEY,
+                cron_secret=self.config.CRON_SECRET,
+                logger=self.logger,
+            )
 
         self._running = False
         self._total_checks = 0
@@ -66,6 +83,7 @@ class ModelHealthAgent:
             f"  تقرير يومي: الساعة {self.config.DAILY_REPORT_HOUR}:00 UTC",
             f"  قاعدة البيانات: {'✅' if self.config.DATABASE_URL else '❌ غير مضبوطة'}",
             f"  Telegram: {'✅' if self.alerter.is_configured else '❌'}",
+            f"  موقع الأخبار: {'✅ مربوط' if self.news and self.news.is_configured else '⚠️ غير مربوط'}",
             "",
             "  بدء مراقبة النماذج...",
         ])
@@ -144,6 +162,16 @@ class ModelHealthAgent:
 
         self._total_checks += 1
         self._update_health(healthy=len(budget_alerts) == 0 or all(a["level"] != "critical" for a in budget_alerts))
+
+        # ── فحص حالة AI في موقع الأخبار ──
+        if self.news and self.news.is_configured:
+            try:
+                health = self.news.get_health()
+                if health:
+                    ai_status = health.get("checks", {}).get("ai", {})
+                    self.logger.info(f"حالة AI في موقع الأخبار: {ai_status.get('status', 'unknown')}")
+            except Exception:
+                pass
 
     def _check_daily_report(self) -> None:
         """يتحقق مما إذا حان وقت التقرير اليومي."""

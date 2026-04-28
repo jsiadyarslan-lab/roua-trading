@@ -56,7 +56,7 @@ class BinanceWSManager {
   private debounceTimer: ReturnType<typeof setTimeout> | null = null
   private pingTimer: ReturnType<typeof setInterval> | null = null
   private reconnectAttempts = 0
-  private maxReconnectAttempts = 15
+  private maxReconnectAttempts = 10  // Reduced from 15 to give up sooner
   private baseDelay = 2000  // 2s initial (increased from 1s)
   private maxDelay = 60000 // 60s max (increased from 30s)
   private lastConnectTime = 0  // Track when we last connected successfully
@@ -336,6 +336,21 @@ class BinanceWSManager {
       if (this.lastConnectTime > 0 && connectionDuration > 30_000) {
         // Connection was stable for >30s — this is a new disconnect, not a reconnect loop
         this.reconnectAttempts = 0
+      }
+      
+      // If max reconnect attempts reached, fall back to polling silently
+      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+        console.warn(`[BinanceWS] Max reconnect attempts (${this.maxReconnectAttempts}) reached. ` +
+          `Falling back to REST API polling for crypto data.`)
+        // Schedule a full reset after 5 minutes to try WS again
+        setTimeout(() => {
+          this.reconnectAttempts = 0
+          this.destroyed = false
+          if (this.subscribers.size > 0) {
+            this.scheduleReconnect()
+          }
+        }, 300_000) // 5 minutes
+        return
       }
       
       this.scheduleReconnectWithBackoff()

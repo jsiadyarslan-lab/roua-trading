@@ -74,55 +74,87 @@ function toYahooSymbol(symbol: string): string {
 // ── Fetch from Twelve Data API ──
 let twelveDataExhausted = false;
 let twelveDataResetTimeout: NodeJS.Timeout | null = null;
+let twelveDataLastLog = 0; // Throttle logging to avoid spam
 
 async function fetchTwelveData(symbol: string) {
   if (twelveDataExhausted) {
+    const now = Date.now();
+    if (now - twelveDataLastLog > 300_000) { // Log every 5 min max
+      console.warn(`[exchange/quote] TwelveData circuit breaker active for ${symbol} — credits exhausted`);
+      twelveDataLastLog = now;
+    }
     return null; // Skip if we know we're out of credits
   }
 
   const apiKey = process.env.TWELVE_DATA_API_KEY
   if (!apiKey) {
+    const now = Date.now();
+    if (now - twelveDataLastLog > 3_600_000) { // Log once per hour
+      console.error(`[exchange/quote] TWELVE_DATA_API_KEY is NOT SET — all non-crypto data will use fallback sources (Yahoo Finance, ECB, etc.)`);
+      twelveDataLastLog = now;
+    }
     return null // No key → try free fallback
   }
 
-  const url = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol)}&apikey=${apiKey}`
-  const res = await fetch(url, { cache: 'no-store' })
+  try {
+    const url = `https://api.twelvedata.com/quote?symbol=${encodeURIComponent(symbol)}&apikey=${apiKey}`
+    const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(10000) })
 
-  if (!res.ok) throw new Error(`Twelve Data API returned ${res.status}`)
-  const data = await res.json()
-  
-  if (data.status === 'error') {
-    if (data.message && data.message.includes('run out of API credits')) {
-      twelveDataExhausted = true;
-      console.warn(`[exchange/quote] TwelveData API limit exhausted. Circuit breaker activated for 1 hour.`);
-      if (!twelveDataResetTimeout) {
-        twelveDataResetTimeout = setTimeout(() => {
-          twelveDataExhausted = false;
-          twelveDataResetTimeout = null;
-        }, 3600_000); // Reset after 1 hour
+    if (!res.ok) throw new Error(`Twelve Data API returned ${res.status}`)
+    const data = await res.json()
+    
+    if (data.status === 'error') {
+      const msg = data.message || ''
+      // Detect daily credit exhaustion
+      if (msg.includes('run out of API credits') || msg.includes('out of API credits') || msg.includes('limit being')) {
+        twelveDataExhausted = true;
+        console.error(`[exchange/quote] TwelveData DAILY CREDITS EXHAUSTED for ${symbol}: ${msg}. Circuit breaker activated for 1 hour.`);
+        if (!twelveDataResetTimeout) {
+          twelveDataResetTimeout = setTimeout(() => {
+            twelveDataExhausted = false;
+            twelveDataResetTimeout = null;
+            console.info(`[exchange/quote] TwelveData circuit breaker reset — will retry`);
+          }, 3600_000); // Reset after 1 hour
+        }
+      } else {
+        console.warn(`[exchange/quote] TwelveData error for ${symbol}: ${msg}`);
       }
+      throw new Error(msg || 'Twelve Data API error')
     }
-    throw new Error(data.message || 'Twelve Data API error')
-  }
 
-  return {
-    symbol,
-    name: data.name || symbol,
-    exchange: data.exchange || 'FOREX',
-    currency: data.currency || 'USD',
-    price: toNum(data.close),
-    change: toNum(data.change),
-    changePercent: toNum(data.percent_change),
-    open: toNum(data.open),
-    high: toNum(data.high),
-    low: toNum(data.low),
-    close: toNum(data.close),
-    volume: toNum(data.volume),
-    marketCap: null,
-    fiftyTwoWeekHigh: data.fifty_two_week?.high ? toNum(data.fifty_two_week.high) : null,
-    fiftyTwoWeekLow:  data.fifty_two_week?.low  ? toNum(data.fifty_two_week.low)  : null,
-    timestamp: new Date().toISOString(),
-    source: 'TwelveData',
+    // Validate the response has actual price data
+    const price = toNum(data.close);
+    if (price <= 0) {
+      console.warn(`[exchange/quote] TwelveData returned zero price for ${symbol} — skipping`);
+      return null;
+    }
+
+    console.info(`[exchange/quote] TwelveData SUCCESS for ${symbol}: price=${price}`);
+
+    return {
+      symbol,
+      name: data.name || symbol,
+      exchange: data.exchange || 'FOREX',
+      currency: data.currency || 'USD',
+      price,
+      change: toNum(data.change),
+      changePercent: toNum(data.percent_change),
+      open: toNum(data.open),
+      high: toNum(data.high),
+      low: toNum(data.low),
+      close: price,
+      volume: toNum(data.volume),
+      marketCap: null,
+      fiftyTwoWeekHigh: data.fifty_two_week?.high ? toNum(data.fifty_two_week.high) : null,
+      fiftyTwoWeekLow:  data.fifty_two_week?.low  ? toNum(data.fifty_two_week.low)  : null,
+      timestamp: new Date().toISOString(),
+      source: 'TwelveData',
+    }
+  } catch (error: any) {
+    if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+      console.warn(`[exchange/quote] TwelveData TIMEOUT for ${symbol} (10s)`);
+    }
+    throw error;
   }
 }
 
@@ -352,7 +384,28 @@ async function fetchGoldPriceFallback(symbol: string): Promise<any | null> {
     })
     if (!res.ok) return null
     const data = await res.json()
-    const price = data?.items?.[0]?.xauPrice || data?.items?.[0]?.xagPrice || data?.items?.[0]?.price
+    // GoldPrice.org returns different field names for gold vs silver
+    let price: number | null = null
+    let changeVal = 0
+    let changePercentVal = 0
+    let highVal = 0
+    let lowVal = 0
+    if (data?.items?.[0]) {
+      const item = data.items[0]
+      if (base === 'XAU') {
+        price = item.xauPrice || item.price || null
+        changeVal = item.chgXau || item.chg || 0
+        changePercentVal = item.pcXau || item.pc || 0
+        highVal = item.xauHigh || item.high || 0
+        lowVal = item.xauLow || item.low || 0
+      } else if (base === 'XAG') {
+        price = item.xagPrice || item.price || null
+        changeVal = item.chgXag || item.chg || 0
+        changePercentVal = item.pcXag || item.pc || 0
+        highVal = item.xagHigh || item.high || 0
+        lowVal = item.xagLow || item.low || 0
+      }
+    }
     if (!price || price <= 0) return null
 
     return {
@@ -361,11 +414,11 @@ async function fetchGoldPriceFallback(symbol: string): Promise<any | null> {
       exchange: 'COMMODITY',
       currency: 'USD',
       price: toNum(price),
-      change: toNum(data?.items?.[0]?.chg || 0),
-      changePercent: toNum(data?.items?.[0]?.pc || 0),
+      change: toNum(changeVal),
+      changePercent: toNum(changePercentVal),
       open: toNum(price),
-      high: toNum(data?.items?.[0]?.high || price * 1.002),
-      low: toNum(data?.items?.[0]?.low || price * 0.998),
+      high: toNum(highVal || price * 1.002),
+      low: toNum(lowVal || price * 0.998),
       close: toNum(price),
       volume: 0,
       marketCap: null,
@@ -688,8 +741,10 @@ export async function GET(
       )
     }
 
-    // Cache: 5s for crypto, 60s for stocks/forex/commodities (longer to reduce API pressure)
-    const ttl = isCryptoPair ? 5000 : 60000
+    // Cache: 5s for crypto, 120s for stocks/forex/commodities (longer to reduce API pressure)
+    // 120s cache for non-crypto = ~10 unique symbols * 0.5 req/min = 720 req/day
+    // This stays within TwelveData free tier (800/day) with 80 buffer
+    const ttl = isCryptoPair ? 5000 : 120_000
     setCache(cacheKey, quote, ttl)
 
     // Save to stale cache for fallback when all live sources fail

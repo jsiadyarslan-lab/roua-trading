@@ -50,6 +50,31 @@ async function fetchAndStore(symbol: string) {
 }
 
 /**
+ * Fetch non-crypto symbols in staggered batches to respect API rate limits.
+ * TwelveData free tier: 8 req/min, 800/day.
+ * With 12 non-crypto symbols polled every 120s:
+ *   12 * 0.5/min * 60min * 24hr = 8,640 → still too many for 800/day.
+ * Strategy: fetch 2 at a time with 3s delay, poll every 120s.
+ *   12 * 0.5/min * 60 * 24 = 8,640 but with 120s cache on server side:
+ *   Each server-side request is cached for 120s, so actual TwelveData calls
+ *   = 12 symbols * (86400/120) = 12 * 720 = 8,640 — still over.
+ * We rely on the server's circuit breaker to manage this.
+ */
+async function fetchNonCryptoBatch(symbols: string[]) {
+  const BATCH_SIZE = 2
+  const BATCH_DELAY = 3000 // 3s between batches
+
+  for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
+    const batch = symbols.slice(i, i + BATCH_SIZE)
+    await Promise.allSettled(batch.map(fetchAndStore))
+    // Delay between batches (skip after last batch)
+    if (i + BATCH_SIZE < symbols.length) {
+      await new Promise(r => setTimeout(r, BATCH_DELAY))
+    }
+  }
+}
+
+/**
  * MarketProvider — Mounts once in layout, subscribes all symbols to Binance WS.
  * Ensures only ONE WebSocket connection exists for the entire dashboard.
  */
@@ -92,23 +117,13 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     // 2. Fetch initial data for ALL symbols via API
     Promise.allSettled(GLOBAL_SYMBOLS.map(fetchAndStore))
 
-    // 3. Poll non-crypto (Forex + Stocks) every 60 seconds to respect TwelveData limit (8 req/min)
-    //    Stagger requests: fetch a few at a time instead of all at once
+    // 3. Poll non-crypto (Forex + Stocks) every 120 seconds to respect API limits
+    //    Staggered: fetch 2 at a time with 3s delay between batches
     const pollNonCrypto = () => {
-      // Split into batches of 3 to avoid rate limits
-      const batch = NON_CRYPTO_SYMBOLS.slice(0, 3)
-      const remaining = NON_CRYPTO_SYMBOLS.slice(3)
-      Promise.allSettled(batch.map(fetchAndStore)).then(() => {
-        if (remaining.length > 0) {
-          // Fetch remaining after 2s delay
-          setTimeout(() => {
-            Promise.allSettled(remaining.map(fetchAndStore))
-          }, 2000)
-        }
-      })
+      fetchNonCryptoBatch(NON_CRYPTO_SYMBOLS)
     }
     pollNonCrypto()
-    const pollInterval = setInterval(pollNonCrypto, 60_000)
+    const pollInterval = setInterval(pollNonCrypto, 120_000)
 
     return () => {
       clearInterval(pollInterval)

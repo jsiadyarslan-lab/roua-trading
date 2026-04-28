@@ -113,7 +113,9 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
         },
         timeout: 10000,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; RouaTrading/1.0)',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
         },
       });
 
@@ -172,7 +174,11 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
       const response = await axios.get('https://query1.finance.yahoo.com/v8/finance/chart/GC%3DF', {
         params: { range: '1d', interval: '1d' },
         timeout: 10000,
-        headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RouaTrading/1.0)' },
+        headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+      },
       });
 
       if (response.data?.chart?.result?.[0]?.meta) {
@@ -264,6 +270,53 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
    * Fetch silver price from free sources
    */
   private async _fetchSilverQuote(symbol: string): Promise<UnifiedQuoteDto> {
+    // FIX: Try Yahoo Finance for SI=F (Silver Futures) FIRST — most reliable free source
+    try {
+      const response = await axios.get('https://query1.finance.yahoo.com/v8/finance/chart/SI%3DF', {
+        params: { range: '1d', interval: '1d' },
+        timeout: 10000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+        },
+      });
+
+      if (response.data?.chart?.result?.[0]?.meta) {
+        const meta = response.data.chart.result[0].meta;
+        const price = meta.regularMarketPrice ?? 0;
+        if (price > 0) {
+          const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? price;
+          const change = price - prevClose;
+          const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+          const result: UnifiedQuoteDto = {
+            symbol,
+            name: 'Silver/US Dollar',
+            exchange: 'Yahoo Finance',
+            currency: 'USD',
+            price,
+            change,
+            changePercent,
+            open: meta.regularMarketDayOpen ?? price,
+            high: meta.regularMarketDayHigh ?? price,
+            low: meta.regularMarketDayLow ?? price,
+            close: price,
+            volume: meta.regularMarketVolume ?? 0,
+            marketCap: null,
+            fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh ?? null,
+            fiftyTwoWeekLow: meta.fiftyTwoWeekLow ?? null,
+            timestamp: new Date(meta.regularMarketTime * 1000 || Date.now()),
+            source: 'Yahoo Finance',
+          };
+          await this._saveLastKnownPrice(symbol, result);
+          return result;
+        }
+      }
+    } catch (error: any) {
+      this.logger.warn(`Yahoo Finance silver failed: ${error.message}`);
+    }
+
+    // Try metals.dev as fallback
     try {
       const response = await axios.get('https://api.metals.dev/v1/latest', {
         params: {

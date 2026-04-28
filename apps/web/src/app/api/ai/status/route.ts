@@ -5,14 +5,20 @@ import { NextRequest, NextResponse } from 'next/server'
  *
  * Returns the status of AI models by checking NestJS /api/ai/models.
  * Falls back to a local status check if NestJS is unavailable.
+ *
+ * FIX: Increased timeout from 5s to 15s to handle cold starts on Railway.
+ * FIX: Added all 6 models to the fallback response.
+ * FIX: Added error details to fallback response for debugging.
  */
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin
+  let lastError: string | null = null
 
   try {
-    // Try NestJS models endpoint
-    const res = await fetch(`${origin}/api/ai/models`, {
-      signal: AbortSignal.timeout(5000),
+    // Try NestJS models endpoint directly (internal URL if available)
+    const internalUrl = process.env.API_INTERNAL_URL || `${origin}/api/ai/models`
+    const res = await fetch(internalUrl, {
+      signal: AbortSignal.timeout(15000), // Increased from 5s to 15s for cold starts
     })
 
     if (res.ok) {
@@ -28,21 +34,27 @@ export async function GET(req: NextRequest) {
         })
       }
     }
+    lastError = `NestJS returned ${res.status}`
   } catch (error: any) {
-    // NestJS unavailable — log the reason
-    console.warn('[ai/status] NestJS models endpoint unavailable:', error?.message || error)
+    // NestJS unavailable — log the reason with details
+    lastError = error?.message || String(error)
+    console.warn('[ai/status] NestJS models endpoint unavailable:', lastError)
   }
 
-  // Fallback: return local status
+  // Fallback: return local status with all 6 models and error details
   return NextResponse.json({
     success: true,
     data: {
       source: 'local',
       connected: false,
+      error: lastError || 'NestJS unreachable',
       models: [
         { model: 'Groq/Llama 3.3 70B', available: false, specialty: 'سرعة فائقة — تحليل المشاعر' },
         { model: 'GLM-4 (Zhipu AI)', available: false, specialty: 'تحليل عربي — سياق طويل 200k' },
         { model: 'Gemini 2.0 Flash', available: false, specialty: 'تحليل إبداعي — استراتيجية' },
+        { model: 'HuggingFace/Mistral-7B', available: false, specialty: 'مجاني مفتوح المصدر — متعدد اللغات' },
+        { model: 'Ollama/Qwen2.5', available: false, specialty: 'محلي — بدون تكلفة' },
+        { model: 'Bedrock/Claude 3.5 Sonnet', available: false, specialty: 'مؤسسي AWS — مخاطر وامتثال' },
       ],
     },
   })

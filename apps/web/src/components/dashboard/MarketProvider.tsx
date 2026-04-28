@@ -51,18 +51,13 @@ async function fetchAndStore(symbol: string) {
 
 /**
  * Fetch non-crypto symbols in staggered batches to respect API rate limits.
- * TwelveData free tier: 8 req/min, 800/day.
- * With 12 non-crypto symbols polled every 120s:
- *   12 * 0.5/min * 60min * 24hr = 8,640 → still too many for 800/day.
- * Strategy: fetch 2 at a time with 3s delay, poll every 120s.
- *   12 * 0.5/min * 60 * 24 = 8,640 but with 120s cache on server side:
- *   Each server-side request is cached for 120s, so actual TwelveData calls
- *   = 12 symbols * (86400/120) = 12 * 720 = 8,640 — still over.
- * We rely on the server's circuit breaker to manage this.
+ * FIX: Increased polling interval from 120s to 600s (10 min) and batch delay from 3s to 5s.
+ * With free sources only (TwelveData disabled): 12 symbols × 144/day = 1,728 fetches/day — sustainable.
+ * Server-side cache of 600s means actual API hits are even lower.
  */
 async function fetchNonCryptoBatch(symbols: string[]) {
   const BATCH_SIZE = 2
-  const BATCH_DELAY = 3000 // 3s between batches
+  const BATCH_DELAY = 5000 // 5s between batches (increased from 3s)
 
   for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
     const batch = symbols.slice(i, i + BATCH_SIZE)
@@ -117,13 +112,14 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
     // 2. Fetch initial data for ALL symbols via API
     Promise.allSettled(GLOBAL_SYMBOLS.map(fetchAndStore))
 
-    // 3. Poll non-crypto (Forex + Stocks) every 120 seconds to respect API limits
-    //    Staggered: fetch 2 at a time with 3s delay between batches
+    // 3. Poll non-crypto (Forex + Stocks) every 600 seconds (10 min) to reduce API pressure
+    //    FIX: Increased from 120s to 600s — free sources don't need rapid polling
+    //    Staggered: fetch 2 at a time with 5s delay between batches
     const pollNonCrypto = () => {
       fetchNonCryptoBatch(NON_CRYPTO_SYMBOLS)
     }
     pollNonCrypto()
-    const pollInterval = setInterval(pollNonCrypto, 120_000)
+    const pollInterval = setInterval(pollNonCrypto, 600_000)
 
     return () => {
       clearInterval(pollInterval)

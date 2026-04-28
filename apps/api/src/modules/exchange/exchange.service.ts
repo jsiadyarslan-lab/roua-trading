@@ -1,4 +1,5 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { IExchangeAdapter, UnifiedQuoteDto, UnifiedCandleDto } from './exchange.types';
 
 /**
@@ -6,15 +7,28 @@ import { IExchangeAdapter, UnifiedQuoteDto, UnifiedCandleDto } from './exchange.
  * 
  * Routes requests to the appropriate exchange adapter based on:
  * 1. Explicit source parameter (e.g., 'Binance', 'TwelveData')
- * 2. Auto-detection: crypto pairs (X/USDT) → Binance, else → TwelveData
+ * 2. Auto-detection: crypto pairs (X/USDT) → Binance, else → FreeFallback or TwelveData
+ *
+ * FIX: Added ConfigService to detect DISABLE_TWELVE_DATA env var.
+ * FIX: When TwelveData is disabled or key is missing, skip directly to FreeFallback.
  */
 @Injectable()
 export class ExchangeService {
   private readonly logger = new Logger(ExchangeService.name);
   private readonly adapters: Record<string, IExchangeAdapter>;
+  private readonly disableTwelveData: boolean;
 
-  constructor(@Inject('EXCHANGE_ADAPTERS') adapters: Record<string, IExchangeAdapter>) {
+  constructor(
+    @Inject('EXCHANGE_ADAPTERS') adapters: Record<string, IExchangeAdapter>,
+    private readonly configService: ConfigService,
+  ) {
     this.adapters = adapters;
+    this.disableTwelveData = this.configService.get('DISABLE_TWELVE_DATA', 'false') === 'true';
+    const twelveKey = this.configService.get('TWELVE_DATA_API_KEY', '');
+    const noKey = !twelveKey || !twelveKey.trim();
+    if (this.disableTwelveData || noKey) {
+      this.logger.warn(`⚠️ TwelveData is DISABLED (${this.disableTwelveData ? 'via DISABLE_TWELVE_DATA' : 'no API key'}). Using FreeFallback for all non-crypto symbols.`);
+    }
     this.logger.log(`📊 Exchange Service initialized with adapters: ${Object.keys(adapters).join(', ')}`);
   }
 
@@ -115,12 +129,25 @@ export class ExchangeService {
       }
     }
 
+    // FIX: Skip TwelveData when disabled or no API key — go straight to FreeFallback
+    const twelveKey = this.configService.get('TWELVE_DATA_API_KEY', '');
+    const noKey = !twelveKey || !twelveKey.trim();
+    if (this.disableTwelveData || noKey) {
+      if (this.adapters['FreeFallback']) {
+        return this.adapters['FreeFallback'];
+      }
+    }
+
     // Default to TwelveData for stocks, forex, indices, commodities
     if (this.adapters['TwelveData']) {
       return this.adapters['TwelveData'];
     }
 
-    // Fallback to first available adapter
+    // Last resort: FreeFallback or first available adapter
+    if (this.adapters['FreeFallback']) {
+      return this.adapters['FreeFallback'];
+    }
+
     const firstKey = Object.keys(this.adapters)[0];
     if (firstKey) {
       return this.adapters[firstKey];

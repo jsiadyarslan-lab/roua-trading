@@ -706,10 +706,10 @@ export async function GET(
       )
     }
 
-    // Cache: 5s for crypto, 120s for stocks/forex/commodities (longer to reduce API pressure)
-    // 120s cache for non-crypto = ~10 unique symbols * 0.5 req/min = 720 req/day
-    // This stays within TwelveData free tier (800/day) with 80 buffer
-    const ttl = isCryptoPair ? 5000 : 120_000
+    // Cache: 5s for crypto, 600s (10min) for stocks/forex/commodities
+    // FIX: Increased from 120s to 600s to reduce API pressure on free sources.
+    // With 600s cache: 12 non-crypto symbols × 144/day = 1,728 fetches/day — all to free sources
+    const ttl = isCryptoPair ? 5000 : 600_000
     setCache(cacheKey, quote, ttl)
 
     // Save to stale cache for fallback when all live sources fail

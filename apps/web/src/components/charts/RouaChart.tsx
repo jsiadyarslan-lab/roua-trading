@@ -227,7 +227,7 @@ export default function RouaChart({
 
     const chartSymbol = normalizeSymbol(selectedSymbol);
 
-    // Add lines for positions
+    // Add lines for positions (exchange positions)
     positions.forEach(pos => {
       const posSymbol = normalizeSymbol(pos.symbol || '');
       if (!posSymbol.includes(chartSymbol) && !chartSymbol.includes(posSymbol)) return;
@@ -236,25 +236,25 @@ export default function RouaChart({
       if (entryPrice > 0) {
         const isLong = (pos.side || '').toLowerCase() === 'long';
         const color = isLong ? '#3fb950' : '#f85149';
-        const label = `${isLong ? 'شراء' : 'بيع'} ${pos.qty || ''} @ ${entryPrice}`;
+        const label = `${isLong ? 'Long' : 'Short'} ${pos.qty || ''}`;
         const entryId = `pos-entry-${pos.id || posSymbol}`;
-        chart.addPriceLine(entryId, entryPrice, color, label, 2, 0); // Solid line
+        chart.addPriceLine(entryId, entryPrice, color, label, 2, 0, true); // Solid, axis label ON
         positionLineIdsRef.current.push(entryId);
       }
 
-      // SL line
+      // SL line — dashed, NO axis label (clean price axis)
       const sl = Number(pos.sl || pos.stopLoss || 0);
       if (sl > 0) {
         const slId = `pos-sl-${pos.id || posSymbol}`;
-        chart.addPriceLine(slId, sl, '#f85149', 'SL', 1, 2); // Dashed
+        chart.addPriceLine(slId, sl, '#f85149', 'SL', 1, 2, false); // Dashed, axis label OFF
         positionLineIdsRef.current.push(slId);
       }
 
-      // TP line
+      // TP line — dashed, NO axis label (clean price axis)
       const tp = Number(pos.tp || pos.takeProfit || 0);
       if (tp > 0) {
         const tpId = `pos-tp-${pos.id || posSymbol}`;
-        chart.addPriceLine(tpId, tp, '#3fb950', 'TP', 1, 2); // Dashed
+        chart.addPriceLine(tpId, tp, '#3fb950', 'TP', 1, 2, false); // Dashed, axis label OFF
         positionLineIdsRef.current.push(tpId);
       }
     });
@@ -268,25 +268,24 @@ export default function RouaChart({
       if (entryPrice > 0) {
         const isLong = (trade.side || '').toLowerCase() === 'long';
         const color = isLong ? '#3fb950' : '#f85149';
-        const sourceTag = trade.source === 'bot' ? '🤖 ' : '';
-        const pnlStr = trade.unrealizedPnl !== undefined
-          ? ` | ${trade.unrealizedPnl >= 0 ? '+' : ''}${trade.unrealizedPnl.toFixed(2)}`
-          : '';
-        const label = `${sourceTag}${isLong ? 'شراء' : 'بيع'} ${trade.qty}${pnlStr}`;
+        const sourceTag = trade.source === 'bot' ? 'Bot ' : '';
+        const label = `${sourceTag}${isLong ? 'Long' : 'Short'} ${trade.qty}`;
         const entryId = `trade-entry-${trade.id}`;
-        chart.addPriceLine(entryId, entryPrice, color, label, 2, 0); // Solid line
+        chart.addPriceLine(entryId, entryPrice, color, label, 2, 0, true); // Solid, axis label ON
         positionLineIdsRef.current.push(entryId);
       }
 
+      // SL line — dashed, NO axis label (clean price axis)
       if (trade.sl && Number(trade.sl) > 0) {
         const slId = `trade-sl-${trade.id}`;
-        chart.addPriceLine(slId, Number(trade.sl), '#f85149', 'SL', 1, 2); // Dashed
+        chart.addPriceLine(slId, Number(trade.sl), '#f85149', 'SL', 1, 2, false); // Dashed, axis label OFF
         positionLineIdsRef.current.push(slId);
       }
 
+      // TP line — dashed, NO axis label (clean price axis)
       if (trade.tp && Number(trade.tp) > 0) {
         const tpId = `trade-tp-${trade.id}`;
-        chart.addPriceLine(tpId, Number(trade.tp), '#3fb950', 'TP', 1, 2); // Dashed
+        chart.addPriceLine(tpId, Number(trade.tp), '#3fb950', 'TP', 1, 2, false); // Dashed, axis label OFF
         positionLineIdsRef.current.push(tpId);
       }
     });

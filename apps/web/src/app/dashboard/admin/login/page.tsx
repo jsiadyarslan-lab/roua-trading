@@ -131,7 +131,7 @@ export default function AdminLoginPage() {
                 autoFocus
                 style={{
                   flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                  color: COLORS.text, fontSize: 14, fontFamily: "'Cairo', sans-serif',
+                  color: COLORS.text, fontSize: 14, fontFamily: "'Cairo', sans-serif",
                   direction: 'ltr', textAlign: 'right',
                 }}
               />

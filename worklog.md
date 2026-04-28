@@ -95,3 +95,27 @@ Work Log:
 Stage Summary:
 - 8 files created, 0 compilation errors
 - 30-second polling, parallel price fetching, graceful DB handling
+---
+Task ID: fix-content-alert-agents
+Agent: main
+Task: Fix Content Agent market data fetch failure + Alert Agent DB table missing
+
+Work Log:
+- Diagnosed Content Agent failure: 3 bugs found in market_fetcher.py
+  1. Symbol format wrong: BTC-USD → BTC/USDT (API expects slash notation for crypto)
+  2. URL construction wrong: didn't use catch-all route properly
+  3. Response parsing wrong: didn't extract nested 'data' field from {success, data} wrapper
+- Fixed config.py: MARKET_SYMBOLS updated to ["BTC/USDT", "ETH/USDT", "AAPL", "TSLA", "SPY"]
+- Rewrote market_fetcher.py with proper URL construction and response unwrapping
+- Verified locally: all 5 symbols return real data (Binance for crypto, TwelveData/Yahoo for stocks)
+- Deployed to Railway via `railway up`: Content Agent now successfully fetches and publishes
+- Fixed Alert Agent: added Alert model + AlertCondition enum to Prisma schema
+- Created migration SQL and ran it on Railway Postgres via public connection URL
+- Fixed alert-agent/price_checker.py with same response unwrapping fix
+- Deployed alert-agent fix to Railway: now runs without "Alert table not found" error
+
+Stage Summary:
+- Content Agent: ✅ Working — successfully published analysis to Telegram at 14:50 UTC
+- Alert Agent: ✅ Working — connected to DB, no more table errors
+- All 6 agents verified running on Railway with ✅ OK status
+- Commits: d4e649f (content fix), c1b90b4 (alert fix + Prisma schema)

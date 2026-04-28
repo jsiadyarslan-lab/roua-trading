@@ -75,6 +75,9 @@ export class DrawingRenderer {
   private resizeObserver: ResizeObserver | null = null;
   private started = false;
 
+  // ── Event target ref (canvas or container) ─────────────
+  private eventTarget: HTMLElement | null = null;
+
   // ── Constructor ────────────────────────────────────────
 
   constructor(
@@ -107,6 +110,12 @@ export class DrawingRenderer {
 
     this.createOverlayCanvas();
     this.attachEvents();
+
+    // Set initial canvas pointer events based on current tool
+    if (this.currentTool !== 'cursor') {
+      this.setCanvasPointerEvents(true);
+    }
+
     this.redraw();
   }
 
@@ -131,6 +140,10 @@ export class DrawingRenderer {
     this.mousePixel = null;
     if (tool === 'cursor') {
       this.setChartInteractionEnabled(true);
+      this.setCanvasPointerEvents(false); // Let chart handle pan/zoom
+    } else {
+      this.setChartInteractionEnabled(false);
+      this.setCanvasPointerEvents(true);  // Capture mouse for drawing
     }
     this.redraw();
   }
@@ -209,11 +222,14 @@ export class DrawingRenderer {
   // ══════════════════════════════════════════════════════════
 
   private attachEvents(): void {
-    // Mouse events on the container (we intercept clicks when a tool is active)
-    this.container.addEventListener('mousedown', this.boundMouseDown);
+    // ALWAYS listen on the container for mousedown so we can detect
+    // clicks near drawings even in cursor mode (when canvas pointerEvents is 'none')
+    this.container.addEventListener('mousedown', this.boundMouseDown, true); // capture phase
     this.container.addEventListener('mousemove', this.boundMouseMove);
     this.container.addEventListener('mouseup', this.boundMouseUp);
     this.container.addEventListener('contextmenu', this.boundContextMenu);
+
+    this.eventTarget = this.container;
 
     // Re-render when the visible range changes (scroll / zoom)
     const onVisibleRangeChange = () => { this.redraw(); };
@@ -230,7 +246,7 @@ export class DrawingRenderer {
   }
 
   private detachEvents(): void {
-    this.container.removeEventListener('mousedown', this.boundMouseDown);
+    this.container.removeEventListener('mousedown', this.boundMouseDown, true); // capture phase
     this.container.removeEventListener('mousemove', this.boundMouseMove);
     this.container.removeEventListener('mouseup', this.boundMouseUp);
     this.container.removeEventListener('contextmenu', this.boundContextMenu);
@@ -307,24 +323,44 @@ export class DrawingRenderer {
       const y = e.clientY - rect.top;
       const x = e.clientX - rect.left;
 
-      // Check horizontal lines
+      // Check ALL drawing types for proximity (not just horizontal)
       const drawings = this.drawingManager.getAll();
       for (const drawing of drawings) {
         if (drawing.type === 'horizontal') {
           const pixelPt = this.chartPointToPixel(drawing.points[0]);
-          if (pixelPt && Math.abs(y - pixelPt.y) < 6) {
+          if (pixelPt && Math.abs(y - pixelPt.y) < 8) {
             // Start dragging this horizontal line
             this.isDragging = true;
             this.dragDrawingId = drawing.id;
             this.dragStartY = y;
             this.setChartInteractionEnabled(false);
+            // Set cursor to indicate dragging
+            this.container.style.cursor = 'ns-resize';
 
             e.stopImmediatePropagation();
             e.preventDefault();
             return;
           }
         }
+        // For other drawing types, check proximity to any point
+        if (drawing.type !== 'horizontal') {
+          for (const pt of drawing.points) {
+            const pixelPt = this.chartPointToPixel(pt);
+            if (pixelPt && Math.abs(x - pixelPt.x) < 8 && Math.abs(y - pixelPt.y) < 8) {
+              this.isDragging = true;
+              this.dragDrawingId = drawing.id;
+              this.dragStartY = y;
+              this.setChartInteractionEnabled(false);
+              this.container.style.cursor = 'move';
+
+              e.stopImmediatePropagation();
+              e.preventDefault();
+              return;
+            }
+          }
+        }
       }
+      // Not near any drawing — let the event pass through to chart for normal pan/zoom
       return;
     }
 
@@ -360,12 +396,61 @@ export class DrawingRenderer {
 
       const drawing = this.drawingManager.get(this.dragDrawingId);
       if (drawing) {
-        // For horizontal lines, update the price
-        this.drawingManager.update(this.dragDrawingId, {
-          points: [{ ...drawing.points[0], price: point.price }],
-        });
+        if (drawing.type === 'horizontal') {
+          // For horizontal lines, only update the price (keep time)
+          this.drawingManager.update(this.dragDrawingId, {
+            points: [{ ...drawing.points[0], price: point.price }],
+          });
+        } else {
+          // For other drawings, calculate the price delta and move all points
+          const rect = this.container.getBoundingClientRect();
+          const y = e.clientY - rect.top;
+          const deltaY = y - this.dragStartY;
+          const deltaPrice = this.candleSeries.coordinateToPrice(this.dragStartY)! - this.candleSeries.coordinateToPrice(y)!;
+          const deltaTime = this.chart.timeScale().coordinateToTime(e.clientX - rect.left) as number;
+
+          if (drawing.points.length > 0 && deltaTime !== null) {
+            const timeDelta = deltaTime - drawing.points[0].time;
+            const newPoints = drawing.points.map(pt => ({
+              ...pt,
+              price: pt.price + deltaPrice,
+              time: pt.time + timeDelta,
+            }));
+            this.drawingManager.update(this.dragDrawingId, { points: newPoints });
+          }
+        }
         this.redraw();
       }
+      return;
+    }
+
+    // In cursor mode, update cursor style when hovering near drawings
+    if (this.currentTool === 'cursor' && !this.isDrawing) {
+      const rect = this.container.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const x = e.clientX - rect.left;
+
+      let nearDrawing = false;
+      const drawings = this.drawingManager.getAll();
+      for (const drawing of drawings) {
+        if (drawing.type === 'horizontal') {
+          const pixelPt = this.chartPointToPixel(drawing.points[0]);
+          if (pixelPt && Math.abs(y - pixelPt.y) < 8) {
+            nearDrawing = true;
+            break;
+          }
+        } else {
+          for (const pt of drawing.points) {
+            const pixelPt = this.chartPointToPixel(pt);
+            if (pixelPt && Math.abs(x - pixelPt.x) < 8 && Math.abs(y - pixelPt.y) < 8) {
+              nearDrawing = true;
+              break;
+            }
+          }
+          if (nearDrawing) break;
+        }
+      }
+      this.container.style.cursor = nearDrawing ? 'pointer' : '';
       return;
     }
 
@@ -385,6 +470,8 @@ export class DrawingRenderer {
       this.isDragging = false;
       this.dragDrawingId = null;
       this.setChartInteractionEnabled(true);
+      this.container.style.cursor = '';
+      if (this.currentTool === 'cursor') this.setCanvasPointerEvents(false);
       return;
     }
     // Don't reset drawing state on mouseup — we wait for all required clicks
@@ -412,6 +499,9 @@ export class DrawingRenderer {
 
     // Re-enable chart pan/zoom
     this.setChartInteractionEnabled(true);
+
+    // Keep canvas pointerEvents as 'auto' since tool is still active
+    // (user might want to draw another line)
 
     this.redraw();
   }
@@ -1130,7 +1220,19 @@ export class DrawingRenderer {
     this.isDrawing = false;
     this.mousePixel = null;
     this.setChartInteractionEnabled(true);
+    if (this.currentTool === 'cursor') this.setCanvasPointerEvents(false);
     this.redraw();
+  }
+
+  /**
+   * Enable or disable pointer events on the overlay canvas.
+   * When enabled ('auto'), the canvas captures mouse events for drawing.
+   * When disabled ('none'), events pass through to the chart below.
+   */
+  private setCanvasPointerEvents(enabled: boolean): void {
+    if (this.overlayCanvas) {
+      this.overlayCanvas.style.pointerEvents = enabled ? 'auto' : 'none';
+    }
   }
 
   /**

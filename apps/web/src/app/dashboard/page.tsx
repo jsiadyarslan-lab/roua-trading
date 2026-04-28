@@ -216,21 +216,32 @@ export default function DashboardPage() {
           grid-template-columns: 0px minmax(0, 1fr) 0px !important;
         }
 
+        .dash-grid.chart-fullscreen .dash-col-left,
+        .dash-grid.chart-fullscreen .dash-col-right,
+        .dash-grid.chart-fullscreen .dash-col-right-mobile {
+          visibility: hidden !important;
+          overflow: hidden !important;
+          pointer-events: none !important;
+        }
+
         .dash-grid.chart-fullscreen .dash-col-center {
-          overflow-y: auto !important;
-          overflow-x: hidden !important;
+          overflow: hidden !important;
         }
 
         .dash-grid.chart-fullscreen .dash-col-center .panel:first-child {
-          flex: 1 1 auto !important;
-          min-height: 45vh !important;
+          flex: 1 1 0% !important;
+          min-height: 0 !important;
+          overflow: hidden !important;
         }
 
         .dash-grid.chart-fullscreen .dash-col-center .panel:last-child {
           flex-shrink: 0 !important;
-          min-height: 180px !important;
-          max-height: 35vh !important;
+          min-height: 160px !important;
+          max-height: 280px !important;
           height: auto !important;
+          visibility: visible !important;
+          pointer-events: auto !important;
+          overflow-y: auto !important;
         }
 
         .dash-col {
@@ -669,7 +680,7 @@ export default function DashboardPage() {
           )}
 
           {/* Center Column: Chart + Balance + Positions */}
-          <div className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
+          <div className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, minHeight: 0 }}>
             {/* Chart Panel */}
             <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
@@ -682,7 +693,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Balance Card + Positions Panel */}
-            <div className="panel hover-glow" style={{ flexShrink: 0, height: posOpen ? 240 : PANEL_H, transition: ANIM, display: 'flex', flexDirection: 'column' }}>
+            <div className="panel hover-glow" style={{ flexShrink: 0, height: posOpen ? (chartFullscreen ? 220 : 240) : PANEL_H, transition: ANIM, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <div className="panel-header">
                 <div className="summary-row">
                   {/* Balance with gradient */}

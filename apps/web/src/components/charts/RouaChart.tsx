@@ -527,74 +527,56 @@ export default function RouaChart({
             />
           )}
 
-          {/* ── Candle Timer on Price Scale (below current price) ── */}
+          {/* ── Candle Timer on Price Scale (below current price label) ── */}
           {priceLabelY !== null && candleCountdown && (
             <div style={{
               position: 'absolute',
-              right: 0,
-              top: priceLabelY + 22,
+              right: 4,
+              top: priceLabelY + 18,
               zIndex: 20,
               pointerEvents: 'none',
-              width: 80,
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
+              gap: 4,
+              padding: '2px 7px',
+              borderRadius: 4,
+              border: '1px solid rgba(0,212,255,0.25)',
+              background: 'rgba(11,14,20,0.92)',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 0 6px rgba(0,212,255,0.08)',
             }}>
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 1,
-                padding: '3px 6px',
-                borderRadius: 4,
-                border: '1px solid rgba(0,212,255,0.3)',
-                background: 'rgba(11,14,20,0.95)',
-                backdropFilter: 'blur(8px)',
-                boxShadow: '0 0 8px rgba(0,212,255,0.1)',
+              <span style={{
+                width: 5,
+                height: 5,
+                borderRadius: '50%',
+                background: ws.connectionState === 'connected' ? '#3fb950' : '#fbbf24',
+                boxShadow: ws.connectionState === 'connected' ? '0 0 5px #3fb950' : '0 0 5px #fbbf24',
+                animation: 'live-dot 1.8s ease-in-out infinite',
+              }} />
+              <span style={{
+                color: '#00D4FF',
+                fontSize: 10,
+                fontWeight: 700,
+                fontFamily: "'JetBrains Mono', monospace",
+                letterSpacing: 0.5,
               }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 3,
-                }}>
-                  <span style={{
-                    width: 4,
-                    height: 4,
-                    borderRadius: '50%',
-                    background: ws.connectionState === 'connected' ? '#3fb950' : '#fbbf24',
-                    boxShadow: ws.connectionState === 'connected' ? '0 0 4px #3fb950' : '0 0 4px #fbbf24',
-                  }} />
-                  <span style={{
-                    color: '#00D4FF',
-                    fontSize: 9,
-                    fontWeight: 700,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    letterSpacing: 0.5,
-                  }}>
-                    {candleCountdown}
-                  </span>
-                </div>
-                <span style={{
-                  color: '#8B92A8',
-                  fontSize: 7,
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}>
-                  {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
-                </span>
-              </div>
+                {candleCountdown}
+              </span>
             </div>
           )}
         </div>
 
-        {/* ── Quick Trade Bar (below time scale) ── */}
+        {/* ── Quick Trade Bar (below time scale — beautiful design) ── */}
         {!mobile && currentPrice && (
           <div style={{
             display: 'flex',
             alignItems: 'stretch',
-            height: 36,
-            background: '#0F1117',
-            borderTop: '1px solid rgba(42,49,60,0.6)',
+            height: 42,
+            background: 'linear-gradient(180deg, #0D1018 0%, #0B0E14 100%)',
+            borderTop: '1px solid rgba(42,49,60,0.5)',
             flexShrink: 0,
+            padding: '4px 6px',
+            gap: 6,
           }}>
             {/* Buy Button */}
             <button
@@ -616,51 +598,63 @@ export default function RouaChart({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 8,
-                padding: '0 16px',
-                background: 'linear-gradient(135deg, rgba(63,185,80,0.15) 0%, rgba(63,185,80,0.05) 100%)',
-                border: 'none',
-                borderRight: '1px solid rgba(42,49,60,0.4)',
-                borderBottom: '2px solid rgba(63,185,80,0.5)',
+                gap: 6,
+                padding: '0 12px',
+                background: 'linear-gradient(135deg, rgba(63,185,80,0.18) 0%, rgba(63,185,80,0.06) 100%)',
+                border: '1px solid rgba(63,185,80,0.3)',
+                borderRadius: 8,
                 cursor: 'pointer',
-                transition: 'all 0.15s ease',
+                transition: 'all 0.18s ease',
                 position: 'relative',
                 overflow: 'hidden',
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(63,185,80,0.28) 0%, rgba(63,185,80,0.12) 100%)';
-                e.currentTarget.style.boxShadow = '0 0 20px rgba(63,185,80,0.15), inset 0 0 20px rgba(63,185,80,0.05)';
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(63,185,80,0.32) 0%, rgba(63,185,80,0.14) 100%)';
+                e.currentTarget.style.boxShadow = '0 0 16px rgba(63,185,80,0.12), inset 0 0 12px rgba(63,185,80,0.04)';
+                e.currentTarget.style.borderColor = 'rgba(63,185,80,0.5)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(63,185,80,0.15) 0%, rgba(63,185,80,0.05) 100%)';
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(63,185,80,0.18) 0%, rgba(63,185,80,0.06) 100%)';
                 e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.borderColor = 'rgba(63,185,80,0.3)';
               }}
               title="شراء سريع"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3fb950" strokeWidth="2.5">
-                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
-              </svg>
+              <span style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 20,
+                height: 20,
+                borderRadius: 6,
+                background: 'rgba(63,185,80,0.15)',
+              }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3fb950" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+                </svg>
+              </span>
               <span style={{
                 color: '#3fb950',
                 fontWeight: 800,
-                fontSize: 12,
+                fontSize: 13,
                 fontFamily: "'Cairo', sans-serif",
-                letterSpacing: 0.5,
+                letterSpacing: 0.3,
               }}>شراء</span>
               <span style={{
-                color: 'rgba(63,185,80,0.7)',
+                color: 'rgba(63,185,80,0.65)',
                 fontSize: 10,
                 fontFamily: "'JetBrains Mono', monospace",
                 fontWeight: 600,
               }}>{typeof currentPrice === 'number' ? currentPrice.toFixed(currentPrice > 1000 ? 2 : 5) : '—'}</span>
               <span style={{
-                padding: '1px 5px',
-                borderRadius: 3,
-                background: 'rgba(63,185,80,0.12)',
-                color: 'rgba(63,185,80,0.8)',
-                fontSize: 8,
+                padding: '1px 6px',
+                borderRadius: 4,
+                background: 'rgba(63,185,80,0.1)',
+                color: 'rgba(63,185,80,0.7)',
+                fontSize: 9,
                 fontFamily: "'JetBrains Mono', monospace",
                 fontWeight: 700,
+                border: '1px solid rgba(63,185,80,0.15)',
               }}>0.01</span>
             </button>
 
@@ -684,50 +678,63 @@ export default function RouaChart({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: 8,
-                padding: '0 16px',
-                background: 'linear-gradient(135deg, rgba(248,81,73,0.15) 0%, rgba(248,81,73,0.05) 100%)',
-                border: 'none',
-                borderBottom: '2px solid rgba(248,81,73,0.5)',
+                gap: 6,
+                padding: '0 12px',
+                background: 'linear-gradient(135deg, rgba(248,81,73,0.18) 0%, rgba(248,81,73,0.06) 100%)',
+                border: '1px solid rgba(248,81,73,0.3)',
+                borderRadius: 8,
                 cursor: 'pointer',
-                transition: 'all 0.15s ease',
+                transition: 'all 0.18s ease',
                 position: 'relative',
                 overflow: 'hidden',
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(248,81,73,0.28) 0%, rgba(248,81,73,0.12) 100%)';
-                e.currentTarget.style.boxShadow = '0 0 20px rgba(248,81,73,0.15), inset 0 0 20px rgba(248,81,73,0.05)';
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(248,81,73,0.32) 0%, rgba(248,81,73,0.14) 100%)';
+                e.currentTarget.style.boxShadow = '0 0 16px rgba(248,81,73,0.12), inset 0 0 12px rgba(248,81,73,0.04)';
+                e.currentTarget.style.borderColor = 'rgba(248,81,73,0.5)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(248,81,73,0.15) 0%, rgba(248,81,73,0.05) 100%)';
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(248,81,73,0.18) 0%, rgba(248,81,73,0.06) 100%)';
                 e.currentTarget.style.boxShadow = 'none';
+                e.currentTarget.style.borderColor = 'rgba(248,81,73,0.3)';
               }}
               title="بيع سريع"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f85149" strokeWidth="2.5">
-                <polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/>
-              </svg>
+              <span style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 20,
+                height: 20,
+                borderRadius: 6,
+                background: 'rgba(248,81,73,0.15)',
+              }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f85149" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/>
+                </svg>
+              </span>
               <span style={{
                 color: '#f85149',
                 fontWeight: 800,
-                fontSize: 12,
+                fontSize: 13,
                 fontFamily: "'Cairo', sans-serif",
-                letterSpacing: 0.5,
+                letterSpacing: 0.3,
               }}>بيع</span>
               <span style={{
-                color: 'rgba(248,81,73,0.7)',
+                color: 'rgba(248,81,73,0.65)',
                 fontSize: 10,
                 fontFamily: "'JetBrains Mono', monospace",
                 fontWeight: 600,
               }}>{typeof currentPrice === 'number' ? currentPrice.toFixed(currentPrice > 1000 ? 2 : 5) : '—'}</span>
               <span style={{
-                padding: '1px 5px',
-                borderRadius: 3,
-                background: 'rgba(248,81,73,0.12)',
-                color: 'rgba(248,81,73,0.8)',
-                fontSize: 8,
+                padding: '1px 6px',
+                borderRadius: 4,
+                background: 'rgba(248,81,73,0.1)',
+                color: 'rgba(248,81,73,0.7)',
+                fontSize: 9,
                 fontFamily: "'JetBrains Mono', monospace",
                 fontWeight: 700,
+                border: '1px solid rgba(248,81,73,0.15)',
               }}>0.01</span>
             </button>
           </div>

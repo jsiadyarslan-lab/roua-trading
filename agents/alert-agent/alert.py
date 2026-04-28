@@ -25,6 +25,13 @@ from config import AlertConfig
 from price_checker import batch_check_prices, check_alert_condition
 from notifier import notify_user, mark_alert_triggered
 
+# جسر الربط بموقع الأخبار
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
+try:
+    from news_bridge import NewsBridge
+except ImportError:
+    NewsBridge = None
+
 
 class AlertAgent:
     """وكيل التنبيهات — يراقب تنبيهات الأسعار ويُرسل الإشعارات."""
@@ -46,6 +53,15 @@ class AlertAgent:
         # اتصال قاعدة البيانات
         self._db_conn = None
         self._db_url = self.config.DATABASE_URL
+
+        # جسر الربط بموقع الأخبار المالي
+        self.news: NewsBridge | None = None
+        if NewsBridge and self.config.NEWS_SITE_URL:
+            self.news = NewsBridge(
+                news_url=self.config.NEWS_SITE_URL,
+                api_key=self.config.NEWS_API_KEY,
+                logger=self.logger,
+            )
 
         # حالة الوكيل
         self._running = False
@@ -72,6 +88,7 @@ class AlertAgent:
             f"  قاعدة البيانات: {'✅ متصلة' if self._db_url else '❌ غير مضبوطة'}",
             f"  Telegram: {'✅ مضبوط' if self.alerter.is_configured else '❌ غير مضبوط'}",
             f"  SMTP: {'✅ مضبوط' if self.config.SMTP_HOST else '❌ غير مضبوط'}",
+            f"  موقع الأخبار: {'✅ مربوط' if self.news and self.news.is_configured else '⚠️ غير مربوط'}",
             "",
             "  بدء مراقبة التنبيهات...",
         ])
@@ -205,12 +222,31 @@ class AlertAgent:
                         if check_alert_condition(alert, current_price):
                             triggered_alerts.append((alert, current_price))
 
-                # 5. معالجة التنبيهات المُفعَّلة
+                # 5. جلب أخبار ذات صلة بالرموز المراقبة (لإثراء الإشعارات)
+                news_by_symbol: dict[str, str] = {}
+                if self.news and self.news.is_configured and symbols:
+                    try:
+                        # جلب آخر الأخبار المالية
+                        news_data = self.news.get_news(limit=10, lang="ar")
+                        if news_data and news_data.get("data"):
+                            for item in news_data.get("data", []):
+                                title = item.get("title", "")
+                                # محاولة مطابقة الرمز مع عنوان الخبر
+                                for sym in symbols:
+                                    base = sym.split("/")[0]
+                                    if base in title.upper() or sym in title:
+                                        if sym not in news_by_symbol:
+                                            news_by_symbol[sym] = title
+                                        break
+                    except Exception as e:
+                        self.logger.debug(f"تعذر جلب الأخبار ذات الصلة: {e}")
+
+                # 6. معالجة التنبيهات المُفعَّلة
                 if triggered_alerts:
                     self.logger.info(
                         f"تم تفعيل {len(triggered_alerts)} تنبيه!"
                     )
-                    self._process_triggered_alerts(triggered_alerts)
+                    self._process_triggered_alerts(triggered_alerts, news_by_symbol)
                 else:
                     self.logger.debug("لم يتم تفعيل أي تنبيه في هذه الدورة")
 
@@ -328,14 +364,20 @@ class AlertAgent:
     # ── معالجة التنبيهات المُفعَّلة ──
 
     def _process_triggered_alerts(
-        self, triggered_alerts: list[tuple[dict, float]]
+        self,
+        triggered_alerts: list[tuple[dict, float]],
+        news_by_symbol: dict[str, str] | None = None,
     ) -> None:
         """
         يعالج التنبيهات المُفعَّلة بإرسال الإشعارات وتحديث الحالة.
+        يُضيف أخباراً ذات صلة بالرمز عند توفرها.
 
         المعاملات:
             triggered_alerts: قائمة من أزواج (التنبيه، السعر الحالي)
+            news_by_symbol: قاموس من الرمز إلى آخر خبر ذي صلة
         """
+        news_by_symbol = news_by_symbol or {}
+
         for alert, current_price in triggered_alerts:
             alert_id = alert.get("id", "غير محدد")
             symbol = alert.get("symbol", "غير محدد")
@@ -356,6 +398,15 @@ class AlertAgent:
                     db_url=self._db_url,
                     logger=self.logger,
                 )
+
+                # إرسال خبر ذي صلة عبر Telegram إذا توفر
+                related_news = news_by_symbol.get(symbol)
+                if related_news and self.alerter.is_configured:
+                    news_msg = (
+                        f"📰 <b>خبر ذو صلة بـ {symbol}</b>\n"
+                        f"{related_news}"
+                    )
+                    self.alerter.send(news_msg, cooldown=0)
 
                 # تحديث الإحصائيات
                 self._total_triggered += 1

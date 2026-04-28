@@ -20,6 +20,13 @@ from shared.health_server import HealthCheckServer
 from config import AuditConfig
 from pattern_detector import detect_suspicious_patterns, format_audit_report
 
+# جسر الربط بموقع الأخبار
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
+try:
+    from news_bridge import NewsBridge
+except ImportError:
+    NewsBridge = None
+
 
 class AuditAgent:
     """وكيل التدقيق — يفحص سجلات المنصة بحثاً عن أنشطة مشبوهة."""
@@ -45,6 +52,15 @@ class AuditAgent:
         self._last_report_day = ""
         self._last_findings_count = 0
 
+        # جسر الربط بموقع الأخبار المالي
+        self.news: NewsBridge | None = None
+        if NewsBridge and self.config.NEWS_SITE_URL:
+            self.news = NewsBridge(
+                news_url=self.config.NEWS_SITE_URL,
+                api_key=self.config.NEWS_API_KEY,
+                logger=self.logger,
+            )
+
     def start(self) -> None:
         """يبدأ تشغيل وكيل التدقيق."""
         self._running = True
@@ -59,6 +75,7 @@ class AuditAgent:
             f"  تقرير يومي: الساعة {self.config.DAILY_REPORT_HOUR}:00 UTC",
             f"  قاعدة البيانات: {'✅' if self.config.DATABASE_URL else '❌'}",
             f"  Telegram: {'✅' if self.alerter.is_configured else '❌'}",
+            f"  موقع الأخبار: {'✅ مربوط' if self.news and self.news.is_configured else '⚠️ غير مربوط'}",
             "",
             "  بدء التدقيق...",
         ])
@@ -144,6 +161,26 @@ class AuditAgent:
         )
 
         report = format_audit_report(findings, self.logger)
+
+        # إضافة سياق الأخبار المالية إذا توفر
+        if self.news and self.news.is_configured:
+            try:
+                sentiment = self.news.get_market_sentiment()
+                if sentiment:
+                    fg = sentiment.get("fearGreedIndex", {})
+                    fg_value = fg.get("value", "—")
+                    fg_label = fg.get("labelAr", fg.get("label", "—"))
+                    report += f"\n\n📰 <b>سياق السوق:</b> مؤشر الخوف والطمع: {fg_value} ({fg_label})"
+
+                # جلب أخبار ذات صلة بالتلاعب المحتمل
+                news_data = self.news.get_news(category="اقتصاد", limit=3, lang="ar")
+                if news_data and news_data.get("data"):
+                    report += "\n📰 <b>أخبار مالية ذات صلة:</b>"
+                    for item in news_data.get("data", [])[:3]:
+                        title = item.get("title", "")
+                        report += f"\n  • {title}"
+            except Exception as e:
+                self.logger.debug(f"تعذر جلب سياق الأخبار: {e}")
 
         self.alerter.send(report, cooldown=0)
         self.logger.info("تم إرسال تقرير التدقيق اليومي")

@@ -22,6 +22,13 @@ from config import MaintenanceConfig
 from backup import run_backup_cycle, format_bytes
 from cleanup import run_cleanup_cycle
 
+# جسر الربط بموقع الأخبار
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
+try:
+    from news_bridge import NewsBridge
+except ImportError:
+    NewsBridge = None
+
 
 class MaintenanceAgent:
     """وكيل الصيانة — نسخ احتياطي دوري وتنظيف تلقائي."""
@@ -50,6 +57,16 @@ class MaintenanceAgent:
         self._last_backup_success = False
         self._last_cleanup_success = False
 
+        # جسر الربط بموقع الأخبار المالي
+        self.news: NewsBridge | None = None
+        if NewsBridge and self.config.NEWS_SITE_URL:
+            self.news = NewsBridge(
+                news_url=self.config.NEWS_SITE_URL,
+                api_key=self.config.NEWS_API_KEY,
+                cron_secret=self.config.CRON_SECRET,
+                logger=self.logger,
+            )
+
         # حساب وقت النسخ الاحتياطي المجدول التالي (2:00 صباحاً بالتوقيت العالمي)
         self._next_scheduled_backup = self._calculate_next_scheduled_backup()
 
@@ -71,6 +88,7 @@ class MaintenanceAgent:
             f"  منفذ فحص الصحة: {self.config.HEALTH_PORT}",
             f"  Telegram: {'مضبوط' if self.alerter.is_configured else 'غير مضبوط'}",
             f"  DATABASE_URL: {'مضبوط' if self.config.DATABASE_URL else 'غير مضبوط'}",
+            f"  موقع الأخبار: {'✅ مربوط' if self.news and self.news.is_configured else '⚠️ غير مربوط'}",
             "",
             "  بدء خدمات الصيانة...",
         ])
@@ -104,6 +122,9 @@ class MaintenanceAgent:
         self.logger.info("بدء دورة صيانة أولية...")
         self._run_backup()
         self._run_cleanup()
+
+        # تشغيل خط أنابيب الأخبار إذا كان متاحاً
+        self._trigger_news_pipeline()
 
         # حلقة المراقبة الرئيسية
         self._main_loop()
@@ -247,6 +268,24 @@ class MaintenanceAgent:
                 self.alerter.send(alert, cooldown=0)
 
             self._update_health()
+
+    # ── خط أنابيب الأخبار ──
+
+    def _trigger_news_pipeline(self) -> None:
+        """يُشغّل خط أنابيب الأخبار على الموقع كمهمة صيانة."""
+        if not self.news or not self.news.is_configured:
+            return
+
+        try:
+            self.logger.info("تشغيل خط أنابيب الأخبار...")
+            result = self.news.trigger_pipeline(max_items=5, min_impact=3)
+            if result:
+                published = result.get("articlesPublished", 0)
+                self.logger.info(f"خط أنابيب الأخبار: نُشر {published} مقال")
+            else:
+                self.logger.debug("لم يُرجع خط أنابيب الأخبار نتائج")
+        except Exception as e:
+            self.logger.debug(f"تعذر تشغيل خط أنابيب الأخبار: {e}")
 
     # ── الحسابات المساعدة ──
 

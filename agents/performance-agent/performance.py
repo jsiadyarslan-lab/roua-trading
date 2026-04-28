@@ -59,6 +59,15 @@ class PerformanceAgent:
         self._last_report = 0.0
         self._current_stats: dict[str, dict] = {}
 
+        # إضافة نقطة نهاية موقع الأخبار إلى المراقبة إذا كان متاحاً
+        if self.config.NEWS_SITE_URL:
+            news_url = self.config.NEWS_SITE_URL.rstrip("/")
+            self.config.PERF_ENDPOINTS.append({
+                "name": "موقع الأخبار (صحة)",
+                "path": f"{news_url}/api/health",
+                "external": True,
+            })
+
     # ── بدء التشغيل ──
 
     def start(self) -> None:

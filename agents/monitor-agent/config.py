@@ -48,6 +48,10 @@ DATABASE_URL = os.environ.get("DATABASE_URL", "")
 TWELVE_DATA_API_KEY = os.environ.get("TWELVE_DATA_API_KEY", "")
 WEBSOCKET_URL = os.environ.get("WEBSOCKET_URL", "")
 
+# ── ربط موقع الأخبار المالي ──
+NEWS_SITE_URL = os.environ.get("NEWS_SITE_URL", "")  # https://rouatradingnews-production.up.railway.app
+NEWS_API_KEY = os.environ.get("NEWS_API_KEY", "")    # مفتاح API للموقع (rva_...)
+
 # ── فترات الفحص المتقدمة ──
 DEPENDENCY_CHECK_INTERVAL = int(os.environ.get("DEPENDENCY_CHECK_INTERVAL", "300"))  # 5 دقائق
 DAILY_SUMMARY_INTERVAL = int(os.environ.get("DAILY_SUMMARY_INTERVAL", "86400"))     # 24 ساعة

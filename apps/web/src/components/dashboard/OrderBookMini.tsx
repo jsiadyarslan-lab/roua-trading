@@ -53,10 +53,18 @@ export function OrderBookMini() {
   const wsRef = useRef<WebSocket | null>(null)
 
   const connectDepth = useCallback((symbol: string) => {
-    // Close any existing connection
-    if (wsRef.current) {
-      wsRef.current.close()
-      wsRef.current = null
+    // Gracefully close any existing connection to prevent "Ping received after close"
+    const oldWs = wsRef.current
+    wsRef.current = null
+    if (oldWs) {
+      // Remove handlers before closing to prevent stale callbacks
+      oldWs.onopen = null
+      oldWs.onmessage = null
+      oldWs.onerror = null
+      oldWs.onclose = null
+      if (oldWs.readyState === WebSocket.OPEN || oldWs.readyState === WebSocket.CONNECTING) {
+        oldWs.close(1000, 'symbol-change')
+      }
     }
 
     const streamId = toBinanceStream(symbol)
@@ -70,37 +78,60 @@ export function OrderBookMini() {
     setIsCrypto(true)
     const wsUrl = `wss://stream.binance.com:9443/ws/${streamId}@depth20@100ms`
 
-    try {
-      const ws = new WebSocket(wsUrl)
-      wsRef.current = ws
+    // Small delay to ensure old connection is fully closed before opening new one
+    setTimeout(() => {
+      try {
+        const ws = new WebSocket(wsUrl)
+        wsRef.current = ws
 
-      ws.onopen = () => setConnected(true)
-      ws.onclose = () => setConnected(false)
-      ws.onerror = () => setConnected(false)
+        ws.onopen = () => setConnected(true)
+        ws.onclose = () => {
+          setConnected(false)
+          // Auto-reconnect after delay if the component is still mounted
+          if (wsRef.current === ws) {
+            setTimeout(() => {
+              if (wsRef.current === ws) {
+                connectDepth(symbol)
+              }
+            }, 5000)
+          }
+        }
+        ws.onerror = () => {
+          setConnected(false)
+          // onclose will fire after onerror
+        }
 
-      ws.onmessage = (event) => {
-        try {
-          const data: DepthData = JSON.parse(event.data)
-          if (!data.asks || !data.bids) return
+        ws.onmessage = (event) => {
+          try {
+            const data: DepthData = JSON.parse(event.data)
+            if (!data.asks || !data.bids) return
 
-          const newAsks = buildRowsFromDepth(data.asks, 'ask', 12).reverse()
-          const newBids = buildRowsFromDepth(data.bids, 'bid', 12)
+            const newAsks = buildRowsFromDepth(data.asks, 'ask', 12).reverse()
+            const newBids = buildRowsFromDepth(data.bids, 'bid', 12)
 
-          setAsks(newAsks)
-          setBids(newBids)
-        } catch { /* ignore parse errors */ }
+            setAsks(newAsks)
+            setBids(newBids)
+          } catch { /* ignore parse errors */ }
+        }
+      } catch {
+        setConnected(false)
       }
-    } catch {
-      setConnected(false)
-    }
+    }, 100) // 100ms delay for clean handoff
   }, [])
 
   useEffect(() => {
     connectDepth(selectedSymbol)
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close()
-        wsRef.current = null
+      const ws = wsRef.current
+      wsRef.current = null
+      if (ws) {
+        ws.onopen = null
+        ws.onmessage = null
+        ws.onerror = null
+        ws.onclose = null
+        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+          ws.close(1000, 'cleanup')
+        }
       }
     }
   }, [selectedSymbol, connectDepth])

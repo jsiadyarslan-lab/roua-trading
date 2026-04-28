@@ -18,6 +18,7 @@ from config import (
     MAX_CONSECUTIVE_FAILURES, HEALTH_ENDPOINTS,
     REDIS_URL, DATABASE_URL, TWELVE_DATA_API_KEY,
     WEBSOCKET_URL, DEPENDENCY_CHECK_INTERVAL, DAILY_SUMMARY_INTERVAL,
+    NEWS_SITE_URL, NEWS_API_KEY,
 )
 from tools import (
     check_website_health, query_api_endpoint,
@@ -203,6 +204,20 @@ def run_dependency_checks() -> dict:
     else:
         dep_results["database"] = None  # غير مضبوط
 
+    # ── فحص موقع الأخبار المالي ──
+    if NEWS_SITE_URL:
+        try:
+            news_health_url = f"{NEWS_SITE_URL}/api/health"
+            resp = requests.get(news_health_url, timeout=10)
+            dep_results["news_site"] = resp.status_code == 200
+            if resp.status_code != 200:
+                print(f"  ⚠️ موقع الأخبار: HTTP {resp.status_code}")
+        except Exception as e:
+            dep_results["news_site"] = False
+            print(f"  ❌ موقع الأخبار: {e}")
+    else:
+        dep_results["news_site"] = None  # غير مضبوط
+
     return dep_results
 
 
@@ -269,6 +284,7 @@ def main():
     print(f"💾 Redis: {'مضبوط ✅' if REDIS_URL else 'غير مضبوط ⚠️'}")
     print(f"🗄️ Database: {'مضبوط ✅' if DATABASE_URL else 'غير مضبوط ⚠️'}")
     print(f"📡 Twelve Data: {'مضبوط ✅' if TWELVE_DATA_API_KEY else 'غير مضبوط ⚠️'}")
+    print(f"📰 موقع الأخبار: {'مضبوط ✅' if NEWS_SITE_URL else 'غير مضبوط ⚠️'}")
     print(f"⏰ فحص التبعيات: كل {DEPENDENCY_CHECK_INTERVAL} ثانية")
     print(f"📋 الملخص اليومي: كل {DAILY_SUMMARY_INTERVAL} ثانية")
     print("━" * 55)

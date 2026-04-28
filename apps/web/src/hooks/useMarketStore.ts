@@ -39,20 +39,30 @@ export const useMarketStore = create<MarketStore>((set) => ({
 // Only these base currencies are available on Binance
 const BINANCE_CRYPTO_BASES = new Set(['BTC','ETH','SOL','BNB','XRP','ADA','DOGE','AVAX','DOT','MATIC','LINK','UNI'])
 
-// Singleton WebSocket Manager — with exponential backoff + ping/pong
+/**
+ * Singleton WebSocket Manager for Binance combined stream.
+ *
+ * Key design decisions to prevent "Ping received after close" errors:
+ * 1. Uses closePromise — waits for old WS to fully close before opening a new one
+ * 2. Removes all event handlers before closing old WS
+ * 3. Uses connectionGeneration to ignore stale events
+ * 4. Debounces rapid subscribe/unsubscribe calls
+ * 5. Adds isReconnecting guard to prevent concurrent reconnect attempts
+ */
 class BinanceWSManager {
   private ws: WebSocket | null = null
   private subscribers = new Set<string>()
-  private reconnectTimer: any = null
-  private debounceTimer: any = null
-  private pingTimer: any = null
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  private debounceTimer: ReturnType<typeof setTimeout> | null = null
+  private pingTimer: ReturnType<typeof setInterval> | null = null
   private reconnectAttempts = 0
-  private maxReconnectAttempts = 20
+  private maxReconnectAttempts = 10
   private baseDelay = 1000  // 1s initial
   private maxDelay = 30000 // 30s max
-  private intentionalClose = false
-  private isClosing = false  // منع إرسال ping أثناء إغلاق الاتصال
-  private connectionGeneration = 0  // لتتبع جيل الاتصال وتجاهل أحداث الإغلاق القديمة
+  private connectionGeneration = 0
+  private isReconnecting = false  // Guard against concurrent reconnects
+  private closePromise: Promise<void> | null = null  // Track pending close
+  private destroyed = false  // Permanent shutdown flag
 
   private normalizeSymbol(symbol: string) {
     let s = symbol.replace('/', '')
@@ -74,6 +84,7 @@ class BinanceWSManager {
     if (!this.isBinancePair(symbol)) {
       return
     }
+    this.destroyed = false
     this.subscribers.add(symbol)
     this.scheduleReconnect()
   }
@@ -81,33 +92,92 @@ class BinanceWSManager {
   unsubscribe(symbol: string) {
     this.subscribers.delete(symbol)
     if (this.subscribers.size === 0) {
-      this.close()
+      this.destroy()
     } else {
       this.scheduleReconnect()
     }
   }
 
-  private close() {
-    this.intentionalClose = true
-    this.isClosing = true
+  /** Permanent shutdown — no more reconnects */
+  private destroy() {
+    this.destroyed = true
+    this.cleanupTimers()
     this.stopPing()
-    if (this.ws) {
-      this.ws.close()
-      this.ws = null
+    this.closeAndWait()
+  }
+
+  private cleanupTimers() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
     }
-    this.isClosing = false
-    clearTimeout(this.reconnectTimer)
-    clearTimeout(this.debounceTimer)
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer)
+      this.debounceTimer = null
+    }
+  }
+
+  /**
+   * Gracefully close the current WebSocket, returning a Promise that resolves
+   * when the connection is fully closed. This prevents "Ping received after close"
+   * errors by ensuring the old connection is dead before opening a new one.
+   */
+  private closeAndWait(): Promise<void> {
+    const oldWs = this.ws
+    this.ws = null
+    this.stopPing()
+
+    if (!oldWs || oldWs.readyState === WebSocket.CLOSED) {
+      return Promise.resolve()
+    }
+
+    // If already closing, wait for the existing close promise
+    if (this.closePromise) {
+      return this.closePromise
+    }
+
+    // Remove all event handlers to prevent any callbacks from firing
+    oldWs.onopen = null
+    oldWs.onmessage = null
+    oldWs.onerror = null
+    oldWs.onclose = null
+
+    if (oldWs.readyState === WebSocket.OPEN || oldWs.readyState === WebSocket.CONNECTING) {
+      this.closePromise = new Promise<void>((resolve) => {
+        const timeout = setTimeout(() => {
+          // Force close after 2s if the close handshake takes too long
+          try { oldWs.close(1000, 'timeout') } catch { /* ignore */ }
+          resolve()
+        }, 2000)
+
+        try {
+          oldWs.onclose = () => {
+            clearTimeout(timeout)
+            resolve()
+          }
+          oldWs.close(1000, 'reconnect')
+        } catch {
+          clearTimeout(timeout)
+          resolve()
+        }
+      }).finally(() => {
+        this.closePromise = null
+      })
+
+      return this.closePromise
+    }
+
+    return Promise.resolve()
   }
 
   private startPing() {
     this.stopPing()
-    // Send actual ping data every 20s to keep connection alive
+    // Send JSON ping every 20s to keep connection alive
     // Binance combined streams don't support WS ping frames, but
     // sending a JSON ping frame keeps the connection active and
-    // prevents proxy/firewall idle timeouts (Code 1006 disconnections)
+    // prevents proxy/firewall idle timeouts
     this.pingTimer = setInterval(() => {
-      if (this.ws && this.ws.readyState === WebSocket.OPEN && !this.isClosing) {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         try {
           this.ws.send(JSON.stringify({ method: 'ping' }))
         } catch {
@@ -134,21 +204,20 @@ class BinanceWSManager {
   private currentStreams: string = ''
 
   private scheduleReconnect() {
+    if (this.destroyed) return
     clearTimeout(this.debounceTimer)
     this.debounceTimer = setTimeout(() => {
       this.reconnect()
     }, 500) // 500ms debounce to batch multiple subscriptions
   }
 
-  private reconnect() {
-    if (this.subscribers.size === 0) {
-      this.close()
-      return
-    }
+  private async reconnect() {
+    if (this.destroyed) return
+    if (this.subscribers.size === 0) return
+    if (this.isReconnecting) return  // Prevent concurrent reconnects
 
     // Check if we've exceeded max reconnect attempts
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      // Max reconnect attempts reached — falling back to polling
       return
     }
 
@@ -157,60 +226,55 @@ class BinanceWSManager {
     ).sort()
     const streams = streamNames.join('/')
 
+    // Already connected to the same streams — nothing to do
     if (streams === this.currentStreams && this.ws && this.ws.readyState === WebSocket.OPEN) {
-      return // Already connected to these streams
+      return
     }
 
-    // زيادة جيل الاتصال لتجاهل أحداث الإغلاق من الاتصالات القديمة
+    this.isReconnecting = true
     this.connectionGeneration++
     const currentGeneration = this.connectionGeneration
 
-    // تعليم الإغلاق كمتعمد لتجنب trigger إعادة اتصال من onclose
-    this.intentionalClose = true
-    this.isClosing = true
-    this.stopPing()
-    if (this.ws) {
-      // إزالة معالجات الأحداث قبل الإغلاق لتجنب تشغيلها
-      this.ws.onopen = null
-      this.ws.onmessage = null
-      this.ws.onerror = null
-      this.ws.onclose = null
-      this.ws.close()
-      this.ws = null
+    // Step 1: Wait for any previous WebSocket to fully close
+    // This is THE KEY FIX — prevents "Ping received after close" errors
+    await this.closeAndWait()
+
+    // Step 2: Check if we're still the active generation (another reconnect may have started)
+    if (this.connectionGeneration !== currentGeneration) {
+      this.isReconnecting = false
+      return
     }
-    this.isClosing = false
-    this.intentionalClose = false
+
+    // Step 3: Check if destroyed while waiting
+    if (this.destroyed) {
+      this.isReconnecting = false
+      return
+    }
+
     this.currentStreams = streams
     const wsUrl = `wss://stream.binance.com:9443/stream?streams=${streams}`
 
-    // Connecting to streams
     try {
       this.ws = new WebSocket(wsUrl)
-    } catch (e) {
-      // WebSocket init error — will retry
+    } catch {
+      this.isReconnecting = false
       this.scheduleReconnectWithBackoff()
       return
     }
 
     this.ws.onopen = () => {
-      // تحقق أن هذا لا يزال الاتصال الحالي
       if (this.connectionGeneration !== currentGeneration) return
-      // Connected successfully
-      this.reconnectAttempts = 0 // Reset on successful connection
-      this.isClosing = false
+      this.reconnectAttempts = 0
+      this.isReconnecting = false
       this.startPing()
     }
 
     this.ws.onmessage = (event) => {
-      // تحقق أن هذا لا يزال الاتصال الحالي
       if (this.connectionGeneration !== currentGeneration) return
-      // تجاهل الرسائل أثناء إغلاق الاتصال
-      if (this.isClosing || (this.ws && this.ws.readyState !== WebSocket.OPEN)) {
-        return
-      }
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return
       try {
         const msg = JSON.parse(event.data)
-        // تجاهل رسائل pong من Binance
+        // Ignore pong responses and other non-data messages
         if (!msg.data) return
         if (msg.data && msg.data.c) {
           const d = msg.data
@@ -244,37 +308,33 @@ class BinanceWSManager {
             })
           }
         }
-      } catch (e) {
+      } catch {
         // Ignore parse errors — they are non-fatal
       }
     }
 
     this.ws.onerror = () => {
-      // تحقق أن هذا لا يزال الاتصال الحالي
       if (this.connectionGeneration !== currentGeneration) return
       // onclose will fire after onerror, so we handle reconnect there
     }
 
     this.ws.onclose = (e) => {
-      // تحقق أن هذا لا يزال الاتصال الحالي — تجاهل أحداث الإغلاق القديمة
       if (this.connectionGeneration !== currentGeneration) return
       this.stopPing()
       this.currentStreams = ''
-      
-      if (this.intentionalClose) {
-        // We closed it intentionally (e.g., changing streams)
-        this.intentionalClose = false
-        return
-      }
+      this.isReconnecting = false
+
+      // Don't reconnect if we're shutting down or if code 1000 (normal close)
+      if (this.destroyed || e.code === 1000) return
       
       this.scheduleReconnectWithBackoff()
     }
   }
 
   private scheduleReconnectWithBackoff() {
+    if (this.destroyed) return
     this.reconnectAttempts++
     const delay = this.getReconnectDelay()
-    // Reconnecting with backoff
     this.reconnectTimer = setTimeout(() => this.reconnect(), delay)
   }
 }

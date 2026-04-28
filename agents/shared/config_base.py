@@ -51,6 +51,7 @@ class BaseConfig:
     NEWS_SITE_URL: str = os.environ.get("NEWS_SITE_URL", "")
     NEWS_API_KEY: str = os.environ.get("NEWS_API_KEY", "")
     CRON_SECRET: str = os.environ.get("CRON_SECRET", "")
+    NEWS_ADMIN_SECRET: str = os.environ.get("NEWS_ADMIN_SECRET", "")
 
     def __repr__(self) -> str:
         safe_attrs = {}

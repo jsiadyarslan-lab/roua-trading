@@ -26,11 +26,14 @@ from price_checker import batch_check_prices, check_alert_condition
 from notifier import notify_user, mark_alert_triggered
 
 # جسر الربط بموقع الأخبار
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
 try:
-    from news_bridge import NewsBridge
+    from shared.news_bridge import NewsBridge
 except ImportError:
-    NewsBridge = None
+    try:
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
+        from news_bridge import NewsBridge
+    except ImportError:
+        NewsBridge = None
 
 
 class AlertAgent:
@@ -60,6 +63,7 @@ class AlertAgent:
             self.news = NewsBridge(
                 news_url=self.config.NEWS_SITE_URL,
                 api_key=self.config.NEWS_API_KEY,
+                admin_secret=self.config.NEWS_ADMIN_SECRET,
                 logger=self.logger,
             )
 

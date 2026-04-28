@@ -87,7 +87,7 @@ echo "   NEWS_SITE_URL=$NEWS_URL"
 if [ -n "$API_KEY" ]; then
     echo "   NEWS_API_KEY=$API_KEY"
 else
-    echo "   NEWS_API_KEY=rva_27fcec8190401a05acab99d8383fc45f334c57529c1d9448"
+    echo "   NEWS_API_KEY=rva_8da2b171a8a47c77271879cc12de11df709d5ef99c2ff2d6"
 fi
 echo "   CRON_SECRET=$CRON_SECRET"
 echo ""

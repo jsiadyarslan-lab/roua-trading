@@ -26,11 +26,14 @@ from brand_monitor import (
 )
 
 # جسر الربط بموقع الأخبار
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
 try:
-    from news_bridge import NewsBridge
+    from shared.news_bridge import NewsBridge
 except ImportError:
-    NewsBridge = None
+    try:
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
+        from news_bridge import NewsBridge
+    except ImportError:
+        NewsBridge = None
 
 
 class SentimentAgent:
@@ -63,6 +66,7 @@ class SentimentAgent:
             self.news = NewsBridge(
                 news_url=self.config.NEWS_SITE_URL,
                 api_key=self.config.NEWS_API_KEY,
+                admin_secret=self.config.NEWS_ADMIN_SECRET,
                 logger=self.logger,
             )
 
@@ -154,7 +158,7 @@ class SentimentAgent:
         self.logger.info(
             f"اكتمل الفحص — {len(mentions)} إشارة | "
             f"مشاعر: {label} ({score:+.2f})"
-            + (f" | خوف/طمع: {sentiment.get('fear_greed_index', '—')}" if market_sentiment_str else "")
+            + (f" | خوف/طمع: {sentiment.get('fear_greed_index', '—')}" if self._market_sentiment_str else "")
         )
 
         # حفظ في السجل

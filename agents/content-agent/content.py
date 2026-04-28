@@ -29,11 +29,14 @@ from publisher import (
 )
 
 # جسر الربط بموقع الأخبار
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
 try:
-    from news_bridge import NewsBridge
+    from shared.news_bridge import NewsBridge
 except ImportError:
-    NewsBridge = None
+    try:
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
+        from news_bridge import NewsBridge
+    except ImportError:
+        NewsBridge = None
 
 
 # أوقات النشر اليومية (بالساعات UTC)
@@ -74,6 +77,7 @@ class ContentAgent:
                 news_url=self.config.NEWS_SITE_URL,
                 api_key=self.config.NEWS_API_KEY,
                 cron_secret=self.config.CRON_SECRET,
+                admin_secret=self.config.NEWS_ADMIN_SECRET,
                 logger=self.logger,
             )
 

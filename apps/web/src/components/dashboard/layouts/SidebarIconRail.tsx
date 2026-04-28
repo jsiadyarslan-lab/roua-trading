@@ -57,8 +57,8 @@ export function SidebarIconRail({
   return (
     <aside
       style={{
-        width: 56,
-        minWidth: 56,
+        width: 40,
+        minWidth: 40,
         minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
@@ -68,31 +68,6 @@ export function SidebarIconRail({
         position: 'relative',
       }}
     >
-      {/* Header */}
-      <div
-        style={{
-          padding: '8px 5px 7px',
-          borderBottom: '1px solid rgba(0,212,255,0.10)',
-          display: 'grid',
-          gap: 3,
-          textAlign: 'center',
-        }}
-      >
-        <div
-          style={{
-            fontSize: 8.5,
-            color: T.text,
-            fontWeight: 900,
-            fontFamily: "'Cairo', sans-serif",
-          }}
-        >
-          الأدوات
-        </div>
-        {!collapsed && (
-          <div style={{ fontSize: 6, color: '#A2B4C8', lineHeight: 1.3 }}>أيقونات</div>
-        )}
-      </div>
-
       {/* Icon buttons */}
       <div
         className="custom-scrollbar"
@@ -100,11 +75,11 @@ export function SidebarIconRail({
           flex: 1,
           minHeight: 0,
           overflowY: 'auto',
-          padding: '4px 0',
+          padding: '3px 0',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: 2,
+          gap: 1,
         }}
       >
         {tabs.map((tab) => {
@@ -116,7 +91,7 @@ export function SidebarIconRail({
           return (
             <div
               key={tab.id}
-              style={{ position: 'relative', width: 48 }}
+              style={{ position: 'relative', width: 36 }}
               onMouseEnter={() => setHoveredTab(tab.id)}
               onMouseLeave={() => setHoveredTab(null)}
             >
@@ -125,8 +100,8 @@ export function SidebarIconRail({
                 onClick={() => onTabChange(tab.id)}
                 aria-label={tab.label}
                 style={{
-                  width: 48,
-                  height: 44,
+                  width: 36,
+                  height: 34,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -134,12 +109,12 @@ export function SidebarIconRail({
                   cursor: 'pointer',
                   position: 'relative',
                   background: isActive
-                    ? `linear-gradient(135deg, ${tab.accent}15, rgba(255,255,255,0.03))`
+                    ? `linear-gradient(135deg, ${tab.accent}12, rgba(255,255,255,0.02))`
                     : isHovered
-                      ? 'rgba(255,255,255,0.04)'
+                      ? 'rgba(255,255,255,0.03)'
                       : 'transparent',
-                  transition: 'all 0.2s ease',
-                  borderRadius: 8,
+                  transition: 'all 0.15s ease',
+                  borderRadius: 6,
                 }}
               >
                 {/* Active indicator bar on RIGHT side (RTL layout) */}
@@ -148,34 +123,21 @@ export function SidebarIconRail({
                     style={{
                       position: 'absolute',
                       right: 0,
-                      top: '15%',
-                      bottom: '15%',
-                      width: 3,
-                      borderRadius: '0 3px 3px 0',
+                      top: '20%',
+                      bottom: '20%',
+                      width: 2,
+                      borderRadius: '0 2px 2px 0',
                       background: tab.accent,
-                      boxShadow: `0 0 10px ${tab.accent}66`,
-                    }}
-                  />
-                )}
-
-                {/* Subtle glow background when active */}
-                {isActive && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: 4,
-                      borderRadius: 6,
-                      background: `${tab.accent}08`,
-                      boxShadow: `0 0 16px ${tab.accent}10`,
+                      boxShadow: `0 0 6px ${tab.accent}55`,
                     }}
                   />
                 )}
 
                 <Icon
-                  size={20}
+                  size={14}
                   color={isActive ? tab.accent : '#6F849C'}
                   style={{
-                    transition: 'color 0.2s ease',
+                    transition: 'color 0.15s ease',
                     position: 'relative',
                     zIndex: 1,
                   }}
@@ -187,21 +149,21 @@ export function SidebarIconRail({
                 <div
                   style={{
                     position: 'absolute',
-                    top: 4,
-                    right: 4,
-                    minWidth: 14,
-                    height: 14,
+                    top: 2,
+                    right: 2,
+                    minWidth: 10,
+                    height: 10,
                     borderRadius: 999,
                     background: tab.accent,
                     color: '#fff',
-                    fontSize: 8,
+                    fontSize: 6,
                     fontWeight: 800,
                     fontFamily: "'JetBrains Mono', monospace",
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '0 3px',
-                    boxShadow: `0 0 8px ${tab.accent}55`,
+                    padding: '0 2px',
+                    boxShadow: `0 0 4px ${tab.accent}44`,
                     zIndex: 2,
                   }}
                 >
@@ -209,45 +171,33 @@ export function SidebarIconRail({
                 </div>
               )}
 
-              {/* Tooltip on hover */}
+              {/* Tooltip on hover — compact */}
               {isHovered && (
                 <div
                   style={{
                     position: 'absolute',
-                    left: -4,
+                    left: -2,
                     top: '50%',
                     transform: 'translateX(-100%) translateY(-50%)',
                     background: '#1A1D29',
-                    border: `1px solid ${tab.accent}30`,
-                    borderRadius: 8,
-                    padding: '6px 10px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 2,
+                    border: `1px solid ${tab.accent}25`,
+                    borderRadius: 6,
+                    padding: '3px 7px',
                     zIndex: 50,
-                    boxShadow: `0 4px 16px rgba(0,0,0,0.4), 0 0 12px ${tab.accent}15`,
+                    boxShadow: `0 2px 8px rgba(0,0,0,0.3)`,
                     pointerEvents: 'none',
                     whiteSpace: 'nowrap',
                   }}
                 >
                   <span
                     style={{
-                      fontSize: 10,
+                      fontSize: 9,
                       fontWeight: 800,
                       color: tab.accent,
                       fontFamily: "'Cairo', sans-serif",
                     }}
                   >
                     {tab.label}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 8,
-                      color: '#8B92A8',
-                      fontFamily: "'Cairo', sans-serif",
-                    }}
-                  >
-                    {tab.helper}
                   </span>
                 </div>
               )}

@@ -1,15 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Zap, ShieldCheck, Calculator, ChevronDown, ChevronUp, AlertTriangle, Clock, Layers } from 'lucide-react'
+import { Zap, ShieldCheck, Calculator, ChevronDown, ChevronUp, AlertTriangle, Clock } from 'lucide-react'
 import { useExecutionEngine } from './hooks/useExecutionEngine'
 import { SymbolSearch } from './SymbolSearch'
-import { OrderTypeSelector } from './OrderTypeSelector'
-import { RiskCalculator } from './RiskCalculator'
 import { ExecutionOverlay } from './ExecutionOverlay'
 import { OrderHistory } from './OrderHistory'
-import { PreTradeSummary } from './PreTradeSummary'
-import { formatExecutionLabel, formatFreshness, getStatusLabel, getStatusTone, type DataStatus, type ExecutionState } from '@/lib/dashboard-live'
+import type { DataStatus } from '@/lib/dashboard-live'
 
 function formatCashValue(value: unknown) {
   const cash = Number(value)
@@ -28,314 +25,266 @@ export function ExecutionPanel({
   sourceLabel?: string
 }) {
   const engine = useExecutionEngine()
-
-  // UI toggles
   const [showRiskCalc, setShowRiskCalc] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [activeSubTab, setActiveSubTab] = useState<'order' | 'history'>('order')
 
-  // Load data on mount
   useEffect(() => { engine.loadAccount() }, [])
-  useEffect(() => { engine.syncSymbol(engine.localSymbol) }, [])
 
-  // Detect crypto symbol for SL/TP warning
   const isCrypto = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'AVAX', 'DOT', 'MATIC', 'LINK', 'UNI'].some(
     c => engine.localSymbol.toUpperCase().startsWith(c)
   )
 
-  const statusTone = getStatusTone(dataStatus)
+  const isLive = dataStatus === 'live'
+  const spreadPct = engine.currentPrice > 0 ? '0.05' : '—'
 
   return (
-    <div className="relative flex h-full w-full flex-col gap-2.5 p-2.5 box-border bg-[var(--bg)] overflow-y-auto" style={{ direction: 'rtl' }}>
-      {/* ── Execution Status Bar ── */}
-      <div className="rounded-xl border p-2 flex items-center justify-between gap-3"
-        style={{
-          borderColor: `${statusTone}30`,
-          background: 'rgba(255,255,255,0.02)',
-        }}
-      >
-        <div className="min-w-0">
-          <div className="text-[10px] font-extrabold text-[var(--muted)] mb-1">حالة التنفيذ</div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[12px] text-[var(--foreground)] font-extrabold">
-              {formatExecutionLabel(engine.executionState, engine.pendingAction)}
-            </span>
-            <span
-              className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[9px] font-extrabold"
-              style={{
-                borderColor: `${statusTone}44`,
-                background: `${statusTone}18`,
-                color: statusTone,
-                fontFamily: "'JetBrains Mono', monospace",
-              }}
-            >
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: statusTone, boxShadow: `0 0 8px ${statusTone}` }} />
-              {getStatusLabel(dataStatus)}
-            </span>
-          </div>
-        </div>
-        <div className="text-left shrink-0">
-          <div className="text-[9px] text-[var(--muted)] mb-1">{sourceLabel}</div>
-          <div className="text-[10px] text-[var(--foreground)] font-bold">{formatFreshness(lastUpdatedAt)}</div>
-        </div>
-      </div>
-
-      {/* ── Paper Badge + Balance ── */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5 rounded-md border border-[rgba(0,200,83,0.2)] bg-[rgba(0,200,83,0.08)] px-2 py-1">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#00C853]" style={{ boxShadow: '0 0 6px #00C853' }} />
-          <span className="text-[9px] font-extrabold text-[#00C853]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-            حساب تجريبي (PAPER)
+    <div className="relative flex h-full w-full flex-col bg-[var(--bg)] overflow-y-auto" style={{ direction: 'rtl' }}>
+      {/* ── Compact Top Bar: Live dot + Price + Balance ── */}
+      <div className="flex items-center justify-between px-2.5 py-1.5 border-b border-[rgba(255,255,255,0.04)]">
+        <div className="flex items-center gap-2">
+          <span className={`w-1.5 h-1.5 rounded-full ${isLive ? 'bg-[#00C853]' : 'bg-[var(--amber)]'}`}
+            style={{ boxShadow: isLive ? '0 0 6px #00C853' : '0 0 6px #FFB800' }} />
+          <span className="font-mono text-[11px] font-bold text-[var(--foreground)]">
+            {engine.currentPrice > 0 ? `$${engine.currentPrice.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '—'}
           </span>
+          <span className="text-[8px] text-[var(--muted)]">PAPER</span>
         </div>
         {engine.account && (
-          <div className="text-[9px] text-[var(--muted)]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-            القوة الشرائية: <span className="text-[var(--success)] font-bold">${formatCashValue(engine.account.cash)}</span>
-          </div>
+          <span className="font-mono text-[9px] text-[var(--muted)]">
+            <span className="text-[var(--success)]">${formatCashValue(engine.account.cash)}</span>
+          </span>
         )}
       </div>
 
-      {/* ── Sub-tab: New Order / Active Orders ── */}
-      <div className="flex gap-1 rounded-lg border border-[var(--card-border)] bg-[rgba(255,255,255,0.02)] p-0.5">
+      {/* ── Sub-tab pills ── */}
+      <div className="flex px-2 pt-1.5 gap-1">
         <button
           onClick={() => setActiveSubTab('order')}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-[10px] font-extrabold border-none cursor-pointer transition-all ${
+          className={`flex-1 flex items-center justify-center gap-1 rounded-md py-1 text-[9px] font-bold border-none cursor-pointer transition-all ${
             activeSubTab === 'order'
-              ? 'bg-[rgba(0,212,255,0.1)] text-[var(--accent)] shadow-[0_0_8px_rgba(0,212,255,0.08)]'
+              ? 'bg-[rgba(0,212,255,0.1)] text-[var(--accent)]'
               : 'bg-transparent text-[var(--muted)] hover:text-[var(--foreground)]'
           }`}
         >
-          <Zap size={11} />
-          أمر جديد
+          <Zap size={9} />
+          أمر
         </button>
         <button
           onClick={() => { setActiveSubTab('history'); engine.loadOpenOrders() }}
-          className={`flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-[10px] font-extrabold border-none cursor-pointer transition-all ${
+          className={`flex-1 flex items-center justify-center gap-1 rounded-md py-1 text-[9px] font-bold border-none cursor-pointer transition-all ${
             activeSubTab === 'history'
-              ? 'bg-[rgba(0,212,255,0.1)] text-[var(--accent)] shadow-[0_0_8px_rgba(0,212,255,0.08)]'
+              ? 'bg-[rgba(0,212,255,0.1)] text-[var(--accent)]'
               : 'bg-transparent text-[var(--muted)] hover:text-[var(--foreground)]'
           }`}
         >
-          <Clock size={11} />
-          أوامر نشطة
+          <Clock size={9} />
+          أوامر
           {engine.recentOrders.length > 0 && (
-            <span className="rounded-full bg-[rgba(0,212,255,0.15)] px-1 py-0 text-[7px] font-bold text-[var(--accent)]">
-              {engine.recentOrders.length}
-            </span>
+            <span className="text-[7px] bg-[rgba(0,212,255,0.15)] text-[var(--accent)] rounded-full px-1">{engine.recentOrders.length}</span>
           )}
         </button>
       </div>
 
-      {/* ── Order History Tab ── */}
+      {/* ── History Tab ── */}
       {activeSubTab === 'history' && (
-        <OrderHistory
-          orders={engine.recentOrders}
-          onCancel={engine.cancelOrder}
-          onLoad={engine.loadOpenOrders}
-        />
+        <div className="px-2 pt-2">
+          <OrderHistory orders={engine.recentOrders} onCancel={engine.cancelOrder} onLoad={engine.loadOpenOrders} />
+        </div>
       )}
 
-      {/* ── New Order Tab ── */}
+      {/* ── Order Tab ── */}
       {activeSubTab === 'order' && (
-        <>
-          {/* Info Grid */}
-          <div className={`grid gap-2 ${mobile ? 'grid-cols-2' : 'grid-cols-5'}`}>
-            {[
-              { label: 'الأصل', value: engine.localSymbol || '—', tone: 'var(--foreground)' },
-              { label: 'الكمية', value: engine.quantity || '—', tone: 'var(--accent)' },
-              { label: 'النوع', value: engine.pendingAction === 'sell' ? 'بيع' : 'شراء', tone: engine.pendingAction === 'sell' ? 'var(--danger)' : 'var(--success)' },
-              { label: 'المخاطرة', value: engine.potentialLoss !== null ? `$${engine.potentialLoss.toFixed(2)}` : '—', tone: 'var(--warning)' },
-              { label: 'البيئة', value: 'PAPER', tone: 'var(--success)' },
-            ].map(item => (
-              <div key={item.label} className="rounded-lg border border-[var(--card-border)] bg-[rgba(255,255,255,0.025)] px-2.5 py-2 min-w-0">
-                <div className="text-[8px] font-bold text-[var(--muted)] mb-1">{item.label}</div>
-                <div className="font-mono text-[11px] font-extrabold truncate" style={{ color: item.tone }}>{item.value}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Symbol Search */}
+        <div className="flex flex-col gap-1.5 px-2 pt-2 pb-2">
+          {/* Symbol Search — compact */}
           <SymbolSearch
             value={engine.localSymbol}
-            onChange={v => { engine.setLocalSymbol(v) }}
+            onChange={v => engine.setLocalSymbol(v)}
             onSelect={v => { engine.setLocalSymbol(v); engine.setSelectedSymbol(v) }}
             currentPrice={engine.currentPrice}
           />
 
-          {/* Order Type Selector */}
-          <OrderTypeSelector
-            orderType={engine.orderType}
-            setOrderType={engine.setOrderType}
-            timeInForce={engine.timeInForce}
-            setTimeInForce={engine.setTimeInForce}
-            currentPrice={engine.currentPrice}
-          />
-
-          {/* Quantity */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[9px] font-extrabold text-[var(--muted)]">الكمية</label>
-            <input
-              value={engine.quantity}
-              onChange={e => engine.setQuantity(e.target.value)}
-              type="number" step="0.01" min="0.01"
-              className="w-full rounded-lg border border-[var(--card-border)] bg-[var(--surface)] px-3 py-2.5 text-[var(--foreground)] font-mono text-xs font-bold outline-none transition-colors focus:border-[var(--accent)]"
-              aria-label="الكمية"
-            />
+          {/* Order Type — inline pill switch */}
+          <div className="flex gap-1">
+            {(['market', 'limit'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => {
+                  engine.setOrderType(t)
+                  if (t === 'market') engine.setTimeInForce('ioc')
+                  else engine.setTimeInForce('gtc')
+                }}
+                className={`flex-1 rounded-md py-1 text-[9px] font-bold border cursor-pointer transition-all ${
+                  engine.orderType === t
+                    ? 'border-[var(--accent)] bg-[rgba(0,212,255,0.08)] text-[var(--accent)]'
+                    : 'border-[var(--card-border)] bg-transparent text-[var(--muted)] hover:text-[var(--foreground)]'
+                }`}
+              >
+                {t === 'market' ? 'سوقي' : 'معلق'}
+              </button>
+            ))}
           </div>
 
-          {/* Limit Price (conditional) */}
-          {engine.orderType === 'limit' && (
-            <div className="flex flex-col gap-1">
-              <label className="text-[9px] font-extrabold text-[var(--accent)]">سعر الأمر المعلق</label>
-              <div className="flex items-center gap-2">
+          {/* Quantity + Limit Price — compact row */}
+          <div className="flex gap-1.5">
+            <div className="flex-1">
+              <input
+                value={engine.quantity}
+                onChange={e => engine.setQuantity(e.target.value)}
+                type="number" step="0.01" min="0.01"
+                placeholder="الكمية"
+                className="w-full rounded-md border border-[var(--card-border)] bg-[var(--surface)] px-2 py-1.5 text-[var(--foreground)] font-mono text-[11px] font-bold outline-none focus:border-[var(--accent)] transition-colors"
+              />
+            </div>
+            {engine.orderType === 'limit' && (
+              <div className="flex-1">
                 <input
                   value={engine.limitPrice}
                   onChange={e => engine.setLimitPrice(e.target.value)}
                   type="number" step="0.1"
-                  placeholder="0.00"
-                  className="flex-1 rounded-lg border border-[rgba(0,212,255,0.2)] bg-[rgba(0,212,255,0.05)] px-3 py-2.5 text-[var(--accent)] font-mono text-xs font-bold outline-none transition-colors focus:border-[var(--accent)]"
-                  aria-label="سعر الحد"
+                  placeholder="سعر Limit"
+                  className="w-full rounded-md border border-[rgba(0,212,255,0.2)] bg-[rgba(0,212,255,0.05)] px-2 py-1.5 text-[var(--accent)] font-mono text-[11px] font-bold outline-none focus:border-[var(--accent)] transition-colors"
                 />
-                {engine.currentPrice > 0 && engine.limitPrice && (
-                  <span className={`text-[9px] font-mono font-bold shrink-0 ${
-                    Math.abs(parseFloat(engine.limitPrice) - engine.currentPrice) / engine.currentPrice < 0.001
-                      ? 'text-[var(--muted)]'
-                      : parseFloat(engine.limitPrice) > engine.currentPrice
-                        ? 'text-[var(--danger)]'
-                        : 'text-[var(--success)]'
-                  }`}>
-                    {((parseFloat(engine.limitPrice) - engine.currentPrice) / engine.currentPrice * 100).toFixed(2)}%
-                  </span>
-                )}
               </div>
+            )}
+          </div>
+
+          {/* TP / SL — always visible, compact inline */}
+          <div className="flex gap-1.5">
+            <input
+              value={engine.takeProfit}
+              onChange={e => engine.setTakeProfit(e.target.value)}
+              type="number" step="0.1"
+              placeholder="TP جني أرباح"
+              className="flex-1 rounded-md border border-[rgba(0,200,83,0.15)] bg-[rgba(0,200,83,0.05)] px-2 py-1.5 text-[var(--success)] font-mono text-[11px] font-bold outline-none focus:border-[var(--success)] transition-colors placeholder:text-[rgba(0,200,83,0.3)]"
+            />
+            <input
+              value={engine.stopLoss}
+              onChange={e => engine.setStopLoss(e.target.value)}
+              type="number" step="0.1"
+              placeholder="SL وقف خسارة"
+              className="flex-1 rounded-md border border-[rgba(255,59,48,0.15)] bg-[rgba(255,59,48,0.05)] px-2 py-1.5 text-[var(--danger)] font-mono text-[11px] font-bold outline-none focus:border-[var(--danger)] transition-colors placeholder:text-[rgba(255,59,48,0.3)]"
+            />
+          </div>
+
+          {/* Crypto SL/TP Warning — one line */}
+          {isCrypto && (engine.stopLoss || engine.takeProfit) && (
+            <div className="flex items-center gap-1 px-1">
+              <AlertTriangle size={8} className="text-[var(--warning)] shrink-0" />
+              <span className="text-[7px] text-[var(--warning)]">SL/TP للكريبتو يُدار محلياً</span>
             </div>
           )}
 
-          {/* Mobile Advanced Toggle */}
-          {mobile && (
+          {/* Quick actions row: Auto-calc + Risk toggle */}
+          <div className="flex gap-1">
             <button
-              onClick={() => setShowAdvanced(v => !v)}
-              className="flex w-full items-center justify-between rounded-lg border border-[var(--card-border)] bg-[rgba(255,255,255,0.02)] px-3 py-2.5 text-[10px] font-extrabold text-[var(--foreground)] cursor-pointer"
+              onClick={engine.autoCalculate}
+              className="flex-1 flex items-center justify-center gap-1 rounded-md border border-[rgba(0,229,255,0.15)] bg-[rgba(0,229,255,0.06)] py-1 text-[8px] font-bold text-[var(--accent)] cursor-pointer hover:bg-[rgba(0,229,255,0.1)] transition-colors"
             >
-              <span>الإعدادات المتقدمة: TP / SL / المخاطرة</span>
-              {showAdvanced ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              <Calculator size={8} />
+              حساب تلقائي
             </button>
-          )}
+            <button
+              onClick={() => setShowRiskCalc(v => !v)}
+              className="flex-1 flex items-center justify-center gap-1 rounded-md border border-[var(--card-border)] bg-transparent py-1 text-[8px] font-bold text-[var(--muted)] cursor-pointer hover:text-[var(--foreground)] transition-colors"
+            >
+              <Calculator size={8} />
+              مخاطرة
+              {showRiskCalc ? <ChevronUp size={8} /> : <ChevronDown size={8} />}
+            </button>
+          </div>
 
-          {/* TP / SL */}
-          {(!mobile || showAdvanced) && (
-            <div className="flex gap-2.5">
-              <div className="flex flex-1 flex-col gap-1">
-                <label className="text-[9px] font-extrabold text-[var(--success)]">جني أرباح</label>
+          {/* Risk Calculator — collapsed by default */}
+          {showRiskCalc && (
+            <div className="flex flex-col gap-1.5 rounded-md border border-[var(--card-border)] bg-[rgba(255,255,255,0.02)] p-2">
+              {/* Risk % slider */}
+              <div className="flex items-center gap-2">
+                <span className="text-[8px] text-[var(--muted)] shrink-0">نسبة المخاطرة</span>
                 <input
-                  value={engine.takeProfit}
-                  onChange={e => engine.setTakeProfit(e.target.value)}
-                  placeholder="0.00"
-                  type="number" step="0.1"
-                  className="w-full rounded-lg border border-[rgba(0,200,83,0.15)] bg-[rgba(0,200,83,0.05)] px-3 py-2.5 text-[var(--success)] font-mono text-xs font-bold outline-none transition-colors focus:border-[var(--success)]"
-                  aria-label="جني الأرباح"
+                  type="range" min="0.1" max="10" step="0.1"
+                  value={engine.riskPct}
+                  onChange={e => engine.setRiskPct(e.target.value)}
+                  className="flex-1 accent-[var(--accent)] cursor-pointer h-1"
                 />
+                <span className="font-mono text-[9px] font-bold text-[var(--accent)] min-w-[28px] text-left">{engine.riskPct}%</span>
               </div>
-              <div className="flex flex-1 flex-col gap-1">
-                <label className="text-[9px] font-extrabold text-[var(--danger)]">وقف خسارة</label>
-                <input
-                  value={engine.stopLoss}
-                  onChange={e => engine.setStopLoss(e.target.value)}
-                  placeholder="0.00"
-                  type="number" step="0.1"
-                  className="w-full rounded-lg border border-[rgba(255,59,48,0.15)] bg-[rgba(255,59,48,0.05)] px-3 py-2.5 text-[var(--danger)] font-mono text-xs font-bold outline-none transition-colors focus:border-[var(--danger)]"
-                  aria-label="وقف الخسارة"
-                />
+              {/* Risk stats — inline */}
+              <div className="flex gap-1.5">
+                <div className="flex-1 text-center">
+                  <div className="font-mono text-[9px] font-bold text-[var(--danger)]">{engine.account ? `$${engine.riskAmount.toFixed(0)}` : '—'}</div>
+                  <div className="text-[7px] text-[var(--muted)]">مخاطرة</div>
+                </div>
+                <div className="flex-1 text-center">
+                  <div className="font-mono text-[9px] font-bold text-[var(--accent)]">{engine.autoQty ?? '—'}</div>
+                  <div className="text-[7px] text-[var(--muted)]">كمية مثلى</div>
+                </div>
+                <div className="flex-1 text-center">
+                  <div className={`font-mono text-[9px] font-bold ${parseFloat(engine.rrRatio ?? '0') >= 2 ? 'text-[var(--success)]' : 'text-[var(--warning)]'}`}>
+                    {engine.rrRatio ? `${engine.rrRatio}:1` : '—'}
+                  </div>
+                  <div className="text-[7px] text-[var(--muted)]">R:R</div>
+                </div>
               </div>
+              {/* P&L preview */}
+              {(engine.potentialGain !== null || engine.potentialLoss !== null) && (
+                <div className="flex gap-1.5">
+                  {engine.potentialGain !== null && (
+                    <div className="flex-1 text-center">
+                      <span className="font-mono text-[9px] font-bold text-[var(--success)]">+${engine.potentialGain.toFixed(2)}</span>
+                    </div>
+                  )}
+                  {engine.potentialLoss !== null && (
+                    <div className="flex-1 text-center">
+                      <span className="font-mono text-[9px] font-bold text-[var(--danger)]">-${engine.potentialLoss.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {engine.autoQty && (
+                <button
+                  onClick={engine.applyOptimalQty}
+                  className="text-[8px] font-bold text-[var(--accent)] border border-dashed border-[var(--accent)] rounded py-0.5 bg-transparent cursor-pointer hover:bg-[rgba(0,229,255,0.06)]"
+                >
+                  تطبيق ({engine.autoQty})
+                </button>
+              )}
             </div>
           )}
 
-          {/* Crypto SL/TP Warning */}
-          {isCrypto && (engine.stopLoss || engine.takeProfit) && (!mobile || showAdvanced) && (
-            <div className="flex items-center gap-2 rounded-lg border border-[rgba(255,184,0,0.2)] bg-[rgba(255,184,0,0.06)] px-2.5 py-2">
-              <AlertTriangle size={12} className="text-[var(--warning)] shrink-0" />
-              <span className="text-[8px] font-bold text-[var(--warning)]">
-                أوامر وقف الخسارة وجني الأرباح للعملات الرقمية تُدار محلياً (bracket orders غير مدعومة للكريبتو على Alpaca)
-              </span>
+          {/* Estimated cost — one compact line */}
+          {engine.currentPrice > 0 && parseFloat(engine.quantity) > 0 && (
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[8px] text-[var(--muted)]">التكلفة التقديرية</span>
+              <span className="font-mono text-[9px] font-bold text-[var(--foreground)]">${engine.estimatedCost.toFixed(2)}</span>
             </div>
           )}
 
-          {/* Auto-Calculate Button */}
-          {(!mobile || showAdvanced) && (
-            <div className="flex justify-end">
-              <button
-                onClick={engine.autoCalculate}
-                className="flex items-center gap-1 rounded-lg border border-[rgba(0,229,255,0.2)] bg-[rgba(0,229,255,0.1)] px-3 py-3 text-[9px] font-bold text-[var(--accent)] cursor-pointer hover:bg-[rgba(0,229,255,0.15)] transition-colors"
-              >
-                <Calculator size={10} />
-                حساب تلقائي
-              </button>
-            </div>
-          )}
-
-          {/* Pre-Trade Summary */}
-          {(!mobile || showAdvanced) && engine.currentPrice > 0 && parseFloat(engine.quantity) > 0 && (
-            <PreTradeSummary
-              symbol={engine.localSymbol}
-              side={engine.pendingAction}
-              orderType={engine.orderType}
-              quantity={engine.quantity}
-              currentPrice={engine.currentPrice}
-              limitPrice={engine.limitPrice}
-              stopLoss={engine.stopLoss}
-              takeProfit={engine.takeProfit}
-              estimatedCost={engine.estimatedCost}
-              potentialGain={engine.potentialGain}
-              potentialLoss={engine.potentialLoss}
-              rrRatio={engine.rrRatio}
-              account={engine.account}
-            />
-          )}
-
-          {/* Risk Calculator */}
-          {(!mobile || showAdvanced) && (
-            <RiskCalculator
-              riskPct={engine.riskPct}
-              setRiskPct={engine.setRiskPct}
-              riskAmount={engine.riskAmount}
-              autoQty={engine.autoQty}
-              potentialGain={engine.potentialGain}
-              potentialLoss={engine.potentialLoss}
-              rrRatio={engine.rrRatio}
-              account={engine.account}
-              currentPrice={engine.currentPrice}
-              onApplyQty={engine.applyOptimalQty}
-              show={showRiskCalc}
-              onToggle={() => setShowRiskCalc(v => !v)}
-            />
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex gap-3 mt-auto">
+          {/* ── BUY / SELL Buttons — prominent, Binance-style ── */}
+          <div className="flex gap-2 mt-auto pt-1">
             <button
               onClick={() => engine.validateAndConfirm('buy')}
               disabled={engine.loading}
-              className="btn-neon-buy flex flex-1 items-center justify-center gap-2 rounded-[var(--radius)] py-3 text-[13px] font-extrabold cursor-pointer transition-transform active:scale-[0.97] disabled:opacity-70 disabled:cursor-not-allowed"
+              className="btn-neon-buy flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-[12px] font-extrabold cursor-pointer transition-transform active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Zap size={14} fill="white" />
-              {engine.loading && engine.pendingAction === 'buy' ? 'جارٍ...' : 'شراء'}
+              <Zap size={12} fill="white" />
+              {engine.loading && engine.pendingAction === 'buy' ? '...' : 'شراء'}
             </button>
             <button
               onClick={() => engine.validateAndConfirm('sell')}
               disabled={engine.loading}
-              className="btn-neon-sell flex flex-1 items-center justify-center gap-2 rounded-[var(--radius)] py-3 text-[13px] font-extrabold cursor-pointer transition-transform active:scale-[0.97] disabled:opacity-70 disabled:cursor-not-allowed"
+              className="btn-neon-sell flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2.5 text-[12px] font-extrabold cursor-pointer transition-transform active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Zap size={14} fill="white" />
-              {engine.loading && engine.pendingAction === 'sell' ? 'جارٍ...' : 'بيع'}
+              <Zap size={12} fill="white" />
+              {engine.loading && engine.pendingAction === 'sell' ? '...' : 'بيع'}
             </button>
           </div>
 
-          {/* Safety Badge */}
-          <div className="flex items-center justify-center gap-1.5 opacity-50 mt-1">
-            <ShieldCheck size={12} className="text-[var(--success)]" />
-            <span className="text-[9px] font-semibold text-[var(--muted)]">تداول مؤسسي مشفر 256-bit</span>
+          {/* Safety — one tiny line */}
+          <div className="flex items-center justify-center gap-1 opacity-30 pb-0.5">
+            <ShieldCheck size={8} className="text-[var(--success)]" />
+            <span className="text-[7px] text-[var(--muted)]">256-bit</span>
           </div>
-        </>
+        </div>
       )}
 
       {/* ── Status Overlay ── */}

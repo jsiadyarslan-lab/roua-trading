@@ -60,6 +60,7 @@ interface UseChartReturn {
   setMarkers: (markers: any[]) => void;
   addPriceLine: (id: string, price: number, color: string, label: string, lineWidth?: number) => void;
   removePriceLine: (id: string) => void;
+  getPriceCoordinate: (price: number) => number | null;
 }
 
 export function useChart(options: UseChartOptions): UseChartReturn {
@@ -1206,6 +1207,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   }, []);
 
   // ── Update Settings ────────────────────────────────────
+  const getPriceCoordinate = useCallback((price: number): number | null => {
+    if (!candleSeriesRef.current) return null;
+    return candleSeriesRef.current.priceToCoordinate(price);
+  }, []);
+
   const updateSettings = useCallback((updates: Partial<ChartSettings>) => {
     setSettings(prev => ({ ...prev, ...updates }));
 
@@ -1321,5 +1327,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     setMarkers,
     addPriceLine,
     removePriceLine,
+    getPriceCoordinate,
   };
 }

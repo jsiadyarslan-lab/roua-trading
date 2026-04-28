@@ -66,6 +66,7 @@ export default function RouaChart({
   const candlesRef = useRef<CandleData[]>([]);
   const prevPriceRef = useRef(currentPrice);
   const [pricePulse, setPricePulse] = useState(false);
+  const [priceLabelY, setPriceLabelY] = useState<number | null>(null);
 
   // ── Chart Hook ─────────────────────────────────────────
   const chart = useChart({
@@ -206,6 +207,23 @@ export default function RouaChart({
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [timeframe]);
+
+  // ── Price Label Y Position (for time indicator on price scale) ──
+  useEffect(() => {
+    if (!currentPrice || typeof currentPrice !== 'number') {
+      setPriceLabelY(null);
+      return;
+    }
+    const updatePos = () => {
+      const y = chart.getPriceCoordinate(currentPrice);
+      if (y !== null) {
+        setPriceLabelY(y);
+      }
+    };
+    updatePos();
+    const interval = setInterval(updatePos, 500);
+    return () => clearInterval(interval);
+  }, [currentPrice, chart]);
 
   // ── Position Overlay ───────────────────────────────────
   const positions = usePositionsStore(s => s.positions);
@@ -508,19 +526,53 @@ export default function RouaChart({
               visible={showVolumeProfile}
             />
           )}
+
+          {/* Time indicator below price on price scale */}
+          {priceLabelY !== null && candleCountdown && (
+            <div style={{
+              position: 'absolute',
+              right: 4,
+              top: priceLabelY + 14,
+              zIndex: 15,
+              pointerEvents: 'none',
+            }}>
+              <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 3,
+                padding: '2px 5px',
+                borderRadius: 3,
+                border: '1px solid rgba(0,212,255,0.25)',
+                background: 'rgba(11,14,20,0.92)',
+                color: '#8B92A8',
+                fontSize: 8,
+                fontFamily: "'JetBrains Mono', monospace",
+                whiteSpace: 'nowrap',
+                backdropFilter: 'blur(6px)',
+              }}>
+                <span style={{
+                  width: 4,
+                  height: 4,
+                  borderRadius: '50%',
+                  background: ws.connectionState === 'connected' ? '#3fb950' : '#fbbf24',
+                }} />
+                {candleCountdown}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Quick Trade Buttons (Buy/Sell) — right side of chart */}
+        {/* ── Quick Trade Bar (below time scale) ── */}
         {!mobile && currentPrice && (
           <div style={{
-            position: 'absolute',
-            right: 6,
-            top: '50%',
-            transform: 'translateY(-50%)',
             display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-            zIndex: 10,
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            padding: '4px 8px',
+            background: 'linear-gradient(180deg, rgba(21,26,34,0.95) 0%, rgba(11,14,20,0.98) 100%)',
+            borderTop: '1px solid rgba(42,49,60,0.5)',
+            flexShrink: 0,
           }}>
             <button
               onClick={() => {
@@ -537,28 +589,37 @@ export default function RouaChart({
                 });
               }}
               style={{
-                background: 'rgba(63,185,80,0.15)',
+                flex: 1,
+                maxWidth: 200,
+                padding: '7px 16px',
+                background: 'linear-gradient(135deg, rgba(63,185,80,0.18) 0%, rgba(63,185,80,0.08) 100%)',
                 border: '1px solid rgba(63,185,80,0.35)',
                 borderRadius: 8,
-                padding: '6px 10px',
                 cursor: 'pointer',
                 color: '#3fb950',
                 fontWeight: 800,
-                fontSize: 10,
+                fontSize: 12,
                 fontFamily: "'Cairo', sans-serif",
                 transition: 'all 0.15s',
                 backdropFilter: 'blur(8px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.background = 'rgba(63,185,80,0.3)';
-                e.currentTarget.style.boxShadow = '0 0 12px rgba(63,185,80,0.2)';
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(63,185,80,0.3) 0%, rgba(63,185,80,0.15) 100%)';
+                e.currentTarget.style.boxShadow = '0 0 16px rgba(63,185,80,0.15)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.background = 'rgba(63,185,80,0.15)';
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(63,185,80,0.18) 0%, rgba(63,185,80,0.08) 100%)';
                 e.currentTarget.style.boxShadow = 'none';
               }}
               title="شراء سريع"
             >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+              </svg>
               شراء
             </button>
             <button
@@ -576,28 +637,37 @@ export default function RouaChart({
                 });
               }}
               style={{
-                background: 'rgba(248,81,73,0.15)',
+                flex: 1,
+                maxWidth: 200,
+                padding: '7px 16px',
+                background: 'linear-gradient(135deg, rgba(248,81,73,0.18) 0%, rgba(248,81,73,0.08) 100%)',
                 border: '1px solid rgba(248,81,73,0.35)',
                 borderRadius: 8,
-                padding: '6px 10px',
                 cursor: 'pointer',
                 color: '#f85149',
                 fontWeight: 800,
-                fontSize: 10,
+                fontSize: 12,
                 fontFamily: "'Cairo', sans-serif",
                 transition: 'all 0.15s',
                 backdropFilter: 'blur(8px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
               }}
               onMouseEnter={e => {
-                e.currentTarget.style.background = 'rgba(248,81,73,0.3)';
-                e.currentTarget.style.boxShadow = '0 0 12px rgba(248,81,73,0.2)';
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(248,81,73,0.3) 0%, rgba(248,81,73,0.15) 100%)';
+                e.currentTarget.style.boxShadow = '0 0 16px rgba(248,81,73,0.15)';
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.background = 'rgba(248,81,73,0.15)';
+                e.currentTarget.style.background = 'linear-gradient(135deg, rgba(248,81,73,0.18) 0%, rgba(248,81,73,0.08) 100%)';
                 e.currentTarget.style.boxShadow = 'none';
               }}
               title="بيع سريع"
             >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/>
+              </svg>
               بيع
             </button>
           </div>

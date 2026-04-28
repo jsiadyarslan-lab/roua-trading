@@ -60,6 +60,11 @@ export class DrawingRenderer {
   private mousePixel: PixelPoint | null = null;
   private isDrawing = false;
 
+  // ── Drag state ──────────────────────────────────────────
+  private isDragging = false;
+  private dragDrawingId: string | null = null;
+  private dragStartY: number = 0;
+
   // ── Event handler refs (for cleanup) ───────────────────
   private boundMouseDown: (e: MouseEvent) => void;
   private boundMouseMove: (e: MouseEvent) => void;
@@ -291,8 +296,36 @@ export class DrawingRenderer {
   private onMouseDown(e: MouseEvent): void {
     // Only react to left click
     if (e.button !== 0) return;
-    // Cursor tool means no drawing
-    if (this.currentTool === 'cursor') return;
+
+    // When in cursor mode, check if we're clicking near an existing drawing to drag it
+    if (this.currentTool === 'cursor') {
+      const rect = this.container.getBoundingClientRect();
+      const y = e.clientY - rect.top;
+      const x = e.clientX - rect.left;
+
+      // Check horizontal lines
+      const drawings = this.drawingManager.getAll();
+      for (const drawing of drawings) {
+        if (drawing.type === 'horizontal') {
+          const pixelPt = this.chartPointToPixel(drawing.points[0]);
+          if (pixelPt && Math.abs(y - pixelPt.y) < 6) {
+            // Start dragging this horizontal line
+            this.isDragging = true;
+            this.dragDrawingId = drawing.id;
+            this.dragStartY = y;
+
+            if (this.overlayCanvas) {
+              this.overlayCanvas.style.pointerEvents = 'auto';
+            }
+
+            e.stopPropagation();
+            e.preventDefault();
+            return;
+          }
+        }
+      }
+      return;
+    }
 
     const point = this.pixelToChartPoint(e);
     if (!point) return;
@@ -320,6 +353,22 @@ export class DrawingRenderer {
   }
 
   private onMouseMove(e: MouseEvent): void {
+    // Handle dragging existing drawings
+    if (this.isDragging && this.dragDrawingId) {
+      const point = this.pixelToChartPoint(e);
+      if (!point) return;
+
+      const drawing = this.drawingManager.get(this.dragDrawingId);
+      if (drawing) {
+        // For horizontal lines, update the price
+        this.drawingManager.update(this.dragDrawingId, {
+          points: [{ ...drawing.points[0], price: point.price }],
+        });
+        this.redraw();
+      }
+      return;
+    }
+
     if (!this.isDrawing || this.currentTool === 'cursor') {
       // If we're not drawing, make sure overlay doesn't block chart interaction
       if (this.overlayCanvas) {
@@ -335,6 +384,14 @@ export class DrawingRenderer {
   }
 
   private onMouseUp(_e: MouseEvent): void {
+    if (this.isDragging) {
+      this.isDragging = false;
+      this.dragDrawingId = null;
+      if (this.overlayCanvas) {
+        this.overlayCanvas.style.pointerEvents = 'none';
+      }
+      return;
+    }
     // Don't reset drawing state on mouseup — we wait for all required clicks
   }
 

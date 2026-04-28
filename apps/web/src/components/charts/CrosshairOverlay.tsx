@@ -117,31 +117,7 @@ export function CrosshairOverlay({
           {price ? price.toFixed(decimals) : '—'}
         </span>
 
-        {/* Candle Countdown */}
-        {showCandleTimer && (
-        <span style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 4,
-          padding: '2px 6px',
-          borderRadius: 999,
-          border: '1px solid rgba(255,255,255,0.10)',
-          background: 'rgba(7,12,18,0.74)',
-          color: COLORS.textSecondary,
-          fontSize: 8,
-          fontFamily: "'JetBrains Mono', monospace",
-          whiteSpace: 'nowrap',
-        }}>
-          <span style={{
-            width: 5,
-            height: 5,
-            borderRadius: '50%',
-            background: connectionState === 'connected' ? COLORS.success : connectionState === 'fallback' ? '#fbbf24' : COLORS.textMuted,
-            boxShadow: `0 0 8px ${connectionState === 'connected' ? 'rgba(63,185,80,0.28)' : 'rgba(251,191,36,0.28)'}`,
-          }} />
-          {candleCountdown}
-        </span>
-        )}
+
 
         {/* OHLC */}
         {displayData && !compact && (
@@ -186,16 +162,7 @@ export function CrosshairOverlay({
           </span>
         )}
 
-        {/* Date */}
-        {displayData && crosshairData && !compact && (
-          <span style={{
-            fontSize: 8,
-            color: COLORS.textSecondary,
-            fontFamily: "'JetBrains Mono', monospace",
-          }}>
-            {displayData.dateStr}
-          </span>
-        )}
+
       </div>
 
       {/* Right: Feed Status */}

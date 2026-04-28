@@ -16,10 +16,13 @@ from config import (
     TELEGRAM_TOKEN, TELEGRAM_CHAT_ID,
     CHECK_INTERVAL, REQUEST_TIMEOUT, ALERT_COOLDOWN,
     MAX_CONSECUTIVE_FAILURES, HEALTH_ENDPOINTS,
+    REDIS_URL, DATABASE_URL, TWELVE_DATA_API_KEY,
+    WEBSOCKET_URL, DEPENDENCY_CHECK_INTERVAL, DAILY_SUMMARY_INTERVAL,
 )
 from tools import (
     check_website_health, query_api_endpoint,
     check_railway_status, send_telegram_alert, format_alert_message,
+    check_websocket_health, check_redis_connection, check_database_connection,
 )
 
 
@@ -30,6 +33,11 @@ running = True
 consecutive_failures = 0
 total_checks = 0
 total_alerts = 0
+total_errors = 0
+last_dependency_check = 0.0
+last_daily_summary = 0.0
+# سجل أزمنة الاستجابة لكل نقطة نهاية — يُستخدم للملخص اليومي
+_response_times_log: dict[str, list[float]] = {}
 
 
 def _signal_handler(sig, frame):
@@ -97,6 +105,39 @@ def run_health_checks() -> list[dict]:
 
         results.append(result)
 
+    # ── فحوصات إضافية: /login ──
+    login_url = f"{PLATFORM_URL}/dashboard/admin/login"
+    login_result = check_website_health(login_url, timeout=REQUEST_TIMEOUT)
+    login_result["name"] = "صفحة الدخول"
+    login_result["path"] = "/dashboard/admin/login"
+    login_result["expected"] = 200
+    login_result["status_ok"] = login_result["status_code"] == 200
+    results.append(login_result)
+
+    # ── فحوصات إضافية: /api/news/feed ──
+    news_url = f"{PLATFORM_URL}/api/news/feed"
+    news_result = query_api_endpoint(news_url, timeout=REQUEST_TIMEOUT)
+    news_result["name"] = "API الأخبار"
+    news_result["path"] = "/api/news/feed"
+    news_result["expected"] = [200, 401, 404]
+    news_result["status_ok"] = news_result["status_code"] in [200, 401, 404]
+    results.append(news_result)
+
+    # ─ـ فحص WebSocket (إذا كان متاحاً) ──
+    if WEBSOCKET_URL:
+        ws_ok = check_websocket_health(WEBSOCKET_URL)
+        results.append({
+            "name": "WebSocket",
+            "path": WEBSOCKET_URL,
+            "status_code": 0 if ws_ok else -1,
+            "response_time": 0,
+            "expected": 0,
+            "status_ok": ws_ok,
+            "ok": ws_ok,
+            "error": None if ws_ok else "فشل اتصال WebSocket",
+            "data": None,
+        })
+
     return results
 
 
@@ -124,10 +165,98 @@ def build_check_report(results: list[dict], railway: dict) -> str:
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# فحص التبعيات (يُنفذ كل 5 دقائق)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+def run_dependency_checks() -> dict:
+    """
+    يفحص التبعيات الخارجية: Twelve Data API, Redis, قاعدة البيانات.
+    يعيد قاموساً بنتائج كل فحص.
+    """
+    dep_results = {}
+
+    # ── فحص Twelve Data API ──
+    if TWELVE_DATA_API_KEY:
+        try:
+            resp = requests.get(
+                "https://api.twelvedata.com/price",
+                params={"symbol": "AAPL", "apikey": TWELVE_DATA_API_KEY},
+                timeout=10,
+            )
+            dep_results["twelve_data"] = resp.status_code == 200
+            if resp.status_code != 200:
+                print(f"  ⚠️ Twelve Data API: HTTP {resp.status_code}")
+        except Exception as e:
+            dep_results["twelve_data"] = False
+            print(f"  ❌ Twelve Data API: {e}")
+    else:
+        dep_results["twelve_data"] = None  # غير مضبوط
+
+    # ── فحص Redis ──
+    if REDIS_URL:
+        dep_results["redis"] = check_redis_connection(REDIS_URL)
+    else:
+        dep_results["redis"] = None  # غير مضبوط
+
+    # ─ـ فحص قاعدة البيانات ──
+    if DATABASE_URL:
+        dep_results["database"] = check_database_connection(DATABASE_URL)
+    else:
+        dep_results["database"] = None  # غير مضبوط
+
+    return dep_results
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# الملخص اليومي (يُرسل كل 24 ساعة)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+def send_daily_summary() -> None:
+    """
+    يُرسل ملخصاً يومياً إلى Telegram يحتوي على:
+    - إجمالي الفحوصات
+    - إجمالي الأخطاء
+    - متوسط زمن الاستجابة لكل نقطة نهاية
+    - نسبة التوفر (Uptime)
+    """
+    global total_errors
+
+    # حساب نسبة التوفر
+    uptime_pct = ((total_checks - total_errors) / total_checks * 100) if total_checks > 0 else 100.0
+
+    # بناء ملخص أزمنة الاستجابة لكل نقطة نهاية
+    avg_lines = []
+    for name, times in _response_times_log.items():
+        if times:
+            avg_ms = round(sum(times) / len(times), 1)
+            min_ms = round(min(times), 1)
+            max_ms = round(max(times), 1)
+            avg_lines.append(f"  • {name}: μ={avg_ms}ms (min={min_ms}, max={max_ms})")
+
+    avg_text = "\n".join(avg_lines) if avg_lines else "  لا توجد بيانات بعد"
+
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    msg = f"""📋 <b>الملخص اليومي — Roua Trading Monitor</b>
+
+📊 <b>الإحصائيات:</b>
+  • إجمالي الفحوصات: <b>{total_checks}</b>
+  • إجمالي الأخطاء: <b>{total_errors}</b>
+  • إجمالي التنبيهات: <b>{total_alerts}</b>
+  • نسبة التوفر: <b>{uptime_pct:.1f}%</b>
+
+⏱️ <b>متوسط زمن الاستجابة:</b>
+{avg_text}
+
+🕐 {now}"""
+
+    send_telegram_alert(msg, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, cooldown=0)
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # الحلقة الرئيسية
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 def main():
     global running, consecutive_failures, total_checks, total_alerts
+    global total_errors, last_dependency_check, last_daily_summary
 
     print("━" * 55)
     print("🚀 وكيل مراقبة Roua Trading بدأ العمل")
@@ -136,6 +265,12 @@ def main():
     print(f"🤖 نموذج GLM: {GLM_MODEL}")
     print(f"📲 Telegram: {'مضبوط ✅' if TELEGRAM_TOKEN else 'غير مضبوط ⚠️'}")
     print(f"🔑 GLM API Key: {'مضبوط ✅' if API_KEY else 'غير مضبوط ⚠️'}")
+    print(f"🔗 WebSocket: {WEBSOCKET_URL or 'غير مضبوط ⚠️'}")
+    print(f"💾 Redis: {'مضبوط ✅' if REDIS_URL else 'غير مضبوط ⚠️'}")
+    print(f"🗄️ Database: {'مضبوط ✅' if DATABASE_URL else 'غير مضبوط ⚠️'}")
+    print(f"📡 Twelve Data: {'مضبوط ✅' if TWELVE_DATA_API_KEY else 'غير مضبوط ⚠️'}")
+    print(f"⏰ فحص التبعيات: كل {DEPENDENCY_CHECK_INTERVAL} ثانية")
+    print(f"📋 الملخص اليومي: كل {DAILY_SUMMARY_INTERVAL} ثانية")
     print("━" * 55)
 
     # فحص أولي سريع
@@ -189,6 +324,7 @@ def main():
             else:
                 # هناك مشاكل
                 consecutive_failures += 1
+                total_errors += len(failed_checks)
                 failed_names = ", ".join(f"{r['name']}(HTTP {r['status_code']})" for r in failed_checks)
                 print(f"[{now_str}] ❌ فشل {len(failed_checks)}/{len(results)} فحص — {failed_names}")
 
@@ -232,6 +368,42 @@ def main():
             # 7. ملخص دوري كل 10 فحوصات
             if total_checks % 10 == 0:
                 print(f"\n📊 ملخص: {total_checks} فحص | {total_alerts} تنبيه | فشل متتالي: {consecutive_failures}\n")
+
+            # 8. تسجيل أزمنة الاستجابة للملخص اليومي
+            for r in results:
+                name = r.get("name", r.get("path", "unknown"))
+                rt = r.get("response_time", 0)
+                if rt > 0:
+                    if name not in _response_times_log:
+                        _response_times_log[name] = []
+                    _response_times_log[name].append(rt)
+                    # الاحتفاظ بآخر 1000 قراءة فقط لكل نقطة نهاية
+                    if len(_response_times_log[name]) > 1000:
+                        _response_times_log[name] = _response_times_log[name][-500:]
+
+            # 9. فحص التبعيات كل DEPENDENCY_CHECK_INTERVAL ثانية
+            now_mono = time.monotonic()
+            if now_mono - last_dependency_check >= DEPENDENCY_CHECK_INTERVAL:
+                last_dependency_check = now_mono
+                dep_results = run_dependency_checks()
+                dep_ok = all(v is None or v for v in dep_results.values())
+                if dep_ok:
+                    ok_parts = [k for k, v in dep_results.items() if v is True]
+                    skipped_parts = [k for k, v in dep_results.items() if v is None]
+                    msg = f"[{now_str}] ✅ التبعيات سليمة: {', '.join(ok_parts)}"
+                    if skipped_parts:
+                        msg += f" (غير مضبوط: {', '.join(skipped_parts)})"
+                    print(msg)
+                else:
+                    failed_deps = [f"{k}={'❌' if v is False else '⚪'}" for k, v in dep_results.items()]
+                    print(f"[{now_str}] ⚠️ مشاكل في التبعيات: {', '.join(failed_deps)}")
+
+            # 10. الملخص اليومي كل DAILY_SUMMARY_INTERVAL ثانية
+            if now_mono - last_daily_summary >= DAILY_SUMMARY_INTERVAL:
+                last_daily_summary = now_mono
+                print(f"\n📋 إرسال الملخص اليومي...")
+                send_daily_summary()
+                print(f"📋 تم إرسال الملخص اليومي ✅\n")
 
         except Exception as e:
             consecutive_failures += 1

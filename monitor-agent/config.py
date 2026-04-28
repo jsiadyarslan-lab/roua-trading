@@ -41,3 +41,13 @@ HEALTH_ENDPOINTS = [
     {"name": "API المحفظة",    "path": "/api/portfolio/summary",       "method": "GET",  "expect_status": [200, 401, 404]},
     {"name": "API الصحة",      "path": "/api/health",                  "method": "GET",  "expect_status": 200},
 ]
+
+# ── فحص التبعيات ──
+REDIS_URL = os.environ.get("REDIS_URL", "")
+DATABASE_URL = os.environ.get("DATABASE_URL", "")
+TWELVE_DATA_API_KEY = os.environ.get("TWELVE_DATA_API_KEY", "")
+WEBSOCKET_URL = os.environ.get("WEBSOCKET_URL", "")
+
+# ── فترات الفحص المتقدمة ──
+DEPENDENCY_CHECK_INTERVAL = int(os.environ.get("DEPENDENCY_CHECK_INTERVAL", "300"))  # 5 دقائق
+DAILY_SUMMARY_INTERVAL = int(os.environ.get("DAILY_SUMMARY_INTERVAL", "86400"))     # 24 ساعة

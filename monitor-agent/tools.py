@@ -7,6 +7,25 @@ import json
 import requests
 from datetime import datetime, timezone
 
+# واردات اختيارية — تعمل حتى لو لم تكن المكتبات مثبتة
+try:
+    import websocket
+    _WS_AVAILABLE = True
+except ImportError:
+    _WS_AVAILABLE = False
+
+try:
+    import redis as redis_lib
+    _REDIS_AVAILABLE = True
+except ImportError:
+    _REDIS_AVAILABLE = False
+
+try:
+    import psycopg2
+    _PSYCOPG2_AVAILABLE = True
+except ImportError:
+    _PSYCOPG2_AVAILABLE = False
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # سجل التنبيهات — يمنع إرسال نفس التنبيه مرتين خلال فترة التبريد
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -176,3 +195,79 @@ def format_alert_message(title: str, details: list[str], analysis: str) -> str:
 
 🕐 {now}"""
     return msg
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# فحص WebSocket
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+def check_websocket_health(url: str, timeout: int = 10) -> bool:
+    """
+    يحاول الاتصال بـ WebSocket.
+    يعيد True إذا نجح الاتصال، False إذا فشل.
+    """
+    if not _WS_AVAILABLE:
+        print("⚠️ مكتبة websocket-client غير مثبتة — تخطي فحص WebSocket")
+        return False
+
+    try:
+        ws = websocket.create_connection(url, timeout=timeout)
+        ws.close()
+        return True
+    except Exception as e:
+        print(f"❌ فشل اتصال WebSocket ({url}): {e}")
+        return False
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# فحص Redis
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+def check_redis_connection(redis_url: str, timeout: int = 5) -> bool:
+    """
+    يحاول الاتصال بـ Redis.
+    يعيد True إذا نجح الاتصال، False إذا فشل.
+    """
+    if not _REDIS_AVAILABLE:
+        print("⚠️ مكتبة redis غير مثبتة — تخطي فحص Redis")
+        return False
+
+    try:
+        client = redis_lib.from_url(redis_url, socket_timeout=timeout, socket_connect_timeout=timeout)
+        result = client.ping()
+        client.close()
+        return result
+    except Exception as e:
+        print(f"❌ فشل اتصال Redis ({redis_url.split('@')[-1] if '@' in redis_url else redis_url}): {e}")
+        return False
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# فحص قاعدة البيانات
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+def check_database_connection(db_url: str, timeout: int = 10) -> bool:
+    """
+    ينفذ استعلام SELECT 1 للتحقق من اتصال قاعدة البيانات.
+    يعيد True إذا نجح، False إذا فشل.
+    """
+    if not _PSYCOPG2_AVAILABLE:
+        print("⚠️ مكتبة psycopg2 غير مثبتة — تخطي فحص قاعدة البيانات")
+        return False
+
+    conn = None
+    try:
+        conn = psycopg2.connect(db_url, connect_timeout=timeout)
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        cursor.fetchone()
+        cursor.close()
+        return True
+    except Exception as e:
+        # إخفاء كلمة المرور من رسالة الخطأ
+        safe_url = db_url.split('@')[-1] if '@' in db_url else db_url
+        print(f"❌ فشل اتصال قاعدة البيانات ({safe_url}): {e}")
+        return False
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass

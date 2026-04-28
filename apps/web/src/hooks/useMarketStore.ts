@@ -52,6 +52,7 @@ class BinanceWSManager {
   private maxDelay = 30000 // 30s max
   private intentionalClose = false
   private isClosing = false  // منع إرسال ping أثناء إغلاق الاتصال
+  private connectionGeneration = 0  // لتتبع جيل الاتصال وتجاهل أحداث الإغلاق القديمة
 
   private normalizeSymbol(symbol: string) {
     let s = symbol.replace('/', '')
@@ -160,14 +161,25 @@ class BinanceWSManager {
       return // Already connected to these streams
     }
 
-    this.intentionalClose = false
+    // زيادة جيل الاتصال لتجاهل أحداث الإغلاق من الاتصالات القديمة
+    this.connectionGeneration++
+    const currentGeneration = this.connectionGeneration
+
+    // تعليم الإغلاق كمتعمد لتجنب trigger إعادة اتصال من onclose
+    this.intentionalClose = true
     this.isClosing = true
     this.stopPing()
     if (this.ws) {
+      // إزالة معالجات الأحداث قبل الإغلاق لتجنب تشغيلها
+      this.ws.onopen = null
+      this.ws.onmessage = null
+      this.ws.onerror = null
+      this.ws.onclose = null
       this.ws.close()
       this.ws = null
     }
     this.isClosing = false
+    this.intentionalClose = false
     this.currentStreams = streams
     const wsUrl = `wss://stream.binance.com:9443/stream?streams=${streams}`
 
@@ -181,6 +193,8 @@ class BinanceWSManager {
     }
 
     this.ws.onopen = () => {
+      // تحقق أن هذا لا يزال الاتصال الحالي
+      if (this.connectionGeneration !== currentGeneration) return
       // Connected successfully
       this.reconnectAttempts = 0 // Reset on successful connection
       this.isClosing = false
@@ -188,6 +202,8 @@ class BinanceWSManager {
     }
 
     this.ws.onmessage = (event) => {
+      // تحقق أن هذا لا يزال الاتصال الحالي
+      if (this.connectionGeneration !== currentGeneration) return
       // تجاهل الرسائل أثناء إغلاق الاتصال
       if (this.isClosing || (this.ws && this.ws.readyState !== WebSocket.OPEN)) {
         return
@@ -234,23 +250,21 @@ class BinanceWSManager {
     }
 
     this.ws.onerror = () => {
+      // تحقق أن هذا لا يزال الاتصال الحالي
+      if (this.connectionGeneration !== currentGeneration) return
       // onclose will fire after onerror, so we handle reconnect there
     }
 
     this.ws.onclose = (e) => {
+      // تحقق أن هذا لا يزال الاتصال الحالي — تجاهل أحداث الإغلاق القديمة
+      if (this.connectionGeneration !== currentGeneration) return
       this.stopPing()
       this.currentStreams = ''
       
       if (this.intentionalClose) {
-        // We closed it intentionally (e.g., changing streams), reconnect immediately
+        // We closed it intentionally (e.g., changing streams)
         this.intentionalClose = false
         return
-      }
-      
-      if (e.code === 1006) {
-        // Abnormal closure — network may be unstable
-      } else {
-        // WebSocket closed
       }
       
       this.scheduleReconnectWithBackoff()

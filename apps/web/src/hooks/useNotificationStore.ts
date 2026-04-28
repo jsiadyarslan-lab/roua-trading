@@ -11,7 +11,9 @@ let _audioResumed = false
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null
-  if (!_audioCtx) {
+  // لا ننشئ AudioContext إلا بعد تفاعل المستخدم (click/keydown/touchstart)
+  // لتجنب خطأ "AudioContext was not allowed to start"
+  if (!_audioCtx && _audioResumed) {
     try {
       _audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
     } catch {

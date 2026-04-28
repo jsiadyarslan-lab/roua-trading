@@ -15,7 +15,7 @@ import {
   XCircle,
   AlertTriangle,
   ExternalLink,
-  GitHub,
+  GitBranch,
 } from 'lucide-react'
 
 /* ── design tokens ── */
@@ -511,7 +511,7 @@ export default function AdminMonitorPage() {
                   width: 'fit-content',
                 }}
               >
-                <GitHub size={14} />
+                <GitBranch size={14} />
                 jsiadyarslan-lab/roua-monitor
               </a>
               <div style={{ marginTop: 10 }}>

@@ -45,6 +45,32 @@ async function runSchemaMigrations(): Promise<void> {
     `ALTER TABLE "ChartPreference" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
     `ALTER TABLE "ChartPreference" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
     `ALTER TABLE "AuditLog" ADD COLUMN IF NOT EXISTS "userId" TEXT`,
+    // Subscription table
+    `CREATE TABLE IF NOT EXISTS "Subscription" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "tier" "Tier" NOT NULL DEFAULT 'FREE', "previousTier" "Tier", "startDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "endDate" TIMESTAMP(3), "status" TEXT NOT NULL DEFAULT 'active', "paymentMethod" TEXT, "amount" DECIMAL(19,4), "currency" TEXT NOT NULL DEFAULT 'USD', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Subscription_pkey" PRIMARY KEY ("id"))`,
+    `CREATE INDEX IF NOT EXISTS "Subscription_userId_idx" ON "Subscription"("userId")`,
+    `CREATE INDEX IF NOT EXISTS "Subscription_tier_idx" ON "Subscription"("tier")`,
+    `CREATE INDEX IF NOT EXISTS "Subscription_status_idx" ON "Subscription"("status")`,
+    `CREATE INDEX IF NOT EXISTS "Subscription_createdAt_idx" ON "Subscription"("createdAt")`,
+    // AiUsageLog table
+    `CREATE TABLE IF NOT EXISTS "AiUsageLog" ("id" TEXT NOT NULL, "userId" TEXT, "model" TEXT NOT NULL, "provider" TEXT NOT NULL, "endpoint" TEXT NOT NULL, "inputTokens" INTEGER NOT NULL DEFAULT 0, "outputTokens" INTEGER NOT NULL DEFAULT 0, "costUsd" DECIMAL(10,6) NOT NULL DEFAULT 0, "latencyMs" INTEGER NOT NULL DEFAULT 0, "cached" BOOLEAN NOT NULL DEFAULT false, "success" BOOLEAN NOT NULL DEFAULT true, "errorMessage" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "AiUsageLog_pkey" PRIMARY KEY ("id"))`,
+    `CREATE INDEX IF NOT EXISTS "AiUsageLog_model_idx" ON "AiUsageLog"("model")`,
+    `CREATE INDEX IF NOT EXISTS "AiUsageLog_provider_idx" ON "AiUsageLog"("provider")`,
+    `CREATE INDEX IF NOT EXISTS "AiUsageLog_createdAt_idx" ON "AiUsageLog"("createdAt")`,
+    `CREATE INDEX IF NOT EXISTS "AiUsageLog_userId_idx" ON "AiUsageLog"("userId")`,
+    `CREATE INDEX IF NOT EXISTS "AiUsageLog_cached_idx" ON "AiUsageLog"("cached")`,
+    // NotificationConfig table
+    `CREATE TABLE IF NOT EXISTS "NotificationConfig" ("id" TEXT NOT NULL, "type" TEXT NOT NULL, "enabled" BOOLEAN NOT NULL DEFAULT false, "config" TEXT NOT NULL DEFAULT '{}', "description" TEXT, "lastTriggeredAt" TIMESTAMP(3), "triggerCount" INTEGER NOT NULL DEFAULT 0, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "NotificationConfig_pkey" PRIMARY KEY ("id"))`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "NotificationConfig_type_key" ON "NotificationConfig"("type")`,
+    `CREATE INDEX IF NOT EXISTS "NotificationConfig_type_idx" ON "NotificationConfig"("type")`,
+    `CREATE INDEX IF NOT EXISTS "NotificationConfig_enabled_idx" ON "NotificationConfig"("enabled")`,
+    // AdminSession table
+    `CREATE TABLE IF NOT EXISTS "AdminSession" ("id" TEXT NOT NULL, "token" TEXT NOT NULL, "expiresAt" TIMESTAMP(3) NOT NULL, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "AdminSession_pkey" PRIMARY KEY ("id"))`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "AdminSession_token_key" ON "AdminSession"("token")`,
+    `CREATE INDEX IF NOT EXISTS "AdminSession_token_idx" ON "AdminSession"("token")`,
+    `CREATE INDEX IF NOT EXISTS "AdminSession_expiresAt_idx" ON "AdminSession"("expiresAt")`,
+    // Add PRO/PLUS to Tier enum if not exists
+    `ALTER TYPE "Tier" ADD VALUE IF NOT EXISTS 'PRO'`,
+    `ALTER TYPE "Tier" ADD VALUE IF NOT EXISTS 'PLUS'`,
   ]
 
   for (const sql of migrations) {

@@ -14,20 +14,25 @@ import {
   Shield,
   Server,
   Clock,
+  CreditCard,
+  Brain,
 } from 'lucide-react'
 
 interface AdminStats {
-  users: { total: number; free: number; premium: number; institutional: number }
+  users: { total: number; free: number; pro: number; plus: number; premium: number; institutional: number }
   trading: { dailyTrades: number; volume: number; winRate: number; activePositions: number }
   system: { uptime: string; lastCheck: string; endpoints: { path: string; status: string; responseTime: number }[] }
+  error?: string
 }
 
 interface ActivityItem {
   id: string
-  type: string
-  message: string
-  time: string
-  color: string
+  action: string
+  resource: string
+  details: string | null
+  userEmail: string | null
+  userName: string | null
+  createdAt: string
 }
 
 const CARD_STYLE: React.CSSProperties = {
@@ -51,17 +56,29 @@ const COLORS = {
   border: 'rgba(0,229,255,0.08)',
 }
 
+function getActivityIcon(action: string) {
+  if (action.includes('user') || action.includes('register') || action.includes('signup')) return { icon: '👤', color: COLORS.accent }
+  if (action.includes('trade') || action.includes('order')) return { icon: '📊', color: COLORS.success }
+  if (action.includes('error') || action.includes('fail')) return { icon: '⚠️', color: COLORS.danger }
+  if (action.includes('upgrade') || action.includes('subscription')) return { icon: '⬆️', color: COLORS.amber }
+  if (action.includes('system') || action.includes('update')) return { icon: '🔧', color: COLORS.accent }
+  return { icon: '📋', color: COLORS.muted }
+}
+
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return `منذ ${mins} دقيقة`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `منذ ${hours} ساعة`
+  const days = Math.floor(hours / 24)
+  return `منذ ${days} يوم`
+}
+
 export default function AdminOverviewPage() {
   const [stats, setStats] = useState<AdminStats | null>(null)
+  const [activities, setActivities] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [activities] = useState<ActivityItem[]>([
-    { id: '1', type: 'user', message: 'مستخدم جديد: أحمد محمد', time: 'منذ 5 دقائق', color: COLORS.accent },
-    { id: '2', type: 'trade', message: 'صفقة كبيرة: BTC/USD 2.5 BTC', time: 'منذ 12 دقيقة', color: COLORS.success },
-    { id: '3', type: 'alert', message: 'تنبيه: استخدام الذاكرة 85%', time: 'منذ 30 دقيقة', color: COLORS.amber },
-    { id: '4', type: 'system', message: 'تحديث: تم تجديد شهادة SSL', time: 'منذ ساعة', color: COLORS.accent },
-    { id: '5', type: 'error', message: 'خطأ: فشل الاتصال بـ Binance', time: 'منذ ساعتين', color: COLORS.danger },
-    { id: '6', type: 'user', message: 'ترقية: سارة علي → PREMIUM', time: 'منذ 3 ساعات', color: COLORS.success },
-  ])
 
   const fetchStats = async () => {
     try {
@@ -71,31 +88,31 @@ export default function AdminOverviewPage() {
         setStats(data)
       }
     } catch {
-      // Use fallback data
-      setStats({
-        users: { total: 142, free: 98, premium: 35, institutional: 9 },
-        trading: { dailyTrades: 87, volume: 245800, winRate: 68.5, activePositions: 23 },
-        system: {
-          uptime: '99.9%',
-          lastCheck: new Date().toISOString(),
-          endpoints: [
-            { path: '/api/health', status: 'healthy', responseTime: 45 },
-            { path: '/api/auth/session', status: 'healthy', responseTime: 120 },
-            { path: '/api/exchange/quote/AAPL', status: 'healthy', responseTime: 230 },
-            { path: '/api/scanner/scan', status: 'warning', responseTime: 890 },
-            { path: '/api/signals/smart', status: 'healthy', responseTime: 340 },
-            { path: '/api/portfolio/summary', status: 'healthy', responseTime: 180 },
-          ],
-        },
-      })
-    } finally {
-      setLoading(false)
+      // Don't set fake data - leave as null
     }
   }
 
+  const fetchActivity = async () => {
+    try {
+      const res = await fetch('/dashboard/admin/api/activity?limit=20')
+      if (res.ok) {
+        const data = await res.json()
+        setActivities(data.activities || [])
+      }
+    } catch {
+      // Don't set fake data - leave as empty
+    }
+  }
+
+  const fetchAll = async () => {
+    setLoading(true)
+    await Promise.all([fetchStats(), fetchActivity()])
+    setLoading(false)
+  }
+
   useEffect(() => {
-    fetchStats()
-    const interval = setInterval(fetchStats, 30000)
+    fetchAll()
+    const interval = setInterval(fetchAll, 30000)
     return () => clearInterval(interval)
   }, [])
 
@@ -103,20 +120,16 @@ export default function AdminOverviewPage() {
     {
       label: 'إجمالي المستخدمين',
       value: stats?.users.total ?? '—',
-      sub: stats ? `${stats.users.free} مجاني | ${stats.users.premium} مميز | ${stats.users.institutional} مؤسسي` : '',
+      sub: stats ? `${stats.users.free} مجاني | ${stats.users.pro} برو | ${stats.users.plus} بلس` : '',
       icon: Users,
       color: COLORS.accent,
-      trend: '+12%',
-      trendUp: true,
     },
     {
       label: 'الصفقات اليومية',
       value: stats?.trading.dailyTrades ?? '—',
-      sub: 'مقارنة بأمس',
+      sub: 'اليوم',
       icon: TrendingUp,
       color: COLORS.success,
-      trend: '+8%',
-      trendUp: true,
     },
     {
       label: 'حجم التداول',
@@ -124,8 +137,6 @@ export default function AdminOverviewPage() {
       sub: 'اليوم',
       icon: BarChart3,
       color: COLORS.amber,
-      trend: '-3%',
-      trendUp: false,
     },
     {
       label: 'نسبة النجاح',
@@ -133,10 +144,10 @@ export default function AdminOverviewPage() {
       sub: 'آخر 30 يوم',
       icon: Target,
       color: COLORS.success,
-      trend: '+2.1%',
-      trendUp: true,
     },
   ]
+
+  const hasDbError = stats?.error
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -147,7 +158,7 @@ export default function AdminOverviewPage() {
           <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", margin: '4px 0 0' }}>لوحة تحكم الإدارة المركزية</p>
         </div>
         <button
-          onClick={fetchStats}
+          onClick={fetchAll}
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '8px 16px', borderRadius: 8,
@@ -161,8 +172,22 @@ export default function AdminOverviewPage() {
         </button>
       </div>
 
+      {/* DB Error Banner */}
+      {hasDbError && (
+        <div style={{
+          padding: '12px 16px', borderRadius: 8,
+          background: `${COLORS.amber}10`, border: `1px solid ${COLORS.amber}25`,
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <Shield size={16} color={COLORS.amber} />
+          <span style={{ fontSize: 12, color: COLORS.amber, fontFamily: "'Cairo', sans-serif" }}>
+            {stats.error} — البيانات المعروضة قد لا تكون مكتملة
+          </span>
+        </div>
+      )}
+
       {/* Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
         {statCards.map((card, i) => {
           const Icon = card.icon
           return (
@@ -170,7 +195,6 @@ export default function AdminOverviewPage() {
               ...CARD_STYLE,
               animation: `fadeInSlideUp 0.4s ease-out ${i * 0.05}s both`,
             }}>
-              {/* Glow */}
               <div style={{
                 position: 'absolute', top: -20, right: -20,
                 width: 80, height: 80,
@@ -195,18 +219,34 @@ export default function AdminOverviewPage() {
                   <Icon size={18} color={card.color} />
                 </div>
               </div>
-              {card.trend && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10 }}>
-                  {card.trendUp ? (
-                    <ArrowUpRight size={12} color={COLORS.success} />
-                  ) : (
-                    <ArrowDownRight size={12} color={COLORS.danger} />
-                  )}
-                  <span style={{ fontSize: 11, fontWeight: 600, color: card.trendUp ? COLORS.success : COLORS.danger, fontFamily: "'JetBrains Mono', monospace" }}>
-                    {card.trend}
-                  </span>
-                </div>
-              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Quick Stats Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
+        {[
+          { label: 'مجاني', value: stats?.users.free ?? 0, color: COLORS.muted, icon: Users },
+          { label: 'برو', value: stats?.users.pro ?? 0, color: COLORS.accent, icon: CreditCard },
+          { label: 'بلس', value: stats?.users.plus ?? 0, color: COLORS.amber, icon: CreditCard },
+          { label: 'مميز', value: stats?.users.premium ?? 0, color: COLORS.success, icon: CreditCard },
+          { label: 'مؤسسي', value: stats?.users.institutional ?? 0, color: '#B388FF', icon: Shield },
+          { label: 'مراكز مفتوحة', value: stats?.trading.activePositions ?? 0, color: COLORS.accent, icon: Activity },
+        ].map((item, i) => {
+          const Icon = item.icon
+          return (
+            <div key={i} style={{
+              padding: '10px 14px', borderRadius: 8,
+              background: 'rgba(255,255,255,0.02)',
+              border: `1px solid ${COLORS.border}`,
+              display: 'flex', alignItems: 'center', gap: 10,
+            }}>
+              <Icon size={14} color={item.color} />
+              <div>
+                <div style={{ fontSize: 9, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>{item.label}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: item.color, fontFamily: "'JetBrains Mono', monospace" }}>{item.value}</div>
+              </div>
             </div>
           )
         })}
@@ -215,10 +255,7 @@ export default function AdminOverviewPage() {
       {/* System Health + Recent Activity */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {/* System Health */}
-        <div style={{
-          ...CARD_STYLE,
-          padding: 0,
-        }}>
+        <div style={{ ...CARD_STYLE, padding: 0 }}>
           <div style={{
             padding: '12px 16px',
             borderBottom: `1px solid ${COLORS.border}`,
@@ -238,7 +275,7 @@ export default function AdminOverviewPage() {
             </div>
           </div>
           <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflowY: 'auto' }} className="custom-scrollbar">
-            {stats?.system.endpoints.map((ep, i) => (
+            {stats?.system.endpoints.length ? stats.system.endpoints.map((ep, i) => (
               <div key={i} style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -258,7 +295,7 @@ export default function AdminOverviewPage() {
                 </div>
                 <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: COLORS.muted }}>{ep.responseTime}ms</span>
               </div>
-            )) ?? (
+            )) : (
               <div style={{ textAlign: 'center', padding: 20, color: COLORS.muted, fontSize: 12, fontFamily: "'Cairo', sans-serif" }}>
                 {loading ? 'جارٍ التحميل...' : 'لا توجد بيانات'}
               </div>
@@ -267,10 +304,7 @@ export default function AdminOverviewPage() {
         </div>
 
         {/* Recent Activity */}
-        <div style={{
-          ...CARD_STYLE,
-          padding: 0,
-        }}>
+        <div style={{ ...CARD_STYLE, padding: 0 }}>
           <div style={{
             padding: '12px 16px',
             borderBottom: `1px solid ${COLORS.border}`,
@@ -282,40 +316,45 @@ export default function AdminOverviewPage() {
             <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>النشاط الأخير</span>
           </div>
           <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' }} className="custom-scrollbar">
-            {activities.map((item) => (
-              <div key={item.id} style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '10px 12px',
-                borderRadius: 6,
-                background: 'rgba(255,255,255,0.02)',
-                border: `1px solid ${COLORS.border}`,
-              }}>
-                <div style={{
-                  width: 8, height: 8, borderRadius: '50%',
-                  background: item.color,
-                  boxShadow: `0 0 4px ${item.color}`,
-                  flexShrink: 0,
-                }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, color: COLORS.text, fontFamily: "'Cairo', sans-serif", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.message}</div>
+            {activities.length > 0 ? activities.map((item) => {
+              const act = getActivityIcon(item.action)
+              return (
+                <div key={item.id} style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '10px 12px',
+                  borderRadius: 6,
+                  background: 'rgba(255,255,255,0.02)',
+                  border: `1px solid ${COLORS.border}`,
+                }}>
+                  <div style={{ fontSize: 14, flexShrink: 0 }}>{act.icon}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, color: COLORS.text, fontFamily: "'Cairo', sans-serif", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {item.action} — {item.resource}
+                      {item.details && <span style={{ color: COLORS.muted }}> {item.details}</span>}
+                    </div>
+                    {item.userEmail && (
+                      <div style={{ fontSize: 9, color: COLORS.muted, fontFamily: "'JetBrains Mono', monospace" }} dir="ltr">{item.userEmail}</div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                    <Clock size={10} color={COLORS.muted} />
+                    <span style={{ fontSize: 9, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>{timeAgo(item.createdAt)}</span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                  <Clock size={10} color={COLORS.muted} />
-                  <span style={{ fontSize: 9, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>{item.time}</span>
-                </div>
+              )
+            }) : (
+              <div style={{ textAlign: 'center', padding: 20, color: COLORS.muted, fontSize: 12, fontFamily: "'Cairo', sans-serif" }}>
+                {loading ? 'جارٍ التحميل...' : 'لا يوجد نشاط مسجل بعد'}
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div style={{
-        ...CARD_STYLE,
-        padding: 16,
-      }}>
+      <div style={{ ...CARD_STYLE, padding: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
           <Zap size={14} color={COLORS.amber} />
           <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>إجراءات سريعة</span>
@@ -323,14 +362,18 @@ export default function AdminOverviewPage() {
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {[
             { label: 'فحص النظام', icon: Shield, color: COLORS.accent },
-            { label: 'إعادة تشغيل البوت', icon: RefreshCw, color: COLORS.amber },
-            { label: 'تصدير التقارير', icon: BarChart3, color: COLORS.success },
+            { label: 'إدارة الاشتراكات', icon: CreditCard, color: COLORS.amber },
+            { label: 'مراقبة AI', icon: Brain, color: '#B388FF' },
             { label: 'إدارة المستخدمين', icon: Users, color: COLORS.accent },
           ].map((action, i) => {
             const ActionIcon = action.icon
             return (
               <button
                 key={i}
+                onClick={() => {
+                  const paths = ['/dashboard/admin/health', '/dashboard/admin/subscriptions', '/dashboard/admin/ai-costs', '/dashboard/admin/users']
+                  window.location.href = paths[i]
+                }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6,
                   padding: '8px 14px', borderRadius: 8,

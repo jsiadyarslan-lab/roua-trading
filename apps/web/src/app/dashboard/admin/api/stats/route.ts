@@ -6,21 +6,33 @@ export const dynamic = 'force-dynamic'
 /**
  * /dashboard/admin/api/stats — Admin dashboard statistics
  *
- * Returns aggregated platform stats for the admin panel.
- * Falls back to mock data if DB is unavailable.
+ * Returns aggregated platform stats from the database.
+ * Returns zeros if DB is unavailable — NO fake data.
  */
 export async function GET() {
+  const emptyResponse = () => ({
+    users: { total: 0, free: 0, pro: 0, plus: 0, premium: 0, institutional: 0 },
+    trading: { dailyTrades: 0, volume: 0, winRate: 0, activePositions: 0 },
+    system: {
+      uptime: '0%',
+      lastCheck: new Date().toISOString(),
+      endpoints: [] as { path: string; status: string; responseTime: number }[],
+    },
+  })
+
   try {
     const dbReady = await ensureDbReady()
 
     if (!dbReady) {
-      return NextResponse.json(getFallbackStats())
+      return NextResponse.json({ ...emptyResponse(), error: 'قاعدة البيانات غير متاحة' })
     }
 
     // Fetch user stats from DB
-    const [totalUsers, freeUsers, premiumUsers, institutionalUsers] = await Promise.all([
+    const [totalUsers, freeUsers, proUsers, plusUsers, premiumUsers, institutionalUsers] = await Promise.all([
       db.user.count(),
       db.user.count({ where: { tier: 'FREE' } }),
+      db.user.count({ where: { tier: 'PRO' } }),
+      db.user.count({ where: { tier: 'PLUS' } }),
       db.user.count({ where: { tier: 'PREMIUM' } }),
       db.user.count({ where: { tier: 'INSTITUTIONAL' } }),
     ])
@@ -72,6 +84,8 @@ export async function GET() {
       users: {
         total: totalUsers,
         free: freeUsers,
+        pro: proUsers,
+        plus: plusUsers,
         premium: premiumUsers,
         institutional: institutionalUsers,
       },
@@ -87,42 +101,16 @@ export async function GET() {
         endpoints: [
           { path: '/api/health', status: 'healthy', responseTime: 45 },
           { path: '/api/auth/session', status: 'healthy', responseTime: 120 },
-          { path: '/api/exchange/quote/AAPL', status: 'healthy', responseTime: 230 },
           { path: '/api/exchange/quote/BTC-USD', status: 'healthy', responseTime: 180 },
           { path: '/api/scanner/scan', status: dailyTrades > 100 ? 'warning' : 'healthy', responseTime: 890 },
           { path: '/api/signals/smart', status: recentSignals > 50 ? 'warning' : 'healthy', responseTime: 340 },
-          { path: '/api/scanner/multi-tf/BTC-USD', status: 'healthy', responseTime: 560 },
           { path: '/api/portfolio/summary', status: 'healthy', responseTime: 180 },
           { path: '/api/positions', status: activePositions > 100 ? 'warning' : 'healthy', responseTime: 90 },
-          { path: '/dashboard', status: 'healthy', responseTime: 200 },
         ],
       },
     })
   } catch (error: any) {
     console.error('[admin/stats] Error:', error?.message || error)
-    return NextResponse.json(getFallbackStats())
-  }
-}
-
-function getFallbackStats() {
-  return {
-    users: { total: 142, free: 98, premium: 35, institutional: 9 },
-    trading: { dailyTrades: 87, volume: 245800, winRate: 68.5, activePositions: 23 },
-    system: {
-      uptime: '99.9%',
-      lastCheck: new Date().toISOString(),
-      endpoints: [
-        { path: '/api/health', status: 'healthy', responseTime: 45 },
-        { path: '/api/auth/session', status: 'healthy', responseTime: 120 },
-        { path: '/api/exchange/quote/AAPL', status: 'healthy', responseTime: 230 },
-        { path: '/api/exchange/quote/BTC-USD', status: 'healthy', responseTime: 180 },
-        { path: '/api/scanner/scan', status: 'warning', responseTime: 890 },
-        { path: '/api/signals/smart', status: 'healthy', responseTime: 340 },
-        { path: '/api/scanner/multi-tf/BTC-USD', status: 'healthy', responseTime: 560 },
-        { path: '/api/portfolio/summary', status: 'healthy', responseTime: 180 },
-        { path: '/api/positions', status: 'healthy', responseTime: 90 },
-        { path: '/dashboard', status: 'healthy', responseTime: 200 },
-      ],
-    },
+    return NextResponse.json({ ...emptyResponse(), error: 'فشل في جلب البيانات' })
   }
 }

@@ -12,6 +12,9 @@ import {
   Clock,
   ChevronDown,
   RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  Activity,
 } from 'lucide-react'
 
 interface AdminUser {
@@ -19,9 +22,10 @@ interface AdminUser {
   displayName: string
   email: string
   tier: string
-  trades: number
-  balance: number
-  status: string
+  tradeCount: number
+  openPositions: number
+  orderCount: number
+  createdAt: string
   lastActive: string
 }
 
@@ -47,91 +51,65 @@ const CARD_STYLE: React.CSSProperties = {
 
 function getTierStyle(tier: string) {
   switch (tier) {
+    case 'PRO':
+      return { bg: 'rgba(0,229,255,0.10)', border: 'rgba(0,229,255,0.25)', color: COLORS.accent, label: 'برو' }
+    case 'PLUS':
+      return { bg: 'rgba(255,184,0,0.10)', border: 'rgba(255,184,0,0.25)', color: COLORS.amber, label: 'بلس' }
     case 'PREMIUM':
       return { bg: 'rgba(0,230,118,0.10)', border: 'rgba(0,230,118,0.25)', color: COLORS.success, label: 'مميز' }
     case 'INSTITUTIONAL':
-      return { bg: 'rgba(0,229,255,0.10)', border: 'rgba(0,229,255,0.25)', color: COLORS.accent, label: 'مؤسسي' }
+      return { bg: 'rgba(179,136,255,0.10)', border: 'rgba(179,136,255,0.25)', color: '#B388FF', label: 'مؤسسي' }
     default:
       return { bg: 'rgba(139,146,168,0.10)', border: 'rgba(139,146,168,0.25)', color: COLORS.muted, label: 'مجاني' }
   }
 }
 
-function getStatusStyle(status: string) {
-  switch (status) {
-    case 'active':
-      return { color: COLORS.success, label: 'نشط' }
-    case 'suspended':
-      return { color: COLORS.danger, label: 'معلق' }
-    case 'inactive':
-      return { color: COLORS.muted, label: 'غير نشط' }
-    default:
-      return { color: COLORS.muted, label: status }
-  }
-}
-
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUser[]>([])
+  const [total, setTotal] = useState(0)
+  const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [tierFilter, setTierFilter] = useState<string>('all')
   const [showFilter, setShowFilter] = useState(false)
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
+  const [page, setPage] = useState(1)
 
   const fetchUsers = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/dashboard/admin/api/stats')
-      if (res.ok) {
-        // Generate mock users from stats
-        const stats = await res.json()
-        const mockUsers: AdminUser[] = []
-        const names = ['أحمد محمد', 'سارة علي', 'خالد حسن', 'فاطمة عمر', 'يوسف كريم', 'نورة سعيد', 'عمر أحمد', 'ليلى محمد', 'حسين علي', 'مريم خالد', 'عبدالله سلطان', 'ريم فهد', 'طارق زياد', 'هند بدر', 'سلمان ناصر']
-        const statuses = ['active', 'active', 'active', 'active', 'inactive', 'active', 'active', 'suspended', 'active', 'active', 'active', 'active', 'inactive', 'active', 'active']
-        const tiers = ['FREE', 'FREE', 'PREMIUM', 'FREE', 'PREMIUM', 'INSTITUTIONAL', 'FREE', 'FREE', 'PREMIUM', 'FREE', 'INSTITUTIONAL', 'FREE', 'FREE', 'PREMIUM', 'FREE']
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: '20',
+      })
+      if (search) params.set('search', search)
+      if (tierFilter !== 'all') params.set('tier', tierFilter)
 
-        for (let i = 0; i < Math.min(15, stats.users.total); i++) {
-          mockUsers.push({
-            id: `user-${i + 1}`,
-            displayName: names[i] || `مستخدم ${i + 1}`,
-            email: `user${i + 1}@roua.ai`,
-            tier: tiers[i] || 'FREE',
-            trades: Math.floor(Math.random() * 500),
-            balance: Math.floor(Math.random() * 100000),
-            status: statuses[i] || 'active',
-            lastActive: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-          })
-        }
-        setUsers(mockUsers)
+      const res = await fetch(`/dashboard/admin/api/users?${params}`)
+      if (res.ok) {
+        const data = await res.json()
+        setUsers(data.users || [])
+        setTotal(data.total || 0)
+        setTotalPages(data.totalPages || 1)
       }
     } catch {
-      // Fallback mock data
-      const mockUsers: AdminUser[] = []
-      const names = ['أحمد محمد', 'سارة علي', 'خالد حسن', 'فاطمة عمر', 'يوسف كريم', 'نورة سعيد', 'عمر أحمد', 'ليلى محمد', 'حسين علي', 'مريم خالد']
-      for (let i = 0; i < 10; i++) {
-        mockUsers.push({
-          id: `user-${i + 1}`,
-          displayName: names[i],
-          email: `user${i + 1}@roua.ai`,
-          tier: ['FREE', 'PREMIUM', 'INSTITUTIONAL'][i % 3],
-          trades: Math.floor(Math.random() * 500),
-          balance: Math.floor(Math.random() * 100000),
-          status: i === 7 ? 'suspended' : i === 4 ? 'inactive' : 'active',
-          lastActive: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString(),
-        })
-      }
-      setUsers(mockUsers)
+      // Don't set fake data
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [page, search, tierFilter])
 
   useEffect(() => { fetchUsers() }, [fetchUsers])
 
-  const filteredUsers = users.filter(u => {
-    const matchSearch = !search || u.displayName.includes(search) || u.email.toLowerCase().includes(search.toLowerCase())
-    const matchTier = tierFilter === 'all' || u.tier === tierFilter
-    return matchSearch && matchTier
-  })
+  // Debounced search
+  const [searchInput, setSearchInput] = useState('')
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput)
+      setPage(1)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [searchInput])
 
   const formatDate = (iso: string) => {
     const d = new Date(iso)
@@ -150,7 +128,7 @@ export default function AdminUsersPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif", margin: 0 }}>إدارة المستخدمين</h1>
-          <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", margin: '4px 0 0' }}>{users.length} مستخدم مسجل</p>
+          <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", margin: '4px 0 0' }}>{total} مستخدم مسجل</p>
         </div>
         <button
           onClick={fetchUsers}
@@ -179,16 +157,16 @@ export default function AdminUsersPage() {
           <input
             type="text"
             placeholder="بحث بالاسم أو البريد..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
             style={{
               flex: 1, background: 'transparent', border: 'none', outline: 'none',
               color: COLORS.text, fontSize: 12, fontFamily: "'Cairo', sans-serif",
             }}
             dir="rtl"
           />
-          {search && (
-            <button onClick={() => setSearch('')} style={{ background: 'transparent', border: 'none', color: COLORS.muted, cursor: 'pointer', padding: 0 }}>
+          {searchInput && (
+            <button onClick={() => { setSearchInput(''); setSearch('') }} style={{ background: 'transparent', border: 'none', color: COLORS.muted, cursor: 'pointer', padding: 0 }}>
               <X size={12} />
             </button>
           )}
@@ -213,10 +191,10 @@ export default function AdminUsersPage() {
               background: '#161B22', border: `1px solid ${COLORS.border}`, borderRadius: 8,
               padding: 4, zIndex: 50, minWidth: 140,
             }}>
-              {['all', 'FREE', 'PREMIUM', 'INSTITUTIONAL'].map(tier => (
+              {['all', 'FREE', 'PRO', 'PLUS', 'PREMIUM', 'INSTITUTIONAL'].map(tier => (
                 <button
                   key={tier}
-                  onClick={() => { setTierFilter(tier); setShowFilter(false) }}
+                  onClick={() => { setTierFilter(tier); setShowFilter(false); setPage(1) }}
                   style={{
                     display: 'block', width: '100%', padding: '8px 12px', borderRadius: 6,
                     border: 'none', background: tierFilter === tier ? 'rgba(0,229,255,0.10)' : 'transparent',
@@ -238,7 +216,7 @@ export default function AdminUsersPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                {['الاسم', 'البريد', 'المستوى', 'الصفقات', 'الرصيد', 'الحالة', 'آخر نشاط'].map(h => (
+                {['الاسم', 'البريد', 'المستوى', 'الصفقات', 'المراكز المفتوحة', 'أول تسجيل', 'آخر نشاط'].map(h => (
                   <th key={h} style={{
                     padding: '10px 14px', textAlign: 'right',
                     fontSize: 10, fontWeight: 700, color: COLORS.muted,
@@ -256,16 +234,15 @@ export default function AdminUsersPage() {
                     جارٍ التحميل...
                   </td>
                 </tr>
-              ) : filteredUsers.length === 0 ? (
+              ) : users.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ padding: 40, textAlign: 'center', color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>
-                    لا توجد نتائج
+                    لا يوجد مستخدمون مسجلون بعد
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user, i) => {
+                users.map((user, i) => {
                   const tierStyle = getTierStyle(user.tier)
-                  const statusStyle = getStatusStyle(user.status)
                   return (
                     <tr
                       key={user.id}
@@ -305,14 +282,9 @@ export default function AdminUsersPage() {
                           {tierStyle.label}
                         </span>
                       </td>
-                      <td style={{ padding: '10px 14px', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: COLORS.text }}>{user.trades}</td>
-                      <td style={{ padding: '10px 14px', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: COLORS.success }}>${user.balance.toLocaleString()}</td>
-                      <td style={{ padding: '10px 14px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: statusStyle.color }} />
-                          <span style={{ fontSize: 10, color: statusStyle.color, fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>{statusStyle.label}</span>
-                        </div>
-                      </td>
+                      <td style={{ padding: '10px 14px', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: COLORS.text }}>{user.tradeCount}</td>
+                      <td style={{ padding: '10px 14px', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: COLORS.accent }}>{user.openPositions}</td>
+                      <td style={{ padding: '10px 14px', fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>{formatDate(user.createdAt)}</td>
                       <td style={{ padding: '10px 14px', fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>{formatDate(user.lastActive)}</td>
                     </tr>
                   )
@@ -322,6 +294,43 @@ export default function AdminUsersPage() {
           </table>
         </div>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            style={{
+              padding: '6px 10px', borderRadius: 6,
+              border: `1px solid ${COLORS.border}`,
+              background: page === 1 ? 'transparent' : 'rgba(0,229,255,0.06)',
+              color: page === 1 ? COLORS.muted : COLORS.accent,
+              cursor: page === 1 ? 'not-allowed' : 'pointer',
+              fontSize: 12, fontFamily: "'Cairo', sans-serif",
+            }}
+          >
+            <ChevronRight size={14} />
+          </button>
+          <span style={{ fontSize: 11, color: COLORS.muted, fontFamily: "'JetBrains Mono', monospace" }}>
+            {page} / {totalPages}
+          </span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            style={{
+              padding: '6px 10px', borderRadius: 6,
+              border: `1px solid ${COLORS.border}`,
+              background: page === totalPages ? 'transparent' : 'rgba(0,229,255,0.06)',
+              color: page === totalPages ? COLORS.muted : COLORS.accent,
+              cursor: page === totalPages ? 'not-allowed' : 'pointer',
+              fontSize: 12, fontFamily: "'Cairo', sans-serif",
+            }}
+          >
+            <ChevronLeft size={14} />
+          </button>
+        </div>
+      )}
 
       {/* User Detail Panel */}
       {selectedUser && (
@@ -370,8 +379,8 @@ export default function AdminUsersPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>
               {[
                 { label: 'المستوى', value: getTierStyle(selectedUser.tier).label, icon: Shield, color: getTierStyle(selectedUser.tier).color },
-                { label: 'الصفقات', value: `${selectedUser.trades}`, icon: TrendingUp, color: COLORS.accent },
-                { label: 'الرصيد', value: `$${selectedUser.balance.toLocaleString()}`, icon: Mail, color: COLORS.success },
+                { label: 'الصفقات', value: `${selectedUser.tradeCount}`, icon: TrendingUp, color: COLORS.accent },
+                { label: 'المراكز المفتوحة', value: `${selectedUser.openPositions}`, icon: Activity, color: COLORS.amber },
                 { label: 'آخر نشاط', value: formatDate(selectedUser.lastActive), icon: Clock, color: COLORS.muted },
               ].map((item, i) => {
                 const ItemIcon = item.icon
@@ -389,25 +398,6 @@ export default function AdminUsersPage() {
                   </div>
                 )
               })}
-            </div>
-
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button style={{
-                flex: 1, padding: '10px', borderRadius: 8,
-                border: `1px solid ${COLORS.success}25`, background: `${COLORS.success}08`,
-                color: COLORS.success, fontSize: 12, fontWeight: 600,
-                fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
-              }}>
-                ترقية المستخدم
-              </button>
-              <button style={{
-                flex: 1, padding: '10px', borderRadius: 8,
-                border: `1px solid ${COLORS.danger}25`, background: `${COLORS.danger}08`,
-                color: COLORS.danger, fontSize: 12, fontWeight: 600,
-                fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
-              }}>
-                تعليق الحساب
-              </button>
             </div>
           </div>
         </div>

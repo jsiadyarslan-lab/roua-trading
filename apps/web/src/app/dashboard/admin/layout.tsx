@@ -13,14 +13,24 @@ import {
   Shield,
   ChevronLeft,
   Menu,
+  CreditCard,
+  Brain,
+  Radar,
+  Bell,
+  LogOut,
+  Loader2,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
   { id: 'overview', label: 'نظرة عامة', icon: LayoutDashboard, path: '/dashboard/admin' },
   { id: 'users', label: 'المستخدمون', icon: Users, path: '/dashboard/admin/users' },
+  { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCard, path: '/dashboard/admin/subscriptions' },
   { id: 'health', label: 'صحة النظام', icon: Activity, path: '/dashboard/admin/health' },
+  { id: 'ai-costs', label: 'تكاليف AI', icon: Brain, path: '/dashboard/admin/ai-costs' },
+  { id: 'monitor', label: 'وكيل المراقبة', icon: Radar, path: '/dashboard/admin/monitor' },
   { id: 'trading', label: 'التداول', icon: TrendingUp, path: '/dashboard/admin/trading' },
   { id: 'signals', label: 'الإشارات', icon: Zap, path: '/dashboard/admin/signals' },
+  { id: 'notifications', label: 'التنبيهات', icon: Bell, path: '/dashboard/admin/notifications' },
   { id: 'logs', label: 'السجلات', icon: ScrollText, path: '/dashboard/admin/system-logs' },
   { id: 'settings', label: 'الإعدادات', icon: Settings, path: '/dashboard/admin/settings' },
 ]
@@ -31,6 +41,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [authChecked, setAuthChecked] = useState(false)
+  const [authenticated, setAuthenticated] = useState(false)
+  const [checking, setChecking] = useState(true)
 
   useEffect(() => {
     const check = () => {
@@ -42,6 +55,78 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
+
+  // Auth check - skip for login page
+  useEffect(() => {
+    if (pathname === '/dashboard/admin/login') {
+      setAuthChecked(true)
+      setChecking(false)
+      return
+    }
+
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/dashboard/admin/api/auth/session')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.authenticated) {
+            setAuthenticated(true)
+          } else {
+            router.replace('/dashboard/admin/login')
+            return
+          }
+        } else {
+          router.replace('/dashboard/admin/login')
+          return
+        }
+      } catch {
+        router.replace('/dashboard/admin/login')
+        return
+      }
+      setAuthChecked(true)
+      setChecking(false)
+    }
+
+    checkAuth()
+    const interval = setInterval(checkAuth, 60000) // Re-check every minute
+    return () => clearInterval(interval)
+  }, [pathname, router])
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/dashboard/admin/api/auth/logout', { method: 'POST' })
+    } catch {}
+    setAuthenticated(false)
+    router.push('/dashboard/admin/login')
+  }
+
+  // Login page renders without sidebar
+  if (pathname === '/dashboard/admin/login') {
+    return <>{children}</>
+  }
+
+  // Loading state while checking auth
+  if (checking || !authChecked) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: '#0B0E14',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        direction: 'rtl',
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <Loader2 size={32} color="#00E5FF" style={{ animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+          <div style={{ fontSize: 14, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>جارٍ التحقق من الهوية...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!authenticated) {
+    return null
+  }
 
   const isActive = (path: string) => {
     if (path === '/dashboard/admin') return pathname === '/dashboard/admin'
@@ -64,12 +149,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         .admin-sidebar::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.15); border-radius: 2px; }
         .admin-nav-item { transition: all 0.18s ease; cursor: pointer; }
         .admin-nav-item:hover { background: rgba(0,229,255,0.06); }
-        .admin-nav-item--active { background: rgba(0,229,255,0.10); border-right: 3px solid ${ACCENT}; }
+        .admin-nav-item--active { background: rgba(0,229,255,0.10); }
         @media (max-width: 767px) {
           .admin-mobile-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 49; }
           .admin-sidebar-mobile { position: fixed; top: 0; right: 0; bottom: 0; z-index: 50; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
           .admin-sidebar-mobile--open { transform: translateX(0); }
         }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
 
       {/* Mobile overlay */}
@@ -122,7 +208,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         {/* Navigation */}
-        <nav style={{ flex: 1, padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <nav style={{ flex: 1, padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 1 }}>
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon
             const active = isActive(item.path)
@@ -142,17 +228,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   display: 'flex',
                   alignItems: 'center',
                   gap: 10,
-                  padding: collapsed ? '10px 0' : '10px 16px',
+                  padding: collapsed ? '8px 0' : '8px 16px',
                   justifyContent: collapsed ? 'center' : 'flex-start',
                   borderRight: active ? `3px solid ${ACCENT}` : '3px solid transparent',
                   cursor: 'pointer',
                   position: 'relative',
                 }}
               >
-                <Icon size={18} color={active ? ACCENT : TEXT_MUTED} strokeWidth={active ? 2.2 : 1.8} />
+                <Icon size={16} color={active ? ACCENT : TEXT_MUTED} strokeWidth={active ? 2.2 : 1.8} />
                 {!collapsed && (
                   <span style={{
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: active ? 700 : 500,
                     color: active ? TEXT : TEXT_MUTED,
                     fontFamily: "'Cairo', sans-serif",
@@ -165,11 +251,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   <div style={{
                     position: 'absolute',
                     left: 16,
-                    width: 6,
-                    height: 6,
+                    width: 5,
+                    height: 5,
                     borderRadius: '50%',
                     background: ACCENT,
-                    boxShadow: `0 0 8px ${ACCENT}`,
+                    boxShadow: `0 0 6px ${ACCENT}`,
                   }} />
                 )}
               </div>
@@ -177,14 +263,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        {/* Collapse button (desktop only) */}
-        {!isMobile && (
-          <div style={{
-            padding: '8px',
-            borderTop: `1px solid ${SIDEBAR_BORDER}`,
-            display: 'flex',
-            justifyContent: 'center',
-          }}>
+        {/* Logout + Collapse */}
+        <div style={{ borderTop: `1px solid ${SIDEBAR_BORDER}`, padding: '8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div
+            onClick={handleLogout}
+            className="admin-nav-item"
+            role="button"
+            tabIndex={0}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: collapsed ? '8px 0' : '8px 12px',
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              borderRadius: 6,
+              cursor: 'pointer',
+              color: '#FF5252',
+            }}
+          >
+            <LogOut size={16} />
+            {!collapsed && (
+              <span style={{ fontSize: 11, fontWeight: 600, fontFamily: "'Cairo', sans-serif", whiteSpace: 'nowrap' }}>
+                تسجيل الخروج
+              </span>
+            )}
+          </div>
+          {!isMobile && (
             <button
               onClick={() => setCollapsed(!collapsed)}
               aria-label={collapsed ? 'توسيع الشريط الجانبي' : 'تصغير الشريط الجانبي'}
@@ -203,8 +307,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               <ChevronLeft size={14} style={{ transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </aside>
 
       {/* Main content */}

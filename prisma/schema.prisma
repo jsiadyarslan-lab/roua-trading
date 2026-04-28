@@ -39,6 +39,8 @@ model User {
 
 enum Tier {
   FREE
+  PRO
+  PLUS
   PREMIUM
   INSTITUTIONAL
 }
@@ -537,4 +539,76 @@ model ChartPreference {
   @@unique([userId, symbol])
   @@index([userId])
   @@index([symbol])
+}
+
+// ── Subscription Tracking ──
+model Subscription {
+  id              String    @id @default(cuid())
+  userId          String
+  tier            Tier      @default(FREE)
+  previousTier    Tier?
+  startDate       DateTime  @default(now())
+  endDate         DateTime?
+  status          String    @default("active") // active, expired, cancelled
+  paymentMethod   String?
+  amount          Decimal?  @db.Decimal(19, 4)
+  currency        String    @default("USD")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([tier])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ── AI Usage & Cost Tracking ──
+model AiUsageLog {
+  id              String   @id @default(cuid())
+  userId          String?
+  model           String   // e.g. "gpt-4", "claude-3-opus", "glm-5"
+  provider        String   // e.g. "openai", "anthropic", "zhipu"
+  endpoint        String   // e.g. "chat", "consensus", "narrator"
+  inputTokens     Int      @default(0)
+  outputTokens    Int      @default(0)
+  costUsd         Decimal  @default(0) @db.Decimal(10, 6)
+  latencyMs       Int      @default(0)
+  cached          Boolean  @default(false)
+  success         Boolean  @default(true)
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+
+  @@index([model])
+  @@index([provider])
+  @@index([createdAt])
+  @@index([userId])
+  @@index([cached])
+}
+
+// ── Notification Configuration ──
+model NotificationConfig {
+  id                String   @id @default(cuid())
+  type              String   // telegram, browser, email
+  enabled           Boolean  @default(false)
+  config            String   @default("{}") // JSON: botToken, chatId, etc.
+  description       String?
+  lastTriggeredAt   DateTime?
+  triggerCount      Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([type])
+  @@index([type])
+  @@index([enabled])
+}
+
+// ── Admin Session (Password Auth) ──
+model AdminSession {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([expiresAt])
 }

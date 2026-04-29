@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { AIAnalysisRequest, AIAnalysisResponse } from './groq.service';
+import { calculateConfidence } from './confidence.util';
 
 /**
  * Ollama Service — Self-Hosted / Local AI Models
@@ -79,7 +80,7 @@ export class OllamaService {
         return {
           model: `Ollama/${response.data?.model || this.defaultModel}`,
           content,
-          confidence: this._calculateConfidence(content, 'ollama'),
+          confidence: calculateConfidence(content, 'ollama'),
           processingTimeMs: Date.now() - startTime,
           language: request.language || 'ar',
         };
@@ -134,32 +135,6 @@ export class OllamaService {
   private _buildSystemPrompt(request: AIAnalysisRequest): string {
     const lang = request.language === 'en' ? 'English' : 'Arabic';
     return `أنت محلل مالي محترف متخصص في ${request.type}. أجب باللغة ${lang === 'Arabic' ? 'العربية' : 'الإنجليزية'}. كن دقيقاً ومهنياً. قدّم تحليلاً واضحاً مع توصيات عملية. أضف دائماً تنبيه المخاطر.`;
-  }
-
-  private _calculateConfidence(content: string, model: string): number {
-    let confidence = 0.5; // base
-
-    // Length bonus: longer analysis = more confident (capped)
-    if (content.length > 200) confidence += 0.1;
-    if (content.length > 500) confidence += 0.1;
-    if (content.length > 1000) confidence += 0.05;
-
-    // Clear recommendation bonus
-    const hasRecommendation = /شراء|بيع|انتظار|BUY|SELL|HOLD|صعود|هبوط/i.test(content);
-    if (hasRecommendation) confidence += 0.15;
-
-    // Model base confidence
-    const modelBase: Record<string, number> = {
-      'gemini': 0.05,
-      'groq': 0.0,
-      'glm': 0.02,
-      'huggingface': -0.05,
-      'ollama': 0.0,
-      'bedrock': 0.08,
-    };
-    confidence += modelBase[model] || 0;
-
-    return Math.min(Math.max(confidence, 0.1), 0.95); // Clamp 0.1-0.95
   }
 
   private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {

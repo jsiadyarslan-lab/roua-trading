@@ -297,6 +297,17 @@ export class MarketScannerService {
 
   private async _getSystemUser(): Promise<{ id: string } | null> {
     try {
+      // FIX: Prefer a PRO/PREMIUM tier user over the oldest user.
+      // The oldest user might be a guest account; signals should be attributed
+      // to a real user with appropriate permissions.
+      const admin = await this.prisma.user.findFirst({
+        where: { tier: { in: ['PRO', 'PREMIUM', 'INSTITUTIONAL'] } },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      });
+      if (admin) return admin;
+
+      // Fallback: any user (including guest) if no admin exists
       const user = await this.prisma.user.findFirst({
         orderBy: { createdAt: 'asc' },
         select: { id: true },

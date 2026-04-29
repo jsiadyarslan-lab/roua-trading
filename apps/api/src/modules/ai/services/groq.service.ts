@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
+import { calculateConfidence } from './confidence.util';
 
 export interface AIAnalysisRequest {
   symbol?: string;
@@ -71,7 +72,7 @@ export class GroqService {
       return {
         model: `Groq/${this.model}`,
         content,
-        confidence: this._calculateConfidence(content, 'groq'),
+        confidence: calculateConfidence(content, 'groq'),
         processingTimeMs: Date.now() - startTime,
         language: request.language || 'ar',
       };
@@ -84,32 +85,6 @@ export class GroqService {
   private _buildSystemPrompt(request: AIAnalysisRequest): string {
     const lang = request.language === 'en' ? 'English' : 'Arabic';
     return `You are a financial analysis AI specializing in ${request.type}. Respond in ${lang}. Be concise, data-driven, and professional. Always include risk disclaimers.`;
-  }
-
-  private _calculateConfidence(content: string, model: string): number {
-    let confidence = 0.5; // base
-
-    // Length bonus: longer analysis = more confident (capped)
-    if (content.length > 200) confidence += 0.1;
-    if (content.length > 500) confidence += 0.1;
-    if (content.length > 1000) confidence += 0.05;
-
-    // Clear recommendation bonus
-    const hasRecommendation = /شراء|بيع|انتظار|BUY|SELL|HOLD|صعود|هبوط/i.test(content);
-    if (hasRecommendation) confidence += 0.15;
-
-    // Model base confidence
-    const modelBase: Record<string, number> = {
-      'gemini': 0.05,
-      'groq': 0.0,
-      'glm': 0.02,
-      'huggingface': -0.05,
-      'ollama': 0.0,
-      'bedrock': 0.08,
-    };
-    confidence += modelBase[model] || 0;
-
-    return Math.min(Math.max(confidence, 0.1), 0.95); // Clamp 0.1-0.95
   }
 
   private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {

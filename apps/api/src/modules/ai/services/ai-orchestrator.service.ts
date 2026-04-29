@@ -48,6 +48,8 @@ export class AIOrchestratorService {
 
   /** In-memory cache for AI responses with TTL */
   private readonly responseCache = new Map<string, { result: AIAnalysisResponse; expiresAt: number }>();
+  /** Maximum number of entries in the in-memory cache (prevents unbounded growth) */
+  private readonly MAX_CACHE_SIZE = 500;
   private readonly CACHE_TTL: Record<string, number> = {
     sentiment: 5 * 60 * 1000,        // 5 minutes
     market_analysis: 15 * 60 * 1000,  // 15 minutes
@@ -532,6 +534,10 @@ export class AIOrchestratorService {
   private _setCachedResult(key: string, result: AIAnalysisResponse, type: string): void {
     const ttl = this.CACHE_TTL[type] || this.CACHE_TTL.general;
     this.responseCache.set(key, { result, expiresAt: Date.now() + ttl });
+    // FIX: Evict oldest entries when cache exceeds max size to prevent unbounded growth
+    if (this.responseCache.size > this.MAX_CACHE_SIZE) {
+      this._evictOldestEntries(Math.floor(this.MAX_CACHE_SIZE * 0.2)); // Remove 20% of oldest entries
+    }
     // Periodically clean up expired entries (every 100 inserts)
     if (this.responseCache.size % 100 === 0) {
       this._cleanExpiredCache();
@@ -548,6 +554,20 @@ export class AIOrchestratorService {
         this.responseCache.delete(key);
       }
     }
+  }
+
+  /**
+   * Evict the oldest entries from the cache (by insertion order in Map)
+   * Called when cache exceeds MAX_CACHE_SIZE to prevent unbounded memory growth.
+   */
+  private _evictOldestEntries(count: number): void {
+    let evicted = 0;
+    for (const key of this.responseCache.keys()) {
+      if (evicted >= count) break;
+      this.responseCache.delete(key);
+      evicted++;
+    }
+    this.logger.debug(`🗑️ Cache eviction: removed ${evicted} oldest entries (size: ${this.responseCache.size})`);
   }
 
   /**
@@ -586,30 +606,9 @@ export class AIOrchestratorService {
   }
 
   // ── Private: Cache Key Hashing ──
+  // FIX: Upgraded from MD5 to SHA-256 for stronger dedup hashing
   private _hashPrompt(prompt: string): string {
-    return crypto.createHash('md5').update(prompt).digest('hex');
+    return crypto.createHash('sha256').update(prompt).digest('hex');
   }
 
-  // ── Private: Recommendation Detection with Negation ──
-  private _detectRecommendation(text: string): 'BUY' | 'SELL' | 'HOLD' {
-    const lower = text.toLowerCase();
-
-    // Negation patterns — if these precede a keyword, it's the opposite
-    const negationPatterns = /لا أنصح|لا أنصح بال|لا ت|لا تشتري|لا تبع|don't buy|not recommend|avoid|لا ينصح/i;
-
-    const buyKeywords = /شراء|صعود|شرٍ|ارتفاع|bullish|buy|long|upgrade|إيجابي/i;
-    const sellKeywords = /بيع|هبوط|بيعٍ|انخفاض|bearish|sell|short|downgrade|سلبي/i;
-
-    const hasNegation = negationPatterns.test(lower);
-    const hasBuy = buyKeywords.test(lower);
-    const hasSell = sellKeywords.test(lower);
-
-    if (hasNegation && hasBuy) return 'SELL'; // "لا أنصح بالشراء" = SELL
-    if (hasNegation && hasSell) return 'BUY'; // "لا تبع" = BUY
-
-    if (hasBuy && !hasSell) return 'BUY';
-    if (hasSell && !hasBuy) return 'SELL';
-
-    return 'HOLD';
-  }
 }

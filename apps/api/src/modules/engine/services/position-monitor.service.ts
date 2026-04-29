@@ -235,13 +235,20 @@ export class PositionMonitorService {
       return result; // Skip if can't get price
     }
 
+    // FIX: Convert Prisma Decimal fields to numbers for safe comparison.
+    // Prisma Decimal objects don't compare correctly with JS `<=` / `>=` operators.
+    const entryPrice = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
+    const quantity = position.quantity?.toNumber?.() ?? Number(position.quantity);
+    const stopLossNum = position.stopLoss?.toNumber?.() ?? (position.stopLoss ? Number(position.stopLoss) : null);
+    const takeProfitNum = position.takeProfit?.toNumber?.() ?? (position.takeProfit ? Number(position.takeProfit) : null);
+
     // Calculate unrealized P&L
     const unrealizedPnl =
       position.side === 'BUY'
-        ? (currentPrice - position.entryPrice) * position.quantity
-        : (position.entryPrice - currentPrice) * position.quantity;
+        ? (currentPrice - entryPrice) * quantity
+        : (entryPrice - currentPrice) * quantity;
 
-    const pnlPercent = (unrealizedPnl / (position.entryPrice * position.quantity)) * 100;
+    const pnlPercent = (unrealizedPnl / (entryPrice * quantity)) * 100;
 
     // Update position with current data
     await this.prisma.position.update({
@@ -261,15 +268,15 @@ export class PositionMonitorService {
     });
 
     // ── Stop-Loss Check ──
-    if (position.stopLoss) {
+    if (stopLossNum !== null) {
       const slHit =
         position.side === 'BUY'
-          ? currentPrice <= position.stopLoss
-          : currentPrice >= position.stopLoss;
+          ? currentPrice <= stopLossNum
+          : currentPrice >= stopLossNum;
 
       if (slHit) {
         this.logger.warn(
-          `🚨 STOP-LOSS TRIGGERED: ${position.symbol} @ ${currentPrice} (SL: ${position.stopLoss})`,
+          `🚨 STOP-LOSS TRIGGERED: ${position.symbol} @ ${currentPrice} (SL: ${stopLossNum})`,
         );
 
         await this._closePosition(position, currentPrice, 'STOP_LOSS');
@@ -277,30 +284,36 @@ export class PositionMonitorService {
         return result;
       }
 
-      // Alert if near SL (within 0.5%)
-      const slDistance = Math.abs(currentPrice - position.stopLoss) / position.entryPrice;
+      // Alert if near SL (within 0.5%) — with throttling to avoid flooding
+      const slDistance = Math.abs(currentPrice - stopLossNum) / entryPrice;
       if (slDistance < 0.005) {
-        await this._sendAlert(position.userId, 'NEAR_STOP_LOSS', {
-          positionId: position.id,
-          symbol: position.symbol,
-          currentPrice,
-          stopLoss: position.stopLoss,
-          distance: slDistance,
-        });
-        result.alertSent = true;
+        const alertThrottleKey = `alert:throttle:sl:${position.id}`;
+        const lastAlert = await this.redis.get(alertThrottleKey);
+        if (!lastAlert) {
+          await this._sendAlert(position.userId, 'NEAR_STOP_LOSS', {
+            positionId: position.id,
+            symbol: position.symbol,
+            currentPrice,
+            stopLoss: stopLossNum,
+            distance: slDistance,
+          });
+          // Throttle: only alert once per 5 minutes for the same position
+          await this.redis.set(alertThrottleKey, '1', 300000);
+          result.alertSent = true;
+        }
       }
     }
 
     // ── Take-Profit Check ──
-    if (position.takeProfit) {
+    if (takeProfitNum !== null) {
       const tpHit =
         position.side === 'BUY'
-          ? currentPrice >= position.takeProfit
-          : currentPrice <= position.takeProfit;
+          ? currentPrice >= takeProfitNum
+          : currentPrice <= takeProfitNum;
 
       if (tpHit) {
         this.logger.warn(
-          `🎯 TAKE-PROFIT TRIGGERED: ${position.symbol} @ ${currentPrice} (TP: ${position.takeProfit})`,
+          `🎯 TAKE-PROFIT TRIGGERED: ${position.symbol} @ ${currentPrice} (TP: ${takeProfitNum})`,
         );
 
         await this._closePosition(position, currentPrice, 'TAKE_PROFIT');
@@ -308,17 +321,23 @@ export class PositionMonitorService {
         return result;
       }
 
-      // Alert if near TP (within 0.5%)
-      const tpDistance = Math.abs(currentPrice - position.takeProfit) / position.entryPrice;
+      // Alert if near TP (within 0.5%) — with throttling
+      const tpDistance = Math.abs(currentPrice - takeProfitNum) / entryPrice;
       if (tpDistance < 0.005) {
-        await this._sendAlert(position.userId, 'NEAR_TAKE_PROFIT', {
-          positionId: position.id,
-          symbol: position.symbol,
-          currentPrice,
-          takeProfit: position.takeProfit,
-          distance: tpDistance,
-        });
-        result.alertSent = true;
+        const alertThrottleKey = `alert:throttle:tp:${position.id}`;
+        const lastAlert = await this.redis.get(alertThrottleKey);
+        if (!lastAlert) {
+          await this._sendAlert(position.userId, 'NEAR_TAKE_PROFIT', {
+            positionId: position.id,
+            symbol: position.symbol,
+            currentPrice,
+            takeProfit: takeProfitNum,
+            distance: tpDistance,
+          });
+          // Throttle: only alert once per 5 minutes for the same position
+          await this.redis.set(alertThrottleKey, '1', 300000);
+          result.alertSent = true;
+        }
       }
     }
 
@@ -329,10 +348,13 @@ export class PositionMonitorService {
       if (trailingStop) {
         // For BUY: trailing stop moves UP (higher SL is better)
         // For SELL: trailing stop moves DOWN (lower SL is better, closer to entry from above)
-        const currentSL = position.stopLoss || 0;
+        const currentSL = stopLossNum || 0;
+        // FIX: For SELL with no existing SL (currentSL=0), always set trailing stop.
+        // Without this, `trailingStop < 0` would be false and the trailing stop
+        // would never activate for SELL positions that don't have an initial SL.
         const shouldUpdate = position.side === 'BUY'
           ? trailingStop > currentSL
-          : trailingStop < currentSL;
+          : (currentSL === 0 || trailingStop < currentSL);
 
         if (shouldUpdate) {
           await this.prisma.position.update({

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AIAnalysisRequest, AIAnalysisResponse } from './groq.service';
+import { calculateConfidence } from './confidence.util';
 
 /**
  * AWS Bedrock Service — Enterprise AI Models via AWS
@@ -90,7 +91,7 @@ export class BedrockService {
         return {
           model: `Bedrock/${this.defaultModel.split('.').pop()}`,
           content,
-          confidence: this._calculateConfidence(content, 'bedrock'),
+          confidence: calculateConfidence(content, 'bedrock'),
           processingTimeMs: Date.now() - startTime,
           language: request.language || 'ar',
         };
@@ -225,32 +226,6 @@ export class BedrockService {
     }
     
     return headers;
-  }
-
-  private _calculateConfidence(content: string, model: string): number {
-    let confidence = 0.5; // base
-
-    // Length bonus: longer analysis = more confident (capped)
-    if (content.length > 200) confidence += 0.1;
-    if (content.length > 500) confidence += 0.1;
-    if (content.length > 1000) confidence += 0.05;
-
-    // Clear recommendation bonus
-    const hasRecommendation = /شراء|بيع|انتظار|BUY|SELL|HOLD|صعود|هبوط/i.test(content);
-    if (hasRecommendation) confidence += 0.15;
-
-    // Model base confidence
-    const modelBase: Record<string, number> = {
-      'gemini': 0.05,
-      'groq': 0.0,
-      'glm': 0.02,
-      'huggingface': -0.05,
-      'ollama': 0.0,
-      'bedrock': 0.08,
-    };
-    confidence += modelBase[model] || 0;
-
-    return Math.min(Math.max(confidence, 0.1), 0.95); // Clamp 0.1-0.95
   }
 
   private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {

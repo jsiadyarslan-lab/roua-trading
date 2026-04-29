@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { AIAnalysisRequest, AIAnalysisResponse } from './groq.service';
 import * as crypto from 'crypto';
+import { calculateConfidence } from './confidence.util';
 
 /**
  * GLM Service — Zhipu AI (GLM-4)
@@ -59,7 +60,7 @@ export class GlmService {
       return {
         model: `GLM-4/${this.model}`,
         content,
-        confidence: this._calculateConfidence(content, 'glm'),
+        confidence: calculateConfidence(content, 'glm'),
         processingTimeMs: Date.now() - startTime,
         language: request.language || 'ar',
       };
@@ -73,32 +74,6 @@ export class GlmService {
     return `أنت محلل مالي ذكي متخصص في ${request.type === 'sentiment' ? 'تحليل المشاعر المالية' : request.type === 'market_analysis' ? 'تحليل الأسواق' : 'التحليل المالي العام'}. 
 أجب باللغة العربية. كن دقيقاً ومهنياً. استخدم بيانات السوق عند الإمكان. 
 أضف دائماً تنبيه المخاطر: "هذا التحليل لأغراض تعليمية فقط وليس نصيحة استثمارية."`;
-  }
-
-  private _calculateConfidence(content: string, model: string): number {
-    let confidence = 0.5; // base
-
-    // Length bonus: longer analysis = more confident (capped)
-    if (content.length > 200) confidence += 0.1;
-    if (content.length > 500) confidence += 0.1;
-    if (content.length > 1000) confidence += 0.05;
-
-    // Clear recommendation bonus
-    const hasRecommendation = /شراء|بيع|انتظار|BUY|SELL|HOLD|صعود|هبوط/i.test(content);
-    if (hasRecommendation) confidence += 0.15;
-
-    // Model base confidence
-    const modelBase: Record<string, number> = {
-      'gemini': 0.05,
-      'groq': 0.0,
-      'glm': 0.02,
-      'huggingface': -0.05,
-      'ollama': 0.0,
-      'bedrock': 0.08,
-    };
-    confidence += modelBase[model] || 0;
-
-    return Math.min(Math.max(confidence, 0.1), 0.95); // Clamp 0.1-0.95
   }
 
   /**

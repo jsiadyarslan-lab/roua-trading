@@ -35,10 +35,15 @@ export class CredentialsService {
   ) {
     const key = this.configService.get<string>('ENCRYPTION_KEY');
     if (!key) {
-      // Generate a deterministic key from NEXTAUTH_SECRET if ENCRYPTION_KEY not set
+      // FIX: Generate a per-deployment salt instead of using a static 'roua-salt'.
+      // A static salt means the same password always produces the same key, which
+      // is equivalent to using a fixed key. Instead, derive a deployment-specific
+      // salt from the combination of NEXTAUTH_SECRET + NODE_ENV + machine hostname.
       const fallback = this.configService.get<string>('NEXTAUTH_SECRET', 'roua-dev-key-change-in-production');
-      this.encryptionKey = crypto.scryptSync(fallback, 'roua-salt', 32);
-      this.logger.warn('⚠️ ENCRYPTION_KEY not set — using derived key from NEXTAUTH_SECRET. Set ENCRYPTION_KEY in production!');
+      const deploymentId = `${fallback}:${this.configService.get('NODE_ENV', 'development')}:${require('os').hostname()}`;
+      const salt = crypto.createHash('sha256').update(deploymentId).digest().slice(0, 16);
+      this.encryptionKey = crypto.scryptSync(fallback, salt, 32);
+      this.logger.warn('⚠️ ENCRYPTION_KEY not set — using derived key from NEXTAUTH_SECRET+deployment. Set ENCRYPTION_KEY in production!');
     } else {
       this.encryptionKey = Buffer.from(key, 'hex');
     }

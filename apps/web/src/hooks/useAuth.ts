@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, createContext, useContext } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface User {
@@ -6,7 +6,22 @@ interface User {
   email: string
   displayName: string
   tier: string
+  isGuest: boolean
 }
+
+interface AuthContextValue {
+  user: User | null
+  loading: boolean
+  isGuest: boolean
+}
+
+const AuthContext = createContext<AuthContextValue>({
+  user: null,
+  loading: true,
+  isGuest: true,
+})
+
+export const useAuthContext = () => useContext(AuthContext)
 
 /**
  * useAuth — Ensures the user has a valid session.
@@ -16,8 +31,7 @@ interface User {
  * 2. If /api/auth/me fails, call /api/auth/sync as fallback
  * 3. If both fail, allow unauthenticated access (no redirect)
  *
- * Both endpoints set the roua_session httpOnly cookie on success,
- * which is then automatically sent with all subsequent API requests.
+ * Returns isGuest flag to enable view-only mode for guests.
  */
 export function useAuth() {
   const router = useRouter()
@@ -65,5 +79,7 @@ export function useAuth() {
     return () => { mounted = false }
   }, [router])
 
-  return { user, loading }
+  const isGuest = !user || user.isGuest || user.email === 'guest@roua.auto' || user.id.startsWith('guest')
+
+  return { user, loading, isGuest }
 }

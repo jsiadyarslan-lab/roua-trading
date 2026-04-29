@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
+import { getPublicOrigin } from '@/lib/origin'
 import crypto from 'crypto'
 
 /**
@@ -12,8 +13,9 @@ import crypto from 'crypto'
  * 3. Creates a session and sets the roua_session cookie
  * 4. Redirects to the callbackUrl (default: /dashboard)
  *
- * FIX: Previously this route didn't exist, causing 404 errors when users
- * clicked "Sign in with Google" on the login page.
+ * FIXES:
+ * - Uses getPublicOrigin() for consistent redirect_uri (matches signin route)
+ * - Fixed `image` → `avatar` to match Prisma User model
  */
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code')
@@ -42,6 +44,12 @@ export async function GET(request: NextRequest) {
   } catch { /* Use default */ }
 
   try {
+    // Use the SAME origin helper as the signin route for consistent redirect_uri
+    const publicOrigin = getPublicOrigin(request)
+    const redirectUri = `${publicOrigin}/api/auth/callback/google`
+
+    console.log(`[auth/callback/google] Using redirect URI: ${redirectUri} (origin: ${publicOrigin})`)
+
     // Exchange code for tokens
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -50,9 +58,7 @@ export async function GET(request: NextRequest) {
         code,
         client_id: clientId,
         client_secret: clientSecret,
-        // FIX: Must match the redirect_uri used in /api/auth/signin/google
-        // Use ORIGIN env var or X-Forwarded-Host to get the real public URL
-        redirect_uri: `${(process.env.ORIGIN || (request.headers.get('x-forwarded-proto') || 'https') + '://' + (request.headers.get('x-forwarded-host') || request.nextUrl.host))}/api/auth/callback/google`,
+        redirect_uri: redirectUri,
         grant_type: 'authorization_code',
       }),
       signal: AbortSignal.timeout(10000),
@@ -99,26 +105,28 @@ export async function GET(request: NextRequest) {
 
     if (!user) {
       // Create new user with BASIC tier (higher than guest FREE)
+      // FIX: Use `avatar` not `image` — matches Prisma User model
       try {
         user = await db.user.create({
           data: {
             email,
             displayName,
-            tier: 'BASIC',
-            image: googleUser.picture || null,
+            tier: 'BASIC' as any,
+            avatar: googleUser.picture || null,
           },
         })
       } catch {
         user = await db.user.findUnique({ where: { email } })
       }
     } else {
-      // Update display name and image if changed
+      // Update display name and avatar if changed
+      // FIX: Use `avatar` not `image` — matches Prisma User model
       try {
         user = await db.user.update({
           where: { id: user.id },
           data: {
             displayName: displayName || user.displayName,
-            image: googleUser.picture || user.image,
+            avatar: googleUser.picture || user.avatar,
           },
         })
       } catch { /* Non-critical */ }

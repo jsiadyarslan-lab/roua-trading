@@ -19,11 +19,13 @@ export async function GET(request: NextRequest) {
       // DB unavailable — return a mock session so the frontend doesn't break
       return NextResponse.json({
         authenticated: true,
+        isGuest: true,
         user: {
           id: 'guest-offline',
           email: GUEST_EMAIL,
           displayName: 'ضيف',
           tier: 'FREE',
+          isGuest: true,
         },
       })
     }
@@ -43,11 +45,13 @@ export async function GET(request: NextRequest) {
         if (session && session.expiresAt > new Date()) {
           return NextResponse.json({
             authenticated: true,
+            isGuest: session.user.email === GUEST_EMAIL || session.user.id.startsWith('guest'),
             user: {
               id: session.user.id,
               email: session.user.email,
               displayName: session.user.displayName,
               tier: session.user.tier,
+              isGuest: session.user.email === GUEST_EMAIL || session.user.id.startsWith('guest'),
             },
           })
         }
@@ -72,7 +76,7 @@ export async function GET(request: NextRequest) {
           data: {
             email: targetEmail,
             displayName: targetEmail === GUEST_EMAIL ? 'ضيف' : targetEmail.split('@')[0],
-            tier: targetEmail === GUEST_EMAIL ? 'FREE' : 'BASIC',
+            tier: (targetEmail === GUEST_EMAIL ? 'FREE' : 'BASIC') as any,
           },
         })
       } catch {
@@ -82,9 +86,11 @@ export async function GET(request: NextRequest) {
 
     if (!user) {
       // Can't create user — return mock session
+      const isGuestUser = targetEmail === GUEST_EMAIL
       return NextResponse.json({
         authenticated: true,
-        user: { id: 'guest-fallback', email: targetEmail, displayName: targetEmail === GUEST_EMAIL ? 'ضيف' : targetEmail.split('@')[0], tier: 'FREE' },
+        isGuest: isGuestUser,
+        user: { id: 'guest-fallback', email: targetEmail, displayName: targetEmail === GUEST_EMAIL ? 'ضيف' : targetEmail.split('@')[0], tier: 'FREE', isGuest: isGuestUser },
       })
     }
 
@@ -109,13 +115,17 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    const isGuestUser = user.email === GUEST_EMAIL || user.id.startsWith('guest')
+
     const response = NextResponse.json({
       authenticated: true,
+      isGuest: isGuestUser,
       user: {
         id: user.id,
         email: user.email,
         displayName: user.displayName,
         tier: user.tier,
+        isGuest: isGuestUser,
       },
     })
 
@@ -133,7 +143,8 @@ export async function GET(request: NextRequest) {
     // NEVER return 500 — always return a valid session
     return NextResponse.json({
       authenticated: true,
-      user: { id: 'guest-error', email: GUEST_EMAIL, displayName: 'ضيف', tier: 'FREE' },
+      isGuest: true,
+      user: { id: 'guest-error', email: GUEST_EMAIL, displayName: 'ضيف', tier: 'FREE', isGuest: true },
     })
   }
 }

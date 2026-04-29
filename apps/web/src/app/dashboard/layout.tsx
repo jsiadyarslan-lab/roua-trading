@@ -2,6 +2,7 @@ import { AppHeader } from '@/components/dashboard/AppHeader'
 import { MarketProvider } from '@/components/dashboard/MarketProvider'
 import { AuthInitializer } from '@/components/dashboard/AuthInitializer'
 import { AuthGuard } from '@/components/dashboard/AuthGuard'
+import { GuestBanner } from '@/components/dashboard/GuestGuard'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import ServiceWorkerRegistrar from '@/components/dashboard/ServiceWorkerRegistrar'
 import { Metadata, Viewport } from 'next'
@@ -41,6 +42,7 @@ export default function DashboardLayout({
     <MarketProvider>
       <AuthGuard>
         <div style={{ minHeight: '100vh', background: '#0B0E14', direction: 'rtl', display: 'flex', flexDirection: 'column' }}>
+          <GuestBanner />
           <AppHeader />
           <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <ErrorBoundary>

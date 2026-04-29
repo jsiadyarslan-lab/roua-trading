@@ -32,13 +32,16 @@ export async function GET(request: NextRequest) {
           include: { user: true },
         })
         if (existingSession && existingSession.expiresAt > new Date()) {
+          const isGuest = existingSession.user.email === GUEST_EMAIL || existingSession.user.id.startsWith('guest')
           return NextResponse.json({
             authenticated: true,
+            isGuest,
             user: {
               id: existingSession.user.id,
               email: existingSession.user.email,
               displayName: existingSession.user.displayName,
               tier: existingSession.user.tier,
+              isGuest,
             },
           })
         }
@@ -115,13 +118,17 @@ export async function GET(request: NextRequest) {
       }, { status: 200 })
     }
 
+    const isGuestUser = user.email === GUEST_EMAIL || user.id.startsWith('guest')
+
     const response = NextResponse.json({
       authenticated: true,
+      isGuest: isGuestUser,
       user: {
         id: user.id,
         email: user.email,
         displayName: user.displayName,
         tier: user.tier,
+        isGuest: isGuestUser,
       },
     })
 

@@ -253,3 +253,29 @@ Stage Summary:
 - HowItWorks section added between Features and Testimonials
 - Dashboard has AuthGuard loading spinner
 - Railway build succeeded with BUILD_CACHE=v10
+
+---
+Task ID: auth-fix-1
+Agent: main
+Task: Fix critical authentication issues and Arabic text spacing on Roua Trading Platform
+
+Work Log:
+- Deep investigation of production site status
+- Discovered Google OAuth redirect URI was pointing to 0.0.0.0:8080 instead of production domain
+- Discovered email login was completely fake — never used the email address
+- Discovered Arabic heading text was merging words (e.g. "تعملبتناغم" instead of "تعمل بتناغم")
+- Fixed Google OAuth redirect URI in /api/auth/signin/google using X-Forwarded-Host header
+- Fixed Google OAuth callback redirect_uri in /api/auth/callback/google to match
+- Fixed email login to actually pass email to /api/auth/me?email=... 
+- Updated /api/auth/me to accept email parameter and create user-specific sessions
+- Restructured login page: email login as primary CTA, Google/Passkey secondary, guest at bottom
+- Fixed Arabic text spacing by replacing {' '} with {'\u00A0'} (non-breaking space) in 6 landing components
+- Stripped trailing slashes from ORIGIN env var to avoid double-slash in redirect URI
+- Verified all fixes on production via curl and JS bundle inspection
+
+Stage Summary:
+- Google OAuth now redirects to correct production domain
+- Email login now actually creates user with provided email
+- Arabic heading spacing fixed across all landing sections
+- Login page UX improved with clear primary/secondary actions
+- 3 commits pushed to GitHub, all deployed to Railway

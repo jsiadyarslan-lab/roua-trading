@@ -68,6 +68,14 @@ PROJECT_ROOT="$(pwd)"
 # the frontend can't find the API because this env var is missing.
 export API_INTERNAL_URL="${API_INTERNAL_URL:-http://127.0.0.1:3001}"
 
+# FIX: Auto-detect ORIGIN from Railway's public domain.
+# This is CRITICAL for Google OAuth — without it, redirect_uri
+# resolves to http://0.0.0.0:3000 causing redirect_uri_mismatch.
+if [ -z "${ORIGIN:-}" ] && [ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ]; then
+  export ORIGIN="https://${RAILWAY_PUBLIC_DOMAIN}"
+  echo "🔧 Auto-detected ORIGIN from RAILWAY_PUBLIC_DOMAIN: ${ORIGIN}"
+fi
+
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "🚀 Roua Trading - Starting Full Stack"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

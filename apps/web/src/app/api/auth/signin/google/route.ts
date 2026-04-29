@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getPublicOrigin } from '@/lib/origin'
 
 /**
  * GET /api/auth/signin/google — Initiate Google OAuth flow
@@ -9,10 +10,6 @@ import { NextRequest, NextResponse } from 'next/server'
  *
  * If Google OAuth is NOT configured, returns a clear error so the frontend
  * can inform the user instead of showing a 404.
- *
- * FIX: In containerized environments (Railway), request.nextUrl.origin resolves
- * to the internal address (e.g. 0.0.0.0:8080) instead of the public URL.
- * We use the ORIGIN env var or the X-Forwarded-Host header to get the real origin.
  */
 export async function GET(request: NextRequest) {
   const clientId = process.env.GOOGLE_CLIENT_ID
@@ -22,7 +19,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'GOOGLE_OAUTH_NOT_CONFIGURED',
-        message: 'تسجيل الدخول عبر Google غير مُفعّل حالياً. استخدم Passkey أو الدخول كضيف.',
+        message: 'تسجيل الدخول عبر Google غير مُفعّل حالياً. استخدم البريد الإلكتروني أو الدخول كضيف.',
       },
       { status: 501 },
     )
@@ -31,22 +28,8 @@ export async function GET(request: NextRequest) {
   // Build Google OAuth URL
   const callbackUrl = request.nextUrl.searchParams.get('callbackUrl') || '/dashboard'
 
-  // FIX: Determine the correct public origin.
-  // In Railway/containers, request.nextUrl.origin is the internal address (0.0.0.0:8080).
-  // Priority: ORIGIN env var > X-Forwarded-Host header > nextUrl.origin
-  let publicOrigin = process.env.ORIGIN?.replace(/\/+$/, '') // strip trailing slashes
-  if (!publicOrigin) {
-    const forwardedHost = request.headers.get('x-forwarded-host')
-    const forwardedProto = request.headers.get('x-forwarded-proto') || 'https'
-    if (forwardedHost) {
-      publicOrigin = `${forwardedProto}://${forwardedHost}`
-    }
-  }
-  if (!publicOrigin) {
-    // Last resort: use nextUrl.origin (may be wrong in containers)
-    publicOrigin = request.nextUrl.origin
-  }
-
+  // Use shared origin helper — handles Railway/containers correctly
+  const publicOrigin = getPublicOrigin(request)
   const redirectUri = `${publicOrigin}/api/auth/callback/google`
 
   console.log(`[auth/google] Using redirect URI: ${redirectUri} (origin: ${publicOrigin})`)

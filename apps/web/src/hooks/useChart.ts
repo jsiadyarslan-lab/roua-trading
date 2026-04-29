@@ -267,6 +267,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     ro.observe(container);
     resizeObserverRef.current = ro;
 
+    // ── Subscribe to visible range change (if callback already registered) ──
+    if (visibleRangeCallbackRef.current) {
+      chart.timeScale().subscribeVisibleLogicalRangeChange(visibleRangeCallbackRef.current);
+    }
+
     // ── Init Drawing Manager ──
     if (!drawingManagerRef.current) {
       drawingManagerRef.current = new DrawingManager(symbol);
@@ -1213,14 +1218,22 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     return candleSeriesRef.current.priceToCoordinate(price);
   }, []);
 
+  // Store the visible range callback so we can subscribe when chart is created
+  const visibleRangeCallbackRef = useRef<(() => void) | null>(null);
+
   const onVisibleRangeChange = useCallback((callback: () => void): (() => void) => {
-    if (!chartInstanceRef.current) return () => {};
-    const ts = chartInstanceRef.current.timeScale();
-    ts.subscribeVisibleLogicalRangeChange(callback);
+    visibleRangeCallbackRef.current = callback;
+    // Subscribe immediately if chart already exists
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.timeScale().subscribeVisibleLogicalRangeChange(callback);
+    }
     return () => {
-      try {
-        ts.unsubscribeVisibleLogicalRangeChange(callback);
-      } catch {}
+      visibleRangeCallbackRef.current = null;
+      if (chartInstanceRef.current) {
+        try {
+          chartInstanceRef.current.timeScale().unsubscribeVisibleLogicalRangeChange(callback);
+        } catch {}
+      }
     };
   }, []);
 

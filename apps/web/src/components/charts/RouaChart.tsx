@@ -602,133 +602,135 @@ export default function RouaChart({
           showCandleTimer={chart.settings.showCandleTimer}
         />
 
-        {/* Chart Container */}
-        <div
-          ref={chart.containerRef as any}
-          style={{
-            flex: 1,
-            minHeight: 0,
-            background: COLORS.bg,
-            position: 'relative',
-          }}
-        >
-          {/* Symbol Watermark */}
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            pointerEvents: 'none',
-            zIndex: 1,
-            opacity: 0.04,
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: Math.min(120, Math.max(48, 80)),
-            fontWeight: 900,
-            color: COLORS.text,
-            whiteSpace: 'nowrap',
-            letterSpacing: -2,
-            userSelect: 'none',
-          }}>
-            {selectedSymbol.replace('/', '')}
-          </div>
+        {/* Chart Wrapper — contains canvas + overlays */}
+        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
 
-          {/* ── Fill Zones (colored bands between entry-SL/TP) ── */}
-          {fillZones.map(zone => (
-            <div
-              key={zone.key}
-              style={{
-                position: 'absolute',
-                top: zone.top,
-                left: 0,
-                right: 0,
-                height: Math.max(zone.height, 1),
-                background: zone.type === 'sl'
-                  ? 'rgba(248, 81, 73, 0.07)'
-                  : 'rgba(63, 185, 80, 0.07)',
-                pointerEvents: 'none',
-                zIndex: 0,
-              }}
-            />
-          ))}
+          {/* Chart Canvas Container — lightweight-charts renders here ONLY */}
+          <div
+            ref={chart.containerRef as any}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: COLORS.bg,
+            }}
+          />
 
-          {/* ── Trade Line Labels (HTML overlays like TradingView) ── */}
-          {tradeOverlays.map(ov => {
-            const fmt = (v: number) => v > 1000 ? v.toFixed(2) : v.toFixed(5);
-            const isEntry = ov.type === 'entry';
-            const isSL = ov.type === 'sl';
-            const isTP = ov.type === 'tp';
-            const isLong = ov.direction === 'long';
-            const entryColor = isLong ? '#3fb950' : '#f85149';
-            const lineColor = isSL ? '#f85149' : isTP ? '#3fb950' : entryColor;
+          {/* Overlay Layer — sibling of canvas container, always on top */}
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
 
-            let labelText = '';
-            let bg: string;
-            let textColor: string;
+            {/* Symbol Watermark */}
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              pointerEvents: 'none',
+              zIndex: 1,
+              opacity: 0.04,
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: Math.min(120, Math.max(48, 80)),
+              fontWeight: 900,
+              color: COLORS.text,
+              whiteSpace: 'nowrap',
+              letterSpacing: -2,
+              userSelect: 'none',
+            }}>
+              {selectedSymbol.replace('/', '')}
+            </div>
 
-            if (isEntry) {
-              const dir = isLong ? 'Long' : 'Short';
-              const src = ov.source === 'bot' ? 'Bot ' : '';
-              const pnlStr = ov.pnl !== undefined && ov.pnl !== 0
-                ? ` ${ov.pnl >= 0 ? '+' : ''}${ov.pnl.toFixed(2)}` : '';
-              labelText = `${src}${dir} ${ov.qty}${pnlStr}`;
-              bg = isLong ? 'rgba(63,185,80,0.15)' : 'rgba(248,81,73,0.15)';
-              textColor = lineColor;
-            } else if (isSL) {
-              labelText = `SL ${fmt(ov.price)}`;
-              bg = 'rgba(248,81,73,0.15)';
-              textColor = '#f85149';
-            } else {
-              labelText = `TP ${fmt(ov.price)}`;
-              bg = 'rgba(63,185,80,0.15)';
-              textColor = '#3fb950';
-            }
-
-            return (
+            {/* ── Fill Zones (colored bands between entry-SL/TP) ── */}
+            {fillZones.map(zone => (
               <div
-                key={ov.key}
+                key={zone.key}
                 style={{
                   position: 'absolute',
-                  top: ov.y - 9,
-                  left: 6,
-                  zIndex: 5,
+                  top: zone.top,
+                  left: 0,
+                  right: 0,
+                  height: Math.max(zone.height, 1),
+                  background: zone.type === 'sl'
+                    ? 'rgba(248, 81, 73, 0.08)'
+                    : 'rgba(63, 185, 80, 0.08)',
                   pointerEvents: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
+                  zIndex: 2,
                 }}
-              >
-                <span style={{
-                  fontSize: 9,
-                  fontWeight: 700,
-                  fontFamily: "'JetBrains Mono', monospace",
-                  color: textColor,
-                  background: bg,
-                  padding: '1px 6px',
-                  borderRadius: 3,
-                  borderLeft: `2px solid ${lineColor}`,
-                  whiteSpace: 'nowrap',
-                  lineHeight: '16px',
-                  letterSpacing: 0.3,
-                }}>
-                  {labelText}
-                </span>
-              </div>
-            );
-          })}
+              />
+            ))}
 
-          {/* Volume Profile (overlaid on chart) */}
-          {showVolumeProfile && (
-            <VolumeProfile
-              candles={candlesRef.current}
-              width={80}
-              rows={24}
-              visible={showVolumeProfile}
-            />
-          )}
+            {/* ── Trade Line Labels (HTML overlays like TradingView) ── */}
+            {tradeOverlays.map(ov => {
+              const fmt = (v: number) => v > 1000 ? v.toFixed(2) : v.toFixed(5);
+              const isEntry = ov.type === 'entry';
+              const isSL = ov.type === 'sl';
+              const isTP = ov.type === 'tp';
+              const isLong = ov.direction === 'long';
+              const entryColor = isLong ? '#3fb950' : '#f85149';
+              const lineColor = isSL ? '#f85149' : isTP ? '#3fb950' : entryColor;
 
+              let labelText = '';
+              let bg: string;
+              let textColor: string;
 
+              if (isEntry) {
+                const dir = isLong ? 'Long' : 'Short';
+                const src = ov.source === 'bot' ? '🤖 ' : '';
+                const pnlStr = ov.pnl !== undefined && ov.pnl !== 0
+                  ? ` ${ov.pnl >= 0 ? '+' : ''}${ov.pnl.toFixed(2)}` : '';
+                labelText = `${src}${dir} ${ov.qty}${pnlStr}`;
+                bg = isLong ? 'rgba(63,185,80,0.18)' : 'rgba(248,81,73,0.18)';
+                textColor = lineColor;
+              } else if (isSL) {
+                labelText = `SL ${fmt(ov.price)}`;
+                bg = 'rgba(248,81,73,0.18)';
+                textColor = '#f85149';
+              } else {
+                labelText = `TP ${fmt(ov.price)}`;
+                bg = 'rgba(63,185,80,0.18)';
+                textColor = '#3fb950';
+              }
 
+              return (
+                <div
+                  key={ov.key}
+                  style={{
+                    position: 'absolute',
+                    top: ov.y - 10,
+                    left: 8,
+                    zIndex: 10,
+                    pointerEvents: 'none',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <span style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    color: textColor,
+                    background: bg,
+                    padding: '2px 7px',
+                    borderRadius: 3,
+                    borderLeft: `2px solid ${lineColor}`,
+                    whiteSpace: 'nowrap',
+                    lineHeight: '18px',
+                    letterSpacing: 0.3,
+                  }}>
+                    {labelText}
+                  </span>
+                </div>
+              );
+            })}
 
+            {/* Volume Profile (overlaid on chart) */}
+            {showVolumeProfile && (
+              <VolumeProfile
+                candles={candlesRef.current}
+                width={80}
+                rows={24}
+                visible={showVolumeProfile}
+              />
+            )}
 
           {/* ── Quick Trade Panel (floating top-left over chart) ── */}
           {!mobile && currentPrice && (
@@ -736,7 +738,7 @@ export default function RouaChart({
               position: 'absolute',
               top: 10,
               left: 10,
-              zIndex: 10,
+              zIndex: 20,
               display: 'flex',
               alignItems: 'center',
               gap: 0,
@@ -989,7 +991,8 @@ export default function RouaChart({
               {candleCountdown}
             </div>
           )}
-        </div>
+          </div>{/* ── Overlay Layer close ── */}
+        </div>{/* ── Chart Wrapper close ── */}
 
         {/* Drawing Panel (floating) */}
         {showDrawingPanel && (
@@ -1057,7 +1060,7 @@ export default function RouaChart({
             onClose={() => setShowChartSettings(false)}
           />
         )}
-      </div>
+      </div>{/* ── Chart Area close ── */}
 
       {/* ── Watchlist Overlay (bottom bar) ── */}
       {showWatchlist && (

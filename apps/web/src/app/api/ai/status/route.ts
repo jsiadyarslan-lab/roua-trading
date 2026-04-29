@@ -22,6 +22,11 @@ export async function GET(req: NextRequest) {
     const modelsUrl = `${baseUrl}/api/ai/models`
     const res = await fetch(modelsUrl, {
       signal: AbortSignal.timeout(15000), // Increased from 5s to 15s for cold starts
+      headers: {
+        // The NestJS AuthGuard auto-authenticates, but adding a cookie
+        // helps it find existing sessions faster
+        'x-roua-session': 'status-check',
+      },
     })
 
     if (res.ok) {

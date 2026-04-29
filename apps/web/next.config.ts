@@ -25,6 +25,11 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  // Next.js 16 defaults to Turbopack. Provide an empty turbopack config
+  // so the build doesn't error when a webpack config is also present.
+  // The webpack config below is still used when building with --webpack flag.
+  turbopack: {},
+
   // ── Fix: "Cannot access 'X' before initialization" ──
   // Next.js 16 default SWC minifier creates TDZ errors in production
   // where variables like `let X` in Next.js Router code conflict

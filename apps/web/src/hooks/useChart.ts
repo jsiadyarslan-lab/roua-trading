@@ -110,6 +110,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
   const activeIndicatorsRef = useRef<Map<string, ActiveIndicator>>(new Map());
 
+  // ── Pending candles: store data that arrives before chart is ready ──
+  const pendingCandlesRef = useRef<CandleData[] | null>(null);
+  const [isChartReady, setIsChartReady] = useState(false);
+
   useEffect(() => {
     activeIndicatorsRef.current = activeIndicators;
   }, [activeIndicators]);
@@ -212,6 +216,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       scaleMargins: { top: 0.85, bottom: 0 },
     });
     volumeSeriesRef.current = volumeSeries;
+
+    // ── Mark chart as ready AFTER all series are created ──
+    setIsChartReady(true);
 
     // ── Crosshair Move Handler ──
     chart.subscribeCrosshairMove((param: MouseEventParams) => {
@@ -321,8 +328,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
   // ── Initialize on mount ────────────────────────────────
   useEffect(() => {
+    setIsChartReady(false);
     initChart();
     return () => {
+      setIsChartReady(false);
       if (drawingRendererRef.current) {
         drawingRendererRef.current.stop();
         drawingRendererRef.current = null;
@@ -358,6 +367,15 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     });
     oscillatorSeriesRef.current.clear();
   }, [symbol]);
+
+  // ── Apply pending candles when chart becomes ready ──
+  useEffect(() => {
+    if (isChartReady && pendingCandlesRef.current && pendingCandlesRef.current.length > 0) {
+      const pending = pendingCandlesRef.current;
+      pendingCandlesRef.current = null;
+      setCandles(pending);
+    }
+  }, [isChartReady, setCandles]);
 
 
 
@@ -810,12 +828,20 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
   // ── Set Candles ────────────────────────────────────────
   const setCandles = useCallback((candles: CandleData[]) => {
-    if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
-
+    // Store candles regardless of chart readiness
     candlesRef.current = candles;
 
+    // If chart isn't ready yet, store data as pending and return
+    if (!candleSeriesRef.current || !volumeSeriesRef.current) {
+      pendingCandlesRef.current = candles;
+      return;
+    }
+
+    // Sort by time (lightweight-charts v5 requires strictly ascending time)
+    const sorted = [...candles].sort((a, b) => a.time - b.time);
+
     // Apply Heikin-Ashi if needed
-    const displayCandles = settings.type === 'heikin-ashi' ? toHeikinAshi(candles) : candles;
+    const displayCandles = settings.type === 'heikin-ashi' ? toHeikinAshi(sorted) : sorted;
 
     // Format for lightweight-charts (time must be Time)
     const chartData = displayCandles.map(c => ({
@@ -826,14 +852,18 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       close: c.close,
     }));
 
-    const volumeData = candles.map(c => ({
+    const volumeData = sorted.map(c => ({
       time: c.time as Time,
       value: c.volume,
       color: c.close >= c.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
     }));
 
-    candleSeriesRef.current.setData(chartData as any);
-    volumeSeriesRef.current.setData(volumeData as any);
+    try {
+      candleSeriesRef.current.setData(chartData as any);
+      volumeSeriesRef.current.setData(volumeData as any);
+    } catch (e) {
+      console.error('[useChart] setCandles setData error:', e);
+    }
 
     // Re-apply indicators with fresh data using ref to avoid stale closure
     activeIndicatorsRef.current.forEach((ind) => {

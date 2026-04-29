@@ -107,14 +107,16 @@ export default function RouaChart({
 
         if (j.success && j.data && j.data.length > 0) {
           setFeedState('live');
-          const formatted: CandleData[] = j.data.map((c: any) => ({
-            time: Math.floor(new Date(c.timestamp).getTime() / 1000),
-            open: c.open,
-            high: c.high,
-            low: c.low,
-            close: c.close,
-            volume: c.volume || 0,
-          }));
+          const formatted: CandleData[] = j.data
+            .map((c: any) => ({
+              time: Math.floor(new Date(c.timestamp).getTime() / 1000),
+              open: Number(c.open) || 0,
+              high: Number(c.high) || 0,
+              low: Number(c.low) || 0,
+              close: Number(c.close) || 0,
+              volume: Number(c.volume) || 0,
+            }))
+            .filter(c => !isNaN(c.time) && c.time > 0 && !isNaN(c.open) && !isNaN(c.close));
           // Deduplicate by time
           const seen = new Set<number>();
           const unique = formatted.filter(c => {
@@ -122,6 +124,8 @@ export default function RouaChart({
             seen.add(c.time);
             return true;
           });
+          // Sort by time (lightweight-charts v5 requires strictly ascending time)
+          unique.sort((a, b) => a.time - b.time);
           candlesRef.current = unique;
           chart.setCandles(unique);
         } else {
@@ -167,6 +171,7 @@ export default function RouaChart({
         p = c;
       }
 
+      // Data is already sorted by construction (oldest → newest)
       candlesRef.current = candles;
       chart.setCandles(candles);
     };

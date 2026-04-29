@@ -227,19 +227,33 @@ export async function GET(
         const binanceInterval = intervalMap[interval] || '1d'
         const limit = 200
 
-        const bUrl = `https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(binanceSymbol)}&interval=${binanceInterval}&limit=${limit}`
-        const res = await fetch(bUrl, { next: { revalidate: 60 }, signal: AbortSignal.timeout(10000) })
+        // Try Binance.com first, then Binance.us as fallback
+        const binanceEndpoints = [
+          `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`,
+          `https://api.binance.us/api/v3/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`,
+        ]
 
-        if (res.ok) {
-          const data = await res.json()
-          if (Array.isArray(data) && data.length > 0) {
-            candles = data.map((c: any[]) => ({
-              symbol,
-              timestamp: new Date(c[0]).toISOString(),
-              datetime: new Date(c[0]).toISOString(),
-              open: toNum(c[1]), high: toNum(c[2]), low: toNum(c[3]), close: toNum(c[4]), volume: toNum(c[5]),
-              source: 'Binance',
-            }))
+        for (const bUrl of binanceEndpoints) {
+          try {
+            const res = await fetch(bUrl, {
+              signal: AbortSignal.timeout(8000),
+              headers: { 'Accept': 'application/json' },
+            })
+            if (res.ok) {
+              const data = await res.json()
+              if (Array.isArray(data) && data.length > 0) {
+                candles = data.map((c: any[]) => ({
+                  symbol,
+                  timestamp: new Date(c[0]).toISOString(),
+                  datetime: new Date(c[0]).toISOString(),
+                  open: toNum(c[1]), high: toNum(c[2]), low: toNum(c[3]), close: toNum(c[4]), volume: toNum(c[5]),
+                  source: 'Binance',
+                }))
+                break // Got data, no need to try next endpoint
+              }
+            }
+          } catch {
+            // Try next endpoint
           }
         }
       } catch (e: any) {

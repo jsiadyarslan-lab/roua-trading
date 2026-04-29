@@ -25,6 +25,7 @@ export class BedrockService {
   private readonly logger = new Logger(BedrockService.name);
   private readonly accessKeyId: string;
   private readonly secretAccessKey: string;
+  private readonly sessionToken: string;
   private readonly region: string;
   private readonly available: boolean;
 
@@ -34,11 +35,13 @@ export class BedrockService {
   constructor(private readonly configService: ConfigService) {
     this.accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID', '')?.trim() || '';
     this.secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY', '')?.trim() || '';
+    this.sessionToken = this.configService.get<string>('AWS_SESSION_TOKEN', '')?.trim() || '';
     this.region = this.configService.get<string>('AWS_REGION', 'us-east-1')?.trim() || 'us-east-1';
     this.available = !!(this.accessKeyId && this.secretAccessKey);
 
     if (this.available) {
-      this.logger.log(`☁️ AWS Bedrock Service initialized (Claude 3.5 + Llama 3.1 + Mistral) — region: ${this.region}`);
+      const hasSessionToken = !!this.sessionToken;
+      this.logger.log(`☁️ AWS Bedrock Service initialized (Claude 3.5 + Llama 3.1 + Mistral) — region: ${this.region}${hasSessionToken ? ' (with session token)' : ''}`);
     } else {
       this.logger.warn('⚠️ AWS credentials not configured — Bedrock unavailable');
     }
@@ -70,7 +73,14 @@ export class BedrockService {
 
       if (!response.ok) {
         const errorBody = await response.text().catch(() => '');
-        throw new Error(`Bedrock API error: ${response.status} ${response.statusText} — ${errorBody}`);
+        if (response.status === 403) {
+          this.logger.error(`Bedrock 403 Forbidden — Possible causes: (1) Region ${this.region} doesn't have Bedrock enabled, (2) IAM user lacks bedrock:InvokeModel permission, (3) Model ${this.defaultModel} not enabled in Bedrock console. Body: ${errorBody.substring(0, 300)}`);
+        } else if (response.status === 404) {
+          this.logger.error(`Bedrock 404 Not Found — Model ${this.defaultModel} not found in region ${this.region}. Check model availability. Body: ${errorBody.substring(0, 300)}`);
+        } else {
+          this.logger.error(`Bedrock API error: ${response.status} ${response.statusText} — ${errorBody.substring(0, 300)}`);
+        }
+        throw new Error(`Bedrock API error: ${response.status} ${response.statusText}`);
       }
 
       const data = await response.json();
@@ -161,8 +171,17 @@ export class BedrockService {
     const canonicalUri = new URL(endpoint).pathname.split('/').map(s => encodeURIComponent(decodeURIComponent(s))).join('/');
     
     // FIX: Include accept and x-amz-content-sha256 in signed headers (required by Bedrock)
-    const canonicalHeaders = `accept:application/json\ncontent-type:application/json\nhost:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`;
-    const signedHeaders = 'accept;content-type;host;x-amz-content-sha256;x-amz-date';
+    // If using STS temporary credentials, include x-amz-security-token
+    let canonicalHeaders: string;
+    let signedHeaders: string;
+    
+    if (this.sessionToken) {
+      canonicalHeaders = `accept:application/json\ncontent-type:application/json\nhost:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\nx-amz-security-token:${this.sessionToken}\n`;
+      signedHeaders = 'accept;content-type;host;x-amz-content-sha256;x-amz-date;x-amz-security-token';
+    } else {
+      canonicalHeaders = `accept:application/json\ncontent-type:application/json\nhost:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`;
+      signedHeaders = 'accept;content-type;host;x-amz-content-sha256;x-amz-date';
+    }
     
     const canonicalRequest = [
       'POST',
@@ -191,7 +210,7 @@ export class BedrockService {
     
     const signature = crypto.createHmac('sha256', signingKey).update(stringToSign).digest('hex');
     
-    return {
+    const headers: Record<string, string> = {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
       'Host': host,
@@ -199,6 +218,13 @@ export class BedrockService {
       'X-Amz-Date': amzDate,
       'Authorization': `AWS4-HMAC-SHA256 Credential=${this.accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
     };
+    
+    // Add session token header if using temporary credentials (STS)
+    if (this.sessionToken) {
+      headers['X-Amz-Security-Token'] = this.sessionToken;
+    }
+    
+    return headers;
   }
 
   private _calculateConfidence(content: string, model: string): number {

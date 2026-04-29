@@ -30,7 +30,7 @@ const MONITORED_ENDPOINTS = [
   '/api/scanner/scan',
   '/api/signals/smart',
   '/api/scanner/multi-tf/BTC-USD',
-  '/api/portfolio/summary',
+  '/api/portfolio/sanctuary',
   '/api/positions',
 ]
 

@@ -244,9 +244,16 @@ export default function RouaChart({
   const selectedSymbolRef = useRef(selectedSymbol);
   selectedSymbolRef.current = selectedSymbol;
 
+  // rAF deduplication — cancel previous frame before scheduling new one
+  const rafIdRef = useRef<number>(0);
+  const isMountedRef = useRef(true);
+
   // ── Recalculate overlay positions (runs on every scroll/zoom via rAF) ──
   const scheduleOverlayUpdate = useCallback(() => {
-    requestAnimationFrame(() => {
+    cancelAnimationFrame(rafIdRef.current);
+    rafIdRef.current = requestAnimationFrame(() => {
+      if (!isMountedRef.current) return;
+
       const chartSymbol = normalizeSymbol(selectedSymbolRef.current);
       const overlays: TradeOverlay[] = [];
       const zones: typeof fillZones = [];
@@ -256,42 +263,50 @@ export default function RouaChart({
         sl?: number, tp?: number, qty = 0, pnl?: number,
         source: 'manual' | 'bot' | 'exchange' = 'manual', prefix = ''
       ) => {
+        // Compute each line's Y coordinate independently so they don't
+        // disappear when the entry scrolls off-screen
         const entryY = chart.getPriceCoordinate(entryPrice);
-        if (entryY === null) return;
+        const slY = sl && sl > 0 ? chart.getPriceCoordinate(sl) : null;
+        const tpY = tp && tp > 0 ? chart.getPriceCoordinate(tp) : null;
 
-        overlays.push({
-          key: `${prefix}entry`, y: entryY, price: entryPrice,
-          type: 'entry', direction, source, qty, pnl,
-        });
-
-        if (sl && sl > 0) {
-          const slY = chart.getPriceCoordinate(sl);
-          if (slY !== null) {
-            overlays.push({
-              key: `${prefix}sl`, y: slY, price: sl,
-              type: 'sl', direction, source, qty,
-            });
-            zones.push({
-              top: Math.min(entryY, slY),
-              height: Math.abs(entryY - slY),
-              type: 'sl', key: `${prefix}sl-zone`,
-            });
-          }
+        // Only add entry overlay if it's visible
+        if (entryY !== null) {
+          overlays.push({
+            key: `${prefix}entry`, y: entryY, price: entryPrice,
+            type: 'entry', direction, source, qty, pnl,
+          });
         }
 
-        if (tp && tp > 0) {
-          const tpY = chart.getPriceCoordinate(tp);
-          if (tpY !== null) {
-            overlays.push({
-              key: `${prefix}tp`, y: tpY, price: tp,
-              type: 'tp', direction, source, qty,
-            });
-            zones.push({
-              top: Math.min(entryY, tpY),
-              height: Math.abs(entryY - tpY),
-              type: 'tp', key: `${prefix}tp-zone`,
-            });
-          }
+        // SL overlay — independent of entry visibility
+        if (slY !== null) {
+          overlays.push({
+            key: `${prefix}sl`, y: slY, price: sl!,
+            type: 'sl', direction, source, qty,
+          });
+        }
+
+        // TP overlay — independent of entry visibility
+        if (tpY !== null) {
+          overlays.push({
+            key: `${prefix}tp`, y: tpY, price: tp!,
+            type: 'tp', direction, source, qty,
+          });
+        }
+
+        // Fill zones: only draw when both boundary lines are visible
+        if (slY !== null && entryY !== null) {
+          zones.push({
+            top: Math.min(entryY, slY),
+            height: Math.abs(entryY - slY),
+            type: 'sl', key: `${prefix}sl-zone`,
+          });
+        }
+        if (tpY !== null && entryY !== null) {
+          zones.push({
+            top: Math.min(entryY, tpY),
+            height: Math.abs(entryY - tpY),
+            type: 'tp', key: `${prefix}tp-zone`,
+          });
         }
       };
 
@@ -301,11 +316,13 @@ export default function RouaChart({
         if (!posSymbol.includes(chartSymbol) && !chartSymbol.includes(posSymbol)) return;
         const entryPrice = Number(pos.avgEntryPrice || 0);
         if (entryPrice <= 0) return;
+        const slVal = Number(pos.sl || pos.stopLoss || 0);
+        const tpVal = Number(pos.tp || pos.takeProfit || 0);
         processTrade(
           entryPrice,
           (pos.side || '').toLowerCase() === 'long' ? 'long' : 'short',
-          Number(pos.sl || pos.stopLoss || 0) || undefined,
-          Number(pos.tp || pos.takeProfit || 0) || undefined,
+          slVal > 0 ? slVal : undefined,
+          tpVal > 0 ? tpVal : undefined,
           pos.qty || 0, undefined, 'exchange',
           `pos-${pos.id}-`
         );
@@ -333,13 +350,27 @@ export default function RouaChart({
     });
   }, [chart]);
 
-  // ── Subscribe to chart scroll/zoom ──
+  // ── Subscribe to chart scroll/zoom (horizontal + vertical) ──
   useEffect(() => {
     const unsubscribe = chart.onVisibleRangeChange(scheduleOverlayUpdate);
     // Initial calculation with a small delay to ensure chart is rendered
     const timer = setTimeout(scheduleOverlayUpdate, 200);
-    return () => { unsubscribe(); clearTimeout(timer); };
+
+    // Periodic overlay refresh to catch vertical price-scale changes
+    // (lightweight-charts v5 has no priceScale subscribeVisiblePriceRangeChange)
+    const priceScaleInterval = setInterval(scheduleOverlayUpdate, 1000);
+
+    return () => { unsubscribe(); clearTimeout(timer); clearInterval(priceScaleInterval); };
   }, [chart, scheduleOverlayUpdate]);
+
+  // ── Mount guard for rAF callbacks ──
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      cancelAnimationFrame(rafIdRef.current);
+    };
+  }, []);
 
   // ── Re-calculate overlays when trades change ──
   useEffect(() => {
@@ -616,7 +647,7 @@ export default function RouaChart({
           />
 
           {/* Overlay Layer — sibling of canvas container, always on top */}
-          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }}>
 
             {/* Symbol Watermark */}
             <div style={{

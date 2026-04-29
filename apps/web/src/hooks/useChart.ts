@@ -1193,7 +1193,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         color,
         lineWidth: lineWidth as any,
         lineStyle: lineStyle as any, // 0=Solid, 1=Dotted, 2=Dashed, 3=LargeDashed, 4=SparseDotted
-        axisLabelVisible: false,
+        axisLabelVisible: axisLabelVisible,
         title: '',
       });
       priceLinesRef.current.set(id, line);
@@ -1220,15 +1220,30 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
   // Store the visible range callback so we can subscribe when chart is created
   const visibleRangeCallbackRef = useRef<(() => void) | null>(null);
+  const prevCallbackRef = useRef<(() => void) | null>(null);
 
   const onVisibleRangeChange = useCallback((callback: () => void): (() => void) => {
+    // Unsubscribe previous callback before subscribing new one
+    if (prevCallbackRef.current && chartInstanceRef.current) {
+      try {
+        chartInstanceRef.current.timeScale().unsubscribeVisibleLogicalRangeChange(prevCallbackRef.current);
+      } catch {}
+    }
+
     visibleRangeCallbackRef.current = callback;
+    prevCallbackRef.current = callback;
+
     // Subscribe immediately if chart already exists
     if (chartInstanceRef.current) {
       chartInstanceRef.current.timeScale().subscribeVisibleLogicalRangeChange(callback);
     }
     return () => {
-      visibleRangeCallbackRef.current = null;
+      if (visibleRangeCallbackRef.current === callback) {
+        visibleRangeCallbackRef.current = null;
+      }
+      if (prevCallbackRef.current === callback) {
+        prevCallbackRef.current = null;
+      }
       if (chartInstanceRef.current) {
         try {
           chartInstanceRef.current.timeScale().unsubscribeVisibleLogicalRangeChange(callback);

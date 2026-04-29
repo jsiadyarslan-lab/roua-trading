@@ -228,35 +228,21 @@ export default function AIPage() {
   const fetchCouncil = async () => {
     setCouncilLoading(true)
     try {
-      // Try NestJS first
-      try {
-        const nestRes = await fetch('/api/ai/council', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbol: selectedSymbol }),
-          signal: AbortSignal.timeout(45000),
-        })
-        if (nestRes.ok) {
-          const nestJson = await nestRes.json()
-          if (nestJson.success && nestJson.data && nestJson.data.analyses?.length > 0) {
-            setCouncilResult({ ...nestJson.data, source: 'nestjs' })
-            setCouncilLoading(false)
-            return
-          }
-        }
-      } catch {}
-
-      // Fallback to local consensus
-      const localRes = await fetch('/api/ai/consensus', {
+      // Call AI consensus endpoint (NestJS or local fallback)
+      const res = await fetch('/api/ai/consensus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol: selectedSymbol }),
+        signal: AbortSignal.timeout(45000),
       })
-      const localJson = await localRes.json()
-      if (localJson.success && localJson.data) {
-        setCouncilResult({ ...localJson.data, source: 'local' })
+      const json = await res.json()
+      if (json.success && json.data) {
+        setCouncilResult({ ...json.data, source: json.data.analyses?.length > 0 ? 'nestjs' : 'local' })
       }
-    } catch {} finally {
+    } catch {
+      // If consensus fails, show empty result
+      setCouncilResult(null)
+    } finally {
       setCouncilLoading(false)
     }
   }

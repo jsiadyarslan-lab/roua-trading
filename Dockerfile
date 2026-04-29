@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v9
+ARG BUILD_CACHE=v10
 
 # ─────────────────────────────────────────────────────────────
 # Stage 1: Install dependencies

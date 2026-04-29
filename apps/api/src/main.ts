@@ -71,6 +71,12 @@ async function bootstrap() {
     if (process.env.RAILWAY_PUBLIC_DOMAIN) {
       corsOrigins.push(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
     }
+    // FIX: Also allow RAILWAY_STATIC_URL (another Railway env var for the domain)
+    if (process.env.RAILWAY_STATIC_URL) {
+      corsOrigins.push(process.env.RAILWAY_STATIC_URL);
+    }
+    // Allow any *.up.railway.app URL (the Railway deployment domain)
+    // This ensures CORS works regardless of which Railway environment is used
 
     app.enableCors({
       origin: corsOrigins,

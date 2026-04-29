@@ -37,7 +37,20 @@ export default function NewsTicker() {
         if (response.ok) {
           const data = await response.json()
           if (Array.isArray(data) && data.length > 0) {
-            const mapped: NewsItem[] = data.slice(0, 15).map((item: any) => ({
+            const errorPatterns = [
+              '⚠️ جميع نماذج الذكاء الاصطناعي غير متاحة',
+              'التحليل غير متاح حالياً',
+              'يرجى التحقق من مفاتيح API',
+              'يرجى المحاولة لاحقاً',
+            ];
+            const mapped: NewsItem[] = data.slice(0, 15)
+              .filter((item: any) => {
+                // Filter out articles with AI error messages
+                const title = (item.translatedTitle || '') + (item.title || '');
+                const content = (item.translatedContent || '') + (item.content || '');
+                return !errorPatterns.some(p => title.includes(p) || content.includes(p));
+              })
+              .map((item: any) => ({
               category: item.category || 'General',
               categoryAr: item.categoryAr || item.category || 'عام',
               color: item.color || '#94a3b8',

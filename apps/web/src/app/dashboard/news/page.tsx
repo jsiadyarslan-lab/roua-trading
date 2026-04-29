@@ -101,6 +101,18 @@ export default function NewsPage() {
 
   const filteredItems = useMemo(() => {
     let filtered = items;
+    // FIX: Filter out articles with AI fallback error messages in translated title/content
+    const errorPatterns = [
+      '⚠️ جميع نماذج الذكاء الاصطناعي غير متاحة',
+      'التحليل غير متاح حالياً',
+      'يرجى التحقق من مفاتيح API',
+      'يرجى المحاولة لاحقاً',
+    ];
+    filtered = filtered.filter((item) => {
+      const title = (item.translatedTitle || '') + (item.title || '');
+      const content = (item.translatedContent || '') + (item.content || '');
+      return !errorPatterns.some(pattern => title.includes(pattern) || content.includes(pattern));
+    });
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter(

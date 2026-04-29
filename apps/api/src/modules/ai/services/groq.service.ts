@@ -16,6 +16,7 @@ export interface AIAnalysisResponse {
   confidence: number;
   processingTimeMs: number;
   language: string;
+  isFallback?: boolean;
 }
 
 /**

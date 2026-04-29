@@ -363,17 +363,28 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
       const descMatch =
         /<description><!\[CDATA\[(.*?)\]\]><\/description>/.exec(content) ||
         /<description>(.*?)<\/description>/.exec(content);
-      const linkMatch = /<link>(.*?)<\/link>/.exec(content);
+      const linkMatch =
+        /<link><!\[CDATA\[(.*?)\]\]><\/link>/.exec(content) ||
+        /<link>(.*?)<\/link>/.exec(content);
       const pubDateMatch = /<pubDate>(.*?)<\/pubDate>/.exec(content);
       const categoryMatch =
         /<category><!\[CDATA\[(.*?)\]\]><\/category>/.exec(content) ||
         /<category>(.*?)<\/category>/.exec(content);
 
       if (titleMatch) {
+        // FIX: Strip CDATA wrapper from link if present
+        let link = linkMatch ? linkMatch[1].trim() : undefined;
+        if (link) {
+          link = link.replace(/^<!\[CDATA\[/, '').replace(/\]\]>$/, '');
+          // Ensure URL starts with http
+          if (link && !link.startsWith('http')) {
+            link = 'https://' + link.replace(/^[hH]*t*t*p*:*\/*/, '');
+          }
+        }
         items.push({
           title: titleMatch[1].trim(),
           description: descMatch ? descMatch[1].trim().replace(/<[^>]*>/g, '') : undefined,
-          link: linkMatch ? linkMatch[1].trim() : undefined,
+          link,
           publishedAt: pubDateMatch ? pubDateMatch[1].trim() : undefined,
           source: 'CoinTelegraph',
           category: categoryMatch ? categoryMatch[1].trim() : 'Crypto',
@@ -441,13 +452,23 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
       const content = match[1];
       const titleMatch = /<title><!\[CDATA\[(.*?)\]\]><\/title>/.exec(content) ||
         /<title>(.*?)<\/title>/.exec(content);
-      const linkMatch = /<link>(.*?)<\/link>/.exec(content);
+      const linkMatch =
+        /<link><!\[CDATA\[(.*?)\]\]><\/link>/.exec(content) ||
+        /<link>(.*?)<\/link>/.exec(content);
       const pubDateMatch = /<pubDate>(.*?)<\/pubDate>/.exec(content);
 
       if (titleMatch) {
+        // FIX: Strip CDATA wrapper from link if present
+        let link = linkMatch ? linkMatch[1].trim() : undefined;
+        if (link) {
+          link = link.replace(/^<!\[CDATA\[/, '').replace(/\]\]>$/, '');
+          if (link && !link.startsWith('http')) {
+            link = 'https://' + link.replace(/^[hH]*t*t*p*:*\/*/, '');
+          }
+        }
         items.push({
           title: titleMatch[1].trim(),
-          link: linkMatch ? linkMatch[1].trim() : undefined,
+          link,
           publishedAt: pubDateMatch ? pubDateMatch[1].trim() : undefined,
           source: 'CoinDesk',
           category: 'Crypto',
@@ -502,7 +523,14 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
         language: 'ar',
       });
 
+      // FIX: If AI returned a fallback (confidence 0), don't use its content as translation.
+      // Instead fall back to heuristic analysis which preserves original text.
       const content = result.content || '';
+      if (result.confidence === 0 || (result as any).isFallback) {
+        this.logger.warn('AI returned fallback response — using heuristic sentiment analysis');
+        return this._heuristicSentiment(fullText, defaultResult);
+      }
+
       const jsonMatch = content.match(/\{[\s\S]*\}/);
 
       if (jsonMatch) {

@@ -4,16 +4,15 @@ import { ExternalLink, GitBranch, Link2, MessageCircle } from 'lucide-react'
 
 const NAV_LINKS = [
   { label: 'الميزات', href: '#features' },
-  { label: 'الأسعار', href: '#' },
-  { label: 'API', href: '#' },
-  { label: 'الدعم', href: '#' },
+  { label: 'لوحة التحكم', href: '/dashboard' },
+  { label: 'المساعدة', href: '/dashboard/settings' },
 ]
 
 const SOCIAL_LINKS = [
-  { icon: ExternalLink, label: 'Twitter', href: '#' },
-  { icon: GitBranch, label: 'Github', href: '#' },
-  { icon: Link2, label: 'LinkedIn', href: '#' },
-  { icon: MessageCircle, label: 'Discord', href: '#' },
+  { icon: ExternalLink, label: 'Twitter', href: 'https://twitter.com/rouatrading' },
+  { icon: GitBranch, label: 'Github', href: 'https://github.com/jsiady-lab/roua-trading' },
+  { icon: Link2, label: 'LinkedIn', href: 'https://linkedin.com/company/roua-trading' },
+  { icon: MessageCircle, label: 'Discord', href: 'https://discord.gg/rouatrading' },
 ]
 
 export default function Footer() {

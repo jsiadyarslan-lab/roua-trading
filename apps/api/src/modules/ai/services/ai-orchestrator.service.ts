@@ -171,10 +171,11 @@ export class AIOrchestratorService {
     if (!result) {
       result = {
         model: 'Orchestrator/Fallback',
-        content: '⚠️ جميع نماذج الذكاء الاصطناعي غير متاحة حالياً. يرجى التحقق من مفاتيح API في ملف .env',
+        content: 'التحليل غير متاح حالياً. يرجى المحاولة لاحقاً.',
         confidence: 0,
         processingTimeMs: 0,
         language: enrichedRequest.language || 'ar',
+        isFallback: true,
       };
     }
 

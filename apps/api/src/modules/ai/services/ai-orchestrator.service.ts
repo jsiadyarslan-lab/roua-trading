@@ -259,7 +259,7 @@ export class AIOrchestratorService {
           if (response.confidence <= 0) continue;
 
           const content = response.content || '';
-          const vote = this._detectRecommendation(content);
+          const vote = this._parseVote(content);
 
           const conf = response.confidence || 0.5;
           if (vote === 'BUY') buyWeight += conf;

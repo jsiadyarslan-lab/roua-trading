@@ -28,11 +28,14 @@ export async function POST(req: NextRequest) {
     const origin = req.nextUrl.origin
     const startedAt = Date.now()
 
+    // Use internal API URL to avoid circular self-fetch through Next.js router
+    const apiInternalUrl = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || `${origin}`
+
     // ── Step 1: Try NestJS AI orchestrator (real AI models) ──
     try {
       const contextPrompt = buildContextPrompt(message, symbol, style)
 
-      const nestjsRes = await fetch(`${origin}/api/ai/analyze`, {
+      const nestjsRes = await fetch(`${apiInternalUrl}/api/ai/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

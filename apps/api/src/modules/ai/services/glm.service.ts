@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { AIAnalysisRequest, AIAnalysisResponse } from './groq.service';
+import * as crypto from 'crypto';
 
 /**
  * GLM Service — Zhipu AI (GLM-4)
@@ -46,7 +47,7 @@ export class GlmService {
         },
         {
           headers: {
-            Authorization: `Bearer ${this.apiKey}`,
+            Authorization: `Bearer ${this._generateJwt()}`,
             'Content-Type': 'application/json',
           },
           timeout: 60000,
@@ -98,6 +99,35 @@ export class GlmService {
     confidence += modelBase[model] || 0;
 
     return Math.min(Math.max(confidence, 0.1), 0.95); // Clamp 0.1-0.95
+  }
+
+  /**
+   * Generate JWT token for Zhipu AI GLM-4 API authentication.
+   * The Zhipu API requires a JWT token derived from the API key,
+   * not a raw Bearer token. The API key format is: "{id}.{secret}"
+   * The JWT uses HS256 with the secret, and includes id as 'api_key'.
+   */
+  private _generateJwt(): string {
+    const parts = this.apiKey.split('.');
+    if (parts.length !== 2) {
+      // If the key is not in id.secret format, use it as-is (backward compat)
+      this.logger.warn('GLM_API_KEY is not in expected id.secret format — using as raw Bearer token');
+      return this.apiKey;
+    }
+
+    const [id, secret] = parts;
+    const now = Date.now();
+    const exp = now + 3600 * 1000; // 1 hour expiry
+
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256', sign_type: 'SIGN' }), 'utf8').toString('base64url');
+    const payload = Buffer.from(JSON.stringify({ api_key: id, exp: Math.floor(exp / 1000), timestamp: Math.floor(now / 1000) }), 'utf8').toString('base64url');
+
+    const signature = crypto
+      .createHmac('sha256', secret)
+      .update(`${header}.${payload}`)
+      .digest('base64url');
+
+    return `${header}.${payload}.${signature}`;
   }
 
   private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {

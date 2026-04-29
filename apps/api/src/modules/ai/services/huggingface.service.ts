@@ -46,13 +46,15 @@ export class HuggingFaceService {
 
     const startTime = Date.now();
     const systemPrompt = this._buildSystemPrompt(request);
-    const fullPrompt = `<s>[INST] ${systemPrompt}\n\n${request.prompt} [/INST]`;
 
     // Try primary model first, then fallbacks
     const models = [this.primaryModel, ...this.fallbackModels];
     
     for (const model of models) {
       try {
+        // Use model-appropriate prompt format for each model
+        const fullPrompt = this._formatPrompt(model, systemPrompt, request.prompt);
+
         const response = await axios.post(
           `${this.baseUrl}${model}`,
           {
@@ -134,6 +136,25 @@ export class HuggingFaceService {
     confidence += modelBase[model] || 0;
 
     return Math.min(Math.max(confidence, 0.1), 0.95); // Clamp 0.1-0.95
+  }
+
+  /**
+   * Format the prompt according to the model's expected template.
+   * Mistral uses <s>[INST]...[/INST]
+   * Phi-3 uses <|user|>...<|end|><|assistant|>
+   * Llama-3.1 uses <|begin_of_text|><|start_header_id|>user<|end_header_id|>...<|eot_id|>
+   */
+  private _formatPrompt(model: string, systemPrompt: string, userPrompt: string): string {
+    if (model.includes('Phi-3')) {
+      // Phi-3 format
+      return `<|system|>\n${systemPrompt}<|end|>\n<|user|>\n${userPrompt}<|end|>\n<|assistant|>\n`;
+    }
+    if (model.includes('Llama-3')) {
+      // Llama-3.1 format
+      return `<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n${systemPrompt}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n${userPrompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n`;
+    }
+    // Default: Mistral format
+    return `<s>[INST] ${systemPrompt}\n\n${userPrompt} [/INST]`;
   }
 
   private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {

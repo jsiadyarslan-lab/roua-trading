@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaService } from './common/prisma/prisma.service';
@@ -9,6 +10,27 @@ import { PrismaService } from './common/prisma/prisma.service';
 async function bootstrap() {
   try {
     const app = await NestFactory.create(AppModule);
+
+    // Security headers via Helmet (CSP, HSTS, X-Frame-Options, etc.)
+    app.use(helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Needed for Next.js
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", "data:", "https:"],
+          connectSrc: ["'self'", "wss:", "https:"],
+          fontSrc: ["'self'", "https:", "data:"],
+          frameSrc: ["'none'"],
+          objectSrc: ["'none'"],
+        },
+      },
+      crossOriginEmbedderPolicy: false, // Allow cross-origin resources
+      crossOriginOpenerPolicy: { policy: 'same-origin' },
+      crossOriginResourcePolicy: { policy: 'same-origin' },
+      hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+    }));
 
     // Cookie parser for session management
     app.use(cookieParser());

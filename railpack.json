@@ -1,0 +1,15 @@
+{
+  "$schema": "https://railpack.com/config/file/v1",
+  "start": "bash start.sh",
+  "build": {
+    "commands": [
+      "npx prisma generate --schema=./prisma/schema.prisma",
+      "cd packages/shared && npx tsc",
+      "cd apps/api && npx nest build",
+      "cd apps/web && npx next build --webpack"
+    ]
+  },
+  "install": {
+    "commands": ["npm ci --install-strategy=hoisted"]
+  }
+}

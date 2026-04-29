@@ -14,6 +14,9 @@
 # ─────────────────────────────────────────────────────────────
 FROM node:22-slim AS deps
 
+# OpenSSL required by Prisma
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy lockfile + workspace manifests first (cache-friendly)
@@ -29,6 +32,9 @@ RUN npm ci --install-strategy=hoisted
 # ─────────────────────────────────────────────────────────────
 FROM node:22-slim AS builder
 
+# OpenSSL required by Prisma
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy installed node_modules from deps stage
@@ -37,8 +43,8 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy full source for build context
 COPY . .
 
-# Generate Prisma client (needed for auth API routes)
-RUN npx prisma generate --schema=./apps/web/prisma/schema.prisma
+# Generate Prisma client (schema is at repo root: prisma/schema.prisma)
+RUN npx prisma generate --schema=./prisma/schema.prisma
 
 # Build the Next.js app
 RUN cd apps/web && npm run build
@@ -47,6 +53,9 @@ RUN cd apps/web && npm run build
 # Stage 3: Minimal production image
 # ─────────────────────────────────────────────────────────────
 FROM node:22-slim AS runner
+
+# OpenSSL required by Prisma at runtime
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Security: run as non-root user
 RUN groupadd --system --gid 1001 roua \
@@ -74,4 +83,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
   CMD node -e "fetch('http://localhost:3000/').catch(()=>process.exit(1))"
 
 # Start: run prisma db push then next start
-CMD ["sh", "-c", "cd /app && npx prisma db push --schema=./apps/web/prisma/schema.prisma --skip-generate --accept-data-loss 2>/dev/null; cd apps/web && npx next start -H 0.0.0.0"]
+CMD ["sh", "-c", "cd /app && npx prisma db push --schema=./prisma/schema.prisma --skip-generate --accept-data-loss 2>/dev/null; cd apps/web && npx next start -H 0.0.0.0"]

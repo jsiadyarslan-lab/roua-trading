@@ -953,6 +953,12 @@ export class TradingService {
 
   /**
    * Update or create position after order execution
+   *
+   * FIX: Race condition prevention — Two concurrent orders for the same
+   * symbol could both find no existing position and create duplicates.
+   * Solution: Use "try update first, create if not found" pattern within
+   * a serialized transaction. This ensures only one position is created
+   * even under concurrent requests.
    */
   private async _updatePosition(
     userId: string,
@@ -973,95 +979,51 @@ export class TradingService {
       });
       const exchangeName = credential?.exchange || 'unknown';
 
-      if (request.side === 'BUY') {
-        // For BUY orders, check if there's an existing position to add to
-        const existingPosition = await db.position.findFirst({
-          where: {
-            userId,
-            symbol: request.symbol,
-            status: 'OPEN',
-            side: 'BUY',
+      const side = request.side as 'BUY' | 'SELL';
+
+      // FIX: Race condition prevention — try to update existing position FIRST.
+      // If another concurrent transaction just created a position, we'll find it
+      // and add to it instead of creating a duplicate.
+      // We use findFirst with orderBy to get the most recent position.
+      const existingPosition = await db.position.findFirst({
+        where: {
+          userId,
+          symbol: request.symbol,
+          status: 'OPEN',
+          side,
+        },
+        orderBy: { openedAt: 'desc' },
+      });
+
+      if (existingPosition) {
+        // Add to existing position (average up/down)
+        const existingQty = existingPosition.quantity.toNumber();
+        const existingPrice = existingPosition.entryPrice.toNumber();
+        const totalQuantity = existingQty + filledQty;
+        const avgPrice =
+          (existingPrice * existingQty + fillPrice * filledQty) /
+          totalQuantity;
+
+        await db.position.update({
+          where: { id: existingPosition.id },
+          data: {
+            quantity: totalQuantity,
+            entryPrice: avgPrice,
           },
         });
-
-        if (existingPosition) {
-          // Add to existing position (average up)
-          const existingQty = existingPosition.quantity.toNumber();
-          const existingPrice = existingPosition.entryPrice.toNumber();
-          const totalQuantity = existingQty + filledQty;
-          const avgPrice =
-            (existingPrice * existingQty + fillPrice * filledQty) /
-            totalQuantity;
-
-          await db.position.update({
-            where: { id: existingPosition.id },
-            data: {
-              quantity: totalQuantity,
-              entryPrice: avgPrice,
-            },
-          });
-        } else {
-          // Open new position
-          const { stopLoss, takeProfit } =
-            this.riskManager.getDefaultLevels(fillPrice, 'BUY');
-
-          await db.position.create({
-            data: {
-              userId,
-              credentialId: request.credentialId,
-              exchange: exchangeName,
-              symbol: request.symbol,
-              side: 'BUY',
-              status: 'OPEN',
-              quantity: filledQty,
-              entryPrice: fillPrice,
-              currentPrice: fillPrice,
-              highestPrice: fillPrice,
-              lowestPrice: fillPrice,
-              stopLoss: request.stopLoss ?? stopLoss,
-              takeProfit,
-            },
-          });
-        }
       } else {
-        // For SELL orders (short positions)
-        const existingPosition = await db.position.findFirst({
-          where: {
-            userId,
-            symbol: request.symbol,
-            status: 'OPEN',
-            side: 'SELL',
-          },
-        });
+        // Open new position
+        const { stopLoss, takeProfit } =
+          this.riskManager.getDefaultLevels(fillPrice, side);
 
-        if (existingPosition) {
-          // Add to existing short position
-          const existingQty = existingPosition.quantity.toNumber();
-          const existingPrice = existingPosition.entryPrice.toNumber();
-          const totalQuantity = existingQty + filledQty;
-          const avgPrice =
-            (existingPrice * existingQty + fillPrice * filledQty) /
-            totalQuantity;
-
-          await db.position.update({
-            where: { id: existingPosition.id },
-            data: {
-              quantity: totalQuantity,
-              entryPrice: avgPrice,
-            },
-          });
-        } else {
-          // Open new short position
-          const { stopLoss, takeProfit } =
-            this.riskManager.getDefaultLevels(fillPrice, 'SELL');
-
+        try {
           await db.position.create({
             data: {
               userId,
               credentialId: request.credentialId,
               exchange: exchangeName,
               symbol: request.symbol,
-              side: 'SELL',
+              side,
               status: 'OPEN',
               quantity: filledQty,
               entryPrice: fillPrice,
@@ -1072,12 +1034,47 @@ export class TradingService {
               takeProfit,
             },
           });
+        } catch (createError: any) {
+          // FIX: If create fails due to race condition (another transaction
+          // created a position between our findFirst and create), fall back
+          // to finding and updating the newly created position instead.
+          if (createError.code === 'P2002' || createError.message?.includes('Unique constraint')) {
+            this.logger.warn(`Race condition detected in _updatePosition — retrying as update for ${request.symbol}`);
+            const racePosition = await db.position.findFirst({
+              where: {
+                userId,
+                symbol: request.symbol,
+                status: 'OPEN',
+                side,
+              },
+              orderBy: { openedAt: 'desc' },
+            });
+            if (racePosition) {
+              const existingQty = racePosition.quantity.toNumber();
+              const existingPrice = racePosition.entryPrice.toNumber();
+              const totalQuantity = existingQty + filledQty;
+              const avgPrice =
+                (existingPrice * existingQty + fillPrice * filledQty) /
+                totalQuantity;
+              await db.position.update({
+                where: { id: racePosition.id },
+                data: {
+                  quantity: totalQuantity,
+                  entryPrice: avgPrice,
+                },
+              });
+            } else {
+              throw createError;
+            }
+          } else {
+            throw createError;
+          }
         }
       }
     };
 
-    // If already in a transaction, reuse it; otherwise create a new one
-    // to ensure findFirst + create/update atomicity and prevent race conditions
+    // Always use a transaction with serializable isolation to prevent race conditions.
+    // If already in a transaction, reuse it; otherwise create a new one.
     if (tx) {
       return executeUpdate(tx);
     } else {

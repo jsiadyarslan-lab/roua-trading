@@ -27,7 +27,7 @@ interface RawNewsItem {
  * 2. Translating titles and content to Arabic via AI models
  * 3. Analyzing sentiment and market impact using AI Council
  * 4. Storing analyzed news in database
- * 5. Scheduled periodic fetching (every 15 minutes)
+ * 5. Scheduled periodic fetching (every 30 minutes)
  */
 @Injectable()
 export class NewsService implements OnModuleInit, OnModuleDestroy {
@@ -60,14 +60,18 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Start scheduled fetching every 15 minutes
+   * Start scheduled fetching every 30 minutes
+   *
+   * FIX: Changed from 15→30 minutes to reduce AI consumption.
+   * News articles don't change that frequently — 30 min is sufficient
+   * and cuts AI API calls by 50% (was 96 calls/day, now 48).
    */
   private startScheduledFetching() {
-    const INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+    const INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
     this.fetchInterval = setInterval(() => {
       this._scheduledFetch();
     }, INTERVAL_MS);
-    this.logger.log('⏰ Scheduled news fetching every 15 minutes');
+    this.logger.log('⏰ Scheduled news fetching every 30 minutes');
   }
 
   /**
@@ -218,8 +222,11 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
 
     this.logger.log(`📰 Fetched ${rawNews.length} raw news items`);
 
-    // Process news items in batches with concurrency limit
-    await this._processNewsBatch(rawNews.slice(0, 20), 3);
+    // FIX: Reduced from 20→5 articles per cycle to cut AI consumption.
+    // Each article requires 1 AI call (combined translation+sentiment).
+    // At 5 articles every 30 min = ~240 AI calls/day (was 1920/day with 20/15min).
+    // Only the 5 most recent articles matter for trading decisions.
+    await this._processNewsBatch(rawNews.slice(0, 5), 3);
   }
 
   /**
@@ -295,27 +302,6 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
     }
 
     this.logger.log(`📰 Processed and stored ${processed} new articles`);
-  }
-
-  /**
-   * Generic concurrency-limited batch processor.
-   * Processes items in batches of `concurrency` size, collecting
-   * fulfilled results and silently dropping rejected ones.
-   */
-  private async _processBatch<T, R>(
-    items: T[],
-    processor: (item: T) => Promise<R>,
-    concurrency: number = 3,
-  ): Promise<R[]> {
-    const results: R[] = [];
-    for (let i = 0; i < items.length; i += concurrency) {
-      const batch = items.slice(i, i + concurrency);
-      const batchResults = await Promise.allSettled(batch.map(processor));
-      for (const result of batchResults) {
-        if (result.status === 'fulfilled') results.push(result.value);
-      }
-    }
-    return results;
   }
 
   // ── Private Methods ──
@@ -478,24 +464,6 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Translate text to Arabic using AI models
-   */
-  private async _translateToArabic(text: string): Promise<string> {
-    try {
-      const result = await this.aiOrchestrator.analyze({
-        symbol: 'TRANSLATE',
-        prompt: `ترجم العنوان التالي إلى العربية فقط (بدون أي شرح إضافي):\n${text}`,
-        type: 'general',
-        language: 'ar',
-      });
-
-      return result.content || text;
-    } catch {
-      return text;
-    }
-  }
-
-  /**
    * FIX: Combined translation + sentiment analysis in ONE AI call.
    * Previously, each news item required 2-3 AI calls:
    *   translateTitle (1) + translateDescription (1) + sentiment (1) = 2-3 calls
@@ -556,61 +524,6 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
     } catch (error: any) {
       this.logger.warn(`Combined translation+sentiment analysis failed: ${error.message}`);
       return this._heuristicSentiment(fullText, defaultResult);
-    }
-  }
-
-  /**
-   * Analyze sentiment of news text
-   */
-  private async _analyzeSentiment(
-    text: string,
-    category?: string,
-  ): Promise<{
-    sentiment: string;
-    sentimentScore: number;
-    impactLevel: string;
-    affectedAssets: string[];
-    summary: string;
-    fullAnalysis: string;
-  }> {
-    const defaultResult = {
-      sentiment: 'neutral',
-      sentimentScore: 0,
-      impactLevel: 'medium',
-      affectedAssets: [] as string[],
-      summary: '',
-      fullAnalysis: '',
-    };
-
-    try {
-      // Use Groq for fast sentiment analysis
-      const result = await this.aiOrchestrator.analyze({
-        symbol: 'NEWS',
-        prompt: `حلل الخبر المالي التالي وأجب بصيغة JSON فقط بدون أي نص آخر:
-{"sentiment": "positive أو negative أو neutral", "sentimentScore": رقم بين -1 و 1, "impactLevel": "high أو medium أو low", "affectedAssets": ["BTC", "ETH"], "summary": "ملخص عربي في جملة واحدة"}
-
-الخبر: ${text.substring(0, 1000)}`,
-        type: 'sentiment',
-        language: 'ar',
-      });
-
-      const content = result.content || '';
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-
-      if (jsonMatch) {
-        try {
-          const parsed = JSON.parse(jsonMatch[0]);
-          return { ...defaultResult, ...parsed, fullAnalysis: content };
-        } catch {
-          // JSON parse failed, use heuristics
-        }
-      }
-
-      // Fallback: heuristic analysis
-      return this._heuristicSentiment(text, defaultResult);
-    } catch (error: any) {
-      this.logger.warn(`AI sentiment analysis failed: ${error.message}`);
-      return this._heuristicSentiment(text, defaultResult);
     }
   }
 

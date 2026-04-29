@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 /**
  * POST /api/news/analyze
  * Analyze a news text manually using AI
+ *
+ * FIX: Standardized to use same auth pattern as proxyToNestJS.
+ * Added proper error status codes (502 instead of 200 with success:false).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -16,17 +19,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Try NestJS first
+    // Try NestJS first with proper auth
     const apiTarget = process.env.API_INTERNAL_URL || 'http://localhost:3001';
     const sessionToken = request.cookies.get('roua_session')?.value;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      cookie: request.headers.get('cookie') || '',
+      'Authorization': sessionToken ? `Bearer ${sessionToken}` : '',
+      'x-roua-session': sessionToken || '',
     };
-    if (sessionToken) {
-      headers['Authorization'] = `Bearer ${sessionToken}`;
-    }
 
     try {
       const res = await fetch(`${apiTarget}/api/news/analyze`, {

@@ -55,11 +55,18 @@ export class CouncilSchedulerService {
   }
 
   /**
-   * Main council session — runs every 15 minutes
+   * Main council session — runs every 30 minutes
+   *
+   * FIX: Changed from 15→30 minutes to reduce AI consumption.
+   * Each session hits 6 AI models × 5 symbols = 30 AI calls.
+   * At 15 min intervals: 2,880 AI calls/day.
+   * At 30 min intervals: 1,440 AI calls/day (50% reduction).
+   * Consensus is cached for 5 minutes, so the dashboard still
+   * shows fresh data between council sessions.
    *
    * Selects top symbols and runs consensus analysis on each.
    */
-  @Cron('*/15 * * * *')
+  @Cron('*/30 * * * *')
   async runCouncilSession(): Promise<void> {
     if (this.isInSession) {
       this.logger.warn('🏛️ Previous council session still running — skipping');

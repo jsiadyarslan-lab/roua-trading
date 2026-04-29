@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
   ],
 
   // NOTE: lucide-react removed from optimizePackageImports — it causes
-  // "Cannot access 'X' before initialization" (SWC minifier scope conflict)
+  // "Cannot access 'X' before initialization" (scope conflict with minifier)
   experimental: {
     optimizePackageImports: [
       'recharts',
@@ -36,24 +36,30 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // ── Override SWC minifier with Terser for client bundles ──
-  // SWC minifier creates a variable 'X' that conflicts with
-  // lucide-react's X icon class, causing:
-  //   ReferenceError: Cannot access 'X' before initialization
-  // Terser does not have this bug.
+  // ── Fix: lucide-react minification crash ──
+  // lucide-react defines hundreds of icon components as `const X = forwardRef(...)`.
+  // When webpack's ModuleConcatenationPlugin merges them into one scope, the
+  // minifier can't find enough unique single-letter variable names, causing
+  // TDZ errors like "Cannot access 'X' before initialization".
+  //
+  // Fix 1: Disable module concatenation (prevents scope merging)
+  // Fix 2: Use Terser with keep_fnames+keep_classnames (prevents name conflicts)
   webpack(config, { isServer }) {
     if (!isServer && config.optimization) {
+      // Prevent webpack from merging lucide-react modules into same scope
+      config.optimization.concatenateModules = false;
+
+      // Use Terser instead of SWC minifier with safe name preservation
       config.optimization.minimizer = [
         new TerserPlugin({
           terserOptions: {
             compress: {
-              // Keep class names to prevent variable name conflicts
-              // (e.g. lucide-react's X icon class vs minifier's X variable)
               keep_classnames: true,
+              keep_fnames: true,
             },
             mangle: {
-              // Keep class names but mangle everything else
               keep_classnames: true,
+              keep_fnames: true,
             },
           },
           extractComments: false,

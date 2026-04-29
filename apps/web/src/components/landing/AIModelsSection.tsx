@@ -114,7 +114,7 @@ export default function AIModelsSection() {
             className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4"
             style={{ fontFamily: 'var(--font-ar)' }}
           >
-            ستة نماذج ذكاء اصطناعي تعمل{' '}
+            ستة نماذج ذكاء اصطناعي تعمل{'\u00A0'}
             <span
               style={{
                 background: 'linear-gradient(135deg, #3B82F6, #10B981)',

@@ -179,7 +179,7 @@ export default function TestimonialsSection() {
             className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4"
             style={{ fontFamily: 'var(--font-ar)' }}
           >
-            ماذا يقول{' '}
+            ماذا يقول{'\u00A0'}
             <span
               style={{
                 background: 'linear-gradient(135deg, #EAB308, #F97316)',

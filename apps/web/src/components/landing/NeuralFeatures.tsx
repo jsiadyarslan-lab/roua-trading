@@ -223,7 +223,7 @@ export default function NeuralFeatures() {
             className="text-3xl md:text-4xl font-bold mb-4"
             style={{ color: '#E5E7EB', fontFamily: 'var(--font-ar)' }}
           >
-            ميزات{' '}
+            ميزات{'\u00A0'}
             <span
               style={{
                 background: 'linear-gradient(135deg, #3B82F6, #10B981)',

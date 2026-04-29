@@ -111,7 +111,7 @@ export default function FeaturesSection({ id }: FeaturesSectionProps) {
             className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4"
             style={{ fontFamily: 'var(--font-ar)' }}
           >
-            أدوات متقدمة للمتداول{' '}
+            أدوات متقدمة للمتداول{'\u00A0'}
             <span
               style={{
                 background: 'linear-gradient(135deg, #10B981, #3B82F6)',

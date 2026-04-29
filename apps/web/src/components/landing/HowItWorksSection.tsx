@@ -97,7 +97,7 @@ export default function HowItWorksSection() {
             className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4"
             style={{ fontFamily: 'var(--font-ar)' }}
           >
-            من التسجيل إلى{' '}
+            من التسجيل إلى{'\u00A0'}
             <span
               style={{
                 background: 'linear-gradient(135deg, #8B5CF6, #3B82F6)',

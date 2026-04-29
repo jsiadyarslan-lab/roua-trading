@@ -37,7 +37,7 @@ export default function CTASection() {
           className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4"
           style={{ color: '#E2E8F0', fontFamily: 'var(--font-ar)' }}
         >
-          هل أنت مستعد للتداول{' '}
+          هل أنت مستعد للتداول{'\u00A0'}
           <span
             style={{
               background: 'linear-gradient(135deg, #10B981, #3B82F6)',

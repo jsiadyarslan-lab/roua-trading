@@ -58,10 +58,8 @@ function ChartInner() {
   const initChart = useCallback(async () => {
     if (!containerRef.current) return
 
-    // Dynamic import of lightweight-charts (client only)
     const { createChart, ColorType } = await import('lightweight-charts')
 
-    // Clean up existing chart
     if (chartRef.current) {
       chartRef.current.remove()
       chartRef.current = null
@@ -72,29 +70,23 @@ function ChartInner() {
     const chart = createChart(container, {
       layout: {
         background: { type: ColorType.Solid, color: '#0a0f1a' },
-        textColor: '#64748B',
+        textColor: '#475569',
         fontFamily: 'var(--font-mono)',
       },
       grid: {
-        vertLines: { color: 'rgba(59, 130, 246, 0.06)' },
-        horzLines: { color: 'rgba(59, 130, 246, 0.06)' },
+        vertLines: { color: 'rgba(148, 163, 184, 0.04)' },
+        horzLines: { color: 'rgba(148, 163, 184, 0.04)' },
       },
       crosshair: {
-        vertLine: {
-          color: 'rgba(59, 130, 246, 0.3)',
-          labelBackgroundColor: '#1a2332',
-        },
-        horzLine: {
-          color: 'rgba(59, 130, 246, 0.3)',
-          labelBackgroundColor: '#1a2332',
-        },
+        vertLine: { color: 'rgba(16, 185, 129, 0.2)', labelBackgroundColor: '#0f1722' },
+        horzLine: { color: 'rgba(16, 185, 129, 0.2)', labelBackgroundColor: '#0f1722' },
       },
       rightPriceScale: {
-        borderColor: 'rgba(59, 130, 246, 0.1)',
+        borderColor: 'rgba(148, 163, 184, 0.06)',
         scaleMargins: { top: 0.1, bottom: 0.1 },
       },
       timeScale: {
-        borderColor: 'rgba(59, 130, 246, 0.1)',
+        borderColor: 'rgba(148, 163, 184, 0.06)',
         timeVisible: false,
         secondsVisible: false,
       },
@@ -104,23 +96,20 @@ function ChartInner() {
 
     chartRef.current = chart
 
-    // Add candlestick series (v5 API)
     const candleSeries = chart.addCandlestickSeries({
       upColor: '#10B981',
       downColor: '#EF4444',
       borderUpColor: '#10B981',
       borderDownColor: '#EF4444',
-      wickUpColor: '#10B98180',
-      wickDownColor: '#EF444480',
+      wickUpColor: '#10B98160',
+      wickDownColor: '#EF444460',
     })
 
     seriesRef.current = candleSeries
 
-    // Set initial data
     const initialData = generateCandleData(80)
     candleSeries.setData(initialData as any)
 
-    // Update price display
     const last = initialData[initialData.length - 1]
     const prev = initialData[initialData.length - 2]
     setLastPrice(last.close)
@@ -128,7 +117,6 @@ function ChartInner() {
 
     chart.timeScale().fitContent()
 
-    // Handle resize
     const handleResize = () => {
       if (container && chartRef.current) {
         chartRef.current.applyOptions({
@@ -141,7 +129,6 @@ function ChartInner() {
     resizeObserverRef.current = new ResizeObserver(handleResize)
     resizeObserverRef.current.observe(container)
 
-    // Auto-update every 3s
     intervalRef.current = setInterval(() => {
       if (!seriesRef.current) return
 
@@ -161,11 +148,8 @@ function ChartInner() {
       }
 
       seriesRef.current.update(updatedCandle as any)
-
       setLastPrice(updatedCandle.close)
       setPriceChange(updatedCandle.close - updatedCandle.open)
-
-      // Update last data reference for next tick
       initialData[initialData.length - 1] = updatedCandle
     }, 3000)
   }, [])
@@ -183,10 +167,8 @@ function ChartInner() {
     }
   }, [initChart])
 
-  const isPositive = priceChange >= 0
-
   return (
-    <div className="relative w-full h-[350px] md:h-[420px]">
+    <div className="relative w-full h-[300px] md:h-[380px]">
       <div ref={containerRef} className="absolute inset-0" />
     </div>
   )
@@ -198,7 +180,6 @@ export default function LiveMarketChart() {
   const [priceChange, setPriceChange] = useState(0)
   const priceUpdateRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Simulate price updates for header display
   useEffect(() => {
     let current = 67000
     priceUpdateRef.current = setInterval(() => {
@@ -216,45 +197,74 @@ export default function LiveMarketChart() {
   const isPositive = priceChange >= 0
 
   return (
-    <section className="relative py-20 px-4">
+    <section className="relative py-16 sm:py-20 px-4 sm:px-6 lg:px-8">
+      {/* Section divider */}
+      <div
+        className="absolute top-0 left-1/2 -translate-x-1/2 h-px w-2/3 max-w-xl"
+        style={{ background: 'linear-gradient(90deg, transparent, rgba(148,163,184,0.08), transparent)' }}
+      />
+
       <div className="max-w-5xl mx-auto">
-        {/* Glassmorphism card container */}
+        {/* Section Header */}
+        <div className="text-center mb-8">
+          <div
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-medium mb-4"
+            style={{
+              background: 'rgba(16,185,129,0.06)',
+              border: '1px solid rgba(16,185,129,0.12)',
+              color: '#34D399',
+              fontFamily: 'var(--font-en)',
+            }}
+          >
+            LIVE MARKET
+          </div>
+          <h2
+            className="text-xl sm:text-2xl font-bold text-white"
+            style={{ fontFamily: 'var(--font-ar)' }}
+          >
+            تتبع السوق في الوقت الفعلي
+          </h2>
+        </div>
+
+        {/* Chart card */}
         <div
-          className="relative rounded-2xl overflow-hidden"
+          className="relative rounded-xl overflow-hidden"
           style={{
-            background: 'rgba(10, 15, 26, 0.8)',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
-            border: '1px solid rgba(59, 130, 246, 0.15)',
-            boxShadow: '0 0 40px rgba(59, 130, 246, 0.05), 0 8px 32px rgba(0,0,0,0.4)',
+            background: '#0a0f1a',
+            border: '1px solid rgba(148, 163, 184, 0.06)',
           }}
         >
           {/* Chart Header */}
           <div
-            className="flex items-center justify-between px-5 py-3 border-b"
-            style={{ borderColor: 'rgba(59, 130, 246, 0.1)' }}
+            className="flex items-center justify-between px-4 py-2.5 border-b"
+            style={{ borderColor: 'rgba(148, 163, 184, 0.06)' }}
           >
-            <div className="flex items-center gap-3">
-              {/* LIVE indicator */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md" style={{ background: 'rgba(16, 185, 129, 0.1)' }}>
-                <Activity className="w-3 h-3" style={{ color: '#10B981' }} />
-                <span className="text-[10px] font-bold tracking-wider" style={{ color: '#10B981', fontFamily: 'var(--font-brand)' }}>
+            <div className="flex items-center gap-2.5">
+              <div
+                className="flex items-center gap-1.5 px-2 py-0.5 rounded-md"
+                style={{ background: 'rgba(16, 185, 129, 0.06)' }}
+              >
+                <Activity className="w-2.5 h-2.5" style={{ color: '#10B981' }} />
+                <span
+                  className="text-[9px] font-bold tracking-wider"
+                  style={{ color: '#10B981', fontFamily: 'var(--font-brand)' }}
+                >
                   LIVE
                 </span>
-                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#10B981' }} />
+                <span className="w-1 h-1 rounded-full animate-pulse" style={{ background: '#10B981' }} />
               </div>
 
               <span
-                className="text-sm font-bold"
-                style={{ color: '#E5E7EB', fontFamily: 'var(--font-mono)' }}
+                className="text-xs font-bold"
+                style={{ color: '#E2E8F0', fontFamily: 'var(--font-mono)' }}
               >
                 BTC/USD
               </span>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <span
-                className="text-lg font-bold"
+                className="text-sm font-bold"
                 style={{
                   color: isPositive ? '#10B981' : '#EF4444',
                   fontFamily: 'var(--font-mono)',
@@ -264,11 +274,11 @@ export default function LiveMarketChart() {
               </span>
               <Badge
                 variant="outline"
-                className="text-[11px] font-mono px-2"
+                className="text-[10px] font-mono px-1.5 py-0"
                 style={{
                   color: isPositive ? '#10B981' : '#EF4444',
-                  borderColor: isPositive ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)',
-                  background: isPositive ? 'rgba(16,185,129,0.08)' : 'rgba(239,68,68,0.08)',
+                  borderColor: isPositive ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)',
+                  background: isPositive ? 'rgba(16,185,129,0.05)' : 'rgba(239,68,68,0.05)',
                 }}
               >
                 {isPositive ? '+' : ''}{priceChange.toFixed(2)}

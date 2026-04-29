@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Sparkles } from 'lucide-react'
+import { ArrowLeft, Sparkles, TrendingUp, BarChart3, Globe2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion'
 
@@ -15,9 +15,9 @@ const TYPEWRITER_PHRASES = [
 ]
 
 const STATS = [
-  { value: '87%', label: 'دقة الإشارات', sublabel: 'Signal Accuracy' },
-  { value: '12+', label: 'لغة مدعومة', sublabel: 'Languages' },
-  { value: '5000+', label: 'مصدر إخباري', sublabel: 'News Sources' },
+  { value: '87%', label: 'دقة الإشارات', sublabel: 'Signal Accuracy', icon: TrendingUp },
+  { value: '12+', label: 'لغة مدعومة', sublabel: 'Languages', icon: Globe2 },
+  { value: '5000+', label: 'مصدر إخباري', sublabel: 'News Sources', icon: BarChart3 },
 ]
 
 export default function HeroSection() {
@@ -26,10 +26,8 @@ export default function HeroSection() {
   const [isDeleting, setIsDeleting] = useState(false)
   const prefersReducedMotion = usePrefersReducedMotion()
 
-  // Typewriter effect
   const typewriterStep = useCallback(() => {
     const phrase = TYPEWRITER_PHRASES[currentPhrase]
-
     if (!isDeleting) {
       if (displayText.length < phrase.length) {
         setDisplayText(phrase.slice(0, displayText.length + 1))
@@ -56,14 +54,16 @@ export default function HeroSection() {
   }, [typewriterStep])
 
   return (
-    <section className="relative min-h-[90vh] flex flex-col items-center justify-center px-4 py-20 overflow-hidden">
-      {/* Decorative glow */}
-      <div
-        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full pointer-events-none"
+    <section className="relative min-h-[92vh] flex flex-col items-center justify-center px-4 sm:px-6 pt-20 pb-16">
+      {/* Top decorative line */}
+      <motion.div
+        className="absolute top-0 left-1/2 -translate-x-1/2 h-px w-3/4 max-w-2xl"
         style={{
-          background: 'radial-gradient(circle, rgba(59,130,246,0.08) 0%, rgba(16,185,129,0.04) 40%, transparent 70%)',
-          filter: 'blur(40px)',
+          background: 'linear-gradient(90deg, transparent, rgba(16,185,129,0.3), rgba(59,130,246,0.3), transparent)',
         }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1.5 }}
       />
 
       <motion.div
@@ -72,51 +72,83 @@ export default function HeroSection() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
       >
+        {/* Badge */}
+        <motion.div
+          initial={prefersReducedMotion ? {} : { opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="mb-8"
+        >
+          <div
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium tracking-wide"
+            style={{
+              background: 'rgba(16,185,129,0.08)',
+              border: '1px solid rgba(16,185,129,0.15)',
+              color: '#34D399',
+              fontFamily: 'var(--font-en)',
+            }}
+          >
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#10B981' }} />
+            NEURAL TRADING INTELLIGENCE
+          </div>
+        </motion.div>
+
         {/* Arabic Logo */}
         <motion.h1
-          className="text-8xl md:text-9xl font-bold mb-2"
+          className="text-7xl sm:text-8xl md:text-9xl font-bold mb-3 leading-none"
           style={{
             fontFamily: 'var(--font-ar)',
-            background: 'linear-gradient(135deg, #3B82F6 0%, #10B981 50%, #FFD700 100%)',
+            background: 'linear-gradient(135deg, #10B981 0%, #3B82F6 50%, #8B5CF6 100%)',
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
           }}
-          initial={prefersReducedMotion ? {} : { scale: 0.8, opacity: 0 }}
+          initial={prefersReducedMotion ? {} : { scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }}
+          transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
         >
           رؤى
         </motion.h1>
 
         {/* English Brand */}
-        <motion.h2
-          className="text-2xl md:text-3xl font-semibold tracking-[0.35em] mb-8"
+        <motion.p
+          className="text-lg sm:text-xl tracking-[0.4em] mb-6"
           style={{
             fontFamily: 'var(--font-brand)',
-            color: '#94A3B8',
+            color: 'rgba(148,163,184,0.6)',
           }}
-          initial={prefersReducedMotion ? {} : { opacity: 0, letterSpacing: '0.1em' }}
-          animate={{ opacity: 1, letterSpacing: '0.35em' }}
-          transition={{ duration: 1, delay: 0.5 }}
+          initial={prefersReducedMotion ? {} : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.8, delay: 0.4 }}
         >
           ROUA
-        </motion.h2>
+        </motion.p>
+
+        {/* Tagline */}
+        <motion.p
+          className="text-base sm:text-lg mb-8 max-w-lg"
+          style={{ color: '#94A3B8', fontFamily: 'var(--font-ar)' }}
+          initial={prefersReducedMotion ? {} : { opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.5 }}
+        >
+          منصة التداول المدعومة بالذكاء الاصطناعي الأكثر تقدمًا في المنطقة
+        </motion.p>
 
         {/* Typewriter */}
         <div className="h-10 md:h-12 flex items-center justify-center mb-10">
           <span
-            className="text-lg md:text-2xl font-medium"
+            className="text-base sm:text-lg md:text-xl font-medium"
             style={{
               fontFamily: 'var(--font-en)',
-              color: '#E5E7EB',
+              color: '#CBD5E1',
             }}
           >
             {displayText}
           </span>
           <motion.span
-            className="inline-block w-0.5 h-6 md:h-8 ms-1"
-            style={{ background: '#3B82F6' }}
+            className="inline-block w-0.5 h-5 md:h-7 ms-1 rounded-full"
+            style={{ background: '#10B981' }}
             animate={{ opacity: [1, 0] }}
             transition={{ duration: 0.6, repeat: Infinity, repeatType: 'reverse' }}
           />
@@ -127,29 +159,23 @@ export default function HeroSection() {
           className="flex flex-col sm:flex-row items-center gap-4 mb-16"
           initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.8 }}
+          transition={{ duration: 0.6, delay: 0.7 }}
         >
           <Link href="/dashboard">
             <Button
               size="lg"
-              className="group relative px-8 py-6 text-base font-bold rounded-xl overflow-hidden"
+              className="group relative px-8 py-6 text-base font-bold rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_30px_rgba(16,185,129,0.25)]"
               style={{
-                background: 'linear-gradient(135deg, #3B82F6 0%, #10B981 100%)',
+                background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
                 color: '#fff',
                 border: 'none',
               }}
             >
               <span className="relative z-10 flex items-center gap-2">
-                <Sparkles className="w-5 h-5" />
+                <Sparkles className="w-4 h-4" />
                 ابدأ التداول
                 <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
               </span>
-              <div
-                className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                style={{
-                  background: 'linear-gradient(135deg, #2563EB 0%, #059669 100%)',
-                }}
-              />
             </Button>
           </Link>
 
@@ -157,9 +183,9 @@ export default function HeroSection() {
             <Button
               variant="outline"
               size="lg"
-              className="px-8 py-6 text-base font-medium rounded-xl"
+              className="px-8 py-6 text-base font-medium rounded-xl transition-all duration-300 hover:bg-white/5"
               style={{
-                borderColor: 'rgba(59, 130, 246, 0.3)',
+                borderColor: 'rgba(148, 163, 184, 0.15)',
                 color: '#94A3B8',
               }}
             >
@@ -170,37 +196,56 @@ export default function HeroSection() {
 
         {/* Stats Row */}
         <motion.div
-          className="flex flex-col sm:flex-row items-center gap-8 sm:gap-16"
+          className="flex flex-col sm:flex-row items-center gap-6 sm:gap-12"
           initial={prefersReducedMotion ? {} : { opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 1.2 }}
+          transition={{ duration: 0.6, delay: 1 }}
         >
-          {STATS.map((stat, i) => (
-            <div key={i} className="flex flex-col items-center gap-1">
-              <span
-                className="text-3xl md:text-4xl font-bold"
+          {STATS.map((stat, i) => {
+            const Icon = stat.icon
+            return (
+              <div
+                key={i}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl"
                 style={{
-                  fontFamily: 'var(--font-brand)',
-                  background: i === 0
-                    ? 'linear-gradient(135deg, #3B82F6, #10B981)'
-                    : i === 1
-                      ? 'linear-gradient(135deg, #FFD700, #F59E0B)'
-                      : 'linear-gradient(135deg, #10B981, #06B6D4)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  backgroundClip: 'text',
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid rgba(255,255,255,0.05)',
                 }}
               >
-                {stat.value}
-              </span>
-              <span className="text-sm font-medium" style={{ color: '#E5E7EB', fontFamily: 'var(--font-ar)' }}>
-                {stat.label}
-              </span>
-              <span className="text-[10px] tracking-wider" style={{ color: '#64748B', fontFamily: 'var(--font-en)' }}>
-                {stat.sublabel}
-              </span>
-            </div>
-          ))}
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center"
+                  style={{
+                    background: i === 0
+                      ? 'rgba(16,185,129,0.1)'
+                      : i === 1
+                        ? 'rgba(59,130,246,0.1)'
+                        : 'rgba(139,92,246,0.1)',
+                  }}
+                >
+                  <Icon
+                    className="w-4 h-4"
+                    style={{
+                      color: i === 0 ? '#10B981' : i === 1 ? '#3B82F6' : '#8B5CF6',
+                    }}
+                  />
+                </div>
+                <div className="text-start">
+                  <span
+                    className="text-xl font-bold block leading-tight"
+                    style={{
+                      fontFamily: 'var(--font-brand)',
+                      color: '#E2E8F0',
+                    }}
+                  >
+                    {stat.value}
+                  </span>
+                  <span className="text-[11px] block" style={{ color: '#64748B', fontFamily: 'var(--font-ar)' }}>
+                    {stat.label}
+                  </span>
+                </div>
+              </div>
+            )
+          })}
         </motion.div>
       </motion.div>
     </section>

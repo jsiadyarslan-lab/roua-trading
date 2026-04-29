@@ -50,7 +50,9 @@ export async function GET(request: NextRequest) {
         code,
         client_id: clientId,
         client_secret: clientSecret,
-        redirect_uri: `${request.nextUrl.origin}/api/auth/callback/google`,
+        // FIX: Must match the redirect_uri used in /api/auth/signin/google
+        // Use ORIGIN env var or X-Forwarded-Host to get the real public URL
+        redirect_uri: `${(process.env.ORIGIN || (request.headers.get('x-forwarded-proto') || 'https') + '://' + (request.headers.get('x-forwarded-host') || request.nextUrl.host))}/api/auth/callback/google`,
         grant_type: 'authorization_code',
       }),
       signal: AbortSignal.timeout(10000),

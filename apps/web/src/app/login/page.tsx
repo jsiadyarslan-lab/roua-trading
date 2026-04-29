@@ -175,14 +175,26 @@ function LoginForm() {
       return
     }
 
+    // Basic email validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('يرجى إدخال بريد إلكتروني صحيح')
+      return
+    }
+
     setLoading('email')
     setError('')
 
     try {
-      // Call /api/auth/me to auto-create a session, then redirect to dashboard
-      const res = await fetch('/api/auth/me')
+      // Create a session for the email user via /api/auth/me?email=...
+      // This creates/finds a user with this email and sets a session cookie
+      const res = await fetch(`/api/auth/me?email=${encodeURIComponent(email)}`)
       if (res.ok) {
-        router.push('/dashboard')
+        const data = await res.json()
+        if (data.authenticated) {
+          router.push('/dashboard')
+        } else {
+          setError('فشل تسجيل الدخول. حاول مرة أخرى.')
+        }
       } else {
         setError('فشل تسجيل الدخول. حاول مرة أخرى.')
       }
@@ -266,7 +278,7 @@ function LoginForm() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.5, duration: 0.4 }}
-            className="mb-4"
+            className="mb-3"
           >
             <div className="relative">
               <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#64748B' }} />
@@ -275,32 +287,59 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleEmailLogin()}
-                placeholder="بريدك الإلكتروني"
+                placeholder="أدخل بريدك الإلكتروني"
                 dir="ltr"
-                className="w-full py-3 pe-10 ps-4 rounded-xl text-sm outline-none transition-all duration-200 placeholder:text-white/20"
+                className="w-full py-3.5 pe-10 ps-4 rounded-xl text-sm outline-none transition-all duration-200 placeholder:text-white/20"
                 style={{
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
                   color: '#E2E8F0',
                   fontFamily: 'var(--font-en)',
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(16,185,129,0.3)'
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
+                  e.currentTarget.style.borderColor = 'rgba(16,185,129,0.4)'
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.07)'
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
                 }}
               />
             </div>
           </motion.div>
 
-          {/* Google Button */}
+          {/* Email Login Button — PRIMARY CTA */}
           <motion.button
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.55, duration: 0.4 }}
+            onClick={handleEmailLogin}
+            disabled={loading !== null}
+            whileHover={{ scale: 1.01, boxShadow: '0 0 30px rgba(16, 185, 129, 0.2)' }}
+            whileTap={{ scale: 0.99 }}
+            className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl
+                       bg-gradient-to-l from-emerald-600 to-emerald-500 text-white font-bold text-sm
+                       hover:from-emerald-500 hover:to-emerald-400
+                       disabled:opacity-40 disabled:cursor-not-allowed
+                       transition-all duration-200 mb-4"
+            style={{ boxShadow: '0 0 20px rgba(16, 185, 129, 0.15)' }}
+          >
+            <Mail className="w-4 h-4" />
+            <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'email' ? 'جارٍ الدخول...' : 'تسجيل الدخول بالبريد'}</span>
+          </motion.button>
+
+          {/* Divider */}
+          <div className="flex items-center gap-4 my-4">
+            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
+            <span className="text-white/20 text-[11px]" style={{ fontFamily: 'var(--font-ar)' }}>أو</span>
+            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
+          </div>
+
+          {/* Google Button */}
+          <motion.button
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.6, duration: 0.4 }}
             onClick={handleGoogleLogin}
             disabled={loading !== null}
             whileHover={{ scale: 1.01, boxShadow: '0 0 25px rgba(66, 133, 244, 0.15)' }}
@@ -319,7 +358,7 @@ function LoginForm() {
           <motion.button
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.6, duration: 0.4 }}
+            transition={{ delay: 0.65, duration: 0.4 }}
             onClick={handlePasskeyLogin}
             disabled={loading !== null}
             whileHover={{ scale: 1.01, boxShadow: '0 0 25px rgba(45, 212, 191, 0.15)' }}
@@ -328,20 +367,20 @@ function LoginForm() {
                        bg-white/[0.04] border border-white/10 text-white font-medium text-sm
                        hover:bg-white/[0.07] hover:border-white/15
                        disabled:opacity-40 disabled:cursor-not-allowed
-                       transition-all duration-200 mb-3"
+                       transition-all duration-200 mb-4"
           >
             <Fingerprint className="w-4 h-4" style={{ color: '#2DD4BF' }} />
             <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'passkey' ? 'جارٍ التحقق...' : 'Passkey'}</span>
           </motion.button>
 
-          {/* Divider */}
-          <div className="flex items-center gap-4 my-5">
-            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
-            <span className="text-white/20 text-[11px]" style={{ fontFamily: 'var(--font-ar)' }}>أو</span>
-            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
+          {/* Second Divider */}
+          <div className="flex items-center gap-4 my-3">
+            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.04)' }} />
+            <span className="text-white/15 text-[10px]" style={{ fontFamily: 'var(--font-ar)' }}>تجربة سريعة</span>
+            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.04)' }} />
           </div>
 
-          {/* Guest Access */}
+          {/* Guest Access — Quick try */}
           <motion.button
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -349,14 +388,13 @@ function LoginForm() {
             onClick={() => router.push('/dashboard')}
             whileHover={{ scale: 1.01 }}
             className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl
-                       bg-gradient-to-l from-emerald-600 to-emerald-500 text-white font-bold text-sm
-                       hover:from-emerald-500 hover:to-emerald-400
+                       bg-white/[0.03] border border-white/8 text-white/60 font-medium text-sm
+                       hover:bg-white/[0.06] hover:text-white/80
                        disabled:opacity-40 disabled:cursor-not-allowed
                        transition-all duration-200"
-            style={{ boxShadow: '0 0 20px rgba(16, 185, 129, 0.1)' }}
           >
-            <Shield className="w-4 h-4" />
-            <span style={{ fontFamily: 'var(--font-ar)' }}>دخول كضيف — تجربة فورية</span>
+            <Shield className="w-3.5 h-3.5" />
+            <span style={{ fontFamily: 'var(--font-ar)' }}>دخول كضيف — بدون تسجيل</span>
           </motion.button>
 
           {/* Error Message */}

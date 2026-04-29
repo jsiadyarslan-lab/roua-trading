@@ -28,10 +28,13 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    // Check if a specific email was requested (for email login flow)
+    const requestedEmail = request.nextUrl.searchParams.get('email')
+
     const sessionToken = request.cookies.get('roua_session')?.value
 
     // ── Check existing session ──
-    if (sessionToken) {
+    if (sessionToken && !requestedEmail) {
       try {
         const session = await db.session.findUnique({
           where: { token: sessionToken },
@@ -57,38 +60,31 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── Auto-create guest user + session ──
-    let guestUser = await db.user.findUnique({ where: { email: GUEST_EMAIL } }).catch(() => null)
+    // ── Determine which email to use ──
+    const targetEmail = requestedEmail || GUEST_EMAIL
 
-    if (!guestUser) {
+    // ── Find or create user ──
+    let user = await db.user.findUnique({ where: { email: targetEmail } }).catch(() => null)
+
+    if (!user) {
       try {
-        guestUser = await db.user.create({
+        user = await db.user.create({
           data: {
-            email: GUEST_EMAIL,
-            displayName: 'ضيف',
-            tier: 'FREE',
+            email: targetEmail,
+            displayName: targetEmail === GUEST_EMAIL ? 'ضيف' : targetEmail.split('@')[0],
+            tier: targetEmail === GUEST_EMAIL ? 'FREE' : 'BASIC',
           },
         })
       } catch {
-        guestUser = await db.user.findUnique({ where: { email: GUEST_EMAIL } })
+        user = await db.user.findUnique({ where: { email: targetEmail } })
       }
     }
 
-    // Enforce FREE tier
-    if (guestUser && guestUser.tier !== 'FREE') {
-      try {
-        guestUser = await db.user.update({
-          where: { id: guestUser.id },
-          data: { tier: 'FREE' },
-        })
-      } catch { /* Non-critical */ }
-    }
-
-    if (!guestUser) {
+    if (!user) {
       // Can't create user — return mock session
       return NextResponse.json({
         authenticated: true,
-        user: { id: 'guest-fallback', email: GUEST_EMAIL, displayName: 'ضيف', tier: 'FREE' },
+        user: { id: 'guest-fallback', email: targetEmail, displayName: targetEmail === GUEST_EMAIL ? 'ضيف' : targetEmail.split('@')[0], tier: 'FREE' },
       })
     }
 
@@ -98,17 +94,17 @@ export async function GET(request: NextRequest) {
 
     try {
       await db.session.create({
-        data: { userId: guestUser.id, token: newToken, expiresAt },
+        data: { userId: user.id, token: newToken, expiresAt },
       })
     } catch {
       // Session creation failed — return user without cookie
       return NextResponse.json({
         authenticated: true,
         user: {
-          id: guestUser.id,
-          email: guestUser.email,
-          displayName: guestUser.displayName,
-          tier: guestUser.tier,
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName,
+          tier: user.tier,
         },
       })
     }
@@ -116,10 +112,10 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.json({
       authenticated: true,
       user: {
-        id: guestUser.id,
-        email: guestUser.email,
-        displayName: guestUser.displayName,
-        tier: guestUser.tier,
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        tier: user.tier,
       },
     })
 

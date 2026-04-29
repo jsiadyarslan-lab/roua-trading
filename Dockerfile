@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v7
+ARG BUILD_CACHE=v8
 
 # ─────────────────────────────────────────────────────────────
 # Stage 1: Install dependencies
@@ -51,13 +51,19 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy full source for build context
 COPY . .
 
+# FIX: Ensure node_modules/.bin is in PATH so `npx nest build`
+# can find the @nestjs/cli binary. With --install-strategy=hoisted,
+# all binaries live at /app/node_modules/.bin/ but sub-directory
+# npm run scripts may not find them without explicit PATH.
+ENV PATH="/app/node_modules/.bin:${PATH}"
+
 # Generate Prisma client (schema is at repo root: prisma/schema.prisma)
 RUN npx prisma generate --schema=./prisma/schema.prisma
 
 # Build the shared package first (dependency of both apps)
 RUN cd packages/shared && npm run build
 
-# Build the NestJS API
+# Build the NestJS API (uses npx nest build — PATH includes .bin)
 RUN cd apps/api && npm run build
 
 # Build the Next.js web app

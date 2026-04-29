@@ -148,7 +148,7 @@ function TestimonialCard({ testimonial, index }: { testimonial: Testimonial; ind
 
 export default function TestimonialsSection() {
   return (
-    <section className="relative py-20 sm:py-28 px-4 sm:px-6 lg:px-8">
+    <section id="testimonials" className="relative py-20 sm:py-28 px-4 sm:px-6 lg:px-8">
       {/* Section divider */}
       <div
         className="absolute top-0 left-1/2 -translate-x-1/2 h-px w-2/3 max-w-xl"

@@ -197,7 +197,7 @@ export default function LiveMarketChart() {
   const isPositive = priceChange >= 0
 
   return (
-    <section className="relative py-16 sm:py-20 px-4 sm:px-6 lg:px-8">
+    <section id="live-market" className="relative py-16 sm:py-20 px-4 sm:px-6 lg:px-8">
       {/* Section divider */}
       <div
         className="absolute top-0 left-1/2 -translate-x-1/2 h-px w-2/3 max-w-xl"

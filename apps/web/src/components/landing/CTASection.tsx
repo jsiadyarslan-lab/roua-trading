@@ -57,7 +57,7 @@ export default function CTASection() {
           انضم لآلاف المتداولين الذين يثقون في رؤى لاتخاذ قرارات أذكى
         </p>
 
-        <Link href="/dashboard">
+        <Link href="/login">
           <Button
             size="lg"
             className="group relative px-10 py-6 text-base font-bold rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_40px_rgba(16,185,129,0.2)]"

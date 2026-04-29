@@ -4,8 +4,9 @@ import { ExternalLink, GitBranch, Link2, MessageCircle } from 'lucide-react'
 
 const NAV_LINKS = [
   { label: 'الميزات', href: '#features' },
+  { label: 'الذكاء الاصطناعي', href: '#ai-models' },
+  { label: 'تسجيل الدخول', href: '/login' },
   { label: 'لوحة التحكم', href: '/dashboard' },
-  { label: 'المساعدة', href: '/dashboard/settings' },
 ]
 
 const SOCIAL_LINKS = [

@@ -161,7 +161,7 @@ export default function HeroSection() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.7 }}
         >
-          <Link href="/dashboard">
+          <Link href="/login">
             <Button
               size="lg"
               className="group relative px-8 py-6 text-base font-bold rounded-xl overflow-hidden transition-all duration-300 hover:shadow-[0_0_30px_rgba(16,185,129,0.25)]"
@@ -173,7 +173,7 @@ export default function HeroSection() {
             >
               <span className="relative z-10 flex items-center gap-2">
                 <Sparkles className="w-4 h-4" />
-                ابدأ التداول
+                ابدأ التداول مجاناً
                 <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
               </span>
             </Button>

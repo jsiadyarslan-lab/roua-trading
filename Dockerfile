@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v8
+ARG BUILD_CACHE=v9
 
 # ─────────────────────────────────────────────────────────────
 # Stage 1: Install dependencies
@@ -51,23 +51,27 @@ COPY --from=deps /app/node_modules ./node_modules
 # Copy full source for build context
 COPY . .
 
-# FIX: Ensure node_modules/.bin is in PATH so `npx nest build`
-# can find the @nestjs/cli binary. With --install-strategy=hoisted,
-# all binaries live at /app/node_modules/.bin/ but sub-directory
-# npm run scripts may not find them without explicit PATH.
+# FIX: Add node_modules/.bin to PATH so all installed binaries
+# (tsc, next, prisma, etc.) are directly available in RUN commands.
+# With --install-strategy=hoisted, all binaries live at this location.
+# We CANNOT rely on `npm run` to find them because npm scripts
+# only add ./node_modules/.bin relative to the package directory,
+# which doesn't exist with hoisted installs in a workspace.
 ENV PATH="/app/node_modules/.bin:${PATH}"
 
 # Generate Prisma client (schema is at repo root: prisma/schema.prisma)
-RUN npx prisma generate --schema=./prisma/schema.prisma
+RUN prisma generate --schema=./prisma/schema.prisma
 
 # Build the shared package first (dependency of both apps)
-RUN cd packages/shared && npm run build
+RUN cd packages/shared && tsc
 
-# Build the NestJS API (uses npx nest build — PATH includes .bin)
-RUN cd apps/api && npm run build
+# Build the NestJS API — use tsc directly instead of `nest build`.
+# With webpack:false, `nest build` is just `rm -rf dist && tsc`.
+# Using tsc directly avoids npx resolution failures in hoisted workspaces.
+RUN cd apps/api && rm -rf dist && tsc
 
-# Build the Next.js web app
-RUN cd apps/web && npm run build
+# Build the Next.js web app — use next directly from PATH.
+RUN cd apps/web && next build --webpack
 
 # ─────────────────────────────────────────────────────────────
 # Stage 3: Production image with API + Web

@@ -36,7 +36,9 @@ run_api_build() {
   if [ "$USE_BUN" -eq 1 ]; then
     bun run build
   else
-    npm run build
+    # Use tsc directly — avoids npm workspace binary resolution issues
+    # (same output as `nest build` with webpack:false in nest-cli.json)
+    rm -rf dist && tsc
   fi
 }
 
@@ -44,7 +46,8 @@ run_web_build() {
   if [ "$USE_BUN" -eq 1 ]; then
     bunx next build --webpack
   else
-    npm run build
+    # Use next directly — avoids npm workspace binary resolution issues
+    next build --webpack
   fi
 }
 

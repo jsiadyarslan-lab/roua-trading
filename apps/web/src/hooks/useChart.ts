@@ -1188,8 +1188,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         color,
         lineWidth: lineWidth as any,
         lineStyle: lineStyle as any, // 0=Solid, 1=Dotted, 2=Dashed, 3=LargeDashed, 4=SparseDotted
-        axisLabelVisible,
-        title: label,
+        axisLabelVisible: false,
+        title: '',
       });
       priceLinesRef.current.set(id, line);
     } catch {

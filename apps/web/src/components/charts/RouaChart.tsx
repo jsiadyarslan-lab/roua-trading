@@ -232,117 +232,127 @@ export default function RouaChart({
   }
 
   const [tradeOverlays, setTradeOverlays] = useState<TradeOverlay[]>([]);
-
-  // ── Fill Zones State ──
   const [fillZones, setFillZones] = useState<Array<{
     top: number; height: number; type: 'sl' | 'tp'; key: string;
   }>>([]);
 
-  // ── Update Trade Overlays + Fill Zones ──
-  const updateTradeOverlays = useCallback(() => {
-    const chartSymbol = normalizeSymbol(selectedSymbol);
-    const overlays: TradeOverlay[] = [];
-    const zones: typeof fillZones = [];
+  // Keep latest positions/trades in ref so the rAF callback always has fresh data
+  const positionsRef = useRef(positions);
+  positionsRef.current = positions;
+  const paperTradesRef = useRef(paperTrades);
+  paperTradesRef.current = paperTrades;
+  const selectedSymbolRef = useRef(selectedSymbol);
+  selectedSymbolRef.current = selectedSymbol;
 
-    const processTrade = (
-      entryPrice: number, direction: 'long' | 'short',
-      sl?: number, tp?: number, qty = 0, pnl?: number,
-      source: 'manual' | 'bot' | 'exchange' = 'manual', prefix = ''
-    ) => {
-      const entryY = chart.getPriceCoordinate(entryPrice);
-      if (entryY === null) return;
+  // ── Recalculate overlay positions (runs on every scroll/zoom via rAF) ──
+  const scheduleOverlayUpdate = useCallback(() => {
+    requestAnimationFrame(() => {
+      const chartSymbol = normalizeSymbol(selectedSymbolRef.current);
+      const overlays: TradeOverlay[] = [];
+      const zones: typeof fillZones = [];
 
-      overlays.push({
-        key: `${prefix}entry`,
-        y: entryY, price: entryPrice,
-        type: 'entry', direction, source, qty, pnl,
+      const processTrade = (
+        entryPrice: number, direction: 'long' | 'short',
+        sl?: number, tp?: number, qty = 0, pnl?: number,
+        source: 'manual' | 'bot' | 'exchange' = 'manual', prefix = ''
+      ) => {
+        const entryY = chart.getPriceCoordinate(entryPrice);
+        if (entryY === null) return;
+
+        overlays.push({
+          key: `${prefix}entry`, y: entryY, price: entryPrice,
+          type: 'entry', direction, source, qty, pnl,
+        });
+
+        if (sl && sl > 0) {
+          const slY = chart.getPriceCoordinate(sl);
+          if (slY !== null) {
+            overlays.push({
+              key: `${prefix}sl`, y: slY, price: sl,
+              type: 'sl', direction, source, qty,
+            });
+            zones.push({
+              top: Math.min(entryY, slY),
+              height: Math.abs(entryY - slY),
+              type: 'sl', key: `${prefix}sl-zone`,
+            });
+          }
+        }
+
+        if (tp && tp > 0) {
+          const tpY = chart.getPriceCoordinate(tp);
+          if (tpY !== null) {
+            overlays.push({
+              key: `${prefix}tp`, y: tpY, price: tp,
+              type: 'tp', direction, source, qty,
+            });
+            zones.push({
+              top: Math.min(entryY, tpY),
+              height: Math.abs(entryY - tpY),
+              type: 'tp', key: `${prefix}tp-zone`,
+            });
+          }
+        }
+      };
+
+      // Exchange positions
+      positionsRef.current.forEach(pos => {
+        const posSymbol = normalizeSymbol(pos.symbol || '');
+        if (!posSymbol.includes(chartSymbol) && !chartSymbol.includes(posSymbol)) return;
+        const entryPrice = Number(pos.avgEntryPrice || 0);
+        if (entryPrice <= 0) return;
+        processTrade(
+          entryPrice,
+          (pos.side || '').toLowerCase() === 'long' ? 'long' : 'short',
+          Number(pos.sl || pos.stopLoss || 0) || undefined,
+          Number(pos.tp || pos.takeProfit || 0) || undefined,
+          pos.qty || 0, undefined, 'exchange',
+          `pos-${pos.id}-`
+        );
       });
 
-      if (sl && sl > 0) {
-        const slY = chart.getPriceCoordinate(sl);
-        if (slY !== null) {
-          overlays.push({
-            key: `${prefix}sl`, y: slY, price: sl,
-            type: 'sl', direction, source, qty,
-          });
-          zones.push({
-            top: Math.min(entryY, slY),
-            height: Math.abs(entryY - slY),
-            type: 'sl', key: `${prefix}sl-zone`,
-          });
-        }
-      }
+      // Paper trades (including bot trades)
+      paperTradesRef.current.forEach(trade => {
+        const symbol = normalizeSymbol(trade.symbol || '');
+        if (!symbol.includes(chartSymbol) && !chartSymbol.includes(symbol)) return;
+        const entryPrice = Number(trade.entryPrice || 0);
+        if (entryPrice <= 0) return;
+        processTrade(
+          entryPrice,
+          (trade.side || '').toLowerCase() === 'long' ? 'long' : 'short',
+          trade.sl ? Number(trade.sl) : undefined,
+          trade.tp ? Number(trade.tp) : undefined,
+          trade.qty || 0, trade.unrealizedPnl,
+          trade.source === 'bot' ? 'bot' : 'manual',
+          `trade-${trade.id}-`
+        );
+      });
 
-      if (tp && tp > 0) {
-        const tpY = chart.getPriceCoordinate(tp);
-        if (tpY !== null) {
-          overlays.push({
-            key: `${prefix}tp`, y: tpY, price: tp,
-            type: 'tp', direction, source, qty,
-          });
-          zones.push({
-            top: Math.min(entryY, tpY),
-            height: Math.abs(entryY - tpY),
-            type: 'tp', key: `${prefix}tp-zone`,
-          });
-        }
-      }
-    };
-
-    // Exchange positions
-    positions.forEach(pos => {
-      const posSymbol = normalizeSymbol(pos.symbol || '');
-      if (!posSymbol.includes(chartSymbol) && !chartSymbol.includes(posSymbol)) return;
-      const entryPrice = Number(pos.avgEntryPrice || 0);
-      if (entryPrice <= 0) return;
-      processTrade(
-        entryPrice,
-        (pos.side || '').toLowerCase() === 'long' ? 'long' : 'short',
-        Number(pos.sl || pos.stopLoss || 0) || undefined,
-        Number(pos.tp || pos.takeProfit || 0) || undefined,
-        pos.qty || 0, undefined, 'exchange',
-        `pos-${pos.id}-`
-      );
+      setTradeOverlays(overlays);
+      setFillZones(zones);
     });
-
-    // Paper trades (including bot trades)
-    paperTrades.forEach(trade => {
-      const symbol = normalizeSymbol(trade.symbol || '');
-      if (!symbol.includes(chartSymbol) && !chartSymbol.includes(symbol)) return;
-      const entryPrice = Number(trade.entryPrice || 0);
-      if (entryPrice <= 0) return;
-      processTrade(
-        entryPrice,
-        (trade.side || '').toLowerCase() === 'long' ? 'long' : 'short',
-        trade.sl ? Number(trade.sl) : undefined,
-        trade.tp ? Number(trade.tp) : undefined,
-        trade.qty || 0, trade.unrealizedPnl,
-        trade.source === 'bot' ? 'bot' : 'manual',
-        `trade-${trade.id}-`
-      );
-    });
-
-    setTradeOverlays(overlays);
-    setFillZones(zones);
-  }, [positions, paperTrades, selectedSymbol, chart]);
+  }, [chart]);
 
   // ── Subscribe to chart scroll/zoom ──
   useEffect(() => {
-    const unsubscribe = chart.onVisibleRangeChange(() => {
-      requestAnimationFrame(updateTradeOverlays);
-    });
-    updateTradeOverlays();
-    return unsubscribe;
-  }, [chart, updateTradeOverlays]);
+    const unsubscribe = chart.onVisibleRangeChange(scheduleOverlayUpdate);
+    // Initial calculation with a small delay to ensure chart is rendered
+    const timer = setTimeout(scheduleOverlayUpdate, 200);
+    return () => { unsubscribe(); clearTimeout(timer); };
+  }, [chart, scheduleOverlayUpdate]);
 
-  // ── Apply Position Lines to Chart (price lines only, no axis labels) ──
+  // ── Re-calculate overlays when trades change ──
+  useEffect(() => {
+    scheduleOverlayUpdate();
+  }, [positions, paperTrades, scheduleOverlayUpdate]);
+
+  // ── Apply Position Lines to Chart (price lines only, no labels) ──
   useEffect(() => {
     positionLineIdsRef.current.forEach(id => chart.removePriceLine(id));
     positionLineIdsRef.current = [];
 
     const chartSymbol = normalizeSymbol(selectedSymbol);
 
-    // Helper: add line with no axis label, minimal title
     const addLine = (id: string, price: number, color: string, lineWidth: number, lineStyle: number) => {
       chart.addPriceLine(id, price, color, '', lineWidth, lineStyle, false);
       positionLineIdsRef.current.push(id);
@@ -376,13 +386,11 @@ export default function RouaChart({
       if (trade.tp && Number(trade.tp) > 0) addLine(`trade-tp-${trade.id}`, Number(trade.tp), '#3fb950', 1, 2);
     });
 
-    requestAnimationFrame(updateTradeOverlays);
-
     return () => {
       positionLineIdsRef.current.forEach(id => chart.removePriceLine(id));
       positionLineIdsRef.current = [];
     };
-  }, [positions, paperTrades, selectedSymbol, chart, updateTradeOverlays]);
+  }, [positions, paperTrades, selectedSymbol, chart]);
 
 
 

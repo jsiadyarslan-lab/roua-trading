@@ -1,10 +1,12 @@
 {
   "$schema": "https://railpack.com/config/file/v1",
-  "start": "sh -c 'cd /app && bunx prisma db push --schema=./apps/web/prisma/schema.prisma --skip-generate --accept-data-loss 2>/dev/null; cd apps/web && bun x next start -H 0.0.0.0'",
+  "start": "sh -c 'cd /app && bunx prisma generate --schema=./prisma/schema.prisma 2>/dev/null; bunx prisma db push --schema=./prisma/schema.prisma --accept-data-loss 2>/dev/null; export API_INTERNAL_URL=http://127.0.0.1:3001; cd apps/api && node dist/main.js & API_PID=$!; echo \"Waiting for API...\"; for i in $(seq 1 30); do curl -fsS http://127.0.0.1:3001/api/health >/dev/null 2>&1 && echo \"API ready!\" && break; sleep 1; done; cd /app/apps/web && bun x next start -H 0.0.0.0'",
   "build": {
     "commands": [
-      "bunx prisma generate --schema=./apps/web/prisma/schema.prisma",
-      "bun run build"
+      "bunx prisma generate --schema=./prisma/schema.prisma",
+      "cd packages/shared && bun run build",
+      "cd apps/api && bun run build",
+      "cd apps/web && bun run build"
     ]
   },
   "install": {

@@ -1,15 +1,7 @@
 import type { NextConfig } from "next";
-import TerserPlugin from "terser-webpack-plugin";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // API Routing Architecture
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//
-// CRITICAL routes → NestJS:
-//   /api/trading/*, /api/signals/*, /api/portfolio/*
-//
-// LOCAL routes → Next.js:
-//   /api/auth/*, /api/exchange/*, /api/alpaca/*, /api/ai/*, /api/news/*
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const apiTarget = process.env.API_INTERNAL_URL || "http://localhost:3001";
@@ -27,7 +19,7 @@ const nextConfig: NextConfig = {
   ],
 
   // NOTE: lucide-react removed from optimizePackageImports — it causes
-  // "Cannot access 'X' before initialization" (scope conflict with minifier)
+  // TDZ errors when barrel file icons share minified scope with other libs
   experimental: {
     optimizePackageImports: [
       'recharts',
@@ -36,24 +28,27 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // ── Fix: lucide-react minification crash ──
-  // lucide-react defines ~1500 icon components in a barrel file.
-  // When minified, variable names get reused across the same scope,
-  // causing TDZ errors: "Cannot access 'X'/'J'/'K' before initialization".
-  // Solution: compress code but skip mangling (keeps original var names).
+  // ── Fix: lucide-react TDZ crash ──
+  // Root cause: lucide-react's barrel file defines ~1500 icon variables.
+  // When webpack bundles them into the same chunk as React/Radix internals,
+  // the minifier creates TDZ errors (e.g. "Cannot access 'X' before initialization").
+  //
+  // Fix: Split lucide-react into its own chunk so its variables
+  // are isolated from React/Radix/other framework code.
   webpack(config, { isServer }) {
     if (!isServer && config.optimization) {
       config.optimization.concatenateModules = false;
 
-      config.optimization.minimizer = [
-        new TerserPlugin({
-          terserOptions: {
-            compress: true,
-            mangle: false,
-          },
-          extractComments: false,
-        }),
-      ];
+      // Force lucide-react into its own chunk to prevent TDZ conflicts
+      const existingSplitChunks = config.optimization.splitChunks as any;
+      if (existingSplitChunks && existingSplitChunks.cacheGroups) {
+        existingSplitChunks.cacheGroups.lucide = {
+          test: /[\\/]node_modules[\\/]lucide-react[\\/]/,
+          name: 'lucide-react',
+          chunks: 'all' as const,
+          enforce: true,
+        };
+      }
     }
     return config;
   },

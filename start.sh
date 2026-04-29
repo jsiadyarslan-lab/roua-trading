@@ -59,14 +59,22 @@ run_web_start() {
 # Determine the project root (Railway runs from /app)
 PROJECT_ROOT="$(pwd)"
 
+# FIX: Ensure API_INTERNAL_URL is set so Next.js can reach NestJS.
+# In a single-container deploy, NestJS runs on localhost:3001.
+# This is the #1 cause of "fetch failed" errors in production —
+# the frontend can't find the API because this env var is missing.
+export API_INTERNAL_URL="${API_INTERNAL_URL:-http://127.0.0.1:3001}"
+
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "🚀 Roua Trading - Starting Full Stack"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "DATABASE_URL: ${DATABASE_URL}"
+echo "DATABASE_URL: ${DATABASE_URL:+[SET (${#DATABASE_URL} chars)]}${DATABASE_URL:-[NOT SET]}"
+echo "API_INTERNAL_URL: ${API_INTERNAL_URL:-[NOT SET]}"
 echo "RP_ID: ${RP_ID:-localhost}"
 echo "ORIGIN: ${ORIGIN:-not set}"
 echo "NODE_ENV: ${NODE_ENV:-development}"
-echo "DEV_MODE: ${DEV_MODE:-not set}"
+echo "PORT: ${PORT:-3000}"
+echo "API_PORT: ${API_PORT:-3001}"
 echo "RUNNER: $([ "$USE_BUN" -eq 1 ] && echo bun || echo npm)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 

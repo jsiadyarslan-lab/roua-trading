@@ -2,40 +2,45 @@
 # Roua Trading — Root Dockerfile for Railway Deployment
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
-# Builds the Next.js web app from the monorepo root.
-# Uses Node.js + npm (matching package-lock.json format).
-# No build secrets required — ALPACA_PAPER and other API keys
-# are runtime env vars, NOT build-time secrets.
+# FULL STACK: NestJS API (port 3001) + Next.js Web (port 3000)
+# in a single container, managed by start.sh
+#
+# FIX: Previously this Dockerfile only built and ran Next.js,
+# completely ignoring the NestJS API. This caused ALL AI,
+# scanner, news, and trading endpoints to return "fetch failed"
+# because the API server was never started.
+#
+# Now builds BOTH apps and uses start.sh to run them together.
 #
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v5
+ARG BUILD_CACHE=v6
 
 # ─────────────────────────────────────────────────────────────
 # Stage 1: Install dependencies
 # ─────────────────────────────────────────────────────────────
 FROM node:22-slim AS deps
 
-# OpenSSL required by Prisma
-RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# OpenSSL required by Prisma + curl for health checks
+RUN apt-get update -y && apt-get install -y openssl curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy lockfile + workspace manifests first (cache-friendly)
+# Copy lockfile + ALL workspace manifests (including API now)
 COPY package.json package-lock.json ./
 COPY apps/web/package.json ./apps/web/
+COPY apps/api/package.json ./apps/api/
 COPY packages/shared/package.json ./packages/shared/
 
 # Install all workspace dependencies
 RUN npm ci --install-strategy=hoisted
 
 # ─────────────────────────────────────────────────────────────
-# Stage 2: Build the Next.js application
+# Stage 2: Build BOTH applications
 # ─────────────────────────────────────────────────────────────
 FROM node:22-slim AS builder
 
-# OpenSSL required by Prisma
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -49,16 +54,22 @@ COPY . .
 # Generate Prisma client (schema is at repo root: prisma/schema.prisma)
 RUN npx prisma generate --schema=./prisma/schema.prisma
 
-# Build the Next.js app
+# Build the shared package first (dependency of both apps)
+RUN cd packages/shared && npm run build
+
+# Build the NestJS API
+RUN cd apps/api && npm run build
+
+# Build the Next.js web app
 RUN cd apps/web && npm run build
 
 # ─────────────────────────────────────────────────────────────
-# Stage 3: Minimal production image
+# Stage 3: Production image with API + Web
 # ─────────────────────────────────────────────────────────────
 FROM node:22-slim AS runner
 
-# OpenSSL required by Prisma at runtime
-RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# OpenSSL for Prisma + curl for health checks + bash for start.sh
+RUN apt-get update -y && apt-get install -y openssl curl bash && rm -rf /var/lib/apt/lists/*
 
 # Security: run as non-root user
 RUN groupadd --system --gid 1001 roua \
@@ -69,21 +80,28 @@ WORKDIR /app
 # Set production environment
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV API_PORT=3001
 ENV HOSTNAME="0.0.0.0"
 
 # Copy all source (for next start mode — non-standalone)
 COPY --from=builder --chown=webuser:roua /app .
 
-# Ensure public directory exists
-RUN mkdir -p apps/web/public
+# Ensure required directories exist
+RUN mkdir -p apps/web/public apps/api/dist
+
+# Make start.sh executable
+RUN chmod +x start.sh
 
 USER webuser
 
-EXPOSE 3000
+# Expose both ports: web (3000) and API (3001)
+EXPOSE 3000 3001
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-  CMD node -e "fetch('http://localhost:3000/').catch(()=>process.exit(1))"
+# Health check — verify both services are responding
+HEALTHCHECK --interval=30s --timeout=10s --start-period=45s --retries=3 \
+  CMD curl -fsS http://localhost:3000/ > /dev/null 2>&1 || exit 1
 
-# Start: run prisma db push then next start
-CMD ["sh", "-c", "cd /app && npx prisma db push --schema=./prisma/schema.prisma --skip-generate --accept-data-loss 2>/dev/null; cd apps/web && npx next start -H 0.0.0.0"]
+# FIX: Use start.sh which runs BOTH NestJS API (port 3001)
+# AND Next.js Web (port 3000) in a single container.
+# Previously only ran `next start`, leaving the API dead.
+CMD ["bash", "start.sh"]

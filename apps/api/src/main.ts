@@ -62,8 +62,18 @@ async function bootstrap() {
     app.useGlobalFilters(new AllExceptionsFilter());
 
     // Enable CORS for Next.js frontend
+    // FIX: In production on Railway, the frontend and API run in the same
+    // container, so CORS origin should allow both localhost and the public URL.
+    const corsOrigins = process.env.CORS_ORIGIN
+      ? process.env.CORS_ORIGIN.split(',').map(s => s.trim())
+      : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+    // Also allow the Railway public URL if set
+    if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+      corsOrigins.push(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+    }
+
     app.enableCors({
-      origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+      origin: corsOrigins,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'x-roua-session'],

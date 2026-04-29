@@ -116,7 +116,12 @@ export class TradingController {
       quantity: request.quantity,
       price: request.price,
       stopLoss: request.stopLoss!,
-      idempotencyKey: `v1-${Date.now()}-${request.symbol}`,
+      // FIX: Deterministic idempotency key based on order parameters.
+      // Previously `v1-${Date.now()}-${symbol}` was always unique, defeating
+      // the purpose of idempotency (preventing double-orders on network retries).
+      // Now the key is derived from userId+symbol+side+type+quantity+price, so
+      // identical retries within the same second are deduplicated.
+      idempotencyKey: `v1-${userId}-${request.symbol}-${request.side}-${request.type}-${request.quantity}-${request.price || 'market'}`,
     });
 
     if (!riskResult.allowed) {

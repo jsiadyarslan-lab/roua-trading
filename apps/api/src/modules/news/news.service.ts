@@ -246,16 +246,12 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
 
           if (existing) return; // Skip — already processed
 
-          // Now do AI analysis
-          const translatedTitle = await this._translateToArabic(item.title);
-
-          let translatedContent = '';
-          if (item.description) {
-            translatedContent = await this._translateToArabic(item.description);
-          }
-
-          const analysis = await this._analyzeSentiment(
-            item.title + (item.description ? '. ' + item.description : ''),
+          // FIX: Merge translation + sentiment into ONE AI call instead of 2-3.
+          // Previously: translateTitle (1 call) + translateDescription (1 call) + sentiment (1 call) = 2-3 calls
+          // Now: single combined prompt handles translation AND sentiment analysis together.
+          const combinedResult = await this._translateAndAnalyze(
+            item.title,
+            item.description,
             item.category,
           );
 
@@ -267,18 +263,18 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
             data: {
               source: item.source,
               title: item.title,
-              translatedTitle,
+              translatedTitle: combinedResult.translatedTitle,
               content: item.description || '',
-              translatedContent: translatedContent || item.description || '',
-              summary: analysis.summary || '',
+              translatedContent: combinedResult.translatedContent || item.description || '',
+              summary: combinedResult.summary || '',
               url: item.link || null,
-              sentiment: analysis.sentimentScore || 0,
-              sentimentLabel: analysis.sentiment || 'neutral',
-              impactLevel: analysis.impactLevel || 'medium',
-              affectedAssets: JSON.stringify(analysis.affectedAssets || []),
+              sentiment: combinedResult.sentimentScore || 0,
+              sentimentLabel: combinedResult.sentiment || 'neutral',
+              impactLevel: combinedResult.impactLevel || 'medium',
+              affectedAssets: JSON.stringify(combinedResult.affectedAssets || []),
               category: item.category || 'General',
               categoryAr,
-              aiAnalysis: analysis.fullAnalysis || '',
+              aiAnalysis: combinedResult.fullAnalysis || '',
               imageUrl: item.imageUrl || null,
               publishedAt: item.publishedAt
                 ? new Date(item.publishedAt)
@@ -496,6 +492,70 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
       return result.content || text;
     } catch {
       return text;
+    }
+  }
+
+  /**
+   * FIX: Combined translation + sentiment analysis in ONE AI call.
+   * Previously, each news item required 2-3 AI calls:
+   *   translateTitle (1) + translateDescription (1) + sentiment (1) = 2-3 calls
+   * This merged function does both in a single call, cutting AI usage by 50-66%.
+   */
+  private async _translateAndAnalyze(
+    title: string,
+    description: string | undefined,
+    category?: string,
+  ): Promise<{
+    translatedTitle: string;
+    translatedContent: string;
+    sentiment: string;
+    sentimentScore: number;
+    impactLevel: string;
+    affectedAssets: string[];
+    summary: string;
+    fullAnalysis: string;
+  }> {
+    const defaultResult = {
+      translatedTitle: title,
+      translatedContent: description || '',
+      sentiment: 'neutral',
+      sentimentScore: 0,
+      impactLevel: 'medium',
+      affectedAssets: [] as string[],
+      summary: '',
+      fullAnalysis: '',
+    };
+
+    const fullText = title + (description ? '. ' + description : '');
+
+    try {
+      const result = await this.aiOrchestrator.analyze({
+        symbol: 'NEWS',
+        prompt: `أنت محلل أخبار مالية. حلل الخبر التالي وأجب بصيغة JSON فقط بدون أي نص آخر:
+{"translatedTitle": "العنوان المترجم للعربية", "translatedContent": "المحتوى المترجم للعربية", "sentiment": "positive أو negative أو neutral", "sentimentScore": رقم بين -1 و 1, "impactLevel": "high أو medium أو low", "affectedAssets": ["BTC", "ETH"], "summary": "ملخص عربي في جملة واحدة"}
+
+الخبر: ${fullText.substring(0, 1500)}`,
+        type: 'sentiment',
+        language: 'ar',
+      });
+
+      const content = result.content || '';
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[0]);
+          return { ...defaultResult, ...parsed, fullAnalysis: content };
+        } catch {
+          // JSON parse failed, use heuristics
+        }
+      }
+
+      // Fallback: heuristic analysis with simple translation
+      return this._heuristicSentiment(fullText, defaultResult);
+    } catch (error: any) {
+      this.logger.warn(`Combined translation+sentiment analysis failed: ${error.message}`);
+      return this._heuristicSentiment(fullText, defaultResult);
     }
   }
 

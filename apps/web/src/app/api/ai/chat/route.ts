@@ -29,13 +29,19 @@ export async function POST(req: NextRequest) {
     const startedAt = Date.now()
 
     // Use internal API URL to avoid circular self-fetch through Next.js router
-    const apiInternalUrl = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || `${origin}`
+    // FIX: If no internal URL is configured, we MUST skip the NestJS call entirely
+    // because falling back to ${origin} creates a circular request loop:
+    // /api/ai/chat → ${origin}/api/ai/analyze → Next.js route → infinite loop
+    const apiInternalUrl = process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL
+    const hasInternalUrl = !!(apiInternalUrl && apiInternalUrl !== origin)
 
     // ── Step 1: Try NestJS AI orchestrator (real AI models) ──
-    try {
-      const contextPrompt = buildContextPrompt(message, symbol, style)
+    // Only attempt if we have a non-circular internal URL
+    if (hasInternalUrl) {
+      try {
+        const contextPrompt = buildContextPrompt(message, symbol, style)
 
-      const nestjsRes = await fetch(`${apiInternalUrl}/api/ai/analyze`, {
+        const nestjsRes = await fetch(`${apiInternalUrl}/api/ai/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -66,6 +72,7 @@ export async function POST(req: NextRequest) {
     } catch (e: any) {
       console.log('[ai/chat] NestJS unavailable, falling back to local analysis:', e?.message || e)
     }
+    } // end if (hasInternalUrl)
 
     // ── Step 2: Fallback to local algorithmic analysis ──
     return await localAnalysisFallback(message, symbol, origin, startedAt, style)

@@ -12,6 +12,7 @@ import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { ExchangeService } from '../exchange.service';
 import { RedisService } from '../../../common/redis/redis.service';
+import { PrismaService } from '../../../common/prisma/prisma.service';
 
 /**
  * Exchange WebSocket Gateway
@@ -55,6 +56,7 @@ export class ExchangeGateway
   constructor(
     private readonly exchangeService: ExchangeService,
     private readonly redisService: RedisService,
+    private readonly prisma: PrismaService,
   ) {}
 
   afterInit(server: Server) {
@@ -65,7 +67,45 @@ export class ExchangeGateway
   }
 
   async handleConnection(client: Socket) {
-    this.logger.debug(`🔌 Client connected: ${client.id}`);
+    // FIX: Authenticate WebSocket connections to prevent unauthorized access.
+    // Previously, anyone could connect and subscribe to price feeds.
+    // Now we check for a valid session token in handshake auth or query.
+    const token =
+      client.handshake.auth?.token ||
+      client.handshake.query?.token ||
+      client.handshake.headers?.['x-roua-session'] as string ||
+      // Also check cookie (parsed from handshake headers)
+      this._extractSessionFromCookie(client.handshake.headers?.cookie as string);
+
+    if (!token) {
+      this.logger.warn(`🔌 Unauthenticated connection rejected: ${client.id}`);
+      client.emit('error', { message: 'Authentication required. Provide token in auth, query, or cookie.' });
+      client.disconnect(true);
+      return;
+    }
+
+    // Validate session token against database
+    try {
+      const session = await this.prisma.session.findUnique({
+        where: { token },
+        include: { user: true },
+      });
+
+      if (!session || session.expiresAt < new Date()) {
+        this.logger.warn(`🔌 Invalid/expired session for connection: ${client.id}`);
+        client.emit('error', { message: 'Session expired or invalid.' });
+        client.disconnect(true);
+        return;
+      }
+
+      // Attach user info to socket for downstream use
+      (client as any).user = session.user;
+      this.logger.debug(`🔌 Authenticated client connected: ${client.id} (user: ${session.user.displayName})`);
+    } catch (error: any) {
+      // DB unavailable — allow connection but log warning
+      this.logger.warn(`🔌 DB unavailable during WS auth — allowing connection: ${client.id}`);
+    }
+
     this.subscriptions.set(client.id, new Set());
   }
 
@@ -237,6 +277,15 @@ export class ExchangeGateway
     // In a production multi-instance setup, we would subscribe to a Redis channel
     // For now, the single-instance refresh cycle handles real-time updates
     this.logger.debug('📡 Redis Pub/Sub ready (single-instance mode)');
+  }
+
+  /**
+   * Extract session token from cookie header string
+   */
+  private _extractSessionFromCookie(cookieHeader: string | undefined): string | null {
+    if (!cookieHeader) return null;
+    const match = cookieHeader.match(/roua_session=([^;]+)/);
+    return match ? match[1] : null;
   }
 
   /**

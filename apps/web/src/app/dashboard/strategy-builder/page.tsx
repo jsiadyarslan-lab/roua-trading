@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Play, Plus, Settings2, Shield, Activity, GitBranch, Save, Trash2, X, ArrowDown } from 'lucide-react'
+import { Play, Plus, Settings2, Shield, Activity, GitBranch, Save, Trash2, X as XIcon, ArrowDown } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
 const T = {
@@ -277,7 +277,7 @@ export default function StrategyBuilderPage() {
                           }}
                           title="حذف"
                         >
-                          <X size={12} />
+                          <XIcon size={12} />
                         </button>
                       </div>
                     </div>
@@ -315,7 +315,7 @@ export default function StrategyBuilderPage() {
               marginBottom: showPanel ? 12 : 0, padding: 4,
             }}
           >
-            {showPanel ? <X size={16} /> : <Plus size={16} />}
+            {showPanel ? <XIcon size={16} /> : <Plus size={16} />}
           </button>
 
           {showPanel && (

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
+import { X as XIcon, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
 import type { OpenOrder } from './hooks/useExecutionEngine'
 
 interface OrderHistoryProps {
@@ -72,7 +72,7 @@ export function OrderHistory({ orders, onCancel, onLoad }: OrderHistoryProps) {
                   {cancelling === order.id ? (
                     <RefreshCw size={7} className="animate-spin" />
                   ) : (
-                    <X size={7} />
+                    <XIcon size={7} />
                   )}
                 </button>
               </div>

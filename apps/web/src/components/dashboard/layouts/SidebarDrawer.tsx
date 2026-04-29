@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, type ReactNode } from 'react'
-import { X, Pin } from 'lucide-react'
+import { X as XIcon, Pin } from 'lucide-react'
 
 interface SidebarDrawerProps {
   open: boolean
@@ -178,7 +178,7 @@ export function SidebarDrawer({
                   alignItems: 'center',
                 }}
               >
-                <X size={12} color="#6F849C" />
+                <XIcon size={12} color="#6F849C" />
               </button>
             )}
           </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, TrendingUp, TrendingDown, Sparkles } from 'lucide-react'
+import { X as XIcon, TrendingUp, TrendingDown, Sparkles } from 'lucide-react'
 import { useScannerContext } from '../ScannerProvider'
 import { DirectionTag } from '../shared/DirectionTag'
 import { SmartScoreBar } from '../shared/SmartScoreBar'
@@ -112,7 +112,7 @@ export function DeepAnalysisModal() {
         {/* Close */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 14px 0' }}>
           <button onClick={() => ctx.setSelectedSymbol(null)} style={{ padding: 6, borderRadius: 6, background: T.surface, border: `0.5px solid ${T.border}`, color: T.text3, cursor: 'pointer', display: 'flex' }}>
-            <X size={14} />
+            <XIcon size={14} />
           </button>
         </div>
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X, TrendingUp, TrendingDown } from 'lucide-react'
+import { X as XIcon, TrendingUp, TrendingDown } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
 
 interface PositionCardProps {
@@ -444,7 +444,7 @@ export function PositionCard({
                 el.style.background = 'rgba(255,255,255,0.03)'
               }}
             >
-              <X size={10} color="#6F849C" />
+              <XIcon size={10} color="#6F849C" />
             </button>
           )}
         </div>

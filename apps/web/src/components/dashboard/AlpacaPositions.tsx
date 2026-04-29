@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { RefreshCw, TrendingDown, TrendingUp, X, History } from 'lucide-react'
+import { RefreshCw, TrendingDown, TrendingUp, X as XIcon, History } from 'lucide-react'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { usePaperTradesStore, type ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
 
@@ -364,7 +364,7 @@ export function AlpacaPositions() {
                     'تأكيد'
                   ) : (
                     <>
-                      <X size={8} />
+                      <XIcon size={8} />
                       إغلاق
                     </>
                   )}

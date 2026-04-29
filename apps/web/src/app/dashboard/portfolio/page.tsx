@@ -29,7 +29,7 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area, BarChart, Bar,
 } from 'recharts'
-import { TrendingUp, TrendingDown, Award, Target, BarChart2, X, Shield, Activity, RefreshCw, Loader2, AlertTriangle, ChevronRight, Clock, History, Brain } from 'lucide-react'
+import { TrendingUp, TrendingDown, Award, Target, BarChart2, X as XIcon, Shield, Activity, RefreshCw, Loader2, AlertTriangle, ChevronRight, Clock, History, Brain } from 'lucide-react'
 import { usePaperTradesStore, ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
 import { fetchPositionsUnified, fetchSummaryUnified, closePositionUnified } from '@/lib/api-fetch'
 
@@ -646,7 +646,7 @@ export default function PortfolioPage() {
                           opacity: closing === pos.id ? 0.5 : 1,
                         }}
                       >
-                        <X size={9} />
+                        <XIcon size={9} />
                         {closing === pos.id ? '...' : 'إغلاق'}
                       </button>
                     </div>

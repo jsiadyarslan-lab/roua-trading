@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { Search, X, Star, TrendingUp, TrendingDown } from 'lucide-react'
+import { Search, X as XIcon, Star, TrendingUp, TrendingDown } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { T } from '@/lib/theme-tokens'
 
@@ -117,7 +117,7 @@ export function SymbolSearch({ value, onChange, onSelect, currentPrice }: Symbol
         )}
         {search && (
           <button onClick={() => { setSearch(''); onChange('') }} className="text-[var(--muted)] hover:text-[var(--foreground)]">
-            <X size={12} />
+            <XIcon size={12} />
           </button>
         )}
       </div>

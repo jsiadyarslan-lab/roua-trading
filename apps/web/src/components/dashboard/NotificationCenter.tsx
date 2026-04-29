@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { X, Bot, Brain, ScanSearch, Zap } from 'lucide-react'
+import { X as XIcon, Bot, Brain, ScanSearch, Zap } from 'lucide-react'
 import {
   useNotificationStore,
   Notification,
@@ -271,7 +271,7 @@ function ToastCard({
           marginTop: 2,
         }}
       >
-        <X size={12} />
+        <XIcon size={12} />
       </button>
     </div>
   )
@@ -417,7 +417,7 @@ function NotificationItem({
           opacity: 0.5,
         }}
       >
-        <X size={11} />
+        <XIcon size={11} />
       </button>
     </div>
   )

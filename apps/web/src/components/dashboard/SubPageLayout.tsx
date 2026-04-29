@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, Menu, X } from 'lucide-react'
+import { ChevronLeft, Menu, X as XIcon } from 'lucide-react'
 
 interface SubPageLayoutProps {
   children: React.ReactNode
@@ -108,7 +108,7 @@ export default function SubPageLayout({
               alignItems: 'center', justifyContent: 'center',
             }}
           >
-            {mobileMenuOpen ? <X size={14} /> : <Menu size={14} />}
+            {mobileMenuOpen ? <XIcon size={14} /> : <Menu size={14} />}
           </button>
         )}
 

@@ -16,7 +16,7 @@ import {
   ToggleRight,
   Globe,
   Bell,
-  X,
+  X as XIcon,
   Plus,
   Loader2,
 } from 'lucide-react'
@@ -573,7 +573,7 @@ export default function AdminSettingsPage() {
                 onClick={() => setShowAddKeyModal(false)}
                 style={{ background: 'transparent', border: 'none', color: COLORS.muted, cursor: 'pointer', padding: 4 }}
               >
-                <X size={18} />
+                <XIcon size={18} />
               </button>
             </div>
 

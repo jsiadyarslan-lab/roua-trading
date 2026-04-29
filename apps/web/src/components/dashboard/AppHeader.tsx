@@ -8,7 +8,7 @@ import {
   Home, Wallet, Brain, ScanSearch, BarChart2,
   Copy, Users, Newspaper, CalendarDays, Settings,
   ChevronDown, Bell, User, MoreHorizontal,
-  TrendingUp, TrendingDown, Menu, X, GitMerge, Activity,
+  TrendingUp, TrendingDown, Menu, X as XIcon, GitMerge, Activity,
   FlaskConical, Shield, Hammer
 } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
@@ -746,7 +746,7 @@ export function AppHeader() {
           }} className="custom-scrollbar" onClick={e => e.stopPropagation()}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                 <span style={{ fontSize: 18, fontWeight: 900, color: T.text, fontFamily: "'Cairo', sans-serif" }}>القائمة</span>
-                <X size={24} color={T.text} onClick={() => setMenuOpen(false)} style={{ cursor: 'pointer' }} />
+                <XIcon size={24} color={T.text} onClick={() => setMenuOpen(false)} style={{ cursor: 'pointer' }} />
              </div>
              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {NAV_LINKS.map(({ href, label, icon: Icon }) => {

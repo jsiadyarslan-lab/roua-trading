@@ -5,7 +5,7 @@ import {
   Users,
   Search,
   Filter,
-  X,
+  X as XIcon,
   Mail,
   Shield,
   TrendingUp,
@@ -199,7 +199,7 @@ export default function AdminUsersPage() {
           />
           {searchInput && (
             <button onClick={() => { setSearchInput(''); setSearch('') }} style={{ background: 'transparent', border: 'none', color: COLORS.muted, cursor: 'pointer', padding: 0 }}>
-              <X size={12} />
+              <XIcon size={12} />
             </button>
           )}
         </div>
@@ -387,7 +387,7 @@ export default function AdminUsersPage() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <span style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>تفاصيل المستخدم</span>
               <button onClick={() => setSelectedUser(null)} style={{ background: 'transparent', border: 'none', color: COLORS.muted, cursor: 'pointer' }}>
-                <X size={18} />
+                <XIcon size={18} />
               </button>
             </div>
 

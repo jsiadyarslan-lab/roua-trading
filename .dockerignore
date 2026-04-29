@@ -36,10 +36,8 @@
 .DS_Store
 Thumbs.db
 
-# Docker
+# Docker compose files (not needed for build)
 docker-compose*.yml
-Dockerfile*
-.dockerignore
 
 # Documentation
 README.md
@@ -59,3 +57,12 @@ npm-debug.log*
 *.tgz
 .cache
 tmp/
+
+# Agent context (not needed in production)
+agent-ctx/
+worklog.md
+PROGRESS.md
+download/
+.zscripts/
+skills/
+mini-services/

@@ -1,13 +1,13 @@
 {
   "$schema": "https://railpack.com/config/file/v1",
-  "start": "bash start.sh",
+  "start": "sh -c 'cd /app && bunx prisma db push --schema=./apps/web/prisma/schema.prisma --skip-generate --accept-data-loss 2>/dev/null; cd apps/web && bun x next start -H 0.0.0.0'",
   "build": {
     "commands": [
-      "npx prisma generate --schema=./prisma/schema.prisma",
-      "npm run build"
+      "bunx prisma generate --schema=./apps/web/prisma/schema.prisma",
+      "bun run build"
     ]
   },
   "install": {
-    "commands": ["npm ci --workspaces --include-workspace-root"]
+    "commands": ["bun install --frozen-lockfile"]
   }
 }

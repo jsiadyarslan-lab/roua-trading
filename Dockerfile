@@ -1,41 +1,79 @@
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Roua Trading — Production Dockerfile for Railway
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-FROM node:22-bookworm-slim
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Roua Trading — Root Dockerfile for Railway Deployment
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# Builds the Next.js web app from the monorepo root.
+# No build secrets required — ALPACA_PAPER and other API keys
+# are runtime env vars, NOT build-time secrets.
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# ─────────────────────────────────────────────────────────────
+# Stage 1: Install dependencies
+# ─────────────────────────────────────────────────────────────
+FROM oven/bun:1 AS deps
 
 WORKDIR /app
 
-# Install system dependencies required by Prisma, Next.js, and runtime scripts
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends bash curl ca-certificates openssl \
-  && rm -rf /var/lib/apt/lists/*
-
-# Copy package manifests first for better layer caching
+# Copy lockfile + workspace manifests first (cache-friendly)
 COPY package.json package-lock.json ./
-COPY apps/api/package.json apps/api/package.json
-COPY apps/web/package.json apps/web/package.json
-COPY packages/shared/package.json packages/shared/package.json
+COPY apps/web/package.json ./apps/web/
+COPY packages/shared/package.json ./packages/shared/
 
 # Install all workspace dependencies
-RUN npm ci --workspaces --include-workspace-root
+RUN bun install --frozen-lockfile
 
-# Copy the rest of the source code
+# ─────────────────────────────────────────────────────────────
+# Stage 2: Build the Next.js application
+# ─────────────────────────────────────────────────────────────
+FROM oven/bun:1 AS builder
+
+WORKDIR /app
+
+# Copy installed node_modules from deps stage
+COPY --from=deps /app/node_modules ./node_modules
+
+# Copy full source for build context
 COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate --schema=./prisma/schema.prisma
+# Generate Prisma client (needed for auth API routes)
+RUN bunx prisma generate --schema=./apps/web/prisma/schema.prisma
 
-# Build the workspace
-RUN npm run build
+# Build the Next.js app
+RUN cd apps/web && bun run build
 
-# Runtime environment
+# ─────────────────────────────────────────────────────────────
+# Stage 3: Minimal production image
+# ─────────────────────────────────────────────────────────────
+FROM oven/bun:1-slim AS runner
+
+# Security: run as non-root user
+RUN addgroup --system --gid 1001 roua \
+    && adduser --system --uid 1001 --ingroup roua webuser
+
+WORKDIR /app
+
+# Set production environment
 ENV NODE_ENV=production
 ENV PORT=3000
-ENV HOSTNAME=0.0.0.0
+ENV HOSTNAME="0.0.0.0"
+
+# Copy all source (for next start mode — non-standalone)
+COPY --from=builder --chown=webuser:roua /app .
+
+# Copy Prisma schema and generated client
+COPY --from=builder --chown=webuser:roua /app/apps/web/prisma ./apps/web/prisma
+
+# Ensure public directory exists
+RUN mkdir -p apps/web/public
+
+USER webuser
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD curl --fail --silent http://localhost:3000/ || exit 1
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
 
-CMD ["bash", "start.sh"]
+# Start: run prisma db push then next start
+CMD ["sh", "-c", "cd /app && bunx prisma db push --schema=./apps/web/prisma/schema.prisma --skip-generate --accept-data-loss 2>/dev/null; cd apps/web && bun x next start -H 0.0.0.0"]

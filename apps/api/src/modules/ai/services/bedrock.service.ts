@@ -32,9 +32,9 @@ export class BedrockService {
   private readonly defaultModel = 'anthropic.claude-3-5-sonnet-20241022-v2:0';
 
   constructor(private readonly configService: ConfigService) {
-    this.accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID', '');
-    this.secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY', '');
-    this.region = this.configService.get<string>('AWS_REGION', 'us-east-1');
+    this.accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID', '')?.trim() || '';
+    this.secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY', '')?.trim() || '';
+    this.region = this.configService.get<string>('AWS_REGION', 'us-east-1')?.trim() || 'us-east-1';
     this.available = !!(this.accessKeyId && this.secretAccessKey);
 
     if (this.available) {
@@ -55,7 +55,9 @@ export class BedrockService {
       // Use AWS SDK-style request via fetch (to avoid adding @aws-sdk dependency)
       // We implement AWS SigV4 signing manually for the Bedrock InvokeModel API
       const body = this._buildRequestBody(request);
-      const endpoint = `https://bedrock-runtime.${this.region}.amazonaws.com/model/${this.defaultModel}/invoke`;
+      // URL-encode the model ID (colons must be %3A in the path)
+      const encodedModelId = encodeURIComponent(this.defaultModel);
+      const endpoint = `https://bedrock-runtime.${this.region}.amazonaws.com/model/${encodedModelId}/invoke`;
       
       const headers = await this._signRequest(endpoint, body);
       
@@ -67,7 +69,8 @@ export class BedrockService {
       });
 
       if (!response.ok) {
-        throw new Error(`Bedrock API error: ${response.status} ${response.statusText}`);
+        const errorBody = await response.text().catch(() => '');
+        throw new Error(`Bedrock API error: ${response.status} ${response.statusText} — ${errorBody}`);
       }
 
       const data = await response.json();
@@ -138,7 +141,10 @@ export class BedrockService {
   }
 
   /**
-   * Sign request with AWS SigV4 (minimal implementation for Bedrock)
+   * Sign request with AWS SigV4 for Bedrock InvokeModel API
+   * 
+   * FIX: Added required x-amz-content-sha256 header, accept header,
+   * and proper URI encoding for the canonical request.
    */
   private async _signRequest(endpoint: string, body: any): Promise<Record<string, string>> {
     const crypto = await import('crypto');
@@ -151,13 +157,16 @@ export class BedrockService {
     const payloadHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
     
     const host = new URL(endpoint).host;
+    // FIX: URI-encode each path segment per AWS SigV4 spec (colons → %3A)
+    const canonicalUri = new URL(endpoint).pathname.split('/').map(s => encodeURIComponent(decodeURIComponent(s))).join('/');
     
-    const canonicalHeaders = `content-type:application/json\nhost:${host}\nx-amz-date:${amzDate}\n`;
-    const signedHeaders = 'content-type;host;x-amz-date';
+    // FIX: Include accept and x-amz-content-sha256 in signed headers (required by Bedrock)
+    const canonicalHeaders = `accept:application/json\ncontent-type:application/json\nhost:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`;
+    const signedHeaders = 'accept;content-type;host;x-amz-content-sha256;x-amz-date';
     
     const canonicalRequest = [
       'POST',
-      new URL(endpoint).pathname,
+      canonicalUri,
       '',
       canonicalHeaders,
       signedHeaders,
@@ -183,8 +192,10 @@ export class BedrockService {
     const signature = crypto.createHmac('sha256', signingKey).update(stringToSign).digest('hex');
     
     return {
+      'Accept': 'application/json',
       'Content-Type': 'application/json',
       'Host': host,
+      'X-Amz-Content-Sha256': payloadHash,
       'X-Amz-Date': amzDate,
       'Authorization': `AWS4-HMAC-SHA256 Credential=${this.accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
     };

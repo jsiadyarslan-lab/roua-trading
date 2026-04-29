@@ -290,15 +290,35 @@ export class AIOrchestratorService {
       let masterStrategyContent = 'لم يتم التوصل لاستراتيجية موحدة حالياً.';
       if (analyses.length > 0) {
         try {
-          const masterStrategy = await this.geminiService.analyze({
+          // FIX: Use Groq for master strategy instead of Gemini to reduce Gemini rate limit pressure
+          // Gemini is already used for the "tech" role; calling it again doubles the quota usage
+          const masterStrategy = await this.groqService.analyze({
             symbol,
             prompt: `بناءً على تحليلات المجلس التالية من 6 نماذج AI، لخص الاستراتيجية النهائية للتداول على ${symbol} بالعربية:\n${analyses.map(a => `${a.role} (${a.model}): ${a.vote} (${a.confidence}%)`).join('\n')}`,
             type: 'signal_generation',
             language: 'ar',
           });
-          masterStrategyContent = masterStrategy.content;
+          // Only use if Groq returned real content (confidence > 0)
+          if (masterStrategy.confidence > 0 && masterStrategy.content.length > 10) {
+            masterStrategyContent = masterStrategy.content;
+          } else {
+            throw new Error('Groq returned stub');
+          }
         } catch {
-          masterStrategyContent = `إجماع المجلس (6 نماذج): ${recommendation === 'BUY' ? 'شراء قوي' : recommendation === 'SELL' ? 'بيع قوي' : 'انتظار'} بنسبة ثقة ${consensusScore}%.`;
+          // Fallback to Gemini if Groq is unavailable
+          try {
+            const masterStrategy = await this.geminiService.analyze({
+              symbol,
+              prompt: `بناءً على تحليلات المجلس التالية من 6 نماذج AI، لخص الاستراتيجية النهائية للتداول على ${symbol} بالعربية:\n${analyses.map(a => `${a.role} (${a.model}): ${a.vote} (${a.confidence}%)`).join('\n')}`,
+              type: 'signal_generation',
+              language: 'ar',
+            });
+            if (masterStrategy.confidence > 0) {
+              masterStrategyContent = masterStrategy.content;
+            }
+          } catch {
+            masterStrategyContent = `إجماع المجلس (6 نماذج): ${recommendation === 'BUY' ? 'شراء قوي' : recommendation === 'SELL' ? 'بيع قوي' : 'انتظار'} بنسبة ثقة ${consensusScore}%.`;
+          }
         }
       }
 

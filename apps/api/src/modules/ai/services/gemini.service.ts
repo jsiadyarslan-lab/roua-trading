@@ -16,7 +16,7 @@ export class GeminiService {
   private readonly model = 'gemini-2.0-flash';
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('GOOGLE_AI_STUDIO_API_KEY', '');
+    this.apiKey = this.configService.get<string>('GOOGLE_AI_STUDIO_API_KEY', '')?.trim() || '';
     if (this.apiKey) {
       this.logger.log('💎 Gemini Service initialized (2.0 Flash)');
     } else {

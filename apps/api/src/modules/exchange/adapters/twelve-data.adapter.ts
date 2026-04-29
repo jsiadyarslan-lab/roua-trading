@@ -47,7 +47,7 @@ export class TwelveDataAdapter implements IExchangeAdapter {
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
   ) {
-    this.apiKey = this.configService.get<string>('TWELVE_DATA_API_KEY', '');
+    this.apiKey = this.configService.get<string>('TWELVE_DATA_API_KEY', '')?.trim() || '';
 
     if (!this.apiKey) {
       this.logger.warn('⚠️ TWELVE_DATA_API_KEY is not set — market data will not work');

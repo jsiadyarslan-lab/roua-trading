@@ -171,3 +171,26 @@ Stage Summary:
 - Affiliate Agent: ✅ Deployed and running with Telegram alerts
 - Total agents now: 10 (Gen 1: 6, Gen 2: 4)
 - Commits: c5abf99, 87b6000, 2a0ff47, ab45909
+
+---
+Task ID: restore-platform-fix-railway
+Agent: Main Agent
+Task: Restore original trading platform landing page and fix Railway build (ALPACA_PAPER secret error)
+
+Work Log:
+- Examined git history to find the original page.tsx before Neural Pulse landing page
+- Original page.tsx was a login/landing page with PasskeyLogin, platform features, AI Symphony, Security, Roadmap sections
+- Restored original page.tsx from commit db05850 (before landing page replacement)
+- Moved Neural Pulse landing page to /landing route for future use
+- Created root Dockerfile for Railway deployment (no build secrets needed)
+- Updated railpack.json with correct prisma schema path
+- Updated .dockerignore to allow root Dockerfile
+- Resolved merge conflicts during rebase with remote
+- Force pushed to GitHub main branch
+
+Stage Summary:
+- Original trading platform landing/login page RESTORED at /
+- Neural Pulse design preserved at /landing route
+- Root Dockerfile created — no ALPACA_PAPER build secret needed
+- Railway build issue: ALPACA_PAPER is configured as Build Secret in Railway dashboard, must be removed manually
+- Commit: ad7aa6d pushed to main

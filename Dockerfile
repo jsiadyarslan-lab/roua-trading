@@ -47,9 +47,9 @@ RUN cd apps/web && bun run build
 # ─────────────────────────────────────────────────────────────
 FROM oven/bun:1-slim AS runner
 
-# Security: run as non-root user
-RUN addgroup --system --gid 1001 roua \
-    && adduser --system --uid 1001 --ingroup roua webuser
+# Security: run as non-root user (Debian-based image uses groupadd/useradd, not addgroup/adduser)
+RUN groupadd --system --gid 1001 roua \
+    && useradd --system --uid 1001 --gid roua --create-home webuser
 
 WORKDIR /app
 

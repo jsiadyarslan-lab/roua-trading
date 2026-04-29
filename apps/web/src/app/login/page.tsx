@@ -1,23 +1,66 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Fingerprint } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 const SpaceBackground = dynamic(() => import('@/components/landing/SpaceBackground'), { ssr: false })
 
-export default function LoginPage() {
+/**
+ * Login Page — Roua Trading (رؤى)
+ *
+ * FIX: Previously, the Google and Passkey login buttons called non-existent
+ * routes, causing 404 errors. This has been fixed:
+ *
+ * 1. Google: Now calls /api/auth/signin/google which either redirects to
+ *    Google OAuth (if configured) or returns a clear error message.
+ * 2. Passkey: Now properly integrates with NestJS's WebAuthn endpoints:
+ *    - First gets a challenge from /api/auth/challenge
+ *    - Then verifies the credential via /api/auth/passkey/verify
+ *    - Both are proxied to NestJS backend
+ * 3. Error handling: Displays error messages from the URL params
+ *    (e.g., ?error=oauth_not_configured)
+ * 4. Suspense: Wrapped in Suspense boundary for useSearchParams() (Next.js 16 requirement)
+ */
+
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState<'google' | 'passkey' | null>(null)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(() => {
+    // Check for error from OAuth callback redirect
+    const urlError = searchParams.get('error')
+    if (urlError === 'access_denied') return 'تم رفض الوصول. حاول مرة أخرى.'
+    if (urlError === 'oauth_not_configured') return 'تسجيل الدخول عبر Google غير مُفعّل حالياً.'
+    if (urlError === 'token_exchange_failed') return 'فشل الاتصال بـ Google. حاول لاحقاً.'
+    if (urlError === 'user_info_failed') return 'فشل في جلب معلومات الحساب.'
+    if (urlError === 'db_unavailable') return 'قاعدة البيانات غير متاحة حالياً.'
+    return ''
+  })
 
   const handleGoogleLogin = async () => {
     setLoading('google')
     setError('')
     try {
-      // Use NextAuth Google provider
+      // FIX: Check if Google OAuth is available before redirecting.
+      // If GOOGLE_CLIENT_ID is not configured, show a clear error
+      // instead of letting the user hit a 404.
+      const checkRes = await fetch('/api/auth/signin/google', {
+        method: 'GET',
+        redirect: 'manual', // Don't follow redirect — we'll handle it
+      })
+
+      if (checkRes.status === 501) {
+        // Google OAuth not configured
+        const data = await checkRes.json()
+        setError(data.message || 'تسجيل الدخول عبر Google غير مُفعّل حالياً.')
+        setLoading(null)
+        return
+      }
+
+      // Google OAuth is configured — redirect to Google consent screen
       window.location.href = '/api/auth/signin/google'
     } catch (err: any) {
       setError(err.message || 'فشل تسجيل الدخول عبر Google')
@@ -31,7 +74,7 @@ export default function LoginPage() {
     try {
       // WebAuthn / Passkey authentication
       if (!window.PublicKeyCredential) {
-        setError('متصفحك لا يدعم Passkeys. استخدم Google بدلاً من ذلك.')
+        setError('متصفحك لا يدعم Passkeys. استخدم الدخول كضيف بدلاً من ذلك.')
         setLoading(null)
         return
       }
@@ -39,27 +82,82 @@ export default function LoginPage() {
       // Check if platform authenticator is available
       const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
       if (!available) {
-        setError('لا يوجد مُصادق Passkey متاح على هذا الجهاز.')
+        setError('لا يوجد مُصادق Passkey متاح على هذا الجهاز. استخدم الدخول كضيف.')
         setLoading(null)
         return
       }
 
-      // Start WebAuthn authentication
-      const challenge = new Uint8Array(32)
-      crypto.getRandomValues(challenge)
+      // FIX: Proper WebAuthn flow that integrates with NestJS backend:
+      // Step 1: Get authentication challenge from NestJS
+      const apiTarget = process.env.NEXT_PUBLIC_API_URL || ''
+      const challengeUrl = apiTarget
+        ? `${apiTarget}/api/auth/challenge?email=passkey@roua.auto`
+        : '/api/auth/challenge?email=passkey@roua.auto'
+
+      const challengeRes = await fetch(challengeUrl, {
+        signal: AbortSignal.timeout(10000),
+      })
+
+      if (!challengeRes.ok) {
+        // Challenge endpoint not available — try discoverable credential flow
+        const challenge = new Uint8Array(32)
+        crypto.getRandomValues(challenge)
+
+        const credential = await navigator.credentials.get({
+          publicKey: {
+            challenge,
+            timeout: 60000,
+            userVerification: 'preferred',
+            rpId: window.location.hostname,
+          },
+        }) as PublicKeyCredential | null
+
+        if (credential) {
+          const verifyRes = await fetch('/api/auth/passkey/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: credential.id,
+              rawId: Array.from(new Uint8Array(credential.rawId)),
+              response: {
+                authenticatorData: Array.from(new Uint8Array((credential.response as AuthenticatorAssertionResponse).authenticatorData)),
+                clientDataJSON: Array.from(new Uint8Array(credential.response.clientDataJSON)),
+                signature: Array.from(new Uint8Array((credential.response as AuthenticatorAssertionResponse).signature)),
+              },
+            }),
+          })
+
+          if (verifyRes.ok) {
+            router.push('/dashboard')
+          } else {
+            const data = await verifyRes.json()
+            setError(data.error || 'فشل التحقق من Passkey')
+          }
+        }
+        return
+      }
+
+      // Step 2: Use server challenge for WebAuthn authentication
+      const challengeData = await challengeRes.json()
+      const challengeBuffer = Uint8Array.from(atob(challengeData.challenge), c => c.charCodeAt(0))
 
       const credential = await navigator.credentials.get({
         publicKey: {
-          challenge,
+          challenge: challengeBuffer,
           timeout: 60000,
           userVerification: 'preferred',
           rpId: window.location.hostname,
+          allowCredentials: challengeData.allowCredentials?.map((c: any) => ({
+            id: Uint8Array.from(atob(c.id), (ch: number) => ch),
+            type: c.type || 'public-key',
+            transports: c.transports || ['internal'],
+          })),
         },
       }) as PublicKeyCredential | null
 
       if (credential) {
-        // Send credential to backend for verification
-        const res = await fetch('/api/auth/passkey/verify', {
+        // Step 3: Verify credential with NestJS
+        const verifyRes = await fetch('/api/auth/passkey/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -70,13 +168,14 @@ export default function LoginPage() {
               clientDataJSON: Array.from(new Uint8Array(credential.response.clientDataJSON)),
               signature: Array.from(new Uint8Array((credential.response as AuthenticatorAssertionResponse).signature)),
             },
+            email: challengeData.email || 'passkey@roua.auto',
           }),
         })
 
-        if (res.ok) {
+        if (verifyRes.ok) {
           router.push('/dashboard')
         } else {
-          const data = await res.json()
+          const data = await verifyRes.json()
           setError(data.error || 'فشل التحقق من Passkey')
         }
       }
@@ -218,5 +317,13 @@ export default function LoginPage() {
         </motion.p>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }

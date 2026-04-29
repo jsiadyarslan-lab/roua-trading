@@ -125,85 +125,80 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Analyze a news text manually using AI Council
+   * Analyze a news text manually using AI
+   *
+   * FIX: Previously this method made 3 separate AI calls:
+   *   1. Translate (1 call)
+   *   2. Sentiment analysis (1 call)
+   *   3. Multi-model analysis with all 6 AI models (6 calls!)
+   * Total: 8 AI calls per manual analysis — extremely wasteful.
+   *
+   * Now merged into a single combined prompt that handles translation,
+   * sentiment analysis, AND trading recommendation in ONE AI call.
+   * Multi-model analysis was removed — it's overkill for a manual
+   * news analysis endpoint that already has rate limiting (5/min).
+   * This reduces AI calls from 8 → 1 per request (87.5% reduction).
    */
   async analyzeNewsText(text: string, symbol?: string) {
-    // Step 1: Translate to Arabic
-    const translationResult = await this.aiOrchestrator.analyze({
+    // Single combined prompt: translation + sentiment + trading recommendation
+    const result = await this.aiOrchestrator.analyze({
       symbol: symbol || 'GENERAL',
-      prompt: `ترجم النص التالي إلى العربية بشكل احترافي ومختصر مع الحفاظ على المعنى الدقيق:\n\n${text}`,
-      type: 'general',
-      language: 'ar',
-    });
+      prompt: `أنت محلل أخبار مالية محترف. حلل الخبر التالي وأجب بصيغة JSON فقط بدون أي نص آخر:
+{"translatedTitle": "العنوان المترجم للعربية", "translatedContent": "المحتوى المترجم للعربية", "sentiment": "positive أو negative أو neutral", "sentimentScore": رقم بين -1 و 1, "impactLevel": "high أو medium أو low", "affectedAssets": ["BTC", "ETH"], "summary": "ملخص عربي مختصر في جملة واحدة", "marketImpact": "وصف تأثير الخبر على السوق", "recommendation": "توصية تداول واضحة مع مستوى الدخول والوقف"}
 
-    const translatedText = translationResult.content || text;
-
-    // Step 2: Analyze sentiment and impact
-    const sentimentResult = await this.aiOrchestrator.analyze({
-      symbol: symbol || 'GENERAL',
-      prompt: `حلل الخبر التالي من منظور تداول العملات الرقمية والأسواق المالية. أجب بصيغة JSON فقط بالشكل التالي:
-{"sentiment": "positive/negative/neutral", "sentimentScore": 0.8, "impactLevel": "high/medium/low", "affectedAssets": ["BTC", "ETH"], "summary": "ملخص عربي مختصر", "marketImpact": "وصف تأثير الخبر على السوق"}
-
-الخبر:\n${text}`,
+الخبر: ${text.substring(0, 2000)}`,
       type: 'sentiment',
       language: 'ar',
     });
 
+    const content = result.content || '';
     let analysisData: any = {
+      translatedTitle: text.substring(0, 100),
+      translatedContent: '',
       sentiment: 'neutral',
       sentimentScore: 0,
       impactLevel: 'medium',
       affectedAssets: [],
       summary: '',
       marketImpact: '',
+      recommendation: '',
     };
 
     try {
       // Try to extract JSON from the response
-      const content = sentimentResult.content || '';
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         analysisData = { ...analysisData, ...JSON.parse(jsonMatch[0]) };
       }
     } catch {
-      // Fallback: use text-based parsing
-      const content = (sentimentResult.content || '').toLowerCase();
-      if (content.includes('إيجابي') || content.includes('positive') || content.includes('صعود')) {
+      // Fallback: use text-based heuristic parsing
+      const lower = content.toLowerCase();
+      if (lower.includes('إيجابي') || lower.includes('positive') || lower.includes('صعود')) {
         analysisData.sentiment = 'positive';
         analysisData.sentimentScore = 0.6;
-      } else if (content.includes('سلبي') || content.includes('negative') || content.includes('هبوط')) {
+      } else if (lower.includes('سلبي') || lower.includes('negative') || lower.includes('هبوط')) {
         analysisData.sentiment = 'negative';
         analysisData.sentimentScore = -0.6;
       }
-    }
-
-    // Step 3: Get comprehensive analysis from all models
-    let fullAnalysis = '';
-    try {
-      const multiModel = await this.aiOrchestrator.analyzeWithAllModels({
-        symbol: symbol || 'GENERAL',
-        prompt: `حلل الخبر التالي من منظور التداول وأعطِ توصية واضحة:\n${text}`,
-        type: 'market_analysis',
-        language: 'ar',
-      });
-      fullAnalysis = JSON.stringify(
-        multiModel.analyses.map((a) => ({
-          model: a.model,
-          content: a.content?.substring(0, 500),
-          confidence: a.confidence,
-        })),
-      );
-    } catch {
-      fullAnalysis = sentimentResult.content || '';
+      // Use the raw AI content as translated text if JSON parsing failed
+      analysisData.translatedContent = content;
     }
 
     return {
       originalText: text,
-      translatedText,
-      analysis: analysisData,
-      aiAnalysis: fullAnalysis,
-      model: sentimentResult.model,
-      confidence: sentimentResult.confidence,
+      translatedText: analysisData.translatedContent || analysisData.translatedTitle || text,
+      analysis: {
+        sentiment: analysisData.sentiment,
+        sentimentScore: analysisData.sentimentScore,
+        impactLevel: analysisData.impactLevel,
+        affectedAssets: analysisData.affectedAssets,
+        summary: analysisData.summary,
+        marketImpact: analysisData.marketImpact,
+        recommendation: analysisData.recommendation,
+      },
+      aiAnalysis: content,
+      model: result.model,
+      confidence: result.confidence,
     };
   }
 

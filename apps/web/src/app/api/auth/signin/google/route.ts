@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   // FIX: Determine the correct public origin.
   // In Railway/containers, request.nextUrl.origin is the internal address (0.0.0.0:8080).
   // Priority: ORIGIN env var > X-Forwarded-Host header > nextUrl.origin
-  let publicOrigin = process.env.ORIGIN
+  let publicOrigin = process.env.ORIGIN?.replace(/\/+$/, '') // strip trailing slashes
   if (!publicOrigin) {
     const forwardedHost = request.headers.get('x-forwarded-host')
     const forwardedProto = request.headers.get('x-forwarded-proto') || 'https'

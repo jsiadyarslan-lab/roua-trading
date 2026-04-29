@@ -80,6 +80,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const shortcutsRef = useRef<KeyboardShortcuts | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const mainSeriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
+  const priceLinesRef = useRef<Map<string, any>>(new Map());
   const onCrosshairMoveRef = useRef(onCrosshairMove);
 
   // Keep the ref updated without triggering re-init
@@ -324,9 +325,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       shortcutsRef.current.attach();
     }
 
-  }, [symbol]); // Removed onCrosshairMove dependency to avoid chart re-creation
+  // NOTE: symbol is NOT a dependency — we reuse the same chart instance
+  // when the symbol changes and just swap the data. This avoids a race
+  // condition where the chart is destroyed/recreated while data is loading.
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Initialize on mount ────────────────────────────────
+  // ── Initialize on mount (once) ────────────────────────
   useEffect(() => {
     setIsChartReady(false);
     initChart();
@@ -347,9 +351,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         shortcutsRef.current.detach();
       }
     };
+  // initChart is now stable (empty deps), so this runs only on mount/unmount
   }, [initChart]);
 
-  // ── Re-init on symbol change ───────────────────────────
+  // ── Handle symbol change: clear data without destroying chart ──
   useEffect(() => {
     if (drawingManagerRef.current) {
       drawingManagerRef.current.setSymbol(symbol);
@@ -366,6 +371,20 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       chartInstanceRef.current?.removeSeries(series);
     });
     oscillatorSeriesRef.current.clear();
+    // Clear candle + volume data so chart is blank while new data loads
+    candlesRef.current = [];
+    pendingCandlesRef.current = null;
+    try {
+      candleSeriesRef.current?.setData([] as any);
+      volumeSeriesRef.current?.setData([] as any);
+    } catch { /* series might not exist yet on first render */ }
+    // Clear active indicators state (they'll be re-added by setCandles)
+    setActiveIndicators(new Map());
+    // Clear price lines
+    priceLinesRef.current.forEach((line, id) => {
+      try { line.remove(); } catch {}
+    });
+    priceLinesRef.current.clear();
   }, [symbol]);
 
   // ── Apply pending candles when chart becomes ready ──
@@ -1208,7 +1227,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   }, []);
 
   // ── Price Lines (for positions/trades) ──
-  const priceLinesRef = useRef<Map<string, any>>(new Map());
+  // priceLinesRef is already declared at the top with other refs
 
   const addPriceLine = useCallback((id: string, price: number, color: string, label: string, lineWidth: number = 1, lineStyle: number = 2, axisLabelVisible: boolean = true) => {
     if (!candleSeriesRef.current) return;

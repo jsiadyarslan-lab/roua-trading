@@ -99,11 +99,15 @@ export default function RouaChart({
 
   // ── Fetch Historical Candles ───────────────────────────
   useEffect(() => {
+    let cancelled = false; // Guard against stale responses after symbol change
+
     const fetchCandles = async () => {
       try {
         setFeedState('waiting');
         const res = await fetch(`/api/exchange/history/${encodeURIComponent(selectedSymbol)}?interval=${timeframe}`);
         const j = await res.json();
+
+        if (cancelled) return; // Symbol changed while fetching — discard
 
         if (j.success && j.data && j.data.length > 0) {
           setFeedState('live');
@@ -129,11 +133,13 @@ export default function RouaChart({
           candlesRef.current = unique;
           chart.setCandles(unique);
         } else {
+          if (cancelled) return;
           setFeedState('fallback');
           // Generate simulated data as fallback
           generateSimulatedData();
         }
       } catch {
+        if (cancelled) return;
         setFeedState('fallback');
         generateSimulatedData();
       }
@@ -177,6 +183,8 @@ export default function RouaChart({
     };
 
     fetchCandles();
+
+    return () => { cancelled = true; };
   }, [selectedSymbol, timeframe]);
 
   // ── Live Price Sync ────────────────────────────────────

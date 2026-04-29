@@ -34,9 +34,16 @@ export async function DELETE(
 
     if (!res.ok) {
       const errBody = await res.text()
+      let userError = `Alpaca Error ${res.status}: ${errBody}`
+      
+      if (res.status === 403) {
+        userError = 'مفاتيح Alpaca غير صالحة أو منتهية الصلاحية'
+        console.error('[alpaca/positions] DELETE 403 Forbidden — API keys may be invalid:', errBody)
+      }
+      
       return NextResponse.json(
-        { success: false, error: `Alpaca Error ${res.status}: ${errBody}` },
-        { status: res.status }
+        { success: false, error: userError, alpacaStatus: res.status },
+        { status: res.status === 403 ? 503 : res.status }
       )
     }
 

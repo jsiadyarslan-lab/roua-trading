@@ -37,30 +37,19 @@ const nextConfig: NextConfig = {
   },
 
   // ── Fix: lucide-react minification crash ──
-  // lucide-react defines hundreds of icon components as `const X = forwardRef(...)`.
-  // When webpack's ModuleConcatenationPlugin merges them into one scope, the
-  // minifier can't find enough unique single-letter variable names, causing
-  // TDZ errors like "Cannot access 'X' before initialization".
-  //
-  // Fix 1: Disable module concatenation (prevents scope merging)
-  // Fix 2: Use Terser with keep_fnames+keep_classnames (prevents name conflicts)
+  // lucide-react defines ~1500 icon components in a barrel file.
+  // When minified, variable names get reused across the same scope,
+  // causing TDZ errors: "Cannot access 'X'/'J'/'K' before initialization".
+  // Solution: compress code but skip mangling (keeps original var names).
   webpack(config, { isServer }) {
     if (!isServer && config.optimization) {
-      // Prevent webpack from merging lucide-react modules into same scope
       config.optimization.concatenateModules = false;
 
-      // Use Terser instead of SWC minifier with safe name preservation
       config.optimization.minimizer = [
         new TerserPlugin({
           terserOptions: {
-            compress: {
-              keep_classnames: true,
-              keep_fnames: true,
-            },
-            mangle: {
-              keep_classnames: true,
-              keep_fnames: true,
-            },
+            compress: true,
+            mangle: false,
           },
           extractComments: false,
         }),

@@ -369,13 +369,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   }, [symbol]);
 
   // ── Apply pending candles when chart becomes ready ──
-  useEffect(() => {
-    if (isChartReady && pendingCandlesRef.current && pendingCandlesRef.current.length > 0) {
-      const pending = pendingCandlesRef.current;
-      pendingCandlesRef.current = null;
-      setCandles(pending);
-    }
-  }, [isChartReady, setCandles]);
+  // NOTE: This useEffect MUST come after setCandles is defined to avoid TDZ error
+  // (moved from earlier in the function where setCandles was not yet declared)
 
 
 
@@ -870,6 +865,15 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       addIndicator(ind);
     });
   }, [settings.type, addIndicator]);
+
+  // ── Apply pending candles when chart becomes ready ──
+  useEffect(() => {
+    if (isChartReady && pendingCandlesRef.current && pendingCandlesRef.current.length > 0) {
+      const pending = pendingCandlesRef.current;
+      pendingCandlesRef.current = null;
+      setCandles(pending);
+    }
+  }, [isChartReady, setCandles]);
 
   // ── Remove Indicator ───────────────────────────────────
   const removeIndicator = useCallback((key: string) => {

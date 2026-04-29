@@ -40,9 +40,12 @@ const nextConfig: NextConfig = {
   ],
 
   // Bundle optimizations
+  // NOTE: lucide-react removed from optimizePackageImports — it causes
+  // "Cannot access 'X' before initialization" because the barrel file
+  // optimizer creates a variable 'X' that collides with the minifier's
+  // scope during production builds (both Turbopack and Webpack).
   experimental: {
     optimizePackageImports: [
-      'lucide-react',
       'recharts',
       'date-fns',
       'framer-motion',

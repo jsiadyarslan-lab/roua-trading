@@ -219,6 +219,85 @@ export default function RouaChart({
   // ── Helper: Normalize symbol for matching ──
   const normalizeSymbol = (s: string) => s.toUpperCase().replace(/[/\-_]/g, '');
 
+  // ── Fill Zones State (colored bands between entry-SL/TP) ──
+  const [fillZones, setFillZones] = useState<Array<{
+    top: number; height: number; type: 'sl' | 'tp'; key: string;
+  }>>([]);
+
+  // ── Calculate Fill Zone Positions ──
+  const updateFillZones = useCallback(() => {
+    const chartSymbol = normalizeSymbol(selectedSymbol);
+    const zones: typeof fillZones = [];
+
+    const processTrade = (entryPrice: number, sl?: number, tp?: number, prefix = '') => {
+      const entryY = chart.getPriceCoordinate(entryPrice);
+      if (entryY === null) return;
+
+      if (sl && sl > 0) {
+        const slY = chart.getPriceCoordinate(sl);
+        if (slY !== null) {
+          zones.push({
+            top: Math.min(entryY, slY),
+            height: Math.abs(entryY - slY),
+            type: 'sl',
+            key: `${prefix}sl-${sl}`,
+          });
+        }
+      }
+
+      if (tp && tp > 0) {
+        const tpY = chart.getPriceCoordinate(tp);
+        if (tpY !== null) {
+          zones.push({
+            top: Math.min(entryY, tpY),
+            height: Math.abs(entryY - tpY),
+            type: 'tp',
+            key: `${prefix}tp-${tp}`,
+          });
+        }
+      }
+    };
+
+    // Exchange positions
+    positions.forEach(pos => {
+      const posSymbol = normalizeSymbol(pos.symbol || '');
+      if (!posSymbol.includes(chartSymbol) && !chartSymbol.includes(posSymbol)) return;
+      const entryPrice = Number(pos.avgEntryPrice || 0);
+      if (entryPrice <= 0) return;
+      processTrade(
+        entryPrice,
+        Number(pos.sl || pos.stopLoss || 0) || undefined,
+        Number(pos.tp || pos.takeProfit || 0) || undefined,
+        `pos-${pos.id}-`
+      );
+    });
+
+    // Paper trades (including bot trades)
+    paperTrades.forEach(trade => {
+      const symbol = normalizeSymbol(trade.symbol || '');
+      if (!symbol.includes(chartSymbol) && !chartSymbol.includes(symbol)) return;
+      const entryPrice = Number(trade.entryPrice || 0);
+      if (entryPrice <= 0) return;
+      processTrade(
+        entryPrice,
+        trade.sl ? Number(trade.sl) : undefined,
+        trade.tp ? Number(trade.tp) : undefined,
+        `trade-${trade.id}-`
+      );
+    });
+
+    setFillZones(zones);
+  }, [positions, paperTrades, selectedSymbol, chart]);
+
+  // ── Subscribe to chart scroll/zoom to update fill zones ──
+  useEffect(() => {
+    const unsubscribe = chart.onVisibleRangeChange(() => {
+      requestAnimationFrame(updateFillZones);
+    });
+    updateFillZones();
+    return unsubscribe;
+  }, [chart, updateFillZones]);
+
   // ── Apply Position Lines to Chart ──
   useEffect(() => {
     // Clear existing lines
@@ -226,6 +305,7 @@ export default function RouaChart({
     positionLineIdsRef.current = [];
 
     const chartSymbol = normalizeSymbol(selectedSymbol);
+    const fmt = (v: number) => v > 1000 ? v.toFixed(2) : v.toFixed(5);
 
     // Add lines for positions (exchange positions)
     positions.forEach(pos => {
@@ -236,25 +316,25 @@ export default function RouaChart({
       if (entryPrice > 0) {
         const isLong = (pos.side || '').toLowerCase() === 'long';
         const color = isLong ? '#3fb950' : '#f85149';
-        const label = `${isLong ? 'Long' : 'Short'} ${pos.qty || ''}`;
+        const label = `${isLong ? 'Long' : 'Short'} ${pos.qty || ''} @ ${fmt(entryPrice)}`;
         const entryId = `pos-entry-${pos.id || posSymbol}`;
-        chart.addPriceLine(entryId, entryPrice, color, label, 2, 0, false); // Solid, NO axis label
+        chart.addPriceLine(entryId, entryPrice, color, label, 2, 0, false);
         positionLineIdsRef.current.push(entryId);
       }
 
-      // SL line — dashed, NO axis label
+      // SL line — dashed red, label with price
       const sl = Number(pos.sl || pos.stopLoss || 0);
       if (sl > 0) {
         const slId = `pos-sl-${pos.id || posSymbol}`;
-        chart.addPriceLine(slId, sl, '#f85149', 'SL', 1, 2, false);
+        chart.addPriceLine(slId, sl, '#f85149', `SL ${fmt(sl)}`, 1, 2, false);
         positionLineIdsRef.current.push(slId);
       }
 
-      // TP line — dashed, NO axis label (clean price axis)
+      // TP line — dashed green, label with price
       const tp = Number(pos.tp || pos.takeProfit || 0);
       if (tp > 0) {
         const tpId = `pos-tp-${pos.id || posSymbol}`;
-        chart.addPriceLine(tpId, tp, '#3fb950', 'TP', 1, 2, false);
+        chart.addPriceLine(tpId, tp, '#3fb950', `TP ${fmt(tp)}`, 1, 2, false);
         positionLineIdsRef.current.push(tpId);
       }
     });
@@ -269,32 +349,39 @@ export default function RouaChart({
         const isLong = (trade.side || '').toLowerCase() === 'long';
         const color = isLong ? '#3fb950' : '#f85149';
         const sourceTag = trade.source === 'bot' ? 'Bot ' : '';
-        const label = `${sourceTag}${isLong ? 'Long' : 'Short'} ${trade.qty}`;
+        const pnl = trade.unrealizedPnl;
+        const pnlStr = pnl !== undefined && pnl !== 0
+          ? ` | ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}`
+          : '';
+        const label = `${sourceTag}${isLong ? 'Long' : 'Short'} ${trade.qty}${pnlStr}`;
         const entryId = `trade-entry-${trade.id}`;
-        chart.addPriceLine(entryId, entryPrice, color, label, 2, 0, false); // Solid, NO axis label
+        chart.addPriceLine(entryId, entryPrice, color, label, 2, 0, false);
         positionLineIdsRef.current.push(entryId);
       }
 
-      // SL line — dashed, NO axis label
+      // SL line — dashed red, label with price
       if (trade.sl && Number(trade.sl) > 0) {
         const slId = `trade-sl-${trade.id}`;
-        chart.addPriceLine(slId, Number(trade.sl), '#f85149', 'SL', 1, 2, false);
+        chart.addPriceLine(slId, Number(trade.sl), '#f85149', `SL ${fmt(Number(trade.sl))}`, 1, 2, false);
         positionLineIdsRef.current.push(slId);
       }
 
-      // TP line — dashed, NO axis label (clean price axis)
+      // TP line — dashed green, label with price
       if (trade.tp && Number(trade.tp) > 0) {
         const tpId = `trade-tp-${trade.id}`;
-        chart.addPriceLine(tpId, Number(trade.tp), '#3fb950', 'TP', 1, 2, false);
+        chart.addPriceLine(tpId, Number(trade.tp), '#3fb950', `TP ${fmt(Number(trade.tp))}`, 1, 2, false);
         positionLineIdsRef.current.push(tpId);
       }
     });
+
+    // Trigger fill zone recalculation after lines change
+    requestAnimationFrame(updateFillZones);
 
     return () => {
       positionLineIdsRef.current.forEach(id => chart.removePriceLine(id));
       positionLineIdsRef.current = [];
     };
-  }, [positions, paperTrades, selectedSymbol, chart]);
+  }, [positions, paperTrades, selectedSymbol, chart, updateFillZones]);
 
 
 
@@ -535,6 +622,25 @@ export default function RouaChart({
           }}>
             {selectedSymbol.replace('/', '')}
           </div>
+
+          {/* ── Fill Zones (colored bands between entry-SL/TP) ── */}
+          {fillZones.map(zone => (
+            <div
+              key={zone.key}
+              style={{
+                position: 'absolute',
+                top: zone.top,
+                left: 0,
+                right: 0,
+                height: Math.max(zone.height, 2),
+                background: zone.type === 'sl'
+                  ? 'rgba(248, 81, 73, 0.06)'
+                  : 'rgba(63, 185, 80, 0.06)',
+                pointerEvents: 'none',
+                zIndex: 0,
+              }}
+            />
+          ))}
 
           {/* Volume Profile (overlaid on chart) */}
           {showVolumeProfile && (

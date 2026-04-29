@@ -61,6 +61,7 @@ interface UseChartReturn {
   addPriceLine: (id: string, price: number, color: string, label: string, lineWidth?: number, lineStyle?: number, axisLabelVisible?: boolean) => void;
   removePriceLine: (id: string) => void;
   getPriceCoordinate: (price: number) => number | null;
+  onVisibleRangeChange: (callback: () => void) => () => void;
 }
 
 export function useChart(options: UseChartOptions): UseChartReturn {
@@ -1212,6 +1213,17 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     return candleSeriesRef.current.priceToCoordinate(price);
   }, []);
 
+  const onVisibleRangeChange = useCallback((callback: () => void): (() => void) => {
+    if (!chartInstanceRef.current) return () => {};
+    const ts = chartInstanceRef.current.timeScale();
+    ts.subscribeVisibleLogicalRangeChange(callback);
+    return () => {
+      try {
+        ts.unsubscribeVisibleLogicalRangeChange(callback);
+      } catch {}
+    };
+  }, []);
+
   const updateSettings = useCallback((updates: Partial<ChartSettings>) => {
     setSettings(prev => ({ ...prev, ...updates }));
 
@@ -1328,5 +1340,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     addPriceLine,
     removePriceLine,
     getPriceCoordinate,
+    onVisibleRangeChange,
   };
 }

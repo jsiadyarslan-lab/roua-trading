@@ -219,28 +219,56 @@ export default function RouaChart({
   // ── Helper: Normalize symbol for matching ──
   const normalizeSymbol = (s: string) => s.toUpperCase().replace(/[/\-_]/g, '');
 
-  // ── Fill Zones State (colored bands between entry-SL/TP) ──
+  // ── Trade Overlay State ──
+  interface TradeOverlay {
+    key: string;
+    y: number;
+    price: number;
+    type: 'entry' | 'sl' | 'tp';
+    direction: 'long' | 'short';
+    source: 'manual' | 'bot' | 'exchange';
+    qty: number;
+    pnl?: number;
+  }
+
+  const [tradeOverlays, setTradeOverlays] = useState<TradeOverlay[]>([]);
+
+  // ── Fill Zones State ──
   const [fillZones, setFillZones] = useState<Array<{
     top: number; height: number; type: 'sl' | 'tp'; key: string;
   }>>([]);
 
-  // ── Calculate Fill Zone Positions ──
-  const updateFillZones = useCallback(() => {
+  // ── Update Trade Overlays + Fill Zones ──
+  const updateTradeOverlays = useCallback(() => {
     const chartSymbol = normalizeSymbol(selectedSymbol);
+    const overlays: TradeOverlay[] = [];
     const zones: typeof fillZones = [];
 
-    const processTrade = (entryPrice: number, sl?: number, tp?: number, prefix = '') => {
+    const processTrade = (
+      entryPrice: number, direction: 'long' | 'short',
+      sl?: number, tp?: number, qty = 0, pnl?: number,
+      source: 'manual' | 'bot' | 'exchange' = 'manual', prefix = ''
+    ) => {
       const entryY = chart.getPriceCoordinate(entryPrice);
       if (entryY === null) return;
+
+      overlays.push({
+        key: `${prefix}entry`,
+        y: entryY, price: entryPrice,
+        type: 'entry', direction, source, qty, pnl,
+      });
 
       if (sl && sl > 0) {
         const slY = chart.getPriceCoordinate(sl);
         if (slY !== null) {
+          overlays.push({
+            key: `${prefix}sl`, y: slY, price: sl,
+            type: 'sl', direction, source, qty,
+          });
           zones.push({
             top: Math.min(entryY, slY),
             height: Math.abs(entryY - slY),
-            type: 'sl',
-            key: `${prefix}sl-${sl}`,
+            type: 'sl', key: `${prefix}sl-zone`,
           });
         }
       }
@@ -248,11 +276,14 @@ export default function RouaChart({
       if (tp && tp > 0) {
         const tpY = chart.getPriceCoordinate(tp);
         if (tpY !== null) {
+          overlays.push({
+            key: `${prefix}tp`, y: tpY, price: tp,
+            type: 'tp', direction, source, qty,
+          });
           zones.push({
             top: Math.min(entryY, tpY),
             height: Math.abs(entryY - tpY),
-            type: 'tp',
-            key: `${prefix}tp-${tp}`,
+            type: 'tp', key: `${prefix}tp-zone`,
           });
         }
       }
@@ -266,8 +297,10 @@ export default function RouaChart({
       if (entryPrice <= 0) return;
       processTrade(
         entryPrice,
+        (pos.side || '').toLowerCase() === 'long' ? 'long' : 'short',
         Number(pos.sl || pos.stopLoss || 0) || undefined,
         Number(pos.tp || pos.takeProfit || 0) || undefined,
+        pos.qty || 0, undefined, 'exchange',
         `pos-${pos.id}-`
       );
     });
@@ -280,108 +313,76 @@ export default function RouaChart({
       if (entryPrice <= 0) return;
       processTrade(
         entryPrice,
+        (trade.side || '').toLowerCase() === 'long' ? 'long' : 'short',
         trade.sl ? Number(trade.sl) : undefined,
         trade.tp ? Number(trade.tp) : undefined,
+        trade.qty || 0, trade.unrealizedPnl,
+        trade.source === 'bot' ? 'bot' : 'manual',
         `trade-${trade.id}-`
       );
     });
 
+    setTradeOverlays(overlays);
     setFillZones(zones);
   }, [positions, paperTrades, selectedSymbol, chart]);
 
-  // ── Subscribe to chart scroll/zoom to update fill zones ──
+  // ── Subscribe to chart scroll/zoom ──
   useEffect(() => {
     const unsubscribe = chart.onVisibleRangeChange(() => {
-      requestAnimationFrame(updateFillZones);
+      requestAnimationFrame(updateTradeOverlays);
     });
-    updateFillZones();
+    updateTradeOverlays();
     return unsubscribe;
-  }, [chart, updateFillZones]);
+  }, [chart, updateTradeOverlays]);
 
-  // ── Apply Position Lines to Chart ──
+  // ── Apply Position Lines to Chart (price lines only, no axis labels) ──
   useEffect(() => {
-    // Clear existing lines
     positionLineIdsRef.current.forEach(id => chart.removePriceLine(id));
     positionLineIdsRef.current = [];
 
     const chartSymbol = normalizeSymbol(selectedSymbol);
-    const fmt = (v: number) => v > 1000 ? v.toFixed(2) : v.toFixed(5);
 
-    // Add lines for positions (exchange positions)
+    // Helper: add line with no axis label, minimal title
+    const addLine = (id: string, price: number, color: string, lineWidth: number, lineStyle: number) => {
+      chart.addPriceLine(id, price, color, '', lineWidth, lineStyle, false);
+      positionLineIdsRef.current.push(id);
+    };
+
+    // Exchange positions
     positions.forEach(pos => {
       const posSymbol = normalizeSymbol(pos.symbol || '');
       if (!posSymbol.includes(chartSymbol) && !chartSymbol.includes(posSymbol)) return;
-
       const entryPrice = Number(pos.avgEntryPrice || 0);
       if (entryPrice > 0) {
         const isLong = (pos.side || '').toLowerCase() === 'long';
-        const color = isLong ? '#3fb950' : '#f85149';
-        const label = `${isLong ? 'Long' : 'Short'} ${pos.qty || ''} @ ${fmt(entryPrice)}`;
-        const entryId = `pos-entry-${pos.id || posSymbol}`;
-        chart.addPriceLine(entryId, entryPrice, color, label, 2, 0, false);
-        positionLineIdsRef.current.push(entryId);
+        addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, isLong ? '#3fb950' : '#f85149', 2, 0);
       }
-
-      // SL line — dashed red, label with price
       const sl = Number(pos.sl || pos.stopLoss || 0);
-      if (sl > 0) {
-        const slId = `pos-sl-${pos.id || posSymbol}`;
-        chart.addPriceLine(slId, sl, '#f85149', `SL ${fmt(sl)}`, 1, 2, false);
-        positionLineIdsRef.current.push(slId);
-      }
-
-      // TP line — dashed green, label with price
+      if (sl > 0) addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#f85149', 1, 2);
       const tp = Number(pos.tp || pos.takeProfit || 0);
-      if (tp > 0) {
-        const tpId = `pos-tp-${pos.id || posSymbol}`;
-        chart.addPriceLine(tpId, tp, '#3fb950', `TP ${fmt(tp)}`, 1, 2, false);
-        positionLineIdsRef.current.push(tpId);
-      }
+      if (tp > 0) addLine(`pos-tp-${pos.id || posSymbol}`, tp, '#3fb950', 1, 2);
     });
 
-    // Add lines for paper trades (including bot trades)
+    // Paper trades (including bot trades)
     paperTrades.forEach(trade => {
       const symbol = normalizeSymbol(trade.symbol || '');
       if (!symbol.includes(chartSymbol) && !chartSymbol.includes(symbol)) return;
-
       const entryPrice = Number(trade.entryPrice || 0);
       if (entryPrice > 0) {
         const isLong = (trade.side || '').toLowerCase() === 'long';
-        const color = isLong ? '#3fb950' : '#f85149';
-        const sourceTag = trade.source === 'bot' ? 'Bot ' : '';
-        const pnl = trade.unrealizedPnl;
-        const pnlStr = pnl !== undefined && pnl !== 0
-          ? ` | ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}`
-          : '';
-        const label = `${sourceTag}${isLong ? 'Long' : 'Short'} ${trade.qty}${pnlStr}`;
-        const entryId = `trade-entry-${trade.id}`;
-        chart.addPriceLine(entryId, entryPrice, color, label, 2, 0, false);
-        positionLineIdsRef.current.push(entryId);
+        addLine(`trade-entry-${trade.id}`, entryPrice, isLong ? '#3fb950' : '#f85149', 2, 0);
       }
-
-      // SL line — dashed red, label with price
-      if (trade.sl && Number(trade.sl) > 0) {
-        const slId = `trade-sl-${trade.id}`;
-        chart.addPriceLine(slId, Number(trade.sl), '#f85149', `SL ${fmt(Number(trade.sl))}`, 1, 2, false);
-        positionLineIdsRef.current.push(slId);
-      }
-
-      // TP line — dashed green, label with price
-      if (trade.tp && Number(trade.tp) > 0) {
-        const tpId = `trade-tp-${trade.id}`;
-        chart.addPriceLine(tpId, Number(trade.tp), '#3fb950', `TP ${fmt(Number(trade.tp))}`, 1, 2, false);
-        positionLineIdsRef.current.push(tpId);
-      }
+      if (trade.sl && Number(trade.sl) > 0) addLine(`trade-sl-${trade.id}`, Number(trade.sl), '#f85149', 1, 2);
+      if (trade.tp && Number(trade.tp) > 0) addLine(`trade-tp-${trade.id}`, Number(trade.tp), '#3fb950', 1, 2);
     });
 
-    // Trigger fill zone recalculation after lines change
-    requestAnimationFrame(updateFillZones);
+    requestAnimationFrame(updateTradeOverlays);
 
     return () => {
       positionLineIdsRef.current.forEach(id => chart.removePriceLine(id));
       positionLineIdsRef.current = [];
     };
-  }, [positions, paperTrades, selectedSymbol, chart, updateFillZones]);
+  }, [positions, paperTrades, selectedSymbol, chart, updateTradeOverlays]);
 
 
 
@@ -632,15 +633,80 @@ export default function RouaChart({
                 top: zone.top,
                 left: 0,
                 right: 0,
-                height: Math.max(zone.height, 2),
+                height: Math.max(zone.height, 1),
                 background: zone.type === 'sl'
-                  ? 'rgba(248, 81, 73, 0.06)'
-                  : 'rgba(63, 185, 80, 0.06)',
+                  ? 'rgba(248, 81, 73, 0.07)'
+                  : 'rgba(63, 185, 80, 0.07)',
                 pointerEvents: 'none',
                 zIndex: 0,
               }}
             />
           ))}
+
+          {/* ── Trade Line Labels (HTML overlays like TradingView) ── */}
+          {tradeOverlays.map(ov => {
+            const fmt = (v: number) => v > 1000 ? v.toFixed(2) : v.toFixed(5);
+            const isEntry = ov.type === 'entry';
+            const isSL = ov.type === 'sl';
+            const isTP = ov.type === 'tp';
+            const isLong = ov.direction === 'long';
+            const entryColor = isLong ? '#3fb950' : '#f85149';
+            const lineColor = isSL ? '#f85149' : isTP ? '#3fb950' : entryColor;
+
+            let labelText = '';
+            let bg: string;
+            let textColor: string;
+
+            if (isEntry) {
+              const dir = isLong ? 'Long' : 'Short';
+              const src = ov.source === 'bot' ? 'Bot ' : '';
+              const pnlStr = ov.pnl !== undefined && ov.pnl !== 0
+                ? ` ${ov.pnl >= 0 ? '+' : ''}${ov.pnl.toFixed(2)}` : '';
+              labelText = `${src}${dir} ${ov.qty}${pnlStr}`;
+              bg = isLong ? 'rgba(63,185,80,0.15)' : 'rgba(248,81,73,0.15)';
+              textColor = lineColor;
+            } else if (isSL) {
+              labelText = `SL ${fmt(ov.price)}`;
+              bg = 'rgba(248,81,73,0.15)';
+              textColor = '#f85149';
+            } else {
+              labelText = `TP ${fmt(ov.price)}`;
+              bg = 'rgba(63,185,80,0.15)';
+              textColor = '#3fb950';
+            }
+
+            return (
+              <div
+                key={ov.key}
+                style={{
+                  position: 'absolute',
+                  top: ov.y - 9,
+                  left: 6,
+                  zIndex: 5,
+                  pointerEvents: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <span style={{
+                  fontSize: 9,
+                  fontWeight: 700,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  color: textColor,
+                  background: bg,
+                  padding: '1px 6px',
+                  borderRadius: 3,
+                  borderLeft: `2px solid ${lineColor}`,
+                  whiteSpace: 'nowrap',
+                  lineHeight: '16px',
+                  letterSpacing: 0.3,
+                }}>
+                  {labelText}
+                </span>
+              </div>
+            );
+          })}
 
           {/* Volume Profile (overlaid on chart) */}
           {showVolumeProfile && (

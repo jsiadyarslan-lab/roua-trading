@@ -1,7 +1,6 @@
 import type { NextConfig } from "next";
+import TerserPlugin from "terser-webpack-plugin";
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// API Routing Architecture
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const apiTarget = process.env.API_INTERNAL_URL || "http://localhost:3001";
@@ -18,8 +17,6 @@ const nextConfig: NextConfig = {
     '@simplewebauthn/server',
   ],
 
-  // NOTE: lucide-react removed from optimizePackageImports — it causes
-  // TDZ errors when barrel file icons share minified scope with other libs
   experimental: {
     optimizePackageImports: [
       'recharts',
@@ -28,18 +25,16 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // ── Fix: lucide-react TDZ crash ──
-  // Root cause: lucide-react's barrel file defines ~1500 icon variables.
-  // When webpack bundles them into the same chunk as React/Radix internals,
-  // the minifier creates TDZ errors (e.g. "Cannot access 'X' before initialization").
-  //
-  // Fix: Split lucide-react into its own chunk so its variables
-  // are isolated from React/Radix/other framework code.
+  // ── Fix: "Cannot access 'X' before initialization" ──
+  // Next.js 16 default SWC minifier creates TDZ errors in production
+  // where variables like `let X` in Next.js Router code conflict
+  // with React component rendering. Terser with mangle:false prevents
+  // ALL such variable name conflicts while still compressing code.
   webpack(config, { isServer }) {
     if (!isServer && config.optimization) {
       config.optimization.concatenateModules = false;
 
-      // Force lucide-react into its own chunk to prevent TDZ conflicts
+      // Force lucide-react into its own chunk
       const existingSplitChunks = config.optimization.splitChunks as any;
       if (existingSplitChunks && existingSplitChunks.cacheGroups) {
         existingSplitChunks.cacheGroups.lucide = {
@@ -49,6 +44,17 @@ const nextConfig: NextConfig = {
           enforce: true,
         };
       }
+
+      // Replace SWC minifier with Terser (compress but no mangle)
+      config.optimization.minimizer = [
+        new TerserPlugin({
+          terserOptions: {
+            compress: true,
+            mangle: false,
+          },
+          extractComments: false,
+        }),
+      ];
     }
     return config;
   },

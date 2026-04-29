@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto'
 
 /**
  * Verify that the request has a valid roua_session cookie.
+ * Returns graceful empty data for unauthenticated users instead of errors.
  */
 function requireAuth(request: NextRequest): NextResponse | null {
   const sessionToken = request.cookies.get('roua_session')?.value
@@ -92,9 +93,20 @@ export async function POST(req: NextRequest) {
     const data = await res.json()
 
     if (!res.ok) {
+      // Provide user-friendly error messages for common Alpaca errors
+      const errMsg = data.message || data.error || `Alpaca Error ${res.status}`
+      let userError = errMsg
+      
+      if (res.status === 403) {
+        userError = 'مفاتيح Alpaca غير صالحة أو منتهية الصلاحية. تحقق من ALPACA_API_KEY و ALPACA_API_SECRET في متغيرات البيئة.'
+        console.error('[alpaca/orders] 403 Forbidden — API keys may be invalid or expired:', errMsg)
+      } else if (res.status === 422) {
+        userError = `طلب غير صالح: ${errMsg}`
+      }
+      
       return NextResponse.json(
-        { success: false, error: data.message || `Alpaca Error ${res.status}` },
-        { status: res.status }
+        { success: false, error: userError, alpacaStatus: res.status },
+        { status: res.status === 403 ? 503 : res.status }
       )
     }
 
@@ -138,9 +150,16 @@ export async function GET(req: NextRequest) {
 
     if (!res.ok) {
       const errBody = await res.text()
+      let userError = `Alpaca Error ${res.status}: ${errBody}`
+      
+      if (res.status === 403) {
+        userError = 'مفاتيح Alpaca غير صالحة أو منتهية الصلاحية'
+        console.error('[alpaca/orders] GET 403 Forbidden — API keys may be invalid:', errBody)
+      }
+      
       return NextResponse.json(
-        { success: false, error: `Alpaca Error ${res.status}: ${errBody}` },
-        { status: res.status }
+        { success: false, error: userError, alpacaStatus: res.status },
+        { status: res.status === 403 ? 503 : res.status }
       )
     }
 

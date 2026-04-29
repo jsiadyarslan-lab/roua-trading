@@ -64,6 +64,7 @@ class BinanceWSManager {
   private isReconnecting = false  // Guard against concurrent reconnects
   private closePromise: Promise<void> | null = null  // Track pending close
   private destroyed = false  // Permanent shutdown flag
+  private isClosing = false  // Guard: don't send ping while closing
 
   private normalizeSymbol(symbol: string) {
     let s = symbol.replace('/', '')
@@ -126,9 +127,11 @@ class BinanceWSManager {
   private closeAndWait(): Promise<void> {
     const oldWs = this.ws
     this.ws = null
+    this.isClosing = true  // FIX: Set flag BEFORE stopping ping to prevent new pings
     this.stopPing()
 
     if (!oldWs || oldWs.readyState === WebSocket.CLOSED) {
+      this.isClosing = false
       return Promise.resolve()
     }
 
@@ -148,17 +151,20 @@ class BinanceWSManager {
         const timeout = setTimeout(() => {
           // Force close after 2s if the close handshake takes too long
           try { oldWs.close(1000, 'timeout') } catch { /* ignore */ }
+          this.isClosing = false
           resolve()
         }, 2000)
 
         try {
           oldWs.onclose = () => {
             clearTimeout(timeout)
+            this.isClosing = false
             resolve()
           }
           oldWs.close(1000, 'reconnect')
         } catch {
           clearTimeout(timeout)
+          this.isClosing = false
           resolve()
         }
       }).finally(() => {
@@ -168,6 +174,7 @@ class BinanceWSManager {
       return this.closePromise
     }
 
+    this.isClosing = false
     return Promise.resolve()
   }
 
@@ -177,8 +184,9 @@ class BinanceWSManager {
     // Binance combined streams don't support WS ping frames, but
     // sending a JSON ping frame keeps the connection active and
     // prevents proxy/firewall idle timeouts
+    // FIX: Check isClosing flag to prevent sending ping during close handshake
     this.pingTimer = setInterval(() => {
-      if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      if (this.ws && this.ws.readyState === WebSocket.OPEN && !this.isClosing) {
         try {
           this.ws.send(JSON.stringify({ method: 'ping' }))
         } catch {
@@ -267,6 +275,7 @@ class BinanceWSManager {
       if (this.connectionGeneration !== currentGeneration) return
       this.reconnectAttempts = 0
       this.isReconnecting = false
+      this.isClosing = false  // FIX: Reset closing flag on new connection
       this.lastConnectTime = Date.now()
       this.startPing()
     }

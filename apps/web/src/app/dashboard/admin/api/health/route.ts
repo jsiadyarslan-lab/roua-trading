@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     '/api/scanner/scan',
     '/api/signals/smart',
     '/api/scanner/multi-tf/BTC-USD',
-    '/api/portfolio/summary',
+    '/api/portfolio/sanctuary',
     '/api/positions',
     '/dashboard',
   ]

@@ -16,7 +16,7 @@ export class GlmService {
   private readonly model = 'glm-4';
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('GLM_API_KEY', '');
+    this.apiKey = this.configService.get<string>('GLM_API_KEY', '')?.trim() || '';
     if (this.apiKey) {
       this.logger.log('🧠 GLM-4 Service initialized (Zhipu AI)');
     } else {
@@ -32,35 +32,40 @@ export class GlmService {
     const startTime = Date.now();
     const systemPrompt = this._buildSystemPrompt(request);
 
-    const response = await axios.post(
-      this.baseUrl,
-      {
-        model: this.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: request.prompt },
-        ],
-        temperature: 0.4,
-        max_tokens: 2048,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
+    try {
+      const response = await axios.post(
+        this.baseUrl,
+        {
+          model: this.model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: request.prompt },
+          ],
+          temperature: 0.4,
+          max_tokens: 2048,
         },
-        timeout: 60000,
-      },
-    );
+        {
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 60000,
+        },
+      );
 
-    const content = response.data.choices?.[0]?.message?.content || '';
+      const content = response.data.choices?.[0]?.message?.content || '';
 
-    return {
-      model: `GLM-4/${this.model}`,
-      content,
-      confidence: this._calculateConfidence(content, 'glm'),
-      processingTimeMs: Date.now() - startTime,
-      language: request.language || 'ar',
-    };
+      return {
+        model: `GLM-4/${this.model}`,
+        content,
+        confidence: this._calculateConfidence(content, 'glm'),
+        processingTimeMs: Date.now() - startTime,
+        language: request.language || 'ar',
+      };
+    } catch (error: any) {
+      this.logger.warn(`GLM inference failed: ${error.message}`);
+      return this._stubResponse(request);
+    }
   }
 
   private _buildSystemPrompt(request: AIAnalysisRequest): string {

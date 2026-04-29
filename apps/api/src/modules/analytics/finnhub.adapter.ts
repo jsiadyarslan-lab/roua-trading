@@ -57,7 +57,7 @@ export class FinnhubAdapter implements IExchangeAdapter, OnModuleDestroy {
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
   ) {
-    this.apiKey = this.configService.get<string>('FINNHUB_API_KEY', '');
+    this.apiKey = this.configService.get<string>('FINNHUB_API_KEY', '')?.trim() || '';
 
     if (!this.apiKey) {
       this.logger.warn('⚠️ FINNHUB_API_KEY is not set — Finnhub data will not be available');

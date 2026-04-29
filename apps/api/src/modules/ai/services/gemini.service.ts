@@ -16,7 +16,7 @@ export class GeminiService {
   private readonly model = 'gemini-2.0-flash';
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('GOOGLE_AI_STUDIO_API_KEY', '');
+    this.apiKey = this.configService.get<string>('GOOGLE_AI_STUDIO_API_KEY', '')?.trim() || '';
     if (this.apiKey) {
       this.logger.log('💎 Gemini Service initialized (2.0 Flash)');
     } else {
@@ -32,7 +32,7 @@ export class GeminiService {
     const startTime = Date.now();
     const systemPrompt = this._buildSystemPrompt(request);
 
-    const url = `${this.baseUrl}/${this.model}:generateContent`;
+    const url = `${this.baseUrl}/${this.model}:generateContent?key=${this.apiKey}`;
 
     try {
       const response = await axios.post(
@@ -52,7 +52,6 @@ export class GeminiService {
         {
           headers: {
             'Content-Type': 'application/json',
-            'x-goog-api-key': this.apiKey,
           },
           timeout: 60000,
         },
@@ -69,7 +68,15 @@ export class GeminiService {
         language: request.language || 'ar',
       };
     } catch (error: any) {
-      this.logger.warn(`Gemini inference failed: ${error.message}`);
+      const status = error.response?.status;
+      const errData = error.response?.data;
+      if (status === 429) {
+        this.logger.warn(`Gemini rate limited (429) — will retry on next cycle`);
+      } else if (status === 401 || status === 403) {
+        this.logger.error(`Gemini auth failed (${status}) — API key may be invalid or revoked. Response: ${JSON.stringify(errData)?.substring(0, 200)}`);
+      } else {
+        this.logger.warn(`Gemini inference failed: ${error.message} (status: ${status})`);
+      }
       return this._stubResponse(request);
     }
   }

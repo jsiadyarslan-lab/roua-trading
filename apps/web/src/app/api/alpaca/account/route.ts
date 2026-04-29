@@ -31,9 +31,16 @@ export async function GET(request: NextRequest) {
 
     if (!res.ok) {
       const errBody = await res.text()
+      let userError = `Alpaca API Error ${res.status}: ${errBody}`
+      
+      if (res.status === 403) {
+        userError = 'مفاتيح Alpaca غير صالحة أو منتهية الصلاحية. تحقق من متغيرات البيئة.'
+        console.error('[alpaca/account] 403 Forbidden — API keys may be invalid:', errBody)
+      }
+      
       return NextResponse.json(
-        { success: false, error: `Alpaca API Error ${res.status}: ${errBody}` },
-        { status: res.status }
+        { success: false, error: userError, alpacaStatus: res.status },
+        { status: res.status === 403 ? 503 : res.status }
       )
     }
 

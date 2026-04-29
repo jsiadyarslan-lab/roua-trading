@@ -29,7 +29,7 @@ export class GroqService {
   private readonly model = 'llama-3.3-70b-versatile';
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('GROQ_API_KEY', '');
+    this.apiKey = this.configService.get<string>('GROQ_API_KEY', '')?.trim() || '';
     if (this.apiKey) {
       this.logger.log('⚡ Groq Service initialized (Llama 3.3 70B)');
     } else {
@@ -45,35 +45,40 @@ export class GroqService {
     const startTime = Date.now();
     const systemPrompt = this._buildSystemPrompt(request);
 
-    const response = await axios.post(
-      this.baseUrl,
-      {
-        model: this.model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: request.prompt },
-        ],
-        temperature: 0.3,
-        max_tokens: 1024,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          'Content-Type': 'application/json',
+    try {
+      const response = await axios.post(
+        this.baseUrl,
+        {
+          model: this.model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: request.prompt },
+          ],
+          temperature: 0.3,
+          max_tokens: 1024,
         },
-        timeout: 30000,
-      },
-    );
+        {
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        },
+      );
 
-    const content = response.data.choices?.[0]?.message?.content || '';
+      const content = response.data.choices?.[0]?.message?.content || '';
 
-    return {
-      model: `Groq/${this.model}`,
-      content,
-      confidence: this._calculateConfidence(content, 'groq'),
-      processingTimeMs: Date.now() - startTime,
-      language: request.language || 'ar',
-    };
+      return {
+        model: `Groq/${this.model}`,
+        content,
+        confidence: this._calculateConfidence(content, 'groq'),
+        processingTimeMs: Date.now() - startTime,
+        language: request.language || 'ar',
+      };
+    } catch (error: any) {
+      this.logger.warn(`Groq inference failed: ${error.message}`);
+      return this._stubResponse(request);
+    }
   }
 
   private _buildSystemPrompt(request: AIAnalysisRequest): string {

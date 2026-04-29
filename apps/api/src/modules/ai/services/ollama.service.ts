@@ -29,8 +29,8 @@ export class OllamaService {
   private readonly defaultModel = 'qwen2.5:7b';
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('OLLAMA_API_KEY', '');
-    this.baseUrl = this.configService.get<string>('OLLAMA_BASE_URL', 'http://localhost:11434');
+    this.apiKey = this.configService.get<string>('OLLAMA_API_KEY', '')?.trim() || '';
+    this.baseUrl = this.configService.get<string>('OLLAMA_BASE_URL', 'http://localhost:11434')?.trim() || 'http://localhost:11434';
     
     if (this.apiKey || this._isOllamaReachable()) {
       this.logger.log(`🏠 Ollama Service initialized (${this.defaultModel}) — URL: ${this.baseUrl}`);

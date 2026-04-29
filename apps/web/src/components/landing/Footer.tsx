@@ -1,4 +1,4 @@
-import { Twitter, Send, Youtube } from 'lucide-react';
+import { X, Send } from 'lucide-react';
 
 const footerLinks = [
   { label: 'سياسة الخصوصية', href: '#' },
@@ -6,10 +6,20 @@ const footerLinks = [
   { label: 'الأمان', href: '#' },
 ];
 
+/* YouTube icon – inline SVG since lucide-react removed brand icons */
+function YoutubeIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M2.5 17a2.5 2.5 0 0 1-1-2V9a2.5 2.5 0 0 1 1-2l1.1-.6a49.3 49.3 0 0 1 16.8 0l1.1.6a2.5 2.5 0 0 1 1 2v6a2.5 2.5 0 0 1-1 2l-1.1.6a49.3 49.3 0 0 1-16.8 0L2.5 17Z" />
+      <path d="m10 15 5-3-5-3v6Z" />
+    </svg>
+  );
+}
+
 const socialLinks = [
-  { icon: Twitter, href: '#', label: 'Twitter / X' },
+  { icon: X, href: '#', label: 'X' },
   { icon: Send, href: '#', label: 'Telegram' },
-  { icon: Youtube, href: '#', label: 'YouTube' },
+  { icon: YoutubeIcon, href: '#', label: 'YouTube' },
 ];
 
 export default function Footer() {

@@ -59,18 +59,42 @@ export function fromAlpacaSymbol(alpacaSym: string): string {
   return alpacaSym
 }
 
-function createFallbackResponse(_path: string): Response {
-  // When Alpaca keys are not configured, return a clear error instead of
-  // fake data. The UI should show "Alpaca not configured" instead of
-  // displaying misleading $10,000 balances.
+function createFallbackResponse(path: string): Response {
+  // When Alpaca keys are not configured, return graceful 200 instead of 503
+  // to prevent browser console error flooding. The frontend handles the
+  // fallback chain (NestJS → Alpaca → defaults) properly.
+  const isPositions = path.includes('/positions')
+  const isAccount = path.includes('/account')
+
+  if (isPositions) {
+    return NextResponse.json(
+      {
+        success: false,
+        offline: true,
+        data: [],
+      },
+      { status: 200 }
+    )
+  }
+
+  if (isAccount) {
+    return NextResponse.json(
+      {
+        success: false,
+        offline: true,
+        data: null,
+      },
+      { status: 200 }
+    )
+  }
+
   return NextResponse.json(
     {
       success: false,
-      degraded: true,
-      error: 'Alpaca credentials not configured. Set ALPACA_API_KEY and ALPACA_API_SECRET environment variables.',
-      mock: true,
+      offline: true,
+      error: 'Alpaca credentials not configured',
     },
-    { status: 503 }
+    { status: 200 }
   )
 }
 

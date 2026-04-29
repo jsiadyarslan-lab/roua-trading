@@ -249,15 +249,41 @@ async function proxyWithToken(
 
     return nextResponse
   } catch (error: any) {
-    console.error(`[nestjs-proxy] ${method} ${pathname} failed:`, error.message)
+    // NestJS backend is unavailable — return graceful 200 instead of 502
+    // to prevent browser console error flooding. The frontend already
+    // handles the fallback chain (NestJS → Alpaca → defaults).
+    console.warn(`[nestjs-proxy] ${method} ${pathname} offline — returning graceful fallback`)
+
+    // Return path-specific fallback data so the frontend can process it cleanly
+    if (pathname.includes('/positions/summary') || pathname.includes('/account')) {
+      return NextResponse.json(
+        {
+          success: false,
+          offline: true,
+          data: { totalBalance: 0, totalExposure: 0, unrealizedPnL: 0, dailyPnLPercent: 0 },
+        },
+        { status: 200 },
+      )
+    }
+
+    if (pathname.includes('/positions')) {
+      return NextResponse.json(
+        {
+          success: false,
+          offline: true,
+          data: [],
+        },
+        { status: 200 },
+      )
+    }
 
     return NextResponse.json(
       {
         success: false,
+        offline: true,
         error: 'الخدمة غير متاحة حالياً',
-        ...(process.env.NODE_ENV === 'development' && { debug: error.message }),
       },
-      { status: 502 },
+      { status: 200 },
     )
   }
 }

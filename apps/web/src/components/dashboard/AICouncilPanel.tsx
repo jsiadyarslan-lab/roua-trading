@@ -112,7 +112,7 @@ export function AICouncilPanel() {
               {data?.meta ? (
                 <>
                   {data.meta.symbol} • RSI: {data.meta.rsi} • {data.meta.processingTimeMs}ms
-                  {isRealAI && ' • 🧠 AI حقيقي'}
+                  {isRealAI ? ' • 🧠 AI حقيقي' : data.meta.aiEngine ? ` • ${data.meta.aiEngine.includes('Scanner') ? '📐 تحليل تقني' : data.meta.aiEngine}` : ' • 📐 تحليل تقني'}
                 </>
               ) : `AI COUNCIL CONSENSUS ${lastUpdate ? `· ${lastUpdate}` : ''}`}
             </p>
@@ -128,7 +128,7 @@ export function AICouncilPanel() {
           }}>
             {isRealAI ? <Cpu size={8} color={T.purple} /> : <WifiOff size={8} color={T.amber} />}
             <span style={{ fontSize: 7, fontWeight: 700, color: isRealAI ? T.purple : T.amber, fontFamily: 'monospace' }}>
-              {isRealAI ? '6 AI Models' : dataSource === 'scanner-rules' ? 'Rules' : 'FB'}
+              {isRealAI ? '6 AI Models' : dataSource === 'scanner-rules' ? '📐 تقني' : 'FB'}
             </span>
           </div>
           {/* Countdown */}
@@ -155,13 +155,15 @@ export function AICouncilPanel() {
               <div className="absolute inset-0 animate-ping" style={{ background: T.accent + '10', borderRadius: '50%' }} />
             </div>
             <span className="text-[10px] animate-pulse" style={{ color: isRealAI ? T.purple + '80' : T.accent + '80' }}>
-              {isRealAI ? 'جاري استشارة النماذج الستة عبر AI...' : 'جاري بناء تحليل المجلس...'}
+              {isRealAI ? 'جاري استشارة النماذج الستة عبر AI...' : 'جاري بناء التحليل التقني...'}
             </span>
-            <div className="flex gap-1 mt-1">
-              {['Gemini', 'Groq', 'GLM-4', 'HF', 'Ollama', 'Bedrock'].map((m, i) => (
-                <div key={i} className="animate-pulse" style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(179,136,255,0.15)', color: T.purple, fontFamily: 'monospace' }}>{m}</div>
-              ))}
-            </div>
+            {isRealAI && (
+              <div className="flex gap-1 mt-1">
+                {['Gemini', 'Groq', 'GLM-4', 'HF', 'Ollama', 'Bedrock'].map((m, i) => (
+                  <div key={i} className="animate-pulse" style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(179,136,255,0.15)', color: T.purple, fontFamily: 'monospace' }}>{m}</div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

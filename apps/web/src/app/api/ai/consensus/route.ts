@@ -30,14 +30,18 @@ export async function POST(req: NextRequest) {
 
     // ═══════════════════════════════════════════════════════════
     // PHASE 1: Try REAL NestJS AI Council (6 actual AI models)
+    // P2 FIX: Reduced timeout from 45s → 8s so fallback is fast
+    // Diagnose: set API_INTERNAL_URL in Railway env vars to fix this
     // ═══════════════════════════════════════════════════════════
     try {
       const apiTarget = process.env.API_INTERNAL_URL || 'http://localhost:3001'
+      // Log target for Railway diagnostics (visible in Railway logs)
+      console.log(`[consensus] Trying NestJS AI at: ${apiTarget}/api/ai/consensus`)
       const nestjsRes = await fetch(`${apiTarget}/api/ai/consensus`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol }),
-        signal: AbortSignal.timeout(45000), // 45s timeout for AI calls
+        signal: AbortSignal.timeout(8000), // P2 FIX: was 45s, now 8s — fast fallback
       })
 
       if (nestjsRes.ok) {
@@ -63,8 +67,10 @@ export async function POST(req: NextRequest) {
         }
       }
     } catch (aiError: any) {
-      console.warn('[consensus] NestJS AI Council unavailable, using scanner fallback:', aiError?.message || aiError)
+      // P2: If API_INTERNAL_URL is wrong/missing, this fires immediately after 8s
+      console.warn('[consensus] NestJS AI unavailable, using scanner fallback:', aiError?.message || aiError)
     }
+
 
     // ═══════════════════════════════════════════════════════════
     // PHASE 2: Fallback — Rule-based scanner consensus

@@ -6,7 +6,7 @@ import { useBotStore } from '@/hooks/useBotStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import {
   Brain, Bot, ScanSearch, ChevronLeft, TrendingUp, TrendingDown,
-  Bell, Activity, Plus, ShieldCheck
+  Bell, Activity, Plus, ShieldCheck, Link2
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -145,6 +145,48 @@ function IOSCard({ children, onClick, highlight = false }: { children: React.Rea
   )
 }
 
+/* ─── Latest Signal Card ─── */
+function LatestSignalCard() {
+  const router = useRouter()
+  return (
+    <IOSCard onClick={() => router.push('/mobile/signals')} highlight>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div style={{ 
+            padding: '4px 10px', borderRadius: 20, 
+            background: 'rgba(0,212,255,0.12)', 
+            color: '#00D4FF', fontSize: 10, fontWeight: 800,
+            border: '0.5px solid rgba(0,212,255,0.2)'
+          }}>توصية جديدة</div>
+          <span style={{ fontSize: 11, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>منذ 5 دقائق</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#3fb950', boxShadow: '0 0 8px #3fb950' }} className="animate-pulse" />
+           <span style={{ fontSize: 10, color: '#3fb950', fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>LIVE</span>
+        </div>
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div style={{ 
+            width: 44, height: 44, borderRadius: 14, 
+            background: 'rgba(255,255,255,0.04)', 
+            display: 'flex', alignItems: 'center', justifyContent: 'center', 
+            fontSize: 22, border: '0.5px solid rgba(255,255,255,0.08)' 
+          }}>₿</div>
+          <div>
+            <p style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>BTC/USDT</p>
+            <p style={{ fontSize: 12, color: '#3fb950', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>شراء (BUY) @ 69,420</p>
+          </div>
+        </div>
+        <div style={{ textAlign: 'left' }}>
+          <p style={{ fontSize: 15, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>🎯 72,000</p>
+          <p style={{ fontSize: 11, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>الهدف الأول</p>
+        </div>
+      </div>
+    </IOSCard>
+  )
+}
+
 /* ─── Main Page ─────────────────────────── */
 export default function MobileHomePage() {
   const router = useRouter()
@@ -159,7 +201,10 @@ export default function MobileHomePage() {
     <div style={{ minHeight: '100vh', background: '#000000', direction: 'rtl', paddingBottom: 100 }}>
 
       {/* ── Header ── */}
-      <div style={{ padding: '60px 20px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ 
+        padding: 'calc(env(safe-area-inset-top) + 20px) 20px 10px', 
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between' 
+      }}>
         <div className="flex items-center gap-3">
           <div style={{
             width: 44, height: 44, borderRadius: '50%',
@@ -174,7 +219,7 @@ export default function MobileHomePage() {
             </h1>
             <div className="flex items-center gap-1.5 mt-0.5">
               <ShieldCheck size={12} color="#00D4FF" />
-              <span style={{ fontSize: 11, color: 'rgba(235,235,245,0.6)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>حساب احترافي (Pro)</span>
+              <span style={{ fontSize: 11, color: 'rgba(235,235,245,0.6)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>منصة ربط آمنة</span>
             </div>
           </div>
         </div>
@@ -214,13 +259,14 @@ export default function MobileHomePage() {
             </div>
           </div>
           <button style={{
-            padding: '10px 14px', borderRadius: 16,
-            background: '#FFFFFF', color: '#000000', border: 'none',
-            display: 'flex', alignItems: 'center', gap: 6,
-            fontSize: 13, fontWeight: 800, fontFamily: "'Cairo', sans-serif"
+            padding: '10px 16px', borderRadius: 18,
+            background: 'rgba(255,255,255,0.1)', color: '#FFFFFF', border: '0.5px solid rgba(255,255,255,0.15)',
+            display: 'flex', alignItems: 'center', gap: 8,
+            fontSize: 13, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
+            backdropFilter: 'blur(10px)'
           }}>
-            <Plus size={16} strokeWidth={3} />
-            إيداع
+            <Link2 size={16} strokeWidth={3} color="#00D4FF" />
+            إربط حسابك
           </button>
         </div>
 
@@ -242,6 +288,20 @@ export default function MobileHomePage() {
           </div>
         </div>
       </IOSCard>
+      
+      {/* ── Latest Signals ── */}
+      <div className="flex items-center justify-between px-5 mb-3 mt-4">
+        <h2 style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>
+          أحدث الإشارات
+        </h2>
+        <button 
+          onClick={() => router.push('/mobile/signals')}
+          style={{ fontSize: 12, color: '#00D4FF', fontWeight: 700, fontFamily: "'Cairo', sans-serif", background: 'none', border: 'none' }}
+        >
+          عرض الكل
+        </button>
+      </div>
+      <LatestSignalCard />
 
       {/* ── AI Council Card ── */}
       <h2 style={{ fontSize: 15, fontWeight: 700, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif", margin: '24px 20px 12px' }}>

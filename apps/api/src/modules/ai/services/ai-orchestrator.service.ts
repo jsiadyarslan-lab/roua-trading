@@ -43,10 +43,17 @@ import * as crypto from 'crypto';
 export class AIOrchestratorService {
   private readonly logger = new Logger(AIOrchestratorService.name);
 
-  /** Circuit breaker: track 429 failures per model to avoid spamming */
+  /** Circuit breaker: track consecutive failures per model
+   *  FIX: Previous cooldown was too aggressive — it blocked ALL models after
+   *  a few failures, causing the entire AI Council to go offline.
+   *  New approach: Only skip models after 3+ CONSECUTIVE failures (429 only).
+   *  Other errors are logged but don't trigger cooldown.
+   *  Cooldown is very short (10s) and resets on success.
+   */
   private readonly modelCooldowns = new Map<string, number>();
-  private readonly COOLDOWN_MS = 30_000; // Skip model for 30s after 429 (reduced from 60s for faster recovery)
-  private readonly MAX_COOLDOWN_MS = 120_000; // Max cooldown: 2 minutes (prevents indefinite blocking)
+  private readonly modelConsecutiveFailures = new Map<string, number>();
+  private readonly COOLDOWN_MS = 10_000; // Short cooldown: 10s after 3+ consecutive 429s
+  private readonly FAILURES_BEFORE_COOLDOWN = 3; // Only cooldown after 3+ consecutive 429 failures
 
   /** In-memory cache for AI responses with TTL */
   private readonly responseCache = new Map<string, { result: AIAnalysisResponse; expiresAt: number }>();
@@ -148,10 +155,16 @@ export class AIOrchestratorService {
         continue;
       }
 
-      // Circuit breaker: skip models that recently returned 429
-      const cooldownUntil = this.modelCooldowns.get(model) || 0;
-      if (Date.now() < cooldownUntil) {
-        continue; // Skip this model — still in cooldown
+      // Circuit breaker: only skip if 3+ consecutive 429 failures AND still in short cooldown
+      const consecutiveFails = this.modelConsecutiveFailures.get(model) || 0;
+      if (consecutiveFails >= this.FAILURES_BEFORE_COOLDOWN) {
+        const cooldownUntil = this.modelCooldowns.get(model) || 0;
+        if (Date.now() < cooldownUntil) {
+          this.logger.debug(`⏭️ Model ${model} in cooldown (${consecutiveFails} consecutive 429s) — skipping`);
+          continue;
+        }
+        // Cooldown expired — try again
+        this.modelConsecutiveFailures.set(model, 0);
       }
 
       try {
@@ -169,6 +182,8 @@ export class AIOrchestratorService {
           latencyMs: response.processingTimeMs,
           cached: false,
         });
+        // Reset consecutive failure counter on success
+        this.modelConsecutiveFailures.delete(model);
         result = response;
         break;
       } catch (error: any) {
@@ -180,17 +195,20 @@ export class AIOrchestratorService {
           latencyMs: 0,
           errorMessage: error.message,
         });
-        // If 429 (rate limited), put model in cooldown to prevent spam
+        // FIX: Only track consecutive 429 failures for cooldown
+        // Other errors are logged but don't block future calls
         if (error.response?.status === 429 || error.message?.includes('429')) {
-          // Exponential cooldown: 30s → 60s → 120s (max)
-          const currentCooldown = this.modelCooldowns.get(model) || 0;
-          const nextCooldown = Math.min(this.COOLDOWN_MS * (currentCooldown > 0 ? 2 : 1), this.MAX_COOLDOWN_MS);
-          this.modelCooldowns.set(model, Date.now() + nextCooldown);
-          this.logger.warn(`🚫 Model ${model} rate-limited (429) — cooling down for ${nextCooldown / 1000}s`);
+          const fails = (this.modelConsecutiveFailures.get(model) || 0) + 1;
+          this.modelConsecutiveFailures.set(model, fails);
+          if (fails >= this.FAILURES_BEFORE_COOLDOWN) {
+            this.modelCooldowns.set(model, Date.now() + this.COOLDOWN_MS);
+            this.logger.warn(`🚫 Model ${model} rate-limited ${fails}x consecutively — 10s cooldown`);
+          } else {
+            this.logger.warn(`🚫 Model ${model} rate-limited (429) attempt ${fails}/${this.FAILURES_BEFORE_COOLDOWN} — still trying`);
+          }
         } else {
-          // Non-rate-limit errors: shorter cooldown (15s) — model might recover quickly
-          this.modelCooldowns.set(model, Date.now() + 15_000);
-          this.logger.warn(`❌ Model ${model} failed: ${error.message} — trying next (15s cooldown)`);
+          // Non-429 errors: just log, don't cooldown. The model might work for the next request.
+          this.logger.warn(`❌ Model ${model} failed: ${error.message} — trying next (no cooldown)`);
         }
         continue;
       }
@@ -271,18 +289,21 @@ export class AIOrchestratorService {
       const start = Date.now();
 
       // FIX: Resolve the best available model for each role (primary → fallback chain)
-      // This ensures all 6 roles are filled even if primary models are in cooldown
+      // Uses the new lenient cooldown: only skip if 3+ consecutive 429 failures
       const activeRoles = roles.map(role => {
-        // Try primary model first
         const models = [role.model, ...(role.fallbackModels || [])];
         for (const model of models) {
-          const cooldownUntil = this.modelCooldowns.get(model) || 0;
-          if (Date.now() < cooldownUntil) continue; // Skip — in cooldown
+          // Check cooldown: only active after 3+ consecutive 429 failures
+          const consecutiveFails = this.modelConsecutiveFailures.get(model) || 0;
+          if (consecutiveFails >= this.FAILURES_BEFORE_COOLDOWN) {
+            const cooldownUntil = this.modelCooldowns.get(model) || 0;
+            if (Date.now() < cooldownUntil) continue; // In short cooldown
+          }
           if (!this._isModelKeyAvailable(model)) continue; // Skip — no API key
           return { ...role, resolvedModel: model };
         }
         // All models for this role unavailable — keep primary (will return stub)
-        this.logger.warn(`⚠️ All models for role ${role.name} are unavailable/in cooldown`);
+        this.logger.warn(`⚠️ All models for role ${role.name} are unavailable`);
         return { ...role, resolvedModel: role.model };
       });
 
@@ -309,11 +330,14 @@ export class AIOrchestratorService {
                 cached: false,
               });
             }
-            // If model returned stub (confidence 0), put it in short cooldown
-            // Don't use long cooldown for stubs — the model key might just not be configured
+            // If model returned stub (confidence 0), track as consecutive failure
+            // But DON'T put in cooldown — stub means key missing, cooldown won't help
             if (response.confidence === 0) {
-              this.modelCooldowns.set(role.resolvedModel, Date.now() + 30_000);
-              this.logger.warn(`🚫 Model ${role.resolvedModel} returned stub — cooldown 30s`);
+              this.logger.warn(`🚫 Model ${role.resolvedModel} returned stub — no cooldown (key likely missing)`);
+            }
+            // Reset consecutive failures on success
+            if (response.confidence > 0) {
+              this.modelConsecutiveFailures.delete(role.resolvedModel);
             }
             return { ...role, response };
           } catch (error: any) {
@@ -324,8 +348,15 @@ export class AIOrchestratorService {
               latencyMs: Date.now() - roleStart,
               errorMessage: error.message,
             });
-            // Put model in cooldown on failure
-            this.modelCooldowns.set(role.resolvedModel, Date.now() + this.COOLDOWN_MS);
+            // Track 429 failures but don't cooldown for other errors
+            if (error.response?.status === 429 || error.message?.includes('429')) {
+              const fails = (this.modelConsecutiveFailures.get(role.resolvedModel) || 0) + 1;
+              this.modelConsecutiveFailures.set(role.resolvedModel, fails);
+              if (fails >= this.FAILURES_BEFORE_COOLDOWN) {
+                this.modelCooldowns.set(role.resolvedModel, Date.now() + this.COOLDOWN_MS);
+              }
+            }
+            // Don't put model in cooldown for other errors — just try again next time
             throw error;
           }
         }),

@@ -42,6 +42,8 @@ export function AICouncilPanel() {
   const [dataSource, setDataSource] = useState<'real-ai' | 'scanner-rules' | 'fallback' | 'unknown'>('unknown')
   const [countdown, setCountdown] = useState(180)
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [loadingPhase, setLoadingPhase] = useState(0)
+  const phases = ['جاري تجميع بيانات السوق الحية...', 'تحليل الزخم عبر النماذج الذكية...', 'مناقشة الإشارات الفنية...', 'بناء استراتيجية الإجماع النهائي...']
 
   const fetchConsensus = useCallback(async () => {
     setLoading(true)
@@ -83,13 +85,39 @@ export function AICouncilPanel() {
     }
   }, [selectedSymbol])
 
-  // BUG-003 FIX: Single effect handles both initial mount AND symbol changes.
-  // The previous two-effect pattern caused double-fetch on mount.
+  // Initial fetch on symbol change
   useEffect(() => {
     fetchConsensus()
-    const interval = setInterval(fetchConsensus, 180000)
-    return () => clearInterval(interval)
   }, [fetchConsensus])
+
+  // Countdown Timer Logic
+  useEffect(() => {
+    if (loading) return // Pause countdown while fetching
+    countdownRef.current = setInterval(() => {
+      setCountdown((c) => {
+        if (c <= 1) {
+          fetchConsensus()
+          return 180
+        }
+        return c - 1
+      })
+    }, 1000)
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current)
+    }
+  }, [loading, fetchConsensus])
+
+  // Dynamic Loading Phases Logic
+  useEffect(() => {
+    if (!loading) {
+      setLoadingPhase(0)
+      return
+    }
+    const phaseInterval = setInterval(() => {
+      setLoadingPhase((p) => (p + 1) % phases.length)
+    }, 4500)
+    return () => clearInterval(phaseInterval)
+  }, [loading, phases.length])
 
   const isRealAI = dataSource === 'real-ai'
   const recColor = data?.recommendation === 'BUY' ? T.green : data?.recommendation === 'SELL' ? T.red : T.amber
@@ -151,19 +179,38 @@ export function AICouncilPanel() {
         {loading && (
           <div className="flex flex-col items-center justify-center h-40 gap-3">
             <div className="relative">
-              <Layers size={28} color={T.accent + '40'} />
+              <Layers size={28} color={T.accent + '40'} className="animate-bounce" />
               <div className="absolute inset-0 animate-ping" style={{ background: T.accent + '10', borderRadius: '50%' }} />
             </div>
-            <span className="text-[10px] animate-pulse" style={{ color: isRealAI ? T.purple + '80' : T.accent + '80' }}>
-              {isRealAI ? 'جاري استشارة النماذج الستة عبر AI...' : 'جاري بناء التحليل التقني...'}
+            <span className="text-[10px] animate-pulse" style={{ color: isRealAI ? T.purple + '90' : T.accent + '80', fontWeight: 'bold' }}>
+              {isRealAI ? phases[loadingPhase] : 'جاري بناء التحليل التقني...'}
             </span>
             {isRealAI && (
-              <div className="flex gap-1 mt-1">
-                {['Gemini', 'Groq', 'GLM-4', 'HF', 'Ollama', 'Bedrock'].map((m, i) => (
-                  <div key={i} className="animate-pulse" style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(179,136,255,0.15)', color: T.purple, fontFamily: 'monospace' }}>{m}</div>
-                ))}
+              <div className="flex gap-1 mt-1 flex-wrap justify-center px-4">
+                {['Gemini', 'Groq', 'GLM-4', 'HF', 'Ollama', 'Bedrock'].map((m, i) => {
+                  const isActive = i % phases.length === loadingPhase
+                  return (
+                    <div 
+                      key={i} 
+                      className="transition-all duration-500" 
+                      style={{ 
+                        fontSize: 6, padding: '2px 5px', borderRadius: 3, 
+                        background: isActive ? 'rgba(179,136,255,0.4)' : 'rgba(179,136,255,0.1)', 
+                        color: isActive ? '#fff' : T.purple, 
+                        fontFamily: 'monospace',
+                        transform: isActive ? 'scale(1.1)' : 'scale(1)',
+                        boxShadow: isActive ? '0 0 8px rgba(179,136,255,0.6)' : 'none'
+                      }}>
+                      {m}
+                    </div>
+                  )
+                })}
               </div>
             )}
+            {/* Tiny Progress Bar */}
+            <div className="w-24 h-0.5 bg-white/5 rounded-full overflow-hidden mt-2">
+              <div className="h-full bg-purple-500 transition-all duration-[4000ms] ease-linear" style={{ width: `${((loadingPhase + 1) / phases.length) * 100}%` }} />
+            </div>
           </div>
         )}
 
@@ -204,30 +251,39 @@ export function AICouncilPanel() {
             )}
 
             {/* Consensus Gauge */}
-            <div className="relative p-3 rounded-xl text-center" style={{ background: '#0d0f12', border: `1px solid ${recColor}20` }}>
-              <div className="absolute top-2 left-2 flex items-center gap-1">
+            <div className="relative p-3 rounded-xl text-center overflow-hidden" style={{ 
+              background: '#0d0f12', 
+              border: `1px solid ${recColor}20`,
+              boxShadow: `inset 0 0 40px ${recColor}08`
+            }}>
+              {/* Radial Glow Background */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full opacity-20 pointer-events-none" style={{
+                background: `radial-gradient(circle at top, ${recColor} 0%, transparent 70%)`
+              }} />
+
+              <div className="absolute top-2 left-2 flex items-center gap-1 z-10">
                 <div className={`w-1.5 h-1.5 rounded-full ${isRealAI ? 'bg-purple-500' : 'bg-green-500'} animate-ping`} />
                 <span className={`text-[7px] ${isRealAI ? 'text-purple-500' : 'text-green-500'}/80 font-bold font-mono`}>
                   {isRealAI ? 'AI LIVE' : 'LIVE'}
                 </span>
               </div>
 
-              <div className="text-[9px] mb-1 uppercase tracking-widest" style={{ color: T.text2 }}>درجة الإجماع</div>
-              <div className="text-4xl font-black font-mono mb-2" style={{ color: recColor, textShadow: `0 0 20px ${recColor}40` }}>
+              <div className="text-[9px] mb-1 uppercase tracking-widest relative z-10" style={{ color: T.text2 }}>درجة الإجماع</div>
+              <div className="text-4xl font-black font-mono mb-2 relative z-10" style={{ color: recColor, textShadow: `0 0 20px ${recColor}60` }}>
                 {data.consensusScore}%
               </div>
 
               {/* Gauge Bar */}
-              <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden mb-2">
+              <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden mb-2 relative z-10">
                 <div
                   className="h-full rounded-full transition-all duration-1000"
-                  style={{ width: `${data.consensusScore}%`, background: recColor, boxShadow: `0 0 10px ${recColor}60` }}
+                  style={{ width: `${data.consensusScore}%`, background: recColor, boxShadow: `0 0 12px ${recColor}80` }}
                 />
               </div>
 
               <div
-                className="inline-flex px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest"
-                style={{ background: `${recColor}15`, color: recColor, border: `1px solid ${recColor}30` }}
+                className="inline-flex px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest relative z-10"
+                style={{ background: `${recColor}15`, color: recColor, border: `1px solid ${recColor}30`, boxShadow: `0 0 10px ${recColor}20` }}
               >
                 {data.recommendation === 'BUY' ? '⬆ قوة شرائية' : data.recommendation === 'SELL' ? '⬇ ضغط بيعي' : '◆ حياد — انتظار'}
               </div>

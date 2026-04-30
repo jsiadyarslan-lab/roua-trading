@@ -20,7 +20,7 @@ function NewsTicker() {
     { text: 'البيتكوين يكسر مقاومة 70,000$', color: '#00D4FF' },
     { text: 'مخاوف تضخمية في السوق الأمريكي', color: '#FF4757' },
     { text: 'الذهب يرتفع 1.2% اليوم', color: '#FFB800' },
-    { text: 'إيثيريوم يقفز 5% بعد الترقية', color: '#00FFA3' },
+    { text: 'إيثيريوم يقفز 5% بعد الترقية', color: '#00D4FF' },
   ]
   const tickerRef = useRef<HTMLDivElement>(null)
 
@@ -98,7 +98,7 @@ function CurrencyTicker() {
             <div style={{ fontSize: 15, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace", marginTop: 4 }}>
               ${p.price.toLocaleString()}
             </div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: p.change >= 0 ? '#32D74B' : '#FF453A', fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: p.change >= 0 ? '#00D4FF' : '#FF453A', fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>
               {pct(p.change)}
             </div>
           </motion.button>
@@ -161,7 +161,7 @@ export default function MobileHomePage() {
               رؤى للتداول
             </h1>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <ShieldCheck size={12} color="#32D74B" />
+              <ShieldCheck size={12} color="#00D4FF" />
               <span style={{ fontSize: 11, color: 'rgba(235,235,245,0.6)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>حساب احترافي (Pro)</span>
             </div>
           </div>
@@ -192,9 +192,9 @@ export default function MobileHomePage() {
               </span>
             </div>
             <div className="flex items-center gap-1.5 mt-1">
-              <div style={{ padding: '3px 6px', borderRadius: 6, background: 'rgba(50,215,75,0.15)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <TrendingUp size={12} color="#32D74B" strokeWidth={3} />
-                <span style={{ fontSize: 12, color: '#32D74B', fontFamily: "'JetBrains Mono', monospace", fontWeight: 800 }}>
+              <div style={{ padding: '3px 6px', borderRadius: 6, background: 'rgba(0,212,255,0.15)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <TrendingUp size={12} color="#00D4FF" strokeWidth={3} />
+                <span style={{ fontSize: 12, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace", fontWeight: 800 }}>
                   {pct(dailyChange)}
                 </span>
               </div>
@@ -216,7 +216,7 @@ export default function MobileHomePage() {
         <div className="flex gap-4 mt-6 pt-5" style={{ borderTop: '0.5px solid rgba(255,255,255,0.08)' }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 11, color: 'rgba(235,235,245,0.5)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>الربح الكلي</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: '#32D74B', fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>+${fmt2(stats.profit)}</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>+${fmt2(stats.profit)}</div>
           </div>
           <div style={{ width: 1, background: 'rgba(255,255,255,0.08)' }} />
           <div style={{ flex: 1 }}>
@@ -255,14 +255,14 @@ export default function MobileHomePage() {
         
         <div style={{
           padding: '12px 14px', borderRadius: 16,
-          background: 'rgba(50,215,75,0.1)', border: '0.5px solid rgba(50,215,75,0.2)',
+          background: 'rgba(0,212,255,0.1)', border: '0.5px solid rgba(0,212,255,0.2)',
         }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#32D74B', boxShadow: '0 0 8px #32D74B' }} className="animate-pulse" />
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#00D4FF', boxShadow: '0 0 8px #00D4FF' }} className="animate-pulse" />
               <span style={{ fontSize: 12, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>BTC/USD</span>
             </div>
-            <span style={{ fontSize: 12, color: '#32D74B', fontFamily: "'Cairo', sans-serif", fontWeight: 800 }}>إجماع شراء (72%)</span>
+            <span style={{ fontSize: 12, color: '#00D4FF', fontFamily: "'Cairo', sans-serif", fontWeight: 800 }}>إجماع شراء (72%)</span>
           </div>
         </div>
       </IOSCard>
@@ -275,18 +275,18 @@ export default function MobileHomePage() {
           onClick={() => router.push('/mobile/settings')}
           style={{ background: '#1C1C1E', borderRadius: 24, padding: 16, position: 'relative', overflow: 'hidden' }}
         >
-          {isOn && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: '#32D74B', boxShadow: '0 0 12px #32D74B' }} />}
+          {isOn && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: '#00D4FF', boxShadow: '0 0 12px #00D4FF' }} />}
           <div className="flex items-center justify-between mb-3">
-            <div style={{ width: 36, height: 36, borderRadius: 12, background: isOn ? 'rgba(50,215,75,0.15)' : 'rgba(235,235,245,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Bot size={18} color={isOn ? '#32D74B' : 'rgba(235,235,245,0.5)'} />
+            <div style={{ width: 36, height: 36, borderRadius: 12, background: isOn ? 'rgba(0,212,255,0.15)' : 'rgba(235,235,245,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Bot size={18} color={isOn ? '#00D4FF' : 'rgba(235,235,245,0.5)'} />
             </div>
             {/* iOS Switch */}
-            <div onClick={(e) => { e.stopPropagation(); setIsOn(!isOn) }} style={{ width: 44, height: 24, borderRadius: 12, background: isOn ? '#32D74B' : 'rgba(235,235,245,0.2)', position: 'relative', cursor: 'pointer', transition: '0.3s' }}>
+            <div onClick={(e) => { e.stopPropagation(); setIsOn(!isOn) }} style={{ width: 44, height: 24, borderRadius: 12, background: isOn ? '#00D4FF' : 'rgba(235,235,245,0.2)', position: 'relative', cursor: 'pointer', transition: '0.3s' }}>
               <motion.div animate={{ x: isOn ? 20 : 2 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }} style={{ position: 'absolute', top: 2, width: 20, height: 20, borderRadius: '50%', background: '#FFFFFF', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }} />
             </div>
           </div>
           <p style={{ fontSize: 14, fontWeight: 700, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>البوت الآلي</p>
-          <p style={{ fontSize: 11, color: isOn ? '#32D74B' : 'rgba(235,235,245,0.5)', fontFamily: "'Cairo', sans-serif", fontWeight: 600, marginTop: 2 }}>{isOn ? 'نشط يتداول الآن' : 'متوقف'}</p>
+          <p style={{ fontSize: 11, color: isOn ? '#00D4FF' : 'rgba(235,235,245,0.5)', fontFamily: "'Cairo', sans-serif", fontWeight: 600, marginTop: 2 }}>{isOn ? 'نشط يتداول الآن' : 'متوقف'}</p>
         </motion.div>
 
         {/* Scanner Card */}

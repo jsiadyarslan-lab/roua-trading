@@ -130,32 +130,42 @@ async function callGroq(prompt: string): Promise<DirectAIResponse> {
 
 async function callGemini(prompt: string): Promise<DirectAIResponse> {
   const apiKey = getKey('GOOGLE_AI_STUDIO_API_KEY')
-  if (!apiKey) return { model: 'Gemini/2.0-Flash', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key' }
+  if (!apiKey) return { model: 'Gemini/unavailable', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key' }
 
   const start = Date.now()
-  try {
-    // FIX: Updated from gemini-2.0-flash (deprecated). Using gemini-2.5-flash (generally available).
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: `You are a financial AI analyst. Respond in Arabic. Provide analysis. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"\n\n${prompt}` }] }],
-        generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
-      }),
-      signal: AbortSignal.timeout(MODEL_TIMEOUT),
-    })
+  // FIX: Model fallback chain — try multiple model names since availability varies
+  const modelCandidates = ['gemini-2.5-flash', 'gemini-2.0-flash-001', 'gemini-1.5-flash', 'gemini-2.0-flash-lite']
+  
+  for (const model of modelCandidates) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: `You are a financial AI analyst. Respond in Arabic. Provide analysis. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"\n\n${prompt}` }] }],
+          generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
+        }),
+        signal: AbortSignal.timeout(MODEL_TIMEOUT),
+      })
 
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '')
-      return { model: 'Gemini/2.0-Flash', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Gemini ${res.status}: ${errBody.slice(0, 150)}` }
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '')
+        // 404 = model not available, try next
+        if (res.status === 404) {
+          continue
+        }
+        return { model: `Gemini/${model}`, content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Gemini ${res.status}: ${errBody.slice(0, 150)}` }
+      }
+
+      const data = await res.json()
+      const content = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
+      return { model: `Gemini/${model}`, content, confidence: calcConfidence(content, 'gemini'), processingTimeMs: Date.now() - start, success: content.length > 10 }
+    } catch (e: any) {
+      continue // Try next model
     }
-
-    const data = await res.json()
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-    return { model: 'Gemini/2.0-Flash', content, confidence: calcConfidence(content, 'gemini'), processingTimeMs: Date.now() - start, success: content.length > 10 }
-  } catch (e: any) {
-    return { model: 'Gemini/2.0-Flash', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: e.message }
   }
+  
+  return { model: 'Gemini/unavailable', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: 'All Gemini models unavailable (404)' }
 }
 
 async function callGLM(prompt: string): Promise<DirectAIResponse> {

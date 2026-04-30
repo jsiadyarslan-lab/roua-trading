@@ -10,31 +10,31 @@ import {
 const MORE_ITEMS = [
   {
     icon: Brain, label: 'التحليلات', sub: 'تحليل AI متقدم من 6 نماذج',
-    color: '#B388FF', href: '/dashboard',
+    color: '#B388FF', href: '/mobile/ai',
   },
   {
     icon: FlaskConical, label: 'المختبر الذكي', sub: 'تجربة الاستراتيجيات الجديدة',
-    color: '#00D4FF', href: '/dashboard',
+    color: '#00D4FF', href: '#',
   },
   {
     icon: ScanSearch, label: 'السكانر المتقدم', sub: 'اكتشاف الفرص في الوقت الفعلي',
-    color: '#00FFA3', href: '/dashboard',
+    color: '#00D4FF', href: '/mobile/scanner',
   },
   {
     icon: Radio, label: 'إشارات رؤى', sub: 'إشارات تداول آنية',
-    color: '#FFB800', href: '/dashboard',
+    color: '#FFB800', href: '#',
   },
   {
     icon: CopyCheck, label: 'نسخ الصفقات', sub: 'تتبع أفضل المتداولين',
-    color: '#FF4757', href: '/dashboard',
+    color: '#FF4757', href: '#',
   },
   {
     icon: BarChart4, label: 'التقويم الاقتصادي', sub: 'أحداث وبيانات الأسواق',
-    color: '#059669', href: '/dashboard',
+    color: '#00D4FF', href: '#',
   },
   {
     icon: Newspaper, label: 'آخر الأخبار', sub: 'أخبار الأسواق المالية',
-    color: '#d4af37', href: '/dashboard',
+    color: '#d4af37', href: '#',
   },
   {
     icon: HelpCircle, label: 'المساعدة والدعم', sub: 'تواصل مع فريق الدعم',

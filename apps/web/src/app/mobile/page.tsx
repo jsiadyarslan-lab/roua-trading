@@ -235,7 +235,7 @@ export default function MobileHomePage() {
       <h2 style={{ fontSize: 15, fontWeight: 700, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif", margin: '24px 20px 12px' }}>
         الذكاء الاصطناعي
       </h2>
-      <IOSCard onClick={() => router.push('/mobile/more')}>
+      <IOSCard onClick={() => router.push('/mobile/ai')}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div style={{
@@ -272,7 +272,7 @@ export default function MobileHomePage() {
         {/* Bot Card */}
         <motion.div
           whileTap={{ scale: 0.98 }}
-          onClick={() => router.push('/mobile/settings')}
+          onClick={() => router.push('/mobile/bot')}
           style={{ background: '#1C1C1E', borderRadius: 24, padding: 16, position: 'relative', overflow: 'hidden' }}
         >
           {isOn && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 2, background: '#00D4FF', boxShadow: '0 0 12px #00D4FF' }} />}
@@ -292,7 +292,7 @@ export default function MobileHomePage() {
         {/* Scanner Card */}
         <motion.div
           whileTap={{ scale: 0.98 }}
-          onClick={() => router.push('/mobile/more')}
+          onClick={() => router.push('/mobile/scanner')}
           style={{ background: '#1C1C1E', borderRadius: 24, padding: 16 }}
         >
           <div className="flex items-center justify-between mb-3">

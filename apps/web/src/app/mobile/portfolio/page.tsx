@@ -64,7 +64,7 @@ export default function MobilePortfolioPage() {
     <div style={{ minHeight: '100vh', background: '#0B0E14', direction: 'rtl', paddingBottom: 24 }}>
 
       {/* ── Header ── */}
-      <div style={{ padding: '52px 16px 16px', background: 'linear-gradient(180deg, rgba(5,150,105,0.1), transparent)' }}>
+      <div style={{ padding: '52px 16px 16px', background: 'linear-gradient(180deg, rgba(0,212,255,0.1), transparent)' }}>
         <h1 style={{ fontSize: 20, fontWeight: 800, color: '#F0F2F5', fontFamily: "'Cairo', sans-serif" }}>المحفظة</h1>
       </div>
 
@@ -77,19 +77,19 @@ export default function MobilePortfolioPage() {
               ${totalAssets.toLocaleString('en', { minimumFractionDigits: 2 })}
             </p>
             <div className="flex items-center gap-1 mt-1">
-              <TrendingUp size={12} color="#00FFA3" />
-              <span style={{ fontSize: 12, color: '#00FFA3', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+              <TrendingUp size={12} color="#00D4FF" />
+              <span style={{ fontSize: 12, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
                 +{dailyChange}% اليوم
               </span>
             </div>
           </div>
-          <Sparkline data={chartData} color="#00FFA3" />
+          <Sparkline data={chartData} color="#00D4FF" />
         </div>
 
         {/* Stats Row */}
         <div className="flex gap-2 mt-4 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           {[
-            { label: 'إجمالي الربح', value: `+$${fmt(totalPnl)}`, color: totalPnl >= 0 ? '#00FFA3' : '#FF4757' },
+            { label: 'إجمالي الربح', value: `+$${fmt(totalPnl)}`, color: totalPnl >= 0 ? '#00D4FF' : '#FF4757' },
             { label: 'نسبة الفوز', value: `${winRate}%`, color: '#00D4FF' },
             { label: 'عدد الصفقات', value: String(MOCK_HISTORY.length), color: '#FFB800' },
           ].map((s, i) => (
@@ -109,7 +109,7 @@ export default function MobilePortfolioPage() {
             <svg width={64} height={64} viewBox="0 0 64 64">
               <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
               <circle cx="32" cy="32" r="28" fill="none"
-                stroke={riskScore < 40 ? '#00FFA3' : riskScore < 70 ? '#FFB800' : '#FF4757'}
+                stroke={riskScore < 40 ? '#00D4FF' : riskScore < 70 ? '#FFB800' : '#FF4757'}
                 strokeWidth="6" strokeLinecap="round"
                 strokeDasharray={`${(riskScore / 100) * 176} 176`}
                 transform="rotate(-90 32 32)"
@@ -120,7 +120,7 @@ export default function MobilePortfolioPage() {
             </div>
           </div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 12, color: '#00FFA3', fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 4 }}>منخفض ✓</div>
+            <div style={{ fontSize: 12, color: '#00D4FF', fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 4 }}>منخفض ✓</div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontFamily: "'Cairo', sans-serif", marginBottom: 4 }}>أكبر أصل: BTC (35%)</div>
             <div style={{ padding: '6px 10px', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: 8 }}>
               <span style={{ fontSize: 10, color: '#d4af37', fontFamily: "'Cairo', sans-serif" }}>
@@ -142,8 +142,8 @@ export default function MobilePortfolioPage() {
             style={{
               display: 'flex', alignItems: 'center', gap: 4,
               padding: '5px 10px', borderRadius: 8,
-              background: showFilter ? 'rgba(5,150,105,0.2)' : 'rgba(255,255,255,0.06)',
-              border: 'none', color: showFilter ? '#059669' : 'rgba(255,255,255,0.5)',
+              background: showFilter ? 'rgba(0,212,255,0.2)' : 'rgba(255,255,255,0.06)',
+              border: 'none', color: showFilter ? '#00D4FF' : 'rgba(255,255,255,0.5)',
             }}
           >
             <Filter size={12} />
@@ -166,9 +166,10 @@ export default function MobilePortfolioPage() {
                     <button key={s} onClick={() => setFilterSide(s)}
                       style={{
                         flex: 1, padding: '5px 0', borderRadius: 8, border: 'none',
-                        background: filterSide === s ? '#059669' : 'rgba(255,255,255,0.06)',
-                        color: filterSide === s ? '#fff' : 'rgba(255,255,255,0.4)',
+                        background: filterSide === s ? '#00D4FF' : 'rgba(255,255,255,0.06)',
+                        color: filterSide === s ? '#000' : 'rgba(255,255,255,0.4)',
                         fontSize: 11, fontFamily: "'Cairo', sans-serif",
+                        fontWeight: filterSide === s ? 800 : 400
                       }}>
                       {s === 'ALL' ? 'الكل' : s === 'BUY' ? 'شراء' : 'بيع'}
                     </button>
@@ -179,9 +180,10 @@ export default function MobilePortfolioPage() {
                     <button key={r} onClick={() => setFilterResult(r)}
                       style={{
                         flex: 1, padding: '5px 0', borderRadius: 8, border: 'none',
-                        background: filterResult === r ? (r === 'WIN' ? '#059669' : r === 'LOSS' ? '#FF4757' : '#059669') : 'rgba(255,255,255,0.06)',
-                        color: filterResult === r ? '#fff' : 'rgba(255,255,255,0.4)',
+                        background: filterResult === r ? (r === 'WIN' ? '#00D4FF' : r === 'LOSS' ? '#FF4757' : '#00D4FF') : 'rgba(255,255,255,0.06)',
+                        color: filterResult === r ? '#000' : 'rgba(255,255,255,0.4)',
                         fontSize: 11, fontFamily: "'Cairo', sans-serif",
+                        fontWeight: filterResult === r ? 800 : 400
                       }}>
                       {r === 'ALL' ? 'الكل' : r === 'WIN' ? 'رابحة' : 'خاسرة'}
                     </button>
@@ -203,7 +205,7 @@ export default function MobilePortfolioPage() {
               style={{
                 padding: '12px 14px', borderRadius: 14,
                 background: 'rgba(255,255,255,0.03)',
-                border: `1px solid ${trade.pnl >= 0 ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)'}`,
+                border: `1px solid ${trade.pnl >= 0 ? 'rgba(0,212,255,0.1)' : 'rgba(255,71,87,0.1)'}`,
               }}
             >
               <div className="flex items-center justify-between">
@@ -213,8 +215,8 @@ export default function MobilePortfolioPage() {
                   </span>
                   <span style={{
                     fontSize: 9, padding: '2px 6px', borderRadius: 5,
-                    background: trade.side === 'BUY' ? 'rgba(0,255,163,0.15)' : 'rgba(255,71,87,0.15)',
-                    color: trade.side === 'BUY' ? '#00FFA3' : '#FF4757',
+                    background: trade.side === 'BUY' ? 'rgba(0,212,255,0.15)' : 'rgba(255,71,87,0.15)',
+                    color: trade.side === 'BUY' ? '#00D4FF' : '#FF4757',
                     fontFamily: "'Cairo', sans-serif", fontWeight: 700,
                   }}>
                     {trade.side === 'BUY' ? 'شراء' : 'بيع'}
@@ -225,7 +227,7 @@ export default function MobilePortfolioPage() {
                 </div>
                 <span style={{
                   fontSize: 14, fontWeight: 800,
-                  color: trade.pnl >= 0 ? '#00FFA3' : '#FF4757',
+                  color: trade.pnl >= 0 ? '#00D4FF' : '#FF4757',
                   fontFamily: "'JetBrains Mono', monospace",
                 }}>
                   {trade.pnl >= 0 ? '+' : '-'}${fmt(trade.pnl)}

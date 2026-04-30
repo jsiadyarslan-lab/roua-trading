@@ -83,36 +83,13 @@ export function AICouncilPanel() {
     }
   }, [selectedSymbol])
 
+  // BUG-003 FIX: Single effect handles both initial mount AND symbol changes.
+  // The previous two-effect pattern caused double-fetch on mount.
   useEffect(() => {
     fetchConsensus()
-
-    // Auto-refresh every 3 minutes
     const interval = setInterval(fetchConsensus, 180000)
     return () => clearInterval(interval)
   }, [fetchConsensus])
-
-  // Countdown timer — makes the panel feel alive
-  useEffect(() => {
-    countdownRef.current = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) return 180
-        return prev - 1
-      })
-    }, 1000)
-    return () => {
-      if (countdownRef.current) clearInterval(countdownRef.current)
-    }
-  }, [])
-
-  // Reset countdown on fetch
-  useEffect(() => {
-    setCountdown(180)
-  }, [loading])
-
-  // Auto-fetch when symbol changes
-  useEffect(() => {
-    fetchConsensus()
-  }, [selectedSymbol, fetchConsensus])
 
   const isRealAI = dataSource === 'real-ai'
   const recColor = data?.recommendation === 'BUY' ? T.green : data?.recommendation === 'SELL' ? T.red : T.amber

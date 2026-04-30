@@ -6,6 +6,7 @@ import { usePaperTradesStore, type PaperTrade } from '@/hooks/usePaperTradesStor
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
+import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { isMarketOpen } from '@/lib/market-hours'
 
 // Default to paper trading for safety — only go live if explicitly enabled
@@ -314,7 +315,11 @@ export function BotEngine() {
   const executeTrade = (signal: SmartSignalLike, strategySource: string = 'scanner') => {
     const price = Number(signal.price || 0)
     const confidence = Number(signal.strength || 0)
-    const tradeAmount = Math.max(10, settings.riskPct * 50)
+    // BUG-006 FIX: Use actual account balance instead of hardcoded 50.
+    // Read imperatively (no subscription) to avoid unnecessary re-renders.
+    const account = usePositionsStore.getState().account
+    const buyingPower = Number(account?.buyingPower) || 500 // Fallback $500 paper
+    const tradeAmount = Math.max(10, buyingPower * (settings.riskPct / 100))
     const qty = parseFloat((tradeAmount / price).toFixed(6))
     const isBuy = signal.dir === 'buy'
     // Wider TP/SL: 2.5% TP, 1.5% SL — gives trades room to breathe

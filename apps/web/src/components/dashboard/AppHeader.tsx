@@ -9,7 +9,7 @@ import {
   Copy, Users, Newspaper, CalendarDays, Settings,
   ChevronDown, Bell, User, MoreHorizontal,
   TrendingUp, TrendingDown, Menu, X as XIcon, GitMerge, Activity,
-  FlaskConical, Shield, Hammer
+  FlaskConical, Shield, Hammer, ShieldAlert, BookOpen
 } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
@@ -172,14 +172,18 @@ function LogoCircle({ state }: { state: MarketState }) {
 }
 
 /* ══ Strip 1: News Ticker ══ */
-/* ─── Shared news data (single fetch) ─── */
+/* ─── Shared news data (single fetch) with TTL ─── */
+// BUG-004 FIX: Added TTL so cache expires after 10 min instead of living forever.
 type NewsItem = { text: string; textAr: string; categoryAr: string; color: string; impact: string }
 let _newsCache: NewsItem[] | null = null
+let _newsCacheAt = 0
+const NEWS_TTL_MS = 10 * 60 * 1000 // 10 minutes
 let _newsPromise: Promise<NewsItem[]> | null = null
 
 function fetchNewsData(): Promise<NewsItem[]> {
-  if (_newsCache) return Promise.resolve(_newsCache)
+  if (_newsCache && Date.now() - _newsCacheAt < NEWS_TTL_MS) return Promise.resolve(_newsCache)
   if (_newsPromise) return _newsPromise
+  _newsCache = null // invalidate stale cache
   _newsPromise = fetch('/api/news/feed')
     .then(r => r.ok ? r.json() : [])
     .then((d: unknown) => {
@@ -199,9 +203,11 @@ function fetchNewsData(): Promise<NewsItem[]> {
       } else {
         _newsCache = []
       }
+      _newsCacheAt = Date.now()
+      _newsPromise = null
       return _newsCache!
     })
-    .catch(() => { _newsCache = []; return _newsCache! })
+    .catch(() => { _newsCache = []; _newsCacheAt = Date.now(); _newsPromise = null; return _newsCache! })
   return _newsPromise
 }
 
@@ -407,6 +413,9 @@ function MobileNewsTicker() {
 const NAV_LINKS = [
   { href: '/dashboard',                        label: 'الرئيسية',           icon: Home },
   { href: '/dashboard/portfolio',              label: 'المحفظة',            icon: Wallet },
+  { href: '/dashboard/pnl',                    label: 'لوحة الأداء',          icon: TrendingUp },
+  { href: '/dashboard/risk',                   label: 'إدارة المخاطر',         icon: ShieldAlert },
+  { href: '/dashboard/journal',                label: 'سجل التداول',          icon: BookOpen },
   { href: '/dashboard/ai',                     label: 'تحليل AI',           icon: Brain },
   { href: '/dashboard/neural',                  label: 'Neural Lab',         icon: FlaskConical },
   { href: '/dashboard/scanner',                label: 'السكانر المتقدم',    icon: ScanSearch },
@@ -421,6 +430,9 @@ const NAV_LINKS = [
   { href: '/dashboard/correlation',            label: 'مصفوفة الارتباط',    icon: GitMerge },
   { href: '/dashboard/settings',               label: 'الإعدادات',          icon: Settings },
 ]
+
+// BUG-005 FIX: Use a module-level ref instead of window namespace pollution
+const _dropdownCleanupRef: { current: (() => void) | null } = { current: null }
 
 function MoreDropdown({
   open,
@@ -450,7 +462,6 @@ function MoreDropdown({
     // Use a small delay to avoid the click that opened the dropdown from closing it
     const timeoutId = setTimeout(() => {
       const handleClick = (e: MouseEvent) => {
-        // Don't close if clicking inside the dropdown or the anchor button
         if (
           dropdownRef.current?.contains(e.target as Node) ||
           anchorRef.current?.contains(e.target as Node)
@@ -464,17 +475,17 @@ function MoreDropdown({
       }
       document.addEventListener('mousedown', handleClick)
       document.addEventListener('keydown', handleEsc)
-      // Store cleanup function
-      ;(window as any).__moreDropdownCleanup = () => {
+      // BUG-005 FIX: Store cleanup in module-level ref, not window object
+      _dropdownCleanupRef.current = () => {
         document.removeEventListener('mousedown', handleClick)
         document.removeEventListener('keydown', handleEsc)
       }
     }, 50)
     return () => {
       clearTimeout(timeoutId)
-      if ((window as any).__moreDropdownCleanup) {
-        ;(window as any).__moreDropdownCleanup()
-        delete (window as any).__moreDropdownCleanup
+      if (_dropdownCleanupRef.current) {
+        _dropdownCleanupRef.current()
+        _dropdownCleanupRef.current = null
       }
     }
   }, [open, onClose, anchorRef])

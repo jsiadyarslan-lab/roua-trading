@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ symbol }),
-          signal: AbortSignal.timeout(90000),
+          signal: AbortSignal.timeout(60000), // Reduced from 90s — fail faster to direct layer
         })
 
         if (nestjsRes.ok) {
@@ -200,7 +200,7 @@ export async function POST(req: NextRequest) {
     // ═══════════════════════════════════════════════════════════
     // LAYER 3: Scanner-rules (LAST RESORT — only if ALL AI fails)
     // ═══════════════════════════════════════════════════════════
-    console.log(`[consensus] Layer 3 — Falling back to scanner-rules (all AI failed)`)
+    console.log(`[consensus] Layer 3 — Falling back to scanner-rules (all AI failed), hasAnyAIKey=${hasAnyAIKey}, keys=${JSON.stringify(availableKeys)}`)
     const context = await fetchMarketContext(origin, symbol, '1h')
     const scanner = buildScannerResult(context)
     const mtf = await buildMultiTimeframeSnapshot(origin, symbol)
@@ -365,7 +365,7 @@ export async function POST(req: NextRequest) {
           processingTimeMs: Date.now() - startedAt,
           timeframe: scanner.timeframe,
           timestamp: new Date().toISOString(),
-          aiEngine: 'Scanner-Rules (AI temporarily unavailable)',
+          aiEngine: `Scanner-Rules (AI temporarily unavailable, hasKeys=${hasAnyAIKey}, keyDetails=${availableKeys.map(k => `${k.model}:${k.hasKey}`).join(',')})`,
           connectionLayer: 'scanner',
         },
       },

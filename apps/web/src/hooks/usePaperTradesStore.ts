@@ -43,6 +43,7 @@ interface PaperTradesState {
   closeTrade: (id: string) => void
   clearAll: () => void
   clearClosedTrades: () => void
+  syncWithServer?: () => Promise<void>
 }
 
 export const usePaperTradesStore = create<PaperTradesState>()(
@@ -51,7 +52,7 @@ export const usePaperTradesStore = create<PaperTradesState>()(
       trades: [],
       closedTrades: [],
 
-      addTrade: (t) =>
+      addTrade: (t) => {
         set((state) => ({
           trades: [
             ...state.trades,
@@ -62,7 +63,9 @@ export const usePaperTradesStore = create<PaperTradesState>()(
               unrealizedPct: 0,
             },
           ],
-        })),
+        }))
+        triggerBackgroundSync()
+      },
 
       updatePrice: (symbol, price) => {
         const normalizedSymbol = symbol.toUpperCase().replace(/\//g, '')
@@ -95,10 +98,12 @@ export const usePaperTradesStore = create<PaperTradesState>()(
         set({ trades })
       },
 
-      removeTrade: (id) =>
-        set((state) => ({ trades: state.trades.filter((t) => t.id !== id) })),
+      removeTrade: (id) => {
+        set((state) => ({ trades: state.trades.filter((t) => t.id !== id) }))
+        triggerBackgroundSync()
+      },
 
-      closeTrade: (id) =>
+      closeTrade: (id) => {
         set((state) => {
           const trade = state.trades.find((t) => t.id === id)
           if (!trade) return state
@@ -131,11 +136,43 @@ export const usePaperTradesStore = create<PaperTradesState>()(
             trades: state.trades.filter((t) => t.id !== id),
             closedTrades: [closedTrade, ...state.closedTrades].slice(0, 200), // Keep last 200
           }
-        }),
+        })
+        triggerBackgroundSync()
+      },
 
-      clearAll: () => set({ trades: [] }),
-      clearClosedTrades: () => set({ closedTrades: [] }),
+      clearAll: () => {
+        set({ trades: [] })
+        triggerBackgroundSync()
+      },
+      clearClosedTrades: () => {
+        set({ closedTrades: [] })
+        triggerBackgroundSync()
+      },
+      
+      // Syncs current paper trades state to the backend silently
+      syncWithServer: async () => {
+        try {
+          const state = get()
+          await fetch('/api/trading/paper/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              trades: state.trades,
+              closedTrades: state.closedTrades
+            })
+          })
+        } catch {
+          // Silent failure — local storage remains the source of truth
+        }
+      }
     }),
     { name: 'roua-paper-trades' }
   )
 )
+
+// Helper to safely trigger sync without breaking UI flows
+function triggerBackgroundSync() {
+  setTimeout(() => {
+    usePaperTradesStore.getState().syncWithServer?.()
+  }, 1000)
+}

@@ -133,8 +133,11 @@ export async function POST(req: NextRequest) {
             layer1Result = { data: aiData, source, modelCount }
             console.log(`[consensus] Layer 1 — NestJS returned ${modelCount} models (source: ${source})`)
 
-            // If we have 3+ models, this is a strong result — return immediately
-            if (source === 'real-ai') {
+            // FIX: Only return immediately if ALL 6 models responded.
+            // Previously returned with 3+ models, missing the chance to
+            // supplement with Layer 2. Now we always try Layer 2 unless
+            // we already have the full 6-model consensus.
+            if (modelCount >= 6) {
               const result = {
                 success: true,
                 source,

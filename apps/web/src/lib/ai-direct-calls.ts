@@ -89,7 +89,7 @@ function parseVote(content: string): 'BUY' | 'SELL' | 'HOLD' {
   return 'HOLD'
 }
 
-const MODEL_TIMEOUT = 20_000 // 20s per model
+const MODEL_TIMEOUT = 15_000 // FIX: Reduced from 20s to 15s — faster failure, quicker Layer 2 completion
 const OLLAMA_TIMEOUT = 8_000 // 8s for Ollama (fail faster if unreachable)
 
 // ─── Model Call Functions ────────────────────────────────────────
@@ -357,10 +357,10 @@ function getBedrockStatus(): { available: boolean; reason: string } {
  * Each model is called with a DIFFERENT prompt for diversity.
  *
  * Role assignment based on model strengths (6 models → 6+ roles):
- * - Groq:       محلل المشاعر (sentiment analysis — fastest model)
- * - Gemini:     المحلل الفني (technical analysis) + خبير الماكرو (macro)
- * - GLM-4:      خبير الأنماط (pattern recognition — 200k context)
- * - HuggingFace: محلل إضافي (supplementary — open source)
+ * - Groq:       محلل المشاعر (sentiment analysis — fastest model) + استراتيجي التنفيذ (when Ollama absent)
+ * - Gemini:     المححلل الفني (technical analysis) + خبير الماكرو (macro)
+ * - GLM-4:      خبير المخاطر (risk expert — takes Bedrock's role) + خبير الماكرو (secondary)
+ * - HuggingFace: خبير الأنماط (pattern recognition — matches NestJS orchestrator)
  * - Ollama:     استراتيجي التنفيذ (execution strategy — if available)
  * - Bedrock:    خبير المخاطر (risk expert — via NestJS only, too complex for direct)
  *
@@ -420,16 +420,19 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     },
     {
       modelName: 'GLM-4',
-      callFn: () => callGLM(`حدد الأنماط التاريخية المتكررة والمخاطر المحتملة لصفقة على ${symbol}. قيّم الأنماط الفنية المتكررة ومستوى التذبذب الحالي. هل هناك نمط واضح؟`),
-      roles: ['خبير الأنماط', 'خبير المخاطر'], // خبير المخاطر is shared with Bedrock
-      prompt: 'patterns',
-      primaryOnly: false, // GLM-4 always keeps risk as secondary
+      callFn: () => callGLM(`حدد المخاطر المحتملة والوضع الاقتصادي الكلي لصفقة على ${symbol}. قيّم مستوى التذبذب والسيناريو الأسوأ والعوامل الكلية المؤثرة. هل البيئة الماكروية مواتية؟`),
+      roles: ['خبير المخاطر', 'خبير الماكرو'], // خبير المخاطر is primary, خبير الماكرو is secondary
+      prompt: 'risk+macro',
+      primaryOnly: false,
     },
     {
       modelName: 'HuggingFace',
-      callFn: () => callHuggingFace(`حلل تحليلياً حركة ${symbol}. هل هناك نمط واضح؟ ما توقعاتك للاتجاه القادم؟ قدم رأياً مستقلاً ومختلفاً.`),
-      roles: ['محلل إضافي'],
-      prompt: 'supplementary',
+      // FIX: Changed from "محلل إضافي" (non-standard role) to "خبير الأنماط" (standard role)
+      // This matches the NestJS orchestrator's role assignment where HuggingFace is
+      // the primary model for pattern recognition.
+      callFn: () => callHuggingFace(`هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟ ما النمط السائد وهل يتكرر بشكل موثوق؟ قدم رأياً مستقلاً.`),
+      roles: ['خبير الأنماط'],
+      prompt: 'patterns',
       primaryOnly: false,
     },
     {

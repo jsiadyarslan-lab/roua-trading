@@ -81,6 +81,27 @@ export class AIOrchestratorService {
     bedrock:     ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'],
   };
 
+  /**
+   * FIX: Check if running on a cloud platform (Railway, Render, etc.)
+   * On cloud, localhost-based services (Ollama) are unreachable.
+   */
+  private _isCloudEnvironment(): boolean {
+    return !!(
+      process.env.RAILWAY_ENVIRONMENT ||
+      process.env.RENDER ||
+      process.env.AWS_EXECUTION_ENV ||
+      process.env.VERCEL ||
+      process.env.DYNO // Heroku
+    );
+  }
+
+  /**
+   * FIX: Check if a URL points to localhost/non-routable address
+   */
+  private _isLocalhostUrl(url: string): boolean {
+    return url.includes('localhost') || url.includes('127.0.0.1') || url.includes('0.0.0.0');
+  }
+
   /** Model routing — 6 models with smart fallbacks */
   private readonly ROUTING: Record<string, { primary: string; fallback: string[] }> = {
     sentiment:        { primary: 'groq',       fallback: ['glm', 'huggingface', 'ollama', 'gemini', 'bedrock'] },
@@ -368,27 +389,88 @@ export class AIOrchestratorService {
       let sellWeight = 0;
       let totalConfidence = 0;
 
+      // Track which roles got valid responses and which need fallback retry
+      const roleResponses = new Map<string, { name: string; response: AIAnalysisResponse }>();
+
       for (const res of results) {
         if (res.status === 'fulfilled' && res.value && res.value.response) {
-          const { name, response } = res.value;
-          if (response.confidence <= 0) continue;
-
-          const content = response.content || '';
-          const vote = this._parseVote(content);
-
-          const conf = response.confidence || 0.5;
-          if (vote === 'BUY') buyWeight += conf;
-          else if (vote === 'SELL') sellWeight += conf;
-          totalConfidence += conf;
-
-          analyses.push({
-            role: name,
-            model: response.model,
-            vote,
-            confidence: Math.round(conf * 100),
-            reason: content.slice(0, 300) + '...',
-          });
+          const { name, response, id } = res.value;
+          if (response.confidence > 0) {
+            roleResponses.set(id, { name, response });
+          }
         }
+      }
+
+      // ── Phase 2: Retry failed/stub roles with fallback models ──
+      // FIX: When a model returns confidence=0 (stub) or throws an error,
+      // the role gets no valid response. Previously, the role was simply
+      // skipped. Now we try fallback models for each failed role.
+      const failedRoles = activeRoles.filter(role => !roleResponses.has(role.id));
+      if (failedRoles.length > 0) {
+        this.logger.log(`🔄 Phase 2: Retrying ${failedRoles.length} failed roles with fallback models...`);
+
+        for (const role of failedRoles) {
+          for (const fallbackModel of role.fallbackModels || []) {
+            // Skip if same as already-tried model, or unavailable, or in cooldown
+            if (fallbackModel === role.resolvedModel) continue;
+            if (!this._isModelKeyAvailable(fallbackModel)) continue;
+            const consecutiveFails = this.modelConsecutiveFailures.get(fallbackModel) || 0;
+            if (consecutiveFails >= this.FAILURES_BEFORE_COOLDOWN) {
+              const cooldownUntil = this.modelCooldowns.get(fallbackModel) || 0;
+              if (Date.now() < cooldownUntil) continue;
+            }
+
+            try {
+              this.logger.log(`🔄 Retrying role "${role.name}" with fallback model: ${fallbackModel}`);
+              const response = await this._callModel(fallbackModel, {
+                symbol,
+                prompt: role.prompt,
+                type: 'market_analysis',
+                language: 'ar',
+              });
+
+              if (response.confidence > 0) {
+                this.logger.log(`✅ Fallback model ${fallbackModel} succeeded for role "${role.name}"`);
+                roleResponses.set(role.id, { name: role.name, response });
+                // Reset consecutive failures on success
+                this.modelConsecutiveFailures.delete(fallbackModel);
+                break; // Role filled, stop trying fallbacks
+              } else {
+                this.logger.warn(`⚠️ Fallback model ${fallbackModel} returned stub for role "${role.name}"`);
+              }
+            } catch (error: any) {
+              // Track 429 errors
+              if (error.response?.status === 429 || error.message?.includes('429')) {
+                const fails = (this.modelConsecutiveFailures.get(fallbackModel) || 0) + 1;
+                this.modelConsecutiveFailures.set(fallbackModel, fails);
+                if (fails >= this.FAILURES_BEFORE_COOLDOWN) {
+                  this.modelCooldowns.set(fallbackModel, Date.now() + this.COOLDOWN_MS);
+                }
+              }
+              this.logger.warn(`❌ Fallback model ${fallbackModel} failed for role "${role.name}": ${error.message}`);
+              continue;
+            }
+          }
+        }
+      }
+
+      // ── Build analyses from all successful role responses ──
+      for (const [roleId, { name, response }] of roleResponses) {
+        const content = response.content || '';
+        const vote = this._parseVote(content);
+
+        const conf = response.confidence || 0.5;
+        if (vote === 'BUY') buyWeight += conf;
+        else if (vote === 'SELL') sellWeight += conf;
+        totalConfidence += conf;
+
+        analyses.push({
+          role: name,
+          model: response.model,
+          vote,
+          confidence: Math.round(conf * 100),
+          reason: content.slice(0, 300) + '...',
+        });
       }
 
       let recommendation: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';
@@ -507,16 +589,29 @@ export class AIOrchestratorService {
   // ── Private: Model Key Availability ──
   /**
    * Check if the required environment variable(s) for a model are set and non-empty
+   *
+   * FIX: Ollama on cloud platforms with localhost URL is NOT truly available —
+   * the service will return a stub (confidence=0) even though the API key is set.
+   * This caused the orchestrator to assign roles to Ollama that would never produce
+   * results, with no fallback triggered.
    */
   private _isModelKeyAvailable(model: string): boolean {
     const keys = this.MODEL_KEY_MAP[model];
     if (!keys) return false;
     if (!this.configService) return false;
 
-    // Special handling for Ollama: available if either key is set OR server is reachable
+    // Special handling for Ollama: must have a reachable URL AND (API key or non-localhost URL)
     if (model === 'ollama') {
       const apiKey = this.configService.get<string>('OLLAMA_API_KEY', '');
       const baseUrl = this.configService.get<string>('OLLAMA_BASE_URL', '');
+
+      // FIX: On cloud platforms, localhost Ollama is unreachable — mark as unavailable
+      // so the role resolution picks a fallback model instead of wasting the role
+      if (this._isCloudEnvironment() && this._isLocalhostUrl(baseUrl || 'http://localhost:11434')) {
+        this.logger.debug(`🏠 Ollama skipped — localhost URL unreachable on cloud platform`);
+        return false;
+      }
+
       // Available if API key is set or a non-default base URL is configured
       return !!(apiKey && apiKey.trim()) || !!(baseUrl && baseUrl.trim() && baseUrl !== 'http://localhost:11434');
     }

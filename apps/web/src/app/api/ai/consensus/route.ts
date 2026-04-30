@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
     // ── Check which AI keys are available ──
     const availableKeys = getAvailableModelKeys()
     const hasAnyAIKey = availableKeys.some(k => k.hasKey)
+    let directCallErrorsList: string[] = [] // Track direct call errors for debugging
     console.log(`[consensus] Available AI keys: ${availableKeys.map(k => `${k.model}:${k.hasKey ? 'YES' : 'NO'}`).join(', ')}`)
 
     // ═══════════════════════════════════════════════════════════
@@ -165,8 +166,10 @@ export async function POST(req: NextRequest) {
         }
 
         console.warn(`[consensus] Layer 2 FAILED — No AI models responded: ${directResult.errors.join('; ')}`)
+        directCallErrorsList = directResult.errors
       } catch (directError: any) {
         console.warn(`[consensus] Layer 2 FAILED — Direct call error: ${directError?.message}`)
+        directCallErrorsList.push(`Direct call exception: ${directError?.message}`)
       }
     } else {
       console.warn(`[consensus] Layer 2 SKIPPED — No AI API keys configured`)
@@ -366,7 +369,7 @@ export async function POST(req: NextRequest) {
           processingTimeMs: Date.now() - startedAt,
           timeframe: scanner.timeframe,
           timestamp: new Date().toISOString(),
-          aiEngine: `Scanner-Rules (AI temporarily unavailable, hasKeys=${hasAnyAIKey}, keyDetails=${availableKeys.map(k => `${k.model}:${k.hasKey}`).join(',')})`,
+          aiEngine: `Scanner-Rules (AI unavailable, keys=${availableKeys.map(k => `${k.model}:${k.hasKey}`).join(',')}, errors=${directCallErrorsList.join('; ')})`,
           connectionLayer: 'scanner',
         },
       },

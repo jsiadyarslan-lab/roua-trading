@@ -101,16 +101,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const res = await fetch('/api/auth/me')
       if (res.ok) {
         const data = await res.json()
-        if (data.authenticated && data.user && !data.isGuest) {
+        if (data.user) {
           const user = data.user as AuthUser
+          const isGuest = data.isGuest || isGuestUser(user)
           writeCache(user)
-          set({ user, isAuthenticated: true, isGuest: false, loading: false })
-          // Start auto-refresh after successful auth check
-          get().startAutoRefresh()
+          set({ user, isAuthenticated: !isGuest, isGuest, loading: false })
+          if (!isGuest) {
+            // Start auto-refresh after successful auth check
+            get().startAutoRefresh()
+          }
           return user
         }
       }
-      // Not authenticated
+      // Not authenticated at all
       clearCache()
       set({ user: null, isAuthenticated: false, isGuest: true, loading: false })
       return null
@@ -156,9 +159,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   setUser: (user: AuthUser | null) => {
-    if (user && !isGuestUser(user)) {
+    if (user) {
+      const isGuest = isGuestUser(user)
       writeCache(user)
-      set({ user, isAuthenticated: true, isGuest: false, loading: false })
+      set({ user, isAuthenticated: !isGuest, isGuest, loading: false })
     } else {
       clearCache()
       set({ user: null, isAuthenticated: false, isGuest: true, loading: false })
@@ -172,11 +176,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const res = await fetch('/api/auth/refresh', { method: 'POST' })
         if (res.ok) {
           const data = await res.json()
-          if (data.authenticated && data.user) {
+          if (data.user) {
             // Update store with potentially refreshed user data
             const user = data.user as AuthUser
+            const guest = data.isGuest || isGuestUser(user)
             writeCache(user)
-            set({ user, isAuthenticated: true, isGuest: false })
+            set({ user, isAuthenticated: !guest, isGuest: guest })
           }
         } else if (res.status === 401) {
           // Session expired — redirect to login

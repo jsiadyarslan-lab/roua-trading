@@ -9,8 +9,11 @@ import { OllamaService } from './services/ollama.service';
 import { BedrockService } from './services/bedrock.service';
 import { EmbeddingService } from './services/embedding.service';
 import { RagService } from './services/rag.service';
+import { AiUsageLoggerService } from './services/ai-usage-logger.service';
+import { PrismaModule } from '../../common/prisma/prisma.module';
 
 @Module({
+  imports: [PrismaModule],
   controllers: [AiController],
   providers: [
     // AI Model Services — 6 Models (using existing API keys)
@@ -25,6 +28,9 @@ import { RagService } from './services/rag.service';
     EmbeddingService,
     RagService,
 
+    // AI Usage Logger — tracks all AI API calls to AiUsageLog table
+    AiUsageLoggerService,
+
     // Orchestrator (depends on all above)
     AIOrchestratorService,
   ],
@@ -38,6 +44,7 @@ import { RagService } from './services/rag.service';
     BedrockService,
     RagService,
     EmbeddingService,
+    AiUsageLoggerService,
   ],
 })
 export class AiModule {}

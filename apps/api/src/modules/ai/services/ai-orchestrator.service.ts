@@ -7,6 +7,7 @@ import { HuggingFaceService } from './huggingface.service';
 import { OllamaService } from './ollama.service';
 import { BedrockService } from './bedrock.service';
 import { RagService } from './rag.service';
+import { AiUsageLoggerService } from './ai-usage-logger.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import * as crypto from 'crypto';
 
@@ -92,10 +93,14 @@ export class AIOrchestratorService {
     private readonly bedrockService: BedrockService,
     @Optional() private readonly ragService?: RagService,
     @Optional() private readonly redis?: RedisService,
+    @Optional() private readonly usageLogger?: AiUsageLoggerService,
   ) {
     this.logger.log('🎼 AI Orchestrator initialized — 6 models (Groq, Gemini, GLM-4, HuggingFace, Ollama, Bedrock)');
     if (this.ragService) {
       this.logger.log('📚 RAG integration enabled — context retrieval active');
+    }
+    if (this.usageLogger) {
+      this.logger.log('📊 AI Usage Logger enabled — all calls will be tracked');
     }
     // Log which models have keys available
     const available = this.getModelsStatus().filter(m => m.available);
@@ -154,9 +159,26 @@ export class AIOrchestratorService {
           this.logger.debug(`⚠️ Model ${model} returned stub — trying next`);
           continue;
         }
+        // Log successful AI usage
+        this.usageLogger?.logSuccess({
+          model: response.model,
+          endpoint: enrichedRequest.type || 'general',
+          inputPrompt: enrichedRequest.prompt,
+          outputContent: response.content,
+          latencyMs: response.processingTimeMs,
+          cached: false,
+        });
         result = response;
         break;
       } catch (error: any) {
+        // Log failed AI usage
+        this.usageLogger?.logFailure({
+          model,
+          endpoint: enrichedRequest.type || 'general',
+          inputPrompt: enrichedRequest.prompt,
+          latencyMs: 0,
+          errorMessage: error.message,
+        });
         // If 429 (rate limited), put model in cooldown to prevent spam
         if (error.response?.status === 429 || error.message?.includes('429')) {
           this.modelCooldowns.set(model, Date.now() + this.COOLDOWN_MS);
@@ -241,13 +263,36 @@ export class AIOrchestratorService {
       const start = Date.now();
       const results = await Promise.allSettled(
         roles.map(async (role) => {
-          const response = await this._callModel(role.model, {
-            symbol,
-            prompt: role.prompt,
-            type: 'market_analysis',
-            language: 'ar',
-          });
-          return { ...role, response };
+          const roleStart = Date.now();
+          try {
+            const response = await this._callModel(role.model, {
+              symbol,
+              prompt: role.prompt,
+              type: 'market_analysis',
+              language: 'ar',
+            });
+            // Log each council member's AI usage
+            if (response.confidence > 0) {
+              this.usageLogger?.logSuccess({
+                model: response.model,
+                endpoint: 'consensus',
+                inputPrompt: role.prompt,
+                outputContent: response.content,
+                latencyMs: Date.now() - roleStart,
+                cached: false,
+              });
+            }
+            return { ...role, response };
+          } catch (error: any) {
+            this.usageLogger?.logFailure({
+              model: role.model,
+              endpoint: 'consensus',
+              inputPrompt: role.prompt,
+              latencyMs: Date.now() - roleStart,
+              errorMessage: error.message,
+            });
+            throw error;
+          }
         }),
       );
 

@@ -558,40 +558,33 @@ function AccountDropdown({
   const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 })
   const dropdownRef = useRef<HTMLDivElement>(null)
 
+  const updatePosition = useCallback(() => {
+    if (!anchorRef.current) return
+    const rect = anchorRef.current.getBoundingClientRect()
+    // Use RIGHT positioning like MoreDropdown — works correctly in RTL
+    setPos({
+      top: rect.bottom + 4,
+      right: window.innerWidth - rect.right,
+    })
+  }, [anchorRef])
+
   useEffect(() => {
-    if (open && anchorRef.current) {
-      const rect = anchorRef.current.getBoundingClientRect()
-      const dropdownWidth = 220
-      const dropdownHeight = 320
-      const vw = window.innerWidth
-      const vh = window.innerHeight
-
-      // In RTL layout, the account button is on the LEFT side of the header.
-      // We use CSS `left` positioning (stored in `right` field but interpreted as `left` 
-      // because we changed the portal to use `left` instead of `right`).
-      // Align the dropdown's left edge with the button's left edge.
-      let leftPos = rect.left
-
-      // Ensure dropdown doesn't overflow right edge
-      if (leftPos + dropdownWidth > vw - 8) {
-        leftPos = Math.max(8, vw - dropdownWidth - 8)
-      }
-      // Ensure dropdown doesn't overflow left edge
-      if (leftPos < 8) {
-        leftPos = 8
-      }
-
-      // Ensure dropdown stays within viewport vertically
-      const adjustedTop = rect.bottom + 4 + dropdownHeight > vh
-        ? Math.max(8, rect.top - dropdownHeight - 4)
-        : rect.bottom + 4
-
-      setPos({
-        top: adjustedTop,
-        right: leftPos, // Using 'right' field to store left position (see portal style)
-      })
+    if (open) {
+      updatePosition()
     }
-  }, [open, anchorRef])
+  }, [open, updatePosition])
+
+  // Recalculate position on scroll/resize
+  useEffect(() => {
+    if (!open) return
+    const handleUpdate = () => updatePosition()
+    window.addEventListener('scroll', handleUpdate, true)
+    window.addEventListener('resize', handleUpdate)
+    return () => {
+      window.removeEventListener('scroll', handleUpdate, true)
+      window.removeEventListener('resize', handleUpdate)
+    }
+  }, [open, updatePosition])
 
   useEffect(() => {
     if (!open) return
@@ -628,7 +621,7 @@ function AccountDropdown({
     <div ref={dropdownRef} style={{
       position: 'fixed',
       top: pos.top,
-      left: pos.right,
+      right: pos.right,
       background: 'rgba(26, 29, 41, 0.95)',
       backdropFilter: 'blur(32px) saturate(1.8)',
       WebkitBackdropFilter: 'blur(32px) saturate(1.8)',

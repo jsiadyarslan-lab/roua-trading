@@ -40,14 +40,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'INVALID_SESSION' }, { status: 401 })
     }
 
-    // Check if guest — reject
+    // FIX: Allow guest sessions to refresh too (unified with NestJS AuthGuard)
     const isGuestUser = session.user.email === GUEST_EMAIL || session.user.id.startsWith('guest')
-    if (isGuestUser) {
-      await db.session.delete({ where: { id: session.id } }).catch(() => {})
-      const response = NextResponse.json({ error: 'GUEST_SESSION_INVALID' }, { status: 401 })
-      response.cookies.delete('roua_session')
-      return response
-    }
+    // Guest sessions just validate without refresh
 
     // Session expired
     if (session.expiresAt < new Date()) {
@@ -61,7 +56,7 @@ export async function POST(request: NextRequest) {
     const timeUntilExpiry = session.expiresAt.getTime() - now.getTime()
 
     // If session will expire within the threshold, create a new one
-    if (timeUntilExpiry < REFRESH_THRESHOLD_MS) {
+    if (timeUntilExpiry < REFRESH_THRESHOLD_MS && !isGuestUser) {
       // Create new session
       const newToken = crypto.randomBytes(32).toString('hex')
       const newExpiresAt = new Date(now.getTime() + SESSION_DURATION_MS)
@@ -100,14 +95,14 @@ export async function POST(request: NextRequest) {
     // Session is still fresh — just return user info
     return NextResponse.json({
       refreshed: false,
-      authenticated: true,
-      isGuest: false,
+      authenticated: !isGuestUser,
+      isGuest: isGuestUser,
       user: {
         id: session.user.id,
         email: session.user.email,
         displayName: session.user.displayName,
         tier: session.user.tier,
-        isGuest: false,
+        isGuest: isGuestUser,
       },
     })
   } catch (error: any) {

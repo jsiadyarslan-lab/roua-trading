@@ -41,27 +41,18 @@ export async function GET(request: NextRequest) {
         if (session && session.expiresAt > new Date()) {
           const isGuestUser = session.user.email === GUEST_EMAIL || session.user.id.startsWith('guest')
 
-          // If this is a guest session, treat as unauthenticated
-          if (isGuestUser) {
-            // Delete the guest session
-            await db.session.delete({ where: { id: session.id } }).catch(() => {})
-            const response = NextResponse.json({
-              authenticated: false,
-              error: 'GUEST_SESSION_INVALID',
-            })
-            response.cookies.delete('roua_session')
-            return response
-          }
-
+          // FIX: Return guest sessions with isGuest flag instead of deleting them.
+          // This unifies behavior with NestJS AuthGuard which auto-creates guests.
+          // The frontend can show a banner prompting login for guest users.
           return NextResponse.json({
-            authenticated: true,
-            isGuest: false,
+            authenticated: !isGuestUser,
+            isGuest: isGuestUser,
             user: {
               id: session.user.id,
               email: session.user.email,
               displayName: session.user.displayName,
               tier: session.user.tier,
-              isGuest: false,
+              isGuest: isGuestUser,
             },
           })
         }

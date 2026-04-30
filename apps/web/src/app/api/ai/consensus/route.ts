@@ -30,46 +30,57 @@ export async function POST(req: NextRequest) {
 
     // ═══════════════════════════════════════════════════════════
     // PHASE 1: Try REAL NestJS AI Council (6 actual AI models)
-    // P2 FIX: Reduced timeout from 45s → 8s so fallback is fast
-    // Diagnose: set API_INTERNAL_URL in Railway env vars to fix this
+    // FIX: Try multiple URL patterns for Railway compatibility
     // ═══════════════════════════════════════════════════════════
-    try {
-      const apiTarget = process.env.API_INTERNAL_URL || 'http://localhost:3001'
-      // Log target for Railway diagnostics (visible in Railway logs)
-      console.log(`[consensus] Trying NestJS AI at: ${apiTarget}/api/ai/consensus`)
-      const nestjsRes = await fetch(`${apiTarget}/api/ai/consensus`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol }),
-        signal: AbortSignal.timeout(25000), // FIX: 25s — AI needs time to generate. 8s was too short!
-      })
+    const apiTargets = [
+      process.env.API_INTERNAL_URL,
+      // Railway internal: same container (NestJS runs on 3001)
+      'http://localhost:3001',
+      // Fallback: same-origin proxy
+      `${origin}/api/health`.replace('/api/health', ''),
+    ].filter((u, i, arr) => u && arr.indexOf(u) === i) as string[]
 
-      if (nestjsRes.ok) {
-        const nestjsData = await nestjsRes.json()
-        if (nestjsData.success && nestjsData.data?.analyses?.length > 0) {
-          // Real AI Council succeeded! Add meta info
-          const aiData = nestjsData.data
-          return NextResponse.json({
-            success: true,
-            source: 'real-ai',
-            data: {
-              ...aiData,
-              meta: {
-                ...aiData.meta,
-                symbol,
-                processingTimeMs: Date.now() - startedAt,
-                timestamp: new Date().toISOString(),
-                aiEngine: 'NestJS-6-Models',
-                modelsUsed: aiData.analyses.map((a: any) => a.model).filter(Boolean),
+    for (const apiTarget of apiTargets) {
+      try {
+        const targetUrl = `${apiTarget}/api/ai/consensus`
+        console.log(`[consensus] Trying NestJS AI at: ${targetUrl}`)
+        const nestjsRes = await fetch(targetUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol }),
+          signal: AbortSignal.timeout(30000), // 30s — AI needs time for 6 models
+        })
+
+        if (nestjsRes.ok) {
+          const nestjsData = await nestjsRes.json()
+          if (nestjsData.success && nestjsData.data?.analyses?.length > 0) {
+            // Real AI Council succeeded! Add meta info
+            const aiData = nestjsData.data
+            return NextResponse.json({
+              success: true,
+              source: 'real-ai',
+              data: {
+                ...aiData,
+                meta: {
+                  ...aiData.meta,
+                  symbol,
+                  processingTimeMs: Date.now() - startedAt,
+                  timestamp: new Date().toISOString(),
+                  aiEngine: 'NestJS-6-Models',
+                  modelsUsed: aiData.analyses.map((a: any) => a.model).filter(Boolean),
+                },
               },
-            },
-          })
+            })
+          }
         }
+        // If this target responded but didn't have valid data, try next
+        console.warn(`[consensus] Target ${targetUrl} responded but no valid data, trying next...`)
+      } catch (aiError: any) {
+        console.warn(`[consensus] Target ${apiTarget} failed: ${aiError?.message || aiError}`)
+        // Continue to next target
       }
-    } catch (aiError: any) {
-      // P2: If API_INTERNAL_URL is wrong/missing, this fires immediately after 8s
-      console.warn('[consensus] NestJS AI unavailable, using scanner fallback:', aiError?.message || aiError)
     }
+    // All NestJS targets failed — fall through to scanner
 
 
     // ═══════════════════════════════════════════════════════════

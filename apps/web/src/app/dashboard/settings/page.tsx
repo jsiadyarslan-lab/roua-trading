@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Settings, Shield, Key, Bell, User, Palette, Moon, Sun,
@@ -202,6 +202,61 @@ export default function SettingsPage() {
 
   // Sessions
   const [sessions, setSessions] = useState<Array<{ id: string; device: string; lastActive: string; current: boolean }>>([])
+
+  // ─── Settings persistence: Load from API on mount ───
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(r => r.json())
+      .then(data => {
+        if (data?.settings && typeof data.settings === 'object') {
+          const s = data.settings
+          if (s.defaultLeverage) setDefaultLeverage(s.defaultLeverage)
+          if (s.orderSize) setOrderSize(s.orderSize)
+          if (s.riskLevel) setRiskLevel(s.riskLevel)
+          if (s.chartType) setChartType(s.chartType)
+          if (s.timeframe) setTimeframe(s.timeframe)
+          if (s.confirmTrades !== undefined) setConfirmTrades(s.confirmTrades)
+          if (s.showPositions !== undefined) setShowPositions(s.showPositions)
+          if (s.autoStopLoss !== undefined) setAutoStopLoss(s.autoStopLoss)
+          if (s.trailingStop !== undefined) setTrailingStop(s.trailingStop)
+          if (s.aiConfidence) setAiConfidence(s.aiConfidence)
+          if (s.aiAutoTrade !== undefined) setAiAutoTrade(s.aiAutoTrade)
+          if (s.aiModel) setAiModel(s.aiModel)
+          if (s.analyticsEnabled !== undefined) setAnalyticsEnabled(s.analyticsEnabled)
+          if (s.crashReports !== undefined) setCrashReports(s.crashReports)
+        }
+        setSettingsLoaded(true)
+      })
+      .catch(() => setSettingsLoaded(true))
+  }, [])
+
+  // ─── Settings persistence: Save to API on change (debounced) ───
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const saveSettings = useCallback(() => {
+    if (!settingsLoaded) return
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    saveTimeoutRef.current = setTimeout(() => {
+      fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          settings: {
+            defaultLeverage, orderSize, riskLevel, chartType, timeframe,
+            confirmTrades, showPositions, autoStopLoss, trailingStop,
+            aiConfidence, aiAutoTrade, aiModel,
+            analyticsEnabled, crashReports,
+          },
+        }),
+      }).catch(() => {})
+    }, 2000) // Debounce: save 2s after last change
+  }, [settingsLoaded, defaultLeverage, orderSize, riskLevel, chartType, timeframe, confirmTrades, showPositions, autoStopLoss, trailingStop, aiConfidence, aiAutoTrade, aiModel, analyticsEnabled, crashReports])
+
+  // Auto-save on any settings change
+  useEffect(() => {
+    saveSettings()
+  }, [saveSettings])
 
   const userTier = (user?.tier || 'FREE') as Role
   const roleInfo = ROLE_INFO[userTier] || ROLE_INFO.FREE

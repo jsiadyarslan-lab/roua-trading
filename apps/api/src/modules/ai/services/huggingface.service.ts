@@ -72,7 +72,7 @@ export class HuggingFaceService {
               Authorization: `Bearer ${this.apiKey}`,
               'Content-Type': 'application/json',
             },
-            timeout: 60000,
+            timeout: 45000, // Reduced from 60s — free tier is slow but shouldn't hang
           },
         );
 
@@ -82,6 +82,13 @@ export class HuggingFaceService {
           content = response.data[0].generated_text || '';
         } else if (typeof response.data === 'string') {
           content = response.data;
+        }
+
+        // Handle "model loading" response from HuggingFace free tier
+        if (!content && response.data?.estimated_time) {
+          const waitTime = Math.ceil(response.data.estimated_time);
+          this.logger.warn(`⏳ HuggingFace model ${model.split('/').pop()} is loading — estimated ${waitTime}s. Trying next model...`);
+          continue;
         }
 
         // Clean up the response
@@ -99,7 +106,19 @@ export class HuggingFaceService {
         }
       } catch (error: any) {
         const modelShort = model.split('/').pop();
-        this.logger.warn(`⚠️ HuggingFace model ${modelShort} failed: ${error.message} — trying next`);
+        const status = error.response?.status;
+        
+        // Handle specific HuggingFace error codes
+        if (status === 503) {
+          this.logger.warn(`⏳ HuggingFace model ${modelShort} is loading (503) — trying next model...`);
+        } else if (status === 429) {
+          this.logger.warn(`🚫 HuggingFace model ${modelShort} rate limited (429) — trying next model...`);
+        } else if (status === 401) {
+          this.logger.error(`❌ HuggingFace API key invalid (401) — skipping all models`);
+          break; // No point trying other models with same invalid key
+        } else {
+          this.logger.warn(`⚠️ HuggingFace model ${modelShort} failed: ${error.message} — trying next`);
+        }
         continue;
       }
     }

@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
-import { SmartScanner } from '@/components/dashboard/SmartScanner'
+import { ScannerMini } from '@/components/dashboard/ScannerMini'
 
 export default function MobileScannerPage() {
   const router = useRouter()
@@ -30,8 +30,8 @@ export default function MobileScannerPage() {
       </div>
 
       {/* ── Content ── */}
-      <div style={{ padding: '0 16px' }}>
-        <SmartScanner />
+      <div style={{ padding: '0 16px', height: 'calc(100vh - 120px)' }}>
+        <ScannerMini mobile={true} />
       </div>
     </div>
   )

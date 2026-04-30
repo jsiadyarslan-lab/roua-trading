@@ -134,8 +134,8 @@ async function callGemini(prompt: string): Promise<DirectAIResponse> {
 
   const start = Date.now()
   try {
-    // FIX: Updated from gemini-2.0-flash which is no longer available for new users.
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent', {
+    // FIX: Updated from gemini-2.0-flash (deprecated). Using gemini-2.5-flash (generally available).
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({

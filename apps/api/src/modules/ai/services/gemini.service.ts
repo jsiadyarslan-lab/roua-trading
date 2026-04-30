@@ -14,9 +14,9 @@ export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
   private readonly apiKey: string;
   private readonly baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
-  // FIX: Updated from gemini-2.0-flash which is no longer available for new users.
-  // gemini-2.5-flash-preview-05-20 is the current recommended model.
-  private readonly model = 'gemini-2.5-flash-preview-05-20';
+  // FIX: Updated from gemini-2.0-flash (deprecated for new users).
+  // Using gemini-2.5-flash which is the current generally available model.
+  private readonly model = 'gemini-2.5-flash';
 
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('GOOGLE_AI_STUDIO_API_KEY', '')?.trim() || '';

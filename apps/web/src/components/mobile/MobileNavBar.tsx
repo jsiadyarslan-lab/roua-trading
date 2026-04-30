@@ -55,11 +55,12 @@ export default function MobileNavBar() {
       <nav
         className="fixed bottom-0 left-0 right-0 z-50 block sm:hidden"
         style={{
-          height: 80,
-          background: 'rgba(0,0,0,0.85)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-          borderTop: '1px solid rgba(255,255,255,0.08)',
+          height: 'calc(80px + env(safe-area-inset-bottom))',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          background: 'rgba(11, 14, 20, 0.65)',
+          backdropFilter: 'blur(40px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(200%)',
+          borderTop: '0.5px solid rgba(255,255,255,0.1)',
         }}
       >
         <div className="flex items-center justify-around h-full px-2" dir="rtl">
@@ -130,11 +131,13 @@ export default function MobileNavBar() {
               transition={{ type: 'spring', damping: 28, stiffness: 280 }}
               className="fixed bottom-0 left-0 right-0 z-50 block sm:hidden"
               style={{
-                background: 'rgba(11,14,20,0.97)',
-                backdropFilter: 'blur(40px)',
+                background: 'rgba(11, 14, 20, 0.85)',
+                backdropFilter: 'blur(40px) saturate(200%)',
+                WebkitBackdropFilter: 'blur(40px) saturate(200%)',
                 borderRadius: '28px 28px 0 0',
-                borderTop: '1px solid rgba(255,255,255,0.1)',
-                paddingBottom: 88,
+                borderTop: '0.5px solid rgba(255,255,255,0.15)',
+                paddingBottom: 'calc(88px + env(safe-area-inset-bottom))',
+                boxShadow: '0 -10px 40px rgba(0,0,0,0.5)',
               }}
             >
               {/* Handle */}

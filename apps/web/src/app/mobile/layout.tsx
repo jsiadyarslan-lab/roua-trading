@@ -16,7 +16,11 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
   return (
     <div
       className="relative flex flex-col min-h-screen block sm:hidden"
-      style={{ background: '#0B0E14', color: '#F0F2F5', maxWidth: 430, margin: '0 auto' }}
+      style={{
+        background: '#0B0E14', color: '#F0F2F5', maxWidth: 430, margin: '0 auto',
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }}
     >
       <main className="flex-1 overflow-y-auto overflow-x-hidden" style={{ paddingBottom: 80 }}>
         {children}

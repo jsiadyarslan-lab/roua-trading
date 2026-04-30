@@ -65,26 +65,28 @@ function CurrencyTicker() {
     { symbol: 'BTC', pair: 'USD', price: 69420, change: 2.4 },
     { symbol: 'ETH', pair: 'USD', price: 3185, change: 4.8 },
     { symbol: 'GOLD', pair: 'OZC', price: 2345, change: 1.2 },
-    { symbol: 'SOL', pair: 'USD', price: 178, change: 6.2 },
+    { symbol: 'SOL', pair: 'USD', price: 178, change: -6.2 },
   ]
   const router = useRouter()
 
   return (
-    <div style={{ overflowX: 'auto', paddingBottom: 16 }} className="scrollbar-hide">
+    <div style={{ overflowX: 'auto', paddingBottom: 16, WebkitOverflowScrolling: 'touch' }} className="scrollbar-hide">
       <div style={{ display: 'flex', gap: 12, padding: '0 16px', width: 'max-content' }}>
         {pairs.map((p, i) => (
           <motion.button
             key={i}
-            whileTap={{ scale: 0.96 }}
+            whileTap={{ scale: 0.94 }}
             onClick={() => router.push('/mobile/chart')}
             style={{
-              background: '#1C1C1E', // iOS Dark Mode Card
+              background: 'rgba(28,28,30,0.65)',
+              backdropFilter: 'blur(20px) saturate(150%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(150%)',
               borderRadius: 20,
               padding: '14px 16px',
               textAlign: 'right',
               minWidth: 125,
-              border: 'none',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+              border: '0.5px solid rgba(255,255,255,0.06)',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
             }}
           >
             <div className="flex items-center justify-between mb-2">
@@ -95,10 +97,17 @@ function CurrencyTicker() {
                 {p.symbol}
               </div>
             </div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace", marginTop: 4 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace", fontVariantNumeric: 'tabular-nums', marginTop: 4 }}>
               ${p.price.toLocaleString()}
             </div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: p.change >= 0 ? '#00D4FF' : '#FF453A', fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>
+            <div style={{ 
+              fontSize: 12, 
+              fontWeight: 700, 
+              color: p.change >= 0 ? '#00D4FF' : '#FF453A', 
+              fontFamily: "'JetBrains Mono', monospace", 
+              marginTop: 4,
+              textShadow: p.change >= 0 ? '0 0 12px rgba(0,212,255,0.4)' : '0 0 12px rgba(255,69,58,0.4)'
+            }}>
               {pct(p.change)}
             </div>
           </motion.button>
@@ -112,21 +121,24 @@ function CurrencyTicker() {
 function IOSCard({ children, onClick, highlight = false }: { children: React.ReactNode, onClick?: () => void, highlight?: boolean }) {
   return (
     <motion.div
-      whileTap={onClick ? { scale: 0.98 } : undefined}
+      whileTap={onClick ? { scale: 0.96 } : undefined}
       onClick={onClick}
       style={{
-        background: highlight ? 'linear-gradient(145deg, #1C1C1E 0%, #252528 100%)' : '#1C1C1E',
+        background: highlight ? 'linear-gradient(145deg, rgba(28,28,30,0.85) 0%, rgba(37,37,40,0.85) 100%)' : 'rgba(28,28,30,0.7)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
         borderRadius: 24,
         padding: '20px',
         margin: '0 16px 16px',
         cursor: onClick ? 'pointer' : 'default',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+        boxShadow: highlight ? '0 8px 32px rgba(0,0,0,0.4)' : '0 4px 16px rgba(0,0,0,0.2)',
+        border: '0.5px solid rgba(255,255,255,0.08)',
         position: 'relative',
         overflow: 'hidden',
       }}
     >
       {highlight && (
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }} />
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, rgba(0,212,255,0.3), transparent)' }} />
       )}
       {children}
     </motion.div>
@@ -237,15 +249,25 @@ export default function MobileHomePage() {
       </h2>
       <IOSCard onClick={() => router.push('/mobile/ai')}>
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 relative">
+            <motion.div
+              animate={{ opacity: [0.3, 0.7, 0.3], scale: [1, 1.15, 1] }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+              style={{
+                position: 'absolute', top: -4, left: -4, right: -4, bottom: -4,
+                background: 'linear-gradient(135deg, #B388FF, #7C3AED)',
+                borderRadius: 16, filter: 'blur(8px)', zIndex: 0
+              }}
+            />
             <div style={{
               width: 40, height: 40, borderRadius: 12,
               background: 'linear-gradient(135deg, #B388FF, #7C3AED)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
+              position: 'relative', zIndex: 1
             }}>
               <Brain size={20} color="#FFFFFF" />
             </div>
-            <div>
+            <div style={{ position: 'relative', zIndex: 1 }}>
               <p style={{ fontSize: 15, fontWeight: 700, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>مجلس الخبراء (AI)</p>
               <p style={{ fontSize: 11, color: '#B388FF', fontFamily: "'Cairo', sans-serif", fontWeight: 600, marginTop: 1 }}>6 نماذج نشطة الآن</p>
             </div>

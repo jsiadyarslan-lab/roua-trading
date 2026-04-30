@@ -12,8 +12,7 @@ import { motion } from 'framer-motion'
  * Authentication methods:
  * 1. Google OAuth (if configured)
  * 2. Passkey / WebAuthn
- * 3. Email (quick guest access)
- * 4. Direct guest access → /dashboard
+ * 3. Email login
  */
 
 function LoginForm() {
@@ -59,7 +58,7 @@ function LoginForm() {
     setError('')
     try {
       if (!window.PublicKeyCredential) {
-        setError('متصفحك لا يدعم Passkeys. استخدم الدخول بالبريد أو كضيف.')
+        setError('متصفحك لا يدعم Passkeys. استخدم الدخول بالبريد الإلكتروني.')
         setLoading(null)
         return
       }
@@ -109,7 +108,8 @@ function LoginForm() {
           })
 
           if (verifyRes.ok) {
-            router.push('/dashboard')
+            const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
+            router.push(callbackUrl)
           } else {
             const data = await verifyRes.json()
             setError(data.error || 'فشل التحقق من Passkey')
@@ -152,7 +152,8 @@ function LoginForm() {
         })
 
         if (verifyRes.ok) {
-          router.push('/dashboard')
+          const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
+          router.push(callbackUrl)
         } else {
           const data = await verifyRes.json()
           setError(data.error || 'فشل التحقق من Passkey')
@@ -191,9 +192,10 @@ function LoginForm() {
       if (res.ok) {
         const data = await res.json()
         if (data.authenticated) {
-          router.push('/dashboard')
+          const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
+          router.push(callbackUrl)
         } else {
-          setError('فشل تسجيل الدخول. حاول مرة أخرى.')
+          setError(data.error === 'GUEST_LOGIN_BLOCKED' ? 'تسجيل الدخول كضيف غير مسموح. استخدم بريدك الحقيقي.' : 'فشل تسجيل الدخول. حاول مرة أخرى.')
         }
       } else {
         setError('فشل تسجيل الدخول. حاول مرة أخرى.')
@@ -373,29 +375,7 @@ function LoginForm() {
             <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'passkey' ? 'جارٍ التحقق...' : 'Passkey'}</span>
           </motion.button>
 
-          {/* Second Divider */}
-          <div className="flex items-center gap-4 my-3">
-            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.04)' }} />
-            <span className="text-white/15 text-[10px]" style={{ fontFamily: 'var(--font-ar)' }}>تجربة سريعة</span>
-            <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.04)' }} />
-          </div>
 
-          {/* Guest Access — Quick try */}
-          <motion.button
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.7, duration: 0.4 }}
-            onClick={() => router.push('/dashboard')}
-            whileHover={{ scale: 1.01 }}
-            className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl
-                       bg-white/[0.03] border border-white/8 text-white/60 font-medium text-sm
-                       hover:bg-white/[0.06] hover:text-white/80
-                       disabled:opacity-40 disabled:cursor-not-allowed
-                       transition-all duration-200"
-          >
-            <Shield className="w-3.5 h-3.5" />
-            <span style={{ fontFamily: 'var(--font-ar)' }}>دخول كضيف — بدون تسجيل</span>
-          </motion.button>
 
           {/* Error Message */}
           {error && (

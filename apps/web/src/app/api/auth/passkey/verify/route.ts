@@ -80,11 +80,11 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('[auth/passkey/verify] Error:', error?.message || error)
 
-    // If NestJS is offline, create a guest session as fallback
+    // If NestJS is offline, return error
     return NextResponse.json(
       {
         success: false,
-        error: 'خدمة المصادقة غير متاحة حالياً. حاول الدخول كضيف.',
+        error: 'خدمة المصادقة غير متاحة حالياً. حاول لاحقاً.',
       },
       { status: 502 },
     )

@@ -24,14 +24,14 @@ const AuthContext = createContext<AuthContextValue>({
 export const useAuthContext = () => useContext(AuthContext)
 
 /**
- * useAuth — Ensures the user has a valid session.
+ * useAuth — Checks if the user has a valid authenticated session.
  *
- * Auth flow (in order of priority):
- * 1. Call /api/auth/me — auto-creates guest session if needed
+ * Auth flow:
+ * 1. Call /api/auth/me — validates existing session
  * 2. If /api/auth/me fails, call /api/auth/sync as fallback
- * 3. If both fail, allow unauthenticated access (no redirect)
+ * 3. If both fail or return unauthenticated, redirect to /login
  *
- * Returns isGuest flag to enable view-only mode for guests.
+ * No guest mode — users must be authenticated to access the dashboard.
  */
 export function useAuth() {
   const router = useRouter()
@@ -42,13 +42,12 @@ export function useAuth() {
     let mounted = true
 
     async function checkAuth() {
-      // Try /api/auth/me first — it has the most robust error handling
-      // and auto-creates guest sessions
+      // Try /api/auth/me first
       try {
         const meRes = await fetch('/api/auth/me')
         if (meRes.ok) {
           const meData = await meRes.json()
-          if (meData.authenticated) {
+          if (meData.authenticated && !meData.isGuest) {
             if (mounted) setUser(meData.user)
             return
           }
@@ -60,16 +59,18 @@ export function useAuth() {
         const syncRes = await fetch('/api/auth/sync')
         if (syncRes.ok) {
           const syncData = await syncRes.json()
-          if (syncData.authenticated) {
+          if (syncData.authenticated && !syncData.isGuest) {
             if (mounted) setUser(syncData.user)
             return
           }
         }
       } catch { /* no session */ }
 
-      // No redirect — allow unauthenticated access
-      // The dashboard works without authentication (falls back to demo data)
-      if (mounted) setUser(null)
+      // Not authenticated — redirect to login
+      if (mounted) {
+        setUser(null)
+        router.replace('/login')
+      }
     }
 
     checkAuth().finally(() => {
@@ -79,6 +80,7 @@ export function useAuth() {
     return () => { mounted = false }
   }, [router])
 
+  // isGuest is always false now since we don't allow guest sessions
   const isGuest = !user || user.isGuest || user.email === 'guest@roua.auto' || user.id.startsWith('guest')
 
   return { user, loading, isGuest }

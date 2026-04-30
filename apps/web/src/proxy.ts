@@ -2,18 +2,12 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 /**
- * Proxy for dashboard route protection
+ * Proxy for route protection — Next.js 16
  *
- * NOTE: API auth header injection has been moved to individual Route Handlers
- * (trading, engine, portfolio, analytics) which use the shared nestjs-proxy
- * utility. This is more reliable than proxy-based header injection because:
- * - Route Handlers have direct access to the request/response cycle
- * - They can auto-create sessions and set cookies on the response
- * - The proxy runs at the Edge Runtime by default, which has limited access
- *   to the database and cannot auto-create sessions
- *
- * This proxy now only handles dashboard route protection.
- * To enable auth-required dashboard access, set ENABLE_AUTH=1.
+ * Protects all /dashboard/* routes (except /dashboard/admin/login).
+ * - /dashboard/* routes: require roua_session cookie (non-guest)
+ * - /dashboard/admin/* routes: require roua_admin_session cookie
+ * - All other routes: pass through
  *
  * Migrated from middleware.ts to proxy.ts for Next.js 16 compatibility.
  * See: https://nextjs.org/docs/messages/middleware-to-proxy
@@ -28,25 +22,36 @@ export function proxy(request: NextRequest) {
   }
 
   // ── API routes: pass through ──
-  // Auth injection is handled by individual Route Handlers
   if (pathname.startsWith('/api/')) {
     return NextResponse.next()
   }
 
-  // ── Dashboard routes: auth check ──
-  // Currently DISABLED — all routes are accessible without authentication.
-  // To re-enable: set ENABLE_AUTH=1 env var
-  if (process.env.ENABLE_AUTH !== '1') {
+  // ── Admin routes: check roua_admin_session ──
+  if (pathname.startsWith('/dashboard/admin')) {
+    // Admin login page is always accessible
+    if (pathname === '/dashboard/admin/login') {
+      return NextResponse.next()
+    }
+
+    const adminSession = request.cookies.get('roua_admin_session')?.value
+    if (!adminSession) {
+      return NextResponse.redirect(new URL('/dashboard/admin/login', request.url))
+    }
+
     return NextResponse.next()
   }
 
-  // ── Auth enabled: check for session cookie ──
-  const sessionToken = request.cookies.get('roua_session')?.value
+  // ── Dashboard routes: require roua_session ──
+  if (pathname.startsWith('/dashboard')) {
+    const sessionToken = request.cookies.get('roua_session')?.value
 
-  if (!sessionToken) {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('callbackUrl', pathname)
-    return NextResponse.redirect(loginUrl)
+    if (!sessionToken) {
+      const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('callbackUrl', pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+
+    return NextResponse.next()
   }
 
   return NextResponse.next()

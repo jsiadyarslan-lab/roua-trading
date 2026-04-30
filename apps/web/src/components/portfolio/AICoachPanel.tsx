@@ -1,0 +1,607 @@
+'use client'
+
+import { useState, useEffect, useCallback, useRef } from 'react'
+import {
+  Brain, Send, Loader2, AlertTriangle, TrendingUp, BookOpen,
+  ChevronDown, ChevronUp, MessageCircle, RefreshCw, Star,
+  Award, Sparkles, X
+} from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
+import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
+
+/* ── Theme ── */
+const T = {
+  bg:      '#0B0E14',
+  card:    '#1A1D29',
+  card2:   '#0F1117',
+  blue:    '#0A84FF',
+  cyan:    '#00D4FF',
+  green:   '#00FFA3',
+  red:     '#FF4757',
+  amber:   '#FFB800',
+  purple:  '#B388FF',
+  text:    '#E6EBF5',
+  text2:   '#8090A8',
+  text3:   '#A0AFC3',
+  border:  'rgba(10,132,255,0.12)',
+  border2: 'rgba(10,132,255,0.20)',
+}
+
+/* ── Types ── */
+interface AdviceItem {
+  type: 'warning' | 'opportunity' | 'education'
+  icon: string
+  text: string
+}
+
+interface CoachData {
+  rating: string
+  statistics: any
+  adviceText: string
+  adviceItems: AdviceItem[]
+  totalTrades: number
+  createdAt: string
+}
+
+interface ChatMessage {
+  role: 'user' | 'coach'
+  content: string
+  timestamp: Date
+}
+
+/* ── Rating display ── */
+function RatingBadge({ rating }: { rating: string }) {
+  const config: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
+    excellent: { label: 'ممتاز', color: T.green, bg: `${T.green}14`, border: `${T.green}44`, icon: Award },
+    good: { label: 'جيد', color: T.blue, bg: `${T.blue}14`, border: `${T.blue}44`, icon: Star },
+    needs_improvement: { label: 'يحتاج تحسين', color: T.amber, bg: `${T.amber}14`, border: `${T.amber}44`, icon: AlertTriangle },
+    insufficient_data: { label: 'بيانات غير كافية', color: T.text3, bg: `${T.text3}0a`, border: `${T.text3}33`, icon: BookOpen },
+  }
+  const c = config[rating] || config.insufficient_data
+  const Icon = c.icon
+  return (
+    <div style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      padding: '6px 14px', borderRadius: 10,
+      background: c.bg, border: `0.5px solid ${c.border}`,
+    }}>
+      <Icon size={14} color={c.color} />
+      <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 700, color: c.color }}>{c.label}</span>
+    </div>
+  )
+}
+
+/* ── Advice card with icon ── */
+function AdviceCard({ item, index, onAskCoach }: { item: AdviceItem; index: number; onAskCoach: (text: string) => void }) {
+  const [expanded, setExpanded] = useState(false)
+  const iconConfig: Record<string, { icon: any; color: string; bg: string; label: string }> = {
+    warning: { icon: AlertTriangle, color: T.amber, bg: `${T.amber}14`, label: 'تحذير' },
+    opportunity: { icon: TrendingUp, color: T.green, bg: `${T.green}14`, label: 'فرصة' },
+    education: { icon: BookOpen, color: T.cyan, bg: `${T.cyan}14`, label: 'تعليم' },
+  }
+  const c = iconConfig[item.type] || iconConfig.education
+  const Icon = c.icon
+
+  return (
+    <div
+      className="coach-advice-card"
+      style={{
+        background: T.card,
+        border: `0.5px solid ${c.color}22`,
+        borderRadius: 10,
+        padding: '10px 12px',
+        display: 'flex',
+        gap: 10,
+        alignItems: 'flex-start',
+        position: 'relative',
+        overflow: 'hidden',
+        cursor: 'pointer',
+        transition: 'all 0.3s ease',
+      }}
+      onClick={() => setExpanded(!expanded)}
+    >
+      {/* Accent line */}
+      <div style={{
+        position: 'absolute', top: 0, right: 0, bottom: 0, width: 3,
+        background: `linear-gradient(180deg, ${c.color}, transparent)`,
+        borderRadius: '0 10px 10px 0',
+      }} />
+
+      {/* Icon */}
+      <div style={{
+        flexShrink: 0, width: 30, height: 30,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: c.bg, borderRadius: 8,
+        border: `0.5px solid ${c.color}33`,
+      }}>
+        <Icon size={14} color={c.color} />
+      </div>
+
+      {/* Content */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+          <span style={{
+            fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 700,
+            color: c.color, padding: '1px 6px', borderRadius: 4,
+            background: c.bg,
+          }}>{c.label}</span>
+          <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>#{index + 1}</span>
+        </div>
+        <p style={{
+          fontFamily: "'Cairo', sans-serif", fontSize: 11.5, lineHeight: 1.7,
+          color: T.text, margin: 0,
+          display: '-webkit-box',
+          WebkitLineClamp: expanded ? 999 : 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: expanded ? 'visible' : 'hidden',
+        }}>
+          {item.text}
+        </p>
+
+        {/* Ask coach button (visible on expand) */}
+        {expanded && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onAskCoach(item.text) }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '4px 10px', borderRadius: 6,
+              background: `${T.purple}14`, border: `0.5px solid ${T.purple}44`,
+              color: T.purple, fontFamily: "'Cairo', sans-serif",
+              fontSize: 10, fontWeight: 600, cursor: 'pointer',
+              marginTop: 8, transition: 'all 0.2s',
+            }}
+          >
+            <MessageCircle size={10} />
+            اسأل المُدرّب
+          </button>
+        )}
+      </div>
+
+      {/* Expand indicator */}
+      <div style={{ flexShrink: 0, marginTop: 2 }}>
+        {expanded ? <ChevronUp size={12} color={T.text3} /> : <ChevronDown size={12} color={T.text3} />}
+      </div>
+    </div>
+  )
+}
+
+/* ── Chat message bubble ── */
+function ChatBubble({ message }: { message: ChatMessage }) {
+  const isUser = message.role === 'user'
+  return (
+    <div style={{
+      display: 'flex', justifyContent: isUser ? 'flex-start' : 'flex-end',
+      marginBottom: 8,
+    }}>
+      <div style={{
+        maxWidth: '85%', padding: '8px 12px',
+        background: isUser ? `${T.blue}14` : `${T.purple}0a`,
+        border: `0.5px solid ${isUser ? `${T.blue}33` : `${T.purple}22`}`,
+        borderRadius: isUser ? '10px 10px 10px 2px' : '10px 10px 2px 10px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+          {isUser ? (
+            <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 700, color: T.blue }}>أنت</span>
+          ) : (
+            <>
+              <Brain size={10} color={T.purple} />
+              <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 700, color: T.purple }}>المُدرّب</span>
+            </>
+          )}
+        </div>
+        <p style={{
+          fontFamily: "'Cairo', sans-serif", fontSize: 11, lineHeight: 1.7,
+          color: T.text, margin: 0, whiteSpace: 'pre-wrap',
+        }}>{message.content}</p>
+      </div>
+    </div>
+  )
+}
+
+/* ── Main AICoachPanel Component ── */
+export default function AICoachPanel() {
+  const { user } = useAuth()
+  const { closedTrades, trades: openTrades } = usePaperTradesStore()
+  const [coachData, setCoachData] = useState<CoachData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const [showChat, setShowChat] = useState(false)
+  const chatEndRef = useRef<HTMLDivElement>(null)
+
+  // Fetch performance advice on mount
+  const fetchAdvice = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      // Send closed trades from localStorage to the coach API
+      const res = await fetch('/api/coach/performance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user?.id || 'anonymous',
+          closedPaperTrades: closedTrades.map(t => ({
+            symbol: t.symbol,
+            side: t.side === 'long' ? 'BUY' : 'SELL',
+            realizedPnl: t.realizedPnl,
+            realizedPct: t.realizedPct,
+            entryPrice: t.entryPrice,
+            exitPrice: t.exitPrice,
+            closeTime: t.closeTime,
+          })),
+          openPaperTrades: openTrades.map(t => ({
+            symbol: t.symbol,
+            side: t.side === 'long' ? 'BUY' : 'SELL',
+            unrealizedPnl: t.unrealizedPnl,
+            entryPrice: t.entryPrice,
+          })),
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setCoachData(data.data)
+      } else {
+        setError(data.error || 'فشل في جلب النصائح')
+      }
+    } catch (e: any) {
+      setError('خطأ في الاتصال بالمُدرّب الذكي')
+    }
+    setLoading(false)
+  }, [user])
+
+  useEffect(() => { fetchAdvice() }, [fetchAdvice])
+
+  // Auto-scroll chat
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages])
+
+  // Ask coach a question
+  const handleAskCoach = async (question?: string) => {
+    const q = question || chatInput.trim()
+    if (!q) return
+
+    setChatMessages(prev => [...prev, { role: 'user', content: q, timestamp: new Date() }])
+    setChatInput('')
+    setChatLoading(true)
+    setShowChat(true)
+
+    try {
+      const res = await fetch('/api/coach/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: q,
+          context: coachData?.adviceText || '',
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setChatMessages(prev => [...prev, {
+          role: 'coach', content: data.data.answer, timestamp: new Date()
+        }])
+      } else {
+        setChatMessages(prev => [...prev, {
+          role: 'coach', content: 'عذراً، لم أتمكن من الإجابة. حاول مرة أخرى.', timestamp: new Date()
+        }])
+      }
+    } catch {
+      setChatMessages(prev => [...prev, {
+        role: 'coach', content: 'خطأ في الاتصال. يرجى المحاولة لاحقاً.', timestamp: new Date()
+      }])
+    }
+    setChatLoading(false)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleAskCoach()
+    }
+  }
+
+  // Stats quick view
+  const stats = coachData?.statistics
+
+  return (
+    <div style={{
+      width: '100%', direction: 'rtl', fontFamily: "'Cairo', sans-serif",
+    }}>
+      <style>{`
+        .coach-advice-card:hover {
+          border-color: rgba(10,132,255,0.3) !important;
+          transform: translateY(-1px);
+        }
+        @keyframes coachFadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .coach-fade-in {
+          animation: coachFadeIn 0.4s ease-out forwards;
+        }
+        @keyframes coachPulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.6; }
+        }
+        .coach-pulse {
+          animation: coachPulse 1.5s ease-in-out infinite;
+        }
+      `}</style>
+
+      {/* ── Performance Rating Card ── */}
+      <div style={{
+        background: `linear-gradient(135deg, ${T.card}, ${T.card2})`,
+        border: `0.5px solid ${T.border2}`,
+        borderRadius: 12, padding: '14px 16px',
+        marginBottom: 12, position: 'relative', overflow: 'hidden',
+      }}>
+        {/* Decorative glow */}
+        <div style={{
+          position: 'absolute', top: -30, left: -30, width: 100, height: 100,
+          background: `radial-gradient(circle, ${T.purple}15, transparent)`,
+          borderRadius: '50%',
+        }} />
+        <div style={{
+          position: 'absolute', bottom: -20, right: -20, width: 80, height: 80,
+          background: `radial-gradient(circle, ${T.blue}10, transparent)`,
+          borderRadius: '50%',
+        }} />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative', zIndex: 1 }}>
+          <div style={{
+            width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: `${T.purple}14`, borderRadius: 12,
+            border: `0.5px solid ${T.purple}33`,
+          }}>
+            <Brain size={20} color={T.purple} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, fontWeight: 800, color: T.text }}>
+                المُدرّب الذكي
+              </span>
+              <Sparkles size={12} color={T.amber} />
+            </div>
+            <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2 }}>
+              تحليل أداء مخصص بالذكاء الاصطناعي
+            </span>
+          </div>
+          <button
+            onClick={fetchAdvice}
+            disabled={loading}
+            style={{
+              padding: '4px 8px', borderRadius: 6,
+              background: T.card, border: `0.5px solid ${T.border}`,
+              color: T.text3, cursor: loading ? 'wait' : 'pointer',
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}
+          >
+            <RefreshCw size={10} className={loading ? 'animate-spin' : ''} />
+          </button>
+        </div>
+
+        {/* Rating + Quick stats */}
+        {coachData && (
+          <div style={{ marginTop: 12, position: 'relative', zIndex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2 }}>
+                تقييم الأداء العام:
+              </span>
+              <RatingBadge rating={coachData.rating} />
+            </div>
+
+            {/* Quick stats bar */}
+            {stats && (
+              <div style={{
+                display: 'flex', gap: 12, marginTop: 10,
+                padding: '8px 10px', borderRadius: 8,
+                background: `${T.bg}80`,
+                border: `0.5px solid ${T.border}`,
+                flexWrap: 'wrap',
+              }}>
+                <StatChip label="صفقات" value={String(stats.totalTrades || 0)} color={T.cyan} />
+                <StatChip label="نسبة الفوز" value={`${stats.winRate || 0}%`} color={stats.winRate >= 50 ? T.green : T.red} />
+                <StatChip label="عامل الربح" value={String(stats.profitFactor === -1 ? '∞' : stats.profitFactor || 0)} color={T.amber} />
+                <StatChip label="أقصى تراجع" value={`$${stats.maxDrawdown || 0}`} color={T.red} />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Loading state ── */}
+      {loading && (
+        <div style={{
+          background: T.card, border: `0.5px solid ${T.border}`,
+          borderRadius: 12, padding: 32, textAlign: 'center',
+        }}>
+          <Brain size={32} color={T.purple} style={{ margin: '0 auto 12px' }} className="coach-pulse" />
+          <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.text, marginBottom: 4 }}>
+            المُدرّب الذكي يحلل أداءك...
+          </p>
+          <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text3 }}>
+            يتم فحص سجل الصفقات واستخراج الأنماط والنصائح
+          </p>
+        </div>
+      )}
+
+      {/* ── Error state ── */}
+      {error && !loading && (
+        <div style={{
+          background: `${T.red}08`, border: `0.5px solid ${T.red}22`,
+          borderRadius: 10, padding: '10px 14px', marginBottom: 12,
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <AlertTriangle size={14} color={T.red} />
+          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.red, flex: 1 }}>{error}</span>
+          <button onClick={fetchAdvice} style={{
+            padding: '3px 10px', borderRadius: 5,
+            background: `${T.red}18`, color: T.red,
+            border: `0.5px solid ${T.red}44`,
+            fontFamily: "'Cairo', sans-serif", fontSize: 9.5, cursor: 'pointer',
+          }}>إعادة</button>
+        </div>
+      )}
+
+      {/* ── Insufficient data message ── */}
+      {coachData && coachData.rating === 'insufficient_data' && !loading && (
+        <div style={{
+          background: `${T.amber}08`, border: `0.5px solid ${T.amber}22`,
+          borderRadius: 10, padding: '16px 18px', marginBottom: 12, textAlign: 'center',
+        }}>
+          <BookOpen size={24} color={T.amber} style={{ margin: '0 auto 8px' }} />
+          <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.text, fontWeight: 700 }}>
+            أنت بحاجة إلى 10 صفقات على الأقل
+          </p>
+          <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text3, marginTop: 4 }}>
+            ليقدم المُدرّب تحليلاً دقيقاً، أكمِل 10 صفقات ثم عد للاستشارة
+          </p>
+        </div>
+      )}
+
+      {/* ── Advice Cards ── */}
+      {coachData && coachData.adviceItems.length > 0 && !loading && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <div style={{ width: 3, height: 14, borderRadius: 2, background: T.purple }} />
+            <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, fontWeight: 700, color: T.text }}>
+              نصائح المُدرّب
+            </span>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>
+              {coachData.adviceItems.length} نصيحة
+            </span>
+          </div>
+          {coachData.adviceItems.map((item, i) => (
+            <div key={i} className="coach-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
+              <AdviceCard item={item} index={i} onAskCoach={(text) => handleAskCoach(`أخبرني أكثر عن: ${text}`)} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Chat Section ── */}
+      {coachData && !loading && (
+        <div style={{
+          background: T.card, border: `0.5px solid ${T.border}`,
+          borderRadius: 12, overflow: 'hidden',
+        }}>
+          {/* Chat header */}
+          <div
+            onClick={() => setShowChat(!showChat)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '10px 14px',
+              borderBottom: showChat ? `0.5px solid ${T.border}` : 'none',
+              background: `linear-gradient(90deg, ${T.purple}0a, transparent)`,
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ width: 3, height: 14, borderRadius: 2, background: T.purple }} />
+            <MessageCircle size={13} color={T.purple} />
+            <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, fontWeight: 700, color: T.text, flex: 1 }}>
+              اسأل مُدرّبك الذكي
+            </span>
+            {chatMessages.length > 0 && (
+              <span style={{
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3,
+                padding: '1px 6px', borderRadius: 10, background: `${T.purple}14`,
+              }}>
+                {chatMessages.length}
+              </span>
+            )}
+            {showChat ? <ChevronUp size={12} color={T.text3} /> : <ChevronDown size={12} color={T.text3} />}
+          </div>
+
+          {showChat && (
+            <>
+              {/* Chat messages */}
+              <div style={{
+                maxHeight: 300, overflowY: 'auto', padding: '10px 14px',
+                background: `${T.bg}40`,
+              }}>
+                {chatMessages.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '16px 0' }}>
+                    <Brain size={20} color={T.text3} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
+                    <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text3 }}>
+                      اطرح أي سؤال عن أداءك في التداول
+                    </p>
+                  </div>
+                )}
+                {chatMessages.map((msg, i) => (
+                  <ChatBubble key={i} message={msg} />
+                ))}
+                {chatLoading && (
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                    <div style={{
+                      padding: '6px 12px', background: `${T.purple}0a`,
+                      border: `0.5px solid ${T.purple}22`,
+                      borderRadius: '10px 10px 2px 10px',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                    }}>
+                      <Loader2 size={10} className="animate-spin" color={T.purple} />
+                      <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.purple }}>
+                        المُدرّب يفكر...
+                      </span>
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Chat input */}
+              <div style={{
+                display: 'flex', gap: 6,
+                padding: '8px 10px',
+                borderTop: `0.5px solid ${T.border}`,
+                background: T.card,
+              }}>
+                <input
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="اسأل مُدرّبك الذكي عن أي شيء يخص تداولك..."
+                  style={{
+                    flex: 1, padding: '8px 12px',
+                    background: `${T.bg}80`, border: `0.5px solid ${T.border}`,
+                    borderRadius: 8, color: T.text,
+                    fontFamily: "'Cairo', sans-serif", fontSize: 11,
+                    outline: 'none', direction: 'rtl',
+                  }}
+                  disabled={chatLoading}
+                />
+                <button
+                  onClick={() => handleAskCoach()}
+                  disabled={chatLoading || !chatInput.trim()}
+                  style={{
+                    width: 34, height: 34,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: chatInput.trim() ? `${T.purple}18` : T.card,
+                    border: `0.5px solid ${chatInput.trim() ? `${T.purple}44` : T.border}`,
+                    borderRadius: 8, cursor: chatLoading || !chatInput.trim() ? 'not-allowed' : 'pointer',
+                    color: chatInput.trim() ? T.purple : T.text3,
+                    transition: 'all 0.2s',
+                    opacity: chatLoading ? 0.5 : 1,
+                  }}
+                >
+                  {chatLoading ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Stat Chip ── */
+function StatChip({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>{label}:</span>
+      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, color }}>{value}</span>
+    </div>
+  )
+}

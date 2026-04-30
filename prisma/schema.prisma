@@ -1,0 +1,651 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  displayName         String?
+  avatar              String?
+  passkeyId           String?
+  passkeyPub          String?
+  tier                Tier                 @default(FREE)
+  maxPositionSize     Decimal?             @db.Decimal(19, 4)
+  maxDailyLoss        Decimal?             @db.Decimal(19, 4)
+  riskTolerance       String?              @default("moderate")
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  apiKeys             ApiKey[]
+  portfolios          Portfolio[]
+  signals             SignalUsage[]
+  rouaSignals         Signal[]
+  sessions            Session[]
+  accounts            Account[]
+  exchangeCredentials ExchangeCredential[]
+  orders              Order[]
+  positions           Position[]
+  trades              Trade[]
+  tradingBots         TradingBot[]
+  chartPreferences    ChartPreference[]
+  paperOrders         PaperOrder[]
+  coachAdvices        CoachAdvice[]
+  auditLogs           AuditLog[]
+}
+
+enum Tier {
+  FREE
+  PRO
+  PLUS
+  PREMIUM
+  INSTITUTIONAL
+}
+
+model ApiKey {
+  id              String    @id @default(cuid())
+  userId          String
+  exchange        String
+  encryptedKey    String
+  encryptedSecret String
+  permissions     String
+  iv              String
+  isActive        Boolean   @default(true)
+  lastValidated   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Portfolio {
+  id          String           @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  totalValue  Decimal          @default(0) @db.Decimal(18,4)
+  currency    String           @default("USD")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assets      PortfolioAsset[]
+
+  @@index([userId])
+}
+
+model PortfolioAsset {
+  id           String      @id @default(cuid())
+  portfolioId  String
+  symbol       String
+  name         String
+  quantity     Decimal     @default(0) @db.Decimal(18,8)
+  avgPrice     Decimal     @default(0) @db.Decimal(18,8)
+  currentPrice Decimal?    @db.Decimal(18,8)
+  exchange     String?
+  assetType    AssetType
+  addedAt      DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  portfolio    Portfolio   @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+  @@unique([portfolioId, symbol])
+}
+
+enum AssetType {
+  STOCK
+  FOREX
+  CRYPTO
+  COMMODITY
+  INDEX
+}
+
+// ── Signal System (Phase 4) ──
+enum SignalAction {
+  BUY
+  SELL
+  WAIT
+}
+
+enum SignalStatus {
+  ACTIVE
+  EXPIRED
+  EXECUTED
+  CANCELLED
+}
+
+model Signal {
+  id          String       @id @default(cuid())
+  userId      String
+  pair        String
+  action      SignalAction
+  confidence  Int
+  reason      String
+  entryPrice  Decimal?     @db.Decimal(19, 4)
+  stopLoss    Decimal?     @db.Decimal(19, 4)
+  takeProfit  Decimal?     @db.Decimal(19, 4)
+  status      SignalStatus @default(ACTIVE)
+  expiresAt   DateTime
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders      Order[]
+
+  @@index([userId])
+  @@index([pair])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([userId, status, expiresAt])
+}
+
+model SignalUsage {
+  id         String   @id @default(cuid())
+  userId     String
+  signalType String
+  asset      String
+  confidence Decimal @default(0)
+  analysis   String
+  signedHash String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  resource  String
+  details   String?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([action, createdAt])
+}
+
+// ── News Article for RAG (Phase 4) ──
+model NewsArticle {
+  id              String   @id @default(cuid())
+  source          String
+  title           String   // Original title (source language)
+  translatedTitle String?  // Arabic translation
+  content         String   // Original content/description
+  translatedContent String? // Arabic translation of content
+  summary         String?  // AI-generated summary in Arabic
+  url             String?
+  sentiment       Decimal? @db.Decimal(5, 4)  // -1.0 (very negative) to 1.0 (very positive)
+  sentimentLabel  String?  // "positive", "negative", "neutral"
+  impactLevel     String?  // "high", "medium", "low"
+  affectedAssets  String?  // JSON array of affected symbols: ["BTC", "ETH"]
+  entities        String?  // JSON: named entities extracted
+  aiAnalysis      String?  // Full AI analysis from 6 models (JSON)
+  category        String?  // News category: Crypto, Forex, Economy, etc.
+  categoryAr      String?  // Arabic category name
+  embedding       String?  // JSON-encoded 384-dim vector (upgrade to pgvector for Postgres)
+  imageUrl        String?  // Optional article image
+  publishedAt     DateTime
+  fetchedAt       DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([source])
+  @@index([publishedAt])
+  @@index([sentimentLabel])
+  @@index([category])
+  @@unique([url])
+}
+
+// ── Exchange Credential model (encrypted API keys) ──
+model ExchangeCredential {
+  id               String    @id @default(cuid())
+  userId           String
+  exchange         String
+  label            String
+  encryptedApiKey  String
+  encryptedSecret  String
+  iv               String
+  authTag          String
+  secretIv         String?
+  secretAuthTag    String?
+  permissions      String    @default("read")
+  isValid          Boolean   @default(true)
+  lastValidatedAt  DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders           Order[]
+  positions        Position[]
+
+  @@index([userId])
+  @@index([exchange])
+  @@index([userId, isValid])
+}
+
+// ── Trading Engine (Phase 5) ──
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum OrderType {
+  MARKET
+  LIMIT
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PARTIALLY_FILLED
+  FILLED
+  CANCELLED
+  REJECTED
+}
+
+enum OrderEventType {
+  CREATED
+  ACCEPTED
+  RISK_REJECTED
+  SENT_TO_EXCHANGE
+  FILLED
+  CANCELLED
+}
+
+enum PositionStatus {
+  OPEN
+  CLOSED
+  LIQUIDATED
+}
+
+enum TradeType {
+  ENTRY
+  EXIT
+  PARTIAL_EXIT
+}
+
+model Order {
+  id                  String      @id @default(uuid())
+  userId              String
+  exchangeCredentialId String
+  exchange            String
+  symbol              String
+  side                OrderSide
+  type                OrderType
+  timeInForce         String?     // GTC, IOC, FOK
+  quantity            Decimal     @db.Decimal(19, 8)
+  price               Decimal?    @db.Decimal(19, 4)
+  stopLoss            Decimal?    @db.Decimal(19, 4)
+  takeProfit          Decimal?    @db.Decimal(19, 4)
+  status              OrderStatus @default(PENDING)
+  filledQuantity      Decimal     @default(0) @db.Decimal(19, 8)
+  averagePrice        Decimal?    @db.Decimal(19, 4)
+  fee                 Decimal?    @db.Decimal(19, 4)
+  feeCurrency         String?
+  exchangeOrderId     String?
+  rejectReason        String?
+  signalId            String?
+  idempotencyKey      String      @unique
+  clientOrderId       String?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  user                User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exchangeCredential  ExchangeCredential @relation(fields: [exchangeCredentialId], references: [id], onDelete: Cascade)
+  signal              Signal?     @relation(fields: [signalId], references: [id], onDelete: SetNull)
+  events              OrderEvent[]
+  trades              Trade[]
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([status])
+  @@index([exchange])
+  @@index([createdAt])
+  @@index([userId, status, createdAt])
+}
+
+model OrderEvent {
+  id        String         @id @default(uuid())
+  orderId   String
+  eventType OrderEventType
+  payload   String?
+  timestamp DateTime       @default(now())
+  order     Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([eventType])
+  @@index([timestamp])
+}
+
+model Position {
+  id             String         @id @default(cuid())
+  userId         String
+  credentialId   String
+  exchange       String
+  symbol         String
+  side           OrderSide
+  status         PositionStatus @default(OPEN)
+  quantity       Decimal        @default(0) @db.Decimal(18,8)
+  entryPrice     Decimal        @default(0) @db.Decimal(18,8)
+  currentPrice   Decimal?       @db.Decimal(18,8)
+  unrealizedPnl  Decimal        @default(0) @db.Decimal(18,4)
+  realizedPnl    Decimal        @default(0) @db.Decimal(18,4)
+  stopLoss       Decimal?       @db.Decimal(18,8)
+  takeProfit     Decimal?       @db.Decimal(18,8)
+  highestPrice   Decimal?       @db.Decimal(18,8)
+  lowestPrice    Decimal?       @db.Decimal(18,8)
+  openedAt       DateTime       @default(now())
+  closedAt       DateTime?
+  updatedAt      DateTime       @updatedAt
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credential     ExchangeCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  trades         Trade[]
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([status])
+  @@index([exchange])
+  @@index([userId, status])
+  @@index([userId, symbol, status])
+  @@unique([userId, symbol, side, status])
+}
+
+model Trade {
+  id              String    @id @default(cuid())
+  userId          String
+  orderId         String?
+  positionId      String?
+  exchange        String
+  symbol          String
+  side            OrderSide
+  type            TradeType
+  quantity        Decimal   @default(0) @db.Decimal(18,8)
+  price           Decimal   @default(0) @db.Decimal(18,8)
+  fee             Decimal   @default(0) @db.Decimal(18,4)
+  feeCurrency     String?
+  pnl             Decimal?  @db.Decimal(18,4)
+  exchangeTradeId String?
+  executedAt      DateTime  @default(now())
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order           Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  position        Position? @relation(fields: [positionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([positionId])
+  @@index([executedAt])
+  @@index([userId, type, executedAt])
+}
+
+// ── Paper Trading Orders (Execution Engine) ──
+model PaperOrder {
+  id              String      @id @default(uuid())
+  userId          String
+  symbol          String
+  side            OrderSide
+  type            OrderType
+  quantity        Decimal     @db.Decimal(19, 8)
+  price           Decimal?    @db.Decimal(19, 4)
+  stopLoss        Decimal?    @db.Decimal(19, 4)
+  takeProfit      Decimal?    @db.Decimal(19, 4)
+  status          OrderStatus @default(PENDING)
+  filledQuantity   Decimal     @default(0) @db.Decimal(19, 8)
+  averagePrice    Decimal?    @db.Decimal(19, 4)
+  fee             Decimal?    @db.Decimal(19, 4)
+  feeCurrency     String?
+  slippage        Decimal?    @db.Decimal(19, 4)
+  idempotencyKey  String      @unique
+  clientOrderId   String?
+  exchangeOrderId String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ── WebAuthn Challenge store ──
+model Challenge {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  challenge String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([key])
+  @@index([expiresAt])
+}
+
+// ── OAuth Account model (NextAuth) ──
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  updatedAt       DateTime  @updatedAt
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// ── Strategy Reports ──
+model StrategyReport {
+  id              String   @id @default(cuid())
+  symbol          String
+  assetName       String
+  title           String
+  type            String
+  severity        String
+  price           Decimal  @db.Decimal(19, 4)
+  change          Decimal  @db.Decimal(10, 4)
+  isUp            Boolean
+  tag             String?
+  decision        String   // JSON stringified { title, color, desc }
+  matrix          String   // JSON stringified array of matrices
+  risk            String   // JSON stringified risk metrics
+  flow            String   // JSON stringified dark pool flows
+  consensus       String
+  hiddenSignature String
+  deepAnalysis    String   // JSON stringified string[]
+  publishedAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([symbol])
+  @@index([type])
+  @@index([publishedAt])
+}
+
+// ── Trading Bot (Automation Engine) ──
+model TradingBot {
+  id              String   @id @default(cuid())
+  userId          String
+  name            String   @default("HFT-Alpha")
+  strategy        String   @default("Scalp AI")
+  isActive        Boolean  @default(false)
+  winRate         Decimal  @default(0) @db.Decimal(5, 4)
+  totalTrades     Int      @default(0)
+  dailyPnl        Decimal  @default(0) @db.Decimal(19, 4)
+  statusMessage   String   @default("SYSTEM_IDLE")
+  updatedAt       DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ── AI Coach Advice ──
+model CoachAdvice {
+  id                String   @id @default(cuid())
+  userId            String
+  rating            String   @default("needs_improvement") // excellent, good, needs_improvement
+  statisticsSnapshot String  @default("{}") // JSON: win rate, avg win/loss, max DD, etc.
+  adviceText        String   // Full advice text from AI
+  adviceItems       String   @default("[]") // JSON array of { type, icon, text }
+  isRead            Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ── Chart Preferences (Drawings & Settings) ──
+model ChartPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  symbol    String   // e.g. "BTC/USD" or "global"
+  settings  String   @default("{}") // JSON for colors, indicators, timeframes
+  drawings  String   @default("[]") // JSON for lines, rects, fibs, etc.
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, symbol])
+  @@index([userId])
+  @@index([symbol])
+}
+
+// ── Subscription Tracking ──
+model Subscription {
+  id              String    @id @default(cuid())
+  userId          String
+  tier            Tier      @default(FREE)
+  previousTier    Tier?
+  startDate       DateTime  @default(now())
+  endDate         DateTime?
+  status          String    @default("active") // active, expired, cancelled
+  paymentMethod   String?
+  amount          Decimal?  @db.Decimal(19, 4)
+  currency        String    @default("USD")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([tier])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ── AI Usage & Cost Tracking ──
+model AiUsageLog {
+  id              String   @id @default(cuid())
+  userId          String?
+  model           String   // e.g. "gpt-4", "claude-3-opus", "glm-5"
+  provider        String   // e.g. "openai", "anthropic", "zhipu"
+  endpoint        String   // e.g. "chat", "consensus", "narrator"
+  inputTokens     Int      @default(0)
+  outputTokens    Int      @default(0)
+  costUsd         Decimal  @default(0) @db.Decimal(10, 6)
+  latencyMs       Int      @default(0)
+  cached          Boolean  @default(false)
+  success         Boolean  @default(true)
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+
+  @@index([model])
+  @@index([provider])
+  @@index([createdAt])
+  @@index([userId])
+  @@index([cached])
+}
+
+// ── Notification Configuration ──
+model NotificationConfig {
+  id                String   @id @default(cuid())
+  type              String   // telegram, browser, email
+  enabled           Boolean  @default(false)
+  config            String   @default("{}") // JSON: botToken, chatId, etc.
+  description       String?
+  lastTriggeredAt   DateTime?
+  triggerCount      Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([type])
+  @@index([type])
+  @@index([enabled])
+}
+
+// ── Price Alert (Alert Agent) ──
+enum AlertCondition {
+  ABOVE
+  BELOW
+  CROSSES_UP
+  CROSSES_DOWN
+}
+
+model Alert {
+  id           String         @id @default(cuid())
+  userId       String
+  symbol       String         // e.g. "BTC/USDT", "AAPL"
+  condition    AlertCondition
+  targetPrice  Decimal        @db.Decimal(19, 4)
+  isActive     Boolean        @default(true)
+  isTriggered  Boolean        @default(false)
+  triggeredAt  DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([isActive, isTriggered])
+  @@index([userId, isActive, isTriggered])
+}
+
+// ── Admin Session (Password Auth) ──
+model AdminSession {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// ── System Settings (Key-Value) ──
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @default("{}") // JSON-encoded value
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@index([key])
+}

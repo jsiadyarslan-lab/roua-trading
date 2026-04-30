@@ -1,0 +1,33 @@
+{
+  "name": "roua-trading",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "start": "bash start.sh",
+    "lint": "turbo lint",
+    "dev:web": "turbo dev --filter=@roua/web",
+    "dev:api": "turbo dev --filter=@roua/api",
+    "db:push": "turbo db:push --filter=@roua/web",
+    "db:generate": "turbo db:generate --filter=@roua/web"
+  },
+  "devDependencies": {
+    "next": "^16.2.4",
+    "prisma": "^6.19.3",
+    "turbo": "^2.5.0",
+    "typescript": "^5"
+  },
+  "packageManager": "npm@10.5.0",
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "csv-stringify": "^6.7.0",
+    "exceljs": "^4.4.0",
+    "pdfkit": "^0.18.0",
+    "technicalindicators": "^3.1.0"
+  }
+}

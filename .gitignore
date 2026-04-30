@@ -1,0 +1,91 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Roua Trading (رؤى) — .gitignore
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# ── Dependencies ──
+node_modules/
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+bun.lock
+
+# ── Testing ──
+/coverage
+
+# ── Next.js ──
+.next/
+/out/
+apps/web/.next/
+
+# ── NestJS Build ──
+dist/
+apps/api/dist/
+
+# ── Production ──
+/build
+
+# ── Environment Files (NEVER commit secrets!) ──
+.env
+.env.local
+.env.*.local
+apps/web/.env
+apps/api/.env
+# Keep .env.example for documentation
+!.env.example
+
+# ── Database ──
+db/
+*.db
+*.db-journal
+
+# ── Misc ──
+.DS_Store
+*.pem
+Thumbs.db
+
+# ── Debug Logs ──
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+bun-debug.log*
+*.log
+dev.log
+server.log
+
+# ── TypeScript ──
+*.tsbuildinfo
+next-env.d.ts
+
+# ── Vercel ──
+.vercel
+
+# ── IDE ──
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── Claude / AI ──
+.claude
+.z-ai-config
+local-*
+prompt
+test
+
+# ── Skills Directory ──
+/skills/
+
+# ── Prisma ──
+apps/web/prisma/migrations/
+
+# ── Upload / Download ──
+upload/
+download/
+.turbo/
+__pycache__/
+*.pyc

@@ -1,0 +1,850 @@
+'use client'
+
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import {
+  Home, Wallet, Brain, ScanSearch, BarChart2,
+  Copy, Users, Newspaper, CalendarDays, Settings,
+  ChevronDown, Bell, User, MoreHorizontal,
+  TrendingUp, TrendingDown, Menu, X as XIcon, GitMerge, Activity,
+  FlaskConical, Shield, Hammer
+} from 'lucide-react'
+import { useMarketStore } from '@/hooks/useMarketStore'
+import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { NotificationCenter } from '@/components/dashboard/NotificationCenter'
+
+/* ─── Design tokens ─── */
+const T = {
+  bg:       '#0B0E14',
+  bg2:      '#1A1D29',
+  blue:     'var(--primary)',
+  accent:   'var(--accent)',
+  green:    'var(--success)',
+  red:      'var(--danger)',
+  amber:    '#FFB800',
+  purple:   '#B388FF',
+  text:     '#F0F2F5',
+  text2:    '#8B92A8',
+  text3:    '#8B92A8',
+  border:   'rgba(255,255,255,0.05)',
+  border2:  'rgba(255,255,255,0.12)',
+  navGlass: 'rgba(11, 14, 20, 0.85)',
+  card:     'var(--surface)',
+  success:  '#00FFA3',
+  danger:   '#FF4757',
+  warning:  '#FFB800',
+  info:     '#00D4FF',
+}
+
+const H_NEWS  = 28
+const H_CURR  = 34
+const H_NAV   = 46
+const H_TOTAL = H_NEWS + H_CURR + H_NAV
+const MOBILE_HEADER_H = 48
+const ORB_D   = 108
+const ORB_GAP = 120
+
+type MarketState = 'bullish' | 'bearish' | 'volatile' | 'neutral'
+
+const STATE: Record<MarketState, { core: string; glow: string }> = {
+  bullish:  { core: '#00FFC6', glow: 'rgba(0,255,198,0.55)'  },
+  bearish:  { core: '#FF4D4D', glow: 'rgba(255,77,77,0.55)'  },
+  volatile: { core: '#FFB800', glow: 'rgba(255,184,0,0.55)'  },
+  neutral:  { core: '#00C8FF', glow: 'rgba(0,200,255,0.45)'  },
+}
+
+const PLANETS = [
+  { inset: -5,  size: 6, color: '#FFB800', glow: '#FFB80088', dur: '5s',  dir: 'ring-cw'  },
+  { inset: -12, size: 8, color: '#B388FF', glow: '#B388FF88', dur: '10s', dir: 'ring-ccw' },
+  { inset: -20, size: 5, color: '#FF4D4D', glow: '#FF4D4D88', dur: '16s', dir: 'ring-cw'  },
+  { inset: -28, size: 4, color: '#00C8FF', glow: '#00C8FF88', dur: '22s', dir: 'ring-ccw' },
+]
+
+const STARS = [
+  { top: '5%',  left: '-22%', s: 2,   op: 0.7, dur: '2.1s' },
+  { top: '72%', left: '-20%', s: 1.5, op: 0.5, dur: '3.3s' },
+  { top: '-8%', left: '28%',  s: 2.5, op: 0.6, dur: '1.8s' },
+  { top: '88%', left: '82%',  s: 1.5, op: 0.5, dur: '2.9s' },
+  { top: '-6%', left: '72%',  s: 2,   op: 0.7, dur: '3.7s' },
+  { top: '50%', left: '-26%', s: 1.5, op: 0.4, dur: '2.5s' },
+  { top: '15%', left: '90%',  s: 2,   op: 0.6, dur: '4.1s' },
+]
+
+function formatHeaderPrice(value: unknown) {
+  const price = Number(value)
+  if (!Number.isFinite(price)) return '—'
+  return price.toLocaleString('en', { maximumFractionDigits: price > 100 ? 2 : 4 })
+}
+
+/* ══ Cosmic Orb ══ */
+function CosmicOrb({ state, size = 68 }: { state: MarketState, size?: number }) {
+  const c = STATE[state]
+  const S = size
+  return (
+    <div style={{ position: 'relative', width: S, height: S }}>
+      <div style={{
+        position: 'absolute', inset: -14, borderRadius: '50%',
+        background: `radial-gradient(circle, ${c.glow} 0%, transparent 65%)`,
+        animation: 'orb-glow 3s ease-in-out infinite',
+      }} />
+      {STARS.map((st, i) => (
+        <div key={i} style={{
+          position: 'absolute', top: st.top, left: st.left,
+          width: st.s, height: st.s, borderRadius: '50%',
+          background: '#fff', opacity: st.op,
+          animation: `star-blink ${st.dur} ease-in-out infinite`,
+        }} />
+      ))}
+      {PLANETS.map((p, i) => (
+        <div key={i} style={{
+          position: 'absolute', inset: p.inset, borderRadius: '50%',
+          border: `1px solid ${p.color}33`,
+          animation: `${p.dir} ${p.dur} linear infinite`,
+          transform: `rotateX(${50 + i * 12}deg) rotateZ(${i * 20}deg)`,
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: i % 2 === 0 ? -p.size / 2 : undefined,
+            bottom: i % 2 === 1 ? -p.size / 2 : undefined,
+            left: '50%', width: p.size, height: p.size,
+            borderRadius: '50%',
+            background: `radial-gradient(circle at 30% 30%, ${p.color}, ${p.color}66)`,
+            boxShadow: `0 0 ${p.size + 4}px ${p.glow}`,
+            marginLeft: -p.size / 2,
+          }} />
+        </div>
+      ))}
+      <div style={{
+        position: 'absolute', inset: 0, borderRadius: '50%',
+        background: `radial-gradient(circle at 36% 30%, ${c.core}ee, ${c.core}66 40%, #010208 80%)`,
+        boxShadow: `0 0 24px ${c.glow}, 0 0 8px ${c.glow} inset`,
+        transition: 'box-shadow 1.2s ease, background 1.2s ease',
+        zIndex: 2,
+      }}>
+        <div style={{
+          position: 'absolute', top: '14%', left: '18%',
+          width: '40%', height: '26%', borderRadius: '50%',
+          background: 'rgba(255,255,255,0.22)', filter: 'blur(3px)',
+        }} />
+        <div style={{
+          position: 'absolute', bottom: '8%', left: '14%', right: '14%',
+          height: '16%', borderRadius: '50%',
+          background: `${c.core}28`, filter: 'blur(5px)',
+        }} />
+      </div>
+    </div>
+  )
+}
+
+/* ══ Logo Circle ══ */
+function LogoCircle({ state }: { state: MarketState }) {
+  const c = STATE[state]
+  return (
+    <div className="logo-orb" style={{
+      position: 'absolute', top: '50%', right: 10,
+      transform: 'translateY(-50%)',
+      width: ORB_D, height: ORB_D, borderRadius: '50%',
+      background: `radial-gradient(circle at 50% 40%, #0D1520, #020308)`,
+      border: `1.5px solid ${c.core}44`,
+      boxShadow: `0 0 28px ${c.glow}, 0 0 0 4px ${c.core}11`,
+      display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      gap: 6, zIndex: 20,
+      transition: 'border-color 1s, box-shadow 1s',
+    }}>
+      <CosmicOrb state={state} />
+      <div style={{ textAlign: 'center' }}>
+        <div style={{
+          fontFamily: "'Cairo', sans-serif",
+          fontWeight: 900, fontSize: 11.5,
+          color: T.text, lineHeight: 1.1,
+        }}>رؤى</div>
+        <div style={{
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 6, color: c.core,
+          letterSpacing: '0.1em', opacity: 0.85,
+        }}>ROUA</div>
+      </div>
+    </div>
+  )
+}
+
+/* ══ Strip 1: News Ticker ══ */
+/* ─── Shared news data (single fetch) ─── */
+type NewsItem = { text: string; textAr: string; categoryAr: string; color: string; impact: string }
+let _newsCache: NewsItem[] | null = null
+let _newsPromise: Promise<NewsItem[]> | null = null
+
+function fetchNewsData(): Promise<NewsItem[]> {
+  if (_newsCache) return Promise.resolve(_newsCache)
+  if (_newsPromise) return _newsPromise
+  _newsPromise = fetch('/api/news/feed')
+    .then(r => r.ok ? r.json() : [])
+    .then((d: unknown) => {
+      if (Array.isArray(d) && d.length) {
+        _newsCache = d.map((item: any) => {
+          const rawTextAr = item.textAr || item.translatedTitle || ''
+          const rawText = item.text || item.headline || item.title || ''
+          const hasRealArabic = rawTextAr && /[\u0600-\u06FF]/.test(rawTextAr)
+          return {
+            text: rawText,
+            textAr: hasRealArabic ? rawTextAr : rawText,
+            categoryAr: item.categoryAr || 'عام',
+            color: item.color || '#94a3b8',
+            impact: item.impact || 'medium',
+          }
+        })
+      } else {
+        _newsCache = []
+      }
+      return _newsCache!
+    })
+    .catch(() => { _newsCache = []; return _newsCache! })
+  return _newsPromise
+}
+
+function NewsTicker() {
+  const [items, setItems] = useState<
+    { text: string; textAr: string; categoryAr: string; color: string; impact: string }[]
+  >([])
+
+  useEffect(() => {
+    fetchNewsData().then(data => { if (data.length) setItems(data) })
+  }, [])
+
+  const doubled = items.length ? [...items, ...items] : []
+
+  return (
+    <div style={{
+      height: H_NEWS, background: T.bg,
+      borderBottom: `0.5px solid ${T.border}`,
+      display: 'flex', alignItems: 'center',
+      overflow: 'hidden',
+      borderTopRightRadius: ORB_D / 2,
+    }}>
+      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        {doubled.length > 0 ? (
+          <div style={{
+            display: 'flex', gap: 52, whiteSpace: 'nowrap',
+            animation: `news-scroll ${Math.max(doubled.length * 2.5, 18)}s linear infinite`,
+          }}>
+            {doubled.map((item, i) => (
+              <span key={i} style={{
+                fontFamily: "'Cairo', sans-serif", fontSize: 11,
+                color: item.color || T.text2, flexShrink: 0,
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                direction: 'rtl',
+              }}>
+                <span style={{
+                  fontSize: 8, padding: '1px 5px', borderRadius: 3,
+                  background: `${item.color}18`, color: item.color,
+                  fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+                }}>{item.categoryAr || 'عام'}</span>
+                {item.impact === 'high' && <span style={{ color: T.amber, fontSize: 7 }}>●</span>}
+                {item.textAr || item.text}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <span style={{
+            padding: '0 14px', fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 9, color: T.text3,
+          }}>جارٍ تحميل الأخبار...</span>
+        )}
+        <div style={{
+          position: 'absolute', left: 0, top: 0, bottom: 0, width: 36,
+          background: `linear-gradient(to right, ${T.bg}, transparent)`,
+          pointerEvents: 'none',
+        }} />
+      </div>
+      <div style={{ flexShrink: 0, padding: '0 10px' }}>
+        <NotificationCenter />
+      </div>
+    </div>
+  )
+}
+
+/* ══ Strip 2: Currency Ticker — Static + Flash on update ══ */
+const SYMBOLS = [
+  'BTC/USD','ETH/USD','EUR/USD','GBP/USD',
+  'USD/JPY','XAU/USD','BNB/USD','SOL/USD','XRP/USD',
+]
+
+function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
+  const globalQuotes = useMarketStore(state => state.quotes)
+  const quotes = new Map(SYMBOLS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
+  const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
+
+  const prevPrices = useRef<Record<string, number>>({})
+  const [flashState, setFlashState] = useState<Record<string, 'up' | 'down' | null>>({})
+
+  useEffect(() => {
+    const nextFlash: Record<string, 'up' | 'down' | null> = {}
+    let changed = false
+    SYMBOLS.forEach(sym => {
+      const q = quotes.get(sym)
+      if (!q) return
+      const prev = prevPrices.current[sym]
+      if (prev !== undefined && prev !== q.price) {
+        nextFlash[sym] = q.price > prev ? 'up' : 'down'
+        changed = true
+      }
+      prevPrices.current[sym] = q.price
+    })
+    if (changed) {
+      setFlashState(nextFlash)
+      const t = setTimeout(() => setFlashState({}), 700)
+      return () => clearTimeout(t)
+    }
+  }, [quotes])
+
+  const rows = SYMBOLS.map(sym => ({
+    sym,
+    q: quotes.get(sym) ?? null,
+    flash: flashState[sym] ?? null,
+  }))
+
+  const finalRows = isMobile ? rows.slice(0, 3) : rows
+
+  return (
+    <div style={{
+      height: isMobile ? 'auto' : H_CURR, background: isMobile ? 'transparent' : T.bg2,
+      borderBottom: isMobile ? 'none' : `0.5px solid ${T.border}`,
+      display: 'flex', alignItems: 'center',
+      padding: isMobile ? 0 : '0 6px',
+      flex: isMobile ? 1 : undefined,
+    }}>
+      {finalRows.map(({ sym, q, flash }, i) => {
+        const flashBg = flash === 'up'
+          ? 'rgba(0,255,163,0.10)'
+          : flash === 'down'
+            ? 'rgba(255,71,87,0.10)'
+            : 'transparent'
+        const chg = q?.changePercent ?? 0
+        const isUp = chg >= 0
+
+        return (
+          <div key={sym} 
+            onClick={() => setSelectedSymbol(sym)}
+            style={{
+            flex: 1, display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            padding: isMobile ? '0 4px' : '2px 6px',
+            borderLeft: i < finalRows.length - 1 ? `0.5px solid ${T.border}` : 'none',
+            borderRadius: 4,
+            background: sym === selectedSymbol ? 'rgba(0,212,255,0.08)' : flashBg,
+            cursor: 'pointer',
+            borderBottom: sym === selectedSymbol ? `2px solid var(--accent)` : '2px solid transparent',
+            transition: 'background 0.15s',
+          }}>
+            <span style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: isMobile ? 6.5 : 7.5, color: T.text3,
+              letterSpacing: '0.04em', lineHeight: 1.2,
+            }}>{sym}</span>
+            <span className="price" style={{
+              fontSize: isMobile ? 10 : 11.5,
+              color: flash === 'up' ? T.green : flash === 'down' ? T.red : T.text,
+              lineHeight: 1.15, transition: 'color 0.3s',
+            }}>
+              {formatHeaderPrice(q?.price)}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ══ Mobile News Ticker (compact) ══ */
+function MobileNewsTicker() {
+  const [items, setItems] = useState<
+    { textAr: string; categoryAr: string; color: string }[]
+  >([])
+
+  useEffect(() => {
+    fetchNewsData().then(data => {
+      if (data.length) {
+        setItems(data.slice(0, 10).map(({ textAr, categoryAr, color }) => ({ textAr, categoryAr, color })))
+      }
+    })
+  }, [])
+
+  const doubled = items.length ? [...items, ...items] : []
+
+  return doubled.length > 0 ? (
+    <div style={{
+      display: 'flex', gap: 36, whiteSpace: 'nowrap',
+      animation: `news-scroll ${Math.max(doubled.length * 2, 14)}s linear infinite`,
+    }}>
+      {doubled.map((item, i) => (
+        <span key={i} style={{
+          fontFamily: "'Cairo', sans-serif", fontSize: 10,
+          color: item.color || T.text2, flexShrink: 0,
+          display: 'inline-flex', alignItems: 'center', gap: 4,
+          direction: 'rtl',
+        }}>
+          <span style={{
+            fontSize: 7, padding: '0px 4px', borderRadius: 2,
+            background: `${item.color}18`, color: item.color,
+            fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+          }}>{item.categoryAr}</span>
+          {item.textAr}
+        </span>
+      ))}
+    </div>
+  ) : (
+    <span style={{
+      padding: '0 10px', fontFamily: "'Cairo', sans-serif",
+      fontSize: 9, color: T.text3,
+    }}>جارٍ تحميل الأخبار...</span>
+  )
+}
+
+/* ══ Strip 3: Main Nav ══ */
+const NAV_LINKS = [
+  { href: '/dashboard',                        label: 'الرئيسية',           icon: Home },
+  { href: '/dashboard/portfolio',              label: 'المحفظة',            icon: Wallet },
+  { href: '/dashboard/ai',                     label: 'تحليل AI',           icon: Brain },
+  { href: '/dashboard/neural',                  label: 'Neural Lab',         icon: FlaskConical },
+  { href: '/dashboard/scanner',                label: 'السكانر المتقدم',    icon: ScanSearch },
+  { href: '/dashboard/strategies',             label: 'تحليلات استراتيجية', icon: BarChart2 },
+  { href: '/dashboard/news',                   label: 'الأخبار',            icon: Newspaper },
+  { href: '/dashboard/copy-trading',           label: 'نسخ الصفقات',        icon: Copy },
+  { href: '/dashboard/social',                 label: 'التداول الاجتماعي',  icon: Users },
+  { href: '/dashboard/calendar',               label: 'الأجندة الاقتصادية', icon: CalendarDays },
+  { href: '/dashboard/strategies/backtest',    label: 'اختبار الاستراتيجيات', icon: Activity },
+  { href: '/dashboard/sanctuary',             label: 'الملاذ',              icon: Shield },
+  { href: '/dashboard/strategy-builder',       label: 'بناء الاستراتيجية',   icon: Hammer },
+  { href: '/dashboard/correlation',            label: 'مصفوفة الارتباط',    icon: GitMerge },
+  { href: '/dashboard/settings',               label: 'الإعدادات',          icon: Settings },
+]
+
+function MoreDropdown({
+  open,
+  onClose,
+  anchorRef,
+}: {
+  open: boolean
+  onClose: () => void
+  anchorRef: React.RefObject<HTMLDivElement | null>
+}) {
+  const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 })
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const pathname = usePathname()
+
+  useEffect(() => {
+    if (open && anchorRef.current) {
+      const rect = anchorRef.current.getBoundingClientRect()
+      setPos({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right,
+      })
+    }
+  }, [open, anchorRef])
+
+  useEffect(() => {
+    if (!open) return
+    // Use a small delay to avoid the click that opened the dropdown from closing it
+    const timeoutId = setTimeout(() => {
+      const handleClick = (e: MouseEvent) => {
+        // Don't close if clicking inside the dropdown or the anchor button
+        if (
+          dropdownRef.current?.contains(e.target as Node) ||
+          anchorRef.current?.contains(e.target as Node)
+        ) {
+          return
+        }
+        onClose()
+      }
+      const handleEsc = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') onClose()
+      }
+      document.addEventListener('mousedown', handleClick)
+      document.addEventListener('keydown', handleEsc)
+      // Store cleanup function
+      ;(window as any).__moreDropdownCleanup = () => {
+        document.removeEventListener('mousedown', handleClick)
+        document.removeEventListener('keydown', handleEsc)
+      }
+    }, 50)
+    return () => {
+      clearTimeout(timeoutId)
+      if ((window as any).__moreDropdownCleanup) {
+        ;(window as any).__moreDropdownCleanup()
+        delete (window as any).__moreDropdownCleanup
+      }
+    }
+  }, [open, onClose, anchorRef])
+
+  if (!open || typeof document === 'undefined') return null
+
+  return createPortal(
+    <div ref={dropdownRef} style={{
+      position: 'fixed',
+      top: pos.top,
+      right: pos.right,
+      background: 'rgba(26, 29, 41, 0.95)',
+      backdropFilter: 'blur(32px) saturate(1.8)',
+      WebkitBackdropFilter: 'blur(32px) saturate(1.8)',
+      border: '1px solid rgba(0,212,255,0.15)',
+      borderRadius: 14,
+      padding: '6px',
+      minWidth: 200,
+      zIndex: 9999,
+      boxShadow: '0 20px 60px rgba(0,0,0,0.7), 0 0 20px rgba(0,212,255,0.06)',
+      animation: 'fadeInSlideDown 0.18s ease-out',
+    }}>
+      {NAV_LINKS.slice(8).map(({ href, label, icon: Icon }) => {
+        const active = pathname === href ||
+          (href !== '/dashboard' && (pathname ?? '').startsWith(href))
+        return (
+          <Link key={href} href={href} style={{ textDecoration: 'none' }} onClick={onClose}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+              fontFamily: "'Cairo', sans-serif", fontSize: 13,
+              color: active ? 'var(--accent)' : T.text2,
+              background: active ? 'rgba(0,212,255,0.08)' : 'transparent',
+              fontWeight: active ? 700 : 500,
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => {
+              const el = e.currentTarget as HTMLDivElement
+              if (!active) { el.style.background = 'rgba(0,212,255,0.06)'; el.style.color = T.text }
+            }}
+            onMouseLeave={e => {
+              const el = e.currentTarget as HTMLDivElement
+              if (!active) { el.style.background = 'transparent'; el.style.color = T.text2 }
+            }}
+            >
+              <Icon size={15} strokeWidth={active ? 2.5 : 2} />
+              {label}
+            </div>
+          </Link>
+        )
+      })}
+    </div>,
+    document.body
+  )
+}
+
+function MainNav({ mode, onModeChange }: { mode: 'trader' | 'investor' | 'ai', onModeChange: (m: 'trader' | 'investor' | 'ai') => void }) {
+  const pathname = usePathname()
+  const [moreOpen, setMoreOpen] = useState(false)
+  const moreRef = useRef<HTMLDivElement>(null)
+
+  const handleCloseMore = useCallback(() => setMoreOpen(false), [])
+
+  return (
+    <div style={{
+      height: H_NAV,
+      backdropFilter: 'blur(20px) saturate(1.6)',
+      WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
+      background: 'rgba(11, 14, 20, 0.88)',
+      display: 'flex', alignItems: 'center',
+      padding: '0 8px', gap: 0,
+      overflow: 'hidden',
+      borderBottomRightRadius: ORB_D / 2,
+    }}>
+      {NAV_LINKS.slice(0, 8).map(({ href, label, icon: Icon }) => {
+        const active = pathname === href ||
+          (href !== '/dashboard' && (pathname ?? '').startsWith(href))
+        return (
+          <Link key={href} href={href} style={{ textDecoration: 'none', flexShrink: 0 }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '0 12px', borderRadius: 8, cursor: 'pointer',
+              height: 46,
+              background: active ? 'rgba(0,212,255,0.10)' : 'transparent',
+              borderBottom: active ? `2px solid var(--accent)` : '2px solid transparent',
+              color: active ? 'var(--accent)' : T.text2,
+              fontFamily: "'Cairo', sans-serif",
+              fontSize: 12, fontWeight: active ? 800 : 500,
+              whiteSpace: 'nowrap', transition: 'all 0.15s',
+            }}>
+              <Icon size={14} strokeWidth={active ? 2.5 : 2} />
+              {label}
+            </div>
+          </Link>
+        )
+      })}
+
+      <div ref={moreRef} style={{ position: 'relative', flexShrink: 0 }}>
+        <button
+          onClick={() => setMoreOpen(!moreOpen)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '0 12px', cursor: 'pointer', height: 46,
+            background: moreOpen ? 'rgba(0,212,255,0.08)' : 'transparent',
+            border: 'none',
+            borderBottom: moreOpen ? `2px solid var(--accent)` : '2px solid transparent',
+            color: moreOpen ? 'var(--accent)' : T.text2,
+            fontFamily: "'Cairo', sans-serif", fontSize: 12,
+            transition: 'all 0.15s',
+          }}
+        >
+          <MoreHorizontal size={14} />
+          المزيد
+          <ChevronDown size={11} style={{
+            transform: moreOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s',
+          }} />
+        </button>
+        <MoreDropdown
+          open={moreOpen}
+          onClose={handleCloseMore}
+          anchorRef={moreRef}
+        />
+      </div>
+
+      <div style={{ flex: 1 }} />
+
+      {/* Mode Switcher (Trader / Investor / AI) */}
+      <div style={{
+         display: 'flex', background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 8,
+         border: '1px solid var(--card-border)', marginLeft: 12
+      }}>
+         {([['trader', 'Trader'], ['investor', 'Investor'], ['ai', 'AI']] as const).map(([m, label]) => (
+           <button
+             key={m}
+             onClick={() => onModeChange(m)}
+             style={{
+                padding: '5px 10px', fontSize: 9.5, fontWeight: m === mode ? 800 : 500,
+                background: m === mode ? 'var(--accent)' : 'transparent',
+                color: m === mode ? '#000' : 'var(--muted)',
+                borderRadius: 6, border: 'none', cursor: 'pointer',
+                fontFamily: 'var(--mono)', transition: '0.2s',
+                textTransform: 'uppercase'
+             }}
+           >
+             {label}
+           </button>
+         ))}
+      </div>
+
+      {/* LED Connection Indicator — dynamic based on market data */}
+      <HeaderStatusLED />
+
+      <div style={{
+        flexShrink: 0, display: 'flex', alignItems: 'center',
+        gap: 8, cursor: 'pointer',
+        padding: '0 16px', borderRadius: 22, height: 46,
+        background: 'rgba(255,255,255,0.05)',
+        border: '1px solid var(--card-border)', marginInlineStart: 8,
+        transition: 'all 0.2s',
+      }}>
+        <User size={16} color="var(--accent)" />
+        <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>حسابي</span>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Dynamic Header Status LED ─── */
+function HeaderStatusLED() {
+  const quotes = useMarketStore((s) => s.quotes)
+  // Check if we have ANY live quote data
+  const quoteEntries = Object.values(quotes)
+  const hasLive = quoteEntries.length > 0 && quoteEntries.some(q => {
+    const age = Date.now() - new Date(q.timestamp).getTime()
+    return age < 120000 // Less than 2 minutes old
+  })
+  
+  const color = hasLive ? 'var(--success)' : T.amber
+  const label = hasLive ? 'مباشر' : 'بانتظار الربط'
+  
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 6,
+      marginInlineStart: 12,
+    }}>
+      <div className="led-online" style={{
+        width: 6, height: 6, borderRadius: '50%',
+        background: color,
+        flexShrink: 0,
+        boxShadow: hasLive ? '0 0 6px var(--success)' : '0 0 6px ' + T.amber,
+      }} />
+      <span style={{ fontSize: 9, color: T.text3, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>{label}</span>
+    </div>
+  )
+}
+
+/* ─── Keyframes ─── */
+const KF = `
+@keyframes news-scroll { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+@keyframes ring-cw     { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@keyframes ring-ccw    { from{transform:rotate(0deg)} to{transform:rotate(-360deg)} }
+@keyframes orb-glow {
+  0%,100%{ opacity:0.65; transform:scale(1)    }
+  50%    { opacity:1;    transform:scale(1.10) }
+}
+@keyframes star-blink {
+  0%,100%{ opacity:0.25 } 50%{ opacity:0.9 }
+}
+@keyframes fadeInSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+header *            { scrollbar-width:none; -ms-overflow-style:none; }
+header *::-webkit-scrollbar { display:none; }
+
+@media (max-width: 900px) {
+  .desktop-header { display: none !important; }
+  .mobile-header { display: flex !important; }
+  .logo-orb { display: none !important; }
+}
+`
+
+/* ══ Root export ══ */
+export function AppHeader() {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [mode, setMode] = useState<'trader' | 'investor' | 'ai'>('trader')
+  const pathname = usePathname()
+
+  useEffect(() => {
+    const saved = localStorage.getItem('roua-mode')
+    if (saved === 'investor' || saved === 'ai' || saved === 'trader') setMode(saved)
+  }, [])
+
+  const handleModeChange = (m: 'trader' | 'investor' | 'ai') => {
+    setMode(m)
+    localStorage.setItem('roua-mode', m)
+  }
+  const globalQuotes = useMarketStore(state => state.quotes)
+  const ORBS = ['BTC/USD','ETH/USD','EUR/USD','GBP/USD','USD/JPY','XAU/USD']
+  const quotes = new Map(ORBS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
+
+  const marketState: MarketState = (() => {
+    if (quotes.size === 0) return 'neutral'
+    const changes = Array.from(quotes.values()).map(q => q.changePercent)
+    const avg  = changes.reduce((a, b) => a + b, 0) / changes.length
+    const vola = Math.max(...changes.map(Math.abs))
+    if (vola > 3.5) return 'volatile'
+    if (avg  >  0.4) return 'bullish'
+    if (avg  < -0.4) return 'bearish'
+    return 'neutral'
+  })()
+
+  return (
+    <>
+      <style>{KF}</style>
+      
+      {/* Mobile Sidebar */}
+      {menuOpen && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)',
+          zIndex: 1000, backdropFilter: 'blur(8px)'
+        }} onClick={() => setMenuOpen(false)}>
+          <div style={{
+            position: 'absolute', left: 0, top: 0, bottom: 0, width: '280px',
+            background: 'rgba(26,29,41,0.95)', borderRight: `1px solid rgba(0,212,255,0.12)`,
+            display: 'flex', flexDirection: 'column', padding: '20px',
+            overflowY: 'auto',
+          }} className="custom-scrollbar" onClick={e => e.stopPropagation()}>
+             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <span style={{ fontSize: 18, fontWeight: 900, color: T.text, fontFamily: "'Cairo', sans-serif" }}>القائمة</span>
+                <XIcon size={24} color={T.text} onClick={() => setMenuOpen(false)} style={{ cursor: 'pointer' }} />
+             </div>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {NAV_LINKS.map(({ href, label, icon: Icon }) => {
+                  const active = pathname === href || (href !== '/dashboard' && (pathname ?? '').startsWith(href))
+                  return (
+                    <Link key={href} href={href} style={{ textDecoration: 'none' }} onClick={() => setMenuOpen(false)}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
+                        borderRadius: 10, background: active ? 'rgba(0,212,255,0.10)' : 'transparent',
+                        color: active ? 'var(--accent)' : T.text2,
+                        borderRight: active ? '3px solid var(--accent)' : '3px solid transparent',
+                        fontSize: 14, fontWeight: 600, fontFamily: "'Cairo', sans-serif",
+                        transition: 'all 0.15s',
+                      }}>
+                        <Icon size={18} />
+                        {label}
+                      </div>
+                    </Link>
+                  )
+                })}
+             </div>
+             {/* Mode Switcher + Account (mobile) */}
+             <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid rgba(0,212,255,0.10)`, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 8, border: `1px solid ${T.border}` }}>
+                  {([['trader', 'تاجر'], ['investor', 'مستثمر'], ['ai', 'AI']] as const).map(([m, label]) => (
+                    <button key={m} onClick={() => handleModeChange(m)} style={{
+                      flex: 1, padding: '8px 10px', fontSize: 10, fontWeight: m === mode ? 800 : 500,
+                      background: m === mode ? 'var(--accent)' : 'transparent',
+                      color: m === mode ? '#000' : T.text2,
+                      borderRadius: 6, border: 'none', cursor: 'pointer',
+                      fontFamily: "'Cairo', sans-serif", transition: '0.2s',
+                    }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
+                  borderRadius: 10, background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(0,212,255,0.10)', cursor: 'pointer',
+                }}>
+                  <User size={18} color="var(--accent)" />
+                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, color: T.text, fontWeight: 700 }}>حسابي</span>
+                </div>
+             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Header Layout */}
+      <header className="desktop-header" style={{
+        position: 'sticky', top: 0, zIndex: 100,
+        direction: 'rtl', height: H_TOTAL,
+      }}>
+        <LogoCircle state={marketState} />
+        <div style={{
+          height: '100%', marginInlineStart: ORB_GAP,
+          display: 'flex', flexDirection: 'column',
+        }}>
+          <NewsTicker />
+          <CurrencyTicker />
+          <MainNav mode={mode} onModeChange={handleModeChange} />
+        </div>
+      </header>
+
+      {/* Mobile Header Layout */}
+      <header className="mobile-header" style={{
+        display: 'none', position: 'sticky', top: 0, zIndex: 100,
+        background: 'rgba(11, 14, 20, 0.92)', borderBottom: `1px solid rgba(0,212,255,0.10)`,
+        backdropFilter: 'blur(20px) saturate(1.6)',
+        WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
+      }}>
+        {/* Mobile top row: hamburger + ticker + orb */}
+        <div style={{
+          display: 'flex', alignItems: 'center', height: MOBILE_HEADER_H,
+          padding: '0 10px', justifyContent: 'space-between',
+        }}>
+          <button onClick={() => setMenuOpen(true)} style={{ background: 'transparent', border: 'none', color: T.text, cursor: 'pointer', width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}>
+             <Menu size={20} />
+          </button>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0, paddingInline: 6 }}>
+             <CurrencyTicker isMobile />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+             <NotificationCenter />
+             <CosmicOrb state={marketState} size={24} />
+          </div>
+        </div>
+        {/* Mobile news ticker */}
+        <div style={{
+          height: 26, overflow: 'hidden', background: T.bg,
+          borderBottom: `0.5px solid ${T.border}`, display: 'flex', alignItems: 'center',
+        }}>
+          <MobileNewsTicker />
+        </div>
+      </header>
+    </>
+  )
+}

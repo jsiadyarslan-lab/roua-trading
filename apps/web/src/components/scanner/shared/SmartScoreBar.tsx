@@ -1,0 +1,79 @@
+'use client'
+
+const T = {
+  green: '#00FFA3', greenDim: '#00CC82', red: '#FF4757', redDim: '#FF3344',
+  amber: '#FFB800', blue: '#0A84FF', cyan: '#00D4FF',
+  text: '#F0F2F5', text3: '#8B92A8', bg: '#04050C',
+  surface: '#1A1D29', border: 'rgba(255,255,255,0.06)',
+}
+
+interface SmartScore {
+  trendScore: number
+  momentumScore: number
+  volatilityScore: number
+  volumeScore: number
+  compositeScore: number
+}
+
+interface SmartScoreBarProps {
+  smartScore: SmartScore | null
+}
+
+function getBarColor(val: number): string {
+  if (val >= 60) return T.green
+  if (val >= 40) return T.greenDim
+  if (val >= 20) return T.amber
+  if (val >= 0) return T.redDim
+  return T.red
+}
+
+const BARS: { key: keyof SmartScore; label: string }[] = [
+  { key: 'trendScore',      label: 'اتجاه' },
+  { key: 'momentumScore',   label: 'زخم' },
+  { key: 'volatilityScore', label: 'تذبذب' },
+  { key: 'volumeScore',     label: 'حجم' },
+  { key: 'compositeScore',  label: 'مركب' },
+]
+
+export function SmartScoreBar({ smartScore }: SmartScoreBarProps) {
+  if (!smartScore) return null
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {BARS.map(({ key, label }) => {
+        const val = smartScore[key]
+        const pct = Math.min(Math.max((val + 100) / 200 * 100, 0), 100) // -100..100 → 0..100%
+        const color = getBarColor(val)
+        const isComposite = key === 'compositeScore'
+
+        return (
+          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{
+              width: 32, fontSize: 8, fontWeight: 700, color: T.text3,
+              fontFamily: "'Cairo', sans-serif", textAlign: 'right', flexShrink: 0,
+            }}>
+              {label}
+            </span>
+            <div style={{
+              flex: 1, height: isComposite ? 6 : 4,
+              borderRadius: 2, background: T.surface, overflow: 'hidden',
+            }}>
+              <div style={{
+                width: `${pct}%`, height: '100%', borderRadius: 2,
+                background: `linear-gradient(90deg, ${color}60, ${color})`,
+                transition: 'width 0.5s ease',
+                boxShadow: isComposite ? `0 0 6px ${color}30` : 'none',
+              }} />
+            </div>
+            <span style={{
+              width: 26, fontSize: 8, fontWeight: 800, color,
+              fontFamily: "'JetBrains Mono', monospace", textAlign: 'left', flexShrink: 0,
+            }}>
+              {val > 0 ? '+' : ''}{val}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}

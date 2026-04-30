@@ -1,0 +1,1842 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roua Trading - الخطة الشاملة والنهائية</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+@page {
+  size: A4;
+  margin: 0;
+}
+
+:root {
+  --bg-primary: #0F172A;
+  --bg-secondary: #1E293B;
+  --bg-card: #1E293B;
+  --bg-card-alt: #162033;
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --accent-teal: #3AAFA9;
+  --accent-blue: #4C6EF5;
+  --accent-amber: #C6866A;
+  --accent-green: #10B981;
+  --accent-red: #EF4444;
+  --border-color: #334155;
+  --accent-purple: #694dbd;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Noto Sans Arabic', 'Inter', sans-serif;
+  line-height: 1.8;
+  font-size: 11pt;
+  direction: rtl;
+}
+
+.page {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 20mm 22mm;
+  background: var(--bg-primary);
+  position: relative;
+  page-break-after: always;
+}
+
+.page:last-child {
+  page-break-after: auto;
+}
+
+/* Cover Page */
+.cover-page {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 30mm 25mm;
+  position: relative;
+  overflow: hidden;
+}
+
+.cover-page::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -30%;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(58, 175, 169, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.cover-page::after {
+  content: '';
+  position: absolute;
+  bottom: -30%;
+  left: -20%;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(76, 110, 245, 0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.cover-logo {
+  font-size: 14pt;
+  color: var(--accent-teal);
+  letter-spacing: 6px;
+  text-transform: uppercase;
+  margin-bottom: 30px;
+  font-weight: 600;
+}
+
+.cover-title {
+  font-size: 36pt;
+  font-weight: 900;
+  line-height: 1.3;
+  margin-bottom: 16px;
+  color: var(--text-primary);
+}
+
+.cover-subtitle {
+  font-size: 18pt;
+  font-weight: 300;
+  color: var(--accent-teal);
+  margin-bottom: 24px;
+  letter-spacing: 1px;
+}
+
+.cover-tagline {
+  font-size: 14pt;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-bottom: 50px;
+  direction: ltr;
+}
+
+.cover-meta {
+  font-size: 10pt;
+  color: var(--text-muted);
+  margin-top: 40px;
+  line-height: 2;
+}
+
+.cover-line {
+  width: 120px;
+  height: 2px;
+  background: linear-gradient(to left, var(--accent-teal), var(--accent-blue));
+  margin: 24px auto;
+  border: none;
+}
+
+/* TOC */
+.toc-title {
+  font-size: 22pt;
+  font-weight: 800;
+  color: var(--accent-teal);
+  margin-bottom: 30px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--accent-teal);
+}
+
+.toc-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 11pt;
+}
+
+.toc-item.main {
+  font-weight: 700;
+  font-size: 12pt;
+  color: var(--text-primary);
+}
+
+.toc-item.sub {
+  padding-right: 30px;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.toc-dots {
+  flex: 1;
+  border-bottom: 1px dotted var(--text-muted);
+  margin: 0 10px;
+  min-width: 40px;
+}
+
+/* Section Headers */
+.section-header {
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--accent-teal);
+}
+
+.section-number {
+  display: inline-block;
+  background: var(--accent-teal);
+  color: var(--bg-primary);
+  font-size: 10pt;
+  font-weight: 800;
+  padding: 3px 12px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+.section-title {
+  font-size: 22pt;
+  font-weight: 900;
+  color: var(--text-primary);
+  line-height: 1.4;
+  margin-top: 8px;
+}
+
+.section-subtitle {
+  font-size: 12pt;
+  color: var(--accent-teal);
+  font-weight: 500;
+  margin-top: 4px;
+  direction: ltr;
+  text-align: right;
+}
+
+/* Content */
+h2 {
+  font-size: 16pt;
+  font-weight: 700;
+  color: var(--accent-teal);
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+
+h3 {
+  font-size: 13pt;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 18px;
+  margin-bottom: 8px;
+}
+
+p {
+  margin-bottom: 12px;
+  text-align: justify;
+  text-justify: inter-word;
+}
+
+/* Cards */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 18px;
+  margin-bottom: 16px;
+}
+
+.card-accent {
+  border-right: 4px solid var(--accent-teal);
+}
+
+.card-blue {
+  border-right: 4px solid var(--accent-blue);
+}
+
+.card-amber {
+  border-right: 4px solid var(--accent-amber);
+}
+
+.card-title {
+  font-size: 13pt;
+  font-weight: 700;
+  color: var(--accent-teal);
+  margin-bottom: 8px;
+}
+
+.card-blue .card-title {
+  color: var(--accent-blue);
+}
+
+.card-amber .card-title {
+  color: var(--accent-amber);
+}
+
+/* Tables */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 9.5pt;
+}
+
+.data-table thead th {
+  background: var(--accent-teal);
+  color: var(--bg-primary);
+  font-weight: 700;
+  padding: 10px 12px;
+  text-align: right;
+  font-size: 9.5pt;
+}
+
+.data-table tbody td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-color);
+  text-align: right;
+  vertical-align: top;
+}
+
+.data-table tbody tr:nth-child(even) {
+  background: var(--bg-card);
+}
+
+.data-table tbody tr:nth-child(odd) {
+  background: var(--bg-card-alt);
+}
+
+.data-table.blue-header thead th {
+  background: var(--accent-blue);
+}
+
+.data-table.purple-header thead th {
+  background: var(--accent-purple);
+  color: white;
+}
+
+/* Images */
+.diagram-container {
+  margin: 20px 0;
+  text-align: center;
+}
+
+.diagram-container img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.diagram-caption {
+  font-size: 9pt;
+  color: var(--text-muted);
+  margin-top: 8px;
+  text-align: center;
+  direction: ltr;
+}
+
+/* Lists */
+.feature-list {
+  list-style: none;
+  padding: 0;
+}
+
+.feature-list li {
+  padding: 6px 0;
+  padding-right: 20px;
+  position: relative;
+}
+
+.feature-list li::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 14px;
+  width: 8px;
+  height: 8px;
+  background: var(--accent-teal);
+  border-radius: 2px;
+}
+
+/* Highlight boxes */
+.highlight-box {
+  background: linear-gradient(135deg, rgba(58, 175, 169, 0.1) 0%, rgba(76, 110, 245, 0.05) 100%);
+  border: 1px solid rgba(58, 175, 169, 0.3);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 16px 0;
+}
+
+.warning-box {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 16px 0;
+}
+
+.success-box {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 16px 0;
+}
+
+/* Pillars */
+.pillar-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.pillar-item {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.pillar-icon {
+  font-size: 16pt;
+  margin-bottom: 6px;
+  color: var(--accent-teal);
+}
+
+.pillar-name {
+  font-weight: 700;
+  font-size: 11pt;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.pillar-desc {
+  font-size: 9pt;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* Pricing */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.pricing-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.pricing-card.featured {
+  border-color: var(--accent-teal);
+  box-shadow: 0 0 20px rgba(58, 175, 169, 0.15);
+}
+
+.pricing-name {
+  font-size: 14pt;
+  font-weight: 800;
+  color: var(--accent-teal);
+  margin-bottom: 4px;
+}
+
+.pricing-card.featured .pricing-name {
+  color: var(--accent-teal);
+}
+
+.pricing-price {
+  font-size: 20pt;
+  font-weight: 900;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  direction: ltr;
+}
+
+.pricing-features {
+  list-style: none;
+  padding: 0;
+  text-align: right;
+  font-size: 9pt;
+  color: var(--text-secondary);
+}
+
+.pricing-features li {
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+/* Code */
+.code-block {
+  background: #0D1117;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 14px;
+  margin: 12px 0;
+  font-family: 'Courier New', monospace;
+  font-size: 8.5pt;
+  direction: ltr;
+  text-align: left;
+  color: #E6EDF3;
+  line-height: 1.6;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.code-keyword { color: #FF7B72; }
+.code-string { color: #A5D6FF; }
+.code-comment { color: #8B949E; }
+
+/* Quote */
+.quote-block {
+  border-right: 4px solid var(--accent-teal);
+  padding-right: 20px;
+  margin: 20px 0;
+  font-size: 13pt;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.8;
+  font-style: italic;
+}
+
+/* Footer */
+.page-footer {
+  position: absolute;
+  bottom: 15mm;
+  left: 22mm;
+  right: 22mm;
+  font-size: 8pt;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid var(--border-color);
+  padding-top: 6px;
+}
+
+/* Security checklist */
+.checklist {
+  list-style: none;
+  padding: 0;
+}
+
+.checklist li {
+  padding: 8px 12px;
+  padding-right: 32px;
+  position: relative;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.checklist li::before {
+  content: '';
+  position: absolute;
+  right: 8px;
+  top: 12px;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--accent-green);
+  border-radius: 3px;
+}
+
+.checklist li::after {
+  content: '';
+  position: absolute;
+  right: 11px;
+  top: 16px;
+  width: 6px;
+  height: 3px;
+  border-left: 2px solid var(--accent-green);
+  border-bottom: 2px solid var(--accent-green);
+  transform: rotate(-45deg);
+}
+
+/* Flow steps */
+.flow-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.flow-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.flow-step-number {
+  background: var(--accent-teal);
+  color: var(--bg-primary);
+  min-width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 11pt;
+  flex-shrink: 0;
+}
+
+.flow-step-content {
+  flex: 1;
+}
+
+.flow-step-title {
+  font-weight: 700;
+  font-size: 10.5pt;
+  color: var(--text-primary);
+}
+
+.flow-step-desc {
+  font-size: 9pt;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+@media print {
+  .page {
+    page-break-after: always;
+  }
+  .page:last-child {
+    page-break-after: auto;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== COVER PAGE ==================== -->
+<div class="page cover-page">
+  <div class="cover-logo">ROUATRADING.AI</div>
+  <h1 class="cover-title">رؤى للتداول</h1>
+  <div class="cover-subtitle">Roua Trading</div>
+  <hr class="cover-line">
+  <div class="cover-tagline">"Vision into Markets" — ببصيرة نحو الأسواق</div>
+  <p style="font-size: 12pt; color: var(--text-secondary); max-width: 450px; line-height: 1.9;">
+    الخطة الشاملة والنهائية لبناء طبقة ذكاء مالي تربط المتداول بجميع أسواق العالم عبر واجهة واحدة آمنة
+  </p>
+  <div class="cover-meta">
+    <div>الخطة المعمارية الثورية — Revolutionary Architecture Plan</div>
+    <div>الإصدار 1.0 — أبريل 2026</div>
+    <div>سري وخاص — Confidential</div>
+  </div>
+</div>
+
+<!-- ==================== TABLE OF CONTENTS ==================== -->
+<div class="page">
+  <div class="toc-title">فهرس المحتويات</div>
+  
+  <div class="toc-item main">
+    <span>القسم الأول: البيان الثوري</span>
+    <span class="toc-dots"></span>
+    <span>3</span>
+  </div>
+  <div class="toc-item sub">
+    <span>الرؤية الثورية</span>
+    <span class="toc-dots"></span>
+    <span>3</span>
+  </div>
+  <div class="toc-item sub">
+    <span>الركائز الثورية الأربع</span>
+    <span class="toc-dots"></span>
+    <span>3</span>
+  </div>
+  
+  <div class="toc-item main">
+    <span>القسم الثاني: مخطط سيمفونية الذكاء الاصطناعي</span>
+    <span class="toc-dots"></span>
+    <span>5</span>
+  </div>
+  <div class="toc-item sub">
+    <span>تدفق البيانات بين النماذج الستة</span>
+    <span class="toc-dots"></span>
+    <span>5</span>
+  </div>
+  <div class="toc-item sub">
+    <span>جدول توزيع المهام والتكاليف</span>
+    <span class="toc-dots"></span>
+    <span>6</span>
+  </div>
+  
+  <div class="toc-item main">
+    <span>القسم الثالث: هيكل البنية التحتية</span>
+    <span class="toc-dots"></span>
+    <span>8</span>
+  </div>
+  <div class="toc-item sub">
+    <span>بنية Monorepo والخدمات المصغرة</span>
+    <span class="toc-dots"></span>
+    <span>8</span>
+  </div>
+  <div class="toc-item sub">
+    <span>إعدادات Docker Compose و NestJS</span>
+    <span class="toc-dots"></span>
+    <span>9</span>
+  </div>
+  
+  <div class="toc-item main">
+    <span>القسم الرابع: خارطة الطريق إلى الثورة</span>
+    <span class="toc-dots"></span>
+    <span>11</span>
+  </div>
+  <div class="toc-item sub">
+    <span>المراحل الأربع وتفاصيل التنفيذ</span>
+    <span class="toc-dots"></span>
+    <span>11</span>
+  </div>
+  
+  <div class="toc-item main">
+    <span>القسم الخامس: كتاب التعويذات الأمنية</span>
+    <span class="toc-dots"></span>
+    <span>13</span>
+  </div>
+  <div class="toc-item sub">
+    <span>قائمة مراجعة الأمان الشاملة</span>
+    <span class="toc-dots"></span>
+    <span>13</span>
+  </div>
+  <div class="toc-item sub">
+    <span>مصفوفة المخاطر والإجراءات</span>
+    <span class="toc-dots"></span>
+    <span>14</span>
+  </div>
+  
+  <div class="toc-item main">
+    <span>القسم السادس: نموذج العمل الثوري</span>
+    <span class="toc-dots"></span>
+    <span>16</span>
+  </div>
+  <div class="toc-item sub">
+    <span>استراتيجية Freemium / Premium / Institutional</span>
+    <span class="toc-dots"></span>
+    <span>16</span>
+  </div>
+  
+  <div class="page-footer">
+    <span>Roua Trading — الخطة المعمارية الثورية</span>
+    <span>2</span>
+  </div>
+</div>
+
+<!-- ==================== SECTION 1: REVOLUTIONARY MANIFESTO ==================== -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-number">القسم الأول</div>
+    <div class="section-title">البيان الثوري</div>
+    <div class="section-subtitle">Revolutionary Manifesto</div>
+  </div>
+
+  <div class="quote-block">
+    "رؤى" ليست وسيطًا، وليست مجرد أداة تحليل. إنها طبقة ذكاء مالي تربط المتداول بجميع أسواق العالم عبر واجهة واحدة آمنة.
+  </div>
+
+  <h2>الرؤية الثورية</h2>
+  <p>
+    في عالم تتسارع فيه الأسواق المالية وتتشابك البيانات من كل حدب وصوب، يحتاج المتداول العربي إلى أكثر من مجرد منصة تنفيذية أو أداة تحليل تقليدية. يحتاج إلى "وعي مالي" يفهم لغته، ويدرك سياقه الثقافي والاقتصادي، ويقدم له رؤى قابلة للتنفيذ في الوقت الفعلي. منصة "رؤى" (Roua Trading) تُعَرِّف نفسها ليس كوسيط مالي أو وسيط تنفيذي، بل كطبقة ذكاء مالي (Financial Intelligence Layer) تجلس فوق جميع منصات التداول والأسواق، وتوفر للمتداول تحليلات عميقة وإشارات ذكية متعددة المصادر عبر واجهة موحدة وآمنة.
+  </p>
+  <p>
+    ما يميز "رؤى" عن أي منصة أخرى في السوق هو الدمج الرائد لستة نماذج ذكاء اصطناعي متخصصة في سيمفونية واحدة متجانسة، حيث يتولى كل نموذج دوره بدقة متناهية: من التحليل العاطفي الفوري إلى التقييم المالي العميق، ومن الرؤية الإبداعية الشاملة إلى توليد الإشارات النهائية الموقعة إلكترونيًا. هذه السيمفونية لا تقدم تحليلات دقيقة فحسب، بل تضمن أنها خاصة وآمنة ومتحدثة بالعربية الأصيلة — بلهجاتها ومصطلحاتها المحلية.
+  </p>
+
+  <h2>الركائز الثورية الأربع</h2>
+  
+  <div class="pillar-grid">
+    <div class="pillar-item">
+      <div class="pillar-name" style="color: var(--accent-teal);">اللامركزية في الحفظ</div>
+      <div class="pillar-name" style="font-size: 9pt; color: var(--text-muted); direction: ltr; text-align: right;">Non-Custodial</div>
+      <div class="pillar-desc">لا تلمس منصة "رؤى" أموال المستخدم أبدًا. هي بمثابة "قائد للأسطول" يوجه ويحلل دون أن يتحكم في البضاعة. مفاتيح API تُشفَّر من جانب العميل قبل الإرسال، ويُرفض أي مفتاح يحتوي على صلاحيات سحب أو تحويل فورًا.</div>
+    </div>
+    <div class="pillar-item">
+      <div class="pillar-name" style="color: var(--accent-blue);">الدمج الشامل</div>
+      <div class="pillar-name" style="font-size: 9pt; color: var(--text-muted); direction: ltr; text-align: right;">Universal Integration</div>
+      <div class="pillar-desc">الأسهم والفوركس والعملات الرقمية والسلع والمؤشرات — كلها في لوحة قيادة واحدة. طبقة تجريد موحدة تتعامل مع Twelve Data وCCXT وEODHD/Polygon.io لضمان تغطية شاملة لجميع الأسواق.</div>
+    </div>
+    <div class="pillar-item">
+      <div class="pillar-name" style="color: var(--accent-amber);">سيمفونية الذكاء الاصطناعي</div>
+      <div class="pillar-name" style="font-size: 9pt; color: var(--text-muted); direction: ltr; text-align: right;">The AI Symphony</div>
+      <div class="pillar-desc">توزيع ذكي للمهام على 6 نماذج: Gemini للرؤية الإبداعية، Groq للسرعة الفورية، GLM-4 للتحليل المالي العربي، Ollama للمهام العامة، Bedrock للإشارات النهائية، وTwelve Data كمصدر بيانات رئيسي.</div>
+    </div>
+    <div class="pillar-item">
+      <div class="pillar-name" style="color: var(--accent-green);">غرفة الأخبار الآلية</div>
+      <div class="pillar-name" style="font-size: 9pt; color: var(--text-muted); direction: ltr; text-align: right;">Autonomous Newsroom</div>
+      <div class="pillar-desc">فريق تحرير من الوكلاء الأذكياء ينتج أرشيفًا إخباريًا حيًا ومُحسَّنًا. نظام متعدد الوكلاء يضم باحثًا ومحللًا وكاتبًا ومدقق حقائق وخبير SEO ومحررًا وناشرًا — جميعهم يعملون بتناغم آلي.</div>
+    </div>
+  </div>
+
+  <h2>الميزات الثورية الخمس</h2>
+  
+  <div class="card card-accent">
+    <div class="card-title">1. المُحلل متعدد اللغات (The Polyglot Analyst)</div>
+    <p style="font-size: 9.5pt; margin-bottom: 0;">يفهم العامية العربية والمصطلحات المالية المحلية بدقة متناهية. مدعوم بنموذجي GLM-4 وGemini، يستطيع تحليل استفسارات المتداول باللهجة المصرية أو الخليجية أو الشامية وتقديم إجابات دقيقة بالسياق المالي الصحيح. لا حاجة للكتابة بالفصحى أو الإنجليزية — "رؤى" تفهمك كما تتحدث.</p>
+  </div>
+
+  <div class="card card-blue">
+    <div class="card-title">2. إشارات رؤى (Roua Signals)</div>
+    <p style="font-size: 9.5pt; margin-bottom: 0;">توصيات تداول قابلة للتنفيذ مع شرح مبسط بالعربية. تُصاغ كـ"تحليل فني" وليس "نصيحة استثمارية" مع توقيع إلكتروني للتنفيذ التلقائي. كل إشارة تأتي مع مستوى ثقة، وإطار زمني، ومستوى المخاطرة، وشرح تفصيلي للأسباب وراءها.</p>
+  </div>
+
+  <div class="card card-amber">
+    <div class="card-title">3. رادار الأخبار الموحد (Unified News Radar)</div>
+    <p style="font-size: 9.5pt; margin-bottom: 0;">تدفق حي يدمج أخبار العالم من Finnhub مع تحليل "رؤى" الحصري المنتج بواسطة غرفة الأخبار الآلية. كل خبر يُحلَّل فورًا من حيث الأثر على المحفظة، ويُربط بالأصول المتأثرة، ويُقدَّم مع تقييم فوري للمخاطر والفرص.</p>
+  </div>
+
+  <div class="page-footer">
+    <span>Roua Trading — الخطة المعمارية الثورية</span>
+    <span>3</span>
+  </div>
+</div>
+
+<!-- Continue Section 1 -->
+<div class="page">
+  <div class="card card-accent">
+    <div class="card-title">4. ملاذ المحفظة (Portfolio Sanctuary)</div>
+    <p style="font-size: 9.5pt; margin-bottom: 0;">أداة استباقية لإدارة المخاطر عبر جميع الأصول والمنصات. تراقب المحفظة في الوقت الفعلي، وتُنبِّه عند تجاوز حدود المخاطرة المحددة مسبقًا، وتقترح إعادة توازن تلقائية. تدعم حسابات Value at Risk وMonte Carlo Simulation لقياس المخاطر بشكل كمي متقدم.</p>
+  </div>
+
+  <div class="card card-blue">
+    <div class="card-title">5. المختبر الذكي (Smart Lab)</div>
+    <p style="font-size: 9.5pt; margin-bottom: 0;">منصة Backtesting متكاملة وباني بوتات تداول بدون كود. يتيح للمتداول اختبار استراتيجياته على بيانات تاريخية حقيقية قبل المخاطرة، وبناء بوتات تداول مخصصة عبر واجهة سحب وإفلات بسيطة. كل بوت يُوقَّع إلكترونيًا ويُسجَّل في نظام المراجعة الشامل.</p>
+  </div>
+
+  <div class="highlight-box">
+    <h3 style="color: var(--accent-teal); margin-top: 0;">المعادلة الثورية</h3>
+    <p style="font-size: 10.5pt; margin-bottom: 0;">
+      رؤى = (ذكاء اصطناعي متعدد × بيانات شاملة × أمان صفري) + لغة عربية أصيلة + تصميم هادئ
+    </p>
+    <p style="font-size: 9pt; color: var(--text-muted); margin-top: 8px; margin-bottom: 0;">
+      هذه المعادلة تمثل جوهر المنصة: التلاقح بين الذكاء الاصطناعي متعدد النماذج والبيانات الشاملة من جميع الأسواق والأمان الصفري المطلق، مع التميز باللغة العربية الأصيلة والتصميم الهادئ (Calm Design) الذي يركز المتداول على ما يهم.
+    </p>
+  </div>
+
+  <h2>لماذا "رؤى" الآن؟</h2>
+  <p>
+    السوق العربي يفتقر إلى منصة تحليل مالي متقدمة تتحدث لغته وتفهم سياقه. المتداول العربي يعتمد إما على منصات أجنبية لا تفهم مصطلحاته المحلية، أو على مصادر غير موثوقة على وسائل التواصل الاجتماعي. في الوقت نفسه، تزداد تعقيدات الأسواق المالية عالميًا، وتتسارع وتيرة التغير، مما يجعل التحليل اليدوي أو الاعتماد على نموذج واحد غير كافٍ. "رؤى" تأتي لتملأ هذه الفجوة بمزيج فريد من التكنولوجيا المتقدمة والفهم العميق لاحتياجات المتداول العربي.
+  </p>
+  <p>
+    من الناحية التقنية، نحن في لحظة تاريخية حيث أصبحت النماذج اللغوية الكبيرة قادرة على فهم السياق المالي المعقد، وأصبحت واجهات برمجة التطبيقات للأسواق المالية متاحة بتكاليف معقولة. الدمج بين هذه القدرات في منصة واحدة متماسكة هو ما يجعل "رؤى" ممكنة الآن — وهو ما كان مستحيلاً قبل سنوات قليلة.
+  </p>
+
+  <div class="page-footer">
+    <span>Roua Trading — الخطة المعمارية الثورية</span>
+    <span>4</span>
+  </div>
+</div>
+
+<!-- ==================== SECTION 2: AI SYMPHONY BLUEPRINT ==================== -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-number">القسم الثاني</div>
+    <div class="section-title">مخطط سيمفونية الذكاء الاصطناعي</div>
+    <div class="section-subtitle">AI Symphony Blueprint</div>
+  </div>
+
+  <p>
+    سيمفونية الذكاء الاصطناعي هي قلب منصة "رؤى" النابض. بدلاً من الاعتماد على نموذج واحد قد يُخطئ أو يهلوس، توزّع المنصة المهام على ستة نماذج متخصصة وفقًا لنقاط قوة كل منها. البيانات تتدفق عبر خط أنابيب متسلسل حيث يُغذِّي كل نموذج النموذج التالي بنتائجه، بينما يعمل نموذج Ollama كمساعد متعدد المهام في كل مرحلة. النتيجة النهائية هي تحليل متعدد الطبقات يجمع بين السرعة والعمق والدقة.
+  </p>
+
+  <div class="diagram-container">
+    <img src="ai_symphony_blueprint.png" alt="AI Symphony Blueprint Diagram">
+    <div class="diagram-caption">شكل 1: مخطط تدفق البيانات في سيمفونية الذكاء الاصطناعي — AI Symphony Data Flow Blueprint</div>
+  </div>
+
+  <h2>مسار تدفق البيانات</h2>
+  
+  <div class="flow-steps">
+    <div class="flow-step">
+      <div class="flow-step-number">1</div>
+      <div class="flow-step-content">
+        <div class="flow-step-title">استقبال البيانات — Twelve Data</div>
+        <div class="flow-step-desc">يتدفق سعر السوق في الوقت الفعلي (الأسهم، الفوركس، العملات الرقمية، السلع) من Twelve Data عبر WebSocket وREST API إلى طبقة البيانات المركزية. تُخزَّن البيانات مؤقتًا في Redis مع TTL حسب نوع الأصل.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-number">2</div>
+      <div class="flow-step-content">
+        <div class="flow-step-title">التحليل العاطفي الفوري — Groq (Llama 3)</div>
+        <div class="flow-step-desc">يستقبل Groq البيانات الخام والأخبار المتدفقة ويقوم بالتحليل العاطفي الأولي (Sentiment Analysis) بسرعة صاروخية تقارب 800 رمز/ثانية. يصنف الأخبار إلى إيجابية/سلبية/محايدة ويستخلص الكيانات المالية المتأثرة. يمرر النتائج إلى GLM-4.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-number">3</div>
+      <div class="flow-step-content">
+        <div class="flow-step-title">التقييم المالي العميق — GLM-4 (Zhipu AI)</div>
+        <div class="flow-step-desc">يستقبل GLM-4 نتائج التحليل العاطفي ويدمجها مع بيانات RAG من أرشيف الأخبار (PostgreSQL + pgvector). بفضل سياق 200K رمز، يُجري تقييمًا ماليًا شاملاً يشمل تحليل الأثر على القطاع والسوق الأوسع. يقدم التقييم بالعربية الأصيلة.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-number">4</div>
+      <div class="flow-step-content">
+        <div class="flow-step-title">الرؤية الإبداعية الشاملة — Google Gemini</div>
+        <div class="flow-step-desc">يستقبل Gemini تقييم GLM-4 ويضيف طبقة من التحليل الإبداعي الشامل. يربط الأنماط التاريخية بالوضع الحالي، ويولد سيناريوهات بديلة، ويقدم رؤية استراتيجية أوسع. يعمل كمراجع نهائي لضمان جودة التحليل قبل المرحلة الأخيرة.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-number">5</div>
+      <div class="flow-step-content">
+        <div class="flow-step-title">توليد الإشارات النهائية — Amazon Bedrock (Claude)</div>
+        <div class="flow-step-desc">يستقبل Bedrock جميع التحليلات السابقة ويصيغ الإشارة النهائية مع مستوى الثقة والشرح المبسط. يُوقِّع الإشارة إلكترونيًا كـ"تحليل فني" وليس "نصيحة استثمارية". يولد تقارير معمقة عند الطلب مع رسوم بيانية مدمجة.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>Roua Trading — الخطة المعمارية الثورية</span>
+    <span>5</span>
+  </div>
+</div>
+
+<!-- Continue Section 2 -->
+<div class="page">
+  <h2>جدول توزيع المهام والتكاليف</h2>
+  <p>يوضح الجدول التالي توزيع المهام على كل نموذج مع تقدير التكلفة الشهرية بناءً على الاستخدام المتوقع لـ 10,000 مستخدم نشط:</p>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>النموذج</th>
+        <th>الدور الأساسي</th>
+        <th>المهام الفرعية</th>
+        <th>نوع الاستدعاء</th>
+        <th>التكلفة التقديرية/شهر</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="color: var(--accent-teal); font-weight: 700;">Google Gemini<br><span style="font-size: 8pt; color: var(--text-muted);">gemini-2.5-pro</span></td>
+        <td>العقل المدبر</td>
+        <td>تحليل إبداعي شامل، ربط أنماط تاريخية، سيناريوهات بديلة، مراجعة جودة</td>
+        <td>~500K رمز/يوم</td>
+        <td style="direction: ltr; text-align: right;">$1,500</td>
+      </tr>
+      <tr>
+        <td style="color: var(--accent-blue); font-weight: 700;">Groq<br><span style="font-size: 8pt; color: var(--text-muted);">Llama 3 70B</span></td>
+        <td>السرعة الصاروخية</td>
+        <td>تحليل عاطفي فوري، ترجمة فورية، تصنيف أخبار، استخلاص كيانات</td>
+        <td>~2M رمز/يوم</td>
+        <td style="direction: ltr; text-align: right;">$800</td>
+      </tr>
+      <tr>
+        <td style="color: var(--accent-amber); font-weight: 700;">GLM-4<br><span style="font-size: 8pt; color: var(--text-muted);">Zhipu AI</span></td>
+        <td>المحلل المالي</td>
+        <td>تقييم أثر مالي، معالجة عربية، تكامل RAG، تقارير مالية متخصصة</td>
+        <td>~1M رمز/يوم</td>
+        <td style="direction: ltr; text-align: right;">$1,200</td>
+      </tr>
+      <tr>
+        <td style="color: var(--text-secondary); font-weight: 700;">Ollama Cloud</td>
+        <td>الجندي متعدد المهام</td>
+        <td>مسودات أولية، ترجمة عامة، مهام احتياطية، تلخيص ثانوي</td>
+        <td>~800K رمز/يوم</td>
+        <td style="direction: ltr; text-align: right;">$400</td>
+      </tr>
+      <tr>
+        <td style="color: var(--accent-purple); font-weight: 700;">Amazon Bedrock<br><span style="font-size: 8pt; color: var(--text-muted);">Claude 4.6</span></td>
+        <td>المستشار الخاص</td>
+        <td>توليد إشارات نهائية، تقارير معمقة، توقيع إلكتروني، تحليل متقدم</td>
+        <td>~300K رمز/يوم</td>
+        <td style="direction: ltr; text-align: right;">$2,000</td>
+      </tr>
+      <tr>
+        <td style="color: var(--accent-green); font-weight: 700;">Twelve Data</td>
+        <td>مصدر البيانات</td>
+        <td>أسعار حية (أسهم، فوركس، عملات رقمية، سلع، مؤشرات)، بيانات تاريخية</td>
+        <td>~500K طلب/يوم</td>
+        <td style="direction: ltr; text-align: right;">$600</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="highlight-box">
+    <h3 style="color: var(--accent-teal); margin-top: 0;">إجمالي التكلفة التقديرية الشهرية</h3>
+    <p style="font-size: 18pt; font-weight: 900; direction: ltr; text-align: center; margin: 10px 0;">$6,500 / شهر</p>
+    <p style="font-size: 9pt; color: var(--text-muted); text-align: center; margin-bottom: 0;">لـ 10,000 مستخدم نشط — قابلة للتوسع خطيًا مع نمو القاعدة</p>
+  </div>
+
+  <h2>آلية مكافحة هلوسة الذكاء الاصطناعي</h2>
+  <p>
+    واحدة من أخطر المخاطر في الاعتماد على الذكاء الاصطناعي في التحليل المالي هي "الهلوسة" — أي تقديم معلومات غير دقيقة بثقة عالية. تعالج "رؤى" هذه المشكلة عبر ثلاث طبقات حماية متتالية:
+  </p>
+  
+  <div class="card card-accent">
+    <div class="card-title">الطبقة الأولى: RAG من أرشيف الأخبار</div>
+    <p style="font-size: 9.5pt; margin-bottom: 0;">قبل أن يُصدر أي نموذج تحليله، يستعين بنظام RAG (Retrieval-Augmented Generation) الذي يبحث في أرشيف الأخبار المخزّن في PostgreSQL مع pgvector. هذا يضمن أن التحليل مبني على وقائع فعلية وليس على معرفة النموذج الداخلية التي قد تكون قديمة أو غير دقيقة.</p>
+  </div>
+
+  <div class="card card-blue">
+    <div class="card-title">الطبقة الثانية: تدقيق GLM-4</div>
+    <p style="font-size: 9.5pt; margin-bottom: 0;">بفضل سياق 200K رمز، يتحقق GLM-4 من تناسق التحليل مع البيانات المالية الفعلية ويتحقق من الأرقام والنسب المذكورة. أي تناقض يُعلَّم عنه ويُسجَّل في نظام المراجعة.</p>
+  </div>
+
+  <div class="card card-amber">
+    <div class="card-title">الطبقة الثالثة: مراجعة Gemini النهائية</div>
+    <p style="font-size: 9.5pt; margin-bottom: 0;">يقوم Gemini بمراجعة شاملة للتحليل النهائي قبل اعتماده، ويتحقق من الاتساق المنطقي ويربط الأنماط بالسياق التاريخي. هذه المراجعة المزدوجة تضمن مستوى عاليًا من الدقة والموثوقية.</p>
+  </div>
+
+  <div class="page-footer">
+    <span>Roua Trading — الخطة المعمارية الثورية</span>
+    <span>6</span>
+  </div>
+</div>
+
+<!-- ==================== SECTION 3: INFRASTRUCTURE ==================== -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-number">القسم الثالث</div>
+    <div class="section-title">هيكل البنية التحتية</div>
+    <div class="section-subtitle">Infrastructure as Code</div>
+  </div>
+
+  <p>
+    البنية التحتية لمنصة "رؤى" مبنية على فلسفة الخدمات المصغرة (Microservices) حيث يُفصَل كل نطاق وظيفي إلى خدمة مستقلة تتواصل مع غيرها عبر gRPC داخليًا وRabbitMQ للمهام غير المتزامنة. هذه البنية تضمن المرونة في التوسع، والاستقلالية في النشر، والقدرة على تحمل الأعطال دون تأثير على المنصة ككل.
+  </p>
+
+  <div class="diagram-container">
+    <img src="infrastructure_architecture.png" alt="Infrastructure Architecture Diagram">
+    <div class="diagram-caption">شكل 2: هيكل البنية التحتية الكامل — Full Infrastructure Architecture</div>
+  </div>
+
+  <h2>بنية Monorepo (Turborepo)</h2>
+  
+  <div class="code-block"><span class="code-comment">// هيكل مستودع Turborepo الموحد</span>
+roua-trading/
+├── apps/
+│   ├── web/                    <span class="code-comment">// Next.js 15 - الواجهة الأمامية</span>
+│   │   ├── src/app/            <span class="code-comment">// App Router pages</span>
+│   │   ├── src/components/     <span class="code-comment">// مكونات React 19</span>
+│   │   ├── src/lib/            <span class="code-comment">// أدوات مساعدة وhooks</span>
+│   │   └── tailwind.config.ts  <span class="code-comment">// Tailwind CSS v4</span>
+│   │
+│   └── api/                    <span class="code-comment">// NestJS - البوابة الموحدة</span>
+│       ├── src/gateway/        <span class="code-comment">// API Gateway</span>
+│       └── src/modules/        <span class="code-comment">// وحدات البوابة</span>
+│
+├── services/                   <span class="code-comment">// الخدمات المصغرة (NestJS)</span>
+│   ├── auth-service/           <span class="code-comment">// WebAuthn + تشفير AES-256-GCM</span>
+│   ├── market-data-service/    <span class="code-comment">// Twelve Data + CCXT</span>
+│   ├── ai-orchestrator/        <span class="code-comment">// توجيه نماذج الذكاء الاصطناعي</span>
+│   ├── news-service/           <span class="code-comment">// Finnhub + Strapi CMS</span>
+│   ├── signal-service/         <span class="code-comment">// توليد إشارات رؤى</span>
+│   ├── portfolio-service/      <span class="code-comment">// إدارة المخاطر والمحفظة</span>
+│   └── audit-service/          <span class="code-comment">// تسجيل الأحداث الشامل</span>
+│
+├── packages/                   <span class="code-comment">// حزم مشتركة</span>
+│   ├── shared-types/           <span class="code-comment">// أنواع TypeScript مشتركة</span>
+│   ├── shared-utils/           <span class="code-comment">// أدوات مساعدة مشتركة</span>
+│   └── proto-definitions/      <span class="code-comment">// تعريفات gRPC Protobuf</span>
+│
+├── docker/                     <span class="code-comment">// إعدادات Docker</span>
+│   ├── docker-compose.yml      <span class="code-comment">// بيئة التطوير المحلية</span>
+│   └── Dockerfile.*            <span class="code-comment">// ملفات بناء كل خدمة</span>
+│
+├── turbo.json                  <span class="code-comment">// إعدادات Turborepo</span>
+└── package.json                <span class="code-comment">// إعدادات Workspace الجذر</span></div>
+
+  <div class="page-footer">
+    <span>Roua Trading — الخطة المعمارية الثورية</span>
+    <span>8</span>
+  </div>
+</div>
+
+<!-- Continue Section 3 -->
+<div class="page">
+  <h2>إعدادات Docker Compose</h2>
+  
+  <div class="code-block"><span class="code-comment"># docker-compose.yml — بيئة التطوير المحلية</span>
+<span class="code-keyword">version</span>: <span class="code-string">'3.8'</span>
+
+<span class="code-keyword">services</span>:
+  <span class="code-comment"># قاعدة البيانات الرئيسية</span>
+  <span class="code-keyword">postgres</span>:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: roua_trading
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports: [<span class="code-string">"5432:5432"</span>]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  <span class="code-comment"># التخزين المؤقت والجلسات</span>
+  <span class="code-keyword">redis</span>:
+    image: redis:7-alpine
+    ports: [<span class="code-string">"6379:6379"</span>]
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+
+  <span class="code-comment"># طابور الرسائل</span>
+  <span class="code-keyword">rabbitmq</span>:
+    image: rabbitmq:3-management-alpine
+    ports: [<span class="code-string">"5672:5672"</span>, <span class="code-string">"15672:15672"</span>]
+
+  <span class="code-comment"># الخدمات المصغرة</span>
+  <span class="code-keyword">auth-service</span>:
+    build: { context: ., dockerfile: docker/Dockerfile.auth }
+    depends_on: [postgres, redis]
+    environment:
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@postgres:5432/roua_trading
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+
+  <span class="code-keyword">market-data-service</span>:
+    build: { context: ., dockerfile: docker/Dockerfile.market }
+    depends_on: [postgres, redis, rabbitmq]
+    environment:
+      TWELVE_DATA_API_KEY: ${TWELVE_DATA_API_KEY}
+
+  <span class="code-keyword">ai-orchestrator</span>:
+    build: { context: ., dockerfile: docker/Dockerfile.ai }
+    depends_on: [postgres, redis, rabbitmq]
+    environment:
+      GOOGLE_AI_STUDIO_API_KEY: ${GOOGLE_AI_STUDIO_API_KEY}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      GLM_API_KEY: ${GLM_API_KEY}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+
+  <span class="code-keyword">news-service</span>:
+    build: { context: ., dockerfile: docker/Dockerfile.news }
+    depends_on: [postgres, redis, rabbitmq]
+    environment:
+      FINNHUB_API_KEY: ${FINNHUB_API_KEY}
+      STRAPI_URL: ${STRAPI_URL}
+      STRAPI_API_KEY: ${STRAPI_API_KEY}
+
+  <span class="code-keyword">signal-service</span>:
+    build: { context: ., dockerfile: docker/Dockerfile.signal }
+    depends_on: [postgres, redis, rabbitmq]
+    environment:
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+
+<span class="code-keyword">volumes</span>:
+  postgres_data:</div>
+
+  <h2>تفصيل الخدمات المصغرة (NestJS)</h2>
+  
+  <table class="data-table blue-header">
+    <thead>
+      <tr>
+        <th>الخدمة</th>
+        <th>المسؤولية</th>
+        <th>التقنيات</th>
+        <th>الاتصال</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-teal);">Auth Service</td>
+        <td>مصادقة WebAuthn (Passkeys)، تشفير مفاتيح API، رفض مفاتيح السحب، إدارة الجلسات</td>
+        <td>WebAuthn, AES-256-GCM, Redis sessions, JWT</td>
+        <td>gRPC + REST</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-blue);">Market Data Service</td>
+        <td>تدفق بيانات الأسواق الحية، تخزين مؤقت، توحيد البيانات من مصادر متعددة</td>
+        <td>Twelve Data, CCXT, WebSocket, Redis cache</td>
+        <td>gRPC + WS</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-amber);">AI Orchestrator</td>
+        <td>توجيه المهام للنماذج الستة، إدارة خط الأنابيب، موازنة الحمل، Rate Limiting</td>
+        <td>Hybrid Client, Token Bucket, RabbitMQ</td>
+        <td>gRPC</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-green);">News Service</td>
+        <td>غرفة الأخبار الآلية، وكلاء البحث والكتابة، أرشفة RAG، إدارة Strapi CMS</td>
+        <td>Finnhub, Strapi, pgvector, Multi-Agent</td>
+        <td>gRPC + REST</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-purple);">Signal Service</td>
+        <td>توليد إشارات رؤى، التوقيع الإلكتروني، صياغة قانونية، تتبع الأداء</td>
+        <td>Bedrock Client, Digital Signatures, Backtesting</td>
+        <td>gRPC</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">Portfolio Service</td>
+        <td>إدارة المخاطر، تتبع الأصول، تنبيهات VaR، اقتراحات إعادة التوازن</td>
+        <td>Monte Carlo, VaR, Redis real-time</td>
+        <td>gRPC + WS</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">Audit Service</td>
+        <td>تسجيل كل حدث، تتبع استدعاءات API، مراقبة الأمان، تقارير الامتثال</td>
+        <td>PostgreSQL append-only, Event Sourcing</td>
+        <td>gRPC + RabbitMQ</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>طبقة تجريد الأسواق (Universal Exchange Abstraction)</h2>
+  <p>
+    تُقدِّم هذه الطبقة واجهة موحدة للتعامل مع جميع مصادر البيانات ومنصات التداول. بفضل نمط Adapter، يمكن إضافة مصدر بيانات جديد أو منصة تداول دون تعديل أي كود موجود. كل محول (Adapter) يُترجم بيانات المصدر إلى نموذج بيانات موحد تستخدمه جميع خدمات المنصة.
+  </p>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>المصدر</th>
+        <th>نوع البيانات</th>
+        <th>الأولوية</th>
+        <th>آلية الاتصال</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-teal);">Twelve Data</td>
+        <td>أسهم، فوركس، عملات رقمية، مؤشرات</td>
+        <td>رئيسي (Primary)</td>
+        <td>WebSocket + REST API</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-blue);">CCXT</td>
+        <td>+100 منصة عملات رقمية</td>
+        <td>رئيسي للعملات الرقمية</td>
+        <td>REST API + WebSocket</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-amber);">EODHD / Polygon.io</td>
+        <td>أسهم عالمية، بيانات تاريخية</td>
+        <td>احتياطي (Fallback)</td>
+        <td>REST API</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-footer">
+    <span>Roua Trading — الخطة المعمارية الثورية</span>
+    <span>9</span>
+  </div>
+</div>
+
+<!-- ==================== SECTION 4: ROADMAP ==================== -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-number">القسم الرابع</div>
+    <div class="section-title">خارطة الطريق إلى الثورة</div>
+    <div class="section-subtitle">Roadmap to Revolution</div>
+  </div>
+
+  <p>
+    خارطة الطريق مبنية على أربع مراحل متتالية تمتد على مدى 12 شهرًا. كل مرحلة تبني على إنجازات المرحلة السابقة وتضيف طبقة جديدة من القدرات. النهج تدريجي: نبدأ بالأساس التقني المتين، ثم نبني الذكاء، ثم نُحدث الثورة بالميزات المتقدمة، وأخيرًا نُطلق للمستخدمين.
+  </p>
+
+  <div class="diagram-container">
+    <img src="roadmap_timeline.png" alt="Roadmap Timeline Diagram">
+    <div class="diagram-caption">شكل 3: خارطة الطريق إلى الثورة — Roadmap to Revolution Timeline</div>
+  </div>
+
+  <h2 style="color: var(--accent-teal);">المرحلة الأولى: الأساس — الأشهر 1-3</h2>
+  <div class="card card-accent">
+    <div class="card-title">الهدف: بناء الأساس التقني المتين</div>
+    <p style="font-size: 9.5pt;">
+      في هذه المرحلة، نؤسس البنية التحتية التقنية الكاملة التي ستبني عليها جميع المراحل اللاحقة. يشمل ذلك إعداد Monorepo مع Turborepo، وبناء الهيكل الأساسي لتطبيق Next.js 15 مع App Router وReact 19 وTypeScript، وتصميم هندسة الخدمات المصغرة بـ NestJS مع gRPC وRabbitMQ. كما نُعدّ قواعد البيانات (PostgreSQL مع pgvector وRedis) وننفذ نظام المصادقة الحصري عبر WebAuthn (Passkeys) مع رفض أي مفتاح API يحتوي صلاحيات سحب. ندمج Twelve Data API كمصدر بيانات رئيسي ونبني لوحة السوق الأساسية.
+    </p>
+    <ul class="feature-list" style="font-size: 9pt; margin-top: 10px;">
+      <li>إعداد Turborepo Monorepo مع CI/CD Pipeline</li>
+      <li>Next.js 15 Frontend مع Tailwind CSS v4 وFramer Motion</li>
+      <li>NestJS Microservices مع gRPC Communication</li>
+      <li>PostgreSQL + pgvector + Redis Setup</li>
+      <li>WebAuthn Authentication مع AES-256-GCM Encryption</li>
+      <li>Twelve Data API Integration مع WebSocket</li>
+      <li>لوحة السوق الأساسية (Basic Market Dashboard)</li>
+    </ul>
+  </div>
+
+  <h2 style="color: var(--accent-blue);">المرحلة الثانية: الذكاء — الأشهر 4-6</h2>
+  <div class="card card-blue">
+    <div class="card-title">الهدف: دمج سيمفونية الذكاء الاصطناعي</div>
+    <p style="font-size: 9.5pt;">
+      هذه هي مرحلة "الروح" — حيث ندمج النماذج الستة في سيمفونية واحدة. نبني خدمة AI Orchestrator التي توجه المهام وفقًا لنقاط قوة كل نموذج، وننفذ خط أنابيب البيانات المتسلسل من Groq إلى GLM-4 إلى Gemini إلى Bedrock. ندمج نظام RAG مع pgvector لتقديم سياق إخباري حقيقي، ونُفعِّل المعالجة العربية المتقدمة عبر GLM-4. نختتم ببناء المختبر الذكي للـ Backtesting.
+    </p>
+    <ul class="feature-list" style="font-size: 9pt; margin-top: 10px;">
+      <li>دمج Google Gemini (gemini-2.5-pro) للتحليل الإبداعي</li>
+      <li>دمج Groq (Llama 3) للتحليل العاطفي الفوري</li>
+      <li>دمج GLM-4 (Zhipu AI) للتحليل المالي العربي</li>
+      <li>دمج Amazon Bedrock (Claude 4.6) للإشارات النهائية</li>
+      <li>بناء AI Orchestrator Service مع Rate Limiting</li>
+      <li>نظام RAG مع pgvector للأرشيف الإخباري</li>
+      <li>المختبر الذكي (Smart Lab) — Backtesting Engine</li>
+    </ul>
+  </div>
+
+  <div class="page-footer">
+    <span>Roua Trading — الخطة المعمارية الثورية</span>
+    <span>11</span>
+  </div>
+</div>
+
+<!-- Continue Section 4 -->
+<div class="page">
+  <h2 style="color: var(--accent-amber);">المرحلة الثالثة: الثورة — الأشهر 7-9</h2>
+  <div class="card card-amber">
+    <div class="card-title">الهدف: إطلاق الميزات الثورية</div>
+    <p style="font-size: 9.5pt;">
+      مع الأساس المتين والذكاء المدمج، ننتقل إلى إطلاق الميزات التي ستميز "رؤى" عن أي منصة أخرى. نبني نظام إشارات رؤى مع التوقيع الإلكتروني والصياغة القانونية الآمنة، وملاذ المحفظة لإدارة المخاطر الاستباقية عبر جميع الأصول. نُفعِّل غرفة الأخبار الآلية بنظام الوكلاء المتعددين، ونضمّن Strapi CMS لإدارة المحتوى. نوسع التغطية عبر CCXT لأكثر من 100 منصة عملات رقمية، ونُصلّب الأمان بشكل متقدم.
+    </p>
+    <ul class="feature-list" style="font-size: 9pt; margin-top: 10px;">
+      <li>نظام إشارات رؤى (Roua Signals) مع التوقيع الإلكتروني</li>
+      <li>ملاذ المحفظة (Portfolio Sanctuary) — إدارة مخاطر استباقية</li>
+      <li>غرفة الأخبار الآلية (Autonomous Newsroom) — Multi-Agent System</li>
+      <li>دمج Strapi CMS لإدارة المحتوى الإخباري</li>
+      <li>دمج CCXT لـ +100 منصة عملات رقمية</li>
+      <li>تصلب أمان متقدم (Advanced Security Hardening)</li>
+      <li>المُحلل متعدد اللغات (Polyglot Analyst) — العامية العربية</li>
+    </ul>
+  </div>
+
+  <h2 style="color: var(--accent-green);">المرحلة الرابعة: الإطلاق — الأشهر 10-12</h2>
+  <div class="success-box">
+    <div class="card-title" style="color: var(--accent-green);">الهدف: الإطلاق العام والنمو</div>
+    <p style="font-size: 9.5pt; margin-bottom: 0;">
+      المرحلة الأخيرة تركز على الاستقرار والأداء والامتثال قبل الإطلاق العام. نُجري برنامج اختبار تجريبي شامل مع مجموعة مختارة من المتداولين، ونُحسِّن الأداء لتحقيق زمن استجابة أقل من 200 مللي ثانية. نُراجع الامتثال القانوني بالتفصيل مع خبراء ماليين وقانونيين، ونُطلق حملة تسويقية مستهدفة لبناء مجتمع المتداولين العرب. نُفعِّل نظام الاشتراكات (Freemium/Premium/Institutional) وننتقل إلى بيئة الإنتاج الكاملة على Vercel + Railway.
+    </p>
+    <ul class="feature-list" style="font-size: 9pt; margin-top: 10px;">
+      <li>برنامج Beta Testing مع 500 متداول مختار</li>
+      <li>تحسين الأداء — زمن استجابة أقل من 200ms</li>
+      <li>مراجعة الامتثال القانوني الشامل</li>
+      <li>حملة تسويقية وبناء مجتمع المتداولين العرب</li>
+      <li>إطلاق نظام الاشتراكات (Freemium / Premium / Institutional)</li>
+      <li>النشر الكامل على Vercel + Railway.app</li>
+      <li>نظام مراقبة وتنبيهات إنتاجي (Production Monitoring)</li>
+    </ul>
+  </div>
+
+  <h2>المعالم الرئيسية (Key Milestones)</h2>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>المعلم</th>
+        <th>الشهر</th>
+        <th>معيار النجاح</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>النموذج الأولي الداخلي (Internal Alpha)</td>
+        <td>3</td>
+        <td>لوحة سوق تعمل مع بيانات Twelve Data الحية</td>
+      </tr>
+      <tr>
+        <td>دمج أول نموذجين AI (Groq + GLM-4)</td>
+        <td>5</td>
+        <td>تحليل عاطفي + تقييم مالي عربي يعملان معًا</td>
+      </tr>
+      <tr>
+        <td>السيمفونية الكاملة (Full Symphony)</td>
+        <td>6</td>
+        <td>6 نماذج AI تعمل في خط أنابيب متسلسل</td>
+      </tr>
+      <tr>
+        <td>إشارات رؤى الأولى</td>
+        <td>8</td>
+        <td>إشارة موقعة إلكترونيًا مع شرح عربي مبسط</td>
+      </tr>
+      <tr>
+        <td>إطلاق Beta</td>
+        <td>10</td>
+        <td>500 مستخدم تجريبي نشط مع معدل احتفاظ أعلى من 60%</td>
+      </tr>
+      <tr>
+        <td>الإطلاق العام</td>
+        <td>12</td>
+        <td>منصة مستقرة مع 5,000 مستخدم مسجل</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-footer">
+    <span>Roua Trading — الخطة المعمارية الثورية</span>
+    <span>12</span>
+  </div>
+</div>
+
+<!-- ==================== SECTION 5: SECURITY GRIMOIRE ==================== -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-number">القسم الخامس</div>
+    <div class="section-title">كتاب التعويذات الأمنية</div>
+    <div class="section-subtitle">Security Grimoire</div>
+  </div>
+
+  <p>
+    الأمان ليس ميزة تُضاف في نهاية التطوير — بل هو العمود الفقري الذي تُبنى عليه كل طبقة من طبقات المنصة. فلسفة "رؤى" الأمنية قائمة على مبدأ الثقة الصفرية (Zero-Trust): لا شيء موثوق به افتراضيًا، وكل طلب يجب أن يُثبت شرعيته. هذا القسم يقدم قائمة مراجعة أمنية شاملة تغطي كل جانب من جوانب المنصة.
+  </p>
+
+  <h2>1. الأمان الصفري — Zero-Trust Security</h2>
+  
+  <div class="card card-accent">
+    <div class="card-title">مصادقة WebAuthn (Passkeys) — حصريًا</div>
+    <p style="font-size: 9.5pt; margin-bottom: 0;">
+      لا كلمات مرور. لا رموز SMS. لا تطبيقات مصادقة ثانوية. الاعتماد الحصري على WebAuthn (Passkeys) يعني أن المصادقة مبنية على التشفير غير المتماثل مع ربط بيولوجي (بصمة/وجه) أو جهاز مادي. هذا يُلغي تمامًا هجمات التصيد الاحتيالي وسرقة كلمات المرور. يُخزَّن المفتاح العام فقط على الخادم، بينما يبقى المفتاح الخاص على جهاز المستخدم — مما يعني أن اختراق قاعدة البيانات لا يكشف أي بيانات مصادقة قابلة للاستخدام.
+    </p>
+  </div>
+
+  <div class="card card-blue">
+    <div class="card-title">صلاحيات API — رفض صلاحيات السحب فورًا</div>
+    <p style="font-size: 9.5pt; margin-bottom: 0;">
+      عند إدخال مفتاح API لأي منصة تداول، تفحص "رؤى" صلاحيات المفتاح فورًا. إذا احتوى المفتاح على أي صلاحية من صلاحيات Withdraw أو Transfer أو Withdrawals، يُرفض المفتاح تمامًا ولا يُخزَّن. هذا يضمن أنه حتى لو تم اختراق المفتاح المشفر، لن يكون من الممكن سحب أي أموال. الفحص يتم عبر استدعاء API endpoint خاص بكل منصة للتحقق من الصلاحيات الفعلية.
+    </p>
+  </div>
+
+  <div class="card card-amber">
+    <div class="card-title">تشفير مفاتيح API — AES-256-GCM</div>
+    <p style="font-size: 9.5pt; margin-bottom: 0;">
+      تُشفَّر مفاتيح API بتشفير AES-256-GCM مع تشفير من جانب العميل قبل الإرسال. يُنشئ العميل مفتاح تشفير مشتق من كلمة مرور المستخدم (مع salt عشوائي) عبر PBKDF2 مع 100,000 دورة. على الخادم، يُعاد التشفير بمفتاح رئيسي مخزَّن في متغيرات البيئة مع IV فريد لكل مفتاح. حتى لو وصل مهاجم إلى قاعدة البيانات، سيجد نصوصًا مشفرة لا يمكن فكها بدون المفتاح الرئيسي.
+    </p>
+  </div>
+
+  <h2>2. قائمة مراجعة الأمان الشاملة</h2>
+
+  <table class="data-table purple-header">
+    <thead>
+      <tr>
+        <th>الفئة</th>
+        <th>الإجراء</th>
+        <th>الأولوية</th>
+        <th>الحالة</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="font-weight: 700;">المصادقة</td>
+        <td>WebAuthn (Passkeys) حصريًا — لا كلمات مرور</td>
+        <td>حرجة</td>
+        <td style="color: var(--accent-green);">مطلوب في المرحلة 1</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">المصادقة</td>
+        <td>جلسات مشفرة في Redis مع TTL تلقائي</td>
+        <td>حرجة</td>
+        <td style="color: var(--accent-green);">مطلوب في المرحلة 1</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">التشفير</td>
+        <td>AES-256-GCM لمفاتيح API — تشفير مزدوج (عميل + خادم)</td>
+        <td>حرجة</td>
+        <td style="color: var(--accent-green);">مطلوب في المرحلة 1</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">التشفير</td>
+        <td>PBKDF2 مع 100,000 دورة لاشتقاق مفاتيح التشفير</td>
+        <td>حرجة</td>
+        <td style="color: var(--accent-green);">مطلوب في المرحلة 1</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">صلاحيات API</td>
+        <td>رفض أي مفتاح يحتوي صلاحيات Withdraw أو Transfer</td>
+        <td>حرجة</td>
+        <td style="color: var(--accent-green);">مطلوب في المرحلة 1</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">صلاحيات API</td>
+        <td>فحص دوري تلقائي لصلاحيات المفاتيح المخزنة</td>
+        <td>عالية</td>
+        <td style="color: var(--accent-blue);">المرحلة 3</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">الشبكة</td>
+        <td>CSP (Content Security Policy) صارم</td>
+        <td>حرجة</td>
+        <td style="color: var(--accent-green);">مطلوب في المرحلة 1</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">الشبكة</td>
+        <td>HSTS مع max-age سنة كحد أدنى</td>
+        <td>حرجة</td>
+        <td style="color: var(--accent-green);">مطلوب في المرحلة 1</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">الشبكة</td>
+        <td>CORS محدود بالنطاقات المصرح بها فقط</td>
+        <td>حرجة</td>
+        <td style="color: var(--accent-green);">مطلوب في المرحلة 1</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">الشبكة</td>
+        <td>CSRF Protection مع SameSite cookies</td>
+        <td>عالية</td>
+        <td style="color: var(--accent-green);">مطلوب في المرحلة 1</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">التسجيل</td>
+        <td>تسجيل شامل لكل حدث (Audit Logging)</td>
+        <td>عالية</td>
+        <td style="color: var(--accent-blue);">المرحلة 2</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">التسجيل</td>
+        <td>تنبيهات فورية عند أنماط مشبوهة</td>
+        <td>عالية</td>
+        <td style="color: var(--accent-amber);">المرحلة 3</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">Rate Limiting</td>
+        <td>Global Rate Limiter مركزي باستخدام Redis Token Bucket</td>
+        <td>عالية</td>
+        <td style="color: var(--accent-blue);">المرحلة 2</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">WebSocket</td>
+        <td>Exponential Backoff مع Fallback إلى REST Polling</td>
+        <td>متوسطة</td>
+        <td style="color: var(--accent-blue);">المرحلة 2</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-footer">
+    <span>Roua Trading — الخطة المعمارية الثورية</span>
+    <span>13</span>
+  </div>
+</div>
+
+<!-- Continue Section 5 -->
+<div class="page">
+  <h2>3. مصفوفة المخاطر والإجراءات الثورية</h2>
+  <p>
+    كل مخاطرة محتملة تم تحديدها وربطها بإجراء ثوري محدد. هذه المصفوفة تُراجَع وتُحدَّث بشكل دوري مع كل مرحلة من مراحل التطوير:
+  </p>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>المخاطرة</th>
+        <th>الاحتمال</th>
+        <th>الأثر</th>
+        <th>الإجراء الثوري</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-red);">اختراق مفاتيح API</td>
+        <td>متوسط</td>
+        <td>حرج</td>
+        <td>تشفير متعدد الطبقات (عميل + خادم). رفض مفاتيح السحب فورًا. فحص دوري للصلاحيات. تنبيه فوري عند أي استخدام مشبوه.</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-red);">هلوسة الذكاء الاصطناعي</td>
+        <td>عالي</td>
+        <td>حرج</td>
+        <td>RAG من أرشيف الأخبار (pgvector). تدقيق GLM-4 للتناسق المالي. مراجعة Gemini النهائية. توقيع إلكتروني يُمكِّن التتبع.</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-amber);">انقطاع WebSocket</td>
+        <td>عالي</td>
+        <td>متوسط</td>
+        <td>Exponential Backoff مع حد أقصى 30 ثانية. آلية احتياطية للتحول إلى REST API Polling. اتصالات متعددة متزامنة مع مصادر مختلفة.</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-amber);">تجاوز حدود API</td>
+        <td>متوسط</td>
+        <td>متوسط</td>
+        <td>Global Rate Limiter مركزي باستخدام Redis Token Bucket. أولوية ديناميكية حسب نوع الطلب. طوابير RabbitMQ للمهام غير العاجلة.</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-amber);">الامتثال القانوني</td>
+        <td>متوسط</td>
+        <td>حرج</td>
+        <td>صياغة "تحليلية تعليمية" بدل "نصيحة استثمارية". توقيع إلكتروني للتنفيذ التلقائي. إخلاء مسؤولية واضح. مراجعة قانونية دورية.</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-blue);">فشل نموذج AI</td>
+        <td>منخفض</td>
+        <td>عالي</td>
+        <td>Ollama كاحتياطي لكل نموذج. آلية Fallback تلقائية. توجيه المهام عبر AI Orchestrator مع كشف الأعطال.</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-blue);">تسريب بيانات المستخدم</td>
+        <td>منخفض</td>
+        <td>حرج</td>
+        <td>تشفير E2E للبيانات الحساسة. تسجيل شامل لكل وصول. مراقبة أنماط الوصول غير الطبيعية. إجراءات استجابة فورية.</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">هجوم DDoS</td>
+        <td>متوسط</td>
+        <td>متوسط</td>
+        <td>Rate Limiting على مستوى البوابة. CDN مع Cloudflare. توزيع الحمل عبر Railway. آلية Circuit Breaker.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warning-box">
+    <h3 style="color: var(--accent-red); margin-top: 0;">قاعدة حاسمة: اللامركزية في الحفظ</h3>
+    <p style="font-size: 9.5pt; margin-bottom: 0;">
+      منصة "رؤى" لا تلمس أموال المستخدم أبدًا. هذا ليس خيارًا تقنيًا فحسب، بل هو التزام أخلاقي وقانوني. عدم القدرة على سحب الأموال يعني عدم القدرة على فقدانها. كل مفتاح API يُفحص لضمان عدم احتوائه على صلاحيات سحب أو تحويل. هذه القاعدة لا استثناء لها ولا تسوية فيها.
+    </p>
+  </div>
+
+  <h2>4. بروتوكول الاستجابة للحوادث</h2>
+  <p>
+    في حالة اكتشاف أي اختراق أو حادث أمني، يُفعَّل بروتوكول الاستجابة التالي تلقائيًا:
+  </p>
+
+  <div class="flow-steps">
+    <div class="flow-step">
+      <div class="flow-step-number">1</div>
+      <div class="flow-step-content">
+        <div class="flow-step-title">الكشف والتنبيه (Detection & Alert)</div>
+        <div class="flow-step-desc">نظام المراقبة يكتشف النمط غير الطبيعي ويُرسل تنبيهًا فوريًا لفريق الأمان عبر قنوات مشفرة متعددة.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-number">2</div>
+      <div class="flow-step-content">
+        <div class="flow-step-title">الاحتواء الفوري (Immediate Containment)</div>
+        <div class="flow-step-desc">إلغاء جميع الجلسات النشطة تلقائيًا. تعليق المفاتيح المتأثرة. تفعيل وضع القراءة فقط للمنصة.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-number">3</div>
+      <div class="flow-step-content">
+        <div class="flow-step-title">التحقيق والتحليل (Investigation)</div>
+        <div class="flow-step-desc">تحليل سجلات المراجعة الشاملة لتحديد نطاق الاختراق والمتأثرين. تسجيل كل خطوة في سجل الحوادث.</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-number">4</div>
+      <div class="flow-step-content">
+        <div class="flow-step-title">الإصلاح والتعافي (Remediation & Recovery)</div>
+        <div class="flow-step-desc">إصلاح الثغرة. تدوير جميع المفاتيح المشفرة. إعادة تعيين الجلسات. إشعار المتأثرين خلال 24 ساعة.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>Roua Trading — الخطة المعمارية الثورية</span>
+    <span>14</span>
+  </div>
+</div>
+
+<!-- ==================== SECTION 6: MONETIZATION ==================== -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-number">القسم السادس</div>
+    <div class="section-title">نموذج العمل الثوري</div>
+    <div class="section-subtitle">Revolutionary Monetization</div>
+  </div>
+
+  <p>
+    نموذج العمل في "رؤى" مبني على استراتيجية ثلاثية المستويات تضمن الوصول الواسع مع الاستدامة المالية. كل مستوى يقدم قيمة حقيقية متزايدة، والانتقال بين المستويات مدفوع بالقيمة المُضافة وليس بالحجب التعسفي. المستوى المجاني ليس نسخة مقيدة — بل هو منصة متكاملة بحدود معقولة تُتيح للمتداول تجربة القيمة الحقيقية قبل الاشتراك.
+  </p>
+
+  <div class="pricing-grid">
+    <div class="pricing-card">
+      <div class="pricing-name">رؤى مجاني</div>
+      <div style="font-size: 9pt; color: var(--text-muted); margin-bottom: 8px; direction: ltr; text-align: center;">Freemium</div>
+      <div class="pricing-price">$0</div>
+      <ul class="pricing-features">
+        <li>لوحة سوق أساسية (5 أصول)</li>
+        <li>تحليل عاطفي يومي محدود</li>
+        <li>أخبار السوق الأساسية</li>
+        <li>WebAuthn مصادقة آمنة</li>
+        <li>مفتاح API واحد للربط</li>
+        <li>10 إشارات شهريًا</li>
+        <li>دعم المجتمع</li>
+      </ul>
+    </div>
+    <div class="pricing-card featured">
+      <div class="pricing-name">رؤى برو</div>
+      <div style="font-size: 9pt; color: var(--text-muted); margin-bottom: 8px; direction: ltr; text-align: center;">Premium</div>
+      <div class="pricing-price">$49</div>
+      <ul class="pricing-features">
+        <li>لوحة سوق غير محدودة</li>
+        <li>سيمفونية AI الكاملة (6 نماذج)</li>
+        <li>إشارات رؤى غير محدودة</li>
+        <li>غرفة الأخبار الكاملة</li>
+        <li>ملاذ المحفظة (إدارة مخاطر)</li>
+        <li>المختبر الذكي (Backtesting)</li>
+        <li>5 مفاتيح API</li>
+        <li>المُحلل متعدد اللغات</li>
+        <li>تقارير مالية أسبوعية</li>
+        <li>دعم أولوية 24/7</li>
+      </ul>
+    </div>
+    <div class="pricing-card">
+      <div class="pricing-name" style="color: var(--accent-amber);">رؤى مؤسسي</div>
+      <div style="font-size: 9pt; color: var(--text-muted); margin-bottom: 8px; direction: ltr; text-align: center;">Institutional</div>
+      <div class="pricing-price">$299</div>
+      <ul class="pricing-features">
+        <li>كل مميزات برو</li>
+        <li>API وصول كامل</li>
+        <li>باني بوتات متقدم</li>
+        <li>أرشيف أخبار كامل (RAG)</li>
+        <li>تقارير مخصصة تحت الطلب</li>
+        <li>مفاتيح API غير محدودة</li>
+        <li>مدير حساب مخصص</li>
+        <li>SLA 99.9% وقت التشغيل</li>
+        <li>تدريب وحلول مخصصة</li>
+        <li>تحليلات متقدمة Monte Carlo</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>توقعات الإيرادات</h2>
+  <p>
+    بناءً على تحليل السوق والمنصات المشابهة، نقدم توقعات الإيرادات للسنة الأولى بعد الإطلاق. الافتراضات مبنية على معدل تحويل 5% من المستخدمين المجانيين إلى Premium، و1% إلى Institutional:
+  </p>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>المؤشر</th>
+        <th>الربع الأول</th>
+        <th>الربع الثاني</th>
+        <th>الربع الثالث</th>
+        <th>الربع الرابع</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="font-weight: 700;">المستخدمون المسجلون</td>
+        <td>2,500</td>
+        <td>8,000</td>
+        <td>18,000</td>
+        <td>35,000</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">مشتركو Premium</td>
+        <td>125</td>
+        <td>400</td>
+        <td>900</td>
+        <td>1,750</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">مشتركو Institutional</td>
+        <td>25</td>
+        <td>80</td>
+        <td>180</td>
+        <td>350</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-teal);">الإيرادات الشهرية (MRR)</td>
+        <td style="direction: ltr; text-align: right;">$13,725</td>
+        <td style="direction: ltr; text-align: right;">$43,920</td>
+        <td style="direction: ltr; text-align: right;">$98,700</td>
+        <td style="direction: ltr; text-align: right;">$191,750</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-green);">الإيرادات التراكمية</td>
+        <td style="direction: ltr; text-align: right;">$41,175</td>
+        <td style="direction: ltr; text-align: right;">$172,935</td>
+        <td style="direction: ltr; text-align: right;">$469,035</td>
+        <td style="direction: ltr; text-align: right;">$1,044,285</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-footer">
+    <span>Roua Trading — الخطة المعمارية الثورية</span>
+    <span>16</span>
+  </div>
+</div>
+
+<!-- Continue Section 6 -->
+<div class="page">
+  <h2>استراتيجية النمو</h2>
+  <p>
+    نموذج العمل لا يقتصر على الاشتراكات فقط. نهدف إلى بناء منظومة متكاملة تدر إيرادات من مصادر متعددة مع الحفاظ على القيمة الأساسية للمستخدم:
+  </p>
+
+  <div class="pillar-grid">
+    <div class="pillar-item">
+      <div class="pillar-name" style="color: var(--accent-teal);">الاشتراكات المتكررة</div>
+      <div class="pillar-desc">العمود الفقري للإيرادات. توقعات MRR تتجاوز $190K بحلول نهاية السنة الأولى مع معدل احتفاظ مستهدف 90%+.</div>
+    </div>
+    <div class="pillar-item">
+      <div class="pillar-name" style="color: var(--accent-blue);">برنامج الشراكات</div>
+      <div class="pillar-desc">شراكات مع وسطاء التداول والمنصات المالية العربية. عمولات إحالة مقابل توجيه المستخدمين. شراكات استراتيجية مع شركات البيانات المالية.</div>
+    </div>
+    <div class="pillar-item">
+      <div class="pillar-name" style="color: var(--accent-amber);">سوق البوتات</div>
+      <div class="pillar-desc">منصة لبوتات التداول المبنية بالمختبر الذكي. المطورون يبيعون بوتاتهم ونأخذ عمولة 20%. هذا يخلق شبكة效应ية تزداد قيمة مع كل بوت جديد.</div>
+    </div>
+    <div class="pillar-item">
+      <div class="pillar-name" style="color: var(--accent-green);">البيانات والتحليلات</div>
+      <div class="pillar-desc">بيع تحليلات مجمعة ومجهولة الهوية للأسواق العربية للمؤسسات المالية. هذا لا يؤثر على خصوصية المستخدم أبدًا — البيانات مجمعة بالكامل.</div>
+    </div>
+  </div>
+
+  <h2>مؤشرات الأداء الرئيسية (KPIs)</h2>
+  <table class="data-table blue-header">
+    <thead>
+      <tr>
+        <th>المؤشر</th>
+        <th>الهدف — سنة 1</th>
+        <th>الهدف — سنة 2</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="font-weight: 700;">عدد المستخدمين المسجلين</td>
+        <td>35,000</td>
+        <td>150,000</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">معدل التحويل (Free → Paid)</td>
+        <td>6%</td>
+        <td>8%</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">معدل الاحتفاظ (Monthly)</td>
+        <td>90%</td>
+        <td>93%</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">MRR (الإيرادات الشهرية المتكررة)</td>
+        <td style="direction: ltr; text-align: right;">$190K</td>
+        <td style="direction: ltr; text-align: right;">$750K</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">ARPU (متوسط الإيراد لكل مستخدم)</td>
+        <td style="direction: ltr; text-align: right;">$5.48</td>
+        <td style="direction: ltr; text-align: right;">$5.00</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">CAC (تكلفة الاستحواذ)</td>
+        <td style="direction: ltr; text-align: right;">$12</td>
+        <td style="direction: ltr; text-align: right;">$8</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700;">LTV (القيمة الدائمة)</td>
+        <td style="direction: ltr; text-align: right;">$588</td>
+        <td style="direction: ltr; text-align: right;">$720</td>
+      </tr>
+      <tr>
+        <td style="font-weight: 700; color: var(--accent-green);">LTV:CAC Ratio</td>
+        <td style="color: var(--accent-green); font-weight: 700; direction: ltr; text-align: right;">49:1</td>
+        <td style="color: var(--accent-green); font-weight: 700; direction: ltr; text-align: right;">90:1</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="highlight-box">
+    <h3 style="color: var(--accent-teal); margin-top: 0;">الخلاصة المالية</h3>
+    <p style="font-size: 10pt; margin-bottom: 0;">
+      بتكلفة تشغيل شهرية تقديرية $6,500 للبنية التحتية AI + $8,000 للخوادم والبنية التحتية + $15,000 للفريق (في البداية) = حوالي $29,500/شهر. مع MRR مستهدف $190K بحلول نهاية السنة الأولى، فإن نسبة الهامش الإجمالي تتجاوز 80% — مما يضع "رؤى" في وضع مالي مستدام ومربح من الشهر السادس تقريبًا.
+    </p>
+  </div>
+
+  <div class="quote-block" style="margin-top: 30px;">
+    "رؤى" ليست مجرد منصة — بل حركة. حركة نحو ديمقراطية التحليل المالي باللغة العربية، ونحو أمان لا يقبل المساومة، ونحو ذكاء اصطناعي يعمل لصالح المتداول وليس ضده. هذه الخطة ليست نهاية الطريق — بل بدايته.
+  </div>
+
+  <div class="page-footer">
+    <span>Roua Trading — الخطة المعمارية الثورية</span>
+    <span>17</span>
+  </div>
+</div>
+
+</body>
+</html>

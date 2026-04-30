@@ -9,7 +9,7 @@ import {
   Copy, Users, Newspaper, CalendarDays, Settings,
   ChevronDown, Bell, User, MoreHorizontal,
   TrendingUp, TrendingDown, Menu, X as XIcon, GitMerge, Activity,
-  FlaskConical, Shield, Hammer, ShieldAlert, BookOpen
+  FlaskConical, Shield, Hammer
 } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
@@ -413,9 +413,6 @@ function MobileNewsTicker() {
 const NAV_LINKS = [
   { href: '/dashboard',                        label: 'الرئيسية',           icon: Home },
   { href: '/dashboard/portfolio',              label: 'المحفظة',            icon: Wallet },
-  { href: '/dashboard/pnl',                    label: 'لوحة الأداء',          icon: TrendingUp },
-  { href: '/dashboard/risk',                   label: 'إدارة المخاطر',         icon: ShieldAlert },
-  { href: '/dashboard/journal',                label: 'سجل التداول',          icon: BookOpen },
   { href: '/dashboard/ai',                     label: 'تحليل AI',           icon: Brain },
   { href: '/dashboard/neural',                  label: 'Neural Lab',         icon: FlaskConical },
   { href: '/dashboard/scanner',                label: 'السكانر المتقدم',    icon: ScanSearch },

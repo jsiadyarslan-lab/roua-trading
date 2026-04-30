@@ -1,10 +1,10 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Fingerprint, TrendingUp, ArrowRight, Mail, Shield } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { Fingerprint, TrendingUp, ArrowRight, Mail, Shield, KeyRound, Timer } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 /**
  * Login Page — Roua Trading (رؤى)
@@ -12,13 +12,13 @@ import { motion } from 'framer-motion'
  * Authentication methods:
  * 1. Google OAuth (if configured)
  * 2. Passkey / WebAuthn
- * 3. Email login
+ * 3. Email login (direct or OTP verification)
  */
 
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [loading, setLoading] = useState<'google' | 'passkey' | 'email' | null>(null)
+  const [loading, setLoading] = useState<'google' | 'passkey' | 'email' | 'otp-send' | 'otp-verify' | null>(null)
   const [email, setEmail] = useState('')
   const [error, setError] = useState(() => {
     const urlError = searchParams.get('error')
@@ -29,6 +29,68 @@ function LoginForm() {
     if (urlError === 'db_unavailable') return 'قاعدة البيانات غير متاحة حالياً.'
     return ''
   })
+
+  // OTP state
+  const [loginMethod, setLoginMethod] = useState<'direct' | 'otp'>('otp')
+  const [otpSent, setOtpSent] = useState(false)
+  const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  const [otpTimer, setOtpTimer] = useState(0)
+  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([])
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+  const startOtpTimer = () => {
+    setOtpTimer(60)
+    if (timerRef.current) clearInterval(timerRef.current)
+    timerRef.current = setInterval(() => {
+      setOtpTimer(prev => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return
+    const newOtp = [...otp]
+    newOtp[index] = value.slice(-1)
+    setOtp(newOtp)
+
+    // Auto-focus next input
+    if (value && index < 5) {
+      otpInputRefs.current[index + 1]?.focus()
+    }
+
+    // Auto-submit when all 6 digits filled
+    if (value && index === 5 && newOtp.every(d => d !== '')) {
+      handleVerifyOtp(newOtp.join(''))
+    }
+  }
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      otpInputRefs.current[index - 1]?.focus()
+    }
+  }
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault()
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+    if (pasted.length > 0) {
+      const newOtp = [...otp]
+      for (let i = 0; i < 6; i++) {
+        newOtp[i] = pasted[i] || ''
+      }
+      setOtp(newOtp)
+      if (pasted.length === 6) {
+        handleVerifyOtp(pasted)
+      } else {
+        otpInputRefs.current[pasted.length]?.focus()
+      }
+    }
+  }
 
   const handleGoogleLogin = async () => {
     setLoading('google')
@@ -207,6 +269,103 @@ function LoginForm() {
     }
   }
 
+  const handleSendOtp = async () => {
+    if (!email.trim()) {
+      setError('يرجى إدخال بريدك الإلكتروني')
+      return
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('يرجى إدخال بريد إلكتروني صحيح')
+      return
+    }
+
+    setLoading('otp-send')
+    setError('')
+
+    try {
+      const res = await fetch('/api/auth/otp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
+        setOtpSent(true)
+        setOtp(['', '', '', '', '', ''])
+        startOtpTimer()
+        // Focus first OTP input
+        setTimeout(() => otpInputRefs.current[0]?.focus(), 100)
+      } else if (res.status === 429) {
+        setError(data.message || 'طلبات كثيرة. حاول مرة أخرى بعد قليل.')
+      } else if (data.error === 'GUEST_LOGIN_BLOCKED') {
+        setError('تسجيل الدخول كضيف غير مسموح. استخدم بريدك الحقيقي.')
+      } else {
+        setError(data.message || 'فشل إرسال رمز التحقق. حاول مرة أخرى.')
+      }
+    } catch {
+      setError('حدث خطأ في الاتصال. حاول مرة أخرى.')
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  const handleVerifyOtp = async (otpCode?: string) => {
+    const code = otpCode || otp.join('')
+    if (code.length !== 6) {
+      setError('يرجى إدخال رمز التحقق كاملاً')
+      return
+    }
+
+    setLoading('otp-verify')
+    setError('')
+
+    try {
+      const res = await fetch('/api/auth/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp: code }),
+      })
+
+      const data = await res.json()
+
+      if (res.ok && data.authenticated) {
+        const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
+        router.push(callbackUrl)
+      } else if (data.error === 'INVALID_OTP') {
+        setError(data.message || 'رمز التحقق غير صحيح')
+        setOtp(['', '', '', '', '', ''])
+        setTimeout(() => otpInputRefs.current[0]?.focus(), 100)
+      } else if (data.error === 'OTP_EXPIRED') {
+        setError(data.message || 'انتهت صلاحية رمز التحقق')
+        setOtpSent(false)
+        setOtp(['', '', '', '', '', ''])
+      } else {
+        setError(data.message || 'فشل التحقق. حاول مرة أخرى.')
+      }
+    } catch {
+      setError('حدث خطأ في الاتصال. حاول مرة أخرى.')
+    } finally {
+      setLoading(null)
+    }
+  }
+
+  const switchToDirect = () => {
+    setLoginMethod('direct')
+    setOtpSent(false)
+    setOtp(['', '', '', '', '', ''])
+    setError('')
+  }
+
+  const switchToOtp = () => {
+    setLoginMethod('otp')
+    setOtpSent(false)
+    setOtp(['', '', '', '', '', ''])
+    setError('')
+  }
+
   return (
     <div className="relative min-h-screen text-white overflow-hidden flex items-center justify-center" dir="rtl" style={{ background: '#000000' }}>
       {/* Background */}
@@ -287,11 +446,17 @@ function LoginForm() {
               <input
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleEmailLogin()}
+                onChange={(e) => { setEmail(e.target.value); if (otpSent) { setOtpSent(false); setOtp(['', '', '', '', '', '']) } }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    if (loginMethod === 'direct') handleEmailLogin()
+                    else if (!otpSent) handleSendOtp()
+                  }
+                }}
                 placeholder="أدخل بريدك الإلكتروني"
                 dir="ltr"
-                className="w-full py-3.5 pe-10 ps-4 rounded-xl text-sm outline-none transition-all duration-200 placeholder:text-white/20"
+                disabled={otpSent}
+                className="w-full py-3.5 pe-10 ps-4 rounded-xl text-sm outline-none transition-all duration-200 placeholder:text-white/20 disabled:opacity-50"
                 style={{
                   background: 'rgba(255,255,255,0.05)',
                   border: '1px solid rgba(255,255,255,0.1)',
@@ -299,36 +464,186 @@ function LoginForm() {
                   fontFamily: 'var(--font-en)',
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(0,212,255,0.4)'
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.07)'
+                  if (!otpSent) {
+                    e.currentTarget.style.borderColor = 'rgba(0,212,255,0.4)'
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.07)'
+                  }
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+                  if (!otpSent) {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+                    e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+                  }
                 }}
               />
             </div>
           </motion.div>
 
-          {/* Email Login Button — PRIMARY CTA */}
-          <motion.button
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.55, duration: 0.4 }}
-            onClick={handleEmailLogin}
-            disabled={loading !== null}
-            whileHover={{ scale: 1.01, boxShadow: '0 0 30px rgba(0, 212, 255, 0.2)' }}
-            whileTap={{ scale: 0.99 }}
-            className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl
-                       bg-gradient-to-l from-cyan-600 to-cyan-400 text-white font-bold text-sm
-                       hover:from-cyan-500 hover:to-cyan-300
-                       disabled:opacity-40 disabled:cursor-not-allowed
-                       transition-all duration-200 mb-4"
-            style={{ boxShadow: '0 0 20px rgba(0, 212, 255, 0.15)' }}
-          >
-            <Mail className="w-4 h-4" />
-            <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'email' ? 'جارٍ الدخول...' : 'تسجيل الدخول بالبريد'}</span>
-          </motion.button>
+          {/* Login Method: OTP or Direct */}
+          <AnimatePresence mode="wait">
+            {loginMethod === 'otp' ? (
+              <motion.div
+                key="otp-method"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {!otpSent ? (
+                  /* Send OTP Button */
+                  <motion.button
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.55, duration: 0.4 }}
+                    onClick={handleSendOtp}
+                    disabled={loading !== null}
+                    whileHover={{ scale: 1.01, boxShadow: '0 0 30px rgba(0, 212, 255, 0.2)' }}
+                    whileTap={{ scale: 0.99 }}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl
+                               bg-gradient-to-l from-cyan-600 to-cyan-400 text-white font-bold text-sm
+                               hover:from-cyan-500 hover:to-cyan-300
+                               disabled:opacity-40 disabled:cursor-not-allowed
+                               transition-all duration-200 mb-4"
+                    style={{ boxShadow: '0 0 20px rgba(0, 212, 255, 0.15)' }}
+                  >
+                    <KeyRound className="w-4 h-4" />
+                    <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'otp-send' ? 'جارٍ الإرسال...' : 'إرسال رمز التحقق'}</span>
+                  </motion.button>
+                ) : (
+                  /* OTP Input + Verify */
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="mb-4"
+                  >
+                    <p className="text-center text-white/40 text-xs mb-3" style={{ fontFamily: 'var(--font-ar)' }}>
+                      أدخل الرمز المُرسل إلى <span dir="ltr" className="text-white/60">{email}</span>
+                    </p>
+
+                    {/* 6-digit OTP Input */}
+                    <div className="flex justify-center gap-2 mb-4" dir="ltr" onPaste={handleOtpPaste}>
+                      {otp.map((digit, idx) => (
+                        <input
+                          key={idx}
+                          ref={(el) => { otpInputRefs.current[idx] = el }}
+                          type="text"
+                          inputMode="numeric"
+                          maxLength={1}
+                          value={digit}
+                          onChange={(e) => handleOtpChange(idx, e.target.value)}
+                          onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                          className="w-11 h-12 text-center text-lg font-bold rounded-lg outline-none transition-all duration-200"
+                          style={{
+                            background: 'rgba(255,255,255,0.06)',
+                            border: digit ? '1px solid rgba(0,212,255,0.5)' : '1px solid rgba(255,255,255,0.1)',
+                            color: '#00d4ff',
+                            fontFamily: 'var(--font-en)',
+                            boxShadow: digit ? '0 0 10px rgba(0,212,255,0.15)' : 'none',
+                          }}
+                          onFocus={(e) => {
+                            e.currentTarget.style.borderColor = 'rgba(0,212,255,0.5)'
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.09)'
+                          }}
+                          onBlur={(e) => {
+                            if (!digit) {
+                              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+                              e.currentTarget.style.background = 'rgba(255,255,255,0.06)'
+                            }
+                          }}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Verify Button */}
+                    <motion.button
+                      onClick={() => handleVerifyOtp()}
+                      disabled={loading !== null || otp.some(d => !d)}
+                      whileHover={{ scale: 1.01, boxShadow: '0 0 30px rgba(0, 212, 255, 0.2)' }}
+                      whileTap={{ scale: 0.99 }}
+                      className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl
+                                 bg-gradient-to-l from-cyan-600 to-cyan-400 text-white font-bold text-sm
+                                 hover:from-cyan-500 hover:to-cyan-300
+                                 disabled:opacity-40 disabled:cursor-not-allowed
+                                 transition-all duration-200 mb-3"
+                      style={{ boxShadow: '0 0 20px rgba(0, 212, 255, 0.15)' }}
+                    >
+                      <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'otp-verify' ? 'جارٍ التحقق...' : 'تسجيل الدخول'}</span>
+                    </motion.button>
+
+                    {/* Resend OTP */}
+                    <div className="text-center">
+                      {otpTimer > 0 ? (
+                        <div className="flex items-center justify-center gap-1.5 text-white/25 text-xs" style={{ fontFamily: 'var(--font-ar)' }}>
+                          <Timer className="w-3 h-3" />
+                          <span>إعادة الإرسال بعد {otpTimer} ثانية</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={handleSendOtp}
+                          disabled={loading !== null}
+                          className="text-cyan-400/70 hover:text-cyan-400 text-xs transition-colors disabled:opacity-40"
+                          style={{ fontFamily: 'var(--font-ar)' }}
+                        >
+                          إعادة إرسال الرمز
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Switch to Direct Login */}
+                <div className="text-center">
+                  <button
+                    onClick={switchToDirect}
+                    className="text-white/25 hover:text-white/40 text-[11px] transition-colors"
+                    style={{ fontFamily: 'var(--font-ar)' }}
+                  >
+                    تسجيل الدخول المباشر ←
+                  </button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="direct-method"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                {/* Email Login Button — Direct */}
+                <motion.button
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.55, duration: 0.4 }}
+                  onClick={handleEmailLogin}
+                  disabled={loading !== null}
+                  whileHover={{ scale: 1.01, boxShadow: '0 0 30px rgba(0, 212, 255, 0.2)' }}
+                  whileTap={{ scale: 0.99 }}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl
+                             bg-gradient-to-l from-cyan-600 to-cyan-400 text-white font-bold text-sm
+                             hover:from-cyan-500 hover:to-cyan-300
+                             disabled:opacity-40 disabled:cursor-not-allowed
+                             transition-all duration-200 mb-3"
+                  style={{ boxShadow: '0 0 20px rgba(0, 212, 255, 0.15)' }}
+                >
+                  <Mail className="w-4 h-4" />
+                  <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'email' ? 'جارٍ الدخول...' : 'تسجيل الدخول بالبريد'}</span>
+                </motion.button>
+
+                {/* Switch to OTP Login */}
+                <div className="text-center mb-4">
+                  <button
+                    onClick={switchToOtp}
+                    className="text-white/25 hover:text-white/40 text-[11px] transition-colors"
+                    style={{ fontFamily: 'var(--font-ar)' }}
+                  >
+                    ← تسجيل الدخول برمز التحقق
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Divider */}
           <div className="flex items-center gap-4 my-4">
@@ -374,8 +689,6 @@ function LoginForm() {
             <Fingerprint className="w-4 h-4" style={{ color: '#00d4ff' }} />
             <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'passkey' ? 'جارٍ التحقق...' : 'Passkey'}</span>
           </motion.button>
-
-
 
           {/* Error Message */}
           {error && (

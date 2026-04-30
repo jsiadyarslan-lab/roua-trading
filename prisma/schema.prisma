@@ -649,3 +649,15 @@ model Setting {
 
   @@index([key])
 }
+
+// ── Verification Token (OTP, etc.) ──
+model VerificationToken {
+  id         String   @id @default(cuid())
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@index([identifier])
+  @@index([expires])
+}

@@ -75,6 +75,11 @@ async function runSchemaMigrations(): Promise<void> {
     `CREATE TABLE IF NOT EXISTS "Setting" ("id" TEXT NOT NULL, "key" TEXT NOT NULL, "value" TEXT NOT NULL DEFAULT '{}', "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Setting_pkey" PRIMARY KEY ("id"))`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "Setting_key_key" ON "Setting"("key")`,
     `CREATE INDEX IF NOT EXISTS "Setting_key_idx" ON "Setting"("key")`,
+    // VerificationToken table (OTP, etc.)
+    `CREATE TABLE IF NOT EXISTS "VerificationToken" ("id" TEXT NOT NULL, "identifier" TEXT NOT NULL, "token" TEXT NOT NULL, "expires" TIMESTAMP(3) NOT NULL, CONSTRAINT "VerificationToken_pkey" PRIMARY KEY ("id"))`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "VerificationToken_identifier_token_key" ON "VerificationToken"("identifier", "token")`,
+    `CREATE INDEX IF NOT EXISTS "VerificationToken_identifier_idx" ON "VerificationToken"("identifier")`,
+    `CREATE INDEX IF NOT EXISTS "VerificationToken_expires_idx" ON "VerificationToken"("expires")`,
   ]
 
   for (const sql of migrations) {

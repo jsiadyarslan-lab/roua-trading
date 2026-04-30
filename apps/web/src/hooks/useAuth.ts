@@ -1,87 +1,44 @@
-import { useEffect, useState, createContext, useContext } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useAuthStore, type AuthUser } from '@/lib/auth-store'
 
-interface User {
-  id: string
-  email: string
-  displayName: string
-  tier: string
-  isGuest: boolean
-}
-
-interface AuthContextValue {
-  user: User | null
-  loading: boolean
-  isGuest: boolean
-}
-
-const AuthContext = createContext<AuthContextValue>({
-  user: null,
-  loading: true,
-  isGuest: true,
-})
-
-export const useAuthContext = () => useContext(AuthContext)
+// Re-export the User type for backward compatibility
+export type User = AuthUser
 
 /**
- * useAuth — Checks if the user has a valid authenticated session.
+ * useAuth — Hook that provides auth state using the Zustand auth store.
  *
- * Auth flow:
- * 1. Call /api/auth/me — validates existing session
- * 2. If /api/auth/me fails, call /api/auth/sync as fallback
- * 3. If both fail or return unauthenticated, redirect to /login
+ * On mount, it refreshes user data from the server (with localStorage cache).
+ * If the user is not authenticated, it redirects to /login.
  *
- * No guest mode — users must be authenticated to access the dashboard.
+ * This replaces the old React useState-based auth with a global Zustand store,
+ * so user data is shared across all components without re-fetching.
  */
 export function useAuth() {
   const router = useRouter()
-  const [user, setUser] = useState<User | null>(null)
-  const [loading, setLoading] = useState(true)
+  const user = useAuthStore(state => state.user)
+  const loading = useAuthStore(state => state.loading)
+  const isGuest = useAuthStore(state => state.isGuest)
+  const refreshUser = useAuthStore(state => state.refreshUser)
 
   useEffect(() => {
     let mounted = true
 
-    async function checkAuth() {
-      // Try /api/auth/me first
-      try {
-        const meRes = await fetch('/api/auth/me')
-        if (meRes.ok) {
-          const meData = await meRes.json()
-          if (meData.authenticated && !meData.isGuest) {
-            if (mounted) setUser(meData.user)
-            return
-          }
-        }
-      } catch { /* try sync */ }
-
-      // Fallback: /api/auth/sync
-      try {
-        const syncRes = await fetch('/api/auth/sync')
-        if (syncRes.ok) {
-          const syncData = await syncRes.json()
-          if (syncData.authenticated && !syncData.isGuest) {
-            if (mounted) setUser(syncData.user)
-            return
-          }
-        }
-      } catch { /* no session */ }
-
-      // Not authenticated — redirect to login
-      if (mounted) {
-        setUser(null)
+    refreshUser().then(() => {
+      const state = useAuthStore.getState()
+      if (mounted && !state.isAuthenticated) {
         router.replace('/login')
       }
-    }
-
-    checkAuth().finally(() => {
-      if (mounted) setLoading(false)
     })
 
     return () => { mounted = false }
-  }, [router])
-
-  // isGuest is always false now since we don't allow guest sessions
-  const isGuest = !user || user.isGuest || user.email === 'guest@roua.auto' || user.id.startsWith('guest')
+  }, [router, refreshUser])
 
   return { user, loading, isGuest }
+}
+
+// Also export a simpler hook that doesn't trigger redirects
+// Useful for components that just need to read user data
+export function useAuthState() {
+  return useAuthStore()
 }

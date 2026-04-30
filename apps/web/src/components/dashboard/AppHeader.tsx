@@ -14,6 +14,7 @@ import {
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
+import { useAuthStore } from '@/lib/auth-store'
 import { NotificationCenter } from '@/components/dashboard/NotificationCenter'
 
 /* ─── Design tokens ─── */
@@ -552,43 +553,43 @@ function AccountDropdown({
   onClose: () => void
   anchorRef: React.RefObject<HTMLDivElement | null>
 }) {
+  const authUser = useAuthStore(state => state.user)
+  const authLogout = useAuthStore(state => state.logout)
   const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 })
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const [userName, setUserName] = useState<string>('')
-  const [userEmail, setUserEmail] = useState<string>('')
-  const [userTier, setUserTier] = useState<string>('')
 
   useEffect(() => {
     if (open && anchorRef.current) {
       const rect = anchorRef.current.getBoundingClientRect()
       const dropdownWidth = 220
       const dropdownHeight = 320
-      // Calculate right position (RTL: align dropdown's right edge with button's right edge)
-      const rightEdge = window.innerWidth - rect.right
-      const leftEdge = rect.left
-      // Ensure dropdown stays within viewport horizontally
-      const adjustedRight = rightEdge + dropdownWidth > window.innerWidth
-        ? rightEdge - (rightEdge + dropdownWidth - window.innerWidth) - 8
-        : rightEdge
+      const vw = window.innerWidth
+      const vh = window.innerHeight
+
+      // In RTL layout, the account button is on the LEFT side of the header.
+      // We use CSS `left` positioning (stored in `right` field but interpreted as `left` 
+      // because we changed the portal to use `left` instead of `right`).
+      // Align the dropdown's left edge with the button's left edge.
+      let leftPos = rect.left
+
+      // Ensure dropdown doesn't overflow right edge
+      if (leftPos + dropdownWidth > vw - 8) {
+        leftPos = Math.max(8, vw - dropdownWidth - 8)
+      }
+      // Ensure dropdown doesn't overflow left edge
+      if (leftPos < 8) {
+        leftPos = 8
+      }
+
       // Ensure dropdown stays within viewport vertically
-      const adjustedTop = rect.bottom + 4 + dropdownHeight > window.innerHeight
+      const adjustedTop = rect.bottom + 4 + dropdownHeight > vh
         ? Math.max(8, rect.top - dropdownHeight - 4)
         : rect.bottom + 4
+
       setPos({
         top: adjustedTop,
-        right: Math.max(0, adjustedRight),
+        right: leftPos, // Using 'right' field to store left position (see portal style)
       })
-      // Fetch user info
-      fetch('/api/auth/me')
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
-          if (data?.authenticated && data?.user) {
-            setUserName(data.user.displayName || data.user.email || 'مستخدم')
-            setUserEmail(data.user.email || '')
-            setUserTier(data.user.tier || 'FREE')
-          }
-        })
-        .catch(() => {})
     }
   }, [open, anchorRef])
 
@@ -621,20 +622,13 @@ function AccountDropdown({
     }
   }, [open, onClose, anchorRef])
 
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/me', { method: 'DELETE' })
-    } catch { /* ignore */ }
-    window.location.href = '/login'
-  }
-
   if (!open || typeof document === 'undefined') return null
 
   return createPortal(
     <div ref={dropdownRef} style={{
       position: 'fixed',
       top: pos.top,
-      right: pos.right,
+      left: pos.right,
       background: 'rgba(26, 29, 41, 0.95)',
       backdropFilter: 'blur(32px) saturate(1.8)',
       WebkitBackdropFilter: 'blur(32px) saturate(1.8)',
@@ -667,23 +661,23 @@ function AccountDropdown({
             <div style={{
               fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 700,
               color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            }}>{userName || 'مستخدم'}</div>
-            {userEmail && (
+            }}>{authUser?.displayName || authUser?.email?.split('@')[0] || 'مستخدم'}</div>
+            {authUser?.email && (
               <div style={{
                 fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
                 color: T.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              }}>{userEmail}</div>
+              }}>{authUser.email}</div>
             )}
           </div>
         </div>
-        {userTier && (
+        {authUser?.tier && (
           <div style={{
             display: 'inline-block', fontSize: 9, fontWeight: 700,
             padding: '2px 8px', borderRadius: 4,
             background: 'rgba(0,212,255,0.10)', color: '#00d4ff',
             fontFamily: "'JetBrains Mono', monospace",
             letterSpacing: '0.05em',
-          }}>{userTier}</div>
+          }}>{authUser.tier}</div>
         )}
       </div>
 
@@ -720,7 +714,7 @@ function AccountDropdown({
 
       {/* Logout */}
       <div
-        onClick={handleLogout}
+        onClick={authLogout}
         style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
@@ -749,12 +743,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
   const handleCloseMore = useCallback(() => setMoreOpen(false), [])
   const handleCloseAccount = useCallback(() => setAccountOpen(false), [])
 
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/me', { method: 'DELETE' })
-    } catch { /* ignore */ }
-    window.location.href = '/login'
-  }
+  const authLogout = useAuthStore(state => state.logout)
 
   // Mode-specific styling
   const modeConfig: Record<TradingMode, { accent: string; label: string; arLabel: string }> = {
@@ -953,12 +942,7 @@ export function AppHeader() {
     setMode(m)
   }
 
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/me', { method: 'DELETE' })
-    } catch { /* ignore */ }
-    window.location.href = '/login'
-  }
+  const authLogout = useAuthStore(state => state.logout)
 
   const globalQuotes = useMarketStore(state => state.quotes)
   const ORBS = ['BTC/USD','ETH/USD','EUR/USD','GBP/USD','USD/JPY','XAU/USD']
@@ -1045,7 +1029,7 @@ export function AppHeader() {
                   </div>
                 </Link>
                 <div
-                  onClick={handleLogout}
+                  onClick={authLogout}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
                     borderRadius: 10, background: 'rgba(255,71,87,0.06)',

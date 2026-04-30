@@ -279,3 +279,35 @@ Stage Summary:
 - Arabic heading spacing fixed across all landing sections
 - Login page UX improved with clear primary/secondary actions
 - 3 commits pushed to GitHub, all deployed to Railway
+
+---
+Task ID: 2
+Agent: Auth & Session Engineer
+Task: Create Session Refresh Endpoint + Auto-Refresh Logic
+
+Work Log:
+- Created `/apps/web/src/app/api/auth/refresh/route.ts` — POST endpoint for sliding session refresh
+  - Reads `roua_session` cookie, validates session in database
+  - If session expires within 60 min: creates new token, deletes old, sets new cookie (30-day expiry)
+  - If session expired: returns 401, deletes session + cookie
+  - If session still fresh: returns current user info without refresh
+  - Rejects guest sessions (deletes them, returns 401)
+  - Returns 503 if database unavailable
+- Created `/apps/web/src/lib/auth-store.ts` — Zustand auth store with auto-refresh
+  - AuthUser type, LocalStorage caching with 5-min TTL
+  - refreshUser(), loginWithEmail(), logout(), setUser() actions
+  - startAutoRefresh(): setInterval every 15 min calling /api/auth/refresh
+  - stopAutoRefresh(): clears interval
+  - Auto-refresh handles 401 (redirect to /login) and network errors (silent retry)
+  - initAuthFromCache() helper for app startup
+- Updated `/apps/web/src/components/dashboard/AuthGuard.tsx`
+  - Fixed duplicate useAuthStore import
+  - Added stopAutoRefresh() cleanup on unmount
+  - Auto-refresh starts automatically via refreshUser() → startAutoRefresh()
+
+Stage Summary:
+- Sliding sessions implemented: active users never get logged out
+- Auto-refresh runs every 15 minutes in the background
+- Session renewed automatically if expiring within 60 minutes
+- Guest sessions properly rejected and cleaned up
+- 0 TypeScript errors in all created/modified files

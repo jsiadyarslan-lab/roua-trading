@@ -22,7 +22,7 @@ const MORE_ITEMS = [
   { label: 'التحليلات', href: '/mobile/more#ai', icon: Brain, color: '#B388FF' },
   { label: 'المختبر الذكي', href: '/mobile/more#lab', icon: FlaskConical, color: '#00D4FF' },
   { label: 'السكانر المتقدم', href: '/mobile/more#scanner', icon: ScanSearch, color: '#00FFA3' },
-  { label: 'إشارات رؤى', href: '/mobile/more#signals', icon: Radio, color: '#FFB800' },
+  { label: 'إشارات رؤى', href: '/mobile/signals', icon: Radio, color: '#FFB800' },
   { label: 'نسخ الصفقات', href: '/mobile/more#copy', icon: CopyCheck, color: '#FF4757' },
   { label: 'التقويم الاقتصادي', href: '/mobile/more#calendar', icon: BarChart4, color: '#059669' },
   { label: 'آخر الأخبار', href: '/mobile/more#news', icon: Newspaper, color: '#d4af37' },

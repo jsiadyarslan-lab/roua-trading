@@ -22,7 +22,7 @@ const MORE_ITEMS = [
   },
   {
     icon: Radio, label: 'إشارات رؤى', sub: 'إشارات تداول آنية',
-    color: '#FFB800', href: '#',
+    color: '#FFB800', href: '/mobile/signals',
   },
   {
     icon: CopyCheck, label: 'نسخ الصفقات', sub: 'تتبع أفضل المتداولين',

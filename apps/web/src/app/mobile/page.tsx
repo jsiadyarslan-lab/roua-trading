@@ -1,13 +1,13 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useBotStore } from '@/hooks/useBotStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import {
   Brain, Bot, ScanSearch, ChevronRight, TrendingUp, TrendingDown,
-  Bell, Activity, Plus, ShieldCheck, Link2, ChevronLeft
+  Bell, Activity, Plus, ShieldCheck, Link2, ChevronLeft, Zap, Loader2, Target
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -15,15 +15,32 @@ import { useRouter } from 'next/navigation'
 const fmt2 = (n: number) => Math.abs(n).toFixed(2)
 const pct = (n: number) => `${n >= 0 ? '+' : '-'}${Math.abs(n).toFixed(2)}%`
 
-/* ─── Animated News Ticker ─────────────────── */
+/* ─── Live News Ticker ─────────────────────── */
 function NewsTicker() {
-  const items = [
-    { text: 'البيتكوين يكسر مقاومة 70,000$', color: '#00D4FF' },
-    { text: 'مخاوف تضخمية في السوق الأمريكي', color: '#FF4757' },
-    { text: 'الذهب يرتفع 1.2% اليوم', color: '#FFB800' },
-    { text: 'إيثيريوم يقفز 5% بعد الترقية', color: '#00D4FF' },
-  ]
-  
+  const [news, setNews] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchNews() {
+      try {
+        const res = await fetch('/api/news/latest?limit=5')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success) setNews(data.data)
+        }
+      } catch { /* silent */ } finally { setLoading(false) }
+    }
+    fetchNews()
+    const interval = setInterval(fetchNews, 600000) // 10 min
+    return () => clearInterval(interval)
+  }, [])
+
+  if (loading || news.length === 0) return (
+    <div style={{ height: 32, marginTop: 4, marginBottom: 12, padding: '0 20px' }}>
+      <div style={{ height: '100%', borderRadius: 16, background: 'rgba(255,255,255,0.03)', animate: 'pulse' }} />
+    </div>
+  )
+
   return (
     <div style={{
       overflow: 'hidden', height: 32, display: 'flex', alignItems: 'center',
@@ -36,14 +53,17 @@ function NewsTicker() {
         display: 'flex', width: '100%', overflow: 'hidden'
       }}>
         <div style={{
-          display: 'flex', gap: 32, animation: 'marquee 30s linear infinite',
+          display: 'flex', gap: 32, animation: 'marquee 40s linear infinite',
           whiteSpace: 'nowrap', direction: 'ltr', width: 'max-content'
         }}>
-          {[...items, ...items].map((it, i) => (
+          {[...news, ...news].map((it, i) => (
             <div key={i} className="flex items-center gap-2">
-              <div style={{ width: 4, height: 4, borderRadius: '50%', background: it.color, boxShadow: `0 0 6px ${it.color}` }} />
+              <div style={{ 
+                width: 4, height: 4, borderRadius: '50%', 
+                background: it.sentiment > 0 ? '#32D74B' : it.sentiment < 0 ? '#FF453A' : '#00D4FF' 
+              }} />
               <span style={{ fontSize: 10, color: 'rgba(235,235,245,0.6)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>
-                {it.text}
+                {it.translatedTitle || it.title}
               </span>
             </div>
           ))}
@@ -63,7 +83,6 @@ function NewsTicker() {
 function CurrencyTicker() {
   const quotes = useMarketStore(s => s.quotes)
   const router = useRouter()
-  
   const displayPairs = ['BTC/USD', 'ETH/USD', 'GOLD', 'EUR/USD']
   
   return (
@@ -79,7 +98,7 @@ function CurrencyTicker() {
             <motion.button
               key={i}
               whileTap={{ scale: 0.94 }}
-              onClick={() => router.push('/mobile/chart')}
+              onClick={() => router.push('/mobile/chart?symbol=' + pair)}
               style={{
                 background: 'rgba(28,28,30,0.5)',
                 backdropFilter: 'blur(20px)',
@@ -143,20 +162,56 @@ function IOSCard({ children, onClick, highlight = false, noMargin = false }: { c
   )
 }
 
-/* ─── Latest Signal Card ─── */
+/* ─── Real-time Latest Signal Card ─── */
 function LatestSignalCard() {
+  const [signal, setSignal] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   const router = useRouter()
+
+  useEffect(() => {
+    async function fetchSignal() {
+      try {
+        const res = await fetch('/api/signals/active')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success && data.data.length > 0) setSignal(data.data[0])
+        }
+      } catch { /* silent */ } finally { setLoading(false) }
+    }
+    fetchSignal()
+  }, [])
+
+  if (loading) return (
+    <IOSCard>
+       <div className="flex items-center justify-center py-6">
+         <Loader2 size={24} className="animate-spin" color="rgba(255,255,255,0.2)" />
+       </div>
+    </IOSCard>
+  )
+
+  if (!signal) return (
+    <IOSCard onClick={() => router.push('/mobile/signals')}>
+      <div className="flex flex-col items-center py-2 text-center">
+        <Zap size={24} color="rgba(255,255,255,0.1)" className="mb-2" />
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', fontFamily: "'Cairo', sans-serif" }}>لا توجد إشارات نشطة حالياً</p>
+      </div>
+    </IOSCard>
+  )
+
+  const isBuy = signal.action === 'BUY'
+  const color = isBuy ? '#32D74B' : '#FF453A'
+
   return (
     <IOSCard onClick={() => router.push('/mobile/signals')} highlight>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <div style={{ 
             padding: '4px 10px', borderRadius: 20, 
-            background: 'rgba(0,212,255,0.1)', 
-            color: '#00D4FF', fontSize: 10, fontWeight: 800,
-            border: '0.5px solid rgba(0,212,255,0.15)'
-          }}>توصية ذكية</div>
-          <span style={{ fontSize: 11, color: 'rgba(235,235,245,0.3)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>الآن</span>
+            background: `${color}15`, 
+            color: color, fontSize: 10, fontWeight: 800,
+            border: `0.5px solid ${color}30`
+          }}>إشارة {isBuy ? 'شراء' : 'بيع'} حية</div>
+          <span style={{ fontSize: 11, color: 'rgba(235,235,245,0.3)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>منذ دقائق</span>
         </div>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#32D74B', boxShadow: '0 0 10px #32D74B' }} className="animate-pulse" />
       </div>
@@ -166,16 +221,16 @@ function LatestSignalCard() {
             width: 48, height: 48, borderRadius: 16, 
             background: 'rgba(255,255,255,0.03)', 
             display: 'flex', alignItems: 'center', justifyContent: 'center', 
-            fontSize: 24, border: '0.5px solid rgba(255,255,255,0.08)' 
-          }}>₿</div>
+            fontSize: 22, border: '0.5px solid rgba(255,255,255,0.08)' 
+          }}>{signal.pair.startsWith('BTC') ? '₿' : signal.pair.startsWith('ETH') ? 'Ξ' : 'S'}</div>
           <div>
-            <p style={{ fontSize: 17, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>BTC/USDT</p>
-            <p style={{ fontSize: 13, color: '#32D74B', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>شراء (BUY)</p>
+            <p style={{ fontSize: 17, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>{signal.pair}</p>
+            <p style={{ fontSize: 13, color: color, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>ثقة {signal.confidence}%</p>
           </div>
         </div>
         <div style={{ textAlign: 'left' }}>
-          <p style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>🎯 72.4K</p>
-          <p style={{ fontSize: 11, color: 'rgba(235,235,245,0.3)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>الهدف المتوقع</p>
+          <p style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>🎯 {signal.takeProfit || '—'}</p>
+          <p style={{ fontSize: 11, color: 'rgba(235,235,245,0.3)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>الهدف</p>
         </div>
       </div>
     </IOSCard>
@@ -187,9 +242,27 @@ export default function MobileHomePage() {
   const router = useRouter()
   const { isOn, setIsOn, stats } = useBotStore()
   const { trades } = usePaperTradesStore()
+  const [consensus, setConsensus] = useState<any>(null)
 
-  const openPositions = trades.filter(t => t.source === 'bot')
-  const totalAssets = 542.30
+  useEffect(() => {
+    async function fetchConsensus() {
+      try {
+        const res = await fetch('/api/ai/consensus', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol: 'BTC/USD' })
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success) setConsensus(data.data)
+        }
+      } catch { /* silent */ }
+    }
+    fetchConsensus()
+  }, [])
+
+  const openPositions = trades.filter(t => t.status === 'open' || t.status === 'active')
+  const totalAssets = 542.30 
   const dailyChange = 2.4
 
   return (
@@ -327,10 +400,11 @@ export default function MobileHomePage() {
             </div>
             <div style={{ position: 'relative', zIndex: 1 }}>
               <p style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>مجلس الخبراء</p>
-              <p style={{ fontSize: 11, color: '#A78BFA', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginTop: 1 }}>6 موديلات تفحص السوق</p>
+              <p style={{ fontSize: 11, color: '#A78BFA', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginTop: 1 }}>
+                {consensus ? `${consensus.meta.modelsResponded} نماذج نشطة` : '6 نماذج تفحص السوق'}
+              </p>
             </div>
           </div>
-          {/* RTL Forward Arrow (points LEFT) */}
           <ChevronLeft size={20} color="rgba(235,235,245,0.3)" />
         </div>
         
@@ -343,7 +417,9 @@ export default function MobileHomePage() {
               <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#00D4FF', boxShadow: '0 0 10px #00D4FF' }} className="animate-pulse" />
               <span style={{ fontSize: 13, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace", fontWeight: 800 }}>BTC/USD</span>
             </div>
-            <span style={{ fontSize: 13, color: '#00D4FF', fontFamily: "'Cairo', sans-serif", fontWeight: 800 }}>إجماع شراء (72%)</span>
+            <span style={{ fontSize: 13, color: '#00D4FF', fontFamily: "'Cairo', sans-serif", fontWeight: 800 }}>
+              {consensus ? `إجماع ${consensus.recommendation === 'BUY' ? 'شراء' : consensus.recommendation === 'SELL' ? 'بيع' : 'انتظار'} (${consensus.consensusScore}%)` : 'جاري التحليل...'}
+            </span>
           </div>
         </div>
       </IOSCard>
@@ -361,7 +437,6 @@ export default function MobileHomePage() {
             <div style={{ width: 40, height: 40, borderRadius: 12, background: isOn ? 'rgba(0,212,255,0.1)' : 'rgba(235,235,245,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Bot size={22} color={isOn ? '#00D4FF' : 'rgba(235,235,245,0.3)'} />
             </div>
-            {/* iOS Switch */}
             <div onClick={(e) => { e.stopPropagation(); setIsOn(!isOn) }} style={{ width: 46, height: 26, borderRadius: 13, background: isOn ? '#32D74B' : 'rgba(255,255,255,0.1)', position: 'relative', cursor: 'pointer', transition: '0.3s' }}>
               <motion.div animate={{ x: isOn ? 22 : 2 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }} style={{ position: 'absolute', top: 3, width: 20, height: 20, borderRadius: '50%', background: '#FFFFFF', boxShadow: '0 2px 5px rgba(0,0,0,0.3)' }} />
             </div>

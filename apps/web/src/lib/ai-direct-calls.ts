@@ -4,15 +4,17 @@
  * When the NestJS backend is unreachable, this module allows the
  * Next.js consensus route to call AI models DIRECTLY.
  *
- * Strategy: Call ALL available models ONCE each, then assign each
- * model's response to one or more council roles. This prevents
- * rate-limiting from calling the same model 6 times.
+ * Strategy: Call ALL available models ONCE each in parallel, then assign each
+ * model's response to one or more council roles. This prevents rate-limiting
+ * from calling the same model 6 times.
  *
- * Available cloud models:
- * - Groq/Llama 3.3 70B  (GROQ_API_KEY)
- * - Gemini 2.0 Flash     (GOOGLE_AI_STUDIO_API_KEY)
- * - GLM-4 (Zhipu AI)    (GLM_API_KEY)
- * - HuggingFace/Mistral  (HUGGINGFACE_API_KEY)
+ * Available models (up to 6):
+ * - Groq/Llama 3.3 70B  (GROQ_API_KEY)        → محلل المشاعر
+ * - Gemini 2.0 Flash     (GOOGLE_AI_STUDIO_API_KEY) → المحلل الفني
+ * - GLM-4 (Zhipu AI)    (GLM_API_KEY)          → خبير الأنماط
+ * - HuggingFace/Mistral  (HUGGINGFACE_API_KEY)  → محلل إضافي
+ * - Ollama/Qwen2.5      (OLLAMA_BASE_URL)       → استراتيجي التنفيذ (non-localhost only)
+ * - Bedrock/Claude       (AWS_ACCESS_KEY_ID)     → خبير المخاطر (via NestJS only — too complex for direct)
  */
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -40,6 +42,22 @@ function getKey(name: string): string {
   return (process.env as Record<string, string | undefined>)[name]?.trim() || ''
 }
 
+/** Check if we're running on a cloud platform (Railway, Render, etc.) */
+function isCloudEnvironment(): boolean {
+  return !!(
+    process.env.RAILWAY_ENVIRONMENT ||
+    process.env.RENDER ||
+    process.env.AWS_EXECUTION_ENV ||
+    process.env.VERCEL ||
+    process.env.DYNO // Heroku
+  )
+}
+
+/** Check if an Ollama URL points to a local/non-routable address */
+function isLocalhostUrl(url: string): boolean {
+  return url.includes('localhost') || url.includes('127.0.0.1') || url.includes('0.0.0.0')
+}
+
 // ─── Confidence Calculation ──────────────────────────────────────
 
 function calcConfidence(content: string, model: string): number {
@@ -48,7 +66,7 @@ function calcConfidence(content: string, model: string): number {
   if (content.length > 500) confidence += 0.1
   if (content.length > 1000) confidence += 0.05
   if (/شراء|بيع|انتظار|BUY|SELL|HOLD|صعود|هبوط/i.test(content)) confidence += 0.15
-  const MODEL_BASE: Record<string, number> = { groq: 0, gemini: 0.05, glm: 0.02, huggingface: -0.05 }
+  const MODEL_BASE: Record<string, number> = { groq: 0, gemini: 0.05, glm: 0.02, huggingface: -0.05, ollama: 0.03, bedrock: 0.08 }
   confidence += MODEL_BASE[model] || 0
   return Math.min(Math.max(confidence, 0.1), 0.95)
 }
@@ -72,6 +90,7 @@ function parseVote(content: string): 'BUY' | 'SELL' | 'HOLD' {
 }
 
 const MODEL_TIMEOUT = 20_000 // 20s per model
+const OLLAMA_TIMEOUT = 8_000 // 8s for Ollama (fail faster if unreachable)
 
 // ─── Model Call Functions ────────────────────────────────────────
 
@@ -219,6 +238,80 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
   }
 }
 
+/**
+ * Call Ollama — only works if:
+ * 1. OLLAMA_BASE_URL is set to a non-localhost URL, OR
+ * 2. We're running locally (not on cloud)
+ *
+ * On cloud with localhost URL, Ollama is unreachable, so we skip it.
+ */
+async function callOllama(prompt: string): Promise<DirectAIResponse> {
+  const baseUrl = getKey('OLLAMA_BASE_URL') || 'http://localhost:11434'
+
+  // Skip if on cloud and URL is localhost — it will never work
+  if (isCloudEnvironment() && isLocalhostUrl(baseUrl)) {
+    return {
+      model: 'Ollama/Qwen2.5',
+      content: '',
+      confidence: 0,
+      processingTimeMs: 0,
+      success: false,
+      error: 'Ollama localhost unreachable on cloud',
+    }
+  }
+
+  const apiKey = getKey('OLLAMA_API_KEY') // Optional — some Ollama servers use auth
+  const model = getKey('OLLAMA_MODEL') || 'qwen2.5:7b'
+
+  const start = Date.now()
+  try {
+    const res = await fetch(`${baseUrl}/api/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {}),
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: 'أنت محلل مالي محترف. أجب بالعربية باختصار. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+          { role: 'user', content: prompt },
+        ],
+        stream: false,
+        options: { temperature: 0.3, num_predict: 1024 },
+      }),
+      signal: AbortSignal.timeout(OLLAMA_TIMEOUT),
+    })
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '')
+      return { model: `Ollama/${model}`, content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Ollama ${res.status}: ${errBody.slice(0, 150)}` }
+    }
+
+    const data = await res.json()
+    const content = data?.message?.content || ''
+    return { model: `Ollama/${data?.model || model}`, content, confidence: calcConfidence(content, 'ollama'), processingTimeMs: Date.now() - start, success: content.length > 10 }
+  } catch (e: any) {
+    return { model: `Ollama/${model}`, content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Ollama unreachable: ${e.message}` }
+  }
+}
+
+/**
+ * Bedrock — Too complex to implement directly (requires AWS SigV4 signing).
+ * We report its availability status but don't call it directly.
+ * Bedrock is available only through NestJS backend (Layer 1).
+ */
+function getBedrockStatus(): { available: boolean; reason: string } {
+  const hasAwsKeyId = !!getKey('AWS_ACCESS_KEY_ID')
+  const hasAwsSecret = !!getKey('AWS_SECRET_ACCESS_KEY')
+  const hasAwsRegion = !!getKey('AWS_REGION') || !!getKey('AWS_DEFAULT_REGION')
+
+  if (hasAwsKeyId && hasAwsSecret) {
+    return { available: true, reason: 'AWS credentials configured — available via NestJS backend' }
+  }
+  return { available: false, reason: 'AWS credentials not configured' }
+}
+
 // ─── Master Council — Full Consensus ─────────────────────────────
 
 /**
@@ -228,11 +321,17 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
  * This prevents rate-limiting from calling the same model multiple times.
  * Each model is called with a DIFFERENT prompt for diversity.
  *
- * Role assignment based on model strengths:
- * - Groq:  محلل المشاعر (sentiment) + استراتيجي التنفيذ (execution)
- * - Gemini: المحلل الفني (technical) + خبير الماكرو (macro)
- * - GLM-4:  خبير المخاطر (risk) + خبير الأنماط (patterns)
- * - HF:     (if available, supplements any missing role)
+ * Role assignment based on model strengths (6 models → 6+ roles):
+ * - Groq:       محلل المشاعر (sentiment analysis — fastest model)
+ * - Gemini:     المحلل الفني (technical analysis) + خبير الماكرو (macro)
+ * - GLM-4:      خبير الأنماط (pattern recognition — 200k context)
+ * - HuggingFace: محلل إضافي (supplementary — open source)
+ * - Ollama:     استراتيجي التنفيذ (execution strategy — if available)
+ * - Bedrock:    خبير المخاطر (risk expert — via NestJS only, too complex for direct)
+ *
+ * When fewer models respond, remaining roles are redistributed:
+ * - If Ollama is unavailable → Groq takes استراتيجي التنفيذ
+ * - If Bedrock is unavailable → GLM-4 takes خبير المخاطر
  */
 export async function runDirectCouncilConsensus(symbol: string): Promise<{
   success: boolean
@@ -250,42 +349,71 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
   const startTime = Date.now()
   const errors: string[] = []
 
+  // Check Bedrock status (for reporting only — we don't call it directly)
+  const bedrockStatus = getBedrockStatus()
+  if (bedrockStatus.available) {
+    // Note: Bedrock is available but only via NestJS — mention it in meta
+    console.log(`[direct-council] Bedrock: ${bedrockStatus.reason}`)
+  }
+
+  // Determine if Ollama should be attempted
+  const ollamaBaseUrl = getKey('OLLAMA_BASE_URL') || 'http://localhost:11434'
+  const shouldTryOllama = !isCloudEnvironment() || !isLocalhostUrl(ollamaBaseUrl)
+
   // Define prompts for each model — each model gets a different perspective
+  // Primary role assignment for 6 models
   const modelCalls: Array<{
     modelName: string
     callFn: () => Promise<DirectAIResponse>
     roles: string[] // This model fills these roles
     prompt: string
+    primaryOnly: boolean // If true, secondary roles are dropped when 6+ models respond
   }> = [
     {
       modelName: 'Groq',
-      callFn: () => callGroq(`حلل مشاعر السوق وأفضل توقيت للتنفيذ على ${symbol}. قيّم الزخم والمشاعر العامة ونقطة الدخول المثالية.`),
-      roles: ['محلل المشاعر', 'استراتيجي التنفيذ'],
-      prompt: 'sentiment+execution',
+      callFn: () => callGroq(`حلل مشاعر السوق والتوجه العام حول ${symbol}. قيّم الزخم والمشاعر العامة ونقطة الدخول المثالية. هل السوق صعودي أم هبوطي من ناحية المشاعر؟`),
+      roles: ['محلل المشاعر', 'استراتيجي التنفيذ'], // استراتيجي التنفيذ is shared with Ollama
+      prompt: 'sentiment',
+      primaryOnly: false, // Groq always keeps execution as secondary
     },
     {
       modelName: 'Gemini',
-      callFn: () => callGemini(`حلل الشارت الفني والوضع الاقتصادي لـ ${symbol}. قيّم الاتجاه والمقاومات والعوامل الكلية المؤثرة.`),
+      callFn: () => callGemini(`حلل الشارت الفني والوضع الاقتصادي الكلي لـ ${symbol}. قيّم الاتجاه والمقاومات والدعم والعوامل الكلية المؤثرة على الأصول الرقمية.`),
       roles: ['المحلل الفني', 'خبير الماكرو'],
       prompt: 'technical+macro',
+      primaryOnly: false,
     },
     {
       modelName: 'GLM-4',
-      callFn: () => callGLM(`حدد مخاطر الدخول في صفقة على ${symbol} والأنماط التاريخية المتكررة. قيّم التذبذب والأنماط الفنية.`),
-      roles: ['خبير المخاطر', 'خبير الأنماط'],
-      prompt: 'risk+patterns',
+      callFn: () => callGLM(`حدد الأنماط التاريخية المتكررة والمخاطر المحتملة لصفقة على ${symbol}. قيّم الأنماط الفنية المتكررة ومستوى التذبذب الحالي. هل هناك نمط واضح؟`),
+      roles: ['خبير الأنماط', 'خبير المخاطر'], // خبير المخاطر is shared with Bedrock
+      prompt: 'patterns',
+      primaryOnly: false, // GLM-4 always keeps risk as secondary
     },
     {
       modelName: 'HuggingFace',
-      callFn: () => callHuggingFace(`حلل تحليلياً حركة ${symbol}. هل هناك نمط واضح؟ ما توقعاتك؟`),
+      callFn: () => callHuggingFace(`حلل تحليلياً حركة ${symbol}. هل هناك نمط واضح؟ ما توقعاتك للاتجاه القادم؟ قدم رأياً مستقلاً ومختلفاً.`),
       roles: ['محلل إضافي'],
       prompt: 'supplementary',
+      primaryOnly: false,
+    },
+    {
+      modelName: 'Ollama',
+      callFn: () => callOllama(`أنت استراتيجي تنفيذ محترف. حلل أفضل توقيت وأسلوب لتنفيذ صفقة على ${symbol}. قيّم نقاط الدخول والخروج وحجم الصفقة المناسب وإدارة المخاطر.`),
+      roles: ['استراتيجي التنفيذ'], // Takes execution role from Groq when available
+      prompt: 'execution',
+      primaryOnly: true, // This role overlaps with Groq's secondary
     },
   ]
 
+  // Filter out Ollama if it shouldn't be attempted
+  const activeModelCalls = shouldTryOllama
+    ? modelCalls
+    : modelCalls.filter(mc => mc.modelName !== 'Ollama')
+
   // Call ALL models in parallel — each model is called ONLY ONCE
   const callResults = await Promise.allSettled(
-    modelCalls.map(async (mc) => {
+    activeModelCalls.map(async (mc) => {
       const response = await mc.callFn()
       if (!response.success) {
         errors.push(`${mc.modelName}: ${response.error || 'failed'}`)
@@ -294,20 +422,57 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     })
   )
 
+  // Collect successful models for role reassignment
+  const successfulModels: Array<{
+    modelName: string
+    roles: string[]
+    response: DirectAIResponse
+    primaryOnly: boolean
+  }> = []
+
+  for (const res of callResults) {
+    if (res.status !== 'fulfilled') continue
+    const { modelName, roles, response, primaryOnly } = res.value
+    if (!response.success || response.confidence <= 0) continue
+    successfulModels.push({ modelName, roles, response, primaryOnly })
+  }
+
+  // Determine which models responded for role reassignment
+  const respondedModelNames = new Set(successfulModels.map(m => m.modelName))
+  const hasOllama = respondedModelNames.has('Ollama')
+  // Bedrock is never in direct calls, so we check if GLM-4 should keep risk role
+
+  // Role assignment logic:
+  // - If Ollama responded → Groq drops استراتيجي التنفيذ, Ollama keeps it
+  // - If Ollama did NOT respond → Groq keeps استراتيجي التنفيذ
+  // - Bedrock is always via NestJS only → GLM-4 always keeps خبير المخاطر in direct calls
+
   // Build analyses — each successful model fills its assigned roles
   const analyses: CouncilVote[] = []
   let buyWeight = 0, sellWeight = 0, totalConfidence = 0
 
-  for (const res of callResults) {
-    if (res.status !== 'fulfilled') continue
-    const { roles: modelRoles, response } = res.value
-    if (!response.success || response.confidence <= 0) continue
-
+  for (const modelData of successfulModels) {
+    const { roles: modelRoles, response, modelName, primaryOnly } = modelData
     const vote = parseVote(response.content)
     const conf = response.confidence
 
+    // Determine which roles this model actually fills
+    let assignedRoles = [...modelRoles]
+
+    if (primaryOnly && modelName === 'Ollama' && hasOllama) {
+      // Ollama takes استراتيجي التنفيذ — this is its only role
+      assignedRoles = ['استراتيجي التنفيذ']
+    }
+
+    // If Ollama is present, Groq should NOT fill استراتيجي التنفيذ
+    if (modelName === 'Groq' && hasOllama) {
+      assignedRoles = assignedRoles.filter(r => r !== 'استراتيجي التنفيذ')
+    }
+
+    // If Ollama is absent, Groq keeps استراتيجي التنفيذ (already in its roles)
+
     // This model's response fills all its assigned roles
-    for (const roleName of modelRoles) {
+    for (const roleName of assignedRoles) {
       if (vote === 'BUY') buyWeight += conf
       else if (vote === 'SELL') sellWeight += conf
       totalConfidence += conf
@@ -334,12 +499,30 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     else { recommendation = 'HOLD'; consensusScore = Math.round((1 - Math.abs(buyPct - sellPct)) * 50) }
   }
 
-  const masterStrategy = `إجماع مجلس الذكاء الاصطناعي (${analyses.length} أدوار): ${recommendation === 'BUY' ? 'شراء' : recommendation === 'SELL' ? 'بيع' : 'انتظار'} بنسبة ثقة ${consensusScore}%.`
-  const conflictExplanation = analyses.length < 4
-    ? `بعض النماذج لم تستجب — النماذج المتاحة توصلت لإجماع.`
-    : 'الأدوار متوافقة نسبياً.'
+  const filledRoles = analyses.length
+  const uniqueModels = [...new Set(analyses.map(a => a.model))]
+  const modelsRespondedCount = uniqueModels.length
 
+  const masterStrategy = `إجماع مجلس الذكاء الاصطناعي (${filledRoles} أدوار من ${modelsRespondedCount} نماذج): ${recommendation === 'BUY' ? 'شراء' : recommendation === 'SELL' ? 'بيع' : 'انتظار'} بنسبة ثقة ${consensusScore}%.`
+
+  const conflictExplanation = filledRoles < 4
+    ? `بعض النماذج لم تستجب — النماذج المتاحة (${uniqueModels.join('، ')}) توصلت لإجماع.`
+    : filledRoles >= 5
+      ? 'الأدوار متوافقة نسبياً مع تغطية واسعة.'
+      : 'الأدوار الأساسية متوافقة نسبياً.'
+
+  // Source determination: real-ai if 3+ roles filled, partial-ai if 1-2
   const source = analyses.length >= 3 ? 'real-ai' : 'partial-ai'
+
+  // Calculate expected models (how many had keys configured)
+  const expectedDirectModels = activeModelCalls.filter(mc => {
+    if (mc.modelName === 'Groq') return !!getKey('GROQ_API_KEY')
+    if (mc.modelName === 'Gemini') return !!getKey('GOOGLE_AI_STUDIO_API_KEY')
+    if (mc.modelName === 'GLM-4') return !!getKey('GLM_API_KEY')
+    if (mc.modelName === 'HuggingFace') return !!getKey('HUGGINGFACE_API_KEY')
+    if (mc.modelName === 'Ollama') return shouldTryOllama
+    return false
+  }).length
 
   return {
     success: analyses.length > 0,
@@ -356,10 +539,15 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
         rsi: 50,
         processingTimeMs: Date.now() - startTime,
         timestamp: new Date().toISOString(),
-        aiEngine: `Direct-AI (${analyses.length} roles from ${new Set(analyses.map(a => a.model)).size} models)`,
-        modelsUsed: [...new Set(analyses.map(a => a.model))],
-        modelsResponded: new Set(analyses.map(a => a.model)).size,
-        modelsExpected: 4,
+        aiEngine: `Direct-AI (${filledRoles} roles from ${modelsRespondedCount} models)`,
+        modelsUsed: uniqueModels,
+        modelsResponded: modelsRespondedCount,
+        modelsExpected: 6, // 6 roles in the full council
+        modelsWithKeys: expectedDirectModels,
+        bedrockAvailable: bedrockStatus.available,
+        bedrockNote: bedrockStatus.available ? 'Available via NestJS only' : 'Not configured',
+        ollamaAttempted: shouldTryOllama,
+        ollamaUrl: shouldTryOllama ? ollamaBaseUrl : 'skipped (localhost on cloud)',
       },
     },
     errors,
@@ -368,12 +556,27 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
 
 /**
  * Quick health check: which AI models have API keys configured?
+ * Includes Ollama and Bedrock status.
  */
-export function getAvailableModelKeys(): { model: string; hasKey: boolean }[] {
+export function getAvailableModelKeys(): { model: string; hasKey: boolean; note?: string }[] {
+  const ollamaBaseUrl = getKey('OLLAMA_BASE_URL') || 'http://localhost:11434'
+  const ollamaSkipped = isCloudEnvironment() && isLocalhostUrl(ollamaBaseUrl)
+  const bedrockStatus = getBedrockStatus()
+
   return [
     { model: 'Groq', hasKey: !!getKey('GROQ_API_KEY') },
     { model: 'Gemini', hasKey: !!getKey('GOOGLE_AI_STUDIO_API_KEY') },
     { model: 'GLM-4', hasKey: !!getKey('GLM_API_KEY') },
     { model: 'HuggingFace', hasKey: !!getKey('HUGGINGFACE_API_KEY') },
+    {
+      model: 'Ollama',
+      hasKey: !ollamaSkipped, // "available" if not skipped
+      note: ollamaSkipped ? 'localhost unreachable on cloud' : `URL: ${ollamaBaseUrl}`,
+    },
+    {
+      model: 'Bedrock',
+      hasKey: bedrockStatus.available,
+      note: bedrockStatus.available ? 'Via NestJS only (AWS SigV4 required)' : 'AWS credentials not configured',
+    },
   ]
 }

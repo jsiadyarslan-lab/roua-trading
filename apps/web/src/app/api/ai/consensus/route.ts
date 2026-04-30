@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol }),
-        signal: AbortSignal.timeout(8000), // P2 FIX: was 45s, now 8s — fast fallback
+        signal: AbortSignal.timeout(25000), // FIX: 25s — AI needs time to generate. 8s was too short!
       })
 
       if (nestjsRes.ok) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import './landing.css';
 import CosmicCanvas from '@/components/landing/CosmicCanvas';
 import MarketPulse from '@/components/landing/MarketPulse';
 import LiveSignals from '@/components/landing/LiveSignals';
@@ -29,13 +30,13 @@ export default function Home() {
       { threshold: 0.1 }
     );
 
-    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+    document.querySelectorAll('.landing-page .fade-in').forEach(el => observer.observe(el));
 
     return () => observer.disconnect();
   }, []);
 
   return (
-    <>
+    <div className="landing-page">
       <CosmicCanvas />
       <MarketPulse />
       <CosmicNavbar />
@@ -49,6 +50,6 @@ export default function Home() {
       <BlackholeCTA />
       <CosmicFooter />
       <LiveSignals />
-    </>
+    </div>
   );
 }

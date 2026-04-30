@@ -12,10 +12,10 @@ import {
 const NAV_ITEMS = [
   { label: 'الرئيسية', href: '/mobile', icon: Home },
   { label: 'الشارت', href: '/mobile/chart', icon: BarChart2 },
-  { label: 'المزيد', href: '__more__', icon: Grid3X3, isCenter: true },
   { label: 'المحفظة', href: '/mobile/portfolio', icon: Wallet },
   { label: 'الأسواق', href: '/mobile/markets', icon: TrendingUp },
   { label: 'الإعدادات', href: '/mobile/settings', icon: Settings },
+  { label: 'المزيد', href: '__more__', icon: Grid3X3 },
 ]
 
 const MORE_ITEMS = [
@@ -67,36 +67,6 @@ export default function MobileNavBar() {
             const Icon = item.icon
             const active = isActive(item.href)
 
-            if (item.isCenter) {
-              return (
-                <button
-                  key={item.href}
-                  onClick={() => handleNav(item.href)}
-                  className="flex flex-col items-center justify-center relative"
-                  style={{ width: 64, height: 64, marginTop: -20 }}
-                >
-                  <motion.div
-                    whileTap={{ scale: 0.9 }}
-                    style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #059669, #00FFA3)',
-                      boxShadow: '0 4px 24px rgba(5,150,105,0.5)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Icon size={24} color="#fff" />
-                  </motion.div>
-                  <span style={{ fontSize: 9, color: '#059669', marginTop: 2, fontFamily: "'Cairo', sans-serif" }}>
-                    {item.label}
-                  </span>
-                </button>
-              )
-            }
-
             return (
               <button
                 key={item.href}
@@ -105,7 +75,7 @@ export default function MobileNavBar() {
                 style={{ width: 52, paddingTop: 8 }}
               >
                 <motion.div whileTap={{ scale: 0.85 }} className="relative">
-                  <Icon size={22} color={active ? '#059669' : 'rgba(255,255,255,0.4)'} />
+                  <Icon size={22} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} />
                   {active && (
                     <motion.div
                       layoutId="navIndicator"
@@ -117,7 +87,7 @@ export default function MobileNavBar() {
                         width: 4,
                         height: 4,
                         borderRadius: '50%',
-                        background: '#059669',
+                        background: '#00D4FF',
                       }}
                     />
                   )}
@@ -125,7 +95,7 @@ export default function MobileNavBar() {
                 <span
                   style={{
                     fontSize: 9,
-                    color: active ? '#059669' : 'rgba(255,255,255,0.35)',
+                    color: active ? '#00D4FF' : 'rgba(255,255,255,0.35)',
                     fontFamily: "'Cairo', sans-serif",
                     fontWeight: active ? 700 : 400,
                   }}

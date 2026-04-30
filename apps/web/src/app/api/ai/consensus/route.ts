@@ -43,6 +43,25 @@ function setCachedAIResult(symbol: string, data: any, source: string) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+// KEEP-ALIVE STATE — Track last ping to NestJS
+// ═══════════════════════════════════════════════════════════════
+let lastNestJSPingAt = 0
+let nestJSLastKnownUp = false
+
+function recordNestJSPing(success: boolean) {
+  lastNestJSPingAt = Date.now()
+  nestJSLastKnownUp = success
+}
+
+function getNestJSStatus() {
+  return {
+    lastPingAt: lastNestJSPingAt,
+    lastPingAgoMs: lastNestJSPingAt ? Date.now() - lastNestJSPingAt : null,
+    isUp: nestJSLastKnownUp,
+  }
+}
+
 /**
  * POST /api/ai/consensus
  *
@@ -50,11 +69,16 @@ function setCachedAIResult(symbol: string, data: any, source: string) {
  *
  * Layer 1: Try NestJS AI Council (full 6-model support with RAG)
  * Layer 2: Call AI models DIRECTLY from Next.js (no NestJS dependency)
+ *          — ALL available models run in PARALLEL with role-specific prompts
+ *          — Even 1-2 models responding gives a partial-ai result
  * Layer 3: Scanner-rules (ONLY if all AI models fail simultaneously)
  *
  * The key difference from the old approach: Layer 2 ensures the council
  * stays connected even when NestJS is down. No more "disconnection every
  * few minutes" — the AI models are called directly as fallback.
+ *
+ * Keep-alive: External cron services can ping /api/ai/keep-alive to
+ * prevent Railway from sleeping the NestJS backend.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -93,6 +117,9 @@ export async function POST(req: NextRequest) {
         if (nestjsRes.ok) {
           const nestjsData = await nestjsRes.json()
           if (nestjsData.success && nestjsData.data?.analyses?.length > 0) {
+            // Record that NestJS is up for keep-alive status
+            recordNestJSPing(true)
+
             const aiData = nestjsData.data
             const modelCount = aiData.analyses?.length || 0
             const source = modelCount >= 3 ? 'real-ai' : modelCount >= 1 ? 'partial-ai' : 'partial-ai'
@@ -112,6 +139,7 @@ export async function POST(req: NextRequest) {
                   modelsResponded: modelCount,
                   modelsExpected: 6,
                   connectionLayer: 'nestjs',
+                  keepAlive: getNestJSStatus(),
                 },
               },
             }
@@ -131,13 +159,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Record that NestJS is down
+    recordNestJSPing(false)
+
     // ═══════════════════════════════════════════════════════════
     // LAYER 2: Call AI models DIRECTLY (bypass NestJS entirely)
     // This is the KEY fix — even if NestJS is down, the council
     // still works because we call the AI APIs directly.
+    //
+    // IMPROVEMENT: Even 1-2 models responding gives partial-ai.
+    // We no longer fall through to scanner-rules just because
+    // we don't have 3+ models. Any AI response is better than
+    // rule-based analysis.
     // ═══════════════════════════════════════════════════════════
     if (hasAnyAIKey) {
-      console.log(`[consensus] Layer 2 — Calling AI models directly (NestJS unavailable)`)
+      console.log(`[consensus] Layer 2 — Calling ALL AI models directly in parallel (NestJS unavailable)`)
       try {
         const directResult = await runDirectCouncilConsensus(symbol)
 
@@ -151,12 +187,13 @@ export async function POST(req: NextRequest) {
                 ...directResult.data.meta,
                 connectionLayer: 'direct',
                 directCallErrors: directResult.errors,
+                keepAlive: getNestJSStatus(),
               },
             },
           }
 
           setCachedAIResult(symbol, result.data, directResult.source)
-          console.log(`[consensus] Layer 2 SUCCESS — Direct AI returned ${directResult.data.analyses.length} models in ${Date.now() - startedAt}ms`)
+          console.log(`[consensus] Layer 2 SUCCESS — Direct AI returned ${directResult.data.analyses.length} roles from ${directResult.data.meta.modelsResponded} models in ${Date.now() - startedAt}ms`)
 
           if (directResult.errors.length > 0) {
             console.warn(`[consensus] Layer 2 warnings: ${directResult.errors.join('; ')}`)
@@ -196,6 +233,7 @@ export async function POST(req: NextRequest) {
             cached: true,
             cacheAgeSeconds: ageSeconds,
             connectionLayer: 'cache',
+            keepAlive: getNestJSStatus(),
           },
         },
       })
@@ -240,6 +278,7 @@ export async function POST(req: NextRequest) {
             timestamp: new Date().toISOString(),
             aiEngine: 'Scanner-Rules (All AI models unavailable)',
             connectionLayer: 'scanner',
+            keepAlive: getNestJSStatus(),
           },
         },
       })
@@ -371,6 +410,7 @@ export async function POST(req: NextRequest) {
           timestamp: new Date().toISOString(),
           aiEngine: `Scanner-Rules (AI unavailable, keys=${availableKeys.map(k => `${k.model}:${k.hasKey}`).join(',')}, errors=${directCallErrorsList.join('; ')})`,
           connectionLayer: 'scanner',
+          keepAlive: getNestJSStatus(),
         },
       },
     })

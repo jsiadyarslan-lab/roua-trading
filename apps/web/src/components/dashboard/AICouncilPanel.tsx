@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Brain, Shield, Zap, TrendingUp, TrendingDown, Minus, Info, RefreshCw, Layers, AlertCircle, Cpu, Wifi, WifiOff } from 'lucide-react'
+import { Brain, Shield, Zap, TrendingUp, TrendingDown, Minus, Info, RefreshCw, Layers, AlertCircle, Cpu, Wifi, WifiOff, Heart, Activity } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 
@@ -24,13 +24,45 @@ interface Analysis {
   reason: string
 }
 
+interface KeepAliveInfo {
+  lastPingAt?: number
+  lastPingAgoMs?: number | null
+  isUp?: boolean
+}
+
 interface ConsensusData {
   consensusScore: number
   recommendation: 'BUY' | 'SELL' | 'HOLD'
   analyses: Analysis[]
   masterStrategy: string
   conflictExplanation?: string
-  meta?: { symbol: string; price: number; rsi: number; processingTimeMs: number; source?: string; freshness?: string; aiEngine?: string; modelsUsed?: string[]; modelsResponded?: number; modelsExpected?: number; timestamp?: string; cached?: boolean; cacheAgeSeconds?: number; connectionLayer?: string }
+  meta?: { symbol: string; price: number; rsi: number; processingTimeMs: number; source?: string; freshness?: string; aiEngine?: string; modelsUsed?: string[]; modelsResponded?: number; modelsExpected?: number; timestamp?: string; cached?: boolean; cacheAgeSeconds?: number; connectionLayer?: string; keepAlive?: KeepAliveInfo; bedrockAvailable?: boolean; ollamaAttempted?: boolean; modelsWithKeys?: number }
+}
+
+/** Map model name to a short display name */
+function getModelShortName(model: string): string {
+  if (model.includes('Groq')) return 'Groq'
+  if (model.includes('Gemini')) return 'Gemini'
+  if (model.includes('GLM')) return 'GLM-4'
+  if (model.includes('HuggingFace') || model.includes('HF')) return 'HF'
+  if (model.includes('Ollama')) return 'Ollama'
+  if (model.includes('Bedrock') || model.includes('Claude')) return 'Bedrock'
+  if (model.includes('Scanner')) return 'Scanner'
+  if (model.includes('Risk')) return 'Risk'
+  if (model.includes('MTF')) return 'MTF'
+  if (model.includes('Execution')) return 'Exec'
+  return model.split('/')[0] || model
+}
+
+/** Get a color for a model badge */
+function getModelColor(model: string): string {
+  if (model.includes('Groq')) return '#F97316' // orange
+  if (model.includes('Gemini')) return '#3B82F6' // blue
+  if (model.includes('GLM')) return '#10B981' // green
+  if (model.includes('HuggingFace') || model.includes('HF')) return '#FBBF24' // yellow
+  if (model.includes('Ollama')) return '#8B5CF6' // purple
+  if (model.includes('Bedrock') || model.includes('Claude')) return '#EC4899' // pink
+  return T.text2 // default
 }
 
 export function AICouncilPanel() {
@@ -46,7 +78,31 @@ export function AICouncilPanel() {
   const abortRef = useRef<AbortController | null>(null) // Cancel in-flight requests
   const lastGoodAIData = useRef<{ data: ConsensusData; source: string; timestamp: number } | null>(null) // Keep last good AI result
   const [loadingPhase, setLoadingPhase] = useState(0)
+  const [keepAliveStatus, setKeepAliveStatus] = useState<{ lastPingAt: string | null; nestJSUp: boolean } | null>(null)
   const phases = ['جاري تجميع بيانات السوق الحية...', 'تحليل الزخم عبر النماذج الذكية...', 'مناقشة الإشارات الفنية...', 'بناء استراتيجية الإجماع النهائي...']
+
+  // ── Keep-alive ping ──
+  const pingKeepAlive = useCallback(async () => {
+    try {
+      const res = await fetch('/api/ai/keep-alive', { method: 'GET' })
+      if (res.ok) {
+        const j = await res.json()
+        setKeepAliveStatus({
+          lastPingAt: j.stats?.lastPingAt || null,
+          nestJSUp: j.stats?.nestJSLastPingSuccess ?? false,
+        })
+      }
+    } catch {
+      // Silently fail — keep-alive is non-critical
+    }
+  }, [])
+
+  // Initial keep-alive ping + periodic every 5 min
+  useEffect(() => {
+    pingKeepAlive()
+    const interval = setInterval(pingKeepAlive, 5 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [pingKeepAlive])
 
   const fetchConsensus = useCallback(async () => {
     setLoading(true)
@@ -96,6 +152,15 @@ export function AICouncilPanel() {
         // Save as last good AI result for future fallback
         if (isAIResult) {
           lastGoodAIData.current = { data: j.data, source: newSource, timestamp: Date.now() }
+        }
+
+        // Update keep-alive status from consensus response
+        if (j.data?.meta?.keepAlive) {
+          const ka = j.data.meta.keepAlive
+          setKeepAliveStatus({
+            lastPingAt: ka.lastPingAt ? new Date(ka.lastPingAt).toISOString() : null,
+            nestJSUp: !!ka.isUp,
+          })
         }
 
         // Push alert when council has a directional recommendation with high consensus
@@ -176,6 +241,12 @@ export function AICouncilPanel() {
   const recColor = data?.recommendation === 'BUY' ? T.green : data?.recommendation === 'SELL' ? T.red : T.amber
   const formatCountdown = `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`
 
+  // Compute unique models that responded
+  const respondedModels = data?.analyses
+    ? [...new Set(data.analyses.map(a => a.model).filter(m => !m.includes('Scanner') && !m.includes('Risk/') && !m.includes('MTF/') && !m.includes('Execution/') && !m.includes('Fallback')))]
+    : []
+  const totalModels = data?.meta?.modelsExpected || 6
+
   return (
     <div className="flex flex-col h-full overflow-hidden custom-scrollbar" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', fontFamily: "'Cairo', sans-serif", direction: 'rtl', border: `1px solid ${isRealAI ? 'rgba(0,229,255,0.15)' : 'rgba(0,229,255,0.08)'}`, borderRadius: 16 }}>
       {/* Header */}
@@ -200,6 +271,18 @@ export function AICouncilPanel() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Keep-Alive Status Indicator */}
+          <div className="flex items-center gap-1" style={{
+            padding: '1px 4px',
+            borderRadius: 3,
+            background: keepAliveStatus?.nestJSUp ? 'rgba(0,200,83,0.12)' : 'rgba(255,184,0,0.12)',
+            border: `1px solid ${keepAliveStatus?.nestJSUp ? 'rgba(0,200,83,0.25)' : 'rgba(255,184,0,0.2)'}`,
+          }} title={`Keep-alive: NestJS ${keepAliveStatus?.nestJSUp ? 'UP' : 'DOWN'} | Last ping: ${keepAliveStatus?.lastPingAt || 'never'}`}>
+            <Heart size={7} color={keepAliveStatus?.nestJSUp ? T.green : T.amber} className={keepAliveStatus?.nestJSUp ? '' : 'animate-pulse'} />
+            <span style={{ fontSize: 6, fontWeight: 700, color: keepAliveStatus?.nestJSUp ? T.green : T.amber, fontFamily: 'monospace' }}>
+              {keepAliveStatus?.nestJSUp ? 'UP' : 'PING'}
+            </span>
+          </div>
           {/* Data Source Badge */}
           <div className="flex items-center gap-1" style={{
             padding: '2px 6px',
@@ -320,6 +403,53 @@ export function AICouncilPanel() {
               </div>
             )}
 
+            {/* Models That Responded — Visual Indicator */}
+            {isRealAI && respondedModels.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap p-2 rounded-lg" style={{ background: 'rgba(179,136,255,0.04)', border: '1px solid rgba(179,136,255,0.1)' }}>
+                <Activity size={8} color={T.purple} />
+                <span className="text-[7px] font-bold" style={{ color: T.purple + 'aa' }}>النماذج النشطة:</span>
+                {respondedModels.map((model, i) => {
+                  const color = getModelColor(model)
+                  const shortName = getModelShortName(model)
+                  return (
+                    <span
+                      key={i}
+                      style={{
+                        fontSize: 6,
+                        padding: '1px 5px',
+                        borderRadius: 3,
+                        background: `${color}20`,
+                        color,
+                        fontFamily: 'monospace',
+                        fontWeight: 700,
+                        border: `1px solid ${color}30`,
+                      }}
+                    >
+                      {shortName}
+                    </span>
+                  )
+                })}
+                {/* Show missing models as dimmed */}
+                {Array.from({ length: totalModels - respondedModels.length }).map((_, i) => (
+                  <span
+                    key={`missing-${i}`}
+                    style={{
+                      fontSize: 6,
+                      padding: '1px 5px',
+                      borderRadius: 3,
+                      background: 'rgba(255,255,255,0.03)',
+                      color: 'rgba(255,255,255,0.15)',
+                      fontFamily: 'monospace',
+                      fontWeight: 700,
+                      border: '1px solid rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    —
+                  </span>
+                ))}
+              </div>
+            )}
+
             {/* Consensus Gauge */}
             <div className="relative p-3 rounded-xl text-center overflow-hidden" style={{ 
               background: '#0d0f12', 
@@ -387,7 +517,9 @@ export function AICouncilPanel() {
               <div className="text-[8px] font-bold px-1 uppercase tracking-widest" style={{ color: T.text2 }}>توزيع أصوات المجلس</div>
               {data.analyses.map((a, i) => {
                 const voteColor = a.vote === 'BUY' ? T.green : a.vote === 'SELL' ? T.red : T.amber
-                const isAIModel = isRealAI && !a.model.includes('Scanner') && !a.model.includes('Risk/') && !a.model.includes('MTF/') && !a.model.includes('Execution/')
+                const isAIModel = isRealAI && !a.model.includes('Scanner') && !a.model.includes('Risk/') && !a.model.includes('MTF/') && !a.model.includes('Execution/') && !a.model.includes('Fallback')
+                const modelColor = getModelColor(a.model)
+                const modelShortName = getModelShortName(a.model)
                 return (
                   <div
                     key={i}
@@ -409,7 +541,7 @@ export function AICouncilPanel() {
                         </div>
                         <span className="text-[10px] font-bold text-white/90">{a.role}</span>
                         {isAIModel && (
-                          <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(179,136,255,0.15)', color: T.purple, fontFamily: 'monospace', fontWeight: 700 }}>AI</span>
+                          <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: `${modelColor}20`, color: modelColor, fontFamily: 'monospace', fontWeight: 700, border: `1px solid ${modelColor}30` }}>{modelShortName}</span>
                         )}
                       </div>
                       <div className="flex items-center gap-1.5">
@@ -446,9 +578,10 @@ export function AICouncilPanel() {
           <Shield size={9} />
           <span className="text-[7px] font-bold uppercase">{isRealAI ? 'Real AI Engine' : 'Quantum AI Engine'}</span>
         </div>
-        <div className="flex items-center gap-1" style={{ opacity: 0.4 }}>
+        <div className="flex items-center gap-1.5" style={{ opacity: 0.4 }}>
+          <Heart size={7} color={keepAliveStatus?.nestJSUp ? T.green : T.amber} />
           <Info size={9} />
-          <span className="text-[7px] font-bold">Council v4.0 — {isRealAI ? `${data?.meta?.modelsResponded || '?'}/6 AI Models` : '6 Roles'}</span>
+          <span className="text-[7px] font-bold">Council v5.0 — {isRealAI ? `${data?.meta?.modelsResponded || '?'}/6 AI Models` : '6 Roles'}</span>
         </div>
       </div>
     </div>

@@ -30,7 +30,7 @@ interface ConsensusData {
   analyses: Analysis[]
   masterStrategy: string
   conflictExplanation?: string
-  meta?: { symbol: string; price: number; rsi: number; processingTimeMs: number; source?: string; freshness?: string; aiEngine?: string; modelsUsed?: string[]; timestamp?: string }
+  meta?: { symbol: string; price: number; rsi: number; processingTimeMs: number; source?: string; freshness?: string; aiEngine?: string; modelsUsed?: string[]; modelsResponded?: number; modelsExpected?: number; timestamp?: string; cached?: boolean; cacheAgeSeconds?: number; connectionLayer?: string }
 }
 
 export function AICouncilPanel() {
@@ -80,7 +80,7 @@ export function AICouncilPanel() {
             console.log('[AI Council] Got scanner-rules, but keeping last AI result (still fresh)')
             // Keep the last good AI data, just update the timestamp
             setData(lastGoodAIData.current.data)
-            setDataSource(lastGoodAIData.current.source)
+            setDataSource(lastGoodAIData.current.source as 'real-ai' | 'partial-ai')
             setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
             failCountRef.current = 0
             return // Don't override with scanner-rules
@@ -118,7 +118,7 @@ export function AICouncilPanel() {
         if (ageMs < 30 * 60 * 1000) {
           console.log('[AI Council] Fetch failed, keeping last AI result')
           setData(lastGoodAIData.current.data)
-          setDataSource(lastGoodAIData.current.source)
+          setDataSource(lastGoodAIData.current.source as 'real-ai' | 'partial-ai')
           setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
           // Don't increment fail count if we have good data
           return
@@ -172,6 +172,7 @@ export function AICouncilPanel() {
   const isRealAI = dataSource === 'real-ai' || dataSource === 'partial-ai'
   const isPartialAI = dataSource === 'partial-ai'
   const isCachedAI = isRealAI && data?.meta?.cached === true
+  const connectionLayer = data?.meta?.connectionLayer || 'unknown'
   const recColor = data?.recommendation === 'BUY' ? T.green : data?.recommendation === 'SELL' ? T.red : T.amber
   const formatCountdown = `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`
 
@@ -208,7 +209,7 @@ export function AICouncilPanel() {
           }}>
             {isRealAI ? <Cpu size={8} color={T.purple} /> : <WifiOff size={8} color={T.amber} />}
             <span style={{ fontSize: 7, fontWeight: 700, color: isPartialAI ? T.accent : isRealAI ? T.purple : T.amber, fontFamily: 'monospace' }}>
-              {isPartialAI ? `${data?.meta?.modelsResponded || '?'}/6 AI` : isRealAI ? '6 AI Models' : dataSource === 'scanner-rules' ? '📐 تقني' : 'FB'}
+              {isPartialAI ? `${data?.meta?.modelsResponded || '?'}/6 AI` : isRealAI ? `${data?.meta?.modelsResponded || '6'} AI Models` : dataSource === 'scanner-rules' ? '📐 تقني' : 'FB'}
             </span>
           </div>
           {/* Countdown */}
@@ -297,16 +298,25 @@ export function AICouncilPanel() {
               <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(179,136,255,0.06)', border: '1px solid rgba(179,136,255,0.15)' }}>
                 <Cpu size={10} color={T.purple} />
                 <span className="text-[8px]" style={{ color: T.purple }}>
-                  {isCachedAI ? 'تحليل AI مخزّن مؤقتاً — لا يزال صالحاً' : `تحليل AI حقيقي من 6 نماذج — ${data.meta?.processingTimeMs || 0}ms`}
+                  {isCachedAI ? 'تحليل AI مخزّن مؤقتاً — لا يزال صالحاً' : `تحليل AI حقيقي من ${data.meta?.modelsResponded || 0} نماذج — ${data.meta?.processingTimeMs || 0}ms`}
                 </span>
+                {connectionLayer === 'direct' && (
+                  <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(0,229,255,0.15)', color: T.accent, fontFamily: 'monospace', fontWeight: 700 }}>مباشر</span>
+                )}
+                {connectionLayer === 'nestjs' && (
+                  <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(179,136,255,0.15)', color: T.purple, fontFamily: 'monospace', fontWeight: 700 }}>NestJS</span>
+                )}
               </div>
             )}
             {isPartialAI && (
               <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(0,229,255,0.06)', border: '1px solid rgba(0,229,255,0.15)' }}>
                 <Cpu size={10} color={T.accent} />
                 <span className="text-[8px]" style={{ color: T.accent }}>
-                  تحليل AI من {data.meta?.modelsResponded || '?'}/6 نماذج — بعض النماذج في وضع الاسترداد
+                  تحليل AI من {data.meta?.modelsResponded || '?'}/6 نماذج — بعض النماذج تستجيب عبر البديل
                 </span>
+                {connectionLayer === 'direct' && (
+                  <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(0,229,255,0.15)', color: T.accent, fontFamily: 'monospace', fontWeight: 700 }}>مباشر</span>
+                )}
               </div>
             )}
 
@@ -438,7 +448,7 @@ export function AICouncilPanel() {
         </div>
         <div className="flex items-center gap-1" style={{ opacity: 0.4 }}>
           <Info size={9} />
-          <span className="text-[7px] font-bold">Council v3.0 — {isRealAI ? '6 AI Models' : '6 Roles'}</span>
+          <span className="text-[7px] font-bold">Council v4.0 — {isRealAI ? `${data?.meta?.modelsResponded || '?'}/6 AI Models` : '6 Roles'}</span>
         </div>
       </div>
     </div>

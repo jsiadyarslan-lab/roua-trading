@@ -45,7 +45,8 @@ export class AIOrchestratorService {
 
   /** Circuit breaker: track 429 failures per model to avoid spamming */
   private readonly modelCooldowns = new Map<string, number>();
-  private readonly COOLDOWN_MS = 60_000; // Skip model for 60s after 429
+  private readonly COOLDOWN_MS = 30_000; // Skip model for 30s after 429 (reduced from 60s for faster recovery)
+  private readonly MAX_COOLDOWN_MS = 120_000; // Max cooldown: 2 minutes (prevents indefinite blocking)
 
   /** In-memory cache for AI responses with TTL */
   private readonly responseCache = new Map<string, { result: AIAnalysisResponse; expiresAt: number }>();
@@ -181,10 +182,15 @@ export class AIOrchestratorService {
         });
         // If 429 (rate limited), put model in cooldown to prevent spam
         if (error.response?.status === 429 || error.message?.includes('429')) {
-          this.modelCooldowns.set(model, Date.now() + this.COOLDOWN_MS);
-          this.logger.warn(`🚫 Model ${model} rate-limited (429) — cooling down for ${this.COOLDOWN_MS / 1000}s`);
+          // Exponential cooldown: 30s → 60s → 120s (max)
+          const currentCooldown = this.modelCooldowns.get(model) || 0;
+          const nextCooldown = Math.min(this.COOLDOWN_MS * (currentCooldown > 0 ? 2 : 1), this.MAX_COOLDOWN_MS);
+          this.modelCooldowns.set(model, Date.now() + nextCooldown);
+          this.logger.warn(`🚫 Model ${model} rate-limited (429) — cooling down for ${nextCooldown / 1000}s`);
         } else {
-          this.logger.warn(`❌ Model ${model} failed: ${error.message} — trying next`);
+          // Non-rate-limit errors: shorter cooldown (15s) — model might recover quickly
+          this.modelCooldowns.set(model, Date.now() + 15_000);
+          this.logger.warn(`❌ Model ${model} failed: ${error.message} — trying next (15s cooldown)`);
         }
         continue;
       }
@@ -303,10 +309,11 @@ export class AIOrchestratorService {
                 cached: false,
               });
             }
-            // If model returned stub (confidence 0), put it in cooldown
+            // If model returned stub (confidence 0), put it in short cooldown
+            // Don't use long cooldown for stubs — the model key might just not be configured
             if (response.confidence === 0) {
-              this.modelCooldowns.set(role.resolvedModel, Date.now() + this.COOLDOWN_MS);
-              this.logger.warn(`🚫 Model ${role.resolvedModel} returned stub — cooldown ${this.COOLDOWN_MS / 1000}s`);
+              this.modelCooldowns.set(role.resolvedModel, Date.now() + 30_000);
+              this.logger.warn(`🚫 Model ${role.resolvedModel} returned stub — cooldown 30s`);
             }
             return { ...role, response };
           } catch (error: any) {

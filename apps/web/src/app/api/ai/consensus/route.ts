@@ -4,6 +4,7 @@ import {
   buildScannerResult,
   fetchMarketContext,
 } from '@/lib/trading-intelligence'
+import { runDirectCouncilConsensus, getAvailableModelKeys } from '@/lib/ai-direct-calls'
 
 type Vote = 'BUY' | 'SELL' | 'HOLD'
 
@@ -16,12 +17,10 @@ function directionLabel(dir: 'buy' | 'sell' | 'neutral') {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PERSISTENT AI CACHE — Keeps last successful AI result per symbol
-// When NestJS is temporarily unreachable, serves cached AI result
-// instead of falling back to scanner-rules. TTL: 30 minutes.
+// PERSISTENT AI CACHE — Short TTL, only for same-symbol dedup
 // ═══════════════════════════════════════════════════════════════
 const aiResultCache = new Map<string, { data: any; source: string; cachedAt: number }>()
-const AI_CACHE_TTL = 30 * 60 * 1000 // 30 minutes
+const AI_CACHE_TTL = 5 * 60 * 1000 // 5 minutes — just for dedup, not for masking failures
 
 function getCachedAIResult(symbol: string): { data: any; source: string } | null {
   const entry = aiResultCache.get(symbol)
@@ -36,7 +35,6 @@ function getCachedAIResult(symbol: string): { data: any; source: string } | null
 
 function setCachedAIResult(symbol: string, data: any, source: string) {
   aiResultCache.set(symbol, { data, source, cachedAt: Date.now() })
-  // Evict old entries if cache grows too large
   if (aiResultCache.size > 100) {
     const now = Date.now()
     for (const [key, entry] of aiResultCache) {
@@ -48,14 +46,15 @@ function setCachedAIResult(symbol: string, data: any, source: string) {
 /**
  * POST /api/ai/consensus
  *
- * Hybrid approach with persistent AI caching:
- * 1. Try REAL NestJS AI Council (6 actual AI models)
- * 2. If NestJS unreachable → serve last cached AI result (up to 30 min old)
- * 3. If no cached AI → fall back to rule-based scanner consensus
+ * 3-LAYER RESILIENT APPROACH — Council NEVER disconnects:
  *
- * This prevents the "disconnection every few minutes" issue where
- * temporary NestJS unavailability causes the UI to switch from
- * real-ai to scanner-rules.
+ * Layer 1: Try NestJS AI Council (full 6-model support with RAG)
+ * Layer 2: Call AI models DIRECTLY from Next.js (no NestJS dependency)
+ * Layer 3: Scanner-rules (ONLY if all AI models fail simultaneously)
+ *
+ * The key difference from the old approach: Layer 2 ensures the council
+ * stays connected even when NestJS is down. No more "disconnection every
+ * few minutes" — the AI models are called directly as fallback.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -64,40 +63,38 @@ export async function POST(req: NextRequest) {
     const origin = req.nextUrl.origin
     const startedAt = Date.now()
 
+    // ── Check which AI keys are available ──
+    const availableKeys = getAvailableModelKeys()
+    const hasAnyAIKey = availableKeys.some(k => k.hasKey)
+    console.log(`[consensus] Available AI keys: ${availableKeys.map(k => `${k.model}:${k.hasKey ? 'YES' : 'NO'}`).join(', ')}`)
+
     // ═══════════════════════════════════════════════════════════
-    // PHASE 1: Try REAL NestJS AI Council (6 actual AI models)
-    // FIX: Try multiple URL patterns for Railway compatibility
+    // LAYER 1: Try NestJS AI Council (6 models with RAG, Redis cache)
     // ═══════════════════════════════════════════════════════════
     const apiTargets = [
       process.env.API_INTERNAL_URL,
-      // Railway internal: same container (NestJS runs on 3001)
       'http://localhost:3001',
-      // Fallback: same-origin proxy
+      'http://127.0.0.1:3001',
       `${origin}/api/health`.replace('/api/health', ''),
     ].filter((u, i, arr) => u && arr.indexOf(u) === i) as string[]
-
-    let lastNestJSError: string | null = null
 
     for (const apiTarget of apiTargets) {
       try {
         const targetUrl = `${apiTarget}/api/ai/consensus`
-        console.log(`[consensus] Trying NestJS AI at: ${targetUrl}`)
+        console.log(`[consensus] Layer 1 — Trying NestJS AI at: ${targetUrl}`)
         const nestjsRes = await fetch(targetUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ symbol }),
-          signal: AbortSignal.timeout(90000), // 90s — 6 models (60s) + master strategy (30s)
+          signal: AbortSignal.timeout(90000),
         })
 
         if (nestjsRes.ok) {
           const nestjsData = await nestjsRes.json()
           if (nestjsData.success && nestjsData.data?.analyses?.length > 0) {
-            // Real AI Council succeeded! Add meta info
             const aiData = nestjsData.data
             const modelCount = aiData.analyses?.length || 0
-            // FIX: Lowered threshold from 4→3 for real-ai (Ollama is always stub on Railway)
-            // 3 out of 5 available models is already a solid consensus
-            const source = modelCount >= 3 ? 'real-ai' : modelCount >= 1 ? 'partial-ai' : 'scanner-rules'
+            const source = modelCount >= 3 ? 'real-ai' : modelCount >= 1 ? 'partial-ai' : 'partial-ai'
 
             const result = {
               success: true,
@@ -113,39 +110,75 @@ export async function POST(req: NextRequest) {
                   modelsUsed: aiData.analyses.map((a: any) => a.model).filter(Boolean),
                   modelsResponded: modelCount,
                   modelsExpected: 6,
+                  connectionLayer: 'nestjs',
                 },
               },
             }
 
-            // Cache this successful AI result for future fallback
             if (source === 'real-ai' || source === 'partial-ai') {
               setCachedAIResult(symbol, result.data, source)
             }
 
+            console.log(`[consensus] Layer 1 SUCCESS — NestJS returned ${modelCount} models in ${Date.now() - startedAt}ms`)
             return NextResponse.json(result)
           }
         }
-        // If this target responded but didn't have valid data, try next
         const errText = await nestjsRes.text().catch(() => '')
-        lastNestJSError = `Target ${targetUrl} status ${nestjsRes.status}: ${errText.slice(0, 100)}`
-        console.warn(`[consensus] ${lastNestJSError}`)
+        console.warn(`[consensus] Layer 1 FAILED — ${targetUrl} status ${nestjsRes.status}: ${errText.slice(0, 100)}`)
       } catch (aiError: any) {
-        lastNestJSError = `Target ${apiTarget} failed: ${aiError?.message || aiError}`
-        console.warn(`[consensus] ${lastNestJSError}`)
-        // Continue to next target
+        console.warn(`[consensus] Layer 1 FAILED — NestJS unreachable: ${aiError?.message || aiError}`)
       }
     }
 
     // ═══════════════════════════════════════════════════════════
-    // PHASE 1.5: Check cached AI result (NEW — prevents disconnect)
-    // If NestJS is temporarily down, serve the last successful AI
-    // result instead of immediately falling to scanner-rules.
+    // LAYER 2: Call AI models DIRECTLY (bypass NestJS entirely)
+    // This is the KEY fix — even if NestJS is down, the council
+    // still works because we call the AI APIs directly.
+    // ═══════════════════════════════════════════════════════════
+    if (hasAnyAIKey) {
+      console.log(`[consensus] Layer 2 — Calling AI models directly (NestJS unavailable)`)
+      try {
+        const directResult = await runDirectCouncilConsensus(symbol)
+
+        if (directResult.success && directResult.data.analyses.length > 0) {
+          const result = {
+            success: true,
+            source: directResult.source,
+            data: {
+              ...directResult.data,
+              meta: {
+                ...directResult.data.meta,
+                connectionLayer: 'direct',
+              },
+            },
+          }
+
+          setCachedAIResult(symbol, result.data, directResult.source)
+          console.log(`[consensus] Layer 2 SUCCESS — Direct AI returned ${directResult.data.analyses.length} models in ${Date.now() - startedAt}ms`)
+
+          if (directResult.errors.length > 0) {
+            console.warn(`[consensus] Layer 2 warnings: ${directResult.errors.join('; ')}`)
+          }
+
+          return NextResponse.json(result)
+        }
+
+        console.warn(`[consensus] Layer 2 FAILED — No AI models responded: ${directResult.errors.join('; ')}`)
+      } catch (directError: any) {
+        console.warn(`[consensus] Layer 2 FAILED — Direct call error: ${directError?.message}`)
+      }
+    } else {
+      console.warn(`[consensus] Layer 2 SKIPPED — No AI API keys configured`)
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // LAYER 2.5: Check cached AI result (very short TTL — 5 min)
+    // Only used as last resort before scanner-rules
     // ═══════════════════════════════════════════════════════════
     const cachedAI = getCachedAIResult(symbol)
     if (cachedAI) {
       const ageSeconds = Math.round((Date.now() - (aiResultCache.get(symbol)?.cachedAt || 0)) / 1000)
-      const ageMinutes = Math.floor(ageSeconds / 60)
-      console.log(`[consensus] NestJS unreachable — serving cached AI result for ${symbol} (${ageMinutes}m old)`)
+      console.log(`[consensus] Layer 2.5 — Serving cached AI result (${ageSeconds}s old)`)
 
       return NextResponse.json({
         success: true,
@@ -158,17 +191,16 @@ export async function POST(req: NextRequest) {
             timestamp: new Date().toISOString(),
             cached: true,
             cacheAgeSeconds: ageSeconds,
-            aiEngine: cachedAI.data.meta?.aiEngine || 'NestJS-Cached',
+            connectionLayer: 'cache',
           },
         },
       })
     }
 
-    // All NestJS targets failed AND no cached AI — fall through to scanner
-
     // ═══════════════════════════════════════════════════════════
-    // PHASE 2: Fallback — Rule-based scanner consensus
+    // LAYER 3: Scanner-rules (LAST RESORT — only if ALL AI fails)
     // ═══════════════════════════════════════════════════════════
+    console.log(`[consensus] Layer 3 — Falling back to scanner-rules (all AI failed)`)
     const context = await fetchMarketContext(origin, symbol, '1h')
     const scanner = buildScannerResult(context)
     const mtf = await buildMultiTimeframeSnapshot(origin, symbol)
@@ -192,7 +224,7 @@ export async function POST(req: NextRequest) {
             },
           ],
           conflictExplanation: 'المجلس دخل وضع الحماية لأن بيانات السوق لم تكن كافية أو موثوقة عند هذه اللحظة.',
-          masterStrategy: `الانتظار على ${symbol} حتى يعود quote/history بشكل مستقر، ثم إعادة التقييم قبل أي قرار.`,
+          masterStrategy: `الانتظار على ${symbol} حتى تعود نماذج الذكاء الاصطناعي للعمل، ثم إعادة التقييم قبل أي قرار.`,
           meta: {
             symbol,
             price: context.quote?.price ?? 0,
@@ -202,7 +234,8 @@ export async function POST(req: NextRequest) {
             processingTimeMs: Date.now() - startedAt,
             timeframe: context.timeframe,
             timestamp: new Date().toISOString(),
-            aiEngine: 'Scanner-Rules (NestJS unavailable)',
+            aiEngine: 'Scanner-Rules (All AI models unavailable)',
+            connectionLayer: 'scanner',
           },
         },
       })
@@ -332,7 +365,8 @@ export async function POST(req: NextRequest) {
           processingTimeMs: Date.now() - startedAt,
           timeframe: scanner.timeframe,
           timestamp: new Date().toISOString(),
-          aiEngine: 'Scanner-Rules (NestJS AI unavailable)',
+          aiEngine: 'Scanner-Rules (AI temporarily unavailable)',
+          connectionLayer: 'scanner',
         },
       },
     })
@@ -367,6 +401,7 @@ export async function POST(req: NextRequest) {
             timeframe: '1h',
             timestamp: new Date().toISOString(),
             aiEngine: 'Error-Fallback',
+            connectionLayer: 'error',
           },
         },
       },

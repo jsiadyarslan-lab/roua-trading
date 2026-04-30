@@ -59,11 +59,15 @@ export class AiController {
    * POST /api/ai/consensus — Multi-model Council of AI consensus vote
    * BUG-007 FIX: Added throttle — 2 calls/min per IP (6 AI models × cost)
    */
-  @Post('consensus')
-  @Throttle({ default: { limit: 10, ttl: 60000 } })
-  async getConsensus(@Body() body: { symbol: string }) {
-    this.logger.log(`🎼 Generating AI Council Consensus for ${body.symbol}`);
-    const result = await this.orchestrator.getConsensusAnalysis(body.symbol);
+  /**
+   * GET /api/ai/diagnose — Test each AI model individually and return detailed results
+   * Shows which models actually work vs just having keys configured
+   */
+  @Get('diagnose')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  async diagnoseModels() {
+    this.logger.log('🔧 Running AI model diagnostics...');
+    const result = await this.orchestrator.diagnoseModels();
     return { success: true, data: result };
   }
 }

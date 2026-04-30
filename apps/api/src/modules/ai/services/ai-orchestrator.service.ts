@@ -539,6 +539,103 @@ export class AIOrchestratorService {
   }
 
   /**
+   * Diagnose each AI model — test actual API connectivity, not just key existence.
+   * Returns detailed results for each model including error messages.
+   */
+  async diagnoseModels(): Promise<{
+    models: Array<{
+      model: string;
+      keyAvailable: boolean;
+      apiWorking: boolean;
+      responseTimeMs: number;
+      error?: string;
+      keyHint?: string;
+    }>;
+    summary: { total: number; keysAvailable: number; apiWorking: number };
+  }> {
+    const models = [
+      { id: 'groq', name: 'Groq/Llama 3.3 70B', keyEnv: 'GROQ_API_KEY' },
+      { id: 'gemini', name: 'Gemini 2.0 Flash', keyEnv: 'GOOGLE_AI_STUDIO_API_KEY' },
+      { id: 'glm', name: 'GLM-4 (Zhipu AI)', keyEnv: 'GLM_API_KEY' },
+      { id: 'huggingface', name: 'HuggingFace/Mistral-7B', keyEnv: 'HUGGINGFACE_API_KEY' },
+      { id: 'ollama', name: 'Ollama/Qwen2.5', keyEnv: 'OLLAMA_API_KEY' },
+      { id: 'bedrock', name: 'Bedrock/Claude 3.5', keyEnv: 'AWS_ACCESS_KEY_ID' },
+    ];
+
+    const results = await Promise.all(
+      models.map(async (m) => {
+        const keyAvailable = this._isModelKeyAvailable(m.id);
+        let apiWorking = false;
+        let responseTimeMs = 0;
+        let error: string | undefined;
+        let keyHint: string | undefined;
+
+        // Show key presence (first 4 chars + ***) for debugging
+        const keyValue = this.configService.get<string>(m.keyEnv, '') ||
+          (m.id === 'bedrock' ? this.configService.get<string>('AWS_ACCESS_KEY_ID', '') : '');
+        if (keyValue) {
+          keyHint = `${keyValue.substring(0, 4)}***${keyValue.length > 8 ? keyValue.substring(keyValue.length - 4) : ''}`;
+        } else {
+          keyHint = '(empty)';
+        }
+
+        // For Ollama, also show the base URL
+        if (m.id === 'ollama') {
+          const baseUrl = this.configService.get<string>('OLLAMA_BASE_URL', 'http://localhost:11434');
+          keyHint = `URL: ${baseUrl}`;
+        }
+
+        // For Bedrock, show region
+        if (m.id === 'bedrock') {
+          const region = this.configService.get<string>('AWS_REGION', 'us-east-1');
+          keyHint = `Region: ${region}, Key: ${keyHint}`;
+        }
+
+        if (!keyAvailable) {
+          error = `API key not configured or not available on this platform`;
+          return { model: m.name, keyAvailable, apiWorking, responseTimeMs, error, keyHint };
+        }
+
+        // Test actual API call
+        const start = Date.now();
+        try {
+          const response = await this._callModel(m.id, {
+            symbol: 'TEST',
+            prompt: 'Say "OK" in one word.',
+            type: 'general',
+            language: 'en',
+          });
+          responseTimeMs = Date.now() - start;
+
+          if (response.confidence > 0 && !response.isFallback) {
+            apiWorking = true;
+          } else {
+            error = `Model returned stub/empty response (confidence: ${response.confidence})`;
+          }
+        } catch (err: any) {
+          responseTimeMs = Date.now() - start;
+          error = err?.message || String(err);
+          // Extract status code if available
+          if (err?.response?.status) {
+            error = `HTTP ${err.response.status}: ${err.response?.data ? JSON.stringify(err.response.data).substring(0, 200) : err.message}`;
+          }
+        }
+
+        return { model: m.name, keyAvailable, apiWorking, responseTimeMs, error, keyHint };
+      }),
+    );
+
+    return {
+      models: results,
+      summary: {
+        total: results.length,
+        keysAvailable: results.filter(r => r.keyAvailable).length,
+        apiWorking: results.filter(r => r.apiWorking).length,
+      },
+    };
+  }
+
+  /**
    * Analyze with ALL 6 models
    */
   async analyzeWithAllModels(request: AIAnalysisRequest): Promise<{

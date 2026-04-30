@@ -149,6 +149,7 @@ export async function POST(req: NextRequest) {
               meta: {
                 ...directResult.data.meta,
                 connectionLayer: 'direct',
+                directCallErrors: directResult.errors,
               },
             },
           }

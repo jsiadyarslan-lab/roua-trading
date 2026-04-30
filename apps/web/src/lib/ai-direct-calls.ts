@@ -2,26 +2,17 @@
  * Direct AI Model Calls — Independent from NestJS
  *
  * When the NestJS backend is unreachable, this module allows the
- * Next.js consensus route to call AI models DIRECTLY. This eliminates
- * the single point of failure that causes the AI Council to "disconnect".
+ * Next.js consensus route to call AI models DIRECTLY.
  *
- * Supported models (cloud-compatible, no local server needed):
- * ┌────────────────────────────────────────────────────────────────┐
- * │ Model              │ Key env var              │ API endpoint    │
- * ├────────────────────┼──────────────────────────┼─────────────────┤
- * │ Groq/Llama 3.3 70B│ GROQ_API_KEY             │ api.groq.com    │
- * │ Gemini 2.0 Flash  │ GOOGLE_AI_STUDIO_API_KEY  │ googleapis.com  │
- * │ GLM-4 (Zhipu AI)  │ GLM_API_KEY              │ bigmodel.cn     │
- * │ HuggingFace/Mistral│ HUGGINGFACE_API_KEY      │ huggingface.co │
- * └────────────────────┴──────────────────────────┴─────────────────┘
+ * Strategy: Call ALL available models ONCE each, then assign each
+ * model's response to one or more council roles. This prevents
+ * rate-limiting from calling the same model 6 times.
  *
- * Ollama and Bedrock are NOT included because:
- * - Ollama requires a local server (unavailable on Railway)
- * - Bedrock requires AWS credentials with SigV4 signing
- *   (too complex to replicate in Next.js edge/runtime)
- *
- * This module is used as a FALLBACK when NestJS is down.
- * When NestJS is up, it should be preferred (it has caching, RAG, etc.)
+ * Available cloud models:
+ * - Groq/Llama 3.3 70B  (GROQ_API_KEY)
+ * - Gemini 2.0 Flash     (GOOGLE_AI_STUDIO_API_KEY)
+ * - GLM-4 (Zhipu AI)    (GLM_API_KEY)
+ * - HuggingFace/Mistral  (HUGGINGFACE_API_KEY)
  */
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -44,9 +35,6 @@ interface CouncilVote {
 }
 
 // ─── Environment Key Access ──────────────────────────────────────
-// In Next.js API routes, env vars are available via process.env
-// Only keys prefixed with NEXT_PUBLIC_ are available on the client,
-// but ALL keys are available in API routes (server-side).
 
 function getKey(name: string): string {
   return (process.env as Record<string, string | undefined>)[name]?.trim() || ''
@@ -68,11 +56,9 @@ function calcConfidence(content: string, model: string): number {
 // ─── Vote Parsing ────────────────────────────────────────────────
 
 function parseVote(content: string): 'BUY' | 'SELL' | 'HOLD' {
-  // Check for structured DECISION line first
   const decisionMatch = content.match(/DECISION:\s*(BUY|SELL|HOLD)/i)
   if (decisionMatch) return decisionMatch[1].toUpperCase() as 'BUY' | 'SELL' | 'HOLD'
 
-  // Keyword search
   let buyIdx = -1, sellIdx = -1
   const buyMatch = content.match(/(شراء|صعود|شرائية|BUY|BULLISH|LONG)/gi)
   const sellMatch = content.match(/(بيع|هبوط|بيعية|SELL|BEARISH|SHORT)/gi)
@@ -85,12 +71,11 @@ function parseVote(content: string): 'BUY' | 'SELL' | 'HOLD' {
   return 'HOLD'
 }
 
-// ─── TIME: 15s per model call (fast response) ────────────────────
-const MODEL_TIMEOUT = 15_000
+const MODEL_TIMEOUT = 20_000 // 20s per model
 
-// ─── Groq Direct Call ────────────────────────────────────────────
+// ─── Model Call Functions ────────────────────────────────────────
 
-async function callGroq(prompt: string, _symbol: string): Promise<DirectAIResponse> {
+async function callGroq(prompt: string): Promise<DirectAIResponse> {
   const apiKey = getKey('GROQ_API_KEY')
   if (!apiKey) return { model: 'Groq/Llama-3.3-70B', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key' }
 
@@ -112,7 +97,8 @@ async function callGroq(prompt: string, _symbol: string): Promise<DirectAIRespon
     })
 
     if (!res.ok) {
-      return { model: 'Groq/Llama-3.3-70B', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Groq ${res.status}` }
+      const errBody = await res.text().catch(() => '')
+      return { model: 'Groq/Llama-3.3-70B', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Groq ${res.status}: ${errBody.slice(0, 150)}` }
     }
 
     const data = await res.json()
@@ -123,26 +109,25 @@ async function callGroq(prompt: string, _symbol: string): Promise<DirectAIRespon
   }
 }
 
-// ─── Gemini Direct Call ──────────────────────────────────────────
-
-async function callGemini(prompt: string, _symbol: string): Promise<DirectAIResponse> {
+async function callGemini(prompt: string): Promise<DirectAIResponse> {
   const apiKey = getKey('GOOGLE_AI_STUDIO_API_KEY')
   if (!apiKey) return { model: 'Gemini/2.0-Flash', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key' }
 
   const start = Date.now()
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`, {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: `You are a sophisticated financial AI analyst. Respond in Arabic. Provide analysis. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"\n\n${prompt}` }] }],
+        contents: [{ role: 'user', parts: [{ text: `You are a financial AI analyst. Respond in Arabic. Provide analysis. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"\n\n${prompt}` }] }],
         generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
       }),
       signal: AbortSignal.timeout(MODEL_TIMEOUT),
     })
 
     if (!res.ok) {
-      return { model: 'Gemini/2.0-Flash', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Gemini ${res.status}` }
+      const errBody = await res.text().catch(() => '')
+      return { model: 'Gemini/2.0-Flash', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Gemini ${res.status}: ${errBody.slice(0, 150)}` }
     }
 
     const data = await res.json()
@@ -153,23 +138,20 @@ async function callGemini(prompt: string, _symbol: string): Promise<DirectAIResp
   }
 }
 
-// ─── GLM-4 Direct Call ───────────────────────────────────────────
-
-async function callGLM(prompt: string, _symbol: string): Promise<DirectAIResponse> {
+async function callGLM(prompt: string): Promise<DirectAIResponse> {
   const apiKey = getKey('GLM_API_KEY')
   if (!apiKey) return { model: 'GLM-4/glm-4', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key' }
 
   const start = Date.now()
   try {
-    // Generate JWT for Zhipu AI
     let authToken: string
     const parts = apiKey.split('.')
     if (parts.length === 2) {
       const [id, secret] = parts
       const now = Date.now()
+      const crypto = await import('crypto')
       const header = Buffer.from(JSON.stringify({ alg: 'HS256', sign_type: 'SIGN' }), 'utf8').toString('base64url')
       const payload = Buffer.from(JSON.stringify({ api_key: id, exp: Math.floor(now / 1000) + 3600, timestamp: Math.floor(now / 1000) }), 'utf8').toString('base64url')
-      const crypto = await import('crypto')
       const signature = crypto.createHmac('sha256', secret).update(`${header}.${payload}`).digest('base64url')
       authToken = `${header}.${payload}.${signature}`
     } else {
@@ -192,7 +174,8 @@ async function callGLM(prompt: string, _symbol: string): Promise<DirectAIRespons
     })
 
     if (!res.ok) {
-      return { model: 'GLM-4/glm-4', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `GLM ${res.status}` }
+      const errBody = await res.text().catch(() => '')
+      return { model: 'GLM-4/glm-4', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `GLM ${res.status}: ${errBody.slice(0, 150)}` }
     }
 
     const data = await res.json()
@@ -203,67 +186,53 @@ async function callGLM(prompt: string, _symbol: string): Promise<DirectAIRespons
   }
 }
 
-// ─── HuggingFace Direct Call ─────────────────────────────────────
-
-async function callHuggingFace(prompt: string, _symbol: string): Promise<DirectAIResponse> {
+async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
   const apiKey = getKey('HUGGINGFACE_API_KEY')
   if (!apiKey) return { model: 'HuggingFace/Mistral-7B', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key' }
 
-  const models = ['mistralai/Mistral-7B-Instruct-v0.3', 'microsoft/Phi-3-mini-4k-instruct']
-  const systemPrompt = 'You are a financial AI analyst. Respond in Arabic. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
+  const start = Date.now()
+  try {
+    const fullPrompt = `<s>[INST] You are a financial AI analyst. Respond in Arabic. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"\n\n${prompt} [/INST]`
+    const res = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        inputs: fullPrompt,
+        parameters: { max_new_tokens: 512, temperature: 0.3, do_sample: true, return_full_text: false },
+      }),
+      signal: AbortSignal.timeout(MODEL_TIMEOUT),
+    })
 
-  for (const model of models) {
-    const start = Date.now()
-    try {
-      const fullPrompt = `<s>[INST] ${systemPrompt}\n\n${prompt} [/INST]`
-      const res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          inputs: fullPrompt,
-          parameters: { max_new_tokens: 512, temperature: 0.3, do_sample: true, return_full_text: false },
-        }),
-        signal: AbortSignal.timeout(MODEL_TIMEOUT),
-      })
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '')
+      return { model: 'HuggingFace/Mistral-7B', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `HF ${res.status}: ${errBody.slice(0, 150)}` }
+    }
 
-      if (!res.ok) {
-        if (res.status === 401) break // Invalid key
-        continue // Try next model
-      }
-
-      const data = await res.json()
-      let content = ''
-      if (Array.isArray(data) && data.length > 0) content = data[0].generated_text || ''
-      else if (typeof data === 'string') content = data
-      if (!content && data?.estimated_time) continue
-
-      content = content.replace(/\[\/INST\]/g, '').trim()
-      if (content.length > 10) {
-        const modelShort = model.split('/').pop() || model
-        return { model: `HuggingFace/${modelShort}`, content, confidence: calcConfidence(content, 'huggingface'), processingTimeMs: Date.now() - start, success: true }
-      }
-    } catch { continue }
+    const data = await res.json()
+    let content = ''
+    if (Array.isArray(data) && data.length > 0) content = data[0].generated_text || ''
+    else if (typeof data === 'string') content = data
+    content = content.replace(/\[\/INST\]/g, '').trim()
+    return { model: 'HuggingFace/Mistral-7B', content, confidence: calcConfidence(content, 'huggingface'), processingTimeMs: Date.now() - start, success: content.length > 10 }
+  } catch (e: any) {
+    return { model: 'HuggingFace/Mistral-7B', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: e.message }
   }
-
-  return { model: 'HuggingFace/Mistral-7B', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'All HuggingFace models failed' }
 }
 
 // ─── Master Council — Full Consensus ─────────────────────────────
 
 /**
- * Run ALL available AI models in parallel and build a consensus.
- * Each model gets ONE role (not 6) to maximize diversity:
+ * Run ALL available AI models ONCE each in parallel, then assign
+ * each model's response to one or more council roles.
  *
- * Role → Model mapping (optimized for available models on Railway):
- * 1. المحلل الفني    → Gemini (creative pattern analysis)
- * 2. محلل المشاعر     → Groq (fast sentiment)
- * 3. خبير المخاطر     → GLM-4 (Arabic risk analysis)
- * 4. خبير الماكرو     → Groq (macro with fallback)
- * 5. خبير الأنماط     → GLM-4 (pattern with fallback)
- * 6. استراتيجي التنفيذ → Gemini (execution strategy)
+ * This prevents rate-limiting from calling the same model multiple times.
+ * Each model is called with a DIFFERENT prompt for diversity.
  *
- * Each role has a fallback to a different model if primary fails.
- * Total timeout: ~15s (per-model timeout), all run in parallel.
+ * Role assignment based on model strengths:
+ * - Groq:  محلل المشاعر (sentiment) + استراتيجي التنفيذ (execution)
+ * - Gemini: المحلل الفني (technical) + خبير الماكرو (macro)
+ * - GLM-4:  خبير المخاطر (risk) + خبير الأنماط (patterns)
+ * - HF:     (if available, supplements any missing role)
  */
 export async function runDirectCouncilConsensus(symbol: string): Promise<{
   success: boolean
@@ -281,55 +250,76 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
   const startTime = Date.now()
   const errors: string[] = []
 
-  // Assign each role to a different model with fallbacks
-  const roles = [
-    { id: 'tech',  name: 'المحلل الفني',    primary: callGemini,      fallback: callGroq,       prompt: `حلل الشارت الفني لـ ${symbol}. قيّم الاتجاه والزخم والمقاومات.` },
-    { id: 'sent',  name: 'محلل المشاعر',     primary: callGroq,        fallback: callGemini,     prompt: `حلل مشاعر السوق لـ ${symbol}. هل السوق متفائل أم متشائم؟` },
-    { id: 'risk',  name: 'خبير المخاطر',     primary: callGLM,         fallback: callGemini,     prompt: `حدد مخاطر دخول صفقة على ${symbol}. قيّم التذبذب والسيولة.` },
-    { id: 'macro', name: 'خبير الماكرو',     primary: callGroq,        fallback: callHuggingFace,prompt: `حلل الوضع الاقتصادي وتأثيره على ${symbol}.` },
-    { id: 'pat',   name: 'خبير الأنماط',     primary: callGLM,         fallback: callGroq,       prompt: `هل ترى أنماط تاريخية في حركة ${symbol} الحالية؟` },
-    { id: 'exec',  name: 'استراتيجي التنفيذ', primary: callGemini,      fallback: callGroq,       prompt: `ما أفضل توقيت للدخول في ${symbol}؟ حدد نقطة الدخول المثالية.` },
+  // Define prompts for each model — each model gets a different perspective
+  const modelCalls: Array<{
+    modelName: string
+    callFn: () => Promise<DirectAIResponse>
+    roles: string[] // This model fills these roles
+    prompt: string
+  }> = [
+    {
+      modelName: 'Groq',
+      callFn: () => callGroq(`حلل مشاعر السوق وأفضل توقيت للتنفيذ على ${symbol}. قيّم الزخم والمشاعر العامة ونقطة الدخول المثالية.`),
+      roles: ['محلل المشاعر', 'استراتيجي التنفيذ'],
+      prompt: 'sentiment+execution',
+    },
+    {
+      modelName: 'Gemini',
+      callFn: () => callGemini(`حلل الشارت الفني والوضع الاقتصادي لـ ${symbol}. قيّم الاتجاه والمقاومات والعوامل الكلية المؤثرة.`),
+      roles: ['المحلل الفني', 'خبير الماكرو'],
+      prompt: 'technical+macro',
+    },
+    {
+      modelName: 'GLM-4',
+      callFn: () => callGLM(`حدد مخاطر الدخول في صفقة على ${symbol} والأنماط التاريخية المتكررة. قيّم التذبذب والأنماط الفنية.`),
+      roles: ['خبير المخاطر', 'خبير الأنماط'],
+      prompt: 'risk+patterns',
+    },
+    {
+      modelName: 'HuggingFace',
+      callFn: () => callHuggingFace(`حلل تحليلياً حركة ${symbol}. هل هناك نمط واضح؟ ما توقعاتك؟`),
+      roles: ['محلل إضافي'],
+      prompt: 'supplementary',
+    },
   ]
 
-  // Run all 6 roles in parallel — each tries primary then fallback
-  const results = await Promise.allSettled(
-    roles.map(async (role) => {
-      // Try primary
-      let response = await role.primary(role.prompt, symbol)
+  // Call ALL models in parallel — each model is called ONLY ONCE
+  const callResults = await Promise.allSettled(
+    modelCalls.map(async (mc) => {
+      const response = await mc.callFn()
       if (!response.success) {
-        errors.push(`${role.name} primary (${response.model}): ${response.error || 'failed'}`)
-        // Try fallback
-        response = await role.fallback(role.prompt, symbol)
-        if (!response.success) {
-          errors.push(`${role.name} fallback (${response.model}): ${response.error || 'failed'}`)
-        }
+        errors.push(`${mc.modelName}: ${response.error || 'failed'}`)
       }
-      return { role, response }
+      return { ...mc, response }
     })
   )
 
-  // Build analyses
+  // Build analyses — each successful model fills its assigned roles
   const analyses: CouncilVote[] = []
   let buyWeight = 0, sellWeight = 0, totalConfidence = 0
 
-  for (const res of results) {
+  for (const res of callResults) {
     if (res.status !== 'fulfilled') continue
-    const { role, response } = res.value
+    const { roles: modelRoles, response } = res.value
     if (!response.success || response.confidence <= 0) continue
 
     const vote = parseVote(response.content)
     const conf = response.confidence
-    if (vote === 'BUY') buyWeight += conf
-    else if (vote === 'SELL') sellWeight += conf
-    totalConfidence += conf
 
-    analyses.push({
-      role: role.name,
-      model: response.model,
-      vote,
-      confidence: Math.round(conf * 100),
-      reason: response.content.slice(0, 300) + (response.content.length > 300 ? '...' : ''),
-    })
+    // This model's response fills all its assigned roles
+    for (const roleName of modelRoles) {
+      if (vote === 'BUY') buyWeight += conf
+      else if (vote === 'SELL') sellWeight += conf
+      totalConfidence += conf
+
+      analyses.push({
+        role: roleName,
+        model: response.model,
+        vote,
+        confidence: Math.round(conf * 100),
+        reason: response.content.slice(0, 300) + (response.content.length > 300 ? '...' : ''),
+      })
+    }
   }
 
   // Calculate consensus
@@ -344,10 +334,10 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     else { recommendation = 'HOLD'; consensusScore = Math.round((1 - Math.abs(buyPct - sellPct)) * 50) }
   }
 
-  const masterStrategy = `إجماع مجلس الذكاء الاصطناعي (${analyses.length}/6 نماذج): ${recommendation === 'BUY' ? 'شراء قوي' : recommendation === 'SELL' ? 'بيع قوي' : 'انتظار'} بنسبة ثقة ${consensusScore}%.`
+  const masterStrategy = `إجماع مجلس الذكاء الاصطناعي (${analyses.length} أدوار): ${recommendation === 'BUY' ? 'شراء' : recommendation === 'SELL' ? 'بيع' : 'انتظار'} بنسبة ثقة ${consensusScore}%.`
   const conflictExplanation = analyses.length < 4
-    ? `بعض النماذج لم تستجب (${6 - analyses.length}/6)، لكن النماذج المتاحة توصلت لإجماع كافٍ.`
-    : 'الأدوار الأساسية متوافقة نسبيًا ولا يوجد تعارض جوهري.'
+    ? `بعض النماذج لم تستجب — النماذج المتاحة توصلت لإجماع.`
+    : 'الأدوار متوافقة نسبياً.'
 
   const source = analyses.length >= 3 ? 'real-ai' : 'partial-ai'
 
@@ -366,10 +356,10 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
         rsi: 50,
         processingTimeMs: Date.now() - startTime,
         timestamp: new Date().toISOString(),
-        aiEngine: `Direct-4-Models (${analyses.length}/6 responded)`,
-        modelsUsed: analyses.map(a => a.model),
-        modelsResponded: analyses.length,
-        modelsExpected: 6,
+        aiEngine: `Direct-AI (${analyses.length} roles from ${new Set(analyses.map(a => a.model)).size} models)`,
+        modelsUsed: [...new Set(analyses.map(a => a.model))],
+        modelsResponded: new Set(analyses.map(a => a.model)).size,
+        modelsExpected: 4,
       },
     },
     errors,

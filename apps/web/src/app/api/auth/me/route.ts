@@ -3,11 +3,15 @@ import { db, ensureDbReady } from '@/lib/db'
 import crypto from 'crypto'
 
 /**
- * /api/auth/me — Auto-authentication endpoint
+ * /api/auth/me — Authentication endpoint
  *
- * Simplified: always ensures a valid session exists.
- * No login required — auto-creates guest user + session.
- * The platform works out-of-the-box.
+ * Checks existing session or creates one for email login flow.
+ * NO automatic guest creation — users must login to access the platform.
+ *
+ * Flow:
+ * 1. If roua_session cookie exists → validate and return user
+ * 2. If ?email=xxx provided → find/create user + session (email login)
+ * 3. Otherwise → return { authenticated: false }
  */
 
 const GUEST_EMAIL = 'guest@roua.auto'
@@ -16,17 +20,9 @@ export async function GET(request: NextRequest) {
   try {
     const dbReady = await ensureDbReady()
     if (!dbReady) {
-      // DB unavailable — return a mock session so the frontend doesn't break
       return NextResponse.json({
-        authenticated: true,
-        isGuest: true,
-        user: {
-          id: 'guest-offline',
-          email: GUEST_EMAIL,
-          displayName: 'ضيف',
-          tier: 'FREE',
-          isGuest: true,
-        },
+        authenticated: false,
+        error: 'AUTH_SERVICE_UNAVAILABLE',
       })
     }
 
@@ -43,15 +39,29 @@ export async function GET(request: NextRequest) {
           include: { user: true },
         })
         if (session && session.expiresAt > new Date()) {
+          const isGuestUser = session.user.email === GUEST_EMAIL || session.user.id.startsWith('guest')
+
+          // If this is a guest session, treat as unauthenticated
+          if (isGuestUser) {
+            // Delete the guest session
+            await db.session.delete({ where: { id: session.id } }).catch(() => {})
+            const response = NextResponse.json({
+              authenticated: false,
+              error: 'GUEST_SESSION_INVALID',
+            })
+            response.cookies.delete('roua_session')
+            return response
+          }
+
           return NextResponse.json({
             authenticated: true,
-            isGuest: session.user.email === GUEST_EMAIL || session.user.id.startsWith('guest'),
+            isGuest: false,
             user: {
               id: session.user.id,
               email: session.user.email,
               displayName: session.user.displayName,
               tier: session.user.tier,
-              isGuest: session.user.email === GUEST_EMAIL || session.user.id.startsWith('guest'),
+              isGuest: false,
             },
           })
         }
@@ -64,87 +74,88 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── Determine which email to use ──
-    const targetEmail = requestedEmail || GUEST_EMAIL
+    // ── Email login flow: ?email=xxx ──
+    if (requestedEmail) {
+      // Block guest email
+      if (requestedEmail === GUEST_EMAIL) {
+        return NextResponse.json({
+          authenticated: false,
+          error: 'GUEST_LOGIN_BLOCKED',
+        })
+      }
 
-    // ── Find or create user ──
-    let user = await db.user.findUnique({ where: { email: targetEmail } }).catch(() => null)
+      // Find or create user with this email
+      let user = await db.user.findUnique({ where: { email: requestedEmail } }).catch(() => null)
 
-    if (!user) {
+      if (!user) {
+        try {
+          user = await db.user.create({
+            data: {
+              email: requestedEmail,
+              displayName: requestedEmail.split('@')[0],
+              tier: 'FREE',
+            },
+          })
+        } catch {
+          user = await db.user.findUnique({ where: { email: requestedEmail } })
+        }
+      }
+
+      if (!user) {
+        return NextResponse.json({
+          authenticated: false,
+          error: 'USER_CREATION_FAILED',
+        })
+      }
+
+      // Create a new session
+      const newToken = crypto.randomBytes(32).toString('hex')
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+
       try {
-        user = await db.user.create({
-          data: {
-            email: targetEmail,
-            displayName: targetEmail === GUEST_EMAIL ? 'ضيف' : targetEmail.split('@')[0],
-            tier: 'FREE',
-          },
+        await db.session.create({
+          data: { userId: user.id, token: newToken, expiresAt },
         })
       } catch {
-        user = await db.user.findUnique({ where: { email: targetEmail } })
+        return NextResponse.json({
+          authenticated: false,
+          error: 'SESSION_CREATION_FAILED',
+        })
       }
-    }
 
-    if (!user) {
-      // Can't create user — return mock session
-      const isGuestUser = targetEmail === GUEST_EMAIL
-      return NextResponse.json({
+      const response = NextResponse.json({
         authenticated: true,
-        isGuest: isGuestUser,
-        user: { id: 'guest-fallback', email: targetEmail, displayName: targetEmail === GUEST_EMAIL ? 'ضيف' : targetEmail.split('@')[0], tier: 'FREE', isGuest: isGuestUser },
-      })
-    }
-
-    // Create a new session
-    const newToken = crypto.randomBytes(32).toString('hex')
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-
-    try {
-      await db.session.create({
-        data: { userId: user.id, token: newToken, expiresAt },
-      })
-    } catch {
-      // Session creation failed — return user without cookie
-      return NextResponse.json({
-        authenticated: true,
+        isGuest: false,
         user: {
           id: user.id,
           email: user.email,
           displayName: user.displayName,
           tier: user.tier,
+          isGuest: false,
         },
       })
+
+      response.cookies.set('roua_session', newToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60,
+        path: '/',
+      })
+
+      return response
     }
 
-    const isGuestUser = user.email === GUEST_EMAIL || user.id.startsWith('guest')
-
-    const response = NextResponse.json({
-      authenticated: true,
-      isGuest: isGuestUser,
-      user: {
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-        tier: user.tier,
-        isGuest: isGuestUser,
-      },
+    // ── No session, no email → not authenticated ──
+    return NextResponse.json({
+      authenticated: false,
+      error: 'NO_SESSION',
     })
-
-    response.cookies.set('roua_session', newToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60,
-      path: '/',
-    })
-
-    return response
   } catch (error: any) {
     console.error('[auth/me] Error:', error?.message || error)
-    // NEVER return 500 — always return a valid session
     return NextResponse.json({
-      authenticated: true,
-      isGuest: true,
-      user: { id: 'guest-error', email: GUEST_EMAIL, displayName: 'ضيف', tier: 'FREE', isGuest: true },
+      authenticated: false,
+      error: 'AUTH_ERROR',
     })
   }
 }

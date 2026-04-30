@@ -3,30 +3,27 @@
 import { useEffect } from 'react'
 
 /**
- * AuthInitializer — Ensures a roua_session cookie exists before any API calls.
+ * AuthInitializer — Validates existing session for dashboard users.
  *
- * When the dashboard loads, many components immediately fetch data from
- * NestJS-proxied API routes (e.g., /api/trading/positions). These routes
- * require a valid roua_session cookie for authentication. If no session
- * exists, all API calls fail with 401.
- *
- * This component calls /api/auth/me on mount, which auto-creates a guest
- * user + session and sets the roua_session cookie. By including this in
- * the dashboard layout, we ensure the cookie is set before child
- * components start making API calls.
+ * Called after middleware has already verified the roua_session cookie.
+ * This is a secondary check that validates the session is still active.
+ * Does NOT create guest sessions — users must login to access the dashboard.
  */
 export function AuthInitializer() {
   useEffect(() => {
-    // Fire-and-forget: ensure session cookie exists
+    // Validate existing session
     fetch('/api/auth/me')
       .then(res => res.json())
       .then(data => {
-        if (data.authenticated) {
-          // Session cookie is now set — all subsequent API calls will work
+        if (!data.authenticated) {
+          // Session is invalid — redirect to login
+          // Middleware should have caught this, but as a safety net:
+          window.location.href = '/login'
         }
       })
       .catch(() => {
-        // Auth init failed — API calls will fall back gracefully
+        // Auth check failed — redirect to login
+        window.location.href = '/login'
       })
   }, [])
 

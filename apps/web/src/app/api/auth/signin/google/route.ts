@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         error: 'GOOGLE_OAUTH_NOT_CONFIGURED',
-        message: 'تسجيل الدخول عبر Google غير مُفعّل حالياً. استخدم البريد الإلكتروني أو الدخول كضيف.',
+        message: 'تسجيل الدخول عبر Google غير مُفعّل حالياً. استخدم البريد الإلكتروني أو Passkey.',
       },
       { status: 501 },
     )

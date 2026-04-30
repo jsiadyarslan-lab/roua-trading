@@ -78,6 +78,16 @@
   --loss: #ef4444;
   --loss-bg: #ef444414;
 
+  /* Dashboard component variables (used by AppHeader, etc.) */
+  --success: #00FFA3;
+  --danger: #FF4757;
+  --surface: #1A1D29;
+  --card-border: rgba(255,255,255,0.06);
+  --mono: var(--font-mono), 'JetBrains Mono', monospace;
+  --text3: #8B92A8;
+  --text-faint: #4B5263;
+  --purple: #B388FF;
+
   --warning: #d4af37;
   --warning-bg: #d4af3712;
   --gold: #d4af37;

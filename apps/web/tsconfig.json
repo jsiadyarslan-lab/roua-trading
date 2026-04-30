@@ -26,6 +26,9 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "technicalindicators": [
+        "../../node_modules/technicalindicators"
       ]
     }
   },

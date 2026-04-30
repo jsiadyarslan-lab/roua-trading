@@ -59,7 +59,7 @@ export class AIOrchestratorService {
     risk_analysis: 15 * 60 * 1000,    // 15 minutes
     translation: 30 * 60 * 1000,      // 30 minutes
     general: 10 * 60 * 1000,          // 10 minutes
-    consensus: 5 * 60 * 1000,         // 5 minutes for consensus results
+    consensus: 30 * 60 * 1000,        // 30 minutes for consensus results (reduces API calls)
   };
 
   /** Model key environment variable mapping */
@@ -251,39 +251,42 @@ export class AIOrchestratorService {
     try {
       const decisionInstruction = '\n\nIMPORTANT: End your response with a single line in exactly this format: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD". This line must be the last line of your response.';
 
+      // FIX: Each role has primary + fallback models to prevent disconnection
+      // When primary model fails/rate-limited, fallback model takes over
       const roles = [
-        { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',     prompt: `حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.${decisionInstruction}` },
-        { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       prompt: `حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
-        { id: 'risk',   name: 'خبير المخاطر',     model: 'bedrock',    prompt: `حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة مع تقييم السيناريو الأسوأ.${decisionInstruction}` },
-        { id: 'macro',  name: 'خبير الماكرو',     model: 'glm',        prompt: `حلل الوضع الاقتصادي العام وتأثيره على ${symbol} مع مراعاة السياق العربي.${decisionInstruction}` },
-        { id: 'pattern',name: 'خبير الأنماط',     model: 'huggingface',prompt: `هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟${decisionInstruction}` },
-        { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'ollama',     prompt: `ما هو أفضل توقيت للدخول في ${symbol} بناءً على السيولة والنماذج المحلية؟${decisionInstruction}` },
+        { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',     fallbackModels: ['groq', 'glm', 'huggingface'],  prompt: `حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.${decisionInstruction}` },
+        { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['glm', 'gemini', 'huggingface'], prompt: `حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
+        { id: 'risk',   name: 'خبير المخاطر',     model: 'bedrock',    fallbackModels: ['glm', 'gemini', 'groq'],        prompt: `حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة مع تقييم السيناريو الأسوأ.${decisionInstruction}` },
+        { id: 'macro',  name: 'خبير الماكرو',     model: 'glm',        fallbackModels: ['gemini', 'groq', 'huggingface'], prompt: `حلل الوضع الاقتصادي العام وتأثيره على ${symbol} مع مراعاة السياق العربي.${decisionInstruction}` },
+        { id: 'pattern',name: 'خبير الأنماط',     model: 'huggingface',fallbackModels: ['groq', 'gemini', 'glm'],        prompt: `هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟${decisionInstruction}` },
+        { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'ollama',     fallbackModels: ['groq', 'gemini', 'glm'],        prompt: `ما هو أفضل توقيت للدخول في ${symbol} بناءً على السيولة والنماذج المحلية؟${decisionInstruction}` },
       ];
 
       const start = Date.now();
 
-      // FIX: Filter out models in cooldown (circuit breaker) before calling them
-      const activeRoles = roles.filter(role => {
-        const cooldownUntil = this.modelCooldowns.get(role.model) || 0;
-        if (Date.now() < cooldownUntil) {
-          this.logger.debug(`🚫 Skipping ${role.model} for consensus — in cooldown`);
-          return false;
+      // FIX: Resolve the best available model for each role (primary → fallback chain)
+      // This ensures all 6 roles are filled even if primary models are in cooldown
+      const activeRoles = roles.map(role => {
+        // Try primary model first
+        const models = [role.model, ...(role.fallbackModels || [])];
+        for (const model of models) {
+          const cooldownUntil = this.modelCooldowns.get(model) || 0;
+          if (Date.now() < cooldownUntil) continue; // Skip — in cooldown
+          if (!this._isModelKeyAvailable(model)) continue; // Skip — no API key
+          return { ...role, resolvedModel: model };
         }
-        // Also skip models without API keys
-        if (!this._isModelKeyAvailable(role.model)) {
-          this.logger.debug(`⚠️ Skipping ${role.model} for consensus — no API key`);
-          return false;
-        }
-        return true;
+        // All models for this role unavailable — keep primary (will return stub)
+        this.logger.warn(`⚠️ All models for role ${role.name} are unavailable/in cooldown`);
+        return { ...role, resolvedModel: role.model };
       });
 
-      this.logger.log(`🎼 Active models for consensus: ${activeRoles.map(r => r.model).join(', ')} (${activeRoles.length}/${roles.length})`);
+      this.logger.log(`🎼 Resolved models for consensus: ${activeRoles.map(r => `${r.name}→${r.resolvedModel}`).join(', ')}`);
 
       const results = await Promise.allSettled(
         activeRoles.map(async (role) => {
           const roleStart = Date.now();
           try {
-            const response = await this._callModel(role.model, {
+            const response = await this._callModel(role.resolvedModel, {
               symbol,
               prompt: role.prompt,
               type: 'market_analysis',
@@ -302,8 +305,8 @@ export class AIOrchestratorService {
             }
             // If model returned stub (confidence 0), put it in cooldown
             if (response.confidence === 0) {
-              this.modelCooldowns.set(role.model, Date.now() + this.COOLDOWN_MS);
-              this.logger.warn(`🚫 Model ${role.model} returned stub — cooldown ${this.COOLDOWN_MS / 1000}s`);
+              this.modelCooldowns.set(role.resolvedModel, Date.now() + this.COOLDOWN_MS);
+              this.logger.warn(`🚫 Model ${role.resolvedModel} returned stub — cooldown ${this.COOLDOWN_MS / 1000}s`);
             }
             return { ...role, response };
           } catch (error: any) {
@@ -315,7 +318,7 @@ export class AIOrchestratorService {
               errorMessage: error.message,
             });
             // Put model in cooldown on failure
-            this.modelCooldowns.set(role.model, Date.now() + this.COOLDOWN_MS);
+            this.modelCooldowns.set(role.resolvedModel, Date.now() + this.COOLDOWN_MS);
             throw error;
           }
         }),
@@ -395,8 +398,8 @@ export class AIOrchestratorService {
 
       const result = { consensusScore, recommendation, analyses, masterStrategy: masterStrategyContent };
 
-      // Cache the consensus result — 10-minute TTL (increased from 5 to reduce API load)
-      const consensusCacheTTL = 10 * 60 * 1000; // 10 minutes
+      // Cache the consensus result — 30-minute TTL (increased from 10 to reduce API load & prevent disconnects)
+      const consensusCacheTTL = 30 * 60 * 1000; // 30 minutes
       try {
         await this.redis?.set(cacheKey, JSON.stringify(result), consensusCacheTTL);
       } catch {}

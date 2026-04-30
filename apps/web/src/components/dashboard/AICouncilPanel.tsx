@@ -40,17 +40,18 @@ export function AICouncilPanel() {
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<string | null>(null)
   const [dataSource, setDataSource] = useState<'real-ai' | 'partial-ai' | 'scanner-rules' | 'fallback' | 'unknown'>('unknown')
-  const [countdown, setCountdown] = useState(300) // 5 min — matches 10min cache with 50% overlap
+  const [countdown, setCountdown] = useState(600) // 10 min — matches 30min cache with overlap
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const failCountRef = useRef(0) // Track consecutive failures for exponential backoff
   const abortRef = useRef<AbortController | null>(null) // Cancel in-flight requests
+  const lastGoodAIData = useRef<{ data: ConsensusData; source: string; timestamp: number } | null>(null) // Keep last good AI result
   const [loadingPhase, setLoadingPhase] = useState(0)
   const phases = ['جاري تجميع بيانات السوق الحية...', 'تحليل الزخم عبر النماذج الذكية...', 'مناقشة الإشارات الفنية...', 'بناء استراتيجية الإجماع النهائي...']
 
   const fetchConsensus = useCallback(async () => {
     setLoading(true)
     setError(null)
-    setCountdown(300)
+    setCountdown(600) // 10 min countdown
     // Cancel any previous in-flight request
     if (abortRef.current) abortRef.current.abort()
     abortRef.current = new AbortController()
@@ -69,10 +70,33 @@ export function AICouncilPanel() {
 
       const j = await res.json()
       if (j.success) {
+        const newSource = j.source || 'unknown'
+        const isAIResult = newSource === 'real-ai' || newSource === 'partial-ai'
+
+        // FIX: If we got scanner-rules but have recent AI data (<30 min old), keep AI data
+        if (!isAIResult && lastGoodAIData.current) {
+          const ageMs = Date.now() - lastGoodAIData.current.timestamp
+          if (ageMs < 30 * 60 * 1000) { // Less than 30 minutes old
+            console.log('[AI Council] Got scanner-rules, but keeping last AI result (still fresh)')
+            // Keep the last good AI data, just update the timestamp
+            setData(lastGoodAIData.current.data)
+            setDataSource(lastGoodAIData.current.source)
+            setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+            failCountRef.current = 0
+            return // Don't override with scanner-rules
+          }
+        }
+
+        // Normal path: update with new data
         setData(j.data)
-        setDataSource(j.source || 'unknown')
+        setDataSource(newSource)
         setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
         failCountRef.current = 0 // Reset backoff on success
+
+        // Save as last good AI result for future fallback
+        if (isAIResult) {
+          lastGoodAIData.current = { data: j.data, source: newSource, timestamp: Date.now() }
+        }
 
         // Push alert when council has a directional recommendation with high consensus
         if (j.data?.recommendation && j.data.recommendation !== 'HOLD' && j.data.consensusScore >= 60) {
@@ -87,10 +111,24 @@ export function AICouncilPanel() {
       }
     } catch (e: any) {
       if (e.name === 'AbortError') return // Cancelled — don't show error
+
+      // FIX: On error, if we have recent AI data, keep showing it instead of error
+      if (lastGoodAIData.current) {
+        const ageMs = Date.now() - lastGoodAIData.current.timestamp
+        if (ageMs < 30 * 60 * 1000) {
+          console.log('[AI Council] Fetch failed, keeping last AI result')
+          setData(lastGoodAIData.current.data)
+          setDataSource(lastGoodAIData.current.source)
+          setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+          // Don't increment fail count if we have good data
+          return
+        }
+      }
+
       failCountRef.current++
-      // Exponential backoff: 300s → 600s → 900s → max 1800s
-      const backoffSeconds = Math.min(300 * Math.pow(2, failCountRef.current - 1), 1800)
-      setCountdown(backoffSeconds)
+      // Exponential backoff: 600s → 900s → max 1800s
+      const backoffSeconds = Math.min(600 * Math.pow(1.5, failCountRef.current - 1), 1800)
+      setCountdown(Math.round(backoffSeconds))
       setError(e.message || 'خطأ غير متوقع')
     } finally {
       setLoading(false)
@@ -109,7 +147,7 @@ export function AICouncilPanel() {
       setCountdown((c) => {
         if (c <= 1) {
           fetchConsensus()
-          return 180
+          return 600 // 10 min refresh cycle (matches increased cache TTL)
         }
         return c - 1
       })
@@ -133,6 +171,7 @@ export function AICouncilPanel() {
 
   const isRealAI = dataSource === 'real-ai' || dataSource === 'partial-ai'
   const isPartialAI = dataSource === 'partial-ai'
+  const isCachedAI = isRealAI && data?.meta?.cached === true
   const recColor = data?.recommendation === 'BUY' ? T.green : data?.recommendation === 'SELL' ? T.red : T.amber
   const formatCountdown = `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`
 
@@ -258,7 +297,7 @@ export function AICouncilPanel() {
               <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(179,136,255,0.06)', border: '1px solid rgba(179,136,255,0.15)' }}>
                 <Cpu size={10} color={T.purple} />
                 <span className="text-[8px]" style={{ color: T.purple }}>
-                  تحليل AI حقيقي من 6 نماذج — {data.meta?.processingTimeMs || 0}ms
+                  {isCachedAI ? 'تحليل AI مخزّن مؤقتاً — لا يزال صالحاً' : `تحليل AI حقيقي من 6 نماذج — ${data.meta?.processingTimeMs || 0}ms`}
                 </span>
               </div>
             )}

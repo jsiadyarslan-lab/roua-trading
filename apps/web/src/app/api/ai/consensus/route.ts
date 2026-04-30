@@ -15,11 +15,47 @@ function directionLabel(dir: 'buy' | 'sell' | 'neutral') {
   return dir === 'buy' ? 'صاعد' : dir === 'sell' ? 'هابط' : 'محايد'
 }
 
+// ═══════════════════════════════════════════════════════════════
+// PERSISTENT AI CACHE — Keeps last successful AI result per symbol
+// When NestJS is temporarily unreachable, serves cached AI result
+// instead of falling back to scanner-rules. TTL: 30 minutes.
+// ═══════════════════════════════════════════════════════════════
+const aiResultCache = new Map<string, { data: any; source: string; cachedAt: number }>()
+const AI_CACHE_TTL = 30 * 60 * 1000 // 30 minutes
+
+function getCachedAIResult(symbol: string): { data: any; source: string } | null {
+  const entry = aiResultCache.get(symbol)
+  if (!entry) return null
+  const age = Date.now() - entry.cachedAt
+  if (age > AI_CACHE_TTL) {
+    aiResultCache.delete(symbol)
+    return null
+  }
+  return { data: entry.data, source: entry.source }
+}
+
+function setCachedAIResult(symbol: string, data: any, source: string) {
+  aiResultCache.set(symbol, { data, source, cachedAt: Date.now() })
+  // Evict old entries if cache grows too large
+  if (aiResultCache.size > 100) {
+    const now = Date.now()
+    for (const [key, entry] of aiResultCache) {
+      if (now - entry.cachedAt > AI_CACHE_TTL) aiResultCache.delete(key)
+    }
+  }
+}
+
 /**
  * POST /api/ai/consensus
  *
- * Hybrid approach: Tries the REAL NestJS AI Council first (6 actual AI models),
- * falls back to rule-based scanner consensus if NestJS is unavailable.
+ * Hybrid approach with persistent AI caching:
+ * 1. Try REAL NestJS AI Council (6 actual AI models)
+ * 2. If NestJS unreachable → serve last cached AI result (up to 30 min old)
+ * 3. If no cached AI → fall back to rule-based scanner consensus
+ *
+ * This prevents the "disconnection every few minutes" issue where
+ * temporary NestJS unavailability causes the UI to switch from
+ * real-ai to scanner-rules.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -40,6 +76,8 @@ export async function POST(req: NextRequest) {
       `${origin}/api/health`.replace('/api/health', ''),
     ].filter((u, i, arr) => u && arr.indexOf(u) === i) as string[]
 
+    let lastNestJSError: string | null = null
+
     for (const apiTarget of apiTargets) {
       try {
         const targetUrl = `${apiTarget}/api/ai/consensus`
@@ -57,9 +95,11 @@ export async function POST(req: NextRequest) {
             // Real AI Council succeeded! Add meta info
             const aiData = nestjsData.data
             const modelCount = aiData.analyses?.length || 0
-            // Distinguish partial-ai (some models) from real-ai (most models)
-            const source = modelCount >= 4 ? 'real-ai' : modelCount >= 1 ? 'partial-ai' : 'scanner-rules'
-            return NextResponse.json({
+            // FIX: Lowered threshold from 4→3 for real-ai (Ollama is always stub on Railway)
+            // 3 out of 5 available models is already a solid consensus
+            const source = modelCount >= 3 ? 'real-ai' : modelCount >= 1 ? 'partial-ai' : 'scanner-rules'
+
+            const result = {
               success: true,
               source,
               data: {
@@ -75,18 +115,56 @@ export async function POST(req: NextRequest) {
                   modelsExpected: 6,
                 },
               },
-            })
+            }
+
+            // Cache this successful AI result for future fallback
+            if (source === 'real-ai' || source === 'partial-ai') {
+              setCachedAIResult(symbol, result.data, source)
+            }
+
+            return NextResponse.json(result)
           }
         }
         // If this target responded but didn't have valid data, try next
-        console.warn(`[consensus] Target ${targetUrl} responded but no valid data, trying next...`)
+        const errText = await nestjsRes.text().catch(() => '')
+        lastNestJSError = `Target ${targetUrl} status ${nestjsRes.status}: ${errText.slice(0, 100)}`
+        console.warn(`[consensus] ${lastNestJSError}`)
       } catch (aiError: any) {
-        console.warn(`[consensus] Target ${apiTarget} failed: ${aiError?.message || aiError}`)
+        lastNestJSError = `Target ${apiTarget} failed: ${aiError?.message || aiError}`
+        console.warn(`[consensus] ${lastNestJSError}`)
         // Continue to next target
       }
     }
-    // All NestJS targets failed — fall through to scanner
 
+    // ═══════════════════════════════════════════════════════════
+    // PHASE 1.5: Check cached AI result (NEW — prevents disconnect)
+    // If NestJS is temporarily down, serve the last successful AI
+    // result instead of immediately falling to scanner-rules.
+    // ═══════════════════════════════════════════════════════════
+    const cachedAI = getCachedAIResult(symbol)
+    if (cachedAI) {
+      const ageSeconds = Math.round((Date.now() - (aiResultCache.get(symbol)?.cachedAt || 0)) / 1000)
+      const ageMinutes = Math.floor(ageSeconds / 60)
+      console.log(`[consensus] NestJS unreachable — serving cached AI result for ${symbol} (${ageMinutes}m old)`)
+
+      return NextResponse.json({
+        success: true,
+        source: cachedAI.source,
+        data: {
+          ...cachedAI.data,
+          meta: {
+            ...cachedAI.data.meta,
+            processingTimeMs: Date.now() - startedAt,
+            timestamp: new Date().toISOString(),
+            cached: true,
+            cacheAgeSeconds: ageSeconds,
+            aiEngine: cachedAI.data.meta?.aiEngine || 'NestJS-Cached',
+          },
+        },
+      })
+    }
+
+    // All NestJS targets failed AND no cached AI — fall through to scanner
 
     // ═══════════════════════════════════════════════════════════
     // PHASE 2: Fallback — Rule-based scanner consensus

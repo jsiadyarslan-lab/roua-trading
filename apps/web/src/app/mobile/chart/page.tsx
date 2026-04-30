@@ -35,7 +35,7 @@ export default function MobileChartPage() {
   const isUp = priceChange >= 0
 
   return (
-    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 80, background: '#000000', display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 40 }}>
+    <div style={{ position: 'absolute', inset: 0, paddingBottom: 80, background: '#000000', display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 40 }}>
 
       {/* ── Header ── */}
       <div style={{
@@ -126,12 +126,12 @@ export default function MobileChartPage() {
         </div>
       </div>
 
-      {/* ── Chart — full area ── */}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+      {/* ── Chart ── */}
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', direction: 'ltr' }}>
         <RouaChart
           currentPrice={livePrice}
           mobile={true}
-          compact={false}
+          compact={true}
         />
 
         {/* ── Small Execution FAB ── */}

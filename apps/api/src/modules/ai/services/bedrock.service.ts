@@ -102,7 +102,13 @@ export class BedrockService {
         this.logger.warn(`AWS Bedrock rate limited (429) — throwing for circuit breaker`);
         throw error;
       }
-      this.logger.warn(`AWS Bedrock inference failed: ${error.message}`);
+      // FIX: Include error details in the response so diagnostics can see them
+      const errorDetail = error.message || String(error);
+      this.logger.warn(`AWS Bedrock inference failed: ${errorDetail}`);
+      return {
+        ...this._stubResponse(request),
+        content: `⚠️ Bedrock API error: ${errorDetail.substring(0, 200)}`,
+      };
     }
 
     return this._stubResponse(request);

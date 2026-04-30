@@ -57,10 +57,10 @@ export default function MobileNavBar() {
         style={{
           height: 'calc(80px + env(safe-area-inset-bottom))',
           paddingBottom: 'env(safe-area-inset-bottom)',
-          background: 'rgba(11, 14, 20, 0.65)',
-          backdropFilter: 'blur(40px) saturate(200%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-          borderTop: '0.5px solid rgba(255,255,255,0.1)',
+          background: 'rgba(11, 14, 20, 0.4)',
+          backdropFilter: 'blur(50px) saturate(210%)',
+          WebkitBackdropFilter: 'blur(50px) saturate(210%)',
+          borderTop: '0.5px solid rgba(255,255,255,0.12)',
         }}
       >
         <div className="flex items-center justify-around h-full px-2" dir="rtl">

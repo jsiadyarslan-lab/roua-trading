@@ -39,6 +39,7 @@ interface PaperTradesState {
   closedTrades: ClosedPaperTrade[]
   addTrade: (t: Omit<PaperTrade, 'id' | 'unrealizedPnl' | 'unrealizedPct'>) => void
   updatePrice: (symbol: string, price: number) => void
+  updateTrade: (id: string, updates: Partial<PaperTrade>) => void
   removeTrade: (id: string) => void
   closeTrade: (id: string) => void
   clearAll: () => void
@@ -96,6 +97,13 @@ export const usePaperTradesStore = create<PaperTradesState>()(
 
         if (!changed) return
         set({ trades })
+      },
+
+      updateTrade: (id, updates) => {
+        set((state) => ({
+          trades: state.trades.map(t => t.id === id ? { ...t, ...updates } : t)
+        }))
+        get().syncWithServer?.()
       },
 
       removeTrade: (id) => {

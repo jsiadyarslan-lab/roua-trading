@@ -13,7 +13,7 @@ import { isMarketOpen } from '@/lib/market-hours'
 const PAPER_TRADING_MODE = process.env.NEXT_PUBLIC_PAPER_TRADING !== 'false'
 const COOLDOWN_MS = 5 * 60 * 1000
 const MAX_OPEN_BOT_POSITIONS = 3
-const MAX_TRADES_PER_HOUR = 6
+const MAX_TRADES_PER_HOUR = 15
 const MAX_SESSION_LOSS = -250
 
 type SmartSignalLike = {
@@ -134,6 +134,30 @@ export function BotEngine() {
           const shouldStopLoss = trade.side === 'long'
             ? typeof trade.sl === 'number' && latestPrice <= trade.sl
             : typeof trade.sl === 'number' && latestPrice >= trade.sl
+
+          // Smart Break-Even Protection Logic
+          if (trade.tp && trade.sl && latestPrice > 0) {
+            const entry = trade.entryPrice
+            const distToTp = trade.side === 'long' ? trade.tp - entry : entry - trade.tp
+            const distToCurrent = trade.side === 'long' ? latestPrice - entry : entry - latestPrice
+            
+            // If we covered 50% of the distance to TP
+            if (distToTp > 0 && distToCurrent >= distToTp * 0.5) {
+              // Add a tiny buffer (0.1%) to cover hypothetical fees
+              const breakEvenPrice = trade.side === 'long' ? entry * 1.001 : entry * 0.999
+              const slNotMoved = trade.side === 'long' ? trade.sl < entry : trade.sl > entry
+              
+              if (slNotMoved) {
+                usePaperTradesStore.getState().updateTrade(trade.id, { sl: breakEvenPrice })
+                addLog(`[حماية الأرباح] تم تأمين صفقة ${trade.symbol} ونقل وقف الخسارة إلى نقطة الدخول (Break-Even)! 🛡️`, 'info')
+                useTabAlertStore.getState().pushAlert('bot', {
+                  action: 'BUY',
+                  label: `🛡️ تأمين ${trade.symbol}`,
+                  color: '#0A84FF',
+                })
+              }
+            }
+          }
 
           if (shouldTakeProfit || shouldStopLoss) {
             setEngineState('exiting')
@@ -322,10 +346,27 @@ export function BotEngine() {
     const tradeAmount = Math.max(10, buyingPower * (settings.riskPct / 100))
     const qty = parseFloat((tradeAmount / price).toFixed(6))
     const isBuy = signal.dir === 'buy'
-    // Wider TP/SL: 2.5% TP, 1.5% SL — gives trades room to breathe
-    // Risk:Reward = 1.5:2.5 ≈ 1:1.67
-    const tp = isBuy ? price * 1.025 : price * 0.975
-    const sl = isBuy ? price * 0.985 : price * 1.015
+    // Dynamic Risk:Reward Profiles based on Strategy
+    let tpPct = 0.025 // Default 2.5%
+    let slPct = 0.015 // Default 1.5%
+    
+    switch (settings.strategy) {
+      case 'scalping':
+        tpPct = 0.008 // 0.8% Target
+        slPct = 0.004 // 0.4% Stop Loss
+        break
+      case 'daytrading':
+        tpPct = 0.025 // 2.5% Target
+        slPct = 0.012 // 1.2% Stop Loss
+        break
+      case 'swing':
+        tpPct = 0.050 // 5.0% Target
+        slPct = 0.025 // 2.5% Stop Loss
+        break
+    }
+
+    const tp = isBuy ? price * (1 + tpPct) : price * (1 - tpPct)
+    const sl = isBuy ? price * (1 - slPct) : price * (1 + slPct)
 
     if (PAPER_TRADING_MODE) {
       addPaperTrade({

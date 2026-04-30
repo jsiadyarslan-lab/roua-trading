@@ -1,21 +1,33 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Settings, Shield, Key, Bell, User, Palette, Moon, Sun, ArrowUpRight, Mail, Eye, Volume2, Bot, Brain, Radar, BarChart3, ChevronLeft } from 'lucide-react'
+import {
+  Settings, Shield, Key, Bell, User, Palette, Moon, Sun,
+  Mail, Eye, Volume2, Bot, Brain, Radar, BarChart3,
+  ChevronLeft, Globe, Zap, Clock, Target, LineChart,
+  AlertTriangle, Fingerprint, Lock, Smartphone, Database,
+  TrendingUp, Cpu, MessageSquare, Activity, Sliders,
+  CheckCircle2, ExternalLink, LogOut, UserCircle
+} from 'lucide-react'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useAuth } from '@/hooks/useAuth'
+import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 
 const T = {
   bg: '#04050C', bg2: '#0D1117', card: '#08090F', cardHover: '#0B0F19',
   surface: '#1A1D29', cyan: '#00D4FF', green: '#00FFA3', greenDim: '#00CC82',
   red: '#FF4757', redDim: '#FF3344', amber: '#FFB800', purple: '#B388FF',
-  blue: '#0A84FF',
-  text: '#F0F2F5', text2: '#94a3b8', text3: '#8B92A8',
+  blue: '#0A84FF', pink: '#f472b6',
+  text: '#F0F2F5', text2: '#94a3b8', text3: '#8B92A8', text4: '#475569',
   border: 'rgba(255,255,255,0.06)', border2: 'rgba(0,212,255,0.16)',
 }
 
-function Toggle({ checked, onChange, color, ariaLabel }: { checked: boolean; onChange: () => void; color: string; ariaLabel?: string }) {
+/* ─── Toggle Switch ─── */
+function Toggle({ checked, onChange, color, size = 'md', ariaLabel }: {
+  checked: boolean; onChange: () => void; color: string; size?: 'sm' | 'md'; ariaLabel?: string
+}) {
+  const s = size === 'sm' ? { w: 34, h: 18, dot: 13, r: 9 } : { w: 40, h: 22, dot: 16, r: 11 }
   return (
     <button
       onClick={onChange}
@@ -23,316 +35,860 @@ function Toggle({ checked, onChange, color, ariaLabel }: { checked: boolean; onC
       aria-checked={checked}
       aria-label={ariaLabel}
       style={{
-        width: 40, height: 22, borderRadius: 11, border: 'none', cursor: 'pointer',
-        background: checked ? `${color}30` : T.surface,
+        width: s.w, height: s.h, borderRadius: s.r, border: 'none', cursor: 'pointer',
+        background: checked ? `${color}25` : T.surface,
         position: 'relative', transition: 'all 0.3s',
-        boxShadow: checked ? `0 0 8px ${color}30` : 'none',
+        boxShadow: checked ? `0 0 8px ${color}25` : 'none',
+        flexShrink: 0,
       }}
     >
       <div style={{
-        width: 16, height: 16, borderRadius: 8, background: checked ? color : T.text3,
-        position: 'absolute', top: 3,
-        right: checked ? 3 : 'auto', left: checked ? 'auto' : 3,
+        width: s.dot, height: s.dot, borderRadius: s.dot / 2, background: checked ? color : T.text3,
+        position: 'absolute', top: (s.h - s.dot) / 2,
+        right: checked ? (s.h - s.dot) / 2 : 'auto', left: checked ? 'auto' : (s.h - s.dot) / 2,
         transition: 'all 0.3s',
+        boxShadow: checked ? `0 0 6px ${color}50` : 'none',
       }} />
     </button>
   )
 }
 
+/* ─── Select Box ─── */
+function SelectBox({ value, onChange, options, small }: {
+  value: string; onChange: (v: string) => void; options: { value: string; label: string }[]; small?: boolean
+}) {
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      style={{
+        background: T.surface, border: `1px solid ${T.border}`,
+        borderRadius: 8, padding: small ? '4px 8px' : '6px 12px',
+        color: T.text, fontSize: small ? 11 : 12,
+        fontFamily: "'Cairo', sans-serif", fontWeight: 600,
+        outline: 'none', cursor: 'pointer', direction: 'rtl',
+        appearance: 'none',
+        minWidth: small ? 80 : 120,
+      }}
+    >
+      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
+  )
+}
+
+/* ─── Section Card ─── */
+function SectionCard({ icon, iconColor, iconBg, title, subtitle, children, badge }: {
+  icon: React.ReactNode; iconColor: string; iconBg: string; title: string; subtitle: string;
+  children: React.ReactNode; badge?: string
+}) {
+  return (
+    <div style={{
+      background: T.card, border: `1px solid ${T.border}`,
+      borderRadius: 16, overflow: 'hidden',
+      transition: 'border-color 0.3s',
+    }}>
+      {/* Section Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 14,
+        padding: '18px 20px', borderBottom: `1px solid ${T.border}`,
+      }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: 11,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: iconBg, flexShrink: 0,
+        }}>
+          {icon}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: T.text, display: 'flex', alignItems: 'center', gap: 8 }}>
+            {title}
+            {badge && (
+              <span style={{
+                fontSize: 9, padding: '2px 7px', borderRadius: 10,
+                background: 'rgba(255,255,255,0.04)', color: T.text3,
+                fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
+              }}>{badge}</span>
+            )}
+          </div>
+          <div style={{ fontSize: 11, color: T.text3, marginTop: 2 }}>{subtitle}</div>
+        </div>
+      </div>
+      {/* Section Body */}
+      <div style={{ padding: '4px 20px 18px' }}>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Setting Row ─── */
+function SettingRow({ icon, label, description, children, indent }: {
+  icon?: React.ReactNode; label: string; description?: string; children: React.ReactNode; indent?: boolean
+}) {
+  return (
+    <div style={{
+      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+      padding: '10px 0', minHeight: 40,
+      borderBottom: `1px solid ${T.border}`,
+      paddingRight: indent ? 20 : 0,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+        {icon && <span style={{ flexShrink: 0, display: 'flex' }}>{icon}</span>}
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13, color: T.text, fontWeight: 600, whiteSpace: 'nowrap' }}>{label}</div>
+          {description && <div style={{ fontSize: 10, color: T.text4, marginTop: 1 }}>{description}</div>}
+        </div>
+      </div>
+      <div style={{ flexShrink: 0, marginRight: 8 }}>{children}</div>
+    </div>
+  )
+}
+
+/* ══════════════════════════════════════════════════════
+   Main Settings Page
+══════════════════════════════════════════════════════ */
 export default function SettingsPage() {
   const router = useRouter()
   const { user } = useAuth()
   const { settings, updateSettings } = useNotificationStore()
+  const mode = useDashboardStore(state => state.mode)
+  const setMode = useDashboardStore(state => state.setMode)
   const [isDark, setIsDark] = useState(true)
+  const [activeTab, setActiveTab] = useState('account')
+
+  // Trading preferences
+  const [defaultLeverage, setDefaultLeverage] = useState('10')
+  const [orderSize, setOrderSize] = useState('5')
+  const [riskLevel, setRiskLevel] = useState('medium')
+  const [chartType, setChartType] = useState('candlestick')
+  const [timeframe, setTimeframe] = useState('15m')
+  const [confirmTrades, setConfirmTrades] = useState(true)
+  const [showPositions, setShowPositions] = useState(true)
+  const [autoStopLoss, setAutoStopLoss] = useState(false)
+  const [trailingStop, setTrailingStop] = useState(false)
+
+  // AI preferences
+  const [aiConfidence, setAiConfidence] = useState('70')
+  const [aiAutoTrade, setAiAutoTrade] = useState(false)
+  const [aiModel, setAiModel] = useState('balanced')
+
+  const tabs = [
+    { id: 'account', label: 'الحساب', icon: <User size={14} /> },
+    { id: 'trading', label: 'التداول', icon: <BarChart3 size={14} /> },
+    { id: 'notifications', label: 'الإشعارات', icon: <Bell size={14} /> },
+    { id: 'ai', label: 'الذكاء الاصطناعي', icon: <Brain size={14} /> },
+    { id: 'appearance', label: 'المظهر', icon: <Palette size={14} /> },
+    { id: 'security', label: 'الأمان', icon: <Shield size={14} /> },
+  ]
 
   return (
-    <div className="custom-scrollbar" style={{ padding: '32px 24px', direction: 'rtl', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto' }}>
+    <div className="custom-scrollbar" style={{ direction: 'rtl', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto', background: T.bg }}>
       <style>{`
         @media (max-width: 767px) {
-          .settings-wrapper { padding: 16px 12px !important; }
-          .settings-profile-card { flex-direction: column; text-align: center; gap: 12px; }
+          .settings-tabs { flex-wrap: wrap !important; gap: 4px !important; }
+          .settings-tabs button { padding: 6px 10px !important; font-size: 10px !important; }
+          .settings-content { padding: 12px !important; }
+          .settings-profile-row { flex-direction: column !important; text-align: center !important; }
         }
       `}</style>
-      <div className="settings-wrapper">
+
       {/* Header */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <Settings size={20} color={T.text2} />
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>الإعدادات</h1>
-          <span style={{
-            fontSize: 10, padding: '2px 8px', borderRadius: 20,
-            background: 'rgba(255,255,255,0.06)', color: T.text2,
-            fontFamily: "'JetBrains Mono', monospace",
-          }}>SETTINGS</span>
-        </div>
-        <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
-          تخصيص منصة رؤى وفق تفضيلاتك
-        </p>
-      </div>
-
-      {/* Profile Section */}
-      <div className="settings-profile-card" style={{
-        background: T.card, border: `1px solid ${T.border}`,
-        borderRadius: 16, padding: 24, marginBottom: 20,
-        display: 'flex', alignItems: 'center', gap: 20,
+      <div style={{
+        padding: '24px 24px 0', borderBottom: `1px solid ${T.border}`,
+        background: `linear-gradient(180deg, ${T.bg2}, ${T.bg})`,
       }}>
-        <div style={{
-          width: 56, height: 56, borderRadius: 14,
-          background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 22, fontWeight: 900, color: '#fff',
-          fontFamily: "'JetBrains Mono', monospace",
-        }}>
-          {user?.displayName?.[0] || user?.email?.[0] || 'م'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: 'linear-gradient(135deg, #00d4ff, #0A84FF)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <Settings size={18} color="#fff" />
+          </div>
+          <div>
+            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: T.text }}>الإعدادات</h1>
+            <p style={{ margin: 0, fontSize: 11, color: T.text3 }}>إدارة حسابك وتخصيص منصة رؤى</p>
+          </div>
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, color: T.text, marginBottom: 4 }}>
-            {user?.displayName || 'مستخدم رؤى'}
-          </div>
-          <div style={{ fontSize: 12, color: T.text2, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Mail size={12} />
-            <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{user?.email || 'user@roua.io'}</span>
-          </div>
-          <div style={{ fontSize: 11, color: T.text3, marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{
-              padding: '2px 8px', borderRadius: 10, background: `${T.amber}15`, color: T.amber,
-              fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
-            }}>
-              {user?.tier?.toUpperCase() || 'BETA'}
-            </span>
-            <span>الخطة الحالية</span>
-          </div>
+
+        {/* Tabs */}
+        <div className="settings-tabs" style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 0 }}>
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '10px 16px', border: 'none', cursor: 'pointer',
+                background: activeTab === tab.id ? 'rgba(0,212,255,0.08)' : 'transparent',
+                color: activeTab === tab.id ? T.cyan : T.text3,
+                fontSize: 12, fontWeight: activeTab === tab.id ? 800 : 500,
+                fontFamily: "'Cairo', sans-serif",
+                borderBottom: activeTab === tab.id ? `2px solid ${T.cyan}` : '2px solid transparent',
+                transition: 'all 0.2s', whiteSpace: 'nowrap',
+                borderRadius: '8px 8px 0 0',
+              }}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Settings Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
+      {/* Content */}
+      <div className="settings-content" style={{ padding: '20px 24px 40px', display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 800 }}>
 
-        {/* API Keys - Links to Exchange Page */}
-        <div
-          onClick={() => router.push('/dashboard/settings/exchange')}
-          style={{
-            background: T.card, border: `1px solid ${T.border}`,
-            borderRadius: 14, padding: '20px',
-            display: 'flex', alignItems: 'center', gap: 16,
-            cursor: 'pointer', transition: 'all 0.2s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = `${T.amber}40`; e.currentTarget.style.background = T.cardHover }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = T.card }}
-        >
-          <div style={{
-            width: 44, height: 44, borderRadius: 12,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: `${T.amber}14`, border: `0.5px solid ${T.amber}30`,
-            flexShrink: 0,
-          }}>
-            <Key size={18} color={T.amber} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 4 }}>مفاتيح API</div>
-            <div style={{ fontSize: 11, color: T.text2 }}>ربط منصات التداول وإدارة المفاتيح المشفرة</div>
-          </div>
-          <ChevronLeft size={16} color={T.text3} style={{ transform: 'scaleX(-1)' }} />
-        </div>
-
-        {/* Notifications Section */}
-        <div style={{
-          background: T.card, border: `1px solid ${T.border}`,
-          borderRadius: 14, padding: '20px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 12,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: `${T.cyan}14`, border: `0.5px solid ${T.cyan}30`,
-              flexShrink: 0,
+        {/* ═══ Account Tab ═══ */}
+        {activeTab === 'account' && (
+          <>
+            {/* Profile Card */}
+            <div className="settings-profile-row" style={{
+              background: T.card, border: `1px solid ${T.border}`,
+              borderRadius: 16, padding: 24, display: 'flex', alignItems: 'center', gap: 20,
             }}>
-              <Bell size={18} color={T.cyan} />
+              <div style={{
+                width: 64, height: 64, borderRadius: 16,
+                background: 'linear-gradient(135deg, #00d4ff, #0A84FF)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 26, fontWeight: 900, color: '#fff',
+                fontFamily: "'JetBrains Mono', monospace",
+                boxShadow: '0 0 20px rgba(0,212,255,0.2)',
+                flexShrink: 0,
+              }}>
+                {user?.displayName?.[0] || user?.email?.[0]?.toUpperCase() || 'R'}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 18, fontWeight: 900, color: T.text, marginBottom: 4 }}>
+                  {user?.displayName || 'مستخدم رؤى'}
+                </div>
+                <div style={{ fontSize: 12, color: T.text2, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                  <Mail size={12} />
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace" }}>{user?.email || 'user@roua.io'}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{
+                    padding: '3px 10px', borderRadius: 10,
+                    background: `${T.amber}15`, color: T.amber,
+                    fontSize: 10, fontWeight: 700,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    border: `1px solid ${T.amber}25`,
+                  }}>
+                    {user?.tier?.toUpperCase() || 'BETA'}
+                  </span>
+                  <span style={{ fontSize: 10, color: T.text4 }}>الخطة الحالية</span>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push('/dashboard/portfolio')}
+                style={{
+                  padding: '8px 16px', borderRadius: 10, border: `1px solid ${T.border2}`,
+                  background: 'rgba(0,212,255,0.06)', color: T.cyan,
+                  fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  fontFamily: "'Cairo', sans-serif",
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  transition: 'all 0.2s', flexShrink: 0,
+                }}
+              >
+                <UserCircle size={14} />
+                معلومات الحساب
+              </button>
             </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 4 }}>الإشعارات</div>
-              <div style={{ fontSize: 11, color: T.text2 }}>تخصيص التنبيهات والتحذيرات</div>
-            </div>
-          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 60 }}>
-            {/* Main Toggle */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Eye size={14} color={T.text2} />
-                <span style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>تفعيل الإشعارات</span>
+            {/* Exchange API Keys */}
+            <SectionCard
+              icon={<Key size={18} color={T.amber} />}
+              iconColor={T.amber}
+              iconBg={`${T.amber}14`}
+              title="مفاتيح API للبورصات"
+              subtitle="ربط منصات التداول وإدارة المفاتيح المشفرة"
+            >
+              <div style={{ padding: '8px 0' }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '10px 14px', borderRadius: 10,
+                  background: 'rgba(0,212,255,0.04)', border: `1px solid rgba(0,212,255,0.10)`,
+                  marginBottom: 12,
+                }}>
+                  <Shield size={16} color={T.cyan} />
+                  <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.6 }}>
+                    رؤى لا تلمس أموالك أبداً. المفاتيح مشفرة بـ AES-256-GCM وتُستخدم فقط للقراءة والتداول.
+                    <span style={{ color: T.red, fontWeight: 600 }}> المفاتيح ذات صلاحيات السحب تُرفض فوراً.</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => router.push('/dashboard/settings/exchange')}
+                  style={{
+                    width: '100%', padding: '12px 16px', borderRadius: 10,
+                    border: `1px dashed ${T.border2}`, background: 'transparent',
+                    color: T.cyan, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                    fontFamily: "'Cairo', sans-serif",
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                    transition: 'all 0.2s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.04)'; e.currentTarget.style.borderColor = T.cyan }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = T.border2 }}
+                >
+                  <Key size={16} />
+                  إدارة مفاتيح API
+                  <ChevronLeft size={14} style={{ transform: 'scaleX(-1)' }} />
+                </button>
               </div>
-              <Toggle checked={settings.enabled} onChange={() => updateSettings({ enabled: !settings.enabled })} color={T.cyan} ariaLabel="تفعيل الإشعارات" />
-            </div>
+            </SectionCard>
 
-            {/* Sound Toggle */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Volume2 size={14} color={T.text2} />
-                <span style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>الأصوات</span>
-              </div>
-              <Toggle checked={settings.soundEnabled} onChange={() => updateSettings({ soundEnabled: !settings.soundEnabled })} color={T.green} ariaLabel="الأصوات" />
-            </div>
+            {/* Account Info */}
+            <SectionCard
+              icon={<Database size={18} color={T.blue} />}
+              iconColor={T.blue}
+              iconBg={`${T.blue}14`}
+              title="معلومات الحساب"
+              subtitle="بيانات الاشتراك والجلسة"
+            >
+              <SettingRow
+                icon={<User size={13} color={T.text3} />}
+                label="معرّف المستخدم"
+                description={user?.id || '—'}
+              >
+                <span style={{ fontSize: 10, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+                  {user?.id?.slice(0, 12) || '—'}...
+                </span>
+              </SettingRow>
+              <SettingRow
+                icon={<TrendingUp size={13} color={T.text3} />}
+                label="مستوى الاشتراك"
+              >
+                <span style={{
+                  padding: '2px 8px', borderRadius: 6,
+                  background: `${T.amber}15`, color: T.amber,
+                  fontSize: 10, fontWeight: 700,
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}>
+                  {user?.tier?.toUpperCase() || 'FREE'}
+                </span>
+              </SettingRow>
+              <SettingRow
+                icon={<Clock size={13} color={T.text3} />}
+                label="حالة الجلسة"
+              >
+                <span style={{ fontSize: 11, color: T.green, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: 3, background: T.green, boxShadow: `0 0 6px ${T.green}60` }} />
+                  نشطة
+                </span>
+              </SettingRow>
+            </SectionCard>
 
-            <div style={{ height: 1, background: T.border, margin: '4px 0' }} />
+            {/* Danger Zone */}
+            <div style={{
+              border: `1px solid rgba(255,71,87,0.15)`, borderRadius: 16,
+              background: 'rgba(255,71,87,0.02)', overflow: 'hidden',
+            }}>
+              <div style={{ padding: '16px 20px', borderBottom: `1px solid rgba(255,71,87,0.10)` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <AlertTriangle size={16} color={T.red} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: T.red }}>منطقة الخطر</span>
+                </div>
+              </div>
+              <div style={{ padding: '8px 20px 16px' }}>
+                <SettingRow
+                  icon={<LogOut size={13} color={T.red} />}
+                  label="تسجيل الخروج"
+                  description="إنهاء الجلسة الحالية"
+                >
+                  <button
+                    onClick={async () => {
+                      try { await fetch('/api/auth/me', { method: 'DELETE' }) } catch {}
+                      window.location.href = '/login'
+                    }}
+                    style={{
+                      padding: '6px 14px', borderRadius: 8,
+                      background: 'rgba(255,71,87,0.10)', border: `1px solid rgba(255,71,87,0.20)`,
+                      color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                      fontFamily: "'Cairo', sans-serif", transition: 'all 0.2s',
+                    }}
+                  >
+                    خروج
+                  </button>
+                </SettingRow>
+              </div>
+            </div>
+          </>
+        )}
 
-            {/* Source Toggles */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Bot size={14} color={T.text2} />
-                <span style={{ fontSize: 12, color: T.text2 }}>تنبيهات البوت</span>
+        {/* ═══ Trading Tab ═══ */}
+        {activeTab === 'trading' && (
+          <>
+            {/* Mode Selection */}
+            <SectionCard
+              icon={<Zap size={18} color={T.cyan} />}
+              iconColor={T.cyan}
+              iconBg={`${T.cyan}14`}
+              title="وضع التداول"
+              subtitle="اختر أسلوب التداول المناسب لك"
+            >
+              <div style={{ display: 'flex', gap: 8, padding: '8px 0' }}>
+                {([
+                  { id: 'trader' as TradingMode, label: 'تاجر', desc: 'تنفيذ سريع', color: T.cyan, icon: <BarChart3 size={14} /> },
+                  { id: 'investor' as TradingMode, label: 'مستثمر', desc: 'استثمار طويل', color: T.green, icon: <TrendingUp size={14} /> },
+                  { id: 'ai' as TradingMode, label: 'AI', desc: 'ذكاء اصطناعي', color: T.purple, icon: <Brain size={14} /> },
+                ]).map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => setMode(m.id)}
+                    style={{
+                      flex: 1, padding: '14px 12px', borderRadius: 12, border: 'none', cursor: 'pointer',
+                      background: mode === m.id ? `${m.color}12` : T.surface,
+                      border: mode === m.id ? `1px solid ${m.color}30` : `1px solid ${T.border}`,
+                      transition: 'all 0.3s', textAlign: 'center',
+                      boxShadow: mode === m.id ? `0 0 16px ${m.color}15` : 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6, color: mode === m.id ? m.color : T.text3 }}>
+                      {m.icon}
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 800, color: mode === m.id ? m.color : T.text2, fontFamily: "'Cairo', sans-serif" }}>
+                      {m.label}
+                    </div>
+                    <div style={{ fontSize: 9, color: T.text4, marginTop: 2 }}>{m.desc}</div>
+                  </button>
+                ))}
               </div>
-              <Toggle checked={settings.botAlerts} onChange={() => updateSettings({ botAlerts: !settings.botAlerts })} color={T.purple} ariaLabel="تنبيهات البوت" />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Brain size={14} color={T.text2} />
-                <span style={{ fontSize: 12, color: T.text2 }}>تنبيهات الذكاء الاصطناعي</span>
-              </div>
-              <Toggle checked={settings.aiAlerts} onChange={() => updateSettings({ aiAlerts: !settings.aiAlerts })} color={T.cyan} ariaLabel="تنبيهات الذكاء الاصطناعي" />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Radar size={14} color={T.text2} />
-                <span style={{ fontSize: 12, color: T.text2 }}>تنبيهات الماسح</span>
-              </div>
-              <Toggle checked={settings.scannerAlerts} onChange={() => updateSettings({ scannerAlerts: !settings.scannerAlerts })} color={T.amber} ariaLabel="تنبيهات الماسح" />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <BarChart3 size={14} color={T.text2} />
-                <span style={{ fontSize: 12, color: T.text2 }}>تنبيهات التداول</span>
-              </div>
-              <Toggle checked={settings.tradeAlerts} onChange={() => updateSettings({ tradeAlerts: !settings.tradeAlerts })} color={T.green} ariaLabel="تنبيهات التداول" />
-            </div>
+            </SectionCard>
+
+            {/* Trading Preferences */}
+            <SectionCard
+              icon={<Sliders size={18} color={T.amber} />}
+              iconColor={T.amber}
+              iconBg={`${T.amber}14`}
+              title="تفضيلات التداول"
+              subtitle="إعدادات الأوامر والتنفيذ"
+            >
+              <SettingRow
+                icon={<Target size={13} color={T.text3} />}
+                label="الرافعة الافتراضية"
+                description="الرافعة المطبقة عند فتح صفقة جديدة"
+              >
+                <SelectBox
+                  value={defaultLeverage}
+                  onChange={setDefaultLeverage}
+                  options={[
+                    { value: '1', label: '1x' }, { value: '2', label: '2x' },
+                    { value: '5', label: '5x' }, { value: '10', label: '10x' },
+                    { value: '25', label: '25x' }, { value: '50', label: '50x' },
+                    { value: '100', label: '100x' },
+                  ]}
+                  small
+                />
+              </SettingRow>
+              <SettingRow
+                icon={<LineChart size={13} color={T.text3} />}
+                label="حجم الأمر الافتراضي"
+                description="نسبة رأس المال المستخدمة في كل صفقة"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="range" min={1} max={100} step={1}
+                    value={orderSize}
+                    onChange={e => setOrderSize(e.target.value)}
+                    style={{ width: 80, accentColor: T.cyan, height: 3 }}
+                  />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: T.cyan, fontFamily: "'JetBrains Mono', monospace", minWidth: 30, textAlign: 'center' }}>
+                    {orderSize}%
+                  </span>
+                </div>
+              </SettingRow>
+              <SettingRow
+                icon={<AlertTriangle size={13} color={T.text3} />}
+                label="مستوى المخاطرة"
+                description="الحد الأقصى للخسارة المسموح بها في الصفقة"
+              >
+                <SelectBox
+                  value={riskLevel}
+                  onChange={setRiskLevel}
+                  options={[
+                    { value: 'conservative', label: 'محافظ' },
+                    { value: 'medium', label: 'متوسط' },
+                    { value: 'aggressive', label: 'جريء' },
+                  ]}
+                  small
+                />
+              </SettingRow>
+              <SettingRow
+                icon={<CheckCircle2 size={13} color={T.text3} />}
+                label="تأكيد قبل التنفيذ"
+                description="عرض نافذة تأكيد قبل فتح أو إغلاق صفقة"
+              >
+                <Toggle checked={confirmTrades} onChange={() => setConfirmTrades(!confirmTrades)} color={T.cyan} size="sm" />
+              </SettingRow>
+              <SettingRow
+                icon={<Eye size={13} color={T.text3} />}
+                label="عرض المراكز المفتوحة"
+                description="إظهار لوحة المراكز أسفل الشارت"
+              >
+                <Toggle checked={showPositions} onChange={() => setShowPositions(!showPositions)} color={T.green} size="sm" />
+              </SettingRow>
+            </SectionCard>
+
+            {/* Stop Loss & Risk Management */}
+            <SectionCard
+              icon={<Shield size={18} color={T.green} />}
+              iconColor={T.green}
+              iconBg={`${T.green}14`}
+              title="إدارة المخاطر"
+              subtitle="أدوات الحماية التلقائية"
+            >
+              <SettingRow
+                icon={<Lock size={13} color={T.text3} />}
+                label="وقف خسارة تلقائي"
+                description="تعيين وقف خسارة تلقائياً عند فتح صفقة"
+              >
+                <Toggle checked={autoStopLoss} onChange={() => setAutoStopLoss(!autoStopLoss)} color={T.green} size="sm" />
+              </SettingRow>
+              <SettingRow
+                icon={<Activity size={13} color={T.text3} />}
+                label="وقف متحرك (Trailing Stop)"
+                description="تعديل وقف الخسارة تلقائياً مع حركة السعر"
+              >
+                <Toggle checked={trailingStop} onChange={() => setTrailingStop(!trailingStop)} color={T.amber} size="sm" />
+              </SettingRow>
+            </SectionCard>
+
+            {/* Chart Settings */}
+            <SectionCard
+              icon={<LineChart size={18} color={T.purple} />}
+              iconColor={T.purple}
+              iconBg={`${T.purple}14`}
+              title="إعدادات الشارت"
+              subtitle="نوع الرسم البياني والإطار الزمني"
+            >
+              <SettingRow
+                icon={<BarChart3 size={13} color={T.text3} />}
+                label="نوع الشارت الافتراضي"
+              >
+                <SelectBox
+                  value={chartType}
+                  onChange={setChartType}
+                  options={[
+                    { value: 'candlestick', label: 'شموع يابانية' },
+                    { value: 'line', label: 'خطي' },
+                    { value: 'area', label: 'مساحي' },
+                    { value: 'bar', label: 'أعمدة' },
+                  ]}
+                  small
+                />
+              </SettingRow>
+              <SettingRow
+                icon={<Clock size={13} color={T.text3} />}
+                label="الإطار الزمني الافتراضي"
+              >
+                <SelectBox
+                  value={timeframe}
+                  onChange={setTimeframe}
+                  options={[
+                    { value: '1m', label: '1 دقيقة' }, { value: '5m', label: '5 دقائق' },
+                    { value: '15m', label: '15 دقيقة' }, { value: '1h', label: 'ساعة' },
+                    { value: '4h', label: '4 ساعات' }, { value: '1d', label: 'يومي' },
+                  ]}
+                  small
+                />
+              </SettingRow>
+            </SectionCard>
+          </>
+        )}
+
+        {/* ═══ Notifications Tab ═══ */}
+        {activeTab === 'notifications' && (
+          <SectionCard
+            icon={<Bell size={18} color={T.cyan} />}
+            iconColor={T.cyan}
+            iconBg={`${T.cyan}14`}
+            title="الإشعارات والتنبيهات"
+            subtitle="تخصيص طريقة استلامك للتنبيهات والتحذيرات"
+          >
+            <SettingRow
+              icon={<Bell size={13} color={T.cyan} />}
+              label="تفعيل الإشعارات"
+              description="استقبال تنبيهات المنصة"
+            >
+              <Toggle checked={settings.enabled} onChange={() => updateSettings({ enabled: !settings.enabled })} color={T.cyan} />
+            </SettingRow>
+            <SettingRow
+              icon={<Volume2 size={13} color={T.green} />}
+              label="الأصوات"
+              description="تشغيل أصوات تنبيه عند الصفقات والإشارات"
+            >
+              <Toggle checked={settings.soundEnabled} onChange={() => updateSettings({ soundEnabled: !settings.soundEnabled })} color={T.green} />
+            </SettingRow>
+
+            <div style={{ height: 1, background: T.border, margin: '8px 0' }} />
+            <div style={{ fontSize: 10, fontWeight: 700, color: T.text4, padding: '4px 0 0', letterSpacing: '0.05em' }}>مصادر الإشعارات</div>
+
+            <SettingRow icon={<Bot size={13} color={T.purple} />} label="تنبيهات البوت">
+              <Toggle checked={settings.botAlerts} onChange={() => updateSettings({ botAlerts: !settings.botAlerts })} color={T.purple} size="sm" />
+            </SettingRow>
+            <SettingRow icon={<Brain size={13} color={T.cyan} />} label="تنبيهات الذكاء الاصطناعي">
+              <Toggle checked={settings.aiAlerts} onChange={() => updateSettings({ aiAlerts: !settings.aiAlerts })} color={T.cyan} size="sm" />
+            </SettingRow>
+            <SettingRow icon={<Radar size={13} color={T.amber} />} label="تنبيهات الماسح">
+              <Toggle checked={settings.scannerAlerts} onChange={() => updateSettings({ scannerAlerts: !settings.scannerAlerts })} color={T.amber} size="sm" />
+            </SettingRow>
+            <SettingRow icon={<BarChart3 size={13} color={T.green} />} label="تنبيهات التداول">
+              <Toggle checked={settings.tradeAlerts} onChange={() => updateSettings({ tradeAlerts: !settings.tradeAlerts })} color={T.green} size="sm" />
+            </SettingRow>
 
             {/* Confidence Slider */}
-            <div style={{ marginTop: 8 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <span style={{ fontSize: 12, color: T.text2 }}>الحد الأدنى للثقة</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: T.cyan, fontFamily: "'JetBrains Mono', monospace" }}>
+            <div style={{ marginTop: 8, padding: '8px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontSize: 12, color: T.text2, fontWeight: 600 }}>
+                  <Target size={13} style={{ display: 'inline', verticalAlign: -2, marginLeft: 4 }} />
+                  الحد الأدنى لمستوى الثقة
+                </span>
+                <span style={{
+                  fontSize: 12, fontWeight: 800, color: T.cyan,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  background: `${T.cyan}12`, padding: '2px 8px', borderRadius: 6,
+                }}>
                   {settings.minConfidence}%
                 </span>
               </div>
               <input
-                type="range"
-                min={0}
-                max={100}
-                step={5}
+                type="range" min={0} max={100} step={5}
                 value={settings.minConfidence}
                 onChange={e => updateSettings({ minConfidence: Number(e.target.value) })}
                 style={{ width: '100%', accentColor: T.cyan, height: 4 }}
               />
-            </div>
-          </div>
-        </div>
-
-        {/* Appearance Section */}
-        <div style={{
-          background: T.card, border: `1px solid ${T.border}`,
-          borderRadius: 14, padding: '20px',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 12,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: `${T.blue}14`, border: `0.5px solid ${T.blue}30`,
-              flexShrink: 0,
-            }}>
-              <Palette size={18} color={T.blue} />
-            </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 4 }}>المظهر واللغة</div>
-              <div style={{ fontSize: 11, color: T.text2 }}>ثيم المنصة وإعدادات RTL</div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 60 }}>
-            {/* Dark/Light Toggle */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {isDark ? <Moon size={14} color={T.text2} /> : <Sun size={14} color={T.amber} />}
-                <span style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>الوضع الداكن</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                <span style={{ fontSize: 9, color: T.text4 }}>جميع الإشارات</span>
+                <span style={{ fontSize: 9, color: T.text4 }}>إشارات عالية الثقة فقط</span>
               </div>
-              <Toggle checked={isDark} onChange={() => setIsDark(!isDark)} color={T.blue} ariaLabel="الوضع الداكن" />
             </div>
+          </SectionCard>
+        )}
 
-            {/* Language (read-only info) */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 14 }}>🌍</span>
-                <span style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>اللغة</span>
-              </div>
-              <span style={{ fontSize: 12, color: T.text2, fontFamily: "'JetBrains Mono', monospace" }}>
-                العربية (AR)
-              </span>
-            </div>
+        {/* ═══ AI Tab ═══ */}
+        {activeTab === 'ai' && (
+          <>
+            <SectionCard
+              icon={<Brain size={18} color={T.purple} />}
+              iconColor={T.purple}
+              iconBg={`${T.purple}14`}
+              title="إعدادات الذكاء الاصطناعي"
+              subtitle="تخصيص سلوك محرك AI والتوصيات"
+            >
+              <SettingRow
+                icon={<Cpu size={13} color={T.purple} />}
+                label="نموذج AI"
+                description="اختر أسلوب التحليل والتنفيذ"
+              >
+                <SelectBox
+                  value={aiModel}
+                  onChange={setAiModel}
+                  options={[
+                    { value: 'conservative', label: 'محافظ' },
+                    { value: 'balanced', label: 'متوازن' },
+                    { value: 'aggressive', label: 'جريء' },
+                  ]}
+                  small
+                />
+              </SettingRow>
+              <SettingRow
+                icon={<Target size={13} color={T.cyan} />}
+                label="حد الثقة للتنفيذ التلقائي"
+                description="الحد الأدنى من الثقة لتنفيذ توصيات AI تلقائياً"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="range" min={50} max={99} step={5}
+                    value={aiConfidence}
+                    onChange={e => setAiConfidence(e.target.value)}
+                    style={{ width: 80, accentColor: T.purple, height: 3 }}
+                  />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: T.purple, fontFamily: "'JetBrains Mono', monospace", minWidth: 30, textAlign: 'center' }}>
+                    {aiConfidence}%
+                  </span>
+                </div>
+              </SettingRow>
+              <SettingRow
+                icon={<Zap size={13} color={T.amber} />}
+                label="التداول التلقائي بالـ AI"
+                description="السماح للذكاء الاصطناعي بتنفيذ الصفقات تلقائياً"
+              >
+                <Toggle checked={aiAutoTrade} onChange={() => setAiAutoTrade(!aiAutoTrade)} color={T.amber} />
+              </SettingRow>
+            </SectionCard>
 
-            {/* Direction */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 14 }}>↔️</span>
-                <span style={{ fontSize: 13, color: T.text, fontWeight: 600 }}>اتجاه النص</span>
-              </div>
-              <span style={{ fontSize: 12, color: T.text2, fontFamily: "'JetBrains Mono', monospace" }}>
-                RTL
-              </span>
-            </div>
-          </div>
-        </div>
+            <SectionCard
+              icon={<MessageSquare size={18} color={T.cyan} />}
+              iconColor={T.cyan}
+              iconBg={`${T.cyan}14`}
+              title="الرصد والتوصيات"
+              subtitle="كيف يتواصل AI معك"
+            >
+              <SettingRow
+                icon={<Radar size={13} color={T.cyan} />}
+                label="مراقبة الأسواق المستمرة"
+                description="تحليل 24/7 للأنماط والفرص"
+              >
+                <Toggle checked={true} onChange={() => {}} color={T.cyan} size="sm" />
+              </SettingRow>
+              <SettingRow
+                icon={<Activity size={13} color={T.green} />}
+                label="إشارات الدخول والخروج"
+                description="تنبيهات فورية عند اكتشاف فرصة"
+              >
+                <Toggle checked={true} onChange={() => {}} color={T.green} size="sm" />
+              </SettingRow>
+              <SettingRow
+                icon={<AlertTriangle size={13} color={T.amber} />}
+                label="تنبيهات المخاطر"
+                description="تحذيرات عند ارتفاع تقلبات السوق"
+              >
+                <Toggle checked={true} onChange={() => {}} color={T.amber} size="sm" />
+              </SettingRow>
+            </SectionCard>
+          </>
+        )}
 
-        {/* Security Section */}
-        <div style={{
-          background: T.card, border: `1px solid ${T.border}`,
-          borderRadius: 14, padding: '20px',
-          display: 'flex', alignItems: 'center', gap: 16,
-          opacity: 0.6,
-        }}>
-          <div style={{
-            width: 44, height: 44, borderRadius: 12,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: `${T.green}14`, border: `0.5px solid ${T.green}30`,
-            flexShrink: 0,
-          }}>
-            <Shield size={18} color={T.green} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 4 }}>الأمان والمصادقة</div>
-            <div style={{ fontSize: 11, color: T.text2 }}>Passkeys وإعدادات WebAuthn</div>
-          </div>
-          <span style={{
-            fontSize: 10, padding: '3px 8px', borderRadius: 10,
-            background: 'rgba(255,255,255,0.04)', color: T.text3,
-            fontFamily: "'JetBrains Mono', monospace",
-          }}>قريباً</span>
-        </div>
+        {/* ═══ Appearance Tab ═══ */}
+        {activeTab === 'appearance' && (
+          <SectionCard
+            icon={<Palette size={18} color={T.blue} />}
+            iconColor={T.blue}
+            iconBg={`${T.blue}14`}
+            title="المظهر واللغة"
+              subtitle="تخصيص شكل المنصة واتجاه العرض"
+          >
+            <SettingRow
+              icon={isDark ? <Moon size={13} color={T.blue} /> : <Sun size={13} color={T.amber} />}
+              label="الوضع الداكن"
+              description="مريح للعيون في البيئات المنخفضة الإضاءة"
+            >
+              <Toggle checked={isDark} onChange={() => setIsDark(!isDark)} color={T.blue} />
+            </SettingRow>
+            <SettingRow
+              icon={<Globe size={13} color={T.text3} />}
+              label="اللغة"
+              description="لغة واجهة المستخدم"
+            >
+              <SelectBox
+                value="ar"
+                onChange={() => {}}
+                options={[
+                  { value: 'ar', label: 'العربية' },
+                  { value: 'en', label: 'English' },
+                ]}
+                small
+              />
+            </SettingRow>
+            <SettingRow
+              icon={<Fingerprint size={13} color={T.text3} />}
+              label="اتجاه النص"
+              description="RTL — من اليمين لليسار"
+            >
+              <span style={{
+                fontSize: 10, padding: '3px 8px', borderRadius: 6,
+                background: T.surface, color: T.text3,
+                fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
+                border: `1px solid ${T.border}`,
+              }}>RTL</span>
+            </SettingRow>
+          </SectionCard>
+        )}
 
-        {/* Trading Settings Section */}
-        <div style={{
-          background: T.card, border: `1px solid ${T.border}`,
-          borderRadius: 14, padding: '20px',
-          display: 'flex', alignItems: 'center', gap: 16,
-          opacity: 0.6,
-        }}>
-          <div style={{
-            width: 44, height: 44, borderRadius: 12,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: `${T.amber}14`, border: `0.5px solid ${T.amber}30`,
-            flexShrink: 0,
-          }}>
-            <Settings size={18} color={T.amber} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 4 }}>التداول</div>
-            <div style={{ fontSize: 11, color: T.text2 }}>الرافعة الافتراضية وحجم الأوامر</div>
-          </div>
-          <span style={{
-            fontSize: 10, padding: '3px 8px', borderRadius: 10,
-            background: 'rgba(255,255,255,0.04)', color: T.text3,
-            fontFamily: "'JetBrains Mono', monospace",
-          }}>قريباً</span>
-        </div>
-      </div>
+        {/* ═══ Security Tab ═══ */}
+        {activeTab === 'security' && (
+          <>
+            <SectionCard
+              icon={<Shield size={18} color={T.green} />}
+              iconColor={T.green}
+              iconBg={`${T.green}14`}
+              title="المصادقة الثنائية"
+              subtitle="حماية إضافية لحسابك"
+            >
+              <SettingRow
+                icon={<Smartphone size={13} color={T.text3} />}
+                label="مصادقة التطبيق (TOTP)"
+                description="استخدم تطبيق مصادقة مثل Google Authenticator"
+              >
+                <button style={{
+                  padding: '5px 12px', borderRadius: 8,
+                  background: `${T.green}12`, border: `1px solid ${T.green}25`,
+                  color: T.green, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  fontFamily: "'Cairo', sans-serif",
+                }}>تفعيل</button>
+              </SettingRow>
+              <SettingRow
+                icon={<Fingerprint size={13} color={T.text3} />}
+                label="مفاتيح المرور (Passkeys)"
+                description="مصادقة بيومترية بدون كلمة مرور — WebAuthn"
+              >
+                <span style={{
+                  fontSize: 10, padding: '3px 8px', borderRadius: 10,
+                  background: 'rgba(255,255,255,0.04)', color: T.text3,
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}>قريباً</span>
+              </SettingRow>
+            </SectionCard>
+
+            <SectionCard
+              icon={<Lock size={18} color={T.amber} />}
+              iconColor={T.amber}
+              iconBg={`${T.amber}14`}
+              title="أمان الجلسة"
+              subtitle="إدارة جلساتك النشطة"
+            >
+              <SettingRow
+                icon={<Clock size={13} color={T.text3} />}
+                label="مدة الجلسة"
+                description="الفترة قبل طلب إعادة تسجيل الدخول"
+              >
+                <SelectBox
+                  value="30d"
+                  onChange={() => {}}
+                  options={[
+                    { value: '1h', label: 'ساعة واحدة' },
+                    { value: '24h', label: '24 ساعة' },
+                    { value: '7d', label: '7 أيام' },
+                    { value: '30d', label: '30 يوم' },
+                  ]}
+                  small
+                />
+              </SettingRow>
+              <SettingRow
+                icon={<Eye size={13} color={T.text3} />}
+                label="إنهاء جميع الجلسات الأخرى"
+                description="تسجيل الخروج من جميع الأجهزة باستثناء هذا"
+              >
+                <button style={{
+                  padding: '5px 12px', borderRadius: 8,
+                  background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.20)',
+                  color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  fontFamily: "'Cairo', sans-serif",
+                }}>إنهاء</button>
+              </SettingRow>
+            </SectionCard>
+
+            <SectionCard
+              icon={<AlertTriangle size={18} color={T.red} />}
+              iconColor={T.red}
+              iconBg={`${T.red}10`}
+              title="رمز الحماية من التصيد"
+              subtitle="كلمة سر تظهر في كل إشعار من رؤى للتأكد من أنه حقيقي"
+            >
+              <SettingRow
+                icon={<Shield size={13} color={T.amber} />}
+                label="تفعيل رمز مكافحة التصيد"
+                description="يظهر رمزك السري في كل رسالة من المنصة"
+              >
+                <span style={{
+                  fontSize: 10, padding: '3px 8px', borderRadius: 10,
+                  background: 'rgba(255,255,255,0.04)', color: T.text3,
+                  fontFamily: "'JetBrains Mono', monospace",
+                }}>قريباً</span>
+              </SettingRow>
+            </SectionCard>
+          </>
+        )}
+
       </div>
     </div>
   )

@@ -561,9 +561,22 @@ function AccountDropdown({
   useEffect(() => {
     if (open && anchorRef.current) {
       const rect = anchorRef.current.getBoundingClientRect()
+      const dropdownWidth = 220
+      const dropdownHeight = 320
+      // Calculate right position (RTL: align dropdown's right edge with button's right edge)
+      const rightEdge = window.innerWidth - rect.right
+      const leftEdge = rect.left
+      // Ensure dropdown stays within viewport horizontally
+      const adjustedRight = rightEdge + dropdownWidth > window.innerWidth
+        ? rightEdge - (rightEdge + dropdownWidth - window.innerWidth) - 8
+        : rightEdge
+      // Ensure dropdown stays within viewport vertically
+      const adjustedTop = rect.bottom + 4 + dropdownHeight > window.innerHeight
+        ? Math.max(8, rect.top - dropdownHeight - 4)
+        : rect.bottom + 4
       setPos({
-        top: rect.bottom + 4,
-        right: window.innerWidth - rect.right,
+        top: adjustedTop,
+        right: Math.max(0, adjustedRight),
       })
       // Fetch user info
       fetch('/api/auth/me')

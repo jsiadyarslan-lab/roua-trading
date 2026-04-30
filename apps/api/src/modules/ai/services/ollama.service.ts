@@ -51,6 +51,7 @@ export class OllamaService {
 
     const startTime = Date.now();
     const systemPrompt = this._buildSystemPrompt(request);
+    const model = this._resolveModel(); // Use auto-detected model for cloud/local
 
     try {
       // FIX: Support both native Ollama API (/api/chat) and OpenAI-compatible API (/v1/chat/completions)
@@ -64,7 +65,7 @@ export class OllamaService {
         // OpenAI-compatible endpoint (used by Ollama cloud proxies)
         apiEndpoint = `${this.baseUrl.replace(/\/$/, '')}/chat/completions`;
         requestBody = {
-          model: this.defaultModel,
+          model,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: request.prompt },
@@ -76,7 +77,7 @@ export class OllamaService {
         // Native Ollama API endpoint
         apiEndpoint = `${this.baseUrl}/api/chat`;
         requestBody = {
-          model: this.defaultModel,
+          model,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: request.prompt },
@@ -88,7 +89,7 @@ export class OllamaService {
 
       const response = await axios.post(apiEndpoint, requestBody, {
         headers,
-        timeout: 5000, // Reduced from 30s — on cloud, Ollama will never respond; 5s is enough for local
+        timeout: this.baseUrl.includes('ollama.com') ? 30000 : 5000, // 30s for cloud, 5s for local
       });
 
       // Handle both native Ollama response and OpenAI-compatible response
@@ -128,6 +129,30 @@ export class OllamaService {
   private _isOllamaReachable(): boolean {
     // This is a synchronous check during init; actual reachability tested per-request
     return this.baseUrl !== 'http://localhost:11434' || this.apiKey !== '';
+  }
+
+  /**
+   * Resolve the best model name for the current Ollama server.
+   * - If OLLAMA_MODEL is set, use it directly (user's explicit choice)
+   * - If using ollama.com cloud API, use a cloud-compatible model
+   * - Otherwise, fall back to the configured defaultModel
+   */
+  private _resolveModel(): string {
+    // If user explicitly set OLLAMA_MODEL, always use it
+    const envModel = this.configService.get<string>('OLLAMA_MODEL', '');
+    if (envModel && envModel.trim()) {
+      return envModel.trim();
+    }
+
+    // Detect ollama.com cloud API — use a cloud-compatible model
+    if (this.baseUrl.includes('ollama.com')) {
+      // ollama.com doesn't have qwen2.5:7b — use gemma3:4b as fast default
+      this.logger.log(`🏠 Detected ollama.com cloud — using gemma3:4b (cloud-compatible)`);
+      return 'gemma3:4b';
+    }
+
+    // Default: use the configured defaultModel (qwen2.5:7b for local Ollama)
+    return this.defaultModel;
   }
 
   /**

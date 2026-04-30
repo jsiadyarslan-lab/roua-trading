@@ -90,7 +90,8 @@ function parseVote(content: string): 'BUY' | 'SELL' | 'HOLD' {
 }
 
 const MODEL_TIMEOUT = 15_000 // FIX: Reduced from 20s to 15s — faster failure, quicker Layer 2 completion
-const OLLAMA_TIMEOUT = 8_000 // 8s for Ollama (fail faster if unreachable)
+const OLLAMA_CLOUD_TIMEOUT = 30_000 // 30s for Ollama cloud (slower than local)
+const OLLAMA_LOCAL_TIMEOUT = 8_000 // 8s for local Ollama (fail faster if unreachable)
 
 // ─── Model Call Functions ────────────────────────────────────────
 
@@ -272,7 +273,14 @@ async function callOllama(prompt: string): Promise<DirectAIResponse> {
   }
 
   const apiKey = getKey('OLLAMA_API_KEY') // Optional — some Ollama servers use auth
-  const model = getKey('OLLAMA_MODEL') || 'qwen2.5:7b'
+
+  // FIX: Resolve model name based on the Ollama server type
+  // ollama.com cloud API has different models than local Ollama
+  let model = getKey('OLLAMA_MODEL') || 'qwen2.5:7b'
+  if (!getKey('OLLAMA_MODEL') && baseUrl.includes('ollama.com')) {
+    // ollama.com doesn't have qwen2.5:7b — use gemma3:4b as default
+    model = 'gemma3:4b'
+  }
 
   const start = Date.now()
   try {
@@ -314,7 +322,7 @@ async function callOllama(prompt: string): Promise<DirectAIResponse> {
       method: 'POST',
       headers: requestHeaders,
       body: JSON.stringify(requestBody),
-      signal: AbortSignal.timeout(OLLAMA_TIMEOUT),
+      signal: AbortSignal.timeout(baseUrl.includes('ollama.com') ? OLLAMA_CLOUD_TIMEOUT : OLLAMA_LOCAL_TIMEOUT),
     })
 
     if (!res.ok) {

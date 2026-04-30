@@ -13,7 +13,7 @@ import { RightPanelLayout } from '@/components/dashboard/layouts/RightPanelLayou
 import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
 import { QuickExecutionMini } from '@/components/dashboard/QuickExecutionMini'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
-import { useDashboardStore } from '@/lib/dashboard-store'
+import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
 
 const DASHBOARD_SYMBOLS = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA']
@@ -50,6 +50,31 @@ const HEADER_H = 108
 const PANEL_H = 30
 const ANIM = 'height 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease'
 
+// Mode configuration — determines UI accent and available features per mode
+const MODE_CONFIG: Record<TradingMode, { accent: string; glowBg: string; label: string; labelAr: string; description: string }> = {
+  trader: {
+    accent: '#00d4ff',
+    glowBg: 'rgba(0,212,255,0.04)',
+    label: 'Trader',
+    labelAr: 'وضع التاجر',
+    description: 'تداول سريع، شارت متقدم، تنفيذ فوري',
+  },
+  investor: {
+    accent: '#10b981',
+    glowBg: 'rgba(16,185,129,0.04)',
+    label: 'Investor',
+    labelAr: 'وضع المستثمر',
+    description: 'محفظة استثمارية، توزيع الأصول، أداء طويل المدى',
+  },
+  ai: {
+    accent: '#a78bfa',
+    glowBg: 'rgba(167,139,250,0.04)',
+    label: 'AI',
+    labelAr: 'وضع الذكاء الاصطناعي',
+    description: 'تحليلات AI، توصيات ذكية، إشارات آلية',
+  },
+}
+
 type MobileView = 'execution' | 'market' | 'portfolio' | 'insight'
 
 const formatMoney = (value: unknown): string => {
@@ -81,7 +106,9 @@ export default function DashboardPage() {
   const fetchPositions = usePositionsStore(state => state.fetchPositions)
   const chartFullscreen = useDashboardStore(state => state.chartFullscreen)
   const toggleChartFullscreen = useDashboardStore(state => state.toggleChartFullscreen)
+  const mode = useDashboardStore(state => state.mode)
   const [posOpen, setPosOpen] = useState(true)
+  const modeConfig = MODE_CONFIG[mode]
 
   // Auto-expand positions panel when entering fullscreen
   useEffect(() => {
@@ -679,8 +706,48 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Center Column: Chart + Balance + Positions */}
+          {/* Center Column: Mode Banner + Chart + Balance + Positions */}
           <div className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, minHeight: 0 }}>
+            {/* Mode Banner */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '6px 14px', borderRadius: 10,
+              background: modeConfig.glowBg,
+              border: `1px solid ${modeConfig.accent}20`,
+              flexShrink: 0,
+              transition: 'all 0.3s ease',
+            }}>
+              <div style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: modeConfig.accent,
+                boxShadow: `0 0 8px ${modeConfig.accent}60`,
+                animation: 'ledPulse 2s ease-in-out infinite',
+              }} />
+              <span style={{
+                fontFamily: "'Cairo', sans-serif", fontSize: 11, fontWeight: 800,
+                color: modeConfig.accent, letterSpacing: '0.02em',
+              }}>{modeConfig.labelAr}</span>
+              <span style={{
+                fontFamily: "'Cairo', sans-serif", fontSize: 10,
+                color: T.text3, marginRight: 8,
+              }}>— {modeConfig.description}</span>
+              <div style={{ flex: 1 }} />
+              {mode === 'trader' && (
+                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: T.text3, fontWeight: 600 }}>
+                  {activeMobileView === 'execution' ? 'LIVE' : 'READY'}
+                </span>
+              )}
+              {mode === 'investor' && (
+                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: '#10b981', fontWeight: 600 }}>
+                  LONG-TERM
+                </span>
+              )}
+              {mode === 'ai' && (
+                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: '#a78bfa', fontWeight: 600 }}>
+                  AI-ACTIVE
+                </span>
+              )}
+            </div>
             {/* Chart Panel */}
             <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
@@ -748,18 +815,56 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Right Panel */}
+          {/* Right Panel — mode-aware content */}
           {!isCompactDesktopViewport && (
             <div className="dash-col dash-col-right animate-in-3" style={{ height: '100%' }}>
-              <RightPanelLayout quotes={quotes} />
+              {mode === 'trader' && <RightPanelLayout quotes={quotes} />}
+              {mode === 'investor' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>
+                  <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <PortfolioMini dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />
+                  </div>
+                  <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <WatchlistMini selectedSymbol={selectedSymbol} />
+                  </div>
+                </div>
+              )}
+              {mode === 'ai' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, height: '100%' }}>
+                  <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <AlNarratorMini selectedSymbol={selectedSymbol} dataStatus={quoteStatus} />
+                  </div>
+                  <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    <ScannerMini selectedSymbol={selectedSymbol} />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           {isCompactDesktopViewport && (
             <div className="dash-col dash-col-right-mobile panel" style={{ padding: '0 4px 20px' }}>
-              <RightPanelLayout quotes={quotes} />
-              <div style={{ height: 10 }} />
-              <WatchlistMini />
+              {mode === 'trader' && <RightPanelLayout quotes={quotes} />}
+              {mode === 'investor' && (
+                <>
+                  <PortfolioMini dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />
+                  <div style={{ height: 10 }} />
+                  <WatchlistMini selectedSymbol={selectedSymbol} />
+                </>
+              )}
+              {mode === 'ai' && (
+                <>
+                  <AlNarratorMini selectedSymbol={selectedSymbol} dataStatus={quoteStatus} />
+                  <div style={{ height: 10 }} />
+                  <ScannerMini selectedSymbol={selectedSymbol} />
+                </>
+              )}
+              {mode === 'trader' && (
+                <>
+                  <div style={{ height: 10 }} />
+                  <WatchlistMini />
+                </>
+              )}
             </div>
           )}
         </div>

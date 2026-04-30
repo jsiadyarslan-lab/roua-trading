@@ -9,10 +9,11 @@ import {
   Copy, Users, Newspaper, CalendarDays, Settings,
   ChevronDown, Bell, User, MoreHorizontal,
   TrendingUp, TrendingDown, Menu, X as XIcon, GitMerge, Activity,
-  FlaskConical, Shield, Hammer
+  FlaskConical, Shield, Hammer, LogOut, UserCircle, Info
 } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { NotificationCenter } from '@/components/dashboard/NotificationCenter'
 
 /* ─── Design tokens ─── */
@@ -539,12 +540,215 @@ function MoreDropdown({
   )
 }
 
-function MainNav({ mode, onModeChange }: { mode: 'trader' | 'investor' | 'ai', onModeChange: (m: 'trader' | 'investor' | 'ai') => void }) {
+/* ─── Account Dropdown (Desktop) ─── */
+const _accountDropdownCleanupRef: { current: (() => void) | null } = { current: null }
+
+function AccountDropdown({
+  open,
+  onClose,
+  anchorRef,
+}: {
+  open: boolean
+  onClose: () => void
+  anchorRef: React.RefObject<HTMLDivElement | null>
+}) {
+  const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 })
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [userName, setUserName] = useState<string>('')
+  const [userEmail, setUserEmail] = useState<string>('')
+  const [userTier, setUserTier] = useState<string>('')
+
+  useEffect(() => {
+    if (open && anchorRef.current) {
+      const rect = anchorRef.current.getBoundingClientRect()
+      setPos({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right,
+      })
+      // Fetch user info
+      fetch('/api/auth/me')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data?.authenticated && data?.user) {
+            setUserName(data.user.displayName || data.user.email || 'مستخدم')
+            setUserEmail(data.user.email || '')
+            setUserTier(data.user.tier || 'FREE')
+          }
+        })
+        .catch(() => {})
+    }
+  }, [open, anchorRef])
+
+  useEffect(() => {
+    if (!open) return
+    const timeoutId = setTimeout(() => {
+      const handleClick = (e: MouseEvent) => {
+        if (
+          dropdownRef.current?.contains(e.target as Node) ||
+          anchorRef.current?.contains(e.target as Node)
+        ) return
+        onClose()
+      }
+      const handleEsc = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') onClose()
+      }
+      document.addEventListener('mousedown', handleClick)
+      document.addEventListener('keydown', handleEsc)
+      _accountDropdownCleanupRef.current = () => {
+        document.removeEventListener('mousedown', handleClick)
+        document.removeEventListener('keydown', handleEsc)
+      }
+    }, 50)
+    return () => {
+      clearTimeout(timeoutId)
+      if (_accountDropdownCleanupRef.current) {
+        _accountDropdownCleanupRef.current()
+        _accountDropdownCleanupRef.current = null
+      }
+    }
+  }, [open, onClose, anchorRef])
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/me', { method: 'DELETE' })
+    } catch { /* ignore */ }
+    window.location.href = '/login'
+  }
+
+  if (!open || typeof document === 'undefined') return null
+
+  return createPortal(
+    <div ref={dropdownRef} style={{
+      position: 'fixed',
+      top: pos.top,
+      right: pos.right,
+      background: 'rgba(26, 29, 41, 0.95)',
+      backdropFilter: 'blur(32px) saturate(1.8)',
+      WebkitBackdropFilter: 'blur(32px) saturate(1.8)',
+      border: '1px solid rgba(0,212,255,0.15)',
+      borderRadius: 14,
+      padding: '6px',
+      minWidth: 220,
+      zIndex: 9999,
+      boxShadow: '0 20px 60px rgba(0,0,0,0.7), 0 0 20px rgba(0,212,255,0.06)',
+      animation: 'fadeInSlideDown 0.18s ease-out',
+    }}>
+      {/* User Info Header */}
+      <div style={{
+        padding: '12px 14px',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+        marginBottom: 4,
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6,
+        }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: '50%',
+            background: 'linear-gradient(135deg, #00d4ff, #0891b2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 0 12px rgba(0,212,255,0.2)',
+          }}>
+            <User size={16} color="#fff" />
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{
+              fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 700,
+              color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>{userName || 'مستخدم'}</div>
+            {userEmail && (
+              <div style={{
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
+                color: T.text3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>{userEmail}</div>
+            )}
+          </div>
+        </div>
+        {userTier && (
+          <div style={{
+            display: 'inline-block', fontSize: 9, fontWeight: 700,
+            padding: '2px 8px', borderRadius: 4,
+            background: 'rgba(0,212,255,0.10)', color: '#00d4ff',
+            fontFamily: "'JetBrains Mono', monospace",
+            letterSpacing: '0.05em',
+          }}>{userTier}</div>
+        )}
+      </div>
+
+      {/* Menu Items */}
+      <Link href="/dashboard/settings" style={{ textDecoration: 'none' }} onClick={onClose}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+          fontFamily: "'Cairo', sans-serif", fontSize: 13,
+          color: T.text2, fontWeight: 500, transition: 'all 0.15s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.color = T.text }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.text2 }}
+        >
+          <Settings size={15} strokeWidth={2} />
+          الإعدادات
+        </div>
+      </Link>
+
+      <Link href="/dashboard/portfolio" style={{ textDecoration: 'none' }} onClick={onClose}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+          fontFamily: "'Cairo', sans-serif", fontSize: 13,
+          color: T.text2, fontWeight: 500, transition: 'all 0.15s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.06)'; e.currentTarget.style.color = T.text }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.text2 }}
+        >
+          <UserCircle size={15} strokeWidth={2} />
+          معلومات الحساب
+        </div>
+      </Link>
+
+      {/* Logout */}
+      <div
+        onClick={handleLogout}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+          fontFamily: "'Cairo', sans-serif", fontSize: 13,
+          color: '#FF4757', fontWeight: 500, transition: 'all 0.15s',
+          borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 4,
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.08)'; e.currentTarget.style.color = '#FF6B7A' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#FF4757' }}
+      >
+        <LogOut size={15} strokeWidth={2} />
+        تسجيل الخروج
+      </div>
+    </div>,
+    document.body
+  )
+}
+
+function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: TradingMode) => void }) {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
   const moreRef = useRef<HTMLDivElement>(null)
+  const [accountOpen, setAccountOpen] = useState(false)
+  const accountRef = useRef<HTMLDivElement>(null)
 
   const handleCloseMore = useCallback(() => setMoreOpen(false), [])
+  const handleCloseAccount = useCallback(() => setAccountOpen(false), [])
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/me', { method: 'DELETE' })
+    } catch { /* ignore */ }
+    window.location.href = '/login'
+  }
+
+  // Mode-specific styling
+  const modeConfig: Record<TradingMode, { accent: string; label: string; arLabel: string }> = {
+    trader:   { accent: '#00d4ff', label: 'Trader',   arLabel: 'تاجر'   },
+    investor: { accent: '#10b981', label: 'Investor', arLabel: 'مستثمر' },
+    ai:       { accent: '#a78bfa', label: 'AI',       arLabel: 'AI'      },
+  }
 
   return (
     <div style={{
@@ -615,37 +819,56 @@ function MainNav({ mode, onModeChange }: { mode: 'trader' | 'investor' | 'ai', o
          display: 'flex', background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 8,
          border: '1px solid var(--card-border)', marginLeft: 12
       }}>
-         {([['trader', 'Trader'], ['investor', 'Investor'], ['ai', 'AI']] as const).map(([m, label]) => (
-           <button
-             key={m}
-             onClick={() => onModeChange(m)}
-             style={{
-                padding: '5px 10px', fontSize: 9.5, fontWeight: m === mode ? 800 : 500,
-                background: m === mode ? 'var(--accent)' : 'transparent',
-                color: m === mode ? '#000' : 'var(--muted)',
-                borderRadius: 6, border: 'none', cursor: 'pointer',
-                fontFamily: 'var(--mono)', transition: '0.2s',
-                textTransform: 'uppercase'
-             }}
-           >
-             {label}
-           </button>
-         ))}
+         {([['trader', 'Trader'], ['investor', 'Investor'], ['ai', 'AI']] as [TradingMode, string][]).map(([m, label]) => {
+           const cfg = modeConfig[m]
+           return (
+             <button
+               key={m}
+               onClick={() => onModeChange(m)}
+               style={{
+                  padding: '5px 10px', fontSize: 9.5, fontWeight: m === mode ? 800 : 500,
+                  background: m === mode ? cfg.accent : 'transparent',
+                  color: m === mode ? '#000' : 'var(--muted)',
+                  borderRadius: 6, border: 'none', cursor: 'pointer',
+                  fontFamily: 'var(--mono)', transition: '0.2s',
+                  textTransform: 'uppercase',
+                  boxShadow: m === mode ? `0 0 8px ${cfg.accent}40` : 'none',
+               }}
+             >
+               {label}
+             </button>
+           )
+         })}
       </div>
 
       {/* LED Connection Indicator — dynamic based on market data */}
       <HeaderStatusLED />
 
-      <div style={{
-        flexShrink: 0, display: 'flex', alignItems: 'center',
-        gap: 8, cursor: 'pointer',
-        padding: '0 16px', borderRadius: 22, height: 46,
-        background: 'rgba(255,255,255,0.05)',
-        border: '1px solid var(--card-border)', marginInlineStart: 8,
-        transition: 'all 0.2s',
-      }}>
-        <User size={16} color="var(--accent)" />
-        <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>حسابي</span>
+      <div ref={accountRef} style={{ position: 'relative', flexShrink: 0 }}>
+        <div
+          onClick={() => setAccountOpen(!accountOpen)}
+          style={{
+            display: 'flex', alignItems: 'center',
+            gap: 8, cursor: 'pointer',
+            padding: '0 16px', borderRadius: 22, height: 46,
+            background: accountOpen ? 'rgba(0,212,255,0.08)' : 'rgba(255,255,255,0.05)',
+            border: accountOpen ? '1px solid rgba(0,212,255,0.20)' : '1px solid var(--card-border)',
+            marginInlineStart: 8,
+            transition: 'all 0.2s',
+          }}
+        >
+          <User size={16} color="var(--accent)" />
+          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>حسابي</span>
+          <ChevronDown size={12} style={{
+            transform: accountOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s', color: T.text3,
+          }} />
+        </div>
+        <AccountDropdown
+          open={accountOpen}
+          onClose={handleCloseAccount}
+          anchorRef={accountRef}
+        />
       </div>
     </div>
   )
@@ -709,18 +932,21 @@ header *::-webkit-scrollbar { display:none; }
 /* ══ Root export ══ */
 export function AppHeader() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [mode, setMode] = useState<'trader' | 'investor' | 'ai'>('trader')
+  const mode = useDashboardStore(state => state.mode)
+  const setMode = useDashboardStore(state => state.setMode)
   const pathname = usePathname()
 
-  useEffect(() => {
-    const saved = localStorage.getItem('roua-mode')
-    if (saved === 'investor' || saved === 'ai' || saved === 'trader') setMode(saved)
-  }, [])
-
-  const handleModeChange = (m: 'trader' | 'investor' | 'ai') => {
+  const handleModeChange = (m: TradingMode) => {
     setMode(m)
-    localStorage.setItem('roua-mode', m)
   }
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/me', { method: 'DELETE' })
+    } catch { /* ignore */ }
+    window.location.href = '/login'
+  }
+
   const globalQuotes = useMarketStore(state => state.quotes)
   const ORBS = ['BTC/USD','ETH/USD','EUR/USD','GBP/USD','USD/JPY','XAU/USD']
   const quotes = new Map(ORBS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
@@ -779,25 +1005,43 @@ export function AppHeader() {
              {/* Mode Switcher + Account (mobile) */}
              <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid rgba(0,212,255,0.10)`, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 8, border: `1px solid ${T.border}` }}>
-                  {([['trader', 'تاجر'], ['investor', 'مستثمر'], ['ai', 'AI']] as const).map(([m, label]) => (
-                    <button key={m} onClick={() => handleModeChange(m)} style={{
-                      flex: 1, padding: '8px 10px', fontSize: 10, fontWeight: m === mode ? 800 : 500,
-                      background: m === mode ? 'var(--accent)' : 'transparent',
-                      color: m === mode ? '#000' : T.text2,
-                      borderRadius: 6, border: 'none', cursor: 'pointer',
-                      fontFamily: "'Cairo', sans-serif", transition: '0.2s',
-                    }}>
-                      {label}
-                    </button>
-                  ))}
+                  {([['trader', 'تاجر'], ['investor', 'مستثمر'], ['ai', 'AI']] as [TradingMode, string][]).map(([m, label]) => {
+                    const accentMap: Record<TradingMode, string> = { trader: '#00d4ff', investor: '#10b981', ai: '#a78bfa' }
+                    return (
+                      <button key={m} onClick={() => handleModeChange(m)} style={{
+                        flex: 1, padding: '8px 10px', fontSize: 10, fontWeight: m === mode ? 800 : 500,
+                        background: m === mode ? accentMap[m] : 'transparent',
+                        color: m === mode ? '#000' : T.text2,
+                        borderRadius: 6, border: 'none', cursor: 'pointer',
+                        fontFamily: "'Cairo', sans-serif", transition: '0.2s',
+                        boxShadow: m === mode ? `0 0 8px ${accentMap[m]}40` : 'none',
+                      }}>
+                        {label}
+                      </button>
+                    )
+                  })}
                 </div>
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
-                  borderRadius: 10, background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(0,212,255,0.10)', cursor: 'pointer',
-                }}>
-                  <User size={18} color="var(--accent)" />
-                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, color: T.text, fontWeight: 700 }}>حسابي</span>
+                <Link href="/dashboard/settings" style={{ textDecoration: 'none' }} onClick={() => setMenuOpen(false)}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
+                    borderRadius: 10, background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(0,212,255,0.10)', cursor: 'pointer',
+                  }}>
+                    <User size={18} color="var(--accent)" />
+                    <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, color: T.text, fontWeight: 700 }}>حسابي</span>
+                  </div>
+                </Link>
+                <div
+                  onClick={handleLogout}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
+                    borderRadius: 10, background: 'rgba(255,71,87,0.06)',
+                    border: '1px solid rgba(255,71,87,0.12)', cursor: 'pointer',
+                    color: '#FF4757',
+                  }}
+                >
+                  <LogOut size={18} />
+                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, fontWeight: 700 }}>تسجيل الخروج</span>
                 </div>
              </div>
           </div>

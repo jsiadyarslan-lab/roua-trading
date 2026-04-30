@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 
+export type TradingMode = 'trader' | 'investor' | 'ai'
+
 interface DashboardState {
   selectedPair: string
   setSelectedPair: (pair: string) => void
@@ -20,6 +22,9 @@ interface DashboardState {
   toggleLanguage: () => void
   chartFullscreen: boolean
   toggleChartFullscreen: () => void
+  // Trading mode (trader/investor/ai)
+  mode: TradingMode
+  setMode: (mode: TradingMode) => void
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -42,4 +47,11 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   toggleLanguage: () => set((s) => ({ language: s.language === 'ar' ? 'en' : 'ar' })),
   chartFullscreen: false,
   toggleChartFullscreen: () => set((s) => ({ chartFullscreen: !s.chartFullscreen })),
+  // Trading mode
+  mode: (typeof window !== 'undefined' && localStorage.getItem('roua-mode') === 'investor' ? 'investor' :
+         typeof window !== 'undefined' && localStorage.getItem('roua-mode') === 'ai' ? 'ai' : 'trader') as TradingMode,
+  setMode: (mode) => {
+    if (typeof window !== 'undefined') localStorage.setItem('roua-mode', mode)
+    set({ mode })
+  },
 }))

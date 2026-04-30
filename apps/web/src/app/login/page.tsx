@@ -208,14 +208,14 @@ function LoginForm() {
   }
 
   return (
-    <div className="relative min-h-screen text-white overflow-hidden flex items-center justify-center" dir="rtl" style={{ background: '#06090f' }}>
+    <div className="relative min-h-screen text-white overflow-hidden flex items-center justify-center" dir="rtl" style={{ background: '#000000' }}>
       {/* Background */}
       <div className="fixed inset-0 -z-10">
         <div
           className="absolute inset-0"
           style={{
             background:
-              'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(16,185,129,0.08) 0%, transparent 50%), radial-gradient(ellipse 60% 40% at 80% 50%, rgba(59,130,246,0.05) 0%, transparent 50%), radial-gradient(ellipse 60% 40% at 20% 80%, rgba(139,92,246,0.04) 0%, transparent 50%), #06090f',
+              'radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0,212,255,0.10) 0%, transparent 50%), radial-gradient(ellipse 60% 40% at 80% 50%, rgba(0,212,255,0.05) 0%, transparent 50%), radial-gradient(ellipse 60% 40% at 20% 80%, rgba(125,211,252,0.04) 0%, transparent 50%), #000000',
           }}
         />
       </div>
@@ -238,8 +238,8 @@ function LoginForm() {
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center"
                 style={{
-                  background: 'linear-gradient(135deg, #059669, #10B981)',
-                  boxShadow: '0 0 25px rgba(16, 185, 129, 0.2)',
+                  background: 'linear-gradient(135deg, #0891b2, #00d4ff)',
+                  boxShadow: '0 0 25px rgba(0, 212, 255, 0.2)',
                 }}
               >
                 <TrendingUp className="w-5 h-5 text-white" />
@@ -249,7 +249,7 @@ function LoginForm() {
                   className="text-3xl font-bold leading-none"
                   style={{
                     fontFamily: 'var(--font-ar)',
-                    background: 'linear-gradient(135deg, #10B981, #3B82F6)',
+                    background: 'linear-gradient(135deg, #00d4ff, #7dd3fc)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
@@ -299,7 +299,7 @@ function LoginForm() {
                   fontFamily: 'var(--font-en)',
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(16,185,129,0.4)'
+                  e.currentTarget.style.borderColor = 'rgba(0,212,255,0.4)'
                   e.currentTarget.style.background = 'rgba(255,255,255,0.07)'
                 }}
                 onBlur={(e) => {
@@ -317,14 +317,14 @@ function LoginForm() {
             transition={{ delay: 0.55, duration: 0.4 }}
             onClick={handleEmailLogin}
             disabled={loading !== null}
-            whileHover={{ scale: 1.01, boxShadow: '0 0 30px rgba(16, 185, 129, 0.2)' }}
+            whileHover={{ scale: 1.01, boxShadow: '0 0 30px rgba(0, 212, 255, 0.2)' }}
             whileTap={{ scale: 0.99 }}
             className="w-full flex items-center justify-center gap-2 py-3.5 px-6 rounded-xl
-                       bg-gradient-to-l from-emerald-600 to-emerald-500 text-white font-bold text-sm
-                       hover:from-emerald-500 hover:to-emerald-400
+                       bg-gradient-to-l from-cyan-600 to-cyan-400 text-white font-bold text-sm
+                       hover:from-cyan-500 hover:to-cyan-300
                        disabled:opacity-40 disabled:cursor-not-allowed
                        transition-all duration-200 mb-4"
-            style={{ boxShadow: '0 0 20px rgba(16, 185, 129, 0.15)' }}
+            style={{ boxShadow: '0 0 20px rgba(0, 212, 255, 0.15)' }}
           >
             <Mail className="w-4 h-4" />
             <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'email' ? 'جارٍ الدخول...' : 'تسجيل الدخول بالبريد'}</span>
@@ -371,7 +371,7 @@ function LoginForm() {
                        disabled:opacity-40 disabled:cursor-not-allowed
                        transition-all duration-200 mb-4"
           >
-            <Fingerprint className="w-4 h-4" style={{ color: '#2DD4BF' }} />
+            <Fingerprint className="w-4 h-4" style={{ color: '#00d4ff' }} />
             <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'passkey' ? 'جارٍ التحقق...' : 'Passkey'}</span>
           </motion.button>
 

@@ -51,30 +51,46 @@ export class OllamaService {
     const systemPrompt = this._buildSystemPrompt(request);
 
     try {
-      const response = await axios.post(
-        `${this.baseUrl}/api/chat`,
-        {
+      // FIX: Support both native Ollama API (/api/chat) and OpenAI-compatible API (/v1/chat/completions)
+      // If the base URL ends with /v1, use the OpenAI-compatible endpoint instead.
+      let apiEndpoint: string;
+      let requestBody: any;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (this.apiKey) headers['Authorization'] = `Bearer ${this.apiKey}`;
+
+      if (this.baseUrl.endsWith('/v1') || this.baseUrl.endsWith('/v1/')) {
+        // OpenAI-compatible endpoint (used by Ollama cloud proxies)
+        apiEndpoint = `${this.baseUrl.replace(/\/$/, '')}/chat/completions`;
+        requestBody = {
+          model: this.defaultModel,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: request.prompt },
+          ],
+          temperature: 0.3,
+          max_tokens: 1024,
+        };
+      } else {
+        // Native Ollama API endpoint
+        apiEndpoint = `${this.baseUrl}/api/chat`;
+        requestBody = {
           model: this.defaultModel,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: request.prompt },
           ],
           stream: false,
-          options: {
-            temperature: 0.3,
-            num_predict: 1024,
-          },
-        },
-        {
-          headers: {
-            ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
-            'Content-Type': 'application/json',
-          },
-          timeout: 5000, // Reduced from 30s — on cloud, Ollama will never respond; 5s is enough for local
-        },
-      );
+          options: { temperature: 0.3, num_predict: 1024 },
+        };
+      }
 
-      const content = response.data?.message?.content || '';
+      const response = await axios.post(apiEndpoint, requestBody, {
+        headers,
+        timeout: 5000, // Reduced from 30s — on cloud, Ollama will never respond; 5s is enough for local
+      });
+
+      // Handle both native Ollama response and OpenAI-compatible response
+      const content = response.data?.message?.content || response.data?.choices?.[0]?.message?.content || '';
 
       if (content.length > 5) {
         return {

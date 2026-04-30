@@ -134,7 +134,8 @@ async function callGemini(prompt: string): Promise<DirectAIResponse> {
 
   const start = Date.now()
   try {
-    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent', {
+    // FIX: Updated from gemini-2.0-flash which is no longer available for new users.
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
@@ -265,13 +266,29 @@ async function callOllama(prompt: string): Promise<DirectAIResponse> {
 
   const start = Date.now()
   try {
-    const res = await fetch(`${baseUrl}/api/chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {}),
-      },
-      body: JSON.stringify({
+    // FIX: Support both native Ollama API (/api/chat) and OpenAI-compatible API (/v1/chat/completions)
+    // If the base URL ends with /v1, use the OpenAI-compatible endpoint instead.
+    let apiEndpoint: string
+    let requestBody: any
+    let requestHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
+
+    if (baseUrl.endsWith('/v1') || baseUrl.endsWith('/v1/')) {
+      // OpenAI-compatible endpoint (used by Ollama cloud proxies and some providers)
+      apiEndpoint = `${baseUrl.replace(/\/$/, '')}/chat/completions`
+      requestBody = {
+        model,
+        messages: [
+          { role: 'system', content: 'أنت محلل مالي محترف. أجب بالعربية باختصار. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.3,
+        max_tokens: 1024,
+      }
+      if (apiKey) requestHeaders['Authorization'] = `Bearer ${apiKey}`
+    } else {
+      // Native Ollama API endpoint
+      apiEndpoint = `${baseUrl}/api/chat`
+      requestBody = {
         model,
         messages: [
           { role: 'system', content: 'أنت محلل مالي محترف. أجب بالعربية باختصار. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
@@ -279,7 +296,14 @@ async function callOllama(prompt: string): Promise<DirectAIResponse> {
         ],
         stream: false,
         options: { temperature: 0.3, num_predict: 1024 },
-      }),
+      }
+      if (apiKey) requestHeaders['Authorization'] = `Bearer ${apiKey}`
+    }
+
+    const res = await fetch(apiEndpoint, {
+      method: 'POST',
+      headers: requestHeaders,
+      body: JSON.stringify(requestBody),
       signal: AbortSignal.timeout(OLLAMA_TIMEOUT),
     })
 
@@ -289,7 +313,8 @@ async function callOllama(prompt: string): Promise<DirectAIResponse> {
     }
 
     const data = await res.json()
-    const content = data?.message?.content || ''
+    // Handle both native Ollama response and OpenAI-compatible response
+    const content = data?.message?.content || data?.choices?.[0]?.message?.content || ''
     return { model: `Ollama/${data?.model || model}`, content, confidence: calcConfidence(content, 'ollama'), processingTimeMs: Date.now() - start, success: content.length > 10 }
   } catch (e: any) {
     return { model: `Ollama/${model}`, content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Ollama unreachable: ${e.message}` }

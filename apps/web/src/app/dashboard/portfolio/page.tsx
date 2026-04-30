@@ -209,6 +209,16 @@ function ApiErrorBanner({ error, onRetry }: { error: string; onRetry: () => void
   )
 }
 
+function formatDuration(start: string | number, end: string | number) {
+  if (!start || !end) return '-'
+  const diff = new Date(end).getTime() - new Date(start).getTime()
+  if (diff < 60000) return `${Math.floor(diff / 1000)}s`
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m`
+  const hours = Math.floor(diff / 3600000)
+  const mins = Math.floor((diff % 3600000) / 60000)
+  return `${hours}h ${mins}m`
+}
+
 /* ── Main page ── */
 export default function PortfolioPage() {
   const [tab, setTab] = useState<'positions' | 'performance' | 'risk' | 'coach'>('positions')
@@ -221,6 +231,13 @@ export default function PortfolioPage() {
   const [apiError, setApiError] = useState<string | null>(null)
   const [showClosed, setShowClosed] = useState(false)
   const { closedTrades: closedPaperTrades } = usePaperTradesStore()
+
+  // New states for P5 (Portfolio Optimization)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sideFilter, setSideFilter] = useState<'ALL' | 'BUY' | 'SELL'>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'WIN' | 'LOSS'>('ALL')
+  const [showPanicConfirm, setShowPanicConfirm] = useState(false)
+  const [closingAll, setClosingAll] = useState(false)
 
   const fetchPositions = useCallback(async () => {
     try {
@@ -300,6 +317,37 @@ export default function PortfolioPage() {
     setClosing(null)
   }
 
+  const handleCloseAllPositions = async () => {
+    setClosingAll(true)
+    setApiError(null)
+    try {
+      const openPositions = positions.filter(p => p.status === 'OPEN' || p.status === undefined)
+      let allSuccess = true
+      
+      for (const pos of openPositions) {
+        const result = await closePositionUnified(pos.id)
+        if (!result.success) {
+          allSuccess = false
+          setApiError(`فشل في إغلاق المركز ${pos.symbol}: ${result.error || 'غير معروف'}`)
+        }
+      }
+      
+      if (allSuccess) {
+        setPositions([]) // all closed
+      } else {
+        await fetchPositions() // fetch remaining open
+      }
+      
+      await fetchSummary()
+      await fetchClosedPositions()
+      await fetchTrades()
+      setShowPanicConfirm(false)
+    } catch (e: any) {
+      setApiError(`خطأ في إغلاق المراكز: ${e.message || 'غير معروف'}`)
+    }
+    setClosingAll(false)
+  }
+
   // ── Computed values ──
   const totalUnrealizedPnl = positions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)
   const totalRealizedPnl = closedPositions.reduce((sum, p) => sum + (p.realizedPnl || 0), 0) + closedPaperTrades.reduce((sum, p) => sum + (p.realizedPnl || 0), 0)
@@ -374,6 +422,30 @@ export default function PortfolioPage() {
     const stdDev = Math.sqrt(variance)
     return stdDev > 0 ? (mean / stdDev) * Math.sqrt(252) : null
   })()
+
+  // ── Combined and Filtered History ──
+  const combinedHistory = [
+    ...closedPositions.map(p => ({
+      id: p.id, symbol: p.symbol, side: p.side, type: 'MARKET',
+      quantity: p.quantity, price: p.entryPrice, pnl: p.realizedPnl || 0,
+      fee: null, feeCurrency: null, executedAt: p.closedAt || p.openedAt,
+      openedAt: p.openedAt
+    })),
+    ...closedPaperTrades.map(t => ({
+      id: t.id, symbol: t.symbol, side: t.side === 'long' ? 'BUY' : 'SELL', type: 'PAPER',
+      quantity: t.qty, price: t.entryPrice, exitPrice: t.exitPrice, pnl: t.realizedPnl,
+      fee: null, feeCurrency: null, executedAt: new Date(t.closeTime).toISOString(),
+      openedAt: new Date(t.entryTime).toISOString()
+    }))
+  ].sort((a, b) => new Date(b.executedAt).getTime() - new Date(a.executedAt).getTime())
+
+  const filteredHistory = combinedHistory.filter(t => {
+    if (searchQuery && !t.symbol.toLowerCase().includes(searchQuery.toLowerCase())) return false
+    if (sideFilter !== 'ALL' && t.side !== sideFilter) return false
+    if (statusFilter === 'WIN' && (t.pnl || 0) <= 0) return false
+    if (statusFilter === 'LOSS' && (t.pnl || 0) >= 0) return false
+    return true
+  })
 
   return (
     <div style={{
@@ -602,14 +674,21 @@ export default function PortfolioPage() {
                 </div>
                 {/* Rows */}
                 {positions.map((pos, i) => (
-                  <div key={pos.id} style={{
-                    display: 'grid',
-                    gridTemplateColumns: '100px 70px 70px 90px 90px 80px 80px 80px 80px',
-                    padding: '7px 14px', gap: 0,
-                    borderBottom: i < positions.length - 1 ? `0.5px solid ${T.border}` : 'none',
-                    alignItems: 'center',
-                    background: i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent',
-                  }}>
+                  <div
+                    key={pos.id}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '100px 70px 70px 90px 90px 80px 80px 80px 80px',
+                      padding: '7px 14px', gap: 0,
+                      borderBottom: i < positions.length - 1 ? `0.5px solid ${T.border}` : 'none',
+                      alignItems: 'center',
+                      background: i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent',
+                      transition: 'background 0.2s',
+                      cursor: 'default'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent'}
+                  >
                     <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, color: T.text }}>{pos.symbol}</div>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
                       <span style={{
@@ -694,104 +773,115 @@ export default function PortfolioPage() {
             </div>
 
             {showClosed && (
-              (closedPositions.length + closedPaperTrades.length) === 0 ? (
+              filteredHistory.length === 0 ? (
                 <div style={{ padding: 24, textAlign: 'center' }}>
                   <History size={28} style={{ color: T.text3, opacity: 0.3, margin: '0 auto 8px' }} />
-                  <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.text3 }}>لا توجد صفقات مغلقة بعد</p>
-                  <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2, marginTop: 4 }}>الصفقات التي تُغلق ستظهر هنا</p>
+                  <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.text3 }}>لا توجد صفقات مغلقة مطابقة</p>
+                  <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2, marginTop: 4 }}>حاول تغيير إعدادات الفلترة أو ابدأ التداول</p>
                 </div>
               ) : (
                 <>
+                  {/* Filters Bar */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                    borderBottom: `0.5px solid ${T.border}`, background: 'rgba(0,0,0,0.2)'
+                  }}>
+                    <input
+                      type="text"
+                      placeholder="بحث بالرمز..."
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      style={{
+                        background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6,
+                        padding: '4px 10px', color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                        width: 120, outline: 'none'
+                      }}
+                    />
+                    <select
+                      value={sideFilter}
+                      onChange={e => setSideFilter(e.target.value as any)}
+                      style={{
+                        background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6,
+                        padding: '4px 8px', color: T.text, fontSize: 11, fontFamily: "'Cairo', sans-serif", outline: 'none'
+                      }}
+                    >
+                      <option value="ALL">كل الاتجاهات</option>
+                      <option value="BUY">شراء</option>
+                      <option value="SELL">بيع</option>
+                    </select>
+                    <select
+                      value={statusFilter}
+                      onChange={e => setStatusFilter(e.target.value as any)}
+                      style={{
+                        background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6,
+                        padding: '4px 8px', color: T.text, fontSize: 11, fontFamily: "'Cairo', sans-serif", outline: 'none'
+                      }}
+                    >
+                      <option value="ALL">كل النتائج</option>
+                      <option value="WIN">رابحة</option>
+                      <option value="LOSS">خاسرة</option>
+                    </select>
+                  </div>
+
                   <div role="table" aria-label="الصفقات المغلقة" style={{
                     display: 'grid',
-                    gridTemplateColumns: '100px 70px 70px 90px 90px 90px 90px 120px',
+                    gridTemplateColumns: '100px 70px 70px 80px 80px 80px 80px 70px 110px',
                     padding: '5px 14px', gap: 0,
                     borderBottom: `0.5px solid ${T.border}`,
                   }}>
-                    {['الزوج','اتجاه','حجم','سعر الدخول','سعر الإغلاق','ر.خ محققة','الحالة','وقت الإغلاق'].map((h, i) => (
+                    {['الزوج','اتجاه','حجم','دخول','إغلاق','ر.خ محققة','الحالة','المدة','وقت الإغلاق'].map((h, i) => (
                       <div key={i} style={{
                         fontFamily: "'Cairo', sans-serif", fontSize: 9.5,
                         color: T.text3, textAlign: 'center',
                       }}>{h}</div>
                     ))}
                   </div>
-                  {/* Backend closed positions */}
-                  {closedPositions.map((pos, i) => (
-                    <div key={pos.id} style={{
-                      display: 'grid',
-                      gridTemplateColumns: '100px 70px 70px 90px 90px 90px 90px 120px',
-                      padding: '6px 14px', gap: 0,
-                      borderBottom: `0.5px solid ${T.border}`,
-                      alignItems: 'center',
-                      background: i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent',
-                    }}>
-                      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 600, color: T.text }}>{pos.symbol}</div>
-                      <div style={{ display: 'flex', justifyContent: 'center' }}>
-                        <span style={{
-                          padding: '1px 6px', borderRadius: 3,
-                          fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700,
-                          background: pos.side === 'BUY' ? `${T.green}18` : `${T.red}18`,
-                          color: pos.side === 'BUY' ? T.green : T.red,
-                        }}>{pos.side === 'BUY' ? 'شراء' : 'بيع'}</span>
-                      </div>
-                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{pos.quantity}</div>
-                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{formatPrice(pos.entryPrice)}</div>
-                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{pos.currentPrice ? formatPrice(pos.currentPrice) : '—'}</div>
-                      <div style={{
-                        textAlign: 'center', fontFamily: "'JetBrains Mono', monospace",
-                        fontSize: 10, fontWeight: 700,
-                        color: (pos.realizedPnl || 0) >= 0 ? T.green : T.red,
-                      }}>
-                        {(pos.realizedPnl || 0) > 0 ? '+' : (pos.realizedPnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pos.realizedPnl || 0))}
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'center' }}>
-                        <span style={{
-                          padding: '1px 6px', borderRadius: 3,
-                          fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 700,
-                          background: `${T.blue}18`, color: T.blue,
-                        }}>مغلقة</span>
-                      </div>
-                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>
-                        {pos.closedAt ? new Date(pos.closedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
-                      </div>
-                    </div>
-                  ))}
-                  {/* Paper trading closed positions */}
-                  {closedPaperTrades.map((pt, i) => (
-                    <div key={pt.id} style={{
-                      display: 'grid',
-                      gridTemplateColumns: '100px 70px 70px 90px 90px 90px 90px 120px',
-                      padding: '6px 14px', gap: 0,
-                      borderBottom: i < closedPaperTrades.length - 1 ? `0.5px solid ${T.border}` : 'none',
-                      alignItems: 'center',
-                      background: (closedPositions.length + i) % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent',
-                    }}>
+                  {/* Unified filtered history map */}
+                  {filteredHistory.map((pt, i) => (
+                    <div
+                      key={pt.id}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '100px 70px 70px 80px 80px 80px 80px 70px 110px',
+                        padding: '6px 14px', gap: 0,
+                        borderBottom: i < filteredHistory.length - 1 ? `0.5px solid ${T.border}` : 'none',
+                        alignItems: 'center',
+                        background: i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent',
+                        transition: 'background 0.2s',
+                        cursor: 'default'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent'}
+                    >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                         <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 600, color: T.text }}>{pt.symbol}</span>
-                        <span style={{
-                          padding: '0px 3px', borderRadius: 3,
-                          fontFamily: "'JetBrains Mono', monospace", fontSize: 7, fontWeight: 700,
-                          background: `${T.cyan}14`, color: T.cyan,
-                          border: `0.5px solid ${T.cyan}33`,
-                        }}>ورقي</span>
+                        {pt.type === 'PAPER' && (
+                          <span style={{
+                            padding: '0px 3px', borderRadius: 3,
+                            fontFamily: "'JetBrains Mono', monospace", fontSize: 7, fontWeight: 700,
+                            background: `${T.cyan}14`, color: T.cyan, border: `0.5px solid ${T.cyan}33`,
+                          }}>ورقي</span>
+                        )}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <span style={{
                           padding: '1px 6px', borderRadius: 3,
                           fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700,
-                          background: pt.side === 'long' ? `${T.green}18` : `${T.red}18`,
-                          color: pt.side === 'long' ? T.green : T.red,
-                        }}>{pt.side === 'long' ? 'شراء' : 'بيع'}</span>
+                          background: pt.side === 'BUY' ? `${T.green}18` : `${T.red}18`,
+                          color: pt.side === 'BUY' ? T.green : T.red,
+                        }}>{pt.side === 'BUY' ? 'شراء' : 'بيع'}</span>
                       </div>
-                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{pt.qty}</div>
-                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{formatPrice(pt.entryPrice)}</div>
-                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{formatPrice(pt.exitPrice)}</div>
+                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{pt.quantity}</div>
+                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{formatPrice(pt.price)}</div>
+                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>
+                        {pt.exitPrice ? formatPrice(pt.exitPrice) : '—'}
+                      </div>
                       <div style={{
                         textAlign: 'center', fontFamily: "'JetBrains Mono', monospace",
                         fontSize: 10, fontWeight: 700,
-                        color: (pt.realizedPnl || 0) >= 0 ? T.green : T.red,
+                        color: (pt.pnl || 0) >= 0 ? T.green : T.red,
                       }}>
-                        {(pt.realizedPnl || 0) > 0 ? '+' : (pt.realizedPnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pt.realizedPnl || 0))}
+                        {(pt.pnl || 0) > 0 ? '+' : (pt.pnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pt.pnl || 0))}
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <span style={{
@@ -801,7 +891,10 @@ export default function PortfolioPage() {
                         }}>مغلقة</span>
                       </div>
                       <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>
-                        {pt.closeTime ? new Date(pt.closeTime).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                        {formatDuration(pt.openedAt, pt.executedAt)}
+                      </div>
+                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>
+                        {pt.executedAt ? new Date(pt.executedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
                       </div>
                     </div>
                   ))}
@@ -861,14 +954,21 @@ export default function PortfolioPage() {
                   ))}
                 </div>
                 {trades.slice(0, 50).map((trade, i) => (
-                  <div key={trade.id} style={{
-                    display: 'grid',
-                    gridTemplateColumns: '100px 70px 70px 90px 90px 90px 120px',
-                    padding: '6px 14px', gap: 0,
-                    borderBottom: i < Math.min(trades.length, 50) - 1 ? `0.5px solid ${T.border}` : 'none',
-                    alignItems: 'center',
-                    background: i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent',
-                  }}>
+                  <div
+                    key={trade.id}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '100px 70px 70px 90px 90px 90px 120px',
+                      padding: '6px 14px', gap: 0,
+                      borderBottom: i < Math.min(trades.length, 50) - 1 ? `0.5px solid ${T.border}` : 'none',
+                      alignItems: 'center',
+                      background: i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent',
+                      transition: 'background 0.2s',
+                      cursor: 'default'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent'}
+                  >
                     <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 600, color: T.text }}>{trade.symbol}</div>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
                       <span style={{
@@ -1054,7 +1154,7 @@ export default function PortfolioPage() {
               </div>
 
               {/* SL coverage */}
-              <div style={{ padding: '12px', background: T.bg, borderRadius: 8, border: `0.5px solid ${T.border}` }}>
+              <div style={{ padding: '12px', background: T.bg, borderRadius: 8, border: `0.5px solid ${positions.some(p => !p.stopLoss) ? T.red + '44' : T.border}` }}>
                 <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2, marginBottom: 6 }}>تغطية وقف الخسارة</div>
                 {positions.length > 0 ? (
                   <>
@@ -1063,19 +1163,19 @@ export default function PortfolioPage() {
                         <div style={{ height: 6, borderRadius: 3, background: `${T.red}22`, overflow: 'hidden' }}>
                           <div style={{
                             height: '100%', borderRadius: 3,
-                            background: positions.every(p => p.stopLoss) ? T.green : T.amber,
+                            background: positions.every(p => p.stopLoss) ? T.green : T.red,
                             width: `${(positions.filter(p => p.stopLoss).length / positions.length) * 100}%`,
                             transition: 'width 0.3s',
                           }} />
                         </div>
                       </div>
-                      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, color: positions.every(p => p.stopLoss) ? T.green : T.amber }}>
+                      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, color: positions.every(p => p.stopLoss) ? T.green : T.red }}>
                         {positions.filter(p => p.stopLoss).length}/{positions.length}
                       </span>
                     </div>
                     {!positions.every(p => p.stopLoss) && (
-                      <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.amber, marginTop: 4, display: 'block' }}>
-                        {positions.filter(p => !p.stopLoss).length} مركز بدون وقف خسارة
+                      <span className="animate-pulse" style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.red, marginTop: 4, display: 'block', fontWeight: 700 }}>
+                        ⚠️ تحذير: {positions.filter(p => !p.stopLoss).length} مركز بدون وقف خسارة!
                       </span>
                     )}
                   </>

@@ -297,15 +297,15 @@ export class AIOrchestratorService {
     try {
       const decisionInstruction = '\n\nIMPORTANT: End your response with a single line in exactly this format: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD". This line must be the last line of your response.';
 
-      // FIX: Each role has primary + fallback models to prevent disconnection
-      // When primary model fails/rate-limited, fallback model takes over
+      // FIX: Each model has exactly ONE role — no duplicates, no role overlap
+      // 6 models = 6 roles (1:1 mapping) — clean, predictable, no rate-limiting
       const roles = [
         { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',     fallbackModels: ['groq', 'glm', 'huggingface'],  prompt: `حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.${decisionInstruction}` },
-        { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['glm', 'gemini', 'huggingface'], prompt: `حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
+        { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['gemini', 'glm', 'huggingface'], prompt: `حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
         { id: 'risk',   name: 'خبير المخاطر',     model: 'bedrock',    fallbackModels: ['glm', 'gemini', 'groq'],        prompt: `حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة مع تقييم السيناريو الأسوأ.${decisionInstruction}` },
         { id: 'macro',  name: 'خبير الماكرو',     model: 'glm',        fallbackModels: ['gemini', 'groq', 'huggingface'], prompt: `حلل الوضع الاقتصادي العام وتأثيره على ${symbol} مع مراعاة السياق العربي.${decisionInstruction}` },
         { id: 'pattern',name: 'خبير الأنماط',     model: 'huggingface',fallbackModels: ['groq', 'gemini', 'glm'],        prompt: `هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟${decisionInstruction}` },
-        { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'ollama',     fallbackModels: ['groq', 'gemini', 'glm'],        prompt: `ما هو أفضل توقيت للدخول في ${symbol} بناءً على السيولة والنماذج المحلية؟${decisionInstruction}` },
+        { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'ollama',     fallbackModels: ['groq', 'gemini', 'glm'],        prompt: `ما هو أفضل توقيت للدخول في ${symbol} بناءً على السيولة والنماذج المتاحة؟${decisionInstruction}` },
       ];
 
       const start = Date.now();
@@ -539,6 +539,103 @@ export class AIOrchestratorService {
   }
 
   /**
+   * Diagnose each AI model — test actual API connectivity, not just key existence.
+   * Returns detailed results for each model including error messages.
+   */
+  async diagnoseModels(): Promise<{
+    models: Array<{
+      model: string;
+      keyAvailable: boolean;
+      apiWorking: boolean;
+      responseTimeMs: number;
+      error?: string;
+      keyHint?: string;
+    }>;
+    summary: { total: number; keysAvailable: number; apiWorking: number };
+  }> {
+    const models = [
+      { id: 'groq', name: 'Groq/Llama 3.3 70B', keyEnv: 'GROQ_API_KEY' },
+      { id: 'gemini', name: 'Gemini 2.0 Flash', keyEnv: 'GOOGLE_AI_STUDIO_API_KEY' },
+      { id: 'glm', name: 'GLM-4 (Zhipu AI)', keyEnv: 'GLM_API_KEY' },
+      { id: 'huggingface', name: 'HuggingFace/Mistral-7B', keyEnv: 'HUGGINGFACE_API_KEY' },
+      { id: 'ollama', name: 'Ollama/Qwen2.5', keyEnv: 'OLLAMA_API_KEY' },
+      { id: 'bedrock', name: 'Bedrock/Claude 3.5', keyEnv: 'AWS_ACCESS_KEY_ID' },
+    ];
+
+    const results = await Promise.all(
+      models.map(async (m) => {
+        const keyAvailable = this._isModelKeyAvailable(m.id);
+        let apiWorking = false;
+        let responseTimeMs = 0;
+        let error: string | undefined;
+        let keyHint: string | undefined;
+
+        // Show key presence (first 4 chars + ***) for debugging
+        const keyValue = this.configService.get<string>(m.keyEnv, '') ||
+          (m.id === 'bedrock' ? this.configService.get<string>('AWS_ACCESS_KEY_ID', '') : '');
+        if (keyValue) {
+          keyHint = `${keyValue.substring(0, 4)}***${keyValue.length > 8 ? keyValue.substring(keyValue.length - 4) : ''}`;
+        } else {
+          keyHint = '(empty)';
+        }
+
+        // For Ollama, also show the base URL
+        if (m.id === 'ollama') {
+          const baseUrl = this.configService.get<string>('OLLAMA_BASE_URL', 'http://localhost:11434');
+          keyHint = `URL: ${baseUrl}`;
+        }
+
+        // For Bedrock, show region
+        if (m.id === 'bedrock') {
+          const region = this.configService.get<string>('AWS_REGION', 'us-east-1');
+          keyHint = `Region: ${region}, Key: ${keyHint}`;
+        }
+
+        if (!keyAvailable) {
+          error = `API key not configured or not available on this platform`;
+          return { model: m.name, keyAvailable, apiWorking, responseTimeMs, error, keyHint };
+        }
+
+        // Test actual API call
+        const start = Date.now();
+        try {
+          const response = await this._callModel(m.id, {
+            symbol: 'TEST',
+            prompt: 'Say "OK" in one word.',
+            type: 'general',
+            language: 'en',
+          });
+          responseTimeMs = Date.now() - start;
+
+          if (response.confidence > 0 && !response.isFallback) {
+            apiWorking = true;
+          } else {
+            error = `Model returned stub/empty response (confidence: ${response.confidence})`;
+          }
+        } catch (err: any) {
+          responseTimeMs = Date.now() - start;
+          error = err?.message || String(err);
+          // Extract status code if available
+          if (err?.response?.status) {
+            error = `HTTP ${err.response.status}: ${err.response?.data ? JSON.stringify(err.response.data).substring(0, 200) : err.message}`;
+          }
+        }
+
+        return { model: m.name, keyAvailable, apiWorking, responseTimeMs, error, keyHint };
+      }),
+    );
+
+    return {
+      models: results,
+      summary: {
+        total: results.length,
+        keysAvailable: results.filter(r => r.keyAvailable).length,
+        apiWorking: results.filter(r => r.apiWorking).length,
+      },
+    };
+  }
+
+  /**
    * Analyze with ALL 6 models
    */
   async analyzeWithAllModels(request: AIAnalysisRequest): Promise<{
@@ -590,30 +687,28 @@ export class AIOrchestratorService {
   /**
    * Check if the required environment variable(s) for a model are set and non-empty
    *
-   * FIX: Ollama on cloud platforms with localhost URL is NOT truly available —
-   * the service will return a stub (confidence=0) even though the API key is set.
-   * This caused the orchestrator to assign roles to Ollama that would never produce
-   * results, with no fallback triggered.
+   * FIX: Ollama with a cloud URL (non-localhost) works on cloud platforms.
+   * Only skip Ollama if the URL is localhost on a cloud platform.
+   * If OLLAMA_API_KEY is set and OLLAMA_BASE_URL is a cloud URL, it's available.
    */
   private _isModelKeyAvailable(model: string): boolean {
     const keys = this.MODEL_KEY_MAP[model];
     if (!keys) return false;
     if (!this.configService) return false;
 
-    // Special handling for Ollama: must have a reachable URL AND (API key or non-localhost URL)
+    // Special handling for Ollama: cloud URLs are reachable, localhost is not on cloud
     if (model === 'ollama') {
       const apiKey = this.configService.get<string>('OLLAMA_API_KEY', '');
       const baseUrl = this.configService.get<string>('OLLAMA_BASE_URL', '');
 
-      // FIX: On cloud platforms, localhost Ollama is unreachable — mark as unavailable
-      // so the role resolution picks a fallback model instead of wasting the role
+      // If on cloud AND URL is localhost → unreachable
       if (this._isCloudEnvironment() && this._isLocalhostUrl(baseUrl || 'http://localhost:11434')) {
         this.logger.debug(`🏠 Ollama skipped — localhost URL unreachable on cloud platform`);
         return false;
       }
 
-      // Available if API key is set or a non-default base URL is configured
-      return !!(apiKey && apiKey.trim()) || !!(baseUrl && baseUrl.trim() && baseUrl !== 'http://localhost:11434');
+      // Available if API key is set OR a non-default base URL is configured (cloud Ollama)
+      return !!(apiKey && apiKey.trim()) || !!(baseUrl && baseUrl.trim() && !this._isLocalhostUrl(baseUrl));
     }
 
     // All listed keys must be present and non-empty

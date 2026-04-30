@@ -11,10 +11,10 @@
  * Available models (up to 6):
  * - Groq/Llama 3.3 70B  (GROQ_API_KEY)        → محلل المشاعر
  * - Gemini 2.0 Flash     (GOOGLE_AI_STUDIO_API_KEY) → المحلل الفني
- * - GLM-4 (Zhipu AI)    (GLM_API_KEY)          → خبير الأنماط
- * - HuggingFace/Mistral  (HUGGINGFACE_API_KEY)  → محلل إضافي
+ * - GLM-4 (Zhipu AI)    (GLM_API_KEY)          → خبير الماكرو
+ * - HuggingFace/Mistral  (HUGGINGFACE_API_KEY)  → خبير الأنماط
  * - Ollama/Qwen2.5      (OLLAMA_BASE_URL)       → استراتيجي التنفيذ (non-localhost only)
- * - Bedrock/Claude       (AWS_ACCESS_KEY_ID)     → خبير المخاطر (via NestJS only — too complex for direct)
+ * - Bedrock/Claude 3.5   (AWS_ACCESS_KEY_ID)     → خبير المخاطر (direct call with AWS SigV4)
  */
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -332,17 +332,151 @@ async function callOllama(prompt: string): Promise<DirectAIResponse> {
 }
 
 /**
- * Bedrock — Too complex to implement directly (requires AWS SigV4 signing).
- * We report its availability status but don't call it directly.
- * Bedrock is available only through NestJS backend (Layer 1).
+ * Bedrock — Direct call with AWS SigV4 signing.
+ * Previously marked "too complex for direct" but now implemented
+ * so ALL 6 models work even when NestJS is down (Layer 2).
+ *
+ * Uses the same SigV4 signing as the NestJS BedrockService.
  */
+async function callBedrock(prompt: string): Promise<DirectAIResponse> {
+  const accessKeyId = getKey('AWS_ACCESS_KEY_ID')
+  const secretAccessKey = getKey('AWS_SECRET_ACCESS_KEY')
+  const sessionToken = getKey('AWS_SESSION_TOKEN')
+  const region = getKey('AWS_REGION') || getKey('AWS_DEFAULT_REGION') || 'us-east-1'
+
+  if (!accessKeyId || !secretAccessKey) {
+    return { model: 'Bedrock/Claude-3.5-Sonnet', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'AWS credentials not configured' }
+  }
+
+  const start = Date.now()
+  const modelId = 'anthropic.claude-3-5-sonnet-20241022-v2:0'
+
+  try {
+    const systemPrompt = 'You are a safety-focused financial AI analyst. Respond in Arabic. Provide thorough, cautious analysis with emphasis on risk factors. Always highlight potential downsides. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
+    const body = {
+      anthropic_version: 'bedrock-2023-05-31',
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.3,
+    }
+
+    const encodedModelId = encodeURIComponent(modelId)
+    const endpoint = `https://bedrock-runtime.${region}.amazonaws.com/model/${encodedModelId}/invoke`
+    const headers = await signAwsRequestV4(endpoint, body, accessKeyId, secretAccessKey, sessionToken, region)
+
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(MODEL_TIMEOUT),
+    })
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '')
+      return { model: 'Bedrock/Claude-3.5-Sonnet', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Bedrock ${res.status}: ${errBody.slice(0, 200)}` }
+    }
+
+    const data = await res.json()
+    // Claude response format
+    let content = ''
+    if (data.content && Array.isArray(data.content)) {
+      content = data.content[0]?.text || ''
+    } else if (data.generation) {
+      content = data.generation
+    } else {
+      content = data.completion || data.text || ''
+    }
+
+    return { model: 'Bedrock/Claude-3.5-Sonnet', content, confidence: calcConfidence(content, 'bedrock'), processingTimeMs: Date.now() - start, success: content.length > 10 }
+  } catch (e: any) {
+    return { model: 'Bedrock/Claude-3.5-Sonnet', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Bedrock failed: ${e.message}` }
+  }
+}
+
+/**
+ * AWS SigV4 signing for Bedrock InvokeModel API
+ * Ported from NestJS BedrockService to enable direct Layer 2 calls.
+ */
+async function signAwsRequestV4(
+  endpoint: string,
+  body: any,
+  accessKeyId: string,
+  secretAccessKey: string,
+  sessionToken: string,
+  region: string,
+): Promise<Record<string, string>> {
+  const crypto = await import('crypto')
+  const service = 'bedrock'
+  const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '')
+  const dateStamp = amzDate.substring(0, 8)
+
+  const bodyStr = JSON.stringify(body)
+  const payloadHash = crypto.createHash('sha256').update(bodyStr).digest('hex')
+
+  const host = new URL(endpoint).host
+  const canonicalUri = new URL(endpoint).pathname.split('/').map(s => encodeURIComponent(decodeURIComponent(s))).join('/')
+
+  let canonicalHeaders: string
+  let signedHeaders: string
+
+  if (sessionToken) {
+    canonicalHeaders = `accept:application/json\ncontent-type:application/json\nhost:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\nx-amz-security-token:${sessionToken}\n`
+    signedHeaders = 'accept;content-type;host;x-amz-content-sha256;x-amz-date;x-amz-security-token'
+  } else {
+    canonicalHeaders = `accept:application/json\ncontent-type:application/json\nhost:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`
+    signedHeaders = 'accept;content-type;host;x-amz-content-sha256;x-amz-date'
+  }
+
+  const canonicalRequest = [
+    'POST',
+    canonicalUri,
+    '',
+    canonicalHeaders,
+    signedHeaders,
+    payloadHash,
+  ].join('\n')
+
+  const credentialScope = `${dateStamp}/${region}/${service}/aws4_request`
+  const stringToSign = [
+    'AWS4-HMAC-SHA256',
+    amzDate,
+    credentialScope,
+    crypto.createHash('sha256').update(canonicalRequest).digest('hex'),
+  ].join('\n')
+
+  const sign = (key: Buffer, msg: string) =>
+    crypto.createHmac('sha256', key).update(msg).digest()
+
+  let signingKey = crypto.createHmac('sha256', `AWS4${secretAccessKey}`).update(dateStamp).digest()
+  signingKey = sign(signingKey, region)
+  signingKey = sign(signingKey, service)
+  signingKey = sign(signingKey, 'aws4_request')
+
+  const signature = crypto.createHmac('sha256', signingKey).update(stringToSign).digest('hex')
+
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    'Host': host,
+    'X-Amz-Content-Sha256': payloadHash,
+    'X-Amz-Date': amzDate,
+    'Authorization': `AWS4-HMAC-SHA256 Credential=${accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
+  }
+
+  if (sessionToken) {
+    headers['X-Amz-Security-Token'] = sessionToken
+  }
+
+  return headers
+}
+
 function getBedrockStatus(): { available: boolean; reason: string } {
   const hasAwsKeyId = !!getKey('AWS_ACCESS_KEY_ID')
   const hasAwsSecret = !!getKey('AWS_SECRET_ACCESS_KEY')
-  const hasAwsRegion = !!getKey('AWS_REGION') || !!getKey('AWS_DEFAULT_REGION')
 
   if (hasAwsKeyId && hasAwsSecret) {
-    return { available: true, reason: 'AWS credentials configured — available via NestJS backend' }
+    return { available: true, reason: 'AWS credentials configured — direct call enabled' }
   }
   return { available: false, reason: 'AWS credentials not configured' }
 }
@@ -407,29 +541,26 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     {
       modelName: 'Groq',
       callFn: () => callGroq(`حلل مشاعر السوق والتوجه العام حول ${symbol}. قيّم الزخم والمشاعر العامة ونقطة الدخول المثالية. هل السوق صعودي أم هبوطي من ناحية المشاعر؟`),
-      roles: ['محلل المشاعر', 'استراتيجي التنفيذ'], // استراتيجي التنفيذ is shared with Ollama
+      roles: ['محلل المشاعر'],
       prompt: 'sentiment',
-      primaryOnly: false, // Groq always keeps execution as secondary
+      primaryOnly: false,
     },
     {
       modelName: 'Gemini',
-      callFn: () => callGemini(`حلل الشارت الفني والوضع الاقتصادي الكلي لـ ${symbol}. قيّم الاتجاه والمقاومات والدعم والعوامل الكلية المؤثرة على الأصول الرقمية.`),
-      roles: ['المحلل الفني', 'خبير الماكرو'],
-      prompt: 'technical+macro',
+      callFn: () => callGemini(`حلل الشارت الفني لـ ${symbol}. قيّم الاتجاه والمقاومات والدعم ومستويات الأسعار الرئيسية. ما هو الاتجاه الفني السائد؟`),
+      roles: ['المحلل الفني'],
+      prompt: 'technical',
       primaryOnly: false,
     },
     {
       modelName: 'GLM-4',
-      callFn: () => callGLM(`حدد المخاطر المحتملة والوضع الاقتصادي الكلي لصفقة على ${symbol}. قيّم مستوى التذبذب والسيناريو الأسوأ والعوامل الكلية المؤثرة. هل البيئة الماكروية مواتية؟`),
-      roles: ['خبير المخاطر', 'خبير الماكرو'], // خبير المخاطر is primary, خبير الماكرو is secondary
-      prompt: 'risk+macro',
+      callFn: () => callGLM(`حلل الوضع الاقتصادي الكلي وتأثيره على ${symbol}. قيّم العوامل الكلية المؤثرة على الأصول الرقمية والسياق العربي. هل البيئة الماكروية مواتية؟`),
+      roles: ['خبير الماكرو'],
+      prompt: 'macro',
       primaryOnly: false,
     },
     {
       modelName: 'HuggingFace',
-      // FIX: Changed from "محلل إضافي" (non-standard role) to "خبير الأنماط" (standard role)
-      // This matches the NestJS orchestrator's role assignment where HuggingFace is
-      // the primary model for pattern recognition.
       callFn: () => callHuggingFace(`هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟ ما النمط السائد وهل يتكرر بشكل موثوق؟ قدم رأياً مستقلاً.`),
       roles: ['خبير الأنماط'],
       prompt: 'patterns',
@@ -438,13 +569,21 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     {
       modelName: 'Ollama',
       callFn: () => callOllama(`أنت استراتيجي تنفيذ محترف. حلل أفضل توقيت وأسلوب لتنفيذ صفقة على ${symbol}. قيّم نقاط الدخول والخروج وحجم الصفقة المناسب وإدارة المخاطر.`),
-      roles: ['استراتيجي التنفيذ'], // Takes execution role from Groq when available
+      roles: ['استراتيجي التنفيذ'],
       prompt: 'execution',
-      primaryOnly: true, // This role overlaps with Groq's secondary
+      primaryOnly: false,
+    },
+    {
+      modelName: 'Bedrock',
+      callFn: () => callBedrock(`حدد المخاطر المحتملة لصفقة على ${symbol}. قيّم مستوى التذبذب والسيناريو الأسوأ ومستويات وقف الخسارة. ما هي المخاطر الرئيسية وكيف يمكن التحوط ضدها؟`),
+      roles: ['خبير المخاطر'],
+      prompt: 'risk',
+      primaryOnly: false,
     },
   ]
 
-  // Filter out Ollama if it shouldn't be attempted
+  // Filter out Ollama if it shouldn't be attempted (localhost on cloud)
+  // All other models are always attempted (keys checked inside each callFn)
   const activeModelCalls = shouldTryOllama
     ? modelCalls
     : modelCalls.filter(mc => mc.modelName !== 'Ollama')
@@ -460,57 +599,32 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     })
   )
 
-  // Collect successful models for role reassignment
+  // Collect successful models — each fills exactly 1 role now
   const successfulModels: Array<{
     modelName: string
     roles: string[]
     response: DirectAIResponse
-    primaryOnly: boolean
   }> = []
 
   for (const res of callResults) {
     if (res.status !== 'fulfilled') continue
-    const { modelName, roles, response, primaryOnly } = res.value
+    const { modelName, roles, response } = res.value
     if (!response.success || response.confidence <= 0) continue
-    successfulModels.push({ modelName, roles, response, primaryOnly })
+    successfulModels.push({ modelName, roles, response })
   }
 
-  // Determine which models responded for role reassignment
-  const respondedModelNames = new Set(successfulModels.map(m => m.modelName))
-  const hasOllama = respondedModelNames.has('Ollama')
-  // Bedrock is never in direct calls, so we check if GLM-4 should keep risk role
-
-  // Role assignment logic:
-  // - If Ollama responded → Groq drops استراتيجي التنفيذ, Ollama keeps it
-  // - If Ollama did NOT respond → Groq keeps استراتيجي التنفيذ
-  // - Bedrock is always via NestJS only → GLM-4 always keeps خبير المخاطر in direct calls
-
-  // Build analyses — each successful model fills its assigned roles
+  // Build analyses — each successful model fills its assigned role
+  // FIX: Simplified — each model now has exactly 1 role, no complex reassignment needed
   const analyses: CouncilVote[] = []
   let buyWeight = 0, sellWeight = 0, totalConfidence = 0
 
   for (const modelData of successfulModels) {
-    const { roles: modelRoles, response, modelName, primaryOnly } = modelData
+    const { roles: modelRoles, response } = modelData
     const vote = parseVote(response.content)
     const conf = response.confidence
 
-    // Determine which roles this model actually fills
-    let assignedRoles = [...modelRoles]
-
-    if (primaryOnly && modelName === 'Ollama' && hasOllama) {
-      // Ollama takes استراتيجي التنفيذ — this is its only role
-      assignedRoles = ['استراتيجي التنفيذ']
-    }
-
-    // If Ollama is present, Groq should NOT fill استراتيجي التنفيذ
-    if (modelName === 'Groq' && hasOllama) {
-      assignedRoles = assignedRoles.filter(r => r !== 'استراتيجي التنفيذ')
-    }
-
-    // If Ollama is absent, Groq keeps استراتيجي التنفيذ (already in its roles)
-
-    // This model's response fills all its assigned roles
-    for (const roleName of assignedRoles) {
+    // Each model fills all its assigned roles (usually just 1)
+    for (const roleName of modelRoles) {
       if (vote === 'BUY') buyWeight += conf
       else if (vote === 'SELL') sellWeight += conf
       totalConfidence += conf
@@ -594,7 +708,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
 
 /**
  * Quick health check: which AI models have API keys configured?
- * Includes Ollama and Bedrock status.
+ * All 6 models checked including Bedrock (direct call now supported).
  */
 export function getAvailableModelKeys(): { model: string; hasKey: boolean; note?: string }[] {
   const ollamaBaseUrl = getKey('OLLAMA_BASE_URL') || 'http://localhost:11434'
@@ -608,13 +722,13 @@ export function getAvailableModelKeys(): { model: string; hasKey: boolean; note?
     { model: 'HuggingFace', hasKey: !!getKey('HUGGINGFACE_API_KEY') },
     {
       model: 'Ollama',
-      hasKey: !ollamaSkipped, // "available" if not skipped
-      note: ollamaSkipped ? 'localhost unreachable on cloud' : `URL: ${ollamaBaseUrl}`,
+      hasKey: !ollamaSkipped && (!!getKey('OLLAMA_API_KEY') || !isLocalhostUrl(ollamaBaseUrl)),
+      note: ollamaSkipped ? 'localhost unreachable on cloud — set OLLAMA_BASE_URL to cloud URL' : `URL: ${ollamaBaseUrl}`,
     },
     {
       model: 'Bedrock',
       hasKey: bedrockStatus.available,
-      note: bedrockStatus.available ? 'Via NestJS only (AWS SigV4 required)' : 'AWS credentials not configured',
+      note: bedrockStatus.available ? 'Direct call enabled (AWS SigV4)' : 'AWS credentials not configured',
     },
   ]
 }

@@ -26,12 +26,14 @@ export class OllamaService {
   private readonly apiKey: string;
   private readonly baseUrl: string;
   
-  // Default model — excellent Arabic support
-  private readonly defaultModel = 'qwen2.5:7b';
+  // Model name — configurable via OLLAMA_MODEL env var (for cloud Ollama providers)
+  // Cloud Ollama (like ollama.com) may have different model names than local
+  private readonly defaultModel: string;
 
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('OLLAMA_API_KEY', '')?.trim() || '';
     this.baseUrl = this.configService.get<string>('OLLAMA_BASE_URL', 'http://localhost:11434')?.trim() || 'http://localhost:11434';
+    this.defaultModel = this.configService.get<string>('OLLAMA_MODEL', 'qwen2.5:7b')?.trim() || 'qwen2.5:7b';
     
     if (this.apiKey || this._isOllamaReachable()) {
       this.logger.log(`🏠 Ollama Service initialized (${this.defaultModel}) — URL: ${this.baseUrl}`);
@@ -107,7 +109,14 @@ export class OllamaService {
         this.logger.warn(`Ollama rate limited (429) — throwing for circuit breaker`);
         throw error;
       }
-      this.logger.warn(`Ollama inference failed: ${error.message}`);
+      // FIX: Include error details in response so diagnostics can see them
+      const status = error.response?.status;
+      const errData = error.response?.data ? JSON.stringify(error.response.data).substring(0, 200) : '';
+      this.logger.warn(`Ollama inference failed: ${error.message} (status: ${status}) ${errData}`);
+      return {
+        ...this._stubResponse(request),
+        content: `⚠️ Ollama API error (${status || 'N/A'}): ${error.message?.substring(0, 150)}`,
+      };
     }
 
     return this._stubResponse(request);

@@ -71,8 +71,13 @@ export class GlmService {
         this.logger.warn(`GLM rate limited (429) — throwing for circuit breaker`);
         throw error;
       }
-      this.logger.warn(`GLM inference failed: ${error.message} (status: ${status})`);
-      return this._stubResponse(request);
+      // FIX: Include error details in response so diagnostics can see them
+      const errData = error.response?.data ? JSON.stringify(error.response.data).substring(0, 200) : '';
+      this.logger.warn(`GLM inference failed: ${error.message} (status: ${status}) ${errData}`);
+      return {
+        ...this._stubResponse(request),
+        content: `⚠️ GLM API error (${status || 'N/A'}): ${errData || error.message?.substring(0, 150)}`,
+      };
     }
   }
 

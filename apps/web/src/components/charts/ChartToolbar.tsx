@@ -204,6 +204,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
       gap: 2,
       overflowX: mobile ? 'auto' : 'visible',
       scrollbarWidth: 'none',
+      direction: 'ltr',
     }}>
       {/* Chart Type */}
       <div ref={chartTypeRef} style={{ position: 'relative' }}>

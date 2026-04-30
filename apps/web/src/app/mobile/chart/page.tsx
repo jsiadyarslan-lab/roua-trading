@@ -7,11 +7,19 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { 
-  ArrowRight, TrendingUp, TrendingDown, Zap, X, 
+  ChevronRight, TrendingUp, TrendingDown, Zap, X, 
   Target, ShieldAlert, Link2 
 } from 'lucide-react'
 
-const RouaChart = dynamic(() => import('@/components/charts/RouaChart'), { ssr: false })
+const RouaChart = dynamic(() => import('@/components/charts/RouaChart'), { 
+  ssr: false,
+  loading: () => (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
+      <div className="animate-spin" style={{ width: 32, height: 32, border: '3px solid rgba(0,212,255,0.1)', borderTopColor: '#00D4FF', borderRadius: '50%' }} />
+      <span style={{ marginTop: 12, fontSize: 13, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif" }}>جاري تحميل الشارت...</span>
+    </div>
+  )
+})
 
 const PAIRS = ['BTC/USD', 'ETH/USD', 'GOLD', 'EUR/USD', 'GBP/USD', 'SOL/USD']
 const TIMEFRAMES_DISPLAY = ['1m', '5m', '15m', '1h', '4h', '1D']
@@ -29,12 +37,14 @@ export default function MobileChartPage() {
   const [tpValue, setTpValue] = useState('')
   const [slValue, setSlValue] = useState('')
 
-  const quoteKey = Object.keys(quotes).find(k =>
+  const quoteKey = (quotes && selectedSymbol) ? Object.keys(quotes).find(k =>
     k.toUpperCase().replace('/', '') === selectedSymbol.toUpperCase().replace('/', '')
-  )
-  const livePrice = quoteKey ? Number(quotes[quoteKey]?.price) : 0
-  const priceChange = quoteKey ? Number(quotes[quoteKey]?.changePercent ?? 0) : 0
+  ) : null
+  const quote = quoteKey ? quotes[quoteKey] : null
+  const livePrice = quote ? Number(quote.price) : null
+  const priceChange = quote ? Number(quote.changePercent ?? 0) : 0
   const isUp = priceChange >= 0
+  const pctChange = quote ? Number(quote.changePercent ?? 0) : 0
 
   return (
     <div style={{ position: 'absolute', inset: 0, paddingBottom: 80, background: '#000000', display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 40 }}>
@@ -56,7 +66,7 @@ export default function MobileChartPage() {
             border: 'none',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}>
-            <ArrowRight size={20} color="#FFFFFF" />
+            <ChevronRight size={22} color="#FFFFFF" />
           </button>
 
           {/* Pair Tabs */}
@@ -140,8 +150,15 @@ export default function MobileChartPage() {
         </div>
       </div>
 
-      {/* ── Chart ── */}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden', direction: 'ltr' }}>
+      {/* ── Chart Area ── */}
+      <div style={{ 
+        flex: 1, 
+        position: 'relative', 
+        overflow: 'hidden', 
+        direction: 'ltr',
+        height: '100%',
+        width: '100%'
+      }}>
         <RouaChart
           currentPrice={livePrice}
           mobile={true}

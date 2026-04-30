@@ -1,45 +1,27 @@
-import type { Metadata, Viewport } from "next";
-import { Cairo, Inter, JetBrains_Mono, Orbitron } from "next/font/google";
+import type { Metadata } from "next";
+import { Noto_Naskh_Arabic, IBM_Plex_Sans_Arabic } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
 
-const cairo = Cairo({
+const notoNaskhArabic = Noto_Naskh_Arabic({
   subsets: ["arabic"],
+  variable: "--font-noto-naskh",
   weight: ["400", "500", "600", "700"],
-  variable: "--font-ar",
+  display: "swap",
 });
 
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-en",
-});
-
-const jetbrains = JetBrains_Mono({
-  subsets: ["latin"],
-  weight: ["500", "700"],
-  variable: "--font-mono",
-});
-
-const orbitron = Orbitron({
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
-  variable: "--font-brand",
+const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({
+  subsets: ["arabic"],
+  variable: "--font-ibm-plex",
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "رؤى | منصة التداول الذكية",
-  description: "منصة رؤى للتداول الذكي - Roua Trading Platform",
+  title: "رؤى — منصة التداول الذكية | ROUA Trading Platform",
+  description: "منصة التداول المدعومة بالذكاء الاصطناعي الأكثر تقدماً في المنطقة. حيث تلتقي شبكة الكون المالي بعقل آلة يتنبأ قبل أن يحدث.",
   icons: {
-    icon: "/logo.svg",
-    apple: "/logo-192.png",
+    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
-};
-
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -48,15 +30,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" className="dark" suppressHydrationWarning>
-      <head>
-        <link rel="apple-touch-icon" href="/logo-192.png" />
-      </head>
+    <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body
-        className={`${cairo.variable} ${inter.variable} ${jetbrains.variable} ${orbitron.variable} antialiased`}
+        className={`${notoNaskhArabic.variable} ${ibmPlexSansArabic.variable} antialiased`}
+        style={{ background: "#000000", color: "#f0f9ff", fontFamily: "var(--font-ibm-plex), 'IBM Plex Sans Arabic', sans-serif" }}
       >
         {children}
-        <Toaster />
       </body>
     </html>
   );

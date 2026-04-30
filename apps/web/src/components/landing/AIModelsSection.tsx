@@ -1,217 +1,73 @@
-'use client'
+'use client';
 
-import { motion } from 'framer-motion'
-import { Sparkles, Zap, ChartBar, ShieldCheck, Cpu, Globe } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { useEffect, useRef } from 'react';
 
-interface AIModel {
-  name: string
-  icon: LucideIcon
-  color: string
-  bgColor: string
-  borderColor: string
-  description: string
-  tag: string
-}
+const models = [
+  { icon: '⚡', title: 'معالجة فائقة السرعة', desc: 'للاستدلال اللحظي وتحليل السوق في الوقت الفعلي بأداء يتجاوز التوقعات', tag: 'Inference Engine' },
+  { icon: '🌐', title: 'نموذج لغوي متعدد', desc: 'يفهم السياق المالي العربي والعالمي بعمق، يدعم العربية والإنجليزية والصينية واليابانية', tag: 'Polyglot Analyst' },
+  { icon: '📊', title: 'تحليل الرسوم البيانية', desc: 'تحليل متقدم للأنماط التقنية بدقة عالية مع التعرف الآلي على التشكيلات السعرية', tag: 'Chart Vision' },
+  { icon: '🛡️', title: 'بنية تحتية آمنة', desc: 'للنماذج الأساسية مع حماية البيانات على مستوى المؤسسات وتشفير كامل', tag: 'Secure Core' },
+  { icon: '🔒', title: 'نماذج محلية خاصة', desc: 'للتحليلات الحساسة بعيداً عن السحابة، تضمن خصوصية كاملة لبياناتك', tag: 'On-Premise AI' },
+  { icon: '📡', title: 'بيانات سوق شاملة', desc: 'مباشرة من الأسواق العالمية ومؤشراتها بأقل تأخير ممكن', tag: 'Live Feed' },
+];
 
-const models: AIModel[] = [
-  {
-    name: 'Groq',
-    icon: Sparkles,
-    color: '#F97316',
-    bgColor: 'rgba(249,115,22,0.06)',
-    borderColor: 'rgba(249,115,22,0.12)',
-    description: 'معالجة فائقة السرعة للاستدلال اللحظي وتحليل السوق في الوقت الفعلي',
-    tag: 'Ultra-Fast',
-  },
-  {
-    name: 'GLM-4',
-    icon: Zap,
-    color: '#14B8A6',
-    bgColor: 'rgba(20,184,166,0.06)',
-    borderColor: 'rgba(20,184,166,0.12)',
-    description: 'نموذج لغوي متعدد اللغات لفهم السياق المالي العربي والعالمي',
-    tag: 'Multilingual',
-  },
-  {
-    name: 'Gemini 2.5',
-    icon: ChartBar,
-    color: '#3B82F6',
-    bgColor: 'rgba(59,130,246,0.06)',
-    borderColor: 'rgba(59,130,246,0.12)',
-    description: 'تحليل متقدم للرسوم البيانية والأنماط التقنية بدقة عالية',
-    tag: 'Deep Analysis',
-  },
-  {
-    name: 'Bedrock',
-    icon: ShieldCheck,
-    color: '#8B5CF6',
-    bgColor: 'rgba(139,92,246,0.06)',
-    borderColor: 'rgba(139,92,246,0.12)',
-    description: 'بنية تحتية آمنة وموثوقة للنماذج الأساسية مع حماية البيانات',
-    tag: 'Enterprise',
-  },
-  {
-    name: 'Ollama',
-    icon: Cpu,
-    color: '#10B981',
-    bgColor: 'rgba(16,185,129,0.06)',
-    borderColor: 'rgba(16,185,129,0.12)',
-    description: 'نماذج محلية خاصة للتحليلات الحساسة بعيداً عن السحابة',
-    tag: 'Private',
-  },
-  {
-    name: 'Twelve Data',
-    icon: Globe,
-    color: '#EAB308',
-    bgColor: 'rgba(234,179,8,0.06)',
-    borderColor: 'rgba(234,179,8,0.12)',
-    description: 'بيانات سوق شاملة ومباشرة من الأسواق العالمية ومؤشراتها',
-    tag: 'Real-Time Data',
-  },
-]
+function ModelCard({ model }: { model: typeof models[0] }) {
+  const cardRef = useRef<HTMLDivElement>(null);
 
-const containerVariants = {
-  hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.08 },
-  },
-}
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
 
-const cardVariants = {
-  hidden: { opacity: 0, y: 24 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
-  },
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const rotateX = (y - centerY) / 20;
+      const rotateY = (centerX - x) / 20;
+      card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-8px) scale(1.01)`;
+    };
+
+    const handleMouseLeave = () => {
+      card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) translateY(0) scale(1)';
+    };
+
+    card.addEventListener('mousemove', handleMouseMove);
+    card.addEventListener('mouseleave', handleMouseLeave);
+    return () => {
+      card.removeEventListener('mousemove', handleMouseMove);
+      card.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, []);
+
+  return (
+    <div className="model-card fade-in" ref={cardRef}>
+      <div className="model-icon">{model.icon}</div>
+      <h3>{model.title}</h3>
+      <p>{model.desc}</p>
+      <span className="tag">{model.tag}</span>
+    </div>
+  );
 }
 
 export default function AIModelsSection() {
   return (
-    <section id="ai-models" className="relative py-20 sm:py-28 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Section Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-14"
-        >
-          <div
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-medium mb-5"
-            style={{
-              background: 'rgba(59,130,246,0.06)',
-              border: '1px solid rgba(59,130,246,0.12)',
-              color: '#60A5FA',
-              fontFamily: 'var(--font-en)',
-            }}
-          >
-            AI ORCHESTRATOR
-          </div>
-          <h2
-            className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4"
-            style={{ fontFamily: 'var(--font-ar)' }}
-          >
-            ستة نماذج ذكاء اصطناعي تعمل{'\u00A0'}
-            <span
-              style={{
-                background: 'linear-gradient(135deg, #3B82F6, #10B981)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              بتناغم
-            </span>
-          </h2>
-          <p
-            className="text-base max-w-xl mx-auto"
-            style={{ color: '#64748B', fontFamily: 'var(--font-ar)' }}
-          >
-            كل نموذج متخصص في جانب معين من التحليل، ويعملون معاً لتقديم رؤية شاملة للسوق
-          </p>
-        </motion.div>
-
-        {/* Models Grid */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-50px' }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-        >
-          {models.map((model) => {
-            const Icon = model.icon
-            return (
-              <motion.div
-                key={model.name}
-                variants={cardVariants}
-                whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                className="group relative rounded-xl p-5 transition-all duration-300 cursor-default"
-                style={{
-                  background: model.bgColor,
-                  border: `1px solid ${model.borderColor}`,
-                }}
-              >
-                {/* Hover glow */}
-                <div
-                  className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                  style={{
-                    background: `radial-gradient(circle at 50% 0%, ${model.color}10, transparent 70%)`,
-                  }}
-                />
-
-                <div className="relative z-10">
-                  {/* Header */}
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ background: `${model.color}15` }}
-                      >
-                        <Icon className="w-4 h-4" style={{ color: model.color }} />
-                      </div>
-                      <span
-                        className="text-sm font-bold"
-                        style={{ color: '#E2E8F0', fontFamily: 'var(--font-en)' }}
-                      >
-                        {model.name}
-                      </span>
-                    </div>
-                    <span
-                      className="text-[10px] font-medium px-2 py-0.5 rounded-md"
-                      style={{
-                        background: `${model.color}10`,
-                        color: model.color,
-                        border: `1px solid ${model.color}20`,
-                        fontFamily: 'var(--font-en)',
-                      }}
-                    >
-                      {model.tag}
-                    </span>
-                  </div>
-
-                  {/* Description */}
-                  <p
-                    className="text-sm leading-relaxed"
-                    style={{ color: '#94A3B8', fontFamily: 'var(--font-ar)' }}
-                  >
-                    {model.description}
-                  </p>
-                </div>
-
-                {/* Bottom accent */}
-                <div
-                  className="absolute bottom-0 left-4 right-4 h-px rounded-full"
-                  style={{ background: `linear-gradient(90deg, transparent, ${model.color}30, transparent)` }}
-                />
-              </motion.div>
-            )
-          })}
-        </motion.div>
+    <section className="section ai-orchestrator" id="models">
+      <div className="section-header fade-in">
+        <div className="section-label">AI ORCHESTRATOR</div>
+        <h2 className="section-title">
+          ستة نماذج ذكاء اصطناعي<br />تعمل <span className="highlight">بتناغم</span>
+        </h2>
+        <p className="section-desc">
+          كل نموذج متخصص في جانب معين من التحليل، ويعملون معاً لتقديم رؤية شاملة للسوق
+        </p>
+      </div>
+      <div className="models-grid">
+        {models.map((model, i) => (
+          <ModelCard key={i} model={model} />
+        ))}
       </div>
     </section>
-  )
+  );
 }

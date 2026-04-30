@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
           data: {
             email: targetEmail,
             displayName: targetEmail === GUEST_EMAIL ? 'ضيف' : targetEmail.split('@')[0],
-            tier: (targetEmail === GUEST_EMAIL ? 'FREE' : 'BASIC') as any,
+            tier: 'FREE',
           },
         })
       } catch {

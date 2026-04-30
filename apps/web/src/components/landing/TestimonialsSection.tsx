@@ -1,211 +1,94 @@
-'use client'
+'use client';
 
-import { motion } from 'framer-motion'
-import { Star, Quote } from 'lucide-react'
-import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion'
+import { useEffect, useRef } from 'react';
 
-interface Testimonial {
-  id: string
-  nameAr: string
-  nameEn: string
-  roleAr: string
-  role: string
-  quote: string
-  feature: string
-  featureColor: string
-  initials: string
-  rating: number
-}
-
-const TESTIMONIALS: Testimonial[] = [
+const testimonials = [
   {
-    id: 'sarah',
-    nameAr: 'سارة خ.',
-    nameEn: 'Sarah K.',
-    role: 'Portfolio Manager',
-    roleAr: 'مديرة محفظة',
-    quote: 'المحلل متعدد اللغات غيّر طريقة عملي بالكامل. أستطيع الآن متابعة أخبار الأسواق الآسيوية والأوروبية بوقت حقيقي دون الحاجة لفريق مترجمين.',
-    feature: 'محلل متعدد اللغات',
-    featureColor: '#3B82F6',
-    initials: 'س',
-    rating: 5,
+    tag: 'المحلل متعدد اللغات',
+    text: 'المحلل متعدد اللغات غيّر طريقة عملي بالكامل. أستطيع الآن متابعة أخبار الأسواق الآسيوية والأوروبية بوقت حقيقي دون الحاجة لفريق مترجمين.',
+    name: 'سارة خ.',
+    role: 'مديرة محفظة · Portfolio Manager',
+    initial: 'س',
   },
   {
-    id: 'omar',
-    nameAr: 'عمر أ.',
-    nameEn: 'Omar A.',
-    role: 'Day Trader',
-    roleAr: 'متداول يومي',
-    quote: 'إشارات رؤى دقيقة بشكل مذهل. نسبة نجاح 87% ليست مجرد رقم تسويقي — عايشتها بنفسي خلال ثلاثة أشهر من التداول اليومي.',
-    feature: 'إشارات رؤى',
-    featureColor: '#F97316',
-    initials: 'ع',
-    rating: 5,
+    tag: 'إشارات رؤى',
+    text: 'إشارات رؤى دقيقة بشكل مذهل. نسبة نجاح 87% ليست مجرد رقم تسويقي — عايشتها بنفسي خلال ثلاثة أشهر من التداول اليومي.',
+    name: 'عمر أ.',
+    role: 'متداول يومي · Day Trader',
+    initial: 'ع',
   },
   {
-    id: 'yuki',
-    nameAr: 'يوكي ت.',
-    nameEn: 'Yuki T.',
-    role: 'Quant Analyst',
-    roleAr: 'محلل كمي',
-    quote: 'رادار الأخبار يلتقط الأحداث قبل أن تؤثر على السوق بـ 15 دقيقة. هذا الأسبق الزمني يصنع الفارق بين الربح والخسارة.',
-    feature: 'رادار الأخبار',
-    featureColor: '#8B5CF6',
-    initials: 'ي',
-    rating: 5,
+    tag: 'رادار الأخبار',
+    text: 'رادار الأخبار يلتقط الأحداث قبل أن تؤثر على السوق بـ 15 دقيقة. هذا الأسبق الزمني يصنع الفارق بين الربح والخسارة.',
+    name: 'يوكي ت.',
+    role: 'محلل كمي · Quant Analyst',
+    initial: 'ي',
   },
-]
+];
 
-function TestimonialCard({ testimonial, index }: { testimonial: Testimonial; index: number }) {
-  const prefersReducedMotion = usePrefersReducedMotion()
+function TestimonialCard({ t }: { t: typeof testimonials[0] }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const rotateX = (y - centerY) / 25;
+      const rotateY = (centerX - x) / 25;
+      card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-5px)`;
+    };
+
+    const handleMouseLeave = () => {
+      card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) translateY(0)';
+    };
+
+    card.addEventListener('mousemove', handleMouseMove);
+    card.addEventListener('mouseleave', handleMouseLeave);
+    return () => {
+      card.removeEventListener('mousemove', handleMouseMove);
+      card.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, []);
 
   return (
-    <motion.div
-      className="relative rounded-xl p-6"
-      style={{
-        background: 'rgba(255,255,255,0.02)',
-        border: '1px solid rgba(255,255,255,0.05)',
-      }}
-      initial={prefersReducedMotion ? {} : { opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: '-50px' }}
-      transition={{ duration: 0.5, delay: index * 0.12 }}
-    >
-      {/* Quote icon */}
-      <Quote
-        className="absolute top-4 end-4 w-8 h-8 pointer-events-none"
-        style={{ color: testimonial.featureColor, opacity: 0.08 }}
-      />
-
-      {/* Stars */}
-      <div className="flex items-center gap-0.5 mb-4">
-        {Array.from({ length: testimonial.rating }).map((_, i) => (
-          <Star
-            key={i}
-            className="w-3.5 h-3.5 fill-current"
-            style={{ color: '#EAB308' }}
-          />
-        ))}
-      </div>
-
-      {/* Quote text */}
-      <p
-        className="text-sm leading-relaxed mb-5"
-        style={{ color: '#CBD5E1', fontFamily: 'var(--font-ar)' }}
-      >
-        {testimonial.quote}
-      </p>
-
-      {/* Feature badge */}
-      <div className="mb-4">
-        <span
-          className="inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-medium"
-          style={{
-            background: `${testimonial.featureColor}10`,
-            color: testimonial.featureColor,
-            border: `1px solid ${testimonial.featureColor}20`,
-          }}
-        >
-          {testimonial.feature}
-        </span>
-      </div>
-
-      {/* User info */}
-      <div className="flex items-center gap-3">
-        <div
-          className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold"
-          style={{
-            background: `${testimonial.featureColor}15`,
-            color: testimonial.featureColor,
-            fontFamily: 'var(--font-ar)',
-          }}
-        >
-          {testimonial.initials}
-        </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold" style={{ color: '#E2E8F0', fontFamily: 'var(--font-ar)' }}>
-              {testimonial.nameAr}
-            </span>
-            <span className="text-[10px]" style={{ color: '#475569', fontFamily: 'var(--font-en)' }}>
-              {testimonial.nameEn}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[11px]" style={{ color: '#64748B', fontFamily: 'var(--font-ar)' }}>
-              {testimonial.roleAr}
-            </span>
-            <span className="text-[9px]" style={{ color: '#334155' }}>·</span>
-            <span className="text-[10px]" style={{ color: '#475569', fontFamily: 'var(--font-en)' }}>
-              {testimonial.role}
-            </span>
-          </div>
+    <div className="testimonial-card fade-in" ref={cardRef}>
+      <div className="testimonial-tag">{t.tag}</div>
+      <div className="testimonial-quote">&quot;</div>
+      <p className="testimonial-text">{t.text}</p>
+      <div className="testimonial-author">
+        <div className="author-avatar">{t.initial}</div>
+        <div className="author-info">
+          <h4>{t.name}</h4>
+          <span>{t.role}</span>
         </div>
       </div>
-    </motion.div>
-  )
+    </div>
+  );
 }
 
 export default function TestimonialsSection() {
   return (
-    <section id="testimonials" className="relative py-20 sm:py-28 px-4 sm:px-6 lg:px-8">
-      {/* Section divider */}
-      <div
-        className="absolute top-0 left-1/2 -translate-x-1/2 h-px w-2/3 max-w-xl"
-        style={{ background: 'linear-gradient(90deg, transparent, rgba(148,163,184,0.08), transparent)' }}
-      />
-
-      <div className="max-w-6xl mx-auto">
-        {/* Section Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '-80px' }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-14"
-        >
-          <div
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[11px] font-medium mb-5"
-            style={{
-              background: 'rgba(234,179,8,0.06)',
-              border: '1px solid rgba(234,179,8,0.12)',
-              color: '#FACC15',
-              fontFamily: 'var(--font-en)',
-            }}
-          >
-            TESTIMONIALS
-          </div>
-          <h2
-            className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4"
-            style={{ fontFamily: 'var(--font-ar)' }}
-          >
-            ماذا يقول{'\u00A0'}
-            <span
-              style={{
-                background: 'linear-gradient(135deg, #EAB308, #F97316)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              المتداولون
-            </span>
-          </h2>
-          <p
-            className="text-base max-w-md mx-auto"
-            style={{ color: '#64748B', fontFamily: 'var(--font-ar)' }}
-          >
-            تجارب حقيقية من متداولين يثقون في منصة رؤى
-          </p>
-        </motion.div>
-
-        {/* Testimonials Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {TESTIMONIALS.map((testimonial, i) => (
-            <TestimonialCard key={testimonial.id} testimonial={testimonial} index={i} />
-          ))}
-        </div>
+    <section className="section" id="testimonials">
+      <div className="section-header fade-in">
+        <div className="section-label">TESTIMONIALS</div>
+        <h2 className="section-title">
+          ماذا يقول<br /><span className="highlight">المتداولون</span>
+        </h2>
+        <p className="section-desc">
+          تجارب حقيقية من متداولين يثقون في منصة رؤى
+        </p>
+      </div>
+      <div className="testimonials-grid">
+        {testimonials.map((t, i) => (
+          <TestimonialCard key={i} t={t} />
+        ))}
       </div>
     </section>
-  )
+  );
 }

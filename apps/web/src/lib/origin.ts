@@ -14,9 +14,9 @@ import { NextRequest } from 'next/server'
  * 4. request.nextUrl.origin (last resort — may be wrong in containers)
  */
 export function getPublicOrigin(request: NextRequest): string {
-  // 1. ORIGIN env var (explicitly set)
+  // 1. ORIGIN env var (explicitly set) — but reject localhost/0.0.0.0 in production
   const origin = process.env.ORIGIN?.replace(/\/+$/, '')
-  if (origin) return origin
+  if (origin && !origin.includes('0.0.0.0') && !origin.includes('localhost')) return origin
 
   // 2. Railway provides RAILWAY_PUBLIC_DOMAIN (e.g. "roua.up.railway.app")
   const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN

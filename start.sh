@@ -71,9 +71,12 @@ export API_INTERNAL_URL="${API_INTERNAL_URL:-http://127.0.0.1:3001}"
 # FIX: Auto-detect ORIGIN from Railway's public domain.
 # This is CRITICAL for Google OAuth — without it, redirect_uri
 # resolves to http://0.0.0.0:3000 causing redirect_uri_mismatch.
-if [ -z "${ORIGIN:-}" ] && [ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ]; then
-  export ORIGIN="https://${RAILWAY_PUBLIC_DOMAIN}"
-  echo "🔧 Auto-detected ORIGIN from RAILWAY_PUBLIC_DOMAIN: ${ORIGIN}"
+# Also override if ORIGIN is set to localhost (from .env file).
+if [ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ]; then
+  if [ -z "${ORIGIN:-}" ] || [[ "${ORIGIN}" == *"localhost"* ]] || [[ "${ORIGIN}" == *"0.0.0.0"* ]]; then
+    export ORIGIN="https://${RAILWAY_PUBLIC_DOMAIN}"
+    echo "🔧 Auto-detected ORIGIN from RAILWAY_PUBLIC_DOMAIN: ${ORIGIN}"
+  fi
 fi
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

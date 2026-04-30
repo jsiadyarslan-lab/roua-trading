@@ -64,6 +64,6 @@ export class AiController {
   async getConsensus(@Body() body: { symbol: string }) {
     this.logger.log(`🎼 Generating AI Council Consensus for ${body.symbol}`);
     const result = await this.orchestrator.getConsensusAnalysis(body.symbol);
-    return { success: true, data: result.result || result, source: result.source };
+    return { success: true, data: result };
   }
 }

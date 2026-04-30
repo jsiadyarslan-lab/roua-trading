@@ -24,14 +24,14 @@ export async function GET(request: NextRequest) {
 
   // User denied consent
   if (error === 'access_denied' || !code) {
-    return NextResponse.redirect(new URL('/login?error=access_denied', request.url))
+    return NextResponse.redirect(new URL('/login?error=access_denied', getPublicOrigin(request)))
   }
 
   const clientId = process.env.GOOGLE_CLIENT_ID
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET
 
   if (!clientId || !clientSecret) {
-    return NextResponse.redirect(new URL('/login?error=oauth_not_configured', request.url))
+    return NextResponse.redirect(new URL('/login?error=oauth_not_configured', getPublicOrigin(request)))
   }
 
   // Parse callbackUrl from state
@@ -66,14 +66,14 @@ export async function GET(request: NextRequest) {
 
     if (!tokenResponse.ok) {
       console.error('[auth/callback/google] Token exchange failed:', tokenResponse.status)
-      return NextResponse.redirect(new URL('/login?error=token_exchange_failed', request.url))
+      return NextResponse.redirect(new URL('/login?error=token_exchange_failed', getPublicOrigin(request)))
     }
 
     const tokenData = await tokenResponse.json()
     const accessToken = tokenData.access_token
 
     if (!accessToken) {
-      return NextResponse.redirect(new URL('/login?error=no_access_token', request.url))
+      return NextResponse.redirect(new URL('/login?error=no_access_token', getPublicOrigin(request)))
     }
 
     // Get user info from Google
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
 
     if (!userResponse.ok) {
       console.error('[auth/callback/google] User info fetch failed:', userResponse.status)
-      return NextResponse.redirect(new URL('/login?error=user_info_failed', request.url))
+      return NextResponse.redirect(new URL('/login?error=user_info_failed', getPublicOrigin(request)))
     }
 
     const googleUser = await userResponse.json()
@@ -92,13 +92,13 @@ export async function GET(request: NextRequest) {
     const displayName = googleUser.name || googleUser.given_name || email?.split('@')[0]
 
     if (!email) {
-      return NextResponse.redirect(new URL('/login?error=no_email', request.url))
+      return NextResponse.redirect(new URL('/login?error=no_email', getPublicOrigin(request)))
     }
 
     // Find or create user in database
     const dbReady = await ensureDbReady()
     if (!dbReady) {
-      return NextResponse.redirect(new URL('/login?error=db_unavailable', request.url))
+      return NextResponse.redirect(new URL('/login?error=db_unavailable', getPublicOrigin(request)))
     }
 
     let user = await db.user.findUnique({ where: { email } })
@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
           data: {
             email,
             displayName,
-            tier: 'BASIC' as any,
+            tier: 'FREE',
             avatar: googleUser.picture || null,
           },
         })
@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (!user) {
-      return NextResponse.redirect(new URL('/login?error=user_creation_failed', request.url))
+      return NextResponse.redirect(new URL('/login?error=user_creation_failed', getPublicOrigin(request)))
     }
 
     // Create session
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
     })
 
     // Redirect with session cookie
-    const response = NextResponse.redirect(new URL(callbackUrl, request.url))
+    const response = NextResponse.redirect(new URL(callbackUrl, getPublicOrigin(request)))
 
     response.cookies.set('roua_session', sessionToken, {
       httpOnly: true,
@@ -158,6 +158,6 @@ export async function GET(request: NextRequest) {
     return response
   } catch (error: any) {
     console.error('[auth/callback/google] Error:', error?.message || error)
-    return NextResponse.redirect(new URL('/login?error=unknown', request.url))
+    return NextResponse.redirect(new URL('/login?error=unknown', getPublicOrigin(request)))
   }
 }

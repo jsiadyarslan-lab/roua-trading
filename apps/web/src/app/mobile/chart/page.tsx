@@ -1,53 +1,68 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowRight, Maximize2, TrendingUp, TrendingDown } from 'lucide-react'
+import { useMarketStore } from '@/hooks/useMarketStore'
+import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { ArrowRight, TrendingUp, TrendingDown } from 'lucide-react'
 
-const TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h', '1D', '1W']
-const PAIRS = ['BTC/USD', 'ETH/USD', 'GOLD', 'EUR/USD', 'GBP/USD']
+const RouaChart = dynamic(() => import('@/components/charts/RouaChart'), { ssr: false })
+
+const PAIRS = ['BTC/USD', 'ETH/USD', 'GOLD', 'EUR/USD', 'GBP/USD', 'SOL/USD']
+const TIMEFRAMES_DISPLAY = ['1m', '5m', '15m', '1h', '4h', '1D']
 
 export default function MobileChartPage() {
   const router = useRouter()
-  const [selectedTF, setSelectedTF] = useState('1h')
-  const [selectedPair, setSelectedPair] = useState('BTC/USD')
-  const price = 69_420.5
-  const change = 2.4
+  const { selectedSymbol, setSelectedSymbol, timeframe, setTimeframe } = useSymbolStore()
+  const quotes = useMarketStore(s => s.quotes)
+
+  const quoteKey = Object.keys(quotes).find(k =>
+    k.toUpperCase().replace('/', '') === selectedSymbol.toUpperCase().replace('/', '')
+  )
+  const livePrice = quoteKey ? Number(quotes[quoteKey]?.price) : null
+  const priceChange = quoteKey ? Number(quotes[quoteKey]?.changePercent ?? 0) : 0
+  const isUp = priceChange >= 0
 
   return (
-    <div style={{ height: '100vh', background: '#0B0E14', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ height: '100dvh', background: '#0B0E14', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-      {/* ── Top Bar ── */}
+      {/* ── Header ── */}
       <div style={{
         paddingTop: 52,
-        padding: '52px 16px 10px',
-        background: 'rgba(0,0,0,0.5)',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-        backdropFilter: 'blur(12px)',
-        position: 'relative',
-        zIndex: 10,
+        padding: '52px 12px 8px',
+        background: 'rgba(11,14,20,0.95)',
+        backdropFilter: 'blur(16px)',
+        borderBottom: '1px solid rgba(42,49,60,0.8)',
+        flexShrink: 0,
+        zIndex: 20,
       }}>
-        <div className="flex items-center justify-between" dir="rtl">
-          {/* Back */}
-          <button onClick={() => router.back()} style={{ padding: 6 }}>
-            <ArrowRight size={20} color="rgba(255,255,255,0.6)" />
+        <div className="flex items-center justify-between gap-2">
+          <button onClick={() => router.back()} style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: 'rgba(255,255,255,0.07)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <ArrowRight size={18} color="#F0F2F5" />
           </button>
 
-          {/* Pair Selector */}
-          <div style={{ overflowX: 'auto' }} className="scrollbar-hide">
-            <div style={{ display: 'flex', gap: 6, width: 'max-content' }}>
+          {/* Pair Tabs */}
+          <div style={{ overflowX: 'auto', flex: 1 }} className="scrollbar-hide">
+            <div style={{ display: 'flex', gap: 6, width: 'max-content', direction: 'ltr' }}>
               {PAIRS.map(p => (
-                <button
-                  key={p}
-                  onClick={() => setSelectedPair(p)}
+                <button key={p} onClick={() => setSelectedSymbol(p)}
                   style={{
-                    padding: '5px 12px', borderRadius: 8,
-                    background: selectedPair === p ? '#059669' : 'rgba(255,255,255,0.06)',
-                    border: 'none',
-                    fontSize: 12, fontWeight: 700,
-                    color: selectedPair === p ? '#fff' : 'rgba(255,255,255,0.5)',
+                    padding: '6px 12px', borderRadius: 8, border: 'none',
+                    background: selectedSymbol === p
+                      ? 'linear-gradient(135deg, #059669, #00C853)'
+                      : 'rgba(255,255,255,0.06)',
+                    color: selectedSymbol === p ? '#fff' : 'rgba(255,255,255,0.5)',
+                    fontSize: 11, fontWeight: 700,
                     fontFamily: "'JetBrains Mono', monospace",
+                    whiteSpace: 'nowrap',
+                    boxShadow: selectedSymbol === p ? '0 2px 12px rgba(5,150,105,0.4)' : 'none',
                   }}
                 >
                   {p}
@@ -55,116 +70,93 @@ export default function MobileChartPage() {
               ))}
             </div>
           </div>
-
-          <button style={{ padding: 6, borderRadius: 8, background: 'rgba(255,255,255,0.06)' }}>
-            <Maximize2 size={16} color="rgba(255,255,255,0.4)" />
-          </button>
         </div>
 
-        {/* Price + Change */}
-        <div className="flex items-center gap-3 mt-2" dir="rtl">
-          <span style={{ fontSize: 26, fontWeight: 800, color: '#F0F2F5', fontFamily: "'JetBrains Mono', monospace" }}>
-            ${price.toLocaleString('en', { minimumFractionDigits: 2 })}
-          </span>
-          <div className="flex items-center gap-1" style={{
-            padding: '3px 8px', borderRadius: 6,
-            background: change >= 0 ? 'rgba(0,255,163,0.15)' : 'rgba(255,71,87,0.15)',
-          }}>
-            {change >= 0 ? <TrendingUp size={12} color="#00FFA3" /> : <TrendingDown size={12} color="#FF4757" />}
-            <span style={{ fontSize: 12, fontWeight: 700, color: change >= 0 ? '#00FFA3' : '#FF4757', fontFamily: "'JetBrains Mono', monospace" }}>
-              {change >= 0 ? '+' : ''}{change}%
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Timeframe Bar ── */}
-      <div style={{
-        display: 'flex', gap: 6, padding: '8px 12px',
-        background: 'rgba(0,0,0,0.3)',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
-        overflowX: 'auto',
-      }} className="scrollbar-hide">
-        {TIMEFRAMES.map(tf => (
-          <button
-            key={tf}
-            onClick={() => setSelectedTF(tf)}
-            style={{
-              padding: '5px 14px', borderRadius: 8, border: 'none',
-              background: selectedTF === tf ? 'rgba(5,150,105,0.2)' : 'transparent',
-              color: selectedTF === tf ? '#059669' : 'rgba(255,255,255,0.4)',
-              fontSize: 12, fontWeight: selectedTF === tf ? 700 : 400,
+        {/* Price Row */}
+        <div className="flex items-center justify-between mt-2 px-1">
+          <div className="flex items-center gap-2">
+            <span style={{
+              fontSize: 24, fontWeight: 900, color: '#F0F2F5',
               fontFamily: "'JetBrains Mono', monospace",
-              borderBottom: selectedTF === tf ? '2px solid #059669' : '2px solid transparent',
-            }}
-          >
-            {tf}
-          </button>
-        ))}
-      </div>
+              textShadow: isUp ? '0 0 12px rgba(0,255,163,0.3)' : '0 0 12px rgba(255,71,87,0.3)',
+            }}>
+              {livePrice ? livePrice.toLocaleString('en', { minimumFractionDigits: livePrice < 10 ? 4 : 2 }) : '—'}
+            </span>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '4px 10px', borderRadius: 8,
+              background: isUp ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)',
+              border: `1px solid ${isUp ? 'rgba(0,255,163,0.25)' : 'rgba(255,71,87,0.25)'}`,
+            }}>
+              {isUp ? <TrendingUp size={11} color="#00FFA3" /> : <TrendingDown size={11} color="#FF4757" />}
+              <span style={{
+                fontSize: 12, fontWeight: 700,
+                color: isUp ? '#00FFA3' : '#FF4757',
+                fontFamily: "'JetBrains Mono', monospace",
+              }}>
+                {isUp ? '+' : ''}{priceChange.toFixed(2)}%
+              </span>
+            </div>
+          </div>
 
-      {/* ── Chart Area ── */}
-      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        {/* Placeholder chart visual */}
-        <div style={{
-          position: 'absolute', inset: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexDirection: 'column', gap: 12,
-        }}>
-          <svg width="100%" height="100%" viewBox="0 0 360 400" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#059669" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="#059669" stopOpacity="0" />
-              </linearGradient>
-            </defs>
-            <path
-              d="M0,300 C40,290 60,260 90,240 C120,220 140,240 170,200 C200,160 220,180 250,150 C280,120 300,130 330,100 C345,85 355,90 360,80 L360,400 L0,400 Z"
-              fill="url(#chartGrad)"
-            />
-            <path
-              d="M0,300 C40,290 60,260 90,240 C120,220 140,240 170,200 C200,160 220,180 250,150 C280,120 300,130 330,100 C345,85 355,90 360,80"
-              fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round"
-            />
-            {/* Grid lines */}
-            {[80, 160, 240, 320].map((y, i) => (
-              <line key={i} x1="0" y1={y} x2="360" y2={y} stroke="rgba(255,255,255,0.04)" strokeWidth="1" />
+          {/* Timeframe */}
+          <div style={{ display: 'flex', gap: 3 }}>
+            {TIMEFRAMES_DISPLAY.map(tf => (
+              <button key={tf} onClick={() => setTimeframe(tf)}
+                style={{
+                  padding: '4px 8px', borderRadius: 6, border: 'none',
+                  background: timeframe === tf ? 'rgba(5,150,105,0.25)' : 'transparent',
+                  color: timeframe === tf ? '#059669' : 'rgba(255,255,255,0.35)',
+                  fontSize: 10, fontWeight: 700,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  borderBottom: timeframe === tf ? '2px solid #059669' : '2px solid transparent',
+                }}
+              >
+                {tf}
+              </button>
             ))}
-          </svg>
-          <div style={{ position: 'absolute', top: 12, left: 16, right: 16 }}>
-            <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', fontFamily: "'Cairo', sans-serif", textAlign: 'center' }}>
-              اربط TradingView لعرض الرسم البياني الكامل
-            </p>
           </div>
         </div>
+      </div>
+
+      {/* ── Chart — full area ── */}
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        <RouaChart
+          currentPrice={livePrice}
+          mobile={true}
+          compact={false}
+        />
 
         {/* ── Floating Buy/Sell Buttons ── */}
         <div style={{
-          position: 'absolute', bottom: 24, left: 16, right: 16,
-          display: 'flex', gap: 12, zIndex: 10,
+          position: 'absolute', bottom: 16, left: 12, right: 12,
+          display: 'flex', gap: 10, zIndex: 30,
+          pointerEvents: 'auto',
         }}>
           <motion.button
-            whileTap={{ scale: 0.96 }}
+            whileTap={{ scale: 0.95 }}
             style={{
-              flex: 1, padding: '16px 0', borderRadius: 16,
-              background: 'linear-gradient(135deg, #00C853, #00FFA3)',
+              flex: 1, height: 52, borderRadius: 14,
+              background: 'linear-gradient(135deg, #059669 0%, #00C853 100%)',
               border: 'none', cursor: 'pointer',
-              fontSize: 15, fontWeight: 800, color: '#0B0E14',
+              fontSize: 16, fontWeight: 900, color: '#fff',
               fontFamily: "'Cairo', sans-serif",
-              boxShadow: '0 4px 20px rgba(0,200,83,0.4)',
+              boxShadow: '0 6px 24px rgba(5,150,105,0.5)',
+              letterSpacing: 1,
             }}
           >
             شراء ↑
           </motion.button>
           <motion.button
-            whileTap={{ scale: 0.96 }}
+            whileTap={{ scale: 0.95 }}
             style={{
-              flex: 1, padding: '16px 0', borderRadius: 16,
-              background: 'linear-gradient(135deg, #FF3B30, #FF6B6B)',
+              flex: 1, height: 52, borderRadius: 14,
+              background: 'linear-gradient(135deg, #DC2626 0%, #FF4757 100%)',
               border: 'none', cursor: 'pointer',
-              fontSize: 15, fontWeight: 800, color: '#fff',
+              fontSize: 16, fontWeight: 900, color: '#fff',
               fontFamily: "'Cairo', sans-serif",
-              boxShadow: '0 4px 20px rgba(255,59,48,0.4)',
+              boxShadow: '0 6px 24px rgba(220,38,38,0.5)',
+              letterSpacing: 1,
             }}
           >
             بيع ↓

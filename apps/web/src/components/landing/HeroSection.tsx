@@ -2,233 +2,100 @@
 
 import { useState, useEffect, useRef } from 'react';
 
-function useCountUp(target: number, duration: number = 2000, start: boolean = false) {
-  const [count, setCount] = useState(0);
-  useEffect(() => {
-    if (!start) return;
-    let startTime: number | null = null;
-    const step = (timestamp: number) => {
-      if (!startTime) startTime = timestamp;
-      const progress = Math.min((timestamp - startTime) / duration, 1);
-      setCount(Math.floor(progress * target));
-      if (progress < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }, [target, duration, start]);
-  return count;
-}
+export default function HeroSection() {
+  const [typewriterText, setTypewriterText] = useState('');
+  const [statsVisible, setStatsVisible] = useState(false);
+  const statsRef = useRef<HTMLDivElement>(null);
+  const fullText = 'منصة التداول المدعومة بالذكاء الاصطناعي الأكثر تقدماً في المنطقة. حيث تلتقي شبكة الكون المالي بعقل آلة يتنبأ قبل أن يحدث.';
 
-function useInView(threshold = 0.3) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [inView, setInView] = useState(false);
+  // Typewriter effect
   useEffect(() => {
-    const el = ref.current;
+    let charIndex = 0;
+    const timer = setTimeout(function typeWriter() {
+      if (charIndex < fullText.length) {
+        setTypewriterText(fullText.substring(0, charIndex + 1));
+        charIndex++;
+        setTimeout(typeWriter, 35);
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Animated counters
+  useEffect(() => {
+    if (!statsVisible) return;
+    const counters = document.querySelectorAll('.stat-number');
+    counters.forEach(counter => {
+      const target = parseInt(counter.getAttribute('data-target') || '0');
+      const duration = 2000;
+      const step = target / (duration / 16);
+      let current = 0;
+      const update = () => {
+        current += step;
+        if (current < target) {
+          counter.textContent = String(Math.floor(current));
+          requestAnimationFrame(update);
+        } else {
+          counter.textContent = String(target);
+        }
+      };
+      update();
+    });
+  }, [statsVisible]);
+
+  // Intersection observer for stats
+  useEffect(() => {
+    const el = statsRef.current;
     if (!el) return;
     const obs = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          setInView(true);
+          setStatsVisible(true);
           obs.disconnect();
         }
       },
-      { threshold }
+      { threshold: 0.1 }
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [threshold]);
-  return { ref, inView };
-}
-
-export default function HeroSection() {
-  const [typewriterText, setTypewriterText] = useState('');
-  const [typewriterDone, setTypewriterDone] = useState(false);
-  const fullText = 'منصة التداول المدعومة بالذكاء الاصطناعي الأكثر تقدماً في المنطقة. حيث تلتقي شبكة الكون المالي بعقل آلة يتنبأ قبل أن يحدث.';
-  const { ref: statsRef, inView: statsInView } = useInView();
-
-  const count87 = useCountUp(87, 2000, statsInView);
-  const count6 = useCountUp(6, 1500, statsInView);
-  const count30 = useCountUp(30, 1800, statsInView);
-  const count24 = useCountUp(24, 1600, statsInView);
-
-  useEffect(() => {
-    let i = 0;
-    const interval = setInterval(() => {
-      if (i <= fullText.length) {
-        setTypewriterText(fullText.slice(0, i));
-        i++;
-      } else {
-        setTypewriterDone(true);
-        clearInterval(interval);
-      }
-    }, 35);
-    return () => clearInterval(interval);
   }, []);
 
   return (
-    <section
-      style={{
-        position: 'relative',
-        zIndex: 10,
-        minHeight: '100vh',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '120px 20px 80px',
-        textAlign: 'center',
-      }}
-    >
-      {/* Badge */}
-      <div
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '8px 20px',
-          borderRadius: '50px',
-          background: 'rgba(0, 212, 255, 0.08)',
-          border: '1px solid rgba(0, 212, 255, 0.15)',
-          marginBottom: '32px',
-          animation: 'float 3s ease-in-out infinite',
-          fontSize: '0.85rem',
-          fontFamily: "var(--font-ibm-plex), sans-serif",
-        }}
-      >
-        <span
-          style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            background: '#00d4ff',
-            animation: 'pulse-glow 2s infinite',
-          }}
-        />
-        <span style={{ color: '#bae6fd' }}>ستة نماذج ذكاء اصطناعي متناغمة</span>
+    <section className="hero">
+      <div className="hero-badge">
+        <div className="pulse-dot" />
+        <span>ستة نماذج ذكاء اصطناعي متناغمة</span>
       </div>
-
-      {/* Title */}
-      <h1
-        style={{
-          fontSize: 'clamp(5rem, 12vw, 10rem)',
-          fontWeight: 800,
-          background: 'linear-gradient(135deg, #00d4ff, #7dd3fc, #bae6fd)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          fontFamily: "var(--font-noto-naskh), serif",
-          lineHeight: 1.1,
-          marginBottom: '8px',
-          position: 'relative',
-        }}
-      >
-        {/* Glow behind */}
-        <span
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(135deg, #00d4ff, #7dd3fc, #bae6fd)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            filter: 'blur(40px)',
-            opacity: 0.4,
-            fontFamily: "var(--font-noto-naskh), serif",
-            fontSize: 'clamp(5rem, 12vw, 10rem)',
-            fontWeight: 800,
-            lineHeight: 1.1,
-          }}
-          aria-hidden
-        >
-          رؤى
-        </span>
-        رؤى
-      </h1>
-
-      {/* Typewriter subtitle */}
-      <p
-        style={{
-          maxWidth: '700px',
-          fontSize: '1.1rem',
-          lineHeight: 1.8,
-          color: '#94a3b8',
-          marginBottom: '40px',
-          fontFamily: "var(--font-ibm-plex), sans-serif",
-          minHeight: '3.5em',
-        }}
-      >
+      <h1 className="hero-title">رؤى</h1>
+      <p className="hero-subtitle">
         {typewriterText}
-        <span
-          style={{
-            borderRight: typewriterDone ? 'none' : '2px solid #00d4ff',
-            animation: typewriterDone ? 'none' : 'typewriter-cursor 0.7s infinite',
-            marginRight: '2px',
-          }}
-        />
+        <span className="cursor-blink" />
       </p>
-
-      {/* CTA Buttons */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '16px',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-          marginBottom: '60px',
-        }}
-      >
-        <a href="/login" className="glow-btn" style={{ textDecoration: 'none', fontSize: '1rem' }}>
+      <div className="hero-cta-group">
+        <a href="#join" className="btn btn-glow" style={{ fontSize: '1.05rem', padding: '1rem 2.8rem' }}>
           🚀 ابدأ التداول الذكي
         </a>
-        <a href="#features" className="outline-btn" style={{ textDecoration: 'none', fontSize: '1rem' }}>
+        <a href="#features" className="btn btn-outline" style={{ fontSize: '1.05rem', padding: '1rem 2.8rem' }}>
           استكشف المنصة
         </a>
       </div>
-
-      {/* Stats */}
-      <div
-        ref={statsRef}
-        style={{
-          display: 'flex',
-          gap: '40px',
-          flexWrap: 'wrap',
-          justifyContent: 'center',
-        }}
-      >
-        {[
-          { value: count87, suffix: '%', label: 'دقة الإشارات' },
-          { value: count6, suffix: '', label: 'نماذج ذكاء' },
-          { value: count30, suffix: ' ثانية', label: 'للإعداد' },
-          { value: count24, suffix: ' ساعة', label: 'مراقبة' },
-        ].map((stat, i) => (
-          <div
-            key={i}
-            style={{
-              textAlign: 'center',
-              padding: '16px 24px',
-            }}
-          >
-            <div
-              style={{
-                fontSize: '2rem',
-                fontWeight: 700,
-                background: 'linear-gradient(135deg, #00d4ff, #7dd3fc)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                fontFamily: "var(--font-ibm-plex), sans-serif",
-              }}
-            >
-              {stat.value}{stat.suffix}
-            </div>
-            <div
-              style={{
-                fontSize: '0.85rem',
-                color: '#94a3b8',
-                marginTop: '4px',
-                fontFamily: "var(--font-ibm-plex), sans-serif",
-              }}
-            >
-              {stat.label}
-            </div>
-          </div>
-        ))}
+      <div className="hero-stats" ref={statsRef}>
+        <div className="stat-item">
+          <div className="stat-number" data-target="87">0</div>
+          <div className="stat-label">نسبة دقة الإشارات %</div>
+        </div>
+        <div className="stat-item">
+          <div className="stat-number" data-target="6">0</div>
+          <div className="stat-label">نماذج ذكاء اصطناعي</div>
+        </div>
+        <div className="stat-item">
+          <div className="stat-number" data-target="30">0</div>
+          <div className="stat-label">ثانية للإعداد</div>
+        </div>
+        <div className="stat-item">
+          <div className="stat-number" data-target="24">0</div>
+          <div className="stat-label">ساعة مراقبة يومية</div>
+        </div>
       </div>
     </section>
   );

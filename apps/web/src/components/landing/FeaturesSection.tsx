@@ -1,203 +1,80 @@
 'use client';
 
-import { useRef, useState, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 
-interface Feature {
-  num: string;
-  icon: string;
-  titleAr: string;
-  titleEn: string;
-  description: string;
-  tags: { icon: string; text: string }[];
-  color: string;
-}
-
-const features: Feature[] = [
+const features = [
   {
-    num: '01',
-    icon: '🗣️',
-    titleAr: 'المحلل متعدد اللغات',
-    titleEn: 'Multilingual Analyst',
-    description: 'تحليل السوق بـ 12 لغة مع دقة تفوق 94% وتحليل فوري للأخبار والتقارير المالية.',
-    tags: [
-      { icon: '🌍', text: '12+ لغة' },
-      { icon: '⚡', text: 'تحليل فوري' },
-      { icon: '🎯', text: 'دقة 94%' },
-    ],
-    color: '#00d4ff',
+    num: '01', icon: '🗣️',
+    title: 'المحلل متعدد اللغات', titleEn: 'Polyglot Analyst',
+    desc: 'يحلل الأسواق بلغات متعددة في الوقت الفعلي، مما يمنحك رؤى عالمية دون حواجز لغوية. يدعم العربية والإنجليزية والصينية واليابانية وغيرها من اللغات الرئيسية.',
+    meta: ['🌍 12+ لغة', '⚡ تحليل فوري', '🎯 دقة 94%']
   },
   {
-    num: '02',
-    icon: '📡',
-    titleAr: 'إشارات رؤى',
-    titleEn: 'ROUA Signals',
-    description: 'إشارات تداول ذكية بدقة 87% مع تنبيهات فورية لأكثر من 50 زوج عملات.',
-    tags: [
-      { icon: '🎯', text: '87% دقة' },
-      { icon: '⏱️', text: 'تنبيه فوري' },
-      { icon: '📊', text: '50+ زوج' },
-    ],
-    color: '#7dd3fc',
+    num: '02', icon: '📡',
+    title: 'إشارات رؤى', titleEn: 'Roua Signals',
+    desc: 'إشارات تداول فورية مدعومة بالذكاء الاصطناعي، تعتمد على تحليل الأنماط والمشاعر السوقية لتقديم توصيات دقيقة بنسبة نجاح تتجاوز 87%.',
+    meta: ['🎯 87% دقة', '⏱️ تنبيه فوري', '📊 50+ زوج']
   },
   {
-    num: '03',
-    icon: '📰',
-    titleAr: 'رادار الأخبار الموحد',
-    titleEn: 'News Radar',
-    description: 'مراقبة 5000+ مصدر إخباري مع تصفية ذكية وسرعة أسبق بـ 15 دقيقة.',
-    tags: [
-      { icon: '📡', text: '5000+ مصدر' },
-      { icon: '⚡', text: '15 دقيقة أسبق' },
-      { icon: '🧠', text: 'تصفية ذكية' },
-    ],
-    color: '#34d399',
+    num: '03', icon: '📰',
+    title: 'رادار الأخبار الموحد', titleEn: 'Unified News Radar',
+    desc: 'يراقب آلاف المصادر الإخبارية والاجتماعية في وقت واحد، ويصفي الإشارات الضوضائية ليقدم لك فقط ما يؤثر على محفظتك.',
+    meta: ['📡 5000+ مصدر', '⚡ 15 دقيقة أسبق', '🧠 تصفية ذكية']
   },
   {
-    num: '04',
-    icon: '🛡️',
-    titleAr: 'ملاذ المحفظة',
-    titleEn: 'Portfolio Haven',
-    description: 'حماية 24/7 مع تقليل المخاطر التلقائي وتوازن المحفظة الذكي.',
-    tags: [
-      { icon: '🛡️', text: 'حماية 24/7' },
-      { icon: '📉', text: 'تقليل المخاطر' },
-      { icon: '⚖️', text: 'توازن تلقائي' },
-    ],
-    color: '#a78bfa',
+    num: '04', icon: '🛡️',
+    title: 'ملاذ المحفظة', titleEn: 'Portfolio Sanctuary',
+    desc: 'حماية ذكية لمحفظتك من التقلبات الحادة عبر تنبيهات المخاطر التنبؤية وتوصيات إعادة التوازن التلقائية.',
+    meta: ['🛡️ حماية 24/7', '📉 تقليل المخاطر', '⚖️ توازن تلقائي']
   },
   {
-    num: '05',
-    icon: '🧪',
-    titleAr: 'المختبر الذكي',
-    titleEn: 'Smart Lab',
-    description: 'محاكاة حقيقية مع بيانات تاريخية وتحسين تلقائي للاستراتيجيات.',
-    tags: [
-      { icon: '🧪', text: 'محاكاة حقيقية' },
-      { icon: '📈', text: 'بيانات تاريخية' },
-      { icon: '🔧', text: 'تحسين تلقائي' },
-    ],
-    color: '#f472b6',
+    num: '05', icon: '🧪',
+    title: 'المختبر الذكي', titleEn: 'Smart Lab',
+    desc: 'اختبر استراتيجياتك في بيئة محاكاة واقعية قبل المخاطرة. حلل الأداء التاريخي وحسّن معاملاتك بناءً على بيانات حقيقية.',
+    meta: ['🧪 محاكاة حقيقية', '📈 بيانات تاريخية', '🔧 تحسين تلقائي']
   },
 ];
 
-function FeatureCard({ feature }: { feature: Feature }) {
+function FeatureCard({ feature }: { feature: typeof features[0] }) {
   const cardRef = useRef<HTMLDivElement>(null);
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+  useEffect(() => {
     const card = cardRef.current;
     if (!card) return;
-    const rect = card.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width - 0.5;
-    const y = (e.clientY - rect.top) / rect.height - 0.5;
-    setTilt({ x: y * -10, y: x * 10 });
-  }, []);
 
-  const handleMouseLeave = useCallback(() => {
-    setTilt({ x: 0, y: 0 });
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = card.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const rotateX = (y - centerY) / 20;
+      const rotateY = (centerX - x) / 20;
+      card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-10px) scale(1.01)`;
+    };
+
+    const handleMouseLeave = () => {
+      card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) translateY(0) scale(1)';
+    };
+
+    card.addEventListener('mousemove', handleMouseMove);
+    card.addEventListener('mouseleave', handleMouseLeave);
+    return () => {
+      card.removeEventListener('mousemove', handleMouseMove);
+      card.removeEventListener('mouseleave', handleMouseLeave);
+    };
   }, []);
 
   return (
-    <div
-      ref={cardRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      style={{ perspective: '1000px' }}
-    >
-      <div
-        style={{
-          background: 'rgba(255, 255, 255, 0.025)',
-          border: '1px solid rgba(255, 255, 255, 0.05)',
-          borderRadius: '16px',
-          padding: '28px 24px',
-          transition: 'transform 0.15s ease-out, box-shadow 0.3s ease, border-color 0.3s ease',
-          transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
-          transformStyle: 'preserve-3d',
-          position: 'relative',
-          overflow: 'hidden',
-          cursor: 'pointer',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.boxShadow = `0 0 25px ${feature.color}15, 0 8px 32px rgba(0,0,0,0.3)`;
-          e.currentTarget.style.borderColor = `${feature.color}30`;
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.boxShadow = 'none';
-          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
-        }}
-      >
-        {/* Big number */}
-        <span
-          style={{
-            position: 'absolute',
-            top: '12px',
-            left: '16px',
-            fontSize: '4rem',
-            fontWeight: 800,
-            color: `${feature.color}10`,
-            lineHeight: 1,
-            fontFamily: "var(--font-ibm-plex), sans-serif",
-          }}
-        >
-          {feature.num}
-        </span>
-
-        <div style={{ fontSize: '2rem', marginBottom: '12px' }}>{feature.icon}</div>
-        <h3
-          style={{
-            fontSize: '1.15rem',
-            fontWeight: 700,
-            color: '#f0f9ff',
-            marginBottom: '4px',
-            fontFamily: "var(--font-noto-naskh), serif",
-          }}
-        >
-          {feature.titleAr}
-        </h3>
-        <p
-          style={{
-            fontSize: '0.8rem',
-            color: feature.color,
-            fontWeight: 500,
-            marginBottom: '10px',
-            fontFamily: "var(--font-ibm-plex), sans-serif",
-          }}
-        >
-          {feature.titleEn}
-        </p>
-        <p
-          style={{
-            fontSize: '0.9rem',
-            color: '#94a3b8',
-            lineHeight: 1.7,
-            marginBottom: '16px',
-            fontFamily: "var(--font-ibm-plex), sans-serif",
-          }}
-        >
-          {feature.description}
-        </p>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          {feature.tags.map((tag, i) => (
-            <span
-              key={i}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '0.75rem',
-                color: '#94a3b8',
-                padding: '4px 10px',
-                borderRadius: '8px',
-                background: 'rgba(255, 255, 255, 0.03)',
-                border: '1px solid rgba(255, 255, 255, 0.05)',
-                fontFamily: "var(--font-ibm-plex), sans-serif",
-              }}
-            >
-              {tag.icon} {tag.text}
-            </span>
-          ))}
-        </div>
+    <div className="feature-card fade-in" ref={cardRef}>
+      <div className="feature-number">{feature.num}</div>
+      <div className="feature-icon">{feature.icon}</div>
+      <h3>{feature.title} <span>{feature.titleEn}</span></h3>
+      <p>{feature.desc}</p>
+      <div className="feature-meta">
+        {feature.meta.map((tag, i) => (
+          <span key={i}>{tag}</span>
+        ))}
       </div>
     </div>
   );
@@ -205,38 +82,17 @@ function FeatureCard({ feature }: { feature: Feature }) {
 
 export default function FeaturesSection() {
   return (
-    <section
-      id="features"
-      style={{
-        position: 'relative',
-        zIndex: 10,
-        padding: '80px 20px',
-        maxWidth: '1200px',
-        margin: '0 auto',
-      }}
-    >
-      <div style={{ textAlign: 'center', marginBottom: '48px' }}>
-        <span className="section-label">CORE FEATURES</span>
-        <h2
-          style={{
-            fontSize: 'clamp(1.8rem, 4vw, 2.5rem)',
-            fontWeight: 700,
-            color: '#f0f9ff',
-            marginTop: '12px',
-            fontFamily: "var(--font-noto-naskh), serif",
-          }}
-        >
-          أدوات متقدمة للمتداول الذكي
+    <section className="section features-section" id="features">
+      <div className="section-header fade-in">
+        <div className="section-label">CORE FEATURES</div>
+        <h2 className="section-title">
+          أدوات متقدمة للمتداول<br /><span className="highlight">الذكي</span>
         </h2>
+        <p className="section-desc">
+          مجموعة متكاملة من الأدوات المدعومة بالذكاء الاصطناعي لتحليل الأسواق واتخاذ قرارات أذكى
+        </p>
       </div>
-
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-          gap: '20px',
-        }}
-      >
+      <div className="features-grid">
         {features.map((feature, i) => (
           <FeatureCard key={i} feature={feature} />
         ))}

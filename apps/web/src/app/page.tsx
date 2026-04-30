@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect } from 'react';
 import CosmicCanvas from '@/components/landing/CosmicCanvas';
 import MarketPulse from '@/components/landing/MarketPulse';
 import LiveSignals from '@/components/landing/LiveSignals';
@@ -13,8 +16,26 @@ import BlackholeCTA from '@/components/landing/BlackholeCTA';
 import CosmicFooter from '@/components/landing/CosmicFooter';
 
 export default function Home() {
+  // Intersection Observer for fade-in animations (matching original HTML)
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <main style={{ background: '#000000', minHeight: '100vh', position: 'relative' }}>
+    <>
       <CosmicCanvas />
       <MarketPulse />
       <CosmicNavbar />
@@ -28,6 +49,6 @@ export default function Home() {
       <BlackholeCTA />
       <CosmicFooter />
       <LiveSignals />
-    </main>
+    </>
   );
 }

@@ -60,7 +60,7 @@ export class AiController {
    * BUG-007 FIX: Added throttle — 2 calls/min per IP (6 AI models × cost)
    */
   @Post('consensus')
-  @Throttle({ default: { limit: 2, ttl: 60000 } })
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   async getConsensus(@Body() body: { symbol: string }) {
     this.logger.log(`🎼 Generating AI Council Consensus for ${body.symbol}`);
     const result = await this.orchestrator.getConsensusAnalysis(body.symbol);

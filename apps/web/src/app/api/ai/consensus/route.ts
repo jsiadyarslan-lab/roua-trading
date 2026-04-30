@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ symbol }),
-          signal: AbortSignal.timeout(30000), // 30s — AI needs time for 6 models
+          signal: AbortSignal.timeout(90000), // 90s — 6 models (60s) + master strategy (30s)
         })
 
         if (nestjsRes.ok) {
@@ -56,9 +56,12 @@ export async function POST(req: NextRequest) {
           if (nestjsData.success && nestjsData.data?.analyses?.length > 0) {
             // Real AI Council succeeded! Add meta info
             const aiData = nestjsData.data
+            const modelCount = aiData.analyses?.length || 0
+            // Distinguish partial-ai (some models) from real-ai (most models)
+            const source = modelCount >= 4 ? 'real-ai' : modelCount >= 1 ? 'partial-ai' : 'scanner-rules'
             return NextResponse.json({
               success: true,
-              source: 'real-ai',
+              source,
               data: {
                 ...aiData,
                 meta: {
@@ -66,8 +69,10 @@ export async function POST(req: NextRequest) {
                   symbol,
                   processingTimeMs: Date.now() - startedAt,
                   timestamp: new Date().toISOString(),
-                  aiEngine: 'NestJS-6-Models',
+                  aiEngine: source === 'real-ai' ? 'NestJS-6-Models' : `NestJS-${modelCount}-Models`,
                   modelsUsed: aiData.analyses.map((a: any) => a.model).filter(Boolean),
+                  modelsResponded: modelCount,
+                  modelsExpected: 6,
                 },
               },
             })

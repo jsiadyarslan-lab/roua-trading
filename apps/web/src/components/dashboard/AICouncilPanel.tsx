@@ -39,21 +39,27 @@ export function AICouncilPanel() {
   const [data, setData] = useState<ConsensusData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<string | null>(null)
-  const [dataSource, setDataSource] = useState<'real-ai' | 'scanner-rules' | 'fallback' | 'unknown'>('unknown')
-  const [countdown, setCountdown] = useState(180)
+  const [dataSource, setDataSource] = useState<'real-ai' | 'partial-ai' | 'scanner-rules' | 'fallback' | 'unknown'>('unknown')
+  const [countdown, setCountdown] = useState(300) // 5 min — matches 10min cache with 50% overlap
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const failCountRef = useRef(0) // Track consecutive failures for exponential backoff
+  const abortRef = useRef<AbortController | null>(null) // Cancel in-flight requests
   const [loadingPhase, setLoadingPhase] = useState(0)
   const phases = ['جاري تجميع بيانات السوق الحية...', 'تحليل الزخم عبر النماذج الذكية...', 'مناقشة الإشارات الفنية...', 'بناء استراتيجية الإجماع النهائي...']
 
   const fetchConsensus = useCallback(async () => {
     setLoading(true)
     setError(null)
-    setCountdown(180)
+    setCountdown(300)
+    // Cancel any previous in-flight request
+    if (abortRef.current) abortRef.current.abort()
+    abortRef.current = new AbortController()
     try {
       const res = await fetch('/api/ai/consensus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol: selectedSymbol }),
+        signal: abortRef.current.signal, // 90s timeout handled by server
       })
 
       if (!res.ok) {
@@ -66,6 +72,7 @@ export function AICouncilPanel() {
         setData(j.data)
         setDataSource(j.source || 'unknown')
         setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+        failCountRef.current = 0 // Reset backoff on success
 
         // Push alert when council has a directional recommendation with high consensus
         if (j.data?.recommendation && j.data.recommendation !== 'HOLD' && j.data.consensusScore >= 60) {
@@ -79,6 +86,11 @@ export function AICouncilPanel() {
         throw new Error(j.error || 'فشل في الحصول على الإجماع')
       }
     } catch (e: any) {
+      if (e.name === 'AbortError') return // Cancelled — don't show error
+      failCountRef.current++
+      // Exponential backoff: 300s → 600s → 900s → max 1800s
+      const backoffSeconds = Math.min(300 * Math.pow(2, failCountRef.current - 1), 1800)
+      setCountdown(backoffSeconds)
       setError(e.message || 'خطأ غير متوقع')
     } finally {
       setLoading(false)
@@ -119,7 +131,8 @@ export function AICouncilPanel() {
     return () => clearInterval(phaseInterval)
   }, [loading, phases.length])
 
-  const isRealAI = dataSource === 'real-ai'
+  const isRealAI = dataSource === 'real-ai' || dataSource === 'partial-ai'
+  const isPartialAI = dataSource === 'partial-ai'
   const recColor = data?.recommendation === 'BUY' ? T.green : data?.recommendation === 'SELL' ? T.red : T.amber
   const formatCountdown = `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}`
 
@@ -155,8 +168,8 @@ export function AICouncilPanel() {
             border: `1px solid ${isRealAI ? 'rgba(179,136,255,0.3)' : 'rgba(255,184,0,0.2)'}`,
           }}>
             {isRealAI ? <Cpu size={8} color={T.purple} /> : <WifiOff size={8} color={T.amber} />}
-            <span style={{ fontSize: 7, fontWeight: 700, color: isRealAI ? T.purple : T.amber, fontFamily: 'monospace' }}>
-              {isRealAI ? '6 AI Models' : dataSource === 'scanner-rules' ? '📐 تقني' : 'FB'}
+            <span style={{ fontSize: 7, fontWeight: 700, color: isPartialAI ? T.accent : isRealAI ? T.purple : T.amber, fontFamily: 'monospace' }}>
+              {isPartialAI ? `${data?.meta?.modelsResponded || '?'}/6 AI` : isRealAI ? '6 AI Models' : dataSource === 'scanner-rules' ? '📐 تقني' : 'FB'}
             </span>
           </div>
           {/* Countdown */}
@@ -241,14 +254,22 @@ export function AICouncilPanel() {
               </div>
             )}
 
-            {isRealAI && (
+            {isRealAI && !isPartialAI && (
               <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(179,136,255,0.06)', border: '1px solid rgba(179,136,255,0.15)' }}>
                 <Cpu size={10} color={T.purple} />
                 <span className="text-[8px]" style={{ color: T.purple }}>
-                  تحليل AI حقيقي من {data.meta?.modelsUsed?.length || 6} نماذج — {data.meta?.processingTimeMs || 0}ms
+                  تحليل AI حقيقي من 6 نماذج — {data.meta?.processingTimeMs || 0}ms
                 </span>
               </div>
             )}
+            {isPartialAI && (
+              <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(0,229,255,0.06)', border: '1px solid rgba(0,229,255,0.15)' }}>
+                <Cpu size={10} color={T.accent} />
+                <span className="text-[8px]" style={{ color: T.accent }}>
+                  تحليل AI من {data.meta?.modelsResponded || '?'}/6 نماذج — بعض النماذج في وضع الاسترداد
+                </span>
+              </div>
+            )
 
             {/* Consensus Gauge */}
             <div className="relative p-3 rounded-xl text-center overflow-hidden" style={{ 

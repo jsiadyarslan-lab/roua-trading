@@ -227,7 +227,7 @@ export class AIOrchestratorService {
     analyses: { role: string; model: string; vote: string; confidence: number; reason: string }[];
     masterStrategy: string;
   }> {
-    // Check Redis cache first — consensus for the same symbol is valid for 5 minutes
+    // Check Redis cache first — consensus valid for 10 minutes (increased from 5)
     const cacheKey = `ai:consensus:${symbol}`;
     try {
       const cached = await this.redis?.get(cacheKey);
@@ -261,8 +261,26 @@ export class AIOrchestratorService {
       ];
 
       const start = Date.now();
+
+      // FIX: Filter out models in cooldown (circuit breaker) before calling them
+      const activeRoles = roles.filter(role => {
+        const cooldownUntil = this.modelCooldowns.get(role.model) || 0;
+        if (Date.now() < cooldownUntil) {
+          this.logger.debug(`🚫 Skipping ${role.model} for consensus — in cooldown`);
+          return false;
+        }
+        // Also skip models without API keys
+        if (!this._isModelKeyAvailable(role.model)) {
+          this.logger.debug(`⚠️ Skipping ${role.model} for consensus — no API key`);
+          return false;
+        }
+        return true;
+      });
+
+      this.logger.log(`🎼 Active models for consensus: ${activeRoles.map(r => r.model).join(', ')} (${activeRoles.length}/${roles.length})`);
+
       const results = await Promise.allSettled(
-        roles.map(async (role) => {
+        activeRoles.map(async (role) => {
           const roleStart = Date.now();
           try {
             const response = await this._callModel(role.model, {
@@ -282,6 +300,11 @@ export class AIOrchestratorService {
                 cached: false,
               });
             }
+            // If model returned stub (confidence 0), put it in cooldown
+            if (response.confidence === 0) {
+              this.modelCooldowns.set(role.model, Date.now() + this.COOLDOWN_MS);
+              this.logger.warn(`🚫 Model ${role.model} returned stub — cooldown ${this.COOLDOWN_MS / 1000}s`);
+            }
             return { ...role, response };
           } catch (error: any) {
             this.usageLogger?.logFailure({
@@ -291,6 +314,8 @@ export class AIOrchestratorService {
               latencyMs: Date.now() - roleStart,
               errorMessage: error.message,
             });
+            // Put model in cooldown on failure
+            this.modelCooldowns.set(role.model, Date.now() + this.COOLDOWN_MS);
             throw error;
           }
         }),
@@ -335,38 +360,34 @@ export class AIOrchestratorService {
         else { recommendation = 'HOLD'; consensusScore = Math.round((1 - Math.abs(buyPct - sellPct)) * 50); }
       }
 
-      let masterStrategyContent = 'لم يتم التوصل لاستراتيجية موحدة حالياً.';
+      // FIX: Generate master strategy with 15s timeout — don't let it block the response
+      // If it fails, use a quick summary instead
+      let masterStrategyContent = `إجماع المجلس (${analyses.length}/6 نماذج): ${recommendation === 'BUY' ? 'شراء قوي' : recommendation === 'SELL' ? 'بيع قوي' : 'انتظار'} بنسبة ثقة ${consensusScore}%.`;
+
       if (analyses.length > 0) {
         try {
-          // FIX: Use Groq for master strategy instead of Gemini to reduce Gemini rate limit pressure
-          // Gemini is already used for the "tech" role; calling it again doubles the quota usage
-          const masterStrategy = await this.groqService.analyze({
+          const strategyPrompt = `بناءً على تحليلات المجلس التالية، لخص الاستراتيجية النهائية للتداول على ${symbol} بالعربية بإيجاز:\n${analyses.map(a => `${a.role} (${a.model}): ${a.vote} (${a.confidence}%)`).join('\n')}`;
+
+          // Try Groq first with 15s timeout, then quick fallback
+          const strategyPromise = this.groqService.analyze({
             symbol,
-            prompt: `بناءً على تحليلات المجلس التالية من 6 نماذج AI، لخص الاستراتيجية النهائية للتداول على ${symbol} بالعربية:\n${analyses.map(a => `${a.role} (${a.model}): ${a.vote} (${a.confidence}%)`).join('\n')}`,
+            prompt: strategyPrompt,
             type: 'signal_generation',
             language: 'ar',
           });
-          // Only use if Groq returned real content (confidence > 0)
-          if (masterStrategy.confidence > 0 && masterStrategy.content.length > 10) {
+
+          // Race: 15s timeout for master strategy (don't block the whole response)
+          const timeoutPromise = new Promise<null>((_, reject) =>
+            setTimeout(() => reject(new Error('Strategy timeout')), 15000)
+          );
+
+          const masterStrategy = await Promise.race([strategyPromise, timeoutPromise]).catch(() => null);
+
+          if (masterStrategy && masterStrategy.confidence > 0 && masterStrategy.content.length > 10) {
             masterStrategyContent = masterStrategy.content;
-          } else {
-            throw new Error('Groq returned stub');
           }
         } catch {
-          // Fallback to Gemini if Groq is unavailable
-          try {
-            const masterStrategy = await this.geminiService.analyze({
-              symbol,
-              prompt: `بناءً على تحليلات المجلس التالية من 6 نماذج AI، لخص الاستراتيجية النهائية للتداول على ${symbol} بالعربية:\n${analyses.map(a => `${a.role} (${a.model}): ${a.vote} (${a.confidence}%)`).join('\n')}`,
-              type: 'signal_generation',
-              language: 'ar',
-            });
-            if (masterStrategy.confidence > 0) {
-              masterStrategyContent = masterStrategy.content;
-            }
-          } catch {
-            masterStrategyContent = `إجماع المجلس (6 نماذج): ${recommendation === 'BUY' ? 'شراء قوي' : recommendation === 'SELL' ? 'بيع قوي' : 'انتظار'} بنسبة ثقة ${consensusScore}%.`;
-          }
+          // Use the summary already set above
         }
       }
 
@@ -374,8 +395,8 @@ export class AIOrchestratorService {
 
       const result = { consensusScore, recommendation, analyses, masterStrategy: masterStrategyContent };
 
-      // Cache the consensus result in Redis (5-minute TTL) and in-memory
-      const consensusCacheTTL = 5 * 60 * 1000; // 5 minutes
+      // Cache the consensus result — 10-minute TTL (increased from 5 to reduce API load)
+      const consensusCacheTTL = 10 * 60 * 1000; // 10 minutes
       try {
         await this.redis?.set(cacheKey, JSON.stringify(result), consensusCacheTTL);
       } catch {}

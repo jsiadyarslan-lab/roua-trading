@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ symbol }),
-          signal: AbortSignal.timeout(90000),
+          signal: AbortSignal.timeout(60000), // Reduced from 90s — fail faster to direct layer
         })
 
         if (nestjsRes.ok) {

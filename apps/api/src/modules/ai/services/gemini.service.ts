@@ -75,8 +75,10 @@ export class GeminiService {
     } catch (error: any) {
       const status = error.response?.status;
       const errData = error.response?.data;
+      // FIX: Throw 429 errors so the orchestrator's circuit breaker can track them.
       if (status === 429) {
-        this.logger.warn(`Gemini rate limited (429) — will retry on next cycle`);
+        this.logger.warn(`Gemini rate limited (429) — throwing for circuit breaker`);
+        throw error;
       } else if (status === 401 || status === 403) {
         this.logger.error(`Gemini auth failed (${status}) — API key may be invalid or revoked. Response: ${JSON.stringify(errData)?.substring(0, 200)}`);
       } else {

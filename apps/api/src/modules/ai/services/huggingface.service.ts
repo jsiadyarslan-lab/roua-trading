@@ -108,11 +108,15 @@ export class HuggingFaceService {
         const modelShort = model.split('/').pop();
         const status = error.response?.status;
         
+        // FIX: Throw 429 errors so the orchestrator's circuit breaker can track them.
+        if (status === 429) {
+          this.logger.warn(`🚫 HuggingFace model ${modelShort} rate limited (429) — throwing for circuit breaker`);
+          throw error;
+        }
+        
         // Handle specific HuggingFace error codes
         if (status === 503) {
           this.logger.warn(`⏳ HuggingFace model ${modelShort} is loading (503) — trying next model...`);
-        } else if (status === 429) {
-          this.logger.warn(`🚫 HuggingFace model ${modelShort} rate limited (429) — trying next model...`);
         } else if (status === 401) {
           this.logger.error(`❌ HuggingFace API key invalid (401) — skipping all models`);
           break; // No point trying other models with same invalid key

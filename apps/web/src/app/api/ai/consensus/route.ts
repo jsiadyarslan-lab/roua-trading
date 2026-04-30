@@ -96,12 +96,19 @@ export async function POST(req: NextRequest) {
     // ═══════════════════════════════════════════════════════════
     // LAYER 1: Try NestJS AI Council (6 models with RAG, Redis cache)
     // ═══════════════════════════════════════════════════════════
+    // FIX: Removed self-referencing target (`${origin}/api/health`...) that caused
+    // circular calls — Next.js calling itself instead of NestJS backend.
     const apiTargets = [
       process.env.API_INTERNAL_URL,
       'http://localhost:3001',
       'http://127.0.0.1:3001',
-      `${origin}/api/health`.replace('/api/health', ''),
     ].filter((u, i, arr) => u && arr.indexOf(u) === i) as string[]
+
+    // FIX: Layer 1 no longer returns immediately with a single model.
+    // It collects the NestJS result, and if partial (< 3 models), Layer 2 is
+    // also called to supplement. Results from both layers are MERGED so the
+    // user always gets the maximum number of responding models.
+    let layer1Result: { data: any; source: string; modelCount: number } | null = null
 
     for (const apiTarget of apiTargets) {
       try {
@@ -111,45 +118,49 @@ export async function POST(req: NextRequest) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ symbol }),
-          signal: AbortSignal.timeout(60000), // Reduced from 90s — fail faster to direct layer
+          signal: AbortSignal.timeout(60000),
         })
 
         if (nestjsRes.ok) {
           const nestjsData = await nestjsRes.json()
           if (nestjsData.success && nestjsData.data?.analyses?.length > 0) {
-            // Record that NestJS is up for keep-alive status
             recordNestJSPing(true)
 
             const aiData = nestjsData.data
             const modelCount = aiData.analyses?.length || 0
-            const source = modelCount >= 3 ? 'real-ai' : modelCount >= 1 ? 'partial-ai' : 'partial-ai'
+            const source = modelCount >= 3 ? 'real-ai' : 'partial-ai'
 
-            const result = {
-              success: true,
-              source,
-              data: {
-                ...aiData,
-                meta: {
-                  ...aiData.meta,
-                  symbol,
-                  processingTimeMs: Date.now() - startedAt,
-                  timestamp: new Date().toISOString(),
-                  aiEngine: source === 'real-ai' ? 'NestJS-6-Models' : `NestJS-${modelCount}-Models`,
-                  modelsUsed: aiData.analyses.map((a: any) => a.model).filter(Boolean),
-                  modelsResponded: modelCount,
-                  modelsExpected: 6,
-                  connectionLayer: 'nestjs',
-                  keepAlive: getNestJSStatus(),
+            layer1Result = { data: aiData, source, modelCount }
+            console.log(`[consensus] Layer 1 — NestJS returned ${modelCount} models (source: ${source})`)
+
+            // If we have 3+ models, this is a strong result — return immediately
+            if (source === 'real-ai') {
+              const result = {
+                success: true,
+                source,
+                data: {
+                  ...aiData,
+                  meta: {
+                    ...aiData.meta,
+                    symbol,
+                    processingTimeMs: Date.now() - startedAt,
+                    timestamp: new Date().toISOString(),
+                    aiEngine: 'NestJS-6-Models',
+                    modelsUsed: aiData.analyses.map((a: any) => a.model).filter(Boolean),
+                    modelsResponded: modelCount,
+                    modelsExpected: 6,
+                    connectionLayer: 'nestjs',
+                    keepAlive: getNestJSStatus(),
+                  },
                 },
-              },
-            }
-
-            if (source === 'real-ai' || source === 'partial-ai') {
+              }
               setCachedAIResult(symbol, result.data, source)
+              return NextResponse.json(result)
             }
 
-            console.log(`[consensus] Layer 1 SUCCESS — NestJS returned ${modelCount} models in ${Date.now() - startedAt}ms`)
-            return NextResponse.json(result)
+            // Partial result (< 3 models) — continue to Layer 2 to supplement
+            console.log(`[consensus] Layer 1 partial (${modelCount} models) — will supplement with Layer 2`)
+            break // Don't try more NestJS targets, move to Layer 2
           }
         }
         const errText = await nestjsRes.text().catch(() => '')
@@ -159,25 +170,79 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Record that NestJS is down
-    recordNestJSPing(false)
+    // Record that NestJS is down (if Layer 1 didn't succeed)
+    if (!layer1Result) {
+      recordNestJSPing(false)
+    }
 
     // ═══════════════════════════════════════════════════════════
-    // LAYER 2: Call AI models DIRECTLY (bypass NestJS entirely)
-    // This is the KEY fix — even if NestJS is down, the council
-    // still works because we call the AI APIs directly.
+    // LAYER 2: Call AI models DIRECTLY (supplement or replace Layer 1)
     //
-    // IMPROVEMENT: Even 1-2 models responding gives partial-ai.
-    // We no longer fall through to scanner-rules just because
-    // we don't have 3+ models. Any AI response is better than
-    // rule-based analysis.
+    // FIX: Layer 2 now runs in TWO scenarios:
+    //   1. Layer 1 failed entirely → Layer 2 is the primary source
+    //   2. Layer 1 returned partial (< 3 models) → Layer 2 supplements
+    // Results from both layers are MERGED (deduped by role) so the
+    // user gets the maximum number of responding models.
     // ═══════════════════════════════════════════════════════════
     if (hasAnyAIKey) {
-      console.log(`[consensus] Layer 2 — Calling ALL AI models directly in parallel (NestJS unavailable)`)
+      const layer2Reason = layer1Result
+        ? `supplement Layer 1 (${layer1Result.modelCount} models)`
+        : 'NestJS unavailable'
+      console.log(`[consensus] Layer 2 — Calling ALL AI models directly in parallel (${layer2Reason})`)
       try {
         const directResult = await runDirectCouncilConsensus(symbol)
 
         if (directResult.success && directResult.data.analyses.length > 0) {
+          // FIX: If Layer 1 had partial results, MERGE with Layer 2
+          if (layer1Result && layer1Result.modelCount > 0) {
+            const l1Analyses = layer1Result.data.analyses || []
+            const l2Analyses = directResult.data.analyses || []
+
+            // Deduplicate by role: Layer 2 takes priority (more recent), Layer 1 fills gaps
+            const roleMap = new Map<string, any>()
+            for (const a of l1Analyses) {
+              roleMap.set(a.role, a)
+            }
+            for (const a of l2Analyses) {
+              roleMap.set(a.role, a) // Layer 2 overwrites Layer 1 for same role
+            }
+            const mergedAnalyses = Array.from(roleMap.values())
+            const totalModels = mergedAnalyses.length
+            const mergedSource = totalModels >= 3 ? 'real-ai' : 'partial-ai'
+
+            const result = {
+              success: true,
+              source: mergedSource,
+              data: {
+                ...directResult.data,
+                analyses: mergedAnalyses,
+                consensusScore: directResult.data.consensusScore,
+                recommendation: directResult.data.recommendation,
+                masterStrategy: directResult.data.masterStrategy,
+                meta: {
+                  ...directResult.data.meta,
+                  modelsResponded: totalModels,
+                  aiEngine: `Merged-L1+L2-${totalModels}-Models`,
+                  connectionLayer: 'merged',
+                  layer1Models: layer1Result.modelCount,
+                  layer2Models: directResult.data.meta?.modelsResponded || l2Analyses.length,
+                  directCallErrors: directResult.errors,
+                  keepAlive: getNestJSStatus(),
+                },
+              },
+            }
+
+            setCachedAIResult(symbol, result.data, mergedSource)
+            console.log(`[consensus] MERGED Layer 1 (${layer1Result.modelCount}) + Layer 2 (${l2Analyses.length}) = ${totalModels} models in ${Date.now() - startedAt}ms`)
+
+            if (directResult.errors.length > 0) {
+              console.warn(`[consensus] Layer 2 warnings: ${directResult.errors.join('; ')}`)
+            }
+
+            return NextResponse.json(result)
+          }
+
+          // No Layer 1 result — Layer 2 is the sole source
           const result = {
             success: true,
             source: directResult.source,
@@ -202,12 +267,88 @@ export async function POST(req: NextRequest) {
           return NextResponse.json(result)
         }
 
+        // Layer 2 failed — if Layer 1 had partial results, return those
+        if (layer1Result && layer1Result.modelCount > 0) {
+          console.log(`[consensus] Layer 2 failed — returning Layer 1 partial result (${layer1Result.modelCount} models)`)
+          const result = {
+            success: true,
+            source: layer1Result.source,
+            data: {
+              ...layer1Result.data,
+              meta: {
+                ...layer1Result.data.meta,
+                symbol,
+                processingTimeMs: Date.now() - startedAt,
+                timestamp: new Date().toISOString(),
+                aiEngine: `NestJS-${layer1Result.modelCount}-Models`,
+                modelsUsed: layer1Result.data.analyses?.map((a: any) => a.model).filter(Boolean) || [],
+                modelsResponded: layer1Result.modelCount,
+                modelsExpected: 6,
+                connectionLayer: 'nestjs-partial',
+                keepAlive: getNestJSStatus(),
+              },
+            },
+          }
+          setCachedAIResult(symbol, result.data, layer1Result.source)
+          return NextResponse.json(result)
+        }
+
         console.warn(`[consensus] Layer 2 FAILED — No AI models responded: ${directResult.errors.join('; ')}`)
         directCallErrorsList = directResult.errors
       } catch (directError: any) {
         console.warn(`[consensus] Layer 2 FAILED — Direct call error: ${directError?.message}`)
         directCallErrorsList.push(`Direct call exception: ${directError?.message}`)
+
+        // If Layer 1 had partial results, return those as fallback
+        if (layer1Result && layer1Result.modelCount > 0) {
+          console.log(`[consensus] Layer 2 exception — returning Layer 1 partial result (${layer1Result.modelCount} models)`)
+          const result = {
+            success: true,
+            source: layer1Result.source,
+            data: {
+              ...layer1Result.data,
+              meta: {
+                ...layer1Result.data.meta,
+                symbol,
+                processingTimeMs: Date.now() - startedAt,
+                timestamp: new Date().toISOString(),
+                aiEngine: `NestJS-${layer1Result.modelCount}-Models`,
+                modelsUsed: layer1Result.data.analyses?.map((a: any) => a.model).filter(Boolean) || [],
+                modelsResponded: layer1Result.modelCount,
+                modelsExpected: 6,
+                connectionLayer: 'nestjs-partial',
+                keepAlive: getNestJSStatus(),
+              },
+            },
+          }
+          setCachedAIResult(symbol, result.data, layer1Result.source)
+          return NextResponse.json(result)
+        }
       }
+    } else if (layer1Result && layer1Result.modelCount > 0) {
+      // No AI keys for Layer 2, but Layer 1 had partial results — return them
+      console.log(`[consensus] No AI keys for Layer 2 — returning Layer 1 partial result (${layer1Result.modelCount} models)`)
+      const result = {
+        success: true,
+        source: layer1Result.source,
+        data: {
+          ...layer1Result.data,
+          meta: {
+            ...layer1Result.data.meta,
+            symbol,
+            processingTimeMs: Date.now() - startedAt,
+            timestamp: new Date().toISOString(),
+            aiEngine: `NestJS-${layer1Result.modelCount}-Models`,
+            modelsUsed: layer1Result.data.analyses?.map((a: any) => a.model).filter(Boolean) || [],
+            modelsResponded: layer1Result.modelCount,
+            modelsExpected: 6,
+            connectionLayer: 'nestjs-partial',
+            keepAlive: getNestJSStatus(),
+          },
+        },
+      }
+      setCachedAIResult(symbol, result.data, layer1Result.source)
+      return NextResponse.json(result)
     } else {
       console.warn(`[consensus] Layer 2 SKIPPED — No AI API keys configured`)
     }

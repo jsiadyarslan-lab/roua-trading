@@ -64,7 +64,7 @@ export default function MobilePortfolioPage() {
     <div style={{ minHeight: '100vh', background: '#0B0E14', direction: 'rtl', paddingBottom: 24 }}>
 
       {/* ── Header ── */}
-      <div style={{ padding: '52px 16px 16px', background: 'linear-gradient(180deg, rgba(0,212,255,0.1), transparent)' }}>
+      <div style={{ padding: 'calc(env(safe-area-inset-top) + 16px) 16px 16px', background: 'linear-gradient(180deg, rgba(0,212,255,0.1), transparent)' }}>
         <h1 style={{ fontSize: 20, fontWeight: 800, color: '#F0F2F5', fontFamily: "'Cairo', sans-serif" }}>المحفظة</h1>
       </div>
 

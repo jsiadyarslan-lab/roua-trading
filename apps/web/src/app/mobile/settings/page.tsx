@@ -44,7 +44,7 @@ export default function MobileSettingsPage() {
     <div style={{ minHeight: '100vh', background: '#0B0E14', direction: 'rtl', paddingBottom: 32 }}>
 
       {/* ── Header ── */}
-      <div style={{ padding: '52px 16px 20px', background: 'linear-gradient(180deg, rgba(212,175,55,0.08), transparent)' }}>
+      <div style={{ padding: 'calc(env(safe-area-inset-top) + 16px) 16px 20px', background: 'linear-gradient(180deg, rgba(212,175,55,0.08), transparent)' }}>
         <h1 style={{ fontSize: 20, fontWeight: 800, color: '#F0F2F5', fontFamily: "'Cairo', sans-serif" }}>الإعدادات</h1>
       </div>
 
@@ -152,6 +152,13 @@ export default function MobileSettingsPage() {
       <div style={{ margin: '0 16px' }}>
         <motion.button
           whileTap={{ scale: 0.98 }}
+          onClick={() => {
+            // Clear all relevant cookies and storage
+            document.cookie = 'roua_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;'
+            localStorage.clear()
+            sessionStorage.clear()
+            window.location.href = '/login'
+          }}
           style={{
             width: '100%', padding: '15px 0', borderRadius: 16,
             background: 'rgba(255,71,87,0.1)', border: '1px solid rgba(255,71,87,0.2)',

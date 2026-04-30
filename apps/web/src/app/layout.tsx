@@ -30,6 +30,13 @@ const orbitron = Orbitron({
 export const metadata: Metadata = {
   title: "رؤى | منصة التداول الذكية",
   description: "منصة رؤى للتداول الذكي - Roua Trading Platform",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Roua",
+  },
+  applicationName: "Roua Trading",
   icons: {
     icon: "/logo.svg",
     apple: "/logo-192.png",
@@ -39,7 +46,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
   viewportFit: "cover",
+  themeColor: "#0B0E14",
 };
 
 export default function RootLayout({

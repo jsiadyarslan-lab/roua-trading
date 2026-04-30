@@ -8,7 +8,6 @@
   "theme_color": "#0B0E14",
   "orientation": "portrait",
   "categories": ["finance", "business"],
-  "prefer_related_applications": true,
   "icons": [
     {
       "src": "/logo.svg",

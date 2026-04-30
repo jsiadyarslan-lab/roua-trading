@@ -97,6 +97,11 @@ export class BedrockService {
         };
       }
     } catch (error: any) {
+      // FIX: Throw 429 errors so the orchestrator's circuit breaker can track them.
+      if (error.message?.includes('429') || error.message?.includes('rate')) {
+        this.logger.warn(`AWS Bedrock rate limited (429) — throwing for circuit breaker`);
+        throw error;
+      }
       this.logger.warn(`AWS Bedrock inference failed: ${error.message}`);
     }
 

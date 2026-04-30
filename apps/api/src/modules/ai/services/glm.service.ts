@@ -65,7 +65,13 @@ export class GlmService {
         language: request.language || 'ar',
       };
     } catch (error: any) {
-      this.logger.warn(`GLM inference failed: ${error.message}`);
+      // FIX: Throw 429 errors so the orchestrator's circuit breaker can track them.
+      const status = error.response?.status;
+      if (status === 429) {
+        this.logger.warn(`GLM rate limited (429) — throwing for circuit breaker`);
+        throw error;
+      }
+      this.logger.warn(`GLM inference failed: ${error.message} (status: ${status})`);
       return this._stubResponse(request);
     }
   }

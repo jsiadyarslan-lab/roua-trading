@@ -86,6 +86,11 @@ export class OllamaService {
         };
       }
     } catch (error: any) {
+      // FIX: Throw 429 errors so the orchestrator's circuit breaker can track them.
+      if (error.response?.status === 429) {
+        this.logger.warn(`Ollama rate limited (429) — throwing for circuit breaker`);
+        throw error;
+      }
       this.logger.warn(`Ollama inference failed: ${error.message}`);
     }
 

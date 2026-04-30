@@ -67,7 +67,8 @@ export class AIOrchestratorService {
     risk_analysis: 15 * 60 * 1000,    // 15 minutes
     translation: 30 * 60 * 1000,      // 30 minutes
     general: 10 * 60 * 1000,          // 10 minutes
-    consensus: 30 * 60 * 1000,        // 30 minutes for consensus results (reduces API calls)
+    consensus: 10 * 60 * 1000,        // 10 minutes for FULL consensus results
+    consensus_partial: 2 * 60 * 1000, // FIX: 2 minutes for PARTIAL consensus (< 3 models)
   };
 
   /** Model key environment variable mapping */
@@ -436,12 +437,16 @@ export class AIOrchestratorService {
 
       const result = { consensusScore, recommendation, analyses, masterStrategy: masterStrategyContent };
 
-      // Cache the consensus result — 30-minute TTL (increased from 10 to reduce API load & prevent disconnects)
-      const consensusCacheTTL = 30 * 60 * 1000; // 30 minutes
+      // FIX: Cache with differentiated TTL — partial results (2 min) vs full results (10 min)
+      // This prevents stale partial results from blocking retries that could reach more models.
+      const isPartial = analyses.length < 3
+      const consensusCacheTTL = isPartial
+        ? this.CACHE_TTL.consensus_partial   // 2 minutes for partial (< 3 models)
+        : this.CACHE_TTL.consensus;           // 10 minutes for full (3+ models)
       try {
         await this.redis?.set(cacheKey, JSON.stringify(result), consensusCacheTTL);
       } catch {}
-      this._setCachedResult(memKey, result as any, 'consensus');
+      this._setCachedResult(memKey, result as any, isPartial ? 'consensus_partial' : 'consensus');
 
       return result;
     } catch (error: unknown) {

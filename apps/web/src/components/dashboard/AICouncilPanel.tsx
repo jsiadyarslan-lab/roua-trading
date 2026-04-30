@@ -269,7 +269,7 @@ export function AICouncilPanel() {
                   تحليل AI من {data.meta?.modelsResponded || '?'}/6 نماذج — بعض النماذج في وضع الاسترداد
                 </span>
               </div>
-            )
+            )}
 
             {/* Consensus Gauge */}
             <div className="relative p-3 rounded-xl text-center overflow-hidden" style={{ 

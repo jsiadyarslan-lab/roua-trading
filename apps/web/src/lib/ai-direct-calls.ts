@@ -681,6 +681,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     if (mc.modelName === 'GLM-4') return !!getKey('GLM_API_KEY')
     if (mc.modelName === 'HuggingFace') return !!getKey('HUGGINGFACE_API_KEY')
     if (mc.modelName === 'Ollama') return shouldTryOllama
+    if (mc.modelName === 'Bedrock') return !!(getKey('AWS_ACCESS_KEY_ID') && getKey('AWS_SECRET_ACCESS_KEY'))
     return false
   }).length
 
@@ -705,7 +706,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
         modelsExpected: 6, // 6 roles in the full council
         modelsWithKeys: expectedDirectModels,
         bedrockAvailable: bedrockStatus.available,
-        bedrockNote: bedrockStatus.available ? 'Available via NestJS only' : 'Not configured',
+        bedrockNote: bedrockStatus.available ? 'Direct call enabled (AWS SigV4)' : 'AWS credentials not configured',
         ollamaAttempted: shouldTryOllama,
         ollamaUrl: shouldTryOllama ? ollamaBaseUrl : 'skipped (localhost on cloud)',
       },

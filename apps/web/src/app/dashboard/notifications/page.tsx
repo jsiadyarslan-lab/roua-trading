@@ -303,7 +303,7 @@ function generateMockNotifications(): NotificationItem[] {
       id: 'n14',
       category: 'trade',
       title: 'تم رصد أمر بيع على حسابك المربوط',
-      description: 'تم بيع 5 أسهم TSLA بسعر $238.90. أمر السوق تم تنفيذه بنجاح.',
+      description: 'تم رصد بيع 5 أسهم TSLA بسعر $238.90 على حسابك المربوط.',
       timestamp: new Date(now.getTime() - 48 * 60 * 60 * 1000),
       read: true,
       actionLabel: 'عرض الصفقة',

@@ -175,7 +175,7 @@ const ENDPOINT_CATEGORIES: EndpointCategory[] = [
             email: "user@roua.io",
             phone: "+966500000000",
             tier: "PRO",
-            permissions: ["read", "trade"],
+            permissions: ["read"],
             createdAt: "2025-08-12T10:30:00Z",
             lastLogin: "2026-03-04T14:22:00Z"
           }
@@ -269,12 +269,12 @@ const ENDPOINT_CATEGORIES: EndpointCategory[] = [
         method: 'POST',
         path: '/accounts/link',
         description: 'ربط حساب بورصة جديد عبر مفاتيح API مع التحقق التلقائي من الاتصال',
-        permission: 'trade',
+        permission: 'read',
         requestBody: JSON.stringify({
           exchange: "binance",
           apiKey: "xxx",
           apiSecret: "xxx",
-          permissions: ["read", "trade"]
+          permissions: ["read"]
         }, null, 2),
         responseExample: JSON.stringify({
           success: true,
@@ -282,7 +282,7 @@ const ENDPOINT_CATEGORIES: EndpointCategory[] = [
             accountId: "acc_k1l2m3n4",
             exchange: "binance",
             status: "connected",
-            permissions: ["read", "trade"],
+            permissions: ["read"],
             connectedAt: "2026-03-04T14:30:00Z",
             lastSync: "2026-03-04T14:30:00Z"
           }
@@ -323,12 +323,9 @@ const ENDPOINT_CATEGORIES: EndpointCategory[] = [
         method: 'DELETE',
         path: '/accounts/:id',
         description: 'إلغاء ربط حساب بورصة مع الحفاظ على البيانات التاريخية',
-        permission: 'trade',
+        permission: 'read',
         requestBody: undefined,
         responseExample: JSON.stringify({
-          success: true,
-          data: {
-            accountId: "acc_k1l2m3n4",
             status: "unlinked",
             historicalDataPreserved: true,
             unlinkedAt: "2026-03-04T14:35:00Z"
@@ -540,7 +537,7 @@ interface ApiKey {
   name: string
   key: string
   lastUsed: string
-  permissions: ('read' | 'trade')[]
+  permissions: ('read')[]
   status: 'active' | 'revoked'
   createdAt: string
 }
@@ -551,7 +548,7 @@ const INITIAL_API_KEYS: ApiKey[] = [
     name: 'Production Key',
     key: 'roua_live_sk_a1b2c3d4e5f6g7h8i9j0',
     lastUsed: 'منذ 5 دقائق',
-    permissions: ['read', 'trade'],
+    permissions: ['read'],
     status: 'active',
     createdAt: '2025/11/15',
   },
@@ -657,17 +654,13 @@ function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOp
         {/* Permission Badge */}
         <span style={{
           padding: '2px 8px', borderRadius: 6,
-          background: endpoint.permission === 'none' ? `${T.text4}14` :
-                      endpoint.permission === 'trade' ? `${T.amber}14` : `${T.green}14`,
-          color: endpoint.permission === 'none' ? T.text4 :
-                 endpoint.permission === 'trade' ? T.amber : T.green,
+          background: endpoint.permission === 'none' ? `${T.text4}14` : `${T.green}14`,
+          color: endpoint.permission === 'none' ? T.text4 : T.green,
           fontSize: 9, fontWeight: 700, fontFamily: "'Cairo', sans-serif",
-          border: `1px solid ${endpoint.permission === 'none' ? `${T.text4}25` :
-                                     endpoint.permission === 'trade' ? `${T.amber}25` : `${T.green}25`}`,
+          border: `1px solid ${endpoint.permission === 'none' ? `${T.text4}25` : `${T.green}25`}`,
           flexShrink: 0,
         }}>
-          {endpoint.permission === 'none' ? 'عام' :
-           endpoint.permission === 'read' ? 'قراءة' : 'تداول'}
+          {endpoint.permission === 'none' ? 'عام' : 'قراءة'}
         </span>
 
         {/* Chevron */}
@@ -917,7 +910,7 @@ const account = await roua.accounts.linkAccount({
   exchange: 'binance',
   apiKey: 'your_api_key',
   apiSecret: 'your_api_secret',
-  permissions: ['read', 'trade'],
+  permissions: ['read'],
 });
 
 // Get positions from linked accounts
@@ -951,7 +944,7 @@ account = client.accounts.link_account(
     exchange="binance",
     api_key="your_api_key",
     api_secret="your_api_secret",
-    permissions=["read", "trade"],
+    permissions=["read"],
 )
 
 # Get positions from linked accounts
@@ -1248,8 +1241,7 @@ for signal in client.signals.stream():
             {/* Permission Legend */}
             <div style={{ padding: '12px 20px', borderBottom: `1px solid ${T.border}`, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               {[
-                { perm: 'read', label: 'قراءة', color: T.green, desc: 'عرض البيانات والأسعار' },
-                { perm: 'trade', label: 'تداول', color: T.amber, desc: 'إنشاء وإلغاء الأوامر' },
+                { perm: 'read', label: 'قراءة', color: T.green, desc: 'قراءة البيانات والمتابعة' },
                 { perm: 'withdraw', label: 'سحب', color: T.red, desc: 'معطل دائماً لحماية أموالك', disabled: true },
               ].map(p => (
                 <div key={p.perm} style={{
@@ -1318,11 +1310,11 @@ for signal in client.signals.stream():
                         {k.permissions.map(p => (
                           <span key={p} style={{
                             padding: '2px 7px', borderRadius: 5,
-                            background: p === 'read' ? `${T.green}14` : p === 'trade' ? `${T.amber}14` : `${T.red}14`,
-                            color: p === 'read' ? T.green : p === 'trade' ? T.amber : T.red,
+                            background: p === 'read' ? `${T.green}14` : `${T.text4}14`,
+                            color: p === 'read' ? T.green : T.text4,
                             fontSize: 9, fontWeight: 700, fontFamily: "'Cairo', sans-serif",
                           }}>
-                            {p === 'read' ? 'قراءة' : p === 'trade' ? 'تداول' : 'سحب'}
+                            {p === 'read' ? 'قراءة' : '—'}
                           </span>
                         ))}
                       </div>

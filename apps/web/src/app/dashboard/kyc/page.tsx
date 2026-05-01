@@ -55,7 +55,6 @@ interface PermissionInfo {
   readBalance: boolean
   readTrades: boolean
   allowTrading: boolean
-  allowWithdrawal: boolean
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -311,7 +310,6 @@ export default function AccountLinkingPage() {
     readBalance: true,
     readTrades: true,
     allowTrading: false,
-    allowWithdrawal: false,
   })
 
   // Validation
@@ -853,9 +851,10 @@ export default function AccountLinkingPage() {
                       </span>
                     </div>
                     <ul style={{ margin: 0, padding: '0 16px', fontSize: 10, color: T.text3, lineHeight: 2.2 }}>
-                      <li>لا تفعّل صلاحية <span style={{ color: T.red, fontWeight: 700 }}>السحب (Withdraw)</span> أبداً</li>
+                      <li>لا تفعّل صلاحية <span style={{ color: T.red, fontWeight: 700 }}>السحب (Withdraw)</span> أبداً — المنصة لا تحتاجها</li>
                       <li>قيّد المفتاح بعنوان IP الخاص بك إن أمكن</li>
-                      <li>استخدم صلاحية <span style={{ color: T.green, fontWeight: 700 }}>القراءة فقط (Read Only)</span> لل أمان الأقصى</li>
+                      <li>استخدم صلاحية <span style={{ color: T.green, fontWeight: 700 }}>القراءة فقط (Read Only)</span> للأمان الأقصى</li>
+                      <li>صلاحية التداول اختيارية فقط لتنفيذ إشارات AI عبر حسابك المربوط</li>
                       <li>لا تشارك مفاتيح API مع أي شخص</li>
                       <li>يمكنك حذف المفتاح من البورصة في أي وقت لقطع الاتصال</li>
                     </ul>
@@ -921,36 +920,26 @@ export default function AccountLinkingPage() {
                         icon={<BarChart3 size={16} color={permissions.readTrades ? T.cyan : T.text4} />}
                       />
                       <PermissionToggle
-                        label="السماح بالتداول"
-                        description="تنفيذ صفقات بيع وشراء عبر المنصة"
+                        label="السماح بالتداول (اختياري)"
+                        description="تنفيذ إشارات AI تلقائياً عبر حسابك المربوط فقط"
                         enabled={permissions.allowTrading}
                         onChange={v => setPermissions(prev => ({ ...prev, allowTrading: v }))}
                         color={T.amber}
                         icon={<TrendingUp size={16} color={permissions.allowTrading ? T.amber : T.text4} />}
                       />
-                      <PermissionToggle
-                        label="السماح بالسحب"
-                        description="سحب الأموال من حساب البورصة"
-                        enabled={permissions.allowWithdrawal}
-                        onChange={v => setPermissions(prev => ({ ...prev, allowWithdrawal: v }))}
-                        color={T.red}
-                        icon={<ArrowRight size={16} color={permissions.allowWithdrawal ? T.red : T.text4} />}
-                      />
                     </div>
 
-                    {/* Withdrawal warning */}
-                    {permissions.allowWithdrawal && (
-                      <div style={{
-                        marginTop: 8, display: 'flex', alignItems: 'center', gap: 8,
-                        padding: '10px 14px', borderRadius: 10,
-                        background: `${T.red}08`, border: `1px solid ${T.red}20`,
-                      }}>
-                        <ShieldAlert size={16} color={T.red} />
-                        <span style={{ fontSize: 11, color: T.red, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>
-                          تحذير: تفعيل صلاحية السحب يشكل خطراً أمنياً. نوصي بعدم تفعيلها.
-                        </span>
-                      </div>
-                    )}
+                    {/* No withdrawal notice */}
+                    <div style={{
+                      marginTop: 8, display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '10px 14px', borderRadius: 10,
+                      background: `${T.green}06`, border: `1px solid ${T.green}15`,
+                    }}>
+                      <ShieldCheck size={16} color={T.green} />
+                      <span style={{ fontSize: 11, color: T.green, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>
+                        المنصة لا تطلب صلاحية السحب أبداً — أموالك تبقى آمنة في حسابك على البورصة
+                      </span>
+                    </div>
                   </div>
 
                   {/* Connection test area */}
@@ -1278,8 +1267,7 @@ export default function AccountLinkingPage() {
                       {[
                         { label: 'قراءة الرصيد', enabled: permissions.readBalance, color: T.green },
                         { label: 'قراءة الصفقات', enabled: permissions.readTrades, color: T.cyan },
-                        { label: 'السماح بالتداول', enabled: permissions.allowTrading, color: T.amber },
-                        { label: 'السماح بالسحب', enabled: permissions.allowWithdrawal, color: T.red },
+                        { label: 'السماح بالتداول (اختياري)', enabled: permissions.allowTrading, color: T.amber },
                       ].map((perm, idx) => (
                         <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: 11, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{perm.label}</span>

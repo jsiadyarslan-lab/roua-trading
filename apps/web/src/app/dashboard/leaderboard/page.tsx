@@ -21,7 +21,7 @@ const T = {
 
 /* ──────────────── Types ──────────────── */
 type TimePeriod = 'أسبوعي' | 'شهري' | 'سنوي' | 'كلي'
-type CategoryFilter = 'العائد' | 'نسبة الفوز' | 'الاتساق' | 'إدارة المخاطر'
+type CategoryFilter = 'العائد' | 'نسبة الفوز' | 'الاتساق' | 'متابعة الحسابات'
 
 interface Trader {
   id: string
@@ -35,32 +35,31 @@ interface Trader {
   followers: number
   copyAvailable: boolean
   consistency: number
-  riskScore: number
   isCurrentUser?: boolean
 }
 
 /* ──────────────── Mock Data ──────────────── */
 const MOCK_TRADERS: Trader[] = [
-  { id: '1', name: 'خالد الراشدي', type: 'مضارب', avatar: 'خ', returnPct: 187.4, winRate: 89.2, maxDrawdown: -8.4, aum: '$4.2M', followers: 3240, copyAvailable: true, consistency: 94, riskScore: 72 },
-  { id: '2', name: 'سارة المنصوري', type: 'مدير محفظة', avatar: 'س', returnPct: 142.8, winRate: 82.6, maxDrawdown: -6.1, aum: '$12.5M', followers: 2890, copyAvailable: true, consistency: 91, riskScore: 65 },
-  { id: '3', name: 'عبدالله القحطاني', type: 'تحليل فني', avatar: 'ع', returnPct: 124.5, winRate: 78.4, maxDrawdown: -12.3, aum: '$2.8M', followers: 2150, copyAvailable: true, consistency: 87, riskScore: 78 },
-  { id: '4', name: 'نورة العتيبي', type: 'استثمار طويل', avatar: 'ن', returnPct: 98.2, winRate: 91.5, maxDrawdown: -4.2, aum: '$18.7M', followers: 1960, copyAvailable: false, consistency: 96, riskScore: 42 },
-  { id: '5', name: 'فهد الدوسري', type: 'خوارزمي', avatar: 'ف', returnPct: 87.6, winRate: 76.8, maxDrawdown: -9.7, aum: '$6.1M', followers: 1540, copyAvailable: true, consistency: 83, riskScore: 68 },
-  { id: '6', name: 'ريم السبيعي', type: 'تداول يومي', avatar: 'ر', returnPct: 76.3, winRate: 73.2, maxDrawdown: -14.8, aum: '$1.4M', followers: 1280, copyAvailable: true, consistency: 79, riskScore: 81 },
-  { id: '7', name: 'محمد الشمري', type: 'مضارب', avatar: 'م', returnPct: 68.9, winRate: 85.1, maxDrawdown: -7.5, aum: '$3.6M', followers: 1120, copyAvailable: true, consistency: 88, riskScore: 58 },
-  { id: '8', name: 'لمى الحربي', type: 'مدير محفظة', avatar: 'ل', returnPct: 62.4, winRate: 80.3, maxDrawdown: -5.8, aum: '$9.3M', followers: 980, copyAvailable: false, consistency: 92, riskScore: 45 },
-  { id: '9', name: 'تركي العنزي', type: 'تحليل فني', avatar: 'ت', returnPct: 55.7, winRate: 71.6, maxDrawdown: -11.2, aum: '$2.1M', followers: 870, copyAvailable: true, consistency: 76, riskScore: 74 },
-  { id: '10', name: 'هند الزهراني', type: 'استثمار طويل', avatar: 'ه', returnPct: 48.3, winRate: 88.9, maxDrawdown: -3.9, aum: '$22.4M', followers: 760, copyAvailable: true, consistency: 95, riskScore: 38 },
-  { id: '11', name: 'سلطان الغامدي', type: 'خوارزمي', avatar: 'س', returnPct: 42.1, winRate: 69.4, maxDrawdown: -16.5, aum: '$880K', followers: 640, copyAvailable: true, consistency: 72, riskScore: 85 },
-  { id: '12', name: 'دانة المالكي', type: 'تداول يومي', avatar: 'د', returnPct: 38.6, winRate: 74.8, maxDrawdown: -10.1, aum: '$1.7M', followers: 520, copyAvailable: false, consistency: 81, riskScore: 62 },
-  { id: '13', name: 'يزيد القرني', type: 'مضارب', avatar: 'ي', returnPct: 34.2, winRate: 67.3, maxDrawdown: -18.7, aum: '$560K', followers: 430, copyAvailable: true, consistency: 68, riskScore: 88 },
-  { id: '14', name: 'أمل الرشيدي', type: 'مدير محفظة', avatar: 'أ', returnPct: 29.8, winRate: 86.2, maxDrawdown: -5.1, aum: '$7.8M', followers: 380, copyAvailable: true, consistency: 90, riskScore: 48 },
-  { id: '15', name: 'بندر السلمي', type: 'تحليل فني', avatar: 'ب', returnPct: 24.5, winRate: 63.7, maxDrawdown: -13.6, aum: '$420K', followers: 310, copyAvailable: true, consistency: 74, riskScore: 76 },
-  { id: '16', name: 'وجدان العمري', type: 'استثمار طويل', avatar: 'و', returnPct: 21.3, winRate: 90.1, maxDrawdown: -2.8, aum: '$15.2M', followers: 270, copyAvailable: false, consistency: 97, riskScore: 32 },
-  { id: '17', name: 'عبدالرحمن الحازمي', type: 'خوارزمي', avatar: 'ع', returnPct: 18.7, winRate: 72.5, maxDrawdown: -8.9, aum: '$940K', followers: 220, copyAvailable: true, consistency: 77, riskScore: 71 },
-  { id: '18', name: 'مها البلوي', type: 'تداول يومي', avatar: 'م', returnPct: 15.4, winRate: 65.8, maxDrawdown: -19.2, aum: '$340K', followers: 180, copyAvailable: true, consistency: 65, riskScore: 90 },
-  { id: '19', name: 'سلطانة الشهري', type: 'مضارب', avatar: 'س', returnPct: 12.8, winRate: 78.9, maxDrawdown: -7.2, aum: '$680K', followers: 150, copyAvailable: true, consistency: 82, riskScore: 55 },
-  { id: '20', name: 'أحمد النفيعي', type: 'تحليل فني', avatar: 'أ', returnPct: 9.6, winRate: 60.4, maxDrawdown: -21.5, aum: '$210K', followers: 90, copyAvailable: true, consistency: 61, riskScore: 92, isCurrentUser: true },
+  { id: '1', name: 'خالد الراشدي', type: 'مضارب', avatar: 'خ', returnPct: 187.4, winRate: 89.2, maxDrawdown: -8.4, aum: '$4.2M', followers: 3240, copyAvailable: true, consistency: 94 },
+  { id: '2', name: 'سارة المنصوري', type: 'مدير محفظة', avatar: 'س', returnPct: 142.8, winRate: 82.6, maxDrawdown: -6.1, aum: '$12.5M', followers: 2890, copyAvailable: true, consistency: 91 },
+  { id: '3', name: 'عبدالله القحطاني', type: 'تحليل فني', avatar: 'ع', returnPct: 124.5, winRate: 78.4, maxDrawdown: -12.3, aum: '$2.8M', followers: 2150, copyAvailable: true, consistency: 87 },
+  { id: '4', name: 'نورة العتيبي', type: 'استثمار طويل', avatar: 'ن', returnPct: 98.2, winRate: 91.5, maxDrawdown: -4.2, aum: '$18.7M', followers: 1960, copyAvailable: false, consistency: 96 },
+  { id: '5', name: 'فهد الدوسري', type: 'خوارزمي', avatar: 'ف', returnPct: 87.6, winRate: 76.8, maxDrawdown: -9.7, aum: '$6.1M', followers: 1540, copyAvailable: true, consistency: 83 },
+  { id: '6', name: 'ريم السبيعي', type: 'تداول يومي', avatar: 'ر', returnPct: 76.3, winRate: 73.2, maxDrawdown: -14.8, aum: '$1.4M', followers: 1280, copyAvailable: true, consistency: 79 },
+  { id: '7', name: 'محمد الشمري', type: 'مضارب', avatar: 'م', returnPct: 68.9, winRate: 85.1, maxDrawdown: -7.5, aum: '$3.6M', followers: 1120, copyAvailable: true, consistency: 88 },
+  { id: '8', name: 'لمى الحربي', type: 'مدير محفظة', avatar: 'ل', returnPct: 62.4, winRate: 80.3, maxDrawdown: -5.8, aum: '$9.3M', followers: 980, copyAvailable: false, consistency: 92 },
+  { id: '9', name: 'تركي العنزي', type: 'تحليل فني', avatar: 'ت', returnPct: 55.7, winRate: 71.6, maxDrawdown: -11.2, aum: '$2.1M', followers: 870, copyAvailable: true, consistency: 76 },
+  { id: '10', name: 'هند الزهراني', type: 'استثمار طويل', avatar: 'ه', returnPct: 48.3, winRate: 88.9, maxDrawdown: -3.9, aum: '$22.4M', followers: 760, copyAvailable: true, consistency: 95 },
+  { id: '11', name: 'سلطان الغامدي', type: 'خوارزمي', avatar: 'س', returnPct: 42.1, winRate: 69.4, maxDrawdown: -16.5, aum: '$880K', followers: 640, copyAvailable: true, consistency: 72 },
+  { id: '12', name: 'دانة المالكي', type: 'تداول يومي', avatar: 'د', returnPct: 38.6, winRate: 74.8, maxDrawdown: -10.1, aum: '$1.7M', followers: 520, copyAvailable: false, consistency: 81 },
+  { id: '13', name: 'يزيد القرني', type: 'مضارب', avatar: 'ي', returnPct: 34.2, winRate: 67.3, maxDrawdown: -18.7, aum: '$560K', followers: 430, copyAvailable: true, consistency: 68 },
+  { id: '14', name: 'أمل الرشيدي', type: 'مدير محفظة', avatar: 'أ', returnPct: 29.8, winRate: 86.2, maxDrawdown: -5.1, aum: '$7.8M', followers: 380, copyAvailable: true, consistency: 90 },
+  { id: '15', name: 'بندر السلمي', type: 'تحليل فني', avatar: 'ب', returnPct: 24.5, winRate: 63.7, maxDrawdown: -13.6, aum: '$420K', followers: 310, copyAvailable: true, consistency: 74 },
+  { id: '16', name: 'وجدان العمري', type: 'استثمار طويل', avatar: 'و', returnPct: 21.3, winRate: 90.1, maxDrawdown: -2.8, aum: '$15.2M', followers: 270, copyAvailable: false, consistency: 97 },
+  { id: '17', name: 'عبدالرحمن الحازمي', type: 'خوارزمي', avatar: 'ع', returnPct: 18.7, winRate: 72.5, maxDrawdown: -8.9, aum: '$940K', followers: 220, copyAvailable: true, consistency: 77 },
+  { id: '18', name: 'مها البلوي', type: 'تداول يومي', avatar: 'م', returnPct: 15.4, winRate: 65.8, maxDrawdown: -19.2, aum: '$340K', followers: 180, copyAvailable: true, consistency: 65 },
+  { id: '19', name: 'سلطانة الشهري', type: 'مضارب', avatar: 'س', returnPct: 12.8, winRate: 78.9, maxDrawdown: -7.2, aum: '$680K', followers: 150, copyAvailable: true, consistency: 82 },
+  { id: '20', name: 'أحمد النفيعي', type: 'تحليل فني', avatar: 'أ', returnPct: 9.6, winRate: 60.4, maxDrawdown: -21.5, aum: '$210K', followers: 90, copyAvailable: true, consistency: 61, isCurrentUser: true },
 ]
 
 /* ──────────────── Achievement Badges ──────────────── */
@@ -261,7 +260,7 @@ export default function LeaderboardPage() {
     { key: 'العائد', icon: TrendingUp },
     { key: 'نسبة الفوز', icon: Target },
     { key: 'الاتساق', icon: BarChart3 },
-    { key: 'إدارة المخاطر', icon: Shield },
+    { key: 'متابعة الحسابات', icon: Shield },
   ]
 
   /* Sort traders based on selected category */
@@ -271,7 +270,7 @@ export default function LeaderboardPage() {
         case 'العائد': return b.returnPct - a.returnPct
         case 'نسبة الفوز': return b.winRate - a.winRate
         case 'الاتساق': return b.consistency - a.consistency
-        case 'إدارة المخاطر': return a.riskScore - b.riskScore
+        case 'متابعة الحسابات': return a.consistency - b.consistency
         default: return b.returnPct - a.returnPct
       }
     })
@@ -288,10 +287,10 @@ export default function LeaderboardPage() {
       const next = new Set(prev)
       if (next.has(traderId)) {
         next.delete(traderId)
-        toast({ title: `تم إيقاف متابعة ${traderName}`, description: 'لن يتم متابعة صفقات هذا المتداول بعد الآن' })
+        toast({ title: `تم إيقاف متابعة ${traderName}`, description: 'لن يتم متابعة أداء هذا الحساب بعد الآن' })
       } else {
         next.add(traderId)
-        toast({ title: `تم بدء متابعة ${traderName} ✅`, description: 'سيتم متابعة الصفقات تلقائياً' })
+        toast({ title: `تم بدء متابعة ${traderName} ✅`, description: 'سيتم متابعة أداء هذا الحساب وعرض إحصائياته' })
       }
       return next
     })
@@ -327,7 +326,7 @@ export default function LeaderboardPage() {
             }}>LIVE</span>
           </div>
           <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
-            تابع أفضل حسابات المتداولين المربوطة على منصة رؤى حسب الأداء والاتساق وإدارة المخاطر
+            تابع أفضل الحسابات المربوطة على منصة رؤى حسب الأداء والاتساق وجودة المتابعة
           </p>
         </div>
       </div>
@@ -336,7 +335,6 @@ export default function LeaderboardPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
           { icon: Users, label: 'إجمالي الحسابات المربوطة النشطة', val: formatNumber(totalActiveTraders), color: T.cyan },
-          { icon: TrendingUp, label: 'إجمالي العوائد', val: totalReturns, color: T.green },
           { icon: Target, label: 'متوسط معدل الفوز', val: avgWinRate, color: T.amber },
         ].map((s, i) => (
           <div key={i} style={{
@@ -440,7 +438,6 @@ export default function LeaderboardPage() {
                     { label: 'الأصول المدارة', width: 110 },
                     { label: 'المتابعون', width: 90 },
                     { label: 'متاح للمتابعة', width: 110 },
-                  ].map((col, i) => (
                     <th key={i} style={{
                       padding: '12px 14px', fontSize: 11, fontWeight: 800,
                       color: T.text3, textAlign: i === 0 ? 'center' : 'right',

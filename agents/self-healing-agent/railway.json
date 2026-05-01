@@ -5,7 +5,7 @@
     "dockerfilePath": "agents/self-healing-agent/Dockerfile"
   },
   "deploy": {
-    "startCommand": "cd agents/self-healing-agent && python -u main.py",
+    "startCommand": "python -u main.py",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 5,
     "healthcheckPath": "/health",

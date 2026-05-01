@@ -578,7 +578,7 @@ export default function RouaChart({
     warning: '#fbbf24',
   };
 
-  const toolbarHeight = mobile ? 32 : 38;
+  const toolbarHeight = mobile ? 28 : 38;
 
   return (
     <div

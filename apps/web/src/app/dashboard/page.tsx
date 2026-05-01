@@ -252,17 +252,21 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
             border: 'none',
             background: orderSide === 'buy'
               ? 'linear-gradient(135deg, #00FFA3, #10B981)'
-              : 'transparent',
-            color: orderSide === 'buy' ? '#fff' : '#8B92A8',
+              : 'rgba(0,255,163,0.06)',
+            color: orderSide === 'buy' ? '#fff' : '#6B7280',
             fontSize: 14,
             fontWeight: 800,
             fontFamily: "'Cairo', sans-serif",
             cursor: 'pointer',
             transition: 'all 0.2s ease',
             boxShadow: orderSide === 'buy' ? '0 0 20px rgba(0,255,163,0.25)' : 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
           }}
         >
-          شراء
+          شراء <span style={{ fontSize: 10 }}>▲</span>
         </button>
         <button
           onClick={() => setOrderSide('sell')}
@@ -272,17 +276,21 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
             border: 'none',
             background: orderSide === 'sell'
               ? 'linear-gradient(135deg, #FF4757, #EF4444)'
-              : 'transparent',
-            color: orderSide === 'sell' ? '#fff' : '#8B92A8',
+              : 'rgba(255,71,87,0.06)',
+            color: orderSide === 'sell' ? '#fff' : '#6B7280',
             fontSize: 14,
             fontWeight: 800,
             fontFamily: "'Cairo', sans-serif",
             cursor: 'pointer',
             transition: 'all 0.2s ease',
             boxShadow: orderSide === 'sell' ? '0 0 20px rgba(255,71,87,0.25)' : 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
           }}
         >
-          بيع
+          بيع <span style={{ fontSize: 10 }}>▼</span>
         </button>
       </div>
 
@@ -879,7 +887,7 @@ export default function DashboardPage() {
             box-sizing: border-box;
             width: 100%;
             overflow: hidden;
-            height: calc(100dvh - 48px);
+            height: calc(100dvh - 52px);
           }
 
           .mobile-hero-trading-area {
@@ -901,8 +909,8 @@ export default function DashboardPage() {
 
           .mobile-market-pill {
             min-width: 0;
-            padding: 6px 6px;
-            border-radius: 12px;
+            padding: 4px 4px;
+            border-radius: 10px;
             border: 1px solid rgba(0, 212, 255, 0.12);
             background: rgba(26, 29, 41, 0.6);
             backdrop-filter: blur(8px);
@@ -929,8 +937,8 @@ export default function DashboardPage() {
           }
 
           .mobile-hero-card__header {
-            min-height: 40px;
-            padding: 0 12px;
+            min-height: 32px;
+            padding: 0 8px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -953,7 +961,7 @@ export default function DashboardPage() {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 6px;
-            padding: 8px 10px;
+            padding: 6px 8px;
             border-radius: 12px;
             background: rgba(26, 29, 41, 0.6);
             backdrop-filter: blur(8px);
@@ -1282,11 +1290,11 @@ export default function DashboardPage() {
                     className={`mobile-market-pill${active ? ' mobile-market-pill--active' : ''}`}
                     style={{ cursor: 'pointer' }}
                   >
-                    <div style={{ fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{symbol}</div>
-                    <div style={{ fontSize: 12, color: T.text, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>
+                    <div style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{symbol}</div>
+                    <div style={{ fontSize: 10, color: T.text, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
                       {formatQuotePrice(quote?.price)}
                     </div>
-                    <div style={{ fontSize: 8, color: getStatusTone(getDataStatus(quote)), marginTop: 2, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <div style={{ fontSize: 7, color: getStatusTone(getDataStatus(quote)), marginTop: 1, fontFamily: "'JetBrains Mono', monospace" }}>
                       {getStatusLabel(getDataStatus(quote))}
                     </div>
                   </button>
@@ -1297,12 +1305,9 @@ export default function DashboardPage() {
             {/* Chart Card — full remaining height */}
             <div className="mobile-hero-card">
               <div className="mobile-hero-card__header">
-                {/* Symbol name + price */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 800, color: T.text }}>{selectedSymbol}</div>
-                  {currentPrice != null && (
-                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, color: T.cyan }}>{formatQuotePrice(currentPrice)}</div>
-                  )}
+                {/* Symbol name only - price shown by CrosshairOverlay */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 800, color: T.cyan }}>{selectedSymbol}</div>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1354,8 +1359,8 @@ export default function DashboardPage() {
               <div className="mobile-summary-strip" style={{ flexShrink: 0 }}>
                 {mobileSummaryCards.map(card => (
                   <div key={card.label} className="mobile-summary-card">
-                    <div style={{ fontSize: 8, color: T.text3, marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.label}</div>
-                    <div style={{ fontSize: 10, color: card.tone, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.value}</div>
+                    <div style={{ fontSize: 9, color: T.text3, marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.label}</div>
+                    <div style={{ fontSize: 11, color: card.tone, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.value}</div>
                   </div>
                 ))}
               </div>

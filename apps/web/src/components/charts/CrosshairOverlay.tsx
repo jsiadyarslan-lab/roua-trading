@@ -94,6 +94,16 @@ export function CrosshairOverlay({
         background: 'linear-gradient(180deg, rgba(11,14,20,0.85) 0%, rgba(11,14,20,0.3) 80%, transparent 100%)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          {/* Symbol */}
+          <span style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 9,
+            fontWeight: 700,
+            color: COLORS.cyan,
+            letterSpacing: 0.3,
+          }}>
+            {symbol}
+          </span>
           {/* Price */}
           <span style={{
             fontFamily: "'JetBrains Mono', monospace",

@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMarketStore } from '@/hooks/useMarketStore'
@@ -13,7 +13,7 @@ import { ensureAuth } from '@/lib/api-fetch'
 import { 
   ChevronRight, TrendingUp, TrendingDown, Zap, X, 
   Target, ShieldAlert, Loader2, CheckCircle, AlertCircle,
-  Minus, Plus, Clock
+  Minus, Plus, Clock, Wallet, ArrowUpDown
 } from 'lucide-react'
 import SlideToConfirm from '@/components/mobile/SlideToConfirm'
 
@@ -50,6 +50,8 @@ export default function MobileChartPage() {
   const addNotification = useNotificationStore(s => s.addNotification)
   const fetchAccount = usePositionsStore(s => s.fetchAccount)
   const fetchPositions = usePositionsStore(s => s.fetchPositions)
+  const account = usePositionsStore(s => s.account)
+  const positions = usePositionsStore(s => s.positions)
 
   // Order form state
   const [showOrderSheet, setShowOrderSheet] = useState(false)
@@ -67,6 +69,9 @@ export default function MobileChartPage() {
   const [execMessage, setExecMessage] = useState('')
   const [execSource, setExecSource] = useState<string>('')
 
+  // One-click mode
+  const [oneClickMode, setOneClickMode] = useState(false)
+
   // Live price
   const quoteKey = (quotes && selectedSymbol) ? Object.keys(quotes).find(k =>
     k.toUpperCase().replace('/', '') === selectedSymbol.toUpperCase().replace('/', '')
@@ -75,12 +80,30 @@ export default function MobileChartPage() {
   const livePrice = quote ? Number(quote.price) : null
   const changePercent = quote?.changePercent ?? 0
 
+  // Account balance
+  const buyingPower = account?.buying_power ? Number(account.buying_power) : 0
+  const equity = account?.equity ? Number(account.equity) : 0
+
+  // Total P&L from positions
+  const totalPnl = positions.reduce((sum, p) => {
+    const pnl = Number(p.unrealizedPnl || p.unrealized_pl || 0)
+    return sum + pnl
+  }, 0)
+
   // Adjust quantity
   const adjustQty = (delta: number) => {
     const current = parseFloat(quantity) || 0
     const step = (livePrice && livePrice > 1000) ? 0.01 : (livePrice && livePrice > 10) ? 0.1 : 1
     const newVal = Math.max(0, current + delta * step)
     setQuantity(newVal.toFixed(newVal < 1 ? 4 : newVal < 100 ? 2 : 0))
+  }
+
+  // Quick quantity presets (% of buying power)
+  const setQtyPercent = (pct: number) => {
+    if (!livePrice || livePrice <= 0 || buyingPower <= 0) return
+    const qty = (buyingPower * pct / 100) / livePrice
+    const step = livePrice > 1000 ? 0.01 : livePrice > 10 ? 0.1 : 1
+    setQuantity(Math.max(step, Math.floor(qty / step) * step).toFixed(livePrice > 1000 ? 2 : livePrice > 10 ? 1 : 0))
   }
 
   // Validate order
@@ -220,7 +243,7 @@ export default function MobileChartPage() {
       })
 
       setExecStatus('filled')
-      const sourceLabel = source === 'nestjs' ? 'آمن 🛡️' : 'مباشر ⚡'
+      const sourceLabel = source === 'nestjs' ? 'آمن' : 'مباشر'
       setExecSource(sourceLabel)
       setExecMessage(`تم ${orderSide === 'buy' ? 'شراء' : 'بيع'} ${quantity} ${selectedSymbol} بسعر $${filledPrice.toFixed(2)}`)
 
@@ -243,7 +266,6 @@ export default function MobileChartPage() {
       setTimeout(() => {
         setShowOrderSheet(false)
         setExecStatus('idle')
-        // Reset form
         setTpEnabled(false)
         setSlEnabled(false)
         setTpValue('')
@@ -253,8 +275,43 @@ export default function MobileChartPage() {
     }
   }, [selectedSymbol, orderSide, orderType, quantity, limitPrice, tpEnabled, slEnabled, tpValue, slValue, livePrice, addPaperTrade, addNotification, fetchAccount, fetchPositions])
 
+  // One-click execution handler
+  const handleQuickBuy = useCallback(() => {
+    if (oneClickMode) {
+      setOrderSide('buy')
+      // Use setTimeout to ensure state is set before execution
+      setTimeout(() => executeOrder(), 0)
+    } else {
+      setOrderSide('buy')
+      setShowOrderSheet(true)
+    }
+  }, [oneClickMode, executeOrder])
+
+  const handleQuickSell = useCallback(() => {
+    if (oneClickMode) {
+      setOrderSide('sell')
+      setTimeout(() => executeOrder(), 0)
+    } else {
+      setOrderSide('sell')
+      setShowOrderSheet(true)
+    }
+  }, [oneClickMode, executeOrder])
+
   // Estimated order value
   const orderValue = (livePrice || 0) * (parseFloat(quantity) || 0)
+
+  // Fetch account data on mount
+  useEffect(() => {
+    fetchAccount()
+    fetchPositions()
+  }, [fetchAccount, fetchPositions])
+
+  // Format price consistently
+  const fmtPrice = (p: number | null) => {
+    if (!p) return '—'
+    if (p > 100) return p.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    return p.toFixed(4)
+  }
 
   return (
     <div style={{ position: 'absolute', inset: 0, paddingBottom: 80, background: '#000000', display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 40 }}>
@@ -283,7 +340,7 @@ export default function MobileChartPage() {
           <div style={{ flexShrink: 0, minWidth: 100 }}>
             <div className="flex items-center gap-1.5">
               <span style={{ fontSize: 16, fontWeight: 900, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>
-                {livePrice ? (livePrice > 100 ? livePrice.toLocaleString('en', { maximumFractionDigits: 2 }) : livePrice.toFixed(4)) : '—'}
+                {fmtPrice(livePrice)}
               </span>
               {changePercent !== 0 && (
                 <span style={{
@@ -320,6 +377,60 @@ export default function MobileChartPage() {
             </div>
           </div>
         </div>
+
+        {/* ── Spread + Account + P&L Bar ── */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, gap: 8 }}>
+          {/* Spread */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <ArrowUpDown size={10} color={C.text2} />
+            <span style={{ fontSize: 9, color: C.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>سبريد</span>
+            <span style={{ fontSize: 9, color: C.accent, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+              {livePrice ? (livePrice > 1000 ? '0.01%' : '0.05%') : '—'}
+            </span>
+          </div>
+
+          {/* P&L */}
+          {positions.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 9, color: C.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>P&L</span>
+              <span style={{ 
+                fontSize: 10, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
+                color: totalPnl >= 0 ? C.success : C.danger,
+              }}>
+                {totalPnl >= 0 ? '+' : ''}{totalPnl.toFixed(2)}
+              </span>
+              <div style={{
+                width: 40, height: 3, borderRadius: 2,
+                background: 'rgba(255,255,255,0.08)',
+                overflow: 'hidden',
+              }}>
+                <div style={{
+                  width: `${Math.min(100, Math.abs(totalPnl) / (equity || 1) * 10000)}%`,
+                  height: '100%',
+                  borderRadius: 2,
+                  background: totalPnl >= 0 ? C.success : C.danger,
+                }} />
+              </div>
+            </div>
+          )}
+
+          {/* One-Click Mode Toggle */}
+          <button 
+            onClick={() => setOneClickMode(!oneClickMode)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 3,
+              padding: '2px 8px', borderRadius: 6,
+              background: oneClickMode ? 'rgba(255,184,0,0.15)' : 'rgba(255,255,255,0.04)',
+              border: `0.5px solid ${oneClickMode ? 'rgba(255,184,0,0.3)' : 'rgba(255,255,255,0.08)'}`,
+              cursor: 'pointer',
+            }}
+          >
+            <Zap size={10} color={oneClickMode ? C.amber : C.text2} />
+            <span style={{ fontSize: 8, color: oneClickMode ? C.amber : C.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>
+              نقرة واحدة
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* ── Chart Area ── */}
@@ -339,42 +450,67 @@ export default function MobileChartPage() {
           mobile={true}
           compact={true}
         />
+      </div>
 
-        {/* ── Buy/Sell Quick Buttons ── */}
-        <div style={{ position: 'absolute', bottom: 14, right: 14, zIndex: 60, display: 'flex', gap: 8 }}>
-          <motion.button
-            whileTap={{ scale: 0.92 }}
-            onClick={() => { setOrderSide('buy'); setShowOrderSheet(true) }}
-            style={{
-              height: 40, padding: '0 16px', borderRadius: 12,
-              background: 'rgba(50,215,75,0.2)',
-              border: '1px solid rgba(50,215,75,0.35)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-              color: C.success, fontSize: 12, fontWeight: 900,
-              fontFamily: "'Cairo', sans-serif",
-              backdropFilter: 'blur(10px)',
-            }}
-          >
-            <TrendingUp size={14} />
-            شراء
-          </motion.button>
-          <motion.button
-            whileTap={{ scale: 0.92 }}
-            onClick={() => { setOrderSide('sell'); setShowOrderSheet(true) }}
-            style={{
-              height: 40, padding: '0 16px', borderRadius: 12,
-              background: 'rgba(255,69,58,0.2)',
-              border: '1px solid rgba(255,69,58,0.35)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-              color: C.danger, fontSize: 12, fontWeight: 900,
-              fontFamily: "'Cairo', sans-serif",
-              backdropFilter: 'blur(10px)',
-            }}
-          >
-            <TrendingDown size={14} />
-            بيع
-          </motion.button>
-        </div>
+      {/* ── Fixed Buy/Sell Bar at Bottom ── */}
+      <div style={{
+        position: 'absolute',
+        bottom: 80,
+        left: 8,
+        right: 8,
+        zIndex: 60,
+        display: 'flex',
+        gap: 8,
+      }}>
+        {/* Buy Button */}
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={handleQuickBuy}
+          style={{
+            flex: 1, height: 48, borderRadius: 14,
+            background: 'rgba(50,215,75,0.15)',
+            border: '1px solid rgba(50,215,75,0.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            color: C.success, fontSize: 15, fontWeight: 900,
+            fontFamily: "'Cairo', sans-serif",
+            backdropFilter: 'blur(20px)',
+            cursor: 'pointer',
+            boxShadow: '0 4px 20px rgba(50,215,75,0.15)',
+          }}
+        >
+          <TrendingUp size={18} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.1 }}>
+            <span>شراء</span>
+            <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(50,215,75,0.6)', fontFamily: "'JetBrains Mono', monospace" }}>
+              {fmtPrice(livePrice)}
+            </span>
+          </div>
+        </motion.button>
+
+        {/* Sell Button */}
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={handleQuickSell}
+          style={{
+            flex: 1, height: 48, borderRadius: 14,
+            background: 'rgba(255,69,58,0.15)',
+            border: '1px solid rgba(255,69,58,0.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            color: C.danger, fontSize: 15, fontWeight: 900,
+            fontFamily: "'Cairo', sans-serif",
+            backdropFilter: 'blur(20px)',
+            cursor: 'pointer',
+            boxShadow: '0 4px 20px rgba(255,69,58,0.15)',
+          }}
+        >
+          <TrendingDown size={18} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.1 }}>
+            <span>بيع</span>
+            <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,69,58,0.6)', fontFamily: "'JetBrains Mono', monospace" }}>
+              {fmtPrice(livePrice)}
+            </span>
+          </div>
+        </motion.button>
       </div>
 
       {/* ── Order Execution Sheet ── */}
@@ -406,27 +542,43 @@ export default function MobileChartPage() {
                 <div style={{ width: 36, height: 5, borderRadius: 2.5, background: 'rgba(255,255,255,0.2)' }} />
               </div>
 
-              {/* Header */}
-              <div className="flex items-center justify-between mb-5">
+              {/* Header with Balance */}
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex flex-col">
                   <h2 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>تنفيذ صفقة</h2>
                   <div className="flex items-center gap-2 mt-1">
                     <span style={{ fontSize: 12, color: C.text2, fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol}</span>
                     <span style={{ fontSize: 13, fontWeight: 900, color: livePrice ? (changePercent >= 0 ? C.success : C.danger) : C.text2, fontFamily: "'JetBrains Mono', monospace" }}>
-                      {livePrice ? (livePrice > 100 ? livePrice.toLocaleString('en', { maximumFractionDigits: 2 }) : livePrice.toFixed(4)) : '—'}
+                      {fmtPrice(livePrice)}
                     </span>
                   </div>
                 </div>
-                <button 
-                  onClick={() => { if (execStatus !== 'submitting') setShowOrderSheet(false) }} 
-                  style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none' }}
-                >
-                  <X size={18} color="#FFFFFF" />
-                </button>
+                <div className="flex items-center gap-3">
+                  {/* Balance Badge */}
+                  {buyingPower > 0 && (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 3,
+                      padding: '4px 8px', borderRadius: 8,
+                      background: 'rgba(0,212,255,0.08)',
+                      border: '0.5px solid rgba(0,212,255,0.15)',
+                    }}>
+                      <Wallet size={12} color={C.accent} />
+                      <span style={{ fontSize: 9, color: C.accent, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
+                        ${buyingPower.toLocaleString('en', { maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                  )}
+                  <button 
+                    onClick={() => { if (execStatus !== 'submitting') setShowOrderSheet(false) }} 
+                    style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none' }}
+                  >
+                    <X size={18} color="#FFFFFF" />
+                  </button>
+                </div>
               </div>
 
               {/* Side Selector */}
-              <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 16, padding: 4, display: 'flex', marginBottom: 16, position: 'relative' }}>
+              <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 16, padding: 4, display: 'flex', marginBottom: 14, position: 'relative' }}>
                 <motion.div
                   animate={{ x: orderSide === 'buy' ? 0 : '100%' }}
                   style={{ position: 'absolute', top: 4, left: 4, width: 'calc(50% - 4px)', bottom: 4, background: orderSide === 'buy' ? C.success : C.danger, borderRadius: 12, zIndex: 0 }}
@@ -436,7 +588,7 @@ export default function MobileChartPage() {
               </div>
 
               {/* Order Type + Quantity Row */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                 {/* Order Type Toggle */}
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: 11, color: C.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 4 }}>نوع الأمر</label>
@@ -492,9 +644,31 @@ export default function MobileChartPage() {
                 </div>
               </div>
 
+              {/* Quick Quantity Presets */}
+              {buyingPower > 0 && livePrice && livePrice > 0 && (
+                <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+                  {[5, 10, 25, 50].map(pct => (
+                    <button
+                      key={pct}
+                      onClick={() => setQtyPercent(pct)}
+                      style={{
+                        flex: 1, padding: '5px 0', borderRadius: 8,
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '0.5px solid rgba(255,255,255,0.08)',
+                        color: C.text2, fontSize: 10, fontWeight: 700,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        cursor: 'pointer', transition: '0.15s',
+                      }}
+                    >
+                      {pct}%
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Limit Price */}
               {orderType === 'limit' && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} style={{ marginBottom: 12 }}>
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} style={{ marginBottom: 10 }}>
                   <label style={{ fontSize: 11, color: C.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 4 }}>سعر الحد</label>
                   <input
                     value={limitPrice} onChange={e => setLimitPrice(e.target.value)}
@@ -510,7 +684,7 @@ export default function MobileChartPage() {
               )}
 
               {/* TP / SL Toggles */}
-              <div className="space-y-2 mb-5">
+              <div className="space-y-2 mb-4">
                 <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 14, padding: '12px', border: '0.5px solid rgba(255,255,255,0.05)' }}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -550,7 +724,7 @@ export default function MobileChartPage() {
               {orderValue > 0 && (
                 <div style={{
                   background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: '10px 14px',
-                  marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   border: '0.5px solid rgba(255,255,255,0.05)',
                 }}>
                   <span style={{ fontSize: 12, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>القيمة التقديرية</span>

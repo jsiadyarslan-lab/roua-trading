@@ -192,6 +192,210 @@ export function ChartToolbar(props: ChartToolbarProps) {
     marginBottom: 2,
   };
 
+  // ── Mobile: show only essential tools ──
+  if (mobile) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 4px',
+        height: `${height}px`,
+        background: COLORS.bg,
+        borderBottom: `1px solid ${COLORS.border}`,
+        flexShrink: 0,
+        gap: 1,
+        direction: 'rtl',
+      }}>
+        {/* Chart Type */}
+        <div ref={chartTypeRef} style={{ position: 'relative' }}>
+          <button
+            style={{ ...btnStyle, padding: '0 6px' }}
+            onClick={() => setShowChartTypePanel(!showChartTypePanel)}
+            title="نوع الشارت"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="2" y="4" width="4" height="16" rx="1"/>
+              <rect x="10" y="9" width="4" height="11" rx="1"/>
+              <rect x="18" y="2" width="4" height="18" rx="1"/>
+            </svg>
+          </button>
+          {showChartTypePanel && (
+            <div style={{ ...panelStyle, left: 0, minWidth: 130 }}>
+              <div style={{ fontSize: 9, color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>نوع الشارت</div>
+              {CHART_TYPES.map(ct => (
+                <button
+                  key={ct.key}
+                  style={{
+                    ...panelItemStyle,
+                    background: chartType === ct.key ? 'rgba(0,212,255,0.12)' : 'none',
+                    color: chartType === ct.key ? COLORS.cyan : COLORS.textSecondary,
+                    fontWeight: chartType === ct.key ? 700 : 400,
+                  }}
+                  onClick={() => { onSetChartType(ct.key); setShowChartTypePanel(false); }}
+                >
+                  {ct.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div style={sepStyle} />
+
+        {/* Timeframe */}
+        <div ref={tfRef} style={{ position: 'relative' }}>
+          <button
+            style={{
+              ...btnStyle,
+              background: 'rgba(0,212,255,0.1)',
+              border: '1px solid rgba(0,212,255,0.3)',
+              color: COLORS.cyan,
+              fontWeight: 700,
+              padding: '0 7px',
+            }}
+            onClick={() => setShowTimeframePanel(!showTimeframePanel)}
+          >
+            {tfLabel}
+            <svg width="8" height="8" viewBox="0 0 10 6" fill="currentColor" style={{ marginInlineStart: 2 }}>
+              <path d="M0 0 L5 6 L10 0Z"/>
+            </svg>
+          </button>
+          {showTimeframePanel && (
+            <div style={{ ...panelStyle, right: 0, minWidth: 200 }}>
+              <div style={{ fontSize: 9, color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>الإطار الزمني</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 3 }}>
+                {TIMEFRAMES.map(tf => {
+                  const isActive = timeframe === tf.value;
+                  return (
+                    <button
+                      key={tf.value}
+                      style={{
+                        background: isActive ? COLORS.cyan : '#1a1f2e',
+                        border: `1px solid ${isActive ? COLORS.cyan : 'rgba(255,255,255,0.08)'}`,
+                        color: isActive ? '#000' : COLORS.textSecondary,
+                        borderRadius: 6,
+                        padding: '5px 0',
+                        fontSize: 9,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontWeight: isActive ? 700 : 600,
+                        cursor: 'pointer',
+                        textAlign: 'center',
+                        transition: 'all 0.1s',
+                      }}
+                      onClick={() => { onSetTimeframe(tf.value); setShowTimeframePanel(false); }}
+                    >
+                      {tf.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={sepStyle} />
+
+        {/* Drawing Tool (cursor only on mobile) */}
+        <button
+          style={activeTool === 'cursor' ? activeBtnStyle : btnStyle}
+          onClick={() => onSetTool('cursor')}
+          title="مؤشر"
+        >
+          ↖
+        </button>
+
+        {/* Indicators */}
+        <button
+          style={{ ...btnStyle, width: 'auto', padding: '0 5px', fontWeight: 700 }}
+          onClick={onToggleIndicators}
+          title="المؤشرات"
+        >
+          IND
+        </button>
+
+        <div style={sepStyle} />
+
+        {/* Zoom In/Out */}
+        <button style={btnStyle} onClick={onZoomIn} title="تكبير">+</button>
+        <button style={btnStyle} onClick={onZoomOut} title="تصغير">−</button>
+
+        <div style={sepStyle} />
+
+        {/* AI */}
+        {onToggleAIPanel && (
+          <button
+            style={toggleBtnStyle(!!showAIPanel)}
+            onClick={onToggleAIPanel}
+            title="AI"
+          >
+            AI
+          </button>
+        )}
+
+        {/* Chart Trading */}
+        {onToggleChartTrading && (
+          <button
+            style={toggleBtnStyle(!!showChartTrading)}
+            onClick={onToggleChartTrading}
+            title="تداول"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
+            </svg>
+          </button>
+        )}
+
+        {/* Play/Pause */}
+        <button
+          style={{
+            ...btnStyle,
+            color: isPaused ? COLORS.warning : COLORS.success,
+            fontWeight: 700,
+          }}
+          onClick={onTogglePause}
+          title={isPaused ? 'تشغيل' : 'إيقاف'}
+        >
+          {isPaused ? '▶' : '⏸'}
+        </button>
+
+        <div style={{ flex: 1 }} />
+
+        {/* More tools menu (overflow) */}
+        <div ref={exportRef} style={{ position: 'relative' }}>
+          <button style={btnStyle} onClick={() => setShowExportPanel(!showExportPanel)} title="المزيد">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
+            </svg>
+          </button>
+          {showExportPanel && (
+            <div style={{ ...panelStyle, right: 0, minWidth: 160 }}>
+              {[
+                { label: '📐 أدوات الرسم', action: onToggleDrawings },
+                { label: '🗑️ مسح الرسومات', action: onClearDrawings },
+                { label: '📊 ملف الحجم', action: onToggleVolumeProfile || (() => {}) },
+                { label: '📋 قائمة المراقبة', action: onToggleWatchlist || (() => {}) },
+                { label: '💾 إدارة القوالب', action: onToggleTemplateManager || (() => {}) },
+                { label: '⚙️ إعدادات الشارت', action: onToggleChartSettings || (() => {}) },
+                { label: '📥 تصدير PNG', action: onExportPNG },
+                { label: '📥 تصدير CSV', action: onExportCSV },
+                { label: '⛶ ملء الشاشة', action: onToggleFullscreen },
+              ].map(item => (
+                <button
+                  key={item.label}
+                  style={panelItemStyle}
+                  onClick={() => { item.action(); setShowExportPanel(false); }}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Desktop Toolbar (unchanged) ──
   return (
     <div style={{
       display: 'flex',
@@ -202,8 +406,6 @@ export function ChartToolbar(props: ChartToolbarProps) {
       borderBottom: `1px solid ${COLORS.border}`,
       flexShrink: 0,
       gap: 2,
-      overflowX: mobile ? 'auto' : 'visible',
-      scrollbarWidth: 'none',
       direction: 'rtl',
     }}>
       {/* Chart Type */}

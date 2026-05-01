@@ -245,7 +245,7 @@ export function AICouncilPanel() {
   const respondedModels = data?.analyses
     ? [...new Set(data.analyses.map(a => a.model).filter(m => !m.includes('Scanner') && !m.includes('Risk/') && !m.includes('MTF/') && !m.includes('Execution/') && !m.includes('Fallback')))]
     : []
-  const totalModels = data?.meta?.modelsExpected || 6
+  const totalModels = data?.meta?.modelsExpected || 7
 
   return (
     <div className="flex flex-col h-full overflow-hidden custom-scrollbar" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', fontFamily: "'Cairo', sans-serif", direction: 'rtl', border: `1px solid ${isRealAI ? 'rgba(0,229,255,0.15)' : 'rgba(0,229,255,0.08)'}`, borderRadius: 16 }}>

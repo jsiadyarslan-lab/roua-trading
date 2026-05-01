@@ -67,7 +67,7 @@ function getNestJSStatus() {
  *
  * 3-LAYER RESILIENT APPROACH — Council NEVER disconnects:
  *
- * Layer 1: Try NestJS AI Council (full 6-model support with RAG)
+ * Layer 1: Try NestJS AI Council (full 7-model support with RAG)
  * Layer 2: Call AI models DIRECTLY from Next.js (no NestJS dependency)
  *          — ALL available models run in PARALLEL with role-specific prompts
  *          — Even 1-2 models responding gives a partial-ai result
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     console.log(`[consensus] Available AI keys: ${availableKeys.map(k => `${k.model}:${k.hasKey ? 'YES' : 'NO'}`).join(', ')}`)
 
     // ═══════════════════════════════════════════════════════════
-    // LAYER 1: Try NestJS AI Council (6 models with RAG, Redis cache)
+    // LAYER 1: Try NestJS AI Council (7 models with RAG, Redis cache)
     // ═══════════════════════════════════════════════════════════
     // FIX: Removed self-referencing target (`${origin}/api/health`...) that caused
     // circular calls — Next.js calling itself instead of NestJS backend.
@@ -133,11 +133,11 @@ export async function POST(req: NextRequest) {
             layer1Result = { data: aiData, source, modelCount }
             console.log(`[consensus] Layer 1 — NestJS returned ${modelCount} models (source: ${source})`)
 
-            // FIX: Only return immediately if ALL 6 models responded.
+            // FIX: Only return immediately if ALL 7 models responded.
             // Previously returned with 3+ models, missing the chance to
             // supplement with Layer 2. Now we always try Layer 2 unless
-            // we already have the full 6-model consensus.
-            if (modelCount >= 6) {
+            // we already have the full 7-model consensus.
+            if (modelCount >= 7) {
               const result = {
                 success: true,
                 source,
@@ -148,10 +148,10 @@ export async function POST(req: NextRequest) {
                     symbol,
                     processingTimeMs: Date.now() - startedAt,
                     timestamp: new Date().toISOString(),
-                    aiEngine: 'NestJS-6-Models',
+                    aiEngine: 'NestJS-7-Models',
                     modelsUsed: aiData.analyses.map((a: any) => a.model).filter(Boolean),
                     modelsResponded: modelCount,
-                    modelsExpected: 6,
+                    modelsExpected: 7,
                     connectionLayer: 'nestjs',
                     keepAlive: getNestJSStatus(),
                   },
@@ -286,7 +286,7 @@ export async function POST(req: NextRequest) {
                 aiEngine: `NestJS-${layer1Result.modelCount}-Models`,
                 modelsUsed: layer1Result.data.analyses?.map((a: any) => a.model).filter(Boolean) || [],
                 modelsResponded: layer1Result.modelCount,
-                modelsExpected: 6,
+                modelsExpected: 7,
                 connectionLayer: 'nestjs-partial',
                 keepAlive: getNestJSStatus(),
               },
@@ -318,7 +318,7 @@ export async function POST(req: NextRequest) {
                 aiEngine: `NestJS-${layer1Result.modelCount}-Models`,
                 modelsUsed: layer1Result.data.analyses?.map((a: any) => a.model).filter(Boolean) || [],
                 modelsResponded: layer1Result.modelCount,
-                modelsExpected: 6,
+                modelsExpected: 7,
                 connectionLayer: 'nestjs-partial',
                 keepAlive: getNestJSStatus(),
               },
@@ -344,7 +344,7 @@ export async function POST(req: NextRequest) {
             aiEngine: `NestJS-${layer1Result.modelCount}-Models`,
             modelsUsed: layer1Result.data.analyses?.map((a: any) => a.model).filter(Boolean) || [],
             modelsResponded: layer1Result.modelCount,
-            modelsExpected: 6,
+            modelsExpected: 7,
             connectionLayer: 'nestjs-partial',
             keepAlive: getNestJSStatus(),
           },

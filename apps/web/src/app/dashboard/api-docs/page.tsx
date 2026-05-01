@@ -326,6 +326,9 @@ const ENDPOINT_CATEGORIES: EndpointCategory[] = [
         permission: 'read',
         requestBody: undefined,
         responseExample: JSON.stringify({
+          success: true,
+          data: {
+            accountId: "acc_k1l2m3n4",
             status: "unlinked",
             historicalDataPreserved: true,
             unlinkedAt: "2026-03-04T14:35:00Z"

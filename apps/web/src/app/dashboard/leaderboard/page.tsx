@@ -438,6 +438,7 @@ export default function LeaderboardPage() {
                     { label: 'الأصول المدارة', width: 110 },
                     { label: 'المتابعون', width: 90 },
                     { label: 'متاح للمتابعة', width: 110 },
+                  ].map((col, i) => (
                     <th key={i} style={{
                       padding: '12px 14px', fontSize: 11, fontWeight: 800,
                       color: T.text3, textAlign: i === 0 ? 'center' : 'right',

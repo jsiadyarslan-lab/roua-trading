@@ -1,0 +1,1283 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import {
+  Bot, Play, Square, AlertTriangle, Settings2, BarChart3,
+  TrendingUp, TrendingDown, Activity, Shield, Clock, Zap,
+  RefreshCw, ChevronDown, ChevronUp, Plus, Minus, Cpu,
+  DollarSign, Target, Timer, Gauge, Layers, ArrowUpDown,
+  AlertCircle, CheckCircle2, XCircle, Pause, Flame
+} from 'lucide-react'
+import { useAgentStore, AgentStatus, StrategyType } from '@/hooks/useAgentStore'
+
+/* ═══════════════════════════════════════════════
+   Design Tokens — matching Roua Trading theme
+   ═══════════════════════════════════════════════ */
+const T = {
+  bg:       '#0B0E14',
+  bg2:      '#1A1D29',
+  bg3:      '#141824',
+  card:     '#1A1D29',
+  accent:   '#00D4FF',
+  green:    '#00FFA3',
+  red:      '#FF4757',
+  amber:    '#FFB800',
+  purple:   '#B388FF',
+  text:     '#F0F2F5',
+  text2:    '#8B92A8',
+  text3:    '#5A6178',
+  border:   'rgba(255,255,255,0.06)',
+  border2:  'rgba(255,255,255,0.12)',
+  glass:    'rgba(26, 29, 41, 0.65)',
+  glow:     'rgba(0,212,255,0.15)',
+}
+
+const FONT_AR = "'Cairo', sans-serif"
+const FONT_MONO = "'JetBrains Mono', monospace"
+
+/* ═══════════════════════════════════════════════
+   Helper Functions
+   ═══════════════════════════════════════════════ */
+function formatUSD(v: number | undefined | null): string {
+  if (v == null || !Number.isFinite(v)) return '—'
+  const sign = v >= 0 ? '+' : ''
+  return `${sign}$${Math.abs(v).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
+function formatPct(v: number | undefined | null): string {
+  if (v == null || !Number.isFinite(v)) return '—'
+  return `${v.toFixed(1)}%`
+}
+
+function getStatusColor(status: AgentStatus | null): string {
+  if (!status) return T.text3
+  switch (status) {
+    case AgentStatus.RUNNING: return T.green
+    case AgentStatus.PAUSED: return T.amber
+    case AgentStatus.STOPPED: return T.text2
+    case AgentStatus.EMERGENCY_STOP: return T.red
+    case AgentStatus.DAILY_LIMIT_REACHED: return T.amber
+    default: return T.text3
+  }
+}
+
+function getStatusLabel(status: AgentStatus | null): string {
+  if (!status) return 'غير مُفعّل'
+  switch (status) {
+    case AgentStatus.RUNNING: return 'يعمل'
+    case AgentStatus.PAUSED: return 'متوقف مؤقتاً'
+    case AgentStatus.STOPPED: return 'متوقف'
+    case AgentStatus.EMERGENCY_STOP: return 'إيقاف طارئ'
+    case AgentStatus.DAILY_LIMIT_REACHED: return 'حد الخسارة اليومية'
+    case AgentStatus.IDLE: return 'في الانتظار'
+    default: return status
+  }
+}
+
+function getStrategyLabel(s: StrategyType): string {
+  switch (s) {
+    case StrategyType.SCALPING: return 'سكالبينغ'
+    case StrategyType.SWING: return 'سوينغ'
+    case StrategyType.GRID: return 'شبكة'
+    default: return s
+  }
+}
+
+function getStrategyIcon(s: StrategyType) {
+  switch (s) {
+    case StrategyType.SCALPING: return <Zap size={14} />
+    case StrategyType.SWING: return <TrendingUp size={14} />
+    case StrategyType.GRID: return <Layers size={14} />
+  }
+}
+
+function getStrategyDesc(s: StrategyType): string {
+  switch (s) {
+    case StrategyType.SCALPING: return 'صفقات سريعة — أرباح صغيرة متكررة'
+    case StrategyType.SWING: return 'صفقات متأرجحة — أرباح أكبر على مدى أيام'
+    case StrategyType.GRID: return 'شبكة أوامر — ربح من التذبذب'
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   Reusable Components
+   ═══════════════════════════════════════════════ */
+function GlassCard({ children, style, glow }: { children: React.ReactNode; style?: React.CSSProperties; glow?: string }) {
+  return (
+    <div style={{
+      background: T.glass,
+      backdropFilter: 'blur(16px) saturate(1.4)',
+      WebkitBackdropFilter: 'blur(16px) saturate(1.4)',
+      border: `1px solid ${T.border}`,
+      borderRadius: 14,
+      boxShadow: `0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)${glow ? `, 0 0 30px ${glow}` : ''}`,
+      overflow: 'hidden',
+      ...style,
+    }}>
+      {children}
+    </div>
+  )
+}
+
+function StatCard({ icon, label, value, subValue, color, mono }: {
+  icon: React.ReactNode; label: string; value: string; subValue?: string; color?: string; mono?: boolean
+}) {
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,0.03)',
+      borderRadius: 10,
+      padding: '14px 16px',
+      border: `1px solid ${T.border}`,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span style={{ color: color || T.accent, display: 'flex' }}>{icon}</span>
+        <span style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text2, fontWeight: 600 }}>{label}</span>
+      </div>
+      <div style={{ fontFamily: mono ? FONT_MONO : FONT_AR, fontSize: 18, color: color || T.text, fontWeight: 800, direction: 'ltr', textAlign: 'right' }}>
+        {value}
+      </div>
+      {subValue && (
+        <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>{subValue}</div>
+      )}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════
+   Main Page Component
+   ═══════════════════════════════════════════════ */
+export default function AutonomousTraderPage() {
+  const {
+    agentState, performance, positions, logs, loading, error,
+    fetchStatus, startAgent, stopAgent, changeStrategy, updateRiskParams,
+    fetchPerformance, fetchPositions, startAutoRefresh, stopAutoRefresh, addLog,
+  } = useAgentStore()
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'positions' | 'performance' | 'settings'>('overview')
+  const [showStrategyPicker, setShowStrategyPicker] = useState(false)
+  const [confirmEmergency, setConfirmEmergency] = useState(false)
+
+  const status = agentState?.status ?? null
+  const isRunning = status === AgentStatus.RUNNING
+  const config = agentState?.config
+  const strategy = config?.strategy ?? StrategyType.SCALPING
+
+  // ── Initial load & auto-refresh ──
+  useEffect(() => {
+    fetchStatus()
+    fetchPerformance()
+    fetchPositions()
+    startAutoRefresh()
+    return () => stopAutoRefresh()
+  }, [fetchStatus, fetchPerformance, fetchPositions, startAutoRefresh, stopAutoRefresh])
+
+  // ── Tab definitions ──
+  const TABS = [
+    { id: 'overview' as const, label: 'نظرة عامة', icon: <Bot size={14} /> },
+    { id: 'positions' as const, label: 'المراكز', icon: <ArrowUpDown size={14} /> },
+    { id: 'performance' as const, label: 'الأداء', icon: <BarChart3 size={14} /> },
+    { id: 'settings' as const, label: 'الإعدادات', icon: <Settings2 size={14} /> },
+  ]
+
+  return (
+    <>
+      <style>{AGENT_CSS}</style>
+      <div dir="rtl" style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: FONT_AR }}>
+        {/* ── Header ── */}
+        <div style={{
+          padding: '24px 28px 0',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 20,
+          flexWrap: 'wrap',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* Agent Avatar */}
+            <div style={{
+              width: 52, height: 52, borderRadius: 14,
+              background: `linear-gradient(135deg, ${isRunning ? '#00FFA3' : T.accent}, ${isRunning ? '#00B894' : '#0A84FF'})`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: isRunning ? `0 0 24px rgba(0,255,163,0.3)` : `0 0 24px ${T.glow}`,
+              transition: 'all 0.4s ease',
+            }}>
+              <Cpu size={26} color="#000" strokeWidth={2.5} />
+            </div>
+            <div>
+              <h1 style={{ fontFamily: FONT_AR, fontSize: 22, fontWeight: 900, margin: 0, lineHeight: 1.2 }}>
+                وكيل التداول الذاتي
+              </h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                {/* Status LED */}
+                <div style={{
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: getStatusColor(status),
+                  boxShadow: `0 0 8px ${getStatusColor(status)}`,
+                  animation: isRunning ? 'agent-pulse 2s ease-in-out infinite' : 'none',
+                }} />
+                <span style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: getStatusColor(status) }}>
+                  {getStatusLabel(status)}
+                </span>
+                {config && (
+                  <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginRight: 8 }}>
+                    • {getStrategyLabel(config.strategy as StrategyType)}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {!isRunning && status !== AgentStatus.EMERGENCY_STOP && (
+              <button
+                onClick={() => setShowStrategyPicker(!showStrategyPicker)}
+                disabled={loading}
+                style={{
+                  ...btnStyle,
+                  background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
+                  color: '#000',
+                  fontWeight: 800,
+                  padding: '10px 24px',
+                  fontSize: 13,
+                }}
+              >
+                <Play size={15} />
+                تفعيل الوكيل
+              </button>
+            )}
+            {isRunning && (
+              <>
+                <button
+                  onClick={() => stopAgent(false)}
+                  disabled={loading}
+                  style={{
+                    ...btnStyle,
+                    background: 'rgba(255,255,255,0.08)',
+                    color: T.amber,
+                    border: `1px solid rgba(255,184,0,0.3)`,
+                  }}
+                >
+                  <Pause size={14} />
+                  إيقاف مؤقت
+                </button>
+                {!confirmEmergency ? (
+                  <button
+                    onClick={() => setConfirmEmergency(true)}
+                    disabled={loading}
+                    style={{
+                      ...btnStyle,
+                      background: 'rgba(255,71,87,0.10)',
+                      color: T.red,
+                      border: `1px solid rgba(255,71,87,0.3)`,
+                    }}
+                  >
+                    <AlertTriangle size={14} />
+                    إيقاف طارئ
+                  </button>
+                ) : (
+                  <button
+                    onClick={async () => { await stopAgent(true); setConfirmEmergency(false) }}
+                    disabled={loading}
+                    style={{
+                      ...btnStyle,
+                      background: T.red,
+                      color: '#fff',
+                      fontWeight: 800,
+                      animation: 'agent-pulse 1s ease-in-out infinite',
+                    }}
+                  >
+                    <Flame size={14} />
+                    تأكيد الإيقاف الطارئ
+                  </button>
+                )}
+              </>
+            )}
+            {(status === AgentStatus.STOPPED || status === AgentStatus.EMERGENCY_STOP || status === AgentStatus.PAUSED) && !isRunning && agentState && (
+              <button
+                onClick={() => startAgent(config?.strategy as StrategyType)}
+                disabled={loading}
+                style={{
+                  ...btnStyle,
+                  background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
+                  color: '#000',
+                  fontWeight: 800,
+                }}
+              >
+                <Play size={14} />
+                إعادة التفعيل
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ── Strategy Picker Modal ── */}
+        {showStrategyPicker && (
+          <div style={{
+            margin: '16px 28px 0',
+            animation: 'fadeInSlideUp 0.25s ease-out',
+          }}>
+            <GlassCard>
+              <div style={{ padding: 20 }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, marginBottom: 16, color: T.text }}>
+                  اختر استراتيجية التداول
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                  {[StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID].map((s) => {
+                    const isActive = strategy === s
+                    const accentMap: Record<StrategyType, string> = {
+                      [StrategyType.SCALPING]: '#00D4FF',
+                      [StrategyType.SWING]: '#00FFA3',
+                      [StrategyType.GRID]: '#B388FF',
+                    }
+                    const accent = accentMap[s]
+                    return (
+                      <button
+                        key={s}
+                        onClick={async () => {
+                          if (isRunning) {
+                            await changeStrategy(s)
+                          } else {
+                            await startAgent(s)
+                          }
+                          setShowStrategyPicker(false)
+                        }}
+                        style={{
+                          background: isActive ? `${accent}15` : 'rgba(255,255,255,0.03)',
+                          border: `1.5px solid ${isActive ? accent : T.border}`,
+                          borderRadius: 12,
+                          padding: '18px 16px',
+                          cursor: 'pointer',
+                          textAlign: 'right',
+                          transition: 'all 0.2s',
+                          direction: 'rtl',
+                        }}
+                        onMouseEnter={e => {
+                          if (!isActive) { e.currentTarget.style.borderColor = `${accent}55`; e.currentTarget.style.background = `${accent}08` }
+                        }}
+                        onMouseLeave={e => {
+                          if (!isActive) { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                          <span style={{ color: accent, display: 'flex' }}>{getStrategyIcon(s)}</span>
+                          <span style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: isActive ? accent : T.text }}>
+                            {getStrategyLabel(s)}
+                          </span>
+                        </div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, lineHeight: 1.6 }}>
+                          {getStrategyDesc(s)}
+                        </div>
+                        <div style={{
+                          marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap',
+                        }}>
+                          {s === StrategyType.SCALPING && (
+                            <>
+                              <StrategyTag label="فريم: 1m-5m" />
+                              <StrategyTag label="TP: 1.5x ATR" />
+                              <StrategyTag label="SL: 1x ATR" />
+                            </>
+                          )}
+                          {s === StrategyType.SWING && (
+                            <>
+                              <StrategyTag label="فريم: 1h-4h" />
+                              <StrategyTag label="TP: 4x ATR" />
+                              <StrategyTag label="SL: 2x ATR" />
+                            </>
+                          )}
+                          {s === StrategyType.GRID && (
+                            <>
+                              <StrategyTag label="أوامر حدية" />
+                              <StrategyTag label="ربح من التذبذب" />
+                              <StrategyTag label="بدون اتجاه" />
+                            </>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </GlassCard>
+          </div>
+        )}
+
+        {/* ── Stats Bar ── */}
+        <div style={{
+          padding: '20px 28px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gap: 12,
+        }}>
+          <StatCard
+            icon={<DollarSign size={13} />}
+            label="ربح/خسارة اليوم"
+            value={formatUSD(agentState?.dailyPnL)}
+            color={(agentState?.dailyPnL ?? 0) >= 0 ? T.green : T.red}
+            mono
+          />
+          <StatCard
+            icon={<Activity size={13} />}
+            label="صفقات اليوم"
+            value={String(agentState?.dailyTradesCount ?? 0)}
+            color={T.accent}
+          />
+          <StatCard
+            icon={<Target size={13} />}
+            label="نسبة الفوز"
+            value={formatPct(performance?.winRate)}
+            color={(performance?.winRate ?? 0) >= 50 ? T.green : T.red}
+          />
+          <StatCard
+            icon={<Shield size={13} />}
+            label="المراكز المفتوحة"
+            value={String(positions.length)}
+            subValue={`الحد: ${config?.maxOpenPositions ?? 5}`}
+            color={T.purple}
+          />
+          <StatCard
+            icon={<AlertCircle size={13} />}
+            label="خسائر متتالية"
+            value={String(agentState?.consecutiveLosses ?? 0)}
+            color={(agentState?.consecutiveLosses ?? 0) >= 3 ? T.red : T.text2}
+          />
+          <StatCard
+            icon={<Clock size={13} />}
+            label="دورات الوكيل"
+            value={String(agentState?.totalCycles ?? 0)}
+            subValue={agentState?.lastCycleAt ? `آخر دورة: ${new Date(agentState.lastCycleAt).toLocaleTimeString('ar-EG')}` : undefined}
+            color={T.text2}
+          />
+        </div>
+
+        {/* ── Error Banner ── */}
+        {error && (
+          <div style={{
+            margin: '0 28px 16px', padding: '12px 18px',
+            background: 'rgba(255,71,87,0.10)',
+            border: `1px solid rgba(255,71,87,0.25)`,
+            borderRadius: 10,
+            display: 'flex', alignItems: 'center', gap: 10,
+            fontFamily: FONT_AR, fontSize: 12, color: T.red,
+          }}>
+            <XCircle size={16} />
+            {error}
+          </div>
+        )}
+
+        {/* ── Emergency Warning Banner ── */}
+        {status === AgentStatus.EMERGENCY_STOP && (
+          <div style={{
+            margin: '0 28px 16px', padding: '14px 18px',
+            background: 'rgba(255,71,87,0.12)',
+            border: `1px solid rgba(255,71,87,0.3)`,
+            borderRadius: 10,
+            display: 'flex', alignItems: 'center', gap: 10,
+            fontFamily: FONT_AR, fontSize: 13, color: T.red, fontWeight: 700,
+            animation: 'agent-pulse 2s ease-in-out infinite',
+          }}>
+            <AlertTriangle size={18} />
+            تم الإيقاف الطارئ — تم إغلاق جميع المراكز. يمكنك إعادة التفعيل عند الاستعداد.
+          </div>
+        )}
+
+        {/* ── Daily Limit Banner ── */}
+        {status === AgentStatus.DAILY_LIMIT_REACHED && (
+          <div style={{
+            margin: '0 28px 16px', padding: '14px 18px',
+            background: 'rgba(255,184,0,0.10)',
+            border: `1px solid rgba(255,184,0,0.3)`,
+            borderRadius: 10,
+            display: 'flex', alignItems: 'center', gap: 10,
+            fontFamily: FONT_AR, fontSize: 13, color: T.amber, fontWeight: 700,
+          }}>
+            <AlertTriangle size={18} />
+            تم بلوغ حد الخسارة اليومية — سيتوقف الوكيل تلقائياً حتى بداية يوم جديد.
+          </div>
+        )}
+
+        {/* ── Tab Navigation ── */}
+        <div style={{
+          padding: '0 28px',
+          display: 'flex',
+          gap: 0,
+          borderBottom: `1px solid ${T.border}`,
+          marginBottom: 20,
+        }}>
+          {TABS.map((tab) => {
+            const isActive = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '12px 20px',
+                  fontFamily: FONT_AR, fontSize: 12, fontWeight: isActive ? 800 : 500,
+                  color: isActive ? T.accent : T.text2,
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: isActive ? `2px solid ${T.accent}` : '2px solid transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {tab.icon}
+                {tab.label}
+                {tab.id === 'positions' && positions.length > 0 && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 800,
+                    padding: '1px 6px', borderRadius: 8,
+                    background: `${T.accent}20`, color: T.accent,
+                    fontFamily: FONT_MONO,
+                  }}>{positions.length}</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* ── Tab Content ── */}
+        <div style={{ padding: '0 28px 40px' }}>
+          {activeTab === 'overview' && <OverviewTab />}
+          {activeTab === 'positions' && <PositionsTab />}
+          {activeTab === 'performance' && <PerformanceTab />}
+          {activeTab === 'settings' && <SettingsTab />}
+        </div>
+      </div>
+    </>
+  )
+
+  /* ═══════════════════════════════════════════════
+     Overview Tab
+     ═══════════════════════════════════════════════ */
+  function OverviewTab() {
+    const [expandedLog, setExpandedLog] = useState(false)
+    const displayLogs = expandedLog ? logs : logs.slice(0, 8)
+
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {/* Left Column: Agent Info + Live Status */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Agent Status Card */}
+          <GlassCard>
+            <div style={{ padding: 20 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Cpu size={15} color={T.accent} />
+                حالة الوكيل
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <InfoRow label="الحالة" value={getStatusLabel(status)} valueColor={getStatusColor(status)} />
+                <InfoRow label="الاستراتيجية" value={config ? getStrategyLabel(config.strategy as StrategyType) : '—'} />
+                <InfoRow label="مُفعّل منذ" value={agentState?.startedAt ? new Date(agentState.startedAt).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '—'} />
+                <InfoRow label="آخر دورة" value={agentState?.lastCycleAt ? new Date(agentState.lastCycleAt).toLocaleTimeString('ar-EG') : '—'} />
+                <InfoRow label="الرموز" value={config?.symbols?.length ? `${config.symbols.length} رمز` : '—'} />
+                <InfoRow label="خطر/صفقة" value={config ? `${config.riskPerTradePercent}%` : '—'} />
+              </div>
+
+              {/* Safety Badges */}
+              <div style={{ marginTop: 16, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <SafetyBadge icon={<Shield size={10} />} label="وقف خسارة إلزامي" color={T.green} />
+                <SafetyBadge icon={<AlertTriangle size={10} />} label="حد خسارة يومي" color={T.amber} />
+                <SafetyBadge icon={<XCircle size={10} />} label="بدون سحب" color={T.red} />
+                <SafetyBadge icon={<CheckCircle2 size={10} />} label="تدقيق كامل" color={T.accent} />
+              </div>
+            </div>
+          </GlassCard>
+
+          {/* Current Strategy */}
+          <GlassCard>
+            <div style={{ padding: 20 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Zap size={15} color={T.purple} />
+                الاستراتيجية النشطة
+              </div>
+              {config ? (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <span style={{ color: T.accent, display: 'flex' }}>{getStrategyIcon(config.strategy as StrategyType)}</span>
+                    <span style={{ fontFamily: FONT_AR, fontSize: 16, fontWeight: 900, color: T.text }}>
+                      {getStrategyLabel(config.strategy as StrategyType)}
+                    </span>
+                  </div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, lineHeight: 1.8, marginBottom: 12 }}>
+                    {getStrategyDesc(config.strategy as StrategyType)}
+                  </div>
+                  {/* Strategy Params */}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {config.strategy === StrategyType.SCALPING && (
+                      <>
+                        <StrategyTag label={`فريم: ${config.strategyParams?.scalpingTimeframe || '5m'}`} />
+                        <StrategyTag label={`TP: ${config.strategyParams?.scalpingTakeProfitPips || '1.5x'} ATR`} />
+                        <StrategyTag label={`SL: ${config.strategyParams?.scalpingStopLossPips || '1x'} ATR`} />
+                        <StrategyTag label={`سبريد أقصى: ${config.strategyParams?.scalpingMaxSpread || '3'}`} />
+                      </>
+                    )}
+                    {config.strategy === StrategyType.SWING && (
+                      <>
+                        <StrategyTag label={`فريم: ${config.strategyParams?.swingTimeframe || '4h'}`} />
+                        <StrategyTag label={`فترة الاحتفاظ: ${config.strategyParams?.swingHoldingPeriodHours || '72'}س`} />
+                        <StrategyTag label={`اتجاه: ${config.strategyParams?.swingTrendLookback || '20'}`} />
+                      </>
+                    )}
+                    {config.strategy === StrategyType.GRID && (
+                      <>
+                        <StrategyTag label={`مستويات: ${config.strategyParams?.gridLevels || '5'}`} />
+                        <StrategyTag label={`تباعد: ${config.strategyParams?.gridSpacingPercent || '1'}%`} />
+                        <StrategyTag label={`كمية/مستوى: ${config.strategyParams?.gridQuantityPerLevel || '0.01'}`} />
+                      </>
+                    )}
+                  </div>
+                  {isRunning && (
+                    <button
+                      onClick={() => setShowStrategyPicker(true)}
+                      style={{
+                        marginTop: 14, ...btnStyle,
+                        background: 'rgba(255,255,255,0.06)',
+                        color: T.accent,
+                        border: `1px solid rgba(0,212,255,0.2)`,
+                        fontSize: 11,
+                        padding: '8px 16px',
+                      }}
+                    >
+                      تغيير الاستراتيجية
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text3, textAlign: 'center', padding: '20px 0' }}>
+                  قم بتفعيل الوكيل لاختيار استراتيجية
+                </div>
+              )}
+            </div>
+          </GlassCard>
+        </div>
+
+        {/* Right Column: Logs */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <GlassCard style={{ flex: 1 }}>
+            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Timer size={15} color={T.accent} />
+                  سجل الأحداث
+                </div>
+                <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.text3 }}>
+                  {logs.length} حدث
+                </span>
+              </div>
+
+              <div style={{ flex: 1, overflowY: 'auto', maxHeight: 420, direction: 'ltr' }} className="custom-scrollbar">
+                {displayLogs.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0', fontFamily: FONT_AR, fontSize: 12, color: T.text3, direction: 'rtl' }}>
+                    لا توجد أحداث بعد — فعل الوكيل للبدء
+                  </div>
+                ) : (
+                  displayLogs.map((log, i) => (
+                    <div key={i} style={{
+                      display: 'flex', gap: 8, padding: '8px 10px',
+                      borderBottom: i < displayLogs.length - 1 ? `1px solid ${T.border}` : 'none',
+                      fontFamily: FONT_AR, fontSize: 11,
+                      animation: i === 0 ? 'fadeInSlideUp 0.3s ease-out' : 'none',
+                    }}>
+                      <span style={{ fontFamily: FONT_MONO, fontSize: 9, color: T.text3, whiteSpace: 'nowrap', paddingTop: 1 }}>
+                        {log.time}
+                      </span>
+                      <span style={{
+                        color: log.type === 'success' ? T.green
+                          : log.type === 'error' ? T.red
+                          : log.type === 'warning' ? T.amber
+                          : log.type === 'trade' ? T.purple
+                          : T.text2,
+                        direction: 'rtl',
+                      }}>
+                        {log.msg}
+                      </span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {logs.length > 8 && (
+                <button
+                  onClick={() => setExpandedLog(!expandedLog)}
+                  style={{
+                    ...btnStyle, width: '100', marginTop: 10,
+                    background: 'rgba(255,255,255,0.04)', color: T.text3,
+                    fontSize: 11, padding: '8px 0', justifyContent: 'center',
+                  }}
+                >
+                  {expandedLog ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  {expandedLog ? 'عرض أقل' : `عرض الكل (${logs.length})`}
+                </button>
+              )}
+            </div>
+          </GlassCard>
+        </div>
+      </div>
+    )
+  }
+
+  /* ═══════════════════════════════════════════════
+     Positions Tab
+     ═══════════════════════════════════════════════ */
+  function PositionsTab() {
+    if (positions.length === 0) {
+      return (
+        <GlassCard>
+          <div style={{
+            padding: '60px 20px', textAlign: 'center',
+            fontFamily: FONT_AR, color: T.text3,
+          }}>
+            <ArrowUpDown size={40} style={{ marginBottom: 12, opacity: 0.3 }} />
+            <div style={{ fontSize: 14, fontWeight: 700 }}>لا توجد مراكز مفتوحة</div>
+            <div style={{ fontSize: 11, marginTop: 6 }}>سيتم عرض المراكز هنا عندما يفتح الوكيل صفقات</div>
+          </div>
+        </GlassCard>
+      )
+    }
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {positions.map((pos, i) => {
+          const isBuy = pos.side === 'BUY'
+          const pnlColor = pos.unrealizedPnl >= 0 ? T.green : T.red
+          return (
+            <GlassCard key={pos.id}>
+              <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+                {/* Side Indicator */}
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  background: isBuy ? 'rgba(0,255,163,0.10)' : 'rgba(255,71,87,0.10)',
+                  border: `1px solid ${isBuy ? 'rgba(0,255,163,0.2)' : 'rgba(255,71,87,0.2)'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {isBuy ? <TrendingUp size={16} color={T.green} /> : <TrendingDown size={16} color={T.red} />}
+                </div>
+
+                {/* Symbol + Strategy */}
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontFamily: FONT_MONO, fontSize: 14, fontWeight: 800, color: T.text }}>{pos.symbol}</span>
+                    <span style={{
+                      fontFamily: FONT_MONO, fontSize: 9, fontWeight: 700,
+                      padding: '2px 6px', borderRadius: 4,
+                      background: isBuy ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)',
+                      color: isBuy ? T.green : T.red,
+                    }}>{pos.side}</span>
+                    <span style={{
+                      fontFamily: FONT_AR, fontSize: 9, padding: '2px 6px', borderRadius: 4,
+                      background: `${T.purple}15`, color: T.purple,
+                    }}>{getStrategyLabel(pos.strategy as StrategyType)}</span>
+                  </div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 3, direction: 'rtl' }}>
+                    {pos.reasoning?.substring(0, 80)}{pos.reasoning?.length > 80 ? '...' : ''}
+                  </div>
+                </div>
+
+                {/* Prices */}
+                <div style={{ textAlign: 'left', direction: 'ltr' }}>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text }}>
+                    {Number(pos.entryPrice).toLocaleString('en', { maximumFractionDigits: 4 })}
+                  </div>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.text3 }}>
+                    → {pos.currentPrice ? Number(pos.currentPrice).toLocaleString('en', { maximumFractionDigits: 4 }) : '—'}
+                  </div>
+                </div>
+
+                {/* SL/TP */}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <div>
+                      <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>SL</div>
+                      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.red }}>{pos.stopLoss ? Number(pos.stopLoss).toFixed(2) : '—'}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>TP</div>
+                      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.green }}>{pos.takeProfit ? Number(pos.takeProfit).toFixed(2) : '—'}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PnL */}
+                <div style={{
+                  textAlign: 'left', direction: 'ltr',
+                  padding: '8px 14px', borderRadius: 8,
+                  background: pos.unrealizedPnl >= 0 ? 'rgba(0,255,163,0.08)' : 'rgba(255,71,87,0.08)',
+                  border: `1px solid ${pos.unrealizedPnl >= 0 ? 'rgba(0,255,163,0.15)' : 'rgba(255,71,87,0.15)'}`,
+                }}>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 14, fontWeight: 800, color: pnlColor }}>
+                    {formatUSD(pos.unrealizedPnl)}
+                  </div>
+                </div>
+
+                {/* Confidence + Risk */}
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <MiniGauge value={pos.confidence} max={100} color={T.accent} label="ثقة" />
+                    <MiniGauge value={pos.riskScore} max={100} color={T.amber} label="خطر" />
+                  </div>
+                </div>
+              </div>
+            </GlassCard>
+          )
+        })}
+      </div>
+    )
+  }
+
+  /* ═══════════════════════════════════════════════
+     Performance Tab
+     ═══════════════════════════════════════════════ */
+  function PerformanceTab() {
+    if (!performance) {
+      return (
+        <GlassCard>
+          <div style={{
+            padding: '60px 20px', textAlign: 'center',
+            fontFamily: FONT_AR, color: T.text3,
+          }}>
+            <BarChart3 size={40} style={{ marginBottom: 12, opacity: 0.3 }} />
+            <div style={{ fontSize: 14, fontWeight: 700 }}>لا توجد بيانات أداء</div>
+            <div style={{ fontSize: 11, marginTop: 6 }}>ستظهر الإحصائيات بعد تنفيذ أول صفقة</div>
+          </div>
+        </GlassCard>
+      )
+    }
+
+    const pnlColor = performance.totalPnL >= 0 ? T.green : T.red
+    const winRateColor = performance.winRate >= 50 ? T.green : T.red
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Top Stats */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+          <GlassCard>
+            <div style={{ padding: 20, textAlign: 'center' }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>إجمالي الربح/الخسارة</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 24, fontWeight: 900, color: pnlColor }}>
+                {formatUSD(performance.totalPnL)}
+              </div>
+            </div>
+          </GlassCard>
+          <GlassCard>
+            <div style={{ padding: 20, textAlign: 'center' }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>نسبة الفوز</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 24, fontWeight: 900, color: winRateColor }}>
+                {performance.winRate.toFixed(1)}%
+              </div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 4 }}>
+                {performance.winningTrades} فوز / {performance.losingTrades} خسارة
+              </div>
+            </div>
+          </GlassCard>
+          <GlassCard>
+            <div style={{ padding: 20, textAlign: 'center' }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>عامل الربح</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 24, fontWeight: 900, color: performance.profitFactor >= 1.5 ? T.green : T.amber }}>
+                {performance.profitFactor.toFixed(2)}
+              </div>
+            </div>
+          </GlassCard>
+          <GlassCard>
+            <div style={{ padding: 20, textAlign: 'center' }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>أقصى تراجع</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 24, fontWeight: 900, color: T.red }}>
+                {performance.maxDrawdownPercent.toFixed(1)}%
+              </div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.text3, marginTop: 4 }}>
+                ${Math.abs(performance.maxDrawdown).toLocaleString('en', { maximumFractionDigits: 2 })}
+              </div>
+            </div>
+          </GlassCard>
+        </div>
+
+        {/* Detailed Metrics */}
+        <GlassCard>
+          <div style={{ padding: 20 }}>
+            <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Gauge size={15} color={T.accent} />
+              مقاييس تفصيلية
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px 24px' }}>
+              <DetailMetric label="إجمالي الصفقات" value={String(performance.totalTrades)} />
+              <DetailMetric label="متوسط الربح" value={formatUSD(performance.averageWin)} color={T.green} />
+              <DetailMetric label="متوسط الخسارة" value={formatUSD(performance.averageLoss)} color={T.red} />
+              <DetailMetric label="أفضل صفقة" value={formatUSD(performance.bestTrade)} color={T.green} />
+              <DetailMetric label="أسوأ صفقة" value={formatUSD(performance.worstTrade)} color={T.red} />
+              <DetailMetric label="نسبة شارب" value={performance.sharpeRatio.toFixed(2)} color={performance.sharpeRatio >= 1 ? T.green : T.amber} />
+              <DetailMetric label="فوز متتالي" value={String(performance.consecutiveWins)} color={T.green} />
+              <DetailMetric label="خسارة متتالية" value={String(performance.consecutiveLosses)} color={T.red} />
+              <DetailMetric label="متوسط مدة الاحتفاظ" value={`${Math.round(performance.averageHoldingTime)} دقيقة`} />
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* Win/Loss Visual Bar */}
+        <GlassCard>
+          <div style={{ padding: 20 }}>
+            <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 14 }}>
+              توزيع الصفقات
+            </div>
+            <div style={{ display: 'flex', height: 28, borderRadius: 8, overflow: 'hidden', direction: 'ltr' }}>
+              {performance.totalTrades > 0 && (
+                <>
+                  <div style={{
+                    width: `${(performance.winningTrades / performance.totalTrades) * 100}%`,
+                    background: `linear-gradient(90deg, ${T.green}, #00CC82)`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: FONT_MONO, fontSize: 10, fontWeight: 800, color: '#000',
+                    transition: 'width 0.5s ease',
+                  }}>
+                    {performance.winningTrades} فوز
+                  </div>
+                  <div style={{
+                    width: `${(performance.losingTrades / performance.totalTrades) * 100}%`,
+                    background: `linear-gradient(90deg, #FF6B6B, ${T.red})`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: FONT_MONO, fontSize: 10, fontWeight: 800, color: '#fff',
+                    transition: 'width 0.5s ease',
+                  }}>
+                    {performance.losingTrades} خسارة
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </GlassCard>
+      </div>
+    )
+  }
+
+  /* ═══════════════════════════════════════════════
+     Settings Tab
+     ═══════════════════════════════════════════════ */
+  function SettingsTab() {
+    const [localRisk, setLocalRisk] = useState({
+      maxPositionSizePercent: config?.maxPositionSizePercent ?? 2,
+      maxDailyLossPercent: config?.maxDailyLossPercent ?? 5,
+      maxOpenPositions: config?.maxOpenPositions ?? 5,
+      riskPerTradePercent: config?.riskPerTradePercent ?? 1.5,
+    })
+    const [hasChanges, setHasChanges] = useState(false)
+
+    useEffect(() => {
+      if (config) {
+        setLocalRisk({
+          maxPositionSizePercent: config.maxPositionSizePercent,
+          maxDailyLossPercent: config.maxDailyLossPercent,
+          maxOpenPositions: config.maxOpenPositions,
+          riskPerTradePercent: config.riskPerTradePercent,
+        })
+      }
+    }, [config])
+
+    const handleRiskChange = (key: string, value: number) => {
+      setLocalRisk(prev => ({ ...prev, [key]: value }))
+      setHasChanges(true)
+    }
+
+    const handleSave = async () => {
+      await updateRiskParams(localRisk)
+      setHasChanges(false)
+    }
+
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {/* Risk Parameters */}
+        <GlassCard>
+          <div style={{ padding: 20 }}>
+            <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Shield size={15} color={T.amber} />
+              معلمات المخاطر
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <RiskSlider
+                label="حجم المركز الأقصى"
+                subLabel="نسبة مئوية من رأس المال لكل صفقة"
+                value={localRisk.maxPositionSizePercent}
+                min={0.5}
+                max={10}
+                step={0.5}
+                unit="%"
+                color={T.accent}
+                onChange={(v) => handleRiskChange('maxPositionSizePercent', v)}
+              />
+              <RiskSlider
+                label="حد الخسارة اليومية"
+                subLabel="يُوقف الوكيل تلقائياً عند بلوغه"
+                value={localRisk.maxDailyLossPercent}
+                min={1}
+                max={20}
+                step={0.5}
+                unit="%"
+                color={T.red}
+                onChange={(v) => handleRiskChange('maxDailyLossPercent', v)}
+              />
+              <RiskSlider
+                label="عدد المراكز المفتوحة الأقصى"
+                subLabel="أقصى عدد صفقات متزامنة"
+                value={localRisk.maxOpenPositions}
+                min={1}
+                max={15}
+                step={1}
+                unit=""
+                color={T.purple}
+                onChange={(v) => handleRiskChange('maxOpenPositions', v)}
+              />
+              <RiskSlider
+                label="نسبة المخاطرة لكل صفقة"
+                subLabel="نسبة رأس المال المُخاطَر"
+                value={localRisk.riskPerTradePercent}
+                min={0.5}
+                max={5}
+                step={0.25}
+                unit="%"
+                color={T.green}
+                onChange={(v) => handleRiskChange('riskPerTradePercent', v)}
+              />
+            </div>
+
+            {hasChanges && (
+              <button
+                onClick={handleSave}
+                disabled={loading}
+                style={{
+                  marginTop: 20, width: '100%',
+                  ...btnStyle,
+                  background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
+                  color: '#000', fontWeight: 800,
+                  padding: '12px 20px',
+                  justifyContent: 'center',
+                }}
+              >
+                <CheckCircle2 size={14} />
+                حفظ التغييرات
+              </button>
+            )}
+          </div>
+        </GlassCard>
+
+        {/* Safety Rules */}
+        <GlassCard>
+          <div style={{ padding: 20 }}>
+            <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AlertTriangle size={15} color={T.red} />
+              قواعد السلامة
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[
+                { icon: <Shield size={13} />, title: 'وقف خسارة إلزامي', desc: 'لا يمكن فتح صفقة بدون تحديد وقف الخسارة', color: T.green },
+                { icon: <DollarSign size={13} />, title: 'حد خسارة يومي', desc: 'إيقاف تلقائي عند تجاوز الحد المحدد', color: T.amber },
+                { icon: <XCircle size={13} />, title: 'بدون سحب', desc: 'الوكيل لا يملك صلاحية السحب — تداول فقط', color: T.red },
+                { icon: <CheckCircle2 size={13} />, title: 'تدقيق كامل', desc: 'كل قرار يتم تسجيله في سجل المراجعة', color: T.accent },
+                { icon: <AlertTriangle size={13} />, title: 'خسائر متتالية', desc: '5 خسائر متتالية → إيقاف مؤقت تلقائي', color: T.amber },
+                { icon: <Flame size={13} />, title: 'إيقاف طارئ', desc: 'إغلاق فوري لجميع المراكز عند الطوارئ', color: T.red },
+                { icon: <RefreshCw size={13} />, title: 'نسبة مخاطرة/عائد', desc: 'الحد الأدنى 1:1.5 — لا صفقات بأقل من ذلك', color: T.accent },
+                { icon: <ArrowUpDown size={13} />, title: 'بدون تكرار', desc: 'مركز واحد فقط لكل رمز', color: T.purple },
+              ].map((rule, i) => (
+                <div key={i} style={{
+                  display: 'flex', gap: 10, padding: '10px 12px',
+                  background: 'rgba(255,255,255,0.02)',
+                  borderRadius: 8,
+                  border: `1px solid ${T.border}`,
+                }}>
+                  <span style={{ color: rule.color, display: 'flex', marginTop: 1 }}>{rule.icon}</span>
+                  <div>
+                    <div style={{ fontFamily: FONT_AR, fontSize: 11, fontWeight: 700, color: T.text }}>{rule.title}</div>
+                    <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 2 }}>{rule.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </GlassCard>
+      </div>
+    )
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   Sub-Components
+   ═══════════════════════════════════════════════ */
+
+function InfoRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
+      <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: '#8B92A8' }}>{label}</span>
+      <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, fontWeight: 700, color: valueColor || '#F0F2F5' }}>{value}</span>
+    </div>
+  )
+}
+
+function SafetyBadge({ icon, label, color }: { icon: React.ReactNode; label: string; color: string }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 4,
+      padding: '4px 8px', borderRadius: 6,
+      background: `${color}10`, border: `1px solid ${color}25`,
+      fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 700, color,
+    }}>
+      {icon}
+      {label}
+    </div>
+  )
+}
+
+function StrategyTag({ label }: { label: string }) {
+  return (
+    <span style={{
+      fontFamily: "'JetBrains Mono', monospace", fontSize: 9,
+      padding: '3px 8px', borderRadius: 4,
+      background: 'rgba(255,255,255,0.05)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      color: '#8B92A8',
+    }}>{label}</span>
+  )
+}
+
+function MiniGauge({ value, max, color, label }: { value: number; max: number; color: string; label: string }) {
+  const pct = Math.min(100, Math.max(0, (value / max) * 100))
+  return (
+    <div style={{ width: 44, textAlign: 'center' }}>
+      <div style={{
+        height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.06)',
+        overflow: 'hidden', marginBottom: 3,
+      }}>
+        <div style={{
+          height: '100%', width: `${pct}%`, background: color, borderRadius: 2,
+          transition: 'width 0.3s ease',
+        }} />
+      </div>
+      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color, fontWeight: 700 }}>{value}</div>
+      <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 7, color: '#5A6178' }}>{label}</div>
+    </div>
+  )
+}
+
+function DetailMetric({ label, value, color }: { label: string; value: string; color?: string }) {
+  return (
+    <div>
+      <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: '#8B92A8', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 800, color: color || '#F0F2F5', direction: 'ltr', textAlign: 'right' }}>{value}</div>
+    </div>
+  )
+}
+
+function RiskSlider({ label, subLabel, value, min, max, step, unit, color, onChange }: {
+  label: string; subLabel: string; value: number; min: number; max: number; step: number; unit: string; color: string; onChange: (v: number) => void
+}) {
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+        <div>
+          <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, fontWeight: 700, color: '#F0F2F5' }}>{label}</div>
+          <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: '#5A6178' }}>{subLabel}</div>
+        </div>
+        <div style={{
+          fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 900, color,
+          padding: '4px 12px', borderRadius: 8,
+          background: `${color}12`, border: `1px solid ${color}30`,
+          direction: 'ltr',
+        }}>
+          {value}{unit}
+        </div>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        style={{
+          width: '100%',
+          accentColor: color,
+          height: 4,
+          cursor: 'pointer',
+        }}
+      />
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: '#5A6178', direction: 'ltr' }}>
+        <span>{min}{unit}</span>
+        <span>{max}{unit}</span>
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════
+   Shared Button Style
+   ═══════════════════════════════════════════════ */
+const btnStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '10px 18px',
+  borderRadius: 10,
+  border: 'none',
+  cursor: 'pointer',
+  fontFamily: "'Cairo', sans-serif",
+  fontSize: 12,
+  fontWeight: 700,
+  transition: 'all 0.2s',
+  outline: 'none',
+}
+
+/* ═══════════════════════════════════════════════
+   CSS Keyframes
+   ═══════════════════════════════════════════════ */
+const AGENT_CSS = `
+@keyframes agent-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+@keyframes fadeInSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255,255,255,0.06);
+  border-radius: 4px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid rgba(0,0,0,0.3);
+  box-shadow: 0 0 8px rgba(0,0,0,0.3);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid rgba(0,0,0,0.3);
+}
+
+@media (max-width: 768px) {
+  .agent-stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+`

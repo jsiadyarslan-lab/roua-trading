@@ -10,7 +10,7 @@ import {
   ChevronDown, Bell, User, MoreHorizontal,
   TrendingUp, TrendingDown, Menu, X as XIcon, GitMerge, Activity,
   FlaskConical, Shield, Hammer, LogOut, UserCircle, Info,
-  CreditCard, HelpCircle, Trophy, Code, Fingerprint, BellRing, Link2, Eye, Target
+  CreditCard, HelpCircle, Trophy, Code, Fingerprint, BellRing, Link2, Eye, Target, Cpu
 } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
@@ -436,6 +436,7 @@ const NAV_LINKS = [
   { href: '/dashboard/security/2fa',           label: 'المصادقة الثنائية',  icon: Shield },
   { href: '/dashboard/api-docs',               label: 'توثيق API',          icon: Code },
   { href: '/dashboard/help',                   label: 'مركز المساعدة',      icon: HelpCircle },
+  { href: '/dashboard/autonomous-trader',     label: 'وكيل التداول',       icon: Cpu },
   { href: '/dashboard/prediction-market',      label: 'الأسواق التنبؤية',   icon: Target },
   { href: '/dashboard/settings',               label: 'الإعدادات',          icon: Settings },
 ]

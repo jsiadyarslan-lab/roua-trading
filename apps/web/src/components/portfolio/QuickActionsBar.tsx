@@ -1,6 +1,6 @@
 'use client'
 
-import { XCircle, Shield, RefreshCw, ArrowDownToLine } from 'lucide-react'
+import { XCircle, Shield, RefreshCw, Link2 } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
 
 interface QuickActionsBarProps {
@@ -27,9 +27,9 @@ const ACTIONS = [
     accent: T.cyan,
   },
   {
-    id: 'deposit',
-    label: 'إيداع',
-    icon: ArrowDownToLine,
+    id: 'link-account',
+    label: 'ربط حساب',
+    icon: Link2,
     accent: T.green,
   },
 ]

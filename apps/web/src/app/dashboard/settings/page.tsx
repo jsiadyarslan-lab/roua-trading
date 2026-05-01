@@ -340,7 +340,7 @@ export default function SettingsPage() {
       { perm: 'portfolio:view' as Permission, label: 'عرض المحفظة' },
       { perm: 'portfolio:advanced' as Permission, label: 'تحليل متقدم' },
       { perm: 'social:view' as Permission, label: 'التداول الاجتماعي' },
-      { perm: 'social:copy_trade' as Permission, label: 'متابعة الحسابات' },
+      { perm: 'social:follow_accounts' as Permission, label: 'متابعة الحسابات' },
     ]},
     { name: 'API والبيانات', perms: [
       { perm: 'api:access' as Permission, label: 'وصول API' },

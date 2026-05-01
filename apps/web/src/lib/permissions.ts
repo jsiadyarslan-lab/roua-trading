@@ -27,7 +27,7 @@ export type Permission =
   | 'portfolio:advanced'
   // Social
   | 'social:view'
-  | 'social:copy_trade'
+  | 'social:follow_accounts'
   // API
   | 'api:access'
   | 'api:webhooks'
@@ -60,7 +60,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'portfolio:view',
     'portfolio:advanced',
     'social:view',
-    'social:copy_trade',
+    'social:follow_accounts',
     'data:real_time',
     'data:historical',
     'feature:priority_support',
@@ -77,7 +77,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'portfolio:view',
     'portfolio:advanced',
     'social:view',
-    'social:copy_trade',
+    'social:follow_accounts',
     'api:access',
     'data:real_time',
     'data:historical',
@@ -98,7 +98,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'portfolio:view',
     'portfolio:advanced',
     'social:view',
-    'social:copy_trade',
+    'social:follow_accounts',
     'api:access',
     'api:webhooks',
     'data:real_time',
@@ -121,7 +121,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'portfolio:view',
     'portfolio:advanced',
     'social:view',
-    'social:copy_trade',
+    'social:follow_accounts',
     'api:access',
     'api:webhooks',
     'data:real_time',

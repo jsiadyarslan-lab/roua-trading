@@ -66,7 +66,7 @@ const EXCHANGES = [
   { id: 'bybit', name: 'Bybit', initial: 'By', color: '#F7A600', bgColor: '#F7A60015', desc: 'مشتقات وعقود آجلة' },
   { id: 'okx', name: 'OKX', initial: 'OK', color: '#FFFFFF', bgColor: '#FFFFFF10', desc: 'بورصة عالمية متعددة' },
   { id: 'kucoin', name: 'KuCoin', initial: 'K', color: '#23AF91', bgColor: '#23AF9115', desc: 'بورصة متنوعة العملات' },
-  { id: 'bitget', name: 'Bitget', initial: 'Bg', color: '#00F0FF', bgColor: '#00F0FF15', desc: 'نسخ التداول والمشتقات' },
+  { id: 'bitget', name: 'Bitget', initial: 'Bg', color: '#00F0FF', bgColor: '#00F0FF15', desc: 'مشتقات وعقود آجلة' },
   { id: 'gate', name: 'Gate.io', initial: 'G', color: '#2354E6', bgColor: '#2354E615', desc: 'عملات ناشئة ومتنوعة' },
   { id: 'mexc', name: 'MEXC', initial: 'M', color: '#00D4AA', bgColor: '#00D4AA15', desc: 'عملات ناشئة بسرعة' },
 ]

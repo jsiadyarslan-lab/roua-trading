@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, Logger, ForbiddenException, Req } from '@nestjs/common';
 import { AIOrchestratorService } from './services/ai-orchestrator.service';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
 import { AIAnalysisRequest } from './services/groq.service';
+import { Request } from 'express';
 
 @Controller('ai')
 @UseGuards(AuthGuard)
@@ -49,10 +50,21 @@ export class AiController {
 
   /**
    * GET /api/ai/models — Get available AI models status
+   * SECURITY: Only returns model names and availability, never key hints
    */
   @Get('models')
   async getModels() {
-    return { success: true, data: this.orchestrator.getModelsStatus() };
+    const status = this.orchestrator.getModelsStatus();
+    // SECURITY FIX: Strip keyHint from response — API key partials should never be exposed
+    const safeStatus = status.map((m: any) => ({
+      name: m.name,
+      provider: m.provider,
+      available: m.available,
+      latency: m.latency,
+      lastError: m.lastError,
+      // keyHint intentionally excluded
+    }));
+    return { success: true, data: safeStatus };
   }
 
   /**
@@ -71,12 +83,18 @@ export class AiController {
 
   /**
    * GET /api/ai/diagnose — Test each AI model individually and return detailed results
-   * Shows which models actually work vs just having keys configured
+   * SECURITY: Admin-only endpoint — exposes partial API keys for debugging.
+   * Only users with INSTITUTIONAL tier (admin) can access this.
    */
   @Get('diagnose')
   @Throttle({ default: { limit: 3, ttl: 60000 } })
-  async diagnoseModels() {
-    this.logger.log('🔧 Running AI model diagnostics...');
+  async diagnoseModels(@Req() req: Request) {
+    // SECURITY FIX: Only admin users can diagnose models
+    const user = (req as any).user;
+    if (!user || (user.tier !== 'INSTITUTIONAL' && user.tier !== 'PRO')) {
+      throw new ForbiddenException('هذا الإ.endpoint متاح فقط للمسؤولين');
+    }
+    this.logger.log(`🔧 Running AI model diagnostics (requested by: ${user.email})`);
     const result = await this.orchestrator.diagnoseModels();
     return { success: true, data: result, version: 'v2025-05-01-hf-router' };
   }

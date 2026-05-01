@@ -95,8 +95,14 @@ export function useWebSocketTicker({
 
     // Dynamically import socket.io-client only when WebSocket is enabled
     let socket: any = null
+    let disposed = false // FIX: Track disposal state to prevent connection leak
 
     import('socket.io-client').then(({ io }) => {
+      // FIX: Check if component was unmounted during async import
+      if (disposed) {
+        return
+      }
+
       socket = io(`${WS_URL}/exchange`, {
         transports: ['websocket', 'polling'],
         autoConnect: true,
@@ -108,6 +114,10 @@ export function useWebSocketTicker({
       socketRef.current = socket
 
       socket.on('connect', () => {
+        if (disposed) {
+          socket.disconnect()
+          return
+        }
         setConnected(true)
         for (const symbol of subscribedRef.current) {
           socket.emit('subscribe', { symbol })
@@ -140,10 +150,16 @@ export function useWebSocketTicker({
     })
 
     return () => {
+      disposed = true // FIX: Mark as disposed BEFORE disconnecting
       if (socket) {
         socket.disconnect()
       }
-      socketRef.current = null
+      // FIX: Also disconnect from ref in case the socket was set via socketRef
+      if (socketRef.current) {
+        socketRef.current.disconnect()
+        socketRef.current = null
+      }
+      subscribedRef.current.clear() // FIX: Clear subscriptions on unmount
       setConnected(false)
     }
   }, [enabled])

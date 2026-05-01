@@ -212,6 +212,7 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
             positions,
             lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             dataSource: 'nestjs',
+            loading: false, // FIX: Reset loading on successful NestJS fetch
           })
           return
         }
@@ -221,6 +222,7 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
             positions: [],
             lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             dataSource: 'nestjs',
+            loading: false, // FIX: Reset loading on empty positions
           })
           return
         }
@@ -238,6 +240,7 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
           positions: j.data,
           lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
           dataSource: 'alpaca',
+          loading: false, // FIX: Reset loading on successful Alpaca fetch
         })
       } else {
         set({ error: j.error || 'فشل في جلب المراكز' })

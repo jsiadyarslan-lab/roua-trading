@@ -9,7 +9,8 @@ import {
   Copy, Users, Newspaper, CalendarDays, Settings,
   ChevronDown, Bell, User, MoreHorizontal,
   TrendingUp, TrendingDown, Menu, X as XIcon, GitMerge, Activity,
-  FlaskConical, Shield, Hammer, LogOut, UserCircle, Info
+  FlaskConical, Shield, Hammer, LogOut, UserCircle, Info,
+  CreditCard, HelpCircle, Trophy, Code, Fingerprint, BellRing
 } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
@@ -420,6 +421,7 @@ const NAV_LINKS = [
   { href: '/dashboard/scanner',                label: 'السكانر المتقدم',    icon: ScanSearch },
   { href: '/dashboard/strategies',             label: 'تحليلات استراتيجية', icon: BarChart2 },
   { href: '/dashboard/news',                   label: 'الأخبار',            icon: Newspaper },
+  { href: '/dashboard/leaderboard',            label: 'لوحة الصدارة',       icon: Trophy },
   { href: '/dashboard/copy-trading',           label: 'نسخ الصفقات',        icon: Copy },
   { href: '/dashboard/social',                 label: 'التداول الاجتماعي',  icon: Users },
   { href: '/dashboard/calendar',               label: 'الأجندة الاقتصادية', icon: CalendarDays },
@@ -427,6 +429,13 @@ const NAV_LINKS = [
   { href: '/dashboard/sanctuary',             label: 'الملاذ',              icon: Shield },
   { href: '/dashboard/strategy-builder',       label: 'بناء الاستراتيجية',   icon: Hammer },
   { href: '/dashboard/correlation',            label: 'مصفوفة الارتباط',    icon: GitMerge },
+  { href: '/dashboard/billing',                label: 'المدفوعات',          icon: CreditCard },
+  { href: '/dashboard/notifications',          label: 'الإشعارات',          icon: BellRing },
+  { href: '/dashboard/kyc',                    label: 'التحقق من الهوية',   icon: Fingerprint },
+  { href: '/dashboard/profile',                label: 'الملف الشخصي',       icon: UserCircle },
+  { href: '/dashboard/security/2fa',           label: 'المصادقة الثنائية',  icon: Shield },
+  { href: '/dashboard/api-docs',               label: 'توثيق API',          icon: Code },
+  { href: '/dashboard/help',                   label: 'مركز المساعدة',      icon: HelpCircle },
   { href: '/dashboard/settings',               label: 'الإعدادات',          icon: Settings },
 ]
 

@@ -169,7 +169,7 @@ export default function AdminAiCostsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/dashboard/admin/api/ai-usage/stats')
+      const res = await fetch('/api/admin/ai-usage/stats')
       if (res.ok) {
         const json = await res.json()
         setData(json)

@@ -112,7 +112,7 @@ export default function AdminSettingsPage() {
     setLoading(true)
     setLoadError(null)
     try {
-      const res = await fetch('/dashboard/admin/api/settings')
+      const res = await fetch('/api/admin/settings')
       if (res.ok) {
         const data = await res.json()
         if (data.botConfig) setBotConfig(data.botConfig)
@@ -151,7 +151,7 @@ export default function AdminSettingsPage() {
     setSaving(true)
     setSaveError(null)
     try {
-      const res = await fetch('/dashboard/admin/api/settings', {
+      const res = await fetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ botConfig, riskConfig, platformConfig }),

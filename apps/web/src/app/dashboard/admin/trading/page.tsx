@@ -71,7 +71,7 @@ interface TradingData {
 }
 
 async function fetchTradingData(): Promise<TradingData> {
-  const res = await fetch('/dashboard/admin/api/trading/stats')
+  const res = await fetch('/api/admin/trading/stats')
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }

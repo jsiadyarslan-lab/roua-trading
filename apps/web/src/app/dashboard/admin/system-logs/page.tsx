@@ -37,7 +37,7 @@ async function fetchSystemLogs(level: string, search: string): Promise<LogsRespo
   if (search) params.set('search', search)
   params.set('limit', '200')
 
-  const res = await fetch(`/dashboard/admin/api/system-logs?${params.toString()}`)
+  const res = await fetch(`/api/admin/system-logs?${params.toString()}`)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }

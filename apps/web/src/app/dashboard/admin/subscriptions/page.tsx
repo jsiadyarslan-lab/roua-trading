@@ -110,7 +110,7 @@ export default function AdminSubscriptionsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/dashboard/admin/api/subscriptions/stats')
+      const res = await fetch('/api/admin/subscriptions/stats')
       if (res.ok) {
         const json = await res.json()
         setData(json)

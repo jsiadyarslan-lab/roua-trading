@@ -4,7 +4,7 @@ import { verifyAdminAuth } from '@/lib/admin-auth'
 export const dynamic = 'force-dynamic'
 
 /**
- * /dashboard/admin/api/health — Admin health check endpoint
+ * /api/admin/health — Admin health check endpoint
  *
  * Performs health checks on all monitored API endpoints
  * and returns aggregated results.
@@ -17,9 +17,9 @@ export async function GET(req: NextRequest) {
     '/api/health',
     '/api/auth/me',
     '/api/auth/session',
-    '/dashboard/admin/api/auth/session',
-    '/dashboard/admin/api/health',
-    '/dashboard/admin/api/stats',
+    '/api/admin/auth/session',
+    '/api/admin/health',
+    '/api/admin/stats',
     '/dashboard',
   ]
 

@@ -107,7 +107,7 @@ export default function AdminMonitorPage() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch('/dashboard/admin/api/monitor/status')
+      const res = await fetch('/api/admin/monitor/status')
       if (res.ok) {
         const data = await res.json()
         setStatus(data)
@@ -122,7 +122,7 @@ export default function AdminMonitorPage() {
   const fetchHealth = useCallback(async () => {
     setChecking(true)
     try {
-      const res = await fetch('/dashboard/admin/api/health')
+      const res = await fetch('/api/admin/health')
       if (res.ok) {
         const data = await res.json()
         setHealth(data)
@@ -138,7 +138,7 @@ export default function AdminMonitorPage() {
   /* Load settings from API on mount */
   const fetchSettings = useCallback(async () => {
     try {
-      const res = await fetch('/dashboard/admin/api/monitor/settings')
+      const res = await fetch('/api/admin/monitor/settings')
       if (res.ok) {
         const data = await res.json()
         if (data.settings) {
@@ -170,7 +170,7 @@ export default function AdminMonitorPage() {
   const handleAgentAction = async (action: 'start' | 'stop') => {
     setAgentActionLoading(action)
     try {
-      const res = await fetch('/dashboard/admin/api/monitor/control', {
+      const res = await fetch('/api/admin/monitor/control', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
@@ -199,7 +199,7 @@ export default function AdminMonitorPage() {
     setSettingsSaving(true)
     setSettingsMessage('')
     try {
-      const res = await fetch('/dashboard/admin/api/monitor/settings', {
+      const res = await fetch('/api/admin/monitor/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

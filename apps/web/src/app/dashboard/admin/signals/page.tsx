@@ -125,7 +125,7 @@ export default function AdminSignalsPage() {
   const fetchStats = useCallback(async () => {
     setStatsLoading(true)
     try {
-      const res = await fetch('/dashboard/admin/api/signals/stats')
+      const res = await fetch('/api/admin/signals/stats')
       if (res.ok) {
         const data = await res.json()
         setSignalStats(data)

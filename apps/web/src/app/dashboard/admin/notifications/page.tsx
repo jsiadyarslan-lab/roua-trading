@@ -69,7 +69,7 @@ export default function AdminNotificationsPage() {
   const fetchConfigs = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/dashboard/admin/api/notifications/config')
+      const res = await fetch('/api/admin/notifications/config')
       if (res.ok) {
         const data = await res.json()
         setConfigs(data.configs || [])
@@ -118,7 +118,7 @@ export default function AdminNotificationsPage() {
   /* ── save config via POST (returns true on success) ── */
   const saveConfig = async (type: string, enabled: boolean, config: Record<string, any>): Promise<boolean> => {
     try {
-      const res = await fetch('/dashboard/admin/api/notifications/config', {
+      const res = await fetch('/api/admin/notifications/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, enabled, config }),
@@ -175,7 +175,7 @@ export default function AdminNotificationsPage() {
         setTelegramStatus('disconnected')
       } else {
         try {
-          const res = await fetch('/dashboard/admin/api/notifications/test-telegram', {
+          const res = await fetch('/api/admin/notifications/test-telegram', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ botToken: telegramToken, chatId: telegramChatId }),

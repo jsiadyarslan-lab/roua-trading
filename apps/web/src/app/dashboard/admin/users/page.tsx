@@ -87,7 +87,7 @@ export default function AdminUsersPage() {
       if (search) params.set('search', search)
       if (tierFilter !== 'all') params.set('tier', tierFilter)
 
-      const res = await fetch(`/dashboard/admin/api/users?${params}`)
+      const res = await fetch(`/api/admin/users?${params}`)
       if (res.ok) {
         const data = await res.json()
         setUsers(data.users || [])

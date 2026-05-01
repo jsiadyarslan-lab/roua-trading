@@ -68,7 +68,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     const checkAuth = async () => {
       try {
-        const res = await fetch('/dashboard/admin/api/auth/session')
+        const res = await fetch('/api/admin/auth/session')
         if (cancelled) return
 
         let data: any = { authenticated: false }
@@ -112,7 +112,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const handleLogout = async () => {
     try {
-      await fetch('/dashboard/admin/api/auth/logout', { method: 'POST' })
+      await fetch('/api/admin/auth/logout', { method: 'POST' })
     } catch {}
     setAuthenticated(false)
     router.push('/dashboard/admin/login')

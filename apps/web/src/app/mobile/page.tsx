@@ -87,15 +87,28 @@ function CurrencyTicker() {
   
   return (
     <div style={{
-      overflow: 'hidden', height: 44, display: 'flex', alignItems: 'center',
-      background: 'rgba(255,255,255,0.02)',
-      borderTop: '0.5px solid rgba(255,255,255,0.05)',
-      borderBottom: '0.5px solid rgba(255,255,255,0.05)',
-      marginBottom: 20
+      overflow: 'hidden', height: 36, display: 'flex', alignItems: 'center',
+      background: 'rgba(0,212,255,0.03)',
+      borderTop: '0.5px solid rgba(0,212,255,0.1)',
+      borderBottom: '0.5px solid rgba(0,212,255,0.1)',
+      marginBottom: 8,
+      position: 'relative'
     }}>
       <div style={{
-        display: 'flex', gap: 40, animation: 'tickerScroll 30s linear infinite',
-        whiteSpace: 'nowrap', direction: 'ltr', width: 'max-content', padding: '0 20px'
+        position: 'absolute', left: 0, top: 0, bottom: 0, zIndex: 2,
+        background: 'linear-gradient(90deg, #000 0%, transparent 100%)',
+        paddingLeft: 20, display: 'flex', alignItems: 'center', width: 100
+      }}>
+         <div style={{ 
+           fontSize: 10, fontWeight: 900, color: '#00D4FF', 
+           background: 'rgba(0,212,255,0.1)', padding: '2px 8px', borderRadius: 4,
+           border: '1px solid rgba(0,212,255,0.2)', letterSpacing: 1
+         }}>LIVE</div>
+      </div>
+      
+      <div style={{
+        display: 'flex', gap: 40, animation: 'tickerScroll 25s linear infinite',
+        whiteSpace: 'nowrap', direction: 'ltr', width: 'max-content', paddingLeft: 120
       }}>
         {[...displayPairs, ...displayPairs].map((pair, i) => {
           const quoteKey = Object.keys(quotes).find(k => k.replace('/', '') === pair.replace('/', ''))
@@ -105,19 +118,15 @@ function CurrencyTicker() {
           const pos = change >= 0
           
           return (
-            <button
+            <div
               key={i}
-              onClick={() => router.push('/mobile/chart?symbol=' + pair)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                background: 'none', border: 'none', cursor: 'pointer'
-              }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8 }}
             >
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace", opacity: 0.9 }}>
                 {pair}
               </span>
               <span style={{ 
-                fontSize: 13, fontWeight: 800, color: pos ? '#32D74B' : '#FF453A',
+                fontSize: 12, fontWeight: 800, color: pos ? '#32D74B' : '#FF453A',
                 fontFamily: "'JetBrains Mono', monospace", fontVariantNumeric: 'tabular-nums'
               }}>
                 {price ? price.toLocaleString('en', { minimumFractionDigits: price < 10 ? 4 : 2 }) : '—'}
@@ -128,7 +137,7 @@ function CurrencyTicker() {
               }}>
                 {pos ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
               </span>
-            </button>
+            </div>
           )
         })}
       </div>

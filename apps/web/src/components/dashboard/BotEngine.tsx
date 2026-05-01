@@ -11,10 +11,12 @@ import { isMarketOpen } from '@/lib/market-hours'
 
 // Default to paper trading for safety — only go live if explicitly enabled
 const PAPER_TRADING_MODE = process.env.NEXT_PUBLIC_PAPER_TRADING !== 'false'
-const COOLDOWN_MS = 5 * 60 * 1000
-const MAX_OPEN_BOT_POSITIONS = 3
 const MAX_TRADES_PER_HOUR = 15
-const MAX_SESSION_LOSS = -250
+
+// NOTE: MAX_SESSION_LOSS, MAX_OPEN_BOT_POSITIONS, and COOLDOWN_MS are no longer
+// hardcoded here. They are read from useBotStore.settings which syncs with the
+// admin database settings. This is the fix for: admin saves settings but bot
+// doesn't apply them because it was using hardcoded constants.
 
 type SmartSignalLike = {
   pair: string
@@ -26,7 +28,7 @@ type SmartSignalLike = {
 }
 
 export function BotEngine() {
-  const { isOn, addLog, settings, setEngineState, patchStats } = useBotStore()
+  const { isOn, addLog, settings, setEngineState, patchStats, syncFromDB } = useBotStore()
   const addPaperTrade = usePaperTradesStore((state) => state.addTrade)
   const updatePaperTradePrice = usePaperTradesStore((state) => state.updatePrice)
   const closePaperTrade = usePaperTradesStore((state) => state.closeTrade)
@@ -39,9 +41,17 @@ export function BotEngine() {
   const lastMarketClosedLogRef = useRef<Record<string, number>>({})
   const [hydrated, setHydrated] = useState(false)
 
+  // ── Sync settings from admin DB on mount ──
+  // This is the bridge that connects admin dashboard changes
+  // to the live bot engine. Without it, admin settings are
+  // saved to DB but never applied to the running bot.
   useEffect(() => {
     setHydrated(true)
-  }, [])
+    syncFromDB()
+    // Re-sync every 60 seconds to pick up admin changes
+    const syncInterval = setInterval(syncFromDB, 60000)
+    return () => clearInterval(syncInterval)
+  }, [syncFromDB])
 
   useEffect(() => {
     const unsubscribe = usePaperTradesStore.subscribe((state) => {
@@ -180,8 +190,10 @@ export function BotEngine() {
         await manageOpenTrades()
 
         const currentStats = useBotStore.getState().stats
-        if (currentStats.sessionLoss <= MAX_SESSION_LOSS) {
-          addLog('[الحماية] تم إيقاف دخول صفقات جديدة بسبب تجاوز حد خسارة الجلسة', 'warn')
+        const currentSettings = useBotStore.getState().settings
+        const maxSessionLoss = currentSettings.maxDailyLoss
+        if (currentStats.sessionLoss <= maxSessionLoss) {
+          addLog(`[الحماية] تم إيقاف دخول صفقات جديدة بسبب تجاوز حد خسارة الجلسة (${currentStats.sessionLoss.toFixed(0)}$ / الحد: ${maxSessionLoss.toFixed(0)}$)`, 'warn')
           setEngineState('cooldown')
           return
         }
@@ -193,6 +205,9 @@ export function BotEngine() {
           setEngineState('cooldown')
           return
         }
+
+        const maxOpenPositions = useBotStore.getState().settings.maxOpenPositions
+        const cooldownMs = (useBotStore.getState().settings.cooldownPeriod || 60) * 1000
 
         const res = await fetch('/api/market-scan', { cache: 'no-store' })
         const payload = await res.json()
@@ -311,7 +326,7 @@ export function BotEngine() {
       window.clearTimeout(startupDelay)
       clearInterval(interval)
     }
-  }, [hydrated, isOn, settings.confLimit, settings.riskPct, settings.strategy, settings.useAIConsensus, addLog, addNotification, addPaperTrade, updatePaperTradePrice, closePaperTrade, patchStats, setEngineState])
+  }, [hydrated, isOn, settings.confLimit, settings.riskPct, settings.strategy, settings.useAIConsensus, settings.maxDailyLoss, settings.maxOpenPositions, settings.cooldownPeriod, settings.maxDrawdown, addLog, addNotification, addPaperTrade, updatePaperTradePrice, closePaperTrade, patchStats, setEngineState])
 
   const shouldExecuteSignal = (signal: SmartSignalLike) => {
     const confidence = Number(signal.strength || 0)
@@ -325,10 +340,12 @@ export function BotEngine() {
 
     const executionKey = `${signal.pair}:${signal.dir}`
     const lastExecutedAt = lastExecutionRef.current[executionKey] || 0
-    if (Date.now() - lastExecutedAt < COOLDOWN_MS) return false
+    const cooldownMs = (useBotStore.getState().settings.cooldownPeriod || 60) * 1000
+    if (Date.now() - lastExecutedAt < cooldownMs) return false
 
     const botTrades = tradesRef.current.filter((trade) => trade.source === 'bot')
-    if (botTrades.length >= MAX_OPEN_BOT_POSITIONS) return false
+    const maxOpenPositions = useBotStore.getState().settings.maxOpenPositions
+    if (botTrades.length >= maxOpenPositions) return false
 
     return !botTrades.some((trade) =>
       trade.symbol === signal.pair &&

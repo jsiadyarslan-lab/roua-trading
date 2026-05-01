@@ -12,24 +12,33 @@ import { ConfigService } from '@nestjs/config';
  * - Maximum leverage limits
  * - Position size calculation based on risk percentage
  * - Stop-loss enforcement
+ *
+ * IMPORTANT: Risk parameters are now loaded from the Setting table
+ * in the database (synced with admin dashboard) with env var fallbacks.
+ * This means admin settings changes are applied in real-time.
  */
 @Injectable()
 export class RiskManagerService {
   private readonly logger = new Logger(RiskManagerService.name);
 
-  // ── Risk Parameters (configurable via env) ──
-  private readonly maxPositionSizePercent: number;  // Max % of portfolio per position
-  private readonly maxOpenPositions: number;         // Max concurrent open positions
-  private readonly maxDailyLossPercent: number;      // Max daily loss as % of portfolio
-  private readonly defaultStopLossPercent: number;   // Default SL distance
-  private readonly defaultTakeProfitPercent: number; // Default TP distance
-  private readonly maxLeverage: number;              // Maximum allowed leverage
-  private readonly minOrderSize: number;             // Minimum order size in USD
+  // ── Risk Parameters (loaded from DB with env fallback) ──
+  private maxPositionSizePercent: number;  // Max % of portfolio per position
+  private maxOpenPositions: number;         // Max concurrent open positions
+  private maxDailyLossPercent: number;      // Max daily loss as % of portfolio
+  private defaultStopLossPercent: number;   // Default SL distance
+  private defaultTakeProfitPercent: number; // Default TP distance
+  private maxLeverage: number;              // Maximum allowed leverage
+  private minOrderSize: number;             // Minimum order size in USD
+
+  // ── Last DB sync timestamp ──
+  private lastSettingsSync = 0;
+  private readonly SETTINGS_SYNC_INTERVAL = 30000; // 30 seconds
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
   ) {
+    // Initialize with env var defaults — will be overwritten by DB settings
     this.maxPositionSizePercent = parseFloat(
       this.configService.get('RISK_MAX_POSITION_PERCENT', '20'),
     );
@@ -53,7 +62,50 @@ export class RiskManagerService {
       this.configService.get('RISK_MIN_ORDER_SIZE', '10'),
     );
 
-    this.logger.log('🛡️ Risk Manager initialized — protecting your capital');
+    // Load settings from DB on startup
+    this.syncSettingsFromDB();
+
+    this.logger.log('🛡️ Risk Manager initialized — protecting your capital (with DB sync)');
+  }
+
+  /**
+   * Sync risk parameters from the admin Setting table.
+   * This is the bridge that connects admin dashboard changes
+   * to the live risk manager.
+   */
+  private async syncSettingsFromDB(): Promise<void> {
+    const now = Date.now();
+    if (now - this.lastSettingsSync < this.SETTINGS_SYNC_INTERVAL) {
+      return; // Skip if synced recently
+    }
+    this.lastSettingsSync = now;
+
+    try {
+      const settings = await this.prisma.setting.findMany();
+      const settingsMap: Record<string, any> = {};
+      for (const s of settings) {
+        try {
+          settingsMap[s.key] = JSON.parse(s.value);
+        } catch {
+          settingsMap[s.key] = s.value;
+        }
+      }
+
+      // Apply riskConfig from admin DB
+      const riskConfig = settingsMap.riskConfig;
+      if (riskConfig) {
+        if (riskConfig.maxDrawdown) this.maxDailyLossPercent = parseFloat(riskConfig.maxDrawdown);
+        if (riskConfig.maxOpenPositions) this.maxOpenPositions = parseInt(riskConfig.maxOpenPositions, 10);
+        if (riskConfig.stopLossDefault) this.defaultStopLossPercent = parseFloat(riskConfig.stopLossDefault);
+        if (riskConfig.takeProfitDefault) this.defaultTakeProfitPercent = parseFloat(riskConfig.takeProfitDefault);
+        if (riskConfig.riskPerTrade) this.maxPositionSizePercent = parseFloat(riskConfig.riskPerTrade) * 5; // Scale risk per trade to position size
+        if (riskConfig.leverageLimit) this.maxLeverage = parseFloat(riskConfig.leverageLimit);
+      }
+
+      this.logger.debug('🛡️ Risk parameters synced from DB');
+    } catch (error: any) {
+      this.logger.warn(`🛡️ Failed to sync settings from DB: ${error.message} — using env defaults`);
+    }
   }
 
   /**
@@ -66,6 +118,9 @@ export class RiskManagerService {
     quantity: number,
     price: number,
   ): Promise<{ allowed: boolean; reason?: string; riskScore?: number }> {
+    // Sync settings from DB before each check (rate-limited internally)
+    await this.syncSettingsFromDB();
+
     // Check 1: Minimum order size
     const orderValue = quantity * price;
     if (orderValue < this.minOrderSize) {

@@ -31,7 +31,7 @@ export default function SubPageLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <div dir="rtl" style={{ minHeight: '100dvh', background: 'var(--bg-app)', color: 'var(--text-main)' }}>
+    <div dir="rtl" style={{ height: '100dvh', background: 'var(--bg-app)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Top Navigation Bar */}
       <div style={{
         minHeight: '52px',
@@ -148,7 +148,7 @@ export default function SubPageLayout({
       )}
 
       {/* Main Content */}
-      <div className="subpage-content" style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px', minHeight: 'calc(100dvh - 60px)' }}>
+      <div className="subpage-content" style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px', flex: 1, minHeight: 0, overflow: 'auto' }}>
         {children}
       </div>
 
@@ -164,9 +164,8 @@ export default function SubPageLayout({
             display: flex !important;
           }
           .subpage-content {
-            padding: 16px 10px !important;
-            padding-bottom: calc(16px + env(safe-area-inset-bottom) + 80px) !important;
-            min-height: calc(100dvh - 60px) !important;
+            padding: 12px 8px !important;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom)) !important;
           }
           .subpage-nav-bar {
             padding-top: calc(env(safe-area-inset-top)) !important;
@@ -175,9 +174,8 @@ export default function SubPageLayout({
         }
         @media (max-width: 380px) {
           .subpage-content {
-            padding: 12px 8px !important;
-            padding-bottom: calc(12px + env(safe-area-inset-bottom) + 80px) !important;
-            min-height: calc(100dvh - 60px) !important;
+            padding: 10px 6px !important;
+            padding-bottom: calc(10px + env(safe-area-inset-bottom)) !important;
           }
         }
       `}</style>

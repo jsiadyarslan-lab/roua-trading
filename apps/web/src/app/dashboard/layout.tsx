@@ -45,10 +45,10 @@ export default function DashboardLayout({
         <div style={{ minHeight: '100dvh', background: '#0B0E14', direction: 'rtl', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
           <GuestBanner />
           <AppHeader />
-          <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'auto' }}>
+          <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
             <style>{`
               @media (max-width: 767px) {
-                main { min-height: calc(100dvh - 48px) !important; padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important; }
+                main { height: calc(100dvh - 48px) !important; min-height: 0 !important; padding-bottom: 0 !important; }
               }
             `}</style>
             <ErrorBoundary>

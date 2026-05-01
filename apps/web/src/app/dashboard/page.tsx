@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { QuoteData } from '@/hooks/useMarketStore'
-import { BarChart3, Brain, ChevronDown, ScanSearch, Wallet, PanelRight, Zap } from 'lucide-react'
+import { BarChart3, Brain, ChevronDown, ScanSearch, Wallet, PanelRight, Zap, X, TrendingUp, TrendingDown, ShieldAlert, Target, Link2 } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { NotificationToasts } from '@/components/dashboard/NotificationCenter'
@@ -491,33 +491,36 @@ export default function DashboardPage() {
           .mobile-dashboard-shell {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            padding: 10px 10px calc(124px + env(safe-area-inset-bottom));
+            gap: 0;
+            padding: 8px 8px 0;
             background: ${T.bg};
             box-sizing: border-box;
             width: 100%;
-            overflow-x: hidden;
-            overflow-y: auto;
-            min-height: 100dvh;
+            overflow: hidden;
+            height: 100dvh;
           }
 
           .mobile-hero-trading-area {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
             min-width: 0;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
           }
 
           .mobile-market-strip {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 8px;
+            gap: 6px;
+            flex-shrink: 0;
           }
 
           .mobile-market-pill {
             min-width: 0;
-            padding: 10px 8px;
-            border-radius: 14px;
+            padding: 6px 6px;
+            border-radius: 12px;
             border: 1px solid rgba(0, 212, 255, 0.12);
             background: rgba(26, 29, 41, 0.6);
             backdrop-filter: blur(8px);
@@ -537,38 +540,43 @@ export default function DashboardPage() {
             border: 1px solid rgba(0, 212, 255, 0.10);
             background: rgba(26, 29, 41, 0.6);
             backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
           }
 
           .mobile-hero-card__header {
-            min-height: 44px;
+            min-height: 40px;
             padding: 0 12px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+            flex-shrink: 0;
           }
 
           .mobile-hero-chart {
-            height: 38dvh;
-            min-height: 240px;
-            max-height: 360px;
+            flex: 1;
+            min-height: 200px;
             overflow: hidden;
           }
 
           .mobile-hero-chart--expanded {
-            height: 72dvh;
-            max-height: none;
+            flex: 2;
+            min-height: 300px;
           }
 
           .mobile-summary-strip {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 8px;
-            padding: 10px 12px;
-            border-radius: 14px;
+            gap: 6px;
+            padding: 8px 10px;
+            border-radius: 12px;
             background: rgba(26, 29, 41, 0.6);
             backdrop-filter: blur(8px);
             border: 1px solid rgba(255, 255, 255, 0.06);
+            flex-shrink: 0;
           }
 
           .mobile-summary-card {
@@ -586,22 +594,21 @@ export default function DashboardPage() {
           }
 
           .mobile-panel-shell {
-            border-radius: 16px;
+            border-radius: 16px 16px 0 0;
             overflow: hidden;
             border: 1px solid rgba(0, 212, 255, 0.10);
+            border-bottom: none;
             background: rgba(26, 29, 41, 0.6);
             backdrop-filter: blur(8px);
-            min-height: max(320px, calc(100dvh - 380px));
+            flex-shrink: 1;
+            min-height: 0;
+            overflow-y: auto;
           }
 
           .mobile-bottom-nav {
             display: block;
-            position: fixed;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 80;
-            padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+            flex-shrink: 0;
+            padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
             background: rgba(11, 14, 20, 0.94);
             border-top: 1px solid rgba(0, 212, 255, 0.10);
             backdrop-filter: blur(20px) saturate(1.5);
@@ -612,21 +619,21 @@ export default function DashboardPage() {
           .mobile-bottom-nav__inner {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
+            gap: 6px;
           }
 
           .mobile-bottom-nav__button {
-            min-height: 50px;
-            padding: 8px 4px;
+            min-height: 42px;
+            padding: 6px 4px;
             border: 1px solid transparent;
-            border-radius: 12px;
+            border-radius: 10px;
             background: rgba(255, 255, 255, 0.03);
             color: ${T.text3};
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 4px;
+            gap: 3px;
             cursor: pointer;
             transition: all 0.18s ease;
             box-sizing: border-box;
@@ -641,7 +648,7 @@ export default function DashboardPage() {
           }
 
           .mobile-bottom-nav__label {
-            font-size: 10px;
+            font-size: 9px;
             font-weight: 700;
             font-family: 'Cairo', sans-serif;
             line-height: 1;
@@ -717,6 +724,16 @@ export default function DashboardPage() {
         @keyframes live-dot {
           0%, 100% { transform: scale(1); opacity: 0.65; }
           50% { transform: scale(1.35); opacity: 1; }
+        }
+
+        @keyframes slideUp {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
       `}</style>
 
@@ -913,11 +930,11 @@ export default function DashboardPage() {
                     className={`mobile-market-pill${active ? ' mobile-market-pill--active' : ''}`}
                     style={{ cursor: 'pointer' }}
                   >
-                    <div style={{ fontSize: 10, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{symbol}</div>
-                    <div style={{ fontSize: 14, color: T.text, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", marginTop: 4 }}>
+                    <div style={{ fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{symbol}</div>
+                    <div style={{ fontSize: 12, color: T.text, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>
                       {formatQuotePrice(quote?.price)}
                     </div>
-                    <div style={{ fontSize: 9, color: getStatusTone(getDataStatus(quote)), marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <div style={{ fontSize: 8, color: getStatusTone(getDataStatus(quote)), marginTop: 2, fontFamily: "'JetBrains Mono', monospace" }}>
                       {getStatusLabel(getDataStatus(quote))}
                     </div>
                   </button>
@@ -927,35 +944,35 @@ export default function DashboardPage() {
 
             <div className="mobile-hero-card">
               <div className="mobile-hero-card__header">
-                <span className="mobile-section__title">Chart</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className="mobile-section__title" style={{ fontSize: 11 }}>Chart</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <button
                     type="button"
                     onClick={() => setTradeDialogOpen(true)}
-                    title="تداول"
-                    aria-label="فتح نافذة التداول"
+                    title="تنفيذ الأوامر"
+                    aria-label="فتح نافذة التنفيذ"
                     style={{
-                      width: 32, height: 32, borderRadius: '50%',
+                      width: 28, height: 28, borderRadius: 8,
                       background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
                       border: 'none', color: '#fff', cursor: 'pointer',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      boxShadow: '0 0 12px rgba(0,255,198,0.3), 0 0 4px rgba(10,132,255,0.2)',
-                      transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                      boxShadow: '0 0 10px rgba(0,255,198,0.25), 0 0 3px rgba(10,132,255,0.15)',
+                      transition: 'transform 0.12s ease',
                     }}
-                    onMouseDown={e => e.currentTarget.style.transform = 'scale(0.9)'}
+                    onMouseDown={e => e.currentTarget.style.transform = 'scale(0.88)'}
                     onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
                     onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                   >
-                    <Zap size={15} fill="white" />
+                    <Zap size={13} fill="white" />
                   </button>
                   <button
                     type="button"
                     onClick={() => setChartExpanded(value => !value)}
                     title={chartExpanded ? 'تصغير الرسم البياني' : 'توسيع الرسم البياني'}
                     aria-label={chartExpanded ? 'تصغير الرسم البياني' : 'توسيع الرسم البياني'}
-                    style={{ background: 'transparent', border: 'none', color: T.text3, cursor: 'pointer' }}
+                    style={{ background: 'transparent', border: 'none', color: T.text3, cursor: 'pointer', padding: 2 }}
                   >
-                    <ChevronDown size={16} style={{ transform: chartExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
+                    <ChevronDown size={14} style={{ transform: chartExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
                   </button>
                 </div>
               </div>
@@ -975,8 +992,8 @@ export default function DashboardPage() {
             <div className="mobile-summary-strip">
               {mobileSummaryCards.map(card => (
                 <div key={card.label} className="mobile-summary-card">
-                  <div style={{ fontSize: 9, color: T.text3, marginBottom: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.label}</div>
-                  <div style={{ fontSize: 11, color: card.tone, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.value}</div>
+                  <div style={{ fontSize: 8, color: T.text3, marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.label}</div>
+                  <div style={{ fontSize: 10, color: card.tone, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.value}</div>
                 </div>
               ))}
             </div>
@@ -984,19 +1001,19 @@ export default function DashboardPage() {
 
           <div className="mobile-panel-shell">
             {activeMobileView === 'execution' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 10, height: '100%' }}>
-                <div className="mobile-section__header">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 8, height: '100%', overflow: 'hidden' }}>
+                <div className="mobile-section__header" style={{ minHeight: 36 }}>
                   <span className="mobile-section__title">الحساب والمراكز</span>
-                  <BarChart3 size={18} color={T.text3} />
+                  <BarChart3 size={16} color={T.text3} />
                 </div>
-                <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
+                <div style={{ flex: 1, borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card, minHeight: 0 }}>
                   <PortfolioMini mobile compact dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />
                 </div>
               </div>
             )}
 
             {activeMobileView === 'market' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 10, height: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 8, height: '100%', overflow: 'hidden' }}>
                 <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
                   <OrderBookPanel mobile collapsedByDefault dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} />
                 </div>
@@ -1007,7 +1024,7 @@ export default function DashboardPage() {
             )}
 
             {activeMobileView === 'portfolio' && (
-              <div style={{ padding: 10, height: '100%' }}>
+              <div style={{ padding: 8, height: '100%', overflow: 'hidden' }}>
                 <div style={{ height: '100%', borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
                   <PortfolioMini mobile dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />
                 </div>
@@ -1015,7 +1032,7 @@ export default function DashboardPage() {
             )}
 
             {activeMobileView === 'insight' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 10, height: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 8, height: '100%', overflow: 'hidden' }}>
                 <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
                   <ScannerMini mobile compact selectedSymbol={selectedSymbol} />
                 </div>
@@ -1025,24 +1042,107 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+
+          {/* Bottom Nav inside the flexbox */}
+          <nav className="mobile-bottom-nav" aria-label="Mobile dashboard navigation">
+            <div className="mobile-bottom-nav__inner">
+              {[
+                { id: 'execution', label: 'تنفيذ', icon: BarChart3 },
+                { id: 'market', label: 'السوق', icon: ScanSearch },
+                { id: 'portfolio', label: 'المحفظة', icon: Wallet },
+                { id: 'insight', label: 'رؤى', icon: Brain },
+              ].map(item => {
+                const Icon = item.icon
+                const active = activeMobileView === item.id
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setActiveMobileView(item.id as MobileView)}
+                    className={`mobile-bottom-nav__button${active ? ' mobile-bottom-nav__button--active' : ''}`}
+                    title={item.label}
+                    aria-label={item.label}
+                  >
+                    <Icon size={16} />
+                    <span className="mobile-bottom-nav__label">{item.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </nav>
         </div>
       )}
 
       {/* Trade Dialog (bottom sheet) for mobile */}
       {isMobileViewport && tradeDialogOpen && (
         <div
-          style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 90,
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+            animation: 'fadeIn 0.15s ease-out',
+          }}
           onClick={() => setTradeDialogOpen(false)}
         >
           <div
-            style={{ width: '100%', maxHeight: '85dvh', background: '#0B0E14', borderTopLeftRadius: 20, borderTopRightRadius: 20, border: '1px solid rgba(0,212,255,0.15)', overflow: 'auto', padding: 16, paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}
+            style={{
+              width: '100%',
+              maxHeight: '90dvh',
+              background: 'linear-gradient(180deg, #111520 0%, #0B0E14 100%)',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              border: '1px solid rgba(0,212,255,0.12)',
+              borderBottom: 'none',
+              overflow: 'hidden',
+              animation: 'slideUp 0.3s cubic-bezier(0.16,1,0.3,1)',
+            }}
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, fontWeight: 800, color: '#F0F2F5' }}>تنفيذ سريع</span>
-              <button onClick={() => setTradeDialogOpen(false)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, width: 32, height: 32, color: '#8B92A8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✕</button>
+            {/* Drag handle */}
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 6px' }}>
+              <div style={{ width: 36, height: 4, borderRadius: 4, background: 'rgba(255,255,255,0.15)' }} />
             </div>
-            <QuickExecutionMini mobile dataStatus={accountDataStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} />
+
+            {/* Header */}
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '4px 16px 12px',
+              borderBottom: '1px solid rgba(0,212,255,0.08)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{
+                  width: 28, height: 28, borderRadius: 8,
+                  background: 'linear-gradient(135deg, rgba(0,212,255,0.15), rgba(0,255,163,0.08))',
+                  border: '1px solid rgba(0,212,255,0.2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Zap size={13} color="#00D4FF" />
+                </div>
+                <div>
+                  <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, fontWeight: 800, color: '#F0F2F5' }}>تنفيذ الأوامر</div>
+                  <div style={{ fontSize: 10, color: '#8B92A8', fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol} · {formatQuotePrice(currentPrice)}</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setTradeDialogOpen(false)}
+                style={{
+                  width: 30, height: 30, borderRadius: 8,
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: '#8B92A8', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {/* Content - scrollable */}
+            <div style={{ overflow: 'auto', padding: '12px 16px calc(16px + env(safe-area-inset-bottom))' }}>
+              <QuickExecutionMini mobile dataStatus={accountDataStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} />
+            </div>
           </div>
         </div>
       )}
@@ -1093,36 +1193,6 @@ export default function DashboardPage() {
         >
           <LeftSidebarLayout />
         </SidebarDrawer>
-      )}
-
-      {isMobileViewport && (
-        <nav className="mobile-bottom-nav" aria-label="Mobile dashboard navigation">
-          <div className="mobile-bottom-nav__inner">
-            {[
-              { id: 'execution', label: 'تنفيذ', icon: BarChart3 },
-              { id: 'market', label: 'السوق', icon: ScanSearch },
-              { id: 'portfolio', label: 'المحفظة', icon: Wallet },
-              { id: 'insight', label: 'رؤى', icon: Brain },
-            ].map(item => {
-              const Icon = item.icon
-              const active = activeMobileView === item.id
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveMobileView(item.id as MobileView)}
-                  className={`mobile-bottom-nav__button${active ? ' mobile-bottom-nav__button--active' : ''}`}
-                  title={item.label}
-                  aria-label={item.label}
-                >
-                  <Icon size={18} />
-                  <span className="mobile-bottom-nav__label">{item.label}</span>
-                </button>
-              )
-            })}
-          </div>
-        </nav>
       )}
     </>
   )

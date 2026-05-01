@@ -6,6 +6,7 @@ import { GeminiService } from './gemini.service';
 import { HuggingFaceService } from './huggingface.service';
 import { OllamaService } from './ollama.service';
 import { BedrockService } from './bedrock.service';
+import { OpenRouterService } from './openrouter.service';
 import { RagService } from './rag.service';
 import { AiUsageLoggerService } from './ai-usage-logger.service';
 import { RedisService } from '../../../common/redis/redis.service';
@@ -14,7 +15,7 @@ import * as crypto from 'crypto';
 /**
  * AI Orchestrator — Routes tasks to the optimal AI model
  *
- * 6 AI Models Available (using existing API keys):
+ * 7 AI Models Available (using existing API keys):
  * ┌──────────────────────────────────────────────────────────────────────┐
  * │ Model                 │ Key                │ Specialty              │
  * ├───────────────────────┼────────────────────┼────────────────────────┤
@@ -24,20 +25,21 @@ import * as crypto from 'crypto';
  * │ HuggingFace/Mistral  │ HUGGINGFACE_API_KEY│ 🤗 مجاني — متنوع      │
  * │ Ollama/Qwen2.5       │ OLLAMA_API_KEY     │ 🏠 محلي — بدون تكلفة  │
  * │ Bedrock/Claude 3.5   │ AWS_ACCESS_KEY_ID  │ ☁️ مؤسسي — مخاطر/أمان │
+ * │ OpenRouter/Llama 3.1 │ OPENROUTER_API_KEY │ 🔀 تباين — نماذج مجانية│
  * └───────────────────────┴────────────────────┴────────────────────────┘
  *
  * Task → Model Routing:
- * ┌──────────────────────┬──────────────────────────────────────────────┐
- * │ Task Type            │ Best Model + Fallback Chain                  │
- * ├──────────────────────┼──────────────────────────────────────────────┤
- * │ sentiment            │ Groq → GLM → HuggingFace → Ollama           │
- * │ market_analysis      │ Gemini → Bedrock → GLM → HuggingFace        │
- * │ prediction           │ GLM → Ollama → Gemini → Bedrock             │
- * │ signal_generation    │ Gemini → Bedrock → Groq → GLM               │
- * │ risk_analysis        │ Bedrock → GLM → Ollama → Gemini             │
- * │ translation          │ Groq → GLM → Ollama → HuggingFace           │
- * │ general              │ Gemini → Groq → GLM → HuggingFace → Ollama  │
- * └──────────────────────┴──────────────────────────────────────────────┘
+ * ┌──────────────────────┬──────────────────────────────────────────────────────┐
+ * │ Task Type            │ Best Model + Fallback Chain                          │
+ * ├──────────────────────┼──────────────────────────────────────────────────────┤
+ * │ sentiment            │ Groq → GLM → HuggingFace → Ollama → OpenRouter      │
+ * │ market_analysis      │ Gemini → Bedrock → GLM → HuggingFace → OpenRouter   │
+ * │ prediction           │ GLM → Ollama → Gemini → Bedrock → OpenRouter        │
+ * │ signal_generation    │ Gemini → Bedrock → Groq → GLM → OpenRouter          │
+ * │ risk_analysis        │ Bedrock → GLM → Ollama → Gemini → OpenRouter        │
+ * │ translation          │ Groq → GLM → Ollama → HuggingFace → OpenRouter      │
+ * │ general              │ Gemini → Groq → GLM → HuggingFace → Ollama → OR     │
+ * └──────────────────────┴──────────────────────────────────────────────────────┘
  */
 @Injectable()
 export class AIOrchestratorService {
@@ -79,6 +81,7 @@ export class AIOrchestratorService {
     huggingface: ['HUGGINGFACE_API_KEY', 'HF_API_KEY', 'OPENROUTER_API_KEY'],  // OpenRouter is fallback provider
     ollama:      ['OLLAMA_API_KEY'],  // Also checks OLLAMA_BASE_URL reachability
     bedrock:     ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'],
+    openrouter:  ['OPENROUTER_API_KEY'],  // 7th model — also serves as HF fallback
   };
 
   /**
@@ -102,15 +105,15 @@ export class AIOrchestratorService {
     return url.includes('localhost') || url.includes('127.0.0.1') || url.includes('0.0.0.0');
   }
 
-  /** Model routing — 6 models with smart fallbacks */
+  /** Model routing — 7 models with smart fallbacks */
   private readonly ROUTING: Record<string, { primary: string; fallback: string[] }> = {
-    sentiment:        { primary: 'groq',       fallback: ['glm', 'huggingface', 'ollama', 'gemini', 'bedrock'] },
-    market_analysis:  { primary: 'gemini',     fallback: ['bedrock', 'glm', 'huggingface', 'ollama', 'groq'] },
-    prediction:       { primary: 'glm',        fallback: ['ollama', 'gemini', 'bedrock', 'huggingface', 'groq'] },
-    signal_generation:{ primary: 'gemini',     fallback: ['bedrock', 'groq', 'glm', 'huggingface', 'ollama'] },
-    risk_analysis:    { primary: 'bedrock',    fallback: ['glm', 'ollama', 'gemini', 'huggingface', 'groq'] },
-    translation:      { primary: 'groq',       fallback: ['glm', 'ollama', 'huggingface', 'gemini', 'bedrock'] },
-    general:          { primary: 'gemini',     fallback: ['groq', 'glm', 'huggingface', 'ollama', 'bedrock'] },
+    sentiment:        { primary: 'groq',       fallback: ['glm', 'huggingface', 'ollama', 'gemini', 'bedrock', 'openrouter'] },
+    market_analysis:  { primary: 'gemini',     fallback: ['bedrock', 'glm', 'huggingface', 'ollama', 'groq', 'openrouter'] },
+    prediction:       { primary: 'glm',        fallback: ['ollama', 'gemini', 'bedrock', 'huggingface', 'groq', 'openrouter'] },
+    signal_generation:{ primary: 'gemini',     fallback: ['bedrock', 'groq', 'glm', 'huggingface', 'ollama', 'openrouter'] },
+    risk_analysis:    { primary: 'bedrock',    fallback: ['glm', 'ollama', 'gemini', 'huggingface', 'groq', 'openrouter'] },
+    translation:      { primary: 'groq',       fallback: ['glm', 'ollama', 'huggingface', 'gemini', 'bedrock', 'openrouter'] },
+    general:          { primary: 'gemini',     fallback: ['groq', 'glm', 'huggingface', 'ollama', 'bedrock', 'openrouter'] },
   };
 
   constructor(
@@ -121,11 +124,12 @@ export class AIOrchestratorService {
     private readonly huggingfaceService: HuggingFaceService,
     private readonly ollamaService: OllamaService,
     private readonly bedrockService: BedrockService,
+    private readonly openrouterService: OpenRouterService,
     @Optional() private readonly ragService?: RagService,
     @Optional() private readonly redis?: RedisService,
     @Optional() private readonly usageLogger?: AiUsageLoggerService,
   ) {
-    this.logger.log('🎼 AI Orchestrator initialized — 6 models (Groq, Gemini, GLM-4, HuggingFace, Ollama, Bedrock)');
+    this.logger.log('🎼 AI Orchestrator initialized — 7 models (Groq, Gemini, GLM-4, HuggingFace, Ollama, Bedrock, OpenRouter)');
     if (this.ragService) {
       this.logger.log('📚 RAG integration enabled — context retrieval active');
     }
@@ -292,20 +296,21 @@ export class AIOrchestratorService {
       return memCached as any;
     }
 
-    this.logger.log(`🎼 Initiating AI Council Consensus for ${symbol} — 6 models`);
+    this.logger.log(`🎼 Initiating AI Council Consensus for ${symbol} — 7 models`);
 
     try {
       const decisionInstruction = '\n\nIMPORTANT: End your response with a single line in exactly this format: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD". This line must be the last line of your response.';
 
       // FIX: Each model has exactly ONE role — no duplicates, no role overlap
-      // 6 models = 6 roles (1:1 mapping) — clean, predictable, no rate-limiting
+      // 7 models = 7 roles (1:1 mapping) — clean, predictable, no rate-limiting
       const roles = [
-        { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',     fallbackModels: ['groq', 'glm', 'huggingface'],  prompt: `حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.${decisionInstruction}` },
-        { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['gemini', 'glm', 'huggingface'], prompt: `حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
-        { id: 'risk',   name: 'خبير المخاطر',     model: 'bedrock',    fallbackModels: ['glm', 'gemini', 'groq'],        prompt: `حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة مع تقييم السيناريو الأسوأ.${decisionInstruction}` },
-        { id: 'macro',  name: 'خبير الماكرو',     model: 'glm',        fallbackModels: ['gemini', 'groq', 'huggingface'], prompt: `حلل الوضع الاقتصادي العام وتأثيره على ${symbol} مع مراعاة السياق العربي.${decisionInstruction}` },
-        { id: 'pattern',name: 'خبير الأنماط',     model: 'huggingface',fallbackModels: ['groq', 'gemini', 'glm'],        prompt: `هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟${decisionInstruction}` },
-        { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'ollama',     fallbackModels: ['groq', 'gemini', 'glm'],        prompt: `ما هو أفضل توقيت للدخول في ${symbol} بناءً على السيولة والنماذج المتاحة؟${decisionInstruction}` },
+        { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',     fallbackModels: ['groq', 'glm', 'huggingface', 'openrouter'],  prompt: `حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.${decisionInstruction}` },
+        { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['gemini', 'glm', 'huggingface', 'openrouter'], prompt: `حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
+        { id: 'risk',   name: 'خبير المخاطر',     model: 'bedrock',    fallbackModels: ['glm', 'gemini', 'groq', 'openrouter'],        prompt: `حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة مع تقييم السيناريو الأسوأ.${decisionInstruction}` },
+        { id: 'macro',  name: 'خبير الماكرو',     model: 'glm',        fallbackModels: ['gemini', 'groq', 'huggingface', 'openrouter'], prompt: `حلل الوضع الاقتصادي العام وتأثيره على ${symbol} مع مراعاة السياق العربي.${decisionInstruction}` },
+        { id: 'pattern',name: 'خبير الأنماط',     model: 'huggingface',fallbackModels: ['groq', 'gemini', 'glm', 'openrouter'],        prompt: `هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟${decisionInstruction}` },
+        { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'ollama',     fallbackModels: ['groq', 'gemini', 'glm', 'openrouter'],        prompt: `ما هو أفضل توقيت للدخول في ${symbol} بناءً على السيولة والنماذج المتاحة؟${decisionInstruction}` },
+        { id: 'diverge',name: 'محلل التباين',     model: 'openrouter', fallbackModels: ['groq', 'gemini', 'glm', 'huggingface'],        prompt: `ابحث عن إشارات معاكسة أو تباينات في تحليل ${symbol} — هل هناك سبب لعدم اتباع الاتجاه السائد؟${decisionInstruction}` },
       ];
 
       const start = Date.now();
@@ -486,7 +491,7 @@ export class AIOrchestratorService {
 
       // FIX: Generate master strategy with 15s timeout — don't let it block the response
       // If it fails, use a quick summary instead
-      let masterStrategyContent = `إجماع المجلس (${analyses.length}/6 نماذج): ${recommendation === 'BUY' ? 'شراء قوي' : recommendation === 'SELL' ? 'بيع قوي' : 'انتظار'} بنسبة ثقة ${consensusScore}%.`;
+      let masterStrategyContent = `إجماع المجلس (${analyses.length}/7 نماذج): ${recommendation === 'BUY' ? 'شراء قوي' : recommendation === 'SELL' ? 'بيع قوي' : 'انتظار'} بنسبة ثقة ${consensusScore}%.`;
 
       if (analyses.length > 0) {
         try {
@@ -515,7 +520,7 @@ export class AIOrchestratorService {
         }
       }
 
-      this.logger.log(`✅ Consensus: ${recommendation} (${consensusScore}%) from ${analyses.length}/6 models in ${Date.now() - start}ms`);
+      this.logger.log(`✅ Consensus: ${recommendation} (${consensusScore}%) from ${analyses.length}/7 models in ${Date.now() - start}ms`);
 
       const result = { consensusScore, recommendation, analyses, masterStrategy: masterStrategyContent };
 
@@ -560,6 +565,7 @@ export class AIOrchestratorService {
       { id: 'huggingface', name: 'HuggingFace/Mistral-7B', keyEnv: 'HF_API_KEY' },  // Also checks OPENROUTER_API_KEY as fallback
       { id: 'ollama', name: 'Ollama/Qwen2.5', keyEnv: 'OLLAMA_API_KEY' },
       { id: 'bedrock', name: 'Bedrock/Claude 3.5', keyEnv: 'AWS_ACCESS_KEY_ID' },
+      { id: 'openrouter', name: 'OpenRouter/Llama 3.1', keyEnv: 'OPENROUTER_API_KEY' },
     ];
 
     const results = await Promise.all(
@@ -596,6 +602,14 @@ export class AIOrchestratorService {
           const orKey = this.configService.get<string>('OPENROUTER_API_KEY', '');
           if (orKey) {
             keyHint += ` + OR:${orKey.substring(0, 4)}***${orKey.length > 8 ? orKey.substring(orKey.length - 4) : ''}`;
+          }
+        }
+
+        // For OpenRouter, show key hint
+        if (m.id === 'openrouter') {
+          const orKey = this.configService.get<string>('OPENROUTER_API_KEY', '');
+          if (orKey) {
+            keyHint = `${orKey.substring(0, 4)}***${orKey.length > 8 ? orKey.substring(orKey.length - 4) : ''}`;
           }
         }
 
@@ -661,7 +675,7 @@ export class AIOrchestratorService {
     consensus: string;
   }> {
     const enrichedRequest = await this._enrichWithContext(request);
-    this.logger.debug(`🎼 Multi-model analysis for ${enrichedRequest.type} — 6 models`);
+    this.logger.debug(`🎼 Multi-model analysis for ${enrichedRequest.type} — 7 models`);
 
     const results = await Promise.allSettled([
       this.groqService.analyze(enrichedRequest),
@@ -670,6 +684,7 @@ export class AIOrchestratorService {
       this.huggingfaceService.analyze(enrichedRequest),
       this.ollamaService.analyze(enrichedRequest),
       this.bedrockService.analyze(enrichedRequest),
+      this.openrouterService.analyze(enrichedRequest),
     ]);
 
     const analyses: AIAnalysisResponse[] = [];
@@ -680,14 +695,14 @@ export class AIOrchestratorService {
     }
 
     const consensus = analyses.length > 0
-      ? `تم الحصول على ${analyses.length} تحليل من ${analyses.length}/6 نماذج ذكاء اصطناعي`
+      ? `تم الحصول على ${analyses.length} تحليل من ${analyses.length}/7 نماذج ذكاء اصطناعي`
       : 'لا توجد نماذج متاحة حالياً';
 
     return { analyses, consensus };
   }
 
   /**
-   * Get available models status — 6 models
+   * Get available models status — 7 models
    * Checks actual API key availability from environment variables
    */
   getModelsStatus(): { model: string; available: boolean; specialty: string }[] {
@@ -698,6 +713,7 @@ export class AIOrchestratorService {
       { model: 'HuggingFace/Mistral-7B',     available: this._isModelKeyAvailable('huggingface'), specialty: '🤗 مجاني مفتوح المصدر — تحليل متنوع' },
       { model: 'Ollama/Qwen2.5',             available: this._isModelKeyAvailable('ollama'),      specialty: '🏠 محلي بدون تكلفة — دعم عربي ممتاز' },
       { model: 'Bedrock/Claude 3.5 Sonnet',  available: this._isModelKeyAvailable('bedrock'),     specialty: '☁️ مؤسسي AWS — مخاطر وامتثال' },
+      { model: 'OpenRouter/Llama 3.1',       available: this._isModelKeyAvailable('openrouter'),  specialty: '🔀 تباين ومعاكسة — نماذج مجانية متنوعة' },
     ];
   }
 
@@ -930,6 +946,7 @@ export class AIOrchestratorService {
       case 'huggingface': return this.huggingfaceService.analyze(request);
       case 'ollama':      return this.ollamaService.analyze(request);
       case 'bedrock':     return this.bedrockService.analyze(request);
+      case 'openrouter':  return this.openrouterService.analyze(request);
       default:            return this.geminiService.analyze(request);
     }
   }

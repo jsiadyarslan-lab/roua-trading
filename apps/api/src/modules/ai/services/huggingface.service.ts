@@ -281,7 +281,7 @@ export class HuggingFaceService {
   private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {
     return {
       model: 'HuggingFace/Qwen2.5-72B',
-      content: `⚠️ خدمة HuggingFace غير متاحة حالياً. النماذج المفتوحة المصدر (Qwen2.5, Mistral, Zephyr, Phi-3) ستكون متاحة عند استعادة الخدمة — مجاني بالكامل.`,
+      content: `⚠️ خدمة HuggingFace غير متاحة — مفتاح API لا يدعم Serverless Inference. الحل: 1) اذهب إلى huggingface.co/settings/tokens 2) أنشئ مفتاح جديد بصلاحية "Make calls to the serverless Inference API" 3) حدث HF_API_KEY في Railway.`,
       confidence: 0,
       processingTimeMs: 0,
       language: request.language || 'ar',

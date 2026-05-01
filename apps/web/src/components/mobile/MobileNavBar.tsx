@@ -72,11 +72,16 @@ export default function MobileNavBar() {
                 className="flex flex-col items-center justify-center h-full"
                 style={{ width: 48 }}
               >
-                <motion.div whileTap={{ scale: 0.85 }} className="relative">
+                <motion.div 
+                  whileTap={{ scale: 0.9 }} 
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  className="relative"
+                >
                   <Icon size={20} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} />
                   {active && (
                     <motion.div
                       layoutId="navIndicator"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                       style={{
                         position: 'absolute',
                         bottom: -3,
@@ -86,6 +91,7 @@ export default function MobileNavBar() {
                         height: 3,
                         borderRadius: '50%',
                         background: '#00D4FF',
+                        boxShadow: '0 0 8px #00D4FF',
                       }}
                     />
                   )}

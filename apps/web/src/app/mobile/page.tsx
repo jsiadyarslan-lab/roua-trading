@@ -137,25 +137,33 @@ function CurrencyTicker() {
 function IOSCard({ children, onClick, highlight = false, noMargin = false }: { children: React.ReactNode, onClick?: () => void, highlight?: boolean, noMargin?: boolean }) {
   return (
     <motion.div
-      whileTap={onClick ? { scale: 0.97 } : undefined}
+      whileTap={onClick ? { scale: 0.98, y: 2 } : undefined}
+      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
       onClick={onClick}
       style={{
         background: highlight 
-          ? 'linear-gradient(145deg, rgba(30,30,35,0.8) 0%, rgba(20,20,25,0.8) 100%)' 
-          : 'rgba(28,28,30,0.6)',
-        backdropFilter: 'blur(30px) saturate(180%)',
+          ? 'linear-gradient(165deg, rgba(35,35,45,0.9) 0%, rgba(20,20,25,0.9) 100%)' 
+          : 'rgba(28,28,30,0.65)',
+        backdropFilter: 'blur(40px) saturate(190%)',
+        WebkitBackdropFilter: 'blur(40px) saturate(190%)',
         borderRadius: 28,
-        padding: '20px',
+        padding: '16px',
         margin: noMargin ? 0 : '0 20px 16px',
         cursor: onClick ? 'pointer' : 'default',
-        border: '0.5px solid rgba(255,255,255,0.08)',
+        border: '0.5px solid rgba(255,255,255,0.1)',
         position: 'relative',
         overflow: 'hidden',
-        boxShadow: highlight ? '0 10px 30px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.2)',
+        boxShadow: highlight 
+          ? '0 12px 32px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.08)' 
+          : '0 4px 16px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.05)',
       }}
     >
       {highlight && (
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 1, background: 'linear-gradient(90deg, transparent, rgba(0,212,255,0.2), transparent)' }} />
+        <div style={{ 
+          position: 'absolute', top: 0, left: 0, right: 0, height: 1.5, 
+          background: 'linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent)',
+          zIndex: 10
+        }} />
       )}
       {children}
     </motion.div>
@@ -266,12 +274,32 @@ export default function MobileHomePage() {
   const dailyChange = 2.4
 
   return (
-    <div style={{ minHeight: '100vh', background: '#000000', direction: 'rtl', paddingBottom: 20 }}>
+    <div style={{ 
+      minHeight: '100vh', 
+      background: '#000000', 
+      direction: 'rtl', 
+      paddingBottom: 20,
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* ── Ambient Sentiment Glow ── */}
+      <motion.div 
+        animate={{ 
+          opacity: consensus ? 0.15 : 0,
+          background: consensus?.recommendation === 'BUY' 
+            ? 'radial-gradient(circle at 50% -20%, #32D74B, transparent 70%)'
+            : consensus?.recommendation === 'SELL'
+            ? 'radial-gradient(circle at 50% -20%, #FF453A, transparent 70%)'
+            : 'radial-gradient(circle at 50% -20%, #00D4FF, transparent 70%)'
+        }}
+        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 400, pointerEvents: 'none', zIndex: 0 }}
+      />
 
       {/* ── Header ── */}
       <div style={{ 
         padding: 'calc(env(safe-area-inset-top) + 16px) 20px 12px', 
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between' 
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        position: 'relative', zIndex: 1
       }}>
         <div className="flex items-center gap-4">
           <div style={{
@@ -388,6 +416,13 @@ export default function MobileHomePage() {
               position: 'relative', zIndex: 1, border: '0.5px solid rgba(255,255,255,0.1)'
             }}>
               <Brain size={24} color="#FFFFFF" />
+              {!consensus && (
+                <motion.div
+                  animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  style={{ position: 'absolute', inset: 0, borderRadius: 16, border: '2px solid #A78BFA' }}
+                />
+              )}
             </div>
             <div style={{ position: 'relative', zIndex: 1 }}>
               <p style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>مجلس الخبراء</p>

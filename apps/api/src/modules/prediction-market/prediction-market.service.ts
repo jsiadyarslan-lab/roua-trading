@@ -238,7 +238,7 @@ export class PredictionMarketService {
     const cacheKey = `prediction:gap:${eventId}:${symbol}`;
 
     try {
-      return await this.redis.cacheOrGet<PredictionGapAnalysis>(
+      return await this.redis.cacheOrGet<PredictionGapAnalysis | null>(
         cacheKey,
         () => this._computeGapAnalysis(eventId, symbol),
         CACHE_TTL_GAP_MS,

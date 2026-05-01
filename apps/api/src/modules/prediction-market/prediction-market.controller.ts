@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Param, Query, UseGuards } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { AuthGuard } from '../../auth/auth.guard';
+import { AuthGuard } from '../../common/guards/auth.guard';
 import { PredictionMarketService } from './prediction-market.service';
 
 /**

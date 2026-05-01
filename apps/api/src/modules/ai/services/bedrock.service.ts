@@ -30,8 +30,15 @@ export class BedrockService {
   private readonly region: string;
   private readonly available: boolean;
 
-  // Default to Claude 3.5 Sonnet for risk/compliance analysis
-  private readonly defaultModel = 'anthropic.claude-3-5-sonnet-20241022-v2:0';
+  // FIX: Model fallback chain — Claude 3.5 may not be available in all regions/accounts.
+  // Try multiple models: Claude 3.5 → Claude 3 Haiku (cheaper) → Titan (always available)
+  private readonly modelCandidates = [
+    'anthropic.claude-3-5-sonnet-20241022-v2:0',
+    'anthropic.claude-3-haiku-20240307-v1:0',
+    'amazon.titan-text-premier-v1:0',
+    'meta.llama3-1-8b-instruct-v1:0',
+  ];
+  private resolvedModel: string | null = null; // Cached after first successful call
 
   constructor(private readonly configService: ConfigService) {
     this.accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID', '')?.trim() || '';
@@ -55,73 +62,89 @@ export class BedrockService {
 
     const startTime = Date.now();
 
-    try {
-      // Use AWS SDK-style request via fetch (to avoid adding @aws-sdk dependency)
-      // We implement AWS SigV4 signing manually for the Bedrock InvokeModel API
-      const body = this._buildRequestBody(request);
-      // URL-encode the model ID (colons must be %3A in the path)
-      const encodedModelId = encodeURIComponent(this.defaultModel);
-      const endpoint = `https://bedrock-runtime.${this.region}.amazonaws.com/model/${encodedModelId}/invoke`;
-      
-      const headers = await this._signRequest(endpoint, body);
-      
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(60000),
-      });
+    // FIX: Try multiple models with fallback chain
+    const modelsToTry = this.resolvedModel ? [this.resolvedModel] : this.modelCandidates;
 
-      if (!response.ok) {
-        const errorBody = await response.text().catch(() => '');
-        if (response.status === 403) {
-          this.logger.error(`Bedrock 403 Forbidden — Possible causes: (1) Region ${this.region} doesn't have Bedrock enabled, (2) IAM user lacks bedrock:InvokeModel permission, (3) Model ${this.defaultModel} not enabled in Bedrock console. Body: ${errorBody.substring(0, 300)}`);
-        } else if (response.status === 404) {
-          this.logger.error(`Bedrock 404 Not Found — Model ${this.defaultModel} not found in region ${this.region}. Check model availability. Body: ${errorBody.substring(0, 300)}`);
-        } else {
-          this.logger.error(`Bedrock API error: ${response.status} ${response.statusText} — ${errorBody.substring(0, 300)}`);
+    for (const modelToUse of modelsToTry) {
+      try {
+        const body = this._buildRequestBody(request, modelToUse);
+        const encodedModelId = encodeURIComponent(modelToUse);
+        const endpoint = `https://bedrock-runtime.${this.region}.amazonaws.com/model/${encodedModelId}/invoke`;
+        
+        const headers = await this._signRequest(endpoint, body);
+        
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(60000),
+        });
+
+        if (!response.ok) {
+          const errorBody = await response.text().catch(() => '');
+          if (response.status === 429) {
+            this.logger.warn(`☁️ Bedrock rate limited (429) for model ${modelToUse} — throwing for circuit breaker`);
+            throw new Error(`Bedrock API error: ${response.status} ${response.statusText}`);
+          }
+          if (response.status === 403) {
+            this.logger.error(`☁️ Bedrock 403 Forbidden for model ${modelToUse} — IAM lacks bedrock:InvokeModel or model not enabled. Body: ${errorBody.substring(0, 200)}`);
+            // 403 might be model-specific — try next model
+            continue;
+          }
+          if (response.status === 404) {
+            this.logger.warn(`☁️ Bedrock model ${modelToUse} not found (404) in region ${this.region} — trying next...`);
+            continue;
+          }
+          this.logger.error(`☁️ Bedrock API error: ${response.status} ${response.statusText} — ${errorBody.substring(0, 200)}`);
+          continue; // Try next model
         }
-        throw new Error(`Bedrock API error: ${response.status} ${response.statusText}`);
-      }
 
-      const data = await response.json();
-      const content = this._extractContent(data);
+        const data = await response.json();
+        const content = this._extractContent(data, modelToUse);
 
-      if (content.trim().length > 0) {
+        if (content.trim().length > 0) {
+          // Success — cache this model name for future calls
+          if (!this.resolvedModel) {
+            this.resolvedModel = modelToUse;
+            this.logger.log(`☁️ Bedrock model resolved: ${modelToUse}`);
+          }
+
+          return {
+            model: `Bedrock/${modelToUse.split('.').pop()}`,
+            content,
+            confidence: calculateConfidence(content, 'bedrock'),
+            processingTimeMs: Date.now() - startTime,
+            language: request.language || 'ar',
+          };
+        }
+      } catch (error: any) {
+        if (error.message?.includes('429') || error.message?.includes('rate')) {
+          this.logger.warn(`AWS Bedrock rate limited (429) — throwing for circuit breaker`);
+          throw error;
+        }
+        const errorDetail = error.message || String(error);
+        this.logger.warn(`AWS Bedrock model ${modelToUse} failed: ${errorDetail}`);
+        if (!this.resolvedModel) continue; // Try next model
         return {
-          model: `Bedrock/${this.defaultModel.split('.').pop()}`,
-          content,
-          confidence: calculateConfidence(content, 'bedrock'),
-          processingTimeMs: Date.now() - startTime,
-          language: request.language || 'ar',
+          ...this._stubResponse(request),
+          content: `⚠️ Bedrock API error: ${errorDetail.substring(0, 200)}`,
         };
       }
-    } catch (error: any) {
-      // FIX: Throw 429 errors so the orchestrator's circuit breaker can track them.
-      if (error.message?.includes('429') || error.message?.includes('rate')) {
-        this.logger.warn(`AWS Bedrock rate limited (429) — throwing for circuit breaker`);
-        throw error;
-      }
-      // FIX: Include error details in the response so diagnostics can see them
-      const errorDetail = error.message || String(error);
-      this.logger.warn(`AWS Bedrock inference failed: ${errorDetail}`);
-      return {
-        ...this._stubResponse(request),
-        content: `⚠️ Bedrock API error: ${errorDetail.substring(0, 200)}`,
-      };
     }
 
+    // All models failed
+    this.logger.warn(`☁️ All Bedrock models failed — returning stub`);
     return this._stubResponse(request);
   }
 
   /**
    * Build request body based on model type
    */
-  private _buildRequestBody(request: AIAnalysisRequest): any {
+  private _buildRequestBody(request: AIAnalysisRequest, model: string): any {
     const systemPrompt = this._buildSystemPrompt(request);
 
     // Claude-style request (Anthropic format)
-    if (this.defaultModel.includes('anthropic')) {
+    if (model.includes('anthropic')) {
       return {
         anthropic_version: 'bedrock-2023-05-31',
         max_tokens: 2048,
@@ -130,6 +153,18 @@ export class BedrockService {
           { role: 'user', content: request.prompt },
         ],
         temperature: 0.3,
+      };
+    }
+
+    // Titan-style request
+    if (model.includes('titan')) {
+      return {
+        inputText: `${systemPrompt}\n\n${request.prompt}`,
+        textGenerationConfig: {
+          maxTokenCount: 1024,
+          temperature: 0.3,
+          topP: 0.9,
+        },
       };
     }
 
@@ -144,10 +179,14 @@ export class BedrockService {
   /**
    * Extract content from Bedrock response based on model type
    */
-  private _extractContent(data: any): string {
+  private _extractContent(data: any, model: string): string {
     // Claude response format
     if (data.content && Array.isArray(data.content)) {
       return data.content[0]?.text || '';
+    }
+    // Titan response format
+    if (data.results && Array.isArray(data.results) && data.results.length > 0) {
+      return data.results[0].outputText || '';
     }
     // Llama/Mistral response format
     if (data.generation) {

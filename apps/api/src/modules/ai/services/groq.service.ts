@@ -28,7 +28,15 @@ export class GroqService {
   private readonly logger = new Logger(GroqService.name);
   private readonly apiKey: string;
   private readonly baseUrl = 'https://api.groq.com/openai/v1/chat/completions';
-  private readonly model = 'llama-3.3-70b-versatile';
+  // FIX: Model fallback chain — llama-3.3-70b hits daily limits fast.
+  // Try multiple models in order: fast → capable → lightweight
+  private readonly modelCandidates = [
+    'llama-3.3-70b-versatile',
+    'llama3-70b-8192',
+    'mixtral-8x7b-32768',
+    'llama3-8b-8192',
+  ];
+  private resolvedModel: string | null = null; // Cached after first successful call
 
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('GROQ_API_KEY', '')?.trim() || '';
@@ -47,47 +55,72 @@ export class GroqService {
     const startTime = Date.now();
     const systemPrompt = this._buildSystemPrompt(request);
 
-    try {
-      const response = await axios.post(
-        this.baseUrl,
-        {
-          model: this.model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: request.prompt },
-          ],
-          temperature: 0.3,
-          max_tokens: 1024,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json',
+    // FIX: Try multiple models — if one hits rate limit, try the next
+    const modelsToTry = this.resolvedModel ? [this.resolvedModel] : this.modelCandidates;
+
+    for (const model of modelsToTry) {
+      try {
+        const response = await axios.post(
+          this.baseUrl,
+          {
+            model,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: request.prompt },
+            ],
+            temperature: 0.3,
+            max_tokens: 1024,
           },
-          timeout: 30000,
-        },
-      );
+          {
+            headers: {
+              Authorization: `Bearer ${this.apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 30000,
+          },
+        );
 
-      const content = response.data.choices?.[0]?.message?.content || '';
+        const content = response.data.choices?.[0]?.message?.content || '';
 
-      return {
-        model: `Groq/${this.model}`,
-        content,
-        confidence: calculateConfidence(content, 'groq'),
-        processingTimeMs: Date.now() - startTime,
-        language: request.language || 'ar',
-      };
-    } catch (error: any) {
-      // FIX: Throw 429 errors so the orchestrator's circuit breaker can track them.
-      // Other errors still return stub for graceful degradation.
-      const status = error.response?.status;
-      if (status === 429) {
-        this.logger.warn(`Groq rate limited (429) — throwing for circuit breaker`);
-        throw error;
+        // Success — cache this model name for future calls
+        if (!this.resolvedModel) {
+          this.resolvedModel = model;
+          this.logger.log(`⚡ Groq model resolved: ${model}`);
+        }
+
+        return {
+          model: `Groq/${model}`,
+          content,
+          confidence: calculateConfidence(content, 'groq'),
+          processingTimeMs: Date.now() - startTime,
+          language: request.language || 'ar',
+        };
+      } catch (error: any) {
+        const status = error.response?.status;
+        const errData = error.response?.data;
+        
+        if (status === 429) {
+          // Rate limited on this model — try next model
+          this.logger.warn(`⚡ Groq model ${model} rate limited (429) — trying next model...`);
+          if (!this.resolvedModel) continue; // Try next model candidate
+          // If resolved model got rate-limited, throw for circuit breaker
+          this.logger.warn(`Groq resolved model ${model} rate limited (429) — throwing for circuit breaker`);
+          throw error;
+        }
+        if (status === 401 || status === 403) {
+          // Auth error — no point trying other models with same key
+          this.logger.error(`Groq auth failed (${status}) — API key may be invalid`);
+          return this._stubResponse(request);
+        }
+        this.logger.warn(`Groq model ${model} failed: ${error.message} (status: ${status})`);
+        if (!this.resolvedModel) continue; // Try next model
+        return this._stubResponse(request);
       }
-      this.logger.warn(`Groq inference failed: ${error.message} (status: ${status})`);
-      return this._stubResponse(request);
     }
+
+    // All models failed
+    this.logger.warn(`⚡ All Groq models failed — returning stub`);
+    return this._stubResponse(request);
   }
 
   private _buildSystemPrompt(request: AIAnalysisRequest): string {
@@ -97,7 +130,7 @@ export class GroqService {
 
   private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {
     return {
-      model: `Groq/${this.model}`,
+      model: `Groq/${this.modelCandidates[0]}`,
       content: `⚠️ Groq API key not configured. Analysis for "${request.prompt}" would be generated here.`,
       confidence: 0,
       processingTimeMs: 0,

@@ -25,6 +25,7 @@
   },
   "packageManager": "npm@10.5.0",
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.1040.0",
     "@prisma/client": "^6.19.3",
     "csv-stringify": "^6.7.0",
     "exceljs": "^4.4.0",

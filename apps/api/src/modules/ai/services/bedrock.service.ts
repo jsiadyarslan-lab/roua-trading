@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
 import { AIAnalysisRequest, AIAnalysisResponse } from './groq.service';
 import { calculateConfidence } from './confidence.util';
 
@@ -11,17 +12,13 @@ import { calculateConfidence } from './confidence.util';
  * - AWS_SECRET_ACCESS_KEY
  * - AWS_REGION (default: us-east-1)
  *
- * FIX: Added cross-region inference support. AWS Bedrock requires:
+ * FIX: Replaced manual SigV4 signing with official AWS SDK (@aws-sdk/client-bedrock-runtime).
+ * The manual signing had a canonical URI encoding mismatch that caused 403 errors.
+ * The AWS SDK handles all signing automatically and correctly.
+ *
+ * AWS Bedrock requires:
  * 1. IAM policy with bedrock:InvokeModel permission (user created "roua" policy)
  * 2. Model access enabled in AWS Console → Bedrock → Model Access
- * 3. Some models are only available via cross-region inference IDs
- *
- * Available models (pay-per-use via AWS):
- * - Claude 3.5 Sonnet — Safety-focused risk analysis
- * - Claude 3 Haiku — Fast, cost-effective
- * - Amazon Titan — AWS native, cost-effective
- * - Llama 3.1 8B — Versatile analysis
- * - Mistral 7B — European/multilingual optimization
  *
  * Best for: Enterprise-grade reliability, compliance, multi-model access through one API
  * Cost: Pay-per-token (varies by model)
@@ -31,12 +28,11 @@ export class BedrockService {
   private readonly logger = new Logger(BedrockService.name);
   private readonly accessKeyId: string;
   private readonly secretAccessKey: string;
-  private readonly sessionToken: string;
   private readonly region: string;
   private readonly available: boolean;
+  private readonly client: BedrockRuntimeClient | null = null;
 
   // Model fallback chain — try most capable models first, then cheaper ones
-  // Includes cross-region inference IDs (prefix: us., eu.) which work in any region
   private readonly modelCandidates = [
     // Cross-region inference IDs (work from any region, often more available)
     'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
@@ -50,86 +46,58 @@ export class BedrockService {
     // Meta Llama — commonly available
     'meta.llama3-1-8b-instruct-v1:0',
     'meta.llama3-8b-instruct-v1:0',
-    // Mistral — European/multilingual
-    'mistral.mistral-7b-instruct-v0:2',
   ];
-  private resolvedModel: string | null = null; // Cached after first successful call
-  private lastError: string = ''; // Store last error for diagnostics
+  private resolvedModel: string | null = null;
+  private lastError: string = '';
 
   constructor(private readonly configService: ConfigService) {
     this.accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID', '')?.trim() || '';
     this.secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY', '')?.trim() || '';
-    this.sessionToken = this.configService.get<string>('AWS_SESSION_TOKEN', '')?.trim() || '';
     this.region = this.configService.get<string>('AWS_REGION', 'us-east-1')?.trim() || 'us-east-1';
     this.available = !!(this.accessKeyId && this.secretAccessKey);
 
     if (this.available) {
-      const hasSessionToken = !!this.sessionToken;
-      this.logger.log(`☁️ AWS Bedrock Service initialized — region: ${this.region}${hasSessionToken ? ' (with session token)' : ''}`);
+      // FIX: Use official AWS SDK client — handles SigV4 signing automatically
+      this.client = new BedrockRuntimeClient({
+        region: this.region,
+        credentials: {
+          accessKeyId: this.accessKeyId,
+          secretAccessKey: this.secretAccessKey,
+        },
+      });
+      this.logger.log(`☁️ AWS Bedrock Service initialized — region: ${this.region} (AWS SDK)`);
     } else {
       this.logger.warn('⚠️ AWS credentials not configured — Bedrock unavailable');
     }
   }
 
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
-    if (!this.available) {
+    if (!this.available || !this.client) {
       return this._stubResponse(request);
     }
 
     const startTime = Date.now();
-
-    // Use resolved model if available, otherwise try all candidates
     const modelsToTry = this.resolvedModel ? [this.resolvedModel] : this.modelCandidates;
 
     for (const modelToUse of modelsToTry) {
       try {
         const body = this._buildRequestBody(request, modelToUse);
-        // FIX: Use the exact model ID in the URL path — AWS Bedrock expects the raw model ID
-        // with colons, NOT URI-encoded. The SigV4 canonical URI must match the actual URL path.
-        // Per AWS docs: "Each path segment must be URI-encoded" but the model ID IS a single segment,
-        // so we encode the full model ID as one segment (colons become %3A).
-        const modelPath = encodeURIComponent(modelToUse);
-        const endpoint = `https://bedrock-runtime.${this.region}.amazonaws.com/model/${modelPath}/invoke`;
 
-        const headers = await this._signRequest(endpoint, body);
-
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers,
+        // FIX: Use AWS SDK InvokeModelCommand — handles SigV4 signing automatically
+        const command = new InvokeModelCommand({
+          modelId: modelToUse,
           body: JSON.stringify(body),
-          signal: AbortSignal.timeout(60000),
+          contentType: 'application/json',
+          accept: 'application/json',
         });
 
-        if (!response.ok) {
-          const errorBody = await response.text().catch(() => '');
-          this.lastError = `Model ${modelToUse}: HTTP ${response.status} — ${errorBody.substring(0, 150)}`;
-
-          if (response.status === 429) {
-            this.logger.warn(`☁️ Bedrock rate limited (429) for model ${modelToUse} — throwing for circuit breaker`);
-            throw new Error(`Bedrock API error: ${response.status} ${response.statusText}`);
-          }
-          if (response.status === 403) {
-            // 403 = IAM lacks bedrock:InvokeModel for THIS model, or model not enabled in Console
-            this.logger.warn(`☁️ Bedrock 403 Forbidden for model ${modelToUse} — IAM policy may lack bedrock:InvokeModel for this model, or model not enabled in AWS Console → Bedrock → Model Access. Body: ${errorBody.substring(0, 200)}`);
-            continue; // Try next model
-          }
-          if (response.status === 404) {
-            this.logger.warn(`☁️ Bedrock model ${modelToUse} not found (404) in region ${this.region} — trying next...`);
-            continue;
-          }
-          if (response.status === 400) {
-            this.logger.warn(`☁️ Bedrock bad request (400) for model ${modelToUse}: ${errorBody.substring(0, 200)}`);
-            continue;
-          }
-          this.logger.error(`☁️ Bedrock API error: ${response.status} ${response.statusText} — ${errorBody.substring(0, 200)}`);
-          continue; // Try next model
-        }
-
-        const data = await response.json();
+        const response = await this.client.send(command);
+        const responseBody = new TextDecoder().decode(response.body);
+        const data = JSON.parse(responseBody);
         const content = this._extractContent(data, modelToUse);
 
         if (content.trim().length > 0) {
-          // Success — cache this model name for future calls
+          // Success — cache this model for future calls
           if (!this.resolvedModel) {
             this.resolvedModel = modelToUse;
             this.logger.log(`☁️ Bedrock model resolved: ${modelToUse}`);
@@ -145,35 +113,41 @@ export class BedrockService {
           };
         }
       } catch (error: any) {
-        if (error.message?.includes('429') || error.message?.includes('rate')) {
-          this.logger.warn(`AWS Bedrock rate limited (429) — throwing for circuit breaker`);
+        const errorName = error.name || '';
+        const errorMessage = error.message || String(error);
+        this.lastError = `${modelToUse}: ${errorName} — ${errorMessage.substring(0, 150)}`;
+
+        // Check for specific error types
+        if (errorName === 'ThrottlingException' || errorMessage.includes('429')) {
+          this.logger.warn(`☁️ Bedrock rate limited for model ${modelToUse} — throwing for circuit breaker`);
           throw error;
         }
-        const errorDetail = error.message || String(error);
-        this.lastError = `Model ${errorDetail.substring(0, 150)}`;
-        this.logger.warn(`AWS Bedrock model ${modelToUse} failed: ${errorDetail}`);
-        if (!this.resolvedModel) continue; // Try next model
+        if (errorName === 'AccessDeniedException' || errorMessage.includes('403')) {
+          // 403 = IAM lacks bedrock:InvokeModel for THIS model, or model not enabled
+          this.logger.warn(`☁️ Bedrock 403 for model ${modelToUse} — IAM may lack bedrock:InvokeModel or model not enabled in Console. ${errorMessage.substring(0, 200)}`);
+          continue;
+        }
+        if (errorName === 'ValidationException' || errorMessage.includes('404')) {
+          this.logger.warn(`☁️ Bedrock model ${modelToUse} not found/invalid — trying next...`);
+          continue;
+        }
+
+        this.logger.warn(`☁️ Bedrock model ${modelToUse} failed: ${errorMessage.substring(0, 200)}`);
+        if (!this.resolvedModel) continue;
         return {
           ...this._stubResponse(request),
-          content: `⚠️ Bedrock API error: ${errorDetail.substring(0, 200)}`,
+          content: `⚠️ Bedrock API error: ${errorMessage.substring(0, 200)}`,
         };
       }
     }
 
-    // All models failed — reset resolved model so next call tries all candidates again
+    // All models failed
     this.resolvedModel = null;
     this.logger.warn(`☁️ All Bedrock models failed — last error: ${this.lastError}`);
     return {
       ...this._stubResponse(request),
       content: `⚠️ Bedrock API error: ${this.lastError.substring(0, 250)}`,
     };
-  }
-
-  /**
-   * Get the last error for diagnostics
-   */
-  getLastError(): string {
-    return this.lastError;
   }
 
   /**
@@ -216,15 +190,6 @@ export class BedrockService {
       };
     }
 
-    // Mistral-style request
-    if (model.includes('mistral')) {
-      return {
-        prompt: `<s>[INST] ${systemPrompt}\n\n${request.prompt} [/INST]`,
-        max_tokens: 1024,
-        temperature: 0.3,
-      };
-    }
-
     // Default: generic text prompt format
     return {
       prompt: `${systemPrompt}\n\n${request.prompt}`,
@@ -256,94 +221,6 @@ export class BedrockService {
   private _buildSystemPrompt(request: AIAnalysisRequest): string {
     const lang = request.language === 'en' ? 'English' : 'Arabic';
     return `You are a safety-focused financial AI analyst specializing in ${request.type}. Respond in ${lang}. Provide thorough, cautious analysis with emphasis on risk factors and edge cases. Always highlight potential downsides and worst-case scenarios alongside opportunities. Include clear risk disclaimers.`;
-  }
-
-  /**
-   * Sign request with AWS SigV4 for Bedrock InvokeModel API
-   *
-   * FIX: The canonical URI in SigV4 must match the actual URI sent in the request.
-   * We use encodeURIComponent on the model ID to create the URL path, so the canonical
-   * URI must use the EXACT SAME encoded path — NOT re-encoded, NOT decoded.
-   *
-   * Key insight: The URL.pathname from Node's URL parser gives us the DECODED path.
-   * We must NOT re-encode it (double encoding) or use it raw (mismatch with actual URL).
-   * Instead, we extract the path directly from the endpoint string.
-   */
-  private async _signRequest(endpoint: string, body: any): Promise<Record<string, string>> {
-    const crypto = await import('crypto');
-
-    const service = 'bedrock';
-    const amzDate = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
-    const dateStamp = amzDate.substring(0, 8);
-
-    const bodyStr = JSON.stringify(body);
-    const payloadHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
-
-    const host = new URL(endpoint).host;
-
-    // FIX: Extract the canonical URI directly from the endpoint URL.
-    // The endpoint was constructed with encodeURIComponent(modelId), so the path
-    // already has encoded colons (%3A). We must use this EXACT path for signing.
-    // Using new URL().pathname would DECODE the %3A back to ':', causing a mismatch.
-    const urlObj = new URL(endpoint);
-    // Re-construct the path from the raw URL to avoid decoding
-    const match = endpoint.match(/^https?:\/\/[^/]+(\/.*)$/);
-    const canonicalUri = match ? match[1] : urlObj.pathname;
-
-    // Include accept and x-amz-content-sha256 in signed headers (required by Bedrock)
-    let canonicalHeaders: string;
-    let signedHeaders: string;
-
-    if (this.sessionToken) {
-      canonicalHeaders = `accept:application/json\ncontent-type:application/json\nhost:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\nx-amz-security-token:${this.sessionToken}\n`;
-      signedHeaders = 'accept;content-type;host;x-amz-content-sha256;x-amz-date;x-amz-security-token';
-    } else {
-      canonicalHeaders = `accept:application/json\ncontent-type:application/json\nhost:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`;
-      signedHeaders = 'accept;content-type;host;x-amz-content-sha256;x-amz-date';
-    }
-
-    const canonicalRequest = [
-      'POST',
-      canonicalUri,
-      '',
-      canonicalHeaders,
-      signedHeaders,
-      payloadHash,
-    ].join('\n');
-
-    const credentialScope = `${dateStamp}/${this.region}/${service}/aws4_request`;
-    const stringToSign = [
-      'AWS4-HMAC-SHA256',
-      amzDate,
-      credentialScope,
-      crypto.createHash('sha256').update(canonicalRequest).digest('hex'),
-    ].join('\n');
-
-    const sign = (key: Buffer, msg: string) =>
-      crypto.createHmac('sha256', key).update(msg).digest();
-
-    let signingKey = crypto.createHmac('sha256', `AWS4${this.secretAccessKey}`).update(dateStamp).digest();
-    signingKey = sign(signingKey, this.region);
-    signingKey = sign(signingKey, service);
-    signingKey = sign(signingKey, 'aws4_request');
-
-    const signature = crypto.createHmac('sha256', signingKey).update(stringToSign).digest('hex');
-
-    const headers: Record<string, string> = {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-      'Host': host,
-      'X-Amz-Content-Sha256': payloadHash,
-      'X-Amz-Date': amzDate,
-      'Authorization': `AWS4-HMAC-SHA256 Credential=${this.accessKeyId}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`,
-    };
-
-    // Add session token header if using temporary credentials (STS)
-    if (this.sessionToken) {
-      headers['X-Amz-Security-Token'] = this.sessionToken;
-    }
-
-    return headers;
   }
 
   private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {

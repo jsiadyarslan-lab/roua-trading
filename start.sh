@@ -428,6 +428,16 @@ EOSQL
         ALTER TABLE "User" ADD CONSTRAINT "User_email_key" UNIQUE ("email");
       END IF;
     END $$;
+
+    -- User table: add telegramChatId if missing (used by alert-agent for Telegram notifications)
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'User' AND column_name = 'telegramChatId'
+      ) THEN
+        ALTER TABLE "User" ADD COLUMN "telegramChatId" TEXT;
+      END IF;
+    END $$;
 EOSQL
 
   echo "📦 Adding missing columns via ALTER TABLE..."

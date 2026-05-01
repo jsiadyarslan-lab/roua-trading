@@ -76,7 +76,7 @@ export class AIOrchestratorService {
     groq:        ['GROQ_API_KEY'],
     glm:         ['GLM_API_KEY'],
     gemini:      ['GOOGLE_AI_STUDIO_API_KEY'],
-    huggingface: ['HUGGINGFACE_API_KEY', 'HF_API_KEY'],  // HF_API_KEY is the Railway variable name
+    huggingface: ['HUGGINGFACE_API_KEY', 'HF_API_KEY', 'OPENROUTER_API_KEY'],  // OpenRouter is fallback provider
     ollama:      ['OLLAMA_API_KEY'],  // Also checks OLLAMA_BASE_URL reachability
     bedrock:     ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'],
   };
@@ -557,7 +557,7 @@ export class AIOrchestratorService {
       { id: 'groq', name: 'Groq/Llama 3.3 70B', keyEnv: 'GROQ_API_KEY' },
       { id: 'gemini', name: 'Gemini 2.0 Flash', keyEnv: 'GOOGLE_AI_STUDIO_API_KEY' },
       { id: 'glm', name: 'GLM-4 (Zhipu AI)', keyEnv: 'GLM_API_KEY' },
-      { id: 'huggingface', name: 'HuggingFace/Mistral-7B', keyEnv: 'HF_API_KEY' },
+      { id: 'huggingface', name: 'HuggingFace/Mistral-7B', keyEnv: 'HF_API_KEY' },  // Also checks OPENROUTER_API_KEY as fallback
       { id: 'ollama', name: 'Ollama/Qwen2.5', keyEnv: 'OLLAMA_API_KEY' },
       { id: 'bedrock', name: 'Bedrock/Claude 3.5', keyEnv: 'AWS_ACCESS_KEY_ID' },
     ];
@@ -571,7 +571,7 @@ export class AIOrchestratorService {
         let keyHint: string | undefined;
 
         // Show key presence (first 4 chars + ***) for debugging
-        const keyValue = this.configService.get<string>(m.keyEnv, '') ||
+        let keyValue = this.configService.get<string>(m.keyEnv, '') ||
           (m.id === 'bedrock' ? this.configService.get<string>('AWS_ACCESS_KEY_ID', '') : '');
         if (keyValue) {
           keyHint = `${keyValue.substring(0, 4)}***${keyValue.length > 8 ? keyValue.substring(keyValue.length - 4) : ''}`;
@@ -589,6 +589,14 @@ export class AIOrchestratorService {
         if (m.id === 'bedrock') {
           const region = this.configService.get<string>('AWS_REGION', 'us-east-1');
           keyHint = `Region: ${region}, Key: ${keyHint}`;
+        }
+
+        // For HuggingFace, also check OpenRouter fallback key
+        if (m.id === 'huggingface') {
+          const orKey = this.configService.get<string>('OPENROUTER_API_KEY', '');
+          if (orKey) {
+            keyHint += ` + OR:${orKey.substring(0, 4)}***${orKey.length > 8 ? orKey.substring(orKey.length - 4) : ''}`;
+          }
         }
 
         if (!keyAvailable) {
@@ -721,7 +729,7 @@ export class AIOrchestratorService {
       return !!(apiKey && apiKey.trim()) || !!(baseUrl && baseUrl.trim() && !this._isLocalhostUrl(baseUrl));
     }
 
-    // For huggingface: ANY of the listed keys works (HF_API_KEY or HUGGINGFACE_API_KEY)
+    // For huggingface: ANY of the listed keys works (HF_API_KEY, HUGGINGFACE_API_KEY, or OPENROUTER_API_KEY)
     // For bedrock: ALL listed keys must be present (AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY)
     if (model === 'huggingface') {
       return keys.some(key => {

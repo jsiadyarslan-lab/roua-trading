@@ -35,13 +35,14 @@ export class HuggingFaceService {
   private readonly baseUrl = 'https://router.huggingface.co/hf-inference/v1/chat/completions';
 
   // Model candidates — ordered by reliability on free serverless tier
-  // Qwen2.5-72B has excellent Arabic support and is very reliable on HF free tier
+  // Only use models confirmed to work on HF Inference API (serverless)
+  // Note: Some models (e.g., gemma-2-2b-it) return "Model not supported by provider hf-inference"
   private readonly modelCandidates = [
-    'Qwen/Qwen2.5-72B-Instruct',
-    'mistralai/Mistral-7B-Instruct-v0.3',
-    'HuggingFaceH4/zephyr-7b-beta',
-    'microsoft/Phi-3-mini-4k-instruct',
-    'google/gemma-2-2b-it',
+    'Qwen/Qwen2.5-72B-Instruct',       // Best reasoning + Arabic support
+    'Qwen/Qwen2.5-7B-Instruct',        // Faster, lighter alternative
+    'mistralai/Mistral-7B-Instruct-v0.3', // Fast, multilingual
+    'HuggingFaceH4/zephyr-7b-beta',     // Chat-optimized, reliable
+    'microsoft/Phi-3-mini-4k-instruct', // Lightweight, efficient
   ];
 
   // Cache the working model after first successful call

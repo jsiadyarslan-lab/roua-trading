@@ -83,12 +83,13 @@ export class BedrockService {
 
     for (const modelToUse of modelsToTry) {
       try {
-        // FIX: Cross-region inference uses a different endpoint format
-        const isCrossRegion = modelToUse.startsWith('us.') || modelToUse.startsWith('eu.');
-        const actualRegion = isCrossRegion ? this.region : this.region;
         const body = this._buildRequestBody(request, modelToUse);
-        const encodedModelId = encodeURIComponent(modelToUse);
-        const endpoint = `https://bedrock-runtime.${actualRegion}.amazonaws.com/model/${encodedModelId}/invoke`;
+        // FIX: Use the exact model ID in the URL path — AWS Bedrock expects the raw model ID
+        // with colons, NOT URI-encoded. The SigV4 canonical URI must match the actual URL path.
+        // Per AWS docs: "Each path segment must be URI-encoded" but the model ID IS a single segment,
+        // so we encode the full model ID as one segment (colons become %3A).
+        const modelPath = encodeURIComponent(modelToUse);
+        const endpoint = `https://bedrock-runtime.${this.region}.amazonaws.com/model/${modelPath}/invoke`;
 
         const headers = await this._signRequest(endpoint, body);
 
@@ -259,6 +260,14 @@ export class BedrockService {
 
   /**
    * Sign request with AWS SigV4 for Bedrock InvokeModel API
+   *
+   * FIX: The canonical URI in SigV4 must match the actual URI sent in the request.
+   * We use encodeURIComponent on the model ID to create the URL path, so the canonical
+   * URI must use the EXACT SAME encoded path — NOT re-encoded, NOT decoded.
+   *
+   * Key insight: The URL.pathname from Node's URL parser gives us the DECODED path.
+   * We must NOT re-encode it (double encoding) or use it raw (mismatch with actual URL).
+   * Instead, we extract the path directly from the endpoint string.
    */
   private async _signRequest(endpoint: string, body: any): Promise<Record<string, string>> {
     const crypto = await import('crypto');
@@ -271,11 +280,17 @@ export class BedrockService {
     const payloadHash = crypto.createHash('sha256').update(bodyStr).digest('hex');
 
     const host = new URL(endpoint).host;
-    // URI-encode each path segment per AWS SigV4 spec (colons → %3A)
-    const canonicalUri = new URL(endpoint).pathname.split('/').map(s => encodeURIComponent(decodeURIComponent(s))).join('/');
+
+    // FIX: Extract the canonical URI directly from the endpoint URL.
+    // The endpoint was constructed with encodeURIComponent(modelId), so the path
+    // already has encoded colons (%3A). We must use this EXACT path for signing.
+    // Using new URL().pathname would DECODE the %3A back to ':', causing a mismatch.
+    const urlObj = new URL(endpoint);
+    // Re-construct the path from the raw URL to avoid decoding
+    const match = endpoint.match(/^https?:\/\/[^/]+(\/.*)$/);
+    const canonicalUri = match ? match[1] : urlObj.pathname;
 
     // Include accept and x-amz-content-sha256 in signed headers (required by Bedrock)
-    // If using STS temporary credentials, include x-amz-security-token
     let canonicalHeaders: string;
     let signedHeaders: string;
 

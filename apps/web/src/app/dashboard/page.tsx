@@ -13,6 +13,8 @@ import { RightPanelLayout } from '@/components/dashboard/layouts/RightPanelLayou
 import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
 import { QuickExecutionMini } from '@/components/dashboard/QuickExecutionMini'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
+import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
+import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
 
@@ -90,6 +92,390 @@ const formatQuotePrice = (value: unknown) => {
   const num = Number(value)
   if (!Number.isFinite(num)) return '—'
   return num.toLocaleString('en-US', { maximumFractionDigits: num > 100 ? 2 : 4 })
+}
+
+// ── Beautiful Order Panel Component ──
+function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
+  selectedSymbol: string
+  currentPrice: number | null
+  isMobile: boolean
+  onClose: () => void
+}) {
+  const [orderSide, setOrderSide] = useState<'buy' | 'sell'>('buy')
+  const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop_limit'>('market')
+  const [quantity, setQuantity] = useState('0.01')
+  const [stopLoss, setStopLoss] = useState('')
+  const [takeProfit, setTakeProfit] = useState('')
+  const [limitPrice, setLimitPrice] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [status, setStatus] = useState<{ msg: string; type: 'success' | 'error' | '' }>({ msg: '', type: '' })
+
+  const { addTrade: addPaperTrade } = usePaperTradesStore()
+  const addNotification = useNotificationStore(state => state.addNotification)
+  const fetchAccount = usePositionsStore(state => state.fetchAccount)
+  const fetchPositions = usePositionsStore(state => state.fetchPositions)
+
+  const price = currentPrice ?? 0
+
+  const executeOrder = async () => {
+    const qty = parseFloat(quantity)
+    if (isNaN(qty) || qty <= 0) {
+      setStatus({ msg: 'الكمية غير صالحة', type: 'error' })
+      setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
+      return
+    }
+
+    const sl = stopLoss ? parseFloat(stopLoss) : 0
+    const tp = takeProfit ? parseFloat(takeProfit) : 0
+
+    // Validate SL/TP
+    if (orderSide === 'buy') {
+      if (sl > 0 && price > 0 && sl >= price) {
+        setStatus({ msg: 'يجب أن يكون وقف الخسارة أقل من السعر الحالي', type: 'error' })
+        setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
+        return
+      }
+      if (tp > 0 && price > 0 && tp <= price) {
+        setStatus({ msg: 'يجب أن يكون جني الأرباح أعلى من السعر الحالي', type: 'error' })
+        setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
+        return
+      }
+    } else {
+      if (sl > 0 && price > 0 && sl <= price) {
+        setStatus({ msg: 'يجب أن يكون وقف الخسارة أعلى من السعر الحالي', type: 'error' })
+        setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
+        return
+      }
+      if (tp > 0 && price > 0 && tp >= price) {
+        setStatus({ msg: 'يجب أن يكون جني الأرباح أقل من السعر الحالي', type: 'error' })
+        setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
+        return
+      }
+    }
+
+    setLoading(true)
+    setStatus({ msg: '', type: '' })
+
+    try {
+      const body: Record<string, any> = {
+        symbol: selectedSymbol,
+        side: orderSide,
+        qty,
+        type: orderType,
+      }
+      if (sl > 0) body.stop_loss = sl
+      if (tp > 0) body.take_profit = tp
+      if (orderType === 'limit' || orderType === 'stop_limit') {
+        body.limit_price = parseFloat(limitPrice)
+      }
+
+      const res = await fetch('/api/alpaca/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const j = await res.json()
+
+      if (j.success) {
+        const filled = j.filledAvgPrice ? ` بسعر $${parseFloat(j.filledAvgPrice).toFixed(2)}` : ''
+        addPaperTrade({
+          symbol: selectedSymbol,
+          side: orderSide === 'buy' ? 'long' : 'short',
+          qty,
+          entryPrice: j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : price,
+          currentPrice: price,
+          tp: tp > 0 ? tp : undefined,
+          sl: sl > 0 ? sl : undefined,
+          source: 'manual',
+          entryTime: Date.now(),
+        })
+        addNotification({
+          source: 'trade',
+          priority: 'high',
+          action: orderSide === 'buy' ? 'BUY' : 'SELL',
+          title: `تم ${orderSide === 'buy' ? 'شراء' : 'بيع'} ${selectedSymbol}`,
+          body: `تم تنفيذ ${qty} ${selectedSymbol}${filled}`,
+          pair: selectedSymbol,
+          price: j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : price,
+        })
+        fetchAccount()
+        fetchPositions()
+        setTimeout(() => { fetchAccount(); fetchPositions() }, 2000)
+        setStatus({ msg: `✅ تم ${orderSide === 'buy' ? 'الشراء' : 'البيع'} بنجاح`, type: 'success' })
+        setTimeout(() => onClose(), 1200)
+      } else {
+        setStatus({ msg: `❌ ${j.error || 'فشل التنفيذ'}`, type: 'error' })
+      }
+    } catch {
+      setStatus({ msg: '❌ خطأ في الشبكة', type: 'error' })
+    } finally {
+      setLoading(false)
+      setTimeout(() => setStatus({ msg: '', type: '' }), 4000)
+    }
+  }
+
+  const inputStyle = (color?: string): React.CSSProperties => ({
+    width: '100%',
+    background: color ? `${color}08` : 'rgba(255,255,255,0.03)',
+    border: `1px solid ${color ? `${color}25` : 'rgba(255,255,255,0.08)'}`,
+    borderRadius: 10,
+    color: color || '#F0F2F5',
+    fontSize: isMobile ? 14 : 13,
+    padding: isMobile ? '12px 14px' : '10px 12px',
+    fontFamily: "'JetBrains Mono', monospace",
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    boxSizing: 'border-box',
+    fontWeight: 700,
+  })
+
+  return (
+    <div style={{
+      overflow: 'auto',
+      padding: isMobile ? '8px 16px calc(16px + env(safe-area-inset-bottom))' : '16px 20px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14,
+    }}>
+      {/* Buy/Sell Toggle */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 8,
+        padding: 4,
+        borderRadius: 14,
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.06)',
+      }}>
+        <button
+          onClick={() => setOrderSide('buy')}
+          style={{
+            padding: isMobile ? '14px 0' : '12px 0',
+            borderRadius: 10,
+            border: 'none',
+            background: orderSide === 'buy'
+              ? 'linear-gradient(135deg, #00FFA3, #10B981)'
+              : 'transparent',
+            color: orderSide === 'buy' ? '#fff' : '#8B92A8',
+            fontSize: 14,
+            fontWeight: 800,
+            fontFamily: "'Cairo', sans-serif",
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: orderSide === 'buy' ? '0 0 20px rgba(0,255,163,0.25)' : 'none',
+          }}
+        >
+          شراء
+        </button>
+        <button
+          onClick={() => setOrderSide('sell')}
+          style={{
+            padding: isMobile ? '14px 0' : '12px 0',
+            borderRadius: 10,
+            border: 'none',
+            background: orderSide === 'sell'
+              ? 'linear-gradient(135deg, #FF4757, #EF4444)'
+              : 'transparent',
+            color: orderSide === 'sell' ? '#fff' : '#8B92A8',
+            fontSize: 14,
+            fontWeight: 800,
+            fontFamily: "'Cairo', sans-serif",
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: orderSide === 'sell' ? '0 0 20px rgba(255,71,87,0.25)' : 'none',
+          }}
+        >
+          بيع
+        </button>
+      </div>
+
+      {/* Order Type Selector */}
+      <div style={{
+        display: 'flex',
+        gap: 6,
+        padding: 3,
+        borderRadius: 10,
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.05)',
+      }}>
+        {([
+          { key: 'market', label: 'سوقي' },
+          { key: 'limit', label: 'محدود' },
+          { key: 'stop_limit', label: 'وقف محدود' },
+        ] as const).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setOrderType(key)}
+            style={{
+              flex: 1,
+              padding: '8px 0',
+              borderRadius: 8,
+              border: 'none',
+              background: orderType === key
+                ? 'rgba(0,212,255,0.12)'
+                : 'transparent',
+              color: orderType === key ? '#00D4FF' : '#8B92A8',
+              fontSize: 11,
+              fontWeight: 700,
+              fontFamily: "'Cairo', sans-serif",
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              borderLeft: orderType === key ? '2px solid #00D4FF' : '2px solid transparent',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Limit Price (when limit/stop_limit) */}
+      {(orderType === 'limit' || orderType === 'stop_limit') && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <label style={{ fontSize: 10, color: '#8B92A8', fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>سعر الحد</label>
+          <input
+            value={limitPrice}
+            onChange={e => setLimitPrice(e.target.value)}
+            placeholder={price > 0 ? price.toFixed(price > 100 ? 2 : 4) : '0.00'}
+            type="number"
+            step="0.01"
+            style={inputStyle('#00D4FF')}
+            onFocus={e => e.currentTarget.style.borderColor = 'rgba(0,212,255,0.4)'}
+            onBlur={e => e.currentTarget.style.borderColor = 'rgba(0,212,255,0.15)'}
+          />
+        </div>
+      )}
+
+      {/* Quantity */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <label style={{ fontSize: 10, color: '#8B92A8', fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>الكمية</label>
+        <input
+          value={quantity}
+          onChange={e => setQuantity(e.target.value)}
+          placeholder="0.01"
+          type="number"
+          step="0.01"
+          min="0.01"
+          style={inputStyle()}
+          onFocus={e => e.currentTarget.style.borderColor = 'rgba(0,212,255,0.4)'}
+          onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+        />
+      </div>
+
+      {/* SL / TP Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <label style={{ fontSize: 10, color: '#FF4757', fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>وقف الخسارة</label>
+          <input
+            value={stopLoss}
+            onChange={e => setStopLoss(e.target.value)}
+            placeholder="0.00"
+            type="number"
+            step="0.1"
+            style={inputStyle('#FF4757')}
+            onFocus={e => e.currentTarget.style.borderColor = 'rgba(255,71,87,0.5)'}
+            onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,71,87,0.15)'}
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <label style={{ fontSize: 10, color: '#00FFA3', fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>جني الأرباح</label>
+          <input
+            value={takeProfit}
+            onChange={e => setTakeProfit(e.target.value)}
+            placeholder="0.00"
+            type="number"
+            step="0.1"
+            style={inputStyle('#00FFA3')}
+            onFocus={e => e.currentTarget.style.borderColor = 'rgba(0,255,163,0.5)'}
+            onBlur={e => e.currentTarget.style.borderColor = 'rgba(0,255,163,0.15)'}
+          />
+        </div>
+      </div>
+
+      {/* Quick Calc Button */}
+      {price > 0 && (
+        <button
+          onClick={() => {
+            const tp = orderSide === 'buy' ? (price * 1.02).toFixed(price > 100 ? 2 : 4) : (price * 0.98).toFixed(price > 100 ? 2 : 4)
+            const sl = orderSide === 'buy' ? (price * 0.99).toFixed(price > 100 ? 2 : 4) : (price * 1.01).toFixed(price > 100 ? 2 : 4)
+            setTakeProfit(tp)
+            setStopLoss(sl)
+          }}
+          style={{
+            background: 'rgba(0,212,255,0.08)',
+            border: '1px solid rgba(0,212,255,0.15)',
+            borderRadius: 10,
+            color: '#00D4FF',
+            fontSize: 10,
+            fontWeight: 700,
+            padding: '10px 14px',
+            cursor: 'pointer',
+            fontFamily: "'Cairo', sans-serif",
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.14)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.08)' }}
+        >
+          <Target size={12} />
+          حساب تلقائي (SL 1% / TP 2%)
+        </button>
+      )}
+
+      {/* Status Message */}
+      {status.msg && (
+        <div style={{
+          padding: '10px 14px',
+          borderRadius: 10,
+          background: status.type === 'success' ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)',
+          border: `1px solid ${status.type === 'success' ? 'rgba(0,255,163,0.25)' : 'rgba(255,71,87,0.25)'}`,
+          color: status.type === 'success' ? '#00FFA3' : '#FF4757',
+          fontSize: 12,
+          fontWeight: 700,
+          fontFamily: "'Cairo', sans-serif",
+          textAlign: 'center',
+        }}>
+          {status.msg}
+        </div>
+      )}
+
+      {/* Execute Button */}
+      <button
+        onClick={executeOrder}
+        disabled={loading}
+        style={{
+          padding: isMobile ? '16px 0' : '14px 0',
+          borderRadius: 14,
+          border: 'none',
+          background: orderSide === 'buy'
+            ? 'linear-gradient(135deg, #00FFA3, #10B981)'
+            : 'linear-gradient(135deg, #FF4757, #EF4444)',
+          color: '#fff',
+          fontSize: 15,
+          fontWeight: 800,
+          fontFamily: "'Cairo', sans-serif",
+          cursor: loading ? 'not-allowed' : 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          opacity: loading ? 0.7 : 1,
+          transition: 'transform 0.12s ease, box-shadow 0.2s ease',
+          boxShadow: orderSide === 'buy'
+            ? '0 0 24px rgba(0,255,163,0.2), 0 4px 16px rgba(0,0,0,0.3)'
+            : '0 0 24px rgba(255,71,87,0.2), 0 4px 16px rgba(0,0,0,0.3)',
+        }}
+        onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
+        onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+        onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+      >
+        <Zap size={16} fill="white" />
+        {loading ? 'جارٍ التنفيذ...' : orderSide === 'buy' ? 'شراء' : 'بيع'} {selectedSymbol}
+      </button>
+    </div>
+  )
 }
 
 export default function DashboardPage() {
@@ -794,14 +1180,50 @@ export default function DashboardPage() {
               )}
             </div>
             {/* Chart Panel */}
-            <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+            <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+              <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
                 <RouaChart
                   currentPrice={currentPrice}
                   isChartFullscreen={chartFullscreen}
                   onToggleChartFullscreen={toggleChartFullscreen}
                 />
               </div>
+              {/* Desktop Zap Execution Button */}
+              <button
+                type="button"
+                onClick={() => setTradeDialogOpen(true)}
+                title="تنفيذ الأوامر"
+                aria-label="فتح نافذة التنفيذ"
+                style={{
+                  position: 'absolute',
+                  top: 10,
+                  left: 10,
+                  zIndex: 20,
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
+                  border: 'none',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 0 12px rgba(0,255,198,0.3), 0 0 4px rgba(10,132,255,0.2)',
+                  transition: 'transform 0.12s ease, box-shadow 0.2s ease',
+                }}
+                onMouseDown={e => e.currentTarget.style.transform = 'scale(0.9)'}
+                onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                onMouseEnter={e => {
+                  e.currentTarget.style.boxShadow = '0 0 20px rgba(0,255,198,0.45), 0 0 6px rgba(10,132,255,0.3)';
+                }}
+                onMouseOut={e => {
+                  e.currentTarget.style.boxShadow = '0 0 12px rgba(0,255,198,0.3), 0 0 4px rgba(10,132,255,0.2)';
+                }}
+              >
+                <Zap size={16} fill="white" />
+              </button>
             </div>
 
             {/* Balance Card + Positions Panel */}
@@ -1074,75 +1496,92 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Trade Dialog (bottom sheet) for mobile */}
-      {isMobileViewport && tradeDialogOpen && (
+      {/* Trade Dialog (bottom sheet) — works on both mobile and desktop */}
+      {tradeDialogOpen && (
         <div
           style={{
             position: 'fixed', inset: 0, zIndex: 90,
             background: 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
-            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+            backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: isMobileViewport ? 'flex-end' : 'center',
+            justifyContent: 'center',
             animation: 'fadeIn 0.15s ease-out',
           }}
           onClick={() => setTradeDialogOpen(false)}
         >
           <div
             style={{
-              width: '100%',
-              maxHeight: '90dvh',
-              background: 'linear-gradient(180deg, #111520 0%, #0B0E14 100%)',
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
+              width: isMobileViewport ? '100%' : 420,
+              maxHeight: isMobileViewport ? '92dvh' : '85vh',
+              background: 'linear-gradient(180deg, rgba(17,21,32,0.97) 0%, rgba(11,14,20,0.99) 100%)',
+              backdropFilter: 'blur(24px) saturate(1.6)',
+              WebkitBackdropFilter: 'blur(24px) saturate(1.6)',
+              borderTopLeftRadius: isMobileViewport ? 24 : 20,
+              borderTopRightRadius: isMobileViewport ? 24 : 20,
+              borderBottomLeftRadius: isMobileViewport ? 0 : 20,
+              borderBottomRightRadius: isMobileViewport ? 0 : 20,
               border: '1px solid rgba(0,212,255,0.12)',
-              borderBottom: 'none',
+              borderBottom: isMobileViewport ? 'none' : '1px solid rgba(0,212,255,0.12)',
               overflow: 'hidden',
-              animation: 'slideUp 0.3s cubic-bezier(0.16,1,0.3,1)',
+              animation: isMobileViewport ? 'slideUp 0.3s cubic-bezier(0.16,1,0.3,1)' : 'fadeIn 0.2s ease-out',
+              boxShadow: '0 0 60px rgba(0,212,255,0.08), 0 24px 80px rgba(0,0,0,0.6)',
             }}
             onClick={e => e.stopPropagation()}
           >
-            {/* Drag handle */}
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 6px' }}>
-              <div style={{ width: 36, height: 4, borderRadius: 4, background: 'rgba(255,255,255,0.15)' }} />
-            </div>
+            {/* Drag handle — mobile only */}
+            {isMobileViewport && (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 6px' }}>
+                <div style={{ width: 36, height: 4, borderRadius: 4, background: 'rgba(255,255,255,0.15)' }} />
+              </div>
+            )}
 
-            {/* Header */}
+            {/* Header with glassmorphism */}
             <div style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '4px 16px 12px',
+              padding: isMobileViewport ? '4px 16px 12px' : '16px 20px',
               borderBottom: '1px solid rgba(0,212,255,0.08)',
+              background: 'linear-gradient(90deg, rgba(0,212,255,0.06), transparent 60%)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{
-                  width: 28, height: 28, borderRadius: 8,
-                  background: 'linear-gradient(135deg, rgba(0,212,255,0.15), rgba(0,255,163,0.08))',
-                  border: '1px solid rgba(0,212,255,0.2)',
+                  width: 32, height: 32, borderRadius: 10,
+                  background: 'linear-gradient(135deg, rgba(0,212,255,0.2), rgba(0,255,163,0.1))',
+                  border: '1px solid rgba(0,212,255,0.25)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 0 12px rgba(0,212,255,0.15)',
                 }}>
-                  <Zap size={13} color="#00D4FF" />
+                  <Zap size={14} color="#00D4FF" />
                 </div>
                 <div>
-                  <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, fontWeight: 800, color: '#F0F2F5' }}>تنفيذ الأوامر</div>
+                  <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 15, fontWeight: 800, color: '#F0F2F5' }}>تنفيذ الأوامر</div>
                   <div style={{ fontSize: 10, color: '#8B92A8', fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol} · {formatQuotePrice(currentPrice)}</div>
                 </div>
               </div>
               <button
                 onClick={() => setTradeDialogOpen(false)}
                 style={{
-                  width: 30, height: 30, borderRadius: 8,
+                  width: 32, height: 32, borderRadius: 10,
                   background: 'rgba(255,255,255,0.05)',
                   border: '1px solid rgba(255,255,255,0.08)',
                   color: '#8B92A8', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all 0.2s',
                 }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#F0F2F5' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#8B92A8' }}
               >
                 <X size={14} />
               </button>
             </div>
 
-            {/* Content - scrollable */}
-            <div style={{ overflow: 'auto', padding: '12px 16px calc(16px + env(safe-area-inset-bottom))' }}>
-              <QuickExecutionMini mobile dataStatus={accountDataStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} />
-            </div>
+            {/* Beautiful Order Panel */}
+            <OrderPanel
+              selectedSymbol={selectedSymbol}
+              currentPrice={currentPrice}
+              isMobile={isMobileViewport}
+              onClose={() => setTradeDialogOpen(false)}
+            />
           </div>
         </div>
       )}

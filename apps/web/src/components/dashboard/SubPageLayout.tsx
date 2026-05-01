@@ -46,6 +46,7 @@ export default function SubPageLayout({
         position: 'sticky',
         top: 0,
         zIndex: 50,
+        flexShrink: 0,
       }}>
         {/* Back button */}
         <button
@@ -148,7 +149,7 @@ export default function SubPageLayout({
       )}
 
       {/* Main Content */}
-      <div className="subpage-content" style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px', flex: 1, minHeight: 0, overflow: 'auto' }}>
+      <div className="subpage-content" style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px', flex: 1, minHeight: 0, overflow: 'auto', paddingBottom: 'calc(20px + env(safe-area-inset-bottom))' }}>
         {children}
       </div>
 

@@ -20,6 +20,7 @@ import { CoachModule } from './modules/coach/coach.module';
 import { ScannerModule } from './modules/scanner/scanner.module';
 import { PredictionMarketModule } from './modules/prediction-market/prediction-market.module';
 import { AutonomousTraderAgentModule } from './agents/autonomous-trader/agent.module';
+import { ContentAgentModule } from './agents/content/content-agent.module';
 
 @Module({
   imports: [
@@ -93,6 +94,7 @@ import { AutonomousTraderAgentModule } from './agents/autonomous-trader/agent.mo
     ScannerModule,
     PredictionMarketModule,
     AutonomousTraderAgentModule,
+    ContentAgentModule,
   ],
 })
 export class AppModule {}

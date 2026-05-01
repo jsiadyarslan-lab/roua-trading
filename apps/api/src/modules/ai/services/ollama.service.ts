@@ -95,7 +95,10 @@ export class OllamaService {
       // Handle both native Ollama response and OpenAI-compatible response
       const content = response.data?.message?.content || response.data?.choices?.[0]?.message?.content || '';
 
-      if (content.length > 5) {
+      // FIX: Lowered threshold from 5 to 1 — even a 1-char response like "OK"
+      // is valid. The old threshold (5) caused false negatives where short but
+      // valid responses were treated as stubs.
+      if (content.trim().length > 0) {
         return {
           model: `Ollama/${response.data?.model || this.defaultModel}`,
           content,
@@ -104,6 +107,9 @@ export class OllamaService {
           language: request.language || 'ar',
         };
       }
+
+      // Response was empty — log for diagnostics
+      this.logger.warn(`Ollama returned empty response (data: ${JSON.stringify(response.data)?.substring(0, 200)})`);
     } catch (error: any) {
       // FIX: Throw 429 errors so the orchestrator's circuit breaker can track them.
       if (error.response?.status === 429) {

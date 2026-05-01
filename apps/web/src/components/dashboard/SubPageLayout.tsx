@@ -163,8 +163,18 @@ export default function SubPageLayout({
             display: flex !important;
           }
           .subpage-content {
-            padding: 20px 12px !important;
-            padding-bottom: calc(20px + env(safe-area-inset-bottom)) !important;
+            padding: 16px 10px !important;
+            padding-bottom: calc(16px + env(safe-area-inset-bottom) + 60px) !important;
+          }
+          .subpage-nav-bar {
+            padding-top: calc(env(safe-area-inset-top)) !important;
+            padding-inline: 12px !important;
+          }
+        }
+        @media (max-width: 380px) {
+          .subpage-content {
+            padding: 12px 8px !important;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom) + 60px) !important;
           }
         }
       `}</style>

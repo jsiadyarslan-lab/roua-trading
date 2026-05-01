@@ -357,3 +357,19 @@ Stage Summary:
 - All critical fixes applied (redirect loop, breakpoints, PWA, mock data)
 - Build succeeds with zero errors
 - Pushed to production
+
+---
+Task ID: 5
+Agent: Sub-agent (general-purpose)
+Task: Add Target nav link for prediction-market page in AppHeader
+
+Work Log:
+- Read AppHeader.tsx to understand current nav structure
+- Added `Target` to the lucide-react import (line 13)
+- Added new NAV_LINKS entry for prediction-market: `{ href: '/dashboard/prediction-market', label: 'الأسواق التنبؤية', icon: Target }` — placed before the settings entry (last functional item) so it appears in the "More" dropdown
+- The link uses the `Target` icon from lucide-react and routes to `/dashboard/prediction-market`
+
+Stage Summary:
+- 1 file modified: `apps/web/src/components/dashboard/AppHeader.tsx`
+- 2 changes: import addition + NAV_LINKS array entry
+- prediction-market link accessible from both desktop nav "More" dropdown and mobile sidebar

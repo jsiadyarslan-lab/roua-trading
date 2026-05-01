@@ -151,8 +151,9 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
         pointerEvents: 'none',
       }} />
 
-      <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ flex: 1 }}>
+      <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, paddingRight: '8px' }}>
           {/* Header Row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
             <div style={{
@@ -237,7 +238,7 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginRight: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'row', gap: '6px', marginInlineStart: '8px', flexShrink: 0, flexWrap: 'wrap' }}>
           <button
             onClick={() => onRefresh(signal.pair)}
             style={{
@@ -281,6 +282,7 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
           >
             <XCircle size={10} /> إلغاء
           </button>
+        </div>
         </div>
       </div>
     </motion.div>

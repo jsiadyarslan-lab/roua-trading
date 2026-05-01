@@ -6,7 +6,7 @@ import { useState } from 'react'
 import {
   Home, BarChart2, Wallet, TrendingUp, Settings,
   Grid3X3, Brain, FlaskConical, ScanSearch, Radio,
-  Newspaper, HelpCircle, X, Activity, Zap,
+  Newspaper, HelpCircle, X, Activity, Zap, Target,
   BellRing, UserCircle, Link2, CreditCard, Fingerprint, Users,
 } from 'lucide-react'
 
@@ -53,6 +53,7 @@ const MORE_CATEGORIES: MoreCategory[] = [
       { label: 'التحليلات', href: '/mobile/ai', icon: Brain, color: '#B388FF', sub: 'رؤى من 6 نماذج AI' },
       { label: 'سكانر السوق', href: '/mobile/scanner', icon: ScanSearch, color: '#00FFA3', sub: 'اكتشف الفرص لحظياً' },
       { label: 'إشارات رؤى', href: '/mobile/signals', icon: Radio, color: '#FFB800', sub: 'توصيات تداول احترافية' },
+      { label: 'الأسواق التنبؤية', href: '/dashboard/prediction-market', icon: Target, color: '#00D4FF', isNew: true, sub: 'تنبؤات AI مقابل السوق' },
       { label: 'الأخبار', href: '/mobile/news', icon: Newspaper, color: '#d4af37', isNew: true, sub: 'أخبار الأسواق لحظة بلحظة' },
       { label: 'الإشعارات', href: '/mobile/notifications', icon: BellRing, color: '#FF4757', isNew: true, sub: 'تنبيهات البوت والنظام' },
     ],

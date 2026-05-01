@@ -337,7 +337,7 @@ function EventCard({ event, index, onAnalyze, analyzing }: {
         borderRadius: '0 10px 10px 0',
       }} />
 
-      <div style={{ padding: '16px' }}>
+      <div className="pm-event-card" style={{ padding: '16px' }}>
         {/* Header Row */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
           <div style={{ flex: 1, paddingRight: '8px' }}>
@@ -384,6 +384,7 @@ function EventCard({ event, index, onAnalyze, analyzing }: {
           <button
             onClick={() => onAnalyze(event.id)}
             disabled={isAnalyzing}
+            className="pm-analyze-btn"
             style={{
               display: 'flex', alignItems: 'center', gap: '4px',
               padding: '6px 12px', borderRadius: '7px',
@@ -426,7 +427,7 @@ function EventCard({ event, index, onAnalyze, analyzing }: {
         />
 
         {/* Footer: Volume, Liquidity, End Date */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '12px', flexWrap: 'wrap' }}>
+        <div className="pm-footer-row" style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <DollarSign size={10} style={{ color: 'var(--text-faint)' }} />
             <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>الحجم:</span>
@@ -543,7 +544,7 @@ function GapCard({ event, index }: { event: PredictionEvent; index: number }) {
           padding: '6px 12px', borderRadius: '8px',
           background: `${gapColor(gapVal)}10`,
           border: `1px solid ${gapColor(gapVal)}30`,
-          flexShrink: 0, marginRight: '10px',
+          flexShrink: 0, marginInlineStart: '10px',
         }}>
           <span style={{ fontSize: '16px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: gapColor(gapVal) }} dir="ltr">
             {formatPercent(gapVal, 1)}
@@ -620,7 +621,7 @@ function GapCard({ event, index }: { event: PredictionEvent; index: number }) {
       </div>
 
       {/* Market vs AI mini */}
-      <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+      <div className="pm-market-ai-mini" style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
         <div style={{
           flex: 1, padding: '6px 8px', borderRadius: '6px',
           background: 'rgba(0, 212, 255, 0.06)', border: '1px solid rgba(0, 212, 255, 0.15)',
@@ -658,7 +659,7 @@ function ConfidenceGauge({ confidence }: { confidence: number }) {
   const gaugeColor = safeConf >= 70 ? 'var(--profit)' : safeConf >= 40 ? 'var(--warning)' : 'var(--loss)'
 
   return (
-    <div style={{ position: 'relative', width: '100px', height: '100px', margin: '0 auto' }}>
+    <div className="pm-confidence-gauge" style={{ position: 'relative', width: '100px', height: '100px', margin: '0 auto' }}>
       <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
         {/* Background circle */}
         <circle
@@ -868,12 +869,22 @@ export default function PredictionMarketPage() {
     >
       <style>{`
         @media (max-width: 767px) {
-          .pm-stats-row { grid-template-columns: repeat(2, 1fr) !important; }
-          .pm-category-pills { overflow-x: auto; flex-wrap: nowrap !important; }
+          .pm-stats-row { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+          .pm-category-pills { overflow-x: auto; flex-wrap: nowrap !important; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
           .pm-category-pills::-webkit-scrollbar { display: none; }
+          .pm-event-card { padding: 12px !important; }
+          .pm-event-card .pm-analyze-btn { min-height: 44px; min-width: 44px; padding: 8px 14px !important; }
+          .pm-gap-card { padding: 12px !important; }
+          .pm-vote-section { padding: 12px !important; }
+          .pm-confidence-gauge { width: 80px !important; height: 80px !important; }
+          .pm-confidence-gauge svg { width: 80px !important; height: 80px !important; }
+          .pm-vote-symbol-input { font-size: 14px !important; min-height: 48px !important; }
         }
         @media (max-width: 480px) {
           .pm-stats-row { grid-template-columns: 1fr !important; }
+          .pm-stats-row .pm-stat-value { font-size: 15px !important; }
+          .pm-footer-row { flex-direction: column; gap: 6px !important; align-items: flex-start !important; }
+          .pm-market-ai-mini { flex-direction: column; gap: 6px !important; }
         }
       `}</style>
 
@@ -893,7 +904,7 @@ export default function PredictionMarketPage() {
           >
             <AlertTriangle size={13} style={{ color: 'var(--loss)', flexShrink: 0 }} />
             <span style={{ fontSize: '11px', color: 'var(--loss)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{error}</span>
-            <button onClick={() => setError('')} style={{ marginRight: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--loss)', opacity: 0.6 }}>
+            <button onClick={() => setError('')} style={{ marginInlineStart: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--loss)', opacity: 0.6 }}>
               <XCircle size={12} />
             </button>
           </motion.div>

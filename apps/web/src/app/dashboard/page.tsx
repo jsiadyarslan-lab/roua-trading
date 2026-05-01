@@ -1094,7 +1094,7 @@ export default function DashboardPage() {
               <div style={{ flex: 1 }} />
               {mode === 'trader' && (
                 <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: T.text3, fontWeight: 600 }}>
-                  {activeMobileView === 'execution' ? 'LIVE' : 'READY'}
+                  READY
                 </span>
               )}
               {mode === 'investor' && (

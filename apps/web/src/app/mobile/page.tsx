@@ -304,10 +304,11 @@ export default function MobileHomePage() {
         <div className="flex items-center gap-4">
           <div style={{
             width: 48, height: 48, borderRadius: 16,
-            background: 'linear-gradient(135deg, #d4af37, #FDE047)',
+            background: 'linear-gradient(135deg, #00D4FF 0%, #7DD3FC 50%, #BAE6FD 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 22, fontWeight: 900, color: '#000',
-            boxShadow: '0 8px 24px rgba(212,175,55,0.25)'
+            fontSize: 24, fontWeight: 900, color: '#000',
+            boxShadow: '0 8px 24px rgba(0, 212, 255, 0.35), inset 0 2px 2px rgba(255,255,255,0.4)',
+            border: '1px solid rgba(255,255,255,0.1)'
           }}>ر</div>
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 900, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif", letterSpacing: -0.5 }}>

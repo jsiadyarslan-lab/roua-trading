@@ -13,21 +13,18 @@ const NAV_ITEMS = [
   { label: 'الرئيسية', href: '/mobile', icon: Home },
   { label: 'الشارت', href: '/mobile/chart', icon: BarChart2 },
   { label: 'المحفظة', href: '/mobile/portfolio', icon: Wallet },
-  { label: 'الأسواق', href: '/mobile/markets', icon: TrendingUp },
   { label: 'الإعدادات', href: '/mobile/settings', icon: Settings },
   { label: 'المزيد', href: '__more__', icon: Grid3X3 },
 ]
 
 const MORE_ITEMS = [
-  { label: 'التحليلات', href: '/mobile/more#ai', icon: Brain, color: '#B388FF' },
-  { label: 'المختبر الذكي', href: '/mobile/more#lab', icon: FlaskConical, color: '#00D4FF' },
-  { label: 'السكانر المتقدم', href: '/mobile/more#scanner', icon: ScanSearch, color: '#00FFA3' },
+  { label: 'الأسواق', href: '/mobile/markets', icon: TrendingUp, color: '#00D4FF' },
+  { label: 'التحليلات', href: '/mobile/ai', icon: Brain, color: '#B388FF' },
+  { label: 'سكانر السوق', href: '/mobile/scanner', icon: ScanSearch, color: '#00FFA3' },
   { label: 'إشارات رؤى', href: '/mobile/signals', icon: Radio, color: '#FFB800' },
-  { label: 'نسخ الصفقات', href: '/mobile/more#copy', icon: CopyCheck, color: '#FF4757' },
-  { label: 'التقويم الاقتصادي', href: '/mobile/more#calendar', icon: BarChart4, color: '#059669' },
-  { label: 'آخر الأخبار', href: '/mobile/more#news', icon: Newspaper, color: '#d4af37' },
-  { label: 'المساعدة والدعم', href: '/mobile/more#help', icon: HelpCircle, color: '#8B92A8' },
-  { label: 'عن المنصة', href: '/mobile/more#about', icon: Info, color: '#8B92A8' },
+  { label: 'الأخبار', href: '/dashboard/news', icon: Newspaper, color: '#d4af37' },
+  { label: 'الدعم', href: '/support', icon: HelpCircle, color: '#8B92A8' },
+  { label: 'عن رؤى', href: '/about', icon: Info, color: '#8B92A8' },
 ]
 
 export default function MobileNavBar() {

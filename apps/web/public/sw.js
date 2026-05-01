@@ -1,4 +1,4 @@
-const CACHE_NAME = 'roua-v2';
+const CACHE_NAME = 'roua-v3';
 
 const APP_SHELL = [
   '/',
@@ -38,7 +38,74 @@ function isCacheable(request) {
   return request.method === 'GET';
 }
 
-// Fetch: network-first for API, cache-first for static assets
+// ── Push Notification Support ──
+
+// Receive push messages from the server
+self.addEventListener('push', (event) => {
+  let data = {
+    title: 'روعة التجارية',
+    body: 'لديك إشعار جديد',
+    icon: '/logo-192.png',
+    badge: '/logo-192.png',
+    tag: 'roua-notification',
+    data: {},
+  };
+
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      data = { ...data, ...parsed };
+    } catch {
+      data.body = event.data.text() || data.body;
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon,
+    badge: data.badge,
+    tag: data.tag,
+    data: data.data,
+    dir: 'rtl',
+    lang: 'ar',
+    vibrate: [100, 50, 100],
+    actions: data.actions || [
+      { action: 'open', title: 'فتح' },
+      { action: 'dismiss', title: 'إغلاق' },
+    ],
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+// Handle notification click
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  if (event.action === 'dismiss') return;
+
+  // Default: open the dashboard
+  const urlToOpen = event.notification.data?.url || '/dashboard';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // If a window is already open, focus it
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(urlToOpen);
+          return client.focus();
+        }
+      }
+      // Otherwise open a new window
+      return self.clients.openWindow(urlToOpen);
+    })
+  );
+});
+
+// ── Fetch: network-first for API, cache-first for static assets ──
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);

@@ -35,6 +35,7 @@ model User {
   paperOrders         PaperOrder[]
   coachAdvices        CoachAdvice[]
   auditLogs           AuditLog[]
+  telegramChatId      String?              // معرّف محادثة Telegram للمستخدم
 }
 
 enum Tier {

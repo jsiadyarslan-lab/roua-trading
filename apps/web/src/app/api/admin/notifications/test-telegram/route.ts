@@ -1,69 +1,164 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdminAuth } from '@/lib/admin-auth'
+import { db, ensureDbReady } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * /dashboard/admin/api/notifications/test-telegram — Server-side Telegram bot test
+ * /api/admin/notifications/test-telegram — اختبار كامل لإرسال Telegram
  *
- * POST { botToken: string, chatId: string }
+ * POST { botToken?, chatId? }
  *
- * Makes the Telegram API call from the server side so the bot token
- * is never exposed in browser network requests.
- * Returns { ok: boolean, botName?: string, error?: string }
+ * إذا لم يُرسل botToken/chatId، يقرأ الإعدادات من قاعدة البيانات.
+ * يُرسل رسالة تجريبية فعلية (وليس فقط getMe) للتحقق من وصول الرسائل.
  */
 export async function POST(req: NextRequest) {
   const authError = await verifyAdminAuth(req)
   if (authError) return authError
 
   try {
-    const { botToken, chatId } = await req.json()
+    const body = await req.json()
+    let { botToken, chatId } = body
+
+    // إذا لم تُرسل القيم، اقرأ من قاعدة البيانات
+    if (!botToken || !chatId) {
+      const dbReady = await ensureDbReady()
+      if (dbReady) {
+        const config = await db.notificationConfig.findUnique({ where: { type: 'telegram' } })
+        if (config) {
+          const parsed = JSON.parse(config.config || '{}')
+          if (!botToken) botToken = parsed.botToken
+          if (!chatId) chatId = parsed.chatId
+        }
+      }
+    }
 
     if (!botToken || !chatId) {
       return NextResponse.json(
-        { ok: false, error: 'Bot Token و Chat ID مطلوبان' },
+        { ok: false, error: 'Bot Token و Chat ID مطلوبان — أدخلهما أو احفظ الإعدادات أولاً' },
         { status: 400 }
       )
     }
 
-    // Call Telegram's getMe API from the server
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 10_000)
+    // ── الخطوة 1: التحقق من صحة البوت ──
+    const controller1 = new AbortController()
+    const timeout1 = setTimeout(() => controller1.abort(), 10_000)
 
+    let botName = ''
     try {
-      const res = await fetch(`https://api.telegram.org/bot${botToken}/getMe`, {
+      const meRes = await fetch(`https://api.telegram.org/bot${botToken}/getMe`, {
         method: 'GET',
-        signal: controller.signal,
+        signal: controller1.signal,
       })
-      clearTimeout(timeout)
+      clearTimeout(timeout1)
 
-      const json = await res.json()
-
-      if (json.ok) {
-        const botName = json.result?.username || json.result?.first_name || 'Unknown'
+      const meData = await meRes.json()
+      if (!meData.ok) {
         return NextResponse.json({
-          ok: true,
-          botName,
+          ok: false,
+          error: meData.description || 'Bot Token غير صالح — تحقق من صحته',
+          step: 'getMe',
         })
       }
-
-      return NextResponse.json({
-        ok: false,
-        error: json.description || 'فشل الاتصال بالبوت — تحقق من صحة Bot Token',
-      })
+      botName = meData.result?.username || meData.result?.first_name || 'Unknown'
     } catch (fetchError: any) {
-      clearTimeout(timeout)
-
+      clearTimeout(timeout1)
       if (fetchError?.name === 'AbortError') {
         return NextResponse.json({
           ok: false,
           error: 'انتهت مهلة الاتصال بـ Telegram',
+          step: 'getMe',
+        })
+      }
+      return NextResponse.json({
+        ok: false,
+        error: 'فشل الاتصال بخوادم Telegram — تحقق من اتصال الإنترنت',
+        step: 'getMe',
+      })
+    }
+
+    // ── الخطوة 2: إرسال رسالة تجريبية فعلية ──
+    const testMessage = [
+      '🔔 <b>رسالة تجريبية من لوحة الإدارة</b>',
+      '',
+      'إذا وصلتك هذه الرسالة، فإعدادات Telegram تعمل بشكل صحيح!',
+      '',
+      `🤖 البوت: @${botName}`,
+      `🕐 ${new Date().toISOString().replace('T', ' ').slice(0, 19)} UTC`,
+      '',
+      '<i>— منصة روعة التجارية</i>',
+    ].join('\n')
+
+    const controller2 = new AbortController()
+    const timeout2 = setTimeout(() => controller2.abort(), 10_000)
+
+    try {
+      const sendRes = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: testMessage,
+          parse_mode: 'HTML',
+          disable_web_page_preview: true,
+        }),
+        signal: controller2.signal,
+      })
+      clearTimeout(timeout2)
+
+      const sendData = await sendRes.json()
+
+      if (!sendData.ok) {
+        const errorMsg = sendData.description || 'فشل إرسال الرسالة'
+        let hint = ''
+        if (errorMsg.includes('chat not found') || errorMsg.includes('Chat not found')) {
+          hint = ' — تأكد أن البوت بدأ محادثة مع المستخدم أولاً (أرسل /start للبوت)'
+        } else if (errorMsg.includes('bot was blocked')) {
+          hint = ' — المستخدم حظر البوت'
+        } else if (errorMsg.includes('Forbidden')) {
+          hint = ' — البوت ليس عضواً في المحادثة المحددة'
+        }
+
+        return NextResponse.json({
+          ok: false,
+          botName,
+          error: `البوت صالح لكن فشل الإرسال: ${errorMsg}${hint}`,
+          step: 'sendMessage',
         })
       }
 
+      // نجاح — تحديث عداد التنبيهات
+      const dbReady = await ensureDbReady()
+      if (dbReady) {
+        await db.notificationConfig.update({
+          where: { type: 'telegram' },
+          data: {
+            lastTriggeredAt: new Date(),
+            triggerCount: { increment: 1 },
+          },
+        }).catch(() => {}) // Non-critical
+      }
+
+      return NextResponse.json({
+        ok: true,
+        botName,
+        message: 'تم إرسال رسالة تجريبية بنجاح — تحقق من Telegram',
+      })
+    } catch (fetchError: any) {
+      clearTimeout(timeout2)
+      if (fetchError?.name === 'AbortError') {
+        return NextResponse.json({
+          ok: false,
+          botName,
+          error: 'انتهت مهلة إرسال الرسالة عبر Telegram',
+          step: 'sendMessage',
+        })
+      }
       return NextResponse.json({
         ok: false,
-        error: 'فشل الاتصال بخوادم Telegram',
+        botName,
+        error: 'فشل الاتصال بـ Telegram أثناء إرسال الرسالة',
+        step: 'sendMessage',
       })
     }
   } catch (error: any) {

@@ -83,52 +83,61 @@ function NewsTicker() {
 function CurrencyTicker() {
   const quotes = useMarketStore(s => s.quotes)
   const router = useRouter()
-  const displayPairs = ['BTC/USD', 'ETH/USD', 'GOLD', 'EUR/USD']
+  const displayPairs = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'GOLD', 'EUR/USD', 'GBP/USD']
   
   return (
-    <div style={{ overflowX: 'auto', paddingBottom: 16 }} className="scrollbar-hide">
-      <div style={{ display: 'flex', gap: 12, padding: '0 20px', width: 'max-content' }}>
-        {displayPairs.map((pair, i) => {
+    <div style={{
+      overflow: 'hidden', height: 44, display: 'flex', alignItems: 'center',
+      background: 'rgba(255,255,255,0.02)',
+      borderTop: '0.5px solid rgba(255,255,255,0.05)',
+      borderBottom: '0.5px solid rgba(255,255,255,0.05)',
+      marginBottom: 20
+    }}>
+      <div style={{
+        display: 'flex', gap: 40, animation: 'tickerScroll 30s linear infinite',
+        whiteSpace: 'nowrap', direction: 'ltr', width: 'max-content', padding: '0 20px'
+      }}>
+        {[...displayPairs, ...displayPairs].map((pair, i) => {
           const quoteKey = Object.keys(quotes).find(k => k.replace('/', '') === pair.replace('/', ''))
           const q = quoteKey ? quotes[quoteKey] : null
           const price = q ? q.price : 0
           const change = q ? q.changePercent : 0
+          const pos = change >= 0
           
           return (
-            <motion.button
+            <button
               key={i}
-              whileTap={{ scale: 0.94 }}
               onClick={() => router.push('/mobile/chart?symbol=' + pair)}
               style={{
-                background: 'rgba(28,28,30,0.5)',
-                backdropFilter: 'blur(20px)',
-                borderRadius: 22,
-                padding: '16px',
-                textAlign: 'right',
-                minWidth: 135,
-                border: '0.5px solid rgba(255,255,255,0.06)',
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: 'none', border: 'none', cursor: 'pointer'
               }}
             >
-              <div className="flex items-center justify-between mb-3">
-                <span style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>
-                  {pair.split('/')[0]}
-                </span>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: change >= 0 ? '#32D74B' : '#FF453A' }} />
-              </div>
-              <div style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace", fontVariantNumeric: 'tabular-nums' }}>
-                {price ? price.toLocaleString('en', { minimumFractionDigits: price < 10 ? 4 : 2 }) : '—'}
-              </div>
-              <div style={{ 
-                fontSize: 11, fontWeight: 700, 
-                color: change >= 0 ? '#32D74B' : '#FF453A', 
-                fontFamily: "'JetBrains Mono', monospace", marginTop: 4 
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>
+                {pair}
+              </span>
+              <span style={{ 
+                fontSize: 13, fontWeight: 800, color: pos ? '#32D74B' : '#FF453A',
+                fontFamily: "'JetBrains Mono', monospace", fontVariantNumeric: 'tabular-nums'
               }}>
-                {change !== undefined ? pct(change) : '0.00%'}
-              </div>
-            </motion.button>
+                {price ? price.toLocaleString('en', { minimumFractionDigits: price < 10 ? 4 : 2 }) : '—'}
+              </span>
+              <span style={{ 
+                fontSize: 10, fontWeight: 700, color: pos ? '#32D74B' : '#FF453A',
+                opacity: 0.8, fontFamily: "'JetBrains Mono', monospace"
+              }}>
+                {pos ? '▲' : '▼'} {Math.abs(change).toFixed(2)}%
+              </span>
+            </button>
           )
         })}
       </div>
+      <style>{`
+        @keyframes tickerScroll {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+      `}</style>
     </div>
   )
 }

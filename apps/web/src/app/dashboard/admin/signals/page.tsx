@@ -31,6 +31,16 @@ function safeReason(val: unknown): string {
   return val != null ? String(val) : ''
 }
 
+function safeAction(val: unknown): string {
+  if (val === 'BUY' || val === 'SELL' || val === 'WAIT') return val
+  if (val && typeof val === 'object' && 'action' in (val as any)) {
+    const inner = (val as any).action
+    if (inner === 'STRONG_BUY' || inner === 'BUY') return 'BUY'
+    if (inner === 'STRONG_SELL' || inner === 'SELL') return 'SELL'
+  }
+  return 'WAIT'
+}
+
 interface Signal {
   id: string
   pair: string
@@ -89,7 +99,7 @@ export default function AdminSignalsPage() {
           setSignals(rawSignals.map((s: any, i: number) => ({
             id: s.id || `signal-${i}`,
             pair: s.pair || s.symbol || '—',
-            action: s.action || s.type || 'WAIT',
+            action: safeAction(s.action || s.type),
             confidence: safeConfidence(s.confidence || s.conf),
             reason: safeReason(s.reason),
             status: s.status || 'ACTIVE',

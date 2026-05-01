@@ -55,11 +55,23 @@ const CRYPTO_BASE_CURRENCIES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE'
 
 function normalizeRouteSymbol(parts: string[] | string) {
   const joined = Array.isArray(parts) ? parts.join('/') : parts
+  let decoded: string
   try {
-    return decodeURIComponent(joined)
+    decoded = decodeURIComponent(joined)
   } catch {
-    return joined
+    decoded = joined
   }
+  // Normalize dash-separated crypto pairs: BTC-USD → BTC/USD, ETH-USDT → ETH/USDT
+  // This handles health monitors and external callers that use dash format
+  if (!decoded.includes('/') && decoded.includes('-')) {
+    const knownBases = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI', 'XAU', 'XAG', 'XPT']
+    const knownQuotes = ['USD', 'USDT', 'BUSD', 'EUR', 'GBP', 'JPY']
+    const parts = decoded.split('-')
+    if (parts.length === 2 && knownBases.includes(parts[0]) && knownQuotes.includes(parts[1])) {
+      decoded = `${parts[0]}/${parts[1]}`
+    }
+  }
+  return decoded
 }
 
 // ── Convert symbol to Yahoo Finance format ──

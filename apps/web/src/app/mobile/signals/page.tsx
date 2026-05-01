@@ -28,8 +28,19 @@ function safeReason(val: unknown): string {
 
 function safeNumber(val: unknown): number | null {
   if (val === null || val === undefined) return null
+  if (val && typeof val === 'object') return null
   const n = Number(val)
   return Number.isFinite(n) ? n : null
+}
+
+function safeAction(val: unknown): 'BUY' | 'SELL' | 'WAIT' {
+  if (val === 'BUY' || val === 'SELL' || val === 'WAIT') return val
+  if (val && typeof val === 'object' && 'action' in (val as any)) {
+    const inner = (val as any).action
+    if (inner === 'STRONG_BUY' || inner === 'BUY') return 'BUY'
+    if (inner === 'STRONG_SELL' || inner === 'SELL') return 'SELL'
+  }
+  return 'WAIT'
 }
 
 interface Signal {
@@ -73,12 +84,17 @@ export default function MobileSignalsPage() {
         const data = await res.json()
         if (data.success && Array.isArray(data.data)) {
           const sanitized = data.data.map((s: any) => ({
-            ...s,
+            id: s.id || `sig-${Math.random().toString(36).slice(2, 8)}`,
+            pair: s.pair || s.symbol || '—',
+            action: safeAction(s.action),
             confidence: safeConfidence(s.confidence),
             reason: safeReason(s.reason),
             entryPrice: safeNumber(s.entryPrice),
             stopLoss: safeNumber(s.stopLoss),
             takeProfit: safeNumber(s.takeProfit),
+            status: s.status || 'ACTIVE',
+            expiresAt: s.expiresAt || new Date(Date.now() + 3600000).toISOString(),
+            createdAt: s.createdAt || new Date().toISOString(),
           }))
           setSignals(sanitized)
         }

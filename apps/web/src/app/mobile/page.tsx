@@ -17,6 +17,39 @@ import { useRouter } from 'next/navigation'
 const fmt2 = (n: number) => Math.abs(n).toFixed(2)
 const pct = (n: number) => `${n >= 0 ? '+' : '-'}${Math.abs(n).toFixed(2)}%`
 
+// ── Defensive helpers: prevent React Error #31 when API returns objects instead of primitives ──
+function safeConfidence(val: unknown): number {
+  if (typeof val === 'number' && Number.isFinite(val)) return val
+  if (val && typeof val === 'object' && 'compositeScore' in (val as any)) return (val as any).compositeScore ?? (val as any).confidence ?? 0
+  const n = Number(val)
+  return Number.isFinite(n) ? n : 0
+}
+
+function safeReason(val: unknown): string {
+  if (typeof val === 'string') return val
+  if (val && typeof val === 'object') {
+    try { return JSON.stringify(val) } catch { return '' }
+  }
+  return val != null ? String(val) : ''
+}
+
+function safeNumber(val: unknown): number | null {
+  if (val === null || val === undefined) return null
+  if (val && typeof val === 'object') return null
+  const n = Number(val)
+  return Number.isFinite(n) ? n : null
+}
+
+function safeAction(val: unknown): 'BUY' | 'SELL' | 'WAIT' {
+  if (val === 'BUY' || val === 'SELL' || val === 'WAIT') return val
+  if (val && typeof val === 'object' && 'action' in (val as any)) {
+    const inner = (val as any).action
+    if (inner === 'STRONG_BUY' || inner === 'BUY') return 'BUY'
+    if (inner === 'STRONG_SELL' || inner === 'SELL') return 'SELL'
+  }
+  return 'WAIT'
+}
+
 /* ─── Live News Ticker ─────────────────────── */
 function NewsTicker() {
   const [news, setNews] = useState<any[]>([])
@@ -202,7 +235,19 @@ function LatestSignalCard() {
         const res = await fetch('/api/signals/active')
         if (res.ok) {
           const data = await res.json()
-          if (data.success && data.data.length > 0) setSignal(data.data[0])
+          if (data.success && data.data.length > 0) {
+            const raw = data.data[0]
+            // Sanitize to prevent React Error #31 — API may return SmartScore objects
+            setSignal({
+              ...raw,
+              confidence: safeConfidence(raw.confidence),
+              reason: safeReason(raw.reason),
+              action: safeAction(raw.action),
+              takeProfit: safeNumber(raw.takeProfit),
+              entryPrice: safeNumber(raw.entryPrice),
+              stopLoss: safeNumber(raw.stopLoss),
+            })
+          }
         }
       } catch { /* silent */ } finally { setLoading(false) }
     }
@@ -226,7 +271,7 @@ function LatestSignalCard() {
     </IOSCard>
   )
 
-  const isBuy = signal.action === 'BUY'
+  const isBuy = safeAction(signal.action) === 'BUY'
   const color = isBuy ? '#32D74B' : '#FF453A'
 
   return (

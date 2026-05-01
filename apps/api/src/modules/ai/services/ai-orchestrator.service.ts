@@ -127,7 +127,7 @@ export class AIOrchestratorService {
     private readonly openrouterService: OpenRouterService,
     @Optional() private readonly ragService?: RagService,
     @Optional() private readonly redis?: RedisService,
-    @Optional() private readonly usageLogger?: AiUsageLoggerService,
+    private readonly usageLogger: AiUsageLoggerService,
   ) {
     this.logger.log('🎼 AI Orchestrator initialized — 7 models (Groq, Gemini, GLM-4, HuggingFace, Ollama, Bedrock, OpenRouter)');
     if (this.ragService) {
@@ -135,8 +135,6 @@ export class AIOrchestratorService {
     }
     if (this.usageLogger) {
       this.logger.log('📊 AI Usage Logger enabled — all calls will be tracked');
-    } else {
-      this.logger.warn('⚠️ AI Usage Logger NOT available — AI costs will NOT be tracked! Check PrismaService/Database connection.');
     }
     // Log which models have keys available
     const available = this.getModelsStatus().filter(m => m.available);

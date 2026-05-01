@@ -26,10 +26,10 @@ const MONITORED_ENDPOINTS = [
   '/api/health',
   '/api/auth/session',
   '/api/exchange/quote/AAPL',
-  '/api/exchange/quote/BTC-USD',
+  '/api/exchange/quote/BTC/USD',
   '/api/scanner/scan',
   '/api/signals/smart',
-  '/api/scanner/multi-tf/BTC-USD',
+  '/api/scanner/multi-tf/BTC/USD',
   '/api/portfolio/sanctuary',
   '/api/positions',
 ]

@@ -130,6 +130,7 @@ export class ScannerController {
 
     try {
       // Clear cache first to force fresh data
+      await this.scannerService.invalidateCache(tf, cat);
       return await this.scannerService.fullScan(tf, cat);
     } catch (error: any) {
       this.logger.error(`Force scan failed: ${error.message}`, error.stack);

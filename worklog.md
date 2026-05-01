@@ -311,3 +311,27 @@ Stage Summary:
 - Session renewed automatically if expiring within 60 minutes
 - Guest sessions properly rejected and cleaned up
 - 0 TypeScript errors in all created/modified files
+
+---
+Task ID: settings-sync-fix
+Agent: main
+Task: Fix bot settings not being applied — admin saves settings but bot doesn't read them
+
+Work Log:
+- Investigated the complete settings save flow end-to-end
+- Discovered root cause: THREE completely disconnected systems
+  1. Admin dashboard → Setting table (DB) — saved but nobody reads
+  2. BotEngine.tsx → hardcoded MAX_SESSION_LOSS=-250 — ignores DB
+  3. NestJS services → ENV vars only — ignores DB
+- Added protection settings to useBotStore (maxDailyLoss, maxDrawdown, maxOpenPositions, stopLossDefault, takeProfitDefault, leverageLimit)
+- Added syncFromDB() method to useBotStore that fetches from /api/bot/settings
+- Created /api/bot/settings endpoint that reads from Setting table
+- Replaced hardcoded constants in BotEngine.tsx with dynamic settings from useBotStore
+- Added syncSettingsFromDB() to RiskGatekeeperService, RiskManagerService, TradingBotService
+- Bot now syncs settings from DB every 60 seconds (frontend) and 30 seconds (backend)
+- Protection log message now shows actual limit value: "تجاوز حد خسارة الجلسة (-500$ / الحد: -2000$)"
+
+Stage Summary:
+- Modified 6 files, created 1 new file
+- Built successfully, pushed to GitHub (0dd7ada)
+- Railway will auto-deploy

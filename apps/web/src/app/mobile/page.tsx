@@ -1,13 +1,15 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useBotStore } from '@/hooks/useBotStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
+import { usePositionsStore } from '@/hooks/usePositionsStore'
 import {
   Brain, Bot, ScanSearch, ChevronRight, TrendingUp, TrendingDown,
-  Bell, Activity, Plus, ShieldCheck, Link2, ChevronLeft, Zap, Loader2, Target
+  Bell, Activity, Plus, ShieldCheck, Link2, ChevronLeft, Zap, Loader2, Target,
+  RefreshCw, Eye, EyeOff, Wallet
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -266,9 +268,15 @@ function LatestSignalCard() {
 /* ─── Main Page ─────────────────────────── */
 export default function MobileHomePage() {
   const router = useRouter()
-  const { isOn, setIsOn, stats } = useBotStore()
+  const { isOn, setIsOn, stats, syncFromDB, settings } = useBotStore()
   const { trades } = usePaperTradesStore()
+  const account = usePositionsStore(s => s.account)
   const [consensus, setConsensus] = useState<any>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
+  // Real portfolio data from API / store
+  const totalAssets = Number(account?.equity) || Number(account?.buyingPower) || 0
+  const dailyChange = Number(account?.dailyChange) || 0
 
   useEffect(() => {
     async function fetchConsensus() {
@@ -288,8 +296,25 @@ export default function MobileHomePage() {
   }, [])
 
   const openPositions = trades.filter(t => t.status === 'open' || t.status === 'active')
-  const totalAssets = 542.30 
-  const dailyChange = 2.4
+
+  // Pull-to-refresh handler
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await Promise.all([
+      syncFromDB(),
+      fetch('/api/ai/consensus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol: 'BTC/USD' })
+      }).then(r => r.json()).then(d => { if (d.success) setConsensus(d.data) }).catch(() => {}),
+    ])
+    setRefreshing(false)
+  }, [syncFromDB])
+
+  // Sync settings on mount
+  useEffect(() => {
+    syncFromDB()
+  }, [syncFromDB])
 
   return (
     <div style={{ 
@@ -340,6 +365,7 @@ export default function MobileHomePage() {
         </div>
         <motion.button 
           whileTap={{ scale: 0.9 }}
+          onClick={() => router.push('/mobile/notifications')}
           style={{
             width: 44, height: 44, borderRadius: '50%',
             background: '#1C1C1E', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -363,11 +389,13 @@ export default function MobileHomePage() {
             </p>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
               <span style={{ fontSize: 28, fontWeight: 900, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace", letterSpacing: -1 }}>
-                ${totalAssets.toLocaleString('en', { minimumFractionDigits: 2 })}
+                {totalAssets > 0 ? `$${totalAssets.toLocaleString('en', { minimumFractionDigits: 2 })}` : '—'}
               </span>
-              <span style={{ fontSize: 11, color: '#32D74B', fontFamily: "'JetBrains Mono', monospace", fontWeight: 800 }}>
-                {pct(dailyChange)}
-              </span>
+              {dailyChange !== 0 && (
+                <span style={{ fontSize: 11, color: dailyChange >= 0 ? '#32D74B' : '#FF453A', fontFamily: "'JetBrains Mono', monospace", fontWeight: 800 }}>
+                  {pct(dailyChange)}
+                </span>
+              )}
             </div>
           </div>
           <button style={{
@@ -506,7 +534,7 @@ export default function MobileHomePage() {
             </div>
           </div>
           <p style={{ fontSize: 15, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>سكانر السوق</p>
-          <p style={{ fontSize: 11, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginTop: 2 }}>3 فرص ذهبية</p>
+          <p style={{ fontSize: 11, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginTop: 2 }}>فحص مباشر</p>
         </motion.div>
       </div>
 

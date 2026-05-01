@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default function MobileLayout({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="relative flex flex-col min-h-screen block sm:hidden"
+      className="relative flex flex-col min-h-screen block max-md:block md:hidden"
       style={{
         background: '#000000', color: '#F0F2F5', maxWidth: 430, margin: '0 auto',
         paddingTop: 0, // Pages will handle content padding below safe area

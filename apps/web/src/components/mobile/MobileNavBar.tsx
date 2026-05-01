@@ -6,7 +6,7 @@ import { useState } from 'react'
 import {
   Home, BarChart2, Wallet, TrendingUp, Settings,
   Grid3X3, Brain, FlaskConical, ScanSearch, Radio,
-  CopyCheck, BarChart4, Newspaper, HelpCircle, Info, X,
+  CopyCheck, BarChart4, Newspaper, HelpCircle, Info, X, Activity,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -22,9 +22,11 @@ const MORE_ITEMS = [
   { label: 'التحليلات', href: '/mobile/ai', icon: Brain, color: '#B388FF' },
   { label: 'سكانر السوق', href: '/mobile/scanner', icon: ScanSearch, color: '#00FFA3' },
   { label: 'إشارات رؤى', href: '/mobile/signals', icon: Radio, color: '#FFB800' },
-  { label: 'الأخبار', href: '/dashboard/news', icon: Newspaper, color: '#d4af37' },
-  { label: 'الدعم', href: '/support', icon: HelpCircle, color: '#8B92A8' },
-  { label: 'عن رؤى', href: '/about', icon: Info, color: '#8B92A8' },
+  { label: 'الأخبار', href: '/mobile/news', icon: Newspaper, color: '#d4af37' },
+  { label: 'المراكز', href: '/mobile/positions', icon: Activity, color: '#00C853' },
+  { label: 'الاستراتيجيات', href: '/mobile/strategies', icon: FlaskConical, color: '#B388FF' },
+  { label: 'الدعم', href: '/mobile/help', icon: HelpCircle, color: '#8B92A8' },
+  { label: 'عن رؤى', href: '/mobile/more', icon: Info, color: '#8B92A8' },
 ]
 
 export default function MobileNavBar() {
@@ -50,7 +52,7 @@ export default function MobileNavBar() {
     <>
       {/* Bottom Navigation */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 block sm:hidden"
+        className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
         style={{
           height: 'calc(60px + env(safe-area-inset-bottom))',
           paddingBottom: 'env(safe-area-inset-bottom)',
@@ -122,7 +124,7 @@ export default function MobileNavBar() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowMore(false)}
-              className="fixed inset-0 z-50 block sm:hidden"
+              className="fixed inset-0 z-50 md:hidden"
               style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
             />
 
@@ -132,7 +134,7 @@ export default function MobileNavBar() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-              className="fixed bottom-0 left-0 right-0 z-50 block sm:hidden"
+              className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
               style={{
                 background: 'rgba(11, 14, 20, 0.85)',
                 backdropFilter: 'blur(40px) saturate(200%)',

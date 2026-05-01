@@ -610,7 +610,13 @@ export class AIOrchestratorService {
           if (response.confidence > 0 && !response.isFallback) {
             apiWorking = true;
           } else {
-            error = `Model returned stub/empty response (confidence: ${response.confidence})`;
+            // Check if the response content contains error details (from improved error reporting)
+            const contentStr = response.content || '';
+            if (contentStr.includes('API error') || contentStr.includes('error:') || contentStr.includes('Error:')) {
+              error = contentStr.replace(/^⚠️\s*/, '').substring(0, 300);
+            } else {
+              error = `Model returned stub/empty response (confidence: ${response.confidence})`;
+            }
           }
         } catch (err: any) {
           responseTimeMs = Date.now() - start;

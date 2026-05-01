@@ -11,6 +11,7 @@ import {
 
 const NAV_ITEMS = [
   { label: 'الرئيسية', href: '/mobile', icon: Home },
+  { label: 'الأسواق', href: '/mobile/markets', icon: TrendingUp },
   { label: 'الشارت', href: '/mobile/chart', icon: BarChart2 },
   { label: 'المحفظة', href: '/mobile/portfolio', icon: Wallet },
   { label: 'الإعدادات', href: '/mobile/settings', icon: Settings },
@@ -18,7 +19,6 @@ const NAV_ITEMS = [
 ]
 
 const MORE_ITEMS = [
-  { label: 'الأسواق', href: '/mobile/markets', icon: TrendingUp, color: '#00D4FF' },
   { label: 'التحليلات', href: '/mobile/ai', icon: Brain, color: '#B388FF' },
   { label: 'سكانر السوق', href: '/mobile/scanner', icon: ScanSearch, color: '#00FFA3' },
   { label: 'إشارات رؤى', href: '/mobile/signals', icon: Radio, color: '#FFB800' },
@@ -70,20 +70,20 @@ export default function MobileNavBar() {
                 key={item.href}
                 onClick={() => handleNav(item.href)}
                 className="flex flex-col items-center justify-center gap-0.5"
-                style={{ width: 52, paddingTop: 8 }}
+                style={{ width: 48, paddingTop: 4 }}
               >
                 <motion.div whileTap={{ scale: 0.85 }} className="relative">
-                  <Icon size={22} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} />
+                  <Icon size={20} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} />
                   {active && (
                     <motion.div
                       layoutId="navIndicator"
                       style={{
                         position: 'absolute',
-                        bottom: -4,
+                        bottom: -3,
                         left: '50%',
                         transform: 'translateX(-50%)',
-                        width: 4,
-                        height: 4,
+                        width: 3,
+                        height: 3,
                         borderRadius: '50%',
                         background: '#00D4FF',
                       }}
@@ -92,10 +92,10 @@ export default function MobileNavBar() {
                 </motion.div>
                 <span
                   style={{
-                    fontSize: 9,
+                    fontSize: 8.5,
                     color: active ? '#00D4FF' : 'rgba(255,255,255,0.35)',
                     fontFamily: "'Cairo', sans-serif",
-                    fontWeight: active ? 700 : 400,
+                    fontWeight: active ? 800 : 500,
                   }}
                 >
                   {item.label}
@@ -133,7 +133,7 @@ export default function MobileNavBar() {
                 WebkitBackdropFilter: 'blur(40px) saturate(200%)',
                 borderRadius: '28px 28px 0 0',
                 borderTop: '0.5px solid rgba(255,255,255,0.15)',
-                paddingBottom: 'calc(88px + env(safe-area-inset-bottom))',
+                paddingBottom: 'calc(72px + env(safe-area-inset-bottom))',
                 boxShadow: '0 -10px 40px rgba(0,0,0,0.5)',
               }}
             >

@@ -240,7 +240,7 @@ export default function AdminTradingPage() {
           {[
             { label: 'الاستراتيجية', value: primaryBot?.strategy || '—', color: COLORS.accent },
             { label: 'إجمالي الصفقات', value: `${primaryBot?.totalTrades ?? 0}`, color: COLORS.text },
-            { label: 'نسبة النجاح', value: primaryBot ? `${Number(primaryBot.winRate) * 100}%` : '—', color: COLORS.success },
+            { label: 'نسبة النجاح', value: primaryBot ? `${Number(primaryBot.winRate) > 1 ? Number(primaryBot.winRate).toFixed(1) : (Number(primaryBot.winRate) * 100).toFixed(1)}%` : '—', color: COLORS.success },
             { label: 'P&L اليومي', value: primaryBot ? `$${Number(primaryBot.dailyPnl).toLocaleString()}` : '—', color: Number(primaryBot?.dailyPnl ?? 0) >= 0 ? COLORS.success : COLORS.danger },
           ].map((item, i) => (
             <div key={i} style={{
@@ -255,7 +255,7 @@ export default function AdminTradingPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+      <div className="admin-grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         {/* Active Positions */}
         <div style={{ ...CARD_STYLE, padding: 0 }}>
           <div style={{

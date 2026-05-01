@@ -15,14 +15,11 @@ export async function GET(req: NextRequest) {
 
   const endpoints = [
     '/api/health',
+    '/api/auth/me',
     '/api/auth/session',
-    '/api/exchange/quote/AAPL',
-    '/api/exchange/quote/BTC-USD',
-    '/api/scanner/scan',
-    '/api/signals/smart',
-    '/api/scanner/multi-tf/BTC-USD',
-    '/api/portfolio/sanctuary',
-    '/api/positions',
+    '/dashboard/admin/api/auth/session',
+    '/dashboard/admin/api/health',
+    '/dashboard/admin/api/stats',
     '/dashboard',
   ]
 

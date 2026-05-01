@@ -64,32 +64,50 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return
     }
 
+    let cancelled = false
+
     const checkAuth = async () => {
       try {
         const res = await fetch('/dashboard/admin/api/auth/session')
-        if (res.ok) {
-          const data = await res.json()
-          if (data.authenticated) {
-            setAuthenticated(true)
-          } else {
-            router.replace('/dashboard/admin/login')
-            return
-          }
+        if (cancelled) return
+
+        let data: any = { authenticated: false }
+        try {
+          data = await res.json()
+        } catch {
+          // Non-JSON response — treat as unauthenticated
+        }
+
+        if (cancelled) return
+
+        if (res.ok && data.authenticated) {
+          setAuthenticated(true)
         } else {
+          setAuthenticated(false)
           router.replace('/dashboard/admin/login')
           return
         }
       } catch {
+        if (cancelled) return
+        // Network error — don't redirect, show error state instead
+        console.warn('[admin-layout] Session check failed — network error')
+        setAuthenticated(false)
         router.replace('/dashboard/admin/login')
         return
       }
-      setAuthChecked(true)
-      setChecking(false)
+
+      if (!cancelled) {
+        setAuthChecked(true)
+        setChecking(false)
+      }
     }
 
     checkAuth()
     const interval = setInterval(checkAuth, 60000) // Re-check every minute
-    return () => clearInterval(interval)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
   }, [pathname, router])
 
   const handleLogout = async () => {

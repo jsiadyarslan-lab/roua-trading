@@ -70,8 +70,8 @@ export default function AdminSignalsPage() {
         const data = await signalsRes.json()
         const rawSignals = Array.isArray(data.signals) ? data.signals : Array.isArray(data.data) ? data.data : []
         if (rawSignals.length > 0) {
-          setSignals(rawSignals.map((s: any) => ({
-            id: s.id || Math.random().toString(),
+          setSignals(rawSignals.map((s: any, i: number) => ({
+            id: s.id || `signal-${i}`,
             pair: s.pair || s.symbol || '—',
             action: s.action || s.type || 'WAIT',
             confidence: s.confidence || s.conf || 0,
@@ -141,6 +141,11 @@ export default function AdminSignalsPage() {
   useEffect(() => {
     fetchData()
     fetchStats()
+    const interval = setInterval(() => {
+      fetchData()
+      fetchStats()
+    }, 60000) // Auto-refresh every 60s
+    return () => clearInterval(interval)
   }, [fetchData, fetchStats])
 
   const activeSignals = signals.filter(s => s.status === 'ACTIVE')

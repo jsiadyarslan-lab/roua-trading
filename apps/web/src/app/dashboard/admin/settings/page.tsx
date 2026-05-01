@@ -395,7 +395,7 @@ export default function AdminSettingsPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
-                { key: 'autoTrading', label: 'التداول التلقائي', type: 'toggle' as const },
+                { key: 'autoTrading', label: 'الربط التلقائي', type: 'toggle' as const },
                 { key: 'strategy', label: 'الاستراتيجية', type: 'select' as const, options: ['Scalp AI', 'Swing Master', 'DCA Pro', 'Grid Bot'] },
                 { key: 'maxPositionSize', label: 'الحد الأقصى لحجم المركز ($)', type: 'number' as const },
                 { key: 'maxDailyLoss', label: 'الحد الأقصى للخسارة اليومية ($)', type: 'number' as const },
@@ -590,7 +590,7 @@ export default function AdminSettingsPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>المنصة / البورصة</label>
+                <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>المنصة / وسطاء الربط</label>
                 <select
                   value={newKeyForm.exchange}
                   onChange={e => setNewKeyForm(prev => ({ ...prev, exchange: e.target.value }))}

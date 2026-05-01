@@ -90,13 +90,13 @@ export default function AdminSystemLogsPage() {
     return () => clearTimeout(timer)
   }, [filter, search])
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 30 seconds — pass current filter/search via ref
   useEffect(() => {
     const iv = setInterval(() => {
-      load(true)
+      load(true, filter, search)
     }, 30000)
     return () => clearInterval(iv)
-  }, [])
+  }, [filter, search])
 
   const filtered = logs.filter(l => {
     const mf = filter === 'all' || l.level === filter

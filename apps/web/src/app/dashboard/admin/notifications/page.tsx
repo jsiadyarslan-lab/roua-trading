@@ -65,7 +65,7 @@ export default function AdminNotificationsPage() {
   /* Events state */
   const [enabledEvents, setEnabledEvents] = useState<Set<string>>(new Set(['new_user', 'system_error', 'large_trade']))
 
-  /* ── fetch config ── */
+  /* ── fetch config (single source of truth) ── */
   const fetchConfigs = useCallback(async () => {
     setLoading(true)
     try {
@@ -100,71 +100,37 @@ export default function AdminNotificationsPage() {
         }
       }
     } catch {
-      // ignore
+      // Network error — non-critical for initial load
     } finally {
       setLoading(false)
+    }
+
+    // Check browser notification permission
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setBrowserPermission(Notification.permission)
     }
   }, [])
 
   useEffect(() => {
-    // Use a local flag to avoid calling setState synchronously in the effect body
-    let cancelled = false
-    const load = async () => {
-      setLoading(true)
-      try {
-        const res = await fetch('/dashboard/admin/api/notifications/config')
-        if (res.ok && !cancelled) {
-          const data = await res.json()
-          setConfigs(data.configs || [])
+    fetchConfigs()
+  }, [fetchConfigs])
 
-          const telegramConfig = data.configs?.find((c: NotifConfig) => c.type === 'telegram')
-          if (telegramConfig) {
-            setTelegramEnabled(telegramConfig.enabled)
-            const token = telegramConfig.config?.botToken || ''
-            setTelegramToken(token)
-            setTelegramTokenMasked(!!telegramConfig.config?.botToken_masked)
-            setTelegramChatId(telegramConfig.config?.chatId || '')
-            if (!telegramConfig.enabled) {
-              setTelegramStatus('disabled')
-            }
-          }
-
-          const browserConfig = data.configs?.find((c: NotifConfig) => c.type === 'browser')
-          if (browserConfig) {
-            setBrowserEnabled(browserConfig.enabled)
-          }
-
-          const eventsConfig = data.configs?.find((c: NotifConfig) => c.type === 'events')
-          if (eventsConfig?.config?.enabledEvents) {
-            setEnabledEvents(new Set(eventsConfig.config.enabledEvents))
-          }
-        }
-      } catch {
-        // ignore
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-
-      // Check browser notification permission (non-state read, safe to call setState after async)
-      if (!cancelled && typeof window !== 'undefined' && 'Notification' in window) {
-        setBrowserPermission(Notification.permission)
-      }
-    }
-    load()
-
-    return () => { cancelled = true }
-  }, [])
-
-  /* ── save config via POST ── */
-  const saveConfig = async (type: string, enabled: boolean, config: Record<string, any>) => {
+  /* ── save config via POST (returns true on success) ── */
+  const saveConfig = async (type: string, enabled: boolean, config: Record<string, any>): Promise<boolean> => {
     try {
-      await fetch('/dashboard/admin/api/notifications/config', {
+      const res = await fetch('/dashboard/admin/api/notifications/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, enabled, config }),
       })
-    } catch {
-      // ignore
+      if (!res.ok) {
+        console.error(`[notifications] Save ${type} failed:`, res.status)
+        return false
+      }
+      return true
+    } catch (err) {
+      console.error(`[notifications] Save ${type} error:`, err)
+      return false
     }
   }
 
@@ -180,16 +146,21 @@ export default function AdminNotificationsPage() {
         telegramPayload.botToken = telegramToken
       }
       // If token is masked (unchanged), omit it so the server keeps the existing one
-      await saveConfig('telegram', telegramEnabled, telegramPayload)
-      // Save Browser
-      await saveConfig('browser', browserEnabled, { vapidKey: '' })
-      // Save Events
-      await saveConfig('events', true, { enabledEvents: Array.from(enabledEvents) })
+      const results = await Promise.all([
+        saveConfig('telegram', telegramEnabled, telegramPayload),
+        saveConfig('browser', browserEnabled, { vapidKey: '' }),
+        saveConfig('events', true, { enabledEvents: Array.from(enabledEvents) }),
+      ])
+      const allOk = results.every(r => r)
 
-      setSaveMessage('تم حفظ الإعدادات بنجاح ✓')
+      if (allOk) {
+        setSaveMessage('تم حفظ الإعدادات بنجاح ✓')
+      } else {
+        setSaveMessage('فشل في حفظ بعض الإعدادات — حاول مرة أخرى')
+      }
       setTimeout(() => setSaveMessage(''), 3000)
     } catch {
-      setSaveMessage('فشل في حفظ الإعدادات')
+      setSaveMessage('خطأ في الاتصال — تعذر حفظ الإعدادات')
     } finally {
       setSaving(false)
     }
@@ -405,7 +376,7 @@ export default function AdminNotificationsPage() {
             {/* Test connection */}
             <button
               onClick={handleTestTelegram}
-              disabled={telegramTesting || !telegramEnabled}
+              disabled={telegramTesting || !telegramEnabled || telegramTokenMasked}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 padding: '10px', borderRadius: 8,

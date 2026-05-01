@@ -18,6 +18,7 @@ import { NewsModule } from './modules/news/news.module';
 import { AuditModule } from './audit/audit.module';
 import { CoachModule } from './modules/coach/coach.module';
 import { ScannerModule } from './modules/scanner/scanner.module';
+import { PredictionMarketModule } from './modules/prediction-market/prediction-market.module';
 
 @Module({
   imports: [
@@ -89,6 +90,7 @@ import { ScannerModule } from './modules/scanner/scanner.module';
     NewsModule,
     CoachModule,
     ScannerModule,
+    PredictionMarketModule,
   ],
 })
 export class AppModule {}

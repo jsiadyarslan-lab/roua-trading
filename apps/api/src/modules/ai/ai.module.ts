@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AiController } from './ai.controller';
 import { AIOrchestratorService } from './services/ai-orchestrator.service';
 import { GroqService } from './services/groq.service';
@@ -33,7 +33,7 @@ import { PrismaModule } from '../../common/prisma/prisma.module';
     // AI Usage Logger — tracks all AI API calls to AiUsageLog table
     AiUsageLoggerService,
 
-    // Orchestrator (depends on all above)
+    // Orchestrator (depends on all above + optional PredictionMarketService via forwardRef)
     AIOrchestratorService,
   ],
   exports: [

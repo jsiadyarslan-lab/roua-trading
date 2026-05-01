@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional, Inject, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GroqService, AIAnalysisRequest, AIAnalysisResponse } from './groq.service';
 import { GlmService } from './glm.service';
@@ -10,6 +10,7 @@ import { OpenRouterService } from './openrouter.service';
 import { RagService } from './rag.service';
 import { AiUsageLoggerService } from './ai-usage-logger.service';
 import { RedisService } from '../../../common/redis/redis.service';
+import { PredictionMarketService } from '../../prediction-market/prediction-market.service';
 import * as crypto from 'crypto';
 
 /**
@@ -127,11 +128,15 @@ export class AIOrchestratorService {
     private readonly openrouterService: OpenRouterService,
     private readonly usageLogger: AiUsageLoggerService,
     @Optional() private readonly ragService?: RagService,
+    @Optional() @Inject(forwardRef(() => PredictionMarketService)) private readonly predictionMarket?: PredictionMarketService,
     @Optional() private readonly redis?: RedisService,
   ) {
-    this.logger.log('🎼 AI Orchestrator initialized — 7 models (Groq, Gemini, GLM-4, HuggingFace, Ollama, Bedrock, OpenRouter)');
+    this.logger.log('🎼 AI Orchestrator initialized — 7 models + Prediction Market (Groq, Gemini, GLM-4, HuggingFace, Ollama, Bedrock, OpenRouter)');
     if (this.ragService) {
       this.logger.log('📚 RAG integration enabled — context retrieval active');
+    }
+    if (this.predictionMarket) {
+      this.logger.log('🔮 Prediction Market integration enabled — 8th model active');
     }
     if (this.usageLogger) {
       this.logger.log('📊 AI Usage Logger enabled — all calls will be tracked');
@@ -296,13 +301,14 @@ export class AIOrchestratorService {
       return memCached as any;
     }
 
-    this.logger.log(`🎼 Initiating AI Council Consensus for ${symbol} — 7 models`);
+    this.logger.log(`🎼 Initiating AI Council Consensus for ${symbol} — 7 models + Prediction Market`);
 
     try {
       const decisionInstruction = '\n\nIMPORTANT: End your response with a single line in exactly this format: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD". This line must be the last line of your response.';
 
       // FIX: Each model has exactly ONE role — no duplicates, no role overlap
       // 7 models = 7 roles (1:1 mapping) — clean, predictable, no rate-limiting
+      // + 1 Prediction Market role (8th model) — votes only when relevant events exist
       const roles = [
         { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',     fallbackModels: ['groq', 'glm', 'huggingface', 'openrouter'],  prompt: `حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.${decisionInstruction}` },
         { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['gemini', 'glm', 'huggingface', 'openrouter'], prompt: `حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
@@ -312,6 +318,28 @@ export class AIOrchestratorService {
         { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'ollama',     fallbackModels: ['groq', 'gemini', 'glm', 'openrouter'],        prompt: `ما هو أفضل توقيت للدخول في ${symbol} بناءً على السيولة والنماذج المتاحة؟${decisionInstruction}` },
         { id: 'diverge',name: 'محلل التباين',     model: 'openrouter', fallbackModels: ['groq', 'gemini', 'glm', 'huggingface'],        prompt: `ابحث عن إشارات معاكسة أو تباينات في تحليل ${symbol} — هل هناك سبب لعدم اتباع الاتجاه السائد؟${decisionInstruction}` },
       ];
+
+      // ── 8th Model: Prediction Market Analyst ──
+      // Only votes when there are relevant prediction market events for this symbol.
+      // Dynamic confidence based on event count and liquidity (per architecture review).
+      let predictionMarketVote: { role: string; model: string; vote: string; confidence: number; reason: string } | null = null;
+      if (this.predictionMarket) {
+        try {
+          const pmVote = await this.predictionMarket.getCouncilVote(symbol);
+          if (pmVote) {
+            predictionMarketVote = {
+              role: 'محلل الأسواق التنبؤية',
+              model: 'PredictionMarket/8th',
+              vote: pmVote.vote,
+              confidence: pmVote.confidence,
+              reason: pmVote.reason,
+            };
+            this.logger.log(`🔮 8th model vote: ${pmVote.vote} (${pmVote.confidence}%) — ${pmVote.eventsAnalyzed} events`);
+          }
+        } catch (error: any) {
+          this.logger.debug(`🔮 8th model abstained (no data or error): ${error.message}`);
+        }
+      }
 
       const start = Date.now();
 
@@ -478,6 +506,16 @@ export class AIOrchestratorService {
         });
       }
 
+      // ── Add 8th model (Prediction Market) vote if available ──
+      if (predictionMarketVote) {
+        const pmConf = predictionMarketVote.confidence / 100;
+        if (predictionMarketVote.vote === 'BUY') buyWeight += pmConf;
+        else if (predictionMarketVote.vote === 'SELL') sellWeight += pmConf;
+        totalConfidence += pmConf;
+
+        analyses.push(predictionMarketVote);
+      }
+
       let recommendation: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';
       let consensusScore = 0;
 
@@ -491,7 +529,8 @@ export class AIOrchestratorService {
 
       // FIX: Generate master strategy with 15s timeout — don't let it block the response
       // If it fails, use a quick summary instead
-      let masterStrategyContent = `إجماع المجلس (${analyses.length}/7 نماذج): ${recommendation === 'BUY' ? 'شراء قوي' : recommendation === 'SELL' ? 'بيع قوي' : 'انتظار'} بنسبة ثقة ${consensusScore}%.`;
+      const totalModels = 7 + (predictionMarketVote ? 1 : 0);
+      let masterStrategyContent = `إجماع المجلس (${analyses.length}/${totalModels} نماذج): ${recommendation === 'BUY' ? 'شراء قوي' : recommendation === 'SELL' ? 'بيع قوي' : 'انتظار'} بنسبة ثقة ${consensusScore}%.`;
 
       if (analyses.length > 0) {
         try {
@@ -520,7 +559,7 @@ export class AIOrchestratorService {
         }
       }
 
-      this.logger.log(`✅ Consensus: ${recommendation} (${consensusScore}%) from ${analyses.length}/7 models in ${Date.now() - start}ms`);
+      this.logger.log(`✅ Consensus: ${recommendation} (${consensusScore}%) from ${analyses.length}/${totalModels} models in ${Date.now() - start}ms`);
 
       const result = { consensusScore, recommendation, analyses, masterStrategy: masterStrategyContent };
 

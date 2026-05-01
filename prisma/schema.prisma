@@ -662,3 +662,68 @@ model VerificationToken {
   @@index([identifier])
   @@index([expires])
 }
+
+// ── Prediction Market Events (Phase 7 — Polymarket Integration) ──
+
+enum PredictionEventStatus {
+  ACTIVE
+  RESOLVED
+  EXPIRED
+  CANCELLED
+}
+
+enum PredictionDirection {
+  UP
+  DOWN
+  VOLATILE
+  NEUTRAL
+}
+
+enum HedgeComplexity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TimeHorizon {
+  IMMEDIATE
+  SHORT
+  MEDIUM
+  LONG
+}
+
+model PredictionEvent {
+  id              String                @id @default(cuid())
+  sourceId        String                // External ID from Polymarket (slug or conditionId)
+  source          String                @default("polymarket") // "polymarket", "kalshi", etc.
+  title           String
+  titleAr         String?               // Arabic translation
+  description     String?
+  descriptionAr   String?               // Arabic translation
+  category        String?               // "politics", "economics", "crypto", "geopolitics", etc.
+  categoryAr      String?               // Arabic category name
+  relatedSymbols  String                @default("[]") // JSON: ["BTC", "ETH", "SPY"]
+  marketProbability Decimal             @db.Decimal(7, 6) // Current market probability (0.0–1.0)
+  aiProbability   Decimal?             @db.Decimal(7, 6) // AI-estimated probability (0.0–1.0)
+  predictionGap   Decimal?             @db.Decimal(7, 6) // |marketProbability - aiProbability|
+  gapDirection    String?              // "market_higher", "ai_higher", "aligned"
+  volume24h       Decimal?             @db.Decimal(19, 4) // 24h trading volume
+  liquidity       Decimal?             @db.Decimal(19, 4) // Total liquidity in the market
+  endDate         DateTime?            // When the event resolves
+  resolution      String?              // JSON: resolution details when event settles
+  status          PredictionEventStatus @default(ACTIVE)
+  impactAssessment String?             // JSON: structured impact analysis (ImpactAssessment interface)
+  signalBoost     Decimal?             @default(0) @db.Decimal(5, 4) // +0.05 for alignment, -0.08 for conflict
+  lastSyncedAt    DateTime             @default(now())
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@unique([source, sourceId])
+  @@index([status])
+  @@index([category])
+  @@index([endDate])
+  @@index([status, endDate])
+  @@index([predictionGap])
+  @@index([lastSyncedAt])
+  @@index([source])
+}

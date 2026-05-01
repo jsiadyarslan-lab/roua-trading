@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
       data: {
         userId,
         action: `notification:${type || 'push'}`,
+        resource: 'notification',
         details: JSON.stringify({
           title,
           body: body || '',

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, ensureDbReady } from '@/lib/db'
+import { db, ensureDbReady, resetDbInitialized } from '@/lib/db'
 import { verifyAdminAuth } from '@/lib/admin-auth'
 
 export const dynamic = 'force-dynamic'
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
     })
   } catch (error: any) {
     console.error('[admin/notifications/config] GET Error:', error?.message || error)
-    return NextResponse.json({ configs: [] })
+    return NextResponse.json({ configs: [], error: error?.message || 'فشل في جلب الإعدادات' })
   }
 }
 
@@ -73,13 +73,23 @@ export async function POST(req: NextRequest) {
   try {
     const dbReady = await ensureDbReady()
     if (!dbReady) {
+      console.error('[admin/notifications/config] POST: DB not ready')
       return NextResponse.json({ error: 'قاعدة البيانات غير متاحة' }, { status: 503 })
     }
 
-    const { type, enabled, config } = await req.json()
+    const body = await req.json()
+    const { type, enabled, config } = body
+
+    console.log(`[admin/notifications/config] POST: type=${type}, enabled=${enabled}, configKeys=${config ? Object.keys(config).join(',') : 'none'}`)
 
     if (!type) {
       return NextResponse.json({ error: 'نوع التنبيه مطلوب' }, { status: 400 })
+    }
+
+    // Validate type
+    const validTypes = ['telegram', 'browser', 'email', 'events']
+    if (!validTypes.includes(type)) {
+      return NextResponse.json({ error: `نوع غير صالح: ${type}` }, { status: 400 })
     }
 
     const existing = await db.notificationConfig.findUnique({ where: { type } })
@@ -88,7 +98,7 @@ export async function POST(req: NextRequest) {
       const updateData: any = {}
       if (typeof enabled === 'boolean') updateData.enabled = enabled
 
-      if (config) {
+      if (config && typeof config === 'object') {
         // Merge with existing config: if client omitted a sensitive field
         // (e.g., botToken not sent because it was masked), keep the existing value
         const existingConfig = JSON.parse(existing.config || '{}')
@@ -99,18 +109,35 @@ export async function POST(req: NextRequest) {
           if (typeof value === 'string' && value.startsWith('••••')) continue
           // Remove _masked flags before saving
           if (key.endsWith('_masked')) continue
+          // Skip empty strings for sensitive fields (user cleared the field but we should keep existing)
+          const SENSITIVE_KEYS = new Set(['botToken', 'apiKey', 'apiSecret', 'secret', 'password', 'token'])
+          if (SENSITIVE_KEYS.has(key) && (value === '' || value === undefined)) {
+            // User explicitly cleared the sensitive field — remove it
+            delete mergedConfig[key]
+            continue
+          }
           mergedConfig[key] = value
         }
 
         updateData.config = JSON.stringify(mergedConfig)
       }
 
+      // If updateData is empty, still update to ensure the record is touched
+      if (Object.keys(updateData).length === 0) {
+        updateData.enabled = existing.enabled // No-op update
+      }
+
+      console.log(`[admin/notifications/config] POST: Updating ${type}, updateData keys: ${Object.keys(updateData).join(',')}`)
+
       const updated = await db.notificationConfig.update({
         where: { type },
         data: updateData,
       })
 
+      console.log(`[admin/notifications/config] POST: Updated ${type} successfully, enabled=${updated.enabled}`)
+
       return NextResponse.json({
+        ok: true,
         config: {
           id: updated.id,
           type: updated.type,
@@ -120,15 +147,23 @@ export async function POST(req: NextRequest) {
         },
       })
     } else {
+      // Create new config
+      const configData = config && typeof config === 'object' ? config : {}
+
+      console.log(`[admin/notifications/config] POST: Creating ${type}, enabled=${enabled ?? false}`)
+
       const created = await db.notificationConfig.create({
         data: {
           type,
           enabled: enabled ?? false,
-          config: JSON.stringify(config || {}),
+          config: JSON.stringify(configData),
         },
       })
 
+      console.log(`[admin/notifications/config] POST: Created ${type} successfully, id=${created.id}`)
+
       return NextResponse.json({
+        ok: true,
         config: {
           id: created.id,
           type: created.type,
@@ -140,6 +175,8 @@ export async function POST(req: NextRequest) {
     }
   } catch (error: any) {
     console.error('[admin/notifications/config] POST Error:', error?.message || error)
-    return NextResponse.json({ error: 'فشل في حفظ الإعدادات' }, { status: 500 })
+    // Reset DB connection on error to force reconnection on next request
+    resetDbInitialized()
+    return NextResponse.json({ error: `فشل في حفظ الإعدادات: ${error?.message || 'خطأ غير معروف'}` }, { status: 500 })
   }
 }

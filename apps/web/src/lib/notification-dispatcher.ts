@@ -198,6 +198,7 @@ export async function dispatchNotification(event: NotificationEvent): Promise<{
         data: {
           userId: 'system',
           action: `notification:${event.type}`,
+          resource: 'notification',
           details: JSON.stringify({
             title: event.title,
             body: event.body,

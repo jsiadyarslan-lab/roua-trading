@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
           data: {
             userId: 'system',
             action: 'notification:test_browser',
+            resource: 'notification',
             details: JSON.stringify({
               title: '🔔 تنبيه تجريبي',
               body: testMessage,

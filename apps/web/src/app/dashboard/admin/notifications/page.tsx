@@ -126,21 +126,22 @@ export default function AdminNotificationsPage() {
   }, [fetchConfigs])
 
   /* ── save config via POST ── */
-  const saveConfig = async (type: string, enabled: boolean, config: Record<string, any>): Promise<boolean> => {
+  const saveConfig = async (type: string, enabled: boolean, config: Record<string, any>): Promise<{ ok: boolean; error?: string }> => {
     try {
       const res = await fetch('/api/admin/notifications/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, enabled, config }),
       })
+      const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        console.error(`[notifications] Save ${type} failed:`, res.status)
-        return false
+        console.error(`[notifications] Save ${type} failed:`, res.status, data)
+        return { ok: false, error: data.error || `HTTP ${res.status}` }
       }
-      return true
-    } catch (err) {
+      return { ok: true }
+    } catch (err: any) {
       console.error(`[notifications] Save ${type} error:`, err)
-      return false
+      return { ok: false, error: err?.message || 'خطأ في الاتصال' }
     }
   }
 
@@ -149,25 +150,33 @@ export default function AdminNotificationsPage() {
     setSaving(true)
     setSaveMessage('')
     try {
+      // بناء payload لـ Telegram — إرسال botToken فقط إذا لم يكن masked
       const telegramPayload: Record<string, any> = { chatId: telegramChatId }
       if (!telegramTokenMasked) {
+        // المستخدم أدخل token جديد — أرسله
         telegramPayload.botToken = telegramToken
       }
+      // إذا كان token masked، لا نرسله — الخادم يحفظ القديم
+
       const results = await Promise.all([
         saveConfig('telegram', telegramEnabled, telegramPayload),
-        saveConfig('browser', browserEnabled, { vapidKey: '' }),
+        saveConfig('browser', browserEnabled, {}),
         saveConfig('events', true, { enabledEvents: Array.from(enabledEvents) }),
       ])
-      const allOk = results.every(r => r)
+
+      const errors = results.filter(r => !r.ok).map((r: any) => r.error)
+      const allOk = errors.length === 0
 
       if (allOk) {
         setSaveMessage('تم حفظ الإعدادات بنجاح')
+        // إعادة تحميل البيانات من الخادم بعد الحفظ
+        await fetchConfigs()
       } else {
-        setSaveMessage('فشل في حفظ بعض الإعدادات — حاول مرة أخرى')
+        setSaveMessage(`فشل الحفظ: ${errors.join(' | ')}`)
       }
-      setTimeout(() => setSaveMessage(''), 3000)
-    } catch {
-      setSaveMessage('خطأ في الاتصال — تعذر حفظ الإعدادات')
+      setTimeout(() => setSaveMessage(''), 5000)
+    } catch (err: any) {
+      setSaveMessage(`خطأ في الاتصال: ${err?.message || 'غير معروف'}`)
     } finally {
       setSaving(false)
     }

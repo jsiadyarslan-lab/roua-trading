@@ -45,6 +45,8 @@ async function runSchemaMigrations(): Promise<void> {
     `ALTER TABLE "ChartPreference" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
     `ALTER TABLE "ChartPreference" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
     `ALTER TABLE "AuditLog" ADD COLUMN IF NOT EXISTS "userId" TEXT`,
+    // User table: add telegramChatId (used by alert-agent for Telegram notifications)
+    `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "telegramChatId" TEXT`,
     // Subscription table
     `CREATE TABLE IF NOT EXISTS "Subscription" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "tier" "Tier" NOT NULL DEFAULT 'FREE', "previousTier" "Tier", "startDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "endDate" TIMESTAMP(3), "status" TEXT NOT NULL DEFAULT 'active', "paymentMethod" TEXT, "amount" DECIMAL(19,4), "currency" TEXT NOT NULL DEFAULT 'USD', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Subscription_pkey" PRIMARY KEY ("id"))`,
     `CREATE INDEX IF NOT EXISTS "Subscription_userId_idx" ON "Subscription"("userId")`,

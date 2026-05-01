@@ -48,7 +48,9 @@ export default function DashboardLayout({
           <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
             <style>{`
               @media (max-width: 767px) {
-                main { height: calc(100dvh - 48px) !important; min-height: 0 !important; padding-bottom: 0 !important; overflow: hidden !important; }
+                main { height: 100dvh !important; min-height: 0 !important; padding-bottom: 0 !important; overflow: hidden !important; }
+                /* Ensure sub-pages fill the viewport on mobile */
+                main > div { height: 100% !important; min-height: 0 !important; }
               }
             `}</style>
             <ErrorBoundary>

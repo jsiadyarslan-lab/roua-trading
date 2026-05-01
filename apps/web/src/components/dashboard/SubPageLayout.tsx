@@ -167,10 +167,8 @@ export default function SubPageLayout({
           .subpage-content {
             padding: 12px 8px !important;
             padding-bottom: calc(12px + env(safe-area-inset-bottom)) !important;
-          }
-          .subpage-nav-bar {
-            padding-top: calc(env(safe-area-inset-top)) !important;
-            padding-inline: 12px !important;
+            height: calc(100dvh - 52px - env(safe-area-inset-top)) !important;
+            overflow-y: auto !important;
           }
         }
         @media (max-width: 380px) {

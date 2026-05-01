@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { QuoteData } from '@/hooks/useMarketStore'
-import { BarChart3, Brain, ChevronDown, ScanSearch, Wallet, PanelRight, Zap, X, TrendingUp, TrendingDown, ShieldAlert, Target, Link2 } from 'lucide-react'
+import { ChevronDown, PanelRight, Zap, X, Target } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { NotificationToasts } from '@/components/dashboard/NotificationCenter'
@@ -11,7 +11,6 @@ import { LeftSidebarLayout } from '@/components/dashboard/layouts/LeftSidebarLay
 import { SidebarDrawer } from '@/components/dashboard/layouts/SidebarDrawer'
 import { RightPanelLayout } from '@/components/dashboard/layouts/RightPanelLayout'
 import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
-import { QuickExecutionMini } from '@/components/dashboard/QuickExecutionMini'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
@@ -76,8 +75,6 @@ const MODE_CONFIG: Record<TradingMode, { accent: string; glowBg: string; label: 
     description: 'تحليلات AI، توصيات ذكية، إشارات آلية',
   },
 }
-
-type MobileView = 'execution' | 'market' | 'portfolio' | 'insight'
 
 const formatMoney = (value: unknown): string => {
   if (value === null || value === undefined || value === '') return '$—'
@@ -502,7 +499,6 @@ export default function DashboardPage() {
       setPosOpen(true)
     }
   }, [chartFullscreen])
-  const [activeMobileView, setActiveMobileView] = useState<MobileView>('execution')
   const [chartExpanded, setChartExpanded] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
   const [isCompactDesktopViewport, setIsCompactDesktopViewport] = useState(false)
@@ -883,7 +879,7 @@ export default function DashboardPage() {
             box-sizing: border-box;
             width: 100%;
             overflow: hidden;
-            height: 100%;
+            height: calc(100dvh - 48px);
           }
 
           .mobile-hero-trading-area {
@@ -1301,64 +1297,34 @@ export default function DashboardPage() {
             {/* Chart Card — full remaining height */}
             <div className="mobile-hero-card">
               <div className="mobile-hero-card__header">
-                {/* Navigation tabs inline */}
-                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                  {([
-                    { id: 'execution', label: 'تنفيذ', icon: BarChart3 },
-                    { id: 'market', label: 'السوق', icon: ScanSearch },
-                    { id: 'portfolio', label: 'المحفظة', icon: Wallet },
-                    { id: 'insight', label: 'رؤى', icon: Brain },
-                  ] as const).map(item => {
-                    const Icon = item.icon
-                    const active = activeMobileView === item.id
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setActiveMobileView(item.id as MobileView)}
-                        style={{
-                          padding: '4px 8px',
-                          borderRadius: 6,
-                          border: 'none',
-                          background: active ? 'rgba(0,212,255,0.12)' : 'transparent',
-                          color: active ? '#00D4FF' : '#8B92A8',
-                          fontSize: 9,
-                          fontWeight: 700,
-                          fontFamily: "'Cairo', sans-serif",
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 3,
-                          transition: 'all 0.15s',
-                        }}
-                      >
-                        <Icon size={10} />
-                        {item.label}
-                      </button>
-                    )
-                  })}
+                {/* Symbol name + price */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 800, color: T.text }}>{selectedSymbol}</div>
+                  {currentPrice != null && (
+                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, color: T.cyan }}>{formatQuotePrice(currentPrice)}</div>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {/* Execution Zap Button */}
+                  {/* Execution Zap Button — prominent */}
                   <button
                     type="button"
                     onClick={() => setTradeDialogOpen(true)}
                     title="تنفيذ الأوامر"
                     aria-label="فتح نافذة التنفيذ"
                     style={{
-                      width: 30, height: 30, borderRadius: 8,
+                      width: 34, height: 34, borderRadius: 10,
                       background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
                       border: 'none', color: '#fff', cursor: 'pointer',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      boxShadow: '0 0 10px rgba(0,255,198,0.25), 0 0 3px rgba(10,132,255,0.15)',
-                      transition: 'transform 0.12s ease',
+                      boxShadow: '0 0 12px rgba(0,255,198,0.3), 0 0 4px rgba(10,132,255,0.2)',
+                      transition: 'transform 0.12s ease, box-shadow 0.2s ease',
                     }}
                     onMouseDown={e => e.currentTarget.style.transform = 'scale(0.88)'}
                     onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
                     onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                   >
-                    <Zap size={14} fill="white" />
+                    <Zap size={16} fill="white" />
                   </button>
                   <button
                     type="button"
@@ -1392,40 +1358,6 @@ export default function DashboardPage() {
                     <div style={{ fontSize: 10, color: card.tone, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.value}</div>
                   </div>
                 ))}
-              </div>
-
-              {/* Bottom Panel — active view content (scrollable, limited height) */}
-              <div style={{
-                flexShrink: 0,
-                maxHeight: '30dvh',
-                minHeight: 80,
-                overflow: 'auto',
-                borderTop: '1px solid rgba(0,212,255,0.08)',
-                background: 'rgba(26,29,41,0.5)',
-              }}>
-                {activeMobileView === 'execution' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 6, height: '100%', overflow: 'hidden' }}>
-                    <PortfolioMini mobile compact dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />
-                  </div>
-                )}
-
-                {activeMobileView === 'market' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 6, height: '100%', overflow: 'hidden' }}>
-                    <WatchlistMini selectedSymbol={selectedSymbol} />
-                  </div>
-                )}
-
-                {activeMobileView === 'portfolio' && (
-                  <div style={{ padding: 6, height: '100%', overflow: 'hidden' }}>
-                    <PortfolioMini mobile dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />
-                  </div>
-                )}
-
-                {activeMobileView === 'insight' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 6, height: '100%', overflow: 'hidden' }}>
-                    <ScannerMini mobile compact selectedSymbol={selectedSymbol} />
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -1547,16 +1479,16 @@ export default function DashboardPage() {
         </button>
       )}
 
-      {/* FAB button for mobile */}
+      {/* FAB button for mobile — opens sidebar drawer */}
       {isMobileViewport && (
         <button
           type="button"
           className="sidebar-fab"
           onClick={() => setSidebarDrawerOpen(true)}
-          title="المحفظة"
-          aria-label="المحفظة"
+          title="القائمة"
+          aria-label="القائمة"
         >
-          <Wallet size={22} />
+          <PanelRight size={22} />
         </button>
       )}
 

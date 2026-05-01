@@ -215,7 +215,7 @@ export class GridStrategy extends BaseStrategy {
    */
   private _generateGridLevels(
     market: MarketAnalysis,
-    gridRange: { upperBound: number; lowerBound: number },
+    gridRange: { upperBound: number; lowerBound: number; totalRange: number },
   ): Array<{ price: number; side: OrderSide; quantity: number }> {
     const levels: Array<{ price: number; side: OrderSide; quantity: number }> = [];
     const totalRange = gridRange.upperBound - gridRange.lowerBound;

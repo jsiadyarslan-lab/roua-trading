@@ -168,14 +168,14 @@ export default function BillingPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#000', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Loader2 size={32} className="animate-spin" color={c.accent} />
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#000', direction: 'rtl', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', paddingBottom: 100 }}>
 
       {/* ── Header ── */}
       <div style={{

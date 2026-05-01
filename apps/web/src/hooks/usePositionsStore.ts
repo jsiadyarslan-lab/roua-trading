@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { ensureAuth } from '@/lib/api-fetch'
 
 interface Position {
@@ -38,7 +39,9 @@ interface PositionsState {
   updatePositionPrice: (symbol: string, price: number) => void
 }
 
-export const usePositionsStore = create<PositionsState>((set, get) => ({
+export const usePositionsStore = create<PositionsState>()(
+  persist(
+    (set, get) => ({
   positions: [],
   account: null,
   loading: false,
@@ -212,7 +215,7 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
             positions,
             lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             dataSource: 'nestjs',
-            loading: false, // FIX: Reset loading on successful NestJS fetch
+            loading: false,
           })
           return
         }
@@ -222,7 +225,7 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
             positions: [],
             lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             dataSource: 'nestjs',
-            loading: false, // FIX: Reset loading on empty positions
+            loading: false,
           })
           return
         }
@@ -240,7 +243,7 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
           positions: j.data,
           lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
           dataSource: 'alpaca',
-          loading: false, // FIX: Reset loading on successful Alpaca fetch
+          loading: false,
         })
       } else {
         set({ error: j.error || 'فشل في جلب المراكز' })
@@ -251,4 +254,24 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
       set({ loading: false })
     }
   },
-}))
+}),
+    {
+      name: 'roua-positions-store',
+      // Only persist account data and positions (not loading/error states)
+      partialize: (state) => ({
+        account: state.account,
+        positions: state.positions,
+        lastUpdate: state.lastUpdate,
+        dataSource: state.dataSource,
+      }),
+      // Sync across tabs via storage events
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (error) {
+            console.warn('[PositionsStore] Rehydration failed:', error)
+          }
+        }
+      },
+    }
+  )
+)

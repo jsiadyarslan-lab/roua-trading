@@ -776,242 +776,70 @@ export default function RouaChart({
               />
             )}
 
-          {/* ── Quick Trade Panel (floating top-left over chart) ── */}
-          {!mobile && currentPrice && (
+          {/* ── Compact Trade Button (floating top-right of chart) ── */}
+          {currentPrice && (
             <div style={{
               position: 'absolute',
-              top: 10,
-              left: 10,
+              top: 8,
+              right: 8,
               zIndex: 20,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 0,
               pointerEvents: 'auto',
-              background: 'rgba(11,14,20,0.88)',
-              border: '1px solid rgba(42,49,60,0.45)',
-              borderRadius: 8,
-              padding: '3px 4px',
-              backdropFilter: 'blur(14px)',
             }}>
-              {/* Buy Button */}
               <button
-                onClick={() => {
-                  const { addTrade } = usePaperTradesStore.getState();
-                  addTrade({
-                    symbol: selectedSymbol,
-                    side: 'long',
-                    qty: lotSize,
-                    entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
-                    currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
-                    entryTime: Date.now(),
-                    strategy: 'quick',
-                    source: 'manual',
-                  });
-                }}
+                onClick={() => setShowChartTrading(!showChartTrading)}
+                title="تداول سريع"
                 style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
                   display: 'flex',
-                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: 1,
-                  padding: '5px 14px 4px',
-                  background: 'rgba(63,185,80,0.12)',
-                  border: '1px solid rgba(63,185,80,0.25)',
-                  borderRadius: '6px 0 0 6px',
+                  background: showChartTrading
+                    ? 'rgba(0,212,255,0.18)'
+                    : 'rgba(11,14,20,0.85)',
+                  border: showChartTrading
+                    ? '1px solid rgba(0,212,255,0.35)'
+                    : '1px solid rgba(42,49,60,0.5)',
                   cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  borderRight: 'none',
+                  backdropFilter: 'blur(14px)',
+                  transition: 'all 0.2s ease',
+                  boxShadow: showChartTrading
+                    ? '0 0 16px rgba(0,212,255,0.15)'
+                    : '0 2px 8px rgba(0,0,0,0.4)',
+                  position: 'relative',
                 }}
                 onMouseEnter={e => {
-                  e.currentTarget.style.background = 'rgba(63,185,80,0.28)';
-                  e.currentTarget.style.boxShadow = '0 0 12px rgba(63,185,80,0.2)';
-                  e.currentTarget.style.borderColor = 'rgba(63,185,80,0.45)';
+                  e.currentTarget.style.background = 'rgba(0,212,255,0.15)';
+                  e.currentTarget.style.borderColor = 'rgba(0,212,255,0.35)';
+                  e.currentTarget.style.boxShadow = '0 0 16px rgba(0,212,255,0.15)';
                 }}
                 onMouseLeave={e => {
-                  e.currentTarget.style.background = 'rgba(63,185,80,0.12)';
-                  e.currentTarget.style.boxShadow = 'none';
-                  e.currentTarget.style.borderColor = 'rgba(63,185,80,0.25)';
+                  if (!showChartTrading) {
+                    e.currentTarget.style.background = 'rgba(11,14,20,0.85)';
+                    e.currentTarget.style.borderColor = 'rgba(42,49,60,0.5)';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.4)';
+                  }
                 }}
-                title="شراء سريع"
               >
-                <span style={{
-                  color: '#3fb950',
-                  fontWeight: 800,
-                  fontSize: 11,
-                  fontFamily: "'Cairo', sans-serif",
-                  lineHeight: 1.2,
-                }}>شراء</span>
-                <span style={{
-                  color: 'rgba(63,185,80,0.5)',
-                  fontSize: 8,
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontWeight: 600,
-                  lineHeight: 1,
-                }}>{typeof currentPrice === 'number' ? currentPrice.toFixed(currentPrice > 1000 ? 2 : 5) : '—'}</span>
-              </button>
-
-              {/* Lot Size Input (center, between buttons) */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                height: '100%',
-                border: '1px solid rgba(42,49,60,0.6)',
-                borderRadius: 0,
-                background: 'rgba(21,26,34,0.7)',
-                overflow: 'hidden',
-              }}>
-                <button
-                  onClick={() => setLotSize(prev => Math.max(0.001, +(prev - (selectedSymbol.includes('BTC') ? 0.001 : 0.01)).toFixed(3)))}
-                  style={{
-                    width: 22,
-                    height: 34,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: 'rgba(42,49,60,0.4)',
-                    border: 'none',
-                    color: '#8B92A8',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    lineHeight: 1,
-                    padding: 0,
-                    transition: 'all 0.12s ease',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(42,49,60,0.8)';
-                    e.currentTarget.style.color = '#F0F2F5';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(42,49,60,0.4)';
-                    e.currentTarget.style.color = '#8B92A8';
-                  }}
-                >−</button>
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '0 6px',
-                  minWidth: 48,
-                }}>
-                  <input
-                    type="number"
-                    value={lotSize}
-                    onChange={e => {
-                      const v = parseFloat(e.target.value);
-                      if (!isNaN(v) && v > 0) setLotSize(+v.toFixed(3));
-                    }}
-                    step={selectedSymbol.includes('BTC') ? 0.001 : 0.01}
-                    min={0.001}
-                    style={{
-                      width: 44,
-                      textAlign: 'center',
-                      background: 'transparent',
-                      border: 'none',
-                      color: '#F0F2F5',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      fontFamily: "'JetBrains Mono', monospace",
-                      outline: 'none',
-                      padding: 0,
-                      lineHeight: 1.3,
-                      MozAppearance: 'textfield' as any,
-                    }}
-                  />
-                  <span style={{
-                    fontSize: 7,
-                    color: '#64748b',
-                    fontFamily: "'Cairo', sans-serif",
-                    fontWeight: 600,
-                    lineHeight: 1,
-                    marginTop: 1,
-                  }}>حجم</span>
-                </div>
-                <button
-                  onClick={() => setLotSize(prev => +(prev + (selectedSymbol.includes('BTC') ? 0.001 : 0.01)).toFixed(3))}
-                  style={{
-                    width: 22,
-                    height: 34,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: 'rgba(42,49,60,0.4)',
-                    border: 'none',
-                    color: '#8B92A8',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    lineHeight: 1,
-                    padding: 0,
-                    transition: 'all 0.12s ease',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(42,49,60,0.8)';
-                    e.currentTarget.style.color = '#F0F2F5';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = 'rgba(42,49,60,0.4)';
-                    e.currentTarget.style.color = '#8B92A8';
-                  }}
-                >+</button>
-              </div>
-
-              {/* Sell Button */}
-              <button
-                onClick={() => {
-                  const { addTrade } = usePaperTradesStore.getState();
-                  addTrade({
-                    symbol: selectedSymbol,
-                    side: 'short',
-                    qty: lotSize,
-                    entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
-                    currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
-                    entryTime: Date.now(),
-                    strategy: 'quick',
-                    source: 'manual',
-                  });
-                }}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 1,
-                  padding: '5px 14px 4px',
-                  background: 'rgba(248,81,73,0.12)',
-                  border: '1px solid rgba(248,81,73,0.25)',
-                  borderRadius: '0 6px 6px 0',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                  borderLeft: 'none',
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = 'rgba(248,81,73,0.28)';
-                  e.currentTarget.style.boxShadow = '0 0 12px rgba(248,81,73,0.2)';
-                  e.currentTarget.style.borderColor = 'rgba(248,81,73,0.45)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = 'rgba(248,81,73,0.12)';
-                  e.currentTarget.style.boxShadow = 'none';
-                  e.currentTarget.style.borderColor = 'rgba(248,81,73,0.25)';
-                }}
-                title="بيع سريع"
-              >
-                <span style={{
-                  color: '#f85149',
-                  fontWeight: 800,
-                  fontSize: 11,
-                  fontFamily: "'Cairo', sans-serif",
-                  lineHeight: 1.2,
-                }}>بيع</span>
-                <span style={{
-                  color: 'rgba(248,81,73,0.5)',
-                  fontSize: 8,
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontWeight: 600,
-                  lineHeight: 1,
-                }}>{typeof currentPrice === 'number' ? currentPrice.toFixed(currentPrice > 1000 ? 2 : 5) : '—'}</span>
+                {/* Buy/Sell arrows icon */}
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M9 3L13 7H5L9 3Z" fill="#3fb950" opacity="0.9"/>
+                  <path d="M9 15L5 11H13L9 15Z" fill="#f85149" opacity="0.9"/>
+                </svg>
+                {/* Active indicator dot */}
+                {showChartTrading && (
+                  <div style={{
+                    position: 'absolute',
+                    top: -2,
+                    right: -2,
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    background: '#00D4FF',
+                    boxShadow: '0 0 6px rgba(0,212,255,0.6)',
+                  }} />
+                )}
               </button>
             </div>
           )}

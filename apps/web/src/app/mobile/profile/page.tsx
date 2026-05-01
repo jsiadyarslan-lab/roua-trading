@@ -198,7 +198,7 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: '#000', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Loader2 size={32} className="animate-spin" color={c.accent} />
       </div>
     )
@@ -206,7 +206,7 @@ export default function ProfilePage() {
 
   if (error && !user) {
     return (
-      <div style={{ minHeight: '100vh', background: '#000', direction: 'rtl', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 20 }}>
+      <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 20 }}>
         <AlertCircle size={40} color={c.danger} />
         <p style={{ fontSize: 14, color: c.text2, fontFamily: "'Cairo', sans-serif", textAlign: 'center' }}>{error || 'فشل في تحميل البيانات'}</p>
         <button onClick={() => window.location.reload()} style={{ padding: '10px 24px', borderRadius: 14, background: c.accent, color: '#000', fontWeight: 800, fontFamily: "'Cairo', sans-serif", border: 'none', cursor: 'pointer' }}>إعادة المحاولة</button>
@@ -215,7 +215,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#000', direction: 'rtl', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', paddingBottom: 100 }}>
 
       {/* ── Header ── */}
       <div style={{

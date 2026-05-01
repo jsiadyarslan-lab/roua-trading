@@ -348,7 +348,7 @@ export default function MobileAICouncilPage() {
   return (
     <div
       style={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
         background: C.black,
         direction: 'rtl',
         fontFamily: "'Cairo', sans-serif",

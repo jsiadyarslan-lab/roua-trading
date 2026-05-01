@@ -249,14 +249,14 @@ export default function MobileBotPage() {
 
   if (!hydrated) {
     return (
-      <div style={{ minHeight: '100vh', background: '#000000', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100dvh', background: '#000000', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Loader2 size={28} className="animate-spin" color={C.accent} />
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#000000', direction: 'rtl', paddingBottom: 24 }}>
+    <div style={{ minHeight: '100dvh', background: '#000000', direction: 'rtl', paddingBottom: 24 }}>
 
       {/* ══════════════ Sticky Header ══════════════ */}
       <div

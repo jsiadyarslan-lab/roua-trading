@@ -644,7 +644,7 @@ export default function MobileNewsPage() {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       style={{
-        minHeight: '100vh',
+        minHeight: '100dvh',
         background: '#000000',
         direction: 'rtl',
         fontFamily: FONT_AR,

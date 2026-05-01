@@ -365,7 +365,7 @@ export default function MobileSettingsPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: T.bgApp, direction: 'rtl', paddingBottom: 40 }}>
+    <div style={{ minHeight: '100dvh', background: T.bgApp, direction: 'rtl', paddingBottom: 40 }}>
       {/* ── Global Keyframe ── */}
       <style>{`
         @keyframes shimmer {

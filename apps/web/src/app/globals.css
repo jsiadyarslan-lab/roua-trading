@@ -147,6 +147,18 @@
   }
 }
 
+/* Dynamic Viewport Height fallback for older browsers */
+@supports not (height: 100dvh) {
+  :root {
+    --dvh: 100vh;
+  }
+}
+@supports (height: 100dvh) {
+  :root {
+    --dvh: 100dvh;
+  }
+}
+
 /* Layout Shell - CSS Grid */
 .layout-shell {
   display: grid;
@@ -157,8 +169,8 @@
     "news news news news";
   grid-template-columns: auto 1fr 1fr 280px;
   grid-template-rows: 64px 1fr auto 36px;
-  height: 100vh;
-  max-height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
   overflow: hidden;
   background: var(--bg-app);
 }

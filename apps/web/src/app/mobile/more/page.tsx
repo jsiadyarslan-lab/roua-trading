@@ -74,7 +74,7 @@ export default function MobileMorePage() {
   const router = useRouter()
 
   return (
-    <div style={{ minHeight: '100vh', background: c.bg, direction: 'rtl', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100dvh', background: c.bg, direction: 'rtl', paddingBottom: 100 }}>
 
       {/* ── Header ── */}
       <div style={{

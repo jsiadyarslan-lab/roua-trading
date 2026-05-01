@@ -183,7 +183,7 @@ export default function SocialPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#000', direction: 'rtl', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', paddingBottom: 100 }}>
 
       {/* ── Header ── */}
       <div style={{

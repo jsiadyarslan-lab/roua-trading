@@ -5,6 +5,7 @@ import { AuthGuard } from '@/components/dashboard/AuthGuard'
 import { GuestBanner } from '@/components/dashboard/GuestGuard'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import ServiceWorkerRegistrar from '@/components/dashboard/ServiceWorkerRegistrar'
+import { GlobalLogicEngine } from '@/components/dashboard/GlobalLogicEngine'
 import { Metadata, Viewport } from 'next'
 
 export const dynamic = 'force-dynamic'
@@ -48,6 +49,7 @@ export default function DashboardLayout({
             <ErrorBoundary>
               <AuthInitializer />
               <ServiceWorkerRegistrar />
+              <GlobalLogicEngine />
               {children}
             </ErrorBoundary>
           </main>

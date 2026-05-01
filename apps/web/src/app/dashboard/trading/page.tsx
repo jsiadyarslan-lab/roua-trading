@@ -465,7 +465,7 @@ export default function TradingPage() {
 
   if (authLoading) {
     return (
-      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-app)' }}>
+      <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-app)' }}>
         <Loader2 className="animate-spin" style={{ width: 32, height: 32, color: 'var(--accent)' }} />
       </div>
     )

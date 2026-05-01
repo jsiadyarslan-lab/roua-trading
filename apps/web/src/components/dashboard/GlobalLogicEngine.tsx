@@ -10,6 +10,8 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
  * Background component that synchronizes market prices with open trades and account data.
  * This fixes the "frozen" prices/P&L in the positions table by bridging real-time
  * market quotes (Binance WS, REST polling) to both paper trades AND real Alpaca positions.
+ *
+ * Also handles cross-tab synchronization so desktop and mobile views stay in sync.
  */
 export function GlobalLogicEngine() {
   const quotes = useMarketStore(s => s.quotes)
@@ -18,6 +20,31 @@ export function GlobalLogicEngine() {
   const fetchRealPositions = usePositionsStore(s => s.fetchPositions)
   const fetchAccount = usePositionsStore(s => s.fetchAccount)
   const lastPriceSyncRef = useRef<Record<string, number>>({})
+
+  // ── Cross-tab synchronization via storage events ──
+  // When another tab (desktop/mobile) updates localStorage,
+  // this listener re-hydrates the Zustand store from the persisted data.
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'roua-positions-store' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue)
+          if (parsed?.state) {
+            const { account, positions, lastUpdate, dataSource } = parsed.state
+            if (account) usePositionsStore.setState({ account })
+            if (positions) usePositionsStore.setState({ positions })
+            if (lastUpdate) usePositionsStore.setState({ lastUpdate })
+            if (dataSource) usePositionsStore.setState({ dataSource })
+          }
+        } catch {
+          // Ignore parse errors
+        }
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
 
   useEffect(() => {
     const now = Date.now()

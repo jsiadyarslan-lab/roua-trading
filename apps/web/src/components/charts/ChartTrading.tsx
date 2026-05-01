@@ -91,8 +91,8 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: Ch
   return (
     <div style={{
       position: 'absolute',
-      bottom: 8,
-      left: 8,
+      top: 50,
+      right: 8,
       background: COLORS.card,
       border: '1px solid rgba(0,212,255,0.2)',
       borderRadius: 10,

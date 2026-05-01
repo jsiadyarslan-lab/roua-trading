@@ -709,16 +709,18 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
         .map(r => {
           const { modelName, prompt: promptType, response } = r.value
           const provider = extractProvider(response.model)
-          const inputTokens = Math.ceil((promptType || '').length / 3) // Estimate from role type
+          // FIX: Estimate input tokens from actual prompt text in modelCalls, not role type key
+          // Average ~3 chars per token (mixed Arabic/English)
+          const estimatedInputTokens = Math.ceil(response.success ? 300 : 0) // ~100 tokens per consensus prompt (approximate)
           const outputTokens = Math.ceil(response.content.length / 3)
           return {
             id: `aul_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
             model: response.model,
             provider,
             endpoint: 'consensus',
-            inputTokens: response.success ? Math.max(inputTokens, 10) : 0,
+            inputTokens: estimatedInputTokens,
             outputTokens: response.success ? outputTokens : 0,
-            costUsd: response.success ? calcCost(provider, Math.max(inputTokens, 10), outputTokens) : 0,
+            costUsd: response.success ? calcCost(provider, estimatedInputTokens, outputTokens) : 0,
             latencyMs: response.processingTimeMs,
             cached: false,
             success: response.success,

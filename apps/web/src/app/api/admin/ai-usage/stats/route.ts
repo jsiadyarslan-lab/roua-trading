@@ -157,7 +157,10 @@ export async function GET(req: NextRequest) {
     })
   } catch (error: any) {
     console.error('[admin/ai-usage/stats] Error:', error?.message || error)
+    // FIX: Return 503 with error flag so frontend can distinguish empty data from broken DB
     return NextResponse.json({
+      error: 'فشل في قراءة بيانات الاستخدام من قاعدة البيانات',
+      debug: error?.message || String(error),
       summary: {
         today: { requests: 0, cost: 0, tokens: { input: 0, output: 0 } },
         week: { requests: 0, cost: 0, tokens: { input: 0, output: 0 } },
@@ -173,6 +176,6 @@ export async function GET(req: NextRequest) {
       dailyRequests: {},
       activeModelsCount: 0,
       totalModelsCount: 0,
-    })
+    }, { status: 503 })
   }
 }

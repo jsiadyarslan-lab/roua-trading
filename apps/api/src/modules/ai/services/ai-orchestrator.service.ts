@@ -135,6 +135,8 @@ export class AIOrchestratorService {
     }
     if (this.usageLogger) {
       this.logger.log('📊 AI Usage Logger enabled — all calls will be tracked');
+    } else {
+      this.logger.warn('⚠️ AI Usage Logger NOT available — AI costs will NOT be tracked! Check PrismaService/Database connection.');
     }
     // Log which models have keys available
     const available = this.getModelsStatus().filter(m => m.available);

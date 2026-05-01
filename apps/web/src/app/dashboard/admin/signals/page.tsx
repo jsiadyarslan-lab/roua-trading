@@ -98,7 +98,7 @@ export default function AdminSignalsPage() {
         if (rawResults.length > 0) {
           setScannerResults(rawResults.slice(0, 8).map((r: any) => ({
             symbol: r.symbol || r.pair || '—',
-            score: r.smartScore || r.score || 0,
+            score: r.smartScore?.compositeScore ?? r.score ?? 0,
             direction: r.direction || (r.change > 0 ? 'bullish' : r.change < 0 ? 'bearish' : 'neutral'),
             change: r.change || r.priceChange || 0,
           })))

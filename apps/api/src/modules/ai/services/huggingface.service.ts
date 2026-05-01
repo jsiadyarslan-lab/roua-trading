@@ -94,7 +94,7 @@ export class HuggingFaceService {
         // Clean up the response
         content = content.replace(/\[\/INST\]/g, '').trim();
 
-        if (content.length > 10) {
+        if (content.length > 1) {
           const modelShort = model.split('/').pop() || model;
           return {
             model: `HuggingFace/${modelShort}`,

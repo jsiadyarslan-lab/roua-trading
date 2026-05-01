@@ -373,3 +373,37 @@ Stage Summary:
 - 1 file modified: `apps/web/src/components/dashboard/AppHeader.tsx`
 - 2 changes: import addition + NAV_LINKS array entry
 - prediction-market link accessible from both desktop nav "More" dropdown and mobile sidebar
+
+---
+Task ID: self-healing-agent-1
+Agent: Main Agent
+Task: Create Self-Healing Agent for Roua Trading platform
+
+Work Log:
+- Created agents/self-healing-agent/ directory with 13 files
+- config.py: Environment-based configuration (GLM, GitHub, Railway, Telegram, safety scopes)
+- monitor.py: Health check system with ErrorType classification and fixable error detection
+- logger_fetcher.py: Railway log fetching (GraphQL + REST API fallback) with error pattern extraction
+- error_analyzer.py: GLM-5.1 powered error analysis with JSON response parsing and dual safety validation
+- fix_generator.py: Fix code generation with search-and-replace support, path validation, forbidden code detection
+- test_runner.py: GitHub branch creation, fix application, CI test execution, branch cleanup on failure
+- github_pr_manager.py: PR creation (draft mode) with labels, review requests, and safety documentation
+- human_approval.py: Telegram approval notifications with inline keyboard buttons
+- main.py: Main orchestration loop (60s cycle) with fix attempt tracking, cooldown, and periodic summaries
+- Dockerfile: Python 3.12-slim with health check
+- railway.json: Railway deployment config
+- requirements.txt: Python dependencies
+- .env.example: Example environment variables
+- All files validated for Python syntax (AST parsing)
+- Pushed to GitHub (commit 03bdd7a)
+
+Stage Summary:
+- 13 files created, 2943 lines of Python code
+- Agent monitors 8 API endpoints every 60 seconds
+- GLM-5.1 analyzes errors and generates fixes
+- Safety: never auto-merges, only fixes TypeScript/API errors, forbidden from trading/security/risk
+- Dual validation: GLM classification + code-level pattern checks
+- Fix attempt limits (3 per error) with cooldown (3600s)
+- Failed test branches auto-deleted
+- Telegram notifications for PR approval/rejection
+- Pushed to https://github.com/jsiadyarslan-lab/roua-trading (main branch)

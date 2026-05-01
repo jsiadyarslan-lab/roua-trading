@@ -19,6 +19,7 @@ import { AuditModule } from './audit/audit.module';
 import { CoachModule } from './modules/coach/coach.module';
 import { ScannerModule } from './modules/scanner/scanner.module';
 import { PredictionMarketModule } from './modules/prediction-market/prediction-market.module';
+import { AutonomousTraderAgentModule } from './agents/autonomous-trader/agent.module';
 
 @Module({
   imports: [
@@ -91,6 +92,7 @@ import { PredictionMarketModule } from './modules/prediction-market/prediction-m
     CoachModule,
     ScannerModule,
     PredictionMarketModule,
+    AutonomousTraderAgentModule,
   ],
 })
 export class AppModule {}

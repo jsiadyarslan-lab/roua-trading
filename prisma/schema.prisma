@@ -35,6 +35,7 @@ model User {
   paperOrders         PaperOrder[]
   coachAdvices        CoachAdvice[]
   auditLogs           AuditLog[]
+  autonomousTrades    AutonomousTrade[]
   telegramChatId      String?              // معرّف محادثة Telegram للمستخدم
 }
 
@@ -726,4 +727,98 @@ model PredictionEvent {
   @@index([predictionGap])
   @@index([lastSyncedAt])
   @@index([source])
+}
+
+// ── Autonomous Trader Agent (Phase 8) ──
+
+enum AgentStrategy {
+  SCALPING
+  SWING
+  GRID
+}
+
+enum AgentTradeStatus {
+  PENDING
+  FILLED
+  PARTIALLY_FILLED
+  CANCELLED
+  FAILED
+}
+
+enum AgentExitReason {
+  TAKE_PROFIT
+  STOP_LOSS
+  MANUAL
+  TRAILING_STOP
+  STRATEGY_EXIT
+}
+
+model AutonomousTrade {
+  id              String           @id @default(cuid())
+  userId          String
+  agentRunId      String           // Groups trades within a single agent session
+
+  // Trade Details
+  symbol          String
+  side            OrderSide
+  orderType       OrderType
+  strategy        AgentStrategy
+  status          AgentTradeStatus @default(PENDING)
+
+  // Pricing
+  entryPrice      Decimal          @db.Decimal(19, 8)
+  currentPrice    Decimal?         @db.Decimal(19, 8)
+  exitPrice       Decimal?         @db.Decimal(19, 8)
+  stopLoss        Decimal          @db.Decimal(19, 8) // MANDATORY — no trade without SL
+  takeProfit      Decimal          @db.Decimal(19, 8)
+
+  // Quantity & P&L
+  quantity        Decimal          @db.Decimal(19, 8)
+  filledQuantity  Decimal          @default(0) @db.Decimal(19, 8)
+  pnl             Decimal?         @db.Decimal(19, 4)
+  fee             Decimal          @default(0) @db.Decimal(19, 4)
+  feeCurrency     String           @default("USD")
+
+  // Risk & Confidence
+  riskScore       Int              @default(0) // 0-100
+  confidence      Int              @default(0) // 0-100
+  riskRewardRatio Decimal          @db.Decimal(10, 4)
+
+  // Strategy Context
+  reasoning       String           // AI reasoning for the trade
+  signalData      String           @default("{}") // JSON: evaluated signal
+  metadata        String           @default("{}") // JSON: strategy-specific data
+
+  // Audit Trail
+  decisions       String           @default("[]") // JSON array of AgentDecision
+
+  // Execution Details
+  execution       String?          // JSON: TradeExecution result
+
+  // Timing
+  openedAt        DateTime         @default(now())
+  closedAt        DateTime?
+  holdingDurationMs Int?
+
+  // Exchange
+  credentialId    String
+  exchangeOrderId String?
+
+  // Performance Categorization
+  isWinning       Boolean?
+  exitReason      AgentExitReason?
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([strategy])
+  @@index([status])
+  @@index([agentRunId])
+  @@index([createdAt])
+  @@index([userId, status])
+  @@index([userId, strategy, createdAt])
 }

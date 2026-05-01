@@ -88,6 +88,21 @@ function isGuestUser(user: AuthUser | null): boolean {
   return user.isGuest || user.email === GUEST_EMAIL || user.id.startsWith('guest')
 }
 
+// ── BroadcastChannel for real-time cross-tab auth sync ──
+let _authChannel: BroadcastChannel | null = null
+if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+  _authChannel = new BroadcastChannel('roua_auth_sync')
+  _authChannel.onmessage = (e) => {
+    if (e.data?.type === 'auth_update') {
+      const { user, isAuthenticated, isGuest } = e.data
+      useAuthStore.setState({ user, isAuthenticated, isGuest, loading: false })
+    }
+    if (e.data?.type === 'auth_logout') {
+      useAuthStore.setState({ user: null, isAuthenticated: false, isGuest: true, loading: false })
+    }
+  }
+}
+
 // ── Store ──
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -106,6 +121,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           const isGuest = data.isGuest || isGuestUser(user)
           writeCache(user)
           set({ user, isAuthenticated: !isGuest, isGuest, loading: false })
+          _authChannel?.postMessage({ type: 'auth_update', user, isAuthenticated: !isGuest, isGuest })
           if (!isGuest) {
             // Start auto-refresh after successful auth check
             get().startAutoRefresh()
@@ -132,6 +148,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           const user = data.user as AuthUser
           writeCache(user)
           set({ user, isAuthenticated: true, isGuest: false, loading: false })
+          _authChannel?.postMessage({ type: 'auth_update', user, isAuthenticated: true, isGuest: false })
           // Start auto-refresh after successful login
           get().startAutoRefresh()
           return user
@@ -155,6 +172,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     clearCache()
     set({ user: null, isAuthenticated: false, isGuest: true, loading: false })
+    _authChannel?.postMessage({ type: 'auth_logout' })
     window.location.href = '/login'
   },
 
@@ -227,4 +245,23 @@ export function initAuthFromCache(): AuthUser | null {
 
   useAuthStore.setState({ loading: false })
   return null
+}
+
+// ── Cross-tab sync: listen for localStorage changes from other tabs ──
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === CACHE_KEY && e.newValue) {
+      try {
+        const user = JSON.parse(e.newValue) as AuthUser
+        const isGuest = isGuestUser(user)
+        useAuthStore.setState({ user, isAuthenticated: !isGuest, isGuest, loading: false })
+      } catch {
+        // Ignore invalid data
+      }
+    }
+    if (e.key === CACHE_KEY && !e.newValue) {
+      // Cache was cleared — user logged out in another tab
+      useAuthStore.setState({ user: null, isAuthenticated: false, isGuest: true, loading: false })
+    }
+  })
 }

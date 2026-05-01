@@ -148,6 +148,18 @@ export default function DashboardPage() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [fetchAccount, fetchPositions])
 
+  // Cross-tab sync: listen for account data changes from other tabs
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key?.startsWith('roua_') || e.key === null) {
+        fetchAccount()
+        fetchPositions()
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [fetchAccount, fetchPositions])
+
   useEffect(() => {
     if (typeof window === 'undefined') return
 
@@ -485,6 +497,7 @@ export default function DashboardPage() {
             box-sizing: border-box;
             width: 100%;
             overflow-x: hidden;
+            overflow-y: auto;
             min-height: 100dvh;
           }
 
@@ -536,9 +549,9 @@ export default function DashboardPage() {
           }
 
           .mobile-hero-chart {
-            height: 34dvh;
-            min-height: 220px;
-            max-height: 320px;
+            height: 38dvh;
+            min-height: 240px;
+            max-height: 360px;
             overflow: hidden;
           }
 
@@ -578,7 +591,7 @@ export default function DashboardPage() {
             border: 1px solid rgba(0, 212, 255, 0.10);
             background: rgba(26, 29, 41, 0.6);
             backdrop-filter: blur(8px);
-            min-height: max(360px, calc(100dvh - 400px));
+            min-height: max(320px, calc(100dvh - 380px));
           }
 
           .mobile-bottom-nav {
@@ -1018,27 +1031,18 @@ export default function DashboardPage() {
       {/* Trade Dialog (bottom sheet) for mobile */}
       {isMobileViewport && tradeDialogOpen && (
         <div
-          style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+          style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
           onClick={() => setTradeDialogOpen(false)}
         >
           <div
-            style={{ width: '100%', maxHeight: '85dvh', background: '#0F1117', borderRadius: '20px 20px 0 0', overflow: 'auto', padding: '0 0 calc(20px + env(safe-area-inset-bottom))' }}
+            style={{ width: '100%', maxHeight: '85dvh', background: '#0B0E14', borderTopLeftRadius: 20, borderTopRightRadius: 20, border: '1px solid rgba(0,212,255,0.15)', overflow: 'auto', padding: 16, paddingBottom: 'calc(16px + env(safe-area-inset-bottom))' }}
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px' }}>
-              <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.2)' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, fontWeight: 800, color: '#F0F2F5' }}>تنفيذ سريع</span>
+              <button onClick={() => setTradeDialogOpen(false)} style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, width: 32, height: 32, color: '#8B92A8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>✕</button>
             </div>
-            <div style={{ padding: '0 16px' }}>
-              <QuickExecutionMini mobile dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} />
-            </div>
-            <div style={{ padding: '12px 16px' }}>
-              <button
-                onClick={() => setTradeDialogOpen(false)}
-                style={{ width: '100%', minHeight: 48, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#8B92A8', fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
-              >
-                إغلاق
-              </button>
-            </div>
+            <QuickExecutionMini mobile dataStatus={accountDataStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} />
           </div>
         </div>
       )}

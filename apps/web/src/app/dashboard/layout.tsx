@@ -45,7 +45,12 @@ export default function DashboardLayout({
         <div style={{ minHeight: '100dvh', background: '#0B0E14', direction: 'rtl', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
           <GuestBanner />
           <AppHeader />
-          <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'auto' }}>
+            <style>{`
+              @media (max-width: 767px) {
+                main { min-height: calc(100dvh - 48px) !important; padding-bottom: calc(80px + env(safe-area-inset-bottom)) !important; }
+              }
+            `}</style>
             <ErrorBoundary>
               <AuthInitializer />
               <ServiceWorkerRegistrar />

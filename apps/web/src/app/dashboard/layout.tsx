@@ -29,8 +29,8 @@ export const viewport: Viewport = {
   themeColor: '#0B0E14',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
 }
 
 export default function DashboardLayout({
@@ -41,7 +41,7 @@ export default function DashboardLayout({
   return (
     <MarketProvider>
       <AuthGuard>
-        <div style={{ minHeight: '100vh', background: '#0B0E14', direction: 'rtl', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ minHeight: '100dvh', background: '#0B0E14', direction: 'rtl', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
           <GuestBanner />
           <AppHeader />
           <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>

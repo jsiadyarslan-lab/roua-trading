@@ -101,6 +101,15 @@ export default function PositionsPage() {
   const [editStopLoss, setEditStopLoss] = useState('')
   const [editTakeProfit, setEditTakeProfit] = useState('')
   const [editError, setEditError] = useState('')
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mq = window.matchMedia('(max-width: 767px)')
+    setIsMobile(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   const fetchPositions = useCallback(async () => {
     setLoading(true)
@@ -311,7 +320,7 @@ export default function PositionsPage() {
       </motion.div>
 
       {/* Filters */}
-      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
         <FilterSelect label="البورصة" value={filterExchange} onChange={setFilterExchange} options={EXCHANGES} />
         <FilterSelect label="الزوج" value={filterSymbol} onChange={setFilterSymbol} options={SYMBOLS} />
       </div>
@@ -366,6 +375,54 @@ export default function PositionsPage() {
                     الانتقال للتداول
                   </button>
                 )}
+              </div>
+            ) : isMobile ? (
+              /* Mobile Card View */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 12px' }}>
+                {filteredPositions.map((pos) => (
+                  <div key={pos.id} style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 10, padding: '10px 12px',
+                    display: 'flex', flexDirection: 'column', gap: 8,
+                  }}>
+                    {/* Header row: Symbol + Side + P&L */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{
+                          width: 24, height: 24, borderRadius: 6,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: pos.side === 'BUY' ? 'linear-gradient(135deg, #00FFC6, #00B894)' : 'linear-gradient(135deg, #FF4D4D, #FF6B6B)',
+                        }}>
+                          {pos.side === 'BUY' ? <TrendingUp size={10} stroke="#fff" strokeWidth={2} /> : <TrendingDown size={10} stroke="#fff" strokeWidth={2} />}
+                        </div>
+                        <span dir="ltr" style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{pos.symbol}</span>
+                        <span style={{ fontSize: 8, fontWeight: 600, background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', padding: '1px 5px', borderRadius: '4px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{pos.exchange}</span>
+                      </div>
+                      <span dir="ltr" style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: (pos.unrealizedPnl || 0) > 0 ? 'var(--profit)' : (pos.unrealizedPnl || 0) < 0 ? 'var(--loss)' : 'var(--text-secondary)' }}>
+                        {(pos.unrealizedPnl || 0) > 0 ? '+' : ''}{formatCurrency(pos.unrealizedPnl || 0)}
+                      </span>
+                    </div>
+                    {/* Details grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 12px', fontSize: 10 }}>
+                      <div><span style={{ color: 'var(--text-faint)' }}>الاتجاه: </span><span style={{ fontWeight: 800, color: pos.side === 'BUY' ? 'var(--profit)' : 'var(--loss)' }}>{pos.side === 'BUY' ? 'شراء' : 'بيع'}</span></div>
+                      <div><span style={{ color: 'var(--text-faint)' }}>الكمية: </span><span dir="ltr" style={{ fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{pos.quantity}</span></div>
+                      <div><span style={{ color: 'var(--text-faint)' }}>دخول: </span><span dir="ltr" style={{ fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{formatPrice(pos.entryPrice)}</span></div>
+                      <div><span style={{ color: 'var(--text-faint)' }}>حالي: </span><span dir="ltr" style={{ fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{formatPrice(pos.currentPrice)}</span></div>
+                      <div><span style={{ color: 'var(--text-faint)' }}>SL: </span><span dir="ltr" style={{ fontFamily: 'var(--font-mono)', color: pos.stopLoss ? 'var(--loss)' : 'var(--text-faint)' }}>{pos.stopLoss ? formatPrice(pos.stopLoss) : '—'}</span></div>
+                      <div><span style={{ color: 'var(--text-faint)' }}>TP: </span><span dir="ltr" style={{ fontFamily: 'var(--font-mono)', color: pos.takeProfit ? 'var(--profit)' : 'var(--text-faint)' }}>{pos.takeProfit ? formatPrice(pos.takeProfit) : '—'}</span></div>
+                    </div>
+                    {/* Action buttons */}
+                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      <button onClick={() => openEditDialog(pos)} aria-label="تعديل" style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border-subtle)', background: 'var(--bg-input)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-muted)', fontSize: 10, fontFamily: 'var(--font-ar)', fontWeight: 600, minHeight: 36 }}>
+                        <Edit3 size={11} /> تعديل
+                      </button>
+                      <button onClick={() => openCloseDialog(pos)} aria-label="إغلاق" style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid var(--border-loss)', background: 'var(--loss-bg)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, color: 'var(--loss)', fontSize: 10, fontFamily: 'var(--font-ar)', fontWeight: 600, minHeight: 36 }}>
+                        <XCircle size={11} /> إغلاق
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               /* Desktop Table */

@@ -926,10 +926,11 @@ const KF = `
 header *            { scrollbar-width:none; -ms-overflow-style:none; }
 header *::-webkit-scrollbar { display:none; }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .desktop-header { display: none !important; }
   .mobile-header { display: flex !important; }
   .logo-orb { display: none !important; }
+  .mobile-news-ticker { display: none !important; }
 }
 `
 
@@ -972,8 +973,8 @@ export function AppHeader() {
           zIndex: 1000, backdropFilter: 'blur(8px)'
         }} onClick={() => setMenuOpen(false)}>
           <div style={{
-            position: 'absolute', left: 0, top: 0, bottom: 0, width: '280px',
-            background: 'rgba(26,29,41,0.95)', borderRight: `1px solid rgba(0,212,255,0.12)`,
+            position: 'absolute', right: 0, top: 0, bottom: 0, width: '280px',
+            background: 'rgba(26,29,41,0.95)', borderLeft: `1px solid rgba(0,212,255,0.12)`,
             display: 'flex', flexDirection: 'column', padding: '20px',
             overflowY: 'auto',
           }} className="custom-scrollbar" onClick={e => e.stopPropagation()}>
@@ -990,7 +991,7 @@ export function AppHeader() {
                         display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
                         borderRadius: 10, background: active ? 'rgba(0,212,255,0.10)' : 'transparent',
                         color: active ? 'var(--accent)' : T.text2,
-                        borderRight: active ? '3px solid var(--accent)' : '3px solid transparent',
+                        borderLeft: active ? '3px solid var(--accent)' : '3px solid transparent',
                         fontSize: 14, fontWeight: 600, fontFamily: "'Cairo', sans-serif",
                         transition: 'all 0.15s',
                       }}>
@@ -1069,17 +1070,20 @@ export function AppHeader() {
         background: 'rgba(11, 14, 20, 0.92)', borderBottom: `1px solid rgba(0,212,255,0.10)`,
         backdropFilter: 'blur(20px) saturate(1.6)',
         WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
+        paddingTop: 'env(safe-area-inset-top)',
       }}>
-        {/* Mobile top row: hamburger + ticker + orb */}
+        {/* Mobile top row: hamburger + brand + ticker + orb */}
         <div style={{
           display: 'flex', alignItems: 'center', height: MOBILE_HEADER_H,
           padding: '0 10px', justifyContent: 'space-between',
         }}>
-          <button onClick={() => setMenuOpen(true)} style={{ background: 'transparent', border: 'none', color: T.text, cursor: 'pointer', width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}>
-             <Menu size={20} />
+          <button onClick={() => setMenuOpen(true)} style={{ background: 'transparent', border: 'none', color: T.text, cursor: 'pointer', minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}>
+             <Menu size={22} />
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0, paddingInline: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0, paddingInline: 6 }}>
+             <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 900, fontSize: 14, color: T.text, whiteSpace: 'nowrap' }}>رؤى</span>
+             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: 'var(--accent)', letterSpacing: '0.08em', opacity: 0.8 }}>ROUA</span>
              <CurrencyTicker isMobile />
           </div>
 
@@ -1088,8 +1092,8 @@ export function AppHeader() {
              <CosmicOrb state={marketState} size={24} />
           </div>
         </div>
-        {/* Mobile news ticker */}
-        <div style={{
+        {/* Mobile news ticker (hidden on small screens via CSS) */}
+        <div className="mobile-news-ticker" style={{
           height: 26, overflow: 'hidden', background: T.bg,
           borderBottom: `0.5px solid ${T.border}`, display: 'flex', alignItems: 'center',
         }}>

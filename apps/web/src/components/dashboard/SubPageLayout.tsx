@@ -34,7 +34,8 @@ export default function SubPageLayout({
     <div dir="rtl" style={{ minHeight: '100vh', background: 'var(--bg-app)', color: 'var(--text-main)' }}>
       {/* Top Navigation Bar */}
       <div style={{
-        height: '52px',
+        minHeight: '52px',
+        paddingTop: 'env(safe-area-inset-top)',
         background: 'var(--bg-nav)',
         borderBottom: '1px solid var(--border)',
         display: 'flex',
@@ -131,8 +132,9 @@ export default function SubPageLayout({
               key={tab.id}
               onClick={() => { onTabChange?.(tab.id); setMobileMenuOpen(false) }}
               style={{
-                padding: '6px 14px', borderRadius: '6px', border: 'none', cursor: 'pointer',
+                padding: '8px 14px', borderRadius: '6px', border: 'none', cursor: 'pointer',
                 fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-ar)',
+                minHeight: 36,
                 background: activeTab === tab.id ? 'var(--accent)' : 'var(--bg-input)',
                 color: activeTab === tab.id ? '#fff' : 'var(--text-muted)',
                 transition: 'all 0.15s',
@@ -162,6 +164,7 @@ export default function SubPageLayout({
           }
           .subpage-content {
             padding: 20px 12px !important;
+            padding-bottom: calc(20px + env(safe-area-inset-bottom)) !important;
           }
         }
       `}</style>

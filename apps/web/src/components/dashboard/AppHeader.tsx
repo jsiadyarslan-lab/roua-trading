@@ -10,7 +10,7 @@ import {
   ChevronDown, Bell, User, MoreHorizontal,
   TrendingUp, TrendingDown, Menu, X as XIcon, GitMerge, Activity,
   FlaskConical, Shield, Hammer, LogOut, UserCircle, Info,
-  CreditCard, HelpCircle, Trophy, Code, Fingerprint, BellRing
+  CreditCard, HelpCircle, Trophy, Code, Fingerprint, BellRing, Link2
 } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
@@ -431,7 +431,7 @@ const NAV_LINKS = [
   { href: '/dashboard/correlation',            label: 'مصفوفة الارتباط',    icon: GitMerge },
   { href: '/dashboard/billing',                label: 'المدفوعات',          icon: CreditCard },
   { href: '/dashboard/notifications',          label: 'الإشعارات',          icon: BellRing },
-  { href: '/dashboard/kyc',                    label: 'التحقق من الهوية',   icon: Fingerprint },
+  { href: '/dashboard/kyc',                    label: 'ربط الحسابات',       icon: Link2 },
   { href: '/dashboard/profile',                label: 'الملف الشخصي',       icon: UserCircle },
   { href: '/dashboard/security/2fa',           label: 'المصادقة الثنائية',  icon: Shield },
   { href: '/dashboard/api-docs',               label: 'توثيق API',          icon: Code },

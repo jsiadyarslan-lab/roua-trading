@@ -34,8 +34,8 @@ const MOCK_STATS = {
 
 const MOCK_ACTIVITY = [
   { id: '1', type: 'login', icon: <Shield size={14} />, label: 'تسجيل دخول ناجح', detail: 'Chrome — الرياض، السعودية', time: 'منذ 5 دقائق', color: T.green },
-  { id: '2', type: 'trade', icon: <TrendingUp size={14} />, label: 'تنفيذ صفقة شراء', detail: 'BTC/USDT — 0.015 BTC @ $67,432', time: 'منذ 23 دقيقة', color: T.cyan },
-  { id: '3', type: 'trade', icon: <TrendingDown size={14} />, label: 'إغلاق صفقة بيع', detail: 'ETH/USDT — ربح +4.2%', time: 'منذ ساعة', color: T.green },
+  { id: '2', type: 'trade', icon: <TrendingUp size={14} />, label: 'رصد صفقة شراء', detail: 'BTC/USDT — 0.015 BTC @ $67,432', time: 'منذ 23 دقيقة', color: T.cyan },
+  { id: '3', type: 'trade', icon: <TrendingDown size={14} />, label: 'رصد إغلاق صفقة بيع', detail: 'ETH/USDT — ربح +4.2%', time: 'منذ ساعة', color: T.green },
   { id: '4', type: 'settings', icon: <Activity size={14} />, label: 'تحديث إعدادات الإشعارات', detail: 'تفعيل إشعارات الإشارات الذكية', time: 'منذ 3 ساعات', color: T.amber },
   { id: '5', type: 'login', icon: <Shield size={14} />, label: 'تسجيل دخول من جهاز جديد', detail: 'Safari — جدة، السعودية', time: 'أمس 11:42 م', color: T.purple },
   { id: '6', type: 'ai', icon: <Bot size={14} />, label: 'تفعيل استراتيجية AI', detail: 'استراتيجية الزخم — ثقة 78%', time: 'أمس 3:15 م', color: T.purple },
@@ -584,14 +584,14 @@ export default function ProfilePage() {
             icon={<BarChart3 size={18} color={T.green} />}
             iconColor={T.green}
             iconBg={`${T.green}14`}
-            title="إحصائيات التداول"
-            subtitle="أداءك على منصة رؤى منذ الانضمام"
+            title="إحصائيات المتابعة"
+            subtitle="أداء حساباتك المربوطة على منصة رؤى منذ الانضمام"
             badge="مباشر"
           >
             <div className="profile-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, padding: '12px 0' }}>
               <StatCard
                 icon={<Activity size={14} />}
-                label="إجمالي الصفقات"
+                label="إجمالي الصفقات المتابعة"
                 value={String(MOCK_STATS.totalTrades)}
                 color={T.cyan}
               />

@@ -288,10 +288,10 @@ export default function LeaderboardPage() {
       const next = new Set(prev)
       if (next.has(traderId)) {
         next.delete(traderId)
-        toast({ title: `تم إيقاف نسخ ${traderName}`, description: 'لن يتم نسخ صفقات هذا المتداول بعد الآن' })
+        toast({ title: `تم إيقاف متابعة ${traderName}`, description: 'لن يتم متابعة صفقات هذا المتداول بعد الآن' })
       } else {
         next.add(traderId)
-        toast({ title: `تم بدء نسخ ${traderName} ✅`, description: 'سيتم نسخ الصفقات تلقائياً' })
+        toast({ title: `تم بدء متابعة ${traderName} ✅`, description: 'سيتم متابعة الصفقات تلقائياً' })
       }
       return next
     })
@@ -327,7 +327,7 @@ export default function LeaderboardPage() {
             }}>LIVE</span>
           </div>
           <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
-            تابع أفضل المتداولين على منصة رؤى حسب الأداء والاتساق وإدارة المخاطر
+            تابع أفضل حسابات المتداولين المربوطة على منصة رؤى حسب الأداء والاتساق وإدارة المخاطر
           </p>
         </div>
       </div>
@@ -335,7 +335,7 @@ export default function LeaderboardPage() {
       {/* ──── Stats Summary Row ──── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
-          { icon: Users, label: 'إجمالي المتداولين النشطين', val: formatNumber(totalActiveTraders), color: T.cyan },
+          { icon: Users, label: 'إجمالي الحسابات المربوطة النشطة', val: formatNumber(totalActiveTraders), color: T.cyan },
           { icon: TrendingUp, label: 'إجمالي العوائد', val: totalReturns, color: T.green },
           { icon: Target, label: 'متوسط معدل الفوز', val: avgWinRate, color: T.amber },
         ].map((s, i) => (
@@ -439,7 +439,7 @@ export default function LeaderboardPage() {
                     { label: 'السحب الأقصى', width: 105 },
                     { label: 'الأصول المدارة', width: 110 },
                     { label: 'المتابعون', width: 90 },
-                    { label: 'متاح للنسخ', width: 110 },
+                    { label: 'متاح للمتابعة', width: 110 },
                   ].map((col, i) => (
                     <th key={i} style={{
                       padding: '12px 14px', fontSize: 11, fontWeight: 800,
@@ -580,7 +580,7 @@ export default function LeaderboardPage() {
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {copyingTraders.has(trader.id) ? 'إيقاف' : 'نسخ'}
+                        {copyingTraders.has(trader.id) ? 'إيقاف المتابعة' : 'متابعة'}
                         <Copy size={11} />
                       </button>
                     ) : (

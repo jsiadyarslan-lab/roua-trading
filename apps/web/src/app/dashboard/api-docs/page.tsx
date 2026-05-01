@@ -259,48 +259,39 @@ const ENDPOINT_CATEGORIES: EndpointCategory[] = [
   },
   {
     id: 'trading',
-    title: 'التداول',
+    title: 'الحسابات المربوطة',
     icon: <TrendingUp size={18} />,
     iconColor: T.green,
     iconBg: `${T.green}14`,
-    description: 'إدارة الأوامر والمراكز المفتوحة وتنفيذ الصفقات',
+    description: 'إدارة الحسابات المربوطة ومتابعة المراكز المفتوحة',
     endpoints: [
       {
         method: 'POST',
-        path: '/trading/orders',
-        description: 'إنشاء أمر تداول جديد (سوقي، محدد، أو وقف) مع إدارة المخاطر التلقائية',
+        path: '/accounts/link',
+        description: 'ربط حساب بورصة جديد عبر مفاتيح API مع التحقق التلقائي من الاتصال',
         permission: 'trade',
         requestBody: JSON.stringify({
-          symbol: "BTC/USDT",
-          side: "buy",
-          type: "limit",
-          quantity: 0.01,
-          price: 97000.00,
-          stopLoss: 95000.00,
-          takeProfit: 102000.00,
-          timeInForce: "GTC"
+          exchange: "binance",
+          apiKey: "xxx",
+          apiSecret: "xxx",
+          permissions: ["read", "trade"]
         }, null, 2),
         responseExample: JSON.stringify({
           success: true,
           data: {
-            orderId: "ord_x9y8z7w6",
-            symbol: "BTC/USDT",
-            side: "buy",
-            type: "limit",
-            quantity: 0.01,
-            price: 97000.00,
-            status: "pending",
-            stopLoss: 95000.00,
-            takeProfit: 102000.00,
-            createdAt: "2026-03-04T14:30:00Z",
-            estimatedRisk: "2.1%"
+            accountId: "acc_k1l2m3n4",
+            exchange: "binance",
+            status: "connected",
+            permissions: ["read", "trade"],
+            connectedAt: "2026-03-04T14:30:00Z",
+            lastSync: "2026-03-04T14:30:00Z"
           }
         }, null, 2),
       },
       {
         method: 'GET',
-        path: '/trading/positions',
-        description: 'استرجاع جميع المراكز المفتوحة مع بيانات الربح/الخسارة الحالية',
+        path: '/accounts/positions',
+        description: 'استرجاع جميع المراكز المفتوحة من الحسابات المربوطة مع بيانات الربح/الخسارة',
         permission: 'read',
         requestBody: undefined,
         responseExample: JSON.stringify({
@@ -319,7 +310,8 @@ const ENDPOINT_CATEGORIES: EndpointCategory[] = [
                 leverage: 5,
                 stopLoss: 92000.00,
                 takeProfit: 105000.00,
-                openedAt: "2026-03-02T08:00:00Z"
+                openedAt: "2026-03-02T08:00:00Z",
+                sourceAccount: "acc_k1l2m3n4"
               }
             ],
             totalPnl: 127.13,
@@ -329,16 +321,17 @@ const ENDPOINT_CATEGORIES: EndpointCategory[] = [
       },
       {
         method: 'DELETE',
-        path: '/trading/orders/:id',
-        description: 'إلغاء أمر تداول معلق بناءً على معرف الأمر',
+        path: '/accounts/:id',
+        description: 'إلغاء ربط حساب بورصة مع الحفاظ على البيانات التاريخية',
         permission: 'trade',
         requestBody: undefined,
         responseExample: JSON.stringify({
           success: true,
           data: {
-            orderId: "ord_x9y8z7w6",
-            status: "cancelled",
-            cancelledAt: "2026-03-04T14:35:00Z"
+            accountId: "acc_k1l2m3n4",
+            status: "unlinked",
+            historicalDataPreserved: true,
+            unlinkedAt: "2026-03-04T14:35:00Z"
           }
         }, null, 2),
       },
@@ -547,7 +540,7 @@ interface ApiKey {
   name: string
   key: string
   lastUsed: string
-  permissions: ('read' | 'trade' | 'withdraw')[]
+  permissions: ('read' | 'trade')[]
   status: 'active' | 'revoked'
   createdAt: string
 }
@@ -592,8 +585,7 @@ const ERROR_CODES: ErrorCode[] = [
   { httpStatus: 500, code: 'INTERNAL_ERROR', description: 'خطأ داخلي — خطأ غير متوقع في الخادم', solution: 'أعد المحاولة لاحقاً أو تواصل مع الدعم الفني' },
   { httpStatus: 503, code: 'SERVICE_UNAVAILABLE', description: 'الخدمة غير متاحة — صيانة أو حمل زائد', solution: 'انتظر بضع دقائق وأعد المحاولة' },
   { httpStatus: 400, code: 'INVALID_SYMBOL', description: 'رمز غير صالح — زوج التداول غير مدعوم', solution: 'تحقق من قائمة الأزواج المدعومة عبر /exchange/quote' },
-  { httpStatus: 400, code: 'INSUFFICIENT_BALANCE', description: 'رصيد غير كافٍ — لا يوجد رصيد كافٍ لتنفيذ الأمر', solution: 'تحقق من رصيدك المتاح في حساب البورصة' },
-  { httpStatus: 403, code: 'WITHDRAW_DISABLED', description: 'السحب معطل — صلاحية السحب غير مسموح بها لأسباب أمنية', solution: 'صلاحية السحب معطلة دائماً لحماية أموالك' },
+  { httpStatus: 400, code: 'INVALID_API_KEY', description: 'مفتاح API غير صالح — فشل الاتصال بالبورصة', solution: 'تحقق من صحة مفتاح API والسري لديك' },
 ]
 
 /* ═══════════════════════════════════════════════════════
@@ -608,6 +600,7 @@ const WEBHOOK_EVENTS = [
   { event: 'signal.generated', description: 'تم توليد إشارة تداول جديدة', color: T.purple },
   { event: 'price.alert', description: 'تنبيه سعر — تم الوصول للسعر المستهدف', color: T.cyan },
   { event: 'ai.analysis_complete', description: 'اكتمل تحليل AI', color: T.purple },
+  { event: 'account.connected', description: 'تم ربط حساب بورصة جديد', color: T.green },
 ]
 
 /* ═══════════════════════════════════════════════════════
@@ -919,16 +912,16 @@ const roua = new RouaClient({
 const quote = await roua.markets.getQuote('BTC/USDT');
 console.log(\`BTC Price: \${quote.price}\`);
 
-// Place a new order
-const order = await roua.trading.createOrder({
-  symbol: 'BTC/USDT',
-  side: 'buy',
-  type: 'limit',
-  quantity: 0.01,
-  price: 97000.00,
-  stopLoss: 95000.00,
-  takeProfit: 102000.00,
+// Link a new exchange account
+const account = await roua.accounts.linkAccount({
+  exchange: 'binance',
+  apiKey: 'your_api_key',
+  apiSecret: 'your_api_secret',
+  permissions: ['read', 'trade'],
 });
+
+// Get positions from linked accounts
+const positions = await roua.accounts.getPositions();
 
 // Get AI analysis
 const analysis = await roua.ai.analyze({
@@ -953,16 +946,16 @@ client = RouaClient(
 quote = client.markets.get_quote("BTC/USDT")
 print(f"BTC Price: {quote.price}")
 
-# Place a new order
-order = client.trading.create_order(
-    symbol="BTC/USDT",
-    side="buy",
-    type="limit",
-    quantity=0.01,
-    price=97000.00,
-    stop_loss=95000.00,
-    take_profit=102000.00,
+# Link a new exchange account
+account = client.accounts.link_account(
+    exchange="binance",
+    api_key="your_api_key",
+    api_secret="your_api_secret",
+    permissions=["read", "trade"],
 )
+
+# Get positions from linked accounts
+positions = client.accounts.get_positions()
 
 # Get AI analysis
 analysis = client.ai.analyze(

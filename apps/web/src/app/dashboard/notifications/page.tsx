@@ -195,8 +195,8 @@ function generateMockNotifications(): NotificationItem[] {
     {
       id: 'n3',
       category: 'trade',
-      title: 'تم تنفيذ أمر الشراء',
-      description: 'تم شراء 0.15 BTC بسعر $67,234.50. أمر محدد تم تنفيذه بنجاح.',
+      title: 'تم رصد أمر شراء على حسابك المربوط',
+      description: 'رصد شراء 0.15 BTC بسعر $67,234.50 على حساب Binance المربوط.',
       timestamp: new Date(now.getTime() - 42 * 60 * 1000),
       read: false,
       actionLabel: 'عرض الصفقة',
@@ -243,7 +243,7 @@ function generateMockNotifications(): NotificationItem[] {
     {
       id: 'n8',
       category: 'trade',
-      title: 'تم إغلاق صفقة بربح',
+      title: 'تم رصد إغلاق صفقة بربح على حسابك المربوط',
       description: 'تم إغلاق صفقة شراء AAPL بربح +3.4%. العائد: +$127.50. مدة الصفقة: 2 يوم.',
       timestamp: new Date(now.getTime() - 8 * 60 * 60 * 1000),
       read: true,
@@ -302,7 +302,7 @@ function generateMockNotifications(): NotificationItem[] {
     {
       id: 'n14',
       category: 'trade',
-      title: 'تم تنفيذ أمر البيع',
+      title: 'تم رصد أمر بيع على حسابك المربوط',
       description: 'تم بيع 5 أسهم TSLA بسعر $238.90. أمر السوق تم تنفيذه بنجاح.',
       timestamp: new Date(now.getTime() - 48 * 60 * 60 * 1000),
       read: true,
@@ -741,7 +741,7 @@ export default function NotificationsPage() {
   // Preferences state
   const [preferences, setPreferences] = useState<PreferenceToggle[]>([
     { key: 'signals', label: 'تنبيهات الإشارات', description: 'إشعارات إشارات الشراء والبيع', icon: <Zap size={13} />, enabled: true },
-    { key: 'trades', label: 'تنبيهات التداول', description: 'تأكيدات تنفيذ الأوامر وإغلاق الصفقات', icon: <BarChart3 size={13} />, enabled: true },
+    { key: 'trades', label: 'تنبيهات التداول', description: 'رصد الأوامر وإغلاق الصفقات على الحسابات المربوطة', icon: <BarChart3 size={13} />, enabled: true },
     { key: 'security', label: 'تنبيهات الأمان', description: 'تسجيل الدخول وتغييرات الحساب', icon: <ShieldCheck size={13} />, enabled: true },
     { key: 'system', label: 'إشعارات النظام', description: 'الصيانة والتحديثات والأخبار', icon: <Settings2 size={13} />, enabled: true },
     { key: 'prices', label: 'تنبيهات الأسعار', description: 'وصول الأسعار للأهداف المحددة', icon: <Target size={13} />, enabled: true },

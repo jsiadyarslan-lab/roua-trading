@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import {
-  Shield, User, CreditCard, Camera, CheckCircle2, ChevronLeft,
-  ChevronRight, Upload, FileText, AlertCircle, Lock, Eye,
+  Shield, Link2, Key, Wifi, CheckCircle2, ChevronLeft,
+  ChevronRight, AlertCircle, Lock, Eye, EyeOff,
   ArrowRight, Clock, BadgeCheck, TrendingUp,
-  Wallet, Sparkles, ShieldCheck, Info, X, Image as ImageIcon,
-  ScanFace, IdCard, FileCheck, ShieldAlert, Fingerprint,
-  Globe, MapPin, Calendar, Flag, Building, Home, Loader2
+  Wallet, Sparkles, ShieldCheck, Info, ShieldAlert,
+  Loader2, Zap, BarChart3, Activity, Cpu, Search,
+  KeyRound, Plug, Server, Globe, ToggleLeft, ToggleRight
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 
@@ -38,67 +38,59 @@ const T = {
    Types
 ═══════════════════════════════════════════════════════ */
 type StepId = 1 | 2 | 3 | 4
-type KycStatus = 'not_started' | 'in_progress' | 'under_review' | 'verified'
+type LinkingStatus = 'not_started' | 'in_progress' | 'testing' | 'connected'
 
-interface PersonalInfo {
-  firstName: string
-  lastName: string
-  dateOfBirth: string
-  nationality: string
-  country: string
-  city: string
-  address: string
-  postalCode: string
+interface ExchangeInfo {
+  exchangeId: string
+  exchangeName: string
 }
 
-interface DocumentInfo {
-  docType: 'national_id' | 'passport' | 'drivers_license' | ''
-  docNumber: string
-  frontFile: File | null
-  backFile: File | null
-  frontPreview: string | null
-  backPreview: string | null
+interface ApiKeyInfo {
+  apiKey: string
+  apiSecret: string
+  label: string
 }
 
-interface SelfieInfo {
-  selfieFile: File | null
-  selfiePreview: string | null
-  livenessDetected: boolean
+interface PermissionInfo {
+  readBalance: boolean
+  readTrades: boolean
+  allowTrading: boolean
+  allowWithdrawal: boolean
 }
+
+/* ═══════════════════════════════════════════════════════
+   Exchange Configuration
+═══════════════════════════════════════════════════════ */
+const EXCHANGES = [
+  { id: 'binance', name: 'Binance', initial: 'B', color: '#F0B90B', bgColor: '#F0B90B15', desc: 'أكبر بورصة عملات رقمية' },
+  { id: 'alpaca', name: 'Alpaca', initial: 'A', color: '#00D4FF', bgColor: '#00D4FF15', desc: 'تداول الأسهم والعملات' },
+  { id: 'bybit', name: 'Bybit', initial: 'By', color: '#F7A600', bgColor: '#F7A60015', desc: 'مشتقات وعقود آجلة' },
+  { id: 'okx', name: 'OKX', initial: 'OK', color: '#FFFFFF', bgColor: '#FFFFFF10', desc: 'بورصة عالمية متعددة' },
+  { id: 'kucoin', name: 'KuCoin', initial: 'K', color: '#23AF91', bgColor: '#23AF9115', desc: 'بورصة متنوعة العملات' },
+  { id: 'bitget', name: 'Bitget', initial: 'Bg', color: '#00F0FF', bgColor: '#00F0FF15', desc: 'نسخ التداول والمشتقات' },
+  { id: 'gate', name: 'Gate.io', initial: 'G', color: '#2354E6', bgColor: '#2354E615', desc: 'عملات ناشئة ومتنوعة' },
+  { id: 'mexc', name: 'MEXC', initial: 'M', color: '#00D4AA', bgColor: '#00D4AA15', desc: 'عملات ناشئة بسرعة' },
+]
 
 /* ═══════════════════════════════════════════════════════
    Step Configuration
 ═══════════════════════════════════════════════════════ */
 const STEPS = [
-  { id: 1 as StepId, label: 'المعلومات الشخصية', shortLabel: 'شخصي', icon: User, color: T.cyan },
-  { id: 2 as StepId, label: 'وثيقة الهوية', shortLabel: 'الهوية', icon: CreditCard, color: T.amber },
-  { id: 3 as StepId, label: 'التحقق الذاتي', shortLabel: 'سيلفي', icon: Camera, color: T.purple },
-  { id: 4 as StepId, label: 'المراجعة والتأكيد', shortLabel: 'تأكيد', icon: CheckCircle2, color: T.green },
-]
-
-const NATIONALITIES = [
-  'سعودية', 'إماراتية', 'كويتية', 'بحرينية', 'عمانية', 'قطرية',
-  'مصرية', 'أردنية', 'لبنانية', 'عراقية', 'سورية', 'فلسطينية',
-  'يمنية', 'سودانية', 'ليبية', 'تونسية', 'جزائرية', 'مغربية',
-  'أخرى'
-]
-
-const COUNTRIES = [
-  'المملكة العربية السعودية', 'الإمارات العربية المتحدة', 'الكويت', 'البحرين', 'عمان', 'قطر',
-  'مصر', 'الأردن', 'لبنان', 'العراق', 'سوريا', 'فلسطين',
-  'اليمن', 'السودان', 'ليبيا', 'تونس', 'الجزائر', 'المغرب',
-  'أخرى'
+  { id: 1 as StepId, label: 'اختيار البورصة', shortLabel: 'البورصة', icon: Globe, color: T.cyan },
+  { id: 2 as StepId, label: 'مفاتيح API', shortLabel: 'المفاتيح', icon: Key, color: T.amber },
+  { id: 3 as StepId, label: 'اختبار الاتصال', shortLabel: 'الاتصال', icon: Wifi, color: T.purple },
+  { id: 4 as StepId, label: 'تأكيد الربط', shortLabel: 'تأكيد', icon: CheckCircle2, color: T.green },
 ]
 
 /* ═══════════════════════════════════════════════════════
    Status Badge Component
 ═══════════════════════════════════════════════════════ */
-function StatusBadge({ status }: { status: KycStatus }) {
+function StatusBadge({ status }: { status: LinkingStatus }) {
   const config = {
     not_started: { label: 'لم يبدأ', color: T.text4, bg: T.surface, icon: Clock },
     in_progress: { label: 'قيد التنفيذ', color: T.amber, bg: `${T.amber}12`, icon: Loader2 },
-    under_review: { label: 'قيد المراجعة', color: T.cyan, bg: `${T.cyan}12`, icon: Eye },
-    verified: { label: 'تم التحقق', color: T.green, bg: `${T.green}12`, icon: BadgeCheck },
+    testing: { label: 'جاري الاختبار', color: T.cyan, bg: `${T.cyan}12`, icon: Wifi },
+    connected: { label: 'متصل', color: T.green, bg: `${T.green}12`, icon: BadgeCheck },
   }
   const c = config[status]
   const Icon = c.icon
@@ -108,7 +100,7 @@ function StatusBadge({ status }: { status: KycStatus }) {
       padding: '6px 14px', borderRadius: 10,
       background: c.bg, border: `1px solid ${c.color}20`,
     }}>
-      <Icon size={14} color={c.color} style={status === 'in_progress' ? { animation: 'spin 1s linear infinite' } : {}} />
+      <Icon size={14} color={c.color} style={status === 'in_progress' || status === 'testing' ? { animation: 'spin 1s linear infinite' } : {}} />
       <span style={{ fontSize: 12, fontWeight: 700, color: c.color, fontFamily: "'Cairo', sans-serif" }}>{c.label}</span>
     </div>
   )
@@ -117,9 +109,9 @@ function StatusBadge({ status }: { status: KycStatus }) {
 /* ═══════════════════════════════════════════════════════
    Input Field Component
 ═══════════════════════════════════════════════════════ */
-function FormInput({ label, icon, value, onChange, type = 'text', placeholder, error, required, maxLength }: {
+function FormInput({ label, icon, value, onChange, type = 'text', placeholder, error, required, maxLength, dir }: {
   label: string; icon?: React.ReactNode; value: string; onChange: (v: string) => void
-  type?: string; placeholder?: string; error?: boolean; required?: boolean; maxLength?: number
+  type?: string; placeholder?: string; error?: boolean; required?: boolean; maxLength?: number; dir?: string
 }) {
   const [focused, setFocused] = useState(false)
   return (
@@ -144,10 +136,11 @@ function FormInput({ label, icon, value, onChange, type = 'text', placeholder, e
         style={{
           width: '100%', padding: '10px 14px', borderRadius: 10,
           background: T.surface, border: `1px solid ${error ? T.red : focused ? T.cyan + '40' : T.border}`,
-          color: T.text, fontSize: 13, fontFamily: "'Cairo', sans-serif",
-          outline: 'none', direction: 'rtl', transition: 'all 0.2s',
+          color: T.text, fontSize: 13, fontFamily: dir === 'ltr' ? "'JetBrains Mono', monospace" : "'Cairo', sans-serif",
+          outline: 'none', direction: dir || 'rtl', transition: 'all 0.2s',
           boxShadow: focused ? `0 0 0 3px ${T.cyan}15` : 'none',
           boxSizing: 'border-box',
+          letterSpacing: dir === 'ltr' ? '0.5px' : 'normal',
         }}
       />
       {error && (
@@ -160,13 +153,15 @@ function FormInput({ label, icon, value, onChange, type = 'text', placeholder, e
 }
 
 /* ═══════════════════════════════════════════════════════
-   Select Field Component
+   API Key Input with Toggle Visibility
 ═══════════════════════════════════════════════════════ */
-function FormSelect({ label, icon, value, onChange, options, error, required }: {
+function ApiKeyInput({ label, icon, value, onChange, placeholder, error, required }: {
   label: string; icon?: React.ReactNode; value: string; onChange: (v: string) => void
-  options: string[]; error?: boolean; required?: boolean
+  placeholder?: string; error?: boolean; required?: boolean
 }) {
   const [focused, setFocused] = useState(false)
+  const [visible, setVisible] = useState(false)
+
   return (
     <div style={{ marginBottom: 14 }}>
       <label style={{
@@ -178,26 +173,36 @@ function FormSelect({ label, icon, value, onChange, options, error, required }: 
         {label}
         {required && <span style={{ color: T.red, fontSize: 10 }}>*</span>}
       </label>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        style={{
-          width: '100%', padding: '10px 14px', borderRadius: 10,
-          background: T.surface, border: `1px solid ${error ? T.red : focused ? T.cyan + '40' : T.border}`,
-          color: value ? T.text : T.text3, fontSize: 13, fontFamily: "'Cairo', sans-serif",
-          outline: 'none', direction: 'rtl', transition: 'all 0.2s',
-          boxShadow: focused ? `0 0 0 3px ${T.cyan}15` : 'none',
-          appearance: 'none', cursor: 'pointer',
-          boxSizing: 'border-box',
-        }}
-      >
-        <option value="" disabled>اختر...</option>
-        {options.map(opt => (
-          <option key={opt} value={opt} style={{ background: T.surface, color: T.text }}>{opt}</option>
-        ))}
-      </select>
+      <div style={{ position: 'relative' }}>
+        <input
+          type={visible ? 'text' : 'password'}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          placeholder={placeholder}
+          style={{
+            width: '100%', padding: '10px 42px 10px 14px', borderRadius: 10,
+            background: T.surface, border: `1px solid ${error ? T.red : focused ? T.cyan + '40' : T.border}`,
+            color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+            outline: 'none', direction: 'ltr', transition: 'all 0.2s',
+            boxShadow: focused ? `0 0 0 3px ${T.cyan}15` : 'none',
+            boxSizing: 'border-box',
+            letterSpacing: '0.5px',
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => setVisible(!visible)}
+          style={{
+            position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: T.text3, padding: 2, display: 'flex', alignItems: 'center',
+          }}
+        >
+          {visible ? <EyeOff size={14} /> : <Eye size={14} />}
+        </button>
+      </div>
       {error && (
         <div style={{ fontSize: 10, color: T.red, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
           <AlertCircle size={10} /> هذا الحقل مطلوب
@@ -208,154 +213,47 @@ function FormSelect({ label, icon, value, onChange, options, error, required }: 
 }
 
 /* ═══════════════════════════════════════════════════════
-   File Upload Zone Component
+   Permission Toggle Component
 ═══════════════════════════════════════════════════════ */
-function FileUploadZone({ label, sublabel, file, preview, onFileChange, onRemove, accept = 'image/*' }: {
-  label: string; sublabel: string; file: File | null; preview: string | null
-  onFileChange: (file: File) => void; onRemove: () => void; accept?: string
+function PermissionToggle({ label, description, enabled, onChange, color, icon, disabled }: {
+  label: string; description: string; enabled: boolean; onChange: (v: boolean) => void
+  color: string; icon: React.ReactNode; disabled?: boolean
 }) {
-  const [dragOver, setDragOver] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setDragOver(false)
-    const droppedFile = e.dataTransfer.files[0]
-    if (droppedFile) onFileChange(droppedFile)
-  }, [onFileChange])
-
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0]
-    if (selected) onFileChange(selected)
-  }, [onFileChange])
-
-  if (preview) {
-    return (
-      <div style={{
-        borderRadius: 12, overflow: 'hidden',
-        border: `1px solid ${T.green}30`,
-        background: `${T.green}05`,
-      }}>
-        <div style={{ position: 'relative' }}>
-          <img src={preview} alt={label} style={{
-            width: '100%', height: 160, objectFit: 'cover',
-            filter: 'brightness(0.9)',
-          }} />
-          <button
-            onClick={onRemove}
-            style={{
-              position: 'absolute', top: 8, left: 8,
-              width: 28, height: 28, borderRadius: 8,
-              background: 'rgba(0,0,0,0.6)', border: 'none',
-              color: T.text, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              backdropFilter: 'blur(8px)',
-            }}
-          >
-            <X size={14} />
-          </button>
-          <div style={{
-            position: 'absolute', bottom: 8, right: 8,
-            display: 'flex', alignItems: 'center', gap: 4,
-            padding: '4px 10px', borderRadius: 8,
-            background: `${T.green}20`, backdropFilter: 'blur(8px)',
-          }}>
-            <CheckCircle2 size={12} color={T.green} />
-            <span style={{ fontSize: 10, fontWeight: 600, color: T.green, fontFamily: "'Cairo', sans-serif" }}>
-              تم الرفع
-            </span>
-          </div>
-        </div>
-        <div style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <ImageIcon size={12} color={T.text3} />
-          <span style={{ fontSize: 11, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
-            {file?.name}
-          </span>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div
-      onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={handleDrop}
-      onClick={() => inputRef.current?.click()}
-      style={{
-        borderRadius: 12, padding: '28px 20px',
-        border: `2px dashed ${dragOver ? T.cyan + '60' : T.border}`,
-        background: dragOver ? `${T.cyan}06` : T.surface,
-        cursor: 'pointer', textAlign: 'center', transition: 'all 0.3s',
-        boxShadow: dragOver ? `0 0 20px ${T.cyan}10` : 'none',
-      }}
-    >
-      <input ref={inputRef} type="file" accept={accept} onChange={handleChange} style={{ display: 'none' }} />
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: '12px 14px', borderRadius: 10,
+      background: enabled ? `${color}06` : T.surface,
+      border: `1px solid ${enabled ? color + '25' : T.border}`,
+      opacity: disabled ? 0.5 : 1,
+      transition: 'all 0.2s',
+    }}>
       <div style={{
-        width: 48, height: 48, borderRadius: 12,
-        background: `${T.cyan}10`, margin: '0 auto 12px',
+        width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+        background: enabled ? `${color}15` : `${T.text4}10`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'all 0.2s',
       }}>
-        <Upload size={20} color={T.cyan} />
+        {icon}
       </div>
-      <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif", marginBottom: 4 }}>
-        {label}
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
+          {label}
+        </div>
+        <div style={{ fontSize: 10, color: T.text3, fontFamily: "'Cairo', sans-serif", lineHeight: 1.5 }}>
+          {description}
+        </div>
       </div>
-      <div style={{ fontSize: 11, color: T.text3, fontFamily: "'Cairo', sans-serif", lineHeight: 1.6 }}>
-        {sublabel}
-      </div>
-      <div style={{
-        marginTop: 10, fontSize: 9, color: T.text4,
-        fontFamily: "'JetBrains Mono', monospace",
-      }}>
-        PNG, JPG, PDF — حد أقصى 10MB
-      </div>
-    </div>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════
-   Document Type Selector
-═══════════════════════════════════════════════════════ */
-function DocTypeSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const types = [
-    { id: 'national_id', label: 'الهوية الوطنية', icon: IdCard, color: T.cyan },
-    { id: 'passport', label: 'جواز السفر', icon: Globe, color: T.amber },
-    { id: 'drivers_license', label: 'رخصة القيادة', icon: FileText, color: T.purple },
-  ]
-  return (
-    <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-      {types.map(t => {
-        const Icon = t.icon
-        const isActive = value === t.id
-        return (
-          <button
-            key={t.id}
-            onClick={() => onChange(t.id)}
-            style={{
-              flex: 1, padding: '14px 10px', borderRadius: 12,
-              border: `1px solid ${isActive ? t.color + '40' : T.border}`,
-              background: isActive ? `${t.color}10` : T.surface,
-              cursor: 'pointer', textAlign: 'center', transition: 'all 0.3s',
-              boxShadow: isActive ? `0 0 16px ${t.color}10` : 'none',
-            }}
-          >
-            <div style={{
-              display: 'flex', justifyContent: 'center', marginBottom: 6,
-              color: isActive ? t.color : T.text3,
-            }}>
-              <Icon size={20} />
-            </div>
-            <div style={{
-              fontSize: 11, fontWeight: isActive ? 800 : 600,
-              color: isActive ? t.color : T.text2,
-              fontFamily: "'Cairo', sans-serif",
-            }}>
-              {t.label}
-            </div>
-          </button>
-        )
-      })}
+      <button
+        onClick={() => !disabled && onChange(!enabled)}
+        style={{
+          background: 'none', border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
+          padding: 0, display: 'flex', alignItems: 'center', color: enabled ? color : T.text4,
+          transition: 'all 0.2s',
+        }}
+      >
+        {enabled ? <ToggleRight size={28} /> : <ToggleLeft size={28} />}
+      </button>
     </div>
   )
 }
@@ -392,27 +290,28 @@ function BenefitCard({ icon, title, description, color }: {
 }
 
 /* ═══════════════════════════════════════════════════════
-   Main KYC Page Component
+   Main Account Linking Page Component
 ═══════════════════════════════════════════════════════ */
-export default function KYCPage() {
+export default function AccountLinkingPage() {
   const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState<StepId>(1)
-  const [kycStatus, setKycStatus] = useState<KycStatus>('not_started')
+  const [linkingStatus, setLinkingStatus] = useState<LinkingStatus>('not_started')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
+  const [connectionTestResult, setConnectionTestResult] = useState<'none' | 'success' | 'error'>('none')
 
   // Form data
-  const [personalInfo, setPersonalInfo] = useState<PersonalInfo>({
-    firstName: '', lastName: '', dateOfBirth: '',
-    nationality: '', country: '', city: '',
-    address: '', postalCode: '',
+  const [exchangeInfo, setExchangeInfo] = useState<ExchangeInfo>({
+    exchangeId: '', exchangeName: '',
   })
-  const [docInfo, setDocInfo] = useState<DocumentInfo>({
-    docType: '', docNumber: '',
-    frontFile: null, backFile: null,
-    frontPreview: null, backPreview: null,
+  const [apiKeyInfo, setApiKeyInfo] = useState<ApiKeyInfo>({
+    apiKey: '', apiSecret: '', label: '',
   })
-  const [selfieInfo, setSelfieInfo] = useState<SelfieInfo>({
-    selfieFile: null, selfiePreview: null, livenessDetected: false,
+  const [permissions, setPermissions] = useState<PermissionInfo>({
+    readBalance: true,
+    readTrades: true,
+    allowTrading: false,
+    allowWithdrawal: false,
   })
 
   // Validation
@@ -422,37 +321,23 @@ export default function KYCPage() {
   const [completedSteps, setCompletedSteps] = useState<Set<StepId>>(new Set())
 
   /* ─── Helpers ─── */
-  const updatePersonal = (field: keyof PersonalInfo, value: string) => {
-    setPersonalInfo(prev => ({ ...prev, [field]: value }))
-    if (errors[field]) {
-      setErrors(prev => { const n = { ...prev }; delete n[field]; return n })
-    }
-  }
+  const getSelectedExchange = () => EXCHANGES.find(e => e.id === exchangeInfo.exchangeId)
 
   const validateStep = (step: StepId): boolean => {
     const newErrors: Record<string, boolean> = {}
     if (step === 1) {
-      if (!personalInfo.firstName) newErrors.firstName = true
-      if (!personalInfo.lastName) newErrors.lastName = true
-      if (!personalInfo.dateOfBirth) newErrors.dateOfBirth = true
-      if (!personalInfo.nationality) newErrors.nationality = true
-      if (!personalInfo.country) newErrors.country = true
-      if (!personalInfo.city) newErrors.city = true
-      if (!personalInfo.address) newErrors.address = true
+      if (!exchangeInfo.exchangeId) newErrors.exchangeId = true
     } else if (step === 2) {
-      if (!docInfo.docType) newErrors.docType = true
-      if (!docInfo.docNumber) newErrors.docNumber = true
-      if (!docInfo.frontFile) newErrors.frontFile = true
-      if (!docInfo.backFile) newErrors.backFile = true
+      if (!apiKeyInfo.apiKey) newErrors.apiKey = true
+      if (!apiKeyInfo.apiSecret) newErrors.apiSecret = true
     } else if (step === 3) {
-      if (!selfieInfo.selfieFile) newErrors.selfieFile = true
+      if (connectionTestResult !== 'success') newErrors.connectionTest = true
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const goToStep = (step: StepId) => {
-    // Allow navigating to completed steps or the next step
     if (completedSteps.has(step) || step <= currentStep || step === (currentStep + 1) as StepId) {
       setCurrentStep(step)
     }
@@ -461,12 +346,16 @@ export default function KYCPage() {
   const handleNext = () => {
     if (validateStep(currentStep)) {
       setCompletedSteps(prev => new Set([...prev, currentStep]))
-      setKycStatus('in_progress')
+      setLinkingStatus('in_progress')
       if (currentStep < 4) {
         setCurrentStep((currentStep + 1) as StepId)
       }
     } else {
-      toast({ title: 'حقول مطلوبة', description: 'يرجى ملء جميع الحقول المطلوبة قبل المتابعة' })
+      if (currentStep === 3 && connectionTestResult !== 'success') {
+        toast({ title: 'اختبار الاتصال مطلوب', description: 'يرجى إجراء اختبار الاتصال بنجاح قبل المتابعة' })
+      } else {
+        toast({ title: 'حقول مطلوبة', description: 'يرجى ملء جميع الحقول المطلوبة قبل المتابعة' })
+      }
     }
   }
 
@@ -476,56 +365,41 @@ export default function KYCPage() {
     }
   }
 
-  const handleFileUpload = (
-    type: 'front' | 'back' | 'selfie',
-    file: File
-  ) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const result = e.target?.result as string
-      if (type === 'front') {
-        setDocInfo(prev => ({ ...prev, frontFile: file, frontPreview: result }))
-      } else if (type === 'back') {
-        setDocInfo(prev => ({ ...prev, backFile: file, backPreview: result }))
-      } else {
-        setSelfieInfo(prev => ({ ...prev, selfieFile: file, selfiePreview: result, livenessDetected: true }))
-      }
-    }
-    reader.readAsDataURL(file)
-    if (errors[`docFile_${type}`]) {
-      setErrors(prev => { const n = { ...prev }; delete n[`docFile_${type}`]; return n })
-    }
+  const handleConnectionTest = async () => {
+    setIsTesting(true)
+    setConnectionTestResult('none')
+    setLinkingStatus('testing')
+    // Simulate connection test
+    await new Promise(resolve => setTimeout(resolve, 2500))
+    setIsTesting(false)
+    setConnectionTestResult('success')
+    setLinkingStatus('in_progress')
+    toast({
+      title: 'تم الاتصال بنجاح',
+      description: `تم التحقق من اتصال ${getSelectedExchange()?.name || 'البورصة'} بنجاح`,
+    })
   }
 
   const handleSubmit = async () => {
     setIsSubmitting(true)
-    // Simulate API submission
     await new Promise(resolve => setTimeout(resolve, 2500))
-    setKycStatus('under_review')
+    setLinkingStatus('connected')
     setIsSubmitting(false)
     toast({
-      title: 'تم إرسال الطلب بنجاح',
-      description: 'سيتم مراجعة بياناتك والرد خلال 24-48 ساعة عمل',
+      title: 'تم ربط الحساب بنجاح',
+      description: `تم ربط حساب ${getSelectedExchange()?.name || 'البورصة'} بنجاح. يمكنك الآن متابعة محفظتك واستقبال توصيات AI.`,
     })
   }
 
-  /* ─── Format date display ─── */
-  const formatDate = (d: string) => {
-    if (!d) return '—'
-    try {
-      return new Date(d).toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' })
-    } catch {
-      return d
-    }
+  const maskApiKey = (key: string) => {
+    if (!key) return '—'
+    if (key.length <= 8) return '••••••••'
+    return key.slice(0, 4) + '••••••••' + key.slice(-4)
   }
 
-  const docTypeLabel = (type: string) => {
-    const map: Record<string, string> = {
-      national_id: 'الهوية الوطنية',
-      passport: 'جواز السفر',
-      drivers_license: 'رخصة القيادة',
-    }
-    return map[type] || type
+  const maskApiSecret = (secret: string) => {
+    if (!secret) return '—'
+    return '••••••••••••••••'
   }
 
   /* ═══════════════════════════════════════════════════════
@@ -540,15 +414,18 @@ export default function KYCPage() {
         @keyframes spin { to { transform: rotate(360deg) } }
         @keyframes pulseGlow { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes successPulse { 0% { transform: scale(0.8); opacity: 0; } 50% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
         .kyc-step-content { animation: fadeIn 0.3s ease-out; }
+        .success-pulse { animation: successPulse 0.5s ease-out; }
         @media (max-width: 767px) {
           .kyc-stepper-desktop { display: none !important; }
           .kyc-stepper-mobile { display: flex !important; }
           .kyc-content { padding: 16px !important; }
           .kyc-benefits-grid { grid-template-columns: 1fr !important; }
-          .kyc-doc-upload-grid { grid-template-columns: 1fr !important; }
-          .kyc-review-grid { grid-template-columns: 1fr !important; }
           .kyc-form-grid { grid-template-columns: 1fr !important; }
+          .kyc-review-grid { grid-template-columns: 1fr !important; }
+          .exchange-grid { grid-template-columns: 1fr 1fr !important; }
+          .permission-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
 
@@ -566,17 +443,17 @@ export default function KYCPage() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: `0 0 20px ${T.cyan}30`,
             }}>
-              <Shield size={22} color="#fff" />
+              <Link2 size={22} color="#fff" />
             </div>
             <div style={{ flex: 1 }}>
               <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>
-                التحقق من الهوية (KYC)
+                ربط الحسابات
               </h1>
               <p style={{ margin: 0, fontSize: 12, color: T.text3, marginTop: 2 }}>
-                أكمل عملية التحقق للوصول إلى جميع ميزات منصة رؤى
+                اربط حسابات البورصة الخاصة بك لمتابعة المحفظة وتلقي توصيات AI
               </p>
             </div>
-            <StatusBadge status={kycStatus} />
+            <StatusBadge status={linkingStatus} />
           </div>
 
           {/* ═══ Stepper — Desktop ═══ */}
@@ -688,7 +565,7 @@ export default function KYCPage() {
       <div className="kyc-content" style={{ padding: '24px', maxWidth: 900, margin: '0 auto' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-          {/* ─── Step 1: Personal Information ─── */}
+          {/* ─── Step 1: Exchange Selection ─── */}
           {currentStep === 1 && (
             <div className="kyc-step-content">
               <div style={{
@@ -705,19 +582,18 @@ export default function KYCPage() {
                     background: `${T.cyan}14`, display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <User size={18} color={T.cyan} />
+                    <Globe size={18} color={T.cyan} />
                   </div>
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>
-                      المعلومات الشخصية
+                      اختيار البورصة
                     </div>
                     <div style={{ fontSize: 11, color: T.text3, marginTop: 2 }}>
-                      أدخل بياناتك الشخصية كما تظهر في وثيقة الهوية
+                      اختر البورصة التي تريد ربط حسابك بها
                     </div>
                   </div>
                 </div>
 
-                {/* Form fields */}
                 <div style={{ padding: '16px 20px 20px' }}>
                   {/* Info banner */}
                   <div style={{
@@ -728,102 +604,103 @@ export default function KYCPage() {
                   }}>
                     <Info size={16} color={T.cyan} style={{ flexShrink: 0, marginTop: 1 }} />
                     <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.7 }}>
-                      يجب أن تتطابق المعلومات مع وثيقة الهوية الرسمية. لن يمكن تعديلها بعد الإرسال.
+                      ربط حسابك لا يمنحنا أي صلاحية سحب الأموال. نستخدم مفاتيح API للقراءة فقط بشكل افتراضي.
                     </div>
                   </div>
 
-                  {/* Name row */}
-                  <div className="kyc-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                    <FormInput
-                      label="الاسم الأول"
-                      icon={<User size={12} color={T.cyan} />}
-                      value={personalInfo.firstName}
-                      onChange={v => updatePersonal('firstName', v)}
-                      placeholder="أدخل الاسم الأول"
-                      error={errors.firstName}
-                      required
-                    />
-                    <FormInput
-                      label="اسم العائلة"
-                      icon={<User size={12} color={T.cyan} />}
-                      value={personalInfo.lastName}
-                      onChange={v => updatePersonal('lastName', v)}
-                      placeholder="أدخل اسم العائلة"
-                      error={errors.lastName}
-                      required
-                    />
+                  {/* Search hint */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    marginBottom: 14,
+                  }}>
+                    <Search size={14} color={T.text3} />
+                    <span style={{ fontSize: 11, color: T.text3 }}>
+                      اختر البورصة التي تملك حساباً عليها
+                    </span>
                   </div>
 
-                  {/* DOB & Nationality */}
-                  <div className="kyc-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                    <FormInput
-                      label="تاريخ الميلاد"
-                      icon={<Calendar size={12} color={T.amber} />}
-                      value={personalInfo.dateOfBirth}
-                      onChange={v => updatePersonal('dateOfBirth', v)}
-                      type="date"
-                      error={errors.dateOfBirth}
-                      required
-                    />
-                    <FormSelect
-                      label="الجنسية"
-                      icon={<Flag size={12} color={T.amber} />}
-                      value={personalInfo.nationality}
-                      onChange={v => updatePersonal('nationality', v)}
-                      options={NATIONALITIES}
-                      error={errors.nationality}
-                      required
-                    />
+                  {/* Exchange grid */}
+                  <div className="exchange-grid" style={{
+                    display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr',
+                    gap: 10,
+                  }}>
+                    {EXCHANGES.map(exchange => {
+                      const isSelected = exchangeInfo.exchangeId === exchange.id
+                      return (
+                        <button
+                          key={exchange.id}
+                          onClick={() => {
+                            setExchangeInfo({ exchangeId: exchange.id, exchangeName: exchange.name })
+                            if (errors.exchangeId) {
+                              setErrors(prev => { const n = { ...prev }; delete n.exchangeId; return n })
+                            }
+                          }}
+                          style={{
+                            padding: '16px 12px', borderRadius: 12,
+                            border: `1px solid ${isSelected ? exchange.color + '40' : T.border}`,
+                            background: isSelected ? exchange.bgColor : T.surface,
+                            cursor: 'pointer', textAlign: 'center', transition: 'all 0.3s',
+                            boxShadow: isSelected ? `0 0 16px ${exchange.color}15` : 'none',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                          }}
+                        >
+                          {/* Exchange logo circle */}
+                          <div style={{
+                            width: 40, height: 40, borderRadius: 12,
+                            background: isSelected ? `${exchange.color}20` : `${exchange.color}10`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 13, fontWeight: 900,
+                            color: exchange.color,
+                            fontFamily: "'JetBrains Mono', monospace",
+                            transition: 'all 0.3s',
+                            border: `1px solid ${isSelected ? exchange.color + '30' : 'transparent'}`,
+                          }}>
+                            {exchange.initial}
+                          </div>
+                          <div>
+                            <div style={{
+                              fontSize: 12, fontWeight: isSelected ? 800 : 600,
+                              color: isSelected ? exchange.color : T.text,
+                              fontFamily: "'Cairo', sans-serif",
+                              marginBottom: 2,
+                            }}>
+                              {exchange.name}
+                            </div>
+                            <div style={{
+                              fontSize: 9, color: T.text4,
+                              fontFamily: "'Cairo', sans-serif",
+                              lineHeight: 1.4,
+                            }}>
+                              {exchange.desc}
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <div style={{
+                              position: 'relative', marginTop: -2,
+                              display: 'flex', alignItems: 'center', gap: 3,
+                            }}>
+                              <CheckCircle2 size={12} color={exchange.color} />
+                              <span style={{ fontSize: 9, fontWeight: 700, color: exchange.color, fontFamily: "'Cairo', sans-serif" }}>
+                                محدد
+                              </span>
+                            </div>
+                          )}
+                        </button>
+                      )
+                    })}
                   </div>
 
-                  {/* Country & City */}
-                  <div className="kyc-form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                    <FormSelect
-                      label="الدولة"
-                      icon={<Globe size={12} color={T.green} />}
-                      value={personalInfo.country}
-                      onChange={v => updatePersonal('country', v)}
-                      options={COUNTRIES}
-                      error={errors.country}
-                      required
-                    />
-                    <FormInput
-                      label="المدينة"
-                      icon={<Building size={12} color={T.green} />}
-                      value={personalInfo.city}
-                      onChange={v => updatePersonal('city', v)}
-                      placeholder="أدخل اسم المدينة"
-                      error={errors.city}
-                      required
-                    />
-                  </div>
-
-                  {/* Address */}
-                  <FormInput
-                    label="العنوان"
-                    icon={<MapPin size={12} color={T.purple} />}
-                    value={personalInfo.address}
-                    onChange={v => updatePersonal('address', v)}
-                    placeholder="الشارع، الحي، رقم المبنى"
-                    error={errors.address}
-                    required
-                  />
-
-                  {/* Postal Code */}
-                  <FormInput
-                    label="الرمز البريدي (اختياري)"
-                    icon={<Home size={12} color={T.text3} />}
-                    value={personalInfo.postalCode}
-                    onChange={v => updatePersonal('postalCode', v)}
-                    placeholder="مثال: 12345"
-                    maxLength={10}
-                  />
+                  {errors.exchangeId && !exchangeInfo.exchangeId && (
+                    <div style={{ fontSize: 10, color: T.red, display: 'flex', alignItems: 'center', gap: 4, marginTop: 10 }}>
+                      <AlertCircle size={10} /> يرجى اختيار بورصة
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           )}
 
-          {/* ─── Step 2: Identity Document ─── */}
+          {/* ─── Step 2: API Keys ─── */}
           {currentStep === 2 && (
             <div className="kyc-step-content">
               <div style={{
@@ -840,109 +717,147 @@ export default function KYCPage() {
                     background: `${T.amber}14`, display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <CreditCard size={18} color={T.amber} />
+                    <Key size={18} color={T.amber} />
                   </div>
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>
-                      وثيقة الهوية
+                      مفاتيح API
                     </div>
                     <div style={{ fontSize: 11, color: T.text3, marginTop: 2 }}>
-                      ارفع صورة واضحة لوثيقة الهوية الرسمية
+                      أدخل مفاتيح API من حسابك على {getSelectedExchange()?.name || 'البورصة'}
                     </div>
                   </div>
+                  {/* Selected exchange badge */}
+                  {getSelectedExchange() && (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '6px 12px', borderRadius: 8,
+                      background: `${getSelectedExchange()!.color}10`,
+                      border: `1px solid ${getSelectedExchange()!.color}20`,
+                      marginRight: 'auto',
+                    }}>
+                      <div style={{
+                        width: 20, height: 20, borderRadius: 6,
+                        background: `${getSelectedExchange()!.color}20`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 8, fontWeight: 900,
+                        color: getSelectedExchange()!.color,
+                        fontFamily: "'JetBrains Mono', monospace",
+                      }}>
+                        {getSelectedExchange()!.initial}
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: getSelectedExchange()!.color, fontFamily: "'Cairo', sans-serif" }}>
+                        {getSelectedExchange()!.name}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ padding: '16px 20px 20px' }}>
-                  {/* Document type selection */}
-                  <div style={{ marginBottom: 4 }}>
-                    <label style={{
-                      display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8,
-                      fontSize: 12, fontWeight: 600, color: T.text2,
-                      fontFamily: "'Cairo', sans-serif",
-                    }}>
-                      <IdCard size={12} color={T.amber} />
-                      نوع الوثيقة
-                      <span style={{ color: T.red, fontSize: 10 }}>*</span>
-                    </label>
-                    <DocTypeSelector
-                      value={docInfo.docType}
-                      onChange={v => setDocInfo(prev => ({ ...prev, docType: v }))}
-                    />
-                    {errors.docType && !docInfo.docType && (
-                      <div style={{ fontSize: 10, color: T.red, display: 'flex', alignItems: 'center', gap: 4, marginTop: -8, marginBottom: 8 }}>
-                        <AlertCircle size={10} /> اختر نوع الوثيقة
-                      </div>
-                    )}
+                  {/* Security warning */}
+                  <div style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 10,
+                    padding: '12px 14px', borderRadius: 10,
+                    background: `${T.amber}06`, border: `1px solid ${T.amber}12`,
+                    marginBottom: 18,
+                  }}>
+                    <ShieldAlert size={16} color={T.amber} style={{ flexShrink: 0, marginTop: 1 }} />
+                    <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.7 }}>
+                      <strong style={{ color: T.amber }}>تنبيه أمني:</strong> نوصي بشدة باستخدام مفاتيح API بصلاحية القراءة فقط. لا تفعّل صلاحية السحب أبداً. يتم تشفير مفاتيحك بتقنية AES-256-GCM.
+                    </div>
                   </div>
 
-                  {/* Document number */}
+                  {/* How to get API keys guide */}
+                  <div style={{
+                    padding: '14px 16px', borderRadius: 10,
+                    background: T.surface, border: `1px solid ${T.border}`,
+                    marginBottom: 18,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                      <KeyRound size={14} color={T.cyan} />
+                      <span style={{ fontSize: 12, fontWeight: 700, color: T.cyan, fontFamily: "'Cairo', sans-serif" }}>
+                        كيفية الحصول على مفاتيح API
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 10, color: T.text3, lineHeight: 2 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ width: 16, height: 16, borderRadius: 4, background: `${T.cyan}15`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 800, color: T.cyan, flexShrink: 0 }}>1</span>
+                        سجّل الدخول إلى حسابك على {getSelectedExchange()?.name || 'البورصة'}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ width: 16, height: 16, borderRadius: 4, background: `${T.cyan}15`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 800, color: T.cyan, flexShrink: 0 }}>2</span>
+                        انتقل إلى إعدادات API Management
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ width: 16, height: 16, borderRadius: 4, background: `${T.cyan}15`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 800, color: T.cyan, flexShrink: 0 }}>3</span>
+                        أنشئ مفتاح API جديد بصلاحيات القراءة فقط
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ width: 16, height: 16, borderRadius: 4, background: `${T.cyan}15`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 800, color: T.cyan, flexShrink: 0 }}>4</span>
+                        انسخ API Key و API Secret وألصقهما أدناه
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Label for connection */}
                   <FormInput
-                    label="رقم الوثيقة"
-                    icon={<Fingerprint size={12} color={T.amber} />}
-                    value={docInfo.docNumber}
-                    onChange={v => setDocInfo(prev => ({ ...prev, docNumber: v }))}
-                    placeholder="أدخل رقم الوثيقة كما يظهر فيها"
-                    error={errors.docNumber}
+                    label="اسم الاتصال (اختياري)"
+                    icon={<Plug size={12} color={T.green} />}
+                    value={apiKeyInfo.label}
+                    onChange={v => setApiKeyInfo(prev => ({ ...prev, label: v }))}
+                    placeholder="مثال: حساب Binance الرئيسي"
+                    dir="rtl"
+                  />
+
+                  {/* API Key */}
+                  <ApiKeyInput
+                    label="API Key"
+                    icon={<Key size={12} color={T.amber} />}
+                    value={apiKeyInfo.apiKey}
+                    onChange={v => {
+                      setApiKeyInfo(prev => ({ ...prev, apiKey: v }))
+                      if (errors.apiKey) {
+                        setErrors(prev => { const n = { ...prev }; delete n.apiKey; return n })
+                      }
+                    }}
+                    placeholder="أدخل API Key"
+                    error={errors.apiKey}
                     required
                   />
 
-                  {/* File uploads */}
-                  <div style={{ marginTop: 8 }}>
-                    <label style={{
-                      display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10,
-                      fontSize: 12, fontWeight: 600, color: T.text2,
-                      fontFamily: "'Cairo', sans-serif",
-                    }}>
-                      <Upload size={12} color={T.amber} />
-                      صور الوثيقة
-                      <span style={{ color: T.red, fontSize: 10 }}>*</span>
-                    </label>
-                    <div className="kyc-doc-upload-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                      <FileUploadZone
-                        label="الوجه الأمامي"
-                        sublabel="اسحب الصورة هنا أو انقر للاختيار"
-                        file={docInfo.frontFile}
-                        preview={docInfo.frontPreview}
-                        onFileChange={f => handleFileUpload('front', f)}
-                        onRemove={() => setDocInfo(prev => ({ ...prev, frontFile: null, frontPreview: null }))}
-                      />
-                      <FileUploadZone
-                        label="الوجه الخلفي"
-                        sublabel="اسحب الصورة هنا أو انقر للاختيار"
-                        file={docInfo.backFile}
-                        preview={docInfo.backPreview}
-                        onFileChange={f => handleFileUpload('back', f)}
-                        onRemove={() => setDocInfo(prev => ({ ...prev, backFile: null, backPreview: null }))}
-                      />
-                    </div>
-                    {(errors.frontFile && !docInfo.frontFile) && (
-                      <div style={{ fontSize: 10, color: T.red, display: 'flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
-                        <AlertCircle size={10} /> يرجى رفع صورة الوجه الأمامي
-                      </div>
-                    )}
-                    {(errors.backFile && !docInfo.backFile) && (
-                      <div style={{ fontSize: 10, color: T.red, display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                        <AlertCircle size={10} /> يرجى رفع صورة الوجه الخلفي
-                      </div>
-                    )}
-                  </div>
+                  {/* API Secret */}
+                  <ApiKeyInput
+                    label="API Secret"
+                    icon={<Lock size={12} color={T.red} />}
+                    value={apiKeyInfo.apiSecret}
+                    onChange={v => {
+                      setApiKeyInfo(prev => ({ ...prev, apiSecret: v }))
+                      if (errors.apiSecret) {
+                        setErrors(prev => { const n = { ...prev }; delete n.apiSecret; return n })
+                      }
+                    }}
+                    placeholder="أدخل API Secret"
+                    error={errors.apiSecret}
+                    required
+                  />
 
-                  {/* Upload tips */}
+                  {/* Security tips */}
                   <div style={{
-                    marginTop: 16, padding: '12px 14px', borderRadius: 10,
-                    background: `${T.amber}06`, border: `1px solid ${T.amber}12`,
+                    marginTop: 8, padding: '12px 14px', borderRadius: 10,
+                    background: `${T.red}06`, border: `1px solid ${T.red}12`,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                      <FileCheck size={14} color={T.amber} />
-                      <span style={{ fontSize: 11, fontWeight: 700, color: T.amber, fontFamily: "'Cairo', sans-serif" }}>
-                        نصائح للحصول على أفضل نتيجة
+                      <ShieldAlert size={14} color={T.red} />
+                      <span style={{ fontSize: 11, fontWeight: 700, color: T.red, fontFamily: "'Cairo', sans-serif" }}>
+                        نصائح أمنية هامة
                       </span>
                     </div>
-                    <ul style={{ margin: 0, padding: '0 16px', fontSize: 10, color: T.text3, lineHeight: 2 }}>
-                      <li>تأكد من وضوح جميع التفاصيل والنصوص</li>
-                      <li>اجعل الوثيقة تملأ إطار الصورة بالكامل</li>
-                      <li>تجنب الانعكاسات والظلال على الوثيقة</li>
-                      <li>استخدم إضاءة جيدة عند التقاط الصورة</li>
+                    <ul style={{ margin: 0, padding: '0 16px', fontSize: 10, color: T.text3, lineHeight: 2.2 }}>
+                      <li>لا تفعّل صلاحية <span style={{ color: T.red, fontWeight: 700 }}>السحب (Withdraw)</span> أبداً</li>
+                      <li>قيّد المفتاح بعنوان IP الخاص بك إن أمكن</li>
+                      <li>استخدم صلاحية <span style={{ color: T.green, fontWeight: 700 }}>القراءة فقط (Read Only)</span> لل أمان الأقصى</li>
+                      <li>لا تشارك مفاتيح API مع أي شخص</li>
+                      <li>يمكنك حذف المفتاح من البورصة في أي وقت لقطع الاتصال</li>
                     </ul>
                   </div>
                 </div>
@@ -950,7 +865,7 @@ export default function KYCPage() {
             </div>
           )}
 
-          {/* ─── Step 3: Selfie Verification ─── */}
+          {/* ─── Step 3: Connection Test ─── */}
           {currentStep === 3 && (
             <div className="kyc-step-content">
               <div style={{
@@ -967,90 +882,238 @@ export default function KYCPage() {
                     background: `${T.purple}14`, display: 'flex',
                     alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Camera size={18} color={T.purple} />
+                    <Wifi size={18} color={T.purple} />
                   </div>
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>
-                      التحقق الذاتي
+                      اختبار الاتصال
                     </div>
                     <div style={{ fontSize: 11, color: T.text3, marginTop: 2 }}>
-                      ارفع صورة شخصية للتأكد من تطابق هويتك
+                      تحقق من صحة المفاتيح واختبر الاتصال بالبورصة
                     </div>
                   </div>
                 </div>
 
                 <div style={{ padding: '16px 20px 20px' }}>
-                  {/* Instructions */}
-                  <div style={{
-                    padding: '16px 18px', borderRadius: 12,
-                    background: `${T.purple}06`, border: `1px solid ${T.purple}12`,
-                    marginBottom: 20,
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                      <ScanFace size={18} color={T.purple} />
-                      <span style={{ fontSize: 13, fontWeight: 800, color: T.purple, fontFamily: "'Cairo', sans-serif" }}>
-                        تعليمات التصوير
+                  {/* Permissions section */}
+                  <div style={{ marginBottom: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+                      <Shield size={14} color={T.cyan} />
+                      <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
+                        صلاحيات الاتصال
                       </span>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {[
-                        { icon: <Eye size={14} color={T.green} />, text: 'وجّه وجهك مباشرة نحو الكاميرا' },
-                        { icon: <ShieldCheck size={14} color={T.green} />, text: 'تأكد من إضاءة جيدة وبدون ظلال' },
-                        { icon: <User size={14} color={T.green} />, text: 'أزل النظارات والقبعات إن أمكن' },
-                        { icon: <Lock size={14} color={T.green} />, text: 'لا تُدخل أي مرشحات أو تعديلات على الصورة' },
-                        { icon: <ImageIcon size={14} color={T.green} />, text: 'اجعل وجهك يملأ 70% على الأقل من الإطار' },
-                      ].map((item, idx) => (
-                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          {item.icon}
-                          <span style={{ fontSize: 11, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>{item.text}</span>
-                        </div>
-                      ))}
+                    <div className="permission-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                      <PermissionToggle
+                        label="قراءة الرصيد"
+                        description="عرض أرصدة المحفظة والعملات"
+                        enabled={permissions.readBalance}
+                        onChange={v => setPermissions(prev => ({ ...prev, readBalance: v }))}
+                        color={T.green}
+                        icon={<Wallet size={16} color={permissions.readBalance ? T.green : T.text4} />}
+                      />
+                      <PermissionToggle
+                        label="قراءة الصفقات"
+                        description="عرض سجل التداول والصفقات المفتوحة"
+                        enabled={permissions.readTrades}
+                        onChange={v => setPermissions(prev => ({ ...prev, readTrades: v }))}
+                        color={T.cyan}
+                        icon={<BarChart3 size={16} color={permissions.readTrades ? T.cyan : T.text4} />}
+                      />
+                      <PermissionToggle
+                        label="السماح بالتداول"
+                        description="تنفيذ صفقات بيع وشراء عبر المنصة"
+                        enabled={permissions.allowTrading}
+                        onChange={v => setPermissions(prev => ({ ...prev, allowTrading: v }))}
+                        color={T.amber}
+                        icon={<TrendingUp size={16} color={permissions.allowTrading ? T.amber : T.text4} />}
+                      />
+                      <PermissionToggle
+                        label="السماح بالسحب"
+                        description="سحب الأموال من حساب البورصة"
+                        enabled={permissions.allowWithdrawal}
+                        onChange={v => setPermissions(prev => ({ ...prev, allowWithdrawal: v }))}
+                        color={T.red}
+                        icon={<ArrowRight size={16} color={permissions.allowWithdrawal ? T.red : T.text4} />}
+                      />
                     </div>
-                  </div>
 
-                  {/* Selfie upload */}
-                  <div style={{ maxWidth: 400, margin: '0 auto' }}>
-                    <FileUploadZone
-                      label="صورة شخصية (سيلفي)"
-                      sublabel="اسحب الصورة هنا أو انقر للاختيار"
-                      file={selfieInfo.selfieFile}
-                      preview={selfieInfo.selfiePreview}
-                      onFileChange={f => handleFileUpload('selfie', f)}
-                      onRemove={() => setSelfieInfo(prev => ({ ...prev, selfieFile: null, selfiePreview: null, livenessDetected: false }))}
-                      accept="image/*"
-                    />
-                    {errors.selfieFile && !selfieInfo.selfieFile && (
-                      <div style={{ fontSize: 10, color: T.red, display: 'flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
-                        <AlertCircle size={10} /> يرجى رفع صورة شخصية
+                    {/* Withdrawal warning */}
+                    {permissions.allowWithdrawal && (
+                      <div style={{
+                        marginTop: 8, display: 'flex', alignItems: 'center', gap: 8,
+                        padding: '10px 14px', borderRadius: 10,
+                        background: `${T.red}08`, border: `1px solid ${T.red}20`,
+                      }}>
+                        <ShieldAlert size={16} color={T.red} />
+                        <span style={{ fontSize: 11, color: T.red, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>
+                          تحذير: تفعيل صلاحية السحب يشكل خطراً أمنياً. نوصي بعدم تفعيلها.
+                        </span>
                       </div>
                     )}
                   </div>
 
-                  {/* Liveness indicator */}
-                  {selfieInfo.livenessDetected && (
-                    <div style={{
-                      marginTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      padding: '10px 16px', borderRadius: 10,
-                      background: `${T.green}08`, border: `1px solid ${T.green}20`,
-                    }}>
-                      <ShieldCheck size={16} color={T.green} />
-                      <span style={{ fontSize: 12, fontWeight: 700, color: T.green, fontFamily: "'Cairo', sans-serif" }}>
-                        تم التحقق من مطابقة الوجه بنجاح
-                      </span>
+                  {/* Connection test area */}
+                  <div style={{
+                    padding: '20px', borderRadius: 12,
+                    background: T.surface, border: `1px solid ${connectionTestResult === 'success' ? T.green + '25' : connectionTestResult === 'error' ? T.red + '25' : T.border}`,
+                    textAlign: 'center',
+                  }}>
+                    {isTesting ? (
+                      <div>
+                        <div style={{
+                          width: 56, height: 56, borderRadius: 16,
+                          background: `${T.purple}10`, margin: '0 auto 14px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <Loader2 size={28} color={T.purple} style={{ animation: 'spin 1s linear infinite' }} />
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: T.purple, fontFamily: "'Cairo', sans-serif", marginBottom: 4 }}>
+                          جاري اختبار الاتصال...
+                        </div>
+                        <div style={{ fontSize: 11, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
+                          يتم التحقق من المفاتيح مع {getSelectedExchange()?.name || 'البورصة'}
+                        </div>
+                        {/* Progress steps */}
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 16 }}>
+                          {[
+                            { label: 'التحقق من المفتاح', icon: KeyRound },
+                            { label: 'الاتصال بالبورصة', icon: Server },
+                            { label: 'قراءة البيانات', icon: Activity },
+                          ].map((s, idx) => (
+                            <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                              <div style={{
+                                width: 32, height: 32, borderRadius: 8,
+                                background: `${T.purple}10`,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                animation: `pulseGlow 1.5s ease-in-out ${idx * 0.3}s infinite`,
+                              }}>
+                                <s.icon size={14} color={T.purple} />
+                              </div>
+                              <span style={{ fontSize: 9, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{s.label}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : connectionTestResult === 'success' ? (
+                      <div className="success-pulse">
+                        <div style={{
+                          width: 56, height: 56, borderRadius: 16,
+                          background: `${T.green}10`, margin: '0 auto 14px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <CheckCircle2 size={28} color={T.green} />
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: T.green, fontFamily: "'Cairo', sans-serif", marginBottom: 4 }}>
+                          تم الاتصال بنجاح!
+                        </div>
+                        <div style={{ fontSize: 11, color: T.text3, fontFamily: "'Cairo', sans-serif", lineHeight: 1.7 }}>
+                          تم التحقق من صحة مفاتيح API والاتصال بـ {getSelectedExchange()?.name}
+                        </div>
+                        {/* Connection details */}
+                        <div style={{
+                          display: 'flex', justifyContent: 'center', gap: 16,
+                          marginTop: 14, flexWrap: 'wrap',
+                        }}>
+                          {[
+                            { label: 'وقت الاستجابة', value: '245ms', color: T.green },
+                            { label: 'حالة الاتصال', value: 'مستقر', color: T.cyan },
+                            { label: 'صلاحيات', value: permissions.allowTrading ? 'قراءة + تداول' : 'قراءة فقط', color: T.amber },
+                          ].map((detail, idx) => (
+                            <div key={idx} style={{
+                              padding: '6px 12px', borderRadius: 8,
+                              background: `${detail.color}08`, border: `1px solid ${detail.color}15`,
+                            }}>
+                              <div style={{ fontSize: 8, color: T.text4, fontFamily: "'Cairo', sans-serif" }}>{detail.label}</div>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: detail.color, fontFamily: "'JetBrains Mono', monospace" }}>{detail.value}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : connectionTestResult === 'error' ? (
+                      <div>
+                        <div style={{
+                          width: 56, height: 56, borderRadius: 16,
+                          background: `${T.red}10`, margin: '0 auto 14px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <AlertCircle size={28} color={T.red} />
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: T.red, fontFamily: "'Cairo', sans-serif", marginBottom: 4 }}>
+                          فشل الاتصال
+                        </div>
+                        <div style={{ fontSize: 11, color: T.text3, fontFamily: "'Cairo', sans-serif", lineHeight: 1.7 }}>
+                          تعذر الاتصال بالبورصة. تأكد من صحة المفاتيح والصلاحيات.
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{
+                          width: 56, height: 56, borderRadius: 16,
+                          background: `${T.purple}08`, margin: '0 auto 14px',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <Wifi size={28} color={T.purple} />
+                        </div>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif", marginBottom: 4 }}>
+                          جاهز لاختبار الاتصال
+                        </div>
+                        <div style={{ fontSize: 11, color: T.text3, fontFamily: "'Cairo', sans-serif", lineHeight: 1.7, marginBottom: 16 }}>
+                          سيتم التحقق من مفاتيح API واختبار الاتصال بـ {getSelectedExchange()?.name || 'البورصة'}
+                        </div>
+                        <button
+                          onClick={handleConnectionTest}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 8,
+                            padding: '12px 28px', borderRadius: 10,
+                            background: `linear-gradient(135deg, ${T.purple}, #8B5CF6)`,
+                            border: 'none', color: '#fff', fontSize: 13, fontWeight: 800,
+                            cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
+                            boxShadow: `0 0 20px ${T.purple}25`, transition: 'all 0.2s',
+                          }}
+                        >
+                          <Zap size={16} />
+                          بدء اختبار الاتصال
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Re-test button */}
+                    {connectionTestResult === 'success' && (
+                      <button
+                        onClick={handleConnectionTest}
+                        style={{
+                          marginTop: 14, padding: '6px 16px', borderRadius: 8,
+                          background: `${T.green}10`, border: `1px solid ${T.green}20`,
+                          color: T.green, fontSize: 11, fontWeight: 600,
+                          cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
+                          display: 'inline-flex', alignItems: 'center', gap: 4,
+                        }}
+                      >
+                        <Wifi size={12} /> إعادة الاختبار
+                      </button>
+                    )}
+                    {connectionTestResult === 'error' && (
+                      <button
+                        onClick={handleConnectionTest}
+                        style={{
+                          marginTop: 14, padding: '8px 20px', borderRadius: 8,
+                          background: `linear-gradient(135deg, ${T.purple}, #8B5CF6)`,
+                          border: 'none', color: '#fff', fontSize: 12, fontWeight: 700,
+                          cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
+                          display: 'inline-flex', alignItems: 'center', gap: 6,
+                        }}
+                      >
+                        <Zap size={14} /> إعادة المحاولة
+                      </button>
+                    )}
+                  </div>
+
+                  {errors.connectionTest && connectionTestResult !== 'success' && (
+                    <div style={{ fontSize: 10, color: T.red, display: 'flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
+                      <AlertCircle size={10} /> يرجى إجراء اختبار الاتصال بنجاح قبل المتابعة
                     </div>
                   )}
-
-                  {/* Privacy note */}
-                  <div style={{
-                    marginTop: 16, display: 'flex', alignItems: 'flex-start', gap: 8,
-                    padding: '10px 14px', borderRadius: 10,
-                    background: T.surface, border: `1px solid ${T.border}`,
-                  }}>
-                    <Lock size={14} color={T.text3} style={{ flexShrink: 0, marginTop: 1 }} />
-                    <div style={{ fontSize: 10, color: T.text3, lineHeight: 1.7 }}>
-                      صورك الشخصية مشفرة بالكامل وتُستخدم فقط للتحقق من الهوية. لن يتم مشاركتها مع أطراف ثالثة.
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -1077,16 +1140,16 @@ export default function KYCPage() {
                   </div>
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>
-                      المراجعة والتأكيد
+                      تأكيد الربط
                     </div>
                     <div style={{ fontSize: 11, color: T.text3, marginTop: 2 }}>
-                      راجع جميع بياناتك قبل الإرسال النهائي
+                      راجع جميع البيانات قبل تأكيد ربط الحساب
                     </div>
                   </div>
                 </div>
 
                 <div style={{ padding: '16px 20px 20px' }}>
-                  {/* Personal Info Review */}
+                  {/* Exchange Review */}
                   <div style={{
                     padding: 14, borderRadius: 12,
                     background: T.surface, border: `1px solid ${T.border}`,
@@ -1094,9 +1157,9 @@ export default function KYCPage() {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <User size={14} color={T.cyan} />
+                        <Globe size={14} color={T.cyan} />
                         <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-                          المعلومات الشخصية
+                          البورصة
                         </span>
                       </div>
                       <button
@@ -1112,24 +1175,32 @@ export default function KYCPage() {
                         <ChevronRight size={10} /> تعديل
                       </button>
                     </div>
-                    <div className="kyc-review-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 20px' }}>
-                      {[
-                        { label: 'الاسم', value: `${personalInfo.firstName} ${personalInfo.lastName}` },
-                        { label: 'تاريخ الميلاد', value: formatDate(personalInfo.dateOfBirth) },
-                        { label: 'الجنسية', value: personalInfo.nationality },
-                        { label: 'الدولة', value: personalInfo.country },
-                        { label: 'المدينة', value: personalInfo.city },
-                        { label: 'العنوان', value: personalInfo.address },
-                      ].map((item, idx) => (
-                        <div key={idx}>
-                          <div style={{ fontSize: 10, color: T.text4, fontFamily: "'Cairo', sans-serif" }}>{item.label}</div>
-                          <div style={{ fontSize: 12, color: T.text, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>{item.value || '—'}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      {getSelectedExchange() && (
+                        <div style={{
+                          width: 44, height: 44, borderRadius: 12,
+                          background: `${getSelectedExchange()!.color}15`,
+                          border: `1px solid ${getSelectedExchange()!.color}25`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 15, fontWeight: 900,
+                          color: getSelectedExchange()!.color,
+                          fontFamily: "'JetBrains Mono', monospace",
+                        }}>
+                          {getSelectedExchange()!.initial}
                         </div>
-                      ))}
+                      )}
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
+                          {getSelectedExchange()?.name || '—'}
+                        </div>
+                        <div style={{ fontSize: 10, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
+                          {getSelectedExchange()?.desc || ''}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Document Review */}
+                  {/* API Keys Review */}
                   <div style={{
                     padding: 14, borderRadius: 12,
                     background: T.surface, border: `1px solid ${T.border}`,
@@ -1137,9 +1208,9 @@ export default function KYCPage() {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <CreditCard size={14} color={T.amber} />
+                        <Key size={14} color={T.amber} />
                         <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-                          وثيقة الهوية
+                          مفاتيح API
                         </span>
                       </div>
                       <button
@@ -1155,33 +1226,29 @@ export default function KYCPage() {
                         <ChevronRight size={10} /> تعديل
                       </button>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: 10, color: T.text4 }}>نوع الوثيقة</span>
-                        <span style={{ fontSize: 12, color: T.text, fontWeight: 600 }}>{docTypeLabel(docInfo.docType) || '—'}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: 10, color: T.text4 }}>رقم الوثيقة</span>
-                        <span style={{ fontSize: 12, color: T.text, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>
-                          {docInfo.docNumber ? `${docInfo.docNumber.slice(0, 4)}${'•'.repeat(Math.max(0, docInfo.docNumber.length - 4))}` : '—'}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 10, color: T.text4 }}>اسم الاتصال</span>
+                        <span style={{ fontSize: 12, color: T.text, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>
+                          {apiKeyInfo.label || '—'}
                         </span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: 10, color: T.text4 }}>الوجه الأمامي</span>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: docInfo.frontFile ? T.green : T.red, display: 'flex', alignItems: 'center', gap: 4 }}>
-                          {docInfo.frontFile ? <><CheckCircle2 size={12} /> مرفق</> : <><AlertCircle size={12} /> غير مرفق</>}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 10, color: T.text4 }}>API Key</span>
+                        <span style={{ fontSize: 12, color: T.text, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", direction: 'ltr' }}>
+                          {maskApiKey(apiKeyInfo.apiKey)}
                         </span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: 10, color: T.text4 }}>الوجه الخلفي</span>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: docInfo.backFile ? T.green : T.red, display: 'flex', alignItems: 'center', gap: 4 }}>
-                          {docInfo.backFile ? <><CheckCircle2 size={12} /> مرفق</> : <><AlertCircle size={12} /> غير مرفق</>}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: 10, color: T.text4 }}>API Secret</span>
+                        <span style={{ fontSize: 12, color: T.text, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace", direction: 'ltr' }}>
+                          {maskApiSecret(apiKeyInfo.apiSecret)}
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Selfie Review */}
+                  {/* Permissions Review */}
                   <div style={{
                     padding: 14, borderRadius: 12,
                     background: T.surface, border: `1px solid ${T.border}`,
@@ -1189,9 +1256,9 @@ export default function KYCPage() {
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <Camera size={14} color={T.purple} />
+                        <Shield size={14} color={T.purple} />
                         <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-                          التحقق الذاتي
+                          الصلاحيات
                         </span>
                       </div>
                       <button
@@ -1207,39 +1274,49 @@ export default function KYCPage() {
                         <ChevronRight size={10} /> تعديل
                       </button>
                     </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {[
+                        { label: 'قراءة الرصيد', enabled: permissions.readBalance, color: T.green },
+                        { label: 'قراءة الصفقات', enabled: permissions.readTrades, color: T.cyan },
+                        { label: 'السماح بالتداول', enabled: permissions.allowTrading, color: T.amber },
+                        { label: 'السماح بالسحب', enabled: permissions.allowWithdrawal, color: T.red },
+                      ].map((perm, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 11, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{perm.label}</span>
+                          <span style={{
+                            fontSize: 11, fontWeight: 600,
+                            color: perm.enabled ? perm.color : T.text4,
+                            display: 'flex', alignItems: 'center', gap: 4,
+                            fontFamily: "'Cairo', sans-serif",
+                          }}>
+                            {perm.enabled ? (
+                              <><CheckCircle2 size={12} /> مفعّل</>
+                            ) : (
+                              <><AlertCircle size={12} /> معطّل</>
+                            )}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Connection Test Review */}
+                  <div style={{
+                    padding: 14, borderRadius: 12,
+                    background: T.surface, border: `1px solid ${T.border}`,
+                    marginBottom: 14,
+                  }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {selfieInfo.selfiePreview ? (
-                        <img src={selfieInfo.selfiePreview} alt="Selfie preview" style={{
-                          width: 48, height: 48, borderRadius: 10, objectFit: 'cover',
-                          border: `1px solid ${T.green}30`,
-                        }} />
-                      ) : (
-                        <div style={{
-                          width: 48, height: 48, borderRadius: 10,
-                          background: T.surface, border: `1px solid ${T.border}`,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}>
-                          <User size={18} color={T.text4} />
-                        </div>
-                      )}
-                      <div>
-                        <div style={{
-                          fontSize: 12, fontWeight: 600,
-                          color: selfieInfo.selfieFile ? T.green : T.red,
-                          display: 'flex', alignItems: 'center', gap: 4,
-                        }}>
-                          {selfieInfo.selfieFile ? (
-                            <><CheckCircle2 size={12} /> صورة شخصية مرفقة</>
-                          ) : (
-                            <><AlertCircle size={12} /> صورة شخصية غير مرفقة</>
-                          )}
-                        </div>
-                        {selfieInfo.livenessDetected && (
-                          <div style={{ fontSize: 10, color: T.green, marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <ShieldCheck size={10} /> تم التحقق من مطابقة الوجه
-                          </div>
-                        )}
-                      </div>
+                      <Wifi size={14} color={T.green} />
+                      <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
+                        اختبار الاتصال
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+                      <CheckCircle2 size={14} color={T.green} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: T.green, fontFamily: "'Cairo', sans-serif" }}>
+                        تم اختبار الاتصال بنجاح
+                      </span>
                     </div>
                   </div>
 
@@ -1255,9 +1332,10 @@ export default function KYCPage() {
                           إقرار الموافقة
                         </div>
                         <div style={{ fontSize: 10, color: T.text3, lineHeight: 1.8 }}>
-                          بالنقر على "إرسال الطلب"، أقر بأن جميع المعلومات المقدمة صحيحة ودقيقة، وأوافق على
-                          شروط وأحكام منصة رؤى المتعلقة بالتحقق من الهوية وحماية البيانات الشخصية وفقاً
-                          لسياسة الخصوصية المعمول بها.
+                          بالنقر على "تأكيد الربط"، أقر بأنني أمتلك الحق في ربط هذا الحساب، وأن مفاتيح API يتم تخزينها بشكل مشفر،
+                          وأن المنصة لن تقوم بأي عملية سحب دون موافقتي الصريحة. أوافق على
+                          <span style={{ color: T.cyan }}> شروط الاستخدام </span>
+                          و<span style={{ color: T.cyan }}>سياسة الخصوصية</span> المتعلقة بربط حسابات الطرف الثالث.
                         </div>
                       </div>
                     </div>
@@ -1325,27 +1403,27 @@ export default function KYCPage() {
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={isSubmitting || kycStatus === 'under_review'}
+                disabled={isSubmitting || linkingStatus === 'connected'}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8,
                   padding: '12px 28px', borderRadius: 10,
-                  background: isSubmitting || kycStatus === 'under_review'
+                  background: isSubmitting || linkingStatus === 'connected'
                     ? T.surface
                     : `linear-gradient(135deg, ${T.green}, #00CC82)`,
                   border: 'none',
-                  color: isSubmitting || kycStatus === 'under_review' ? T.text3 : '#000',
-                  fontSize: 13, fontWeight: 800, cursor: isSubmitting || kycStatus === 'under_review' ? 'not-allowed' : 'pointer',
+                  color: isSubmitting || linkingStatus === 'connected' ? T.text3 : '#000',
+                  fontSize: 13, fontWeight: 800, cursor: isSubmitting || linkingStatus === 'connected' ? 'not-allowed' : 'pointer',
                   fontFamily: "'Cairo', sans-serif",
-                  boxShadow: isSubmitting || kycStatus === 'under_review' ? 'none' : `0 0 20px ${T.green}25`,
+                  boxShadow: isSubmitting || linkingStatus === 'connected' ? 'none' : `0 0 20px ${T.green}25`,
                   transition: 'all 0.2s',
                 }}
               >
                 {isSubmitting ? (
-                  <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> جاري الإرسال...</>
-                ) : kycStatus === 'under_review' ? (
-                  <><Clock size={16} /> قيد المراجعة</>
+                  <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> جاري الربط...</>
+                ) : linkingStatus === 'connected' ? (
+                  <><BadgeCheck size={16} /> تم الربط</>
                 ) : (
-                  <><CheckCircle2 size={16} /> إرسال الطلب</>
+                  <><Link2 size={16} /> تأكيد الربط</>
                 )}
               </button>
             )}
@@ -1369,37 +1447,37 @@ export default function KYCPage() {
               </div>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>
-                  لماذا التحقق من الهوية؟
+                  لماذا ربط حسابك؟
                 </div>
                 <div style={{ fontSize: 11, color: T.text3, marginTop: 2 }}>
-                  افتح كافة إمكانيات منصة رؤى بالتحقق من هويتك
+                  افتح كافة إمكانيات منصة رؤى بربط حساباتك
                 </div>
               </div>
             </div>
             <div style={{ padding: '16px 20px 20px' }}>
               <div className="kyc-benefits-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <BenefitCard
-                  icon={<TrendingUp size={16} color={T.cyan} />}
-                  title="حدود تداول أعلى"
-                  description="زيادة حدود الإيداع والسحب والتداول بعد التحقق"
+                  icon={<Activity size={16} color={T.cyan} />}
+                  title="متابعة المحفظة"
+                  description="راقب جميع أرصدتك وصفقاتك من مكان واحد"
                   color={T.cyan}
                 />
                 <BenefitCard
-                  icon={<Wallet size={16} color={T.green} />}
-                  title="تداول حقيقي"
-                  description="الوصول إلى التداول الحقيقي والتنفيذ المباشر للصفقات"
+                  icon={<Cpu size={16} color={T.green} />}
+                  title="تحليلات AI"
+                  description="احصل على توصيات وتحليلات ذكية مبنية على بياناتك"
                   color={T.green}
                 />
                 <BenefitCard
-                  icon={<ArrowRight size={16} color={T.amber} />}
-                  title="سحوبات غير محدودة"
-                  description="سحب أموالك في أي وقت بدون قيود على المبالغ"
+                  icon={<BarChart3 size={16} color={T.amber} />}
+                  title="تتبع الأداء"
+                  description="تتبع أرباحك وخسائلك عبر جميع البورصات"
                   color={T.amber}
                 />
                 <BenefitCard
-                  icon={<Sparkles size={16} color={T.purple} />}
-                  title="ميزات مميزة"
-                  description="الوصول إلى أدوات AI المتقدمة والنسخ الاجتماعي"
+                  icon={<Zap size={16} color={T.purple} />}
+                  title="تنبيهات فورية"
+                  description="تنبيهات لحظية لحركات السوق وتغييرات الرصيد"
                   color={T.purple}
                 />
               </div>
@@ -1422,21 +1500,20 @@ export default function KYCPage() {
               </div>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif", marginBottom: 6 }}>
-                  أمان وخصوصية بياناتك
+                  أمان مفاتيح API
                 </div>
                 <div style={{ fontSize: 11, color: T.text3, lineHeight: 1.9 }}>
-                  نستخدم تشفير <span style={{ color: T.cyan, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>AES-256-GCM</span> لحماية جميع بياناتك الشخصية ووثائقك. تُخزن الملفات على خوادم مؤمّنة بمعايير
-                  <span style={{ color: T.green, fontWeight: 700 }}> SOC 2 Type II </span>
-                  ولا يمكن الوصول إليها إلا من قبل فريق الامتثال المصرّح له. نلتزم بمعايير
-                  <span style={{ color: T.amber, fontWeight: 700 }}> GDPR </span>
-                  وسياسات حماية البيانات المحلية، ولن نشارك بياناتك مع أي طرف ثالث دون موافقتك الصريحة.
+                  نستخدم تشفير <span style={{ color: T.cyan, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", fontSize: 10 }}>AES-256-GCM</span> لحماية مفاتيح API الخاصة بك. تُخزن المفاتيح بشكل مشفر ولا يمكن الوصول إليها إلا من قبل النظام المصرّح له.
+                  نوصي بشدة باستخدام صلاحية <span style={{ color: T.green, fontWeight: 700 }}>القراءة فقط</span> وعدم تفعيل صلاحية
+                  <span style={{ color: T.red, fontWeight: 700 }}> السحب (Withdraw)</span>.
+                  يمكنك قطع الاتصال في أي وقت بحذف المفتاح من البورصة أو من إعدادات المنصة.
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
                   {[
                     { label: 'AES-256', color: T.cyan },
-                    { label: 'SOC 2', color: T.green },
-                    { label: 'GDPR', color: T.amber },
-                    { label: 'End-to-End', color: T.purple },
+                    { label: 'Read-Only', color: T.green },
+                    { label: 'No Withdraw', color: T.red },
+                    { label: 'Encrypted', color: T.purple },
                   ].map((badge, idx) => (
                     <span key={idx} style={{
                       padding: '3px 10px', borderRadius: 8,

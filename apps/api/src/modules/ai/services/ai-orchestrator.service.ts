@@ -125,9 +125,9 @@ export class AIOrchestratorService {
     private readonly ollamaService: OllamaService,
     private readonly bedrockService: BedrockService,
     private readonly openrouterService: OpenRouterService,
+    private readonly usageLogger: AiUsageLoggerService,
     @Optional() private readonly ragService?: RagService,
     @Optional() private readonly redis?: RedisService,
-    private readonly usageLogger: AiUsageLoggerService,
   ) {
     this.logger.log('🎼 AI Orchestrator initialized — 7 models (Groq, Gemini, GLM-4, HuggingFace, Ollama, Bedrock, OpenRouter)');
     if (this.ragService) {

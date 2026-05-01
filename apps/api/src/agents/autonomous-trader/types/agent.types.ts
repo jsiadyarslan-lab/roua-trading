@@ -4,6 +4,9 @@
 
 import { OrderSide, OrderType } from '../../../modules/trading/trading.types';
 
+// Re-export OrderSide and OrderType for use in strategies
+export { OrderSide, OrderType };
+
 // ── Agent Status ──
 
 export enum AgentStatus {

@@ -218,7 +218,8 @@ export class GridStrategy extends BaseStrategy {
     gridRange: { upperBound: number; lowerBound: number },
   ): Array<{ price: number; side: OrderSide; quantity: number }> {
     const levels: Array<{ price: number; side: OrderSide; quantity: number }> = [];
-    const step = gridRange.totalRange / (this.gridLevels + 1);
+    const totalRange = gridRange.upperBound - gridRange.lowerBound;
+    const step = totalRange / (this.gridLevels + 1);
 
     for (let i = 1; i <= this.gridLevels; i++) {
       const price = gridRange.lowerBound + step * i;

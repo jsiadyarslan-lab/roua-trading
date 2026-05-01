@@ -15,6 +15,22 @@ import {
 } from 'lucide-react'
 import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
 
+// ── Defensive helpers: ensure primitive types for React rendering ──
+function safeConfidence(val: unknown): number {
+  if (typeof val === 'number' && Number.isFinite(val)) return val
+  if (val && typeof val === 'object' && 'compositeScore' in (val as any)) return (val as any).compositeScore ?? (val as any).confidence ?? 0
+  const n = Number(val)
+  return Number.isFinite(n) ? n : 0
+}
+
+function safeReason(val: unknown): string {
+  if (typeof val === 'string') return val
+  if (val && typeof val === 'object') {
+    try { return JSON.stringify(val) } catch { return '' }
+  }
+  return val != null ? String(val) : ''
+}
+
 interface Signal {
   id: string
   pair: string
@@ -74,8 +90,8 @@ export default function AdminSignalsPage() {
             id: s.id || `signal-${i}`,
             pair: s.pair || s.symbol || '—',
             action: s.action || s.type || 'WAIT',
-            confidence: s.confidence || s.conf || 0,
-            reason: s.reason || '',
+            confidence: safeConfidence(s.confidence || s.conf),
+            reason: safeReason(s.reason),
             status: s.status || 'ACTIVE',
             createdAt: s.createdAt || s.time || new Date().toISOString(),
             source: 'smart',
@@ -282,7 +298,7 @@ export default function AdminSignalsPage() {
                       </span>
                     </div>
                     <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: signal.confidence >= 70 ? COLORS.success : signal.confidence >= 50 ? COLORS.amber : COLORS.danger }}>
-                      {signal.confidence}%
+                      {Math.round(signal.confidence)}%
                     </span>
                   </div>
                   <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", lineHeight: 1.5 }}>{signal.reason}</div>

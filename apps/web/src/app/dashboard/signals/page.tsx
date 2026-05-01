@@ -21,6 +21,29 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
 
+// ── Defensive helpers: ensure primitive types for React rendering ──
+// Prevents React Error #31 when API returns objects (e.g., SmartScore) instead of primitives
+function safeConfidence(val: unknown): number {
+  if (typeof val === 'number' && Number.isFinite(val)) return val
+  if (val && typeof val === 'object' && 'compositeScore' in (val as any)) return (val as any).compositeScore ?? (val as any).confidence ?? 0
+  const n = Number(val)
+  return Number.isFinite(n) ? n : 0
+}
+
+function safeReason(val: unknown): string {
+  if (typeof val === 'string') return val
+  if (val && typeof val === 'object') {
+    try { return JSON.stringify(val) } catch { return '' }
+  }
+  return val != null ? String(val) : ''
+}
+
+function safeNumber(val: unknown): number | null {
+  if (val === null || val === undefined) return null
+  const n = Number(val)
+  return Number.isFinite(n) ? n : null
+}
+
 interface Signal {
   id: string
   pair: string
@@ -156,7 +179,7 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
                     color: signal.confidence >= 70 ? 'var(--profit)' : signal.confidence >= 40 ? 'var(--warning)' : 'var(--loss)',
                     fontWeight: 700,
                   }}>
-                    {signal.confidence}%
+                    {Math.round(signal.confidence)}%
                   </span>
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>
@@ -268,7 +291,18 @@ export default function SignalsPage() {
       const res = await fetch('/api/signals/active')
       if (res.ok) {
         const data = await res.json()
-        if (data.success) setSignals(data.data)
+        if (data.success && Array.isArray(data.data)) {
+          // Sanitize signal data to prevent React Error #31
+          const sanitized = data.data.map((s: any) => ({
+            ...s,
+            confidence: safeConfidence(s.confidence),
+            reason: safeReason(s.reason),
+            entryPrice: safeNumber(s.entryPrice),
+            stopLoss: safeNumber(s.stopLoss),
+            takeProfit: safeNumber(s.takeProfit),
+          }))
+          setSignals(sanitized)
+        }
       }
     } catch { /* silent */ } finally { setLoading(false) }
   }, [])

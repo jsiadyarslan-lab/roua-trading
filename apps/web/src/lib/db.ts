@@ -101,20 +101,20 @@ async function runSchemaMigrations(): Promise<void> {
     }
   }
 
-  // Verify critical tables exist after migrations
+  // Verify critical tables exist after migrations (including AiUsageLog for dashboard costs)
   try {
     const tableCheck = await db.$queryRaw`
       SELECT table_name FROM information_schema.tables
       WHERE table_schema = 'public'
-      AND table_name IN ('Setting', 'NotificationConfig', 'AdminSession')
+      AND table_name IN ('Setting', 'NotificationConfig', 'AdminSession', 'AiUsageLog')
       ORDER BY table_name
     `
     const foundTables = (tableCheck as any[]).map((r: any) => r.table_name)
-    const missingTables = ['Setting', 'NotificationConfig', 'AdminSession'].filter(t => !foundTables.includes(t))
+    const missingTables = ['Setting', 'NotificationConfig', 'AdminSession', 'AiUsageLog'].filter(t => !foundTables.includes(t))
     if (missingTables.length > 0) {
       console.error(`[db] CRITICAL: Tables still missing after migrations: ${missingTables.join(', ')}`)
     } else {
-      console.log('[db] All critical tables verified: Setting, NotificationConfig, AdminSession')
+      console.log('[db] All critical tables verified: Setting, NotificationConfig, AdminSession, AiUsageLog')
     }
   } catch (err: any) {
     console.warn(`[db] Could not verify table existence: ${err?.message || err}`)

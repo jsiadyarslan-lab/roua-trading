@@ -129,7 +129,7 @@ export default function DashboardPage() {
     const intervalId = window.setInterval(() => {
       fetchAccount()
       fetchPositions()
-    }, 15000)
+    }, 60000)
 
     return () => window.clearInterval(intervalId)
   }, [fetchAccount, fetchPositions])

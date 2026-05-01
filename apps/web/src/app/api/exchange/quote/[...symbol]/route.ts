@@ -19,6 +19,9 @@ const cache = new Map<string, { data: any; expiresAt: number }>()
 const staleCache = new Map<string, { data: any; fetchedAt: number }>()
 const STALE_TTL = 86_400_000 // Keep stale data for up to 24 hours
 
+// ── Cache stampede protection: deduplicate concurrent fetches for the same key ──
+const fetchMutex = new Map<string, Promise<any>>()
+
 function getCached(key: string): any | null {
   const entry = cache.get(key)
   if (!entry) return null
@@ -550,6 +553,23 @@ export async function GET(
       return NextResponse.json({ success: true, data: cached, cached: true })
     }
 
+    // Cache stampede protection: if another request is already fetching this key,
+    // wait for its result instead of making duplicate API calls
+    const existingFetch = fetchMutex.get(cacheKey)
+    if (existingFetch) {
+      const result = await existingFetch
+      if (result) return NextResponse.json({ success: true, data: result, cached: false })
+      // If the existing fetch failed, continue to try ourselves
+    }
+
+    // Validate source parameter early — reject unknown sources before any fetching
+    if (source && source !== 'TwelveData' && source !== 'CoinGecko' && source !== 'auto') {
+      return NextResponse.json(
+        { success: false, error: `مصدر غير معروف: ${source}` },
+        { status: 400 }
+      )
+    }
+
     // Determine if this is a crypto pair or forex pair
     // Crypto pairs: BTC/USDT, ETH/USDT, SOL/USDT (quote is USDT/BUSD)
     // Forex pairs: EUR/USD, GBP/USD, USD/JPY (quote is fiat currency)
@@ -560,75 +580,64 @@ export async function GET(
     const baseCurrency = symbol.includes('/') ? symbol.split('/')[0] : ''
     const isCryptoPair = isCrypto || CRYPTO_BASE_CURRENCIES.includes(baseCurrency)
 
-    let quote
+    let quote: any = null
 
-    if (source === 'Binance' || (isCryptoPair && (!source || source === 'auto'))) {
+    // Create a fetch promise and register it in the mutex for stampede protection.
+    // All concurrent requests for the same cacheKey will share this single promise,
+    // preventing duplicate API calls (cache stampede).
+    const fetchPromise = (async () => {
       // Crypto → try Binance first, then CoinGecko
-      try {
-        quote = await fetchBinance(symbol)
-      } catch (binanceErr: any) {
-        console.warn(`[exchange/quote] Binance failed for ${symbol}: ${binanceErr.message}, trying CoinGecko fallback`)
+      if (isCryptoPair) {
         try {
-          quote = await fetchCoinGecko(symbol)
-        } catch (cgErr: any) {
-          console.warn(`[exchange/quote] CoinGecko also failed for ${symbol}: ${cgErr.message}`)
-          quote = null
+          return await fetchBinance(symbol)
+        } catch (binanceErr: any) {
+          console.warn(`[exchange/quote] Binance failed for ${symbol}: ${binanceErr.message}, trying CoinGecko fallback`)
+          try {
+            return await fetchCoinGecko(symbol)
+          } catch (cgErr: any) {
+            console.warn(`[exchange/quote] CoinGecko also failed for ${symbol}: ${cgErr.message}`)
+            return null
+          }
+        }
+      } else if (source === 'CoinGecko') {
+        // Explicit CoinGecko request for non-crypto symbol
+        try {
+          return await fetchCoinGecko(symbol)
+        } catch {
+          return null
+        }
+      } else {
+        // Forex/Stocks/Commodities — use Promise.any for parallel fallback (much faster than sequential)
+        // Wrap each source so it returns null on failure (Promise.any needs at least one resolution)
+        const sources = [
+          // TwelveData (if API key is configured)
+          fetchTwelveData(symbol).catch(() => null),
+          // Yahoo Finance (free, no key needed)
+          fetchYahooFinance(symbol).catch(() => null),
+          // GoldPrice.org for gold/silver
+          fetchGoldPriceFallback(symbol).catch(() => null),
+          // ECB/Frankfurter for fiat forex pairs
+          fetchFrankfurter(symbol).catch(() => null),
+        ]
+
+        try {
+          // Race: first non-null result wins
+          const result = await Promise.any(sources)
+          return result || null
+        } catch {
+          // All sources returned null
+          return null
         }
       }
-    } else if (source === 'TwelveData' || (!isCryptoPair && (!source || source === 'auto'))) {
-      // Forex/Stocks/Commodities → Twelve Data → Yahoo Finance → ECB Frankfurter
-      // Step 1: Try TwelveData (if API key is configured)
-      try {
-        quote = await fetchTwelveData(symbol)
-      } catch (tdErr: any) {
-        console.warn(`[exchange/quote] TwelveData failed for ${symbol}: ${tdErr.message}`)
-        quote = null
-      }
+    })()
 
-      // Step 2: Try Yahoo Finance (free, no key needed — covers stocks, commodities, forex)
-      if (!quote) {
-        quote = await fetchYahooFinance(symbol)
-        if (quote) {
-          console.info(`[exchange/quote] Using Yahoo Finance for ${symbol}`)
-        }
-      }
-
-      // Step 3: Try GoldPrice.org for gold/silver (free, no key needed)
-      if (!quote) {
-        quote = await fetchGoldPriceFallback(symbol)
-        if (quote) {
-          console.info(`[exchange/quote] Using GoldPrice for ${symbol}`)
-        }
-      }
-
-      // Step 4: Try free ECB/Frankfurter rates for fiat forex pairs (free, no key needed)
-      if (!quote) {
-        quote = await fetchFrankfurter(symbol)
-        if (quote) {
-          console.info(`[exchange/quote] Using ECB/Frankfurter for ${symbol}`)
-        }
-      }
-
-      // Step 5: Try FCSAPI (currently disabled — free key no longer works)
-      if (!quote) {
-        quote = await fetchFcsApi(symbol)
-      }
-
-      // Step 6: Try Metals.dev (currently disabled — free key no longer works)
-      if (!quote) {
-        quote = await fetchMetalsDev(symbol)
-      }
-    } else if (source === 'CoinGecko') {
-      try {
-        quote = await fetchCoinGecko(symbol)
-      } catch {
-        quote = null
-      }
-    } else {
-      return NextResponse.json(
-        { success: false, error: `مصدر غير معروف: ${source}` },
-        { status: 400 }
-      )
+    // Register the in-flight promise so concurrent requests can await it
+    fetchMutex.set(cacheKey, fetchPromise)
+    try {
+      quote = await fetchPromise
+    } finally {
+      // Always clean up the mutex entry, even if the fetch failed
+      fetchMutex.delete(cacheKey)
     }
 
     // If no real data available, try stale cache before returning error

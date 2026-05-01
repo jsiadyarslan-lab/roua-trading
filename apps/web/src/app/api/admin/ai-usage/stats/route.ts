@@ -24,17 +24,29 @@ export async function GET(req: NextRequest) {
     const oneHourAgo = new Date(now)
     oneHourAgo.setHours(oneHourAgo.getHours() - 1)
 
-    // Total requests & cost per period
-    const [todayLogs, weekLogs, monthLogs] = await Promise.all([
-      db.aiUsageLog.findMany({ where: { createdAt: { gte: todayStart } } }),
-      db.aiUsageLog.findMany({ where: { createdAt: { gte: weekStart } } }),
-      db.aiUsageLog.findMany({ where: { createdAt: { gte: monthStart } } }),
+    // Use aggregate queries instead of loading all records — much faster and less memory
+    const [todayAgg, weekAgg, monthAgg] = await Promise.all([
+      db.aiUsageLog.aggregate({
+        where: { createdAt: { gte: todayStart } },
+        _count: true,
+        _sum: { costUsd: true, inputTokens: true, outputTokens: true },
+      }),
+      db.aiUsageLog.aggregate({
+        where: { createdAt: { gte: weekStart } },
+        _count: true,
+        _sum: { costUsd: true, inputTokens: true, outputTokens: true },
+      }),
+      db.aiUsageLog.aggregate({
+        where: { createdAt: { gte: monthStart } },
+        _count: true,
+        _sum: { costUsd: true, inputTokens: true, outputTokens: true },
+      }),
     ])
 
-    const sumCost = (logs: typeof todayLogs) => logs.reduce((s, l) => s + Number(l.costUsd), 0)
-    const sumTokens = (logs: typeof todayLogs) => ({
-      input: logs.reduce((s, l) => s + l.inputTokens, 0),
-      output: logs.reduce((s, l) => s + l.outputTokens, 0),
+    const sumCost = (agg: typeof todayAgg) => Number(agg._sum.costUsd || 0)
+    const sumTokens = (agg: typeof todayAgg) => ({
+      input: agg._sum.inputTokens || 0,
+      output: agg._sum.outputTokens || 0,
     })
 
     // All logs for last 30 days
@@ -139,9 +151,9 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       summary: {
-        today: { requests: todayLogs.length, cost: sumCost(todayLogs), tokens: sumTokens(todayLogs) },
-        week: { requests: weekLogs.length, cost: sumCost(weekLogs), tokens: sumTokens(weekLogs) },
-        month: { requests: monthLogs.length, cost: sumCost(monthLogs), tokens: sumTokens(monthLogs) },
+        today: { requests: todayAgg._count, cost: sumCost(todayAgg), tokens: sumTokens(todayAgg) },
+        week: { requests: weekAgg._count, cost: sumCost(weekAgg), tokens: sumTokens(weekAgg) },
+        month: { requests: monthAgg._count, cost: sumCost(monthAgg), tokens: sumTokens(monthAgg) },
         cacheRate,
         totalRequests: allLogs.length,
       },

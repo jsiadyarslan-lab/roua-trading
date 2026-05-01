@@ -100,10 +100,17 @@ export function useScannerFilters(data: ScannerItem[]): UseScannerFiltersReturn 
       })
     }
 
-    // Sort
+    // Sort — properly handle nested SmartScore fields
     result = [...result].sort((a, b) => {
-      const aVal = (a as any)[sortKey] ?? 0
-      const bVal = (b as any)[sortKey] ?? 0
+      const getSortValue = (item: ScannerItem, key: SortKey): number => {
+        // SmartScore fields are nested inside item.smartScore
+        if (key === 'compositeScore' || key === 'trendScore' || key === 'momentumScore') {
+          return (item.smartScore as any)?.[key] ?? 0
+        }
+        return (item as any)[key] ?? 0
+      }
+      const aVal = getSortValue(a, sortKey)
+      const bVal = getSortValue(b, sortKey)
       return sortDir === 'desc' ? bVal - aVal : aVal - bVal
     })
 

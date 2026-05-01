@@ -423,7 +423,7 @@ const NAV_LINKS = [
   { href: '/dashboard/news',                   label: 'الأخبار',            icon: Newspaper },
   { href: '/dashboard/leaderboard',            label: 'لوحة الصدارة',       icon: Trophy },
   { href: '/dashboard/copy-trading',           label: 'متابعة الحسابات',    icon: Eye },
-  { href: '/dashboard/social',                 label: 'التداول الاجتماعي',  icon: Users },
+  { href: '/dashboard/social',                 label: 'متابعة الحسابات',  icon: Users },
   { href: '/dashboard/calendar',               label: 'الأجندة الاقتصادية', icon: CalendarDays },
   { href: '/dashboard/strategies/backtest',    label: 'اختبار الاستراتيجيات', icon: Activity },
   { href: '/dashboard/sanctuary',             label: 'الملاذ',              icon: Shield },

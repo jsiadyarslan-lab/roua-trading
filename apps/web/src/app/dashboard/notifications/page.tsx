@@ -83,7 +83,7 @@ const CATEGORY_CONFIG: Record<NotificationCategory, {
     gradient: 'linear-gradient(135deg, #00FFA3, #10B981)',
   },
   trade: {
-    label: 'التداول',
+    label: 'الحسابات المربوطة',
     icon: <BarChart3 size={14} />,
     color: '#00D4FF',
     bgColor: 'rgba(0,212,255,0.08)',
@@ -133,7 +133,7 @@ type FilterTab = 'all' | 'signal' | 'trade' | 'security' | 'system'
 const FILTER_TABS: { id: FilterTab; label: string }[] = [
   { id: 'all', label: 'الكل' },
   { id: 'signal', label: 'الإشارات' },
-  { id: 'trade', label: 'التداول' },
+  { id: 'trade', label: 'الحسابات' },
   { id: 'security', label: 'الأمان' },
   { id: 'system', label: 'النظام' },
 ]
@@ -741,7 +741,7 @@ export default function NotificationsPage() {
   // Preferences state
   const [preferences, setPreferences] = useState<PreferenceToggle[]>([
     { key: 'signals', label: 'تنبيهات الإشارات', description: 'إشعارات إشارات الشراء والبيع', icon: <Zap size={13} />, enabled: true },
-    { key: 'trades', label: 'تنبيهات التداول', description: 'رصد الأوامر وإغلاق الصفقات على الحسابات المربوطة', icon: <BarChart3 size={13} />, enabled: true },
+    { key: 'trades', label: 'تنبيهات الحسابات المربوطة', description: 'رصد الأوامر وإغلاق الصفقات على الحسابات المربوطة', icon: <BarChart3 size={13} />, enabled: true },
     { key: 'security', label: 'تنبيهات الأمان', description: 'تسجيل الدخول وتغييرات الحساب', icon: <ShieldCheck size={13} />, enabled: true },
     { key: 'system', label: 'إشعارات النظام', description: 'الصيانة والتحديثات والأخبار', icon: <Settings2 size={13} />, enabled: true },
     { key: 'prices', label: 'تنبيهات الأسعار', description: 'وصول الأسعار للأهداف المحددة', icon: <Target size={13} />, enabled: true },

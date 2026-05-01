@@ -454,7 +454,7 @@ export default function PositionsPage() {
       {/* Disclaimer */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '12px 16px', borderRadius: '8px', background: 'var(--warning-bg)', border: '1px solid var(--border-warning)', marginTop: '16px' }}>
         <AlertTriangle size={13} style={{ color: 'var(--warning)', marginTop: '1px', flexShrink: 0 }} />
-        <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)', lineHeight: '1.5' }}>إدارة المراكز تتطلب اتصالاً بخادم التداول. رؤى لا تلمس أموالك أبداً — نحن ننفذ الأوامر فقط من خلال مفاتيح API المشفرة.</span>
+        <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar)', lineHeight: '1.5' }}>إدارة المراكز تتطلب اتصالاً بخادم التداول. رؤى لا تلمس أموالك أبداً — نتابع حساباتك المربوطة فقط من خلال مفاتيح API المشفرة.</span>
       </div>
 
       {/* Close Position Dialog */}

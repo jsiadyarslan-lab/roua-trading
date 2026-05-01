@@ -151,7 +151,7 @@ export default function ExchangeSettingsPage() {
           <div className="text-sm text-muted-foreground leading-relaxed">
             <p className="font-medium text-foreground mb-1">مبدأ Non-Custodial</p>
             <p>
-              رؤى لا تلمس أموالك أبداً. مفاتيح API مشفرة بـ AES-256-GCM وتُستخدم فقط للقراءة والتداول.
+              رؤى لا تلمس أموالك أبداً. مفاتيح API مشفرة بـ AES-256-GCM وتُستخدم فقط للقراءة ومتابعة حساباتك.
               <span className="text-red-400 font-medium"> المفاتيح التي تحتوي على صلاحيات سحب (Withdraw) أو تحويل (Transfer) تُرفض فوراً.</span>
             </p>
           </div>

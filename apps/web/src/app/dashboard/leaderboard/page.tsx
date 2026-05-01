@@ -64,14 +64,14 @@ const MOCK_TRADERS: Trader[] = [
 
 /* ──────────────── Achievement Badges ──────────────── */
 const BADGES = [
-  { id: 'first-trade', name: 'أول صفقة', icon: Zap, color: T.cyan, unlocked: true, desc: 'أتممت أول صفقة بنجاح' },
-  { id: '100-trades', name: '100 صفقة', icon: BarChart3, color: T.green, unlocked: true, desc: 'نفّذت 100 صفقة' },
+  { id: 'first-trade', name: 'أول ربط', icon: Zap, color: T.cyan, unlocked: true, desc: 'أتممت أول ربط بنجاح' },
+  { id: '100-trades', name: '100 صفقة متبعة', icon: BarChart3, color: T.green, unlocked: true, desc: 'نفّذت 100 صفقة متبعة' },
   { id: 'top-monthly', name: 'أعلى عائد شهري', icon: Crown, color: T.gold, unlocked: true, desc: 'حققت أعلى عائد شهري' },
-  { id: 'consistent', name: 'متداول متسق', icon: Target, color: T.amber, unlocked: false, desc: 'حافظ على أداء متسق لمدة 6 أشهر' },
+  { id: 'consistent', name: 'حساب متسق', icon: Target, color: T.amber, unlocked: false, desc: 'حافظ على أداء متسق لمدة 6 أشهر' },
   { id: 'ai-expert', name: 'خبير AI', icon: Flame, color: T.purple, unlocked: false, desc: 'استخدم الذكاء الاصطناعي في 50 تحليل' },
   { id: 'risk-master', name: 'خبير المخاطر', icon: Shield, color: T.green, unlocked: false, desc: 'حافظ على سحب أقصى أقل من 5%' },
   { id: 'community', name: 'قائد المجتمع', icon: Users, color: T.blue, unlocked: false, desc: 'اجمع أكثر من 1000 متابع' },
-  { id: 'win-streak', name: 'سلسلة انتصارات', icon: Award, color: T.amber, unlocked: false, desc: '10 صفقات رابحة متتالية' },
+  { id: 'win-streak', name: 'سلسلة انتصارات', icon: Award, color: T.amber, unlocked: false, desc: '10 صفقات رابحة متتالية على حساباتك المربوطة' },
 ]
 
 /* ──────────────── Helper Functions ──────────────── */
@@ -411,7 +411,7 @@ export default function LeaderboardPage() {
             الترتيب الكامل
           </h2>
           <span style={{ fontSize: 11, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
-            {sortedTraders.length} متداول
+            {sortedTraders.length} حساب مربوط
           </span>
         </div>
 
@@ -431,7 +431,7 @@ export default function LeaderboardPage() {
                 <tr style={{ borderBottom: `1px solid ${T.border}` }}>
                   {[
                     { label: '#', width: 50 },
-                    { label: 'المتداول', width: 'auto' },
+                    { label: 'الحساب', width: 'auto' },
                     { label: 'العائد', width: 100 },
                     { label: 'معدل الفوز', width: 95 },
                     { label: 'السحب الأقصى', width: 105 },

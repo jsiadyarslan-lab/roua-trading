@@ -156,7 +156,7 @@ export function BotCommandCenter() {
             {isActive ? <Zap size={8} /> : <Pause size={8} />}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: 7.5, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>محرك التداول الذكي</span>
+            <span style={{ fontSize: 7.5, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>محرك المتابعة الذكية</span>
             <span style={{ fontSize: 5.5, color: isActive ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
               {isActive ? `ONLINE · ${engineState.toUpperCase()}` : 'PAUSED · MANUAL ONLY'}
             </span>

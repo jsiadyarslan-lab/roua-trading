@@ -1,10 +1,10 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Roua Trading (رؤى) — Paper Trading Broker Adapter
+// Roua Trading (رؤى) — Paper Trading Exchange Adapter
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Injectable, Logger } from '@nestjs/common';
 import {
-  IBrokerAdapter,
+  IExchangeAdapter,
   UnifiedOrder,
   ExecutionResult,
   OrderExecutionStatus,
@@ -16,9 +16,9 @@ import { MarketDataAggregatorService } from '../../analytics/aggregator.service'
 import { RedisService } from '../../../common/redis/redis.service';
 
 /**
- * PaperTradingAdapter — Simulated Broker for Risk-Free Trading
+ * PaperTradingAdapter — Simulated Exchange for Risk-Free Trading
  *
- * Provides a complete simulation of real broker behavior without
+ * Provides a complete simulation of real exchange behavior without
  * actually executing orders on any exchange. Designed for:
  *
  * ┌───────────────────────────────────────────────────────────┐
@@ -37,7 +37,7 @@ import { RedisService } from '../../../common/redis/redis.service';
  * - Unrealistic fills prevented with price validation
  */
 @Injectable()
-export class PaperTradingAdapter implements IBrokerAdapter {
+export class PaperTradingAdapter implements IExchangeAdapter {
   private readonly logger = new Logger(PaperTradingAdapter.name);
 
   /** Default simulation parameters */
@@ -72,7 +72,7 @@ export class PaperTradingAdapter implements IBrokerAdapter {
     );
   }
 
-  // ── IBrokerAdapter Implementation ──
+  // ── IExchangeAdapter Implementation ──
 
   async placeOrder(order: UnifiedOrder): Promise<ExecutionResult> {
     this.logger.log(`📝 Placing paper order: ${order.side} ${order.quantity} ${order.symbol}`);

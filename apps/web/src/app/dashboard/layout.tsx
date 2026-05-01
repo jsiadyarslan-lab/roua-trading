@@ -10,10 +10,10 @@ import { Metadata, Viewport } from 'next'
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'رؤى | منصة التداول الاحترافية',
-  description: 'منصة رؤى للتداول الذكي - Roua Trading Platform',
+  title: 'رؤى | منصة ربط الحسابات الاحترافية',
+  description: 'منصة رؤى لربط ومتابعة الحسابات الذكية - Roua Account Linking Platform',
   manifest: '/manifest.json',
-  applicationName: 'Roua Trading',
+  applicationName: 'Roua Link',
   icons: {
     icon: '/logo.svg',
     apple: '/logo-192.png',
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Roua Trading',
+    title: 'Roua Link',
   },
 }
 

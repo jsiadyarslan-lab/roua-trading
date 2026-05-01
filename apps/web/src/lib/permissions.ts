@@ -181,12 +181,12 @@ export const ROLE_INFO: Record<Role, { label: string; color: string; description
   FREE: {
     label: 'مجاني',
     color: '#94a3b8',
-    description: 'تداول ورقي ورؤى أساسية',
+    description: 'ربط حساب واحد ورؤى أساسية',
   },
   PRO: {
     label: 'احترافي',
     color: '#00D4FF',
-    description: 'تداول حقيقي وذكاء اصطناعي',
+    description: 'ربط حسابات متعددة وذكاء اصطناعي',
   },
   PLUS: {
     label: 'بلس',

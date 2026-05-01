@@ -56,7 +56,7 @@ export default function SocialPage() {
     e.preventDefault()
     if (!email.trim()) return
     setSubmitted(true)
-    toast({ title: 'تم التسجيل بنجاح ✅', description: `سنقوم بإشعارك عند إطلاق منصة التداول الاجتماعي على ${email}` })
+    toast({ title: 'تم التسجيل بنجاح ✅', description: `سنقوم بإشعارك عند إطلاق منصة متابعة الحسابات الاجتماعية على ${email}` })
   }
 
   return (
@@ -65,7 +65,7 @@ export default function SocialPage() {
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <Users size={20} color={T.cyan} />
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>التداول الاجتماعي</h1>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>متابعة الحسابات الاجتماعية</h1>
           <span style={{
             fontSize: 10, padding: '2px 8px', borderRadius: 20,
             background: `${T.cyan}18`, color: T.cyan,
@@ -106,10 +106,10 @@ export default function SocialPage() {
             <Users size={28} color={T.cyan} />
           </div>
           <h2 style={{ color: T.text, fontSize: 22, fontWeight: 900, margin: '0 0 12px' }}>
-            منصة التداول الاجتماعي
+            منصة متابعة الحسابات الاجتماعية
           </h2>
           <p style={{ color: T.text2, fontSize: 14, lineHeight: 1.8, maxWidth: 480, margin: '0 auto 24px' }}>
-            أول منصة تداول اجتماعي عربية — شارك تحليلاتك، ناقش السوق،
+            أول منصة متابعة حسابات اجتماعية عربية — شارك تحليلاتك، ناقش السوق،
             وابني سمعتك كمتداول محترف.
           </p>
           <div style={{
@@ -178,7 +178,7 @@ export default function SocialPage() {
             اشترك للحصول على إشعار عند الإطلاق
           </div>
           <div style={{ fontSize: 12, color: T.text2 }}>
-            كن أول من يعرف عند إطلاق منصة التداول الاجتماعي
+            كن أول من يعرف عند إطلاق منصة متابعة الحسابات الاجتماعية
           </div>
         </div>
 

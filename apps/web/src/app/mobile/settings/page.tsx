@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 
 const SETTINGS_SECTIONS = [
   {
-    title: 'حسابات التداول',
+    title: 'الحسابات المربوطة',
     items: [
       { icon: Link, label: 'ربط حساب Binance', sub: 'غير مربوط', color: '#FFB800', href: '/settings' },
       { icon: Link, label: 'ربط حساب Alpaca', sub: 'غير مربوط', color: '#00D4FF', href: '/settings' },

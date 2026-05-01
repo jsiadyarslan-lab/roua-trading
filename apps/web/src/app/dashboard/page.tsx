@@ -57,7 +57,7 @@ const MODE_CONFIG: Record<TradingMode, { accent: string; glowBg: string; label: 
     glowBg: 'rgba(0,212,255,0.04)',
     label: 'Trader',
     labelAr: 'وضع التاجر',
-    description: 'تداول سريع، شارت متقدم، تنفيذ فوري',
+    description: 'ربط سريع، شارت متقدم، متابعة فورية',
   },
   investor: {
     accent: '#10b981',

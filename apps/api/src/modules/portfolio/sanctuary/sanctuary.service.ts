@@ -397,7 +397,7 @@ export class SanctuaryService {
       .map((p) => `- ${p.symbol}: ${p.quantity} × $${p.currentPrice.toFixed(2)} = $${p.value.toFixed(2)} (${p.weight.toFixed(1)}%)`)
       .join('\n');
 
-    const prompt = `أنت محلل مخاطر مالي في منصة "رؤى للتداول". حلل المحفظة التالية وقدم توصيات باللغة العربية.
+    const prompt = `أنت محلل مخاطر مالي في منصة "رؤى لربط الحسابات". حلل المحفظة التالية وقدم توصيات باللغة العربية.
 
 📊 المحفظة (القيمة الإجمالية: $${totalValue.toFixed(2)}):
 ${positionsSummary || 'لا توجد أصول'}

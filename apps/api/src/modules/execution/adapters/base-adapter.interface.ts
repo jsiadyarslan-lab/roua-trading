@@ -1,10 +1,10 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Roua Trading (رؤى) — Base Broker Adapter Interface
+// Roua Trading (رؤى) — Base Exchange Adapter Interface
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 /**
  * Unified Order — Standardized order representation
- * Used across ALL broker adapters for consistent order handling
+ * Used across ALL exchange adapters for consistent order handling
  */
 export interface UnifiedOrder {
   id?: string;
@@ -22,7 +22,7 @@ export interface UnifiedOrder {
 }
 
 /**
- * Execution Result — Standardized result from broker execution
+ * Execution Result — Standardized result from exchange execution
  * Every adapter must return this shape for consistent handling
  */
 export interface ExecutionResult {
@@ -64,7 +64,7 @@ export interface UnifiedBalance {
 }
 
 /**
- * IBrokerAdapter — Base Interface for All Broker Adapters
+ * IExchangeAdapter — Base Interface for All Exchange Adapters
  *
  * Every exchange adapter (Binance, Alpaca, PaperTrading)
  * MUST implement this interface to ensure uniform behavior.
@@ -80,7 +80,7 @@ export interface UnifiedBalance {
  * │ 4. Rate limit awareness — each adapter declares its limits│
  * └───────────────────────────────────────────────────────────┘
  */
-export interface IBrokerAdapter {
+export interface IExchangeAdapter {
   // ── Order Execution ──
 
   /**

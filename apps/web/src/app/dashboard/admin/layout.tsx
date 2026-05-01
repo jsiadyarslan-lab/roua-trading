@@ -28,7 +28,7 @@ const NAV_ITEMS = [
   { id: 'health', label: 'صحة النظام', icon: Activity, path: '/dashboard/admin/health' },
   { id: 'ai-costs', label: 'تكاليف AI', icon: Brain, path: '/dashboard/admin/ai-costs' },
   { id: 'monitor', label: 'وكيل المراقبة', icon: Radar, path: '/dashboard/admin/monitor' },
-  { id: 'trading', label: 'التداول', icon: TrendingUp, path: '/dashboard/admin/trading' },
+  { id: 'trading', label: 'ربط الحسابات', icon: TrendingUp, path: '/dashboard/admin/trading' },
   { id: 'signals', label: 'الإشارات', icon: Zap, path: '/dashboard/admin/signals' },
   { id: 'notifications', label: 'التنبيهات', icon: Bell, path: '/dashboard/admin/notifications' },
   { id: 'logs', label: 'السجلات', icon: ScrollText, path: '/dashboard/admin/system-logs' },

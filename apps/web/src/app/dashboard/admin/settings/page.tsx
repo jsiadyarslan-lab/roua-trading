@@ -470,7 +470,7 @@ export default function AdminSettingsPage() {
                 { key: 'takeProfitDefault', label: 'جني الأرباح الافتراضي (%)' },
                 { key: 'riskPerTrade', label: 'المخاطرة لكل صفقة (%)' },
                 { key: 'maxOpenPositions', label: 'الحد الأقصى للمراكز المفتوحة' },
-                { key: 'leverageLimit', label: 'حد الرافعة المالية (x)' },
+                { key: 'leverageLimit', label: 'حد الرافعة المالية على الحسابات المربوطة (x)' },
               ].map(field => (
                 <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>{field.label}</label>
@@ -656,7 +656,7 @@ export default function AdminSettingsPage() {
                   type="text"
                   value={newKeyForm.label}
                   onChange={e => setNewKeyForm(prev => ({ ...prev, label: e.target.value }))}
-                  placeholder="مثال: حساب التداول الرئيسي"
+                  placeholder="مثال: الحساب المربوط الرئيسي"
                   style={{
                     padding: '10px 12px', borderRadius: 8,
                     background: 'rgba(255,255,255,0.03)',

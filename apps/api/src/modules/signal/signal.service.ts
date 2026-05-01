@@ -101,7 +101,7 @@ ${newsContext ? `آخر الأخبار:\n${newsContext}` : ''}
     }
 
     // Step 4: Generate comprehensive signal via AI Orchestrator
-    const signalPrompt = `أنت محلل مالي خبير في منصة "رؤى للتداول". بناءً على البيانات التالية، قدم توصية تداول لـ ${pair}.
+    const signalPrompt = `أنت محلل مالي خبير في منصة "رؤى لربط الحسابات". بناءً على البيانات التالية، قدم توصية تداول لـ ${pair}.
 
 📊 بيانات السوق الحالية:
 - السعر: ${marketData?.price || 'غير متاح'} ${marketData?.currency || 'USD'}

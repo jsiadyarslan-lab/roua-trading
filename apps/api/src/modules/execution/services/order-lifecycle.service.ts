@@ -11,7 +11,7 @@ import { ExecutionResult, OrderExecutionStatus } from '../adapters/base-adapter.
  * OrderLifecycleService — Execution-Aware Order State Manager
  *
  * Manages the order state transitions that are specifically triggered
- * by execution results from broker adapters. This service works
+ * by execution results from exchange adapters. This service works
  * alongside (not replacing) the OrderStateManagerService in the
  * Trading Module.
  *
@@ -21,7 +21,7 @@ import { ExecutionResult, OrderExecutionStatus } from '../adapters/base-adapter.
  * │  ExecutionResult (from adapter)                               │
  * │       ↓                                                       │
  * │  handleExecutionResult()                                      │
- * │       ├─ Success → ACCEPTED or FILLED (depends on broker)    │
+ * │       ├─ Success → ACCEPTED or FILLED (depends on exchange)    │
  * │       └─ Failure → REJECTED with reason                      │
  * │       ↓                                                       │
  * │  OrderEvent recorded (immutable audit trail)                  │
@@ -34,7 +34,7 @@ import { ExecutionResult, OrderExecutionStatus } from '../adapters/base-adapter.
  * - OrderStateManagerService: Handles trading-layer transitions
  *   (PENDING → ACCEPTED → queue)
  * - OrderLifecycleService: Handles execution-layer transitions
- *   (ACCEPTED → FILLED/REJECTED after broker response)
+ *   (ACCEPTED → FILLED/REJECTED after exchange response)
  */
 @Injectable()
 export class OrderLifecycleService {
@@ -48,12 +48,12 @@ export class OrderLifecycleService {
   }
 
   /**
-   * Handle an execution result from a broker adapter
+   * Handle an execution result from an exchange adapter
    *
    * This is the main entry point after an adapter returns a result.
    * It updates the order status, records events, and manages positions.
    *
-   * @param result The execution result from the broker adapter
+   * @param result The execution result from the exchange adapter
    * @param orderId The internal order ID (not exchange order ID)
    * @param userId The user who owns the order
    */
@@ -74,7 +74,7 @@ export class OrderLifecycleService {
   /**
    * Sync order status from the exchange
    *
-   * Fetches the current status of an order from the broker
+   * Fetches the current status of an order from the exchange
    * and updates the local database to match. Used for:
    * - REST polling fallback when WebSocket is unavailable
    * - Periodic reconciliation of order states
@@ -82,7 +82,7 @@ export class OrderLifecycleService {
    *
    * @param orderId The internal order ID
    * @param exchangeOrderId The exchange's order ID
-   * @param adapterStatus The status from the broker adapter
+   * @param adapterStatus The status from the exchange adapter
    */
   async syncOrderFromExchange(
     orderId: string,

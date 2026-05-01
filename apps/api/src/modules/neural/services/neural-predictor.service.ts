@@ -313,7 +313,7 @@ export class NeuralPredictorService {
 
     try {
       const response = await this.orchestrator.analyze({
-        prompt: `أنت محلل أسواق مالي متخصص في منصة "رؤى للتداول". حلل التنبؤ التالي وقدم تحليلاً باللغة العربية.
+        prompt: `أنت محلل أسواق مالي متخصص في منصة "رؤى لربط الحسابات". حلل التنبؤ التالي وقدم تحليلاً باللغة العربية.
 
 📊 الأصل: ${symbol}
 💰 السعر الحالي: $${currentPrice.toFixed(2)}

@@ -3,7 +3,7 @@ import MobileNavBar from '@/components/mobile/MobileNavBar'
 
 export const metadata: Metadata = {
   title: 'Roua Trading — تطبيق الجوال',
-  description: 'منصة رؤى للتداول الذكي',
+  description: 'منصة رؤى لربط الحسابات',
   viewport: {
     width: 'device-width',
     initialScale: 1,

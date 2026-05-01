@@ -62,7 +62,7 @@ interface PermissionInfo {
 ═══════════════════════════════════════════════════════ */
 const EXCHANGES = [
   { id: 'binance', name: 'Binance', initial: 'B', color: '#F0B90B', bgColor: '#F0B90B15', desc: 'أكبر بورصة عملات رقمية' },
-  { id: 'alpaca', name: 'Alpaca', initial: 'A', color: '#00D4FF', bgColor: '#00D4FF15', desc: 'تداول الأسهم والعملات' },
+  { id: 'alpaca', name: 'Alpaca', initial: 'A', color: '#00D4FF', bgColor: '#00D4FF15', desc: 'متابعة أسهم وعملات' },
   { id: 'bybit', name: 'Bybit', initial: 'By', color: '#F7A600', bgColor: '#F7A60015', desc: 'مشتقات وعقود آجلة' },
   { id: 'okx', name: 'OKX', initial: 'OK', color: '#FFFFFF', bgColor: '#FFFFFF10', desc: 'بورصة عالمية متعددة' },
   { id: 'kucoin', name: 'KuCoin', initial: 'K', color: '#23AF91', bgColor: '#23AF9115', desc: 'بورصة متنوعة العملات' },

@@ -76,17 +76,36 @@ export class RedisService implements OnModuleDestroy {
   }
 
   /**
-   * Rate limit check using Redis INCR + EXPIRE
-   * Returns remaining requests count, or -1 if rate limited
+   * Rate limit check using atomic Lua script (INCR + EXPIRE in one round trip).
+   *
+   * FIX: Previously used separate INCR + EXPIRE commands, which created a race condition.
+   * If the process crashed between INCR returning 1 and EXPIRE, the key would persist
+   * forever with no TTL, permanently blocking that rate limit key.
+   *
+   * The Lua script is atomic — Redis executes it as a single operation:
+   * 1. INCR the counter
+   * 2. If counter is 1 (first request), set the TTL
+   * 3. Return [currentCount, ttlMs]
    */
+  private readonly rateLimitScript = `
+    local current = redis.call('INCR', KEYS[1])
+    if current == 1 then
+      redis.call('PEXPIRE', KEYS[1], ARGV[1])
+    end
+    local ttl = redis.call('PTTL', KEYS[1])
+    return { current, ttl }
+  `;
+
   async checkRateLimit(key: string, limit: number, windowMs: number): Promise<{ allowed: boolean; remaining: number; resetIn: number }> {
-    const current = await this.incr(key);
+    const result = await this.client.eval(
+      this.rateLimitScript,
+      1,          // number of keys
+      key,        // KEYS[1]
+      windowMs,   // ARGV[1]
+    ) as [number, number];
 
-    if (current === 1) {
-      await this.expire(key, windowMs);
-    }
-
-    const ttl = await this.ttl(key);
+    const current = result[0];
+    const ttl = result[1];
 
     if (current > limit) {
       return { allowed: false, remaining: 0, resetIn: ttl };

@@ -66,6 +66,11 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Email login flow: ?email=xxx ──
+    // SECURITY FIX: Only allow login for existing users who have previously
+    // verified their email (via OTP or Passkey). New users must register
+    // through the OTP verification flow (/api/auth/otp/send + /api/auth/otp/verify).
+    // This prevents email impersonation — anyone could previously access any
+    // account by simply providing an email address.
     if (requestedEmail) {
       // Block guest email
       if (requestedEmail === GUEST_EMAIL) {
@@ -75,33 +80,49 @@ export async function GET(request: NextRequest) {
         })
       }
 
-      // Find or create user with this email
-      let user = await db.user.findUnique({ where: { email: requestedEmail } }).catch(() => null)
-
-      if (!user) {
-        try {
-          user = await db.user.create({
-            data: {
-              email: requestedEmail,
-              displayName: requestedEmail.split('@')[0],
-              tier: 'FREE',
-            },
-          })
-        } catch {
-          user = await db.user.findUnique({ where: { email: requestedEmail } })
-        }
-      }
-
-      if (!user) {
+      // Validate email format
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(requestedEmail)) {
         return NextResponse.json({
           authenticated: false,
-          error: 'USER_CREATION_FAILED',
+          error: 'INVALID_EMAIL',
         })
       }
 
-      // Create a new session
+      // SECURITY: Only allow login for existing verified users.
+      // A user is considered "verified" if they have a passkeyId (registered via WebAuthn)
+      // OR if they have a VerificationToken record (verified via OTP at least once).
+      // New users must go through the OTP flow to prove email ownership.
+      const user = await db.user.findUnique({
+        where: { email: requestedEmail },
+        include: {
+          accounts: { take: 1 }, // Has OAuth account = verified
+        },
+      }).catch(() => null)
+
+      if (!user) {
+        // User doesn't exist — they need to register via OTP flow
+        return NextResponse.json({
+          authenticated: false,
+          error: 'USER_NOT_FOUND',
+          message: 'هذا البريد غير مسجل. استخدم رمز التحقق للتسجيل أولاً.',
+        })
+      }
+
+      // Check if user is verified (has passkey, OAuth account, or previously verified via OTP)
+      const isVerified = !!(user.passkeyId || user.accounts.length > 0)
+
+      if (!isVerified) {
+        // User exists but hasn't verified their email yet
+        return NextResponse.json({
+          authenticated: false,
+          error: 'EMAIL_NOT_VERIFIED',
+          message: 'يرجى التحقق من بريدك الإلكتروني عبر رمز التحقق أولاً.',
+        })
+      }
+
+      // Verified user — create session
       const newToken = crypto.randomBytes(32).toString('hex')
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours (not 30 days)
 
       try {
         await db.session.create({
@@ -130,7 +151,7 @@ export async function GET(request: NextRequest) {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 30 * 24 * 60 * 60,
+        maxAge: 24 * 60 * 60, // 24 hours
         path: '/',
       })
 

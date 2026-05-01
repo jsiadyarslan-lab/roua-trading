@@ -2,12 +2,18 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   ChevronLeft, ArrowUpRight, ArrowDownRight, Plus, Minus,
-  ToggleLeft, ToggleRight, Target, TrendingUp, TrendingDown,
-  Clock, Loader2, CheckCircle, AlertCircle, Zap
+  Target, TrendingUp, TrendingDown,
+  Clock, Loader2, CheckCircle, AlertCircle, Zap, X
 } from 'lucide-react'
+import { useMarketStore } from '@/hooks/useMarketStore'
+import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
+import { useNotificationStore } from '@/hooks/useNotificationStore'
+import { usePositionsStore } from '@/hooks/usePositionsStore'
+import { ensureAuth } from '@/lib/api-fetch'
 import SlideToConfirm from '@/components/mobile/SlideToConfirm'
 
 /* ─── Design Tokens ─── */
@@ -22,25 +28,10 @@ const c = {
   border: 'rgba(255,255,255,0.08)',
 }
 
-/* ─── Popular Pairs ─── */
-const PAIRS = [
-  { symbol: 'BTC/USD', price: 94250, change: 2.4 },
-  { symbol: 'ETH/USD', price: 3420, change: -1.2 },
-  { symbol: 'SOL/USD', price: 178.5, change: 5.8 },
-  { symbol: 'GOLD', price: 2340, change: 0.3 },
-  { symbol: 'EUR/USD', price: 1.0845, change: -0.1 },
-  { symbol: 'AAPL', price: 189.2, change: 1.1 },
-  { symbol: 'TSLA', price: 245.8, change: -2.3 },
-  { symbol: 'XRP/USD', price: 2.34, change: 3.2 },
-]
+/* ─── Popular Pairs — symbols only (prices come from live data) ─── */
+const PAIR_SYMBOLS = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XAU/USD', 'EUR/USD', 'GBP/USD', 'XRP/USD', 'BNB/USD']
 
-/* ─── Recent Orders Mock ─── */
-const RECENT_ORDERS = [
-  { id: '1', pair: 'BTC/USD', side: 'buy', qty: '0.05', price: '$94,180', time: 'منذ 5 دقائق', status: 'filled' },
-  { id: '2', pair: 'ETH/USD', side: 'sell', qty: '2.0', price: '$3,435', time: 'منذ 20 دقيقة', status: 'filled' },
-  { id: '3', pair: 'SOL/USD', side: 'buy', qty: '50', price: '$176.20', time: 'منذ ساعة', status: 'pending' },
-  { id: '4', pair: 'GOLD', side: 'sell', qty: '2', price: '$2,338', time: 'منذ 3 ساعات', status: 'filled' },
-]
+type ExecStatus = 'idle' | 'submitting' | 'filled' | 'rejected' | 'error'
 
 /* ─── iOS Card ─── */
 function IOSCard({ children, highlight = false }: { children: React.ReactNode; highlight?: boolean }) {
@@ -81,44 +72,239 @@ function IOSCard({ children, highlight = false }: { children: React.ReactNode; h
 /* ─── Main Page ─── */
 export default function TradingPage() {
   const router = useRouter()
+  const quotes = useMarketStore(s => s.quotes)
+  const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
+  const addPaperTrade = usePaperTradesStore(s => s.addTrade)
+  const addNotification = useNotificationStore(s => s.addNotification)
+  const fetchAccount = usePositionsStore(s => s.fetchAccount)
+  const fetchPositions = usePositionsStore(s => s.fetchPositions)
 
   // Trading state
-  const [selectedPair, setSelectedPair] = useState(PAIRS[0])
   const [side, setSide] = useState<'buy' | 'sell'>('buy')
   const [quantity, setQuantity] = useState('0.01')
   const [orderType, setOrderType] = useState<'market' | 'limit'>('market')
   const [limitPrice, setLimitPrice] = useState('')
   const [takeProfit, setTakeProfit] = useState('')
   const [stopLoss, setStopLoss] = useState('')
-  const [executing, setExecuting] = useState(false)
-  const [executed, setExecuted] = useState(false)
-  const [execError, setExecError] = useState('')
+
+  // Execution state
+  const [execStatus, setExecStatus] = useState<ExecStatus>('idle')
+  const [execMessage, setExecMessage] = useState('')
+  const [execSource, setExecSource] = useState('')
+  const [recentOrders, setRecentOrders] = useState<any[]>([])
+
+  // Get live quote data
+  const quoteKey = quotes ? Object.keys(quotes).find(k =>
+    k.toUpperCase().replace('/', '') === selectedSymbol.toUpperCase().replace('/', '')
+  ) : null
+  const quote = quoteKey ? quotes[quoteKey] : null
+  const livePrice = quote ? Number(quote.price) : 0
+  const changePercent = quote?.changePercent ?? 0
 
   // Calculate order value
   const qty = parseFloat(quantity) || 0
-  const orderValue = qty * selectedPair.price
+  const orderValue = qty * livePrice
 
-  const handleExecute = () => {
-    if (qty <= 0) return
-    setExecuting(true)
-    setExecError('')
-    setTimeout(() => {
-      setExecuting(false)
-      setExecuted(true)
+  // Load recent orders from Alpaca
+  const loadOrders = useCallback(async () => {
+    try {
+      const res = await fetch('/api/alpaca/orders?status=open&limit=5')
+      const j = await res.json()
+      if (j.success && Array.isArray(j.data)) {
+        setRecentOrders(j.data.slice(0, 5).map((o: any) => ({
+          id: o.id,
+          pair: o.symbol,
+          side: o.side,
+          qty: o.qty,
+          price: o.filledAvgPrice ? `$${parseFloat(o.filledAvgPrice).toLocaleString('en', { minimumFractionDigits: 2 })}` : o.limitPrice ? `$${parseFloat(o.limitPrice).toLocaleString('en', { minimumFractionDigits: 2 })}` : '—',
+          time: o.submittedAt ? new Date(o.submittedAt).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' }) : '—',
+          status: o.status === 'filled' ? 'filled' : 'pending',
+        })))
+      }
+    } catch {}
+  }, [])
+
+  // Adjust quantity
+  const adjustQty = (delta: number) => {
+    const current = parseFloat(quantity) || 0
+    const step = livePrice > 1000 ? 0.01 : livePrice > 10 ? 0.1 : 1
+    const newVal = Math.max(0, current + delta * step)
+    setQuantity(newVal.toFixed(newVal < 1 ? 4 : newVal < 100 ? 2 : 0))
+  }
+
+  // Quick percentage of account balance
+  const handleQuickQty = async (pct: number) => {
+    try {
+      const res = await fetch('/api/alpaca/account')
+      const j = await res.json()
+      if (j.success && j.data?.cash) {
+        const maxQty = (j.data.cash * (pct / 100)) / (livePrice || 1)
+        setQuantity(maxQty.toFixed(maxQty < 1 ? 4 : 2))
+      }
+    } catch {}
+  }
+
+  // Validate order
+  const validateOrder = (): string | null => {
+    if (!qty || qty <= 0) return 'يرجى إدخال كمية صالحة'
+    if (!livePrice || livePrice <= 0) return 'سعر السوق غير متوفر حالياً'
+    if (orderType === 'limit' && (!limitPrice || parseFloat(limitPrice) <= 0)) return 'يرجى إدخال سعر الحد'
+
+    const tp = parseFloat(takeProfit)
+    const sl = parseFloat(stopLoss)
+    if (tp) {
+      if (side === 'buy' && tp <= livePrice) return 'جني الأرباح يجب أن يكون أعلى من السعر الحالي'
+      if (side === 'sell' && tp >= livePrice) return 'جني الأرباح يجب أن يكون أقل من السعر الحالي'
+    }
+    if (sl) {
+      if (side === 'buy' && sl >= livePrice) return 'وقف الخسارة يجب أن يكون أقل من السعر الحالي'
+      if (side === 'sell' && sl <= livePrice) return 'وقف الخسارة يجب أن يكون أعلى من السعر الحالي'
+    }
+    return null
+  }
+
+  // Execute order — NestJS first, Alpaca fallback
+  const handleExecute = useCallback(async () => {
+    const validationError = validateOrder()
+    if (validationError) {
+      setExecStatus('error')
+      setExecMessage(validationError)
+      setTimeout(() => setExecStatus('idle'), 3000)
+      return
+    }
+
+    setExecStatus('submitting')
+    setExecMessage('جارٍ إرسال الأمر...')
+
+    const body: Record<string, any> = {
+      symbol: selectedSymbol,
+      side,
+      qty,
+      type: orderType,
+      time_in_force: 'ioc',
+    }
+    if (orderType === 'limit' && limitPrice) body.limit_price = parseFloat(limitPrice)
+    if (stopLoss) body.stop_loss = parseFloat(stopLoss)
+    if (takeProfit) body.take_profit = parseFloat(takeProfit)
+
+    let success = false
+    let orderId = ''
+    let filledPrice = 0
+    let source = ''
+
+    // Path 1: NestJS Trading API
+    try {
+      await ensureAuth()
+      const credRes = await fetch('/api/portfolio/credentials')
+      const credData = await credRes.json()
+      const credentials = credData.data || credData.credentials || []
+      const credentialId = credentials[0]?.id || credentials[0]?.credentialId
+
+      if (credentialId) {
+        const nestBody = {
+          credentialId,
+          symbol: selectedSymbol,
+          side: side.toUpperCase(),
+          type: orderType.toUpperCase(),
+          quantity: qty,
+          price: orderType === 'limit' && limitPrice ? parseFloat(limitPrice) : undefined,
+          stopLoss: stopLoss ? parseFloat(stopLoss) : undefined,
+          takeProfit: takeProfit ? parseFloat(takeProfit) : undefined,
+        }
+
+        const res = await fetch('/api/trading/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(nestBody),
+        })
+        const j = await res.json()
+
+        if (res.ok && j.id) {
+          success = true
+          orderId = j.id
+          filledPrice = j.filledAvgPrice || j.avgFillPrice || livePrice
+          source = 'nestjs'
+        } else if (res.status === 403) {
+          setExecStatus('rejected')
+          setExecMessage(j.message || 'تم رفض الأمر من حارس المخاطر')
+          setTimeout(() => setExecStatus('idle'), 5000)
+          return
+        } else {
+          throw new Error(j.message || 'NestJS error')
+        }
+      } else {
+        throw new Error('No credentials')
+      }
+    } catch {
+      // Path 2: Alpaca Direct fallback
+      try {
+        const res = await fetch('/api/alpaca/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        const j = await res.json()
+        if (j.success) {
+          success = true
+          orderId = j.orderId
+          filledPrice = j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : livePrice
+          source = 'alpaca'
+        } else {
+          setExecStatus('error')
+          setExecMessage(j.error || 'فشل تنفيذ الأمر')
+          setTimeout(() => setExecStatus('idle'), 4000)
+          return
+        }
+      } catch {
+        setExecStatus('error')
+        setExecMessage('خطأ في الشبكة — تعذّر الوصول للمزود')
+        setTimeout(() => setExecStatus('idle'), 4000)
+        return
+      }
+    }
+
+    if (success) {
+      addPaperTrade({
+        symbol: selectedSymbol,
+        side: side === 'buy' ? 'long' : 'short',
+        qty,
+        entryPrice: filledPrice,
+        currentPrice: livePrice,
+        tp: takeProfit ? parseFloat(takeProfit) : undefined,
+        sl: stopLoss ? parseFloat(stopLoss) : undefined,
+        source: 'manual',
+        entryTime: Date.now()
+      })
+
+      const sourceLabel = source === 'nestjs' ? 'آمن 🛡️' : 'مباشر ⚡'
+      setExecSource(sourceLabel)
+      setExecStatus('filled')
+      setExecMessage(`تم ${side === 'buy' ? 'شراء' : 'بيع'} ${quantity} ${selectedSymbol} @ $${filledPrice.toFixed(2)}`)
+
+      addNotification({
+        source: 'trade',
+        priority: 'high',
+        action: side === 'buy' ? 'BUY' : 'SELL',
+        title: `تم ${side === 'buy' ? 'شراء' : 'بيع'} ${selectedSymbol}`,
+        body: `${quantity} ${selectedSymbol} @ $${filledPrice.toFixed(2)} [${sourceLabel}]`,
+        pair: selectedSymbol,
+        price: filledPrice,
+      })
+
+      fetchAccount()
+      fetchPositions()
+      loadOrders()
+      setTimeout(() => { fetchAccount(); fetchPositions(); loadOrders() }, 2000)
+
       setTimeout(() => {
-        setExecuted(false)
+        setExecStatus('idle')
         setQuantity('0.01')
         setTakeProfit('')
         setStopLoss('')
-      }, 2000)
-    }, 2000)
-  }
-
-  const adjustQty = (delta: number) => {
-    const current = parseFloat(quantity) || 0
-    const newVal = Math.max(0, current + delta)
-    setQuantity(newVal.toFixed(newVal < 1 ? 4 : 2))
-  }
+        setLimitPrice('')
+      }, 3000)
+    }
+  }, [selectedSymbol, side, qty, quantity, orderType, limitPrice, takeProfit, stopLoss, livePrice, addPaperTrade, addNotification, fetchAccount, fetchPositions, loadOrders])
 
   return (
     <div style={{ minHeight: '100vh', background: '#000', direction: 'rtl', paddingBottom: 100 }}>
@@ -144,6 +330,17 @@ export default function TradingPage() {
           <ChevronLeft size={20} color={c.text} />
         </motion.button>
         <h1 style={{ fontSize: 20, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif", flex: 1 }}>التداول المباشر</h1>
+        {/* Connection Indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <div style={{
+            width: 6, height: 6, borderRadius: '50%',
+            background: livePrice > 0 ? c.success : c.amber,
+            boxShadow: livePrice > 0 ? '0 0 6px rgba(50,215,75,0.6)' : '0 0 6px rgba(255,184,0,0.6)',
+          }} />
+          <span style={{ fontSize: 9, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>
+            {livePrice > 0 ? 'مباشر' : 'بانتظار البيانات'}
+          </span>
+        </div>
       </div>
 
       {/* ── Pair Selector (Horizontal Scroll) ── */}
@@ -152,14 +349,21 @@ export default function TradingPage() {
         overflowX: 'auto', direction: 'ltr',
         scrollbarWidth: 'none', msOverflowStyle: 'none',
       }}>
-        {PAIRS.map((pair) => {
-          const isActive = selectedPair.symbol === pair.symbol
-          const isUp = pair.change >= 0
+        {PAIR_SYMBOLS.map((symbol) => {
+          const isActive = selectedSymbol === symbol
+          // Find live change for this pair
+          const pairQuoteKey = quotes ? Object.keys(quotes).find(k =>
+            k.toUpperCase().replace('/', '') === symbol.toUpperCase().replace('/', '')
+          ) : null
+          const pairQuote = pairQuoteKey ? quotes[pairQuoteKey] : null
+          const pairChange = pairQuote?.changePercent ?? 0
+          const isUp = pairChange >= 0
+
           return (
             <motion.button
-              key={pair.symbol}
+              key={symbol}
               whileTap={{ scale: 0.95 }}
-              onClick={() => setSelectedPair(pair)}
+              onClick={() => setSelectedSymbol(symbol)}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
                 padding: '10px 16px', borderRadius: 16, minWidth: 80,
@@ -169,10 +373,10 @@ export default function TradingPage() {
               }}
             >
               <span style={{ fontSize: 12, fontWeight: 800, color: isActive ? c.accent : c.text, fontFamily: "'JetBrains Mono', monospace" }}>
-                {pair.symbol}
+                {symbol}
               </span>
               <span style={{ fontSize: 11, fontWeight: 800, color: isUp ? c.success : c.danger, fontFamily: "'JetBrains Mono', monospace" }}>
-                {isUp ? '+' : ''}{pair.change.toFixed(1)}%
+                {pairChange !== 0 ? `${isUp ? '+' : ''}${pairChange.toFixed(1)}%` : '—'}
               </span>
             </motion.button>
           )
@@ -183,22 +387,22 @@ export default function TradingPage() {
       <IOSCard highlight>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
-            <p style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>{selectedPair.symbol}</p>
+            <p style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>{selectedSymbol}</p>
             <p style={{ fontSize: 28, fontWeight: 900, color: c.text, fontFamily: "'JetBrains Mono', monospace", letterSpacing: -1, marginTop: 2 }}>
-              {selectedPair.price < 10
-                ? selectedPair.price.toFixed(4)
-                : selectedPair.price.toLocaleString('en', { minimumFractionDigits: 2 })}
+              {livePrice > 0
+                ? (livePrice < 10 ? livePrice.toFixed(4) : livePrice.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
+                : '—'}
             </p>
           </div>
           <div style={{
             padding: '8px 14px', borderRadius: 14,
-            background: selectedPair.change >= 0 ? `${c.success}15` : `${c.danger}15`,
-            border: `0.5px solid ${selectedPair.change >= 0 ? `${c.success}30` : `${c.danger}30`}`,
+            background: changePercent >= 0 ? `${c.success}15` : `${c.danger}15`,
+            border: `0.5px solid ${changePercent >= 0 ? `${c.success}30` : `${c.danger}30`}`,
             display: 'flex', alignItems: 'center', gap: 4,
           }}>
-            {selectedPair.change >= 0 ? <TrendingUp size={16} color={c.success} /> : <TrendingDown size={16} color={c.danger} />}
-            <span style={{ fontSize: 14, fontWeight: 800, color: selectedPair.change >= 0 ? c.success : c.danger, fontFamily: "'JetBrains Mono', monospace" }}>
-              {selectedPair.change >= 0 ? '+' : ''}{selectedPair.change}%
+            {changePercent >= 0 ? <TrendingUp size={16} color={c.success} /> : <TrendingDown size={16} color={c.danger} />}
+            <span style={{ fontSize: 14, fontWeight: 800, color: changePercent >= 0 ? c.success : c.danger, fontFamily: "'JetBrains Mono', monospace" }}>
+              {changePercent !== 0 ? `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%` : '—'}
             </span>
           </div>
         </div>
@@ -261,9 +465,7 @@ export default function TradingPage() {
                 fontSize: 12, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
                 border: 'none', cursor: 'pointer', transition: '0.2s',
               }}
-            >
-              سوقي
-            </button>
+            >سوقي</button>
             <button
               onClick={() => setOrderType('limit')}
               style={{
@@ -273,13 +475,11 @@ export default function TradingPage() {
                 fontSize: 12, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
                 border: 'none', cursor: 'pointer', transition: '0.2s',
               }}
-            >
-              محدد
-            </button>
+            >محدد</button>
           </div>
         </div>
 
-        {/* Limit Price (only when limit) */}
+        {/* Limit Price */}
         {orderType === 'limit' && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
@@ -289,9 +489,8 @@ export default function TradingPage() {
           >
             <label style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 6 }}>سعر الحد</label>
             <input
-              value={limitPrice}
-              onChange={e => setLimitPrice(e.target.value)}
-              placeholder={selectedPair.price.toString()}
+              value={limitPrice} onChange={e => setLimitPrice(e.target.value)}
+              placeholder={livePrice > 0 ? livePrice.toString() : '0.00'}
               type="number"
               style={{
                 width: '100%', padding: '12px 14px', borderRadius: 14,
@@ -303,13 +502,13 @@ export default function TradingPage() {
           </motion.div>
         )}
 
-        {/* Quantity Input with +/- */}
+        {/* Quantity Input */}
         <div style={{ marginBottom: 14 }}>
           <label style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 6 }}>الكمية</label>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <motion.button
               whileTap={{ scale: 0.9 }}
-              onClick={() => adjustQty(selectedPair.price > 1000 ? -0.01 : -1)}
+              onClick={() => adjustQty(-1)}
               style={{
                 width: 44, height: 44, borderRadius: 14,
                 background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${c.border}`,
@@ -332,7 +531,7 @@ export default function TradingPage() {
             />
             <motion.button
               whileTap={{ scale: 0.9 }}
-              onClick={() => adjustQty(selectedPair.price > 1000 ? 0.01 : 1)}
+              onClick={() => adjustQty(1)}
               style={{
                 width: 44, height: 44, borderRadius: 14,
                 background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${c.border}`,
@@ -345,20 +544,21 @@ export default function TradingPage() {
           </div>
         </div>
 
-        {/* Quick Qty Buttons */}
+        {/* Quick Qty Buttons — Now wired to account balance */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-          {['25%', '50%', '75%', '100%'].map(pct => (
+          {[25, 50, 75, 100].map(pct => (
             <motion.button
               key={pct}
               whileTap={{ scale: 0.95 }}
+              onClick={() => handleQuickQty(pct)}
               style={{
                 flex: 1, padding: '8px 0', borderRadius: 10,
-                background: 'rgba(255,255,255,0.04)', border: `0.5px solid ${c.border}`,
-                color: c.text2, fontSize: 11, fontWeight: 700,
+                background: 'rgba(0,212,255,0.06)', border: `0.5px solid rgba(0,212,255,0.15)`,
+                color: c.accent, fontSize: 11, fontWeight: 700,
                 fontFamily: "'JetBrains Mono', monospace", cursor: 'pointer',
               }}
             >
-              {pct}
+              {pct}%
             </motion.button>
           ))}
         </div>
@@ -371,8 +571,7 @@ export default function TradingPage() {
               <label style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>جني الأرباح (TP)</label>
             </div>
             <input
-              value={takeProfit}
-              onChange={e => setTakeProfit(e.target.value)}
+              value={takeProfit} onChange={e => setTakeProfit(e.target.value)}
               placeholder="اختياري"
               type="number"
               style={{
@@ -389,8 +588,7 @@ export default function TradingPage() {
               <label style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>وقف الخسارة (SL)</label>
             </div>
             <input
-              value={stopLoss}
-              onChange={e => setStopLoss(e.target.value)}
+              value={stopLoss} onChange={e => setStopLoss(e.target.value)}
               placeholder="اختياري"
               type="number"
               style={{
@@ -414,7 +612,7 @@ export default function TradingPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>الزوج</span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: c.text, fontFamily: "'JetBrains Mono', monospace" }}>{selectedPair.symbol}</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: c.text, fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>الاتجاه</span>
@@ -432,6 +630,18 @@ export default function TradingPage() {
             <span style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>الكمية</span>
             <span style={{ fontSize: 12, fontWeight: 700, color: c.text, fontFamily: "'JetBrains Mono', monospace" }}>{quantity}</span>
           </div>
+          {stopLoss && (
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>وقف الخسارة</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: c.danger, fontFamily: "'JetBrains Mono', monospace" }}>{stopLoss}</span>
+            </div>
+          )}
+          {takeProfit && (
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>جني الأرباح</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: c.success, fontFamily: "'JetBrains Mono', monospace" }}>{takeProfit}</span>
+            </div>
+          )}
           <div style={{ height: 1, background: c.border, margin: '4px 0' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 13, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>القيمة الإجمالية</span>
@@ -442,9 +652,18 @@ export default function TradingPage() {
         </div>
       </IOSCard>
 
-      {/* ── Execute with SlideToConfirm ── */}
+      {/* ── Execute ── */}
       <div style={{ margin: '0 20px 24px' }}>
-        {executed ? (
+        {execStatus === 'submitting' ? (
+          <div style={{
+            padding: '16px', borderRadius: 18,
+            background: 'rgba(0,212,255,0.08)', border: `0.5px solid rgba(0,212,255,0.2)`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+          }}>
+            <Loader2 size={24} className="animate-spin" color={c.accent} />
+            <span style={{ fontSize: 14, fontWeight: 800, color: c.accent, fontFamily: "'Cairo', sans-serif" }}>{execMessage}</span>
+          </div>
+        ) : execStatus === 'filled' ? (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -455,19 +674,26 @@ export default function TradingPage() {
             }}
           >
             <CheckCircle size={24} color={c.success} />
-            <span style={{ fontSize: 16, fontWeight: 900, color: c.success, fontFamily: "'Cairo', sans-serif" }}>
-              تم تنفيذ أمر ال{side === 'buy' ? 'شراء' : 'بيع'} بنجاح!
-            </span>
+            <div>
+              <span style={{ fontSize: 14, fontWeight: 900, color: c.success, fontFamily: "'Cairo', sans-serif", display: 'block' }}>
+                تم التنفيذ بنجاح!
+              </span>
+              <span style={{ fontSize: 11, color: c.text2, fontFamily: "'JetBrains Mono', monospace" }}>{execSource}</span>
+            </div>
           </motion.div>
-        ) : executing ? (
-          <div style={{
-            padding: '16px', borderRadius: 18,
-            background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${c.border}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-          }}>
-            <Loader2 size={24} className="animate-spin" color={c.accent} />
-            <span style={{ fontSize: 14, fontWeight: 800, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>جاري التنفيذ...</span>
-          </div>
+        ) : execStatus === 'rejected' || execStatus === 'error' ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            style={{
+              padding: '16px', borderRadius: 18,
+              background: `${c.danger}15`, border: `1px solid ${c.danger}30`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+            }}
+          >
+            <AlertCircle size={24} color={c.danger} />
+            <span style={{ fontSize: 13, fontWeight: 800, color: c.danger, fontFamily: "'Cairo', sans-serif" }}>{execMessage}</span>
+          </motion.div>
         ) : (
           <SlideToConfirm
             onConfirm={handleExecute}
@@ -477,15 +703,17 @@ export default function TradingPage() {
         )}
       </div>
 
-      {/* ── Recent Orders ── */}
+      {/* ── Recent Orders (Live from API) ── */}
       <div style={{ padding: '0 20px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: 16, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>أوامر حديثة</h2>
-        <Clock size={16} color={c.text2} />
+        <motion.button whileTap={{ scale: 0.9 }} onClick={loadOrders} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+          <Clock size={16} color={c.accent} />
+        </motion.button>
       </div>
 
       <IOSCard>
-        {RECENT_ORDERS.length > 0 ? (
-          RECENT_ORDERS.map((order) => (
+        {recentOrders.length > 0 ? (
+          recentOrders.map((order) => (
             <div key={order.id} style={{
               display: 'flex', alignItems: 'center', gap: 12,
               padding: '12px 0', borderBottom: `0.5px solid ${c.border}`,

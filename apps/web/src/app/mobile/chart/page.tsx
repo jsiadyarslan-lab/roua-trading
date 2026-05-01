@@ -10,6 +10,7 @@ import {
   ChevronRight, TrendingUp, TrendingDown, Zap, X, 
   Target, ShieldAlert 
 } from 'lucide-react'
+import SlideToConfirm from '@/components/mobile/SlideToConfirm'
 
 const RouaChart = dynamic(() => import('@/components/charts/RouaChart'), { 
   ssr: false,
@@ -206,13 +207,14 @@ export default function MobileChartPage() {
                 </div>
               </div>
 
-              <motion.button
-                whileTap={{ scale: 0.96 }}
-                onClick={() => setShowOrderSheet(false)}
-                style={{ width: '100%', height: 56, borderRadius: 18, background: orderSide === 'buy' ? '#32D74B' : '#FF453A', color: '#000', fontSize: 17, fontWeight: 800, border: 'none', fontFamily: "'Cairo', sans-serif" }}
-              >
-                تأكيد الصفقة
-              </motion.button>
+              <SlideToConfirm 
+                onConfirm={() => {
+                  // Execute order logic here
+                  setTimeout(() => setShowOrderSheet(false), 800)
+                }}
+                color={orderSide === 'buy' ? '#32D74B' : '#FF453A'}
+                label={orderSide === 'buy' ? 'اسحب لتأكيد الشراء' : 'اسحب لتأكيد البيع'}
+              />
             </motion.div>
           </>
         )}

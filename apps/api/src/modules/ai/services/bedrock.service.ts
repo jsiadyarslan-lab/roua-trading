@@ -162,7 +162,10 @@ export class BedrockService {
     // All models failed — reset resolved model so next call tries all candidates again
     this.resolvedModel = null;
     this.logger.warn(`☁️ All Bedrock models failed — last error: ${this.lastError}`);
-    return this._stubResponse(request);
+    return {
+      ...this._stubResponse(request),
+      content: `⚠️ Bedrock API error: ${this.lastError.substring(0, 250)}`,
+    };
   }
 
   /**

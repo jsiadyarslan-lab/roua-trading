@@ -66,6 +66,7 @@ export class HuggingFaceService {
 
     // Use resolved model if available, otherwise try all candidates
     const models = this.resolvedModel ? [this.resolvedModel] : this.modelCandidates;
+    let lastModelError = '';
 
     for (const model of models) {
       try {
@@ -111,11 +112,13 @@ export class HuggingFaceService {
         }
 
         // Empty content — try next model
+        lastModelError = `${model.split('/').pop()} returned empty content`;
         this.logger.warn(`🤗 HuggingFace model ${model} returned empty content — trying next...`);
       } catch (error: any) {
         const modelShort = model.split('/').pop();
         const status = error.response?.status;
         const errData = error.response?.data ? JSON.stringify(error.response.data).substring(0, 300) : '';
+        lastModelError = `${modelShort} (${status || 'N/A'}): ${errData || error.message}`;
 
         if (status === 429) {
           this.logger.warn(`🚫 HuggingFace model ${modelShort} rate limited (429) — throwing for circuit breaker`);
@@ -124,6 +127,7 @@ export class HuggingFaceService {
 
         if (status === 401) {
           this.logger.error(`❌ HuggingFace API key invalid (401) — skipping all models. ${errData}`);
+          lastModelError = `API key invalid (401): ${errData}`;
           break; // No point trying other models with same invalid key
         }
 
@@ -142,8 +146,12 @@ export class HuggingFaceService {
 
     // All models failed — reset resolved model so next call tries all candidates again
     this.resolvedModel = null;
-    this.logger.warn(`🤗 All HuggingFace models failed — returning stub`);
-    return this._stubResponse(request);
+    const lastErr = lastModelError || 'All models returned empty or errors';
+    this.logger.warn(`🤗 All HuggingFace models failed — returning stub. Last error: ${lastErr}`);
+    return {
+      ...this._stubResponse(request),
+      content: `⚠️ HuggingFace API error: ${lastErr.substring(0, 250)}`,
+    };
   }
 
   private _buildSystemPrompt(request: AIAnalysisRequest): string {

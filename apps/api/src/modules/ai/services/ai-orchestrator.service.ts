@@ -610,12 +610,16 @@ export class AIOrchestratorService {
           if (response.confidence > 0 && !response.isFallback) {
             apiWorking = true;
           } else {
-            // Check if the response content contains error details (from improved error reporting)
+            // FIX: Always show the actual content from the service, even when confidence is 0.
+            // The stub response content often contains the real error message (e.g., "API key invalid",
+            // "Model not found", etc.) which is critical for debugging.
             const contentStr = response.content || '';
-            if (contentStr.includes('API error') || contentStr.includes('error:') || contentStr.includes('Error:')) {
+            if (contentStr.includes('API error') || contentStr.includes('error:') || contentStr.includes('Error:') || contentStr.includes('⚠️')) {
               error = contentStr.replace(/^⚠️\s*/, '').substring(0, 300);
+            } else if (contentStr.length > 10) {
+              error = `Model returned stub (conf=${response.confidence}): ${contentStr.substring(0, 200)}`;
             } else {
-              error = `Model returned stub/empty response (confidence: ${response.confidence})`;
+              error = `Model returned stub/empty response (confidence: ${response.confidence}, content: "${contentStr.substring(0, 50)}")`;
             }
           }
         } catch (err: any) {

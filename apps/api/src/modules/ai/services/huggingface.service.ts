@@ -6,14 +6,16 @@ import { calculateConfidence } from './confidence.util';
 
 /**
  * HuggingFace Inference Service — Free/Open-Source AI Models
- * 
- * Uses HUGGINGFACE_API_KEY (same key already used by EmbeddingService)
- * 
+ *
+ * Uses HUGGINGFACE_API_KEY or HF_API_KEY (Railway variable name)
+ *
  * Available models (free inference API):
  * - Mistral-7B-Instruct — Fast, multilingual, great for analysis
+ * - Zephyr-7B-Beta — Chat-optimized, reliable on free tier
  * - Phi-3-mini — Lightweight, efficient for quick tasks
+ * - Gemma-2-2B-IT — Google's small model, reliable
  * - Llama-3.1-8B-Instruct — Strong reasoning, versatile
- * 
+ *
  * Best for: Free multilingual analysis, translation, diverse open-source models
  * No additional cost — HuggingFace Inference API is free tier
  */
@@ -22,21 +24,23 @@ export class HuggingFaceService {
   private readonly logger = new Logger(HuggingFaceService.name);
   private readonly apiKey: string;
   private readonly baseUrl = 'https://api-inference.huggingface.co/models/';
-  
+
   // Primary model for text generation (free, fast, multilingual)
   private readonly primaryModel = 'mistralai/Mistral-7B-Instruct-v0.3';
-  // Fallback models
+  // Fallback models — ordered by reliability on free tier
   private readonly fallbackModels = [
+    'HuggingFaceH4/zephyr-7b-beta',
     'microsoft/Phi-3-mini-4k-instruct',
+    'google/gemma-2-2b-it',
     'meta-llama/Meta-Llama-3.1-8B-Instruct',
   ];
 
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('HUGGINGFACE_API_KEY', '')?.trim() || this.configService.get<string>('HF_API_KEY', '')?.trim() || '';
     if (this.apiKey) {
-      this.logger.log('🤗 HuggingFace Service initialized (Mistral-7B + Phi-3 + Llama-3)');
+      this.logger.log('🤗 HuggingFace Service initialized (Mistral-7B + Zephyr + Phi-3 + Gemma + Llama-3)');
     } else {
-      this.logger.warn('⚠️ HUGGINGFACE_API_KEY not set');
+      this.logger.warn('⚠️ HUGGINGFACE_API_KEY / HF_API_KEY not set');
     }
   }
 
@@ -50,10 +54,9 @@ export class HuggingFaceService {
 
     // Try primary model first, then fallbacks
     const models = [this.primaryModel, ...this.fallbackModels];
-    
+
     for (const model of models) {
       try {
-        // Use model-appropriate prompt format for each model
         const fullPrompt = this._formatPrompt(model, systemPrompt, request.prompt);
 
         const response = await axios.post(
@@ -72,7 +75,7 @@ export class HuggingFaceService {
               Authorization: `Bearer ${this.apiKey}`,
               'Content-Type': 'application/json',
             },
-            timeout: 45000, // Reduced from 60s — free tier is slow but shouldn't hang
+            timeout: 45000,
           },
         );
 
@@ -107,27 +110,27 @@ export class HuggingFaceService {
       } catch (error: any) {
         const modelShort = model.split('/').pop();
         const status = error.response?.status;
-        
-        // FIX: Throw 429 errors so the orchestrator's circuit breaker can track them.
+        const errData = error.response?.data ? JSON.stringify(error.response.data).substring(0, 200) : '';
+
         if (status === 429) {
           this.logger.warn(`🚫 HuggingFace model ${modelShort} rate limited (429) — throwing for circuit breaker`);
           throw error;
         }
-        
-        // Handle specific HuggingFace error codes
+
         if (status === 503) {
           this.logger.warn(`⏳ HuggingFace model ${modelShort} is loading (503) — trying next model...`);
         } else if (status === 401) {
-          this.logger.error(`❌ HuggingFace API key invalid (401) — skipping all models`);
+          this.logger.error(`❌ HuggingFace API key invalid (401) — skipping all models. ${errData}`);
           break; // No point trying other models with same invalid key
         } else {
-          this.logger.warn(`⚠️ HuggingFace model ${modelShort} failed: ${error.message} — trying next`);
+          this.logger.warn(`⚠️ HuggingFace model ${modelShort} failed (${status}): ${errData || error.message} — trying next`);
         }
         continue;
       }
     }
 
     // All models failed
+    this.logger.warn(`🤗 All HuggingFace models failed — returning stub`);
     return this._stubResponse(request);
   }
 
@@ -138,18 +141,19 @@ export class HuggingFaceService {
 
   /**
    * Format the prompt according to the model's expected template.
-   * Mistral uses <s>[INST]...[/INST]
-   * Phi-3 uses <|user|>...<|end|><|assistant|>
-   * Llama-3.1 uses <|begin_of_text|><|start_header_id|>user<|end_header_id|>...<|eot_id|>
    */
   private _formatPrompt(model: string, systemPrompt: string, userPrompt: string): string {
     if (model.includes('Phi-3')) {
-      // Phi-3 format
-      return `<|system|>\n${systemPrompt}<|end|>\n<|user|>\n${userPrompt}<|end|>\n<|assistant|>\n`;
+      return `<s><|user|>\n${systemPrompt}\n\n${userPrompt}<|end|>\n<|assistant|)\n`;
     }
     if (model.includes('Llama-3')) {
-      // Llama-3.1 format
       return `<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n${systemPrompt}<|eot_id|><|start_header_id|>user<|end_header_id|>\n\n${userPrompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n`;
+    }
+    if (model.includes('gemma')) {
+      return `<start_of_turn>user\n${systemPrompt}\n\n${userPrompt}<end_of_turn>\n<start_of_turn>model\n`;
+    }
+    if (model.includes('zephyr')) {
+      return `<|system|>\n${systemPrompt}</s>\n<|user|>\n${userPrompt}</s>\n<|assistant|)\n`;
     }
     // Default: Mistral format
     return `<s>[INST] ${systemPrompt}\n\n${userPrompt} [/INST]`;
@@ -158,7 +162,7 @@ export class HuggingFaceService {
   private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {
     return {
       model: 'HuggingFace/Mistral-7B',
-      content: `⚠️ مفتاح HuggingFace API غير مكوّن. النماذج المفتوحة المصدر (Mistral, Phi-3, Llama) ستكون متاحة عند تفعيل الخدمة — مجاني بالكامل.`,
+      content: `⚠️ مفتاح HuggingFace API غير مكوّن. النماذج المفتوحة المصدر (Mistral, Zephyr, Phi-3, Gemma, Llama) ستكون متاحة عند تفعيل الخدمة — مجاني بالكامل.`,
       confidence: 0,
       processingTimeMs: 0,
       language: request.language || 'ar',

@@ -488,7 +488,7 @@ export default function KYCPage() {
       } else if (type === 'back') {
         setDocInfo(prev => ({ ...prev, backFile: file, backPreview: result }))
       } else {
-        setSelfieInfo(prev => ({ ...selfieFile: file, selfiePreview: result, livenessDetected: true }))
+        setSelfieInfo(prev => ({ ...prev, selfieFile: file, selfiePreview: result, livenessDetected: true }))
       }
     }
     reader.readAsDataURL(file)

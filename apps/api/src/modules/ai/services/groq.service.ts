@@ -32,9 +32,11 @@ export class GroqService {
   // Try multiple models in order: fast → capable → lightweight
   private readonly modelCandidates = [
     'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',     // Higher daily limits, very fast
     'llama3-70b-8192',
     'mixtral-8x7b-32768',
     'llama3-8b-8192',
+    'gemma2-9b-it',              // Google Gemma 2, good multilingual
   ];
   private resolvedModel: string | null = null; // Cached after first successful call
 

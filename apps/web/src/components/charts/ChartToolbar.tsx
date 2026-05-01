@@ -204,7 +204,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
       gap: 2,
       overflowX: mobile ? 'auto' : 'visible',
       scrollbarWidth: 'none',
-      direction: 'ltr',
+      direction: 'rtl',
     }}>
       {/* Chart Type */}
       <div ref={chartTypeRef} style={{ position: 'relative' }}>
@@ -258,7 +258,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           onClick={() => setShowTimeframePanel(!showTimeframePanel)}
         >
           {tfLabel}
-          <svg width="9" height="9" viewBox="0 0 10 6" fill="currentColor" style={{ marginLeft: 3 }}>
+          <svg width="9" height="9" viewBox="0 0 10 6" fill="currentColor" style={{ marginInlineStart: 3 }}>
             <path d="M0 0 L5 6 L10 0Z"/>
           </svg>
         </button>
@@ -352,7 +352,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
         onClick={onToggleIndicators}
         title="المؤشرات"
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 3 }}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginInlineEnd: 3 }}>
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
         </svg>
         IND

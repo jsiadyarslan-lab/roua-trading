@@ -84,16 +84,48 @@ async function runSchemaMigrations(): Promise<void> {
     `CREATE INDEX IF NOT EXISTS "VerificationToken_expires_idx" ON "VerificationToken"("expires")`,
   ]
 
+  let migrationErrors = 0
   for (const sql of migrations) {
     try {
       await db.$executeRawUnsafe(sql)
-    } catch {
-      // Column already exists or other non-fatal issue — ignore
+    } catch (err: any) {
+      migrationErrors++
+      // Log migration errors instead of silently swallowing them
+      // "already exists" errors are expected and non-fatal
+      const msg = err?.message || String(err)
+      if (msg.includes('already exists') || msg.includes('duplicate')) {
+        // Expected — column/table/index already exists
+      } else {
+        console.warn(`[db] Migration warning: ${msg.substring(0, 200)}`)
+      }
     }
   }
 
+  // Verify critical tables exist after migrations
+  try {
+    const tableCheck = await db.$queryRaw`
+      SELECT table_name FROM information_schema.tables
+      WHERE table_schema = 'public'
+      AND table_name IN ('Setting', 'NotificationConfig', 'AdminSession')
+      ORDER BY table_name
+    `
+    const foundTables = (tableCheck as any[]).map((r: any) => r.table_name)
+    const missingTables = ['Setting', 'NotificationConfig', 'AdminSession'].filter(t => !foundTables.includes(t))
+    if (missingTables.length > 0) {
+      console.error(`[db] CRITICAL: Tables still missing after migrations: ${missingTables.join(', ')}`)
+    } else {
+      console.log('[db] All critical tables verified: Setting, NotificationConfig, AdminSession')
+    }
+  } catch (err: any) {
+    console.warn(`[db] Could not verify table existence: ${err?.message || err}`)
+  }
+
   globalForPrisma.schemaMigrated = true
-  console.log('[db] Schema migrations completed')
+  if (migrationErrors > 0) {
+    console.log(`[db] Schema migrations completed with ${migrationErrors} warnings`)
+  } else {
+    console.log('[db] Schema migrations completed successfully')
+  }
 }
 
 /**

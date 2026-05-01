@@ -82,23 +82,38 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         if (res.ok && data.authenticated) {
           setAuthenticated(true)
+          // Only set authChecked on first successful check
+          if (!authChecked) {
+            setAuthChecked(true)
+            setChecking(false)
+          }
+        } else if (res.status === 401) {
+          // Session explicitly expired or invalid — redirect to login
+          setAuthenticated(false)
+          router.replace('/dashboard/admin/login')
+          return
         } else {
+          // Other HTTP errors (500, 503, etc.) — don't kick user out on re-checks
+          // Only redirect on the initial check, not on periodic re-checks
+          if (!authChecked) {
+            setAuthenticated(false)
+            router.replace('/dashboard/admin/login')
+            return
+          }
+          // On periodic re-checks, keep the current auth state
+          console.warn('[admin-layout] Session re-check failed — keeping current state')
+        }
+      } catch {
+        if (cancelled) return
+        // Network error — don't redirect on periodic re-checks, only on initial
+        if (!authChecked) {
+          console.warn('[admin-layout] Initial session check failed — network error')
           setAuthenticated(false)
           router.replace('/dashboard/admin/login')
           return
         }
-      } catch {
-        if (cancelled) return
-        // Network error — don't redirect, show error state instead
-        console.warn('[admin-layout] Session check failed — network error')
-        setAuthenticated(false)
-        router.replace('/dashboard/admin/login')
-        return
-      }
-
-      if (!cancelled) {
-        setAuthChecked(true)
-        setChecking(false)
+        // On periodic re-checks, keep the user logged in despite network errors
+        console.warn('[admin-layout] Session re-check network error — keeping current state')
       }
     }
 

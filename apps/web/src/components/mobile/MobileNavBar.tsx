@@ -69,8 +69,8 @@ export default function MobileNavBar() {
               <button
                 key={item.href}
                 onClick={() => handleNav(item.href)}
-                className="flex flex-col items-center justify-center gap-0.5"
-                style={{ width: 48, paddingTop: 4 }}
+                className="flex flex-col items-center justify-center h-full"
+                style={{ width: 48 }}
               >
                 <motion.div whileTap={{ scale: 0.85 }} className="relative">
                   <Icon size={20} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} />
@@ -133,7 +133,7 @@ export default function MobileNavBar() {
                 WebkitBackdropFilter: 'blur(40px) saturate(200%)',
                 borderRadius: '28px 28px 0 0',
                 borderTop: '0.5px solid rgba(255,255,255,0.15)',
-                paddingBottom: 'calc(58px + env(safe-area-inset-bottom))',
+                paddingBottom: 'calc(48px + env(safe-area-inset-bottom))',
                 boxShadow: '0 -10px 40px rgba(0,0,0,0.5)',
               }}
             >

@@ -15,7 +15,14 @@ export class GlmService {
   private readonly logger = new Logger(GlmService.name);
   private readonly apiKey: string;
   private readonly baseUrl = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-  private readonly model = 'glm-4';
+  // FIX: Model fallback chain — glm-4 hits rate limits when balance is low.
+  // glm-4-flash is cheaper and more available.
+  private readonly modelCandidates = [
+    'glm-4-flash',
+    'glm-4',
+    'glm-3-turbo',
+  ];
+  private resolvedModel: string | null = null; // Cached after first successful call
 
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('GLM_API_KEY', '')?.trim() || '';
@@ -34,51 +41,73 @@ export class GlmService {
     const startTime = Date.now();
     const systemPrompt = this._buildSystemPrompt(request);
 
-    try {
-      const response = await axios.post(
-        this.baseUrl,
-        {
-          model: this.model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: request.prompt },
-          ],
-          temperature: 0.4,
-          max_tokens: 2048,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${this._generateJwt()}`,
-            'Content-Type': 'application/json',
+    // FIX: Try multiple models — glm-4-flash is cheaper, glm-4 is more capable
+    const modelsToTry = this.resolvedModel ? [this.resolvedModel] : this.modelCandidates;
+
+    for (const model of modelsToTry) {
+      try {
+        const response = await axios.post(
+          this.baseUrl,
+          {
+            model,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: request.prompt },
+            ],
+            temperature: 0.4,
+            max_tokens: 2048,
           },
-          timeout: 60000,
-        },
-      );
+          {
+            headers: {
+              Authorization: `Bearer ${this._generateJwt()}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 60000,
+          },
+        );
 
-      const content = response.data.choices?.[0]?.message?.content || '';
+        const content = response.data.choices?.[0]?.message?.content || '';
 
-      return {
-        model: `GLM-4/${this.model}`,
-        content,
-        confidence: calculateConfidence(content, 'glm'),
-        processingTimeMs: Date.now() - startTime,
-        language: request.language || 'ar',
-      };
-    } catch (error: any) {
-      // FIX: Throw 429 errors so the orchestrator's circuit breaker can track them.
-      const status = error.response?.status;
-      if (status === 429) {
-        this.logger.warn(`GLM rate limited (429) — throwing for circuit breaker`);
-        throw error;
+        // Success — cache this model name for future calls
+        if (!this.resolvedModel) {
+          this.resolvedModel = model;
+          this.logger.log(`🧠 GLM model resolved: ${model}`);
+        }
+
+        return {
+          model: `GLM-4/${model}`,
+          content,
+          confidence: calculateConfidence(content, 'glm'),
+          processingTimeMs: Date.now() - startTime,
+          language: request.language || 'ar',
+        };
+      } catch (error: any) {
+        const status = error.response?.status;
+        const errData = error.response?.data ? JSON.stringify(error.response.data).substring(0, 200) : '';
+
+        if (status === 429) {
+          // Rate limited — try next model
+          this.logger.warn(`🧠 GLM model ${model} rate limited (429) — trying next... ${errData}`);
+          if (!this.resolvedModel) continue; // Try next model candidate
+          this.logger.warn(`GLM resolved model ${model} rate limited (429) — throwing for circuit breaker`);
+          throw error;
+        }
+        if (status === 401 || status === 403) {
+          this.logger.error(`🧠 GLM auth failed (${status}) — API key may be invalid. ${errData}`);
+          return this._stubResponse(request); // Auth error won't change with different model
+        }
+        this.logger.warn(`🧠 GLM model ${model} failed: ${error.message} (status: ${status}) ${errData}`);
+        if (!this.resolvedModel) continue; // Try next model
+        return {
+          ...this._stubResponse(request),
+          content: `⚠️ GLM API error (${status || 'N/A'}): ${errData || error.message?.substring(0, 150)}`,
+        };
       }
-      // FIX: Include error details in response so diagnostics can see them
-      const errData = error.response?.data ? JSON.stringify(error.response.data).substring(0, 200) : '';
-      this.logger.warn(`GLM inference failed: ${error.message} (status: ${status}) ${errData}`);
-      return {
-        ...this._stubResponse(request),
-        content: `⚠️ GLM API error (${status || 'N/A'}): ${errData || error.message?.substring(0, 150)}`,
-      };
     }
+
+    // All models failed
+    this.logger.warn(`🧠 All GLM models failed — returning stub`);
+    return this._stubResponse(request);
   }
 
   private _buildSystemPrompt(request: AIAnalysisRequest): string {
@@ -118,7 +147,7 @@ export class GlmService {
 
   private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {
     return {
-      model: `GLM-4/${this.model}`,
+      model: `GLM-4/${this.modelCandidates[0]}`,
       content: `⚠️ مفتاح GLM API غير مكوّن. التحليل سيظهر هنا عند تفعيل الخدمة.`,
       confidence: 0,
       processingTimeMs: 0,

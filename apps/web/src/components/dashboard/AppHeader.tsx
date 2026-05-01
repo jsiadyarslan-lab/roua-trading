@@ -350,7 +350,7 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
           }}>
             <span style={{
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: isMobile ? 6.5 : 7.5, color: T.text3,
+              fontSize: isMobile ? 9 : 7.5, color: T.text3,
               letterSpacing: '0.04em', lineHeight: 1.2,
             }}>{sym}</span>
             <span className="price" style={{
@@ -423,7 +423,7 @@ const NAV_LINKS = [
   { href: '/dashboard/news',                   label: 'الأخبار',            icon: Newspaper },
   { href: '/dashboard/leaderboard',            label: 'لوحة الصدارة',       icon: Trophy },
   { href: '/dashboard/copy-trading',           label: 'متابعة الحسابات',    icon: Eye },
-  { href: '/dashboard/social',                 label: 'متابعة الحسابات',  icon: Users },
+  { href: '/dashboard/social',                 label: 'المجتمع الاجتماعي',  icon: Users },
   { href: '/dashboard/calendar',               label: 'الأجندة الاقتصادية', icon: CalendarDays },
   { href: '/dashboard/strategies/backtest',    label: 'اختبار الاستراتيجيات', icon: Activity },
   { href: '/dashboard/sanctuary',             label: 'الملاذ',              icon: Shield },
@@ -924,6 +924,10 @@ const KF = `
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
 header *            { scrollbar-width:none; -ms-overflow-style:none; }
 header *::-webkit-scrollbar { display:none; }
 
@@ -974,10 +978,11 @@ export function AppHeader() {
           zIndex: 1000, backdropFilter: 'blur(8px)'
         }} onClick={() => setMenuOpen(false)}>
           <div style={{
-            position: 'absolute', right: 0, top: 0, bottom: 0, width: '280px',
+            position: 'absolute', right: 0, top: 0, bottom: 0, width: 'min(280px, 85vw)',
             background: 'rgba(26,29,41,0.95)', borderLeft: `1px solid rgba(0,212,255,0.12)`,
             display: 'flex', flexDirection: 'column', padding: '20px',
             overflowY: 'auto',
+            animation: 'slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           }} className="custom-scrollbar" onClick={e => e.stopPropagation()}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                 <span style={{ fontSize: 18, fontWeight: 900, color: T.text, fontFamily: "'Cairo', sans-serif" }}>القائمة</span>
@@ -989,7 +994,7 @@ export function AppHeader() {
                   return (
                     <Link key={href} href={href} style={{ textDecoration: 'none' }} onClick={() => setMenuOpen(false)}>
                       <div style={{
-                        display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
+                        display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', minHeight: 44,
                         borderRadius: 10, background: active ? 'rgba(0,212,255,0.10)' : 'transparent',
                         color: active ? 'var(--accent)' : T.text2,
                         borderLeft: active ? '3px solid var(--accent)' : '3px solid transparent',

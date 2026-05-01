@@ -52,6 +52,7 @@ export default function SubPageLayout({
           onClick={() => router.push(backPath)}
           style={{
             display: 'flex', alignItems: 'center', gap: '6px',
+            minHeight: 44, minWidth: 44, borderRadius: 8,
             background: 'none', border: 'none', cursor: 'pointer',
             color: 'var(--text-muted)', fontSize: '12px', fontFamily: 'var(--font-ar)',
           }}
@@ -134,7 +135,7 @@ export default function SubPageLayout({
               style={{
                 padding: '8px 14px', borderRadius: '6px', border: 'none', cursor: 'pointer',
                 fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-ar)',
-                minHeight: 36,
+                minHeight: 44,
                 background: activeTab === tab.id ? 'var(--accent)' : 'var(--bg-input)',
                 color: activeTab === tab.id ? '#fff' : 'var(--text-muted)',
                 transition: 'all 0.15s',
@@ -164,7 +165,7 @@ export default function SubPageLayout({
           }
           .subpage-content {
             padding: 16px 10px !important;
-            padding-bottom: calc(16px + env(safe-area-inset-bottom) + 60px) !important;
+            padding-bottom: calc(16px + env(safe-area-inset-bottom) + 80px) !important;
           }
           .subpage-nav-bar {
             padding-top: calc(env(safe-area-inset-top)) !important;
@@ -174,7 +175,7 @@ export default function SubPageLayout({
         @media (max-width: 380px) {
           .subpage-content {
             padding: 12px 8px !important;
-            padding-bottom: calc(12px + env(safe-area-inset-bottom) + 60px) !important;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom) + 80px) !important;
           }
         }
       `}</style>

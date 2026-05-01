@@ -387,7 +387,7 @@ function EventCard({ event, index, onAnalyze, analyzing }: {
             className="pm-analyze-btn"
             style={{
               display: 'flex', alignItems: 'center', gap: '4px',
-              padding: '6px 12px', borderRadius: '7px',
+              padding: '10px 16px', borderRadius: '7px',
               border: '1px solid var(--purple-border)',
               background: 'linear-gradient(135deg, var(--purple-bg), rgba(162, 89, 255, 0.08))',
               color: 'var(--purple)', fontSize: '10px', fontWeight: 600,
@@ -397,6 +397,7 @@ function EventCard({ event, index, onAnalyze, analyzing }: {
               opacity: isAnalyzing ? 0.7 : 1,
               transition: 'all 0.15s',
               flexShrink: 0,
+              minHeight: 44,
             }}
           >
             {isAnalyzing ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
@@ -660,7 +661,7 @@ function ConfidenceGauge({ confidence }: { confidence: number }) {
 
   return (
     <div className="pm-confidence-gauge" style={{ position: 'relative', width: '100px', height: '100px', margin: '0 auto' }}>
-      <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+      <svg width="100%" height="100%" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)', maxWidth: 100, maxHeight: 100 }}>
         {/* Background circle */}
         <circle
           cx="50" cy="50" r={radius}
@@ -878,7 +879,10 @@ export default function PredictionMarketPage() {
           .pm-vote-section { padding: 12px !important; }
           .pm-confidence-gauge { width: 80px !important; height: 80px !important; }
           .pm-confidence-gauge svg { width: 80px !important; height: 80px !important; }
-          .pm-vote-symbol-input { font-size: 14px !important; min-height: 48px !important; }
+          .pm-vote-symbol-input { font-size: 16px !important; min-height: 48px !important; }
+          .pm-event-card > div:first-child { flex-direction: column; gap: 8px; }
+          .pm-event-card .pm-analyze-btn { align-self: flex-start; }
+          .pm-legal-disclaimer { padding: 12px !important; }
         }
         @media (max-width: 480px) {
           .pm-stats-row { grid-template-columns: 1fr !important; }
@@ -1221,6 +1225,7 @@ export default function PredictionMarketPage() {
                   <Search size={14} style={{ color: 'var(--text-faint)', flexShrink: 0 }} />
                   <input
                     type="text"
+                    className="pm-vote-symbol-input"
                     value={voteSymbol}
                     onChange={(e) => setVoteSymbol(e.target.value.toUpperCase())}
                     onKeyDown={(e) => e.key === 'Enter' && handleFetchVote()}
@@ -1417,7 +1422,7 @@ export default function PredictionMarketPage() {
       </AnimatePresence>
 
       {/* ── Legal Disclaimer ── */}
-      <div style={{
+      <div className="pm-legal-disclaimer" style={{
         display: 'flex', alignItems: 'flex-start', gap: '8px',
         padding: '12px 16px', borderRadius: '8px',
         background: 'var(--warning-bg)', border: '1px solid var(--border-warning)',

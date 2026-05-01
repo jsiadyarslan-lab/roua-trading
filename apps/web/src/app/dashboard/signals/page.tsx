@@ -202,7 +202,7 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
           </div>
 
           {/* Price Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+          <div className="signal-price-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
             <div style={{ padding: '8px 10px', borderRadius: '6px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px' }}>
                 <Crosshair size={8} style={{ color: 'var(--text-faint)' }} />
@@ -244,6 +244,7 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
             style={{
               display: 'flex', alignItems: 'center', gap: '4px',
               padding: '5px 10px', borderRadius: '6px',
+              minHeight: 36, minWidth: 60,
               border: '1px solid var(--border)', background: 'var(--bg-input)',
               color: 'var(--text-muted)', fontSize: '10px',
               fontFamily: 'var(--font-ar), Inter, sans-serif', cursor: 'pointer',
@@ -257,6 +258,7 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
             style={{
               display: 'flex', alignItems: 'center', gap: '4px',
               padding: '5px 10px', borderRadius: '6px',
+              minHeight: 36, minWidth: 60,
               border: '1px solid var(--purple-border)',
               background: 'linear-gradient(135deg, var(--purple-bg), rgba(162, 89, 255, 0.08))',
               color: 'var(--purple)', fontSize: '10px',
@@ -274,6 +276,7 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
             style={{
               display: 'flex', alignItems: 'center', gap: '4px',
               padding: '5px 10px', borderRadius: '6px',
+              minHeight: 36, minWidth: 60,
               border: '1px solid transparent', background: 'none',
               color: 'var(--text-muted)', fontSize: '10px',
               fontFamily: 'var(--font-ar), Inter, sans-serif', cursor: 'pointer',
@@ -395,6 +398,7 @@ export default function SignalsPage() {
         }
         @media (max-width: 480px) {
           .signals-quick-pairs { grid-template-columns: repeat(2, 1fr) !important; }
+          .signal-price-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
       {/* ── Quick Generate Section ── */}
@@ -454,6 +458,7 @@ export default function SignalsPage() {
                 transition={{ delay: i * 0.04, duration: 0.2 }}
                 style={{
                   padding: '14px 8px', borderRadius: '10px',
+                  minHeight: 56,
                   border: isGenerating
                     ? `1px solid ${pair.color}50`
                     : isHovered

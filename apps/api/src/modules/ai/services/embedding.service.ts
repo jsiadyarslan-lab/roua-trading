@@ -25,7 +25,7 @@ export class EmbeddingService {
   private readonly DIMENSIONS = 384;
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('HUGGINGFACE_API_KEY', '')?.trim() || '';
+    this.apiKey = this.configService.get<string>('HUGGINGFACE_API_KEY', '')?.trim() || this.configService.get<string>('HF_API_KEY', '')?.trim() || '';
     if (this.apiKey) {
       this.logger.log('📐 Embedding Service initialized (all-MiniLM-L6-v2 via HuggingFace)');
     } else {

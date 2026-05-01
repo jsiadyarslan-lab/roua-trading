@@ -32,7 +32,7 @@ export class HuggingFaceService {
   ];
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('HUGGINGFACE_API_KEY', '')?.trim() || '';
+    this.apiKey = this.configService.get<string>('HUGGINGFACE_API_KEY', '')?.trim() || this.configService.get<string>('HF_API_KEY', '')?.trim() || '';
     if (this.apiKey) {
       this.logger.log('🤗 HuggingFace Service initialized (Mistral-7B + Phi-3 + Llama-3)');
     } else {

@@ -300,7 +300,7 @@ export class HuggingFaceService {
     return `You are a professional financial AI analyst specializing in ${request.type}. Respond in ${lang}. Be concise, data-driven, and professional. Provide clear analysis with actionable insights. Always include risk disclaimers.`;
   }
 
-  private _stubResponse(request: AIAnalysisResponse): AIAnalysisResponse {
+  private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {
     return {
       model: 'HuggingFace/Unavailable',
       content: `⚠️ خدمة HuggingFace غير متاحة — الحلول: (1) اذهب لـ huggingface.co/settings/tokens وأنشئ توكن Fine-grained مع تفعيل صلاحية "Make calls to Inference Providers" ثم حدث HF_API_KEY — أو — (2) أنشئ حساب في openrouter.ai واحصل على مفتاح API مجاني ثم أضف OPENROUTER_API_KEY في Railway.`,

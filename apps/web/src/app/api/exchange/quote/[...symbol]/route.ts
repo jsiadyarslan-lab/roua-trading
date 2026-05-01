@@ -695,6 +695,11 @@ export async function GET(
         'AAPL':    { price: 205, exchange: 'STOCK', name: 'Apple Inc.' },
         'TSLA':    { price: 285, exchange: 'STOCK', name: 'Tesla Inc.' },
         'NVDA':    { price: 110, exchange: 'STOCK', name: 'NVIDIA Corp.' },
+        'AMZN':    { price: 190, exchange: 'STOCK', name: 'Amazon.com Inc.' },
+        'MSFT':    { price: 430, exchange: 'STOCK', name: 'Microsoft Corp.' },
+        'META':    { price: 570, exchange: 'STOCK', name: 'Meta Platforms Inc.' },
+        'GOOGL':   { price: 165, exchange: 'STOCK', name: 'Alphabet Inc.' },
+        'GOOG':    { price: 165, exchange: 'STOCK', name: 'Alphabet Inc. (C)' },
       }
 
       const fallback = staticFallbacks[symbol]

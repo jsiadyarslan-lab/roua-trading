@@ -113,6 +113,17 @@ export default function AdminSettingsPage() {
     setLoadError(null)
     try {
       const res = await fetch('/api/admin/settings')
+
+      // Check for auth errors
+      if (res.status === 401) {
+        setLoadError('انتهت صلاحية الجلسة — يرجى تسجيل الدخول مجدداً')
+        setTimeout(() => {
+          window.location.href = '/dashboard/admin/login'
+        }, 2000)
+        setLoading(false)
+        return
+      }
+
       if (res.ok) {
         const data = await res.json()
         if (data.botConfig) setBotConfig(data.botConfig)
@@ -134,7 +145,8 @@ export default function AdminSettingsPage() {
           setLoadError(data.error)
         }
       } else {
-        setLoadError('فشل في جلب الإعدادات من الخادم')
+        const data = await res.json().catch(() => ({}))
+        setLoadError(data.error || 'فشل في جلب الإعدادات من الخادم')
       }
     } catch {
       setLoadError('⚠️ فشل الاتصال بالخادم')
@@ -145,6 +157,18 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     fetchSettings()
   }, [fetchSettings])
+
+  // Helper: check if response is auth error and redirect to login
+  const handleAuthError = (res: Response) => {
+    if (res.status === 401) {
+      setSaveError('انتهت صلاحية الجلسة — يرجى تسجيل الدخول مجدداً')
+      setTimeout(() => {
+        window.location.href = '/dashboard/admin/login'
+      }, 2000)
+      return true
+    }
+    return false
+  }
 
   // Save handler — actually calls POST API
   const handleSave = async () => {
@@ -157,6 +181,12 @@ export default function AdminSettingsPage() {
         body: JSON.stringify({ botConfig, riskConfig, platformConfig }),
       })
 
+      // Check for auth errors first
+      if (handleAuthError(res)) {
+        setSaving(false)
+        return
+      }
+
       if (res.ok) {
         const data = await res.json()
         if (data.success) {
@@ -167,10 +197,10 @@ export default function AdminSettingsPage() {
         }
       } else {
         const data = await res.json().catch(() => ({}))
-        setSaveError(data.error || 'فشل في حفظ الإعدادات')
+        setSaveError(data.error || `فشل في حفظ الإعدادات (HTTP ${res.status})`)
       }
-    } catch {
-      setSaveError('⚠️ فشل الاتصال بالخادم أثناء الحفظ')
+    } catch (err: any) {
+      setSaveError(`⚠️ فشل الاتصال بالخادم أثناء الحفظ: ${err?.message || 'خطأ شبكة'}`)
     }
     setSaving(false)
   }

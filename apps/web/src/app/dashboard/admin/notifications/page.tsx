@@ -79,6 +79,17 @@ export default function AdminNotificationsPage() {
     setLoading(true)
     try {
       const res = await fetch('/api/admin/notifications/config')
+
+      // Check for auth errors
+      if (res.status === 401) {
+        setSaveMessage('انتهت صلاحية الجلسة — يرجى تسجيل الدخول مجدداً')
+        setTimeout(() => {
+          window.location.href = '/dashboard/admin/login'
+        }, 2000)
+        setLoading(false)
+        return
+      }
+
       if (res.ok) {
         const data = await res.json()
         setConfigs(data.configs || [])
@@ -125,6 +136,18 @@ export default function AdminNotificationsPage() {
     fetchConfigs()
   }, [fetchConfigs])
 
+  /* ── helper: redirect to login on 401 ── */
+  const redirectToLoginIf401 = (res: Response): boolean => {
+    if (res.status === 401) {
+      setSaveMessage('انتهت صلاحية الجلسة — يرجى تسجيل الدخول مجدداً')
+      setTimeout(() => {
+        window.location.href = '/dashboard/admin/login'
+      }, 2000)
+      return true
+    }
+    return false
+  }
+
   /* ── save config via POST ── */
   const saveConfig = async (type: string, enabled: boolean, config: Record<string, any>): Promise<{ ok: boolean; error?: string }> => {
     try {
@@ -133,6 +156,12 @@ export default function AdminNotificationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, enabled, config }),
       })
+
+      // Check for auth errors
+      if (redirectToLoginIf401(res)) {
+        return { ok: false, error: 'انتهت صلاحية الجلسة' }
+      }
+
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
         console.error(`[notifications] Save ${type} failed:`, res.status, data)
@@ -174,12 +203,13 @@ export default function AdminNotificationsPage() {
       } else {
         setSaveMessage(`فشل الحفظ: ${errors.join(' | ')}`)
       }
-      setTimeout(() => setSaveMessage(''), 5000)
     } catch (err: any) {
       setSaveMessage(`خطأ في الاتصال: ${err?.message || 'غير معروف'}`)
     } finally {
       setSaving(false)
     }
+    // Clear save message after 6 seconds
+    setTimeout(() => setSaveMessage(''), 6000)
   }
 
   /* ── telegram test — إرسال رسالة تجريبية فعلية ── */
@@ -203,6 +233,16 @@ export default function AdminNotificationsPage() {
         body: JSON.stringify(payload),
       })
       const data = await res.json()
+
+      // Check for auth errors
+      if (res.status === 401) {
+        setTelegramStatus('disconnected')
+        setTelegramTestResult('انتهت صلاحية الجلسة — يرجى تسجيل الدخول مجدداً')
+        setTimeout(() => {
+          window.location.href = '/dashboard/admin/login'
+        }, 2000)
+        return
+      }
 
       if (data.ok) {
         setTelegramStatus('connected')

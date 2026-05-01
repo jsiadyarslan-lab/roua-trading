@@ -51,14 +51,26 @@ from human_approval import (
     send_unsafe_fix_alert, send_periodic_summary,
 )
 
-# إضافة المسار المشترك
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
+# إضافة المسار المشترك — دعم مسارين:
+# 1. محلي: agents/shared/ (من جذر المستودع)
+# 2. حاوية: /app/shared/ (عند البناء من Dockerfile)
+_shared_paths = [
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'shared'),  # محلي
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'shared'),        # بديل محلي
+    '/app/shared',                                                              # داخل الحاوية
+]
+for _p in _shared_paths:
+    if os.path.isdir(_p):
+        sys.path.insert(0, _p)
+        break
+
+_SHARED_AVAILABLE = False
 try:
     from health_server import HealthCheckServer
     from logger import ColoredLogger
     _SHARED_AVAILABLE = True
 except ImportError:
-    _SHARED_AVAILABLE = False
+    pass
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -1,8 +1,8 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # Roua Trading Self-Healing Agent — Production Dockerfile for Railway
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# هذا Dockerfile مصمم ليعمل عندما يكون Root Directory
-# هو agents/self-healing-agent/ في إعدادات خدمة Railway
+# مصمم ليعمل من جذر المستودع (build context = repo root)
+# railway.json يُحدد dockerfilePath = agents/self-healing-agent/Dockerfile
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FROM python:3.12-slim
 
@@ -14,22 +14,22 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # Copy and install Python dependencies first (layer caching)
-COPY requirements.txt .
+COPY agents/self-healing-agent/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy only the agent source code
-COPY config.py .
-COPY monitor.py .
-COPY logger_fetcher.py .
-COPY error_analyzer.py .
-COPY fix_generator.py .
-COPY test_runner.py .
-COPY github_pr_manager.py .
-COPY human_approval.py .
-COPY main.py .
+# Copy the agent source code
+COPY agents/self-healing-agent/config.py .
+COPY agents/self-healing-agent/monitor.py .
+COPY agents/self-healing-agent/logger_fetcher.py .
+COPY agents/self-healing-agent/error_analyzer.py .
+COPY agents/self-healing-agent/fix_generator.py .
+COPY agents/self-healing-agent/test_runner.py .
+COPY agents/self-healing-agent/github_pr_manager.py .
+COPY agents/self-healing-agent/human_approval.py .
+COPY agents/self-healing-agent/main.py .
 
-# Copy shared utilities from parent (if available at build time)
-# Note: these are imported at runtime with sys.path fallback
+# Copy shared utilities from agents/shared/
+COPY agents/shared/ /app/shared/
 
 # Environment defaults (overridden by Railway env vars)
 ENV PLATFORM_URL=https://roua-trading-production.up.railway.app

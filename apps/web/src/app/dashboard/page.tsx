@@ -878,12 +878,12 @@ export default function DashboardPage() {
             display: flex;
             flex-direction: column;
             gap: 0;
-            padding: 8px 8px 0;
+            padding: 6px 6px 0;
             background: ${T.bg};
             box-sizing: border-box;
             width: 100%;
             overflow: hidden;
-            height: 100dvh;
+            height: 100%;
           }
 
           .mobile-hero-trading-area {
@@ -944,13 +944,13 @@ export default function DashboardPage() {
 
           .mobile-hero-chart {
             flex: 1;
-            min-height: 200px;
+            min-height: 0;
             overflow: hidden;
           }
 
           .mobile-hero-chart--expanded {
             flex: 2;
-            min-height: 300px;
+            min-height: 0;
           }
 
           .mobile-summary-strip {
@@ -971,74 +971,7 @@ export default function DashboardPage() {
             text-align: center;
           }
 
-          .mobile-primary-ticket {
-            border-radius: 16px;
-            border: 1px solid rgba(0, 212, 255, 0.10);
-            background: rgba(26, 29, 41, 0.6);
-            backdrop-filter: blur(8px);
-            overflow: hidden;
-          }
 
-          .mobile-panel-shell {
-            border-radius: 16px 16px 0 0;
-            overflow: hidden;
-            border: 1px solid rgba(0, 212, 255, 0.10);
-            border-bottom: none;
-            background: rgba(26, 29, 41, 0.6);
-            backdrop-filter: blur(8px);
-            flex-shrink: 1;
-            min-height: 0;
-            overflow-y: auto;
-          }
-
-          .mobile-bottom-nav {
-            display: block;
-            flex-shrink: 0;
-            padding: 6px 10px calc(6px + env(safe-area-inset-bottom));
-            background: rgba(11, 14, 20, 0.94);
-            border-top: 1px solid rgba(0, 212, 255, 0.10);
-            backdrop-filter: blur(20px) saturate(1.5);
-            -webkit-backdrop-filter: blur(20px) saturate(1.5);
-            box-sizing: border-box;
-          }
-
-          .mobile-bottom-nav__inner {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 6px;
-          }
-
-          .mobile-bottom-nav__button {
-            min-height: 42px;
-            padding: 6px 4px;
-            border: 1px solid transparent;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.03);
-            color: ${T.text3};
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 3px;
-            cursor: pointer;
-            transition: all 0.18s ease;
-            box-sizing: border-box;
-            touch-action: manipulation;
-          }
-
-          .mobile-bottom-nav__button--active {
-            background: rgba(0, 212, 255, 0.10);
-            color: ${T.text};
-            border-color: rgba(0, 212, 255, 0.20);
-            box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.08) inset, 0 0 12px rgba(0, 212, 255, 0.06);
-          }
-
-          .mobile-bottom-nav__label {
-            font-size: 9px;
-            font-weight: 700;
-            font-family: 'Cairo', sans-serif;
-            line-height: 1;
-          }
 
           .mobile-section {
             min-width: 0;
@@ -1074,8 +1007,8 @@ export default function DashboardPage() {
           }
 
           .mobile-chart-shell {
-            height: min(74vh, 720px);
-            min-height: 420px;
+            height: 100%;
+            min-height: 0;
           }
         }
 
@@ -1340,6 +1273,7 @@ export default function DashboardPage() {
       {isMobileViewport && (
         <div className="mobile-dashboard-shell">
           <div className="mobile-hero-trading-area">
+            {/* Market Strip */}
             <div className="mobile-market-strip">
               {mobileSymbols.map(({ symbol, quote }) => {
                 const active = symbol === selectedSymbol
@@ -1364,17 +1298,56 @@ export default function DashboardPage() {
               })}
             </div>
 
+            {/* Chart Card — full remaining height */}
             <div className="mobile-hero-card">
               <div className="mobile-hero-card__header">
-                <span className="mobile-section__title" style={{ fontSize: 11 }}>Chart</span>
+                {/* Navigation tabs inline */}
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  {([
+                    { id: 'execution', label: 'تنفيذ', icon: BarChart3 },
+                    { id: 'market', label: 'السوق', icon: ScanSearch },
+                    { id: 'portfolio', label: 'المحفظة', icon: Wallet },
+                    { id: 'insight', label: 'رؤى', icon: Brain },
+                  ] as const).map(item => {
+                    const Icon = item.icon
+                    const active = activeMobileView === item.id
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setActiveMobileView(item.id as MobileView)}
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: 6,
+                          border: 'none',
+                          background: active ? 'rgba(0,212,255,0.12)' : 'transparent',
+                          color: active ? '#00D4FF' : '#8B92A8',
+                          fontSize: 9,
+                          fontWeight: 700,
+                          fontFamily: "'Cairo', sans-serif",
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 3,
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <Icon size={10} />
+                        {item.label}
+                      </button>
+                    )
+                  })}
+                </div>
+
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {/* Execution Zap Button */}
                   <button
                     type="button"
                     onClick={() => setTradeDialogOpen(true)}
                     title="تنفيذ الأوامر"
                     aria-label="فتح نافذة التنفيذ"
                     style={{
-                      width: 28, height: 28, borderRadius: 8,
+                      width: 30, height: 30, borderRadius: 8,
                       background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
                       border: 'none', color: '#fff', cursor: 'pointer',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1385,7 +1358,7 @@ export default function DashboardPage() {
                     onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
                     onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                   >
-                    <Zap size={13} fill="white" />
+                    <Zap size={14} fill="white" />
                   </button>
                   <button
                     type="button"
@@ -1399,6 +1372,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
+              {/* Chart — takes all remaining space */}
               <div className={`mobile-hero-chart${chartExpanded ? ' mobile-hero-chart--expanded' : ''}`}>
                 <RouaChart
                   currentPrice={currentPrice}
@@ -1409,90 +1383,52 @@ export default function DashboardPage() {
                   onToggleChartFullscreen={toggleChartFullscreen}
                 />
               </div>
-            </div>
 
-            <div className="mobile-summary-strip">
-              {mobileSummaryCards.map(card => (
-                <div key={card.label} className="mobile-summary-card">
-                  <div style={{ fontSize: 8, color: T.text3, marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.label}</div>
-                  <div style={{ fontSize: 10, color: card.tone, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.value}</div>
-                </div>
-              ))}
+              {/* Summary Strip — always visible below chart */}
+              <div className="mobile-summary-strip" style={{ flexShrink: 0 }}>
+                {mobileSummaryCards.map(card => (
+                  <div key={card.label} className="mobile-summary-card">
+                    <div style={{ fontSize: 8, color: T.text3, marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.label}</div>
+                    <div style={{ fontSize: 10, color: card.tone, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Bottom Panel — active view content (scrollable, limited height) */}
+              <div style={{
+                flexShrink: 0,
+                maxHeight: '30dvh',
+                minHeight: 80,
+                overflow: 'auto',
+                borderTop: '1px solid rgba(0,212,255,0.08)',
+                background: 'rgba(26,29,41,0.5)',
+              }}>
+                {activeMobileView === 'execution' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 6, height: '100%', overflow: 'hidden' }}>
+                    <PortfolioMini mobile compact dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />
+                  </div>
+                )}
+
+                {activeMobileView === 'market' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 6, height: '100%', overflow: 'hidden' }}>
+                    <WatchlistMini selectedSymbol={selectedSymbol} />
+                  </div>
+                )}
+
+                {activeMobileView === 'portfolio' && (
+                  <div style={{ padding: 6, height: '100%', overflow: 'hidden' }}>
+                    <PortfolioMini mobile dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />
+                  </div>
+                )}
+
+                {activeMobileView === 'insight' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: 6, height: '100%', overflow: 'hidden' }}>
+                    <ScannerMini mobile compact selectedSymbol={selectedSymbol} />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-
-          <div className="mobile-panel-shell">
-            {activeMobileView === 'execution' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 8, height: '100%', overflow: 'hidden' }}>
-                <div className="mobile-section__header" style={{ minHeight: 36 }}>
-                  <span className="mobile-section__title">الحساب والمراكز</span>
-                  <BarChart3 size={16} color={T.text3} />
-                </div>
-                <div style={{ flex: 1, borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card, minHeight: 0 }}>
-                  <PortfolioMini mobile compact dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />
-                </div>
-              </div>
-            )}
-
-            {activeMobileView === 'market' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 8, height: '100%', overflow: 'hidden' }}>
-                <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
-                  <OrderBookPanel mobile collapsedByDefault dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} />
-                </div>
-                <div style={{ minHeight: 0, flex: 1, borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
-                  <WatchlistMini selectedSymbol={selectedSymbol} />
-                </div>
-              </div>
-            )}
-
-            {activeMobileView === 'portfolio' && (
-              <div style={{ padding: 8, height: '100%', overflow: 'hidden' }}>
-                <div style={{ height: '100%', borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
-                  <PortfolioMini mobile dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />
-                </div>
-              </div>
-            )}
-
-            {activeMobileView === 'insight' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 8, height: '100%', overflow: 'hidden' }}>
-                <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
-                  <ScannerMini mobile compact selectedSymbol={selectedSymbol} />
-                </div>
-                <div style={{ minHeight: 0, flex: 1, borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
-                  <AlNarratorMini mobile compact selectedSymbol={selectedSymbol} dataStatus={quoteStatus} />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Bottom Nav inside the flexbox */}
-          <nav className="mobile-bottom-nav" aria-label="Mobile dashboard navigation">
-            <div className="mobile-bottom-nav__inner">
-              {[
-                { id: 'execution', label: 'تنفيذ', icon: BarChart3 },
-                { id: 'market', label: 'السوق', icon: ScanSearch },
-                { id: 'portfolio', label: 'المحفظة', icon: Wallet },
-                { id: 'insight', label: 'رؤى', icon: Brain },
-              ].map(item => {
-                const Icon = item.icon
-                const active = activeMobileView === item.id
-
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setActiveMobileView(item.id as MobileView)}
-                    className={`mobile-bottom-nav__button${active ? ' mobile-bottom-nav__button--active' : ''}`}
-                    title={item.label}
-                    aria-label={item.label}
-                  >
-                    <Icon size={16} />
-                    <span className="mobile-bottom-nav__label">{item.label}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </nav>
         </div>
       )}
 

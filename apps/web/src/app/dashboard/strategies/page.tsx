@@ -185,13 +185,16 @@ export default function StrategiesPage() {
   }
 
   return (
-    <div style={{
+    <div className="strategies-page-root" style={{
       width: '100%', height: 'calc(100vh - 60px)',
       background: T.bg, padding: '12px 20px', boxSizing: 'border-box',
       direction: 'rtl', fontFamily: "'Cairo', sans-serif",
       display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden'
     }}>
       <style>{`
+        @media (max-width: 767px) {
+          .strategies-page-root { height: 100% !important; }
+        }
         .strategies-row-2col { display: flex; gap: 12px; }
         .strategies-quant-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
         @media (max-width: 767px) {

@@ -359,7 +359,7 @@ export default function AIPage() {
 
   // ── Render ──
   return (
-    <div style={{
+    <div className="ai-page-root" style={{
       height: 'calc(100dvh - 108px)',
       display: 'flex',
       flexDirection: 'column',
@@ -368,6 +368,11 @@ export default function AIPage() {
       fontFamily: "'Cairo', sans-serif",
       background: T.bg,
     }}>
+      <style>{`
+        @media (max-width: 767px) {
+          .ai-page-root { height: 100% !important; }
+        }
+      `}</style>
       <style>{`
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: rgba(10,132,255,0.3); border-radius: 4px; }

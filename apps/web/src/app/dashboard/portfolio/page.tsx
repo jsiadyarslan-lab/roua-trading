@@ -458,7 +458,7 @@ export default function PortfolioPage() {
   })
 
   return (
-    <div style={{
+    <div className="portfolio-page-root" style={{
       width: '100%', minHeight: 'calc(100vh - 100px)',
       background: T.bg, overflow: 'auto',
       padding: '12px 14px', boxSizing: 'border-box',
@@ -466,6 +466,9 @@ export default function PortfolioPage() {
       fontFamily: "'Cairo', sans-serif",
     }}>
       <style>{`
+        @media (max-width: 767px) {
+          .portfolio-page-root { min-height: 100% !important; height: 100% !important; }
+        }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: #0B0E14; }
         ::-webkit-scrollbar-thumb { background: #0A84FF44; border-radius: 4px; }

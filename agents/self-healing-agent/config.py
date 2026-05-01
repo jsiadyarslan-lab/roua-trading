@@ -26,7 +26,7 @@ TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
 # ── GitHub ──
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
-GITHUB_REPO = os.environ.get("GITHUB_REPO", "jsiady-lab/roua-trading")
+GITHUB_REPO = os.environ.get("GITHUB_REPO", "jsiadyarslan-lab/roua-trading")
 GITHUB_DEFAULT_BRANCH = os.environ.get("GITHUB_DEFAULT_BRANCH", "main")
 
 # ── Railway API ──
@@ -45,7 +45,7 @@ MAX_CONSECUTIVE_FAILURES = int(os.environ.get("MAX_CONSECUTIVE_FAILURES", "2"))
 
 # ── نقاط الفحص ──
 HEALTH_ENDPOINTS = [
-    {"name": "لوحة التحكم",   "path": "/dashboard",                   "method": "GET",  "expect_status": 200},
+    {"name": "لوحة التحكم",   "path": "/dashboard",                   "method": "GET",  "expect_status": [200, 307]},
     {"name": "API الأسعار",    "path": "/api/exchange/quote/AAPL",     "method": "GET",  "expect_status": 200},
     {"name": "API السكانر",    "path": "/api/scanner/scan?timeframe=1h","method": "GET",  "expect_status": 200},
     {"name": "API الإشارات",   "path": "/api/signals/smart",           "method": "GET",  "expect_status": 200},

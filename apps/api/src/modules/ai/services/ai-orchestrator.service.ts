@@ -76,7 +76,7 @@ export class AIOrchestratorService {
     groq:        ['GROQ_API_KEY'],
     glm:         ['GLM_API_KEY'],
     gemini:      ['GOOGLE_AI_STUDIO_API_KEY'],
-    huggingface: ['HUGGINGFACE_API_KEY'],
+    huggingface: ['HUGGINGFACE_API_KEY', 'HF_API_KEY'],  // HF_API_KEY is the Railway variable name
     ollama:      ['OLLAMA_API_KEY'],  // Also checks OLLAMA_BASE_URL reachability
     bedrock:     ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'],
   };
@@ -557,7 +557,7 @@ export class AIOrchestratorService {
       { id: 'groq', name: 'Groq/Llama 3.3 70B', keyEnv: 'GROQ_API_KEY' },
       { id: 'gemini', name: 'Gemini 2.0 Flash', keyEnv: 'GOOGLE_AI_STUDIO_API_KEY' },
       { id: 'glm', name: 'GLM-4 (Zhipu AI)', keyEnv: 'GLM_API_KEY' },
-      { id: 'huggingface', name: 'HuggingFace/Mistral-7B', keyEnv: 'HUGGINGFACE_API_KEY' },
+      { id: 'huggingface', name: 'HuggingFace/Mistral-7B', keyEnv: 'HF_API_KEY' },
       { id: 'ollama', name: 'Ollama/Qwen2.5', keyEnv: 'OLLAMA_API_KEY' },
       { id: 'bedrock', name: 'Bedrock/Claude 3.5', keyEnv: 'AWS_ACCESS_KEY_ID' },
     ];
@@ -717,7 +717,15 @@ export class AIOrchestratorService {
       return !!(apiKey && apiKey.trim()) || !!(baseUrl && baseUrl.trim() && !this._isLocalhostUrl(baseUrl));
     }
 
-    // All listed keys must be present and non-empty
+    // For huggingface: ANY of the listed keys works (HF_API_KEY or HUGGINGFACE_API_KEY)
+    // For bedrock: ALL listed keys must be present (AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY)
+    if (model === 'huggingface') {
+      return keys.some(key => {
+        const value = this.configService!.get<string>(key, '');
+        return !!(value && value.trim());
+      });
+    }
+    // Default: ALL listed keys must be present and non-empty
     return keys.every(key => {
       const value = this.configService!.get<string>(key, '');
       return !!(value && value.trim());

@@ -309,53 +309,44 @@ export default function MobileHomePage() {
 
       {/* ── Portfolio Hero Card ── */}
       <IOSCard onClick={() => router.push('/mobile/portfolio')} highlight>
-        <div className="flex items-start justify-between">
+        <div className="flex items-center justify-between">
           <div>
-            <p style={{ fontSize: 13, color: 'rgba(235,235,245,0.5)', fontFamily: "'Cairo', sans-serif", fontWeight: 600, marginBottom: 4 }}>
+            <p style={{ fontSize: 11, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 600, marginBottom: 2 }}>
               إجمالي الرصيد
             </p>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-              <span style={{ fontSize: 38, fontWeight: 900, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace", letterSpacing: -1.5 }}>
+              <span style={{ fontSize: 28, fontWeight: 900, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace", letterSpacing: -1 }}>
                 ${totalAssets.toLocaleString('en', { minimumFractionDigits: 2 })}
               </span>
-            </div>
-            <div className="flex items-center gap-1.5 mt-2">
-              <div style={{ padding: '4px 8px', borderRadius: 8, background: 'rgba(50,215,75,0.1)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <TrendingUp size={12} color="#32D74B" strokeWidth={3} />
-                <span style={{ fontSize: 13, color: '#32D74B', fontFamily: "'JetBrains Mono', monospace", fontWeight: 800 }}>
-                  {pct(dailyChange)}
-                </span>
-              </div>
-              <span style={{ fontSize: 11, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>آخر 24 ساعة</span>
+              <span style={{ fontSize: 11, color: '#32D74B', fontFamily: "'JetBrains Mono', monospace", fontWeight: 800 }}>
+                {pct(dailyChange)}
+              </span>
             </div>
           </div>
           <button style={{
-            padding: '12px 18px', borderRadius: 20,
-            background: 'rgba(255,255,255,0.08)', color: '#FFFFFF', border: '0.5px solid rgba(255,255,255,0.1)',
-            display: 'flex', alignItems: 'center', gap: 10,
-            fontSize: 14, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
-            backdropFilter: 'blur(20px)'
+            padding: '8px 14px', borderRadius: 14,
+            background: 'rgba(0,212,255,0.1)', color: '#00D4FF', border: '0.5px solid rgba(0,212,255,0.2)',
+            display: 'flex', alignItems: 'center', gap: 6,
+            fontSize: 12, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
           }}>
-            <Link2 size={18} strokeWidth={3} color="#00D4FF" />
+            <Link2 size={14} strokeWidth={3} />
             إربط حسابك
           </button>
         </div>
 
-        {/* Mini stats */}
-        <div className="flex gap-4 mt-8 pt-6" style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>الربح الكلي</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>+${fmt2(stats.profit)}</div>
+        {/* Ultra-compact stats */}
+        <div className="flex gap-4 mt-4 pt-3" style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
+          <div className="flex items-center gap-2">
+            <span style={{ fontSize: 10, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif" }}>الربح:</span>
+            <span style={{ fontSize: 12, fontWeight: 800, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace" }}>+${fmt2(stats.profit)}</span>
           </div>
-          <div style={{ width: 0.5, height: 24, background: 'rgba(255,255,255,0.08)', alignSelf: 'center' }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>نسبة الفوز</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>{stats.winRate}%</div>
+          <div className="flex items-center gap-2">
+            <span style={{ fontSize: 10, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif" }}>الفوز:</span>
+            <span style={{ fontSize: 12, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>{stats.winRate}%</span>
           </div>
-          <div style={{ width: 0.5, height: 24, background: 'rgba(255,255,255,0.08)', alignSelf: 'center' }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>المراكز</div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>{openPositions.length}</div>
+          <div className="flex items-center gap-2">
+            <span style={{ fontSize: 10, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif" }}>صفقات:</span>
+            <span style={{ fontSize: 12, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>{openPositions.length}</span>
           </div>
         </div>
       </IOSCard>

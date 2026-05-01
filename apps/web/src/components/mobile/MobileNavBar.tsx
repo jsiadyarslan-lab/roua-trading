@@ -52,7 +52,7 @@ export default function MobileNavBar() {
       <nav
         className="fixed bottom-0 left-0 right-0 z-50 block sm:hidden"
         style={{
-          height: 'calc(80px + env(safe-area-inset-bottom))',
+          height: 'calc(60px + env(safe-area-inset-bottom))',
           paddingBottom: 'env(safe-area-inset-bottom)',
           background: 'rgba(11, 14, 20, 0.4)',
           backdropFilter: 'blur(50px) saturate(210%)',
@@ -70,14 +70,14 @@ export default function MobileNavBar() {
                 key={item.href}
                 onClick={() => handleNav(item.href)}
                 className="flex flex-col items-center justify-center h-full"
-                style={{ width: 48 }}
+                style={{ width: 44 }}
               >
                 <motion.div 
                   whileTap={{ scale: 0.9 }} 
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   className="relative"
                 >
-                  <Icon size={20} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} />
+                  <Icon size={18} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} />
                   {active && (
                     <motion.div
                       layoutId="navIndicator"
@@ -98,7 +98,7 @@ export default function MobileNavBar() {
                 </motion.div>
                 <span
                   style={{
-                    fontSize: 8.5,
+                    fontSize: 8,
                     color: active ? '#00D4FF' : 'rgba(255,255,255,0.35)',
                     fontFamily: "'Cairo', sans-serif",
                     fontWeight: active ? 800 : 500,

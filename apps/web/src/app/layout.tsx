@@ -37,10 +37,6 @@ export const metadata: Metadata = {
     title: "Roua",
   },
   applicationName: "Roua Trading",
-  icons: {
-    icon: "/logo.svg",
-    apple: "/logo-192.png",
-  },
 };
 
 export const viewport: Viewport = {

@@ -87,7 +87,7 @@ export class BedrockService {
       const data = await response.json();
       const content = this._extractContent(data);
 
-      if (content.length > 5) {
+      if (content.trim().length > 0) {
         return {
           model: `Bedrock/${this.defaultModel.split('.').pop()}`,
           content,

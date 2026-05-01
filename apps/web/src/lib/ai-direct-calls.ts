@@ -123,7 +123,7 @@ async function callGroq(prompt: string): Promise<DirectAIResponse> {
 
     const data = await res.json()
     const content = data.choices?.[0]?.message?.content || ''
-    return { model: 'Groq/Llama-3.3-70B', content, confidence: calcConfidence(content, 'groq'), processingTimeMs: Date.now() - start, success: content.length > 10 }
+    return { model: 'Groq/Llama-3.3-70B', content, confidence: calcConfidence(content, 'groq'), processingTimeMs: Date.now() - start, success: content.trim().length > 0 }
   } catch (e: any) {
     return { model: 'Groq/Llama-3.3-70B', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: e.message }
   }
@@ -160,7 +160,7 @@ async function callGemini(prompt: string): Promise<DirectAIResponse> {
 
       const data = await res.json()
       const content = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-      return { model: `Gemini/${model}`, content, confidence: calcConfidence(content, 'gemini'), processingTimeMs: Date.now() - start, success: content.length > 10 }
+      return { model: `Gemini/${model}`, content, confidence: calcConfidence(content, 'gemini'), processingTimeMs: Date.now() - start, success: content.trim().length > 0 }
     } catch (e: any) {
       continue // Try next model
     }
@@ -211,7 +211,7 @@ async function callGLM(prompt: string): Promise<DirectAIResponse> {
 
     const data = await res.json()
     const content = data.choices?.[0]?.message?.content || ''
-    return { model: 'GLM-4/glm-4', content, confidence: calcConfidence(content, 'glm'), processingTimeMs: Date.now() - start, success: content.length > 10 }
+    return { model: 'GLM-4/glm-4', content, confidence: calcConfidence(content, 'glm'), processingTimeMs: Date.now() - start, success: content.trim().length > 0 }
   } catch (e: any) {
     return { model: 'GLM-4/glm-4', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: e.message }
   }
@@ -244,7 +244,7 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
     if (Array.isArray(data) && data.length > 0) content = data[0].generated_text || ''
     else if (typeof data === 'string') content = data
     content = content.replace(/\[\/INST\]/g, '').trim()
-    return { model: 'HuggingFace/Mistral-7B', content, confidence: calcConfidence(content, 'huggingface'), processingTimeMs: Date.now() - start, success: content.length > 10 }
+    return { model: 'HuggingFace/Mistral-7B', content, confidence: calcConfidence(content, 'huggingface'), processingTimeMs: Date.now() - start, success: content.trim().length > 0 }
   } catch (e: any) {
     return { model: 'HuggingFace/Mistral-7B', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: e.message }
   }
@@ -333,7 +333,7 @@ async function callOllama(prompt: string): Promise<DirectAIResponse> {
     const data = await res.json()
     // Handle both native Ollama response and OpenAI-compatible response
     const content = data?.message?.content || data?.choices?.[0]?.message?.content || ''
-    return { model: `Ollama/${data?.model || model}`, content, confidence: calcConfidence(content, 'ollama'), processingTimeMs: Date.now() - start, success: content.length > 10 }
+    return { model: `Ollama/${data?.model || model}`, content, confidence: calcConfidence(content, 'ollama'), processingTimeMs: Date.now() - start, success: content.trim().length > 0 }
   } catch (e: any) {
     return { model: `Ollama/${model}`, content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Ollama unreachable: ${e.message}` }
   }
@@ -396,7 +396,7 @@ async function callBedrock(prompt: string): Promise<DirectAIResponse> {
       content = data.completion || data.text || ''
     }
 
-    return { model: 'Bedrock/Claude-3.5-Sonnet', content, confidence: calcConfidence(content, 'bedrock'), processingTimeMs: Date.now() - start, success: content.length > 10 }
+    return { model: 'Bedrock/Claude-3.5-Sonnet', content, confidence: calcConfidence(content, 'bedrock'), processingTimeMs: Date.now() - start, success: content.trim().length > 0 }
   } catch (e: any) {
     return { model: 'Bedrock/Claude-3.5-Sonnet', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Bedrock failed: ${e.message}` }
   }
@@ -681,6 +681,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     if (mc.modelName === 'GLM-4') return !!getKey('GLM_API_KEY')
     if (mc.modelName === 'HuggingFace') return !!getKey('HUGGINGFACE_API_KEY')
     if (mc.modelName === 'Ollama') return shouldTryOllama
+    if (mc.modelName === 'Bedrock') return !!(getKey('AWS_ACCESS_KEY_ID') && getKey('AWS_SECRET_ACCESS_KEY'))
     return false
   }).length
 
@@ -705,7 +706,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
         modelsExpected: 6, // 6 roles in the full council
         modelsWithKeys: expectedDirectModels,
         bedrockAvailable: bedrockStatus.available,
-        bedrockNote: bedrockStatus.available ? 'Available via NestJS only' : 'Not configured',
+        bedrockNote: bedrockStatus.available ? 'Direct call enabled (AWS SigV4)' : 'AWS credentials not configured',
         ollamaAttempted: shouldTryOllama,
         ollamaUrl: shouldTryOllama ? ollamaBaseUrl : 'skipped (localhost on cloud)',
       },

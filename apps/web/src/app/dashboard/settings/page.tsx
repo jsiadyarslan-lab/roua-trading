@@ -340,7 +340,7 @@ export default function SettingsPage() {
       { perm: 'portfolio:view' as Permission, label: 'عرض المحفظة' },
       { perm: 'portfolio:advanced' as Permission, label: 'تحليل متقدم' },
       { perm: 'social:view' as Permission, label: 'التداول الاجتماعي' },
-      { perm: 'social:copy_trade' as Permission, label: 'نسخ الصفقات' },
+      { perm: 'social:copy_trade' as Permission, label: 'متابعة الحسابات' },
     ]},
     { name: 'API والبيانات', perms: [
       { perm: 'api:access' as Permission, label: 'وصول API' },
@@ -710,7 +710,7 @@ export default function SettingsPage() {
                   أطلق العنان للإمكانيات الكاملة
                 </div>
                 <div style={{ fontSize: 12, color: T.text3, lineHeight: 1.8, marginBottom: 16 }}>
-                  ترقية إلى خطة احترافية للحصول على تداول حقيقي، ذكاء اصطناعي متقدم، ونسخ الصفقات
+                  ترقية إلى خطة احترافية للحصول على متابعة حقيقية، ذكاء اصطناعي متقدم، ومتابعة الحسابات
                 </div>
                 <button style={{
                   padding: '10px 28px', borderRadius: 10,

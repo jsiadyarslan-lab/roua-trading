@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Copy, Shield, Star, TrendingUp, ArrowUpRight, Activity, AlertTriangle, UserCheck } from 'lucide-react'
+import { Eye, Shield, Star, TrendingUp, ArrowUpRight, Activity, AlertTriangle, UserCheck } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
 const T = {
@@ -25,20 +25,20 @@ const TRADERS = [
 
 type FilterTab = 'أداء' | 'مخاطر' | 'شعبية'
 
-export default function CopyTradingPage() {
+export default function AccountMonitoringPage() {
   const router = useRouter()
-  const [copyingTraders, setCopyingTraders] = useState<Set<string>>(new Set())
+  const [followingTraders, setFollowingTraders] = useState<Set<string>>(new Set())
   const [activeFilter, setActiveFilter] = useState<FilterTab>('أداء')
 
-  const toggleCopy = (traderId: string, traderName: string) => {
-    setCopyingTraders(prev => {
+  const toggleFollow = (traderId: string, traderName: string) => {
+    setFollowingTraders(prev => {
       const next = new Set(prev)
       if (next.has(traderId)) {
         next.delete(traderId)
-        toast({ title: `تم إيقاف نسخ ${traderName}`, description: 'لن يتم نسخ صفقات هذا المتداول بعد الآن' })
+        toast({ title: `تم إيقاف متابعة ${traderName}`, description: 'لن يتم عرض تحديثات أداء هذا الحساب بعد الآن' })
       } else {
         next.add(traderId)
-        toast({ title: `تم بدء نسخ ${traderName} ✅`, description: 'سيتم نسخ الصفقات تلقائياً وفقاً لإعدادات المخاطر' })
+        toast({ title: `تم بدء متابعة ${traderName} ✅`, description: 'ستظهر تحديثات أداء هذا الحساب في لوحتك' })
       }
       return next
     })
@@ -67,16 +67,16 @@ export default function CopyTradingPage() {
 
   return (
     <div className="custom-scrollbar" style={{ padding: '32px 24px', direction: 'rtl', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto' }}>
-      {/* Demo Data Banner */}
+      {/* Info Banner */}
       <div style={{
-        background: `${T.amber}10`, border: `1px solid ${T.amber}30`,
+        background: `${T.cyan}10`, border: `1px solid ${T.cyan}30`,
         borderRadius: 12, padding: '12px 18px', marginBottom: 20,
         display: 'flex', alignItems: 'center', gap: 10,
       }}>
-        <AlertTriangle size={18} color={T.amber} />
-        <span style={{ fontSize: 13, fontWeight: 700, color: T.amber }}>بيانات تجريبية</span>
+        <Eye size={18} color={T.cyan} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: T.cyan }}>متابعة الأداء</span>
         <span style={{ fontSize: 12, color: T.text2 }}>
-          — البيانات المعروضة هي لأغراض العرض فقط ولا تمثل أداءً حقيقياً
+          — تابع أداء الحسابات المربوطة واستفد من رؤى تحليلية. المنصة لا تنفذ صفقات نيابة عنك بل توفر بيانات وتحليلات فقط.
         </span>
       </div>
 
@@ -84,16 +84,16 @@ export default function CopyTradingPage() {
       <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-            <Copy size={20} color={T.green} />
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>نسخ الصفقات (Copy Trading)</h1>
+            <Eye size={20} color={T.green} />
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>متابعة الحسابات</h1>
             <span style={{
               fontSize: 10, padding: '2px 8px', borderRadius: 20,
               background: `${T.green}18`, color: T.green,
               fontFamily: "'JetBrains Mono', monospace",
-            }}>BETA</span>
+            }}>LIVE</span>
           </div>
           <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
-            تابع أفضل مدراء الصناديق وانسخ صفقاتهم تلقائياً بضوابط مخاطر مؤسسية.
+            تابع أداء أفضل الحسابات المربوطة واحصل على رؤى تحليلية متقدمة لمساعدتك في اتخاذ قراراتك.
           </p>
         </div>
         <button
@@ -114,8 +114,8 @@ export default function CopyTradingPage() {
       {/* Stats Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
-          { icon: Star, label: 'أفضل المتداولين هذا الأسبوع', val: 'Quantum Alpha', color: T.amber },
-          { icon: Shield, label: 'إجمالي الأصول المدارة (AUM)', val: '$18.4M', color: T.blue },
+          { icon: Star, label: 'أفضل حساب هذا الأسبوع', val: 'Quantum Alpha', color: T.amber },
+          { icon: Shield, label: 'إجمالي الأصول المراقبة (AUM)', val: '$18.4M', color: T.blue },
           { icon: TrendingUp, label: 'متوسط العائد الشهري', val: '+12.4%', color: T.green },
         ].map((f, i) => (
           <div key={i} style={{
@@ -135,7 +135,7 @@ export default function CopyTradingPage() {
 
       {/* Filter Tabs */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 800, color: T.text, margin: 0 }}>الاستراتيجيات المتاحة للنسخ</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 800, color: T.text, margin: 0 }}>الحسابات المتاحة للمتابعة</h2>
         <div style={{ display: 'flex', gap: 6 }}>
           {filterTabs.map(tab => (
             <button
@@ -159,12 +159,12 @@ export default function CopyTradingPage() {
       {/* Trader Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
         {sortedTraders.map((trader) => {
-          const isCopying = copyingTraders.has(trader.id)
+          const isFollowing = followingTraders.has(trader.id)
           return (
             <div key={trader.id} style={{
-              background: T.card, border: `1px solid ${isCopying ? `${T.green}35` : T.border}`,
+              background: T.card, border: `1px solid ${isFollowing ? `${T.green}35` : T.border}`,
               borderRadius: 16, padding: 20, transition: 'all 0.2s', cursor: 'pointer',
-              boxShadow: isCopying ? `0 0 20px ${T.green}10` : 'none',
+              boxShadow: isFollowing ? `0 0 20px ${T.green}10` : 'none',
             }}
               onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-4px)'}
               onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
@@ -175,14 +175,14 @@ export default function CopyTradingPage() {
                   <div style={{
                     width: 44, height: 44, borderRadius: 12, background: T.surface,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    border: isCopying ? `1px solid ${T.green}40` : 'none',
+                    border: isFollowing ? `1px solid ${T.green}40` : 'none',
                   }}>
-                    <Activity size={20} color={isCopying ? T.green : T.cyan} />
+                    <Activity size={20} color={isFollowing ? T.green : T.cyan} />
                   </div>
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 800, color: T.text, display: 'flex', alignItems: 'center', gap: 6 }}>
                       {trader.name}
-                      {isCopying && <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 10, background: `${T.green}18`, color: T.green, fontWeight: 800 }}>نشط</span>}
+                      {isFollowing && <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 10, background: `${T.green}18`, color: T.green, fontWeight: 800 }}>متابَع</span>}
                     </div>
                     <div style={{ fontSize: 11, color: T.text2 }}>{trader.type}</div>
                   </div>
@@ -216,17 +216,17 @@ export default function CopyTradingPage() {
                   <span>{trader.followers} متابع</span>
                 </div>
                 <button
-                  onClick={() => toggleCopy(trader.id, trader.name)}
+                  onClick={() => toggleFollow(trader.id, trader.name)}
                   style={{
                     padding: '6px 16px', borderRadius: 20, fontSize: 12, fontWeight: 800,
                     display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-                    background: isCopying ? `${T.red}15` : `${T.green}15`,
-                    border: `1px solid ${isCopying ? `${T.red}40` : `${T.green}40`}`,
-                    color: isCopying ? T.red : T.green,
+                    background: isFollowing ? `${T.red}15` : `${T.green}15`,
+                    border: `1px solid ${isFollowing ? `${T.red}40` : `${T.green}40`}`,
+                    color: isFollowing ? T.red : T.green,
                     transition: 'all 0.2s', fontFamily: "'Cairo', sans-serif",
                   }}
                 >
-                  {isCopying ? 'إيقاف النسخ' : 'نسخ'} <Copy size={12} />
+                  {isFollowing ? 'إلغاء المتابعة' : 'متابعة'} <Eye size={12} />
                 </button>
               </div>
             </div>

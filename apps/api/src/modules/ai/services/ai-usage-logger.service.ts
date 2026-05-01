@@ -41,6 +41,7 @@ const COST_PER_1K: Record<string, { input: number; output: number }> = {
   'huggingface': { input: 0,        output: 0        },
   'ollama':      { input: 0,        output: 0        },
   'bedrock':     { input: 0.00300,  output: 0.01500  },
+  'openrouter':  { input: 0,        output: 0        },  // Free models — $0 cost
 };
 
 function extractProvider(model: string): string {
@@ -51,6 +52,7 @@ function extractProvider(model: string): string {
   if (lower.includes('huggingface') || lower.includes('hf')) return 'huggingface';
   if (lower.includes('ollama')) return 'ollama';
   if (lower.includes('bedrock') || lower.includes('claude')) return 'bedrock';
+  if (lower.includes('openrouter') || lower.includes('deepseek')) return 'openrouter';
   return 'unknown';
 }
 

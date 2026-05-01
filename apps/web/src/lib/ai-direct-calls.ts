@@ -673,6 +673,69 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     })
   )
 
+  // ── Log AI usage to AiUsageLog (same table as NestJS AiUsageLoggerService) ──
+  // This ensures costs are tracked even when NestJS is down and the direct fallback path runs.
+  try {
+    const { db, ensureDbReady } = await import('@/lib/db')
+    const dbReady = await ensureDbReady()
+    if (dbReady) {
+      const COST_PER_1K: Record<string, { input: number; output: number }> = {
+        groq: { input: 0.00059, output: 0.00079 },
+        gemini: { input: 0.000075, output: 0.00030 },
+        glm: { input: 0.00140, output: 0.00140 },
+        huggingface: { input: 0, output: 0 },
+        ollama: { input: 0, output: 0 },
+        bedrock: { input: 0.00300, output: 0.01500 },
+        openrouter: { input: 0, output: 0 },
+      }
+      const extractProvider = (model: string): string => {
+        const lower = model.toLowerCase()
+        if (lower.includes('groq')) return 'groq'
+        if (lower.includes('gemini')) return 'gemini'
+        if (lower.includes('glm')) return 'glm'
+        if (lower.includes('huggingface') || lower.includes('hf')) return 'huggingface'
+        if (lower.includes('ollama')) return 'ollama'
+        if (lower.includes('bedrock') || lower.includes('claude')) return 'bedrock'
+        if (lower.includes('openrouter') || lower.includes('deepseek')) return 'openrouter'
+        return 'unknown'
+      }
+      const calcCost = (provider: string, inputTokens: number, outputTokens: number): number => {
+        const rates = COST_PER_1K[provider] || { input: 0, output: 0 }
+        return (inputTokens / 1000) * rates.input + (outputTokens / 1000) * rates.output
+      }
+
+      const records = callResults
+        .filter(r => r.status === 'fulfilled')
+        .map(r => {
+          const { modelName, prompt: promptType, response } = r.value
+          const provider = extractProvider(response.model)
+          const inputTokens = Math.ceil((promptType || '').length / 3) // Estimate from role type
+          const outputTokens = Math.ceil(response.content.length / 3)
+          return {
+            id: `aul_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+            model: response.model,
+            provider,
+            endpoint: 'consensus',
+            inputTokens: response.success ? Math.max(inputTokens, 10) : 0,
+            outputTokens: response.success ? outputTokens : 0,
+            costUsd: response.success ? calcCost(provider, Math.max(inputTokens, 10), outputTokens) : 0,
+            latencyMs: response.processingTimeMs,
+            cached: false,
+            success: response.success,
+            errorMessage: response.success ? null : (response.error || 'failed').substring(0, 500),
+          }
+        })
+
+      if (records.length > 0) {
+        await db.aiUsageLog.createMany({ data: records })
+        console.log(`[direct-council] Logged ${records.length} AI usage records to AiUsageLog`)
+      }
+    }
+  } catch (logError: any) {
+    // Don't crash the consensus if logging fails — it's non-critical
+    console.warn(`[direct-council] Failed to log AI usage: ${logError?.message || logError}`)
+  }
+
   // Collect successful models — each fills exactly 1 role now
   const successfulModels: Array<{
     modelName: string

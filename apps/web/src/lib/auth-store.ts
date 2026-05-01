@@ -219,6 +219,9 @@ export function initAuthFromCache(): AuthUser | null {
       isGuest: false,
       loading: false,
     })
+    // Trigger background refresh to ensure data is current across devices
+    // (don't await — let the UI render with cached data first)
+    setTimeout(() => useAuthStore.getState().refreshUser(), 100)
     return cached
   }
 

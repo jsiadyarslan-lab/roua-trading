@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { QuoteData } from '@/hooks/useMarketStore'
-import { BarChart3, Brain, ChevronDown, ScanSearch, Wallet, PanelRight } from 'lucide-react'
+import { BarChart3, Brain, ChevronDown, ScanSearch, Wallet, PanelRight, Zap } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { NotificationToasts } from '@/components/dashboard/NotificationCenter'
@@ -122,6 +122,7 @@ export default function DashboardPage() {
   const [isCompactDesktopViewport, setIsCompactDesktopViewport] = useState(false)
   const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false)
   const [sidebarPinned, setSidebarPinned] = useState(false)
+  const [tradeDialogOpen, setTradeDialogOpen] = useState(false)
 
   useEffect(() => {
     fetchAccount()
@@ -132,6 +133,19 @@ export default function DashboardPage() {
     }, 60000)
 
     return () => window.clearInterval(intervalId)
+  }, [fetchAccount, fetchPositions])
+
+  // Cross-device sync: refresh data when the page becomes visible
+  // (user switches back from another tab/device or returns to the app)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchAccount()
+        fetchPositions()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [fetchAccount, fetchPositions])
 
   useEffect(() => {
@@ -471,6 +485,7 @@ export default function DashboardPage() {
             box-sizing: border-box;
             width: 100%;
             overflow-x: hidden;
+            min-height: 100dvh;
           }
 
           .mobile-hero-trading-area {
@@ -563,7 +578,7 @@ export default function DashboardPage() {
             border: 1px solid rgba(0, 212, 255, 0.10);
             background: rgba(26, 29, 41, 0.6);
             backdrop-filter: blur(8px);
-            min-height: 240px;
+            min-height: max(360px, calc(100dvh - 400px));
           }
 
           .mobile-bottom-nav {
@@ -900,15 +915,36 @@ export default function DashboardPage() {
             <div className="mobile-hero-card">
               <div className="mobile-hero-card__header">
                 <span className="mobile-section__title">Chart</span>
-                <button
-                  type="button"
-                  onClick={() => setChartExpanded(value => !value)}
-                  title={chartExpanded ? 'تصغير الرسم البياني' : 'توسيع الرسم البياني'}
-                  aria-label={chartExpanded ? 'تصغير الرسم البياني' : 'توسيع الرسم البياني'}
-                  style={{ background: 'transparent', border: 'none', color: T.text3, cursor: 'pointer' }}
-                >
-                  <ChevronDown size={16} style={{ transform: chartExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <button
+                    type="button"
+                    onClick={() => setTradeDialogOpen(true)}
+                    title="تداول"
+                    aria-label="فتح نافذة التداول"
+                    style={{
+                      width: 32, height: 32, borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
+                      border: 'none', color: '#fff', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: '0 0 12px rgba(0,255,198,0.3), 0 0 4px rgba(10,132,255,0.2)',
+                      transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                    }}
+                    onMouseDown={e => e.currentTarget.style.transform = 'scale(0.9)'}
+                    onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                    <Zap size={15} fill="white" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChartExpanded(value => !value)}
+                    title={chartExpanded ? 'تصغير الرسم البياني' : 'توسيع الرسم البياني'}
+                    aria-label={chartExpanded ? 'تصغير الرسم البياني' : 'توسيع الرسم البياني'}
+                    style={{ background: 'transparent', border: 'none', color: T.text3, cursor: 'pointer' }}
+                  >
+                    <ChevronDown size={16} style={{ transform: chartExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
+                  </button>
+                </div>
               </div>
 
               <div className={`mobile-hero-chart${chartExpanded ? ' mobile-hero-chart--expanded' : ''}`}>
@@ -921,10 +957,6 @@ export default function DashboardPage() {
                   onToggleChartFullscreen={toggleChartFullscreen}
                 />
               </div>
-            </div>
-
-            <div className="mobile-primary-ticket">
-              <QuickExecutionMini mobile dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} />
             </div>
 
             <div className="mobile-summary-strip">
@@ -979,6 +1011,34 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Trade Dialog (bottom sheet) for mobile */}
+      {isMobileViewport && tradeDialogOpen && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+          onClick={() => setTradeDialogOpen(false)}
+        >
+          <div
+            style={{ width: '100%', maxHeight: '85dvh', background: '#0F1117', borderRadius: '20px 20px 0 0', overflow: 'auto', padding: '0 0 calc(20px + env(safe-area-inset-bottom))' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px' }}>
+              <div style={{ width: 40, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.2)' }} />
+            </div>
+            <div style={{ padding: '0 16px' }}>
+              <QuickExecutionMini mobile dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} />
+            </div>
+            <div style={{ padding: '12px 16px' }}>
+              <button
+                onClick={() => setTradeDialogOpen(false)}
+                style={{ width: '100%', minHeight: 48, borderRadius: 12, border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#8B92A8', fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+              >
+                إغلاق
+              </button>
+            </div>
           </div>
         </div>
       )}

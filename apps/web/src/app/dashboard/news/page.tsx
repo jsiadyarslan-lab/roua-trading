@@ -181,7 +181,7 @@ export default function NewsPage() {
   };
 
   return (
-    <div style={{ padding: '32px 24px', direction: 'rtl', fontFamily: "'Cairo', sans-serif", maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{ padding: '32px 24px', direction: 'rtl', fontFamily: "'Cairo', sans-serif", maxWidth: 1200, margin: '0 auto', minHeight: '100dvh' }}>
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes live-dot { 0%, 100% { transform: scale(1); opacity: 0.65; } 50% { transform: scale(1.35); opacity: 1; } }

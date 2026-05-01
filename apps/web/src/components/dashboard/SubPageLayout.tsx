@@ -148,7 +148,7 @@ export default function SubPageLayout({
       )}
 
       {/* Main Content */}
-      <div className="subpage-content" style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px' }}>
+      <div className="subpage-content" style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px', minHeight: 'calc(100dvh - 60px)' }}>
         {children}
       </div>
 
@@ -166,6 +166,7 @@ export default function SubPageLayout({
           .subpage-content {
             padding: 16px 10px !important;
             padding-bottom: calc(16px + env(safe-area-inset-bottom) + 80px) !important;
+            min-height: calc(100dvh - 60px) !important;
           }
           .subpage-nav-bar {
             padding-top: calc(env(safe-area-inset-top)) !important;
@@ -176,6 +177,7 @@ export default function SubPageLayout({
           .subpage-content {
             padding: 12px 8px !important;
             padding-bottom: calc(12px + env(safe-area-inset-bottom) + 80px) !important;
+            min-height: calc(100dvh - 60px) !important;
           }
         }
       `}</style>

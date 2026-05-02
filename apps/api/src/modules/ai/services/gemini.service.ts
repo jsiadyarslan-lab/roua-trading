@@ -16,20 +16,27 @@ export class GeminiService {
   private readonly baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
   // FIX: Model fallback chain — try multiple model names since availability
   // varies by API key age, region, and Google's deprecation schedule.
+  // Added full model IDs including preview versions that Google requires.
   private readonly modelCandidates = [
-    'gemini-2.5-flash',
-    'gemini-2.0-flash-001',
-    'gemini-1.5-flash',
-    'gemini-2.0-flash-lite',
+    'gemini-2.5-flash-preview-04-17',  // Latest Gemini 2.5 Flash (May 2025)
+    'gemini-2.0-flash',                // Stable Gemini 2.0 Flash
+    'gemini-2.0-flash-001',            // Versioned 2.0 Flash
+    'gemini-1.5-flash',                // Older but widely available
+    'gemini-2.0-flash-lite',           // Lightweight, fastest
+    'gemini-1.5-flash-8b',             // Smallest, most available
   ];
   private resolvedModel: string | null = null; // Cached after first successful call
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('GOOGLE_AI_STUDIO_API_KEY', '')?.trim() || '';
+    // FIX: Check both GOOGLE_AI_STUDIO_API_KEY and GEMINI_API_KEY
+    // Users may set either name in Railway — both are valid
+    this.apiKey = this.configService.get<string>('GOOGLE_AI_STUDIO_API_KEY', '')?.trim()
+      || this.configService.get<string>('GEMINI_API_KEY', '')?.trim()
+      || '';
     if (this.apiKey) {
       this.logger.log(`💎 Gemini Service initialized (trying: ${this.modelCandidates.join(' → ')})`);
     } else {
-      this.logger.warn('⚠️ GOOGLE_AI_STUDIO_API_KEY not set');
+      this.logger.warn('⚠️ GOOGLE_AI_STUDIO_API_KEY / GEMINI_API_KEY not set');
     }
   }
 

@@ -110,6 +110,7 @@ export class AuthController {
    */
   @Get('session')
   @Public()
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
   async checkSession(@Req() req: Request) {
     const sessionToken =
       req.cookies?.['roua_session'] ||
@@ -128,6 +129,7 @@ export class AuthController {
    */
   @Delete('session')
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   async logout(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
@@ -161,7 +163,7 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (matching OTP session TTL)
       path: '/',
     });
 

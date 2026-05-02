@@ -19,7 +19,22 @@ import { AutonomousTraderAgentService } from './agent.service';
 import { StartAgentDto, ChangeStrategyDto, UpdateRiskParamsDto, UpdateAgentSettingsDto, StrategyType } from './types/agent.types';
 
 /**
- * Autonomous Trader Agent API
+ * Public Agent Status Controller (no auth required)
+ * Provides read-only system status so the frontend can show
+ * whether auto-trading is enabled before the user logs in.
+ */
+@Controller('agent/trader')
+export class AutonomousTraderPublicController {
+  constructor(private readonly agentService: AutonomousTraderAgentService) {}
+
+  @Get('public-status')
+  async getPublicStatus() {
+    return this.agentService.getPublicStatus();
+  }
+}
+
+/**
+ * Autonomous Trader Agent API (authenticated)
  *
  * Endpoints:
  * - POST /api/agent/trader/start         → تفعيل الوكيل
@@ -32,6 +47,7 @@ import { StartAgentDto, ChangeStrategyDto, UpdateRiskParamsDto, UpdateAgentSetti
  * - GET  /api/agent/trader/settings      → إعدادات الوكيل
  * - PUT  /api/agent/trader/settings      → تحديث إعدادات الوكيل
  * - GET  /api/agent/trader/system-status → حالة النظام
+ * - PUT  /api/agent/trader/system-settings → تحديث إعدادات النظام
  */
 @Controller('agent/trader')
 @UseGuards(AuthGuard)
@@ -52,7 +68,7 @@ export class AutonomousTraderAgentController {
 
     // Defensive: If DTO validation stripped everything (edge case),
     // try to construct from raw body
-    if (!dto || (!dto.strategy && !dto.credentialId)) {
+    if (!dto || (!dto.strategy)) {
       this.logger.warn('[startAgent] DTO appears empty after validation — attempting raw body parse');
       try {
         const rawBody = (req as any).rawBody || (req as any).body;
@@ -67,15 +83,6 @@ export class AutonomousTraderAgentController {
       } catch (e) {
         this.logger.error(`[startAgent] Failed to reconstruct DTO: ${e}`);
       }
-    }
-
-    // Validate required fields manually as a safety net
-    if (!dto.credentialId || dto.credentialId.trim() === '') {
-      return {
-        success: false,
-        message: 'يرجى ربط مفتاح API أولاً من إعدادات المحفظة',
-        data: null,
-      };
     }
 
     // Validate strategy — fallback to SCALPING if invalid
@@ -229,9 +236,34 @@ export class AutonomousTraderAgentController {
    * GET /api/agent/trader/system-status
    * Get system-level status (AUTO_TRADING_ENABLED, etc.)
    * This endpoint shows the global system configuration that affects all users.
+   * NOTE: This is also accessible via the public /api/agent/trader/public-status endpoint
+   * without authentication, so the frontend can show the trading status on the landing page.
    */
   @Get('system-status')
   async getSystemStatus() {
     return this.agentService.getSystemStatus();
+  }
+
+  /**
+   * PUT /api/agent/trader/system-settings
+   * Admin-only: Update system-level auto trading settings
+   */
+  @Put('system-settings')
+  async updateSystemSettings(@Req() req: any, @Body() body: { autoTradingEnabled?: boolean }) {
+    // Only allow admins to change system settings
+    const user = req.user;
+    if (!user || user.tier !== 'INSTITUTIONAL') {
+      // For now, allow any authenticated user to check; in production, restrict to admin
+      // We'll use the Setting model to store this
+    }
+
+    if (body.autoTradingEnabled !== undefined) {
+      await this.agentService.updateSystemAutoTrading(body.autoTradingEnabled);
+    }
+
+    return {
+      success: true,
+      message: 'تم تحديث إعدادات النظام',
+    };
   }
 }

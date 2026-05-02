@@ -63,12 +63,12 @@ function addSecurityHeaders(response: NextResponse, request: NextRequest): NextR
       'Content-Security-Policy',
       [
         "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",  // Required by Next.js
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",  // unsafe-eval required by Next.js 16 runtime
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: https: blob:",
         "font-src 'self' https: data:",
         "connect-src 'self' wss: https: ws:",  // WebSocket + API connections
-        "frame-src 'none'",
+        "frame-src https://challenges.cloudflare.com",  // Cloudflare Turnstile for CAPTCHA
         "object-src 'none'",
         "base-uri 'self'",
         "form-action 'self'",

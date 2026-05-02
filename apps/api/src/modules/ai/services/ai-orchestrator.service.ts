@@ -12,6 +12,7 @@ import { AiUsageLoggerService } from './ai-usage-logger.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { PredictionMarketService } from '../../prediction-market/prediction-market.service';
 import * as crypto from 'crypto';
+import axios from 'axios';
 
 /**
  * AI Orchestrator — Routes tasks to the optimal AI model
@@ -81,7 +82,7 @@ export class AIOrchestratorService {
   private readonly MODEL_KEY_MAP: Record<string, string[]> = {
     groq:        ['GROQ_API_KEY'],
     glm:         ['GLM_API_KEY'],
-    gemini:      ['GOOGLE_AI_STUDIO_API_KEY'],
+    gemini:      ['GOOGLE_AI_STUDIO_API_KEY', 'GEMINI_API_KEY'],  // FIX: Check both env var names
     huggingface: ['HUGGINGFACE_API_KEY', 'HF_API_KEY', 'OPENROUTER_API_KEY'],  // OpenRouter is fallback provider
     ollama:      ['OLLAMA_API_KEY'],  // Also checks OLLAMA_BASE_URL reachability
     bedrock:     ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'],
@@ -338,11 +339,18 @@ export class AIOrchestratorService {
     try {
       const decisionInstruction = '\n\nIMPORTANT: End your response with a single line in exactly this format: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD". This line must be the last line of your response.';
 
+      // FIX: Fetch live market data before building prompts to prevent hallucinations
+      // (e.g., Groq saying BTC is $28,500 when it's actually much higher)
+      const marketData = await this._fetchQuickMarketData(symbol);
+      const marketDataPrefix = marketData.price > 0
+        ? `\nبيانات السوق الحية:\n- السعر الحالي: ${marketData.price.toLocaleString()}$\n- مؤشر RSI: ${marketData.rsi}\n- مؤشر MACD: ${marketData.macd}\n\nاستخدم هذه البيانات الحية كأساس لتحليلك. لا تخترع أسعاراً أو مؤشرات من عندك.\n`
+        : '';
+
       // FIX: Each model has exactly ONE role — no duplicates, no role overlap
       // 7 models = 7 roles (1:1 mapping) — clean, predictable, no rate-limiting
       // + 1 Prediction Market role (8th model) — votes only when relevant events exist
       const roles = [
-        { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',     fallbackModels: ['groq', 'glm', 'huggingface', 'openrouter'],  prompt: `حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.${decisionInstruction}` },
+        { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',     fallbackModels: ['groq', 'glm', 'huggingface', 'openrouter'],  prompt: `${marketDataPrefix}حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.${decisionInstruction}` },
         { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['gemini', 'glm', 'huggingface', 'openrouter'], prompt: `حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
         { id: 'risk',   name: 'خبير المخاطر',     model: 'bedrock',    fallbackModels: ['glm', 'gemini', 'groq', 'openrouter'],        prompt: `حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة مع تقييم السيناريو الأسوأ.${decisionInstruction}` },
         { id: 'macro',  name: 'خبير الماكرو',     model: 'glm',        fallbackModels: ['gemini', 'groq', 'huggingface', 'openrouter'], prompt: `حلل الوضع الاقتصادي العام وتأثيره على ${symbol} مع مراعاة السياق العربي.${decisionInstruction}` },
@@ -452,7 +460,12 @@ export class AIOrchestratorService {
       const analyses: any[] = [];
       let buyWeight = 0;
       let sellWeight = 0;
+      let holdWeight = 0;
       let totalConfidence = 0;
+      // FIX: Track individual confidences per vote type for accurate consensus calculation
+      let buyConfidences: number[] = [];
+      let sellConfidences: number[] = [];
+      let holdConfidences: number[] = [];
 
       // Track which roles got valid responses and which need fallback retry
       const roleResponses = new Map<string, { name: string; response: AIAnalysisResponse }>();
@@ -525,8 +538,9 @@ export class AIOrchestratorService {
         const vote = this._parseVote(content);
 
         const conf = response.confidence || 0.5;
-        if (vote === 'BUY') buyWeight += conf;
-        else if (vote === 'SELL') sellWeight += conf;
+        if (vote === 'BUY') { buyWeight += conf; buyConfidences.push(conf); }
+        else if (vote === 'SELL') { sellWeight += conf; sellConfidences.push(conf); }
+        else { holdWeight += conf; holdConfidences.push(conf); }
         totalConfidence += conf;
 
         analyses.push({
@@ -541,8 +555,9 @@ export class AIOrchestratorService {
       // ── Add 8th model (Prediction Market) vote if available ──
       if (predictionMarketVote) {
         const pmConf = predictionMarketVote.confidence / 100;
-        if (predictionMarketVote.vote === 'BUY') buyWeight += pmConf;
-        else if (predictionMarketVote.vote === 'SELL') sellWeight += pmConf;
+        if (predictionMarketVote.vote === 'BUY') { buyWeight += pmConf; buyConfidences.push(pmConf); }
+        else if (predictionMarketVote.vote === 'SELL') { sellWeight += pmConf; sellConfidences.push(pmConf); }
+        else { holdWeight += pmConf; holdConfidences.push(pmConf); }
         totalConfidence += pmConf;
 
         analyses.push(predictionMarketVote);
@@ -551,12 +566,28 @@ export class AIOrchestratorService {
       let recommendation: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';
       let consensusScore = 0;
 
+      // FIX: Consensus score = average confidence of models that agreed on the final recommendation
+      // Previously, HOLD used (1 - |buyPct - sellPct|) * 50 which capped at 50%
+      // Now: BUY score = avg confidence of BUY voters, SELL score = avg of SELL voters, HOLD = avg of HOLD voters
       if (totalConfidence > 0) {
         const buyPct = buyWeight / totalConfidence;
         const sellPct = sellWeight / totalConfidence;
-        if (buyPct > 0.6) { recommendation = 'BUY'; consensusScore = Math.round(buyPct * 100); }
-        else if (sellPct > 0.6) { recommendation = 'SELL'; consensusScore = Math.round(sellPct * 100); }
-        else { recommendation = 'HOLD'; consensusScore = Math.round((1 - Math.abs(buyPct - sellPct)) * 50); }
+        if (buyPct > 0.6) {
+          recommendation = 'BUY';
+          consensusScore = buyConfidences.length > 0
+            ? Math.round(buyConfidences.reduce((a, b) => a + b, 0) / buyConfidences.length * 100)
+            : Math.round(buyPct * 100);
+        } else if (sellPct > 0.6) {
+          recommendation = 'SELL';
+          consensusScore = sellConfidences.length > 0
+            ? Math.round(sellConfidences.reduce((a, b) => a + b, 0) / sellConfidences.length * 100)
+            : Math.round(sellPct * 100);
+        } else {
+          recommendation = 'HOLD';
+          consensusScore = holdConfidences.length > 0
+            ? Math.round(holdConfidences.reduce((a, b) => a + b, 0) / holdConfidences.length * 100)
+            : Math.round((1 - Math.abs(buyPct - sellPct)) * 50);
+        }
       }
 
       // FIX: Generate master strategy with 15s timeout — don't let it block the response
@@ -631,7 +662,7 @@ export class AIOrchestratorService {
   }> {
     const models = [
       { id: 'groq', name: 'Groq/Llama 3.3 70B', keyEnv: 'GROQ_API_KEY' },
-      { id: 'gemini', name: 'Gemini 2.0 Flash', keyEnv: 'GOOGLE_AI_STUDIO_API_KEY' },
+      { id: 'gemini', name: 'Gemini 2.0 Flash', keyEnv: 'GOOGLE_AI_STUDIO_API_KEY', altKeyEnv: 'GEMINI_API_KEY' },
       { id: 'glm', name: 'GLM-4 (Zhipu AI)', keyEnv: 'GLM_API_KEY' },
       { id: 'huggingface', name: 'HuggingFace/Mistral-7B', keyEnv: 'HF_API_KEY' },  // Also checks OPENROUTER_API_KEY as fallback
       { id: 'ollama', name: 'Ollama/Qwen2.5', keyEnv: 'OLLAMA_API_KEY' },
@@ -648,12 +679,16 @@ export class AIOrchestratorService {
         let keyHint: string | undefined;
 
         // Show key presence (first 4 chars + ***) for debugging
+        // FIX: Also check altKeyEnv (e.g., GEMINI_API_KEY as alternative to GOOGLE_AI_STUDIO_API_KEY)
+        const altKeyEnv = (m as any).altKeyEnv as string | undefined;
         let keyValue = this.configService.get<string>(m.keyEnv, '') ||
+          (altKeyEnv ? this.configService.get<string>(altKeyEnv, '') : '') ||
           (m.id === 'bedrock' ? this.configService.get<string>('AWS_ACCESS_KEY_ID', '') : '');
         if (keyValue) {
           keyHint = `${keyValue.substring(0, 4)}***${keyValue.length > 8 ? keyValue.substring(keyValue.length - 4) : ''}`;
+          if (altKeyEnv) keyHint += ` (checked: ${m.keyEnv} or ${altKeyEnv})`;
         } else {
-          keyHint = '(empty)';
+          keyHint = `(empty — tried: ${m.keyEnv}${altKeyEnv ? ` and ${altKeyEnv}` : ''})`;
         }
 
         // For Ollama, also show the base URL
@@ -1026,6 +1061,76 @@ export class AIOrchestratorService {
   // FIX: Upgraded from MD5 to SHA-256 for stronger dedup hashing
   private _hashPrompt(prompt: string): string {
     return crypto.createHash('sha256').update(prompt).digest('hex');
+  }
+
+  // ── Private: Live Market Data Fetch ──
+  /**
+   * FIX: Fetch quick market data (price, RSI, MACD) to prevent AI hallucinations.
+   * Models like Groq were inventing prices (e.g., saying BTC is $28,500 when it's
+   * actually $95,000+). This method fetches real data and injects it into prompts.
+   * Uses Binance public API for crypto — no auth required.
+   * Falls back gracefully if fetch fails (returns price=0).
+   */
+  private async _fetchQuickMarketData(symbol: string): Promise<{ price: number; rsi: number; macd: string }> {
+    try {
+      // Normalize symbol for Binance: BTC/USD → BTCUSDT, ETH/USD → ETHUSDT
+      const binanceSymbol = symbol.replace(/[\/\-]/g, '').replace('USD', 'USDT').toUpperCase();
+
+      // Fetch 24hr ticker for current price
+      const tickerUrl = `https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`;
+      const tickerRes = await axios.get(tickerUrl, { timeout: 5000 });
+      const price = parseFloat(tickerRes.data?.lastPrice || '0');
+
+      if (price === 0) return { price: 0, rsi: 50, macd: 'غير متوفر' };
+
+      // Fetch klines (OHLCV) for RSI and MACD calculation — 30 candles on 1h timeframe
+      const klinesUrl = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1h&limit=30`;
+      const klinesRes = await axios.get(klinesUrl, { timeout: 5000 });
+      const closes: number[] = (klinesRes.data || []).map((k: any) => parseFloat(k[4])).filter((v: number) => !isNaN(v));
+
+      const rsi = this._calculateRSI(closes);
+      const macd = this._calculateMACD(closes);
+
+      this.logger.debug(`📊 Market data for ${symbol}: price=${price}, RSI=${rsi}, MACD=${macd}`);
+      return { price, rsi, macd };
+    } catch (error: any) {
+      this.logger.debug(`📊 Market data fetch failed for ${symbol}: ${error.message} — using defaults`);
+      return { price: 0, rsi: 50, macd: 'غير متوفر' };
+    }
+  }
+
+  /** Calculate RSI (Relative Strength Index) from closing prices */
+  private _calculateRSI(closes: number[], period = 14): number {
+    if (closes.length < period + 1) return 50; // Not enough data
+    let gains = 0, losses = 0;
+    for (let i = closes.length - period; i < closes.length; i++) {
+      const change = closes[i] - closes[i - 1];
+      if (change > 0) gains += change;
+      else losses += Math.abs(change);
+    }
+    if (losses === 0) return 100;
+    const rs = gains / losses;
+    return Math.round(100 - (100 / (1 + rs)));
+  }
+
+  /** Calculate MACD summary from closing prices */
+  private _calculateMACD(closes: number[]): string {
+    if (closes.length < 26) return 'غير متوفر (بيانات غير كافية)';
+    const ema12 = this._calculateEMA(closes, 12);
+    const ema26 = this._calculateEMA(closes, 26);
+    const macdLine = ema12 - ema26;
+    const direction = macdLine > 0 ? 'صاعد' : 'هبوطي';
+    return `${direction} (القيمة: ${macdLine.toFixed(2)})`;
+  }
+
+  /** Calculate Exponential Moving Average */
+  private _calculateEMA(data: number[], period: number): number {
+    const multiplier = 2 / (period + 1);
+    let ema = data.slice(0, period).reduce((a, b) => a + b, 0) / period;
+    for (let i = period; i < data.length; i++) {
+      ema = (data[i] - ema) * multiplier + ema;
+    }
+    return ema;
   }
 
   // ── Private: Dynamic Confidence Scoring ──

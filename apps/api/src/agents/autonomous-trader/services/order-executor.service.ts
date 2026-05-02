@@ -114,6 +114,115 @@ export class OrderExecutorService implements OnModuleDestroy {
         where: { id: credentialId },
       });
 
+      // Paper trading mode — simulate execution without real exchange
+      if (credential && credential.exchange === 'paper-trading') {
+        this.logger.log(`⚡ Paper trading mode — simulating ${signal.action} ${signal.symbol}`);
+
+        const simulatedFee = signal.entryPrice * risk.positionSize * 0.001; // 0.1% fee
+        const executionTimeMs = Date.now() - startTime;
+
+        // Record in AutonomousTrade table
+        try {
+          await this.prisma.autonomousTrade.create({
+            data: {
+              userId,
+              agentRunId: `run-${userId}-${signal.strategy}`,
+              symbol: signal.symbol,
+              side: signal.action as any,
+              orderType: signal.type as any,
+              strategy: signal.strategy as any,
+              status: 'FILLED',
+              entryPrice: signal.entryPrice,
+              stopLoss: signal.stopLoss,
+              takeProfit: signal.takeProfit,
+              quantity: risk.positionSize,
+              filledQuantity: risk.positionSize,
+              pnl: null,
+              fee: simulatedFee,
+              feeCurrency: 'USD',
+              riskScore: risk.riskScore,
+              confidence: signal.confidence,
+              riskRewardRatio: risk.riskRewardRatio,
+              reasoning: signal.reasoning,
+              signalData: JSON.stringify(signal.metadata || {}),
+              metadata: JSON.stringify({ paperTrading: true, executionTimeMs }),
+              execution: JSON.stringify({
+                success: true,
+                paperTrading: true,
+                filledQuantity: risk.positionSize,
+                averagePrice: signal.entryPrice,
+                fee: simulatedFee,
+                slippage: 0,
+                executionTimeMs,
+              }),
+              credentialId,
+              openedAt: new Date(),
+            },
+          });
+        } catch (tradeErr: any) {
+          this.logger.error(`Failed to record paper AutonomousTrade: ${tradeErr.message}`);
+        }
+
+        // Also create a Position record for monitoring
+        try {
+          await this.prisma.position.create({
+            data: {
+              userId,
+              credentialId,
+              exchange: 'paper-trading',
+              symbol: signal.symbol,
+              side: signal.action as any,
+              status: 'OPEN',
+              quantity: risk.positionSize,
+              entryPrice: signal.entryPrice,
+              currentPrice: signal.entryPrice,
+              unrealizedPnl: 0,
+              stopLoss: signal.stopLoss,
+              takeProfit: signal.takeProfit,
+            },
+          });
+        } catch (posErr: any) {
+          this.logger.error(`Failed to create paper Position: ${posErr.message}`);
+        }
+
+        this.recentOrders.set(`${userId}:${signal.symbol}:${signal.action}`, new Date());
+
+        // Audit log
+        await this.audit.log({
+          userId,
+          action: 'AGENT_PAPER_TRADE_EXECUTED',
+          resource: 'autonomous-trader',
+          details: JSON.stringify({
+            symbol: signal.symbol,
+            side: signal.action,
+            type: signal.type,
+            quantity: risk.positionSize,
+            entryPrice: signal.entryPrice,
+            stopLoss: signal.stopLoss,
+            takeProfit: signal.takeProfit,
+            confidence: signal.confidence,
+            strategy: signal.strategy,
+            paperTrading: true,
+          }),
+        });
+
+        this.logger.log(
+          `✅ Paper order executed: ${signal.action} ${risk.positionSize} ${signal.symbol} ` +
+          `(paper trading — no real funds)`,
+        );
+
+        return {
+          success: true,
+          orderId: `paper-${Date.now()}`,
+          filledQuantity: risk.positionSize,
+          averagePrice: signal.entryPrice,
+          fee: simulatedFee,
+          feeCurrency: 'USD',
+          slippage: 0,
+          executionTimeMs,
+        };
+      }
+
       if (!credential || credential.userId !== userId || !credential.isValid) {
         return {
           success: false,

@@ -94,6 +94,80 @@ const MODEL_TIMEOUT = 15_000 // FIX: Reduced from 20s to 15s — faster failure,
 const OLLAMA_CLOUD_TIMEOUT = 30_000 // 30s for Ollama cloud (slower than local)
 const OLLAMA_LOCAL_TIMEOUT = 8_000 // 8s for local Ollama (fail faster if unreachable)
 
+// ─── Live Market Data ────────────────────────────────────────────
+
+/**
+ * FIX: Fetch quick market data (price, RSI, MACD) to prevent AI hallucinations.
+ * Models were inventing prices (e.g., saying BTC is $28,500 when it's much higher).
+ * Uses Binance public API for crypto — no auth required.
+ * Falls back gracefully if fetch fails.
+ */
+async function fetchQuickMarketData(symbol: string): Promise<{ price: number; rsi: number; macd: string }> {
+  try {
+    // Normalize symbol for Binance: BTC/USD → BTCUSDT
+    const binanceSymbol = symbol.replace(/[\/\-]/g, '').replace('USD', 'USDT').toUpperCase()
+
+    // Fetch 24hr ticker for current price
+    const tickerRes = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`, {
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!tickerRes.ok) return { price: 0, rsi: 50, macd: 'غير متوفر' }
+    const tickerData = await tickerRes.json()
+    const price = parseFloat(tickerData?.lastPrice || '0')
+
+    if (price === 0) return { price: 0, rsi: 50, macd: 'غير متوفر' }
+
+    // Fetch klines for RSI and MACD calculation — 30 candles on 1h timeframe
+    const klinesRes = await fetch(`https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1h&limit=30`, {
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!klinesRes.ok) return { price, rsi: 50, macd: 'غير متوفر' }
+    const klinesData = await klinesRes.json()
+    const closes: number[] = (klinesData || []).map((k: any) => parseFloat(k[4])).filter((v: number) => !isNaN(v))
+
+    const rsi = calcRSI(closes)
+    const macd = calcMACD(closes)
+
+    return { price, rsi, macd }
+  } catch {
+    return { price: 0, rsi: 50, macd: 'غير متوفر' }
+  }
+}
+
+/** Calculate RSI (Relative Strength Index) from closing prices */
+function calcRSI(closes: number[], period = 14): number {
+  if (closes.length < period + 1) return 50
+  let gains = 0, losses = 0
+  for (let i = closes.length - period; i < closes.length; i++) {
+    const change = closes[i] - closes[i - 1]
+    if (change > 0) gains += change
+    else losses += Math.abs(change)
+  }
+  if (losses === 0) return 100
+  const rs = gains / losses
+  return Math.round(100 - (100 / (1 + rs)))
+}
+
+/** Calculate MACD summary from closing prices */
+function calcMACD(closes: number[]): string {
+  if (closes.length < 26) return 'غير متوفر (بيانات غير كافية)'
+  const ema12 = calcEMA(closes, 12)
+  const ema26 = calcEMA(closes, 26)
+  const macdLine = ema12 - ema26
+  const direction = macdLine > 0 ? 'صاعد' : 'هبوطي'
+  return `${direction} (القيمة: ${macdLine.toFixed(2)})`
+}
+
+/** Calculate Exponential Moving Average */
+function calcEMA(data: number[], period: number): number {
+  const multiplier = 2 / (period + 1)
+  let ema = data.slice(0, period).reduce((a, b) => a + b, 0) / period
+  for (let i = period; i < data.length; i++) {
+    ema = (data[i] - ema) * multiplier + ema
+  }
+  return ema
+}
+
 // ─── Model Call Functions ────────────────────────────────────────
 
 async function callGroq(prompt: string): Promise<DirectAIResponse> {
@@ -131,12 +205,13 @@ async function callGroq(prompt: string): Promise<DirectAIResponse> {
 }
 
 async function callGemini(prompt: string): Promise<DirectAIResponse> {
-  const apiKey = getKey('GOOGLE_AI_STUDIO_API_KEY')
-  if (!apiKey) return { model: 'Gemini/unavailable', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key' }
+  // FIX: Check both GOOGLE_AI_STUDIO_API_KEY and GEMINI_API_KEY
+  const apiKey = getKey('GOOGLE_AI_STUDIO_API_KEY') || getKey('GEMINI_API_KEY')
+  if (!apiKey) return { model: 'Gemini/unavailable', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key (tried GOOGLE_AI_STUDIO_API_KEY and GEMINI_API_KEY)' }
 
   const start = Date.now()
-  // FIX: Model fallback chain — try multiple model names since availability varies
-  const modelCandidates = ['gemini-2.5-flash', 'gemini-2.0-flash-001', 'gemini-1.5-flash', 'gemini-2.0-flash-lite']
+  // FIX: Model fallback chain — updated model names to match current Google AI Studio availability
+  const modelCandidates = ['gemini-2.5-flash-preview-04-17', 'gemini-2.0-flash', 'gemini-2.0-flash-001', 'gemini-1.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-8b']
   
   for (const model of modelCandidates) {
     try {
@@ -219,36 +294,100 @@ async function callGLM(prompt: string): Promise<DirectAIResponse> {
 }
 
 async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
-  const apiKey = getKey('HUGGINGFACE_API_KEY')
-  if (!apiKey) return { model: 'HuggingFace/Mistral-7B', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key' }
+  // FIX: Check both HUGGINGFACE_API_KEY and HF_API_KEY, then try OpenRouter as fallback
+  const hfApiKey = getKey('HUGGINGFACE_API_KEY') || getKey('HF_API_KEY')
+  const openrouterApiKey = getKey('OPENROUTER_API_KEY')
+
+  if (!hfApiKey && !openrouterApiKey) {
+    return { model: 'HuggingFace/Mistral-7B', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key (tried HUGGINGFACE_API_KEY, HF_API_KEY, OPENROUTER_API_KEY)' }
+  }
 
   const start = Date.now()
-  try {
-    const fullPrompt = `<s>[INST] You are a financial AI analyst. Respond in Arabic. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"\n\n${prompt} [/INST]`
-    const res = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        inputs: fullPrompt,
-        parameters: { max_new_tokens: 512, temperature: 0.3, do_sample: true, return_full_text: false },
-      }),
-      signal: AbortSignal.timeout(MODEL_TIMEOUT),
-    })
 
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '')
-      return { model: 'HuggingFace/Mistral-7B', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `HF ${res.status}: ${errBody.slice(0, 150)}` }
+  // ── Strategy 1: HuggingFace Auto-Router (if HF key available) ──
+  if (hfApiKey) {
+    const hfModelCandidates = ['Qwen/Qwen2.5-7B-Instruct', 'mistralai/Mistral-7B-Instruct-v0.3', 'HuggingFaceH4/zephyr-7b-beta']
+
+    for (const model of hfModelCandidates) {
+      try {
+        // FIX: Use auto-router URL instead of direct model URL
+        // Auto-router: router.huggingface.co/v1/chat/completions
+        // Direct:      api-inference.huggingface.co/models/... (limited, often fails)
+        const res = await fetch('https://router.huggingface.co/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${hfApiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير أنماط مالي. كن موجزاً ومبنياً على البيانات. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+              { role: 'user', content: prompt },
+            ],
+            max_tokens: 1024,
+            temperature: 0.3,
+          }),
+          signal: AbortSignal.timeout(MODEL_TIMEOUT),
+        })
+
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => '')
+          if (res.status === 404 || res.status === 429) continue
+          if (res.status === 401) break // Auth error — try OpenRouter instead
+          continue
+        }
+
+        const data = await res.json()
+        const content = data.choices?.[0]?.message?.content || ''
+        if (content.trim().length > 0) {
+          return { model: `HuggingFace/${model.split('/').pop()}`, content, confidence: calcConfidence(content, 'huggingface'), processingTimeMs: Date.now() - start, success: true }
+        }
+      } catch {
+        continue
+      }
     }
-
-    const data = await res.json()
-    let content = ''
-    if (Array.isArray(data) && data.length > 0) content = data[0].generated_text || ''
-    else if (typeof data === 'string') content = data
-    content = content.replace(/\[\/INST\]/g, '').trim()
-    return { model: 'HuggingFace/Mistral-7B', content, confidence: calcConfidence(content, 'huggingface'), processingTimeMs: Date.now() - start, success: content.trim().length > 0 }
-  } catch (e: any) {
-    return { model: 'HuggingFace/Mistral-7B', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: e.message }
   }
+
+  // ── Strategy 2: OpenRouter fallback (if OR key available) ──
+  if (openrouterApiKey) {
+    const orModels = ['meta-llama/llama-3.1-8b-instruct:free', 'qwen/qwen-2.5-7b-instruct:free', 'google/gemma-2-9b-it:free']
+    for (const model of orModels) {
+      try {
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openrouterApiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://roua-trading-production.up.railway.app',
+            'X-Title': 'Roua Trading AI',
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير أنماط مالي. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+              { role: 'user', content: prompt },
+            ],
+            max_tokens: 1024,
+            temperature: 0.3,
+          }),
+          signal: AbortSignal.timeout(MODEL_TIMEOUT),
+        })
+
+        if (!res.ok) {
+          if (res.status === 404 || res.status === 429) continue
+          break
+        }
+
+        const data = await res.json()
+        const content = data.choices?.[0]?.message?.content || ''
+        if (content.trim().length > 0) {
+          return { model: `OpenRouter/${model.split('/').pop()}`, content, confidence: calcConfidence(content, 'huggingface'), processingTimeMs: Date.now() - start, success: true }
+        }
+      } catch {
+        continue
+      }
+    }
+  }
+
+  return { model: 'HuggingFace/Mistral-7B', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: 'All HuggingFace/OpenRouter models failed' }
 }
 
 /**
@@ -297,7 +436,7 @@ async function callOllama(prompt: string): Promise<DirectAIResponse> {
       requestBody = {
         model,
         messages: [
-          { role: 'system', content: 'أنت محلل مالي محترف. أجب بالعربية باختصار. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+          { role: 'system', content: 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت استراتيجي تنفيذ محترف. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
           { role: 'user', content: prompt },
         ],
         temperature: 0.3,
@@ -310,7 +449,7 @@ async function callOllama(prompt: string): Promise<DirectAIResponse> {
       requestBody = {
         model,
         messages: [
-          { role: 'system', content: 'أنت محلل مالي محترف. أجب بالعربية باختصار. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+          { role: 'system', content: 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت استراتيجي تنفيذ محترف. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
           { role: 'user', content: prompt },
         ],
         stream: false,
@@ -418,7 +557,7 @@ async function callBedrock(prompt: string): Promise<DirectAIResponse> {
   const modelId = 'anthropic.claude-3-5-sonnet-20241022-v2:0'
 
   try {
-    const systemPrompt = 'You are a safety-focused financial AI analyst. Respond in Arabic. Provide thorough, cautious analysis with emphasis on risk factors. Always highlight potential downsides. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
+    const systemPrompt = 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير مخاطر. قدّم تحليلاً حذراً مع التركيز على المخاطر. أبرز الجوانب السلبية دائماً. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
     const body = {
       anthropic_version: 'bedrock-2023-05-31',
       max_tokens: 1024,
@@ -596,6 +735,13 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
   const ollamaBaseUrl = getKey('OLLAMA_BASE_URL') || 'http://localhost:11434'
   const shouldTryOllama = !isCloudEnvironment() || !isLocalhostUrl(ollamaBaseUrl)
 
+  // FIX: Fetch live market data before building prompts to prevent hallucinations
+  // (e.g., models inventing BTC price as $28,500 when it's actually much higher)
+  const marketData = await fetchQuickMarketData(symbol)
+  const marketDataPrefix = marketData.price > 0
+    ? `\nبيانات السوق الحية:\n- السعر الحالي: ${marketData.price.toLocaleString()}$\n- مؤشر RSI: ${marketData.rsi}\n- مؤشر MACD: ${marketData.macd}\n\nاستخدم هذه البيانات الحية كأساس لتحليلك. لا تخترع أسعاراً أو مؤشرات من عندك.\n`
+    : ''
+
   // Define prompts for each model — each model gets a different perspective
   // Primary role assignment for 6 models
   const modelCalls: Array<{
@@ -614,7 +760,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     },
     {
       modelName: 'Gemini',
-      callFn: () => callGemini(`حلل الشارت الفني لـ ${symbol}. قيّم الاتجاه والمقاومات والدعم ومستويات الأسعار الرئيسية. ما هو الاتجاه الفني السائد؟`),
+      callFn: () => callGemini(`${marketDataPrefix}حلل الشارت الفني لـ ${symbol}. قيّم الاتجاه والمقاومات والدعم ومستويات الأسعار الرئيسية. ما هو الاتجاه الفني السائد؟`),
       roles: ['المحلل الفني'],
       prompt: 'technical',
       primaryOnly: false,
@@ -755,7 +901,11 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
   // Build analyses — each successful model fills its assigned role
   // FIX: Simplified — each model now has exactly 1 role, no complex reassignment needed
   const analyses: CouncilVote[] = []
-  let buyWeight = 0, sellWeight = 0, totalConfidence = 0
+  let buyWeight = 0, sellWeight = 0, holdWeight = 0, totalConfidence = 0
+  // FIX: Track individual confidences per vote type for accurate consensus calculation
+  let buyConfidences: number[] = []
+  let sellConfidences: number[] = []
+  let holdConfidences: number[] = []
 
   for (const modelData of successfulModels) {
     const { roles: modelRoles, response } = modelData
@@ -764,8 +914,9 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
 
     // Each model fills all its assigned roles (usually just 1)
     for (const roleName of modelRoles) {
-      if (vote === 'BUY') buyWeight += conf
-      else if (vote === 'SELL') sellWeight += conf
+      if (vote === 'BUY') { buyWeight += conf; buyConfidences.push(conf) }
+      else if (vote === 'SELL') { sellWeight += conf; sellConfidences.push(conf) }
+      else { holdWeight += conf; holdConfidences.push(conf) }
       totalConfidence += conf
 
       analyses.push({
@@ -778,16 +929,31 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     }
   }
 
-  // Calculate consensus
+  // FIX: Consensus score = average confidence of models that agreed on the final recommendation
+  // Previously, HOLD used (1 - |buyPct - sellPct|) * 50 which capped at 50%
+  // Now: BUY score = avg confidence of BUY voters, SELL score = avg of SELL voters, HOLD = avg of HOLD voters
   let recommendation: 'BUY' | 'SELL' | 'HOLD' = 'HOLD'
   let consensusScore = 0
 
   if (totalConfidence > 0) {
     const buyPct = buyWeight / totalConfidence
     const sellPct = sellWeight / totalConfidence
-    if (buyPct > 0.6) { recommendation = 'BUY'; consensusScore = Math.round(buyPct * 100) }
-    else if (sellPct > 0.6) { recommendation = 'SELL'; consensusScore = Math.round(sellPct * 100) }
-    else { recommendation = 'HOLD'; consensusScore = Math.round((1 - Math.abs(buyPct - sellPct)) * 50) }
+    if (buyPct > 0.6) {
+      recommendation = 'BUY'
+      consensusScore = buyConfidences.length > 0
+        ? Math.round(buyConfidences.reduce((a, b) => a + b, 0) / buyConfidences.length * 100)
+        : Math.round(buyPct * 100)
+    } else if (sellPct > 0.6) {
+      recommendation = 'SELL'
+      consensusScore = sellConfidences.length > 0
+        ? Math.round(sellConfidences.reduce((a, b) => a + b, 0) / sellConfidences.length * 100)
+        : Math.round(sellPct * 100)
+    } else {
+      recommendation = 'HOLD'
+      consensusScore = holdConfidences.length > 0
+        ? Math.round(holdConfidences.reduce((a, b) => a + b, 0) / holdConfidences.length * 100)
+        : Math.round((1 - Math.abs(buyPct - sellPct)) * 50)
+    }
   }
 
   const filledRoles = analyses.length
@@ -808,9 +974,9 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
   // Calculate expected models (how many had keys configured)
   const expectedDirectModels = activeModelCalls.filter(mc => {
     if (mc.modelName === 'Groq') return !!getKey('GROQ_API_KEY')
-    if (mc.modelName === 'Gemini') return !!getKey('GOOGLE_AI_STUDIO_API_KEY')
+    if (mc.modelName === 'Gemini') return !!(getKey('GOOGLE_AI_STUDIO_API_KEY') || getKey('GEMINI_API_KEY'))
     if (mc.modelName === 'GLM-4') return !!getKey('GLM_API_KEY')
-    if (mc.modelName === 'HuggingFace') return !!getKey('HUGGINGFACE_API_KEY')
+    if (mc.modelName === 'HuggingFace') return !!(getKey('HUGGINGFACE_API_KEY') || getKey('HF_API_KEY') || getKey('OPENROUTER_API_KEY'))
     if (mc.modelName === 'Ollama') return shouldTryOllama
     if (mc.modelName === 'Bedrock') return !!(getKey('AWS_ACCESS_KEY_ID') && getKey('AWS_SECRET_ACCESS_KEY'))
     if (mc.modelName === 'OpenRouter') return !!getKey('OPENROUTER_API_KEY')
@@ -828,8 +994,8 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
       conflictExplanation,
       meta: {
         symbol,
-        price: 0,
-        rsi: 50,
+        price: marketData.price,
+        rsi: marketData.rsi,
         processingTimeMs: Date.now() - startTime,
         timestamp: new Date().toISOString(),
         aiEngine: `Direct-AI (${filledRoles} roles from ${modelsRespondedCount} models)`,
@@ -858,9 +1024,9 @@ export function getAvailableModelKeys(): { model: string; hasKey: boolean; note?
 
   return [
     { model: 'Groq', hasKey: !!getKey('GROQ_API_KEY') },
-    { model: 'Gemini', hasKey: !!getKey('GOOGLE_AI_STUDIO_API_KEY') },
+    { model: 'Gemini', hasKey: !!(getKey('GOOGLE_AI_STUDIO_API_KEY') || getKey('GEMINI_API_KEY')), note: 'Accepts GOOGLE_AI_STUDIO_API_KEY or GEMINI_API_KEY' },
     { model: 'GLM-4', hasKey: !!getKey('GLM_API_KEY') },
-    { model: 'HuggingFace', hasKey: !!getKey('HUGGINGFACE_API_KEY') },
+    { model: 'HuggingFace', hasKey: !!(getKey('HUGGINGFACE_API_KEY') || getKey('HF_API_KEY') || getKey('OPENROUTER_API_KEY')), note: 'Accepts HUGGINGFACE_API_KEY, HF_API_KEY, or uses OPENROUTER_API_KEY as fallback' },
     {
       model: 'Ollama',
       hasKey: !ollamaSkipped && (!!getKey('OLLAMA_API_KEY') || !isLocalhostUrl(ollamaBaseUrl)),

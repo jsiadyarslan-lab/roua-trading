@@ -248,9 +248,12 @@ function LoginForm() {
     setError('')
 
     try {
-      // Create a session for the email user via /api/auth/me?email=...
-      // This creates/finds a user with this email and sets a session cookie
-      const res = await fetch(`/api/auth/me?email=${encodeURIComponent(email)}`)
+      // SECURITY: Use POST instead of GET to prevent email leaking in URL/logs/history
+      const res = await fetch('/api/auth/me', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
       if (res.ok) {
         const data = await res.json()
         if (data.authenticated) {

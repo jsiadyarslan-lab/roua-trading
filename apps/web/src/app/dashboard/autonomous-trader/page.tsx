@@ -155,18 +155,22 @@ export default function AutonomousTraderPage() {
     fetchStatus, fetchCredentials, startAgent, stopAgent, changeStrategy, updateRiskParams,
     fetchPerformance, fetchPositions, startAutoRefresh, stopAutoRefresh, addLog,
     selectedCredentialId, availableCredentials,
-    settings, systemStatus, fetchSettings, updateSettings, fetchSystemStatus,
+    settings, systemStatus, fetchSettings, updateSettings, fetchSystemStatus, updateSystemSettings,
   } = useAgentStore()
 
   const [activeTab, setActiveTab] = useState<'overview' | 'positions' | 'performance' | 'settings'>('overview')
   const [showStrategyPicker, setShowStrategyPicker] = useState(false)
   const [confirmEmergency, setConfirmEmergency] = useState(false)
+  const [enablingSystem, setEnablingSystem] = useState(false)
+  const [enableSystemResult, setEnableSystemResult] = useState<'idle' | 'success' | 'error'>('idle')
 
   const status = agentState?.status ?? null
   const isRunning = status === AgentStatus.RUNNING
   const config = agentState?.config
   const strategy = config?.strategy ?? StrategyType.SCALPING
   const hasCredential = !!selectedCredentialId && selectedCredentialId.trim() !== ''
+  const isPaperTrading = config?.isPaperTrading ?? false
+  const globalAutoTrading = systemStatus?.globalAutoTradingEnabled ?? true
 
   // ── Initial load & auto-refresh ──
   useEffect(() => {
@@ -227,6 +231,16 @@ export default function AutonomousTraderPage() {
                 <span style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: getStatusColor(status) }}>
                   {getStatusLabel(status)}
                 </span>
+                {isPaperTrading && isRunning && (
+                  <span style={{
+                    fontFamily: FONT_AR, fontSize: 9, fontWeight: 700,
+                    padding: '2px 8px', borderRadius: 6,
+                    background: `${T.accent}15`, color: T.accent,
+                    border: `1px solid ${T.accent}30`,
+                  }}>
+                    ورقي
+                  </span>
+                )}
                 {config && (
                   <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginRight: 8 }}>
                     • {getStrategyLabel(config.strategy as StrategyType)}
@@ -240,22 +254,21 @@ export default function AutonomousTraderPage() {
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {!isRunning && status !== AgentStatus.EMERGENCY_STOP && !agentState && (
               <button
-                onClick={() => hasCredential ? setShowStrategyPicker(!showStrategyPicker) : undefined}
-                disabled={loading || !hasCredential}
-                title={!hasCredential ? 'يرجى ربط مفتاح API أولاً من إعدادات المحفظة' : undefined}
+                onClick={() => setShowStrategyPicker(!showStrategyPicker)}
+                disabled={loading}
+                title={!hasCredential ? 'سيتم التفعيل في وضع التداول الورقي (بدون أموال حقيقية)' : undefined}
                 style={{
                   ...btnStyle,
-                  background: hasCredential ? 'linear-gradient(135deg, #00FFC6, #0A84FF)' : 'rgba(255,255,255,0.06)',
-                  color: hasCredential ? '#000' : T.text3,
+                  background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
+                  color: '#000',
                   fontWeight: 800,
                   padding: '10px 24px',
                   fontSize: 13,
-                  cursor: hasCredential ? 'pointer' : 'not-allowed',
-                  opacity: hasCredential ? 1 : 0.6,
+                  cursor: loading ? 'wait' : 'pointer',
                 }}
               >
                 <Play size={15} />
-                تفعيل الوكيل
+                {hasCredential ? 'تفعيل الوكيل' : 'تفعيل الوكيل (ورقي)'}
               </button>
             )}
             {isRunning && (
@@ -477,20 +490,91 @@ export default function AutonomousTraderPage() {
           </div>
         )}
 
-        {/* ── No Credential Warning ── */}
+        {/* ── No Credential Info Banner ── */}
         {!hasCredential && !isRunning && (
           <div style={{
             margin: '0 28px 16px', padding: '14px 18px',
-            background: 'rgba(255,184,0,0.08)',
-            border: `1px solid rgba(255,184,0,0.20)`,
+            background: 'rgba(0,212,255,0.06)',
+            border: `1px solid rgba(0,212,255,0.20)`,
             borderRadius: 10,
             display: 'flex', alignItems: 'center', gap: 10,
-            fontFamily: FONT_AR, fontSize: 12, color: T.amber,
+            fontFamily: FONT_AR, fontSize: 12, color: T.accent,
           }}>
-            <AlertTriangle size={16} />
+            <Activity size={16} />
             <span>
-              <strong>مطلوب مفتاح API</strong> — يرجى ربط مفتاح API خاصتك من صفحة المحفظة أولاً لتفعيل وكيل التداول الذاتي
+              <strong>وضع التداول الورقي</strong> — سيتم تفعيل الوكيل في وضع تجريبي بأموال وهمية. لربط بورصة حقيقية، أضف مفتاح API من صفحة المحفظة.
             </span>
+          </div>
+        )}
+
+        {/* ── Global Auto Trading Disabled Banner ── */}
+        {!globalAutoTrading && (
+          <div style={{
+            margin: '0 28px 16px', padding: '16px 20px',
+            background: 'rgba(255,71,87,0.08)',
+            border: `1px solid rgba(255,71,87,0.25)`,
+            borderRadius: 12,
+            display: 'flex', alignItems: 'center', gap: 14,
+            fontFamily: FONT_AR,
+          }}>
+            <div style={{
+              width: 42, height: 42, borderRadius: 11,
+              background: 'rgba(255,71,87,0.12)',
+              border: '1px solid rgba(255,71,87,0.25)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <AlertCircle size={22} color={T.red} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: T.red, marginBottom: 4 }}>
+                التداول الذاتي معطّل على مستوى النظام
+              </div>
+              <div style={{ fontSize: 11, color: T.text3, lineHeight: 1.7 }}>
+                وكيل التداول لا يعمل لأن التداول الذاتي معطّل.{' '}
+                {systemStatus?.source === 'database'
+                  ? 'الإعداد محفوظ في قاعدة البيانات — اضغط الزر لتفعيله فوراً.'
+                  : 'الإعداد يأتي من متغيرات البيئة (env) — اضغط الزر لحفظه في قاعدة البيانات وتفعيله.'
+                }
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                setEnablingSystem(true)
+                setEnableSystemResult('idle')
+                try {
+                  await updateSystemSettings({ autoTradingEnabled: true })
+                  setEnableSystemResult('success')
+                  setTimeout(() => setEnableSystemResult('idle'), 3000)
+                } catch {
+                  setEnableSystemResult('error')
+                  setTimeout(() => setEnableSystemResult('idle'), 3000)
+                }
+                setEnablingSystem(false)
+              }}
+              disabled={enablingSystem}
+              style={{
+                padding: '10px 24px', borderRadius: 10,
+                background: enableSystemResult === 'success' ? T.green
+                  : enableSystemResult === 'error' ? T.red
+                  : 'linear-gradient(135deg, #00FFC6, #0A84FF)',
+                border: 'none', color: '#000',
+                fontFamily: FONT_AR, fontSize: 13, fontWeight: 800,
+                cursor: enablingSystem ? 'wait' : 'pointer',
+                transition: 'all 0.2s', flexShrink: 0,
+                opacity: enablingSystem ? 0.7 : 1,
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              {enablingSystem ? <RefreshCw size={14} style={{ animation: 'agent-spin 1s linear infinite' }} />
+               : enableSystemResult === 'success' ? <CheckCircle2 size={14} />
+               : enableSystemResult === 'error' ? <XCircle size={14} />
+               : <Play size={14} />}
+              {enablingSystem ? 'جارٍ التفعيل...'
+               : enableSystemResult === 'success' ? 'تم التفعيل!'
+               : enableSystemResult === 'error' ? 'فشل التفعيل'
+               : 'تفعيل الآن'}
+            </button>
           </div>
         )}
 
@@ -1062,6 +1146,7 @@ export default function AutonomousTraderPage() {
 
     // System status banner
     const globalAutoTrading = systemStatus?.globalAutoTradingEnabled ?? true
+    const settingSource = systemStatus?.source ?? 'env_var'
 
     const SETTINGS_TABS = [
       { id: 'general' as const, label: 'عام', icon: <Settings2 size={12} /> },
@@ -1073,50 +1158,60 @@ export default function AutonomousTraderPage() {
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* System Status Banner */}
-        {!globalAutoTrading && (
-          <div style={{
-            padding: '12px 16px',
-            background: 'rgba(255,71,87,0.1)',
-            border: '1px solid rgba(255,71,87,0.3)',
-            borderRadius: 10,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}>
-            <AlertCircle size={16} color={T.red} />
-            <div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.red }}>
-                التداول الذاتي معطّل على مستوى النظام
+        {/* System Status Banner — Global Auto Trading Toggle */}
+        <GlassCard>
+          <div style={{ padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
+              <div style={{
+                width: 38, height: 38, borderRadius: 10,
+                background: globalAutoTrading ? 'rgba(0,255,163,0.10)' : 'rgba(255,71,87,0.10)',
+                border: `1px solid ${globalAutoTrading ? 'rgba(0,255,163,0.20)' : 'rgba(255,71,87,0.20)'}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                {globalAutoTrading
+                  ? <CheckCircle2 size={18} color={T.green} />
+                  : <AlertCircle size={18} color={T.red} />
+                }
               </div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text2, marginTop: 2 }}>
-                يجب تفعيل AUTO_TRADING_ENABLED=true في متغيرات بيئة الخادم (Railway) لتفعيل التداول
-              </div>
-            </div>
-          </div>
-        )}
-
-        {globalAutoTrading && (
-          <div style={{
-            padding: '12px 16px',
-            background: 'rgba(0,255,163,0.05)',
-            border: '1px solid rgba(0,255,163,0.2)',
-            borderRadius: 10,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}>
-            <CheckCircle2 size={16} color={T.green} />
-            <div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.green }}>
-                التداول الذاتي مفعّل على مستوى النظام
-              </div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text2, marginTop: 2 }}>
-                يمكن تفعيل الوكيل — إعداداتك محفوظة في قاعدة البيانات
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, color: globalAutoTrading ? T.green : T.red, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {globalAutoTrading ? 'التداول الذاتي مفعّل' : 'التداول الذاتي معطّل'}
+                  <span style={{
+                    fontSize: 9, padding: '2px 6px', borderRadius: 6,
+                    background: settingSource === 'database' ? `${T.accent}15` : `${T.amber}15`,
+                    color: settingSource === 'database' ? T.accent : T.amber,
+                    fontFamily: FONT_AR, fontWeight: 600,
+                  }}>
+                    {settingSource === 'database' ? 'من قاعدة البيانات' : 'من متغيرات البيئة'}
+                  </span>
+                </div>
+                <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 3 }}>
+                  {globalAutoTrading
+                    ? 'يمكن تفعيل الوكيل — الإعدادات محفوظة في قاعدة البيانات ويمكن التحكم بها من هنا'
+                    : 'يجب تفعيل التداول الذاتي أولاً لكي يعمل الوكيل — اضغط الزر للتفعيل'
+                  }
+                </div>
               </div>
             </div>
+            <button
+              onClick={() => updateSystemSettings({ autoTradingEnabled: !globalAutoTrading })}
+              style={{
+                minWidth: 80, padding: '10px 20px', borderRadius: 10,
+                background: globalAutoTrading
+                  ? 'rgba(255,71,87,0.10)'
+                  : 'linear-gradient(135deg, #00FFC6, #0A84FF)',
+                border: globalAutoTrading ? '1px solid rgba(255,71,87,0.25)' : 'none',
+                color: globalAutoTrading ? T.red : '#000',
+                fontFamily: FONT_AR, fontSize: 12, fontWeight: 800,
+                cursor: 'pointer', transition: 'all 0.2s',
+                flexShrink: 0,
+              }}
+            >
+              {globalAutoTrading ? 'إيقاف' : 'تفعيل'}
+            </button>
           </div>
-        )}
+        </GlassCard>
 
         {/* Settings Sub-tabs */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -1618,6 +1713,10 @@ const AGENT_CSS = `
 @keyframes agent-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+@keyframes agent-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 @keyframes fadeInSlideUp {
   from { opacity: 0; transform: translateY(12px); }

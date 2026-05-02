@@ -18,15 +18,15 @@ export async function GET(req: NextRequest) {
   const results: Record<string, any> = {
     timestamp: new Date().toISOString(),
     keys: {
-      groqKeyLength: (process.env.GROQ_API_KEY || '').length,
-      geminiKeyLength: (process.env.GOOGLE_AI_STUDIO_API_KEY || '').length,
-      glmKeyLength: (process.env.GLM_API_KEY || '').length,
-      hfKeyLength: (process.env.HUGGINGFACE_API_KEY || '').length,
-      ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'not set',
-      ollamaKeyLength: (process.env.OLLAMA_API_KEY || '').length,
-      awsAccessKeyLength: (process.env.AWS_ACCESS_KEY_ID || '').length,
-      awsSecretKeyLength: (process.env.AWS_SECRET_ACCESS_KEY || '').length,
-      awsRegion: process.env.AWS_REGION || 'not set',
+      groq: !!(process.env.GROQ_API_KEY),
+      gemini: !!(process.env.GOOGLE_AI_STUDIO_API_KEY || process.env.GEMINI_API_KEY),
+      geminiKeySource: process.env.GEMINI_API_KEY ? 'GEMINI_API_KEY' : process.env.GOOGLE_AI_STUDIO_API_KEY ? 'GOOGLE_AI_STUDIO_API_KEY' : 'none',
+      glm: !!(process.env.GLM_API_KEY),
+      huggingface: !!(process.env.HUGGINGFACE_API_KEY || process.env.HF_API_KEY),
+      hfKeySource: process.env.HF_API_KEY ? 'HF_API_KEY' : process.env.HUGGINGFACE_API_KEY ? 'HUGGINGFACE_API_KEY' : 'none',
+      openrouter: !!(process.env.OPENROUTER_API_KEY),
+      ollama: !!(process.env.OLLAMA_API_KEY),
+      aws: !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY),
     },
     tests: {},
   }
@@ -68,35 +68,56 @@ export async function GET(req: NextRequest) {
   }
 
   // ═══ TEST GEMINI ═══
-  const geminiKey = process.env.GOOGLE_AI_STUDIO_API_KEY?.trim() || ''
+  // FIX: Check both GOOGLE_AI_STUDIO_API_KEY and GEMINI_API_KEY
+  const geminiKey = process.env.GOOGLE_AI_STUDIO_API_KEY?.trim() || process.env.GEMINI_API_KEY?.trim() || ''
   if (geminiKey) {
     const start = Date.now()
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: testPrompt }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 256 },
-        }),
-        signal: AbortSignal.timeout(30000),
-      })
-      const data = await res.json()
-      results.tests.gemini = {
-        status: res.status,
-        ok: res.ok,
-        timeMs: Date.now() - start,
-        contentPreview: (data.candidates?.[0]?.content?.parts?.[0]?.text || '').slice(0, 200),
-        error: data.error?.message || null,
-        errorCode: data.error?.code || null,
-        errorStatus: data.error?.status || null,
-        rawError: data.error ? JSON.stringify(data.error).slice(0, 500) : null,
+    // FIX: Try multiple model names — gemini-2.5-flash-preview-04-17 is the latest
+    const geminiModels = ['gemini-2.0-flash', 'gemini-1.5-flash']
+    let geminiResult: any = null
+
+    for (const model of geminiModels) {
+      try {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: testPrompt }] }],
+            generationConfig: { temperature: 0.4, maxOutputTokens: 256 },
+          }),
+          signal: AbortSignal.timeout(30000),
+        })
+        const data = await res.json()
+        if (res.ok) {
+          geminiResult = {
+            status: res.status,
+            ok: true,
+            timeMs: Date.now() - start,
+            model,
+            contentPreview: (data.candidates?.[0]?.content?.parts?.[0]?.text || '').slice(0, 200),
+          }
+          break // Success — stop trying other models
+        }
+        // If not ok, try next model
+        if (res.status === 404) continue
+        geminiResult = {
+          status: res.status,
+          ok: false,
+          timeMs: Date.now() - start,
+          model,
+          error: data.error?.message || null,
+          errorCode: data.error?.code || null,
+          errorStatus: data.error?.status || null,
+          rawError: data.error ? JSON.stringify(data.error).slice(0, 500) : null,
+        }
+        break // Non-404 error — don't try other models
+      } catch (e: any) {
+        geminiResult = { error: e.message, model, timeMs: Date.now() - start }
       }
-    } catch (e: any) {
-      results.tests.gemini = { error: e.message, timeMs: Date.now() - start }
     }
+    results.tests.gemini = geminiResult || { skipped: true, reason: 'All Gemini models failed' }
   } else {
-    results.tests.gemini = { skipped: true, reason: 'No API key' }
+    results.tests.gemini = { skipped: true, reason: 'No API key (tried GOOGLE_AI_STUDIO_API_KEY and GEMINI_API_KEY)' }
   }
 
   // ═══ TEST GLM-4 ═══
@@ -149,37 +170,67 @@ export async function GET(req: NextRequest) {
   }
 
   // ═══ TEST HUGGINGFACE ═══
-  const hfKey = process.env.HUGGINGFACE_API_KEY?.trim() || ''
+  // FIX: Check both HUGGINGFACE_API_KEY and HF_API_KEY, try auto-router
+  const hfKey = process.env.HUGGINGFACE_API_KEY?.trim() || process.env.HF_API_KEY?.trim() || ''
+  const orKey = process.env.OPENROUTER_API_KEY?.trim() || ''
   if (hfKey) {
     const start = Date.now()
     try {
-      const res = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3', {
+      // FIX: Use auto-router URL instead of direct API — much more reliable
+      const res = await fetch('https://router.huggingface.co/v1/chat/completions', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${hfKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          inputs: `<s>[INST] ${testPrompt} [/INST]`,
-          parameters: { max_new_tokens: 128, temperature: 0.3 },
+          model: 'Qwen/Qwen2.5-7B-Instruct',
+          messages: [{ role: 'user', content: testPrompt }],
+          max_tokens: 128,
+          temperature: 0.3,
         }),
         signal: AbortSignal.timeout(30000),
       })
       const data = await res.json()
-      let content = ''
-      if (Array.isArray(data) && data.length > 0) content = data[0].generated_text || ''
-      else if (typeof data === 'string') content = data
+      const content = data.choices?.[0]?.message?.content || ''
       results.tests.huggingface = {
         status: res.status,
         ok: res.ok,
         timeMs: Date.now() - start,
         contentPreview: content.slice(0, 200),
-        error: data.error || null,
-        estimatedTime: data.estimated_time || null,
-        rawPreview: JSON.stringify(data).slice(0, 500),
+        error: data.error?.message || data.message || null,
+        model: data.model || null,
+        url: 'auto-router',
       }
     } catch (e: any) {
       results.tests.huggingface = { error: e.message, timeMs: Date.now() - start }
     }
+  } else if (orKey) {
+    // Fallback: try OpenRouter if no HF key
+    const start = Date.now()
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${orKey}`, 'Content-Type': 'application/json', 'HTTP-Referer': 'https://roua-trading-production.up.railway.app' },
+        body: JSON.stringify({
+          model: 'qwen/qwen-2.5-7b-instruct:free',
+          messages: [{ role: 'user', content: testPrompt }],
+          max_tokens: 128,
+          temperature: 0.3,
+        }),
+        signal: AbortSignal.timeout(30000),
+      })
+      const data = await res.json()
+      const content = data.choices?.[0]?.message?.content || ''
+      results.tests.huggingface = {
+        status: res.status,
+        ok: res.ok,
+        timeMs: Date.now() - start,
+        contentPreview: content.slice(0, 200),
+        note: 'Used OpenRouter as fallback (no HF key)',
+      }
+    } catch (e: any) {
+      results.tests.huggingface = { error: e.message, timeMs: Date.now() - start, note: 'OpenRouter fallback failed' }
+    }
   } else {
-    results.tests.huggingface = { skipped: true, reason: 'No API key (HUGGINGFACE_API_KEY not set)' }
+    results.tests.huggingface = { skipped: true, reason: 'No API key (tried HUGGINGFACE_API_KEY, HF_API_KEY, OPENROUTER_API_KEY)' }
   }
 
   // ═══ TEST OLLAMA ═══

@@ -27,6 +27,8 @@ export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 export class AuthGuard implements CanActivate {
   private readonly logger = new Logger(AuthGuard.name);
   private guestUser: any = null;
+  private guestUserLastRefresh = 0;
+  private readonly GUEST_CACHE_TTL = 5 * 60 * 1000; // Refresh guest user cache every 5 minutes
 
   constructor(
     private readonly prisma: PrismaService,
@@ -97,13 +99,13 @@ export class AuthGuard implements CanActivate {
 
   /**
    * Ensure the guest user exists in the database.
-   * Cached in memory to avoid repeated DB lookups.
+   * Cached in memory with TTL to avoid stale data.
    */
   private async _ensureGuestUser(): Promise<any> {
     const GUEST_EMAIL = 'guest@roua.auto';
 
-    // Return cached guest user if available
-    if (this.guestUser) {
+    // Return cached guest user if fresh
+    if (this.guestUser && Date.now() - this.guestUserLastRefresh < this.GUEST_CACHE_TTL) {
       return this.guestUser;
     }
 
@@ -131,6 +133,7 @@ export class AuthGuard implements CanActivate {
       }
 
       this.guestUser = user;
+      this.guestUserLastRefresh = Date.now();
       return user;
     } catch (error: any) {
       // DB might be unavailable — try to find existing user
@@ -138,6 +141,7 @@ export class AuthGuard implements CanActivate {
         const user = await this.prisma.user.findUnique({ where: { email: GUEST_EMAIL } });
         if (user) {
           this.guestUser = user;
+          this.guestUserLastRefresh = Date.now();
           return user;
         }
       } catch {

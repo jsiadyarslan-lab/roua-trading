@@ -2,7 +2,7 @@
 // Roua Trading (رؤى) — Autonomous Trader Agent Service
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger, BadRequestException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, ServiceUnavailableException, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -58,7 +58,7 @@ import { PerformanceTracker } from './models/performance';
  * Schedule: Runs every 60 seconds (configurable)
  */
 @Injectable()
-export class AutonomousTraderAgentService {
+export class AutonomousTraderAgentService implements OnModuleInit {
   private readonly logger = new Logger(AutonomousTraderAgentService.name);
 
   /** Track if a cycle is currently running to prevent overlap */
@@ -84,6 +84,36 @@ export class AutonomousTraderAgentService {
     this.logger.log('🧠 Autonomous Trader Agent initialized');
   }
 
+  /**
+   * OnModuleInit — Auto-seed critical system settings on startup.
+   * This ensures AUTO_TRADING_ENABLED exists in the DB with a default of `true`,
+   * so the agent can be controlled from the UI without relying on env vars.
+   */
+  async onModuleInit() {
+    try {
+      // Ensure AUTO_TRADING_ENABLED exists in the Setting table
+      const existing = await this.prisma.setting.findUnique({
+        where: { key: 'AUTO_TRADING_ENABLED' },
+      });
+
+      if (!existing) {
+        // Read current env var value to use as initial DB value, defaulting to true
+        const envValue = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+        await this.prisma.setting.create({
+          data: {
+            key: 'AUTO_TRADING_ENABLED',
+            value: JSON.stringify(envValue),
+          },
+        });
+        this.logger.log(`🔧 Auto-seeded AUTO_TRADING_ENABLED=${envValue} in DB (from env var / default)`);
+      } else {
+        this.logger.log(`🔧 AUTO_TRADING_ENABLED=${JSON.parse(existing.value)} already in DB (source: database)`);
+      }
+    } catch (error: any) {
+      this.logger.warn(`Could not auto-seed AUTO_TRADING_ENABLED: ${error.message} — will fall back to env var`);
+    }
+  }
+
   // ── Agent Lifecycle ──
 
   /**
@@ -97,37 +127,112 @@ export class AutonomousTraderAgentService {
     }
 
     // CRITICAL CHECK: Fail-fast if AUTO_TRADING_ENABLED is false
-    const autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
-    if (!autoTradingEnabled) {
-      this.logger.error(`🚫 AUTO_TRADING_ENABLED=false — cannot start agent for user ${userId}`);
+    // Step 1: Check global system-level toggle (DB first, then env var)
+    let globalAutoTradingEnabled: boolean;
+    try {
+      const dbSetting = await this.prisma.setting.findUnique({
+        where: { key: 'AUTO_TRADING_ENABLED' },
+      });
+      if (dbSetting) {
+        globalAutoTradingEnabled = JSON.parse(dbSetting.value);
+      } else {
+        globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+      }
+    } catch {
+      globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+    }
+
+    if (!globalAutoTradingEnabled) {
+      this.logger.error(`🚫 AUTO_TRADING_ENABLED=false (global) — cannot start agent for user ${userId}`);
       throw new BadRequestException(
-        'التداول الذاتي معطّل في النظام — لا يمكن تفعيل الوكيل. تواصل مع الإدارة لتفعيل AUTO_TRADING_ENABLED',
+        'التداول الذاتي معطّل على مستوى النظام — لا يمكن تفعيل الوكيل. يمكنك تفعيله من إعدادات النظام',
       );
     }
 
-    // Validate credential
-    let credential: any;
+    // Step 2: Check per-user autoTradingEnabled from DB settings
+    let userAutoTradingEnabled = true;
     try {
-      credential = await this.prisma.exchangeCredential.findFirst({
-        where: { id: dto.credentialId, userId, isValid: true },
+      const userSettings = await this.prisma.agentSettings.findUnique({
+        where: { userId },
       });
-    } catch (error: any) {
-      this.logger.error(`Database error looking up credential: ${error.message}`);
-      throw new ServiceUnavailableException('خطأ في قاعدة البيانات — يرجى المحاولة لاحقاً');
+      if (userSettings && !userSettings.autoTradingEnabled) {
+        userAutoTradingEnabled = false;
+      }
+    } catch (e: any) {
+      this.logger.warn(`Could not check user autoTradingEnabled: ${e.message}`);
     }
 
-    if (!credential) {
-      throw new NotFoundException('بيانات الاعتماد غير صالحة أو غير موجودة');
+    if (!userAutoTradingEnabled) {
+      this.logger.warn(`🚫 User ${userId} has autoTradingEnabled=false — cannot start agent`);
+      throw new BadRequestException(
+        'التداول الذاتي معطّل في إعداداتك — فعّله من صفحة إعدادات الوكيل',
+      );
     }
 
-    let permissions: string[] = ['read'];
-    try {
-      permissions = JSON.parse(credential.permissions || '["read"]');
-    } catch {
-      permissions = ['read'];
-    }
-    if (!permissions.includes('trade')) {
-      throw new BadRequestException('مفتاح API لا يملك صلاحية التداول');
+    // Validate credential OR allow paper trading mode
+    let credential: any = null;
+    let isPaperTrading = false;
+
+    // Determine if this is a paper trading session
+    // Paper trading mode: no real credentialId, or credentialId starts with 'paper-'
+    const isPaperCredentialId = !dto.credentialId || dto.credentialId.trim() === '' || dto.credentialId.startsWith('paper-');
+
+    if (isPaperCredentialId) {
+      // Paper trading mode — no real exchange connection needed
+      isPaperTrading = true;
+      this.logger.log(`🧠 Agent starting in PAPER TRADING mode for user ${userId}`);
+
+      // Auto-create a paper trading credential record if one doesn't exist
+      try {
+        const existingPaper = await this.prisma.exchangeCredential.findFirst({
+          where: { userId, exchange: 'paper-trading', isValid: true },
+        });
+        if (existingPaper) {
+          credential = existingPaper;
+        } else {
+          credential = await this.prisma.exchangeCredential.create({
+            data: {
+              userId,
+              exchange: 'paper-trading',
+              label: 'تداول ورقي (تجريبي)',
+              encryptedApiKey: 'paper',
+              encryptedSecret: 'paper',
+              iv: 'paper',
+              authTag: 'paper',
+              permissions: JSON.stringify(['read', 'trade']),
+              isValid: true,
+            },
+          });
+          this.logger.log(`🧠 Auto-created paper trading credential for user ${userId}`);
+        }
+      } catch (error: any) {
+        this.logger.warn(`Could not create paper credential: ${error.message}`);
+        // Continue without a DB record — paper trading doesn't need one
+      }
+    } else {
+      // Real credential — validate it
+      try {
+        credential = await this.prisma.exchangeCredential.findFirst({
+          where: { id: dto.credentialId, userId, isValid: true },
+        });
+      } catch (error: any) {
+        this.logger.error(`Database error looking up credential: ${error.message}`);
+        throw new ServiceUnavailableException('خطأ في قاعدة البيانات — يرجى المحاولة لاحقاً');
+      }
+
+      if (!credential) {
+        throw new NotFoundException('بيانات الاعتماد غير صالحة أو غير موجودة');
+      }
+
+      let permissions: string[] = ['read'];
+      try {
+        permissions = JSON.parse(credential.permissions || '["read"]');
+      } catch {
+        permissions = ['read'];
+      }
+      if (!permissions.includes('trade')) {
+        throw new BadRequestException('مفتاح API لا يملك صلاحية التداول');
+      }
     }
 
     // Load user's persistent settings (DB first, env vars as fallback)
@@ -163,7 +268,8 @@ export class AutonomousTraderAgentService {
       symbols: dto.symbols ??
         (userSettings && userSettings.defaultSymbols ? userSettings.defaultSymbols.split(',').filter(Boolean) : undefined) ??
         this.DEFAULT_SYMBOLS,
-      credentialId: dto.credentialId,
+      credentialId: isPaperTrading ? (credential?.id || `paper-${userId}`) : dto.credentialId,
+      isPaperTrading,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -466,11 +572,79 @@ export class AutonomousTraderAgentService {
   }
 
   /**
+   * Update system-level AUTO_TRADING_ENABLED setting in DB
+   * This allows toggling auto-trading from the UI without changing env vars
+   */
+  async updateSystemAutoTrading(enabled: boolean): Promise<void> {
+    try {
+      await this.prisma.setting.upsert({
+        where: { key: 'AUTO_TRADING_ENABLED' },
+        update: { value: JSON.stringify(enabled) },
+        create: { key: 'AUTO_TRADING_ENABLED', value: JSON.stringify(enabled) },
+      });
+      this.logger.log(`🔧 System AUTO_TRADING_ENABLED set to ${enabled} in DB`);
+    } catch (error: any) {
+      this.logger.error(`Failed to update system AUTO_TRADING_ENABLED: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Public status endpoint — no auth required.
+   * Returns only autoTradingEnabled and source (safe to expose publicly).
+   */
+  async getPublicStatus() {
+    let autoTradingEnabled = true;
+    let source: 'database' | 'env_var' = 'env_var';
+
+    try {
+      const dbSetting = await this.prisma.setting.findUnique({
+        where: { key: 'AUTO_TRADING_ENABLED' },
+      });
+      if (dbSetting) {
+        autoTradingEnabled = JSON.parse(dbSetting.value);
+        source = 'database';
+      } else {
+        autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+        source = 'env_var';
+      }
+    } catch {
+      autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+      source = 'env_var';
+    }
+
+    return {
+      success: true,
+      data: {
+        autoTradingEnabled,
+        source,
+      },
+    };
+  }
+
+  /**
    * Get system-level status information
    * Shows global configuration like AUTO_TRADING_ENABLED status.
+   * Checks DB first, then env var, then defaults to true.
    */
-  getSystemStatus() {
-    const autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+  async getSystemStatus() {
+    // Check DB first, then env var
+    let dbAutoTradingEnabled: boolean | null = null;
+    try {
+      const dbSetting = await this.prisma.setting.findUnique({
+        where: { key: 'AUTO_TRADING_ENABLED' },
+      });
+      if (dbSetting) {
+        dbAutoTradingEnabled = JSON.parse(dbSetting.value);
+      }
+    } catch {
+      // DB not available — fall through to env var
+    }
+
+    // Priority: DB setting > env var > default (true)
+    const envAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+    const autoTradingEnabled = dbAutoTradingEnabled !== null ? dbAutoTradingEnabled : envAutoTradingEnabled;
+
     const defaultPaperBalance = parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000;
 
     return {
@@ -478,13 +652,12 @@ export class AutonomousTraderAgentService {
       data: {
         autoTradingEnabled,
         globalAutoTradingEnabled: autoTradingEnabled,
+        source: dbAutoTradingEnabled !== null ? 'database' : 'env_var',
         defaultPaperBalance,
         nodeEnv: this.configService.get('NODE_ENV', 'development'),
-        // Note: autoTradingEnabled is a GLOBAL server setting.
-        // Per-user autoTradingEnabled is in AgentSettings.
         message: autoTradingEnabled
           ? 'التداول الذاتي مفعّل على مستوى النظام'
-          : 'التداول الذاتي معطّل على مستوى النظام — يجب تفعيل AUTO_TRADING_ENABLED=true في متغيرات البيئة',
+          : 'التداول الذاتي معطّل على مستوى النظام',
       },
     };
   }

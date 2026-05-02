@@ -238,45 +238,128 @@ export enum ContentAgentStatus {
 
 // ── API DTOs ──
 
+import {
+  IsOptional, IsString, IsEnum, IsArray,
+  IsBoolean, IsDateString, ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+
 export class GenerateContentDto {
+  @IsEnum(ContentType)
   type: ContentType;
+
+  @IsEnum(ContentCategory)
   category: ContentCategory;
+
+  @IsString()
   topic: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   symbols?: string[];
+
+  @IsOptional()
+  @IsEnum(ContentLanguage)
   language?: ContentLanguage;
+
+  @IsOptional()
+  @IsEnum(ContentPriority)
   priority?: ContentPriority;
+
+  @IsOptional()
   aiConfig?: Partial<AiGenerationConfig>;
+
+  @IsOptional()
+  @IsDateString()
   scheduledAt?: Date;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   tags?: string[];
 }
 
 export class UpdateContentDto {
+  @IsOptional()
+  @IsString()
   titleAr?: string;
+
+  @IsOptional()
+  @IsString()
   titleEn?: string;
+
+  @IsOptional()
+  @IsString()
   contentAr?: string;
+
+  @IsOptional()
+  @IsString()
   contentEn?: string;
+
+  @IsOptional()
+  @IsEnum(ContentStatus)
   status?: ContentStatus;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   tags?: string[];
+
+  @IsOptional()
+  @IsDateString()
   scheduledAt?: Date;
 }
 
 export class BulkGenerateDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => Object) // ContentGenerationRequest is an interface, not a class
   requests: ContentGenerationRequest[];
+
+  @IsOptional()
+  @IsBoolean()
   publishImmediately?: boolean;
 }
 
 export class GetContentFeedDto {
+  @IsOptional()
+  @IsEnum(ContentCategory)
   category?: ContentCategory;
+
+  @IsOptional()
+  @IsEnum(ContentType)
   type?: ContentType;
+
+  @IsOptional()
+  @IsEnum(ContentLanguage)
   language?: ContentLanguage;
+
+  @IsOptional()
+  @IsEnum(ContentStatus)
   status?: ContentStatus;
+
+  @IsOptional()
+  @Type(() => Number)
   page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
   limit?: number;
+
+  @IsOptional()
+  @IsString()
   symbol?: string;
 }
 
 export class ScheduleContentDto {
+  @IsString()
   contentId: string;
+
+  @IsDateString()
   scheduledAt: Date;
+
+  @IsOptional()
+  @IsString()
   platform?: 'WEBSITE' | 'TELEGRAM' | 'TWITTER' | 'ALL';
 }

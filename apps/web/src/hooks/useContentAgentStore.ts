@@ -265,12 +265,19 @@ export const useContentAgentStore = create<ContentAgentStore>()(
           params.set('limit', String(feedFilters.limit))
 
           const res = await fetch(`/api/agent/content/feed?${params.toString()}`)
+          if (!res.ok) {
+            // Don't spam errors — just return empty
+            set({ articles: [] })
+            return
+          }
           const data = await res.json()
           if (data.success && data.data) {
             set({ articles: data.data.items || data.data || [] })
+          } else {
+            set({ articles: [] })
           }
         } catch {
-          // Silent fail for feed
+          set({ articles: [] })
         }
       },
 

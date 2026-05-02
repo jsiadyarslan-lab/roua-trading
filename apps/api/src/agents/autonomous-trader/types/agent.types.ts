@@ -240,7 +240,7 @@ export interface AgentState {
 
 import {
   IsOptional, IsString, IsEnum, IsArray,
-  IsNumber, Min, Max, ValidateNested,
+  IsNumber, Min, Max, ValidateNested, IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -269,6 +269,7 @@ export class StartAgentDto {
   strategy: StrategyType;
 
   @IsString()
+  @IsNotEmpty()
   credentialId: string;
 
   @IsOptional()

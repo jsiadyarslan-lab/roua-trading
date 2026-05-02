@@ -198,6 +198,20 @@ interface ContentAgentStore {
   stopAutoRefresh: () => void
 }
 
+/** Safely parse a JSON string into an array; returns [] on failure. Handles already-parsed arrays. */
+function _safeJsonParse(value: unknown): string[] {
+  if (Array.isArray(value)) return value
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 let _refreshInterval: ReturnType<typeof setInterval> | null = null
 
 export const useContentAgentStore = create<ContentAgentStore>()(
@@ -295,13 +309,19 @@ export const useContentAgentStore = create<ContentAgentStore>()(
           }
           const data = await res.json()
           if (data.success && data.data) {
-            const items = Array.isArray(data.data)
+            const raw = Array.isArray(data.data)
               ? data.data
               : Array.isArray(data.data.articles)
                 ? data.data.articles
                 : Array.isArray(data.data.items)
                   ? data.data.items
                   : []
+            // Parse JSON fields that come as strings from the database
+            const items: ContentArticle[] = raw.map((item: any) => ({
+              ...item,
+              relatedSymbols: _safeJsonParse(item.relatedSymbols),
+              tags: _safeJsonParse(item.tags),
+            }))
             set({ articles: items })
           } else {
             set({ articles: [] })

@@ -452,7 +452,7 @@ const NAV_LINKS: NavLink[] = [
   { href: '/dashboard',                        label: 'الرئيسية',           icon: Home },
   { href: '/dashboard/portfolio',              label: 'المحفظة',            icon: Wallet,
     children: [
-      { href: '/dashboard/portfolio/malaath',  label: 'الملاذ',            icon: Shield },
+      { href: '/dashboard/sanctuary',  label: 'الملاذ',            icon: Shield },
     ]
   },
   { href: '/dashboard/ai',                     label: 'تحليل AI',           icon: Brain },
@@ -847,11 +847,15 @@ function SubNavDropdown({
   onClose,
   anchorEl,
   items,
+  onDropdownEnter,
+  onDropdownLeave,
 }: {
   open: boolean
   onClose: () => void
   anchorEl: HTMLDivElement | null
   items: NavLink[]
+  onDropdownEnter?: () => void
+  onDropdownLeave?: () => void
 }) {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
@@ -897,7 +901,11 @@ function SubNavDropdown({
   if (!open || typeof document === 'undefined') return null
 
   return createPortal(
-    <div ref={dropdownRef} style={{
+    <div
+      ref={dropdownRef}
+      onMouseEnter={onDropdownEnter}
+      onMouseLeave={onDropdownLeave}
+      style={{
       position: 'fixed',
       top: pos.top,
       right: pos.right,
@@ -1041,6 +1049,10 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
             onClose={handleCloseSubNav}
             anchorEl={subNavAnchor}
             items={openLink.children}
+            onDropdownEnter={() => {
+              if (subNavTimerRef.current) clearTimeout(subNavTimerRef.current)
+            }}
+            onDropdownLeave={handleCloseSubNav}
           />
         )
       })()}

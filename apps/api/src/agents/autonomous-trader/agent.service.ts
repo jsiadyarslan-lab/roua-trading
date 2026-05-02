@@ -2,7 +2,7 @@
 // Roua Trading (رؤى) — Autonomous Trader Agent Service
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -90,7 +90,7 @@ export class AutonomousTraderAgentService {
     // Check if agent is already running
     const existingState = await this._getAgentState(userId);
     if (existingState && existingState.status === AgentStatus.RUNNING) {
-      throw new Error('الوكيل يعمل بالفعل — أوقفه أولاً ثم أعد تشغيله');
+      throw new BadRequestException('الوكيل يعمل بالفعل — أوقفه أولاً ثم أعد تشغيله');
     }
 
     // Validate credential
@@ -99,12 +99,17 @@ export class AutonomousTraderAgentService {
     });
 
     if (!credential) {
-      throw new Error('بيانات الاعتماد غير صالحة أو غير موجودة');
+      throw new NotFoundException('بيانات الاعتماد غير صالحة أو غير موجودة');
     }
 
-    const permissions = JSON.parse(credential.permissions || '["read"]');
+    let permissions: string[] = ['read'];
+    try {
+      permissions = JSON.parse(credential.permissions || '["read"]');
+    } catch {
+      permissions = ['read'];
+    }
     if (!permissions.includes('trade')) {
-      throw new Error('مفتاح API لا يملك صلاحية التداول');
+      throw new BadRequestException('مفتاح API لا يملك صلاحية التداول');
     }
 
     // Build agent config
@@ -163,7 +168,7 @@ export class AutonomousTraderAgentService {
   async stopAgent(userId: string, emergency: boolean = false): Promise<AgentState> {
     const state = await this._getAgentState(userId);
     if (!state) {
-      throw new Error('الوكيل غير نشط');
+      throw new NotFoundException('الوكيل غير نشط');
     }
 
     state.status = emergency ? AgentStatus.EMERGENCY_STOP : AgentStatus.STOPPED;
@@ -209,7 +214,7 @@ export class AutonomousTraderAgentService {
   async changeStrategy(userId: string, dto: ChangeStrategyDto): Promise<AgentState> {
     const state = await this._getAgentState(userId);
     if (!state || state.status !== AgentStatus.RUNNING) {
-      throw new Error('الوكيل ليس في حالة تشغيل');
+      throw new BadRequestException('الوكيل ليس في حالة تشغيل');
     }
 
     const previousStrategy = state.config.strategy;
@@ -244,7 +249,7 @@ export class AutonomousTraderAgentService {
   async updateRiskParams(userId: string, dto: UpdateRiskParamsDto): Promise<AgentState> {
     const state = await this._getAgentState(userId);
     if (!state) {
-      throw new Error('الوكيل غير نشط');
+      throw new NotFoundException('الوكيل غير نشط');
     }
 
     if (dto.maxPositionSizePercent) state.config.maxPositionSizePercent = dto.maxPositionSizePercent;
@@ -453,11 +458,15 @@ export class AutonomousTraderAgentService {
   }
 
   private async _saveAgentState(userId: string, state: AgentState): Promise<void> {
-    await this.redis.set(
-      `agent:state:${userId}`,
-      JSON.stringify(state),
-      86400000, // 24 hours TTL
-    );
+    try {
+      await this.redis.set(
+        `agent:state:${userId}`,
+        JSON.stringify(state),
+        86400000, // 24 hours TTL
+      );
+    } catch (error: any) {
+      this.logger.error(`Failed to save agent state for ${userId}: ${error.message}`);
+    }
   }
 
   private async _getActiveAgents(): Promise<string[]> {

@@ -32,6 +32,8 @@ COPY agents/self-healing-agent/main.py .
 COPY agents/shared/ /app/shared/
 
 # Environment defaults (overridden by Railway env vars)
+# NOTE: Do NOT set PORT here — Railway assigns PORT dynamically.
+# The healthcheck server reads PORT at runtime to listen on the correct port.
 ENV PLATFORM_URL=https://roua-trading-production.up.railway.app
 ENV CHECK_INTERVAL=60
 ENV REQUEST_TIMEOUT=15
@@ -40,14 +42,10 @@ ENV MAX_CONSECUTIVE_FAILURES=2
 ENV GLM_MODEL=glm-4-flash
 ENV MAX_FIX_ATTEMPTS_PER_ERROR=3
 ENV FIX_COOLDOWN=3600
-ENV HEALTH_PORT=8081
-ENV PORT=8081
-
-# Expose the health check port
-EXPOSE 8081
 
 # Health check — uses the HTTP /health endpoint
-HEALTHCHECK --interval=60s --timeout=10s --start-period=45s --retries=3 \
+# Railway assigns PORT dynamically; the app listens on that port
+HEALTHCHECK --interval=60s --timeout=10s --start-period=60s --retries=3 \
   CMD curl -f http://localhost:${PORT:-8081}/health || exit 1
 
 # Run the self-healing agent

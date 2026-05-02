@@ -25,8 +25,98 @@ import signal
 import sys
 import json
 import hashlib
+import threading
 from datetime import datetime, timezone
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from typing import Optional
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# خادم فحص الصحة المدمج (يعمل فوراً قبل أي استيراد آخر)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+HEALTH_PORT = int(os.environ.get("HEALTH_PORT", os.environ.get("PORT", "8081")))
+_agent_status = {
+    "healthy": True,
+    "agent_name": "self-healing-agent",
+    "uptime_seconds": 0,
+    "total_checks": 0,
+    "total_errors": 0,
+    "last_check": "never",
+    "startup_error": None,
+}
+_start_time = 0
+
+
+class _BuiltInHealthHandler(BaseHTTPRequestHandler):
+    """معالج طلبات فحص الصحة المدمج — لا يعتمد على أي مكتبة خارجية."""
+
+    def do_GET(self) -> None:
+        if self.path == "/health" or self.path == "/":
+            status_code = 200 if _agent_status.get("healthy", False) else 503
+            response = json.dumps({
+                "status": "healthy" if _agent_status.get("healthy") else "unhealthy",
+                "agent": _agent_status.get("agent_name", "self-healing-agent"),
+                "uptime_seconds": _agent_status.get("uptime_seconds", 0),
+                "total_checks": _agent_status.get("total_checks", 0),
+                "total_errors": _agent_status.get("total_errors", 0),
+                "last_check": _agent_status.get("last_check", "never"),
+                "startup_error": _agent_status.get("startup_error"),
+            }, ensure_ascii=False)
+
+            self.send_response(status_code)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(response.encode("utf-8"))
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def log_message(self, format, *args) -> None:  # type: ignore[override]
+        """كتم سجلات HTTP الافتراضية."""
+        pass
+
+
+def _start_builtin_health_server():
+    """يبدأ خادم فحص الصحة المدمج فوراً في خيط خلفي."""
+    global _start_time
+    try:
+        server = HTTPServer(("0.0.0.0", HEALTH_PORT), _BuiltInHealthHandler)
+        _start_time = time.monotonic()
+        thread = threading.Thread(
+            target=server.serve_forever,
+            daemon=True,
+            name="health-builtin",
+        )
+        thread.start()
+        print(f"🏥 خادم فحص الصحة المدمج يعمل على المنفذ {HEALTH_PORT}")
+        return server
+    except Exception as e:
+        print(f"⚠️ فشل بدء خادم فحص الصحة المدمج: {e}")
+        return None
+
+
+def _update_health(healthy: bool = True, total_checks: Optional[int] = None,
+                   total_errors: Optional[int] = None, last_check: Optional[str] = None):
+    """يحدّث حالة الوكيل لخادم الصحة."""
+    _agent_status["healthy"] = healthy
+    if _start_time > 0:
+        _agent_status["uptime_seconds"] = round(time.monotonic() - _start_time)
+    if total_checks is not None:
+        _agent_status["total_checks"] = total_checks
+    if total_errors is not None:
+        _agent_status["total_errors"] = total_errors
+    if last_check is not None:
+        _agent_status["last_check"] = last_check
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# بدء خادم الصحة فوراً (قبل أي استيراد قد يفشل)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+_health_server = _start_builtin_health_server()
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# استيراد الإعدادات (آمن — لا يعتمد على مكتبات خارجية)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 from config import (
     GLM_API_KEY, GLM_MODEL, PLATFORM_URL,
     TELEGRAM_TOKEN, TELEGRAM_CHAT_ID,
@@ -34,26 +124,52 @@ from config import (
     CHECK_INTERVAL, REQUEST_TIMEOUT, ALERT_COOLDOWN,
     MAX_CONSECUTIVE_FAILURES, MAX_FIX_ATTEMPTS_PER_ERROR,
     FIX_COOLDOWN, ALLOWED_FIX_SCOPES, FORBIDDEN_SCOPES,
-    HEALTH_PORT, REDIS_URL, DATABASE_URL,
+    REDIS_URL, DATABASE_URL,
 )
 
-from monitor import (
-    run_health_checks, check_railway_status,
-    get_fixable_errors, build_check_report, HealthResult,
-)
-from logger_fetcher import fetch_logs, extract_error_patterns
-from error_analyzer import analyze_error
-from fix_generator import generate_fix
-from test_runner import create_fix_branch, run_tests, delete_branch
-from github_pr_manager import create_pull_request
-from human_approval import (
-    send_approval_notification, send_failure_alert,
-    send_unsafe_fix_alert, send_periodic_summary,
-)
 
-# إضافة المسار المشترك — دعم مسارين:
-# 1. محلي: agents/shared/ (من جذر المستودع)
-# 2. حاوية: /app/shared/ (عند البناء من Dockerfile)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# استيراد الوحدات المحلية (مع معالجة الأخطاء)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+_MODULES_AVAILABLE = False
+_monitor = None
+_logger_fetcher = None
+_error_analyzer = None
+_fix_generator = None
+_test_runner = None
+_github_pr_manager = None
+_human_approval = None
+
+try:
+    from monitor import (
+        run_health_checks, check_railway_status,
+        get_fixable_errors, build_check_report, HealthResult,
+    )
+    from logger_fetcher import fetch_logs, extract_error_patterns
+    from error_analyzer import analyze_error
+    from fix_generator import generate_fix
+    from test_runner import create_fix_branch, run_tests, delete_branch
+    from github_pr_manager import create_pull_request
+    from human_approval import (
+        send_approval_notification, send_failure_alert,
+        send_unsafe_fix_alert, send_periodic_summary,
+    )
+    _MODULES_AVAILABLE = True
+    print("✅ تم تحميل جميع وحدات الإصلاح بنجاح")
+except ImportError as e:
+    _agent_status["startup_error"] = f"Import error: {e}"
+    _agent_status["healthy"] = True  # Still healthy — just limited
+    print(f"⚠️ فشل تحميل بعض الوحدات: {e}")
+    print("⚠️ الوكيل سيعمل في وضع المراقبة فقط (بدون إصلاح تلقائي)")
+except Exception as e:
+    _agent_status["startup_error"] = f"Startup error: {e}"
+    _agent_status["healthy"] = True  # Still healthy — just limited
+    print(f"⚠️ خطأ أثناء تحميل الوحدات: {e}")
+
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# استيراد الوحدات المشتركة (اختياري)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 _shared_paths = [
     os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'shared'),  # محلي
     os.path.join(os.path.dirname(os.path.abspath(__file__)), 'shared'),        # بديل محلي
@@ -66,7 +182,6 @@ for _p in _shared_paths:
 
 _SHARED_AVAILABLE = False
 try:
-    from health_server import HealthCheckServer
     from logger import ColoredLogger
     _SHARED_AVAILABLE = True
 except ImportError:
@@ -122,14 +237,6 @@ else:
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# خادم فحص الصحة
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-health_server = None
-if _SHARED_AVAILABLE:
-    health_server = HealthCheckServer("self-healing-agent", port=HEALTH_PORT)
-
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # إنشاء مفتاح فريد للخطأ
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 def _error_key(error_info: dict) -> str:
@@ -168,7 +275,7 @@ def _should_attempt_fix(error_info: dict) -> bool:
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # سير عمل الإصلاح الذاتي
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-def self_heal_workflow(failed_result: HealthResult) -> dict:
+def self_heal_workflow(failed_result) -> dict:
     """
     ينفذ سير عمل الإصلاح الذاتي لخطأ مكتشف.
 
@@ -185,8 +292,12 @@ def self_heal_workflow(failed_result: HealthResult) -> dict:
     يعيد:
         قاموس يحتوي على نتيجة كل خطوة
     """
+    if not _MODULES_AVAILABLE:
+        print("  ⚠️ وحدات الإصلاح غير متاحة — لا يمكن تنفيذ سير العمل")
+        return {"outcome": "modules_unavailable"}
+
     workflow_result = {
-        "error": failed_result.to_dict(),
+        "error": failed_result.to_dict() if hasattr(failed_result, 'to_dict') else str(failed_result),
         "steps": {},
         "outcome": "unknown",
     }
@@ -239,7 +350,7 @@ def self_heal_workflow(failed_result: HealthResult) -> dict:
 
         # ── الخطوة 3: تحليل الخطأ ──
         print("  🧠 الخطوة 3: تحليل الخطأ عبر GLM-5.1...")
-        health_dict = failed_result.to_dict() if isinstance(failed_result, HealthResult) else failed_result
+        health_dict = failed_result.to_dict() if hasattr(failed_result, 'to_dict') else failed_result
         analysis = analyze_error(error_info, logs, health_dict)
         workflow_result["steps"][f"analysis_{i}"] = {
             "success": analysis.get("success"),
@@ -339,10 +450,6 @@ def main():
     global running, consecutive_failures, total_checks, total_alerts
     global total_errors, total_fixes, total_prs, total_failed_fixes, last_summary_time
 
-    # بدء خادم فحص الصحة
-    if health_server:
-        health_server.start()
-
     # بانر البدء
     log.banner([
         "🤖 وكيل الإصلاح الذاتي — Roua Trading",
@@ -356,15 +463,19 @@ def main():
         f"🔄 حد المحاولات: {MAX_FIX_ATTEMPTS_PER_ERROR} لكل خطأ",
         f"⏳ تبريد الإصلاح: {FIX_COOLDOWN} ثانية",
         f"🏥 منفذ الصحة: {HEALTH_PORT}",
+        f"📦 الوحدات: {'✅ كاملة' if _MODULES_AVAILABLE else '⚠️ مراقبة فقط'}",
     ])
 
     # فحص أولي
     print("\n🔍 جارٍ الفحص الأولي...")
-    railway = check_railway_status(PLATFORM_URL)
-    if railway["reachable"]:
-        print("✅ المنصة متاحة — بدء المراقبة")
+    if _MODULES_AVAILABLE:
+        railway = check_railway_status(PLATFORM_URL)
+        if railway["reachable"]:
+            print("✅ المنصة متاحة — بدء المراقبة")
+        else:
+            print(f"❌ المنصة غير متاحة: {railway.get('error', 'غير معروف')}")
     else:
-        print(f"❌ المنصة غير متاحة: {railway.get('error', 'غير معروف')}")
+        print("⚠️ وضع المراقبة فقط — وحدات الإصلاح غير متاحة")
 
     print()
 
@@ -374,6 +485,40 @@ def main():
         now_str = datetime.now(timezone.utc).strftime("%H:%M:%S UTC")
 
         try:
+            if not _MODULES_AVAILABLE:
+                # وضع المراقبة فقط — فحص بسيط
+                import requests as _req
+                try:
+                    resp = _req.get(PLATFORM_URL, timeout=REQUEST_TIMEOUT, allow_redirects=True)
+                    all_ok = resp.status_code < 500
+                except Exception:
+                    all_ok = False
+
+                _update_health(
+                    healthy=all_ok,
+                    total_checks=total_checks,
+                    total_errors=total_errors if not all_ok else total_errors,
+                    last_check=now_str,
+                )
+
+                if all_ok:
+                    consecutive_failures = 0
+                    print(f"[{now_str}] ✅ المنصة متاحة (وضع المراقبة)")
+                else:
+                    consecutive_failures += 1
+                    total_errors += 1
+                    print(f"[{now_str}] ❌ المنصة غير متاحة (وضع المراقبة)")
+
+                # الانتظار حتى الفحص التالي
+                elapsed = time.monotonic() - cycle_start
+                sleep_time = max(0, CHECK_INTERVAL - elapsed)
+                if sleep_time > 0 and running:
+                    end_time = time.monotonic() + sleep_time
+                    while running and time.monotonic() < end_time:
+                        time.sleep(min(2, end_time - time.monotonic()))
+                continue
+
+            # ── الوضع الكامل ──
             # 1. فحص حالة Railway
             railway = check_railway_status(PLATFORM_URL, timeout=REQUEST_TIMEOUT)
 
@@ -385,13 +530,12 @@ def main():
             all_ok = len(failed_checks) == 0 and railway["reachable"]
 
             # 4. تحديث خادم الصحة
-            if health_server:
-                health_server.update(
-                    healthy=all_ok,
-                    total_checks=total_checks,
-                    total_errors=total_errors,
-                    last_check=now_str,
-                )
+            _update_health(
+                healthy=all_ok,
+                total_checks=total_checks,
+                total_errors=total_errors,
+                last_check=now_str,
+            )
 
             if all_ok:
                 # كل شيء يعمل
@@ -438,15 +582,17 @@ def main():
             now_mono = time.monotonic()
             if now_mono - last_summary_time >= 86400:
                 last_summary_time = now_mono
-                send_periodic_summary(
-                    total_checks, total_errors,
-                    total_fixes, total_prs, total_failed_fixes,
-                )
+                if _MODULES_AVAILABLE:
+                    send_periodic_summary(
+                        total_checks, total_errors,
+                        total_fixes, total_prs, total_failed_fixes,
+                    )
 
         except Exception as e:
             consecutive_failures += 1
             error_msg = f"خطأ غير متوقع في الوكيل: {e}"
             print(f"[{now_str}] 💥 {error_msg}")
+            _update_health(healthy=False, total_checks=total_checks, total_errors=total_errors, last_check=now_str)
 
         # الانتظار حتى الفحص التالي
         elapsed = time.monotonic() - cycle_start
@@ -459,9 +605,6 @@ def main():
     # الإغلاق النظيف
     print("\n🏁 وكيل الإصلاح الذاتي توقف.")
     print(f"📊 الإحصائيات: {total_checks} فحص | {total_fixes} إصلاح | {total_prs} PR | {total_failed_fixes} فشل")
-
-    if health_server:
-        health_server.stop()
 
 
 if __name__ == "__main__":

@@ -239,7 +239,7 @@ export interface AgentState {
 // ── API DTOs ──
 
 import {
-  IsOptional, IsString, IsEnum, IsArray,
+  IsOptional, IsString, IsIn, IsArray,
   IsNumber, Min, Max, ValidateNested, IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -265,7 +265,7 @@ export class StrategyParamsDto implements StrategyParams {
 }
 
 export class StartAgentDto {
-  @IsEnum(StrategyType)
+  @IsIn(['SCALPING', 'SWING', 'GRID'])
   strategy: StrategyType;
 
   @IsString()
@@ -308,7 +308,7 @@ export class StartAgentDto {
 }
 
 export class ChangeStrategyDto {
-  @IsEnum(StrategyType)
+  @IsIn(['SCALPING', 'SWING', 'GRID'])
   strategy: StrategyType;
 
   @IsOptional()

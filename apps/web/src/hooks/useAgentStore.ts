@@ -107,6 +107,41 @@ export interface AgentLog {
   type: 'info' | 'success' | 'warning' | 'error' | 'trade'
 }
 
+// ── Agent Settings (per-user persistent config) ──
+
+export interface AgentSettingsData {
+  id: string
+  userId: string
+  autoTradingEnabled: boolean
+  paperBalance: number
+  maxPositionSizePercent: number
+  maxDailyLossPercent: number
+  maxOpenPositions: number
+  riskPerTradePercent: number
+  defaultStrategy: string
+  scalpingTimeframe: string
+  scalpingTakeProfitPips: number
+  scalpingStopLossPips: number
+  scalpingMaxSpread: number
+  swingTimeframe: string
+  swingHoldingPeriodHours: number
+  swingTrendLookback: number
+  gridLevels: number
+  gridSpacingPercent: number
+  gridQuantityPerLevel: number | null
+  defaultSymbols: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface SystemStatusData {
+  autoTradingEnabled: boolean
+  globalAutoTradingEnabled: boolean
+  defaultPaperBalance: number
+  nodeEnv: string
+  message: string
+}
+
 // ── Store ──
 interface AgentStore {
   // State
@@ -120,6 +155,8 @@ interface AgentStore {
   selectedCredentialId: string
   selectedSymbols: string[]
   availableCredentials: Array<{ id: string; exchange: string; label?: string; isValid: boolean }>
+  settings: AgentSettingsData | null
+  systemStatus: SystemStatusData | null
 
   // Actions
   setAgentState: (state: AgentState | null) => void
@@ -146,6 +183,9 @@ interface AgentStore {
   }) => Promise<void>
   fetchPerformance: () => Promise<void>
   fetchPositions: () => Promise<void>
+  fetchSettings: () => Promise<void>
+  updateSettings: (settings: Partial<AgentSettingsData>) => Promise<void>
+  fetchSystemStatus: () => Promise<void>
 
   // Auto-refresh
   startAutoRefresh: () => void
@@ -169,6 +209,8 @@ export const useAgentStore = create<AgentStore>()(
       selectedCredentialId: '',
       selectedSymbols: DEFAULT_SYMBOLS,
       availableCredentials: [],
+      settings: null,
+      systemStatus: null,
 
       setAgentState: (agentState) => set({ agentState }),
       setPerformance: (performance) => set({ performance }),
@@ -383,6 +425,53 @@ export const useAgentStore = create<AgentStore>()(
           }
         } catch {
           // Silent fail for positions
+        }
+      },
+
+      fetchSettings: async () => {
+        try {
+          const res = await fetch('/api/agent/trader/settings')
+          const data = await res.json()
+          if (data.success && data.data) {
+            set({ settings: data.data })
+          }
+        } catch {
+          // Silent fail for settings
+        }
+      },
+
+      updateSettings: async (newSettings) => {
+        set({ loading: true, error: null })
+        get().addLog('⚙ تحديث إعدادات الوكيل...', 'info')
+        try {
+          const res = await fetch('/api/agent/trader/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newSettings),
+          })
+          const data = await res.json()
+          if (data.success) {
+            set({ settings: data.data, loading: false })
+            get().addLog('✅ تم تحديث إعدادات الوكيل', 'success')
+          } else {
+            set({ error: data.message, loading: false })
+            get().addLog(`❌ فشل التحديث: ${data.message}`, 'error')
+          }
+        } catch (e: any) {
+          set({ error: e.message, loading: false })
+          get().addLog(`❌ خطأ: ${e.message}`, 'error')
+        }
+      },
+
+      fetchSystemStatus: async () => {
+        try {
+          const res = await fetch('/api/agent/trader/system-status')
+          const data = await res.json()
+          if (data.success && data.data) {
+            set({ systemStatus: data.data })
+          }
+        } catch {
+          // Silent fail for system status
         }
       },
 

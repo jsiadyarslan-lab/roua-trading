@@ -27,6 +27,7 @@ import {
   StartAgentDto,
   ChangeStrategyDto,
   UpdateRiskParamsDto,
+  UpdateAgentSettingsDto,
   AgentDecision,
 } from './types/agent.types';
 import { PerformanceTracker } from './models/performance';
@@ -129,17 +130,39 @@ export class AutonomousTraderAgentService {
       throw new BadRequestException('مفتاح API لا يملك صلاحية التداول');
     }
 
-    // Build agent config (with NaN protection)
+    // Load user's persistent settings (DB first, env vars as fallback)
+    let userSettings: any = null;
+    try {
+      userSettings = await this.prisma.agentSettings.findUnique({
+        where: { userId },
+      });
+    } catch (e: any) {
+      this.logger.warn(`Could not load user settings: ${e.message}`);
+    }
+
+    // Build agent config: DTO > DB Settings > Env Vars > Hardcoded defaults
     const config: AgentConfig = {
       userId,
       strategy: dto.strategy,
       enabled: true,
-      maxPositionSizePercent: dto.maxPositionSizePercent ?? (parseFloat(this.configService.get('MAX_POSITION_SIZE_PERCENT', '2')) || 2),
-      maxDailyLossPercent: dto.maxDailyLossPercent ?? (parseFloat(this.configService.get('MAX_DAILY_LOSS_PERCENT', '5')) || 5),
-      maxOpenPositions: dto.maxOpenPositions ?? (parseInt(this.configService.get('MAX_OPEN_POSITIONS', '5'), 10) || 5),
-      riskPerTradePercent: dto.riskPerTradePercent ?? 1.5,
-      strategyParams: dto.strategyParams ?? this._getDefaultStrategyParams(dto.strategy),
-      symbols: dto.symbols ?? this.DEFAULT_SYMBOLS,
+      maxPositionSizePercent: dto.maxPositionSizePercent ??
+        (userSettings ? Number(userSettings.maxPositionSizePercent) : undefined) ??
+        (parseFloat(this.configService.get('MAX_POSITION_SIZE_PERCENT', '2')) || 2),
+      maxDailyLossPercent: dto.maxDailyLossPercent ??
+        (userSettings ? Number(userSettings.maxDailyLossPercent) : undefined) ??
+        (parseFloat(this.configService.get('MAX_DAILY_LOSS_PERCENT', '5')) || 5),
+      maxOpenPositions: dto.maxOpenPositions ??
+        (userSettings ? Number(userSettings.maxOpenPositions) : undefined) ??
+        (parseInt(this.configService.get('MAX_OPEN_POSITIONS', '5'), 10) || 5),
+      riskPerTradePercent: dto.riskPerTradePercent ??
+        (userSettings ? Number(userSettings.riskPerTradePercent) : undefined) ??
+        1.5,
+      strategyParams: dto.strategyParams ??
+        (userSettings ? this._buildStrategyParamsFromSettings(userSettings, dto.strategy) : undefined) ??
+        this._getDefaultStrategyParams(dto.strategy),
+      symbols: dto.symbols ??
+        (userSettings && userSettings.defaultSymbols ? userSettings.defaultSymbols.split(',').filter(Boolean) : undefined) ??
+        this.DEFAULT_SYMBOLS,
       credentialId: dto.credentialId,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -333,6 +356,196 @@ export class AutonomousTraderAgentService {
     });
 
     return state;
+  }
+
+  /**
+   * Get per-user agent settings (persistent across sessions)
+   * Returns DB settings if they exist, otherwise creates defaults from env vars.
+   */
+  async getSettings(userId: string) {
+    let settings = await this.prisma.agentSettings.findUnique({
+      where: { userId },
+    });
+
+    // If no settings exist yet, create default settings
+    if (!settings) {
+      settings = await this._createDefaultSettings(userId);
+    }
+
+    // Parse defaultSymbols from comma-separated string to array
+    const result = { ...settings };
+    (result as any).defaultSymbols = settings.defaultSymbols
+      ? settings.defaultSymbols.split(',').filter(Boolean)
+      : this.DEFAULT_SYMBOLS;
+
+    return result;
+  }
+
+  /**
+   * Update per-user agent settings
+   * These settings persist across agent restarts and are used as defaults
+   * when starting the agent.
+   */
+  async updateSettings(userId: string, dto: UpdateAgentSettingsDto) {
+    // Ensure settings row exists
+    let settings = await this.prisma.agentSettings.findUnique({
+      where: { userId },
+    });
+
+    if (!settings) {
+      settings = await this._createDefaultSettings(userId);
+    }
+
+    // Build update data from DTO
+    const updateData: any = {};
+
+    if (dto.autoTradingEnabled !== undefined) updateData.autoTradingEnabled = dto.autoTradingEnabled;
+    if (dto.paperBalance !== undefined) updateData.paperBalance = dto.paperBalance;
+    if (dto.maxPositionSizePercent !== undefined) updateData.maxPositionSizePercent = dto.maxPositionSizePercent;
+    if (dto.maxDailyLossPercent !== undefined) updateData.maxDailyLossPercent = dto.maxDailyLossPercent;
+    if (dto.maxOpenPositions !== undefined) updateData.maxOpenPositions = dto.maxOpenPositions;
+    if (dto.riskPerTradePercent !== undefined) updateData.riskPerTradePercent = dto.riskPerTradePercent;
+    if (dto.defaultStrategy !== undefined) updateData.defaultStrategy = dto.defaultStrategy;
+
+    // Strategy-specific params
+    if (dto.scalpingTimeframe !== undefined) updateData.scalpingTimeframe = dto.scalpingTimeframe;
+    if (dto.scalpingTakeProfitPips !== undefined) updateData.scalpingTakeProfitPips = dto.scalpingTakeProfitPips;
+    if (dto.scalpingStopLossPips !== undefined) updateData.scalpingStopLossPips = dto.scalpingStopLossPips;
+    if (dto.scalpingMaxSpread !== undefined) updateData.scalpingMaxSpread = dto.scalpingMaxSpread;
+    if (dto.swingTimeframe !== undefined) updateData.swingTimeframe = dto.swingTimeframe;
+    if (dto.swingHoldingPeriodHours !== undefined) updateData.swingHoldingPeriodHours = dto.swingHoldingPeriodHours;
+    if (dto.swingTrendLookback !== undefined) updateData.swingTrendLookback = dto.swingTrendLookback;
+    if (dto.gridLevels !== undefined) updateData.gridLevels = dto.gridLevels;
+    if (dto.gridSpacingPercent !== undefined) updateData.gridSpacingPercent = dto.gridSpacingPercent;
+    if (dto.gridQuantityPerLevel !== undefined) updateData.gridQuantityPerLevel = dto.gridQuantityPerLevel;
+
+    // Default symbols: convert array to comma-separated string
+    if (dto.defaultSymbols !== undefined) {
+      updateData.defaultSymbols = dto.defaultSymbols.join(',');
+    }
+
+    const updated = await this.prisma.agentSettings.update({
+      where: { userId },
+      data: updateData,
+    });
+
+    // If agent is currently running, apply risk params immediately
+    const state = await this._getAgentState(userId);
+    if (state && state.status === AgentStatus.RUNNING) {
+      if (dto.maxPositionSizePercent !== undefined) state.config.maxPositionSizePercent = dto.maxPositionSizePercent;
+      if (dto.maxDailyLossPercent !== undefined) state.config.maxDailyLossPercent = dto.maxDailyLossPercent;
+      if (dto.maxOpenPositions !== undefined) state.config.maxOpenPositions = dto.maxOpenPositions;
+      if (dto.riskPerTradePercent !== undefined) state.config.riskPerTradePercent = dto.riskPerTradePercent;
+
+      // Update strategy params if provided
+      if (dto.scalpingTimeframe || dto.scalpingTakeProfitPips || dto.scalpingStopLossPips || dto.scalpingMaxSpread ||
+          dto.swingTimeframe || dto.swingHoldingPeriodHours || dto.swingTrendLookback ||
+          dto.gridLevels || dto.gridSpacingPercent || dto.gridQuantityPerLevel) {
+        state.config.strategyParams = this._buildStrategyParamsFromSettings(updated, state.config.strategy);
+      }
+
+      state.config.updatedAt = new Date();
+      await this._saveAgentState(userId, state);
+    }
+
+    // Audit
+    await this.audit.log({
+      userId,
+      action: 'AGENT_SETTINGS_UPDATED',
+      resource: 'autonomous-trader',
+      details: JSON.stringify(dto),
+    });
+
+    // Parse defaultSymbols for response
+    const result = { ...updated };
+    (result as any).defaultSymbols = updated.defaultSymbols
+      ? updated.defaultSymbols.split(',').filter(Boolean)
+      : this.DEFAULT_SYMBOLS;
+
+    return result;
+  }
+
+  /**
+   * Get system-level status information
+   * Shows global configuration like AUTO_TRADING_ENABLED status.
+   */
+  getSystemStatus() {
+    const autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+    const defaultPaperBalance = parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000;
+
+    return {
+      success: true,
+      data: {
+        autoTradingEnabled,
+        globalAutoTradingEnabled: autoTradingEnabled,
+        defaultPaperBalance,
+        nodeEnv: this.configService.get('NODE_ENV', 'development'),
+        // Note: autoTradingEnabled is a GLOBAL server setting.
+        // Per-user autoTradingEnabled is in AgentSettings.
+        message: autoTradingEnabled
+          ? 'التداول الذاتي مفعّل على مستوى النظام'
+          : 'التداول الذاتي معطّل على مستوى النظام — يجب تفعيل AUTO_TRADING_ENABLED=true في متغيرات البيئة',
+      },
+    };
+  }
+
+  /**
+   * Create default settings for a user, combining env var defaults with DB persistence.
+   */
+  private async _createDefaultSettings(userId: string) {
+    return this.prisma.agentSettings.create({
+      data: {
+        userId,
+        autoTradingEnabled: true,
+        paperBalance: parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000,
+        maxPositionSizePercent: parseFloat(this.configService.get('MAX_POSITION_SIZE_PERCENT', '2')) || 2,
+        maxDailyLossPercent: parseFloat(this.configService.get('MAX_DAILY_LOSS_PERCENT', '5')) || 5,
+        maxOpenPositions: parseInt(this.configService.get('MAX_OPEN_POSITIONS', '5'), 10) || 5,
+        riskPerTradePercent: 1.5,
+        defaultStrategy: StrategyType.SCALPING,
+        scalpingTimeframe: '5m',
+        scalpingTakeProfitPips: 15,
+        scalpingStopLossPips: 10,
+        scalpingMaxSpread: 3,
+        swingTimeframe: '1h',
+        swingHoldingPeriodHours: 48,
+        swingTrendLookback: 50,
+        gridLevels: 5,
+        gridSpacingPercent: 0.5,
+        defaultSymbols: this.DEFAULT_SYMBOLS.join(','),
+      },
+    });
+  }
+
+  /**
+   * Build StrategyParams from AgentSettings for the given strategy type.
+   */
+  private _buildStrategyParamsFromSettings(settings: any, strategy: StrategyType): StrategyParams {
+    switch (strategy) {
+      case StrategyType.SCALPING:
+        return {
+          scalpingTimeframe: settings.scalpingTimeframe || '5m',
+          scalpingTakeProfitPips: settings.scalpingTakeProfitPips ?? 15,
+          scalpingStopLossPips: settings.scalpingStopLossPips ?? 10,
+          scalpingMaxSpread: settings.scalpingMaxSpread ?? 3,
+        };
+      case StrategyType.SWING:
+        return {
+          swingTimeframe: settings.swingTimeframe || '1h',
+          swingHoldingPeriodHours: settings.swingHoldingPeriodHours ?? 48,
+          swingTrendLookback: settings.swingTrendLookback ?? 50,
+        };
+      case StrategyType.GRID:
+        return {
+          gridLevels: settings.gridLevels ?? 5,
+          gridSpacingPercent: settings.gridSpacingPercent ?? 0.5,
+          gridQuantityPerLevel: settings.gridQuantityPerLevel
+            ? Number(settings.gridQuantityPerLevel)
+            : undefined,
+        };
+      default:
+        return {};
+    }
   }
 
   /**

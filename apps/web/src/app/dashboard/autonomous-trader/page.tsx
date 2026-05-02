@@ -155,6 +155,7 @@ export default function AutonomousTraderPage() {
     fetchStatus, fetchCredentials, startAgent, stopAgent, changeStrategy, updateRiskParams,
     fetchPerformance, fetchPositions, startAutoRefresh, stopAutoRefresh, addLog,
     selectedCredentialId, availableCredentials,
+    settings, systemStatus, fetchSettings, updateSettings, fetchSystemStatus,
   } = useAgentStore()
 
   const [activeTab, setActiveTab] = useState<'overview' | 'positions' | 'performance' | 'settings'>('overview')
@@ -173,9 +174,11 @@ export default function AutonomousTraderPage() {
     fetchCredentials()
     fetchPerformance()
     fetchPositions()
+    fetchSettings()
+    fetchSystemStatus()
     startAutoRefresh()
     return () => stopAutoRefresh()
-  }, [fetchStatus, fetchCredentials, fetchPerformance, fetchPositions, startAutoRefresh, stopAutoRefresh])
+  }, [fetchStatus, fetchCredentials, fetchPerformance, fetchPositions, fetchSettings, fetchSystemStatus, startAutoRefresh, stopAutoRefresh])
 
   // ── Tab definitions ──
   const TABS = [
@@ -977,150 +980,506 @@ export default function AutonomousTraderPage() {
   }
 
   /* ═══════════════════════════════════════════════
-     Settings Tab
+     Settings Tab — Full Agent Configuration
      ═══════════════════════════════════════════════ */
   function SettingsTab() {
-    const [localRisk, setLocalRisk] = useState({
-      maxPositionSizePercent: config?.maxPositionSizePercent ?? 2,
-      maxDailyLossPercent: config?.maxDailyLossPercent ?? 5,
-      maxOpenPositions: config?.maxOpenPositions ?? 5,
-      riskPerTradePercent: config?.riskPerTradePercent ?? 1.5,
+    const [localSettings, setLocalSettings] = useState({
+      autoTradingEnabled: settings?.autoTradingEnabled ?? true,
+      paperBalance: settings?.paperBalance ?? 10000,
+      maxPositionSizePercent: settings?.maxPositionSizePercent ?? config?.maxPositionSizePercent ?? 2,
+      maxDailyLossPercent: settings?.maxDailyLossPercent ?? config?.maxDailyLossPercent ?? 5,
+      maxOpenPositions: settings?.maxOpenPositions ?? config?.maxOpenPositions ?? 5,
+      riskPerTradePercent: settings?.riskPerTradePercent ?? config?.riskPerTradePercent ?? 1.5,
+      defaultStrategy: settings?.defaultStrategy ?? 'SCALPING',
+      scalpingTimeframe: settings?.scalpingTimeframe ?? '5m',
+      scalpingTakeProfitPips: settings?.scalpingTakeProfitPips ?? 15,
+      scalpingStopLossPips: settings?.scalpingStopLossPips ?? 10,
+      scalpingMaxSpread: settings?.scalpingMaxSpread ?? 3,
+      swingTimeframe: settings?.swingTimeframe ?? '1h',
+      swingHoldingPeriodHours: settings?.swingHoldingPeriodHours ?? 48,
+      swingTrendLookback: settings?.swingTrendLookback ?? 50,
+      gridLevels: settings?.gridLevels ?? 5,
+      gridSpacingPercent: settings?.gridSpacingPercent ?? 0.5,
+      gridQuantityPerLevel: settings?.gridQuantityPerLevel ?? 0,
+      defaultSymbols: settings?.defaultSymbols ?? ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT'],
     })
     const [hasChanges, setHasChanges] = useState(false)
+    const [settingsTab, setSettingsTab] = useState<'general' | 'risk' | 'scalping' | 'swing' | 'grid'>('general')
 
     useEffect(() => {
-      if (config) {
-        setLocalRisk({
-          maxPositionSizePercent: config.maxPositionSizePercent,
-          maxDailyLossPercent: config.maxDailyLossPercent,
-          maxOpenPositions: config.maxOpenPositions,
-          riskPerTradePercent: config.riskPerTradePercent,
+      if (settings) {
+        setLocalSettings({
+          autoTradingEnabled: settings.autoTradingEnabled,
+          paperBalance: settings.paperBalance,
+          maxPositionSizePercent: settings.maxPositionSizePercent,
+          maxDailyLossPercent: settings.maxDailyLossPercent,
+          maxOpenPositions: settings.maxOpenPositions,
+          riskPerTradePercent: settings.riskPerTradePercent,
+          defaultStrategy: settings.defaultStrategy,
+          scalpingTimeframe: settings.scalpingTimeframe,
+          scalpingTakeProfitPips: settings.scalpingTakeProfitPips,
+          scalpingStopLossPips: settings.scalpingStopLossPips,
+          scalpingMaxSpread: settings.scalpingMaxSpread,
+          swingTimeframe: settings.swingTimeframe,
+          swingHoldingPeriodHours: settings.swingHoldingPeriodHours,
+          swingTrendLookback: settings.swingTrendLookback,
+          gridLevels: settings.gridLevels,
+          gridSpacingPercent: settings.gridSpacingPercent,
+          gridQuantityPerLevel: settings.gridQuantityPerLevel ?? 0,
+          defaultSymbols: settings.defaultSymbols,
         })
       }
-    }, [config])
+    }, [settings])
 
-    const handleRiskChange = (key: string, value: number) => {
-      setLocalRisk(prev => ({ ...prev, [key]: value }))
+    const handleSettingChange = (key: string, value: any) => {
+      setLocalSettings(prev => ({ ...prev, [key]: value }))
       setHasChanges(true)
     }
 
     const handleSave = async () => {
-      await updateRiskParams(localRisk)
+      await updateSettings({
+        autoTradingEnabled: localSettings.autoTradingEnabled,
+        paperBalance: localSettings.paperBalance,
+        maxPositionSizePercent: localSettings.maxPositionSizePercent,
+        maxDailyLossPercent: localSettings.maxDailyLossPercent,
+        maxOpenPositions: localSettings.maxOpenPositions,
+        riskPerTradePercent: localSettings.riskPerTradePercent,
+        defaultStrategy: localSettings.defaultStrategy,
+        scalpingTimeframe: localSettings.scalpingTimeframe,
+        scalpingTakeProfitPips: localSettings.scalpingTakeProfitPips,
+        scalpingStopLossPips: localSettings.scalpingStopLossPips,
+        scalpingMaxSpread: localSettings.scalpingMaxSpread,
+        swingTimeframe: localSettings.swingTimeframe,
+        swingHoldingPeriodHours: localSettings.swingHoldingPeriodHours,
+        swingTrendLookback: localSettings.swingTrendLookback,
+        gridLevels: localSettings.gridLevels,
+        gridSpacingPercent: localSettings.gridSpacingPercent,
+        gridQuantityPerLevel: localSettings.gridQuantityPerLevel || null,
+        defaultSymbols: localSettings.defaultSymbols,
+      })
       setHasChanges(false)
     }
 
+    // System status banner
+    const globalAutoTrading = systemStatus?.globalAutoTradingEnabled ?? true
+
+    const SETTINGS_TABS = [
+      { id: 'general' as const, label: 'عام', icon: <Settings2 size={12} /> },
+      { id: 'risk' as const, label: 'المخاطر', icon: <Shield size={12} /> },
+      { id: 'scalping' as const, label: 'سكالبينغ', icon: <Zap size={12} /> },
+      { id: 'swing' as const, label: 'سوينغ', icon: <TrendingUp size={12} /> },
+      { id: 'grid' as const, label: 'شبكة', icon: <Layers size={12} /> },
+    ]
+
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        {/* Risk Parameters */}
-        <GlassCard>
-          <div style={{ padding: 20 }}>
-            <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Shield size={15} color={T.amber} />
-              معلمات المخاطر
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* System Status Banner */}
+        {!globalAutoTrading && (
+          <div style={{
+            padding: '12px 16px',
+            background: 'rgba(255,71,87,0.1)',
+            border: '1px solid rgba(255,71,87,0.3)',
+            borderRadius: 10,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}>
+            <AlertCircle size={16} color={T.red} />
+            <div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.red }}>
+                التداول الذاتي معطّل على مستوى النظام
+              </div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text2, marginTop: 2 }}>
+                يجب تفعيل AUTO_TRADING_ENABLED=true في متغيرات بيئة الخادم (Railway) لتفعيل التداول
+              </div>
             </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              <RiskSlider
-                label="حجم المركز الأقصى"
-                subLabel="نسبة مئوية من رأس المال لكل صفقة"
-                value={localRisk.maxPositionSizePercent}
-                min={0.5}
-                max={10}
-                step={0.5}
-                unit="%"
-                color={T.accent}
-                onChange={(v) => handleRiskChange('maxPositionSizePercent', v)}
-              />
-              <RiskSlider
-                label="حد الخسارة اليومية"
-                subLabel="يُوقف الوكيل تلقائياً عند بلوغه"
-                value={localRisk.maxDailyLossPercent}
-                min={1}
-                max={20}
-                step={0.5}
-                unit="%"
-                color={T.red}
-                onChange={(v) => handleRiskChange('maxDailyLossPercent', v)}
-              />
-              <RiskSlider
-                label="عدد المراكز المفتوحة الأقصى"
-                subLabel="أقصى عدد صفقات متزامنة"
-                value={localRisk.maxOpenPositions}
-                min={1}
-                max={15}
-                step={1}
-                unit=""
-                color={T.purple}
-                onChange={(v) => handleRiskChange('maxOpenPositions', v)}
-              />
-              <RiskSlider
-                label="نسبة المخاطرة لكل صفقة"
-                subLabel="نسبة رأس المال المُخاطَر"
-                value={localRisk.riskPerTradePercent}
-                min={0.5}
-                max={5}
-                step={0.25}
-                unit="%"
-                color={T.green}
-                onChange={(v) => handleRiskChange('riskPerTradePercent', v)}
-              />
-            </div>
-
-            {hasChanges && (
-              <button
-                onClick={handleSave}
-                disabled={loading}
-                style={{
-                  marginTop: 20, width: '100%',
-                  ...btnStyle,
-                  background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
-                  color: '#000', fontWeight: 800,
-                  padding: '12px 20px',
-                  justifyContent: 'center',
-                }}
-              >
-                <CheckCircle2 size={14} />
-                حفظ التغييرات
-              </button>
-            )}
           </div>
-        </GlassCard>
+        )}
 
-        {/* Safety Rules */}
-        <GlassCard>
-          <div style={{ padding: 20 }}>
-            <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <AlertTriangle size={15} color={T.red} />
-              قواعد السلامة
+        {globalAutoTrading && (
+          <div style={{
+            padding: '12px 16px',
+            background: 'rgba(0,255,163,0.05)',
+            border: '1px solid rgba(0,255,163,0.2)',
+            borderRadius: 10,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}>
+            <CheckCircle2 size={16} color={T.green} />
+            <div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.green }}>
+                التداول الذاتي مفعّل على مستوى النظام
+              </div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text2, marginTop: 2 }}>
+                يمكن تفعيل الوكيل — إعداداتك محفوظة في قاعدة البيانات
+              </div>
             </div>
+          </div>
+        )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[
-                { icon: <Shield size={13} />, title: 'وقف خسارة إلزامي', desc: 'لا يمكن فتح صفقة بدون تحديد وقف الخسارة', color: T.green },
-                { icon: <DollarSign size={13} />, title: 'حد خسارة يومي', desc: 'إيقاف تلقائي عند تجاوز الحد المحدد', color: T.amber },
-                { icon: <XCircle size={13} />, title: 'بدون سحب', desc: 'الوكيل لا يملك صلاحية السحب — تداول فقط', color: T.red },
-                { icon: <CheckCircle2 size={13} />, title: 'تدقيق كامل', desc: 'كل قرار يتم تسجيله في سجل المراجعة', color: T.accent },
-                { icon: <AlertTriangle size={13} />, title: 'خسائر متتالية', desc: '5 خسائر متتالية → إيقاف مؤقت تلقائي', color: T.amber },
-                { icon: <Flame size={13} />, title: 'إيقاف طارئ', desc: 'إغلاق فوري لجميع المراكز عند الطوارئ', color: T.red },
-                { icon: <RefreshCw size={13} />, title: 'نسبة مخاطرة/عائد', desc: 'الحد الأدنى 1:1.5 — لا صفقات بأقل من ذلك', color: T.accent },
-                { icon: <ArrowUpDown size={13} />, title: 'بدون تكرار', desc: 'مركز واحد فقط لكل رمز', color: T.purple },
-              ].map((rule, i) => (
-                <div key={i} style={{
-                  display: 'flex', gap: 10, padding: '10px 12px',
-                  background: 'rgba(255,255,255,0.02)',
-                  borderRadius: 8,
-                  border: `1px solid ${T.border}`,
-                }}>
-                  <span style={{ color: rule.color, display: 'flex', marginTop: 1 }}>{rule.icon}</span>
+        {/* Settings Sub-tabs */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {SETTINGS_TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setSettingsTab(tab.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '8px 14px', borderRadius: 8,
+                background: settingsTab === tab.id ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${settingsTab === tab.id ? 'rgba(0,212,255,0.3)' : T.border}`,
+                color: settingsTab === tab.id ? T.accent : T.text2,
+                fontFamily: FONT_AR, fontSize: 11, fontWeight: 700,
+                cursor: 'pointer', transition: 'all 0.2s',
+              }}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* General Settings */}
+        {settingsTab === 'general' && (
+          <GlassCard>
+            <div style={{ padding: 20 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Settings2 size={15} color={T.accent} />
+                إعدادات عامة
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {/* Auto Trading Toggle */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: `1px solid ${T.border}` }}>
                   <div>
-                    <div style={{ fontFamily: FONT_AR, fontSize: 11, fontWeight: 700, color: T.text }}>{rule.title}</div>
-                    <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 2 }}>{rule.desc}</div>
+                    <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text }}>تفعيل التداول الذاتي</div>
+                    <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 2 }}>السماح للوكيل بتنفيذ الصفقات تلقائياً</div>
+                  </div>
+                  <button
+                    onClick={() => handleSettingChange('autoTradingEnabled', !localSettings.autoTradingEnabled)}
+                    style={{
+                      width: 44, height: 24, borderRadius: 12,
+                      background: localSettings.autoTradingEnabled ? T.green : 'rgba(255,255,255,0.1)',
+                      border: 'none', cursor: 'pointer',
+                      position: 'relative', transition: 'all 0.2s',
+                    }}
+                  >
+                    <div style={{
+                      width: 18, height: 18, borderRadius: 9,
+                      background: '#fff',
+                      position: 'absolute', top: 3,
+                      left: localSettings.autoTradingEnabled ? 23 : 3,
+                      transition: 'all 0.2s',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    }} />
+                  </button>
+                </div>
+
+                {/* Default Strategy */}
+                <div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>الاستراتيجية الافتراضية</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {[
+                      { value: 'SCALPING', label: 'سكالبينغ', icon: <Zap size={12} /> },
+                      { value: 'SWING', label: 'سوينغ', icon: <TrendingUp size={12} /> },
+                      { value: 'GRID', label: 'شبكة', icon: <Layers size={12} /> },
+                    ].map(s => (
+                      <button
+                        key={s.value}
+                        onClick={() => { handleSettingChange('defaultStrategy', s.value); setSettingsTab(s.value.toLowerCase() as any) }}
+                        style={{
+                          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                          padding: '10px 12px', borderRadius: 8,
+                          background: localSettings.defaultStrategy === s.value ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.03)',
+                          border: `1px solid ${localSettings.defaultStrategy === s.value ? 'rgba(0,212,255,0.3)' : T.border}`,
+                          color: localSettings.defaultStrategy === s.value ? T.accent : T.text2,
+                          fontFamily: FONT_AR, fontSize: 11, fontWeight: 700,
+                          cursor: 'pointer', transition: 'all 0.2s',
+                        }}
+                      >
+                        {s.icon}
+                        {s.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              ))}
+
+                {/* Paper Balance */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <div>
+                      <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text }}>رصيد التداول الورقي</div>
+                      <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>الرصيد الافتراضي عند عدم وجود محفظة</div>
+                    </div>
+                    <div style={{
+                      fontFamily: FONT_MONO, fontSize: 16, fontWeight: 900, color: T.green,
+                      padding: '4px 12px', borderRadius: 8,
+                      background: `${T.green}12`, border: `1px solid ${T.green}30`,
+                      direction: 'ltr',
+                    }}>
+                      ${localSettings.paperBalance.toLocaleString()}
+                    </div>
+                  </div>
+                  <input
+                    type="range"
+                    min={100}
+                    max={100000}
+                    step={100}
+                    value={localSettings.paperBalance}
+                    onChange={(e) => handleSettingChange('paperBalance', parseInt(e.target.value))}
+                    style={{ width: '100%', accentColor: T.green, height: 4, cursor: 'pointer' }}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: FONT_MONO, fontSize: 9, color: T.text3, direction: 'ltr' }}>
+                    <span>$100</span>
+                    <span>$100,000</span>
+                  </div>
+                </div>
+
+                {/* Default Symbols */}
+                <div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>الرموز الافتراضية</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {localSettings.defaultSymbols.map((sym: string) => (
+                      <span key={sym} style={{
+                        fontFamily: FONT_MONO, fontSize: 10,
+                        padding: '4px 10px', borderRadius: 6,
+                        background: 'rgba(0,212,255,0.08)',
+                        border: '1px solid rgba(0,212,255,0.2)',
+                        color: T.accent,
+                      }}>
+                        {sym}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
             </div>
+          </GlassCard>
+        )}
+
+        {/* Risk Settings */}
+        {settingsTab === 'risk' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <GlassCard>
+              <div style={{ padding: 20 }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Shield size={15} color={T.amber} />
+                  معلمات المخاطر
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <RiskSlider
+                    label="حجم المركز الأقصى"
+                    subLabel="نسبة مئوية من رأس المال لكل صفقة"
+                    value={localSettings.maxPositionSizePercent}
+                    min={0.5} max={10} step={0.5} unit="%" color={T.accent}
+                    onChange={(v) => handleSettingChange('maxPositionSizePercent', v)}
+                  />
+                  <RiskSlider
+                    label="حد الخسارة اليومية"
+                    subLabel="يُوقف الوكيل تلقائياً عند بلوغه"
+                    value={localSettings.maxDailyLossPercent}
+                    min={1} max={20} step={0.5} unit="%" color={T.red}
+                    onChange={(v) => handleSettingChange('maxDailyLossPercent', v)}
+                  />
+                  <RiskSlider
+                    label="عدد المراكز المفتوحة الأقصى"
+                    subLabel="أقصى عدد صفقات متزامنة"
+                    value={localSettings.maxOpenPositions}
+                    min={1} max={15} step={1} unit="" color={T.purple}
+                    onChange={(v) => handleSettingChange('maxOpenPositions', v)}
+                  />
+                  <RiskSlider
+                    label="نسبة المخاطرة لكل صفقة"
+                    subLabel="نسبة رأس المال المُخاطَر"
+                    value={localSettings.riskPerTradePercent}
+                    min={0.5} max={5} step={0.25} unit="%" color={T.green}
+                    onChange={(v) => handleSettingChange('riskPerTradePercent', v)}
+                  />
+                </div>
+              </div>
+            </GlassCard>
+
+            {/* Safety Rules */}
+            <GlassCard>
+              <div style={{ padding: 20 }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <AlertTriangle size={15} color={T.red} />
+                  قواعد السلامة
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {[
+                    { icon: <Shield size={13} />, title: 'وقف خسارة إلزامي', desc: 'لا يمكن فتح صفقة بدون تحديد وقف الخسارة', color: T.green },
+                    { icon: <DollarSign size={13} />, title: 'حد خسارة يومي', desc: 'إيقاف تلقائي عند تجاوز الحد المحدد', color: T.amber },
+                    { icon: <XCircle size={13} />, title: 'بدون سحب', desc: 'الوكيل لا يملك صلاحية السحب — تداول فقط', color: T.red },
+                    { icon: <CheckCircle2 size={13} />, title: 'تدقيق كامل', desc: 'كل قرار يتم تسجيله في سجل المراجعة', color: T.accent },
+                    { icon: <AlertTriangle size={13} />, title: 'خسائر متتالية', desc: '5 خسائر متتالية → إيقاف مؤقت تلقائي', color: T.amber },
+                    { icon: <Flame size={13} />, title: 'إيقاف طارئ', desc: 'إغلاق فوري لجميع المراكز عند الطوارئ', color: T.red },
+                    { icon: <RefreshCw size={13} />, title: 'نسبة مخاطرة/عائد', desc: 'الحد الأدنى 1:1.5 — لا صفقات بأقل من ذلك', color: T.accent },
+                    { icon: <ArrowUpDown size={13} />, title: 'بدون تكرار', desc: 'مركز واحد فقط لكل رمز', color: T.purple },
+                  ].map((rule, i) => (
+                    <div key={i} style={{
+                      display: 'flex', gap: 10, padding: '10px 12px',
+                      background: 'rgba(255,255,255,0.02)',
+                      borderRadius: 8, border: `1px solid ${T.border}`,
+                    }}>
+                      <span style={{ color: rule.color, display: 'flex', marginTop: 1 }}>{rule.icon}</span>
+                      <div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 11, fontWeight: 700, color: T.text }}>{rule.title}</div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 2 }}>{rule.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </GlassCard>
           </div>
-        </GlassCard>
+        )}
+
+        {/* Scalping Settings */}
+        {settingsTab === 'scalping' && (
+          <GlassCard>
+            <div style={{ padding: 20 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Zap size={15} color={T.amber} />
+                معلمات السكالبينغ
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>الإطار الزمني</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {['1m', '3m', '5m', '15m', '30m'].map(tf => (
+                      <button
+                        key={tf}
+                        onClick={() => handleSettingChange('scalpingTimeframe', tf)}
+                        style={{
+                          padding: '8px 14px', borderRadius: 8,
+                          background: localSettings.scalpingTimeframe === tf ? 'rgba(255,184,0,0.12)' : 'rgba(255,255,255,0.03)',
+                          border: `1px solid ${localSettings.scalpingTimeframe === tf ? 'rgba(255,184,0,0.3)' : T.border}`,
+                          color: localSettings.scalpingTimeframe === tf ? T.amber : T.text2,
+                          fontFamily: FONT_MONO, fontSize: 11, fontWeight: 700,
+                          cursor: 'pointer', transition: 'all 0.2s',
+                        }}
+                      >
+                        {tf}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <RiskSlider
+                  label="جني الأرباح (نقاط)" subLabel="الهدف الأقصى للصفقة"
+                  value={localSettings.scalpingTakeProfitPips} min={5} max={50} step={1} unit="" color={T.green}
+                  onChange={(v) => handleSettingChange('scalpingTakeProfitPips', v)}
+                />
+                <RiskSlider
+                  label="وقف الخسارة (نقاط)" subLabel="الحد الأقصى للخسارة في الصفقة"
+                  value={localSettings.scalpingStopLossPips} min={3} max={30} step={1} unit="" color={T.red}
+                  onChange={(v) => handleSettingChange('scalpingStopLossPips', v)}
+                />
+                <RiskSlider
+                  label="الفرق الأقصى (سبيريد)" subLabel="أقصى فرق مسموح بين العرض والطلب"
+                  value={localSettings.scalpingMaxSpread} min={1} max={20} step={1} unit="" color={T.amber}
+                  onChange={(v) => handleSettingChange('scalpingMaxSpread', v)}
+                />
+              </div>
+            </div>
+          </GlassCard>
+        )}
+
+        {/* Swing Settings */}
+        {settingsTab === 'swing' && (
+          <GlassCard>
+            <div style={{ padding: 20 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <TrendingUp size={15} color={T.accent} />
+                معلمات السوينغ
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>الإطار الزمني</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {['15m', '30m', '1h', '4h', '1d'].map(tf => (
+                      <button
+                        key={tf}
+                        onClick={() => handleSettingChange('swingTimeframe', tf)}
+                        style={{
+                          padding: '8px 14px', borderRadius: 8,
+                          background: localSettings.swingTimeframe === tf ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.03)',
+                          border: `1px solid ${localSettings.swingTimeframe === tf ? 'rgba(0,212,255,0.3)' : T.border}`,
+                          color: localSettings.swingTimeframe === tf ? T.accent : T.text2,
+                          fontFamily: FONT_MONO, fontSize: 11, fontWeight: 700,
+                          cursor: 'pointer', transition: 'all 0.2s',
+                        }}
+                      >
+                        {tf}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <RiskSlider
+                  label="فترة الاحتفاظ (ساعات)" subLabel="المدة المتوقعة للاحتفاظ بالصفقة"
+                  value={localSettings.swingHoldingPeriodHours} min={4} max={168} step={4} unit="ساعة" color={T.accent}
+                  onChange={(v) => handleSettingChange('swingHoldingPeriodHours', v)}
+                />
+                <RiskSlider
+                  label="فترة الاتجاه (شمعات)" subLabel="عدد الشمعات لتحليل الاتجاه"
+                  value={localSettings.swingTrendLookback} min={10} max={100} step={5} unit="" color={T.purple}
+                  onChange={(v) => handleSettingChange('swingTrendLookback', v)}
+                />
+              </div>
+            </div>
+          </GlassCard>
+        )}
+
+        {/* Grid Settings */}
+        {settingsTab === 'grid' && (
+          <GlassCard>
+            <div style={{ padding: 20 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Layers size={15} color={T.purple} />
+                معلمات الشبكة
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                <RiskSlider
+                  label="عدد المستويات" subLabel="عدد نقاط الشراء/البيع في الشبكة"
+                  value={localSettings.gridLevels} min={2} max={20} step={1} unit="" color={T.purple}
+                  onChange={(v) => handleSettingChange('gridLevels', v)}
+                />
+                <RiskSlider
+                  label="المسافة بين المستويات" subLabel="النسبة المئوية بين كل مستوى"
+                  value={localSettings.gridSpacingPercent} min={0.1} max={5} step={0.1} unit="%" color={T.accent}
+                  onChange={(v) => handleSettingChange('gridSpacingPercent', v)}
+                />
+                <RiskSlider
+                  label="الكمية لكل مستوى" subLabel="0 = حساب تلقائي حسب المخاطر"
+                  value={localSettings.gridQuantityPerLevel} min={0} max={1} step={0.001} unit="" color={T.green}
+                  onChange={(v) => handleSettingChange('gridQuantityPerLevel', v)}
+                />
+              </div>
+            </div>
+          </GlassCard>
+        )}
+
+        {/* Save Button */}
+        {hasChanges && (
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            style={{
+              width: '100%',
+              ...btnStyle,
+              background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
+              color: '#000', fontWeight: 800,
+              padding: '14px 20px',
+              justifyContent: 'center',
+              fontSize: 13,
+            }}
+          >
+            <CheckCircle2 size={16} />
+            حفظ جميع الإعدادات
+          </button>
+        )}
       </div>
     )
   }

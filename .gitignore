@@ -32,6 +32,8 @@ apps/api/dist/
 .env
 .env.local
 .env.*.local
+.env.production
+.env.production.local
 apps/web/.env
 apps/api/.env
 # Keep .env.example for documentation

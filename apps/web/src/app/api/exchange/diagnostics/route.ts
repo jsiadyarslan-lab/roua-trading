@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { verifyAdminAuth } from '@/lib/admin-auth'
 
 /**
  * GET /api/exchange/diagnostics
@@ -6,6 +7,9 @@ import { NextResponse } from 'next/server'
  * Diagnostic endpoint to check the status of all market data sources.
  * Useful for debugging why certain sources aren't providing data.
  * Shows API key status, circuit breaker state, and source reachability.
+ *
+ * 🔒 SECURITY: Requires admin authentication.
+ * Exposes API key prefixes and internal service configuration.
  */
 
 // Import the circuit breaker state from the quote route
@@ -13,7 +17,10 @@ import { NextResponse } from 'next/server'
 let twelveDataExhausted = false
 let twelveDataResetTimeout: NodeJS.Timeout | null = null
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // 🔒 Require admin auth — this endpoint exposes API key info
+  const authError = await verifyAdminAuth(req)
+  if (authError) return authError
   const results: Record<string, any> = {}
   const now = new Date().toISOString()
 

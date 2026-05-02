@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { verifyAdminAuth } from '@/lib/admin-auth'
 
 /**
  * Emergency migration endpoint — adds missing columns to existing tables.
@@ -11,8 +12,14 @@ import { db } from '@/lib/db'
  *
  * Call this endpoint once after deployment to sync the schema.
  * It's safe to call multiple times — all statements are idempotent.
+ *
+ * 🔒 SECURITY: Requires admin authentication.
+ * This endpoint executes raw SQL and MUST NOT be accessible without auth.
  */
-export async function POST() {
+export async function POST(req: NextRequest) {
+  // 🔒 Require admin auth — this endpoint modifies the database schema
+  const authError = await verifyAdminAuth(req)
+  if (authError) return authError
   const results: Record<string, any> = {}
 
   const migrations = [

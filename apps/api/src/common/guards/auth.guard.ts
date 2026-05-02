@@ -1,32 +1,46 @@
-import { Injectable, CanActivate, ExecutionContext, Logger } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, Logger, SetMetadata } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
- * AuthGuard — Simplified auto-authentication
+ * Metadata key for marking routes as public (skip auth)
+ * Usage: @Public() decorator on controller methods
+ */
+export const IS_PUBLIC_KEY = 'isPublic';
+export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
+
+/**
+ * AuthGuard — Authentication with public route support
  *
  * This guard ensures every request has a valid user attached.
- * Instead of rejecting unauthenticated requests with 401, it
- * auto-creates a guest session so the platform always works.
+ * Behavior:
+ * 1. If route is marked @Public() → auto-create guest session
+ * 2. If session token found and valid → attach user to request
+ * 3. If no session on protected route → REJECT with 401
+ * 4. If no session on public route → auto-create guest session
  *
- * Auth flow:
- * 1. Check for session token (cookie / Authorization / x-roua-session)
- * 2. If valid session found → attach user to request
- * 3. If no session or invalid → auto-create guest user + session
- * 4. Attach the user to request so downstream code works
- *
- * This eliminates all 401 errors that were caused by missing/expired
- * sessions. The platform works out-of-the-box without requiring login.
+ * 🔒 SECURITY FIX: Protected routes now properly reject unauthenticated
+ * requests instead of silently auto-authenticating everyone.
  */
 @Injectable()
 export class AuthGuard implements CanActivate {
   private readonly logger = new Logger(AuthGuard.name);
   private guestUser: any = null;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
+
+    // Check if this route is marked as public
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
 
     // Extract session token from cookie, Authorization header, or x-roua-session custom header
     const cookieToken = request.cookies?.['roua_session'];
@@ -56,31 +70,35 @@ export class AuthGuard implements CanActivate {
           await this.prisma.session.delete({ where: { id: session.id } }).catch(() => {});
         }
       } catch (error: any) {
-        // DB might be unavailable — fall through to auto-auth
+        // DB might be unavailable — fall through
         this.logger.warn(`Session validation failed: ${error?.message || error}`);
       }
     }
 
-    // ── Auto-authenticate: ensure guest user exists ──
-    try {
-      const user = await this._ensureGuestUser();
-      (request as any).user = user;
-
-      // Also set a cookie on the response if possible
-      // (the Next.js proxy handles cookie setting, this is just a safety net)
-      return true;
-    } catch (error: any) {
-      this.logger.error(`Auto-auth failed: ${error?.message || error}`);
-
-      // Last resort: attach a mock user so the request doesn't fail
-      (request as any).user = {
-        id: 'guest-auto',
-        email: 'guest@roua.auto',
-        displayName: 'ضيف',
-        tier: 'FREE',
-      };
-      return true;
+    // ── No valid session found ──
+    // For PUBLIC routes: auto-create guest session
+    // For PROTECTED routes: reject with 401
+    if (isPublic) {
+      try {
+        const user = await this._ensureGuestUser();
+        (request as any).user = user;
+        return true;
+      } catch (error: any) {
+        this.logger.error(`Guest auto-auth failed: ${error?.message || error}`);
+        // For public routes, still allow with mock user as last resort
+        (request as any).user = {
+          id: 'guest-auto',
+          email: 'guest@roua.auto',
+          displayName: 'ضيف',
+          tier: 'FREE',
+        };
+        return true;
+      }
     }
+
+    // 🔒 PROTECTED ROUTE: No valid session → reject
+    this.logger.warn(`Unauthenticated request to protected route: ${request.method} ${request.url}`);
+    return false;
   }
 
   /**

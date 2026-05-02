@@ -671,7 +671,6 @@ export default function TradingPage() {
         background: 'rgba(20,20,22,0.95)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
-        marginBottom: 60,
       }}>
         {(execStatus === 'idle' || execStatus === 'error' || execStatus === 'rejected') && (
           <div style={{ display: 'flex', gap: 8 }}>

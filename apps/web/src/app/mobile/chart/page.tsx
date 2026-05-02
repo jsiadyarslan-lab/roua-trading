@@ -318,7 +318,7 @@ export default function MobileChartPage() {
       flexDirection: 'column',
       overflow: 'hidden',
       zIndex: 40,
-      paddingBottom: 60,
+      paddingBottom: 80,
     }}>
 
       {/* ═══ TOP BAR: Pair Name + Price + Trade Button ═══ */}
@@ -503,7 +503,6 @@ export default function MobileChartPage() {
         background: 'rgba(10,10,12,0.95)',
         backdropFilter: 'blur(10px)',
         borderTop: '1px solid rgba(0,212,255,0.1)',
-        marginBottom: 60,
       }}>
         <motion.button
           whileTap={{ scale: 0.96 }}

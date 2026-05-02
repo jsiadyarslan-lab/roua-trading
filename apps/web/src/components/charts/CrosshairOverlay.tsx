@@ -26,11 +26,13 @@ export function CrosshairOverlay({
   currentPrice,
   crosshairData,
   pricePulse,
+  candleCountdown,
   feedState,
   connectionState,
   compact,
   mobile,
   candles,
+  showCandleTimer = true,
 }: CrosshairOverlayProps) {
   // Get current OHLC from last candle when crosshair is not active
   const lastCandle = candles[candles.length - 1];
@@ -61,26 +63,21 @@ export function CrosshairOverlay({
 
   const isBull = displayData ? displayData.close >= displayData.open : true;
   const changeColor = displayData && displayData.change >= 0 ? '#3fb950' : '#f85149';
-  const spread = displayData ? Math.max(0, displayData.high - displayData.low) : 0;
-  const lastUpdateSeconds = lastCandle
-    ? Math.max(0, Math.floor(Date.now() / 1000 - lastCandle.time))
-    : null;
 
   const COLORS = {
     text: '#F0F2F5',
     textSecondary: '#8B92A8',
     textMuted: '#64748b',
-    cyan: '#38BDF8',
+    cyan: '#00D4FF',
     success: '#3fb950',
     danger: '#f85149',
-    warning: '#fbbf24',
     bg: 'rgba(11,14,20,0.82)',
   };
 
   const overlayPriceSize = mobile ? 14 : 16;
   const overlayPairSize = mobile ? 10 : 11;
 
-  // Mobile: simplified overlay; candle countdown is rendered beside price line.
+  // Mobile: simplified overlay with countdown timer
   if (mobile) {
     return (
       <div style={{
@@ -136,8 +133,21 @@ export function CrosshairOverlay({
           )}
         </div>
 
-        {/* Right: Feed status */}
+        {/* Right: Candle countdown + Feed status */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {showCandleTimer && candleCountdown && (
+            <span style={{
+              fontSize: 8,
+              color: COLORS.textMuted,
+              fontFamily: "'JetBrains Mono', monospace",
+              fontWeight: 600,
+              background: 'rgba(0,0,0,0.4)',
+              padding: '0px 5px',
+              borderRadius: 3,
+            }}>
+              {candleCountdown}
+            </span>
+          )}
           {feedState === 'fallback' && (
             <span style={{ fontSize: 7, color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>بيانات احتياطية</span>
           )}
@@ -161,7 +171,7 @@ export function CrosshairOverlay({
       zIndex: 3,
       background: 'linear-gradient(180deg, rgba(11,14,20,0.82) 0%, transparent 100%)',
     }}>
-      {/* Left: Symbol + Price + professional OHLC readout */}
+      {/* Left: Symbol + Price + Countdown + OHLC */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
         {/* Symbol */}
         <span style={{
@@ -229,23 +239,9 @@ export function CrosshairOverlay({
             Vol: {formatVolume(displayData.volume)}
           </span>
         )}
-
-        {displayData && !compact && (
-          <span style={{
-            fontSize: 8,
-            color: COLORS.textMuted,
-            fontFamily: "'JetBrains Mono', monospace",
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-          }}>
-            <span>Spread <b style={{ color: 'rgba(255,255,255,0.58)' }}>{spread.toFixed(decimals)}</b></span>
-            <span>{displayData.dateStr}</span>
-          </span>
-        )}
       </div>
 
-      {/* Right: sessions + latency */}
+      {/* Right: Feed Status */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -262,15 +258,6 @@ export function CrosshairOverlay({
             <span style={{ color: 'rgba(139,92,246,0.7)' }}>■ طوكيو</span>
             <span style={{ color: 'rgba(88,166,255,0.7)' }}>■ لندن</span>
             <span style={{ color: 'rgba(227,179,65,0.7)' }}>■ نيويورك</span>
-            <span style={{
-              color: connectionState === 'connected' ? COLORS.success : connectionState === 'fallback' ? COLORS.warning : COLORS.textMuted,
-              background: 'rgba(15,17,23,0.55)',
-              border: '1px solid rgba(148,163,184,0.12)',
-              borderRadius: 4,
-              padding: '1px 5px',
-            }}>
-              latency {lastUpdateSeconds !== null ? formatLatency(lastUpdateSeconds) : '—'}
-            </span>
           </>
         )}
       </div>
@@ -284,11 +271,4 @@ function formatVolume(vol: number): string {
   if (vol >= 1_000_000) return `${(vol / 1_000_000).toFixed(1)}M`;
   if (vol >= 1_000) return `${(vol / 1_000).toFixed(1)}K`;
   return vol.toFixed(0);
-}
-
-function formatLatency(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  return `${Math.floor(minutes / 60)}h`;
 }

@@ -207,7 +207,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       },
       rightPriceScale: {
         borderColor: isMobile ? 'transparent' : COLORS.border,
-        scaleMargins: { top: 0.06, bottom: 0.07 },
+        scaleMargins: { top: 0.1, bottom: 0.2 },
       },
       timeScale: {
         borderColor: COLORS.border,
@@ -241,7 +241,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       priceScaleId: 'volume',
     });
     volumeSeries.priceScale().applyOptions({
-      scaleMargins: { top: 0.84, bottom: 0.02 },
+      scaleMargins: { top: 0.85, bottom: 0 },
     });
     volumeSeriesRef.current = volumeSeries;
 

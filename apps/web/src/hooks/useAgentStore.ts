@@ -195,10 +195,19 @@ export const useAgentStore = create<AgentStore>()(
       },
 
       startAgent: async (strategy) => {
+        const { selectedCredentialId, selectedSymbols } = get()
+
+        // Validate credential before making API call
+        if (!selectedCredentialId || selectedCredentialId.trim() === '') {
+          const errorMsg = 'يرجى ربط مفتاح API أولاً من إعدادات المحفظة'
+          set({ error: errorMsg, loading: false })
+          get().addLog(`❌ ${errorMsg}`, 'error')
+          return
+        }
+
         set({ loading: true, error: null })
         get().addLog(`جارٍ تفعيل الوكيل باستراتيجية ${strategy === StrategyType.SCALPING ? 'السكالبينغ' : strategy === StrategyType.SWING ? 'السوينغ' : 'الشبكة'}...`, 'info')
         try {
-          const { selectedCredentialId, selectedSymbols } = get()
           const res = await fetch('/api/agent/trader/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -213,8 +222,15 @@ export const useAgentStore = create<AgentStore>()(
             set({ agentState: data.data, loading: false, isConfigured: true })
             get().addLog('✅ تم تفعيل وكيل التداول بنجاح', 'success')
           } else {
-            set({ error: data.message || 'فشل التفعيل', loading: false })
-            get().addLog(`❌ فشل التفعيل: ${data.message || 'خطأ غير معروف'}`, 'error')
+            // Map common backend error messages to user-friendly Arabic
+            let msg = data.message || 'فشل التفعيل'
+            if (msg.includes('credentialId') || msg.includes('should not be empty')) {
+              msg = 'يرجى ربط مفتاح API أولاً من إعدادات المحفظة'
+            } else if (msg.includes('not valid') || msg.includes('غير صالحة')) {
+              msg = 'مفتاح API غير صالح أو منتهي الصلاحية — تحقق من إعدادات المحفظة'
+            }
+            set({ error: msg, loading: false })
+            get().addLog(`❌ فشل التفعيل: ${msg}`, 'error')
           }
         } catch (e: any) {
           set({ error: e.message, loading: false })

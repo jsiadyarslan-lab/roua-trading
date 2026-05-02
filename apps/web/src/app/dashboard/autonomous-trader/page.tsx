@@ -154,6 +154,7 @@ export default function AutonomousTraderPage() {
     agentState, performance, positions, logs, loading, error,
     fetchStatus, startAgent, stopAgent, changeStrategy, updateRiskParams,
     fetchPerformance, fetchPositions, startAutoRefresh, stopAutoRefresh, addLog,
+    selectedCredentialId,
   } = useAgentStore()
 
   const [activeTab, setActiveTab] = useState<'overview' | 'positions' | 'performance' | 'settings'>('overview')
@@ -164,6 +165,7 @@ export default function AutonomousTraderPage() {
   const isRunning = status === AgentStatus.RUNNING
   const config = agentState?.config
   const strategy = config?.strategy ?? StrategyType.SCALPING
+  const hasCredential = !!selectedCredentialId && selectedCredentialId.trim() !== ''
 
   // ── Initial load & auto-refresh ──
   useEffect(() => {
@@ -232,23 +234,26 @@ export default function AutonomousTraderPage() {
 
           {/* Action Buttons */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {!isRunning && status !== AgentStatus.EMERGENCY_STOP && (
+            {!isRunning && status !== AgentStatus.EMERGENCY_STOP && !agentState && (
               <button
-                onClick={() => setShowStrategyPicker(!showStrategyPicker)}
-                disabled={loading}
+                onClick={() => hasCredential ? setShowStrategyPicker(!showStrategyPicker) : undefined}
+                disabled={loading || !hasCredential}
+                title={!hasCredential ? 'يرجى ربط مفتاح API أولاً من إعدادات المحفظة' : undefined}
                 style={{
                   ...btnStyle,
-                  background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
-                  color: '#000',
+                  background: hasCredential ? 'linear-gradient(135deg, #00FFC6, #0A84FF)' : 'rgba(255,255,255,0.06)',
+                  color: hasCredential ? '#000' : T.text3,
                   fontWeight: 800,
                   padding: '10px 24px',
                   fontSize: 13,
+                  cursor: hasCredential ? 'pointer' : 'not-allowed',
+                  opacity: hasCredential ? 1 : 0.6,
                 }}
               >
                 <Play size={15} />
                 تفعيل الوكيل
               </button>
-            )}
+            )
             {isRunning && (
               <>
                 <button
@@ -465,6 +470,23 @@ export default function AutonomousTraderPage() {
           }}>
             <XCircle size={16} />
             {error}
+          </div>
+        )}
+
+        {/* ── No Credential Warning ── */}
+        {!hasCredential && !isRunning && (
+          <div style={{
+            margin: '0 28px 16px', padding: '14px 18px',
+            background: 'rgba(255,184,0,0.08)',
+            border: `1px solid rgba(255,184,0,0.20)`,
+            borderRadius: 10,
+            display: 'flex', alignItems: 'center', gap: 10,
+            fontFamily: FONT_AR, fontSize: 12, color: T.amber,
+          }}>
+            <AlertTriangle size={16} />
+            <span>
+              <strong>مطلوب مفتاح API</strong> — يرجى ربط مفتاح API خاصتك من صفحة المحفظة أولاً لتفعيل وكيل التداول الذاتي
+            </span>
           </div>
         )}
 

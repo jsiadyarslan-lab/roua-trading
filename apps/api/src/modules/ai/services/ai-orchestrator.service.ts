@@ -58,6 +58,9 @@ export class AIOrchestratorService {
   private readonly COOLDOWN_MS = 10_000; // Short cooldown: 10s after 3+ consecutive 429s
   private readonly FAILURES_BEFORE_COOLDOWN = 3; // Only cooldown after 3+ consecutive 429 failures
 
+  /** In-flight request deduplication — prevents duplicate AI calls for the same symbol+type */
+  private readonly inFlightRequests = new Map<string, Promise<AIAnalysisResponse>>();
+
   /** In-memory cache for AI responses with TTL */
   private readonly responseCache = new Map<string, { result: AIAnalysisResponse; expiresAt: number }>();
   /** Maximum number of entries in the in-memory cache (prevents unbounded growth) */
@@ -173,6 +176,33 @@ export class AIOrchestratorService {
       return memCached;
     }
 
+    // In-flight request deduplication: if the same symbol+type+prompt is already
+    // being processed, reuse that promise instead of making a duplicate AI call.
+    const dedupeKey = `ai:${enrichedRequest.type}:${enrichedRequest.symbol || ''}:${this._hashPrompt(JSON.stringify(enrichedRequest))}`;
+    const existing = this.inFlightRequests.get(dedupeKey);
+    if (existing) {
+      this.logger.debug(`🔄 Deduplicating in-flight AI request for ${dedupeKey}`);
+      return existing;
+    }
+
+    const promise = this._executeAnalysis(enrichedRequest, redisCacheKey, memCacheKey);
+    this.inFlightRequests.set(dedupeKey, promise);
+    try {
+      return await promise;
+    } finally {
+      this.inFlightRequests.delete(dedupeKey);
+    }
+  }
+
+  /**
+   * Execute the actual AI analysis — extracted from analyze() for deduplication.
+   * This method contains the model routing, fallback logic, and caching.
+   */
+  private async _executeAnalysis(
+    enrichedRequest: AIAnalysisRequest,
+    redisCacheKey: string,
+    memCacheKey: string,
+  ): Promise<AIAnalysisResponse> {
     const routing = this.ROUTING[enrichedRequest.type] || this.ROUTING.general;
     const models = [routing.primary, ...routing.fallback];
 
@@ -216,6 +246,8 @@ export class AIOrchestratorService {
         // Reset consecutive failure counter on success
         this.modelConsecutiveFailures.delete(model);
         result = response;
+        // Override fixed confidence with dynamic calculation
+        result.confidence = this._calculateDynamicConfidence(model, result.content, enrichedRequest.type);
         break;
       } catch (error: any) {
         // Log failed AI usage
@@ -994,6 +1026,48 @@ export class AIOrchestratorService {
   // FIX: Upgraded from MD5 to SHA-256 for stronger dedup hashing
   private _hashPrompt(prompt: string): string {
     return crypto.createHash('sha256').update(prompt).digest('hex');
+  }
+
+  // ── Private: Dynamic Confidence Scoring ──
+  /**
+   * Calculate dynamic confidence based on response quality indicators
+   * instead of using fixed per-model confidence values.
+   *
+   * Factors:
+   * - Response completeness (length-based)
+   * - Structured output detection (DECISION line, JSON)
+   * - Model-specific base confidence
+   * - Arabic content detection (boost for Arabic-focused platform)
+   */
+  private _calculateDynamicConfidence(model: string, content: string, type: string): number {
+    let confidence = 0.5; // Base confidence
+
+    // Factor 1: Response completeness (0-0.15)
+    if (content.length > 200) confidence += 0.05;
+    if (content.length > 500) confidence += 0.05;
+    if (content.length > 1000) confidence += 0.05;
+
+    // Factor 2: Structured output (0-0.15)
+    if (content.includes('DECISION:')) confidence += 0.10;
+    if (content.includes('{') && content.includes('}')) confidence += 0.05;
+
+    // Factor 3: Model-specific base confidence
+    const modelBaseConfidence: Record<string, number> = {
+      groq: 0.75,
+      gemini: 0.85,
+      glm: 0.80,
+      huggingface: 0.70,
+      ollama: 0.75,
+      bedrock: 0.88,
+      openrouter: 0.72,
+    };
+    confidence = (confidence + (modelBaseConfidence[model] || 0.7)) / 2;
+
+    // Factor 4: Arabic content detection (boost for Arabic-focused platform)
+    const arabicPattern = /[\u0600-\u06FF]/;
+    if (arabicPattern.test(content)) confidence += 0.03;
+
+    return Math.min(Math.max(confidence, 0.1), 0.99);
   }
 
 }

@@ -13,6 +13,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     const isDev = process.env.NODE_ENV !== 'production';
 
     super({
+      datasources: {
+        db: {
+          url: process.env.DATABASE_URL + (process.env.DATABASE_URL?.includes('?') ? '&' : '?') + 'connection_limit=15&pool_timeout=20',
+        },
+      },
       log: [
         ...(isDev ? [{ emit: 'event' as const, level: 'query' as const }] : []),
         { emit: 'stdout', level: 'info' },
@@ -30,11 +35,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    // Warn about connection pool if not configured
-    const dbUrl = process.env.DATABASE_URL || '';
-    if (!dbUrl.includes('connection_limit')) {
-      this.logger.warn('DATABASE_URL does not include connection_limit. Consider adding ?connection_limit=10 for production.');
-    }
+    // Log connection pool configuration (now auto-configured in constructor)
+    this.logger.log('📦 Prisma connection pool: connection_limit=15, pool_timeout=20');
 
     const connected = await this.tryConnect();
 

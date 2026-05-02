@@ -62,6 +62,7 @@ function generateCandleData(trades: TradePoint[]): CandleData[] {
 export default function TradeChart({ trades, symbol }: TradeChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const [chartReady, setChartReady] = useState(false);
 
   useEffect(() => {
@@ -74,15 +75,13 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
     }
 
     const container = chartContainerRef.current;
-    let chart: any = null;
-    let resizeObserver: ResizeObserver | null = null;
     let isMounted = true;
 
     // Dynamic import for lightweight-charts (ESM only)
     import('lightweight-charts').then(({ createChart, CandlestickSeries }) => {
       if (!isMounted || !container) return;
 
-      chart = createChart(container, {
+      const chart = createChart(container, {
         width: container.clientWidth,
         height: 400,
         layout: {
@@ -171,32 +170,36 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
       chart.timeScale().fitContent();
       setChartReady(true);
 
-      // Handle resize
-      resizeObserver = new ResizeObserver(entries => {
-        if (chart && entries[0]) {
-          chart.applyOptions({
+      // Handle resize — disconnect any previous observer first
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
+
+      const ro = new ResizeObserver(entries => {
+        if (chartRef.current && entries[0]) {
+          chartRef.current.applyOptions({
             width: entries[0].contentRect.width,
           });
         }
       });
 
       if (container) {
-        resizeObserver.observe(container);
+        ro.observe(container);
       }
+      resizeObserverRef.current = ro;
     }).catch((err) => {
       console.error('Failed to load lightweight-charts:', err);
     });
 
+    // Cleanup: disconnect ResizeObserver and remove chart in main useEffect return
+    // (NOT inside .then() callback — ensures cleanup always runs even if
+    // the dynamic import hasn't resolved yet)
     return () => {
       isMounted = false;
-      if (resizeObserver && container) {
-        resizeObserver.unobserve(container);
-        resizeObserver.disconnect();
-        resizeObserver = null;
-      }
-      if (chart) {
-        chart.remove();
-        chart = null;
+      if (resizeObserverRef.current) {
+        resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
       }
       if (chartRef.current) {
         chartRef.current.remove();

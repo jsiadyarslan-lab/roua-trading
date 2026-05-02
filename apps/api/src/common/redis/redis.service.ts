@@ -157,4 +157,12 @@ export class RedisService implements OnModuleDestroy {
     await this.client.quit();
     this.logger.log('🔴 Redis disconnected');
   }
+
+  /**
+   * Ping the Redis server to check connectivity.
+   * Returns 'PONG' on success.
+   */
+  async ping(): Promise<string> {
+    return this.client.ping();
+  }
 }

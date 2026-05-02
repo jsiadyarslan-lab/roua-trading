@@ -108,6 +108,9 @@ export class PositionMonitorService {
       const quotes = await Promise.allSettled(quotePromises);
 
       // Step 3: Process each position with its pre-fetched quote
+      // Collect non-critical price updates for batch processing
+      const priceUpdates: any[] = [];
+
       for (let i = 0; i < positions.length; i++) {
         const position = positions[i];
         const quoteResult = quotes[i];
@@ -117,7 +120,7 @@ export class PositionMonitorService {
             : null;
 
         try {
-          const result = await this._monitorPosition(position, currentPrice);
+          const result = await this._monitorPosition(position, currentPrice, priceUpdates);
           if (result.slTriggered) slTriggered++;
           if (result.tpTriggered) tpTriggered++;
           if (result.trailingUpdated) trailingUpdated++;
@@ -126,6 +129,16 @@ export class PositionMonitorService {
           this.logger.error(
             `🛡️ Monitor error for position ${position.id}: ${error.message}`,
           );
+        }
+      }
+
+      // Step 4: Batch update positions that only need price/PnL updates (no SL/TP hit)
+      if (priceUpdates.length > 0) {
+        try {
+          await this.prisma.$transaction(priceUpdates);
+          this.logger.debug(`🛡️ Batch updated ${priceUpdates.length} position price/PnL records`);
+        } catch (error: any) {
+          this.logger.error(`🛡️ Batch price update failed: ${error.message}`);
         }
       }
 
@@ -217,7 +230,7 @@ export class PositionMonitorService {
 
   // ── Private: Position Monitoring ──
 
-  private async _monitorPosition(position: any, currentPrice: number | null): Promise<{
+  private async _monitorPosition(position: any, currentPrice: number | null, priceUpdates: any[]): Promise<{
     slTriggered: boolean;
     tpTriggered: boolean;
     trailingUpdated: boolean;
@@ -249,23 +262,6 @@ export class PositionMonitorService {
         : (entryPrice - currentPrice) * quantity;
 
     const pnlPercent = (unrealizedPnl / (entryPrice * quantity)) * 100;
-
-    // Update position with current data
-    await this.prisma.position.update({
-      where: { id: position.id },
-      data: {
-        currentPrice,
-        unrealizedPnl,
-        highestPrice:
-          position.side === 'BUY'
-            ? Math.max(position.highestPrice || currentPrice, currentPrice)
-            : position.highestPrice || currentPrice,
-        lowestPrice:
-          position.side === 'SELL'
-            ? Math.min(position.lowestPrice || currentPrice, currentPrice)
-            : position.lowestPrice || currentPrice,
-      },
-    });
 
     // ── Stop-Loss Check ──
     if (stopLossNum !== null) {
@@ -357,6 +353,7 @@ export class PositionMonitorService {
           : (currentSL === 0 || trailingStop < currentSL);
 
         if (shouldUpdate) {
+          // Trailing stop updates are critical — apply immediately (not batched)
           await this.prisma.position.update({
             where: { id: position.id },
             data: { stopLoss: trailingStop },
@@ -383,6 +380,26 @@ export class PositionMonitorService {
       });
       result.alertSent = true;
     }
+
+    // ── Batch price/PnL update (no SL/TP hit — just update current price) ──
+    // Instead of updating each position individually, collect them for a batch transaction
+    priceUpdates.push(
+      this.prisma.position.update({
+        where: { id: position.id },
+        data: {
+          currentPrice,
+          unrealizedPnl,
+          highestPrice:
+            position.side === 'BUY'
+              ? Math.max(position.highestPrice || currentPrice, currentPrice)
+              : position.highestPrice || currentPrice,
+          lowestPrice:
+            position.side === 'SELL'
+              ? Math.min(position.lowestPrice || currentPrice, currentPrice)
+              : position.lowestPrice || currentPrice,
+        },
+      }),
+    );
 
     return result;
   }

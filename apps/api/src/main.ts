@@ -32,6 +32,13 @@ async function bootstrap() {
       referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     }));
 
+    // Explicit X-Content-Type-Options header (defense-in-depth, even though Helmet may set it)
+    app.use((req: any, res: any, next: any) => {
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-XSS-Protection', '1; mode=block');
+      next();
+    });
+
     // Cookie parser for session management
     app.use(cookieParser());
 
@@ -42,20 +49,49 @@ async function bootstrap() {
     // Must be registered BEFORE global pipes/filters to avoid auth interference
     const prisma = app.get(PrismaService);
     app.getHttpAdapter().getInstance().get('/api/health', async (req: any, res: any) => {
-      try {
-        // Check database connection
-        await prisma.$queryRaw`SELECT 1`;
+      const start = Date.now();
+      const checks: Record<string, { status: string; latencyMs?: number; detail?: string }> = {};
 
-        res.status(200).json({
-          status: 'ok',
-          timestamp: new Date().toISOString(),
-        });
+      // Database check
+      try {
+        const dbStart = Date.now();
+        await prisma.$queryRaw`SELECT 1`;
+        checks.database = { status: 'ok', latencyMs: Date.now() - dbStart };
       } catch (error: any) {
-        res.status(503).json({
-          status: 'error',
-          timestamp: new Date().toISOString(),
-        });
+        checks.database = { status: 'error', detail: error.message };
       }
+
+      // Redis check
+      try {
+        const redisStart = Date.now();
+        const redis = app.get('RedisService') as any;
+        if (redis && typeof redis.ping === 'function') {
+          await redis.ping();
+        }
+        checks.redis = { status: 'ok', latencyMs: Date.now() - redisStart };
+      } catch (error: any) {
+        checks.redis = { status: 'degraded', detail: error.message };
+      }
+
+      // Memory check
+      const mem = process.memoryUsage();
+      const memMB = Math.round(mem.heapUsed / 1024 / 1024);
+      checks.memory = {
+        status: memMB > 512 ? 'warning' : 'ok',
+        detail: `${memMB}MB heap used`,
+      };
+
+      const allOk = Object.values(checks).every(c => c.status === 'ok');
+      const statusCode = allOk ? 200 : 503;
+
+      res.status(statusCode).json({
+        status: allOk ? 'ok' : 'degraded',
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+        version: process.env.npm_package_version || '0.1.0',
+        checks,
+        responseTimeMs: Date.now() - start,
+      });
     });
 
     // Global exception filter — returns actual error messages instead of "Internal server error"

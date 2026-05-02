@@ -21,7 +21,7 @@ const STRATEGIES = [
   { value: 'AI_COUNCIL', label: 'مجلس الذكاء' },
 ];
 
-const SYMBOLS = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD', 'ADA/USD', 'EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD', 'AAPL', 'TSLA', 'NVDA'];
+const SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT', 'EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD', 'AAPL', 'TSLA', 'NVDA'];
 
 // Dynamic default dates
 const _today2 = new Date();
@@ -55,7 +55,7 @@ interface CompareResult {
 }
 
 export default function ComparisonPanel() {
-  const [symbol, setSymbol] = useState('BTC/USD');
+  const [symbol, setSymbol] = useState('BTC/USDT');
   const [strategy1, setStrategy1] = useState('MOMENTUM');
   const [strategy2, setStrategy2] = useState('MEAN_REVERSION');
   const [periodStart, setPeriodStart] = useState(_defaultStart2);

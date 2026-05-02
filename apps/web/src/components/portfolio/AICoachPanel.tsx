@@ -10,22 +10,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 
 /* ── Theme ── */
-const T = {
-  bg:      '#0B0E14',
-  card:    '#1A1D29',
-  card2:   '#0F1117',
-  blue:    '#0A84FF',
-  cyan:    '#00D4FF',
-  green:   '#00FFA3',
-  red:     '#FF4757',
-  amber:   '#FFB800',
-  purple:  '#B388FF',
-  text:    '#E6EBF5',
-  text2:   '#8090A8',
-  text3:   '#A0AFC3',
-  border:  'rgba(10,132,255,0.12)',
-  border2: 'rgba(10,132,255,0.20)',
-}
+import { T } from '@/lib/unified-tokens'
 
 /* ── Types ── */
 interface AdviceItem {
@@ -332,7 +317,7 @@ export default function AICoachPanel() {
 
       {/* ── Performance Rating Card ── */}
       <div style={{
-        background: `linear-gradient(135deg, ${T.card}, ${T.card2})`,
+        background: `linear-gradient(135deg, ${T.card}, ${T.bg2})`,
         border: `0.5px solid ${T.border2}`,
         borderRadius: 12, padding: '14px 16px',
         marginBottom: 12, position: 'relative', overflow: 'hidden',

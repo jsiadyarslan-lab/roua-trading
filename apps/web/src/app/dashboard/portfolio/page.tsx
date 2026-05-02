@@ -34,22 +34,7 @@ import { usePaperTradesStore, ClosedPaperTrade } from '@/hooks/usePaperTradesSto
 import { fetchPositionsUnified, fetchSummaryUnified, closePositionUnified } from '@/lib/api-fetch'
 
 /* ── Theme ── */
-const T = {
-  bg:      '#0B0E14',
-  bg2:     '#0F1117',
-  card:    '#1A1D29',
-  blue:    '#0A84FF',
-  cyan:    '#00D4FF',
-  green:   '#00FFA3',
-  red:     '#FF4757',
-  amber:   '#FFB800',
-  purple:  '#B388FF',
-  text:    '#E6EBF5',
-  text2:   '#8090A8',
-  text3:   '#A0AFC3',
-  border:  'rgba(10,132,255,0.12)',
-  border2: 'rgba(10,132,255,0.20)',
-}
+import { T } from '@/lib/unified-tokens'
 
 function fmt(n: number, decimals = 2) {
   return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
@@ -437,10 +422,10 @@ export default function PortfolioPage() {
   // ── Combined and Filtered History ──
   const combinedHistory = [
     ...closedPositions.map(p => ({
-	      id: p.id, symbol: p.symbol, side: p.side, type: 'MARKET',
-	      quantity: p.quantity, price: p.entryPrice, pnl: p.realizedPnl || 0,
-	      exitPrice: p.exitPrice,
-	      fee: null, feeCurrency: null, executedAt: p.closedAt || p.openedAt,
+              id: p.id, symbol: p.symbol, side: p.side, type: 'MARKET',
+              quantity: p.quantity, price: p.entryPrice, pnl: p.realizedPnl || 0,
+              exitPrice: p.exitPrice,
+              fee: null, feeCurrency: null, executedAt: p.closedAt || p.openedAt,
       openedAt: p.openedAt
     })),
     ...closedPaperTrades.map(t => ({

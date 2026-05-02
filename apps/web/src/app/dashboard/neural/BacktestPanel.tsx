@@ -28,7 +28,7 @@ const STRATEGIES = [
 
 const SYMBOLS = [
   // Crypto
-  'BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD', 'ADA/USD',
+  'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT',
   // Forex
   'EUR/USD', 'GBP/USD', 'USD/JPY',
   // Commodities
@@ -64,7 +64,7 @@ interface BacktestResult {
   aiInsights: string;
 }
 
-const ALL_SYMBOLS = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD', 'ADA/USD', 'EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD', 'AAPL', 'TSLA', 'NVDA'];
+const ALL_SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT', 'EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD', 'AAPL', 'TSLA', 'NVDA'];
 
 // Dynamic default dates: 1 year ago → today
 const today = new Date();
@@ -73,7 +73,7 @@ const defaultEnd = today.toISOString().split('T')[0];
 const defaultStart = oneYearAgo.toISOString().split('T')[0];
 
 export default function BacktestPanel() {
-  const [symbol, setSymbol] = useState('BTC/USD');
+  const [symbol, setSymbol] = useState('BTC/USDT');
   const [strategy, setStrategy] = useState('MOMENTUM');
   const [periodStart, setPeriodStart] = useState(defaultStart);
   const [periodEnd, setPeriodEnd] = useState(defaultEnd);

@@ -161,7 +161,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
         {TABS.map(t => {
           const isActive = active === t.id
           const Icon = t.icon
-          const alert = alerts[t.id as TabId]
+          const alert = alerts[t.id as TabId] ?? null
           const hasAlert = alert !== null && alert.count > 0
           const alertCount = alert?.count || 0
           const alertColor = alert?.color || t.accent

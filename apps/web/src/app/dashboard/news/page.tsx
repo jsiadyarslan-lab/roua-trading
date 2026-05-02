@@ -560,7 +560,7 @@ function ReportsPageContent() {
         ) : (
           /* ══════════════════════════════════════════
               REPORTS FEED
-          ══════════════════════════════════════════ */}
+          ═══════════════════════════════════════════ */
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} className="custom-scrollbar">
             {filteredReports.map((article, idx) => (
               <ReportCard

@@ -2,7 +2,7 @@
 // Roua Trading (رؤى) — Autonomous Trader Agent Service
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -94,9 +94,15 @@ export class AutonomousTraderAgentService {
     }
 
     // Validate credential
-    const credential = await this.prisma.exchangeCredential.findFirst({
-      where: { id: dto.credentialId, userId, isValid: true },
-    });
+    let credential: any;
+    try {
+      credential = await this.prisma.exchangeCredential.findFirst({
+        where: { id: dto.credentialId, userId, isValid: true },
+      });
+    } catch (error: any) {
+      this.logger.error(`Database error looking up credential: ${error.message}`);
+      throw new ServiceUnavailableException('خطأ في قاعدة البيانات — يرجى المحاولة لاحقاً');
+    }
 
     if (!credential) {
       throw new NotFoundException('بيانات الاعتماد غير صالحة أو غير موجودة');
@@ -112,14 +118,14 @@ export class AutonomousTraderAgentService {
       throw new BadRequestException('مفتاح API لا يملك صلاحية التداول');
     }
 
-    // Build agent config
+    // Build agent config (with NaN protection)
     const config: AgentConfig = {
       userId,
       strategy: dto.strategy,
       enabled: true,
-      maxPositionSizePercent: dto.maxPositionSizePercent ?? parseFloat(this.configService.get('MAX_POSITION_SIZE_PERCENT', '2')),
-      maxDailyLossPercent: dto.maxDailyLossPercent ?? parseFloat(this.configService.get('MAX_DAILY_LOSS_PERCENT', '5')),
-      maxOpenPositions: dto.maxOpenPositions ?? parseInt(this.configService.get('MAX_OPEN_POSITIONS', '5'), 10),
+      maxPositionSizePercent: dto.maxPositionSizePercent ?? (parseFloat(this.configService.get('MAX_POSITION_SIZE_PERCENT', '2')) || 2),
+      maxDailyLossPercent: dto.maxDailyLossPercent ?? (parseFloat(this.configService.get('MAX_DAILY_LOSS_PERCENT', '5')) || 5),
+      maxOpenPositions: dto.maxOpenPositions ?? (parseInt(this.configService.get('MAX_OPEN_POSITIONS', '5'), 10) || 5),
       riskPerTradePercent: dto.riskPerTradePercent ?? 1.5,
       strategyParams: dto.strategyParams ?? this._getDefaultStrategyParams(dto.strategy),
       symbols: dto.symbols ?? this.DEFAULT_SYMBOLS,

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bullmq';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { RedisModule } from './common/redis/redis.module';
 import { AuthModule } from './auth/auth.module';
@@ -72,6 +73,9 @@ import { ContentAgentModule } from './agents/content/content-agent.module';
         };
       },
     }),
+
+    // ── Scheduling (required for @Cron decorators in agents) ──
+    ScheduleModule.forRoot(),
 
     // ── Infrastructure ──
     PrismaModule,

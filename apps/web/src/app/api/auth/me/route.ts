@@ -194,6 +194,128 @@ export async function GET(request: NextRequest) {
 }
 
 /**
+ * POST /api/auth/me — Email login flow (secure alternative to GET ?email=xxx)
+ *
+ * SECURITY: Uses POST instead of GET to prevent email leaking in
+ * URL query parameters, server access logs, browser history, and referrer headers.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const dbReady = await ensureDbReady()
+    if (!dbReady) {
+      return NextResponse.json({
+        authenticated: false,
+        error: 'AUTH_SERVICE_UNAVAILABLE',
+      })
+    }
+
+    const body = await request.json().catch(() => ({}))
+    const requestedEmail = body.email as string | undefined
+
+    if (!requestedEmail) {
+      return NextResponse.json({
+        authenticated: false,
+        error: 'MISSING_EMAIL',
+      })
+    }
+
+    // Block guest email
+    if (requestedEmail === GUEST_EMAIL) {
+      return NextResponse.json({
+        authenticated: false,
+        error: 'GUEST_LOGIN_BLOCKED',
+      })
+    }
+
+    // Validate email format
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(requestedEmail)) {
+      return NextResponse.json({
+        authenticated: false,
+        error: 'INVALID_EMAIL',
+      })
+    }
+
+    // SECURITY: Only allow login for existing verified users.
+    const user = await db.user.findUnique({
+      where: { email: requestedEmail },
+      include: {
+        accounts: { take: 1 },
+      },
+    }).catch(() => null)
+
+    if (!user) {
+      return NextResponse.json({
+        authenticated: false,
+        error: 'USER_NOT_FOUND',
+        message: 'هذا البريد غير مسجل. استخدم رمز التحقق للتسجيل أولاً.',
+      })
+    }
+
+    // Check if user has verified their email
+    let hasOtpVerification = false
+    try {
+      const otpRecord = await db.verificationToken.findFirst({
+        where: { identifier: requestedEmail },
+      })
+      hasOtpVerification = !!otpRecord
+    } catch { /* Ignore DB errors */ }
+
+    const isVerified = !!(user.passkeyId || user.accounts.length > 0 || hasOtpVerification)
+
+    if (!isVerified) {
+      return NextResponse.json({
+        authenticated: false,
+        error: 'EMAIL_NOT_VERIFIED',
+        message: 'يرجى التحقق من بريدك الإلكتروني عبر رمز التحقق أولاً.',
+      })
+    }
+
+    // Create session for verified user
+    const newToken = crypto.randomBytes(32).toString('hex')
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
+
+    try {
+      await db.session.create({
+        data: { userId: user.id, token: newToken, expiresAt },
+      })
+    } catch {
+      return NextResponse.json({
+        authenticated: false,
+        error: 'SESSION_CREATION_FAILED',
+      })
+    }
+
+    const response = NextResponse.json({
+      authenticated: true,
+      isGuest: false,
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        tier: user.tier,
+        isGuest: false,
+      },
+    })
+
+    response.cookies.set('roua_session', newToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: '/',
+    })
+
+    return response
+  } catch (error: any) {
+    console.error('[auth/me POST] Error:', error?.message || error)
+    return NextResponse.json({
+      authenticated: false,
+      error: 'AUTH_ERROR',
+    })
+  }
+}
+
+/**
  * Logout: DELETE /api/auth/me
  */
 export async function DELETE(request: NextRequest) {

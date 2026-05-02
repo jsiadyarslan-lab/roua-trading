@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
-const SITE_URL = "https://roua-trading-production.up.railway.app";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://roua-trading-production.up.railway.app";
 
 export const metadata: Metadata = {
   title: "رؤى | منصة ربط الحسابات الذكية",
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  maximumScale: 5,
   viewportFit: "cover",
   themeColor: "#0B0E14",
 };

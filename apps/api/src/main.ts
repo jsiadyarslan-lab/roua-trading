@@ -36,7 +36,9 @@ async function bootstrap() {
     // Explicit X-Content-Type-Options header (defense-in-depth, even though Helmet may set it)
     app.use((req: any, res: any, next: any) => {
       res.setHeader('X-Content-Type-Options', 'nosniff');
-      res.setHeader('X-XSS-Protection', '1; mode=block');
+      // X-XSS-Protection disabled — modern CSP is the preferred defense
+      // Setting '1; mode=block' is deprecated and can introduce vulnerabilities
+      res.setHeader('X-XSS-Protection', '0');
       next();
     });
 

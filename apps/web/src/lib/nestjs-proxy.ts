@@ -79,7 +79,7 @@ async function forceCreateSession(): Promise<{ token: string } | null> {
 
     // Create session
     const newToken = crypto.randomBytes(32).toString('hex')
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days (matching auth controller)
 
     await db.session.create({
       data: { userId: guestUser.id, token: newToken, expiresAt },
@@ -138,12 +138,12 @@ async function ensureSession(request: NextRequest): Promise<{
     return { token: nestjsSession.token, cookieAlreadySet: false }
   }
 
-  // ── Last resort: generate a token and try anyway ──
-  // Even if we can't create a DB session, the NestJS AuthGuard
-  // will auto-authenticate, so the request will still work
-  const fallbackToken = existingToken || crypto.randomBytes(32).toString('hex')
-  console.warn('[nestjs-proxy] Could not create DB session — using fallback token')
-  return { token: fallbackToken, cookieAlreadySet: !!existingToken }
+  // ── Last resort: return 502 error instead of creating phantom tokens ──
+  // Previously this generated a random token with no DB session, causing
+  // orphaned sessions and auth bypass. Now we fail explicitly so the
+  // frontend can handle the error appropriately.
+  console.error('[nestjs-proxy] Could not create any session — DB and NestJS unavailable')
+  return { token: '', cookieAlreadySet: false }
 }
 
 /**
@@ -151,6 +151,19 @@ async function ensureSession(request: NextRequest): Promise<{
  */
 export async function proxyToNestJS(request: NextRequest, method: string): Promise<NextResponse> {
   const session = await ensureSession(request)
+
+  // If no session could be created, return 502 immediately
+  if (!session.token) {
+    return NextResponse.json(
+      {
+        success: false,
+        offline: true,
+        error: 'الخدمة غير متاحة حالياً — لا يمكن إنشاء جلسة',
+      },
+      { status: 502 },
+    )
+  }
+
   return proxyWithToken(request, method, session.token, !session.cookieAlreadySet)
 }
 
@@ -234,7 +247,7 @@ async function proxyWithToken(
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 30 * 24 * 60 * 60,
+        maxAge: 7 * 24 * 60 * 60, // 7 days (matching guest session TTL)
         path: '/',
       })
     }

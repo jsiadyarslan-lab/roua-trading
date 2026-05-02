@@ -18,15 +18,12 @@ export async function GET(req: NextRequest) {
   const results: Record<string, any> = {
     timestamp: new Date().toISOString(),
     keys: {
-      groqKeyLength: (process.env.GROQ_API_KEY || '').length,
-      geminiKeyLength: (process.env.GOOGLE_AI_STUDIO_API_KEY || '').length,
-      glmKeyLength: (process.env.GLM_API_KEY || '').length,
-      hfKeyLength: (process.env.HUGGINGFACE_API_KEY || '').length,
-      ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'not set',
-      ollamaKeyLength: (process.env.OLLAMA_API_KEY || '').length,
-      awsAccessKeyLength: (process.env.AWS_ACCESS_KEY_ID || '').length,
-      awsSecretKeyLength: (process.env.AWS_SECRET_ACCESS_KEY || '').length,
-      awsRegion: process.env.AWS_REGION || 'not set',
+      groq: !!(process.env.GROQ_API_KEY),
+      gemini: !!(process.env.GOOGLE_AI_STUDIO_API_KEY),
+      glm: !!(process.env.GLM_API_KEY),
+      huggingface: !!(process.env.HUGGINGFACE_API_KEY),
+      ollama: !!(process.env.OLLAMA_API_KEY),
+      aws: !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY),
     },
     tests: {},
   }

@@ -282,7 +282,7 @@ export class AuthService {
           publicKey: user.passkeyPub
             ? Uint8Array.from(atob(user.passkeyPub), (c) => c.charCodeAt(0))
             : new Uint8Array(),
-          counter: 0,
+          counter: 0, // TODO: Track actual counter from registration to detect cloned authenticators
           transports: ['internal' as const],
         },
       });
@@ -329,7 +329,8 @@ export class AuthService {
   }
 
   /**
-   * Validate an existing session
+   * Validate an existing session with sliding expiration.
+   * If the session has less than half its TTL remaining, extend it.
    */
   async validateSession(token: string) {
     const session = await this.prisma.session.findUnique({
@@ -342,6 +343,17 @@ export class AuthService {
         await this.prisma.session.delete({ where: { id: session.id } });
       }
       return { authenticated: false };
+    }
+
+    // Sliding session: if less than half the TTL remains, extend the session
+    const halfTtl = this.sessionTtlMs / 2;
+    const remainingMs = session.expiresAt.getTime() - Date.now();
+    if (remainingMs < halfTtl) {
+      const newExpiresAt = new Date(Date.now() + this.sessionTtlMs);
+      await this.prisma.session.update({
+        where: { id: session.id },
+        data: { expiresAt: newExpiresAt },
+      }).catch(() => {}); // Non-critical — session still valid until original expiry
     }
 
     return {

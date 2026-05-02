@@ -101,6 +101,11 @@ if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       useAuthStore.setState({ user: null, isAuthenticated: false, isGuest: true, loading: false })
     }
   }
+  // Clean up BroadcastChannel on page unload to prevent memory leaks
+  window.addEventListener('beforeunload', () => {
+    _authChannel?.close()
+    _authChannel = null
+  })
 }
 
 // ── Store ──
@@ -141,7 +146,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   loginWithEmail: async (email: string) => {
     try {
-      const res = await fetch(`/api/auth/me?email=${encodeURIComponent(email)}`)
+      // SECURITY: Use POST instead of GET to prevent email leaking in URL/logs/history
+      const res = await fetch('/api/auth/me', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
       if (res.ok) {
         const data = await res.json()
         if (data.authenticated && data.user && !data.isGuest) {

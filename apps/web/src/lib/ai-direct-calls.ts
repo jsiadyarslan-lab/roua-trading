@@ -236,8 +236,9 @@ async function callGemini(prompt: string): Promise<DirectAIResponse> {
   if (!apiKey) return { model: 'Gemini/unavailable', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key (tried GOOGLE_AI_STUDIO_API_KEY and GEMINI_API_KEY)' }
 
   const start = Date.now()
-  // FIX: Model fallback chain — updated model names to match current Google AI Studio availability
-  const modelCandidates = ['gemini-2.5-flash-preview-04-17', 'gemini-2.0-flash', 'gemini-2.0-flash-001', 'gemini-1.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-8b']
+  // FIX: Model fallback chain — updated May 2025 to use current stable models.
+  // Models with higher free-tier quotas listed first to reduce 429 errors.
+  const modelCandidates = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash-001', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.5-flash-preview-04-17']
   
   for (const model of modelCandidates) {
     try {
@@ -253,6 +254,12 @@ async function callGemini(prompt: string): Promise<DirectAIResponse> {
 
       if (!res.ok) {
         const errBody = await res.text().catch(() => '')
+        // FIX: 429 can mean rate-limit OR quota exhaustion — try next model!
+        // Different Gemini models may have separate quota pools.
+        // Previously returned immediately on 429, causing premature failure.
+        if (res.status === 429) {
+          continue // Try next model — different models have separate quotas
+        }
         // 404 = model not available, try next
         if (res.status === 404) {
           continue
@@ -268,7 +275,7 @@ async function callGemini(prompt: string): Promise<DirectAIResponse> {
     }
   }
   
-  return { model: 'Gemini/unavailable', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: 'All Gemini models unavailable (404)' }
+  return { model: 'Gemini/unavailable', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: 'All Gemini models unavailable (quota exhausted or all 429)' }
 }
 
 async function callGLM(prompt: string): Promise<DirectAIResponse> {
@@ -609,11 +616,15 @@ async function callBedrock(prompt: string): Promise<DirectAIResponse> {
   const start = Date.now()
   // FIX: Model fallback chain — try cross-region inference IDs first (more available),
   // then direct model IDs, then cheaper models.
+  // FIX: Increased Bedrock timeout — Bedrock takes 12+ seconds for Claude Sonnet.
+  // 15s was too tight, causing timeout failures in the council.
   const modelCandidates = [
     'us.anthropic.claude-3-5-sonnet-20241022-v2:0',  // Cross-region inference (more available)
     'us.anthropic.claude-3-haiku-20240307-v1:0',      // Cross-region Haiku (faster/cheaper)
     'anthropic.claude-3-5-sonnet-20241022-v2:0',      // Direct model ID
     'anthropic.claude-3-haiku-20240307-v1:0',         // Direct Haiku
+    'amazon.nova-micro-v1:0',                          // Amazon Nova Micro — fast, cheap
+    'amazon.nova-lite-v1:0',                           // Amazon Nova Lite — newer than Titan
     'amazon.titan-text-premier-v1:0',                  // Amazon Titan — usually available
   ]
 
@@ -654,7 +665,7 @@ async function callBedrock(prompt: string): Promise<DirectAIResponse> {
         method: 'POST',
         headers,
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(MODEL_TIMEOUT),
+        signal: AbortSignal.timeout(30_000), // FIX: 30s timeout for Bedrock (was 15s, too short)
       })
 
       if (!res.ok) {

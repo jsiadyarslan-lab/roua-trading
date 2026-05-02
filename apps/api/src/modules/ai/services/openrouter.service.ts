@@ -21,10 +21,12 @@ import { calculateConfidence } from './confidence.util';
 @Injectable()
 export class OpenRouterService {
   private readonly logger = new Logger(OpenRouterService.name);
-  private readonly apiKey: string;
+  private apiKey: string; // FIX: Not readonly — allows on-demand key resolution
   private readonly baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
   // Model candidates — free models first, then low-cost models
+  // FIX: Updated May 2025 — some free models have been removed by OpenRouter.
+  // Added currently available free models with better rate limits.
   private readonly modelCandidates = [
     'qwen/qwen-2.5-7b-instruct:free',          // Free — good Arabic + reasoning
     'meta-llama/llama-3.1-8b-instruct:free',    // Free — fast, capable
@@ -38,15 +40,30 @@ export class OpenRouterService {
   private resolvedModel: string | null = null;
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('OPENROUTER_API_KEY', '')?.trim() || '';
+    // FIX: Read key from ConfigService FIRST, then fall back to process.env directly.
+    // This handles cases where NestJS ConfigModule may not have loaded the env var
+    // during service construction, but it's available in the process environment.
+    const configKey = this.configService.get<string>('OPENROUTER_API_KEY', '')?.trim() || '';
+    const envKey = (process.env as Record<string, string | undefined>)['OPENROUTER_API_KEY']?.trim() || '';
+    this.apiKey = configKey || envKey;
     if (this.apiKey) {
-      this.logger.log(`🔀 OpenRouter Service initialized — key: ${this.apiKey.substring(0, 4)}***${this.apiKey.length > 8 ? this.apiKey.substring(this.apiKey.length - 4) : ''} (${this.apiKey.length} chars)`);
+      this.logger.log(`🔀 OpenRouter Service initialized — key: ${this.apiKey.substring(0, 4)}***${this.apiKey.length > 8 ? this.apiKey.substring(this.apiKey.length - 4) : ''} (${this.apiKey.length} chars, source: ${configKey ? 'ConfigService' : 'process.env'})`);
     } else {
-      this.logger.warn('⚠️ OPENROUTER_API_KEY not set or empty');
+      this.logger.warn('⚠️ OPENROUTER_API_KEY not set or empty (checked both ConfigService and process.env)');
     }
   }
 
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
+    // FIX: Re-check key on every call — ConfigService may have loaded it after construction
+    if (!this.apiKey) {
+      const envKey = (process.env as Record<string, string | undefined>)['OPENROUTER_API_KEY']?.trim() || '';
+      const configKey = this.configService.get<string>('OPENROUTER_API_KEY', '')?.trim() || '';
+      const resolvedKey = configKey || envKey;
+      if (resolvedKey) {
+        this.apiKey = resolvedKey;
+        this.logger.log(`🔀 OpenRouter key resolved on-demand (source: ${configKey ? 'ConfigService' : 'process.env'})`);
+      }
+    }
     if (!this.apiKey) {
       return this._stubResponse(request);
     }

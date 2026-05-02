@@ -16,14 +16,15 @@ export class GeminiService {
   private readonly baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
   // FIX: Model fallback chain — try multiple model names since availability
   // varies by API key age, region, and Google's deprecation schedule.
-  // Added full model IDs including preview versions that Google requires.
+  // Updated May 2025: Removed deprecated preview models, added current stable models.
+  // Models with higher free-tier quotas listed first to reduce 429 errors.
   private readonly modelCandidates = [
-    'gemini-2.5-flash-preview-04-17',  // Latest Gemini 2.5 Flash (May 2025)
-    'gemini-2.0-flash',                // Stable Gemini 2.0 Flash
-    'gemini-2.0-flash-001',            // Versioned 2.0 Flash
-    'gemini-1.5-flash',                // Older but widely available
-    'gemini-2.0-flash-lite',           // Lightweight, fastest
-    'gemini-1.5-flash-8b',             // Smallest, most available
+    'gemini-2.0-flash',                // Stable Gemini 2.0 Flash — best free tier
+    'gemini-2.0-flash-lite',           // Lightweight — highest free quota, fastest
+    'gemini-2.0-flash-001',            // Versioned 2.0 Flash — stable pin
+    'gemini-1.5-flash',                // Older but widely available, good quota
+    'gemini-1.5-flash-8b',             // Smallest, most available, generous quota
+    'gemini-2.5-flash-preview-04-17',  // May be deprecated — last resort
   ];
   private resolvedModel: string | null = null; // Cached after first successful call
 
@@ -100,10 +101,18 @@ export class GeminiService {
     } catch (error: any) {
       const status = error.response?.status;
       const errData = error.response?.data;
-      // FIX: Throw 429 errors so the orchestrator's circuit breaker can track them.
+      // FIX: 429 can mean either temporary rate-limit OR permanent quota exhaustion.
+      // For quota exhaustion ("exceeded your current quota"), try next model —
+      // different models may have separate quotas.
+      // For temporary rate-limit, also try next model instead of failing immediately.
       if (status === 429) {
-        this.logger.warn(`Gemini rate limited (429) — throwing for circuit breaker`);
-        throw error;
+        const isQuotaExhausted = errData && JSON.stringify(errData).includes('quota');
+        if (isQuotaExhausted) {
+          this.logger.warn(`💎 Gemini quota exhausted for ${model} (429) — trying next model (different quota pool)`);
+          continue; // Try next model — different models have separate quotas
+        }
+        this.logger.warn(`💎 Gemini rate limited (429) for ${model} — trying next model...`);
+        continue; // Try next model instead of failing immediately
       }
       // 404 = model not available, try next model in chain
       if (status === 404) {

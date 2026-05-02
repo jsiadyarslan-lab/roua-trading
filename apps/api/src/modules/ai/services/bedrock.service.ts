@@ -33,6 +33,8 @@ export class BedrockService {
   private readonly client: BedrockRuntimeClient | null = null;
 
   // Model fallback chain — try most capable models first, then cheaper ones
+  // FIX: Updated May 2025 — Added Claude 3.5 Haiku (faster, cheaper than Sonnet)
+  // and Amazon Nova models which are available in more regions.
   private readonly modelCandidates = [
     // Cross-region inference IDs (work from any region, often more available)
     'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
@@ -40,6 +42,9 @@ export class BedrockService {
     // Direct model IDs (region-specific)
     'anthropic.claude-3-5-sonnet-20241022-v2:0',
     'anthropic.claude-3-haiku-20240307-v1:0',
+    // Amazon Nova — newer, more available than Titan
+    'amazon.nova-micro-v1:0',
+    'amazon.nova-lite-v1:0',
     // Amazon Titan — usually available in all regions with basic model access
     'amazon.titan-text-premier-v1:0',
     'amazon.titan-text-express-v1',

@@ -413,7 +413,7 @@
   transform: scale(0.97);
 }
 
-/* ── Desktop Chart Trade Panel (overlay) ── */
+/* ── Desktop Chart Trade Panel (overlay — expanded state) ── */
 .chart-trade-overlay {
   position: absolute;
   top: 10px;
@@ -444,27 +444,4 @@
   padding: 10px 14px;
   border-bottom: 1px solid rgba(0,212,255,0.08);
   background: linear-gradient(90deg, rgba(0,212,255,0.06), transparent 60%);
-}
-
-.chart-trade-overlay__toggle {
-  width: 34px;
-  height: 34px;
-  border-radius: 10;
-  background: linear-gradient(135deg, #00FFC6, #0A84FF);
-  border: none;
-  color: #fff;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 0 12px rgba(0,255,198,0.3), 0 0 4px rgba(10,132,255,0.2);
-  transition: transform 0.12s ease, box-shadow 0.2s ease;
-}
-
-.chart-trade-overlay__toggle:hover {
-  box-shadow: 0 0 20px rgba(0,255,198,0.45), 0 0 8px rgba(10,132,255,0.3);
-}
-
-.chart-trade-overlay__toggle:active {
-  transform: scale(0.92);
 }

@@ -1126,8 +1126,104 @@ export default function DashboardPage() {
                   onToggleChartFullscreen={toggleChartFullscreen}
                 />
               </div>
-              {/* Desktop Chart Trade Panel — inline overlay with QuickExecutionMini */}
-              {tradeDialogOpen ? (
+              {/* ── Desktop Chart Legend Trade Buttons (TradingView-style) ── */}
+              {!tradeDialogOpen ? (
+                <div style={{
+                  position: 'absolute',
+                  top: 10,
+                  left: 10,
+                  zIndex: 20,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '4px 8px',
+                  borderRadius: 8,
+                  background: 'rgba(11,14,20,0.85)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+                }}>
+                  {/* Symbol label in legend */}
+                  <span style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: '#00D4FF',
+                    letterSpacing: '0.03em',
+                    padding: '0 4px',
+                  }}>{selectedSymbol}</span>
+                  <span style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: '#8B92A8',
+                    borderRight: '1px solid rgba(255,255,255,0.1)',
+                    paddingRight: 8,
+                    marginRight: 2,
+                  }}>{formatQuotePrice(currentPrice)}</span>
+                  {/* BUY button — compact TradingView legend style */}
+                  <button
+                    type="button"
+                    onClick={() => setTradeDialogOpen(true)}
+                    title="شراء"
+                    aria-label="فتح نافذة الشراء"
+                    style={{
+                      padding: '4px 12px',
+                      borderRadius: 6,
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #00FFA3, #10B981)',
+                      color: '#fff',
+                      fontFamily: "'Cairo', sans-serif",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 3,
+                      boxShadow: '0 0 10px rgba(0,255,163,0.2)',
+                      transition: 'transform 0.1s ease, box-shadow 0.2s ease',
+                    }}
+                    onMouseDown={e => e.currentTarget.style.transform = 'scale(0.94)'}
+                    onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 16px rgba(0,255,163,0.35)' }}
+                    onMouseOut={e => { e.currentTarget.style.boxShadow = '0 0 10px rgba(0,255,163,0.2)' }}
+                  >
+                    <span style={{ fontSize: 9 }}>▲</span> شراء
+                  </button>
+                  {/* SELL button — compact TradingView legend style */}
+                  <button
+                    type="button"
+                    onClick={() => setTradeDialogOpen(true)}
+                    title="بيع"
+                    aria-label="فتح نافذة البيع"
+                    style={{
+                      padding: '4px 12px',
+                      borderRadius: 6,
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #FF4757, #EF4444)',
+                      color: '#fff',
+                      fontFamily: "'Cairo', sans-serif",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 3,
+                      boxShadow: '0 0 10px rgba(255,71,87,0.2)',
+                      transition: 'transform 0.1s ease, box-shadow 0.2s ease',
+                    }}
+                    onMouseDown={e => e.currentTarget.style.transform = 'scale(0.94)'}
+                    onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 16px rgba(255,71,87,0.35)' }}
+                    onMouseOut={e => { e.currentTarget.style.boxShadow = '0 0 10px rgba(255,71,87,0.2)' }}
+                  >
+                    <span style={{ fontSize: 9 }}>▼</span> بيع
+                  </button>
+                </div>
+              ) : (
+                /* Expanded trade panel overlay */
                 <div className="chart-trade-overlay">
                   <div className="chart-trade-overlay__header">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1170,47 +1266,6 @@ export default function DashboardPage() {
                     />
                   </div>
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setTradeDialogOpen(true)}
-                  title="تنفيذ الأوامر"
-                  aria-label="فتح نافذة التنفيذ"
-                  className="chart-trade-overlay__toggle"
-                  style={{
-                    position: 'absolute',
-                    top: 10,
-                    left: 10,
-                    zIndex: 20,
-                    width: 34,
-                    height: 34,
-                    borderRadius: 10,
-                    background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
-                    border: 'none',
-                    color: '#fff',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6,
-                    fontFamily: "'Cairo', sans-serif",
-                    fontSize: 12,
-                    fontWeight: 800,
-                    boxShadow: '0 0 16px rgba(0,255,198,0.25), 0 2px 8px rgba(10,132,255,0.2)',
-                    transition: 'transform 0.12s ease, box-shadow 0.2s ease',
-                  }}
-                  onMouseDown={e => e.currentTarget.style.transform = 'scale(0.92)'}
-                  onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-                  onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.boxShadow = '0 0 24px rgba(0,255,198,0.4), 0 4px 12px rgba(10,132,255,0.3)';
-                  }}
-                  onMouseOut={e => {
-                    e.currentTarget.style.boxShadow = '0 0 16px rgba(0,255,198,0.25), 0 2px 8px rgba(10,132,255,0.2)';
-                  }}
-                >
-                  <Zap size={16} fill="white" />
-                </button>
               )}
             </div>
 

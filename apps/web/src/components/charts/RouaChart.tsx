@@ -33,8 +33,6 @@ interface RouaChartProps {
   onExpand?: (() => void) | null;
   isChartFullscreen?: boolean;
   onToggleChartFullscreen?: () => void;
-  hideToolbar?: boolean;
-  hideChartOverlay?: boolean;
 }
 
 export default function RouaChart({
@@ -44,8 +42,6 @@ export default function RouaChart({
   onExpand = null,
   isChartFullscreen = false,
   onToggleChartFullscreen,
-  hideToolbar = false,
-  hideChartOverlay = false,
 }: RouaChartProps) {
   const { selectedSymbol, timeframe, setTimeframe } = useSymbolStore();
   const [crosshairData, setCrosshairData] = useState<CrosshairData | null>(null);
@@ -597,7 +593,7 @@ export default function RouaChart({
       className="roua-chart-root"
     >
       {/* ── TOOLBAR ── */}
-      {!hideToolbar && <ChartToolbar
+      <ChartToolbar
         symbol={selectedSymbol}
         timeframe={timeframe}
         chartType={chart.settings.type}
@@ -631,12 +627,12 @@ export default function RouaChart({
         showAIPanel={showAIPanel}
         showChartTrading={showChartTrading}
         showWatchlist={showWatchlist}
-      />}
+      />
 
       {/* ── CHART AREA ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
-        {/* OHLC Overlay — hidden on mobile when hideChartOverlay (page has its own header with pair/price) */}
-        {!hideChartOverlay && <CrosshairOverlay
+        {/* OHLC Overlay */}
+        <CrosshairOverlay
           symbol={selectedSymbol}
           currentPrice={currentPrice}
           crosshairData={crosshairData}
@@ -647,8 +643,8 @@ export default function RouaChart({
           compact={compact}
           mobile={mobile}
           candles={candlesRef.current}
-          showCandleTimer={chart.settings.showCandleTimer && !hideChartOverlay}
-        />}
+          showCandleTimer={chart.settings.showCandleTimer}
+        />
 
         {/* Chart Wrapper — contains canvas + overlays */}
         <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
@@ -762,9 +758,9 @@ export default function RouaChart({
               />
             )}
 
-          {/* ── Quick Trade Buttons (top-left) ── */}
-          {currentPrice && (
-            <div className="absolute top-3 left-3 z-10 flex gap-2" style={{ pointerEvents: 'auto' }}>
+          {/* ── Quick Trade Buttons (top-left, simple) ── */}
+          {!mobile && currentPrice && (
+            <div className="absolute top-3 left-3 z-10 flex gap-2">
               <button
                 onClick={() => {
                   const { addTrade } = usePaperTradesStore.getState();

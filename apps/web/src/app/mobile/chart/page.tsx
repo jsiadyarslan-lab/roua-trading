@@ -458,7 +458,6 @@ export default function MobileChartPage() {
           mobile={true}
           compact={true}
           hideToolbar={true}
-          hideChartOverlay={true}
         />
 
         {/* ── Floating Timeframe Buttons — Top-Left ── */}

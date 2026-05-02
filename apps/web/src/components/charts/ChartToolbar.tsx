@@ -368,7 +368,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             </svg>
           </button>
           {showExportPanel && (
-            <div style={{ ...panelStyle, right: 0, minWidth: 160 }}>
+            <div style={{ ...panelStyle, left: 0, minWidth: 160 }}>
               {[
                 { label: '📐 أدوات الرسم', action: onToggleDrawings },
                 { label: '🗑️ مسح الرسومات', action: onClearDrawings },

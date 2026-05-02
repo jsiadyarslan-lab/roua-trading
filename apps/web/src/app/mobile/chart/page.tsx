@@ -11,9 +11,8 @@ import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { ensureAuth } from '@/lib/api-fetch'
 import { 
-  ChevronRight, TrendingUp, TrendingDown, Zap, X, 
-  Target, ShieldAlert, Loader2, CheckCircle, AlertCircle,
-  Minus, Plus, Clock, Wallet, ArrowUpDown
+  X, Target, ShieldAlert, Loader2, CheckCircle, AlertCircle,
+  Minus, Plus, Wallet
 } from 'lucide-react'
 import SlideToConfirm from '@/components/mobile/SlideToConfirm'
 
@@ -316,200 +315,53 @@ export default function MobileChartPage() {
   return (
     <div style={{ position: 'absolute', inset: 0, paddingBottom: 80, background: '#000000', display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 40 }}>
 
-      {/* ── Minimalist Header ── */}
-      <div style={{
-        paddingTop: 'calc(env(safe-area-inset-top) + 8px)',
-        paddingLeft: 12, paddingRight: 12, paddingBottom: 8,
-        background: 'rgba(11, 14, 20, 0.9)',
-        backdropFilter: 'blur(30px)',
-        borderBottom: '0.5px solid rgba(255,255,255,0.1)',
-        flexShrink: 0,
-        zIndex: 50,
-      }}>
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.back()} style={{
-            width: 32, height: 32, borderRadius: 10,
-            background: 'rgba(255,255,255,0.06)',
-            border: 'none',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          }}>
-            <ChevronRight size={20} color="#FFFFFF" />
-          </button>
-
-          {/* Live Price Display */}
-          <div style={{ flexShrink: 0, minWidth: 100 }}>
-            <div className="flex items-center gap-1.5">
-              <span style={{ fontSize: 16, fontWeight: 900, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>
-                {fmtPrice(livePrice)}
-              </span>
-              {changePercent !== 0 && (
-                <span style={{
-                  fontSize: 10, fontWeight: 800, padding: '1px 5px', borderRadius: 4,
-                  background: changePercent >= 0 ? 'rgba(50,215,75,0.15)' : 'rgba(255,69,58,0.15)',
-                  color: changePercent >= 0 ? C.success : C.danger,
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}>
-                  {changePercent >= 0 ? '+' : ''}{changePercent.toFixed(2)}%
-                </span>
-              )}
-            </div>
-            <span style={{ fontSize: 10, color: C.text2, fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol}</span>
-          </div>
-
-          {/* Pair Tabs */}
-          <div style={{ overflowX: 'auto', flex: 1 }} className="scrollbar-hide">
-            <div style={{ display: 'flex', gap: 4, width: 'max-content', direction: 'ltr' }}>
-              {PAIRS.map(p => (
-                <button key={p} onClick={() => setSelectedSymbol(p)}
-                  style={{
-                    padding: '4px 10px', borderRadius: 6, border: 'none',
-                    background: selectedSymbol === p ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.04)',
-                    color: selectedSymbol === p ? C.accent : 'rgba(255,255,255,0.35)',
-                    fontSize: 10, fontWeight: selectedSymbol === p ? 800 : 600,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    whiteSpace: 'nowrap',
-                    transition: '0.2s',
-                  }}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ── Spread + Account + P&L Bar ── */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, gap: 8 }}>
-          {/* Spread */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <ArrowUpDown size={10} color={C.text2} />
-            <span style={{ fontSize: 9, color: C.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>سبريد</span>
-            <span style={{ fontSize: 9, color: C.accent, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
-              {livePrice ? (livePrice > 1000 ? '0.01%' : '0.05%') : '—'}
-            </span>
-          </div>
-
-          {/* P&L */}
-          {positions.length > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: 9, color: C.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>P&L</span>
-              <span style={{ 
-                fontSize: 10, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
-                color: totalPnl >= 0 ? C.success : C.danger,
-              }}>
-                {totalPnl >= 0 ? '+' : ''}{totalPnl.toFixed(2)}
-              </span>
-              <div style={{
-                width: 40, height: 3, borderRadius: 2,
-                background: 'rgba(255,255,255,0.08)',
-                overflow: 'hidden',
-              }}>
-                <div style={{
-                  width: `${Math.min(100, Math.abs(totalPnl) / (equity || 1) * 10000)}%`,
-                  height: '100%',
-                  borderRadius: 2,
-                  background: totalPnl >= 0 ? C.success : C.danger,
-                }} />
-              </div>
-            </div>
-          )}
-
-          {/* One-Click Mode Toggle */}
-          <button 
-            onClick={() => setOneClickMode(!oneClickMode)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 3,
-              padding: '2px 8px', borderRadius: 6,
-              background: oneClickMode ? 'rgba(255,184,0,0.15)' : 'rgba(255,255,255,0.04)',
-              border: `0.5px solid ${oneClickMode ? 'rgba(255,184,0,0.3)' : 'rgba(255,255,255,0.08)'}`,
-              cursor: 'pointer',
-            }}
-          >
-            <Zap size={10} color={oneClickMode ? C.amber : C.text2} />
-            <span style={{ fontSize: 8, color: oneClickMode ? C.amber : C.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>
-              نقرة واحدة
-            </span>
-          </button>
-        </div>
-      </div>
-
-      {/* ── Chart Area ── */}
+      {/* ── Chart Area (Full Screen) ── */}
       <div style={{ 
         flex: 1, 
-        margin: '6px 8px 8px', 
+        marginTop: 'calc(env(safe-area-inset-top) + 4px)',
+        marginLeft: 6,
+        marginRight: 6,
+        marginBottom: 6,
         borderRadius: 16,
         overflow: 'hidden',
         background: '#0B0E14',
-        border: '0.5px solid rgba(255,255,255,0.06)',
+        border: '1px solid rgba(0,212,255,0.25)',
         position: 'relative',
         direction: 'ltr',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+        boxShadow: '0 0 0 1px rgba(0,212,255,0.15), 0 4px 20px rgba(0,0,0,0.3)',
       }}>
         <RouaChart
           currentPrice={livePrice}
           mobile={true}
           compact={true}
         />
-      </div>
 
-      {/* ── Fixed Buy/Sell Bar at Bottom ── */}
-      <div style={{
-        position: 'absolute',
-        bottom: 80,
-        left: 8,
-        right: 8,
-        zIndex: 60,
-        display: 'flex',
-        gap: 8,
-      }}>
-        {/* Buy Button */}
+        {/* ── Small Trade Button — Top-Right Corner ── */}
         <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={handleQuickBuy}
+          whileTap={{ scale: 0.9 }}
+          onClick={() => { setOrderSide('buy'); setShowOrderSheet(true) }}
           style={{
-            flex: 1, height: 48, borderRadius: 14,
-            background: 'rgba(50,215,75,0.15)',
-            border: '1px solid rgba(50,215,75,0.3)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            color: C.success, fontSize: 15, fontWeight: 900,
-            fontFamily: "'Cairo', sans-serif",
-            backdropFilter: 'blur(20px)',
+            position: 'absolute',
+            top: 34,
+            right: 8,
+            zIndex: 100,
+            height: 28,
+            padding: '0 10px',
+            borderRadius: 8,
+            background: 'rgba(0,212,255,0.12)',
+            border: '1px solid rgba(0,212,255,0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
             cursor: 'pointer',
-            boxShadow: '0 4px 20px rgba(50,215,75,0.15)',
+            backdropFilter: 'blur(12px)',
           }}
         >
-          <TrendingUp size={18} />
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.1 }}>
-            <span>شراء</span>
-            <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(50,215,75,0.6)', fontFamily: "'JetBrains Mono', monospace" }}>
-              {fmtPrice(livePrice)}
-            </span>
-          </div>
-        </motion.button>
-
-        {/* Sell Button */}
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={handleQuickSell}
-          style={{
-            flex: 1, height: 48, borderRadius: 14,
-            background: 'rgba(255,69,58,0.15)',
-            border: '1px solid rgba(255,69,58,0.3)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            color: C.danger, fontSize: 15, fontWeight: 900,
-            fontFamily: "'Cairo', sans-serif",
-            backdropFilter: 'blur(20px)',
-            cursor: 'pointer',
-            boxShadow: '0 4px 20px rgba(255,69,58,0.15)',
-          }}
-        >
-          <TrendingDown size={18} />
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.1 }}>
-            <span>بيع</span>
-            <span style={{ fontSize: 9, fontWeight: 600, color: 'rgba(255,69,58,0.6)', fontFamily: "'JetBrains Mono', monospace" }}>
-              {fmtPrice(livePrice)}
-            </span>
-          </div>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00D4FF" strokeWidth="2.5">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
+          </svg>
+          <span style={{ fontSize: 9, fontWeight: 800, color: '#00D4FF', fontFamily: "'Cairo', sans-serif" }}>تداول</span>
         </motion.button>
       </div>
 

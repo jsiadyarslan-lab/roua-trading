@@ -75,6 +75,7 @@ export default function RouaChart({
     symbol: selectedSymbol,
     timeframe,
     onCrosshairMove: setCrosshairData,
+    mobile,
   });
 
   // ── WebSocket ──────────────────────────────────────────

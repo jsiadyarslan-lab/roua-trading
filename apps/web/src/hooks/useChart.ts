@@ -23,6 +23,7 @@ interface UseChartOptions {
   timeframe: string;
   settings?: Partial<ChartSettings>;
   onCrosshairMove?: (data: CrosshairData | null) => void;
+  mobile?: boolean;
 }
 
 interface UseChartReturn {
@@ -65,7 +66,7 @@ interface UseChartReturn {
 }
 
 export function useChart(options: UseChartOptions): UseChartReturn {
-  const { symbol, timeframe, onCrosshairMove } = options;
+  const { symbol, timeframe, onCrosshairMove, mobile: isMobile } = options;
 
   // ── Refs ───────────────────────────────────────────────
   const chartInstanceRef = useRef<IChartApi | null>(null);
@@ -181,7 +182,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       layout: {
         background: { color: COLORS.bg },
         textColor: COLORS.textSecondary,
-        fontSize: 11,
+        fontSize: isMobile ? 9 : 11,
         fontFamily: "'JetBrains Mono', monospace",
         attributionLogo: false,
       },
@@ -205,7 +206,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         },
       },
       rightPriceScale: {
-        borderColor: COLORS.border,
+        borderColor: isMobile ? 'transparent' : COLORS.border,
         scaleMargins: { top: 0.1, bottom: 0.2 },
       },
       timeScale: {

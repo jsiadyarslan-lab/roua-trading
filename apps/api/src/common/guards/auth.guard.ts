@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, ExecutionContext, Logger, SetMetadata } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, Logger, SetMetadata, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
@@ -85,14 +85,8 @@ export class AuthGuard implements CanActivate {
         return true;
       } catch (error: any) {
         this.logger.error(`Guest auto-auth failed: ${error?.message || error}`);
-        // For public routes, still allow with mock user as last resort
-        (request as any).user = {
-          id: 'guest-auto',
-          email: 'guest@roua.auto',
-          displayName: 'ضيف',
-          tier: 'FREE',
-        };
-        return true;
+        // Do NOT create phantom/mock users — throw instead to prevent orphaned DB records
+        throw new UnauthorizedException('Unable to establish guest session. Please try again.');
       }
     }
 

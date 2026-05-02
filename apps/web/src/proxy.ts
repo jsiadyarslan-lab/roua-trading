@@ -43,7 +43,7 @@ export function proxy(request: NextRequest) {
   }
   if (!isMobile && pathname.startsWith('/mobile')) {
     const desktopPath = pathname.replace('/mobile', '/dashboard')
-    return NextResponse.redirect(new URL(desktopPath === '/dashboard' ? '/dashboard' : '/dashboard', request.url))
+    return NextResponse.redirect(new URL(desktopPath, request.url))
   }
 
   // ── Admin API routes: pass through (auth handled by route handlers) ──

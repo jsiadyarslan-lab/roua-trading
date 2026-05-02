@@ -43,19 +43,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, ...data })
   } catch (error: any) {
     console.error('[scanner/scan] Error:', error?.message)
-    return NextResponse.json({
-      success: true,
-      items: [],
-      meta: {
-        timeframe: '1h',
-        category: 'ALL',
-        symbolsScanned: 0,
-        source: 'fallback',
-        timestamp: new Date().toISOString(),
-        nextScanInSeconds: 60,
-        error: 'تعذر الاتصال بخادم التحليل',
-      },
-    })
+    return NextResponse.json(
+      { success: false, error: 'Service unavailable', message: error?.message || 'تعذر الاتصال بخادم التحليل' },
+      { status: 502 },
+    )
   }
 }
 

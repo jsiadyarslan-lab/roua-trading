@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     const dbReady = await ensureDbReady()
 
     if (!dbReady) {
-      return NextResponse.json({ ...emptyResponse(), error: 'قاعدة البيانات غير متاحة' })
+      return NextResponse.json({ ...emptyResponse(), error: 'قاعدة البيانات غير متاحة' }, { status: 503 })
     }
 
     // Fetch user stats from DB
@@ -134,6 +134,6 @@ export async function GET(req: NextRequest) {
     })
   } catch (error: any) {
     console.error('[admin/stats] Error:', error?.message || error)
-    return NextResponse.json({ ...emptyResponse(), error: 'فشل في جلب البيانات' })
+    return NextResponse.json({ ...emptyResponse(), error: 'فشل في جلب البيانات' }, { status: 500 })
   }
 }

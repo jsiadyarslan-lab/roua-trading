@@ -109,7 +109,7 @@ EXPOSE 3000 3001
 
 # Health check — verify both services are responding
 HEALTHCHECK --interval=30s --timeout=10s --start-period=45s --retries=3 \
-  CMD curl -fsS http://localhost:3000/ > /dev/null 2>&1 || exit 1
+  CMD curl -fsS http://localhost:3000/ > /dev/null 2>&1 && curl -fsS http://localhost:3001/api/health > /dev/null 2>&1 || exit 1
 
 # FIX: Use start.sh which runs BOTH NestJS API (port 3001)
 # AND Next.js Web (port 3000) in a single container.

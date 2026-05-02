@@ -37,12 +37,11 @@ export async function GET() {
   try {
     const dbReady = await ensureDbReady()
     if (!dbReady) {
-      console.warn('[strategies] DB not ready — returning empty data')
-      return NextResponse.json({
-        success: true,
-        data: [],
-        meta: { count: 0, isEmpty: true },
-      })
+      console.warn('[strategies] DB not ready')
+      return NextResponse.json(
+        { success: false, error: 'Service unavailable' },
+        { status: 503 },
+      )
     }
 
     let reports: any[] = []
@@ -55,20 +54,18 @@ export async function GET() {
       // Table might not exist yet (P2021) or other schema issues
       const code = queryError?.code || ''
       if (code === 'P2021' || code === 'P2022' || queryError?.message?.includes('does not exist')) {
-        console.warn('[strategies] StrategyReport table not found — returning empty data')
-        return NextResponse.json({
-          success: true,
-          data: [],
-          meta: { count: 0, isEmpty: true },
-        })
+        console.warn('[strategies] StrategyReport table not found')
+        return NextResponse.json(
+          { success: false, error: 'Service unavailable' },
+          { status: 503 },
+        )
       }
-      // Unexpected error — log but still return empty instead of 500
+      // Unexpected error — log and return proper error
       console.error('[strategies] Query error:', code, queryError?.message)
-      return NextResponse.json({
-        success: true,
-        data: [],
-        meta: { count: 0, isEmpty: true },
-      })
+      return NextResponse.json(
+        { success: false, error: 'Service unavailable' },
+        { status: 500 },
+      )
     }
 
     const decodedReports = reports.map(r => ({
@@ -91,11 +88,9 @@ export async function GET() {
     })
   } catch (error) {
     console.error('API Error: GET /api/strategies', error)
-    // Return empty data instead of 500 — the strategies page has demo fallback
-    return NextResponse.json({
-      success: true,
-      data: [],
-      meta: { count: 0, isEmpty: true },
-    })
+    return NextResponse.json(
+      { success: false, error: 'Service unavailable' },
+      { status: 500 },
+    )
   }
 }

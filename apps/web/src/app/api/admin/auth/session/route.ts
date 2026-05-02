@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
     const dbReady = await ensureDbReady()
     if (!dbReady) {
-      return NextResponse.json({ authenticated: false, error: 'DB unavailable' })
+      return NextResponse.json({ authenticated: false, error: 'DB unavailable' }, { status: 503 })
     }
 
     const session = await db.adminSession.findUnique({
@@ -33,6 +33,6 @@ export async function GET(req: NextRequest) {
     })
   } catch (error: any) {
     console.error('[admin/auth/session] Error:', error?.message || error)
-    return NextResponse.json({ authenticated: false })
+    return NextResponse.json({ authenticated: false, error: 'Service unavailable' }, { status: 503 })
   }
 }

@@ -121,10 +121,9 @@ export class RateLimiterService {
 
       return true;
     } catch (error: any) {
-      // On Redis failure, be permissive (allow the request)
-      // Better to risk a rate limit violation than block all trading
-      this.logger.error(`⚡ Rate limit check failed: ${error.message} — allowing request`);
-      return true;
+      // On Redis failure, block the request to prevent exchange API rate limit violations
+      this.logger.error(`⚡ Rate limit check failed: ${error.message} — blocking request to prevent rate limit violations`);
+      return false;
     }
   }
 

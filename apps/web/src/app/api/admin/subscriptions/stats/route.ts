@@ -118,12 +118,16 @@ export async function GET(req: NextRequest) {
     })
   } catch (error: any) {
     console.error('[admin/subscriptions/stats] Error:', error?.message || error)
-    return NextResponse.json({
-      tiers: { FREE: 0, PRO: 0, PLUS: 0, PREMIUM: 0, INSTITUTIONAL: 0, total: 0 },
-      registrations: { today: 0, week: 0, month: 0, year: 0 },
-      subscriptions: { active: 0, cancelled: 0, total: 0, churnRate: 0 },
-      recentChanges: [],
-      dailyRegistrations: {},
-    })
+    return NextResponse.json(
+      {
+        tiers: { FREE: 0, PRO: 0, PLUS: 0, PREMIUM: 0, INSTITUTIONAL: 0, total: 0 },
+        registrations: { today: 0, week: 0, month: 0, year: 0 },
+        subscriptions: { active: 0, cancelled: 0, total: 0, churnRate: 0 },
+        recentChanges: [],
+        dailyRegistrations: {},
+        error: 'فشل في جلب بيانات الاشتراكات',
+      },
+      { status: 500 },
+    )
   }
 }

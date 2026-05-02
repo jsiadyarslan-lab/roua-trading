@@ -102,8 +102,11 @@ export class ExchangeGateway
       (client as any).user = session.user;
       this.logger.debug(`🔌 Authenticated client connected: ${client.id} (user: ${session.user.displayName})`);
     } catch (error: any) {
-      // DB unavailable — allow connection but log warning
-      this.logger.warn(`🔌 DB unavailable during WS auth — allowing connection: ${client.id}`);
+      // DB unavailable — reject connection to prevent unauthorized access
+      this.logger.error(`🔌 DB unavailable during WS auth — rejecting connection: ${client.id}`);
+      client.emit('error', { message: 'Authentication service unavailable. Please try again later.' });
+      client.disconnect(true);
+      return;
     }
 
     this.subscriptions.set(client.id, new Set());

@@ -90,7 +90,8 @@ export async function GET(request: NextRequest) {
 
       // SECURITY: Only allow login for existing verified users.
       // A user is considered "verified" if they have a passkeyId (registered via WebAuthn)
-      // OR if they have a VerificationToken record (verified via OTP at least once).
+      // OR if they have a VerificationToken record (verified via OTP at least once)
+      // OR if they have an existing valid session (already authenticated via another method).
       // New users must go through the OTP flow to prove email ownership.
       const user = await db.user.findUnique({
         where: { email: requestedEmail },
@@ -108,8 +109,28 @@ export async function GET(request: NextRequest) {
         })
       }
 
-      // Check if user is verified (has passkey, OAuth account, or previously verified via OTP)
-      const isVerified = !!(user.passkeyId || user.accounts.length > 0)
+      // Check if the request already carries a valid session token for this user
+      let hasValidSession = false
+      if (sessionToken) {
+        try {
+          const existingSession = await db.session.findFirst({
+            where: { token: sessionToken, userId: user.id, expiresAt: { gt: new Date() } },
+          })
+          hasValidSession = !!existingSession
+        } catch { /* Ignore DB errors */ }
+      }
+
+      // Check if user has an OTP verification record (proved email ownership)
+      let hasOtpVerification = false
+      try {
+        const otpRecord = await db.verificationToken.findFirst({
+          where: { identifier: requestedEmail },
+        })
+        hasOtpVerification = !!otpRecord
+      } catch { /* Ignore DB errors */ }
+
+      // Check if user is verified (has passkey, OAuth account, OTP verification, or existing valid session)
+      const isVerified = !!(user.passkeyId || user.accounts.length > 0 || hasOtpVerification || hasValidSession)
 
       if (!isVerified) {
         // User exists but hasn't verified their email yet

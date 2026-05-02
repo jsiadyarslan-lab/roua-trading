@@ -156,12 +156,14 @@ export async function proxyToNestJS(request: NextRequest, method: string): Promi
 
 /**
  * Internal function that does the actual proxying.
+ * @param retryCount - Number of 401 retries attempted so far (max 2)
  */
 async function proxyWithToken(
   request: NextRequest,
   method: string,
   token: string,
   setCookie: boolean,
+  retryCount = 0,
 ): Promise<NextResponse> {
   const { pathname, search } = request.nextUrl
   const targetUrl = `${API_TARGET}${pathname}${search}`
@@ -199,16 +201,17 @@ async function proxyWithToken(
 
     // If NestJS returns 401, the AuthGuard should have auto-authenticated.
     // This means something is wrong with the session. Create a new one and retry.
-    if (response.status === 401) {
-      console.warn(`[nestjs-proxy] 401 on ${method} ${pathname} — retrying with new session`)
+    // Max 2 retries to prevent infinite loops.
+    if (response.status === 401 && retryCount < 2) {
+      console.warn(`[nestjs-proxy] 401 on ${method} ${pathname} — retrying with new session (attempt ${retryCount + 1}/2)`)
       const newSession = await forceCreateSession()
       if (newSession) {
-        return proxyWithToken(request, method, newSession.token, true)
+        return proxyWithToken(request, method, newSession.token, true, retryCount + 1)
       }
       // Can't create new session — try NestJS fallback
       const nestjsSession = await createSessionViaNestJS()
       if (nestjsSession) {
-        return proxyWithToken(request, method, nestjsSession.token, true)
+        return proxyWithToken(request, method, nestjsSession.token, true, retryCount + 1)
       }
     }
 

@@ -12,6 +12,10 @@ if [ -z "${DATABASE_URL:-}" ] && [ -f ".env" ]; then
       ''|\#*) continue ;;
     esac
     value="${value%$'\r'}"
+    # Strip inline comments (e.g., KEY=value # comment -> KEY=value)
+    value="${value%% #*}"
+    value="${value%%\#*}"
+    value="${value%"${value##*[! ]}"}"
     if [[ "$value" == \"*\" && "$value" == *\" ]]; then
       value="${value:1:-1}"
     fi
@@ -103,9 +107,9 @@ run_prisma generate --schema=./prisma/schema.prisma
 echo "📦 Applying Prisma schema..."
 if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; then
   run_prisma migrate deploy --schema=./prisma/schema.prisma 2>&1 || echo "⚠️ prisma migrate deploy had issues — trying db push as fallback"
-  run_prisma db push --schema=./prisma/schema.prisma --accept-data-loss 2>&1 || echo "⚠️ prisma db push also had issues — will verify tables below"
+  run_prisma db push --schema=./prisma/schema.prisma 2>&1 || echo "⚠️ prisma db push also had issues — will verify tables below"
 else
-  run_prisma db push --schema=./prisma/schema.prisma --accept-data-loss 2>&1 || echo "⚠️ prisma db push had issues — will verify tables below"
+  run_prisma db push --schema=./prisma/schema.prisma 2>&1 || echo "⚠️ prisma db push had issues — will verify tables below"
 fi
 
 # ── Step 3: Verify critical tables exist ──

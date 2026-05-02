@@ -10,7 +10,7 @@ import {
   ChevronDown, Bell, User, MoreHorizontal,
   TrendingUp, TrendingDown, Menu, X as XIcon, GitMerge, Activity,
   FlaskConical, Shield, Hammer, LogOut, UserCircle, Info,
-  CreditCard, HelpCircle, Trophy, Code, Fingerprint, BellRing, Link2, Eye, Target, Cpu, PenLine
+  CreditCard, HelpCircle, Trophy, Code, Fingerprint, BellRing, Link2, Eye, Target, Cpu, PenLine, Clock, Calendar
 } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
@@ -463,10 +463,12 @@ const NAV_LINKS: NavLink[] = [
       { href: '/dashboard/strategies/builder',   label: 'بناء الاستراتيجية',   icon: Hammer },
     ]
   },
-  { href: '/dashboard/news',                   label: 'الأخبار',            icon: Newspaper,
+  { href: '/dashboard/news',                   label: 'التقارير',           icon: Newspaper,
     children: [
-      { href: '/dashboard/news',                label: 'الأخبار الذكية',     icon: Newspaper },
-      { href: '/dashboard/news',                label: 'وكيل المحتوى',       icon: PenLine, hash: '#agent' },
+      { href: '/dashboard/news',                label: 'تقارير ساعية',       icon: Clock },
+      { href: '/dashboard/news',                label: 'تقارير يومية',       icon: Newspaper },
+      { href: '/dashboard/news',                label: 'تقارير أسبوعية',     icon: Calendar },
+      { href: '/dashboard/news',                label: 'تحليل الأزواج',      icon: TrendingUp },
     ]
   },
   { href: '/dashboard/prediction-market',      label: 'الأسواق التنبؤية',   icon: Target },

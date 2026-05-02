@@ -31,6 +31,9 @@ export enum ContentType {
   EDUCATIONAL = 'EDUCATIONAL',
   OPINION = 'OPINION',
   BREAKING = 'BREAKING',
+  HOURLY_UPDATE = 'HOURLY_UPDATE',
+  WEEKLY_REVIEW = 'WEEKLY_REVIEW',
+  PAIR_ANALYSIS = 'PAIR_ANALYSIS',
 }
 
 export enum ContentCategory {
@@ -155,6 +158,7 @@ interface ContentAgentStore {
     category?: ContentCategory
     type?: ContentType
     status?: ContentStatus
+    symbol?: string
     page: number
     limit: number
   }
@@ -279,6 +283,7 @@ export const useContentAgentStore = create<ContentAgentStore>()(
           if (feedFilters.category) params.set('category', feedFilters.category)
           if (feedFilters.type) params.set('type', feedFilters.type)
           if (feedFilters.status) params.set('status', feedFilters.status)
+          if (feedFilters.symbol) params.set('symbol', feedFilters.symbol)
           params.set('page', String(feedFilters.page))
           params.set('limit', String(feedFilters.limit))
 

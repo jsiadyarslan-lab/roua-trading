@@ -68,7 +68,7 @@ export class AutonomousTraderAgentController {
 
     // Defensive: If DTO validation stripped everything (edge case),
     // try to construct from raw body
-    if (!dto || (!dto.strategy && !dto.credentialId)) {
+    if (!dto || (!dto.strategy)) {
       this.logger.warn('[startAgent] DTO appears empty after validation — attempting raw body parse');
       try {
         const rawBody = (req as any).rawBody || (req as any).body;
@@ -83,15 +83,6 @@ export class AutonomousTraderAgentController {
       } catch (e) {
         this.logger.error(`[startAgent] Failed to reconstruct DTO: ${e}`);
       }
-    }
-
-    // Validate required fields manually as a safety net
-    if (!dto.credentialId || dto.credentialId.trim() === '') {
-      return {
-        success: false,
-        message: 'يرجى ربط مفتاح API أولاً من إعدادات المحفظة',
-        data: null,
-      };
     }
 
     // Validate strategy — fallback to SCALPING if invalid

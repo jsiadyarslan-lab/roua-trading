@@ -169,29 +169,70 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       );
     }
 
-    // Validate credential
-    let credential: any;
-    try {
-      credential = await this.prisma.exchangeCredential.findFirst({
-        where: { id: dto.credentialId, userId, isValid: true },
-      });
-    } catch (error: any) {
-      this.logger.error(`Database error looking up credential: ${error.message}`);
-      throw new ServiceUnavailableException('خطأ في قاعدة البيانات — يرجى المحاولة لاحقاً');
-    }
+    // Validate credential OR allow paper trading mode
+    let credential: any = null;
+    let isPaperTrading = false;
 
-    if (!credential) {
-      throw new NotFoundException('بيانات الاعتماد غير صالحة أو غير موجودة');
-    }
+    // Determine if this is a paper trading session
+    // Paper trading mode: no real credentialId, or credentialId starts with 'paper-'
+    const isPaperCredentialId = !dto.credentialId || dto.credentialId.trim() === '' || dto.credentialId.startsWith('paper-');
 
-    let permissions: string[] = ['read'];
-    try {
-      permissions = JSON.parse(credential.permissions || '["read"]');
-    } catch {
-      permissions = ['read'];
-    }
-    if (!permissions.includes('trade')) {
-      throw new BadRequestException('مفتاح API لا يملك صلاحية التداول');
+    if (isPaperCredentialId) {
+      // Paper trading mode — no real exchange connection needed
+      isPaperTrading = true;
+      this.logger.log(`🧠 Agent starting in PAPER TRADING mode for user ${userId}`);
+
+      // Auto-create a paper trading credential record if one doesn't exist
+      try {
+        const existingPaper = await this.prisma.exchangeCredential.findFirst({
+          where: { userId, exchange: 'paper-trading', isValid: true },
+        });
+        if (existingPaper) {
+          credential = existingPaper;
+        } else {
+          credential = await this.prisma.exchangeCredential.create({
+            data: {
+              userId,
+              exchange: 'paper-trading',
+              label: 'تداول ورقي (تجريبي)',
+              encryptedApiKey: 'paper',
+              encryptedSecret: 'paper',
+              iv: 'paper',
+              authTag: 'paper',
+              permissions: JSON.stringify(['read', 'trade']),
+              isValid: true,
+            },
+          });
+          this.logger.log(`🧠 Auto-created paper trading credential for user ${userId}`);
+        }
+      } catch (error: any) {
+        this.logger.warn(`Could not create paper credential: ${error.message}`);
+        // Continue without a DB record — paper trading doesn't need one
+      }
+    } else {
+      // Real credential — validate it
+      try {
+        credential = await this.prisma.exchangeCredential.findFirst({
+          where: { id: dto.credentialId, userId, isValid: true },
+        });
+      } catch (error: any) {
+        this.logger.error(`Database error looking up credential: ${error.message}`);
+        throw new ServiceUnavailableException('خطأ في قاعدة البيانات — يرجى المحاولة لاحقاً');
+      }
+
+      if (!credential) {
+        throw new NotFoundException('بيانات الاعتماد غير صالحة أو غير موجودة');
+      }
+
+      let permissions: string[] = ['read'];
+      try {
+        permissions = JSON.parse(credential.permissions || '["read"]');
+      } catch {
+        permissions = ['read'];
+      }
+      if (!permissions.includes('trade')) {
+        throw new BadRequestException('مفتاح API لا يملك صلاحية التداول');
+      }
     }
 
     // Load user's persistent settings (DB first, env vars as fallback)
@@ -227,7 +268,8 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       symbols: dto.symbols ??
         (userSettings && userSettings.defaultSymbols ? userSettings.defaultSymbols.split(',').filter(Boolean) : undefined) ??
         this.DEFAULT_SYMBOLS,
-      credentialId: dto.credentialId,
+      credentialId: isPaperTrading ? (credential?.id || `paper-${userId}`) : dto.credentialId,
+      isPaperTrading,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

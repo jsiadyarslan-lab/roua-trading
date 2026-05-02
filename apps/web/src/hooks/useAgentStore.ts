@@ -45,10 +45,10 @@ export interface AgentConfig {
   strategyParams: StrategyParams
   symbols: string[]
   credentialId: string
+  isPaperTrading?: boolean
   createdAt: string
   updatedAt: string
 }
-
 export interface AgentState {
   status: AgentStatus
   config: AgentConfig
@@ -277,21 +277,24 @@ export const useAgentStore = create<AgentStore>()(
         // Re-read after potential fetch
         const currentCredentialId = get().selectedCredentialId
 
-        // Validate credential before making API call
-        if (!currentCredentialId || currentCredentialId.trim() === '') {
-          const errorMsg = 'يرجى ربط مفتاح API أولاً من إعدادات المحفظة'
-          set({ error: errorMsg, loading: false })
-          get().addLog(`❌ ${errorMsg}`, 'error')
-          return
-        }
+        // Build payload — if no credential, start in paper trading mode
+        const isPaperMode = !currentCredentialId || currentCredentialId.trim() === ''
 
         set({ loading: true, error: null })
-        get().addLog(`جارٍ تفعيل الوكيل باستراتيجية ${safeStrategy === StrategyType.SCALPING ? 'السكالبينغ' : safeStrategy === StrategyType.SWING ? 'السوينغ' : 'الشبكة'}...`, 'info')
+        if (isPaperMode) {
+          get().addLog(`جارٍ تفعيل الوكيل باستراتيجية ${safeStrategy === StrategyType.SCALPING ? 'السكالبينغ' : safeStrategy === StrategyType.SWING ? 'السوينغ' : 'الشبكة'} (تداول ورقي)...`, 'info')
+        } else {
+          get().addLog(`جارٍ تفعيل الوكيل باستراتيجية ${safeStrategy === StrategyType.SCALPING ? 'السكالبينغ' : safeStrategy === StrategyType.SWING ? 'السوينغ' : 'الشبكة'}...`, 'info')
+        }
         try {
-          const payload = {
+          const payload: Record<string, any> = {
             strategy: safeStrategy,
-            credentialId: currentCredentialId,
             symbols: selectedSymbols,
+          }
+          // Only include credentialId if we have a real one
+          // Empty/missing credentialId triggers paper trading mode on the backend
+          if (!isPaperMode) {
+            payload.credentialId = currentCredentialId
           }
 
           const res = await fetch('/api/agent/trader/start', {
@@ -307,7 +310,8 @@ export const useAgentStore = create<AgentStore>()(
 
           if (data.success) {
             set({ agentState: data.data, loading: false, isConfigured: true })
-            get().addLog('✅ تم تفعيل وكيل التداول بنجاح', 'success')
+            const isPaper = data.data?.config?.isPaperTrading || isPaperMode
+            get().addLog(isPaper ? '✅ تم تفعيل وكيل التداول بنجاح (وضع ورقي — بدون أموال حقيقية)' : '✅ تم تفعيل وكيل التداول بنجاح', 'success')
           } else {
             // Map common backend error messages to user-friendly Arabic
             let msg = data.message || 'فشل التفعيل'

@@ -56,6 +56,9 @@ export interface AgentConfig {
   // Exchange credential to use
   credentialId: string;
 
+  // Paper trading mode (no real exchange connection)
+  isPaperTrading?: boolean;
+
   // Auto-generated
   createdAt: Date;
   updatedAt: Date;
@@ -268,9 +271,9 @@ export class StartAgentDto {
   @IsIn(['SCALPING', 'SWING', 'GRID'])
   strategy: StrategyType;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  credentialId: string;
+  credentialId?: string;
 
   @IsOptional()
   @IsArray()

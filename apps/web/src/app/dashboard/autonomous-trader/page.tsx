@@ -162,12 +162,14 @@ export default function AutonomousTraderPage() {
   const [showStrategyPicker, setShowStrategyPicker] = useState(false)
   const [confirmEmergency, setConfirmEmergency] = useState(false)
   const [enablingSystem, setEnablingSystem] = useState(false)
+  const [enableSystemResult, setEnableSystemResult] = useState<'idle' | 'success' | 'error'>('idle')
 
   const status = agentState?.status ?? null
   const isRunning = status === AgentStatus.RUNNING
   const config = agentState?.config
   const strategy = config?.strategy ?? StrategyType.SCALPING
   const hasCredential = !!selectedCredentialId && selectedCredentialId.trim() !== ''
+  const isPaperTrading = config?.isPaperTrading ?? false
   const globalAutoTrading = systemStatus?.globalAutoTradingEnabled ?? true
 
   // ── Initial load & auto-refresh ──
@@ -229,6 +231,16 @@ export default function AutonomousTraderPage() {
                 <span style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: getStatusColor(status) }}>
                   {getStatusLabel(status)}
                 </span>
+                {isPaperTrading && isRunning && (
+                  <span style={{
+                    fontFamily: FONT_AR, fontSize: 9, fontWeight: 700,
+                    padding: '2px 8px', borderRadius: 6,
+                    background: `${T.accent}15`, color: T.accent,
+                    border: `1px solid ${T.accent}30`,
+                  }}>
+                    ورقي
+                  </span>
+                )}
                 {config && (
                   <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginRight: 8 }}>
                     • {getStrategyLabel(config.strategy as StrategyType)}
@@ -242,22 +254,21 @@ export default function AutonomousTraderPage() {
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             {!isRunning && status !== AgentStatus.EMERGENCY_STOP && !agentState && (
               <button
-                onClick={() => hasCredential ? setShowStrategyPicker(!showStrategyPicker) : undefined}
-                disabled={loading || !hasCredential}
-                title={!hasCredential ? 'يرجى ربط مفتاح API أولاً من إعدادات المحفظة' : undefined}
+                onClick={() => setShowStrategyPicker(!showStrategyPicker)}
+                disabled={loading}
+                title={!hasCredential ? 'سيتم التفعيل في وضع التداول الورقي (بدون أموال حقيقية)' : undefined}
                 style={{
                   ...btnStyle,
-                  background: hasCredential ? 'linear-gradient(135deg, #00FFC6, #0A84FF)' : 'rgba(255,255,255,0.06)',
-                  color: hasCredential ? '#000' : T.text3,
+                  background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
+                  color: '#000',
                   fontWeight: 800,
                   padding: '10px 24px',
                   fontSize: 13,
-                  cursor: hasCredential ? 'pointer' : 'not-allowed',
-                  opacity: hasCredential ? 1 : 0.6,
+                  cursor: loading ? 'wait' : 'pointer',
                 }}
               >
                 <Play size={15} />
-                تفعيل الوكيل
+                {hasCredential ? 'تفعيل الوكيل' : 'تفعيل الوكيل (ورقي)'}
               </button>
             )}
             {isRunning && (
@@ -479,19 +490,19 @@ export default function AutonomousTraderPage() {
           </div>
         )}
 
-        {/* ── No Credential Warning ── */}
+        {/* ── No Credential Info Banner ── */}
         {!hasCredential && !isRunning && (
           <div style={{
             margin: '0 28px 16px', padding: '14px 18px',
-            background: 'rgba(255,184,0,0.08)',
-            border: `1px solid rgba(255,184,0,0.20)`,
+            background: 'rgba(0,212,255,0.06)',
+            border: `1px solid rgba(0,212,255,0.20)`,
             borderRadius: 10,
             display: 'flex', alignItems: 'center', gap: 10,
-            fontFamily: FONT_AR, fontSize: 12, color: T.amber,
+            fontFamily: FONT_AR, fontSize: 12, color: T.accent,
           }}>
-            <AlertTriangle size={16} />
+            <Activity size={16} />
             <span>
-              <strong>مطلوب مفتاح API</strong> — يرجى ربط مفتاح API خاصتك من صفحة المحفظة أولاً لتفعيل وكيل التداول الذاتي
+              <strong>وضع التداول الورقي</strong> — سيتم تفعيل الوكيل في وضع تجريبي بأموال وهمية. لربط بورصة حقيقية، أضف مفتاح API من صفحة المحفظة.
             </span>
           </div>
         )}
@@ -530,13 +541,23 @@ export default function AutonomousTraderPage() {
             <button
               onClick={async () => {
                 setEnablingSystem(true)
-                await updateSystemSettings({ autoTradingEnabled: true })
+                setEnableSystemResult('idle')
+                try {
+                  await updateSystemSettings({ autoTradingEnabled: true })
+                  setEnableSystemResult('success')
+                  setTimeout(() => setEnableSystemResult('idle'), 3000)
+                } catch {
+                  setEnableSystemResult('error')
+                  setTimeout(() => setEnableSystemResult('idle'), 3000)
+                }
                 setEnablingSystem(false)
               }}
               disabled={enablingSystem}
               style={{
                 padding: '10px 24px', borderRadius: 10,
-                background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
+                background: enableSystemResult === 'success' ? T.green
+                  : enableSystemResult === 'error' ? T.red
+                  : 'linear-gradient(135deg, #00FFC6, #0A84FF)',
                 border: 'none', color: '#000',
                 fontFamily: FONT_AR, fontSize: 13, fontWeight: 800,
                 cursor: enablingSystem ? 'wait' : 'pointer',
@@ -545,8 +566,14 @@ export default function AutonomousTraderPage() {
                 display: 'flex', alignItems: 'center', gap: 6,
               }}
             >
-              {enablingSystem ? <RefreshCw size={14} style={{ animation: 'agent-spin 1s linear infinite' }} /> : <Play size={14} />}
-              تفعيل الآن
+              {enablingSystem ? <RefreshCw size={14} style={{ animation: 'agent-spin 1s linear infinite' }} />
+               : enableSystemResult === 'success' ? <CheckCircle2 size={14} />
+               : enableSystemResult === 'error' ? <XCircle size={14} />
+               : <Play size={14} />}
+              {enablingSystem ? 'جارٍ التفعيل...'
+               : enableSystemResult === 'success' ? 'تم التفعيل!'
+               : enableSystemResult === 'error' ? 'فشل التفعيل'
+               : 'تفعيل الآن'}
             </button>
           </div>
         )}

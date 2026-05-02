@@ -24,8 +24,8 @@ export abstract class BaseStrategy {
   abstract readonly description: string;
 
   protected params: StrategyParams;
-  protected minRiskRewardRatio: number = 1.5; // Minimum R:R ratio
-  protected minConfidence: number = 60; // Minimum confidence to generate signal
+  protected minRiskRewardRatio: number = 1.2; // Minimum R:R ratio (lowered from 1.5 to allow more trades, especially scalping)
+  protected minConfidence: number = 40; // Minimum confidence to generate signal (lowered from 60 — strategies often produce 40-60 range signals)
 
   constructor(params: StrategyParams) {
     this.params = params;

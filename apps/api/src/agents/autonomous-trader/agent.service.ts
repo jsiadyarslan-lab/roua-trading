@@ -1115,6 +1115,10 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * Monitor open positions for stop-loss / take-profit hits.
    * Closes positions when SL/TP is reached and updates daily PnL.
    * This is CRITICAL — without it, the agent gets stuck after maxOpenPositions.
+   *
+   * FIX: Now also updates currentPrice for paper-trading positions from live quotes,
+   * so SL/TP exits can actually trigger. Previously, paper positions had their
+   * currentPrice frozen at entryPrice, so SL/TP never fired.
    */
   private async _monitorOpenPositions(userId: string, state: AgentState): Promise<void> {
     try {
@@ -1125,9 +1129,34 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       if (positions.length === 0) return;
 
       for (const position of positions) {
-        const currentPrice = Number(position.currentPrice || position.entryPrice);
+        let currentPrice = Number(position.currentPrice || position.entryPrice);
         const stopLoss = Number(position.stopLoss || 0);
         const takeProfit = Number(position.takeProfit || 0);
+
+        // CRITICAL FIX: Update currentPrice for paper-trading positions from live quotes
+        // Without this, paper positions never have their price updated, so SL/TP never triggers
+        const isPaperPosition = position.exchange === 'paper-trading';
+        if (isPaperPosition) {
+          try {
+            const quote = await this.exchangeService.getQuote(position.symbol);
+            if (quote && quote.price) {
+              currentPrice = quote.price;
+              // Update the position's currentPrice in DB so it's fresh for next check
+              await this.prisma.position.update({
+                where: { id: position.id },
+                data: {
+                  currentPrice: quote.price,
+                  unrealizedPnl: position.side === 'BUY'
+                    ? (quote.price - Number(position.entryPrice)) * Number(position.quantity)
+                    : (Number(position.entryPrice) - quote.price) * Number(position.quantity),
+                },
+              });
+              this.logger.debug(`🧠 Updated paper position ${position.symbol} price: ${quote.price}`);
+            }
+          } catch (quoteErr: any) {
+            this.logger.warn(`Could not get quote for paper position ${position.symbol}: ${quoteErr.message}`);
+          }
+        }
 
         let shouldClose = false;
         let reason = '';
@@ -1153,43 +1182,95 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         if (shouldClose) {
           this.logger.log(`🧠 Auto-closing position ${position.id} (${position.symbol}): ${reason}`);
           try {
-            const result = await this.tradingService.closePosition(userId, {
-              positionId: position.id,
-            });
+            // For paper positions, close directly in DB (TradingService may not handle them)
+            if (isPaperPosition) {
+              const pnl = position.side === 'BUY'
+                ? (currentPrice - Number(position.entryPrice)) * Number(position.quantity)
+                : (Number(position.entryPrice) - currentPrice) * Number(position.quantity);
 
-            // Update daily PnL tracking
-            const pnl = Number(result?.pnl || 0);
-            state.dailyPnL += pnl;
-            if (pnl < 0) {
-              state.consecutiveLosses++;
-            } else if (pnl > 0) {
-              state.consecutiveLosses = 0;
-            }
-
-            // Update the AutonomousTrade record
-            try {
-              await this.prisma.autonomousTrade.updateMany({
-                where: {
-                  userId,
-                  symbol: position.symbol,
-                  status: 'FILLED',
-                  exitPrice: null,
-                },
+              await this.prisma.position.update({
+                where: { id: position.id },
                 data: {
-                  exitPrice: currentPrice,
-                  pnl,
-                  closedAt: new Date(),
-                  holdingDurationMs: Date.now() - new Date(position.openedAt).getTime(),
-                  exitReason: reason === 'STOP_LOSS_HIT' ? 'STOP_LOSS' : 'TAKE_PROFIT',
-                  isWinning: pnl > 0,
+                  status: 'CLOSED',
                   currentPrice,
+                  unrealizedPnl: pnl,
+                  closedAt: new Date(),
                 },
               });
-            } catch (tradeErr: any) {
-              this.logger.error(`Failed to update AutonomousTrade on close: ${tradeErr.message}`);
-            }
 
-            this.logger.log(`🧠 Position closed: ${position.symbol} PnL=${pnl.toFixed(2)} reason=${reason}`);
+              // Update daily PnL tracking
+              state.dailyPnL += pnl;
+              if (pnl < 0) {
+                state.consecutiveLosses++;
+              } else if (pnl > 0) {
+                state.consecutiveLosses = 0;
+              }
+
+              // Update the AutonomousTrade record
+              try {
+                await this.prisma.autonomousTrade.updateMany({
+                  where: {
+                    userId,
+                    symbol: position.symbol,
+                    status: 'FILLED',
+                    exitPrice: null,
+                  },
+                  data: {
+                    exitPrice: currentPrice,
+                    pnl,
+                    closedAt: new Date(),
+                    holdingDurationMs: Date.now() - new Date(position.openedAt).getTime(),
+                    exitReason: reason === 'STOP_LOSS_HIT' ? 'STOP_LOSS' : 'TAKE_PROFIT',
+                    isWinning: pnl > 0,
+                    currentPrice,
+                    status: 'FILLED',
+                  },
+                });
+              } catch (tradeErr: any) {
+                this.logger.warn(`Failed to update AutonomousTrade for paper close: ${tradeErr.message}`);
+              }
+
+              this.logger.log(`🧠 Paper position closed: ${position.symbol} PnL: ${pnl.toFixed(2)} (${reason})`);
+            } else {
+              // Real position — use TradingService
+              const result = await this.tradingService.closePosition(userId, {
+                positionId: position.id,
+              });
+
+              // Update daily PnL tracking
+              const pnl = Number(result?.pnl || 0);
+              state.dailyPnL += pnl;
+              if (pnl < 0) {
+                state.consecutiveLosses++;
+              } else if (pnl > 0) {
+                state.consecutiveLosses = 0;
+              }
+
+              // Update the AutonomousTrade record
+              try {
+                await this.prisma.autonomousTrade.updateMany({
+                  where: {
+                    userId,
+                    symbol: position.symbol,
+                    status: 'FILLED',
+                    exitPrice: null,
+                  },
+                  data: {
+                    exitPrice: currentPrice,
+                    pnl,
+                    closedAt: new Date(),
+                    holdingDurationMs: Date.now() - new Date(position.openedAt).getTime(),
+                    exitReason: reason === 'STOP_LOSS_HIT' ? 'STOP_LOSS' : 'TAKE_PROFIT',
+                    isWinning: pnl > 0,
+                    currentPrice,
+                  },
+                });
+              } catch (tradeErr: any) {
+                this.logger.error(`Failed to update AutonomousTrade on close: ${tradeErr.message}`);
+              }
+
+              this.logger.log(`🧠 Position closed: ${position.symbol} PnL=${pnl.toFixed(2)} reason=${reason}`);
+            }
           } catch (error: any) {
             this.logger.error(`Failed to close position ${position.id}: ${error.message}`);
           }

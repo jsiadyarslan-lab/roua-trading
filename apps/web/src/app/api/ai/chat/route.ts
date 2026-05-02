@@ -100,7 +100,7 @@ function buildContextPrompt(message: string, symbol: string, style: string): str
     detailed: 'أجب بشكل مفصل جداً مع شرح كل خطوة والسبب وراء كل استنتاج.',
   }
 
-  return `أنت محلل مالي خبير في منصة "رؤى للتداول". أنت تتحدث باللغة العربية.
+  return `أنت محلل مالي خبير في منصة "رؤى لربط الحسابات". أنت تتحدث باللغة العربية.
 
 المستخدم يسأل عن: ${symbol}
 ${styleInstructions[style] || styleInstructions.professional}

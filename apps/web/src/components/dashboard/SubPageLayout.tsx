@@ -31,10 +31,11 @@ export default function SubPageLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <div dir="rtl" style={{ minHeight: '100vh', background: 'var(--bg-app)', color: 'var(--text-main)' }}>
+    <div dir="rtl" style={{ height: '100%', background: 'var(--bg-app)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Top Navigation Bar */}
       <div style={{
-        height: '52px',
+        minHeight: '52px',
+        paddingTop: 'env(safe-area-inset-top)',
         background: 'var(--bg-nav)',
         borderBottom: '1px solid var(--border)',
         display: 'flex',
@@ -45,12 +46,14 @@ export default function SubPageLayout({
         position: 'sticky',
         top: 0,
         zIndex: 50,
+        flexShrink: 0,
       }}>
         {/* Back button */}
         <button
           onClick={() => router.push(backPath)}
           style={{
             display: 'flex', alignItems: 'center', gap: '6px',
+            minHeight: 44, minWidth: 44, borderRadius: 8,
             background: 'none', border: 'none', cursor: 'pointer',
             color: 'var(--text-muted)', fontSize: '12px', fontFamily: 'var(--font-ar)',
           }}
@@ -131,8 +134,9 @@ export default function SubPageLayout({
               key={tab.id}
               onClick={() => { onTabChange?.(tab.id); setMobileMenuOpen(false) }}
               style={{
-                padding: '6px 14px', borderRadius: '6px', border: 'none', cursor: 'pointer',
+                padding: '8px 14px', borderRadius: '6px', border: 'none', cursor: 'pointer',
                 fontSize: '11px', fontWeight: 600, fontFamily: 'var(--font-ar)',
+                minHeight: 44,
                 background: activeTab === tab.id ? 'var(--accent)' : 'var(--bg-input)',
                 color: activeTab === tab.id ? '#fff' : 'var(--text-muted)',
                 transition: 'all 0.15s',
@@ -145,7 +149,7 @@ export default function SubPageLayout({
       )}
 
       {/* Main Content */}
-      <div className="subpage-content" style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px' }}>
+      <div className="subpage-content" style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px', flex: 1, minHeight: 0, overflow: 'auto', paddingBottom: 'calc(20px + env(safe-area-inset-bottom))' }}>
         {children}
       </div>
 
@@ -161,7 +165,16 @@ export default function SubPageLayout({
             display: flex !important;
           }
           .subpage-content {
-            padding: 20px 12px !important;
+            padding: 12px 8px !important;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom)) !important;
+            height: calc(100dvh - 52px - env(safe-area-inset-top)) !important;
+            overflow-y: auto !important;
+          }
+        }
+        @media (max-width: 380px) {
+          .subpage-content {
+            padding: 10px 6px !important;
+            padding-bottom: calc(10px + env(safe-area-inset-bottom)) !important;
           }
         }
       `}</style>

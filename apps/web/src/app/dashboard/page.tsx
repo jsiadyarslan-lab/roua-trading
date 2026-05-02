@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { QuoteData } from '@/hooks/useMarketStore'
-import { BarChart3, Brain, ChevronDown, ScanSearch, Wallet, PanelRight } from 'lucide-react'
+import { ChevronDown, PanelRight, Zap, X, Target } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { NotificationToasts } from '@/components/dashboard/NotificationCenter'
@@ -11,8 +11,9 @@ import { LeftSidebarLayout } from '@/components/dashboard/layouts/LeftSidebarLay
 import { SidebarDrawer } from '@/components/dashboard/layouts/SidebarDrawer'
 import { RightPanelLayout } from '@/components/dashboard/layouts/RightPanelLayout'
 import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
-import { QuickExecutionMini } from '@/components/dashboard/QuickExecutionMini'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
+import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
+import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
 
@@ -28,6 +29,7 @@ const OrderBookPanel = dynamic(() => import('@/components/dashboard/OrderBookPan
 const ScannerMini = dynamic(() => import('@/components/dashboard/ScannerMini').then(m => ({ default: m.ScannerMini })), { ssr: false })
 const AlNarratorMini = dynamic(() => import('@/components/ai/AlNarratorMini').then(m => ({ default: m.AlNarratorMini })), { ssr: false })
 const PortfolioMini = dynamic(() => import('@/components/portfolio/PortfolioMini').then(m => ({ default: m.PortfolioMini })), { ssr: false })
+const QuickExecutionMini = dynamic(() => import('@/components/dashboard/QuickExecutionMini').then(m => ({ default: m.QuickExecutionMini })), { ssr: false })
 
 const T = {
   bg: '#0B0E14',
@@ -57,7 +59,7 @@ const MODE_CONFIG: Record<TradingMode, { accent: string; glowBg: string; label: 
     glowBg: 'rgba(0,212,255,0.04)',
     label: 'Trader',
     labelAr: 'وضع التاجر',
-    description: 'تداول سريع، شارت متقدم، تنفيذ فوري',
+    description: 'ربط سريع، شارت متقدم، متابعة فورية',
   },
   investor: {
     accent: '#10b981',
@@ -75,8 +77,6 @@ const MODE_CONFIG: Record<TradingMode, { accent: string; glowBg: string; label: 
   },
 }
 
-type MobileView = 'execution' | 'market' | 'portfolio' | 'insight'
-
 const formatMoney = (value: unknown): string => {
   if (value === null || value === undefined || value === '') return '$—'
   const num = typeof value === 'string' ? parseFloat(value) : Number(value)
@@ -90,6 +90,398 @@ const formatQuotePrice = (value: unknown) => {
   const num = Number(value)
   if (!Number.isFinite(num)) return '—'
   return num.toLocaleString('en-US', { maximumFractionDigits: num > 100 ? 2 : 4 })
+}
+
+// ── Beautiful Order Panel Component ──
+function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
+  selectedSymbol: string
+  currentPrice: number | null
+  isMobile: boolean
+  onClose: () => void
+}) {
+  const [orderSide, setOrderSide] = useState<'buy' | 'sell'>('buy')
+  const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop_limit'>('market')
+  const [quantity, setQuantity] = useState('0.01')
+  const [stopLoss, setStopLoss] = useState('')
+  const [takeProfit, setTakeProfit] = useState('')
+  const [limitPrice, setLimitPrice] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [status, setStatus] = useState<{ msg: string; type: 'success' | 'error' | '' }>({ msg: '', type: '' })
+
+  const { addTrade: addPaperTrade } = usePaperTradesStore()
+  const addNotification = useNotificationStore(state => state.addNotification)
+  const fetchAccount = usePositionsStore(state => state.fetchAccount)
+  const fetchPositions = usePositionsStore(state => state.fetchPositions)
+
+  const price = currentPrice ?? 0
+
+  const executeOrder = async () => {
+    const qty = parseFloat(quantity)
+    if (isNaN(qty) || qty <= 0) {
+      setStatus({ msg: 'الكمية غير صالحة', type: 'error' })
+      setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
+      return
+    }
+
+    const sl = stopLoss ? parseFloat(stopLoss) : 0
+    const tp = takeProfit ? parseFloat(takeProfit) : 0
+
+    // Validate SL/TP
+    if (orderSide === 'buy') {
+      if (sl > 0 && price > 0 && sl >= price) {
+        setStatus({ msg: 'يجب أن يكون وقف الخسارة أقل من السعر الحالي', type: 'error' })
+        setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
+        return
+      }
+      if (tp > 0 && price > 0 && tp <= price) {
+        setStatus({ msg: 'يجب أن يكون جني الأرباح أعلى من السعر الحالي', type: 'error' })
+        setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
+        return
+      }
+    } else {
+      if (sl > 0 && price > 0 && sl <= price) {
+        setStatus({ msg: 'يجب أن يكون وقف الخسارة أعلى من السعر الحالي', type: 'error' })
+        setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
+        return
+      }
+      if (tp > 0 && price > 0 && tp >= price) {
+        setStatus({ msg: 'يجب أن يكون جني الأرباح أقل من السعر الحالي', type: 'error' })
+        setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
+        return
+      }
+    }
+
+    setLoading(true)
+    setStatus({ msg: '', type: '' })
+
+    try {
+      const body: Record<string, any> = {
+        symbol: selectedSymbol,
+        side: orderSide,
+        qty,
+        type: orderType,
+      }
+      if (sl > 0) body.stop_loss = sl
+      if (tp > 0) body.take_profit = tp
+      if (orderType === 'limit' || orderType === 'stop_limit') {
+        body.limit_price = parseFloat(limitPrice)
+      }
+
+      const res = await fetch('/api/alpaca/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const j = await res.json()
+
+      if (j.success) {
+        const filled = j.filledAvgPrice ? ` بسعر $${parseFloat(j.filledAvgPrice).toFixed(2)}` : ''
+        addPaperTrade({
+          symbol: selectedSymbol,
+          side: orderSide === 'buy' ? 'long' : 'short',
+          qty,
+          entryPrice: j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : price,
+          currentPrice: price,
+          tp: tp > 0 ? tp : undefined,
+          sl: sl > 0 ? sl : undefined,
+          source: 'manual',
+          entryTime: Date.now(),
+        })
+        addNotification({
+          source: 'trade',
+          priority: 'high',
+          action: orderSide === 'buy' ? 'BUY' : 'SELL',
+          title: `تم ${orderSide === 'buy' ? 'شراء' : 'بيع'} ${selectedSymbol}`,
+          body: `تم تنفيذ ${qty} ${selectedSymbol}${filled}`,
+          pair: selectedSymbol,
+          price: j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : price,
+        })
+        fetchAccount()
+        fetchPositions()
+        setTimeout(() => { fetchAccount(); fetchPositions() }, 2000)
+        setStatus({ msg: `✅ تم ${orderSide === 'buy' ? 'الشراء' : 'البيع'} بنجاح`, type: 'success' })
+        setTimeout(() => onClose(), 1200)
+      } else {
+        setStatus({ msg: `❌ ${j.error || 'فشل التنفيذ'}`, type: 'error' })
+      }
+    } catch {
+      setStatus({ msg: '❌ خطأ في الشبكة', type: 'error' })
+    } finally {
+      setLoading(false)
+      setTimeout(() => setStatus({ msg: '', type: '' }), 4000)
+    }
+  }
+
+  const inputStyle = (color?: string): React.CSSProperties => ({
+    width: '100%',
+    background: color ? `${color}08` : 'rgba(255,255,255,0.03)',
+    border: `1px solid ${color ? `${color}25` : 'rgba(255,255,255,0.08)'}`,
+    borderRadius: 10,
+    color: color || '#F0F2F5',
+    fontSize: isMobile ? 14 : 13,
+    padding: isMobile ? '12px 14px' : '10px 12px',
+    fontFamily: "'JetBrains Mono', monospace",
+    outline: 'none',
+    transition: 'border-color 0.2s',
+    boxSizing: 'border-box',
+    fontWeight: 700,
+  })
+
+  return (
+    <div style={{
+      overflow: 'auto',
+      padding: isMobile ? '8px 16px calc(16px + env(safe-area-inset-bottom))' : '16px 20px',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 14,
+    }}>
+      {/* Buy/Sell Toggle */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: 8,
+        padding: 4,
+        borderRadius: 14,
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.06)',
+      }}>
+        <button
+          onClick={() => setOrderSide('buy')}
+          style={{
+            padding: isMobile ? '14px 0' : '12px 0',
+            borderRadius: 10,
+            border: 'none',
+            background: orderSide === 'buy'
+              ? 'linear-gradient(135deg, #00FFA3, #10B981)'
+              : 'rgba(0,255,163,0.06)',
+            color: orderSide === 'buy' ? '#fff' : '#6B7280',
+            fontSize: 14,
+            fontWeight: 800,
+            fontFamily: "'Cairo', sans-serif",
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: orderSide === 'buy' ? '0 0 20px rgba(0,255,163,0.25)' : 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+          }}
+        >
+          شراء <span style={{ fontSize: 10 }}>▲</span>
+        </button>
+        <button
+          onClick={() => setOrderSide('sell')}
+          style={{
+            padding: isMobile ? '14px 0' : '12px 0',
+            borderRadius: 10,
+            border: 'none',
+            background: orderSide === 'sell'
+              ? 'linear-gradient(135deg, #FF4757, #EF4444)'
+              : 'rgba(255,71,87,0.06)',
+            color: orderSide === 'sell' ? '#fff' : '#6B7280',
+            fontSize: 14,
+            fontWeight: 800,
+            fontFamily: "'Cairo', sans-serif",
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            boxShadow: orderSide === 'sell' ? '0 0 20px rgba(255,71,87,0.25)' : 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+          }}
+        >
+          بيع <span style={{ fontSize: 10 }}>▼</span>
+        </button>
+      </div>
+
+      {/* Order Type Selector */}
+      <div style={{
+        display: 'flex',
+        gap: 6,
+        padding: 3,
+        borderRadius: 10,
+        background: 'rgba(255,255,255,0.03)',
+        border: '1px solid rgba(255,255,255,0.05)',
+      }}>
+        {([
+          { key: 'market', label: 'سوقي' },
+          { key: 'limit', label: 'محدود' },
+          { key: 'stop_limit', label: 'وقف محدود' },
+        ] as const).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setOrderType(key)}
+            style={{
+              flex: 1,
+              padding: '8px 0',
+              borderRadius: 8,
+              border: 'none',
+              background: orderType === key
+                ? 'rgba(0,212,255,0.12)'
+                : 'transparent',
+              color: orderType === key ? '#00D4FF' : '#8B92A8',
+              fontSize: 11,
+              fontWeight: 700,
+              fontFamily: "'Cairo', sans-serif",
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+              borderLeft: orderType === key ? '2px solid #00D4FF' : '2px solid transparent',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Limit Price (when limit/stop_limit) */}
+      {(orderType === 'limit' || orderType === 'stop_limit') && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <label style={{ fontSize: 10, color: '#8B92A8', fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>سعر الحد</label>
+          <input
+            value={limitPrice}
+            onChange={e => setLimitPrice(e.target.value)}
+            placeholder={price > 0 ? price.toFixed(price > 100 ? 2 : 4) : '0.00'}
+            type="number"
+            step="0.01"
+            style={inputStyle('#00D4FF')}
+            onFocus={e => e.currentTarget.style.borderColor = 'rgba(0,212,255,0.4)'}
+            onBlur={e => e.currentTarget.style.borderColor = 'rgba(0,212,255,0.15)'}
+          />
+        </div>
+      )}
+
+      {/* Quantity */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <label style={{ fontSize: 10, color: '#8B92A8', fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>الكمية</label>
+        <input
+          value={quantity}
+          onChange={e => setQuantity(e.target.value)}
+          placeholder="0.01"
+          type="number"
+          step="0.01"
+          min="0.01"
+          style={inputStyle()}
+          onFocus={e => e.currentTarget.style.borderColor = 'rgba(0,212,255,0.4)'}
+          onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'}
+        />
+      </div>
+
+      {/* SL / TP Row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <label style={{ fontSize: 10, color: '#FF4757', fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>وقف الخسارة</label>
+          <input
+            value={stopLoss}
+            onChange={e => setStopLoss(e.target.value)}
+            placeholder="0.00"
+            type="number"
+            step="0.1"
+            style={inputStyle('#FF4757')}
+            onFocus={e => e.currentTarget.style.borderColor = 'rgba(255,71,87,0.5)'}
+            onBlur={e => e.currentTarget.style.borderColor = 'rgba(255,71,87,0.15)'}
+          />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <label style={{ fontSize: 10, color: '#00FFA3', fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>جني الأرباح</label>
+          <input
+            value={takeProfit}
+            onChange={e => setTakeProfit(e.target.value)}
+            placeholder="0.00"
+            type="number"
+            step="0.1"
+            style={inputStyle('#00FFA3')}
+            onFocus={e => e.currentTarget.style.borderColor = 'rgba(0,255,163,0.5)'}
+            onBlur={e => e.currentTarget.style.borderColor = 'rgba(0,255,163,0.15)'}
+          />
+        </div>
+      </div>
+
+      {/* Quick Calc Button */}
+      {price > 0 && (
+        <button
+          onClick={() => {
+            const tp = orderSide === 'buy' ? (price * 1.02).toFixed(price > 100 ? 2 : 4) : (price * 0.98).toFixed(price > 100 ? 2 : 4)
+            const sl = orderSide === 'buy' ? (price * 0.99).toFixed(price > 100 ? 2 : 4) : (price * 1.01).toFixed(price > 100 ? 2 : 4)
+            setTakeProfit(tp)
+            setStopLoss(sl)
+          }}
+          style={{
+            background: 'rgba(0,212,255,0.08)',
+            border: '1px solid rgba(0,212,255,0.15)',
+            borderRadius: 10,
+            color: '#00D4FF',
+            fontSize: 10,
+            fontWeight: 700,
+            padding: '10px 14px',
+            cursor: 'pointer',
+            fontFamily: "'Cairo', sans-serif",
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.14)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.08)' }}
+        >
+          <Target size={12} />
+          حساب تلقائي (SL 1% / TP 2%)
+        </button>
+      )}
+
+      {/* Status Message */}
+      {status.msg && (
+        <div style={{
+          padding: '10px 14px',
+          borderRadius: 10,
+          background: status.type === 'success' ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)',
+          border: `1px solid ${status.type === 'success' ? 'rgba(0,255,163,0.25)' : 'rgba(255,71,87,0.25)'}`,
+          color: status.type === 'success' ? '#00FFA3' : '#FF4757',
+          fontSize: 12,
+          fontWeight: 700,
+          fontFamily: "'Cairo', sans-serif",
+          textAlign: 'center',
+        }}>
+          {status.msg}
+        </div>
+      )}
+
+      {/* Execute Button */}
+      <button
+        onClick={executeOrder}
+        disabled={loading}
+        style={{
+          padding: isMobile ? '16px 0' : '14px 0',
+          borderRadius: 14,
+          border: 'none',
+          background: orderSide === 'buy'
+            ? 'linear-gradient(135deg, #00FFA3, #10B981)'
+            : 'linear-gradient(135deg, #FF4757, #EF4444)',
+          color: '#fff',
+          fontSize: 15,
+          fontWeight: 800,
+          fontFamily: "'Cairo', sans-serif",
+          cursor: loading ? 'not-allowed' : 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          opacity: loading ? 0.7 : 1,
+          transition: 'transform 0.12s ease, box-shadow 0.2s ease',
+          boxShadow: orderSide === 'buy'
+            ? '0 0 24px rgba(0,255,163,0.2), 0 4px 16px rgba(0,0,0,0.3)'
+            : '0 0 24px rgba(255,71,87,0.2), 0 4px 16px rgba(0,0,0,0.3)',
+        }}
+        onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
+        onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+        onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+      >
+        <Zap size={16} fill="white" />
+        {loading ? 'جارٍ التنفيذ...' : orderSide === 'buy' ? 'شراء' : 'بيع'} {selectedSymbol}
+      </button>
+    </div>
+  )
 }
 
 export default function DashboardPage() {
@@ -116,12 +508,12 @@ export default function DashboardPage() {
       setPosOpen(true)
     }
   }, [chartFullscreen])
-  const [activeMobileView, setActiveMobileView] = useState<MobileView>('execution')
   const [chartExpanded, setChartExpanded] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
   const [isCompactDesktopViewport, setIsCompactDesktopViewport] = useState(false)
   const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false)
   const [sidebarPinned, setSidebarPinned] = useState(false)
+  const [tradeDialogOpen, setTradeDialogOpen] = useState(false)
 
   useEffect(() => {
     fetchAccount()
@@ -129,9 +521,34 @@ export default function DashboardPage() {
     const intervalId = window.setInterval(() => {
       fetchAccount()
       fetchPositions()
-    }, 15000)
+    }, 60000)
 
     return () => window.clearInterval(intervalId)
+  }, [fetchAccount, fetchPositions])
+
+  // Cross-device sync: refresh data when the page becomes visible
+  // (user switches back from another tab/device or returns to the app)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchAccount()
+        fetchPositions()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [fetchAccount, fetchPositions])
+
+  // Cross-tab sync: listen for account data changes from other tabs
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key?.startsWith('roua_') || e.key === null) {
+        fetchAccount()
+        fetchPositions()
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
   }, [fetchAccount, fetchPositions])
 
   useEffect(() => {
@@ -465,31 +882,36 @@ export default function DashboardPage() {
           .mobile-dashboard-shell {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            padding: 10px 10px calc(124px + env(safe-area-inset-bottom));
+            gap: 0;
+            padding: 6px 6px 0;
             background: ${T.bg};
             box-sizing: border-box;
             width: 100%;
-            overflow-x: hidden;
+            overflow: hidden;
+            height: calc(100dvh - 52px);
           }
 
           .mobile-hero-trading-area {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
             min-width: 0;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
           }
 
           .mobile-market-strip {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 8px;
+            gap: 6px;
+            flex-shrink: 0;
           }
 
           .mobile-market-pill {
             min-width: 0;
-            padding: 10px 8px;
-            border-radius: 14px;
+            padding: 4px 4px;
+            border-radius: 10px;
             border: 1px solid rgba(0, 212, 255, 0.12);
             background: rgba(26, 29, 41, 0.6);
             backdrop-filter: blur(8px);
@@ -509,38 +931,43 @@ export default function DashboardPage() {
             border: 1px solid rgba(0, 212, 255, 0.10);
             background: rgba(26, 29, 41, 0.6);
             backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
           }
 
           .mobile-hero-card__header {
-            min-height: 44px;
-            padding: 0 12px;
+            min-height: 32px;
+            padding: 0 8px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             border-bottom: 1px solid rgba(0, 212, 255, 0.08);
+            flex-shrink: 0;
           }
 
           .mobile-hero-chart {
-            height: 34dvh;
-            min-height: 220px;
-            max-height: 320px;
+            flex: 1;
+            min-height: 0;
             overflow: hidden;
           }
 
           .mobile-hero-chart--expanded {
-            height: 72dvh;
-            max-height: none;
+            flex: 2;
+            min-height: 0;
           }
 
           .mobile-summary-strip {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 8px;
-            padding: 10px 12px;
-            border-radius: 14px;
+            gap: 6px;
+            padding: 6px 8px;
+            border-radius: 12px;
             background: rgba(26, 29, 41, 0.6);
             backdrop-filter: blur(8px);
             border: 1px solid rgba(255, 255, 255, 0.06);
+            flex-shrink: 0;
           }
 
           .mobile-summary-card {
@@ -549,75 +976,7 @@ export default function DashboardPage() {
             text-align: center;
           }
 
-          .mobile-primary-ticket {
-            border-radius: 16px;
-            border: 1px solid rgba(0, 212, 255, 0.10);
-            background: rgba(26, 29, 41, 0.6);
-            backdrop-filter: blur(8px);
-            overflow: hidden;
-          }
 
-          .mobile-panel-shell {
-            border-radius: 16px;
-            overflow: hidden;
-            border: 1px solid rgba(0, 212, 255, 0.10);
-            background: rgba(26, 29, 41, 0.6);
-            backdrop-filter: blur(8px);
-            min-height: 240px;
-          }
-
-          .mobile-bottom-nav {
-            display: block;
-            position: fixed;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 80;
-            padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-            background: rgba(11, 14, 20, 0.94);
-            border-top: 1px solid rgba(0, 212, 255, 0.10);
-            backdrop-filter: blur(20px) saturate(1.5);
-            -webkit-backdrop-filter: blur(20px) saturate(1.5);
-            box-sizing: border-box;
-          }
-
-          .mobile-bottom-nav__inner {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-          }
-
-          .mobile-bottom-nav__button {
-            min-height: 50px;
-            padding: 8px 4px;
-            border: 1px solid transparent;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.03);
-            color: ${T.text3};
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            cursor: pointer;
-            transition: all 0.18s ease;
-            box-sizing: border-box;
-            touch-action: manipulation;
-          }
-
-          .mobile-bottom-nav__button--active {
-            background: rgba(0, 212, 255, 0.10);
-            color: ${T.text};
-            border-color: rgba(0, 212, 255, 0.20);
-            box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.08) inset, 0 0 12px rgba(0, 212, 255, 0.06);
-          }
-
-          .mobile-bottom-nav__label {
-            font-size: 10px;
-            font-weight: 700;
-            font-family: 'Cairo', sans-serif;
-            line-height: 1;
-          }
 
           .mobile-section {
             min-width: 0;
@@ -653,8 +1012,8 @@ export default function DashboardPage() {
           }
 
           .mobile-chart-shell {
-            height: min(74vh, 720px);
-            min-height: 420px;
+            height: 100%;
+            min-height: 0;
           }
         }
 
@@ -689,6 +1048,16 @@ export default function DashboardPage() {
         @keyframes live-dot {
           0%, 100% { transform: scale(1); opacity: 0.65; }
           50% { transform: scale(1.35); opacity: 1; }
+        }
+
+        @keyframes slideUp {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
       `}</style>
 
@@ -734,7 +1103,7 @@ export default function DashboardPage() {
               <div style={{ flex: 1 }} />
               {mode === 'trader' && (
                 <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: T.text3, fontWeight: 600 }}>
-                  {activeMobileView === 'execution' ? 'LIVE' : 'READY'}
+                  READY
                 </span>
               )}
               {mode === 'investor' && (
@@ -749,14 +1118,155 @@ export default function DashboardPage() {
               )}
             </div>
             {/* Chart Panel */}
-            <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+            <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+              <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
                 <RouaChart
                   currentPrice={currentPrice}
                   isChartFullscreen={chartFullscreen}
                   onToggleChartFullscreen={toggleChartFullscreen}
                 />
               </div>
+              {/* ── Desktop Chart Legend Trade Buttons (TradingView-style) ── */}
+              {!tradeDialogOpen ? (
+                <div style={{
+                  position: 'absolute',
+                  top: 10,
+                  left: 10,
+                  zIndex: 20,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '4px 8px',
+                  borderRadius: 8,
+                  background: 'rgba(11,14,20,0.85)',
+                  backdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
+                }}>
+                  {/* Symbol label in legend */}
+                  <span style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 11,
+                    fontWeight: 800,
+                    color: '#00D4FF',
+                    letterSpacing: '0.03em',
+                    padding: '0 4px',
+                  }}>{selectedSymbol}</span>
+                  <span style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: '#8B92A8',
+                    borderRight: '1px solid rgba(255,255,255,0.1)',
+                    paddingRight: 8,
+                    marginRight: 2,
+                  }}>{formatQuotePrice(currentPrice)}</span>
+                  {/* BUY button — compact TradingView legend style */}
+                  <button
+                    type="button"
+                    onClick={() => setTradeDialogOpen(true)}
+                    title="شراء"
+                    aria-label="فتح نافذة الشراء"
+                    style={{
+                      padding: '4px 12px',
+                      borderRadius: 6,
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #00FFA3, #10B981)',
+                      color: '#fff',
+                      fontFamily: "'Cairo', sans-serif",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 3,
+                      boxShadow: '0 0 10px rgba(0,255,163,0.2)',
+                      transition: 'transform 0.1s ease, box-shadow 0.2s ease',
+                    }}
+                    onMouseDown={e => e.currentTarget.style.transform = 'scale(0.94)'}
+                    onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 16px rgba(0,255,163,0.35)' }}
+                    onMouseOut={e => { e.currentTarget.style.boxShadow = '0 0 10px rgba(0,255,163,0.2)' }}
+                  >
+                    <span style={{ fontSize: 9 }}>▲</span> شراء
+                  </button>
+                  {/* SELL button — compact TradingView legend style */}
+                  <button
+                    type="button"
+                    onClick={() => setTradeDialogOpen(true)}
+                    title="بيع"
+                    aria-label="فتح نافذة البيع"
+                    style={{
+                      padding: '4px 12px',
+                      borderRadius: 6,
+                      border: 'none',
+                      background: 'linear-gradient(135deg, #FF4757, #EF4444)',
+                      color: '#fff',
+                      fontFamily: "'Cairo', sans-serif",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 3,
+                      boxShadow: '0 0 10px rgba(255,71,87,0.2)',
+                      transition: 'transform 0.1s ease, box-shadow 0.2s ease',
+                    }}
+                    onMouseDown={e => e.currentTarget.style.transform = 'scale(0.94)'}
+                    onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 16px rgba(255,71,87,0.35)' }}
+                    onMouseOut={e => { e.currentTarget.style.boxShadow = '0 0 10px rgba(255,71,87,0.2)' }}
+                  >
+                    <span style={{ fontSize: 9 }}>▼</span> بيع
+                  </button>
+                </div>
+              ) : (
+                /* Expanded trade panel overlay */
+                <div className="chart-trade-overlay">
+                  <div className="chart-trade-overlay__header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: 8,
+                        background: 'linear-gradient(135deg, rgba(0,212,255,0.2), rgba(0,255,163,0.1))',
+                        border: '1px solid rgba(0,212,255,0.25)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 0 10px rgba(0,212,255,0.12)',
+                      }}>
+                        <Zap size={12} color="#00D4FF" />
+                      </div>
+                      <div>
+                        <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 800, color: '#F0F2F5' }}>تنفيذ الأوامر</div>
+                        <div style={{ fontSize: 9, color: '#8B92A8', fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol} · {formatQuotePrice(currentPrice)}</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setTradeDialogOpen(false)}
+                      style={{
+                        width: 28, height: 28, borderRadius: 8,
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        color: '#8B92A8', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; e.currentTarget.style.color = '#FF4757' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#8B92A8' }}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                  <div style={{ maxHeight: 'calc(100% - 52px)', overflowY: 'auto' }}>
+                    <QuickExecutionMini
+                      mobile={false}
+                      dataStatus={quoteStatus}
+                      lastUpdatedAt={activeQuote?.timestamp ?? null}
+                      sourceLabel={sourceLabel}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Balance Card + Positions Panel */}
@@ -873,6 +1383,7 @@ export default function DashboardPage() {
       {isMobileViewport && (
         <div className="mobile-dashboard-shell">
           <div className="mobile-hero-trading-area">
+            {/* Market Strip */}
             <div className="mobile-market-strip">
               {mobileSymbols.map(({ symbol, quote }) => {
                 const active = symbol === selectedSymbol
@@ -885,11 +1396,11 @@ export default function DashboardPage() {
                     className={`mobile-market-pill${active ? ' mobile-market-pill--active' : ''}`}
                     style={{ cursor: 'pointer' }}
                   >
-                    <div style={{ fontSize: 10, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{symbol}</div>
-                    <div style={{ fontSize: 14, color: T.text, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", marginTop: 4 }}>
+                    <div style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{symbol}</div>
+                    <div style={{ fontSize: 10, color: T.text, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
                       {formatQuotePrice(quote?.price)}
                     </div>
-                    <div style={{ fontSize: 9, color: getStatusTone(getDataStatus(quote)), marginTop: 4, fontFamily: "'JetBrains Mono', monospace" }}>
+                    <div style={{ fontSize: 7, color: getStatusTone(getDataStatus(quote)), marginTop: 1, fontFamily: "'JetBrains Mono', monospace" }}>
                       {getStatusLabel(getDataStatus(quote))}
                     </div>
                   </button>
@@ -897,20 +1408,48 @@ export default function DashboardPage() {
               })}
             </div>
 
+            {/* Chart Card — full remaining height */}
             <div className="mobile-hero-card">
               <div className="mobile-hero-card__header">
-                <span className="mobile-section__title">Chart</span>
-                <button
-                  type="button"
-                  onClick={() => setChartExpanded(value => !value)}
-                  title={chartExpanded ? 'تصغير الرسم البياني' : 'توسيع الرسم البياني'}
-                  aria-label={chartExpanded ? 'تصغير الرسم البياني' : 'توسيع الرسم البياني'}
-                  style={{ background: 'transparent', border: 'none', color: T.text3, cursor: 'pointer' }}
-                >
-                  <ChevronDown size={16} style={{ transform: chartExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
-                </button>
+                {/* Symbol name only - price shown by CrosshairOverlay */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 800, color: T.cyan }}>{selectedSymbol}</div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {/* Execution Zap Button — prominent */}
+                  <button
+                    type="button"
+                    onClick={() => setTradeDialogOpen(true)}
+                    title="تنفيذ الأوامر"
+                    aria-label="فتح نافذة التنفيذ"
+                    style={{
+                      width: 34, height: 34, borderRadius: 10,
+                      background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
+                      border: 'none', color: '#fff', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      boxShadow: '0 0 12px rgba(0,255,198,0.3), 0 0 4px rgba(10,132,255,0.2)',
+                      transition: 'transform 0.12s ease, box-shadow 0.2s ease',
+                    }}
+                    onMouseDown={e => e.currentTarget.style.transform = 'scale(0.88)'}
+                    onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                  >
+                    <Zap size={16} fill="white" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setChartExpanded(value => !value)}
+                    title={chartExpanded ? 'تصغير الرسم البياني' : 'توسيع الرسم البياني'}
+                    aria-label={chartExpanded ? 'تصغير الرسم البياني' : 'توسيع الرسم البياني'}
+                    style={{ background: 'transparent', border: 'none', color: T.text3, cursor: 'pointer', padding: 2 }}
+                  >
+                    <ChevronDown size={14} style={{ transform: chartExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
+                  </button>
+                </div>
               </div>
 
+              {/* Chart — takes all remaining space */}
               <div className={`mobile-hero-chart${chartExpanded ? ' mobile-hero-chart--expanded' : ''}`}>
                 <RouaChart
                   currentPrice={currentPrice}
@@ -921,64 +1460,107 @@ export default function DashboardPage() {
                   onToggleChartFullscreen={toggleChartFullscreen}
                 />
               </div>
-            </div>
 
-            <div className="mobile-primary-ticket">
-              <QuickExecutionMini mobile dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} />
-            </div>
-
-            <div className="mobile-summary-strip">
-              {mobileSummaryCards.map(card => (
-                <div key={card.label} className="mobile-summary-card">
-                  <div style={{ fontSize: 9, color: T.text3, marginBottom: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.label}</div>
-                  <div style={{ fontSize: 11, color: card.tone, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.value}</div>
-                </div>
-              ))}
+              {/* Summary Strip — always visible below chart */}
+              <div className="mobile-summary-strip" style={{ flexShrink: 0 }}>
+                {mobileSummaryCards.map(card => (
+                  <div key={card.label} className="mobile-summary-card">
+                    <div style={{ fontSize: 9, color: T.text3, marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.label}</div>
+                    <div style={{ fontSize: 11, color: card.tone, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.value}</div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
+        </div>
+      )}
 
-          <div className="mobile-panel-shell">
-            {activeMobileView === 'execution' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 10, height: '100%' }}>
-                <div className="mobile-section__header">
-                  <span className="mobile-section__title">الحساب والمراكز</span>
-                  <BarChart3 size={18} color={T.text3} />
+      {/* Trade Dialog (bottom sheet) — mobile only now, desktop uses inline overlay */}
+      {isMobileViewport && tradeDialogOpen && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 90,
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+            animation: 'fadeIn 0.15s ease-out',
+          }}
+          onClick={() => setTradeDialogOpen(false)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxHeight: '85dvh',
+              background: 'linear-gradient(180deg, rgba(17,21,32,0.97) 0%, rgba(11,14,20,0.99) 100%)',
+              backdropFilter: 'blur(24px) saturate(1.6)',
+              WebkitBackdropFilter: 'blur(24px) saturate(1.6)',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              borderBottomLeftRadius: 0,
+              borderBottomRightRadius: 0,
+              border: '1px solid rgba(0,212,255,0.12)',
+              borderBottom: 'none',
+              overflow: 'hidden',
+              animation: 'slideUp 0.3s cubic-bezier(0.16,1,0.3,1)',
+              boxShadow: '0 0 60px rgba(0,212,255,0.08), 0 24px 80px rgba(0,0,0,0.6)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Drag handle — mobile only */}
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 6px' }}>
+              <div style={{ width: 36, height: 4, borderRadius: 4, background: 'rgba(255,255,255,0.15)' }} />
+            </div>
+
+            {/* Header with glassmorphism */}
+            <div style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '4px 16px 12px',
+              borderBottom: '1px solid rgba(0,212,255,0.08)',
+              background: 'linear-gradient(90deg, rgba(0,212,255,0.06), transparent 60%)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: 10,
+                  background: 'linear-gradient(135deg, rgba(0,212,255,0.2), rgba(0,255,163,0.1))',
+                  border: '1px solid rgba(0,212,255,0.25)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  boxShadow: '0 0 12px rgba(0,212,255,0.15)',
+                }}>
+                  <Zap size={14} color="#00D4FF" />
                 </div>
-                <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
-                  <PortfolioMini mobile compact dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />
+                <div>
+                  <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 15, fontWeight: 800, color: '#F0F2F5' }}>تنفيذ الأوامر</div>
+                  <div style={{ fontSize: 10, color: '#8B92A8', fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol} · {formatQuotePrice(currentPrice)}</div>
                 </div>
               </div>
-            )}
+              <button
+                onClick={() => setTradeDialogOpen(false)}
+                style={{
+                  width: 32, height: 32, borderRadius: 10,
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: '#8B92A8', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#F0F2F5' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#8B92A8' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
 
-            {activeMobileView === 'market' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 10, height: '100%' }}>
-                <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
-                  <OrderBookPanel mobile collapsedByDefault dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} />
-                </div>
-                <div style={{ minHeight: 0, flex: 1, borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
-                  <WatchlistMini selectedSymbol={selectedSymbol} />
-                </div>
-              </div>
-            )}
-
-            {activeMobileView === 'portfolio' && (
-              <div style={{ padding: 10, height: '100%' }}>
-                <div style={{ height: '100%', borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
-                  <PortfolioMini mobile dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />
-                </div>
-              </div>
-            )}
-
-            {activeMobileView === 'insight' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: 10, height: '100%' }}>
-                <div style={{ borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
-                  <ScannerMini mobile compact selectedSymbol={selectedSymbol} />
-                </div>
-                <div style={{ minHeight: 0, flex: 1, borderRadius: 14, overflow: 'hidden', border: `1px solid ${T.border}`, background: T.card }}>
-                  <AlNarratorMini mobile compact selectedSymbol={selectedSymbol} dataStatus={quoteStatus} />
-                </div>
-              </div>
-            )}
+            {/* Mobile QuickExecutionMini */}
+            <div style={{ maxHeight: 'calc(85dvh - 80px)', overflowY: 'auto' }}>
+              <QuickExecutionMini
+                mobile={true}
+                dataStatus={quoteStatus}
+                lastUpdatedAt={activeQuote?.timestamp ?? null}
+                sourceLabel={sourceLabel}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -1008,16 +1590,16 @@ export default function DashboardPage() {
         </button>
       )}
 
-      {/* FAB button for mobile */}
+      {/* FAB button for mobile — opens sidebar drawer */}
       {isMobileViewport && (
         <button
           type="button"
           className="sidebar-fab"
           onClick={() => setSidebarDrawerOpen(true)}
-          title="المحفظة"
-          aria-label="المحفظة"
+          title="القائمة"
+          aria-label="القائمة"
         >
-          <Wallet size={22} />
+          <PanelRight size={22} />
         </button>
       )}
 
@@ -1029,36 +1611,6 @@ export default function DashboardPage() {
         >
           <LeftSidebarLayout />
         </SidebarDrawer>
-      )}
-
-      {isMobileViewport && (
-        <nav className="mobile-bottom-nav" aria-label="Mobile dashboard navigation">
-          <div className="mobile-bottom-nav__inner">
-            {[
-              { id: 'execution', label: 'تنفيذ', icon: BarChart3 },
-              { id: 'market', label: 'السوق', icon: ScanSearch },
-              { id: 'portfolio', label: 'المحفظة', icon: Wallet },
-              { id: 'insight', label: 'رؤى', icon: Brain },
-            ].map(item => {
-              const Icon = item.icon
-              const active = activeMobileView === item.id
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveMobileView(item.id as MobileView)}
-                  className={`mobile-bottom-nav__button${active ? ' mobile-bottom-nav__button--active' : ''}`}
-                  title={item.label}
-                  aria-label={item.label}
-                >
-                  <Icon size={18} />
-                  <span className="mobile-bottom-nav__label">{item.label}</span>
-                </button>
-              )
-            })}
-          </div>
-        </nav>
       )}
     </>
   )

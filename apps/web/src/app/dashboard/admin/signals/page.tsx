@@ -15,6 +15,32 @@ import {
 } from 'lucide-react'
 import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
 
+// ── Defensive helpers: ensure primitive types for React rendering ──
+function safeConfidence(val: unknown): number {
+  if (typeof val === 'number' && Number.isFinite(val)) return val
+  if (val && typeof val === 'object' && 'compositeScore' in (val as any)) return (val as any).compositeScore ?? (val as any).confidence ?? 0
+  const n = Number(val)
+  return Number.isFinite(n) ? n : 0
+}
+
+function safeReason(val: unknown): string {
+  if (typeof val === 'string') return val
+  if (val && typeof val === 'object') {
+    try { return JSON.stringify(val) } catch { return '' }
+  }
+  return val != null ? String(val) : ''
+}
+
+function safeAction(val: unknown): string {
+  if (val === 'BUY' || val === 'SELL' || val === 'WAIT') return val
+  if (val && typeof val === 'object' && 'action' in (val as any)) {
+    const inner = (val as any).action
+    if (inner === 'STRONG_BUY' || inner === 'BUY') return 'BUY'
+    if (inner === 'STRONG_SELL' || inner === 'SELL') return 'SELL'
+  }
+  return 'WAIT'
+}
+
 interface Signal {
   id: string
   pair: string
@@ -70,12 +96,12 @@ export default function AdminSignalsPage() {
         const data = await signalsRes.json()
         const rawSignals = Array.isArray(data.signals) ? data.signals : Array.isArray(data.data) ? data.data : []
         if (rawSignals.length > 0) {
-          setSignals(rawSignals.map((s: any) => ({
-            id: s.id || Math.random().toString(),
+          setSignals(rawSignals.map((s: any, i: number) => ({
+            id: s.id || `signal-${i}`,
             pair: s.pair || s.symbol || '—',
-            action: s.action || s.type || 'WAIT',
-            confidence: s.confidence || s.conf || 0,
-            reason: s.reason || '',
+            action: safeAction(s.action || s.type),
+            confidence: safeConfidence(s.confidence || s.conf),
+            reason: safeReason(s.reason),
             status: s.status || 'ACTIVE',
             createdAt: s.createdAt || s.time || new Date().toISOString(),
             source: 'smart',
@@ -98,7 +124,7 @@ export default function AdminSignalsPage() {
         if (rawResults.length > 0) {
           setScannerResults(rawResults.slice(0, 8).map((r: any) => ({
             symbol: r.symbol || r.pair || '—',
-            score: r.smartScore || r.score || 0,
+            score: r.smartScore?.compositeScore ?? r.score ?? 0,
             direction: r.direction || (r.change > 0 ? 'bullish' : r.change < 0 ? 'bearish' : 'neutral'),
             change: r.change || r.priceChange || 0,
           })))
@@ -125,7 +151,7 @@ export default function AdminSignalsPage() {
   const fetchStats = useCallback(async () => {
     setStatsLoading(true)
     try {
-      const res = await fetch('/dashboard/admin/api/signals/stats')
+      const res = await fetch('/api/admin/signals/stats')
       if (res.ok) {
         const data = await res.json()
         setSignalStats(data)
@@ -141,6 +167,11 @@ export default function AdminSignalsPage() {
   useEffect(() => {
     fetchData()
     fetchStats()
+    const interval = setInterval(() => {
+      fetchData()
+      fetchStats()
+    }, 60000) // Auto-refresh every 60s
+    return () => clearInterval(interval)
   }, [fetchData, fetchStats])
 
   const activeSignals = signals.filter(s => s.status === 'ACTIVE')
@@ -277,7 +308,7 @@ export default function AdminSignalsPage() {
                       </span>
                     </div>
                     <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: signal.confidence >= 70 ? COLORS.success : signal.confidence >= 50 ? COLORS.amber : COLORS.danger }}>
-                      {signal.confidence}%
+                      {Math.round(signal.confidence)}%
                     </span>
                   </div>
                   <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", lineHeight: 1.5 }}>{signal.reason}</div>

@@ -10,7 +10,8 @@ import {
   ChevronDown, Bell, User, MoreHorizontal,
   TrendingUp, TrendingDown, Menu, X as XIcon, GitMerge, Activity,
   FlaskConical, Shield, Hammer, LogOut, UserCircle, Info,
-  CreditCard, HelpCircle, Trophy, Code, Fingerprint, BellRing, Link2, Eye
+  CreditCard, HelpCircle, Trophy, Code, Fingerprint, BellRing, Link2, Eye, Target, Cpu, PenLine, Clock, Calendar,
+  BarChart3, Globe2
 } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
@@ -350,7 +351,7 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
           }}>
             <span style={{
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: isMobile ? 6.5 : 7.5, color: T.text3,
+              fontSize: isMobile ? 9 : 7.5, color: T.text3,
               letterSpacing: '0.04em', lineHeight: 1.2,
             }}>{sym}</span>
             <span className="price" style={{
@@ -412,32 +413,116 @@ function MobileNewsTicker() {
   )
 }
 
-/* ══ Strip 3: Main Nav ══ */
-const NAV_LINKS = [
+/* ══ Strip 3: Main Nav ══
+ *
+ * الترتيب الجديد:
+ * ├── الرئيسية (8 عناصر بارزة)
+ * ├── المحفظة (يتضمن: الملاذ)
+ * ├── تحليل AI
+ * ├── Neural Lab
+ * ├── السكانر المتقدم
+ * ├── تحليلات استراتيجية (يتضمن: اختبار الاستراتيجيات + بناء الاستراتيجية)
+ * ├── الأخبار (يتضمن: وكيل المحتوى)
+ * ├── الأسواق التنبؤية
+ * └── المزيد:
+ *     ├── لوحة الصدارة
+ *     ├── متابعة الحسابات
+ *     ├── المجتمع الاجتماعي
+ *     ├── الأجندة الاقتصادية
+ *     ├── توثيق API
+ *     ├── المصادقة الثنائية
+ *     ├── مركز المساعدة
+ *     └── الإعدادات (يتضمن: الإشعارات، المدفوعات، ربط الحسابات، الملف الشخصي)
+ *
+ * محذوف: مصفوفة الارتباط
+ * منفصل: وكيل التداول → ويدجت عائم في السايدبار
+ */
+
+/* ─── Nav Link Type ─── */
+interface NavLink {
+  href: string
+  label: string
+  icon: any
+  hash?: string
+  children?: NavLink[]
+}
+
+const NAV_LINKS: NavLink[] = [
+  // ── Main 8 (visible in nav bar) ──
   { href: '/dashboard',                        label: 'الرئيسية',           icon: Home },
-  { href: '/dashboard/portfolio',              label: 'المحفظة',            icon: Wallet },
+  { href: '/dashboard/portfolio',              label: 'المحفظة',            icon: Wallet,
+    children: [
+      { href: '/dashboard/sanctuary',  label: 'الملاذ',            icon: Shield },
+    ]
+  },
   { href: '/dashboard/ai',                     label: 'تحليل AI',           icon: Brain },
   { href: '/dashboard/neural',                  label: 'Neural Lab',         icon: FlaskConical },
   { href: '/dashboard/scanner',                label: 'السكانر المتقدم',    icon: ScanSearch },
-  { href: '/dashboard/strategies',             label: 'تحليلات استراتيجية', icon: BarChart2 },
-  { href: '/dashboard/news',                   label: 'الأخبار',            icon: Newspaper },
+  { href: '/dashboard/strategies',             label: 'تحليلات استراتيجية', icon: BarChart2,
+    children: [
+      { href: '/dashboard/strategies/backtest',  label: 'اختبار الاستراتيجيات', icon: FlaskConical },
+      { href: '/dashboard/strategies/builder',   label: 'بناء الاستراتيجية',   icon: Hammer },
+    ]
+  },
+  { href: '/dashboard/news',                   label: 'التقارير',           icon: Newspaper,
+    children: [
+      { href: '/dashboard/news?tab=hourly',     label: 'تقارير ساعية',       icon: Clock },
+      { href: '/dashboard/news?tab=daily',      label: 'تقارير يومية',       icon: Newspaper },
+      { href: '/dashboard/news?tab=weekly',     label: 'تقارير أسبوعية',     icon: Calendar },
+      { href: '/dashboard/news?tab=pair',       label: 'تحليل الأزواج',      icon: TrendingUp },
+      { href: '/dashboard/news?tab=financial',  label: 'تقارير مالية',       icon: BarChart3 },
+      { href: '/dashboard/news?tab=economic',   label: 'تقارير اقتصادية',    icon: Globe2 },
+    ]
+  },
+  { href: '/dashboard/prediction-market',      label: 'الأسواق التنبؤية',   icon: Target },
+  // ── More dropdown ──
   { href: '/dashboard/leaderboard',            label: 'لوحة الصدارة',       icon: Trophy },
   { href: '/dashboard/copy-trading',           label: 'متابعة الحسابات',    icon: Eye },
-  { href: '/dashboard/social',                 label: 'التداول الاجتماعي',  icon: Users },
+  { href: '/dashboard/social',                 label: 'المجتمع الاجتماعي',  icon: Users },
   { href: '/dashboard/calendar',               label: 'الأجندة الاقتصادية', icon: CalendarDays },
-  { href: '/dashboard/strategies/backtest',    label: 'اختبار الاستراتيجيات', icon: Activity },
-  { href: '/dashboard/sanctuary',             label: 'الملاذ',              icon: Shield },
-  { href: '/dashboard/strategy-builder',       label: 'بناء الاستراتيجية',   icon: Hammer },
-  { href: '/dashboard/correlation',            label: 'مصفوفة الارتباط',    icon: GitMerge },
-  { href: '/dashboard/billing',                label: 'المدفوعات',          icon: CreditCard },
-  { href: '/dashboard/notifications',          label: 'الإشعارات',          icon: BellRing },
-  { href: '/dashboard/kyc',                    label: 'ربط الحسابات',       icon: Link2 },
-  { href: '/dashboard/profile',                label: 'الملف الشخصي',       icon: UserCircle },
-  { href: '/dashboard/security/2fa',           label: 'المصادقة الثنائية',  icon: Shield },
   { href: '/dashboard/api-docs',               label: 'توثيق API',          icon: Code },
+  { href: '/dashboard/security/2fa',           label: 'المصادقة الثنائية',  icon: Shield },
   { href: '/dashboard/help',                   label: 'مركز المساعدة',      icon: HelpCircle },
-  { href: '/dashboard/settings',               label: 'الإعدادات',          icon: Settings },
+  // Settings now has sub-items
+  { href: '/dashboard/settings',               label: 'الإعدادات',          icon: Settings,
+    children: [
+      { href: '/dashboard/settings/notifications', label: 'الإشعارات',     icon: Bell },
+      { href: '/dashboard/settings/profile',       label: 'الملف الشخصي', icon: UserCircle },
+      { href: '/dashboard/settings/payments',      label: 'المدفوعات',    icon: CreditCard },
+      { href: '/dashboard/settings/linking',       label: 'ربط الحسابات', icon: Link2 },
+    ]
+  },
 ]
+
+/* ─── Helper: strip query params from href for pathname comparison ─── */
+function stripQueryParams(href: string): string {
+  return href.split('?')[0]
+}
+
+/* ─── Helper: check if a child link is active (handles query params) ─── */
+function isChildActive(childHref: string, pathname: string): boolean {
+  const childPath = stripQueryParams(childHref)
+  // If the child href has no query params, do exact or prefix match
+  if (!childHref.includes('?')) {
+    return pathname === childHref || (childHref !== '/dashboard' && pathname.startsWith(childHref))
+  }
+  // If the child href has query params, match on pathname portion only
+  // This allows /dashboard/news?tab=daily to be recognized when pathname is /dashboard/news
+  return pathname === childPath || (childPath !== '/dashboard' && pathname.startsWith(childPath))
+}
+
+/* ─── Helper: check if any child is active ─── */
+function isLinkActive(link: NavLink, pathname: string): boolean {
+  if (pathname === link.href) return true
+  if (link.href !== '/dashboard' && pathname.startsWith(link.href)) return true
+  if (link.children) {
+    return link.children.some(child => {
+      if (child.href === '/dashboard') return false
+      return isChildActive(child.href, pathname)
+    })
+  }
+  return false
+}
 
 // BUG-005 FIX: Use a module-level ref instead of window namespace pollution
 const _dropdownCleanupRef: { current: (() => void) | null } = { current: null }
@@ -516,33 +601,68 @@ function MoreDropdown({
       boxShadow: '0 20px 60px rgba(0,0,0,0.7), 0 0 20px rgba(0,212,255,0.06)',
       animation: 'fadeInSlideDown 0.18s ease-out',
     }}>
-      {NAV_LINKS.slice(8).map(({ href, label, icon: Icon }) => {
-        const active = pathname === href ||
-          (href !== '/dashboard' && (pathname ?? '').startsWith(href))
+      {NAV_LINKS.slice(8).map((link) => {
+        const { href, label, icon: Icon, children } = link
+        const active = isLinkActive(link, pathname)
         return (
-          <Link key={href} href={href} style={{ textDecoration: 'none' }} onClick={onClose}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
-              fontFamily: "'Cairo', sans-serif", fontSize: 13,
-              color: active ? 'var(--accent)' : T.text2,
-              background: active ? 'rgba(0,212,255,0.08)' : 'transparent',
-              fontWeight: active ? 700 : 500,
-              transition: 'all 0.15s',
-            }}
-            onMouseEnter={e => {
-              const el = e.currentTarget as HTMLDivElement
-              if (!active) { el.style.background = 'rgba(0,212,255,0.06)'; el.style.color = T.text }
-            }}
-            onMouseLeave={e => {
-              const el = e.currentTarget as HTMLDivElement
-              if (!active) { el.style.background = 'transparent'; el.style.color = T.text2 }
-            }}
-            >
-              <Icon size={15} strokeWidth={active ? 2.5 : 2} />
-              {label}
-            </div>
-          </Link>
+          <div key={href + '-' + label}>
+            <Link href={href} style={{ textDecoration: 'none' }} onClick={onClose}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
+                fontFamily: "'Cairo', sans-serif", fontSize: 13,
+                color: active ? 'var(--accent)' : T.text2,
+                background: active ? 'rgba(0,212,255,0.08)' : 'transparent',
+                fontWeight: active ? 700 : 500,
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => {
+                const el = e.currentTarget as HTMLDivElement
+                if (!active) { el.style.background = 'rgba(0,212,255,0.06)'; el.style.color = T.text }
+              }}
+              onMouseLeave={e => {
+                const el = e.currentTarget as HTMLDivElement
+                if (!active) { el.style.background = 'transparent'; el.style.color = T.text2 }
+              }}
+              >
+                <Icon size={15} strokeWidth={active ? 2.5 : 2} />
+                {label}
+                {children && <ChevronDown size={11} style={{ marginRight: 'auto', opacity: 0.5 }} />}
+              </div>
+            </Link>
+            {children && (
+              <div style={{ paddingRight: 12, direction: 'rtl' }}>
+                {children.map((child) => {
+                  const childActive = isChildActive(child.href, pathname)
+                  return (
+                    <Link key={child.href + '-' + child.label} href={child.href} style={{ textDecoration: 'none' }} onClick={onClose}>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 8,
+                        padding: '8px 14px 8px 10px', borderRadius: 6, cursor: 'pointer',
+                        fontFamily: "'Cairo', sans-serif", fontSize: 12,
+                        color: childActive ? 'var(--accent)' : T.text3,
+                        background: childActive ? 'rgba(0,212,255,0.06)' : 'transparent',
+                        fontWeight: childActive ? 600 : 400,
+                        transition: 'all 0.15s',
+                      }}
+                      onMouseEnter={e => {
+                        const el = e.currentTarget as HTMLDivElement
+                        if (!childActive) { el.style.background = 'rgba(0,212,255,0.04)'; el.style.color = T.text2 }
+                      }}
+                      onMouseLeave={e => {
+                        const el = e.currentTarget as HTMLDivElement
+                        if (!childActive) { el.style.background = 'transparent'; el.style.color = T.text3 }
+                      }}
+                      >
+                        <child.icon size={13} strokeWidth={childActive ? 2.5 : 1.5} />
+                        {child.label}
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
         )
       })}
     </div>,
@@ -735,17 +855,147 @@ function AccountDropdown({
   )
 }
 
+/* ─── Sub-section Flyout Dropdown (for main nav items with children) ─── */
+const _subNavCleanupRef: { current: (() => void) | null } = { current: null }
+
+function SubNavDropdown({
+  open,
+  onClose,
+  anchorEl,
+  items,
+  onDropdownEnter,
+  onDropdownLeave,
+}: {
+  open: boolean
+  onClose: () => void
+  anchorEl: HTMLDivElement | null
+  items: NavLink[]
+  onDropdownEnter?: () => void
+  onDropdownLeave?: () => void
+}) {
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const pathname = usePathname()
+
+  // Compute position from anchorEl (not stored in state to avoid cascading renders)
+  const pos = (() => {
+    if (open && anchorEl) {
+      const rect = anchorEl.getBoundingClientRect()
+      return { top: rect.bottom + 2, right: window.innerWidth - rect.right }
+    }
+    return { top: 0, right: 0 }
+  })()
+
+  useEffect(() => {
+    if (!open) return
+    const timeoutId = setTimeout(() => {
+      const handleClick = (e: MouseEvent) => {
+        if (
+          dropdownRef.current?.contains(e.target as Node) ||
+          anchorEl?.contains(e.target as Node)
+        ) return
+        onClose()
+      }
+      const handleEsc = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') onClose()
+      }
+      document.addEventListener('mousedown', handleClick)
+      document.addEventListener('keydown', handleEsc)
+      _subNavCleanupRef.current = () => {
+        document.removeEventListener('mousedown', handleClick)
+        document.removeEventListener('keydown', handleEsc)
+      }
+    }, 50)
+    return () => {
+      clearTimeout(timeoutId)
+      if (_subNavCleanupRef.current) {
+        _subNavCleanupRef.current()
+        _subNavCleanupRef.current = null
+      }
+    }
+  }, [open, onClose, anchorEl])
+
+  if (!open || typeof document === 'undefined') return null
+
+  return createPortal(
+    <div
+      ref={dropdownRef}
+      onMouseEnter={onDropdownEnter}
+      onMouseLeave={onDropdownLeave}
+      style={{
+      position: 'fixed',
+      top: pos.top,
+      right: pos.right,
+      background: 'rgba(26, 29, 41, 0.95)',
+      backdropFilter: 'blur(32px) saturate(1.8)',
+      WebkitBackdropFilter: 'blur(32px) saturate(1.8)',
+      border: '1px solid rgba(0,212,255,0.15)',
+      borderRadius: 12,
+      padding: '6px',
+      minWidth: 180,
+      zIndex: 9999,
+      boxShadow: '0 16px 48px rgba(0,0,0,0.6), 0 0 16px rgba(0,212,255,0.06)',
+      animation: 'fadeInSlideDown 0.15s ease-out',
+      direction: 'rtl',
+    }}>
+      {items.map((child) => {
+        const childActive = isChildActive(child.href, pathname)
+        const ChildIcon = child.icon
+        return (
+          <Link key={child.href + '-' + child.label} href={child.href} style={{ textDecoration: 'none' }} onClick={onClose}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '9px 14px', borderRadius: 8, cursor: 'pointer',
+              fontFamily: "'Cairo', sans-serif", fontSize: 12.5,
+              color: childActive ? 'var(--accent)' : T.text2,
+              background: childActive ? 'rgba(0,212,255,0.08)' : 'transparent',
+              fontWeight: childActive ? 700 : 500,
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => {
+              const el = e.currentTarget as HTMLDivElement
+              if (!childActive) { el.style.background = 'rgba(0,212,255,0.06)'; el.style.color = T.text }
+            }}
+            onMouseLeave={e => {
+              const el = e.currentTarget as HTMLDivElement
+              if (!childActive) { el.style.background = 'transparent'; el.style.color = T.text2 }
+            }}
+            >
+              <ChildIcon size={14} strokeWidth={childActive ? 2.5 : 2} />
+              {child.label}
+            </div>
+          </Link>
+        )
+      })}
+    </div>,
+    document.body
+  )
+}
+
 function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: TradingMode) => void }) {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
   const moreRef = useRef<HTMLDivElement>(null)
   const [accountOpen, setAccountOpen] = useState(false)
   const accountRef = useRef<HTMLDivElement>(null)
+  const [subNavOpen, setSubNavOpen] = useState<string | null>(null)
+  const [subNavAnchor, setSubNavAnchor] = useState<HTMLDivElement | null>(null)
+  const subNavTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleCloseMore = useCallback(() => setMoreOpen(false), [])
   const handleCloseAccount = useCallback(() => setAccountOpen(false), [])
+  const handleCloseSubNav = useCallback(() => { setSubNavOpen(null); setSubNavAnchor(null) }, [])
 
   const authLogout = useAuthStore(state => state.logout)
+
+  const handleSubNavEnter = useCallback((href: string, el: HTMLDivElement | null) => {
+    if (subNavTimerRef.current) clearTimeout(subNavTimerRef.current)
+    setSubNavOpen(href)
+    setSubNavAnchor(el)
+  }, [])
+
+  const handleSubNavLeave = useCallback(() => {
+    subNavTimerRef.current = setTimeout(() => { setSubNavOpen(null); setSubNavAnchor(null) }, 200)
+  }, [])
 
   // Mode-specific styling
   const modeConfig: Record<TradingMode, { accent: string; label: string; arLabel: string }> = {
@@ -765,28 +1015,62 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
       overflow: 'hidden',
       borderBottomRightRadius: ORB_D / 2,
     }}>
-      {NAV_LINKS.slice(0, 8).map(({ href, label, icon: Icon }) => {
-        const active = pathname === href ||
-          (href !== '/dashboard' && (pathname ?? '').startsWith(href))
+      {NAV_LINKS.slice(0, 8).map((link) => {
+        const { href, label, icon: Icon, children } = link
+        const active = isLinkActive(link, pathname)
+        const hasChildren = children && children.length > 0
+        const isSubOpen = subNavOpen === href
+
         return (
-          <Link key={href} href={href} style={{ textDecoration: 'none', flexShrink: 0 }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              padding: '0 12px', borderRadius: 8, cursor: 'pointer',
-              height: 46,
-              background: active ? 'rgba(0,212,255,0.10)' : 'transparent',
-              borderBottom: active ? `2px solid var(--accent)` : '2px solid transparent',
-              color: active ? 'var(--accent)' : T.text2,
-              fontFamily: "'Cairo', sans-serif",
-              fontSize: 12, fontWeight: active ? 800 : 500,
-              whiteSpace: 'nowrap', transition: 'all 0.15s',
-            }}>
-              <Icon size={14} strokeWidth={active ? 2.5 : 2} />
-              {label}
-            </div>
-          </Link>
+          <div
+            key={href}
+            style={{ position: 'relative', flexShrink: 0 }}
+            onMouseEnter={(e) => { if (hasChildren) handleSubNavEnter(href, e.currentTarget) }}
+            onMouseLeave={() => { if (hasChildren) handleSubNavLeave() }}
+          >
+            <Link href={href} style={{ textDecoration: 'none' }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: hasChildren ? 4 : 6,
+                padding: '0 12px', borderRadius: 8, cursor: 'pointer',
+                height: 46,
+                background: active ? 'rgba(0,212,255,0.10)' : 'transparent',
+                borderBottom: active ? `2px solid var(--accent)` : '2px solid transparent',
+                color: active ? 'var(--accent)' : T.text2,
+                fontFamily: "'Cairo', sans-serif",
+                fontSize: 12, fontWeight: active ? 800 : 500,
+                whiteSpace: 'nowrap', transition: 'all 0.15s',
+              }}>
+                <Icon size={14} strokeWidth={active ? 2.5 : 2} />
+                {label}
+                {hasChildren && (
+                  <ChevronDown size={10} style={{
+                    transform: isSubOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                    transition: 'transform 0.2s', opacity: 0.6,
+                  }} />
+                )}
+              </div>
+            </Link>
+          </div>
         )
       })}
+
+      {/* SubNavDropdown rendered once at nav level, positioned via anchorEl */}
+      {(() => {
+        const openLink = NAV_LINKS.slice(0, 8).find(l => l.href === subNavOpen && l.children)
+        if (!openLink?.children) return null
+        return (
+          <SubNavDropdown
+            open={!!subNavOpen}
+            onClose={handleCloseSubNav}
+            anchorEl={subNavAnchor}
+            items={openLink.children}
+            onDropdownEnter={() => {
+              if (subNavTimerRef.current) clearTimeout(subNavTimerRef.current)
+            }}
+            onDropdownLeave={handleCloseSubNav}
+          />
+        )
+      })()}
 
       <div ref={moreRef} style={{ position: 'relative', flexShrink: 0 }}>
         <button
@@ -923,15 +1207,89 @@ const KF = `
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
 header *            { scrollbar-width:none; -ms-overflow-style:none; }
 header *::-webkit-scrollbar { display:none; }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .desktop-header { display: none !important; }
   .mobile-header { display: flex !important; }
   .logo-orb { display: none !important; }
+  .mobile-news-ticker { display: none !important; }
 }
 `
+
+/* ─── Mobile Nav Item (separate component for hook usage) ─── */
+function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: string, onClose: () => void }) {
+  const { href, label, icon: Icon, children } = link
+  const active = isLinkActive(link, pathname)
+  const hasChildren = children && children.length > 0
+  const [mobileExpanded, setMobileExpanded] = useState(false)
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center' }}>
+        <Link href={href} style={{ textDecoration: 'none', flex: 1 }} onClick={onClose}>
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', minHeight: 44,
+            borderRadius: 10, background: active ? 'rgba(0,212,255,0.10)' : 'transparent',
+            color: active ? 'var(--accent)' : T.text2,
+            borderLeft: active ? '3px solid var(--accent)' : '3px solid transparent',
+            fontSize: 14, fontWeight: 600, fontFamily: "'Cairo', sans-serif",
+            transition: 'all 0.15s',
+          }}>
+            <Icon size={18} />
+            {label}
+          </div>
+        </Link>
+        {hasChildren && (
+          <button
+            onClick={() => setMobileExpanded(!mobileExpanded)}
+            style={{
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              padding: '8px 12px', color: T.text2, display: 'flex', alignItems: 'center',
+            }}
+          >
+            <ChevronDown size={16} style={{
+              transform: mobileExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 0.2s',
+            }} />
+          </button>
+        )}
+      </div>
+      {hasChildren && mobileExpanded && (
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: 2,
+          paddingRight: 20, marginBottom: 4,
+        }}>
+          {children!.map((child) => {
+            const childActive = isChildActive(child.href, pathname)
+            const ChildIcon = child.icon
+            return (
+              <Link key={child.href + '-' + child.label} href={child.href} style={{ textDecoration: 'none' }} onClick={onClose}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '10px 14px', minHeight: 40,
+                  borderRadius: 8, background: childActive ? 'rgba(0,212,255,0.08)' : 'transparent',
+                  color: childActive ? 'var(--accent)' : T.text3,
+                  borderLeft: childActive ? '2px solid var(--accent)' : '2px solid transparent',
+                  fontSize: 12.5, fontWeight: childActive ? 600 : 400,
+                  fontFamily: "'Cairo', sans-serif", transition: 'all 0.15s',
+                }}>
+                  <ChildIcon size={15} strokeWidth={childActive ? 2.5 : 1.5} />
+                  {child.label}
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 
 /* ══ Root export ══ */
 export function AppHeader() {
@@ -972,34 +1330,25 @@ export function AppHeader() {
           zIndex: 1000, backdropFilter: 'blur(8px)'
         }} onClick={() => setMenuOpen(false)}>
           <div style={{
-            position: 'absolute', left: 0, top: 0, bottom: 0, width: '280px',
-            background: 'rgba(26,29,41,0.95)', borderRight: `1px solid rgba(0,212,255,0.12)`,
+            position: 'absolute', right: 0, top: 0, bottom: 0, width: 'min(280px, 85vw)',
+            background: 'rgba(26,29,41,0.95)', borderLeft: `1px solid rgba(0,212,255,0.12)`,
             display: 'flex', flexDirection: 'column', padding: '20px',
             overflowY: 'auto',
+            animation: 'slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           }} className="custom-scrollbar" onClick={e => e.stopPropagation()}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                 <span style={{ fontSize: 18, fontWeight: 900, color: T.text, fontFamily: "'Cairo', sans-serif" }}>القائمة</span>
                 <XIcon size={24} color={T.text} onClick={() => setMenuOpen(false)} style={{ cursor: 'pointer' }} />
              </div>
              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {NAV_LINKS.map(({ href, label, icon: Icon }) => {
-                  const active = pathname === href || (href !== '/dashboard' && (pathname ?? '').startsWith(href))
-                  return (
-                    <Link key={href} href={href} style={{ textDecoration: 'none' }} onClick={() => setMenuOpen(false)}>
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px',
-                        borderRadius: 10, background: active ? 'rgba(0,212,255,0.10)' : 'transparent',
-                        color: active ? 'var(--accent)' : T.text2,
-                        borderRight: active ? '3px solid var(--accent)' : '3px solid transparent',
-                        fontSize: 14, fontWeight: 600, fontFamily: "'Cairo', sans-serif",
-                        transition: 'all 0.15s',
-                      }}>
-                        <Icon size={18} />
-                        {label}
-                      </div>
-                    </Link>
-                  )
-                })}
+                {NAV_LINKS.map((link) => (
+                  <MobileNavItem
+                    key={link.href + '-' + link.label}
+                    link={link}
+                    pathname={pathname ?? ''}
+                    onClose={() => setMenuOpen(false)}
+                  />
+                ))}
              </div>
              {/* Mode Switcher + Account (mobile) */}
              <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid rgba(0,212,255,0.10)`, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1069,17 +1418,20 @@ export function AppHeader() {
         background: 'rgba(11, 14, 20, 0.92)', borderBottom: `1px solid rgba(0,212,255,0.10)`,
         backdropFilter: 'blur(20px) saturate(1.6)',
         WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
+        paddingTop: 'env(safe-area-inset-top)',
       }}>
-        {/* Mobile top row: hamburger + ticker + orb */}
+        {/* Mobile top row: hamburger + brand + ticker + orb */}
         <div style={{
           display: 'flex', alignItems: 'center', height: MOBILE_HEADER_H,
           padding: '0 10px', justifyContent: 'space-between',
         }}>
-          <button onClick={() => setMenuOpen(true)} style={{ background: 'transparent', border: 'none', color: T.text, cursor: 'pointer', width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}>
-             <Menu size={20} />
+          <button onClick={() => setMenuOpen(true)} style={{ background: 'transparent', border: 'none', color: T.text, cursor: 'pointer', minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}>
+             <Menu size={22} />
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0, paddingInline: 6 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0, paddingInline: 6 }}>
+             <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 900, fontSize: 14, color: T.text, whiteSpace: 'nowrap' }}>رؤى</span>
+             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: 'var(--accent)', letterSpacing: '0.08em', opacity: 0.8 }}>ROUA</span>
              <CurrencyTicker isMobile />
           </div>
 
@@ -1088,8 +1440,8 @@ export function AppHeader() {
              <CosmicOrb state={marketState} size={24} />
           </div>
         </div>
-        {/* Mobile news ticker */}
-        <div style={{
+        {/* Mobile news ticker (hidden on small screens via CSS) */}
+        <div className="mobile-news-ticker" style={{
           height: 26, overflow: 'hidden', background: T.bg,
           borderBottom: `0.5px solid ${T.border}`, display: 'flex', alignItems: 'center',
         }}>

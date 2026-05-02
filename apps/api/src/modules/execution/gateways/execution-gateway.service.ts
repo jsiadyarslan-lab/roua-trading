@@ -6,7 +6,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { CredentialsService } from '../../portfolio/credentials/credentials.service';
 import { AuditService } from '../../../audit/audit.service';
-import { IBrokerAdapter, UnifiedOrder, ExecutionResult } from '../adapters/base-adapter.interface';
+import { IExchangeAdapter, UnifiedOrder, ExecutionResult } from '../adapters/base-adapter.interface';
 import { BinanceAdapter } from '../adapters/binance.adapter';
 import { AlpacaAdapter } from '../adapters/alpaca.adapter';
 import { PaperTradingAdapter } from '../adapters/paper-trading.adapter';
@@ -14,9 +14,9 @@ import { MarketDataAggregatorService } from '../../analytics/aggregator.service'
 import { RedisService } from '../../../common/redis/redis.service';
 
 /**
- * ExecutionGatewayService — Broker Adapter Router
+ * ExecutionGatewayService — Exchange Adapter Router
  *
- * Central service that creates and returns the correct broker adapter
+ * Central service that creates and returns the correct exchange adapter
  * based on the user's exchange credential. This decouples the execution
  * logic from specific exchange implementations.
  *
@@ -49,7 +49,7 @@ export class ExecutionGatewayService {
   private readonly logger = new Logger(ExecutionGatewayService.name);
 
   /** Cache of adapters per credential (short-lived, cleared on error) */
-  private readonly adapterCache: Map<string, { adapter: IBrokerAdapter; createdAt: number }> = new Map();
+  private readonly adapterCache: Map<string, { adapter: IExchangeAdapter; createdAt: number }> = new Map();
 
   /** Cache TTL: 5 minutes */
   private readonly ADAPTER_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -65,7 +65,7 @@ export class ExecutionGatewayService {
   }
 
   /**
-   * Get the appropriate broker adapter for a user's exchange credential
+   * Get the appropriate exchange adapter for a user's exchange credential
    *
    * This method:
    * 1. Looks up the credential by ID
@@ -76,9 +76,9 @@ export class ExecutionGatewayService {
    *
    * @param userId The user ID (for audit and adapter context)
    * @param exchangeCredentialId The credential ID to look up
-   * @returns The appropriate IBrokerAdapter instance
+   * @returns The appropriate IExchangeAdapter instance
    */
-  async getAdapterForUser(userId: string, exchangeCredentialId: string): Promise<IBrokerAdapter> {
+  async getAdapterForUser(userId: string, exchangeCredentialId: string): Promise<IExchangeAdapter> {
     this.logger.debug(`🔍 Getting adapter for credential: ${exchangeCredentialId}`);
 
     // Step 1: Check adapter cache
@@ -138,7 +138,7 @@ export class ExecutionGatewayService {
    *
    * @param userId The user ID
    * @param order The unified order to execute
-   * @returns Execution result from the broker
+   * @returns Execution result from the exchange
    */
   async placeOrder(userId: string, order: UnifiedOrder): Promise<ExecutionResult> {
     this.logger.log(`📤 Placing order via gateway: ${order.side} ${order.quantity} ${order.symbol}`);
@@ -204,7 +204,7 @@ export class ExecutionGatewayService {
   /**
    * Create the appropriate adapter based on exchange type
    */
-  private _createAdapter(exchange: string, apiKey: string, apiSecret: string, userId: string): IBrokerAdapter {
+  private _createAdapter(exchange: string, apiKey: string, apiSecret: string, userId: string): IExchangeAdapter {
     const exchangeLower = exchange.toLowerCase();
 
     switch (exchangeLower) {

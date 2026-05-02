@@ -45,6 +45,8 @@ async function runSchemaMigrations(): Promise<void> {
     `ALTER TABLE "ChartPreference" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
     `ALTER TABLE "ChartPreference" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
     `ALTER TABLE "AuditLog" ADD COLUMN IF NOT EXISTS "userId" TEXT`,
+    // User table: add telegramChatId (used by alert-agent for Telegram notifications)
+    `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "telegramChatId" TEXT`,
     // Subscription table
     `CREATE TABLE IF NOT EXISTS "Subscription" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "tier" "Tier" NOT NULL DEFAULT 'FREE', "previousTier" "Tier", "startDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "endDate" TIMESTAMP(3), "status" TEXT NOT NULL DEFAULT 'active', "paymentMethod" TEXT, "amount" DECIMAL(19,4), "currency" TEXT NOT NULL DEFAULT 'USD', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Subscription_pkey" PRIMARY KEY ("id"))`,
     `CREATE INDEX IF NOT EXISTS "Subscription_userId_idx" ON "Subscription"("userId")`,
@@ -82,16 +84,48 @@ async function runSchemaMigrations(): Promise<void> {
     `CREATE INDEX IF NOT EXISTS "VerificationToken_expires_idx" ON "VerificationToken"("expires")`,
   ]
 
+  let migrationErrors = 0
   for (const sql of migrations) {
     try {
       await db.$executeRawUnsafe(sql)
-    } catch {
-      // Column already exists or other non-fatal issue — ignore
+    } catch (err: any) {
+      migrationErrors++
+      // Log migration errors instead of silently swallowing them
+      // "already exists" errors are expected and non-fatal
+      const msg = err?.message || String(err)
+      if (msg.includes('already exists') || msg.includes('duplicate')) {
+        // Expected — column/table/index already exists
+      } else {
+        console.warn(`[db] Migration warning: ${msg.substring(0, 200)}`)
+      }
     }
   }
 
+  // Verify critical tables exist after migrations (including AiUsageLog for dashboard costs)
+  try {
+    const tableCheck = await db.$queryRaw`
+      SELECT table_name FROM information_schema.tables
+      WHERE table_schema = 'public'
+      AND table_name IN ('Setting', 'NotificationConfig', 'AdminSession', 'AiUsageLog')
+      ORDER BY table_name
+    `
+    const foundTables = (tableCheck as any[]).map((r: any) => r.table_name)
+    const missingTables = ['Setting', 'NotificationConfig', 'AdminSession', 'AiUsageLog'].filter(t => !foundTables.includes(t))
+    if (missingTables.length > 0) {
+      console.error(`[db] CRITICAL: Tables still missing after migrations: ${missingTables.join(', ')}`)
+    } else {
+      console.log('[db] All critical tables verified: Setting, NotificationConfig, AdminSession, AiUsageLog')
+    }
+  } catch (err: any) {
+    console.warn(`[db] Could not verify table existence: ${err?.message || err}`)
+  }
+
   globalForPrisma.schemaMigrated = true
-  console.log('[db] Schema migrations completed')
+  if (migrationErrors > 0) {
+    console.log(`[db] Schema migrations completed with ${migrationErrors} warnings`)
+  } else {
+    console.log('[db] Schema migrations completed successfully')
+  }
 }
 
 /**

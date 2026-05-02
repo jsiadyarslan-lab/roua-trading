@@ -70,7 +70,7 @@ export function QuickExecutionMini({
     ? (potentialGain / potentialLoss).toFixed(2) : null
   const cardPadding = mobile ? '10px 12px' : '12px 16px'
   const inputPadding = mobile ? '10px' : '12px'
-  const actionHeight = mobile ? 52 : 48
+  const actionHeight = mobile ? 52 : 42
   const statusTone = getStatusTone(dataStatus)
   const environmentLabel = 'PAPER'
   const inferredOrderType = pendingAction === 'sell' ? 'بيع' : 'شراء'
@@ -523,42 +523,79 @@ export function QuickExecutionMini({
       </div>}
 
       {/* Action Buttons */}
-      <div style={{ display: 'flex', gap: 12, marginTop: 'auto' }}>
-        <button 
-          onClick={() => validateAndConfirm('buy')}
-          disabled={loading}
-          className="btn-neon-buy"
-          style={{
-            flex: 1, minHeight: actionHeight, height: actionHeight, borderRadius: 'var(--radius)', 
-            fontSize: 13, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
-            fontFamily: "'Cairo', sans-serif",
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            transition: 'transform 0.1s', opacity: loading ? 0.7 : 1,
-          }}
-          onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
-          onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-        >
-          <Zap size={14} fill="white" />
-          {loading && pendingAction === 'buy' ? 'جارٍ...' : 'شراء'}
-        </button>
-        <button 
-          onClick={() => validateAndConfirm('sell')}
-          disabled={loading}
-          className="btn-neon-sell"
-          style={{
-            flex: 1, minHeight: actionHeight, height: actionHeight, borderRadius: 'var(--radius)', 
-            fontSize: 13, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
-            fontFamily: "'Cairo', sans-serif",
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            transition: 'transform 0.1s', opacity: loading ? 0.7 : 1,
-          }}
-          onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
-          onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-        >
-          <Zap size={14} fill="white" />
-          {loading && pendingAction === 'sell' ? 'جارٍ...' : 'بيع'}
-        </button>
-      </div>
+      {mobile ? (
+        <div style={{ display: 'flex', gap: 8, marginTop: 'auto' }}>
+          <button 
+            onClick={() => validateAndConfirm('buy')}
+            disabled={loading}
+            style={{
+              flex: 1, minHeight: 44, borderRadius: 10,
+              background: 'linear-gradient(135deg, #00FFC6, #10B981)',
+              border: 'none', color: '#fff', fontSize: 12, fontWeight: 800,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontFamily: "'Cairo', sans-serif",
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              opacity: loading ? 0.7 : 1,
+            }}
+          >
+            <Zap size={12} fill="white" />
+            شراء
+          </button>
+          <button 
+            onClick={() => validateAndConfirm('sell')}
+            disabled={loading}
+            style={{
+              flex: 1, minHeight: 44, borderRadius: 10,
+              background: 'linear-gradient(135deg, #FF4757, #EF4444)',
+              border: 'none', color: '#fff', fontSize: 12, fontWeight: 800,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontFamily: "'Cairo', sans-serif",
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              opacity: loading ? 0.7 : 1,
+            }}
+          >
+            <Zap size={12} fill="white" />
+            بيع
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 12, marginTop: 'auto' }}>
+          <button 
+            onClick={() => validateAndConfirm('buy')}
+            disabled={loading}
+            className="btn-neon-buy"
+            style={{
+              flex: 1, minHeight: actionHeight, height: actionHeight, borderRadius: 'var(--radius)', 
+              fontSize: 13, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
+              fontFamily: "'Cairo', sans-serif",
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              transition: 'transform 0.1s', opacity: loading ? 0.7 : 1,
+            }}
+            onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
+            onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            <Zap size={14} fill="white" />
+            {loading && pendingAction === 'buy' ? 'جارٍ...' : 'شراء'}
+          </button>
+          <button 
+            onClick={() => validateAndConfirm('sell')}
+            disabled={loading}
+            className="btn-neon-sell"
+            style={{
+              flex: 1, minHeight: actionHeight, height: actionHeight, borderRadius: 'var(--radius)', 
+              fontSize: 13, fontWeight: 800, cursor: loading ? 'not-allowed' : 'pointer',
+              fontFamily: "'Cairo', sans-serif",
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              transition: 'transform 0.1s', opacity: loading ? 0.7 : 1,
+            }}
+            onMouseDown={e => e.currentTarget.style.transform = 'scale(0.97)'}
+            onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            <Zap size={14} fill="white" />
+            {loading && pendingAction === 'sell' ? 'جارٍ...' : 'بيع'}
+          </button>
+        </div>
+      )}
 
       {/* Status Overlay */}
       {status.msg && (

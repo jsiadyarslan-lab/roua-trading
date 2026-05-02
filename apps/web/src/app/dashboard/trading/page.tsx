@@ -465,7 +465,7 @@ export default function TradingPage() {
 
   if (authLoading) {
     return (
-      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-app)' }}>
+      <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-app)' }}>
         <Loader2 className="animate-spin" style={{ width: 32, height: 32, color: 'var(--accent)' }} />
       </div>
     )
@@ -473,7 +473,7 @@ export default function TradingPage() {
 
   return (
     <SubPageLayout
-      title="محرك التداول"
+      title="محرك المتابعة"
       icon={<Activity size={14} color="#fff" />}
       iconBg="linear-gradient(135deg, #00FFC6, #0A84FF)"
       actions={
@@ -502,7 +502,7 @@ export default function TradingPage() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Zap className="w-4 h-4 text-emerald-400" />
-                  لوحة التداول
+                  لوحة المتابعة
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">

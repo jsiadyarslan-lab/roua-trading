@@ -29,21 +29,42 @@ export default function AdminLoginPage() {
     setError('')
 
     try {
-      const res = await fetch('/dashboard/admin/api/auth/login', {
+      const res = await fetch('/api/admin/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
       })
 
-      const data = await res.json()
+      // Try to parse JSON, but handle non-JSON responses (e.g., HTML error pages)
+      let data: any = {}
+      try {
+        data = await res.json()
+      } catch {
+        // Server returned non-JSON (likely HTML error page) — show status-based error
+        if (res.status === 403) {
+          setError('تسجيل الدخول معطل — لم يتم تعيين كلمة مرور المسؤول في متغيرات البيئة')
+        } else if (res.status === 503) {
+          setError('قاعدة البيانات غير متاحة حالياً — حاول لاحقاً')
+        } else if (res.status >= 500) {
+          setError('خطأ في الخادم — حاول مرة أخرى لاحقاً')
+        } else {
+          setError('حدث خطأ في الاتصال بالخادم')
+        }
+        return
+      }
 
       if (res.ok) {
         router.push('/dashboard/admin')
       } else {
         setError(data.error || 'كلمة المرور غير صحيحة')
       }
-    } catch {
-      setError('حدث خطأ في الاتصال')
+    } catch (err: any) {
+      // Network error (server unreachable, timeout, etc.)
+      if (err?.name === 'AbortError') {
+        setError('انتهت مهلة الاتصال — الخادم لا يستجيب')
+      } else {
+        setError('لا يمكن الاتصال بالخادم — تحقق من اتصال الإنترنت')
+      }
     } finally {
       setLoading(false)
     }

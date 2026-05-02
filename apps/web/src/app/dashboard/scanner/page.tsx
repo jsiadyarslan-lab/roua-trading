@@ -81,7 +81,7 @@ function ScannerContent() {
   }
 
   return (
-    <div style={{
+    <div className="scanner-page-root" style={{
       width: '100%', height: 'calc(100dvh - 60px)',
       background: T.bg, padding: '8px 16px', boxSizing: 'border-box',
       direction: 'rtl', fontFamily: "'Cairo', sans-serif",
@@ -89,6 +89,9 @@ function ScannerContent() {
       paddingTop: isMobile ? '48px' : '8px',
     }}>
       <style>{`
+        @media (max-width: 767px) {
+          .scanner-page-root { height: 100% !important; }
+        }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #0A84FF22; border-radius: 10px; }

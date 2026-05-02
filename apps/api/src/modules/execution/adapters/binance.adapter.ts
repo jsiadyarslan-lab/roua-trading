@@ -1,10 +1,10 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Roua Trading (رؤى) — Binance Broker Adapter
+// Roua Trading (رؤى) — Binance Exchange Adapter
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Injectable, Logger } from '@nestjs/common';
 import {
-  IBrokerAdapter,
+  IExchangeAdapter,
   UnifiedOrder,
   ExecutionResult,
   OrderExecutionStatus,
@@ -16,7 +16,7 @@ import * as ccxt from 'ccxt';
 /**
  * BinanceAdapter — CCXT-based Binance Exchange Adapter
  *
- * Implements IBrokerAdapter for Binance exchange using the CCXT library.
+ * Implements IExchangeAdapter for Binance exchange using the CCXT library.
  * Handles crypto pairs (e.g., BTC/USDT, ETH/USDT).
  *
  * Features:
@@ -34,7 +34,7 @@ import * as ccxt from 'ccxt';
  * - All calls are logged to AuditService for immutable audit trail
  */
 @Injectable()
-export class BinanceAdapter implements IBrokerAdapter {
+export class BinanceAdapter implements IExchangeAdapter {
   private readonly logger = new Logger(BinanceAdapter.name);
   private exchange: any = null;
 
@@ -53,7 +53,7 @@ export class BinanceAdapter implements IBrokerAdapter {
     this._initializeExchange();
   }
 
-  // ── IBrokerAdapter Implementation ──
+  // ── IExchangeAdapter Implementation ──
 
   async placeOrder(order: UnifiedOrder): Promise<ExecutionResult> {
     this.logger.log(`📦 Placing Binance order: ${order.side} ${order.quantity} ${order.symbol}`);

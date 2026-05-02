@@ -359,8 +359,8 @@ export default function AIPage() {
 
   // ── Render ──
   return (
-    <div style={{
-      height: 'calc(100vh - 108px)',
+    <div className="ai-page-root" style={{
+      height: 'calc(100dvh - 108px)',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
@@ -368,6 +368,11 @@ export default function AIPage() {
       fontFamily: "'Cairo', sans-serif",
       background: T.bg,
     }}>
+      <style>{`
+        @media (max-width: 767px) {
+          .ai-page-root { height: 100% !important; }
+        }
+      `}</style>
       <style>{`
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: rgba(10,132,255,0.3); border-radius: 4px; }
@@ -461,6 +466,15 @@ export default function AIPage() {
           }
           .ai-chat-msg {
             min-width: auto !important;
+          }
+          .ai-main-content > :nth-child(1) { order: 2; }
+          .ai-main-content > :nth-child(2) { order: 1; }
+          .ai-main-content > :nth-child(3) { order: 3; }
+          .ai-quick-prompts-row {
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 4px;
           }
         }
       `}</style>
@@ -910,7 +924,7 @@ export default function AIPage() {
             background: T.bg2,
           }}>
             {/* Quick Prompts */}
-            <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+            <div className="ai-quick-prompts-row" style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
               {[
                 { label: 'تحليل فني', prompt: `حلل ${selectedSymbol} فنياً مع المؤشرات والمستويات` },
                 { label: 'مستويات الدعم والمقاومة', prompt: `ما هي مستويات الدعم والمقاومة لـ ${selectedSymbol}؟` },

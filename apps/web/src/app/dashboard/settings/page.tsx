@@ -314,7 +314,7 @@ export default function SettingsPage() {
   const tabs = [
     { id: 'account', label: 'الحساب', icon: <User size={14} /> },
     { id: 'subscription', label: 'الاشتراك', icon: <Crown size={14} /> },
-    { id: 'trading', label: 'التداول', icon: <BarChart3 size={14} /> },
+    { id: 'trading', label: 'ربط الحسابات', icon: <BarChart3 size={14} /> },
     { id: 'notifications', label: 'الإشعارات', icon: <Bell size={14} /> },
     { id: 'ai', label: 'الذكاء الاصطناعي', icon: <Brain size={14} /> },
     { id: 'appearance', label: 'المظهر', icon: <Palette size={14} /> },
@@ -324,22 +324,22 @@ export default function SettingsPage() {
 
   // Permission categories for display
   const permissionCategories = [
-    { name: 'التداول', perms: [
+    { name: 'ربط الحسابات', perms: [
       { perm: 'trade:view' as Permission, label: 'عرض التداول' },
       { perm: 'trade:execute' as Permission, label: 'تنفيذ الصفقات' },
-      { perm: 'trade:paper' as Permission, label: 'تداول ورقي' },
+      { perm: 'trade:paper' as Permission, label: 'عرض تجريبي' },
       { perm: 'trade:leverage:high' as Permission, label: 'رافعة عالية' },
     ]},
     { name: 'الذكاء الاصطناعي', perms: [
       { perm: 'ai:insights' as Permission, label: 'رؤى AI' },
-      { perm: 'ai:auto_trade' as Permission, label: 'تداول تلقائي' },
+      { perm: 'ai:auto_trade' as Permission, label: 'متابعة تلقائية' },
       { perm: 'ai:scanner' as Permission, label: 'ماسح ذكي' },
       { perm: 'ai:advanced_models' as Permission, label: 'نماذج متقدمة' },
     ]},
     { name: 'المحفظة والاجتماعي', perms: [
       { perm: 'portfolio:view' as Permission, label: 'عرض المحفظة' },
       { perm: 'portfolio:advanced' as Permission, label: 'تحليل متقدم' },
-      { perm: 'social:view' as Permission, label: 'التداول الاجتماعي' },
+      { perm: 'social:view' as Permission, label: 'متابعة الحسابات' },
       { perm: 'social:follow_accounts' as Permission, label: 'متابعة الحسابات' },
     ]},
     { name: 'API والبيانات', perms: [
@@ -485,7 +485,7 @@ export default function SettingsPage() {
                 }}>
                   <Shield size={16} color={T.cyan} />
                   <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.6 }}>
-                    رؤى لا تلمس أموالك أبداً. المفاتيح مشفرة بـ AES-256-GCM وتُستخدم فقط للقراءة والتداول.
+                    رؤى لا تلمس أموالك أبداً. المفاتيح مشفرة بـ AES-256-GCM وتُستخدم فقط للقراءة ومتابعة حساباتك المربوطة.
                     <span style={{ color: T.red, fontWeight: 600 }}> المفاتيح ذات صلاحيات السحب تُرفض فوراً.</span>
                   </div>
                 </div>
@@ -734,8 +734,8 @@ export default function SettingsPage() {
               icon={<Zap size={18} color={T.cyan} />}
               iconColor={T.cyan}
               iconBg={`${T.cyan}14`}
-              title="وضع التداول"
-              subtitle="اختر أسلوب التداول المناسب لك"
+              title="وضع المتابعة"
+              subtitle="اختر أسلوب المتابعة المناسب لك"
             >
               <div style={{ display: 'flex', gap: 8, padding: '8px 0' }}>
                 {([
@@ -771,13 +771,13 @@ export default function SettingsPage() {
               icon={<Sliders size={18} color={T.amber} />}
               iconColor={T.amber}
               iconBg={`${T.amber}14`}
-              title="تفضيلات التداول"
+              title="تفضيلات المتابعة"
               subtitle="إعدادات الأوامر والتنفيذ"
             >
               <SettingRow
                 icon={<Target size={13} color={T.text3} />}
                 label="الرافعة الافتراضية"
-                description="الرافعة المطبقة عند فتح صفقة جديدة"
+                description="الرافعة المطبقة على حسابك المربوط عند فتح صفقة"
               >
                 <SelectBox
                   value={defaultLeverage}
@@ -827,7 +827,7 @@ export default function SettingsPage() {
               <SettingRow
                 icon={<CheckCircle2 size={13} color={T.text3} />}
                 label="تأكيد قبل التنفيذ"
-                description="عرض نافذة تأكيد قبل فتح أو إغلاق صفقة"
+                description="عرض نافذة تأكيد قبل تنفيذ أي أمر على حسابك المربوط"
               >
                 <Toggle checked={confirmTrades} onChange={() => setConfirmTrades(!confirmTrades)} color={T.cyan} size="sm" />
               </SettingRow>
@@ -851,7 +851,7 @@ export default function SettingsPage() {
               <SettingRow
                 icon={<Lock size={13} color={T.text3} />}
                 label="وقف خسارة تلقائي"
-                description="تعيين وقف خسارة تلقائياً عند فتح صفقة"
+                description="تعيين وقف خسارة تلقائياً عند فتح صفقة على حسابك المربوط"
               >
                 <Toggle checked={autoStopLoss} onChange={() => setAutoStopLoss(!autoStopLoss)} color={T.green} size="sm" />
               </SettingRow>
@@ -1049,7 +1049,7 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<Zap size={13} color={T.amber} />}
-                label="التداول التلقائي بالـ AI"
+                label="المتابعة التلقائية بالـ AI"
                 description="السماح للذكاء الاصطناعي بتنفيذ الصفقات تلقائياً"
               >
                 <Toggle checked={aiAutoTrade} onChange={() => setAiAutoTrade(!aiAutoTrade)} color={T.amber} />

@@ -112,7 +112,18 @@ export default function AdminSettingsPage() {
     setLoading(true)
     setLoadError(null)
     try {
-      const res = await fetch('/dashboard/admin/api/settings')
+      const res = await fetch('/api/admin/settings')
+
+      // Check for auth errors
+      if (res.status === 401) {
+        setLoadError('انتهت صلاحية الجلسة — يرجى تسجيل الدخول مجدداً')
+        setTimeout(() => {
+          window.location.href = '/dashboard/admin/login'
+        }, 2000)
+        setLoading(false)
+        return
+      }
+
       if (res.ok) {
         const data = await res.json()
         if (data.botConfig) setBotConfig(data.botConfig)
@@ -134,7 +145,8 @@ export default function AdminSettingsPage() {
           setLoadError(data.error)
         }
       } else {
-        setLoadError('فشل في جلب الإعدادات من الخادم')
+        const data = await res.json().catch(() => ({}))
+        setLoadError(data.error || 'فشل في جلب الإعدادات من الخادم')
       }
     } catch {
       setLoadError('⚠️ فشل الاتصال بالخادم')
@@ -146,16 +158,34 @@ export default function AdminSettingsPage() {
     fetchSettings()
   }, [fetchSettings])
 
+  // Helper: check if response is auth error and redirect to login
+  const handleAuthError = (res: Response) => {
+    if (res.status === 401) {
+      setSaveError('انتهت صلاحية الجلسة — يرجى تسجيل الدخول مجدداً')
+      setTimeout(() => {
+        window.location.href = '/dashboard/admin/login'
+      }, 2000)
+      return true
+    }
+    return false
+  }
+
   // Save handler — actually calls POST API
   const handleSave = async () => {
     setSaving(true)
     setSaveError(null)
     try {
-      const res = await fetch('/dashboard/admin/api/settings', {
+      const res = await fetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ botConfig, riskConfig, platformConfig }),
       })
+
+      // Check for auth errors first
+      if (handleAuthError(res)) {
+        setSaving(false)
+        return
+      }
 
       if (res.ok) {
         const data = await res.json()
@@ -167,10 +197,10 @@ export default function AdminSettingsPage() {
         }
       } else {
         const data = await res.json().catch(() => ({}))
-        setSaveError(data.error || 'فشل في حفظ الإعدادات')
+        setSaveError(data.error || `فشل في حفظ الإعدادات (HTTP ${res.status})`)
       }
-    } catch {
-      setSaveError('⚠️ فشل الاتصال بالخادم أثناء الحفظ')
+    } catch (err: any) {
+      setSaveError(`⚠️ فشل الاتصال بالخادم أثناء الحفظ: ${err?.message || 'خطأ شبكة'}`)
     }
     setSaving(false)
   }
@@ -395,7 +425,7 @@ export default function AdminSettingsPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
-                { key: 'autoTrading', label: 'التداول التلقائي', type: 'toggle' as const },
+                { key: 'autoTrading', label: 'الربط التلقائي', type: 'toggle' as const },
                 { key: 'strategy', label: 'الاستراتيجية', type: 'select' as const, options: ['Scalp AI', 'Swing Master', 'DCA Pro', 'Grid Bot'] },
                 { key: 'maxPositionSize', label: 'الحد الأقصى لحجم المركز ($)', type: 'number' as const },
                 { key: 'maxDailyLoss', label: 'الحد الأقصى للخسارة اليومية ($)', type: 'number' as const },
@@ -470,7 +500,7 @@ export default function AdminSettingsPage() {
                 { key: 'takeProfitDefault', label: 'جني الأرباح الافتراضي (%)' },
                 { key: 'riskPerTrade', label: 'المخاطرة لكل صفقة (%)' },
                 { key: 'maxOpenPositions', label: 'الحد الأقصى للمراكز المفتوحة' },
-                { key: 'leverageLimit', label: 'حد الرافعة المالية (x)' },
+                { key: 'leverageLimit', label: 'حد الرافعة المالية على الحسابات المربوطة (x)' },
               ].map(field => (
                 <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>{field.label}</label>
@@ -590,7 +620,7 @@ export default function AdminSettingsPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>المنصة / البورصة</label>
+                <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>المنصة / وسطاء الربط</label>
                 <select
                   value={newKeyForm.exchange}
                   onChange={e => setNewKeyForm(prev => ({ ...prev, exchange: e.target.value }))}
@@ -656,7 +686,7 @@ export default function AdminSettingsPage() {
                   type="text"
                   value={newKeyForm.label}
                   onChange={e => setNewKeyForm(prev => ({ ...prev, label: e.target.value }))}
-                  placeholder="مثال: حساب التداول الرئيسي"
+                  placeholder="مثال: الحساب المربوط الرئيسي"
                   style={{
                     padding: '10px 12px', borderRadius: 8,
                     background: 'rgba(255,255,255,0.03)',

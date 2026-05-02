@@ -10,6 +10,39 @@ import {
 } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 
+// ── Defensive helpers: ensure primitive types for React rendering ──
+function safeConfidence(val: unknown): number {
+  if (typeof val === 'number' && Number.isFinite(val)) return val
+  if (val && typeof val === 'object' && 'compositeScore' in (val as any)) return (val as any).compositeScore ?? (val as any).confidence ?? 0
+  const n = Number(val)
+  return Number.isFinite(n) ? n : 0
+}
+
+function safeReason(val: unknown): string {
+  if (typeof val === 'string') return val
+  if (val && typeof val === 'object') {
+    try { return JSON.stringify(val) } catch { return '' }
+  }
+  return val != null ? String(val) : ''
+}
+
+function safeNumber(val: unknown): number | null {
+  if (val === null || val === undefined) return null
+  if (val && typeof val === 'object') return null
+  const n = Number(val)
+  return Number.isFinite(n) ? n : null
+}
+
+function safeAction(val: unknown): 'BUY' | 'SELL' | 'WAIT' {
+  if (val === 'BUY' || val === 'SELL' || val === 'WAIT') return val
+  if (val && typeof val === 'object' && 'action' in (val as any)) {
+    const inner = (val as any).action
+    if (inner === 'STRONG_BUY' || inner === 'BUY') return 'BUY'
+    if (inner === 'STRONG_SELL' || inner === 'SELL') return 'SELL'
+  }
+  return 'WAIT'
+}
+
 interface Signal {
   id: string
   pair: string
@@ -49,7 +82,22 @@ export default function MobileSignalsPage() {
       const res = await fetch('/api/signals/active')
       if (res.ok) {
         const data = await res.json()
-        if (data.success) setSignals(data.data)
+        if (data.success && Array.isArray(data.data)) {
+          const sanitized = data.data.map((s: any) => ({
+            id: s.id || `sig-${Math.random().toString(36).slice(2, 8)}`,
+            pair: s.pair || s.symbol || '—',
+            action: safeAction(s.action),
+            confidence: safeConfidence(s.confidence),
+            reason: safeReason(s.reason),
+            entryPrice: safeNumber(s.entryPrice),
+            stopLoss: safeNumber(s.stopLoss),
+            takeProfit: safeNumber(s.takeProfit),
+            status: s.status || 'ACTIVE',
+            expiresAt: s.expiresAt || new Date(Date.now() + 3600000).toISOString(),
+            createdAt: s.createdAt || new Date().toISOString(),
+          }))
+          setSignals(sanitized)
+        }
       }
     } catch { /* silent */ } finally { setLoading(false) }
   }, [])
@@ -72,7 +120,7 @@ export default function MobileSignalsPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#000000', direction: 'rtl', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100dvh', background: '#000000', direction: 'rtl', paddingBottom: 100 }}>
       
       {/* ── Header ── */}
       <div style={{
@@ -187,7 +235,7 @@ export default function MobileSignalsPage() {
                         </div>
                         <div>
                           <div style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>{signal.pair}</div>
-                          <div style={{ fontSize: 11, color: config.color, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{config.label} • ثقة {signal.confidence}%</div>
+                          <div style={{ fontSize: 11, color: config.color, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{config.label} • ثقة {Math.round(signal.confidence)}%</div>
                         </div>
                       </div>
                       <button 

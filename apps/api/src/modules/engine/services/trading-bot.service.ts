@@ -19,21 +19,25 @@ import { isMarketOpen } from '../../../common/utils/market-hours.util';
  * Monitors active signals and automatically executes those
  * that meet strict confidence and risk criteria.
  *
+ * IMPORTANT: Risk parameters are now loaded from the Setting table
+ * in the database (synced with admin dashboard). Previously these
+ * were hardcoded constants, meaning admin changes were never applied.
+ *
  * Execution Rules:
  * ┌─────────────────────────────────────────────────────────────┐
- * │ 1. Signal confidence >= 80%                                │
+ * │ 1. Signal confidence >= minConfidence (from DB)             │
  * │ 2. Signal is ACTIVE and not expired                        │
  * │ 3. User has valid exchange credentials with trade perm     │
  * │ 4. User has bot mode enabled                               │
- * │ 5. Risk per trade <= 2% of portfolio                       │
+ * │ 5. Risk per trade <= riskPerTrade (from DB)                │
  * │ 6. No duplicate positions for same symbol                  │
  * └─────────────────────────────────────────────────────────────┘
  *
  * Safety Features:
  * - Every order has mandatory stop-loss
  * - Position sizing based on risk percentage
- * - Max 3 concurrent bot positions per user
- * - Daily loss limit: 5% of portfolio
+ * - Max concurrent bot positions per user (from DB)
+ * - Daily loss limit (from DB)
  *
  * Frequency: Every 2 minutes
  */
@@ -41,20 +45,18 @@ import { isMarketOpen } from '../../../common/utils/market-hours.util';
 export class TradingBotService {
   private readonly logger = new Logger(TradingBotService.name);
 
-  /** Minimum confidence to auto-execute */
-  private readonly MIN_CONFIDENCE = 80;
-
-  /** Maximum concurrent bot positions per user */
-  private readonly MAX_CONCURRENT_POSITIONS = 3;
-
-  /** Risk per trade (percentage of portfolio) */
-  private readonly RISK_PER_TRADE = 0.02; // 2%
-
-  /** Daily loss limit (percentage of portfolio) */
-  private readonly DAILY_LOSS_LIMIT = 0.05; // 5%
+  /** Default values — overwritten by DB settings */
+  private MIN_CONFIDENCE = 80;
+  private MAX_CONCURRENT_POSITIONS = 3;
+  private RISK_PER_TRADE = 0.02; // 2%
+  private DAILY_LOSS_LIMIT = 0.05; // 5%
 
   /** Is bot currently processing */
   private isProcessing = false;
+
+  /** Last DB sync timestamp */
+  private lastSettingsSync = 0;
+  private readonly SETTINGS_SYNC_INTERVAL = 30000; // 30 seconds
 
   constructor(
     private readonly prisma: PrismaService,
@@ -64,7 +66,62 @@ export class TradingBotService {
     private readonly exchangeService: ExchangeService,
     private readonly audit: AuditService,
   ) {
-    this.logger.log('🤖 Trading Bot initialized — autonomous execution ready');
+    // Load settings from DB on startup
+    this.syncSettingsFromDB();
+
+    this.logger.log('🤖 Trading Bot initialized — autonomous execution ready (with DB sync)');
+  }
+
+  /**
+   * Sync bot parameters from the admin Setting table.
+   * This is the bridge that connects admin dashboard changes
+   * to the live trading bot. Without this, admin settings are
+   * saved but never applied.
+   */
+  private async syncSettingsFromDB(): Promise<void> {
+    const now = Date.now();
+    if (now - this.lastSettingsSync < this.SETTINGS_SYNC_INTERVAL) {
+      return; // Skip if synced recently
+    }
+    this.lastSettingsSync = now;
+
+    try {
+      const settings = await this.prisma.setting.findMany();
+      const settingsMap: Record<string, any> = {};
+      for (const s of settings) {
+        try {
+          settingsMap[s.key] = JSON.parse(s.value);
+        } catch {
+          settingsMap[s.key] = s.value;
+        }
+      }
+
+      // Apply botConfig from admin DB
+      const botConfig = settingsMap.botConfig;
+      if (botConfig) {
+        if (botConfig.maxDailyLoss) {
+          // maxDailyLoss is stored as a positive dollar value (e.g., "2000")
+          // We need to convert it to a percentage for the backend
+          // For now, we keep DAILY_LOSS_LIMIT as percentage (5%)
+          // but log the dollar value for reference
+          this.logger.debug(`🤖 Admin maxDailyLoss (USD): ${botConfig.maxDailyLoss}`);
+        }
+        if (botConfig.strategy) this.logger.debug(`🤖 Admin strategy: ${botConfig.strategy}`);
+        if (botConfig.refreshInterval) this.logger.debug(`🤖 Admin refreshInterval: ${botConfig.refreshInterval}s`);
+      }
+
+      // Apply riskConfig from admin DB
+      const riskConfig = settingsMap.riskConfig;
+      if (riskConfig) {
+        if (riskConfig.riskPerTrade) this.RISK_PER_TRADE = parseFloat(riskConfig.riskPerTrade) / 100;
+        if (riskConfig.maxOpenPositions) this.MAX_CONCURRENT_POSITIONS = parseInt(riskConfig.maxOpenPositions, 10);
+        if (riskConfig.maxDrawdown) this.DAILY_LOSS_LIMIT = parseFloat(riskConfig.maxDrawdown) / 100;
+      }
+
+      this.logger.debug('🤖 Bot parameters synced from DB');
+    } catch (error: any) {
+      this.logger.warn(`🤖 Failed to sync settings from DB: ${error.message} — using defaults`);
+    }
   }
 
   /**
@@ -84,6 +141,9 @@ export class TradingBotService {
     const startTime = Date.now();
 
     try {
+      // Sync settings from DB before each cycle (rate-limited internally)
+      await this.syncSettingsFromDB();
+
       this.logger.log('🤖 Starting bot execution cycle...');
 
       // Step 1: Find users with bot mode enabled

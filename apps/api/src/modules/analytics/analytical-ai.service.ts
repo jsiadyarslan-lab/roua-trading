@@ -175,7 +175,7 @@ export class AnalyticalAIService {
   ): string {
     const sections: string[] = [];
 
-    sections.push(`أنت محلل مالي خبير في منصة "رؤى للتداول". قم بتحليل الأصل ${symbol} بشكل شامل ومفصل.`);
+    sections.push(`أنت محلل مالي خبير في منصة "رؤى لربط الحسابات". قم بتحليل الأصل ${symbol} بشكل شامل ومفصل.`);
 
     // Market data section
     if (quote && quote.price > 0) {

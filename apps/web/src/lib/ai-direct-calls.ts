@@ -8,13 +8,14 @@
  * model's response to one or more council roles. This prevents rate-limiting
  * from calling the same model 6 times.
  *
- * Available models (up to 6):
+ * Available models (up to 7):
  * - Groq/Llama 3.3 70B  (GROQ_API_KEY)        → محلل المشاعر
  * - Gemini 2.0 Flash     (GOOGLE_AI_STUDIO_API_KEY) → المحلل الفني
  * - GLM-4 (Zhipu AI)    (GLM_API_KEY)          → خبير الماكرو
  * - HuggingFace/Mistral  (HUGGINGFACE_API_KEY)  → خبير الأنماط
  * - Ollama/Qwen2.5      (OLLAMA_BASE_URL)       → استراتيجي التنفيذ (non-localhost only)
  * - Bedrock/Claude 3.5   (AWS_ACCESS_KEY_ID)     → خبير المخاطر (direct call with AWS SigV4)
+ * - OpenRouter/DeepSeek  (OPENROUTER_API_KEY)    → محلل التباين (free models)
  */
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -66,7 +67,7 @@ function calcConfidence(content: string, model: string): number {
   if (content.length > 500) confidence += 0.1
   if (content.length > 1000) confidence += 0.05
   if (/شراء|بيع|انتظار|BUY|SELL|HOLD|صعود|هبوط/i.test(content)) confidence += 0.15
-  const MODEL_BASE: Record<string, number> = { groq: 0, gemini: 0.05, glm: 0.02, huggingface: -0.05, ollama: 0.03, bedrock: 0.08 }
+  const MODEL_BASE: Record<string, number> = { groq: 0, gemini: 0.05, glm: 0.02, huggingface: -0.05, ollama: 0.03, bedrock: 0.08, openrouter: 0.01 }
   confidence += MODEL_BASE[model] || 0
   return Math.min(Math.max(confidence, 0.1), 0.95)
 }
@@ -340,9 +341,66 @@ async function callOllama(prompt: string): Promise<DirectAIResponse> {
 }
 
 /**
+ * OpenRouter — Direct call for 7th model (محلل التباين / Divergence Analyst)
+ * Uses free models with diverse perspectives to find counter-signals.
+ * Also serves as fallback within HuggingFace service (NestJS layer).
+ */
+async function callOpenRouter(prompt: string): Promise<DirectAIResponse> {
+  const apiKey = getKey('OPENROUTER_API_KEY')
+  if (!apiKey) return { model: 'OpenRouter/unavailable', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No OPENROUTER_API_KEY' }
+
+  const start = Date.now()
+  // Free model candidates — diverse perspectives for divergence analysis
+  const modelCandidates = ['deepseek/deepseek-chat-v3-0324:free', 'meta-llama/llama-3.1-8b-instruct:free', 'qwen/qwen-2.5-7b-instruct:free', 'google/gemma-2-2b-it:free']
+
+  for (const model of modelCandidates) {
+    try {
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://roua-trading-production.up.railway.app',
+          'X-Title': 'Roua Trading AI Council',
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: 'أنت محلل تباين مالي محترف. دورك هو البحث عن إشارات معاكسة وأسباب لعدم اتباع الاتجاه السائد. أجب بالعربية. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.5,
+          max_tokens: 512,
+        }),
+        signal: AbortSignal.timeout(MODEL_TIMEOUT),
+      })
+
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '')
+        // 404/429 = model not available, try next
+        if (res.status === 404 || res.status === 429) continue
+        return { model: `OpenRouter/${model}`, content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `OpenRouter ${res.status}: ${errBody.slice(0, 150)}` }
+      }
+
+      const data = await res.json()
+      const content = data.choices?.[0]?.message?.content || ''
+      if (content.trim().length > 0) {
+        return { model: `OpenRouter/${model}`, content, confidence: calcConfidence(content, 'openrouter'), processingTimeMs: Date.now() - start, success: true }
+      }
+      // Empty response, try next model
+      continue
+    } catch {
+      continue // Try next model
+    }
+  }
+
+  return { model: 'OpenRouter/unavailable', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: 'All OpenRouter models unavailable' }
+}
+
+/**
  * Bedrock — Direct call with AWS SigV4 signing.
  * Previously marked "too complex for direct" but now implemented
- * so ALL 6 models work even when NestJS is down (Layer 2).
+ * so ALL 7 models work even when NestJS is down (Layer 2).
  *
  * Uses the same SigV4 signing as the NestJS BedrockService.
  */
@@ -498,13 +556,14 @@ function getBedrockStatus(): { available: boolean; reason: string } {
  * This prevents rate-limiting from calling the same model multiple times.
  * Each model is called with a DIFFERENT prompt for diversity.
  *
- * Role assignment based on model strengths (6 models → 6+ roles):
+ * Role assignment based on model strengths (7 models → 7 roles):
  * - Groq:       محلل المشاعر (sentiment analysis — fastest model) + استراتيجي التنفيذ (when Ollama absent)
- * - Gemini:     المححلل الفني (technical analysis) + خبير الماكرو (macro)
- * - GLM-4:      خبير المخاطر (risk expert — takes Bedrock's role) + خبير الماكرو (secondary)
+ * - Gemini:     المحلل الفني (technical analysis) + خبير الماكرو (macro)
+ * - GLM-4:      خبير الماكرو (macro expert — takes macro role) + خبير المخاطر (secondary)
  * - HuggingFace: خبير الأنماط (pattern recognition — matches NestJS orchestrator)
  * - Ollama:     استراتيجي التنفيذ (execution strategy — if available)
  * - Bedrock:    خبير المخاطر (risk expert — via NestJS only, too complex for direct)
+ * - OpenRouter: محلل التباين (divergence analyst — free models with diverse perspectives)
  *
  * When fewer models respond, remaining roles are redistributed:
  * - If Ollama is unavailable → Groq takes استراتيجي التنفيذ
@@ -588,6 +647,13 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
       prompt: 'risk',
       primaryOnly: false,
     },
+    {
+      modelName: 'OpenRouter',
+      callFn: () => callOpenRouter(`ابحث عن إشارات معاكسة أو تباينات في تحليل ${symbol} — هل هناك سبب لعدم اتباع الاتجاه السائد؟ حلل من منظور مختلف وقدم رأياً مستقلاً.`),
+      roles: ['محلل التباين'],
+      prompt: 'divergence',
+      primaryOnly: false,
+    },
   ]
 
   // Filter out Ollama if it shouldn't be attempted (localhost on cloud)
@@ -606,6 +672,71 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
       return { ...mc, response }
     })
   )
+
+  // ── Log AI usage to AiUsageLog (same table as NestJS AiUsageLoggerService) ──
+  // This ensures costs are tracked even when NestJS is down and the direct fallback path runs.
+  try {
+    const { db, ensureDbReady } = await import('@/lib/db')
+    const dbReady = await ensureDbReady()
+    if (dbReady) {
+      const COST_PER_1K: Record<string, { input: number; output: number }> = {
+        groq: { input: 0.00059, output: 0.00079 },
+        gemini: { input: 0.000075, output: 0.00030 },
+        glm: { input: 0.00140, output: 0.00140 },
+        huggingface: { input: 0, output: 0 },
+        ollama: { input: 0, output: 0 },
+        bedrock: { input: 0.00300, output: 0.01500 },
+        openrouter: { input: 0, output: 0 },
+      }
+      const extractProvider = (model: string): string => {
+        const lower = model.toLowerCase()
+        if (lower.includes('groq')) return 'groq'
+        if (lower.includes('gemini')) return 'gemini'
+        if (lower.includes('glm')) return 'glm'
+        if (lower.includes('huggingface') || lower.includes('hf')) return 'huggingface'
+        if (lower.includes('ollama')) return 'ollama'
+        if (lower.includes('bedrock') || lower.includes('claude')) return 'bedrock'
+        if (lower.includes('openrouter') || lower.includes('deepseek')) return 'openrouter'
+        return 'unknown'
+      }
+      const calcCost = (provider: string, inputTokens: number, outputTokens: number): number => {
+        const rates = COST_PER_1K[provider] || { input: 0, output: 0 }
+        return (inputTokens / 1000) * rates.input + (outputTokens / 1000) * rates.output
+      }
+
+      const records = callResults
+        .filter(r => r.status === 'fulfilled')
+        .map(r => {
+          const { modelName, prompt: promptType, response } = r.value
+          const provider = extractProvider(response.model)
+          // FIX: Estimate input tokens from actual prompt text in modelCalls, not role type key
+          // Average ~3 chars per token (mixed Arabic/English)
+          const estimatedInputTokens = Math.ceil(response.success ? 300 : 0) // ~100 tokens per consensus prompt (approximate)
+          const outputTokens = Math.ceil(response.content.length / 3)
+          return {
+            id: `aul_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+            model: response.model,
+            provider,
+            endpoint: 'consensus',
+            inputTokens: estimatedInputTokens,
+            outputTokens: response.success ? outputTokens : 0,
+            costUsd: response.success ? calcCost(provider, estimatedInputTokens, outputTokens) : 0,
+            latencyMs: response.processingTimeMs,
+            cached: false,
+            success: response.success,
+            errorMessage: response.success ? null : (response.error || 'failed').substring(0, 500),
+          }
+        })
+
+      if (records.length > 0) {
+        await db.aiUsageLog.createMany({ data: records })
+        console.log(`[direct-council] Logged ${records.length} AI usage records to AiUsageLog`)
+      }
+    }
+  } catch (logError: any) {
+    // Don't crash the consensus if logging fails — it's non-critical
+    console.warn(`[direct-council] Failed to log AI usage: ${logError?.message || logError}`)
+  }
 
   // Collect successful models — each fills exactly 1 role now
   const successfulModels: Array<{
@@ -682,6 +813,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     if (mc.modelName === 'HuggingFace') return !!getKey('HUGGINGFACE_API_KEY')
     if (mc.modelName === 'Ollama') return shouldTryOllama
     if (mc.modelName === 'Bedrock') return !!(getKey('AWS_ACCESS_KEY_ID') && getKey('AWS_SECRET_ACCESS_KEY'))
+    if (mc.modelName === 'OpenRouter') return !!getKey('OPENROUTER_API_KEY')
     return false
   }).length
 
@@ -703,7 +835,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
         aiEngine: `Direct-AI (${filledRoles} roles from ${modelsRespondedCount} models)`,
         modelsUsed: uniqueModels,
         modelsResponded: modelsRespondedCount,
-        modelsExpected: 6, // 6 roles in the full council
+        modelsExpected: 7, // 7 roles in the full council
         modelsWithKeys: expectedDirectModels,
         bedrockAvailable: bedrockStatus.available,
         bedrockNote: bedrockStatus.available ? 'Direct call enabled (AWS SigV4)' : 'AWS credentials not configured',
@@ -717,7 +849,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
 
 /**
  * Quick health check: which AI models have API keys configured?
- * All 6 models checked including Bedrock (direct call now supported).
+ * All 7 models checked including Bedrock and OpenRouter (direct call now supported).
  */
 export function getAvailableModelKeys(): { model: string; hasKey: boolean; note?: string }[] {
   const ollamaBaseUrl = getKey('OLLAMA_BASE_URL') || 'http://localhost:11434'
@@ -738,6 +870,11 @@ export function getAvailableModelKeys(): { model: string; hasKey: boolean; note?
       model: 'Bedrock',
       hasKey: bedrockStatus.available,
       note: bedrockStatus.available ? 'Direct call enabled (AWS SigV4)' : 'AWS credentials not configured',
+    },
+    {
+      model: 'OpenRouter',
+      hasKey: !!getKey('OPENROUTER_API_KEY'),
+      note: 'Free models — divergence analyst',
     },
   ]
 }

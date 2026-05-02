@@ -23,6 +23,7 @@ interface UseChartOptions {
   timeframe: string;
   settings?: Partial<ChartSettings>;
   onCrosshairMove?: (data: CrosshairData | null) => void;
+  mobile?: boolean;
 }
 
 interface UseChartReturn {
@@ -65,7 +66,7 @@ interface UseChartReturn {
 }
 
 export function useChart(options: UseChartOptions): UseChartReturn {
-  const { symbol, timeframe, onCrosshairMove } = options;
+  const { symbol, timeframe, onCrosshairMove, mobile: isMobile } = options;
 
   // ── Refs ───────────────────────────────────────────────
   const chartInstanceRef = useRef<IChartApi | null>(null);
@@ -138,6 +139,32 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const initChart = useCallback(async () => {
     if (!containerRef.current) return;
 
+    // Wait for container to have non-zero dimensions (flex layout may not have resolved yet)
+    const waitForDimensions = (el: HTMLElement, maxRetries = 20): Promise<{ w: number; h: number }> => {
+      return new Promise((resolve) => {
+        const check = (attempt: number) => {
+          const w = el.clientWidth;
+          const h = el.clientHeight;
+          if (w > 0 && h > 0) {
+            resolve({ w, h });
+            return;
+          }
+          if (attempt >= maxRetries) {
+            // Fallback: use parent dimensions or reasonable defaults
+            const parent = el.parentElement;
+            const fw = parent?.clientWidth || 800;
+            const fh = parent?.clientHeight || 400;
+            resolve({ w: fw, h: fh });
+            return;
+          }
+          requestAnimationFrame(() => check(attempt + 1));
+        };
+        check(0);
+      });
+    };
+
+    const { w: initialWidth, h: initialHeight } = await waitForDimensions(containerRef.current);
+
     // Dynamic import lightweight-charts v5
     const { createChart, CandlestickSeries, HistogramSeries } = await import('lightweight-charts');
 
@@ -150,12 +177,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const container = containerRef.current;
 
     const chartOptions: DeepPartial<ChartOptions> = {
-      width: container.clientWidth,
-      height: container.clientHeight,
+      width: initialWidth,
+      height: initialHeight,
       layout: {
         background: { color: COLORS.bg },
         textColor: COLORS.textSecondary,
-        fontSize: 11,
+        fontSize: isMobile ? 9 : 11,
         fontFamily: "'JetBrains Mono', monospace",
         attributionLogo: false,
       },
@@ -179,7 +206,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         },
       },
       rightPriceScale: {
-        borderColor: COLORS.border,
+        borderColor: isMobile ? 'transparent' : COLORS.border,
         scaleMargins: { top: 0.1, bottom: 0.2 },
       },
       timeScale: {

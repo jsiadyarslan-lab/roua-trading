@@ -50,7 +50,7 @@ export default function MobileMarketsPage() {
   })
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0B0E14', direction: 'rtl', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100dvh', background: '#0B0E14', direction: 'rtl', paddingBottom: 100 }}>
 
       {/* ── Header ── */}
       <div style={{ padding: 'calc(env(safe-area-inset-top) + 16px) 16px 12px' }}>

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { BullModule } from '@nestjs/bullmq';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { RedisModule } from './common/redis/redis.module';
 import { AuthModule } from './auth/auth.module';
@@ -18,6 +19,9 @@ import { NewsModule } from './modules/news/news.module';
 import { AuditModule } from './audit/audit.module';
 import { CoachModule } from './modules/coach/coach.module';
 import { ScannerModule } from './modules/scanner/scanner.module';
+import { PredictionMarketModule } from './modules/prediction-market/prediction-market.module';
+import { AutonomousTraderAgentModule } from './agents/autonomous-trader/agent.module';
+import { ContentAgentModule } from './agents/content/content-agent.module';
 
 @Module({
   imports: [
@@ -70,6 +74,9 @@ import { ScannerModule } from './modules/scanner/scanner.module';
       },
     }),
 
+    // ── Scheduling (required for @Cron decorators in agents) ──
+    ScheduleModule.forRoot(),
+
     // ── Infrastructure ──
     PrismaModule,
     RedisModule,
@@ -89,6 +96,9 @@ import { ScannerModule } from './modules/scanner/scanner.module';
     NewsModule,
     CoachModule,
     ScannerModule,
+    PredictionMarketModule,
+    AutonomousTraderAgentModule,
+    ContentAgentModule,
   ],
 })
 export class AppModule {}

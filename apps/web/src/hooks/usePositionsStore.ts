@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import { ensureAuth } from '@/lib/api-fetch'
 
 interface Position {
@@ -27,6 +28,8 @@ interface PositionsState {
   loading: boolean
   error: string | null
   lastUpdate: string | null
+  /** Unix timestamp (ms) of last successful fetch — used for staleness detection */
+  _cacheTimestamp: number | null
   dataSource: 'nestjs' | 'alpaca' | null
   setPositions: (positions: Position[]) => void
   setAccount: (account: any) => void
@@ -38,12 +41,15 @@ interface PositionsState {
   updatePositionPrice: (symbol: string, price: number) => void
 }
 
-export const usePositionsStore = create<PositionsState>((set, get) => ({
+export const usePositionsStore = create<PositionsState>()(
+  persist(
+    (set, get) => ({
   positions: [],
   account: null,
   loading: false,
   error: null,
   lastUpdate: null,
+  _cacheTimestamp: null,
   dataSource: null,
   setPositions: (positions) => set({ positions }),
   setAccount: (account) => set({ account }),
@@ -117,7 +123,7 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
             tradingBlocked: false,
             accountBlocked: false,
           }
-          set({ account, dataSource: 'nestjs' })
+          set({ account, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
           return
         }
       }
@@ -130,7 +136,7 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
       const res = await fetch('/api/alpaca/account')
       const j = await res.json()
       if (j.success && j.data) {
-        set({ account: j.data, dataSource: 'alpaca' })
+        set({ account: j.data, dataSource: 'alpaca', _cacheTimestamp: Date.now() })
         return
       }
     } catch {
@@ -158,7 +164,7 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
         tradingBlocked: false,
         accountBlocked: false,
       }
-      set({ account })
+      set({ account, _cacheTimestamp: Date.now() })
       return
     }
 
@@ -212,7 +218,8 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
             positions,
             lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             dataSource: 'nestjs',
-            loading: false, // FIX: Reset loading on successful NestJS fetch
+            loading: false,
+            _cacheTimestamp: Date.now(),
           })
           return
         }
@@ -222,7 +229,8 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
             positions: [],
             lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             dataSource: 'nestjs',
-            loading: false, // FIX: Reset loading on empty positions
+            loading: false,
+            _cacheTimestamp: Date.now(),
           })
           return
         }
@@ -240,7 +248,8 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
           positions: j.data,
           lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
           dataSource: 'alpaca',
-          loading: false, // FIX: Reset loading on successful Alpaca fetch
+          loading: false,
+          _cacheTimestamp: Date.now(),
         })
       } else {
         set({ error: j.error || 'فشل في جلب المراكز' })
@@ -251,4 +260,38 @@ export const usePositionsStore = create<PositionsState>((set, get) => ({
       set({ loading: false })
     }
   },
-}))
+}),
+    {
+      name: 'roua-positions-store',
+      // Only persist account data and positions (not loading/error states)
+      partialize: (state) => ({
+        account: state.account,
+        positions: state.positions,
+        lastUpdate: state.lastUpdate,
+        dataSource: state.dataSource,
+        _cacheTimestamp: state._cacheTimestamp,
+      }),
+      // Sync across tabs via storage events & force refresh stale data
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (error) {
+            console.warn('[PositionsStore] Rehydration failed:', error)
+          }
+          // If cached data is stale (older than 5 min), immediately fetch fresh data
+          if (state?._cacheTimestamp) {
+            const cacheAge = Date.now() - state._cacheTimestamp
+            if (cacheAge > 5 * 60 * 1000) {
+              console.log('[PositionsStore] Cache is stale (%d ms old), forcing refresh', cacheAge)
+              state.fetchAccount()
+              state.fetchPositions()
+            }
+          } else if (state && !state.lastUpdate) {
+            // No cache at all — fetch immediately
+            state.fetchAccount()
+            state.fetchPositions()
+          }
+        }
+      },
+    }
+  )
+)

@@ -311,3 +311,99 @@ Stage Summary:
 - Session renewed automatically if expiring within 60 minutes
 - Guest sessions properly rejected and cleaned up
 - 0 TypeScript errors in all created/modified files
+
+---
+Task ID: settings-sync-fix
+Agent: main
+Task: Fix bot settings not being applied — admin saves settings but bot doesn't read them
+
+Work Log:
+- Investigated the complete settings save flow end-to-end
+- Discovered root cause: THREE completely disconnected systems
+  1. Admin dashboard → Setting table (DB) — saved but nobody reads
+  2. BotEngine.tsx → hardcoded MAX_SESSION_LOSS=-250 — ignores DB
+  3. NestJS services → ENV vars only — ignores DB
+- Added protection settings to useBotStore (maxDailyLoss, maxDrawdown, maxOpenPositions, stopLossDefault, takeProfitDefault, leverageLimit)
+- Added syncFromDB() method to useBotStore that fetches from /api/bot/settings
+- Created /api/bot/settings endpoint that reads from Setting table
+- Replaced hardcoded constants in BotEngine.tsx with dynamic settings from useBotStore
+- Added syncSettingsFromDB() to RiskGatekeeperService, RiskManagerService, TradingBotService
+- Bot now syncs settings from DB every 60 seconds (frontend) and 30 seconds (backend)
+- Protection log message now shows actual limit value: "تجاوز حد خسارة الجلسة (-500$ / الحد: -2000$)"
+
+Stage Summary:
+- Modified 6 files, created 1 new file
+- Built successfully, pushed to GitHub (0dd7ada)
+- Railway will auto-deploy
+
+---
+Task ID: mobile-redesign-all-phases
+Agent: main
+Task: Complete mobile redesign — all 5 phases
+
+Work Log:
+- Phase 1: Fixed redirect loop (news link), unified breakpoints (768px), fixed PWA manifest, replaced mock data
+- Phase 2: Created 11 new mobile pages (news, notifications, positions, trading, profile, kyc, billing, security, strategies, social, help)
+- Phase 3: Rebuilt 6 weak pages (AI Council, Bot, Portfolio, Settings) with custom mobile designs
+- Phase 4: Added pull-to-refresh, settings sync, notification links, expanded More menu
+- Phase 5: Fixed viewport metadata warnings, optimized layout
+- Build: All 21 mobile pages compile successfully with zero errors
+- Deployed: Pushed to GitHub (283a784), Railway auto-deploying
+
+Stage Summary:
+- 20 mobile pages total (was 10 before)
+- 11 completely new pages created
+- 6 pages rebuilt from scratch with custom mobile designs
+- All critical fixes applied (redirect loop, breakpoints, PWA, mock data)
+- Build succeeds with zero errors
+- Pushed to production
+
+---
+Task ID: 5
+Agent: Sub-agent (general-purpose)
+Task: Add Target nav link for prediction-market page in AppHeader
+
+Work Log:
+- Read AppHeader.tsx to understand current nav structure
+- Added `Target` to the lucide-react import (line 13)
+- Added new NAV_LINKS entry for prediction-market: `{ href: '/dashboard/prediction-market', label: 'الأسواق التنبؤية', icon: Target }` — placed before the settings entry (last functional item) so it appears in the "More" dropdown
+- The link uses the `Target` icon from lucide-react and routes to `/dashboard/prediction-market`
+
+Stage Summary:
+- 1 file modified: `apps/web/src/components/dashboard/AppHeader.tsx`
+- 2 changes: import addition + NAV_LINKS array entry
+- prediction-market link accessible from both desktop nav "More" dropdown and mobile sidebar
+
+---
+Task ID: self-healing-agent-1
+Agent: Main Agent
+Task: Create Self-Healing Agent for Roua Trading platform
+
+Work Log:
+- Created agents/self-healing-agent/ directory with 13 files
+- config.py: Environment-based configuration (GLM, GitHub, Railway, Telegram, safety scopes)
+- monitor.py: Health check system with ErrorType classification and fixable error detection
+- logger_fetcher.py: Railway log fetching (GraphQL + REST API fallback) with error pattern extraction
+- error_analyzer.py: GLM-5.1 powered error analysis with JSON response parsing and dual safety validation
+- fix_generator.py: Fix code generation with search-and-replace support, path validation, forbidden code detection
+- test_runner.py: GitHub branch creation, fix application, CI test execution, branch cleanup on failure
+- github_pr_manager.py: PR creation (draft mode) with labels, review requests, and safety documentation
+- human_approval.py: Telegram approval notifications with inline keyboard buttons
+- main.py: Main orchestration loop (60s cycle) with fix attempt tracking, cooldown, and periodic summaries
+- Dockerfile: Python 3.12-slim with health check
+- railway.json: Railway deployment config
+- requirements.txt: Python dependencies
+- .env.example: Example environment variables
+- All files validated for Python syntax (AST parsing)
+- Pushed to GitHub (commit 03bdd7a)
+
+Stage Summary:
+- 13 files created, 2943 lines of Python code
+- Agent monitors 8 API endpoints every 60 seconds
+- GLM-5.1 analyzes errors and generates fixes
+- Safety: never auto-merges, only fixes TypeScript/API errors, forbidden from trading/security/risk
+- Dual validation: GLM classification + code-level pattern checks
+- Fix attempt limits (3 per error) with cooldown (3600s)
+- Failed test branches auto-deleted
+- Telegram notifications for PR approval/rejection
+- Pushed to https://github.com/jsiadyarslan-lab/roua-trading (main branch)

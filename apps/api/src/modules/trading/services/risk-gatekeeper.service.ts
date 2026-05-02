@@ -21,26 +21,28 @@ import * as ccxt from 'ccxt';
  * │ 5. checkCircuitBreakers     — No trading halt on the asset      │
  * └───────────────────────────────────────────────────────────────────┘
  *
- * All checks return RiskCheckResult with:
- * - allowed: boolean
- * - reason: Arabic description of why the order was rejected
- * - failedCheck: identifier of the failed check
- * - riskScore: 0-100 risk assessment
+ * IMPORTANT: Risk parameters are now loaded from the Setting table
+ * in the database (synced with admin dashboard) with env var fallbacks.
+ * This means admin settings changes are applied in real-time.
  */
 @Injectable()
 export class RiskGatekeeperService {
   private readonly logger = new Logger(RiskGatekeeperService.name);
 
-  // ── Configurable Risk Parameters ──
-  private readonly maxPositionSizePercent: number;
-  private readonly maxOpenPositions: number;
-  private readonly maxDailyLossPercent: number;
-  private readonly minOrderSizeUSD: number;
-  private readonly maxOrderSizeUSD: number;
-  private readonly circuitBreakerThresholdPercent: number;
+  // ── Configurable Risk Parameters (loaded from DB with env fallback) ──
+  private maxPositionSizePercent: number;
+  private maxOpenPositions: number;
+  private maxDailyLossPercent: number;
+  private minOrderSizeUSD: number;
+  private maxOrderSizeUSD: number;
+  private circuitBreakerThresholdPercent: number;
 
   // ── Circuit Breaker State (in-memory, per symbol) ──
   private readonly circuitBreakerState: Map<string, { triggered: boolean; until: Date }> = new Map();
+
+  // ── Last DB sync timestamp ──
+  private lastSettingsSync = 0;
+  private readonly SETTINGS_SYNC_INTERVAL = 30000; // Re-sync every 30 seconds
 
   constructor(
     private readonly prisma: PrismaService,
@@ -48,6 +50,7 @@ export class RiskGatekeeperService {
     private readonly credentialsService: CredentialsService,
     private readonly exchangeService: ExchangeService,
   ) {
+    // Initialize with env var defaults — will be overwritten by DB settings
     this.maxPositionSizePercent = parseFloat(
       this.configService.get('RISK_MAX_POSITION_PERCENT', '20'),
     );
@@ -68,7 +71,54 @@ export class RiskGatekeeperService {
       this.configService.get('RISK_CIRCUIT_BREAKER_THRESHOLD', '10'),
     );
 
-    this.logger.log('🛡️ Risk Gatekeeper initialized — pre-trade validation active');
+    // Load settings from DB on startup
+    this.syncSettingsFromDB();
+
+    this.logger.log('🛡️ Risk Gatekeeper initialized — pre-trade validation active (with DB sync)');
+  }
+
+  /**
+   * Sync risk parameters from the admin Setting table.
+   * This is the bridge that connects admin dashboard changes
+   * to the live risk gatekeeper. Called periodically and before each validation.
+   */
+  private async syncSettingsFromDB(): Promise<void> {
+    const now = Date.now();
+    if (now - this.lastSettingsSync < this.SETTINGS_SYNC_INTERVAL) {
+      return; // Skip if synced recently
+    }
+    this.lastSettingsSync = now;
+
+    try {
+      const settings = await this.prisma.setting.findMany();
+      const settingsMap: Record<string, any> = {};
+      for (const s of settings) {
+        try {
+          settingsMap[s.key] = JSON.parse(s.value);
+        } catch {
+          settingsMap[s.key] = s.value;
+        }
+      }
+
+      // Apply riskConfig from admin DB
+      const riskConfig = settingsMap.riskConfig;
+      if (riskConfig) {
+        if (riskConfig.maxDrawdown) this.maxDailyLossPercent = parseFloat(riskConfig.maxDrawdown);
+        if (riskConfig.maxOpenPositions) this.maxOpenPositions = parseInt(riskConfig.maxOpenPositions, 10);
+        if (riskConfig.stopLossDefault) this.minOrderSizeUSD = parseFloat(riskConfig.stopLossDefault);
+        if (riskConfig.leverageLimit) this.circuitBreakerThresholdPercent = parseFloat(riskConfig.leverageLimit);
+      }
+
+      // Apply botConfig from admin DB
+      const botConfig = settingsMap.botConfig;
+      if (botConfig) {
+        if (botConfig.maxPositionSize) this.maxOrderSizeUSD = parseFloat(botConfig.maxPositionSize);
+      }
+
+      this.logger.debug('🛡️ Risk parameters synced from DB');
+    } catch (error: any) {
+      this.logger.warn(`🛡️ Failed to sync settings from DB: ${error.message} — using env defaults`);
+    }
   }
 
   /**
@@ -76,6 +126,9 @@ export class RiskGatekeeperService {
    * Returns the result of the FIRST failed check, or success if all pass
    */
   async validateOrder(command: OrderCommand): Promise<RiskCheckResult> {
+    // Sync settings from DB before each validation (rate-limited internally)
+    await this.syncSettingsFromDB();
+
     this.logger.debug(
       `🛡️ Validating order: ${command.side} ${command.quantity} ${command.symbol} (key: ${command.idempotencyKey})`,
     );

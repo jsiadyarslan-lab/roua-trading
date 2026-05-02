@@ -69,7 +69,7 @@ export default function AdminOverviewPage() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/dashboard/admin/api/stats')
+      const res = await fetch('/api/admin/stats')
       if (res.ok) {
         const data = await res.json()
         setStats(data)
@@ -84,7 +84,7 @@ export default function AdminOverviewPage() {
 
   const fetchActivity = async () => {
     try {
-      const res = await fetch('/dashboard/admin/api/activity?limit=20')
+      const res = await fetch('/api/admin/activity?limit=20')
       if (res.ok) {
         const data = await res.json()
         setActivities(data.activities || [])
@@ -96,7 +96,7 @@ export default function AdminOverviewPage() {
 
   const fetchHealth = async () => {
     try {
-      const res = await fetch('/dashboard/admin/api/health')
+      const res = await fetch('/api/admin/health')
       if (res.ok) {
         const data = await res.json()
         if (data.endpoints && Array.isArray(data.endpoints)) {

@@ -14,7 +14,8 @@
     "dev:web": "turbo dev --filter=@roua/web",
     "dev:api": "turbo dev --filter=@roua/api",
     "db:push": "turbo db:push --filter=@roua/web",
-    "db:generate": "turbo db:generate --filter=@roua/web"
+    "db:generate": "turbo db:generate --filter=@roua/web",
+    "seed:reports": "npx ts-node -P apps/api/tsconfig.json scripts/seed-reports.ts"
   },
   "devDependencies": {
     "next": "^16.2.4",

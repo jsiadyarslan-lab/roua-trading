@@ -79,7 +79,7 @@ export function BotMini() {
               textOverflow: 'ellipsis',
             }}
           >
-            روبوت التداول الآلي
+            روبوت المتابعة الآلي
           </span>
           <span
             style={{

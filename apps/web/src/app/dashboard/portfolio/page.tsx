@@ -238,6 +238,16 @@ export default function PortfolioPage() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'WIN' | 'LOSS'>('ALL')
   const [showPanicConfirm, setShowPanicConfirm] = useState(false)
   const [closingAll, setClosingAll] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mq = window.matchMedia('(max-width: 767px)')
+    setIsMobile(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
 
   const fetchPositions = useCallback(async () => {
     try {
@@ -448,7 +458,7 @@ export default function PortfolioPage() {
   })
 
   return (
-    <div style={{
+    <div className="portfolio-page-root" style={{
       width: '100%', minHeight: 'calc(100vh - 100px)',
       background: T.bg, overflow: 'auto',
       padding: '12px 14px', boxSizing: 'border-box',
@@ -456,6 +466,9 @@ export default function PortfolioPage() {
       fontFamily: "'Cairo', sans-serif",
     }}>
       <style>{`
+        @media (max-width: 767px) {
+          .portfolio-page-root { min-height: 100% !important; height: 100% !important; }
+        }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: #0B0E14; }
         ::-webkit-scrollbar-thumb { background: #0A84FF44; border-radius: 4px; }
@@ -467,6 +480,7 @@ export default function PortfolioPage() {
           .portfolio-distribution { flex: 0 0 auto !important; width: 100% !important; }
           .portfolio-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
           .portfolio-table-wrap > div { min-width: 700px; }
+          .portfolio-table-wrap > div.mobile-cards-enabled { min-width: 0 !important; }
           .portfolio-stats-row { flex-wrap: wrap !important; }
           .portfolio-stats-row > * { flex: 1 1 calc(50% - 4px) !important; min-width: 140px; }
         }
@@ -616,7 +630,7 @@ export default function PortfolioPage() {
 
           <div className="portfolio-table-wrap">
           {/* ── Open Positions table ── */}
-          <div style={{
+          <div className={isMobile ? 'mobile-cards-enabled' : ''} style={{
             background: T.card, border: `0.5px solid ${T.border}`,
             borderRadius: 10, overflow: 'hidden', marginBottom: 12,
           }}>
@@ -654,6 +668,56 @@ export default function PortfolioPage() {
               <div style={{ padding: 24, textAlign: 'center' }}>
                 <Activity size={28} style={{ color: T.text3, opacity: 0.3, margin: '0 auto 8px' }} />
                 <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.text3 }}>لا توجد صفقات مفتوحة حالياً</p>
+              </div>
+            ) : isMobile ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 10 }}>
+                {positions.map((pos) => (
+                  <div key={pos.id} style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: `0.5px solid ${T.border}`,
+                    borderRadius: 10, padding: '10px 12px',
+                    display: 'flex', flexDirection: 'column', gap: 6,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, color: T.text }}>{pos.symbol}</span>
+                        <span style={{
+                          padding: '1px 6px', borderRadius: 4,
+                          fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700,
+                          background: pos.side === 'BUY' ? `${T.green}18` : `${T.red}18`,
+                          color: pos.side === 'BUY' ? T.green : T.red,
+                          border: `0.5px solid ${pos.side === 'BUY' ? T.green : T.red}44`,
+                        }}>{pos.side === 'BUY' ? 'شراء ↑' : 'بيع ↓'}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          fontSize: 13, fontWeight: 700,
+                          color: (pos.unrealizedPnl || 0) >= 0 ? T.green : T.red,
+                        }}>
+                          {(pos.unrealizedPnl || 0) > 0 ? '+' : (pos.unrealizedPnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pos.unrealizedPnl || 0))}
+                        </span>
+                        <button onClick={() => handleClosePosition(pos)} disabled={closing === pos.id} style={{
+                          padding: '4px 8px', borderRadius: 5,
+                          background: `${T.red}18`, color: T.red,
+                          border: `0.5px solid ${T.red}44`,
+                          cursor: closing === pos.id ? 'wait' : 'pointer',
+                          fontFamily: "'Cairo', sans-serif", fontSize: 9,
+                          opacity: closing === pos.id ? 0.5 : 1,
+                        }}>
+                          <XIcon size={10} />
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, fontSize: 10 }}>
+                      <div><span style={{ color: T.text3 }}>الكمية: </span><span style={{ color: T.text2 }}>{pos.quantity}</span></div>
+                      <div><span style={{ color: T.text3 }}>دخول: </span><span style={{ color: T.text2 }}>{formatPrice(pos.entryPrice)}</span></div>
+                      <div><span style={{ color: T.text3 }}>حالي: </span><span style={{ color: T.text, fontWeight: 700 }}>{pos.currentPrice ? formatPrice(pos.currentPrice) : '—'}</span></div>
+                      <div><span style={{ color: T.text3 }}>SL: </span><span style={{ color: T.red }}>{pos.stopLoss ? formatPrice(pos.stopLoss) : '—'}</span></div>
+                      <div><span style={{ color: T.text3 }}>TP: </span><span style={{ color: T.green }}>{pos.takeProfit ? formatPrice(pos.takeProfit) : '—'}</span></div>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <>
@@ -737,7 +801,7 @@ export default function PortfolioPage() {
           </div>
 
           {/* ── Closed Positions ── */}
-          <div style={{
+          <div className={isMobile ? 'mobile-cards-enabled' : ''} style={{
             background: T.card, border: `0.5px solid ${T.border}`,
             borderRadius: 10, overflow: 'hidden', marginBottom: 12,
           }}>
@@ -783,8 +847,9 @@ export default function PortfolioPage() {
                 <>
                   {/* Filters Bar */}
                   <div style={{
-                    display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
-                    borderBottom: `0.5px solid ${T.border}`, background: 'rgba(0,0,0,0.2)'
+                    display: 'flex', alignItems: 'center', gap: isMobile ? 6 : 12, padding: '10px 14px',
+                    borderBottom: `0.5px solid ${T.border}`, background: 'rgba(0,0,0,0.2)',
+                    flexWrap: isMobile ? 'wrap' : 'nowrap',
                   }}>
                     <input
                       type="text"
@@ -794,7 +859,7 @@ export default function PortfolioPage() {
                       style={{
                         background: T.bg, border: `1px solid ${T.border}`, borderRadius: 6,
                         padding: '4px 10px', color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
-                        width: 120, outline: 'none'
+                        width: isMobile ? '100%' : 120, outline: 'none'
                       }}
                     />
                     <select
@@ -823,6 +888,53 @@ export default function PortfolioPage() {
                     </select>
                   </div>
 
+                  {isMobile ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 10 }}>
+                      {filteredHistory.map((pt) => (
+                        <div key={pt.id} style={{
+                          background: 'rgba(255,255,255,0.02)',
+                          border: `0.5px solid ${T.border}`,
+                          borderRadius: 10, padding: '10px 12px',
+                          display: 'flex', flexDirection: 'column', gap: 6,
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, color: T.text }}>{pt.symbol}</span>
+                              {pt.type === 'PAPER' && (
+                                <span style={{
+                                  padding: '0px 3px', borderRadius: 3,
+                                  fontFamily: "'JetBrains Mono', monospace", fontSize: 7, fontWeight: 700,
+                                  background: `${T.cyan}14`, color: T.cyan, border: `0.5px solid ${T.cyan}33`,
+                                }}>ورقي</span>
+                              )}
+                              <span style={{
+                                padding: '1px 6px', borderRadius: 4,
+                                fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700,
+                                background: pt.side === 'BUY' ? `${T.green}18` : `${T.red}18`,
+                                color: pt.side === 'BUY' ? T.green : T.red,
+                                border: `0.5px solid ${pt.side === 'BUY' ? T.green : T.red}44`,
+                              }}>{pt.side === 'BUY' ? 'شراء' : 'بيع'}</span>
+                            </div>
+                            <span style={{
+                              fontFamily: "'JetBrains Mono', monospace",
+                              fontSize: 13, fontWeight: 700,
+                              color: (pt.pnl || 0) >= 0 ? T.green : T.red,
+                            }}>
+                              {(pt.pnl || 0) > 0 ? '+' : (pt.pnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pt.pnl || 0))}
+                            </span>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 10 }}>
+                            <div><span style={{ color: T.text3 }}>حجم: </span><span style={{ color: T.text2 }}>{pt.quantity}</span></div>
+                            <div><span style={{ color: T.text3 }}>دخول: </span><span style={{ color: T.text2 }}>{formatPrice(pt.price)}</span></div>
+                            <div><span style={{ color: T.text3 }}>إغلاق: </span><span style={{ color: T.text2 }}>{pt.exitPrice ? formatPrice(pt.exitPrice) : '—'}</span></div>
+                            <div><span style={{ color: T.text3 }}>مدة: </span><span style={{ color: T.text2 }}>{formatDuration(pt.openedAt, pt.executedAt)}</span></div>
+                            <div><span style={{ color: T.text3 }}>وقت: </span><span style={{ color: T.text2 }}>{pt.executedAt ? new Date(pt.executedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                  <>
                   <div role="table" aria-label="الصفقات المغلقة" style={{
                     display: 'grid',
                     gridTemplateColumns: '100px 70px 70px 80px 80px 80px 80px 70px 110px',
@@ -899,12 +1011,14 @@ export default function PortfolioPage() {
                     </div>
                   ))}
                 </>
+                  )}
+                </>
               )
             )}
           </div>
 
           {/* ── Trade History ── */}
-          <div style={{
+          <div className={isMobile ? 'mobile-cards-enabled' : ''} style={{
             background: T.card, border: `0.5px solid ${T.border}`,
             borderRadius: 10, overflow: 'hidden',
           }}>
@@ -937,6 +1051,47 @@ export default function PortfolioPage() {
                 <Clock size={28} style={{ color: T.text3, opacity: 0.3, margin: '0 auto 8px' }} />
                 <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.text3 }}>لا توجد صفقات منفذة بعد</p>
                 <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2, marginTop: 4 }}>ابدأ التداول لرؤية سجل صفقاتك هنا</p>
+              </div>
+            ) : isMobile ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 10 }}>
+                {trades.slice(0, 50).map((trade) => (
+                  <div key={trade.id} style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: `0.5px solid ${T.border}`,
+                    borderRadius: 10, padding: '10px 12px',
+                    display: 'flex', flexDirection: 'column', gap: 6,
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, color: T.text }}>{trade.symbol}</span>
+                        <span style={{
+                          padding: '1px 6px', borderRadius: 4,
+                          fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700,
+                          background: trade.side === 'BUY' ? `${T.green}18` : `${T.red}18`,
+                          color: trade.side === 'BUY' ? T.green : T.red,
+                          border: `0.5px solid ${trade.side === 'BUY' ? T.green : T.red}44`,
+                        }}>{trade.side === 'BUY' ? 'شراء' : 'بيع'}</span>
+                        <span style={{
+                          padding: '1px 5px', borderRadius: 3,
+                          fontFamily: "'Cairo', sans-serif", fontSize: 8, color: T.text3,
+                          background: `${T.border}`,
+                        }}>{trade.type === 'ENTRY' ? 'دخول' : trade.type === 'EXIT' ? 'خروج' : 'خروج جزئي'}</span>
+                      </div>
+                      <span style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: 13, fontWeight: 700,
+                        color: (trade.pnl || 0) >= 0 ? T.green : (trade.pnl || 0) < 0 ? T.red : T.text3,
+                      }}>
+                        {trade.pnl !== null ? `${(trade.pnl) > 0 ? '+' : (trade.pnl) < 0 ? '-' : ''}$${fmt(Math.abs(trade.pnl), 2)}` : '—'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 10 }}>
+                      <div><span style={{ color: T.text3 }}>الكمية: </span><span style={{ color: T.text2 }}>{trade.quantity}</span></div>
+                      <div><span style={{ color: T.text3 }}>السعر: </span><span style={{ color: T.text2 }}>{formatPrice(trade.price)}</span></div>
+                      <div><span style={{ color: T.text3 }}>الوقت: </span><span style={{ color: T.text2 }}>{new Date(trade.executedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></div>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <>
@@ -1198,7 +1353,7 @@ export default function PortfolioPage() {
               <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text3, lineHeight: 1.6 }}>
                 التداول ينطوي على مخاطر عالية. الأداء السابق لا يضمن النتائج المستقبلية.
                 استخدم دائماً وقف الخسارة وإدارة حجم المركز المناسبة.
-                رؤى لا تلمس أموالك أبداً — نحن ننفذ الأوامر فقط من خلال مفاتيح API المشفرة.
+                رؤى لا تلمس أموالك أبداً — نتابع حساباتك المربوطة فقط من خلال مفاتيح API المشفرة.
               </div>
             </div>
           </div>

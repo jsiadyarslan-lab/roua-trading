@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ExchangeService } from '../exchange/exchange.service';
 import { AIOrchestratorService } from '../ai/services/ai-orchestrator.service';
 import { RagService } from '../ai/services/rag.service';
 import { AuditService } from '../../audit/audit.service';
+import { PredictionMarketService } from '../prediction-market/prediction-market.service';
 
 /**
  * Signal Service — Roua Trading Signal Generation
@@ -13,12 +14,19 @@ import { AuditService } from '../../audit/audit.service';
  * 2. Relevant news from RAG archive
  * 3. Sentiment analysis via GroqService
  * 4. Comprehensive analysis via AIOrchestratorService
+ * 5. Prediction market signalBoost from PredictionMarketService (optional)
  *
  * Signal output includes:
  * - Action: BUY / SELL / WAIT
- * - Confidence: 0-100
+ * - Confidence: 0-100 (adjusted by signalBoost ±10%)
  * - Entry/StopLoss/TakeProfit levels
  * - AI-generated reasoning in Arabic
+ *
+ * Prediction Market Integration (Phase 3):
+ * - signalBoost is applied to confidence: +5% for agreement / -8% for divergence
+ * - Average boost from all relevant events (clamped ±10%)
+ * - Prediction context appended to signal reason
+ * - Fallback: if PredictionMarketService fails, signal is generated without boost
  */
 @Injectable()
 export class SignalService {
@@ -30,8 +38,9 @@ export class SignalService {
     private readonly orchestrator: AIOrchestratorService,
     private readonly ragService: RagService,
     private readonly auditService: AuditService,
+    @Optional() private readonly predictionMarketService?: PredictionMarketService,
   ) {
-    this.logger.log('📡 Signal Service initialized — Roua signal generation ready');
+    this.logger.log('📡 Signal Service initialized — Roua signal generation ready' + (this.predictionMarketService ? ' (with prediction market boost)' : ''));
   }
 
   /**
@@ -101,7 +110,7 @@ ${newsContext ? `آخر الأخبار:\n${newsContext}` : ''}
     }
 
     // Step 4: Generate comprehensive signal via AI Orchestrator
-    const signalPrompt = `أنت محلل مالي خبير في منصة "رؤى للتداول". بناءً على البيانات التالية، قدم توصية تداول لـ ${pair}.
+    const signalPrompt = `أنت محلل مالي خبير في منصة "رؤى لربط الحسابات". بناءً على البيانات التالية، قدم توصية تداول لـ ${pair}.
 
 📊 بيانات السوق الحالية:
 - السعر: ${marketData?.price || 'غير متاح'} ${marketData?.currency || 'USD'}
@@ -137,6 +146,53 @@ ${newsContext ? `📰 أخبار ذات صلة:\n${newsContext}` : ''}
     // Step 5: Parse AI response into structured signal
     const parsed = this._parseSignalResponse(aiResponse?.content || '', marketData);
 
+    // Step 5.5: Apply prediction market signalBoost (Phase 3)
+    let signalBoost = 0;
+    let predictionContext = '';
+    if (this.predictionMarketService) {
+      try {
+        // Extract base symbol from pair (e.g., 'BTC' from 'BTC/USDT')
+        const baseSymbol = pair.split('/')[0].toUpperCase();
+        const gaps = await this.predictionMarketService.getGapsForSymbol(baseSymbol);
+
+        if (gaps.length > 0) {
+          // Calculate average signalBoost across all related events
+          const totalBoost = gaps.reduce((sum, g) => sum + g.signalBoost, 0);
+          signalBoost = totalBoost / gaps.length;
+
+          // Clamp signalBoost to ±10%
+          signalBoost = Math.max(-0.10, Math.min(0.10, signalBoost));
+
+          // Apply signalBoost to confidence
+          parsed.confidence = Math.round(
+            Math.max(0, Math.min(100, parsed.confidence + signalBoost * 100))
+          );
+
+          // Build prediction context for the signal reason
+          const alignedCount = gaps.filter(g => g.gapDirection === 'aligned').length;
+          const divergentCount = gaps.filter(g => g.gapDirection !== 'aligned').length;
+
+          if (signalBoost > 0) {
+            predictionContext = ` \n🔮 توافق السوق التنبؤي: ${alignedCount} أحداث متوافقة تعزز هذه الإشارة (+${Math.round(signalBoost * 100)}% ثقة)`;
+          } else if (signalBoost < 0) {
+            predictionContext = ` \n⚠️ تباين السوق التنبؤي: ${divergentCount} أحداث متباينة تضعف هذه الإشارة (${Math.round(signalBoost * 100)}% ثقة)`;
+          } else {
+            predictionContext = ` \n🔮 السوق التنبؤي: إشارات محايدة (${gaps.length} أحداث)`;
+          }
+
+          this.logger.log(`🔮 signalBoost applied for ${pair}: ${Math.round(signalBoost * 100)}% (${gaps.length} events, ${alignedCount} aligned, ${divergentCount} divergent)`);
+        }
+      } catch (error: any) {
+        // Fallback: if prediction market service fails, continue without boost
+        this.logger.warn(`Prediction market signalBoost failed for ${pair}: ${error.message} — falling back to unboosted signal`);
+      }
+    }
+
+    // Append prediction context to reason if available
+    if (predictionContext) {
+      parsed.reason += predictionContext;
+    }
+
     // Step 6: Store signal in database
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
@@ -164,6 +220,7 @@ ${newsContext ? `📰 أخبار ذات صلة:\n${newsContext}` : ''}
         pair,
         action: parsed.action,
         confidence: parsed.confidence,
+        signalBoost: Math.round(signalBoost * 100) / 100,
         signalId: signal.id,
       }),
     });

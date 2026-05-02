@@ -9,6 +9,7 @@ export type TabId =
   | 'watch'
   | 'alerts'
   | 'ai'
+  | 'trader'
   | 'news'
   | 'calendar'
   | 'backtest'
@@ -21,6 +22,7 @@ const TAB_ORDER: TabId[] = [
   'watch',
   'alerts',
   'ai',
+  'trader',
   'news',
   'calendar',
   'backtest',

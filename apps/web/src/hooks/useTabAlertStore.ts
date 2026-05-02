@@ -8,7 +8,7 @@ import { create } from 'zustand'
  * Clicking a tab clears its alerts (mark as read).
  */
 
-export type TabId = 'bot' | 'council' | 'scanner' | 'multi-tf' | 'signals'
+export type TabId = 'bot' | 'trader' | 'council' | 'scanner' | 'multi-tf' | 'signals'
 
 export interface TabAlert {
   count: number
@@ -32,6 +32,7 @@ interface TabAlertState {
 
 const DEFAULT_COLORS: Record<TabId, string> = {
   'bot':      '#00E5FF',
+  'trader':   '#00FFA3',
   'council':  '#B388FF',
   'scanner':  '#FFB800',
   'multi-tf': '#B388FF',
@@ -41,6 +42,7 @@ const DEFAULT_COLORS: Record<TabId, string> = {
 export const useTabAlertStore = create<TabAlertState>()((set, get) => ({
   alerts: {
     'bot': null,
+    'trader': null,
     'council': null,
     'scanner': null,
     'multi-tf': null,
@@ -79,7 +81,7 @@ export const useTabAlertStore = create<TabAlertState>()((set, get) => ({
   })),
 
   clearAll: () => set({
-    alerts: { 'bot': null, 'council': null, 'scanner': null, 'multi-tf': null, 'signals': null }
+    alerts: { 'bot': null, 'trader': null, 'council': null, 'scanner': null, 'multi-tf': null, 'signals': null }
   }),
 
   getCount: (tab) => get().alerts[tab]?.count || 0,

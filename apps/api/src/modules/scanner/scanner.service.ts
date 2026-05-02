@@ -54,6 +54,19 @@ export class ScannerService {
     this.logger.log('🔍 Advanced Scanner Service initialized');
   }
 
+  /**
+   * Invalidate scanner cache keys — used by forceScan to ensure fresh data
+   */
+  async invalidateCache(timeframe: string = '1h', category?: MarketCategory): Promise<void> {
+    const keys = [
+      `scanner:scan:${timeframe}:${category || 'ALL'}`,
+      'scanner:overview',
+      `scanner:heatmap:${category || 'ALL'}`,
+    ];
+    await Promise.allSettled(keys.map(key => this.redis.del(key)));
+    this.logger.log(`🔄 Invalidated scanner cache: ${keys.join(', ')}`);
+  }
+
   // ── Full Market Scan ──
 
   async fullScan(
@@ -71,18 +84,16 @@ export class ScannerService {
     );
 
     const items: ScannerItemDto[] = [];
-    const BATCH_SIZE = 5;
 
-    for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
-      const batch = symbols.slice(i, i + BATCH_SIZE);
-      const results = await Promise.allSettled(
-        batch.map(s => this._scanSymbol(s.symbol, s.name, s.category, timeframe)),
-      );
+    // Run ALL symbol scans concurrently for maximum throughput
+    // With only 13 symbols, batching is unnecessary — Promise.allSettled handles errors gracefully
+    const results = await Promise.allSettled(
+      symbols.map(s => this._scanSymbol(s.symbol, s.name, s.category, timeframe)),
+    );
 
-      for (const result of results) {
-        if (result.status === 'fulfilled' && result.value) {
-          items.push(result.value);
-        }
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value) {
+        items.push(result.value);
       }
     }
 
@@ -512,7 +523,11 @@ export class ScannerService {
       try { return JSON.parse(cached); } catch { /* fall through */ }
     }
 
-    const scanResult = await this.fullScan('1h');
+    // Run fullScan and heatmapData concurrently for better performance
+    const [scanResult, heatmap] = await Promise.all([
+      this.fullScan('1h'),
+      this.heatmapData(),
+    ]);
     const items = scanResult.items;
 
     const bullishCount = items.filter(i =>
@@ -524,7 +539,6 @@ export class ScannerService {
     const neutralCount = items.filter(i => i.direction === SignalDirection.NEUTRAL).length;
 
     // Top gainers/losers from heatmap
-    const heatmap = await this.heatmapData();
     const topGainers = heatmap.slice(0, 5);
     const topLosers = heatmap.slice(-5).reverse();
 

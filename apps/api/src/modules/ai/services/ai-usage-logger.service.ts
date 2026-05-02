@@ -41,6 +41,7 @@ const COST_PER_1K: Record<string, { input: number; output: number }> = {
   'huggingface': { input: 0,        output: 0        },
   'ollama':      { input: 0,        output: 0        },
   'bedrock':     { input: 0.00300,  output: 0.01500  },
+  'openrouter':  { input: 0,        output: 0        },  // Free models — $0 cost
 };
 
 function extractProvider(model: string): string {
@@ -51,6 +52,7 @@ function extractProvider(model: string): string {
   if (lower.includes('huggingface') || lower.includes('hf')) return 'huggingface';
   if (lower.includes('ollama')) return 'ollama';
   if (lower.includes('bedrock') || lower.includes('claude')) return 'bedrock';
+  if (lower.includes('openrouter') || lower.includes('deepseek')) return 'openrouter';
   return 'unknown';
 }
 
@@ -67,10 +69,21 @@ export class AiUsageLoggerService {
   private readonly FLUSH_INTERVAL_MS = 5000; // Flush every 5 seconds
   private readonly MAX_QUEUE_SIZE = 50;
 
+  private dbAvailable = true;
+
   constructor(private readonly prisma: PrismaService) {
     // Start periodic flush
     this.flushTimer = setInterval(() => this.flush(), this.FLUSH_INTERVAL_MS);
     this.logger.log('📊 AI Usage Logger initialized — will log all AI API calls to AiUsageLog');
+
+    // Test DB connection asynchronously — if it fails, we'll retry on each flush
+    this.prisma.aiUsageLog.count().then(() => {
+      this.dbAvailable = true;
+      this.logger.log('📊 AI Usage Logger DB connection verified');
+    }).catch((err) => {
+      this.dbAvailable = false;
+      this.logger.warn(`📊 AI Usage Logger: DB not yet available (${err.message}) — will retry on flush`);
+    });
   }
 
   /**
@@ -173,9 +186,11 @@ export class AiUsageLoggerService {
       }));
 
       await this.prisma.aiUsageLog.createMany({ data: records });
+      this.dbAvailable = true;
       this.logger.debug(`📊 Flushed ${records.length} AI usage logs to database`);
     } catch (error: any) {
       // Don't crash the app if logging fails — it's non-critical
+      this.dbAvailable = false;
       this.logger.warn(`Failed to flush AI usage logs: ${error.message}`);
     }
   }

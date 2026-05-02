@@ -28,15 +28,15 @@ const orbitron = Orbitron({
 });
 
 export const metadata: Metadata = {
-  title: "رؤى | منصة التداول الذكية",
-  description: "منصة رؤى للتداول الذكي - Roua Trading Platform",
+  title: "رؤى | منصة ربط الحسابات الذكية",
+  description: "منصة رؤى لربط ومتابعة الحسابات الذكية - Roua Account Linking Platform",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "Roua",
   },
-  applicationName: "Roua Trading",
+  applicationName: "Roua Link",
 };
 
 export const viewport: Viewport = {

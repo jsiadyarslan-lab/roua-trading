@@ -8,7 +8,7 @@ export default function MobileScannerPage() {
   const router = useRouter()
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0B0E14', direction: 'rtl', paddingBottom: 24 }}>
+    <div style={{ minHeight: '100dvh', background: '#0B0E14', direction: 'rtl', paddingBottom: 24 }}>
       {/* ── Header ── */}
       <div style={{
         paddingTop: 52,
@@ -30,7 +30,7 @@ export default function MobileScannerPage() {
       </div>
 
       {/* ── Content ── */}
-      <div style={{ padding: '0 16px', height: 'calc(100vh - 120px)' }}>
+      <div style={{ padding: '0 16px', height: 'calc(100dvh - 120px)' }}>
         <ScannerMini mobile={true} />
       </div>
     </div>

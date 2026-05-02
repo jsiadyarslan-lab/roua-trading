@@ -6,7 +6,7 @@ export default function HeroSection() {
   const [typewriterText, setTypewriterText] = useState('');
   const [statsVisible, setStatsVisible] = useState(false);
   const statsRef = useRef<HTMLDivElement>(null);
-  const fullText = 'منصة التداول المدعومة بالذكاء الاصطناعي الأكثر تقدماً في المنطقة. حيث تلتقي شبكة الكون المالي بعقل آلة يتنبأ قبل أن يحدث.';
+  const fullText = 'منصة ربط الحسابات المدعومة بالذكاء الاصطناعي الأكثر تقدماً في المنطقة. حيث تلتقي شبكة الكون المالي بعقل آلة يتنبأ قبل أن يحدث.';
 
   // Typewriter effect
   useEffect(() => {
@@ -73,7 +73,7 @@ export default function HeroSection() {
       </p>
       <div className="hero-cta-group">
         <a href="#join" className="btn btn-glow" style={{ fontSize: '1.05rem', padding: '1rem 2.8rem' }}>
-          🚀 ابدأ التداول الذكي
+          🚀 ابدأ ربط حساباتك
         </a>
         <a href="#features" className="btn btn-outline" style={{ fontSize: '1.05rem', padding: '1rem 2.8rem' }}>
           استكشف المنصة

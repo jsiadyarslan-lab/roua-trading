@@ -1,11 +1,11 @@
 {
-  "name": "Roua Trading Terminal",
-  "short_name": "Roua",
-  "description": "Institutional grade trading terminal for digital assets",
-  "start_url": "/dashboard",
+  "name": "رؤى للتداول — منصة ربط الحسابات",
+  "short_name": "رؤى",
+  "description": "منصة ربط الحسابات الآمنة للتداول الذكي",
+  "start_url": "/mobile",
   "display": "standalone",
-  "background_color": "#0B0E14",
-  "theme_color": "#0B0E14",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "orientation": "portrait",
   "categories": ["finance", "business"],
   "icons": [

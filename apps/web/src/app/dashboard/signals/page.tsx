@@ -21,6 +21,40 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
 
+// ── Defensive helpers: ensure primitive types for React rendering ──
+// Prevents React Error #31 when API returns objects (e.g., SmartScore) instead of primitives
+function safeConfidence(val: unknown): number {
+  if (typeof val === 'number' && Number.isFinite(val)) return val
+  if (val && typeof val === 'object' && 'compositeScore' in (val as any)) return (val as any).compositeScore ?? (val as any).confidence ?? 0
+  const n = Number(val)
+  return Number.isFinite(n) ? n : 0
+}
+
+function safeReason(val: unknown): string {
+  if (typeof val === 'string') return val
+  if (val && typeof val === 'object') {
+    try { return JSON.stringify(val) } catch { return '' }
+  }
+  return val != null ? String(val) : ''
+}
+
+function safeNumber(val: unknown): number | null {
+  if (val === null || val === undefined) return null
+  if (val && typeof val === 'object') return null
+  const n = Number(val)
+  return Number.isFinite(n) ? n : null
+}
+
+function safeAction(val: unknown): 'BUY' | 'SELL' | 'WAIT' {
+  if (val === 'BUY' || val === 'SELL' || val === 'WAIT') return val
+  if (val && typeof val === 'object' && 'action' in (val as any)) {
+    const inner = (val as any).action
+    if (inner === 'STRONG_BUY' || inner === 'BUY') return 'BUY'
+    if (inner === 'STRONG_SELL' || inner === 'SELL') return 'SELL'
+  }
+  return 'WAIT'
+}
+
 interface Signal {
   id: string
   pair: string
@@ -117,8 +151,9 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
         pointerEvents: 'none',
       }} />
 
-      <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ flex: 1 }}>
+      <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, paddingRight: '8px' }}>
           {/* Header Row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
             <div style={{
@@ -156,7 +191,7 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
                     color: signal.confidence >= 70 ? 'var(--profit)' : signal.confidence >= 40 ? 'var(--warning)' : 'var(--loss)',
                     fontWeight: 700,
                   }}>
-                    {signal.confidence}%
+                    {Math.round(signal.confidence)}%
                   </span>
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '3px', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>
@@ -167,7 +202,7 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
           </div>
 
           {/* Price Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+          <div className="signal-price-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '12px' }}>
             <div style={{ padding: '8px 10px', borderRadius: '6px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '3px' }}>
                 <Crosshair size={8} style={{ color: 'var(--text-faint)' }} />
@@ -203,12 +238,13 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginRight: '12px' }}>
+        <div style={{ display: 'flex', flexDirection: 'row', gap: '6px', marginInlineStart: '8px', flexShrink: 0, flexWrap: 'wrap' }}>
           <button
             onClick={() => onRefresh(signal.pair)}
             style={{
               display: 'flex', alignItems: 'center', gap: '4px',
               padding: '5px 10px', borderRadius: '6px',
+              minHeight: 36, minWidth: 60,
               border: '1px solid var(--border)', background: 'var(--bg-input)',
               color: 'var(--text-muted)', fontSize: '10px',
               fontFamily: 'var(--font-ar), Inter, sans-serif', cursor: 'pointer',
@@ -222,6 +258,7 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
             style={{
               display: 'flex', alignItems: 'center', gap: '4px',
               padding: '5px 10px', borderRadius: '6px',
+              minHeight: 36, minWidth: 60,
               border: '1px solid var(--purple-border)',
               background: 'linear-gradient(135deg, var(--purple-bg), rgba(162, 89, 255, 0.08))',
               color: 'var(--purple)', fontSize: '10px',
@@ -239,6 +276,7 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
             style={{
               display: 'flex', alignItems: 'center', gap: '4px',
               padding: '5px 10px', borderRadius: '6px',
+              minHeight: 36, minWidth: 60,
               border: '1px solid transparent', background: 'none',
               color: 'var(--text-muted)', fontSize: '10px',
               fontFamily: 'var(--font-ar), Inter, sans-serif', cursor: 'pointer',
@@ -247,6 +285,7 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
           >
             <XCircle size={10} /> إلغاء
           </button>
+        </div>
         </div>
       </div>
     </motion.div>
@@ -268,7 +307,23 @@ export default function SignalsPage() {
       const res = await fetch('/api/signals/active')
       if (res.ok) {
         const data = await res.json()
-        if (data.success) setSignals(data.data)
+        if (data.success && Array.isArray(data.data)) {
+          // Sanitize signal data to prevent React Error #31
+          const sanitized = data.data.map((s: any) => ({
+            id: s.id || `sig-${Math.random().toString(36).slice(2, 8)}`,
+            pair: s.pair || s.symbol || '—',
+            action: safeAction(s.action),
+            confidence: safeConfidence(s.confidence),
+            reason: safeReason(s.reason),
+            entryPrice: safeNumber(s.entryPrice),
+            stopLoss: safeNumber(s.stopLoss),
+            takeProfit: safeNumber(s.takeProfit),
+            status: s.status || 'ACTIVE',
+            expiresAt: s.expiresAt || new Date(Date.now() + 3600000).toISOString(),
+            createdAt: s.createdAt || new Date().toISOString(),
+          }))
+          setSignals(sanitized)
+        }
       }
     } catch { /* silent */ } finally { setLoading(false) }
   }, [])
@@ -343,6 +398,7 @@ export default function SignalsPage() {
         }
         @media (max-width: 480px) {
           .signals-quick-pairs { grid-template-columns: repeat(2, 1fr) !important; }
+          .signal-price-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
       {/* ── Quick Generate Section ── */}
@@ -402,6 +458,7 @@ export default function SignalsPage() {
                 transition={{ delay: i * 0.04, duration: 0.2 }}
                 style={{
                   padding: '14px 8px', borderRadius: '10px',
+                  minHeight: 56,
                   border: isGenerating
                     ? `1px solid ${pair.color}50`
                     : isHovered

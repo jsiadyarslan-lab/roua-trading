@@ -112,6 +112,11 @@ export default function StrategyBuilderPage() {
 
   return (
     <div className="custom-scrollbar" style={{ padding: '32px 24px', direction: 'rtl', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto' }}>
+      <style>{`
+        @media (max-width: 767px) {
+          .strategy-builder-main { height: 100% !important; }
+        }
+      `}</style>
       {/* Header */}
       <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
@@ -146,7 +151,7 @@ export default function StrategyBuilderPage() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 20, height: 'calc(100vh - 180px)' }}>
+      <div className="strategy-builder-main" style={{ display: 'flex', gap: 20, height: 'calc(100vh - 180px)' }}>
         {/* Strategy Flow (Left/Main Area) */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Strategy Name Input */}

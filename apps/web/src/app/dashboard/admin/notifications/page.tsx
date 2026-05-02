@@ -18,6 +18,8 @@ import {
   AlertTriangle,
   Activity,
   DollarSign,
+  TestTube2,
+  Zap,
 } from 'lucide-react'
 import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
 
@@ -51,25 +53,43 @@ export default function AdminNotificationsPage() {
   /* Telegram state */
   const [telegramEnabled, setTelegramEnabled] = useState(false)
   const [telegramToken, setTelegramToken] = useState('')
-  const [telegramTokenMasked, setTelegramTokenMasked] = useState(false) // true when loaded token is masked
+  const [telegramTokenMasked, setTelegramTokenMasked] = useState(false)
   const [telegramTokenVisible, setTelegramTokenVisible] = useState(false)
   const [telegramChatId, setTelegramChatId] = useState('')
   const [telegramTesting, setTelegramTesting] = useState(false)
   const [telegramStatus, setTelegramStatus] = useState<'unknown' | 'connected' | 'disconnected' | 'disabled'>('unknown')
   const [telegramBotName, setTelegramBotName] = useState('')
+  const [telegramTestResult, setTelegramTestResult] = useState('')
 
   /* Browser state */
   const [browserEnabled, setBrowserEnabled] = useState(false)
   const [browserPermission, setBrowserPermission] = useState<NotificationPermission | 'default'>('default')
+  const [browserTesting, setBrowserTesting] = useState(false)
 
   /* Events state */
   const [enabledEvents, setEnabledEvents] = useState<Set<string>>(new Set(['new_user', 'system_error', 'large_trade']))
 
-  /* ── fetch config ── */
+  /* Stats */
+  const [telegramTriggerCount, setTelegramTriggerCount] = useState(0)
+  const [telegramLastTriggered, setTelegramLastTriggered] = useState<string | null>(null)
+  const [browserTriggerCount, setBrowserTriggerCount] = useState(0)
+
+  /* ── fetch config (single source of truth) ── */
   const fetchConfigs = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/dashboard/admin/api/notifications/config')
+      const res = await fetch('/api/admin/notifications/config')
+
+      // Check for auth errors
+      if (res.status === 401) {
+        setSaveMessage('انتهت صلاحية الجلسة — يرجى تسجيل الدخول مجدداً')
+        setTimeout(() => {
+          window.location.href = '/dashboard/admin/login'
+        }, 2000)
+        setLoading(false)
+        return
+      }
+
       if (res.ok) {
         const data = await res.json()
         setConfigs(data.configs || [])
@@ -77,12 +97,12 @@ export default function AdminNotificationsPage() {
         const telegramConfig = data.configs?.find((c: NotifConfig) => c.type === 'telegram')
         if (telegramConfig) {
           setTelegramEnabled(telegramConfig.enabled)
-          // Token is masked by the API — store it but mark as masked
-          // so we don't send the masked value back on save
           const token = telegramConfig.config?.botToken || ''
           setTelegramToken(token)
           setTelegramTokenMasked(!!telegramConfig.config?.botToken_masked)
           setTelegramChatId(telegramConfig.config?.chatId || '')
+          setTelegramTriggerCount(telegramConfig.triggerCount || 0)
+          setTelegramLastTriggered(telegramConfig.lastTriggeredAt)
           if (!telegramConfig.enabled) {
             setTelegramStatus('disabled')
           }
@@ -91,6 +111,7 @@ export default function AdminNotificationsPage() {
         const browserConfig = data.configs?.find((c: NotifConfig) => c.type === 'browser')
         if (browserConfig) {
           setBrowserEnabled(browserConfig.enabled)
+          setBrowserTriggerCount(browserConfig.triggerCount || 0)
         }
 
         // Load event config
@@ -100,71 +121,56 @@ export default function AdminNotificationsPage() {
         }
       }
     } catch {
-      // ignore
+      // Network error — non-critical for initial load
     } finally {
       setLoading(false)
+    }
+
+    // Check browser notification permission
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setBrowserPermission(Notification.permission)
     }
   }, [])
 
   useEffect(() => {
-    // Use a local flag to avoid calling setState synchronously in the effect body
-    let cancelled = false
-    const load = async () => {
-      setLoading(true)
-      try {
-        const res = await fetch('/dashboard/admin/api/notifications/config')
-        if (res.ok && !cancelled) {
-          const data = await res.json()
-          setConfigs(data.configs || [])
+    fetchConfigs()
+  }, [fetchConfigs])
 
-          const telegramConfig = data.configs?.find((c: NotifConfig) => c.type === 'telegram')
-          if (telegramConfig) {
-            setTelegramEnabled(telegramConfig.enabled)
-            const token = telegramConfig.config?.botToken || ''
-            setTelegramToken(token)
-            setTelegramTokenMasked(!!telegramConfig.config?.botToken_masked)
-            setTelegramChatId(telegramConfig.config?.chatId || '')
-            if (!telegramConfig.enabled) {
-              setTelegramStatus('disabled')
-            }
-          }
-
-          const browserConfig = data.configs?.find((c: NotifConfig) => c.type === 'browser')
-          if (browserConfig) {
-            setBrowserEnabled(browserConfig.enabled)
-          }
-
-          const eventsConfig = data.configs?.find((c: NotifConfig) => c.type === 'events')
-          if (eventsConfig?.config?.enabledEvents) {
-            setEnabledEvents(new Set(eventsConfig.config.enabledEvents))
-          }
-        }
-      } catch {
-        // ignore
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-
-      // Check browser notification permission (non-state read, safe to call setState after async)
-      if (!cancelled && typeof window !== 'undefined' && 'Notification' in window) {
-        setBrowserPermission(Notification.permission)
-      }
+  /* ── helper: redirect to login on 401 ── */
+  const redirectToLoginIf401 = (res: Response): boolean => {
+    if (res.status === 401) {
+      setSaveMessage('انتهت صلاحية الجلسة — يرجى تسجيل الدخول مجدداً')
+      setTimeout(() => {
+        window.location.href = '/dashboard/admin/login'
+      }, 2000)
+      return true
     }
-    load()
-
-    return () => { cancelled = true }
-  }, [])
+    return false
+  }
 
   /* ── save config via POST ── */
-  const saveConfig = async (type: string, enabled: boolean, config: Record<string, any>) => {
+  const saveConfig = async (type: string, enabled: boolean, config: Record<string, any>): Promise<{ ok: boolean; error?: string }> => {
     try {
-      await fetch('/dashboard/admin/api/notifications/config', {
+      const res = await fetch('/api/admin/notifications/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, enabled, config }),
       })
-    } catch {
-      // ignore
+
+      // Check for auth errors
+      if (redirectToLoginIf401(res)) {
+        return { ok: false, error: 'انتهت صلاحية الجلسة' }
+      }
+
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        console.error(`[notifications] Save ${type} failed:`, res.status, data)
+        return { ok: false, error: data.error || `HTTP ${res.status}` }
+      }
+      return { ok: true }
+    } catch (err: any) {
+      console.error(`[notifications] Save ${type} error:`, err)
+      return { ok: false, error: err?.message || 'خطأ في الاتصال' }
     }
   }
 
@@ -173,55 +179,121 @@ export default function AdminNotificationsPage() {
     setSaving(true)
     setSaveMessage('')
     try {
-      // Save Telegram — only send botToken if user typed a new one (not masked)
+      // بناء payload لـ Telegram — إرسال botToken فقط إذا لم يكن masked
       const telegramPayload: Record<string, any> = { chatId: telegramChatId }
       if (!telegramTokenMasked) {
-        // User typed a new token — send it
+        // المستخدم أدخل token جديد — أرسله
         telegramPayload.botToken = telegramToken
       }
-      // If token is masked (unchanged), omit it so the server keeps the existing one
-      await saveConfig('telegram', telegramEnabled, telegramPayload)
-      // Save Browser
-      await saveConfig('browser', browserEnabled, { vapidKey: '' })
-      // Save Events
-      await saveConfig('events', true, { enabledEvents: Array.from(enabledEvents) })
+      // إذا كان token masked، لا نرسله — الخادم يحفظ القديم
 
-      setSaveMessage('تم حفظ الإعدادات بنجاح ✓')
-      setTimeout(() => setSaveMessage(''), 3000)
-    } catch {
-      setSaveMessage('فشل في حفظ الإعدادات')
+      const results = await Promise.all([
+        saveConfig('telegram', telegramEnabled, telegramPayload),
+        saveConfig('browser', browserEnabled, {}),
+        saveConfig('events', true, { enabledEvents: Array.from(enabledEvents) }),
+      ])
+
+      const errors = results.filter(r => !r.ok).map((r: any) => r.error)
+      const allOk = errors.length === 0
+
+      if (allOk) {
+        setSaveMessage('تم حفظ الإعدادات بنجاح')
+        // إعادة تحميل البيانات من الخادم بعد الحفظ
+        await fetchConfigs()
+      } else {
+        setSaveMessage(`فشل الحفظ: ${errors.join(' | ')}`)
+      }
+    } catch (err: any) {
+      setSaveMessage(`خطأ في الاتصال: ${err?.message || 'غير معروف'}`)
     } finally {
       setSaving(false)
     }
+    // Clear save message after 6 seconds
+    setTimeout(() => setSaveMessage(''), 6000)
   }
 
-  /* ── telegram test — calls server-side endpoint ── */
+  /* ── telegram test — إرسال رسالة تجريبية فعلية ── */
   const handleTestTelegram = async () => {
     setTelegramTesting(true)
+    setTelegramTestResult('')
     setTelegramBotName('')
     try {
-      if (!telegramToken || !telegramChatId) {
-        setTelegramStatus('disconnected')
-      } else {
-        try {
-          const res = await fetch('/dashboard/admin/api/notifications/test-telegram', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ botToken: telegramToken, chatId: telegramChatId }),
-          })
-          const data = await res.json()
-          if (data.ok) {
-            setTelegramStatus('connected')
-            setTelegramBotName(data.botName || '')
-          } else {
-            setTelegramStatus('disconnected')
-          }
-        } catch {
-          setTelegramStatus('disconnected')
-        }
+      const payload: Record<string, string> = {}
+      if (!telegramTokenMasked) {
+        payload.botToken = telegramToken
       }
+      if (telegramChatId) {
+        payload.chatId = telegramChatId
+      }
+      // If token is masked, don't send it — the API will read from DB
+
+      const res = await fetch('/api/admin/notifications/test-telegram', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await res.json()
+
+      // Check for auth errors
+      if (res.status === 401) {
+        setTelegramStatus('disconnected')
+        setTelegramTestResult('انتهت صلاحية الجلسة — يرجى تسجيل الدخول مجدداً')
+        setTimeout(() => {
+          window.location.href = '/dashboard/admin/login'
+        }, 2000)
+        return
+      }
+
+      if (data.ok) {
+        setTelegramStatus('connected')
+        setTelegramBotName(data.botName || '')
+        setTelegramTestResult(data.message || 'تم إرسال رسالة تجريبية — تحقق من Telegram')
+      } else {
+        setTelegramStatus('disconnected')
+        setTelegramTestResult(data.error || 'فشل الاتصال')
+      }
+    } catch {
+      setTelegramStatus('disconnected')
+      setTelegramTestResult('فشل الاتصال بالخادم')
     } finally {
       setTelegramTesting(false)
+    }
+  }
+
+  /* ── browser test — إرسال تنبيه تجريبي عبر المتصفح ── */
+  const handleTestBrowser = async () => {
+    setBrowserTesting(true)
+    try {
+      // First request permission if not granted
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        if (Notification.permission !== 'granted') {
+          const perm = await Notification.requestPermission()
+          setBrowserPermission(perm)
+          if (perm !== 'granted') {
+            return
+          }
+        }
+
+        // Send a test browser notification
+        new Notification('🔔 تنبيه تجريبي', {
+          body: 'إذا ظهرت هذه الإشعار، فتنبيهات المتصفح تعمل بشكل صحيح!',
+          icon: '/logo-192.png',
+          tag: 'roua-test',
+          dir: 'rtl',
+          lang: 'ar',
+        })
+
+        // Also store in DB via API
+        await fetch('/api/notifications/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel: 'browser', message: 'تنبيه تجريبي من لوحة الإدارة' }),
+        })
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setBrowserTesting(false)
     }
   }
 
@@ -242,8 +314,34 @@ export default function AdminNotificationsPage() {
       next.add(key)
     }
     setEnabledEvents(next)
-    // Save to API immediately
     await saveConfig('events', true, { enabledEvents: Array.from(next) })
+  }
+
+  /* ── test event — إرسال تنبيه حدث تجريبي ── */
+  const handleTestEvent = async (eventKey: string) => {
+    try {
+      const eventData = NOTIFICATION_EVENTS.find(e => e.key === eventKey)
+      if (!eventData) return
+
+      const res = await fetch('/api/notifications/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: eventKey,
+          title: `[تجربة] ${eventData.label}`,
+          body: `هذا تنبيه تجريبي للحدث: ${eventData.label}`,
+          severity: eventKey === 'system_error' ? 'error' : 'info',
+        }),
+      })
+
+      const data = await res.json()
+      if (data.ok) {
+        // Refresh configs to update trigger counts
+        fetchConfigs()
+      }
+    } catch {
+      // Silently fail
+    }
   }
 
   /* ── telegram status label ── */
@@ -257,6 +355,19 @@ export default function AdminNotificationsPage() {
   }
   const telegramStatusInfo = getTelegramStatusLabel()
 
+  /* ── format time ago ── */
+  const timeAgo = (dateStr: string | null) => {
+    if (!dateStr) return 'أبداً'
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'الآن'
+    if (mins < 60) return `منذ ${mins} دقيقة`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `منذ ${hours} ساعة`
+    const days = Math.floor(hours / 24)
+    return `منذ ${days} يوم`
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Header */}
@@ -266,7 +377,7 @@ export default function AdminNotificationsPage() {
             إعدادات التنبيهات
           </h1>
           <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", margin: '4px 0 0' }}>
-            تكوين قنوات وأحداث التنبيهات
+            تكوين قنوات وأحداث التنبيهات — الإعدادات المحفوظة تُستخدم فوراً من قبل النظام
           </p>
         </div>
         <button
@@ -340,6 +451,11 @@ export default function AdminNotificationsPage() {
               }}>
                 {telegramStatusInfo.text}
               </span>
+              {telegramTriggerCount > 0 && (
+                <span style={{ fontSize: 9, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", marginRight: 'auto' }}>
+                  {telegramTriggerCount} تنبيه | آخر: {timeAgo(telegramLastTriggered)}
+                </span>
+              )}
             </div>
 
             {/* Bot Token */}
@@ -353,7 +469,6 @@ export default function AdminNotificationsPage() {
                   value={telegramToken}
                   onChange={(e) => {
                     setTelegramToken(e.target.value)
-                    // User typed a new token — mark as unmasked
                     setTelegramTokenMasked(false)
                   }}
                   placeholder={telegramTokenMasked ? 'أدخل رمز جديد أو اتركه فارغاً للإبقاء على الحالي' : 'أدخل Bot Token'}
@@ -389,7 +504,7 @@ export default function AdminNotificationsPage() {
                 type="text"
                 value={telegramChatId}
                 onChange={(e) => setTelegramChatId(e.target.value)}
-                placeholder="أدخل Chat ID"
+                placeholder="أدخل Chat ID (مثال: -1001234567890)"
                 dir="ltr"
                 style={{
                   width: '100%', padding: '10px 12px', borderRadius: 8,
@@ -402,7 +517,7 @@ export default function AdminNotificationsPage() {
               />
             </div>
 
-            {/* Test connection */}
+            {/* Test connection — يرسل رسالة فعلية */}
             <button
               onClick={handleTestTelegram}
               disabled={telegramTesting || !telegramEnabled}
@@ -419,8 +534,22 @@ export default function AdminNotificationsPage() {
               }}
             >
               <Send size={14} />
-              {telegramTesting ? 'جارٍ الاختبار...' : 'اختبار الاتصال'}
+              {telegramTesting ? 'جارٍ إرسال رسالة تجريبية...' : 'إرسال رسالة تجريبية'}
             </button>
+
+            {/* Test result */}
+            {telegramTestResult && (
+              <div style={{
+                padding: '8px 12px', borderRadius: 6,
+                background: telegramStatus === 'connected' ? `${COLORS.success}08` : `${COLORS.danger}08`,
+                border: `1px solid ${telegramStatus === 'connected' ? COLORS.success + '25' : COLORS.danger + '25'}`,
+                fontSize: 10, fontWeight: 600,
+                color: telegramStatus === 'connected' ? COLORS.success : COLORS.danger,
+                fontFamily: "'Cairo', sans-serif",
+              }}>
+                {telegramTestResult}
+              </div>
+            )}
           </div>
         </div>
 
@@ -475,6 +604,11 @@ export default function AdminNotificationsPage() {
                 }}>
                   {browserPermission === 'granted' ? 'مسموح' : browserPermission === 'denied' ? 'مرفوض' : 'غير محدد'}
                 </span>
+                {browserTriggerCount > 0 && (
+                  <span style={{ fontSize: 9, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", marginRight: 'auto' }}>
+                    {browserTriggerCount} تنبيه
+                  </span>
+                )}
               </div>
             </div>
 
@@ -498,6 +632,26 @@ export default function AdminNotificationsPage() {
               {browserPermission === 'granted' ? 'الإذن ممنوح بالفعل' : 'طلب إذن المتصفح'}
             </button>
 
+            {/* Test browser notification */}
+            <button
+              onClick={handleTestBrowser}
+              disabled={browserTesting || !browserEnabled || browserPermission !== 'granted'}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                padding: '10px', borderRadius: 8,
+                border: `1px solid ${COLORS.accent}25`,
+                background: `${COLORS.accent}08`,
+                color: COLORS.accent, fontSize: 12, fontWeight: 600,
+                fontFamily: "'Cairo', sans-serif",
+                cursor: browserTesting || !browserEnabled ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+                opacity: browserTesting || !browserEnabled || browserPermission !== 'granted' ? 0.5 : 1,
+              }}
+            >
+              <Send size={14} />
+              {browserTesting ? 'جارٍ الإرسال...' : 'إرسال تنبيه تجريبي'}
+            </button>
+
             {/* Info */}
             <div style={{
               padding: 12, borderRadius: 8,
@@ -506,6 +660,7 @@ export default function AdminNotificationsPage() {
             }}>
               <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", lineHeight: 1.6 }}>
                 تنبيهات المتصفح تظهر كإشعارات سطح المكتب. يجب منح الإذن من المتصفح أولاً لتفعيل هذه الميزة.
+                Service Worker يدعم استقبال push events من الخادم.
               </div>
             </div>
           </div>
@@ -519,8 +674,11 @@ export default function AdminNotificationsPage() {
           borderBottom: `1px solid ${COLORS.border}`,
           display: 'flex', alignItems: 'center', gap: 8,
         }}>
-          <Bell size={14} color={COLORS.amber} />
+          <Zap size={14} color={COLORS.amber} />
           <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>أحداث التنبيهات</span>
+          <span style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", marginRight: 'auto' }}>
+            الأحداث المفعّلة تُرسل عبر القنوات النشطة (Telegram + المتصفح)
+          </span>
         </div>
         <div style={{ padding: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 8 }}>
           {NOTIFICATION_EVENTS.map((event) => {
@@ -529,28 +687,28 @@ export default function AdminNotificationsPage() {
             return (
               <div
                 key={event.key}
-                onClick={() => toggleEvent(event.key)}
                 style={{
                   padding: 14, borderRadius: 8,
                   background: isEnabled ? 'rgba(0,229,255,0.04)' : 'rgba(255,255,255,0.02)',
                   border: `1px solid ${isEnabled ? COLORS.accent + '25' : COLORS.border}`,
-                  cursor: 'pointer',
                   transition: 'all 0.2s',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }} onClick={() => toggleEvent(event.key)}>
                     <EventIcon size={14} color={isEnabled ? COLORS.accent : COLORS.muted} />
                     <span style={{ fontSize: 12, fontWeight: 700, color: isEnabled ? COLORS.text : COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>
                       {event.label}
                     </span>
                   </div>
                   {/* Styled toggle */}
-                  <div style={{
-                    width: 36, height: 20, borderRadius: 10,
-                    background: isEnabled ? COLORS.accent : COLORS.muted + '40',
-                    position: 'relative', transition: 'all 0.2s',
-                  }}>
+                  <div
+                    onClick={() => toggleEvent(event.key)}
+                    style={{
+                      width: 36, height: 20, borderRadius: 10,
+                      background: isEnabled ? COLORS.accent : COLORS.muted + '40',
+                      position: 'relative', transition: 'all 0.2s', cursor: 'pointer',
+                    }}>
                     <div style={{
                       width: 16, height: 16, borderRadius: 8,
                       background: isEnabled ? '#000' : '#666',
@@ -560,6 +718,24 @@ export default function AdminNotificationsPage() {
                     }} />
                   </div>
                 </div>
+                {/* Test event button */}
+                {isEnabled && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleTestEvent(event.key) }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      padding: '4px 8px', borderRadius: 4,
+                      border: `1px solid ${COLORS.accent}15`,
+                      background: 'transparent',
+                      color: COLORS.accent, fontSize: 9, fontWeight: 600,
+                      fontFamily: "'Cairo', sans-serif",
+                      cursor: 'pointer', transition: 'all 0.15s',
+                      marginTop: 4,
+                    }}
+                  >
+                    <TestTube2 size={10} /> اختبار
+                  </button>
+                )}
               </div>
             )
           })}

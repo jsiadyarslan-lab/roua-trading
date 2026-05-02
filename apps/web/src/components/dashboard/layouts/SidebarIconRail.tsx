@@ -12,6 +12,7 @@ import {
   CalendarDays,
   FlaskConical,
   GitBranch,
+  Bot,
   type LucideIcon,
 } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
@@ -31,6 +32,7 @@ const TAB_CONFIG: TabConfig[] = [
   { id: 'watch', label: 'قائمة السوق', helper: 'المراقبة الحية', accent: '#00D4FF', icon: Eye },
   { id: 'alerts', label: 'التنبيهات', helper: 'قواعد المتابعة', accent: '#FFB800', icon: Bell },
   { id: 'ai', label: 'رؤى AI', helper: 'الشرح والسياق', accent: '#B388FF', icon: Brain },
+  { id: 'trader', label: 'وكيل التداول', helper: 'التداول الآلي', accent: '#FF8C42', icon: Bot },
   { id: 'news', label: 'الأخبار', helper: 'تدفق السوق', accent: '#00D4FF', icon: Newspaper },
   { id: 'calendar', label: 'الأجندة', helper: 'أحداث مؤثرة', accent: '#FFB800', icon: CalendarDays },
   { id: 'backtest', label: 'المختبر', helper: 'اختبار سريع', accent: '#B388FF', icon: FlaskConical },

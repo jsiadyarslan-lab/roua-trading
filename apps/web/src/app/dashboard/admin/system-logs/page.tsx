@@ -37,7 +37,7 @@ async function fetchSystemLogs(level: string, search: string): Promise<LogsRespo
   if (search) params.set('search', search)
   params.set('limit', '200')
 
-  const res = await fetch(`/dashboard/admin/api/system-logs?${params.toString()}`)
+  const res = await fetch(`/api/admin/system-logs?${params.toString()}`)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
@@ -90,13 +90,13 @@ export default function AdminSystemLogsPage() {
     return () => clearTimeout(timer)
   }, [filter, search])
 
-  // Auto-refresh every 30 seconds
+  // Auto-refresh every 30 seconds — pass current filter/search via ref
   useEffect(() => {
     const iv = setInterval(() => {
-      load(true)
+      load(true, filter, search)
     }, 30000)
     return () => clearInterval(iv)
-  }, [])
+  }, [filter, search])
 
   const filtered = logs.filter(l => {
     const mf = filter === 'all' || l.level === filter

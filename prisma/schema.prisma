@@ -35,6 +35,9 @@ model User {
   paperOrders         PaperOrder[]
   coachAdvices        CoachAdvice[]
   auditLogs           AuditLog[]
+  autonomousTrades    AutonomousTrade[]
+  contentArticles    ContentArticle[]
+  telegramChatId      String?              // معرّف محادثة Telegram للمستخدم
 }
 
 enum Tier {
@@ -660,4 +663,261 @@ model VerificationToken {
   @@unique([identifier, token])
   @@index([identifier])
   @@index([expires])
+}
+
+// ── Prediction Market Events (Phase 7 — Polymarket Integration) ──
+
+enum PredictionEventStatus {
+  ACTIVE
+  RESOLVED
+  EXPIRED
+  CANCELLED
+}
+
+enum PredictionDirection {
+  UP
+  DOWN
+  VOLATILE
+  NEUTRAL
+}
+
+enum HedgeComplexity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TimeHorizon {
+  IMMEDIATE
+  SHORT
+  MEDIUM
+  LONG
+}
+
+model PredictionEvent {
+  id              String                @id @default(cuid())
+  sourceId        String                // External ID from Polymarket (slug or conditionId)
+  source          String                @default("polymarket") // "polymarket", "kalshi", etc.
+  title           String
+  titleAr         String?               // Arabic translation
+  description     String?
+  descriptionAr   String?               // Arabic translation
+  category        String?               // "politics", "economics", "crypto", "geopolitics", etc.
+  categoryAr      String?               // Arabic category name
+  relatedSymbols  String                @default("[]") // JSON: ["BTC", "ETH", "SPY"]
+  marketProbability Decimal             @db.Decimal(7, 6) // Current market probability (0.0–1.0)
+  aiProbability   Decimal?             @db.Decimal(7, 6) // AI-estimated probability (0.0–1.0)
+  predictionGap   Decimal?             @db.Decimal(7, 6) // |marketProbability - aiProbability|
+  gapDirection    String?              // "market_higher", "ai_higher", "aligned"
+  volume24h       Decimal?             @db.Decimal(19, 4) // 24h trading volume
+  liquidity       Decimal?             @db.Decimal(19, 4) // Total liquidity in the market
+  endDate         DateTime?            // When the event resolves
+  resolution      String?              // JSON: resolution details when event settles
+  status          PredictionEventStatus @default(ACTIVE)
+  impactAssessment String?             // JSON: structured impact analysis (ImpactAssessment interface)
+  signalBoost     Decimal?             @default(0) @db.Decimal(5, 4) // +0.05 for alignment, -0.08 for conflict
+  lastSyncedAt    DateTime             @default(now())
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@unique([source, sourceId])
+  @@index([status])
+  @@index([category])
+  @@index([endDate])
+  @@index([status, endDate])
+  @@index([predictionGap])
+  @@index([lastSyncedAt])
+  @@index([source])
+}
+
+// ── Autonomous Trader Agent (Phase 8) ──
+
+enum AgentStrategy {
+  SCALPING
+  SWING
+  GRID
+}
+
+enum AgentTradeStatus {
+  PENDING
+  FILLED
+  PARTIALLY_FILLED
+  CANCELLED
+  FAILED
+}
+
+enum AgentExitReason {
+  TAKE_PROFIT
+  STOP_LOSS
+  MANUAL
+  TRAILING_STOP
+  STRATEGY_EXIT
+}
+
+model AutonomousTrade {
+  id              String           @id @default(cuid())
+  userId          String
+  agentRunId      String           // Groups trades within a single agent session
+
+  // Trade Details
+  symbol          String
+  side            OrderSide
+  orderType       OrderType
+  strategy        AgentStrategy
+  status          AgentTradeStatus @default(PENDING)
+
+  // Pricing
+  entryPrice      Decimal          @db.Decimal(19, 8)
+  currentPrice    Decimal?         @db.Decimal(19, 8)
+  exitPrice       Decimal?         @db.Decimal(19, 8)
+  stopLoss        Decimal          @db.Decimal(19, 8) // MANDATORY — no trade without SL
+  takeProfit      Decimal          @db.Decimal(19, 8)
+
+  // Quantity & P&L
+  quantity        Decimal          @db.Decimal(19, 8)
+  filledQuantity  Decimal          @default(0) @db.Decimal(19, 8)
+  pnl             Decimal?         @db.Decimal(19, 4)
+  fee             Decimal          @default(0) @db.Decimal(19, 4)
+  feeCurrency     String           @default("USD")
+
+  // Risk & Confidence
+  riskScore       Int              @default(0) // 0-100
+  confidence      Int              @default(0) // 0-100
+  riskRewardRatio Decimal          @db.Decimal(10, 4)
+
+  // Strategy Context
+  reasoning       String           // AI reasoning for the trade
+  signalData      String           @default("{}") // JSON: evaluated signal
+  metadata        String           @default("{}") // JSON: strategy-specific data
+
+  // Audit Trail
+  decisions       String           @default("[]") // JSON array of AgentDecision
+
+  // Execution Details
+  execution       String?          // JSON: TradeExecution result
+
+  // Timing
+  openedAt        DateTime         @default(now())
+  closedAt        DateTime?
+  holdingDurationMs Int?
+
+  // Exchange
+  credentialId    String
+  exchangeOrderId String?
+
+  // Performance Categorization
+  isWinning       Boolean?
+  exitReason      AgentExitReason?
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([strategy])
+  @@index([status])
+  @@index([agentRunId])
+  @@index([createdAt])
+  @@index([userId, status])
+  @@index([userId, strategy, createdAt])
+}
+
+// ── Content Agent (Phase 9) ──
+
+enum ContentArticleStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  PUBLISHED
+  SCHEDULED
+  ARCHIVED
+  REJECTED
+}
+
+model ContentArticle {
+  id               String              @id @default(cuid())
+  userId           String
+
+  // Content Identity
+  type             String              // AI_GENERATED, AI_CURATED, HUMAN_WRITTEN, AI_ASSISTED, RSS_FEED, API_FEED
+  contentType      String              // ARTICLE, ANALYSIS, NEWS_DIGEST, MARKET_REPORT, EDUCATIONAL, OPINION, BREAKING
+
+  // Bilingual Content
+  titleAr          String
+  titleEn          String
+  contentAr        String              @db.Text
+  contentEn        String              @db.Text
+  summaryAr        String              @db.Text
+  summaryEn        String              @db.Text
+  excerpt          String?             // Short excerpt for cards/lists
+
+  // Categorization
+  category         String              // CRYPTO, FOREX, STOCKS, COMMODITIES, ECONOMY, etc.
+  categoryAr       String?             // Arabic category name
+  tags             String              @default("[]") // JSON array of tags
+  relatedSymbols   String              @default("[]") // JSON: ["BTC/USDT", "ETH/USDT"]
+
+  // SEO
+  seo              String              @default("{}") // JSON: SeoMetadata
+
+  // AI Generation Info
+  aiModel          String?             // e.g., "glm-5", "gpt-4"
+  generationSource String?             // AI_GENERATED, AI_CURATED, etc.
+  confidence       Int                 @default(0) // 0-100
+  qualityScore     Int                 @default(0) // 0-100
+  sentimentScore   Decimal             @default(0) @db.Decimal(5, 4) // -1.0 to 1.0
+  impactLevel      String?             // HIGH, MEDIUM, LOW
+
+  // Safety
+  riskWarnings     String              @default("[]") // JSON array of risk warnings
+  sources          String              @default("[]") // JSON array of source URLs
+
+  // Metrics
+  readingTimeMinutes Int               @default(0)
+  wordCountAr      Int                 @default(0)
+  wordCountEn      Int                 @default(0)
+  views            Int                 @default(0)
+  shares           Int                 @default(0)
+  likes            Int                 @default(0)
+
+  // Publishing
+  status           ContentArticleStatus @default(DRAFT)
+  publishedAt      DateTime?
+  scheduledAt      DateTime?
+  imageUrl         String?
+
+  // Timestamps
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([category])
+  @@index([contentType])
+  @@index([status])
+  @@index([publishedAt])
+  @@index([createdAt])
+  @@index([userId, status])
+  @@index([userId, contentType, createdAt])
+}
+
+model ContentSchedule {
+  id            String   @id @default(cuid())
+  contentId     String
+  scheduledAt   DateTime
+  publishedAt   DateTime?
+  status        String   @default("PENDING") // PENDING, PUBLISHED, FAILED, CANCELLED
+  platform      String   @default("WEBSITE") // WEBSITE, TELEGRAM, TWITTER, ALL
+  retryCount    Int      @default(0)
+  lastError     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([contentId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@index([status, scheduledAt])
 }

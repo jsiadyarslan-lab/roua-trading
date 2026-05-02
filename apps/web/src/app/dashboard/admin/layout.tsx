@@ -28,7 +28,7 @@ const NAV_ITEMS = [
   { id: 'health', label: 'صحة النظام', icon: Activity, path: '/dashboard/admin/health' },
   { id: 'ai-costs', label: 'تكاليف AI', icon: Brain, path: '/dashboard/admin/ai-costs' },
   { id: 'monitor', label: 'وكيل المراقبة', icon: Radar, path: '/dashboard/admin/monitor' },
-  { id: 'trading', label: 'التداول', icon: TrendingUp, path: '/dashboard/admin/trading' },
+  { id: 'trading', label: 'ربط الحسابات', icon: TrendingUp, path: '/dashboard/admin/trading' },
   { id: 'signals', label: 'الإشارات', icon: Zap, path: '/dashboard/admin/signals' },
   { id: 'notifications', label: 'التنبيهات', icon: Bell, path: '/dashboard/admin/notifications' },
   { id: 'logs', label: 'السجلات', icon: ScrollText, path: '/dashboard/admin/system-logs' },
@@ -64,37 +64,70 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       return
     }
 
+    let cancelled = false
+
     const checkAuth = async () => {
       try {
-        const res = await fetch('/dashboard/admin/api/auth/session')
-        if (res.ok) {
-          const data = await res.json()
-          if (data.authenticated) {
-            setAuthenticated(true)
-          } else {
+        const res = await fetch('/api/admin/auth/session')
+        if (cancelled) return
+
+        let data: any = { authenticated: false }
+        try {
+          data = await res.json()
+        } catch {
+          // Non-JSON response — treat as unauthenticated
+        }
+
+        if (cancelled) return
+
+        if (res.ok && data.authenticated) {
+          setAuthenticated(true)
+          // Only set authChecked on first successful check
+          if (!authChecked) {
+            setAuthChecked(true)
+            setChecking(false)
+          }
+        } else if (res.status === 401) {
+          // Session explicitly expired or invalid — redirect to login
+          setAuthenticated(false)
+          router.replace('/dashboard/admin/login')
+          return
+        } else {
+          // Other HTTP errors (500, 503, etc.) — don't kick user out on re-checks
+          // Only redirect on the initial check, not on periodic re-checks
+          if (!authChecked) {
+            setAuthenticated(false)
             router.replace('/dashboard/admin/login')
             return
           }
-        } else {
+          // On periodic re-checks, keep the current auth state
+          console.warn('[admin-layout] Session re-check failed — keeping current state')
+        }
+      } catch {
+        if (cancelled) return
+        // Network error — don't redirect on periodic re-checks, only on initial
+        if (!authChecked) {
+          console.warn('[admin-layout] Initial session check failed — network error')
+          setAuthenticated(false)
           router.replace('/dashboard/admin/login')
           return
         }
-      } catch {
-        router.replace('/dashboard/admin/login')
-        return
+        // On periodic re-checks, keep the user logged in despite network errors
+        console.warn('[admin-layout] Session re-check network error — keeping current state')
       }
-      setAuthChecked(true)
-      setChecking(false)
     }
 
     checkAuth()
     const interval = setInterval(checkAuth, 60000) // Re-check every minute
-    return () => clearInterval(interval)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
   }, [pathname, router])
 
   const handleLogout = async () => {
     try {
-      await fetch('/dashboard/admin/api/auth/logout', { method: 'POST' })
+      await fetch('/api/admin/auth/logout', { method: 'POST' })
     } catch {}
     setAuthenticated(false)
     router.push('/dashboard/admin/login')

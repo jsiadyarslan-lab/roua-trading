@@ -5,15 +5,16 @@ import { AuthGuard } from '@/components/dashboard/AuthGuard'
 import { GuestBanner } from '@/components/dashboard/GuestGuard'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import ServiceWorkerRegistrar from '@/components/dashboard/ServiceWorkerRegistrar'
+import { GlobalLogicEngine } from '@/components/dashboard/GlobalLogicEngine'
 import { Metadata, Viewport } from 'next'
 
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'رؤى | منصة التداول الاحترافية',
-  description: 'منصة رؤى للتداول الذكي - Roua Trading Platform',
+  title: 'رؤى | منصة ربط الحسابات الاحترافية',
+  description: 'منصة رؤى لربط ومتابعة الحسابات الذكية - Roua Account Linking Platform',
   manifest: '/manifest.json',
-  applicationName: 'Roua Trading',
+  applicationName: 'Roua Link',
   icons: {
     icon: '/logo.svg',
     apple: '/logo-192.png',
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Roua Trading',
+    title: 'Roua Link',
   },
 }
 
@@ -29,8 +30,8 @@ export const viewport: Viewport = {
   themeColor: '#0B0E14',
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
+  userScalable: true,
 }
 
 export default function DashboardLayout({
@@ -41,13 +42,21 @@ export default function DashboardLayout({
   return (
     <MarketProvider>
       <AuthGuard>
-        <div style={{ minHeight: '100vh', background: '#0B0E14', direction: 'rtl', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ minHeight: '100dvh', background: '#0B0E14', direction: 'rtl', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
           <GuestBanner />
           <AppHeader />
-          <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+            <style>{`
+              @media (max-width: 767px) {
+                main { height: 100dvh !important; min-height: 0 !important; padding-bottom: 0 !important; overflow: hidden !important; }
+                /* Ensure sub-pages fill the viewport on mobile */
+                main > div { height: 100% !important; min-height: 0 !important; }
+              }
+            `}</style>
             <ErrorBoundary>
               <AuthInitializer />
               <ServiceWorkerRegistrar />
+              <GlobalLogicEngine />
               {children}
             </ErrorBoundary>
           </main>

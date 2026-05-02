@@ -3,98 +3,214 @@
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import {
-  Brain, ScanSearch, Radio, Newspaper, HelpCircle, Info, ChevronLeft, TrendingUp
+  Brain, ScanSearch, Radio, Newspaper, HelpCircle, ChevronLeft,
+  Activity, Zap, FlaskConical, Users, BellRing, UserCircle,
+  Link2, CreditCard, Fingerprint,
 } from 'lucide-react'
 
-const MORE_ITEMS = [
+/* ─── Design Tokens ─── */
+const c = {
+  accent: '#00D4FF',
+  success: '#32D74B',
+  danger: '#FF453A',
+  amber: '#FFB800',
+  text: '#F0F2F5',
+  text2: 'rgba(235,235,245,0.5)',
+  text3: 'rgba(235,235,245,0.3)',
+  bg: '#000',
+  border: 'rgba(255,255,255,0.08)',
+}
+
+/* ─── Category Structure ─── */
+interface MoreItem {
+  icon: any
+  label: string
+  sub: string
+  color: string
+  href: string
+  isNew?: boolean
+}
+
+interface MoreCategory {
+  title: string
+  items: MoreItem[]
+}
+
+const MORE_CATEGORIES: MoreCategory[] = [
   {
-    icon: TrendingUp, label: 'الأسواق العالمية', sub: 'متابعة أسعار العملات والمعادن',
-    color: '#00D4FF', href: '/mobile/markets',
+    title: 'التداول',
+    items: [
+      { icon: Activity, label: 'المراكز المفتوحة', sub: 'تتبع صفقاتك الحية ومراكزك المفتوحة', color: '#00C853', href: '/mobile/positions', isNew: true },
+      { icon: Zap, label: 'التداول الحي', sub: 'تداول مباشر من الجوال بسرعة فائقة', color: '#00D4FF', href: '/mobile/trading', isNew: true },
+      { icon: FlaskConical, label: 'الاستراتيجيات', sub: 'اختبر وبنِ استراتيجياتك الخاصة', color: '#B388FF', href: '/mobile/strategies', isNew: true },
+      { icon: Users, label: 'التداول الاجتماعي', sub: 'تابع وانسخ أفضل المتداولين', color: '#FF6B9D', href: '/mobile/social', isNew: true },
+    ],
   },
   {
-    icon: Brain, label: 'التحليلات الذكية', sub: 'رؤية شاملة من 6 نماذج AI',
-    color: '#B388FF', href: '/mobile/ai',
+    title: 'الأدوات',
+    items: [
+      { icon: Brain, label: 'التحليلات الذكية', sub: 'رؤية شاملة من 6 نماذج AI', color: '#B388FF', href: '/mobile/ai' },
+      { icon: ScanSearch, label: 'سكانر السوق', sub: 'اكتشاف الفرص الذهبية لحظياً', color: '#00FFA3', href: '/mobile/scanner' },
+      { icon: Radio, label: 'إشارات رؤى', sub: 'توصيات تداول احترافية', color: '#FFB800', href: '/mobile/signals' },
+      { icon: Newspaper, label: 'الأخبار', sub: 'تغطية حية لأخبار الأسواق المالية', color: '#d4af37', href: '/mobile/news', isNew: true },
+      { icon: BellRing, label: 'الإشعارات', sub: 'تنبيهات البوت والنظام والصفقات', color: '#FF4757', href: '/mobile/notifications', isNew: true },
+    ],
   },
   {
-    icon: ScanSearch, label: 'سكانر السوق', sub: 'اكتشاف الفرص الذهبية لحظياً',
-    color: '#00FFA3', href: '/mobile/scanner',
-  },
-  {
-    icon: Radio, label: 'إشارات رؤى', sub: 'توصيات تداول احترافية',
-    color: '#FFB800', href: '/mobile/signals',
-  },
-  {
-    icon: Newspaper, label: 'آخر الأخبار', sub: 'تغطية حية لأخبار الأسواق',
-    color: '#d4af37', href: '/dashboard/news',
-  },
-  {
-    icon: HelpCircle, label: 'المساعدة والدعم', sub: 'مركز المساعدة وفتح التذاكر',
-    color: '#8B92A8', href: '/support',
-  },
-  {
-    icon: Info, label: 'عن المنصة', sub: 'رؤى للتداول — الإصدار 2.0',
-    color: '#8B92A8', href: '/about',
+    title: 'الحساب',
+    items: [
+      { icon: UserCircle, label: 'الملف الشخصي', sub: 'إدارة معلوماتك الشخصية وصورتك', color: '#00D4FF', href: '/mobile/profile', isNew: true },
+      { icon: Link2, label: 'ربط الحسابات', sub: 'ربط حسابات الوساطة والتحقق KYC', color: '#00FFA3', href: '/mobile/kyc', isNew: true },
+      { icon: CreditCard, label: 'الفواتير والاشتراكات', sub: 'إدارة اشتراكك وعرض الفواتير', color: '#d4af37', href: '/mobile/billing', isNew: true },
+      { icon: Fingerprint, label: 'الأمان و 2FA', sub: 'حماية حسابك وتفعيل المصادقة الثنائية', color: '#32D74B', href: '/mobile/security', isNew: true },
+      { icon: HelpCircle, label: 'المساعدة والدعم', sub: 'مركز المساعدة وفتح تذاكر الدعم', color: '#8B92A8', href: '/mobile/help', isNew: true },
+    ],
   },
 ]
+
+const ALL_ITEMS = MORE_CATEGORIES.flatMap(c => c.items)
 
 export default function MobileMorePage() {
   const router = useRouter()
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0B0E14', direction: 'rtl', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100dvh', background: c.bg, direction: 'rtl', paddingBottom: 100 }}>
 
       {/* ── Header ── */}
-      <div style={{ padding: 'calc(env(safe-area-inset-top) + 16px) 16px 20px', background: 'linear-gradient(180deg, rgba(179,136,255,0.08), transparent)' }}>
-        <h1 style={{ fontSize: 22, fontWeight: 900, color: '#F0F2F5', fontFamily: "'Cairo', sans-serif" }}>
-          استكشف المزيد
-        </h1>
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.35)', fontFamily: "'Cairo', sans-serif", marginTop: 4 }}>
-          جميع أدوات رؤى المتقدمة في مكان واحد
-        </p>
+      <div style={{
+        padding: 'calc(env(safe-area-inset-top) + 16px) 16px 20px',
+        background: 'linear-gradient(180deg, rgba(0,212,255,0.06), transparent)',
+      }}>
+        <div className="flex items-center gap-3 mb-2">
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => router.back()}
+            style={{
+              width: 40, height: 40, borderRadius: 14,
+              background: 'rgba(255,255,255,0.05)',
+              border: `0.5px solid ${c.border}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <ChevronLeft size={20} color={c.text} />
+          </motion.button>
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 900, color: c.text, fontFamily: "'Cairo', sans-serif" }}>
+              استكشف المزيد
+            </h1>
+            <p style={{ fontSize: 13, color: c.text2, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>
+              جميع أدوات رؤى المتقدمة في مكان واحد
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* ── Items List ── */}
-      <div style={{ margin: '0 16px', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.08)', borderRadius: 24, overflow: 'hidden' }}>
-        {MORE_ITEMS.map((item, i) => {
-          const Icon = item.icon
-          return (
-            <motion.button
-              key={i}
-              initial={{ opacity: 0, x: -20 }}
+      {/* ── Categories ── */}
+      {MORE_CATEGORIES.map((category, catIdx) => {
+        const totalDelay = catIdx * 0.1
+        return (
+          <div key={category.title} style={{ marginBottom: 24 }}>
+            {/* Category Header */}
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.05 }}
-              whileTap={{ backgroundColor: 'rgba(255,255,255,0.05)', scale: 0.99 }}
-              onClick={() => router.push(item.href)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 14,
-                width: '100%', padding: '18px 16px', background: 'transparent',
-                border: 'none', cursor: 'pointer', textAlign: 'right',
-                borderBottom: i < MORE_ITEMS.length - 1 ? '0.5px solid rgba(255,255,255,0.05)' : 'none',
-              }}
+              transition={{ delay: totalDelay }}
+              className="px-5 mb-2"
             >
-              <div style={{
-                width: 48, height: 48, borderRadius: 16,
-                background: `${item.color}15`, border: `1px solid ${item.color}25`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-              }}>
-                <Icon size={22} color={item.color} />
+              <div className="flex items-center gap-2">
+                <div style={{
+                  width: 3, height: 16, borderRadius: 2,
+                  background: c.accent, opacity: 0.6,
+                }} />
+                <span style={{
+                  fontSize: 13, fontWeight: 800, color: c.text3,
+                  fontFamily: "'Cairo', sans-serif", letterSpacing: '0.04em',
+                }}>
+                  {category.title}
+                </span>
+                <div style={{ flex: 1, height: '0.5px', background: c.border }} />
               </div>
-              <div style={{ flex: 1, textAlign: 'right' }}>
-                <p style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5', fontFamily: "'Cairo', sans-serif" }}>
-                  {item.label}
-                </p>
-                <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>
-                  {item.sub}
-                </p>
-              </div>
-              <ChevronLeft size={16} color="rgba(255,255,255,0.2)" style={{ transform: 'rotate(180deg)', flexShrink: 0 }} />
-            </motion.button>
-          )
-        })}
-      </div>
+            </motion.div>
+
+            {/* Category Items */}
+            <div style={{
+              margin: '0 16px',
+              background: 'rgba(255,255,255,0.02)',
+              border: '0.5px solid rgba(255,255,255,0.08)',
+              borderRadius: 24,
+              overflow: 'hidden',
+            }}>
+              {category.items.map((item, i) => {
+                const Icon = item.icon
+                return (
+                  <motion.button
+                    key={item.href}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: totalDelay + i * 0.04 }}
+                    whileTap={{ backgroundColor: 'rgba(255,255,255,0.05)', scale: 0.99 }}
+                    onClick={() => router.push(item.href)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 14,
+                      width: '100%', padding: '16px 16px', background: 'transparent',
+                      border: 'none', cursor: 'pointer', textAlign: 'right',
+                      borderBottom: i < category.items.length - 1 ? '0.5px solid rgba(255,255,255,0.05)' : 'none',
+                    }}
+                  >
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 14,
+                      background: `${item.color}12`, border: `1px solid ${item.color}22`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      position: 'relative',
+                    }}>
+                      <Icon size={20} color={item.color} />
+                      {item.isNew && (
+                        <div style={{
+                          position: 'absolute', top: -3, left: -3,
+                          width: 9, height: 9, borderRadius: '50%',
+                          background: c.accent,
+                          boxShadow: '0 0 8px rgba(0,212,255,0.6)',
+                          border: '2px solid #000',
+                        }} />
+                      )}
+                    </div>
+                    <div style={{ flex: 1, textAlign: 'right' }}>
+                      <div className="flex items-center gap-2">
+                        <p style={{
+                          fontSize: 14, fontWeight: item.isNew ? 800 : 700,
+                          color: c.text, fontFamily: "'Cairo', sans-serif",
+                        }}>
+                          {item.label}
+                        </p>
+                        {item.isNew && (
+                          <span style={{
+                            fontSize: 8, fontWeight: 800, padding: '1px 6px', borderRadius: 6,
+                            background: 'rgba(0,212,255,0.12)', color: c.accent,
+                            border: '0.5px solid rgba(0,212,255,0.25)',
+                            fontFamily: "'JetBrains Mono', monospace",
+                          }}>
+                            NEW
+                          </span>
+                        )}
+                      </div>
+                      <p style={{
+                        fontSize: 11, color: c.text2,
+                        fontFamily: "'Cairo', sans-serif", marginTop: 2,
+                      }}>
+                        {item.sub}
+                      </p>
+                    </div>
+                    <ChevronLeft size={16} color="rgba(255,255,255,0.15)" style={{ transform: 'rotate(180deg)', flexShrink: 0 }} />
+                  </motion.button>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
 
       {/* ── Footer Badge ── */}
-      <div style={{ margin: '32px 16px 0', textAlign: 'center' }}>
+      <div style={{ margin: '8px 16px 0', textAlign: 'center' }}>
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 8,
           padding: '12px 24px', borderRadius: 16,

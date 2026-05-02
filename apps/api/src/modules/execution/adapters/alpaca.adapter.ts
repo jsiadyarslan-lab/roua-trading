@@ -1,10 +1,10 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Roua Trading (رؤى) — Alpaca Broker Adapter
+// Roua Trading (رؤى) — Alpaca Exchange Adapter
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Injectable, Logger } from '@nestjs/common';
 import {
-  IBrokerAdapter,
+  IExchangeAdapter,
   UnifiedOrder,
   ExecutionResult,
   OrderExecutionStatus,
@@ -16,7 +16,7 @@ import axios, { AxiosInstance } from 'axios';
 /**
  * AlpacaAdapter — REST-based Alpaca Markets Adapter
  *
- * Implements IBrokerAdapter for Alpaca stock trading.
+ * Implements IExchangeAdapter for Alpaca stock trading.
  * Handles stock symbols (e.g., AAPL, TSLA, GOOGL).
  *
  * Features:
@@ -31,7 +31,7 @@ import axios, { AxiosInstance } from 'axios';
  * API Reference: https://docs.alpaca.markets/docs/about-market-data-api
  */
 @Injectable()
-export class AlpacaAdapter implements IBrokerAdapter {
+export class AlpacaAdapter implements IExchangeAdapter {
   private readonly logger = new Logger(AlpacaAdapter.name);
   private readonly httpClient: AxiosInstance;
 
@@ -66,7 +66,7 @@ export class AlpacaAdapter implements IBrokerAdapter {
     this.logger.log(`🏛️ Alpaca adapter initialized (${this.paper ? 'PAPER' : 'LIVE'} mode)`);
   }
 
-  // ── IBrokerAdapter Implementation ──
+  // ── IExchangeAdapter Implementation ──
 
   async placeOrder(order: UnifiedOrder): Promise<ExecutionResult> {
     this.logger.log(`📦 Placing Alpaca order: ${order.side} ${order.quantity} ${order.symbol}`);

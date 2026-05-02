@@ -46,6 +46,16 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(desktopPath === '/dashboard' ? '/dashboard' : '/dashboard', request.url))
   }
 
+  // ── Admin API routes: pass through (auth handled by route handlers) ──
+  // FIX: Admin API routes (/dashboard/admin/api/*) must NOT be intercepted by the proxy,
+  // because they handle their own authentication (e.g., login creates the session,
+  // other API routes verify the session cookie via verifyAdminAuth).
+  // Without this passthrough, POST /dashboard/admin/api/auth/login returns 307 redirect
+  // instead of processing the login, making the entire admin panel inaccessible.
+  if (pathname.startsWith('/dashboard/admin/api/')) {
+    return NextResponse.next()
+  }
+
   // ── Admin routes: check roua_admin_session ──
   if (pathname.startsWith('/dashboard/admin')) {
     // Admin login page is always accessible

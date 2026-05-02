@@ -57,6 +57,7 @@ function getProviderColor(provider: string): string {
     case 'hf': return COLORS.pink
     case 'openai': return COLORS.success
     case 'ollama': return COLORS.purple
+    case 'openrouter': return '#9C27B0'
     default: return COLORS.accent
   }
 }
@@ -74,6 +75,7 @@ function getProviderLabel(provider: string): string {
     case 'hf': return 'HuggingFace'
     case 'openai': return 'OpenAI'
     case 'ollama': return 'Ollama'
+    case 'openrouter': return 'OpenRouter'
     default: return provider
   }
 }
@@ -169,11 +171,15 @@ export default function AdminAiCostsPage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch('/dashboard/admin/api/ai-usage/stats')
-      if (res.ok) {
-        const json = await res.json()
+      const res = await fetch('/api/admin/ai-usage/stats')
+      const json = await res.json()
+      if (res.ok && !json.error) {
         setData(json)
         setError(null)
+      } else if (json.error) {
+        // FIX: DB error returned as 503 with error message — show specific error
+        setData(null)
+        setError(`${json.error}${json.debug ? ` (${json.debug})` : ''}`)
       } else {
         setError('فشل في جلب البيانات من الخادم')
       }

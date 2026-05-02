@@ -34,12 +34,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/login?error=oauth_not_configured', getPublicOrigin(request)))
   }
 
-  // Parse callbackUrl from state
+  // Parse callbackUrl from state — validate against same-origin allowlist
   let callbackUrl = '/dashboard'
   try {
     if (stateParam) {
       const state = JSON.parse(Buffer.from(stateParam, 'base64url').toString())
-      if (state.callbackUrl) callbackUrl = state.callbackUrl
+      if (state.callbackUrl) {
+        // SECURITY: Only allow same-origin relative URLs to prevent open redirect attacks
+        const url = state.callbackUrl as string
+        if (url.startsWith('/') && !url.startsWith('//') && !url.startsWith('/\\')) {
+          callbackUrl = url
+        } else {
+          console.warn('[auth/callback/google] Blocked external callbackUrl:', url)
+        }
+      }
     }
   } catch { /* Use default */ }
 

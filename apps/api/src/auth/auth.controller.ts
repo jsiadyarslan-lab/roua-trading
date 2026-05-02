@@ -167,7 +167,10 @@ export class AuthController {
 
     return {
       success: true,
-      sessionToken: result.sessionToken,
+      // SECURITY: sessionToken is NOT returned in the response body.
+      // The httpOnly cookie is the only secure way to transmit the session token.
+      // Previously, including sessionToken in the JSON body defeated the
+      // purpose of httpOnly cookies by exposing the token to XSS attacks.
       user: result.user,
     };
   }

@@ -380,12 +380,16 @@ export function useExecutionEngine() {
         price: result.filledAvgPrice || currentPrice,
       })
 
-      // Refresh data
-      loadAccount()
-      fetchAccount()
-      fetchPositions()
-      loadOpenOrders()
-      setTimeout(() => { fetchAccount(); fetchPositions(); loadOpenOrders() }, 2000)
+      // Refresh data — batched to avoid 7 simultaneous API calls
+      // Instead of calling loadAccount + fetchAccount + fetchPositions + loadOpenOrders
+      // immediately AND again after 2s, we batch into a single refresh cycle
+      Promise.all([fetchAccount(), fetchPositions(), loadOpenOrders()]).then(() => {
+        // Single delayed refresh to catch exchange settlement
+        setTimeout(() => {
+          fetchAccount()
+          fetchPositions()
+        }, 2000)
+      })
     } else {
       setExecutionState('rejected')
       setStatus({

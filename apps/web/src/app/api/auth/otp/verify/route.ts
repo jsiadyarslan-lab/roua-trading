@@ -18,7 +18,7 @@ import crypto from 'crypto'
  * Without it, an attacker could try all 1,000,000 combinations in minutes.
  */
 
-const SESSION_DURATION_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
+const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000 // 7 days (reduced from 30 days for security)
 const GUEST_EMAIL = 'guest@roua.auto'
 const MAX_OTP_ATTEMPTS = 5
 const OTP_ATTEMPT_WINDOW_MS = 5 * 60 * 1000 // 5 minutes
@@ -192,7 +192,7 @@ export async function POST(request: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 30 * 24 * 60 * 60,
+      maxAge: 7 * 24 * 60 * 60, // 7 days
       path: '/',
     })
 

@@ -8,6 +8,8 @@ const apiTarget = process.env.API_INTERNAL_URL || "http://localhost:3001";
 const nextConfig: NextConfig = {
   // reactStrictMode enabled to detect memory leaks and side effects (BUG-002 fix)
   reactStrictMode: true,
+  // SECURITY: Remove X-Powered-By header to prevent information disclosure
+  poweredByHeader: false,
   serverExternalPackages: [
     '@prisma/client',
     'prisma',

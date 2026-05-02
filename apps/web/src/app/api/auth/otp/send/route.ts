@@ -68,15 +68,16 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // In production, send email here
-    // For now, include OTP in response for development
-    const isDev = process.env.NODE_ENV !== 'production'
+    // SECURITY: Never return OTP in the response body, even in development.
+    // In production, this would send an email.
+    // For development, check the server console logs for the OTP.
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[auth/otp/send] DEV ONLY — OTP for ${email}: ${otp}`)
+    }
 
     return NextResponse.json({
       success: true,
       message: 'تم إرسال رمز التحقق إلى بريدك الإلكتروني',
-      // Only include OTP in development for testing
-      ...(isDev ? { otp } : {}),
     })
   } catch (error: any) {
     console.error('[auth/otp/send] Error:', error?.message || error)

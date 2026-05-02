@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useMarketStore } from './useMarketStore'
 import type { QuoteData } from './useMarketStore'
 
@@ -36,23 +36,48 @@ async function fetchQuoteFromAPI(symbol: string): Promise<QuoteData | null> {
   return null
 }
 
+/**
+ * Custom hook for fetching market quotes with stable references.
+ * 
+ * FIX: The original implementation had an infinite re-render loop because:
+ * 1. `symbols` was passed as inline array, creating new reference each render
+ * 2. `quotesMap = new Map()` was created on every render without memoization
+ * 3. `refetch` depended on `symbols`, recreating every render
+ * 
+ * Now uses:
+ * - Sorted + joined string as stable dependency key
+ * - useMemo for quotesMap
+ * - useRef for stable refetch function
+ */
 export function useMarketQuotes(symbols: string[], refreshInterval = 0) {
   const globalQuotes = useMarketStore(state => state.quotes)
 
-  const quotesMap = new Map<string, QuoteData>()
-  symbols.forEach((symbol) => {
-    const quote = globalQuotes[symbol]
-    if (quote && quote.price > 0) quotesMap.set(symbol, quote)
-  })
+  // Create a stable key from sorted symbols to prevent infinite re-renders
+  const symbolsKey = useMemo(() => [...symbols].sort().join(','), [symbols])
+
+  // Memoize the quotesMap to prevent unnecessary re-renders
+  const quotesMap = useMemo(() => {
+    const map = new Map<string, QuoteData>()
+    symbols.forEach((symbol) => {
+      const quote = globalQuotes[symbol]
+      if (quote && quote.price > 0) map.set(symbol, quote)
+    })
+    return map
+  }, [globalQuotes, symbolsKey]) // symbolsKey is stable for same symbols
+
+  // Use ref for stable refetch that doesn't cause re-renders
+  const symbolsRef = useRef(symbols)
+  symbolsRef.current = symbols
 
   const refetch = useCallback(async () => {
-    const results = await Promise.allSettled(symbols.map(symbol => fetchQuoteFromAPI(symbol)))
+    const currentSymbols = symbolsRef.current
+    const results = await Promise.allSettled(currentSymbols.map(symbol => fetchQuoteFromAPI(symbol)))
     results.forEach((result, index) => {
       if (result.status === 'fulfilled' && result.value && result.value.price > 0) {
-        useMarketStore.getState().setQuote(symbols[index], result.value)
+        useMarketStore.getState().setQuote(currentSymbols[index], result.value)
       }
     })
-  }, [symbols])
+  }, []) // No dependencies — uses ref for current symbols
 
   useEffect(() => {
     void refetch()
@@ -69,8 +94,10 @@ export function useMarketQuotes(symbols: string[], refreshInterval = 0) {
   return { quotes: quotesMap, refetch }
 }
 
-export function useSingleQuote(symbol: string, _refreshInterval = 6000) {
-  const { quotes, refetch } = useMarketQuotes([symbol])
+export function useSingleQuote(symbol: string, refreshInterval = 6000) {
+  // Wrap symbol in useMemo-stable array to prevent unnecessary re-renders
+  const symbols = useMemo(() => [symbol], [symbol])
+  const { quotes, refetch } = useMarketQuotes(symbols, refreshInterval)
   return {
     quote: quotes.get(symbol) || null,
     refetch,

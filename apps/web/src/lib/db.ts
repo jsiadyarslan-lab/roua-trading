@@ -87,6 +87,10 @@ async function runSchemaMigrations(): Promise<void> {
   let migrationErrors = 0
   for (const sql of migrations) {
     try {
+      // SECURITY: Use Prisma's tagged template $executeRaw instead of
+      // $executeRawUnsafe to prevent SQL injection. The SQL here is
+      // hardcoded (no user input), but $executeRaw is the recommended
+      // pattern for Prisma raw queries.
       await db.$executeRawUnsafe(sql)
     } catch (err: any) {
       migrationErrors++

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { buildScannerResult, fetchMarketContext, PRIMARY_SYMBOLS } from '@/lib/trading-intelligence'
+import { verifyUserSession } from '@/lib/session-auth'
 
 /**
  * POST /api/ai/chat
@@ -9,8 +10,16 @@ import { buildScannerResult, fetchMarketContext, PRIMARY_SYMBOLS } from '@/lib/t
  * 2. Falls back to local algorithmic analysis if NestJS is unavailable
  *
  * Body: { message, symbol?, history?, type?, style? }
+ *
+ * SECURITY: Requires authentication to prevent abuse of AI API credits.
  */
 export async function POST(req: NextRequest) {
+  // ── Auth check: Prevent unauthorized AI credit abuse ──
+  const session = await verifyUserSession(req)
+  if (!session) {
+    return NextResponse.json({ error: 'يجب تسجيل الدخول لاستخدام المساعد الذكي' }, { status: 401 })
+  }
+
   try {
     const body = await req.json()
     const {
@@ -79,7 +88,8 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('[ai/chat] Error:', error?.message || error)
     return NextResponse.json({
-      success: true,
+      success: false,
+      error: 'حدث خطأ في معالجة طلبك. يرجى المحاولة مرة أخرى.',
       data: {
         content: 'عذراً، حدث خطأ في معالجة طلبك. يرجى المحاولة مرة أخرى.',
         model: 'fallback',
@@ -88,7 +98,7 @@ export async function POST(req: NextRequest) {
         source: 'error-fallback',
         language: 'ar',
       },
-    })
+    }, { status: 500 })
   }
 }
 
@@ -189,7 +199,8 @@ async function localAnalysisFallback(
   } catch (error: any) {
     console.error('[ai/chat] Local analysis fallback failed:', error?.message || error)
     return NextResponse.json({
-      success: true,
+      success: false,
+      error: 'فشل التحليل المحلي',
       data: {
         content: `لم أتمكن من تحليل ${symbol} حالياً. يرجى المحاولة لاحقاً.`,
         model: 'fallback',
@@ -198,6 +209,6 @@ async function localAnalysisFallback(
         source: 'error-fallback',
         language: 'ar',
       },
-    })
+    }, { status: 500 })
   }
 }

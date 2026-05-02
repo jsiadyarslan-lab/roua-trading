@@ -29,6 +29,7 @@ const OrderBookPanel = dynamic(() => import('@/components/dashboard/OrderBookPan
 const ScannerMini = dynamic(() => import('@/components/dashboard/ScannerMini').then(m => ({ default: m.ScannerMini })), { ssr: false })
 const AlNarratorMini = dynamic(() => import('@/components/ai/AlNarratorMini').then(m => ({ default: m.AlNarratorMini })), { ssr: false })
 const PortfolioMini = dynamic(() => import('@/components/portfolio/PortfolioMini').then(m => ({ default: m.PortfolioMini })), { ssr: false })
+const QuickExecutionMini = dynamic(() => import('@/components/dashboard/QuickExecutionMini').then(m => ({ default: m.QuickExecutionMini })), { ssr: false })
 
 const T = {
   bg: '#0B0E14',
@@ -1125,48 +1126,92 @@ export default function DashboardPage() {
                   onToggleChartFullscreen={toggleChartFullscreen}
                 />
               </div>
-              {/* Desktop Trading Execution Button — labeled button with icon */}
-              <button
-                type="button"
-                onClick={() => setTradeDialogOpen(true)}
-                title="تنفيذ الأوامر"
-                aria-label="فتح نافذة التنفيذ"
-                style={{
-                  position: 'absolute',
-                  top: 10,
-                  left: 10,
-                  zIndex: 20,
-                  height: 34,
-                  padding: '0 14px',
-                  borderRadius: 8,
-                  background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
-                  border: 'none',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                  fontFamily: "'Cairo', sans-serif",
-                  fontSize: 12,
-                  fontWeight: 800,
-                  letterSpacing: '0.02em',
-                  boxShadow: '0 0 16px rgba(0,255,198,0.25), 0 2px 8px rgba(10,132,255,0.2)',
-                  transition: 'transform 0.12s ease, box-shadow 0.2s ease',
-                }}
-                onMouseDown={e => e.currentTarget.style.transform = 'scale(0.95)'}
-                onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                onMouseEnter={e => {
-                  e.currentTarget.style.boxShadow = '0 0 24px rgba(0,255,198,0.4), 0 4px 12px rgba(10,132,255,0.3)';
-                }}
-                onMouseOut={e => {
-                  e.currentTarget.style.boxShadow = '0 0 16px rgba(0,255,198,0.25), 0 2px 8px rgba(10,132,255,0.2)';
-                }}
-              >
-                <Zap size={14} fill="white" />
-                تنفيذ الأوامر
-              </button>
+              {/* Desktop Chart Trade Panel — inline overlay with QuickExecutionMini */}
+              {tradeDialogOpen ? (
+                <div className="chart-trade-overlay">
+                  <div className="chart-trade-overlay__header">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: 8,
+                        background: 'linear-gradient(135deg, rgba(0,212,255,0.2), rgba(0,255,163,0.1))',
+                        border: '1px solid rgba(0,212,255,0.25)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 0 10px rgba(0,212,255,0.12)',
+                      }}>
+                        <Zap size={12} color="#00D4FF" />
+                      </div>
+                      <div>
+                        <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 800, color: '#F0F2F5' }}>تنفيذ الأوامر</div>
+                        <div style={{ fontSize: 9, color: '#8B92A8', fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol} · {formatQuotePrice(currentPrice)}</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setTradeDialogOpen(false)}
+                      style={{
+                        width: 28, height: 28, borderRadius: 8,
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        color: '#8B92A8', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'all 0.2s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; e.currentTarget.style.color = '#FF4757' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#8B92A8' }}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                  <div style={{ maxHeight: 'calc(100% - 52px)', overflowY: 'auto' }}>
+                    <QuickExecutionMini
+                      mobile={false}
+                      dataStatus={quoteStatus}
+                      lastUpdatedAt={activeQuote?.timestamp ?? null}
+                      sourceLabel={sourceLabel}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setTradeDialogOpen(true)}
+                  title="تنفيذ الأوامر"
+                  aria-label="فتح نافذة التنفيذ"
+                  className="chart-trade-overlay__toggle"
+                  style={{
+                    position: 'absolute',
+                    top: 10,
+                    left: 10,
+                    zIndex: 20,
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
+                    border: 'none',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    fontFamily: "'Cairo', sans-serif",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    boxShadow: '0 0 16px rgba(0,255,198,0.25), 0 2px 8px rgba(10,132,255,0.2)',
+                    transition: 'transform 0.12s ease, box-shadow 0.2s ease',
+                  }}
+                  onMouseDown={e => e.currentTarget.style.transform = 'scale(0.92)'}
+                  onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
+                  onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.boxShadow = '0 0 24px rgba(0,255,198,0.4), 0 4px 12px rgba(10,132,255,0.3)';
+                  }}
+                  onMouseOut={e => {
+                    e.currentTarget.style.boxShadow = '0 0 16px rgba(0,255,198,0.25), 0 2px 8px rgba(10,132,255,0.2)';
+                  }}
+                >
+                  <Zap size={16} fill="white" />
+                </button>
+              )}
             </div>
 
             {/* Balance Card + Positions Panel */}
@@ -1375,15 +1420,15 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Trade Dialog (bottom sheet) — works on both mobile and desktop */}
-      {tradeDialogOpen && (
+      {/* Trade Dialog (bottom sheet) — mobile only now, desktop uses inline overlay */}
+      {isMobileViewport && tradeDialogOpen && (
         <div
           style={{
             position: 'fixed', inset: 0, zIndex: 90,
             background: 'rgba(0,0,0,0.6)',
             backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
             display: 'flex',
-            alignItems: isMobileViewport ? 'flex-end' : 'center',
+            alignItems: 'flex-end',
             justifyContent: 'center',
             animation: 'fadeIn 0.15s ease-out',
           }}
@@ -1391,34 +1436,32 @@ export default function DashboardPage() {
         >
           <div
             style={{
-              width: isMobileViewport ? '100%' : 420,
-              maxHeight: isMobileViewport ? '92dvh' : '85vh',
+              width: '100%',
+              maxHeight: '85dvh',
               background: 'linear-gradient(180deg, rgba(17,21,32,0.97) 0%, rgba(11,14,20,0.99) 100%)',
               backdropFilter: 'blur(24px) saturate(1.6)',
               WebkitBackdropFilter: 'blur(24px) saturate(1.6)',
-              borderTopLeftRadius: isMobileViewport ? 24 : 20,
-              borderTopRightRadius: isMobileViewport ? 24 : 20,
-              borderBottomLeftRadius: isMobileViewport ? 0 : 20,
-              borderBottomRightRadius: isMobileViewport ? 0 : 20,
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              borderBottomLeftRadius: 0,
+              borderBottomRightRadius: 0,
               border: '1px solid rgba(0,212,255,0.12)',
-              borderBottom: isMobileViewport ? 'none' : '1px solid rgba(0,212,255,0.12)',
+              borderBottom: 'none',
               overflow: 'hidden',
-              animation: isMobileViewport ? 'slideUp 0.3s cubic-bezier(0.16,1,0.3,1)' : 'fadeIn 0.2s ease-out',
+              animation: 'slideUp 0.3s cubic-bezier(0.16,1,0.3,1)',
               boxShadow: '0 0 60px rgba(0,212,255,0.08), 0 24px 80px rgba(0,0,0,0.6)',
             }}
             onClick={e => e.stopPropagation()}
           >
             {/* Drag handle — mobile only */}
-            {isMobileViewport && (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 6px' }}>
-                <div style={{ width: 36, height: 4, borderRadius: 4, background: 'rgba(255,255,255,0.15)' }} />
-              </div>
-            )}
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 6px' }}>
+              <div style={{ width: 36, height: 4, borderRadius: 4, background: 'rgba(255,255,255,0.15)' }} />
+            </div>
 
             {/* Header with glassmorphism */}
             <div style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: isMobileViewport ? '4px 16px 12px' : '16px 20px',
+              padding: '4px 16px 12px',
               borderBottom: '1px solid rgba(0,212,255,0.08)',
               background: 'linear-gradient(90deg, rgba(0,212,255,0.06), transparent 60%)',
             }}>
@@ -1454,13 +1497,15 @@ export default function DashboardPage() {
               </button>
             </div>
 
-            {/* Beautiful Order Panel */}
-            <OrderPanel
-              selectedSymbol={selectedSymbol}
-              currentPrice={currentPrice}
-              isMobile={isMobileViewport}
-              onClose={() => setTradeDialogOpen(false)}
-            />
+            {/* Mobile QuickExecutionMini */}
+            <div style={{ maxHeight: 'calc(85dvh - 80px)', overflowY: 'auto' }}>
+              <QuickExecutionMini
+                mobile={true}
+                dataStatus={quoteStatus}
+                lastUpdatedAt={activeQuote?.timestamp ?? null}
+                sourceLabel={sourceLabel}
+              />
+            </div>
           </div>
         </div>
       )}

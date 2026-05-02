@@ -494,6 +494,23 @@ const NAV_LINKS: NavLink[] = [
   },
 ]
 
+/* ─── Helper: strip query params from href for pathname comparison ─── */
+function stripQueryParams(href: string): string {
+  return href.split('?')[0]
+}
+
+/* ─── Helper: check if a child link is active (handles query params) ─── */
+function isChildActive(childHref: string, pathname: string): boolean {
+  const childPath = stripQueryParams(childHref)
+  // If the child href has no query params, do exact or prefix match
+  if (!childHref.includes('?')) {
+    return pathname === childHref || (childHref !== '/dashboard' && pathname.startsWith(childHref))
+  }
+  // If the child href has query params, match on pathname portion only
+  // This allows /dashboard/news?tab=daily to be recognized when pathname is /dashboard/news
+  return pathname === childPath || (childPath !== '/dashboard' && pathname.startsWith(childPath))
+}
+
 /* ─── Helper: check if any child is active ─── */
 function isLinkActive(link: NavLink, pathname: string): boolean {
   if (pathname === link.href) return true
@@ -501,7 +518,7 @@ function isLinkActive(link: NavLink, pathname: string): boolean {
   if (link.children) {
     return link.children.some(child => {
       if (child.href === '/dashboard') return false
-      return pathname.startsWith(child.href)
+      return isChildActive(child.href, pathname)
     })
   }
   return false
@@ -616,8 +633,7 @@ function MoreDropdown({
             {children && (
               <div style={{ paddingRight: 12, direction: 'rtl' }}>
                 {children.map((child) => {
-                  const childActive = pathname === child.href ||
-                    (child.href !== '/dashboard' && pathname.startsWith(child.href))
+                  const childActive = isChildActive(child.href, pathname)
                   return (
                     <Link key={child.href + '-' + child.label} href={child.href} style={{ textDecoration: 'none' }} onClick={onClose}>
                       <div style={{
@@ -922,8 +938,7 @@ function SubNavDropdown({
       direction: 'rtl',
     }}>
       {items.map((child) => {
-        const childActive = pathname === child.href ||
-          (child.href !== '/dashboard' && pathname.startsWith(child.href))
+        const childActive = isChildActive(child.href, pathname)
         const ChildIcon = child.icon
         return (
           <Link key={child.href + '-' + child.label} href={child.href} style={{ textDecoration: 'none' }} onClick={onClose}>
@@ -1251,8 +1266,7 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
           paddingRight: 20, marginBottom: 4,
         }}>
           {children!.map((child) => {
-            const childActive = pathname === child.href ||
-              (child.href !== '/dashboard' && pathname.startsWith(child.href))
+            const childActive = isChildActive(child.href, pathname)
             const ChildIcon = child.icon
             return (
               <Link key={child.href + '-' + child.label} href={child.href} style={{ textDecoration: 'none' }} onClick={onClose}>

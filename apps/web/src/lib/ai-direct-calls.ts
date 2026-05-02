@@ -94,6 +94,80 @@ const MODEL_TIMEOUT = 15_000 // FIX: Reduced from 20s to 15s — faster failure,
 const OLLAMA_CLOUD_TIMEOUT = 30_000 // 30s for Ollama cloud (slower than local)
 const OLLAMA_LOCAL_TIMEOUT = 8_000 // 8s for local Ollama (fail faster if unreachable)
 
+// ─── Live Market Data ────────────────────────────────────────────
+
+/**
+ * FIX: Fetch quick market data (price, RSI, MACD) to prevent AI hallucinations.
+ * Models were inventing prices (e.g., saying BTC is $28,500 when it's much higher).
+ * Uses Binance public API for crypto — no auth required.
+ * Falls back gracefully if fetch fails.
+ */
+async function fetchQuickMarketData(symbol: string): Promise<{ price: number; rsi: number; macd: string }> {
+  try {
+    // Normalize symbol for Binance: BTC/USD → BTCUSDT
+    const binanceSymbol = symbol.replace(/[\/\-]/g, '').replace('USD', 'USDT').toUpperCase()
+
+    // Fetch 24hr ticker for current price
+    const tickerRes = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`, {
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!tickerRes.ok) return { price: 0, rsi: 50, macd: 'غير متوفر' }
+    const tickerData = await tickerRes.json()
+    const price = parseFloat(tickerData?.lastPrice || '0')
+
+    if (price === 0) return { price: 0, rsi: 50, macd: 'غير متوفر' }
+
+    // Fetch klines for RSI and MACD calculation — 30 candles on 1h timeframe
+    const klinesRes = await fetch(`https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1h&limit=30`, {
+      signal: AbortSignal.timeout(5000),
+    })
+    if (!klinesRes.ok) return { price, rsi: 50, macd: 'غير متوفر' }
+    const klinesData = await klinesRes.json()
+    const closes: number[] = (klinesData || []).map((k: any) => parseFloat(k[4])).filter((v: number) => !isNaN(v))
+
+    const rsi = calcRSI(closes)
+    const macd = calcMACD(closes)
+
+    return { price, rsi, macd }
+  } catch {
+    return { price: 0, rsi: 50, macd: 'غير متوفر' }
+  }
+}
+
+/** Calculate RSI (Relative Strength Index) from closing prices */
+function calcRSI(closes: number[], period = 14): number {
+  if (closes.length < period + 1) return 50
+  let gains = 0, losses = 0
+  for (let i = closes.length - period; i < closes.length; i++) {
+    const change = closes[i] - closes[i - 1]
+    if (change > 0) gains += change
+    else losses += Math.abs(change)
+  }
+  if (losses === 0) return 100
+  const rs = gains / losses
+  return Math.round(100 - (100 / (1 + rs)))
+}
+
+/** Calculate MACD summary from closing prices */
+function calcMACD(closes: number[]): string {
+  if (closes.length < 26) return 'غير متوفر (بيانات غير كافية)'
+  const ema12 = calcEMA(closes, 12)
+  const ema26 = calcEMA(closes, 26)
+  const macdLine = ema12 - ema26
+  const direction = macdLine > 0 ? 'صاعد' : 'هبوطي'
+  return `${direction} (القيمة: ${macdLine.toFixed(2)})`
+}
+
+/** Calculate Exponential Moving Average */
+function calcEMA(data: number[], period: number): number {
+  const multiplier = 2 / (period + 1)
+  let ema = data.slice(0, period).reduce((a, b) => a + b, 0) / period
+  for (let i = period; i < data.length; i++) {
+    ema = (data[i] - ema) * multiplier + ema
+  }
+  return ema
+}
+
 // ─── Model Call Functions ────────────────────────────────────────
 
 async function callGroq(prompt: string): Promise<DirectAIResponse> {
@@ -224,7 +298,7 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
 
   const start = Date.now()
   try {
-    const fullPrompt = `<s>[INST] You are a financial AI analyst. Respond in Arabic. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"\n\n${prompt} [/INST]`
+    const fullPrompt = `<s>[INST] أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير أنماط مالي. كن موجزاً ومبنياً على البيانات. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"\n\n${prompt} [/INST]`
     const res = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -297,7 +371,7 @@ async function callOllama(prompt: string): Promise<DirectAIResponse> {
       requestBody = {
         model,
         messages: [
-          { role: 'system', content: 'أنت محلل مالي محترف. أجب بالعربية باختصار. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+          { role: 'system', content: 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت استراتيجي تنفيذ محترف. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
           { role: 'user', content: prompt },
         ],
         temperature: 0.3,
@@ -310,7 +384,7 @@ async function callOllama(prompt: string): Promise<DirectAIResponse> {
       requestBody = {
         model,
         messages: [
-          { role: 'system', content: 'أنت محلل مالي محترف. أجب بالعربية باختصار. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+          { role: 'system', content: 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت استراتيجي تنفيذ محترف. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
           { role: 'user', content: prompt },
         ],
         stream: false,
@@ -418,7 +492,7 @@ async function callBedrock(prompt: string): Promise<DirectAIResponse> {
   const modelId = 'anthropic.claude-3-5-sonnet-20241022-v2:0'
 
   try {
-    const systemPrompt = 'You are a safety-focused financial AI analyst. Respond in Arabic. Provide thorough, cautious analysis with emphasis on risk factors. Always highlight potential downsides. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
+    const systemPrompt = 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير مخاطر. قدّم تحليلاً حذراً مع التركيز على المخاطر. أبرز الجوانب السلبية دائماً. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
     const body = {
       anthropic_version: 'bedrock-2023-05-31',
       max_tokens: 1024,
@@ -596,6 +670,13 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
   const ollamaBaseUrl = getKey('OLLAMA_BASE_URL') || 'http://localhost:11434'
   const shouldTryOllama = !isCloudEnvironment() || !isLocalhostUrl(ollamaBaseUrl)
 
+  // FIX: Fetch live market data before building prompts to prevent hallucinations
+  // (e.g., models inventing BTC price as $28,500 when it's actually much higher)
+  const marketData = await fetchQuickMarketData(symbol)
+  const marketDataPrefix = marketData.price > 0
+    ? `\nبيانات السوق الحية:\n- السعر الحالي: ${marketData.price.toLocaleString()}$\n- مؤشر RSI: ${marketData.rsi}\n- مؤشر MACD: ${marketData.macd}\n\nاستخدم هذه البيانات الحية كأساس لتحليلك. لا تخترع أسعاراً أو مؤشرات من عندك.\n`
+    : ''
+
   // Define prompts for each model — each model gets a different perspective
   // Primary role assignment for 6 models
   const modelCalls: Array<{
@@ -614,7 +695,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     },
     {
       modelName: 'Gemini',
-      callFn: () => callGemini(`حلل الشارت الفني لـ ${symbol}. قيّم الاتجاه والمقاومات والدعم ومستويات الأسعار الرئيسية. ما هو الاتجاه الفني السائد؟`),
+      callFn: () => callGemini(`${marketDataPrefix}حلل الشارت الفني لـ ${symbol}. قيّم الاتجاه والمقاومات والدعم ومستويات الأسعار الرئيسية. ما هو الاتجاه الفني السائد؟`),
       roles: ['المحلل الفني'],
       prompt: 'technical',
       primaryOnly: false,
@@ -755,7 +836,11 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
   // Build analyses — each successful model fills its assigned role
   // FIX: Simplified — each model now has exactly 1 role, no complex reassignment needed
   const analyses: CouncilVote[] = []
-  let buyWeight = 0, sellWeight = 0, totalConfidence = 0
+  let buyWeight = 0, sellWeight = 0, holdWeight = 0, totalConfidence = 0
+  // FIX: Track individual confidences per vote type for accurate consensus calculation
+  let buyConfidences: number[] = []
+  let sellConfidences: number[] = []
+  let holdConfidences: number[] = []
 
   for (const modelData of successfulModels) {
     const { roles: modelRoles, response } = modelData
@@ -764,8 +849,9 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
 
     // Each model fills all its assigned roles (usually just 1)
     for (const roleName of modelRoles) {
-      if (vote === 'BUY') buyWeight += conf
-      else if (vote === 'SELL') sellWeight += conf
+      if (vote === 'BUY') { buyWeight += conf; buyConfidences.push(conf) }
+      else if (vote === 'SELL') { sellWeight += conf; sellConfidences.push(conf) }
+      else { holdWeight += conf; holdConfidences.push(conf) }
       totalConfidence += conf
 
       analyses.push({
@@ -778,16 +864,31 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     }
   }
 
-  // Calculate consensus
+  // FIX: Consensus score = average confidence of models that agreed on the final recommendation
+  // Previously, HOLD used (1 - |buyPct - sellPct|) * 50 which capped at 50%
+  // Now: BUY score = avg confidence of BUY voters, SELL score = avg of SELL voters, HOLD = avg of HOLD voters
   let recommendation: 'BUY' | 'SELL' | 'HOLD' = 'HOLD'
   let consensusScore = 0
 
   if (totalConfidence > 0) {
     const buyPct = buyWeight / totalConfidence
     const sellPct = sellWeight / totalConfidence
-    if (buyPct > 0.6) { recommendation = 'BUY'; consensusScore = Math.round(buyPct * 100) }
-    else if (sellPct > 0.6) { recommendation = 'SELL'; consensusScore = Math.round(sellPct * 100) }
-    else { recommendation = 'HOLD'; consensusScore = Math.round((1 - Math.abs(buyPct - sellPct)) * 50) }
+    if (buyPct > 0.6) {
+      recommendation = 'BUY'
+      consensusScore = buyConfidences.length > 0
+        ? Math.round(buyConfidences.reduce((a, b) => a + b, 0) / buyConfidences.length * 100)
+        : Math.round(buyPct * 100)
+    } else if (sellPct > 0.6) {
+      recommendation = 'SELL'
+      consensusScore = sellConfidences.length > 0
+        ? Math.round(sellConfidences.reduce((a, b) => a + b, 0) / sellConfidences.length * 100)
+        : Math.round(sellPct * 100)
+    } else {
+      recommendation = 'HOLD'
+      consensusScore = holdConfidences.length > 0
+        ? Math.round(holdConfidences.reduce((a, b) => a + b, 0) / holdConfidences.length * 100)
+        : Math.round((1 - Math.abs(buyPct - sellPct)) * 50)
+    }
   }
 
   const filledRoles = analyses.length
@@ -828,8 +929,8 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
       conflictExplanation,
       meta: {
         symbol,
-        price: 0,
-        rsi: 50,
+        price: marketData.price,
+        rsi: marketData.rsi,
         processingTimeMs: Date.now() - startTime,
         timestamp: new Date().toISOString(),
         aiEngine: `Direct-AI (${filledRoles} roles from ${modelsRespondedCount} models)`,

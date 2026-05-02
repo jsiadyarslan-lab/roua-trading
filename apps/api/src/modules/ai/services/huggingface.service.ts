@@ -296,8 +296,8 @@ export class HuggingFaceService {
   }
 
   private _buildSystemPrompt(request: AIAnalysisRequest): string {
-    const lang = request.language === 'en' ? 'English' : 'Arabic';
-    return `You are a professional financial AI analyst specializing in ${request.type}. Respond in ${lang}. Be concise, data-driven, and professional. Provide clear analysis with actionable insights. Always include risk disclaimers.`;
+    // FIX: Force Arabic-only responses — previous English prompts caused English responses in Arabic council
+    return `أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير أنماط مالي متخصص في ${request.type}. كن موجزاً ومبنياً على البيانات ومهنياً. قدّم تحليلاً واضحاً مع رؤى قابلة للتنفيذ. أضف دائماً تنبيهات المخاطر. IMPORTANT: Respond in Arabic only.`;
   }
 
   private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {

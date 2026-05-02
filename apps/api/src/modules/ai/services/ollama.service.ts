@@ -194,8 +194,8 @@ export class OllamaService {
   }
 
   private _buildSystemPrompt(request: AIAnalysisRequest): string {
-    const lang = request.language === 'en' ? 'English' : 'Arabic';
-    return `أنت محلل مالي محترف متخصص في ${request.type}. أجب باللغة ${lang === 'Arabic' ? 'العربية' : 'الإنجليزية'}. كن دقيقاً ومهنياً. قدّم تحليلاً واضحاً مع توصيات عملية. أضف دائماً تنبيه المخاطر.`;
+    // FIX: Force Arabic-only responses — previous prompts sometimes caused English responses in Arabic council
+    return `أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت استراتيجي تنفيذ متخصص في ${request.type}. كن دقيقاً ومهنياً. قدّم تحليلاً واضحاً مع توصيات عملية. أضف دائماً تنبيه المخاطر. IMPORTANT: Respond in Arabic only.`;
   }
 
   private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {

@@ -219,8 +219,8 @@ export class BedrockService {
   }
 
   private _buildSystemPrompt(request: AIAnalysisRequest): string {
-    const lang = request.language === 'en' ? 'English' : 'Arabic';
-    return `You are a safety-focused financial AI analyst specializing in ${request.type}. Respond in ${lang}. Provide thorough, cautious analysis with emphasis on risk factors and edge cases. Always highlight potential downsides and worst-case scenarios alongside opportunities. Include clear risk disclaimers.`;
+    // FIX: Force Arabic-only responses — previous English prompts caused English responses in Arabic council
+    return `أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير مخاطر متخصص في ${request.type}. قدّم تحليلاً حذراً وشاملاً مع التركيز على عوامل المخاطر والحالات الاستثنائية. أبرز دائماً الجوانب السلبية وأسوأ السيناريوهات إلى جانب الفرص. أضف تنبيهات المخاطر بوضوح. IMPORTANT: Respond in Arabic only.`;
   }
 
   private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {

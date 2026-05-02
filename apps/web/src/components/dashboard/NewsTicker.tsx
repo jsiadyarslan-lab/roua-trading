@@ -12,19 +12,12 @@ interface NewsItem {
   impact: 'high' | 'medium'
 }
 
-const defaultNewsItems: NewsItem[] = [
-  { category: 'Fed', categoryAr: 'الاحتياطي', color: '#d4af37', bgColor: '#d4af3712', text: 'Federal Reserve signals potential rate cuts in Q3', textAr: 'الاحتياطي الفيدرالي يشير إلى خفض محتمل للفائدة في الربع الثالث', impact: 'high' },
-  { category: 'Forex', categoryAr: 'فوركس', color: '#0d9488', bgColor: '#0d948812', text: 'EUR/USD breaks key resistance at 1.0850', textAr: 'اليورو/دولار يكسر مقاومة رئيسية عند 1.0850', impact: 'medium' },
-  { category: 'Crypto', categoryAr: 'كريبتو', color: '#f97316', bgColor: '#f9731612', text: 'Bitcoin surges past $67K amid ETF inflows', textAr: 'بيتكوين يرتفع بقوة فوق 67 ألف دولار بفعل تدفقات صناديق ETF', impact: 'high' },
-  { category: 'Metals', categoryAr: 'معادن', color: '#f59e0b', bgColor: '#f59e0b12', text: 'Gold consolidates above $2,340', textAr: 'الذهب يستقر فوق 2,340 دولار', impact: 'medium' },
-  { category: 'Stocks', categoryAr: 'أسهم', color: '#3b82f6', bgColor: '#3b82f612', text: 'S&P 500 reaches new all-time high', textAr: 'إس آند بي 500 يصل إلى أعلى مستوى تاريخي جديد', impact: 'high' },
-  { category: 'Oil', categoryAr: 'نفط', color: '#6b7280', bgColor: '#6b728012', text: 'Crude oil drops amid demand concerns', textAr: 'النفط الخام ينخفض بفعل مخاوف الطلب', impact: 'medium' },
-  { category: 'Economy', categoryAr: 'اقتصاد', color: '#8b5cf6', bgColor: '#8b5cf612', text: 'US GDP growth exceeds expectations', textAr: 'نمو الناتج المحلي الأمريكي يفوق التوقعات', impact: 'high' },
-]
+const emptyNewsItems: NewsItem[] = []
 
 export default function NewsTicker() {
   const tickerRef = useRef<HTMLDivElement>(null)
-  const [newsItems, setNewsItems] = useState<NewsItem[]>(defaultNewsItems)
+  const [newsItems, setNewsItems] = useState<NewsItem[]>(emptyNewsItems)
+  const [isLoading, setIsLoading] = useState(true)
 
   // Fetch from /api/news/feed on mount, then refresh every 5 minutes
   useEffect(() => {
@@ -63,7 +56,9 @@ export default function NewsTicker() {
           }
         }
       } catch {
-        // Silently use default news items when API is unavailable
+        // Silently handle fetch errors — component will show empty state
+      } finally {
+        setIsLoading(false)
       }
     }
     fetchNews()
@@ -108,12 +103,22 @@ export default function NewsTicker() {
         <span className="text-[9px] font-bold" style={{ color: 'var(--accent)' }}>LIVE</span>
       </div>
 
-      {/* Scrolling news */}
+      {/* Scrolling news — or loading/empty state */}
       <div className="flex-1 overflow-hidden h-full flex items-center" style={{ background: 'var(--bg-ticker)' }}>
-        <div ref={tickerRef} className="flex items-center h-full" style={{ animation: 'ql-news 60s linear infinite' }}>
-          {newsItems.map((item, i) => renderNewsItem(item, i))}
-          {newsItems.map((item, i) => renderNewsItem(item, i + newsItems.length))}
-        </div>
+        {isLoading ? (
+          <div className="flex items-center h-full px-4">
+            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>جاري تحميل الأخبار...</span>
+          </div>
+        ) : newsItems.length === 0 ? (
+          <div className="flex items-center h-full px-4">
+            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>لا توجد أخبار متاحة حالياً</span>
+          </div>
+        ) : (
+          <div ref={tickerRef} className="flex items-center h-full" style={{ animation: 'ql-news 60s linear infinite' }}>
+            {newsItems.map((item, i) => renderNewsItem(item, i))}
+            {newsItems.map((item, i) => renderNewsItem(item, i + newsItems.length))}
+          </div>
+        )}
       </div>
     </div>
   )

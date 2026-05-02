@@ -3,6 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
@@ -42,6 +43,7 @@ export class ContentPublisherService {
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly audit: AuditService,
+    private readonly configService: ConfigService,
   ) {
     this.logger.log('📤 Content Publisher initialized — scheduling engine ready');
   }
@@ -102,6 +104,11 @@ export class ContentPublisherService {
         }),
       });
 
+      // Send Telegram notification if content is published directly
+      if (status === ContentStatus.PUBLISHED) {
+        await this._sendTelegramNotification(article);
+      }
+
       return article;
     } catch (error: any) {
       this.logger.error(`Failed to save content: ${error.message}`);
@@ -144,6 +151,9 @@ export class ContentPublisherService {
         title: article.titleEn,
       }),
     });
+
+    // Send Telegram notification for the newly published report
+    await this._sendTelegramNotification(updated);
 
     return updated;
   }
@@ -354,6 +364,96 @@ export class ContentPublisherService {
       }
     } catch (error: any) {
       this.logger.error(`Schedule processor error: ${error.message}`);
+    }
+  }
+
+  // ── Telegram Notification ──
+
+  /**
+   * Send a Telegram notification when a report is published.
+   * Non-blocking — failures are logged but don't fail the publish operation.
+   */
+  private async _sendTelegramNotification(article: any): Promise<void> {
+    try {
+      const botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN', '')?.trim();
+      const chatId = this.configService.get<string>('TELEGRAM_CHAT_ID', '')?.trim();
+
+      if (!botToken || !chatId) {
+        return; // Telegram not configured — skip silently
+      }
+
+      // Report type emoji badge
+      const typeEmojis: Record<string, string> = {
+        ARTICLE: '📰',
+        ANALYSIS: '📊',
+        NEWS_DIGEST: '📋',
+        MARKET_REPORT: '📈',
+        EDUCATIONAL: '📚',
+        OPINION: '💡',
+        BREAKING: '🚨',
+        HOURLY_UPDATE: '⏱️',
+        WEEKLY_REVIEW: '📅',
+        PAIR_ANALYSIS: '💹',
+      };
+      const emoji = typeEmojis[article.type] || typeEmojis[article.contentType] || '📄';
+
+      // Parse related symbols
+      let symbols: string[] = [];
+      try {
+        symbols = article.relatedSymbols ? JSON.parse(article.relatedSymbols) : [];
+      } catch {
+        symbols = [];
+      }
+
+      const symbolsStr = symbols.length > 0 ? symbols.join(', ') : '—';
+      const category = article.categoryAr || article.category || '—';
+      const titleAr = article.titleAr || article.titleEn || 'تقرير جديد';
+
+      // Quality score display
+      const qualityScore = article.qualityScore;
+      const qualityDisplay = qualityScore ? `⭐ الجودة: ${qualityScore}/100` : '';
+
+      // Build the HTML message
+      const message = [
+        `${emoji} <b>تقرير جديد</b>`,
+        '',
+        `📌 <b>${titleAr}</b>`,
+        `📂 التصنيف: ${category}`,
+        `🏷️ الأصول: ${symbolsStr}`,
+        qualityDisplay ? qualityDisplay : '',
+        '',
+        '⚠️ <i>هذا المحتوى لأغراض تعليمية فقط ولا يُعد نصيحة استثمارية</i>',
+      ].filter(Boolean).join('\n');
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10_000);
+
+      const res = await fetch(
+        `https://api.telegram.org/bot${botToken}/sendMessage`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: message,
+            parse_mode: 'HTML',
+            disable_web_page_preview: true,
+          }),
+          signal: controller.signal,
+        },
+      );
+
+      clearTimeout(timeout);
+
+      if (res.ok) {
+        this.logger.log(`📤 Telegram notification sent for: ${article.titleEn || article.id}`);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        this.logger.warn(`Telegram notification failed: ${JSON.stringify(errData)}`);
+      }
+    } catch (error: any) {
+      // Non-blocking — don't fail the publish if notification fails
+      this.logger.warn(`Telegram notification error (non-blocking): ${error.message}`);
     }
   }
 

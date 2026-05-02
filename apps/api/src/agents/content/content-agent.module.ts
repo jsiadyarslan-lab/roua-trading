@@ -7,6 +7,7 @@ import { PrismaModule } from '../../common/prisma/prisma.module';
 import { RedisModule } from '../../common/redis/redis.module';
 import { AuditModule } from '../../audit/audit.module';
 import { ExchangeModule } from '../../modules/exchange/exchange.module';
+import { AiModule } from '../../modules/ai/ai.module';
 
 // Agent Services
 import { ContentGeneratorService } from './services/content-generator.service';
@@ -59,6 +60,7 @@ import { ContentAgentController } from './content-agent.controller';
     RedisModule,
     AuditModule,
     ExchangeModule,
+    AiModule,
   ],
   controllers: [ContentAgentController],
   providers: [

@@ -12,7 +12,7 @@ import { db, ensureDbReady } from '@/lib/db'
 // ── أنواع التنبيهات ──
 
 export interface NotificationEvent {
-  type: 'new_user' | 'subscription_upgrade' | 'system_error' | 'performance_alert' | 'large_trade' | 'system_update'
+  type: 'new_user' | 'subscription_upgrade' | 'system_error' | 'performance_alert' | 'large_trade' | 'system_update' | 'new_report'
   title: string
   body: string
   severity?: 'info' | 'warning' | 'error' | 'success'
@@ -285,5 +285,30 @@ export async function notifySystemUpdate(message: string) {
     title: 'تحديث النظام',
     body: message,
     severity: 'info',
+  })
+}
+
+export async function notifyNewReport(titleAr: string, type: string, category: string, symbols: string[]) {
+  const typeEmojis: Record<string, string> = {
+    ARTICLE: '📰',
+    ANALYSIS: '📊',
+    NEWS_DIGEST: '📋',
+    MARKET_REPORT: '📈',
+    EDUCATIONAL: '📚',
+    OPINION: '💡',
+    BREAKING: '🚨',
+    HOURLY_UPDATE: '⏱️',
+    WEEKLY_REVIEW: '📅',
+    PAIR_ANALYSIS: '💹',
+  }
+  const emoji = typeEmojis[type] || '📄'
+  const symbolsStr = symbols.length > 0 ? symbols.join(', ') : '—'
+
+  return dispatchNotification({
+    type: 'new_report',
+    title: `${emoji} تقرير جديد`,
+    body: `📌 ${titleAr}\n📂 التصنيف: ${category}\n🏷️ الأصول: ${symbolsStr}\n\n⚠️ هذا المحتوى لأغراض تعليمية فقط ولا يُعد نصيحة استثمارية`,
+    severity: 'info',
+    data: { titleAr, type, category, symbols },
   })
 }

@@ -10,7 +10,8 @@ import {
   ChevronDown, Bell, User, MoreHorizontal,
   TrendingUp, TrendingDown, Menu, X as XIcon, GitMerge, Activity,
   FlaskConical, Shield, Hammer, LogOut, UserCircle, Info,
-  CreditCard, HelpCircle, Trophy, Code, Fingerprint, BellRing, Link2, Eye, Target, Cpu, PenLine, Clock, Calendar
+  CreditCard, HelpCircle, Trophy, Code, Fingerprint, BellRing, Link2, Eye, Target, Cpu, PenLine, Clock, Calendar,
+  BarChart3, Globe2
 } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
@@ -465,10 +466,12 @@ const NAV_LINKS: NavLink[] = [
   },
   { href: '/dashboard/news',                   label: 'التقارير',           icon: Newspaper,
     children: [
-      { href: '/dashboard/news',                label: 'تقارير ساعية',       icon: Clock },
-      { href: '/dashboard/news',                label: 'تقارير يومية',       icon: Newspaper },
-      { href: '/dashboard/news',                label: 'تقارير أسبوعية',     icon: Calendar },
-      { href: '/dashboard/news',                label: 'تحليل الأزواج',      icon: TrendingUp },
+      { href: '/dashboard/news?tab=hourly',     label: 'تقارير ساعية',       icon: Clock },
+      { href: '/dashboard/news?tab=daily',      label: 'تقارير يومية',       icon: Newspaper },
+      { href: '/dashboard/news?tab=weekly',     label: 'تقارير أسبوعية',     icon: Calendar },
+      { href: '/dashboard/news?tab=pair',       label: 'تحليل الأزواج',      icon: TrendingUp },
+      { href: '/dashboard/news?tab=financial',  label: 'تقارير مالية',       icon: BarChart3 },
+      { href: '/dashboard/news?tab=economic',   label: 'تقارير اقتصادية',    icon: Globe2 },
     ]
   },
   { href: '/dashboard/prediction-market',      label: 'الأسواق التنبؤية',   icon: Target },

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Bot, Brain, ScanSearch, Sparkles, Waves } from 'lucide-react'
+import { Bot, Brain, ScanSearch, Sparkles, Waves, Cpu } from 'lucide-react'
 import { BotMini } from '@/components/dashboard/BotMini'
 import { ScannerMini } from '@/components/dashboard/ScannerMini'
 import { BotCommandCenter } from '@/components/dashboard/BotCommandCenter'
@@ -9,6 +9,7 @@ import { AICouncilPanel } from '@/components/dashboard/AICouncilPanel'
 import { MultiTfScannerMini } from '@/components/dashboard/MultiTfScannerMini'
 import { useDecisionFlow } from '@/hooks/useDecisionFlow'
 import { useTabAlertStore, type TabId } from '@/hooks/useTabAlertStore'
+import { useAgentStore, AgentStatus } from '@/hooks/useAgentStore'
 
 const T = {
   bg: '#0B0E14',
@@ -42,8 +43,13 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
     clearAlert(tabId as TabId)
   }
 
+  const agentState = useAgentStore(state => state.agentState)
+  const agentStatus = agentState?.status ?? null
+  const isAgentRunning = agentStatus === AgentStatus.RUNNING
+
   const TABS = [
     { id: 'bot', label: 'البوت', accent: T.cyan, icon: Bot, subtitle: 'التنفيذ والإدارة' },
+    { id: 'trader', label: 'الوكيل', accent: isAgentRunning ? T.success : T.amber, icon: Cpu, subtitle: 'وكيل التداول الذاتي' },
     { id: 'council', label: 'المجلس', accent: T.accent, icon: Brain, subtitle: 'الترجيح والحكم' },
     { id: 'scanner', label: 'السكانر', accent: T.amber, icon: ScanSearch, subtitle: 'اكتشاف الفرص' },
     { id: 'multi-tf', label: 'متعدد الأطر', accent: T.purple, icon: Waves, subtitle: 'النظام والانحياز' },
@@ -52,6 +58,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
   const activeTab = TABS.find((tab) => tab.id === active) || TABS[0]
   const headlineMap = {
     bot: engineState === 'armed' ? 'المحرك جاهز' : engineState === 'scanning' ? 'المحرك يمسح السوق' : 'المحرك تحت السيطرة',
+    trader: isAgentRunning ? 'الوكيل ينفذ الصفقات' : 'الوكيل في الانتظار',
     council: council?.recommendation ? `المجلس يميل إلى ${council.recommendation}` : 'المجلس يزن الأدلة',
     scanner: scanner ? `${scanner.pair} تحت المجهر` : 'السكانر يفتش عن فرصة',
     'multi-tf': 'انحياز متعدد الأطر',
@@ -265,11 +272,163 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           className="custom-scrollbar"
         >
         {active === 'bot' && <BotMini />}
+        {active === 'trader' && <AgentMini />}
         {active === 'council' && <AICouncilPanel />}
         {active === 'scanner' && <ScannerMini />}
         {active === 'signals' && <BotCommandCenter />}
         {active === 'multi-tf' && <MultiTfScannerMini />}
         </div>
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════
+   Agent Mini — Compact autonomous trader widget
+   ═══════════════════════════════════════════════ */
+function AgentMini() {
+  const { agentState, performance, positions, loading, fetchStatus, startAgent, stopAgent, changeStrategy, fetchPerformance, fetchPositions } = useAgentStore()
+  const [strategy, setStrategy] = useState<'SCALPING' | 'SWING' | 'GRID'>('SCALPING')
+
+  const status = agentState?.status ?? null
+  const isRunning = status === AgentStatus.RUNNING
+  const config = agentState?.config
+
+  // Fetch agent data on mount
+  useState(() => {
+    fetchStatus()
+    fetchPerformance()
+    fetchPositions()
+  })
+
+  const strategyLabels: Record<string, string> = { SCALPING: 'سكالبينغ', SWING: 'سوينغ', GRID: 'شبكة' }
+  const statusLabels: Record<string, string> = {
+    IDLE: 'في الانتظار', RUNNING: 'يعمل', PAUSED: 'متوقف مؤقتاً',
+    STOPPED: 'متوقف', EMERGENCY_STOP: 'إيقاف طارئ', DAILY_LIMIT_REACHED: 'حد الخسارة اليومية',
+  }
+  const statusColor = isRunning ? T.success : status === AgentStatus.PAUSED ? T.amber : status === AgentStatus.EMERGENCY_STOP ? T.danger : T.text3
+
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', height: '100%',
+      background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))',
+      borderRadius: 16, border: '1px solid rgba(0,229,255,0.08)',
+      overflow: 'hidden', fontFamily: "'Cairo', sans-serif",
+    }}>
+      {/* Header */}
+      <div style={{
+        padding: '7px 10px 6px',
+        background: 'linear-gradient(90deg, rgba(0,229,255,0.12), transparent)',
+        borderBottom: '1px solid rgba(0,229,255,0.08)',
+        display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{
+            width: 8, height: 8, borderRadius: '50%',
+            background: statusColor,
+            boxShadow: isRunning ? `0 0 10px ${T.success}` : 'none',
+          }} />
+          <span style={{ fontSize: 10, fontWeight: 800, color: T.text }}>وكيل التداول الذاتي</span>
+          <span style={{
+            fontSize: 6.5, padding: '1px 5px', borderRadius: 4,
+            background: isRunning ? 'rgba(0,255,163,0.15)' : 'rgba(255,255,255,0.06)',
+            color: statusColor, fontWeight: 700, fontFamily: 'monospace',
+          }}>
+            {statusLabels[status || 'IDLE'] || 'غير مُفعّل'}
+          </span>
+        </div>
+        <button
+          onClick={() => isRunning ? stopAgent(false) : startAgent(strategy as any)}
+          disabled={loading}
+          style={{
+            fontSize: 8, minHeight: 26, minWidth: 54, padding: '4px 8px',
+            borderRadius: 7, border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
+            background: isRunning ? 'rgba(255,71,87,0.2)' : 'rgba(0,229,255,0.2)',
+            color: isRunning ? T.danger : T.cyan, fontWeight: 800,
+          }}
+        >
+          {loading ? '...' : isRunning ? 'إيقاف' : 'تشغيل'}
+        </button>
+      </div>
+
+      {/* Strategy Picker */}
+      {!isRunning && (
+        <div style={{ display: 'flex', gap: 3, padding: '4px 6px', background: '#09111a', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          {(['SCALPING', 'SWING', 'GRID'] as const).map(s => (
+            <button key={s} onClick={() => setStrategy(s)} style={{
+              flex: 1, minHeight: 20, padding: '3px 5px', fontSize: 7.5,
+              background: strategy === s ? 'rgba(0,229,255,0.14)' : 'rgba(255,255,255,0.03)',
+              border: `1px solid ${strategy === s ? 'rgba(0,229,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
+              borderRadius: 6, color: strategy === s ? T.cyan : T.text3, cursor: 'pointer',
+            }}>
+              {strategyLabels[s]}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Stats */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5, padding: 6,
+        borderBottom: '1px solid rgba(0,229,255,0.08)',
+      }}>
+        <div style={{ padding: 5, textAlign: 'center', minHeight: 30, background: 'rgba(255,255,255,0.02)', borderRadius: 6 }}>
+          <div style={{ fontSize: 7, color: T.text3 }}>ر/خ اليوم</div>
+          <div style={{ fontSize: 10, fontWeight: 800, color: (agentState?.dailyPnL ?? 0) >= 0 ? T.success : T.danger }}>
+            ${(agentState?.dailyPnL ?? 0).toFixed(2)}
+          </div>
+        </div>
+        <div style={{ padding: 5, textAlign: 'center', minHeight: 30, background: 'rgba(255,255,255,0.02)', borderRadius: 6 }}>
+          <div style={{ fontSize: 7, color: T.text3 }}>نسبة الفوز</div>
+          <div style={{ fontSize: 10, fontWeight: 800, color: (performance?.winRate ?? 0) >= 50 ? T.success : T.amber }}>
+            {(performance?.winRate ?? 0).toFixed(1)}%
+          </div>
+        </div>
+        <div style={{ padding: 5, textAlign: 'center', minHeight: 30, background: 'rgba(255,255,255,0.02)', borderRadius: 6 }}>
+          <div style={{ fontSize: 7, color: T.text3 }}>مراكز مفتوحة</div>
+          <div style={{ fontSize: 10, fontWeight: 800, color: T.cyan }}>{positions.length}</div>
+        </div>
+      </div>
+
+      {/* Active Strategy Info */}
+      {config && (
+        <div style={{ padding: '4px 8px', borderBottom: '1px solid rgba(0,229,255,0.08)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 7, color: T.text3 }}>الاستراتيجية:</span>
+          <span style={{ fontSize: 8, fontWeight: 800, color: T.cyan }}>{strategyLabels[config.strategy] || config.strategy}</span>
+          <span style={{ fontSize: 7, color: T.text3 }}>• خطر/صفقة: {config.riskPerTradePercent}%</span>
+          <span style={{ fontSize: 7, color: T.text3 }}>• {config.symbols?.length || 0} رمز</span>
+        </div>
+      )}
+
+      {/* Positions List */}
+      <div style={{
+        flex: 1, minHeight: 0, maxHeight: '40vh', overflowY: 'auto',
+        padding: 4, background: 'rgba(5,10,18,0.45)',
+      }} className="custom-scrollbar">
+        {positions.length === 0 ? (
+          <div style={{ padding: 20, textAlign: 'center', opacity: 0.3, fontSize: 9, fontFamily: "'Cairo', sans-serif" }}>
+            {isRunning ? 'لا توجد مراكز مفتوحة حالياً' : 'فعل الوكيل لبدء التداول'}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {positions.slice(0, 10).map((pos, i) => (
+              <div key={pos.id} style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '5px 6px', borderRadius: 4,
+                background: 'rgba(255,255,255,0.02)', fontSize: 8,
+              }}>
+                <span style={{ color: pos.side === 'BUY' ? T.success : T.danger, fontWeight: 800, minWidth: 22 }}>
+                  {pos.side === 'BUY' ? 'شراء' : 'بيع'}
+                </span>
+                <span style={{ color: T.text, fontWeight: 700, fontFamily: 'monospace' }}>{pos.symbol}</span>
+                <div style={{ flex: 1 }} />
+                <span style={{ color: pos.unrealizedPnl >= 0 ? T.success : T.danger, fontWeight: 800, fontFamily: 'monospace' }}>
+                  ${pos.unrealizedPnl.toFixed(2)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

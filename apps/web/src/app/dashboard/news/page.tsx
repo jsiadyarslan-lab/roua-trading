@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import {
   Newspaper,
   Globe,
@@ -17,7 +18,15 @@ import {
   Zap,
   Clock,
   AlertTriangle,
+  PenLine,
+  Sparkles,
 } from 'lucide-react';
+
+// Lazy-load ContentAgentPage to avoid SSR issues and reduce initial bundle
+const ContentAgentPage = dynamic(
+  () => import('@/app/dashboard/content-agent/page'),
+  { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center', color: '#8090A8', fontFamily: "'Cairo', sans-serif" }}>جارٍ تحميل وكيل المحتوى...</div> }
+);
 
 const T = {
   blue: '#0A84FF',
@@ -62,6 +71,7 @@ export default function NewsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [displayCount, setDisplayCount] = useState(50);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'news' | 'agent'>('news');
 
   const fetchNews = useCallback(async () => {
     setFetchError(null);
@@ -192,7 +202,7 @@ export default function NewsPage() {
       `}</style>
       <div className="news-wrapper" style={{ padding: '32px 24px' }}>
       {/* Header */}
-      <div style={{ marginBottom: 28 }}>
+      <div style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -220,6 +230,58 @@ export default function NewsPage() {
           أخبار مالية مترجمة تلقائياً مع تحليل AI Council — مشاعر السوق، التأثير المتوقع، والأصول المتأثرة
         </p>
       </div>
+
+      {/* Tab Bar */}
+      <div style={{
+        display: 'flex',
+        gap: 0,
+        borderBottom: `0.5px solid ${T.border}`,
+        marginBottom: 20,
+      }}>
+        <button
+          onClick={() => setActiveTab('news')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 7,
+            padding: '12px 22px',
+            fontFamily: "'Cairo', sans-serif", fontSize: 13,
+            fontWeight: activeTab === 'news' ? 800 : 500,
+            color: activeTab === 'news' ? T.blue : T.text2,
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'news' ? `2.5px solid ${T.blue}` : '2.5px solid transparent',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          <Newspaper size={16} />
+          الأخبار الذكية
+        </button>
+        <button
+          onClick={() => setActiveTab('agent')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 7,
+            padding: '12px 22px',
+            fontFamily: "'Cairo', sans-serif", fontSize: 13,
+            fontWeight: activeTab === 'agent' ? 800 : 500,
+            color: activeTab === 'agent' ? '#B388FF' : T.text2,
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'agent' ? '2.5px solid #B388FF' : '2.5px solid transparent',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          <PenLine size={16} />
+          وكيل المحتوى
+          <Sparkles size={12} style={{ opacity: 0.6 }} />
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'agent' ? (
+        <ContentAgentPage />
+      ) : (
+      <>
 
       {/* Stats Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 20 }}>
@@ -554,6 +616,8 @@ export default function NewsPage() {
           </div>
         )}
         </>
+      )}
+      </>
       )}
       </div>
     </div>

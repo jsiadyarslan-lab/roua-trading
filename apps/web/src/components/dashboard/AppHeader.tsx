@@ -412,8 +412,32 @@ function MobileNewsTicker() {
   )
 }
 
-/* ══ Strip 3: Main Nav ══ */
+/* ══ Strip 3: Main Nav ══
+ *
+ * الترتيب الجديد:
+ * ├── الرئيسية (8 عناصر بارزة)
+ * ├── المحفظة (يتضمن: الملاذ)
+ * ├── تحليل AI
+ * ├── Neural Lab
+ * ├── السكانر المتقدم
+ * ├── تحليلات استراتيجية (يتضمن: اختبار الاستراتيجيات + بناء الاستراتيجية)
+ * ├── الأخبار (يتضمن: وكيل المحتوى)
+ * ├── الأسواق التنبؤية
+ * └── المزيد:
+ *     ├── لوحة الصدارة
+ *     ├── متابعة الحسابات
+ *     ├── المجتمع الاجتماعي
+ *     ├── الأجندة الاقتصادية
+ *     ├── توثيق API
+ *     ├── المصادقة الثنائية
+ *     ├── مركز المساعدة
+ *     └── الإعدادات (يتضمن: الإشعارات، المدفوعات، ربط الحسابات، الملف الشخصي)
+ *
+ * محذوف: مصفوفة الارتباط
+ * منفصل: وكيل التداول → ويدجت عائم في السايدبار
+ */
 const NAV_LINKS = [
+  // ── Main 8 (visible in nav bar) ──
   { href: '/dashboard',                        label: 'الرئيسية',           icon: Home },
   { href: '/dashboard/portfolio',              label: 'المحفظة',            icon: Wallet },
   { href: '/dashboard/ai',                     label: 'تحليل AI',           icon: Brain },
@@ -421,24 +445,15 @@ const NAV_LINKS = [
   { href: '/dashboard/scanner',                label: 'السكانر المتقدم',    icon: ScanSearch },
   { href: '/dashboard/strategies',             label: 'تحليلات استراتيجية', icon: BarChart2 },
   { href: '/dashboard/news',                   label: 'الأخبار',            icon: Newspaper },
+  { href: '/dashboard/prediction-market',      label: 'الأسواق التنبؤية',   icon: Target },
+  // ── More dropdown ──
   { href: '/dashboard/leaderboard',            label: 'لوحة الصدارة',       icon: Trophy },
   { href: '/dashboard/copy-trading',           label: 'متابعة الحسابات',    icon: Eye },
   { href: '/dashboard/social',                 label: 'المجتمع الاجتماعي',  icon: Users },
   { href: '/dashboard/calendar',               label: 'الأجندة الاقتصادية', icon: CalendarDays },
-  { href: '/dashboard/strategies/backtest',    label: 'اختبار الاستراتيجيات', icon: Activity },
-  { href: '/dashboard/sanctuary',             label: 'الملاذ',              icon: Shield },
-  { href: '/dashboard/strategy-builder',       label: 'بناء الاستراتيجية',   icon: Hammer },
-  { href: '/dashboard/correlation',            label: 'مصفوفة الارتباط',    icon: GitMerge },
-  { href: '/dashboard/billing',                label: 'المدفوعات',          icon: CreditCard },
-  { href: '/dashboard/notifications',          label: 'الإشعارات',          icon: BellRing },
-  { href: '/dashboard/kyc',                    label: 'ربط الحسابات',       icon: Link2 },
-  { href: '/dashboard/profile',                label: 'الملف الشخصي',       icon: UserCircle },
-  { href: '/dashboard/security/2fa',           label: 'المصادقة الثنائية',  icon: Shield },
   { href: '/dashboard/api-docs',               label: 'توثيق API',          icon: Code },
+  { href: '/dashboard/security/2fa',           label: 'المصادقة الثنائية',  icon: Shield },
   { href: '/dashboard/help',                   label: 'مركز المساعدة',      icon: HelpCircle },
-  { href: '/dashboard/autonomous-trader',     label: 'وكيل التداول',       icon: Cpu },
-  { href: '/dashboard/content-agent',        label: 'وكيل المحتوى',       icon: PenLine },
-  { href: '/dashboard/prediction-market',      label: 'الأسواق التنبؤية',   icon: Target },
   { href: '/dashboard/settings',               label: 'الإعدادات',          icon: Settings },
 ]
 

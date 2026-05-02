@@ -847,7 +847,16 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     // Analyze markets for configured symbols
     const analyses = await this.marketAnalyzer.analyzeMultiple(state.config.symbols);
 
+    this.logger.log(
+      `🧠 Agent ${userId} cycle #${state.totalCycles + 1}: ` +
+      `analyzing ${analyses.size}/${state.config.symbols.length} symbols ` +
+      `(strategy: ${state.config.strategy})`,
+    );
+
     let signalsExecuted = 0;
+    let signalsGenerated = 0;
+    let signalsRejected = 0;
+    const rejectionReasons: string[] = [];
 
     for (const [symbol, analysis] of analyses) {
       try {
@@ -859,12 +868,25 @@ export class AutonomousTraderAgentService implements OnModuleInit {
           userId,
         );
 
-        if (!signal) continue;
+        if (!signal) {
+          this.logger.debug(
+            `🧠 No signal for ${symbol} (RSI: ${analysis.rsi.toFixed(1)}, ` +
+            `MACD: ${analysis.macd.crossover}, BB%: ${analysis.bollingerBands.percentB.toFixed(2)}, ` +
+            `trend: ${analysis.trend}, vol: ${analysis.volatility})`,
+          );
+          continue;
+        }
+
+        signalsGenerated++;
+        this.logger.log(
+          `🧠 Signal generated for ${symbol}: ${signal.action} (confidence: ${signal.confidence}%, R:R ${signal.riskRewardRatio.toFixed(2)})`,
+        );
 
         // Step 2: Market hours check
         const marketStatus = isMarketOpen(symbol);
         if (!marketStatus.open) {
           this.logger.debug(`🧠 Skipping ${symbol} — market closed: ${marketStatus.reason}`);
+          rejectionReasons.push(`${symbol}: سوق مغلق`);
           continue;
         }
 
@@ -872,9 +894,11 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         const risk = await this.riskCalculator.assessRisk(userId, signal, state.config);
 
         if (!risk.canTrade) {
+          signalsRejected++;
           // Record the rejection as an audit decision + update agent state
-          this.logger.debug(`🧠 Trade rejected for ${symbol}: ${risk.reason}`);
+          this.logger.warn(`🧠 Trade rejected for ${symbol}: ${risk.reason}`);
           state.lastError = risk.reason;
+          rejectionReasons.push(`${symbol}: ${risk.reason}`);
           // If auto-trading is disabled, record prominently in agent state
           if (risk.reason?.includes('AUTO_TRADING_ENABLED')) {
             this.logger.warn(`🚫 Agent ${userId}: AUTO_TRADING_ENABLED is false — no trades will execute`);
@@ -916,6 +940,16 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     // Update cycle stats
     state.totalCycles++;
     state.lastCycleAt = new Date();
+
+    // Cycle summary log — crucial for debugging why trades don't execute
+    this.logger.log(
+      `🧠 Agent ${userId} cycle #${state.totalCycles} complete: ` +
+      `${analyses.size} analyzed, ${signalsGenerated} signals, ` +
+      `${signalsRejected} rejected, ${signalsExecuted} executed` +
+      (rejectionReasons.length > 0 ? ` — rejections: [${rejectionReasons.join('; ')}]` : '') +
+      (signalsGenerated === 0 ? ' — NO signals generated (strategy conditions not met)' : ''),
+    );
+
     await this._saveAgentState(userId, state);
   }
 

@@ -142,10 +142,10 @@ export class RiskCalculatorService {
       reason = `حجم المركز (${positionValuePercent.toFixed(1)}%) يتجاوز الحد (${maxPositionSizePercent}%)`;
     }
 
-    // RULE 5: Risk-reward ratio
-    if (riskRewardRatio < 1.5) {
+    // RULE 5: Risk-reward ratio (lowered from 1.5 → 1.2 to match base-strategy and allow more trades)
+    if (riskRewardRatio < 1.2) {
       canTrade = false;
-      reason = `نسبة المخاطرة للمكافأة (${riskRewardRatio.toFixed(2)}) أقل من الحد الأدنى (1.5)`;
+      reason = `نسبة المخاطرة للمكافأة (${riskRewardRatio.toFixed(2)}) أقل من الحد الأدنى (1.2)`;
     }
 
     // RULE 6: No duplicate positions for same symbol

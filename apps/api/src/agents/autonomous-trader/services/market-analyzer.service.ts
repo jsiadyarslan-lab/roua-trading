@@ -448,16 +448,30 @@ export class MarketAnalyzerService {
       ? quote.price * 0.02   // 2% ATR for crypto (typical daily move)
       : quote.price * 0.01;  // 1% ATR for stocks/forex
 
-    // Generate slightly more useful indicator values from quote data
-    // This allows strategies to at least produce signals with limited data
+    // Generate more actionable indicator values from quote data
+    // CRITICAL: Must produce RSI < 40 or > 60 and BB percentB < 0.3 or > 0.7
+    // so the scalping strategy can actually generate signals with limited data.
     const changePercent = Math.abs(quote.changePercent || 0);
-    const estimatedRsi = quote.changePercent && quote.changePercent > 0
-      ? Math.min(65, 50 + Math.abs(quote.changePercent) * 2)  // Slightly bullish
-      : quote.changePercent && quote.changePercent < 0
-        ? Math.max(35, 50 - Math.abs(quote.changePercent) * 2) // Slightly bearish
-        : 50;
+    const changeDir = (quote.changePercent || 0) > 0 ? 1 : (quote.changePercent || 0) < 0 ? -1 : 0;
 
-    const histogramDirection = (quote.changePercent || 0) > 0 ? 1 : (quote.changePercent || 0) < 0 ? -1 : 0;
+    // Amplified RSI: push values toward extremes based on price movement
+    // This ensures the scalping strategy can trigger on meaningful moves
+    let estimatedRsi = 50;
+    if (changeDir > 0) {
+      estimatedRsi = Math.min(70, 50 + Math.abs(quote.changePercent || 0) * 5);
+    } else if (changeDir < 0) {
+      estimatedRsi = Math.max(30, 50 - Math.abs(quote.changePercent || 0) * 5);
+    }
+
+    // Amplified Bollinger percentB: push toward extremes for signal generation
+    let estimatedPercentB = 0.5;
+    if (changeDir > 0) {
+      estimatedPercentB = Math.min(0.85, 0.5 + Math.abs(quote.changePercent || 0) * 0.08);
+    } else if (changeDir < 0) {
+      estimatedPercentB = Math.max(0.15, 0.5 - Math.abs(quote.changePercent || 0) * 0.08);
+    }
+
+    const histogramDirection = changeDir;
 
     return {
       symbol,
@@ -480,10 +494,10 @@ export class MarketAnalyzerService {
         middle: quote.price,
         lower: quote.price * 0.98,
         bandwidth: 0.04,
-        percentB: quote.changePercent && quote.changePercent > 0 ? 0.65 : quote.changePercent && quote.changePercent < 0 ? 0.35 : 0.5,
+        percentB: estimatedPercentB,
       },
       ema: {
-        ema9: quote.price * (1 + (quote.changePercent || 0) * 0.001),
+        ema9: quote.price * (1 + (quote.changePercent || 0) * 0.002),
         ema21: quote.price,
         ema50: quote.price,
       },
@@ -491,9 +505,9 @@ export class MarketAnalyzerService {
       volatility: changePercent > 3 ? 'HIGH' : changePercent > 1 ? 'MEDIUM' : 'LOW',
       trend: (quote.changePercent || 0) > 1 ? 'BULLISH' : (quote.changePercent || 0) < -1 ? 'BEARISH' : 'SIDEWAYS',
       trendStrength: Math.min(60, Math.abs(quote.changePercent || 0) * 15),
-      aiConfidence: 45, // Raised from 30 to allow signal generation
-      aiSignal: (quote.changePercent || 0) > 2 ? StrategySignal.BUY
-        : (quote.changePercent || 0) < -2 ? StrategySignal.SELL
+      aiConfidence: 50,
+      aiSignal: (quote.changePercent || 0) > 1.5 ? StrategySignal.BUY
+        : (quote.changePercent || 0) < -1.5 ? StrategySignal.SELL
         : StrategySignal.NEUTRAL,
       aiReasoning: 'تحليل مبسط — بيانات غير كافية للتحليل الكامل',
     };

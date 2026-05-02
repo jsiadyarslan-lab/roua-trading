@@ -41,10 +41,14 @@ ENV GLM_MODEL=glm-4-flash
 ENV MAX_FIX_ATTEMPTS_PER_ERROR=3
 ENV FIX_COOLDOWN=3600
 ENV HEALTH_PORT=8081
+ENV PORT=8081
 
-# Health check — the agent is a long-running process
-HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
-  CMD python -c "print('healthy')" || exit 1
+# Expose the health check port
+EXPOSE 8081
+
+# Health check — uses the HTTP /health endpoint
+HEALTHCHECK --interval=60s --timeout=10s --start-period=45s --retries=3 \
+  CMD curl -f http://localhost:${PORT:-8081}/health || exit 1
 
 # Run the self-healing agent
 CMD ["python", "-u", "main.py"]

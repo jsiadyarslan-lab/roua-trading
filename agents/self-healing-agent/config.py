@@ -79,4 +79,5 @@ REDIS_URL = os.environ.get("REDIS_URL", "")
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 
 # ── منفذ فحص الصحة ──
-HEALTH_PORT = int(os.environ.get("HEALTH_PORT", "8081"))
+# Railway يحدد منفذ PORT تلقائياً — نستخدمه كمنفذ افتراضي لفحص الصحة
+HEALTH_PORT = int(os.environ.get("HEALTH_PORT", os.environ.get("PORT", "8081")))

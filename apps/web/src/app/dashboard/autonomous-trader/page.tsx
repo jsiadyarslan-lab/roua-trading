@@ -6,7 +6,8 @@ import {
   TrendingUp, TrendingDown, Activity, Shield, Clock, Zap,
   RefreshCw, ChevronDown, ChevronUp, Plus, Minus, Cpu,
   DollarSign, Target, Timer, Gauge, Layers, ArrowUpDown,
-  AlertCircle, CheckCircle2, XCircle, Pause, Flame
+  AlertCircle, CheckCircle2, XCircle, Pause, Flame,
+  RotateCcw, Rocket, PiggyBank
 } from 'lucide-react'
 import { useAgentStore, AgentStatus, StrategyType } from '@/hooks/useAgentStore'
 
@@ -79,6 +80,10 @@ function getStrategyLabel(s: StrategyType): string {
     case StrategyType.SCALPING: return 'سكالبينغ'
     case StrategyType.SWING: return 'سوينغ'
     case StrategyType.GRID: return 'شبكة'
+    case StrategyType.MEAN_REVERSION: return 'عودة للمتوسط'
+    case StrategyType.MOMENTUM_BREAKOUT: return 'اختراق الزخم'
+    case StrategyType.DCA: return 'متوسط التكلفة'
+    case StrategyType.VWAP_RSI: return 'VWAP + RSI'
     default: return s
   }
 }
@@ -88,6 +93,11 @@ function getStrategyIcon(s: StrategyType) {
     case StrategyType.SCALPING: return <Zap size={14} />
     case StrategyType.SWING: return <TrendingUp size={14} />
     case StrategyType.GRID: return <Layers size={14} />
+    case StrategyType.MEAN_REVERSION: return <RotateCcw size={14} />
+    case StrategyType.MOMENTUM_BREAKOUT: return <Rocket size={14} />
+    case StrategyType.DCA: return <PiggyBank size={14} />
+    case StrategyType.VWAP_RSI: return <BarChart3 size={14} />
+    default: return <Zap size={14} />
   }
 }
 
@@ -96,6 +106,11 @@ function getStrategyDesc(s: StrategyType): string {
     case StrategyType.SCALPING: return 'صفقات سريعة — أرباح صغيرة متكررة'
     case StrategyType.SWING: return 'صفقات متأرجحة — أرباح أكبر على مدى أيام'
     case StrategyType.GRID: return 'شبكة أوامر — ربح من التذبذب'
+    case StrategyType.MEAN_REVERSION: return 'عودة للمتوسط — نسبة فوز عالية'
+    case StrategyType.MOMENTUM_BREAKOUT: return 'اختراق الزخم — ربح من الكسور الكبيرة'
+    case StrategyType.DCA: return 'متوسط التكلفة — تراكم منتظم وموثوق'
+    case StrategyType.VWAP_RSI: return 'VWAP + RSI — إدخالات عالية الاحتمالية'
+    default: return 'استراتيجية تداول'
   }
 }
 
@@ -348,12 +363,16 @@ export default function AutonomousTraderPage() {
                   اختر استراتيجية التداول
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                  {[StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID].map((s) => {
+                  {[StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI].map((s) => {
                     const isActive = strategy === s
                     const accentMap: Record<StrategyType, string> = {
                       [StrategyType.SCALPING]: '#00D4FF',
                       [StrategyType.SWING]: '#00FFA3',
                       [StrategyType.GRID]: '#B388FF',
+                      [StrategyType.MEAN_REVERSION]: '#FFB800',
+                      [StrategyType.MOMENTUM_BREAKOUT]: '#FF6B9D',
+                      [StrategyType.DCA]: '#00B894',
+                      [StrategyType.VWAP_RSI]: '#A29BFE',
                     }
                     const accent = accentMap[s]
                     return (
@@ -415,6 +434,34 @@ export default function AutonomousTraderPage() {
                               <StrategyTag label="أوامر حدية" />
                               <StrategyTag label="ربح من التذبذب" />
                               <StrategyTag label="بدون اتجاه" />
+                            </>
+                          )}
+                          {s === StrategyType.MEAN_REVERSION && (
+                            <>
+                              <StrategyTag label="نسبة فوز: 60-70%" />
+                              <StrategyTag label="TP: عند المتوسط" />
+                              <StrategyTag label="SL: 2x ATR" />
+                            </>
+                          )}
+                          {s === StrategyType.MOMENTUM_BREAKOUT && (
+                            <>
+                              <StrategyTag label="اختراقات قوية" />
+                              <StrategyTag label="TP: 3x ATR" />
+                              <StrategyTag label="SL: 1.5x ATR" />
+                            </>
+                          )}
+                          {s === StrategyType.DCA && (
+                            <>
+                              <StrategyTag label="تراكم منتظم" />
+                              <StrategyTag label="نسبة فوز: 70-80%" />
+                              <StrategyTag label="شراء ذكي" />
+                            </>
+                          )}
+                          {s === StrategyType.VWAP_RSI && (
+                            <>
+                              <StrategyTag label="VWAP + RSI" />
+                              <StrategyTag label="TP: 2.5x ATR" />
+                              <StrategyTag label="إدخالات محترفة" />
                             </>
                           )}
                         </div>
@@ -739,6 +786,34 @@ export default function AutonomousTraderPage() {
                         <StrategyTag label={`مستويات: ${config.strategyParams?.gridLevels || '5'}`} />
                         <StrategyTag label={`تباعد: ${config.strategyParams?.gridSpacingPercent || '1'}%`} />
                         <StrategyTag label={`كمية/مستوى: ${config.strategyParams?.gridQuantityPerLevel || '0.01'}`} />
+                      </>
+                    )}
+                    {config.strategy === StrategyType.MEAN_REVERSION && (
+                      <>
+                        <StrategyTag label={`RSI شراء: <${config.strategyParams?.meanReversionRsiOversold || '30'}`} />
+                        <StrategyTag label={`RSI بيع: >${config.strategyParams?.meanReversionRsiOverbought || '70'}`} />
+                        <StrategyTag label={`انحراف: ${config.strategyParams?.meanReversionDeviation || '1.5'}σ`} />
+                      </>
+                    )}
+                    {config.strategy === StrategyType.MOMENTUM_BREAKOUT && (
+                      <>
+                        <StrategyTag label="اختراقات BB" />
+                        <StrategyTag label="زخم RSI + MACD" />
+                        <StrategyTag label="SL: 1.5x ATR" />
+                      </>
+                    )}
+                    {config.strategy === StrategyType.DCA && (
+                      <>
+                        <StrategyTag label={`حجم أساسي: ${config.strategyParams?.dcaBaseMultiplier || '1'}x`} />
+                        <StrategyTag label={`خصم RSI: <${config.strategyParams?.dcaDiscountRsi || '40'}`} />
+                        <StrategyTag label={`تخطي RSI: >${config.strategyParams?.dcaSkipRsi || '70'}`} />
+                      </>
+                    )}
+                    {config.strategy === StrategyType.VWAP_RSI && (
+                      <>
+                        <StrategyTag label="VWAP = EMA21" />
+                        <StrategyTag label={`RSI شراء: ${config.strategyParams?.vwapRsiBuyMin || '50'}-${config.strategyParams?.vwapRsiBuyMax || '70'}`} />
+                        <StrategyTag label={`RSI بيع: ${config.strategyParams?.vwapRsiSellMin || '30'}-${config.strategyParams?.vwapRsiSellMax || '50'}`} />
                       </>
                     )}
                   </div>

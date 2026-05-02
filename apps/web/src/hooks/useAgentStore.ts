@@ -17,6 +17,10 @@ export enum StrategyType {
   SCALPING = 'SCALPING',
   SWING = 'SWING',
   GRID = 'GRID',
+  MEAN_REVERSION = 'MEAN_REVERSION',
+  MOMENTUM_BREAKOUT = 'MOMENTUM_BREAKOUT',
+  DCA = 'DCA',
+  VWAP_RSI = 'VWAP_RSI',
 }
 
 export interface StrategyParams {
@@ -32,6 +36,24 @@ export interface StrategyParams {
   gridQuantityPerLevel?: number
   gridUpperBound?: number
   gridLowerBound?: number
+  // Mean Reversion
+  meanReversionRsiOversold?: number
+  meanReversionRsiOverbought?: number
+  meanReversionBbLower?: number
+  meanReversionBbUpper?: number
+  meanReversionDeviation?: number
+  // Momentum Breakout
+  momentumBreakoutAtrMultiplier?: number
+  momentumBreakoutVolumeThreshold?: number
+  // DCA
+  dcaBaseMultiplier?: number
+  dcaDiscountRsi?: number
+  dcaSkipRsi?: number
+  // VWAP + RSI
+  vwapRsiBuyMin?: number
+  vwapRsiBuyMax?: number
+  vwapRsiSellMin?: number
+  vwapRsiSellMax?: number
 }
 
 export interface AgentConfig {
@@ -266,7 +288,7 @@ export const useAgentStore = create<AgentStore>()(
         const { selectedCredentialId, selectedSymbols } = get()
 
         // Ensure strategy is valid
-        const validStrategies = [StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID]
+        const validStrategies = [StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI]
         const safeStrategy = validStrategies.includes(strategy) ? strategy : StrategyType.SCALPING
 
         // Auto-fetch credentials if not set
@@ -281,10 +303,20 @@ export const useAgentStore = create<AgentStore>()(
         const isPaperMode = !currentCredentialId || currentCredentialId.trim() === ''
 
         set({ loading: true, error: null })
+        const strategyNameMap: Record<string, string> = {
+          SCALPING: 'السكالبينغ',
+          SWING: 'السوينغ',
+          GRID: 'الشبكة',
+          MEAN_REVERSION: 'عودة للمتوسط',
+          MOMENTUM_BREAKOUT: 'اختراق الزخم',
+          DCA: 'متوسط التكلفة',
+          VWAP_RSI: 'VWAP + RSI',
+        }
+        const strategyLabel = strategyNameMap[strategy] || strategy
         if (isPaperMode) {
-          get().addLog(`جارٍ تفعيل الوكيل باستراتيجية ${safeStrategy === StrategyType.SCALPING ? 'السكالبينغ' : safeStrategy === StrategyType.SWING ? 'السوينغ' : 'الشبكة'} (تداول ورقي)...`, 'info')
+          get().addLog(`جارٍ تفعيل الوكيل باستراتيجية ${strategyLabel} (تداول ورقي)...`, 'info')
         } else {
-          get().addLog(`جارٍ تفعيل الوكيل باستراتيجية ${safeStrategy === StrategyType.SCALPING ? 'السكالبينغ' : safeStrategy === StrategyType.SWING ? 'السوينغ' : 'الشبكة'}...`, 'info')
+          get().addLog(`جارٍ تفعيل الوكيل باستراتيجية ${strategyLabel}...`, 'info')
         }
         try {
           const payload: Record<string, any> = {
@@ -366,7 +398,16 @@ export const useAgentStore = create<AgentStore>()(
 
       changeStrategy: async (strategy, params) => {
         set({ loading: true, error: null })
-        const strategyName = strategy === StrategyType.SCALPING ? 'السكالبينغ' : strategy === StrategyType.SWING ? 'السوينغ' : 'الشبكة'
+        const strategyNameMap: Record<string, string> = {
+          SCALPING: 'السكالبينغ',
+          SWING: 'السوينغ',
+          GRID: 'الشبكة',
+          MEAN_REVERSION: 'عودة للمتوسط',
+          MOMENTUM_BREAKOUT: 'اختراق الزخم',
+          DCA: 'متوسط التكلفة',
+          VWAP_RSI: 'VWAP + RSI',
+        }
+        const strategyName = strategyNameMap[strategy] || strategy
         get().addLog(`🔄 تغيير الاستراتيجية إلى ${strategyName}...`, 'info')
         try {
           const res = await fetch('/api/agent/trader/strategy', {

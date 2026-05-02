@@ -8,6 +8,10 @@ import { BaseStrategy } from '../strategies/base-strategy';
 import { ScalpingStrategy } from '../strategies/scalping.strategy';
 import { SwingStrategy } from '../strategies/swing.strategy';
 import { GridStrategy } from '../strategies/grid.strategy';
+import { MeanReversionStrategy } from '../strategies/mean-reversion.strategy';
+import { MomentumBreakoutStrategy } from '../strategies/momentum-breakout.strategy';
+import { DCAStrategy } from '../strategies/dca.strategy';
+import { VWAPRSIStrategy } from '../strategies/vwap-rsi.strategy';
 
 /**
  * SignalEvaluatorService — Evaluates market data against strategies
@@ -94,6 +98,10 @@ export class SignalEvaluatorService {
       StrategyType.SCALPING,
       StrategyType.SWING,
       StrategyType.GRID,
+      StrategyType.MEAN_REVERSION,
+      StrategyType.MOMENTUM_BREAKOUT,
+      StrategyType.DCA,
+      StrategyType.VWAP_RSI,
     ];
 
     const signals: EvaluatedSignal[] = [];
@@ -157,6 +165,18 @@ export class SignalEvaluatorService {
         break;
       case StrategyType.GRID:
         strategy = new GridStrategy(params);
+        break;
+      case StrategyType.MEAN_REVERSION:
+        strategy = new MeanReversionStrategy(params);
+        break;
+      case StrategyType.MOMENTUM_BREAKOUT:
+        strategy = new MomentumBreakoutStrategy(params);
+        break;
+      case StrategyType.DCA:
+        strategy = new DCAStrategy(params);
+        break;
+      case StrategyType.VWAP_RSI:
+        strategy = new VWAPRSIStrategy(params);
         break;
       default:
         return null;

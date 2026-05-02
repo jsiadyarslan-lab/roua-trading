@@ -86,7 +86,7 @@ export class AutonomousTraderAgentController {
     }
 
     // Validate strategy — fallback to SCALPING if invalid
-    const validStrategies = [StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID];
+    const validStrategies = [StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI];
     if (!dto.strategy || !validStrategies.includes(dto.strategy)) {
       this.logger.warn(`[startAgent] Invalid strategy "${dto.strategy}" — defaulting to SCALPING`);
       dto.strategy = StrategyType.SCALPING;

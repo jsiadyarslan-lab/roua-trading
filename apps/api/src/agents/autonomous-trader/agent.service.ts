@@ -1138,7 +1138,33 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         return {
           gridLevels: 5,
           gridSpacingPercent: 0.5,
-          gridQuantityPerLevel: undefined, // Will be calculated by risk manager based on portfolio
+          gridQuantityPerLevel: undefined,
+        };
+      case StrategyType.MEAN_REVERSION:
+        return {
+          meanReversionRsiOversold: 30,
+          meanReversionRsiOverbought: 70,
+          meanReversionBbLower: 0.15,
+          meanReversionBbUpper: 0.85,
+          meanReversionDeviation: 1.5,
+        };
+      case StrategyType.MOMENTUM_BREAKOUT:
+        return {
+          momentumBreakoutAtrMultiplier: 1.5,
+          momentumBreakoutVolumeThreshold: 0,
+        };
+      case StrategyType.DCA:
+        return {
+          dcaBaseMultiplier: 1.0,
+          dcaDiscountRsi: 40,
+          dcaSkipRsi: 70,
+        };
+      case StrategyType.VWAP_RSI:
+        return {
+          vwapRsiBuyMin: 50,
+          vwapRsiBuyMax: 70,
+          vwapRsiSellMin: 30,
+          vwapRsiSellMax: 50,
         };
       default:
         return {};

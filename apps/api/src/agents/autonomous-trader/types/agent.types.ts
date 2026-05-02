@@ -24,6 +24,10 @@ export enum StrategyType {
   SCALPING = 'SCALPING',
   SWING = 'SWING',
   GRID = 'GRID',
+  MEAN_REVERSION = 'MEAN_REVERSION',
+  MOMENTUM_BREAKOUT = 'MOMENTUM_BREAKOUT',
+  DCA = 'DCA',
+  VWAP_RSI = 'VWAP_RSI',
 }
 
 export enum StrategySignal {
@@ -82,6 +86,28 @@ export interface StrategyParams {
   gridQuantityPerLevel?: number;
   gridUpperBound?: number;
   gridLowerBound?: number;
+
+  // Mean Reversion
+  meanReversionRsiOversold?: number;
+  meanReversionRsiOverbought?: number;
+  meanReversionBbLower?: number;
+  meanReversionBbUpper?: number;
+  meanReversionDeviation?: number;
+
+  // Momentum Breakout
+  momentumBreakoutAtrMultiplier?: number;
+  momentumBreakoutVolumeThreshold?: number;
+
+  // DCA
+  dcaBaseMultiplier?: number;
+  dcaDiscountRsi?: number;
+  dcaSkipRsi?: number;
+
+  // VWAP + RSI
+  vwapRsiBuyMin?: number;
+  vwapRsiBuyMax?: number;
+  vwapRsiSellMin?: number;
+  vwapRsiSellMax?: number;
 }
 
 // ── Market Analysis ──
@@ -268,7 +294,7 @@ export class StrategyParamsDto implements StrategyParams {
 }
 
 export class StartAgentDto {
-  @IsIn(['SCALPING', 'SWING', 'GRID'])
+  @IsIn(['SCALPING', 'SWING', 'GRID', 'MEAN_REVERSION', 'MOMENTUM_BREAKOUT', 'DCA', 'VWAP_RSI'])
   strategy: StrategyType;
 
   @IsOptional()
@@ -311,7 +337,7 @@ export class StartAgentDto {
 }
 
 export class ChangeStrategyDto {
-  @IsIn(['SCALPING', 'SWING', 'GRID'])
+  @IsIn(['SCALPING', 'SWING', 'GRID', 'MEAN_REVERSION', 'MOMENTUM_BREAKOUT', 'DCA', 'VWAP_RSI'])
   strategy: StrategyType;
 
   @IsOptional()
@@ -386,7 +412,7 @@ export class UpdateAgentSettingsDto {
 
   // Default Strategy
   @IsOptional()
-  @IsIn(['SCALPING', 'SWING', 'GRID'])
+  @IsIn(['SCALPING', 'SWING', 'GRID', 'MEAN_REVERSION', 'MOMENTUM_BREAKOUT', 'DCA', 'VWAP_RSI'])
   defaultStrategy?: string;
 
   // Scalping Params

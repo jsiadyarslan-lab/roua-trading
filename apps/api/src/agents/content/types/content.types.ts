@@ -240,7 +240,7 @@ export enum ContentAgentStatus {
 
 import {
   IsOptional, IsString, IsEnum, IsArray,
-  IsBoolean, IsDateString, ValidateNested,
+  IsBoolean, IsDateString, ValidateNested, IsInt, Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -341,10 +341,14 @@ export class GetContentFeedDto {
 
   @IsOptional()
   @Type(() => Number)
+  @IsInt()
+  @Min(1)
   page?: number;
 
   @IsOptional()
   @Type(() => Number)
+  @IsInt()
+  @Min(1)
   limit?: number;
 
   @IsOptional()

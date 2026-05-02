@@ -318,7 +318,7 @@ export default function MobileChartPage() {
       flexDirection: 'column',
       overflow: 'hidden',
       zIndex: 40,
-      paddingBottom: 80,
+      paddingBottom: 60,
     }}>
 
       {/* ═══ TOP BAR: Pair Name + Price + Trade Button ═══ */}
@@ -498,8 +498,7 @@ export default function MobileChartPage() {
         flexShrink: 0,
         display: 'flex',
         gap: 6,
-        padding: '6px 8px',
-        paddingBottom: 'calc(6px + env(safe-area-inset-bottom))',
+        padding: '8px 8px',
         background: 'rgba(10,10,12,0.95)',
         backdropFilter: 'blur(10px)',
         borderTop: '1px solid rgba(0,212,255,0.1)',

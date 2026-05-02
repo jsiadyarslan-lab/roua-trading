@@ -279,6 +279,7 @@ export default function TradingPage() {
       overflow: 'hidden',
       direction: 'rtl',
       zIndex: 40,
+      paddingBottom: 60,
     }}>
 
       {/* ── Header (fixed at top) ── */}
@@ -666,7 +667,7 @@ export default function TradingPage() {
       {/* ── Fixed Bottom — Buy/Sell Buttons (ALWAYS VISIBLE) ── */}
       <div style={{
         flexShrink: 0,
-        padding: '6px 16px calc(8px + env(safe-area-inset-bottom))',
+        padding: '8px 16px',
         borderTop: '0.5px solid rgba(255,255,255,0.08)',
         background: 'rgba(20,20,22,0.95)',
         backdropFilter: 'blur(20px)',

@@ -407,3 +407,21 @@ Stage Summary:
 - Failed test branches auto-deleted
 - Telegram notifications for PR approval/rejection
 - Pushed to https://github.com/jsiadyarslan-lab/roua-trading (main branch)
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix 3 bugs in AI Council report of Roua Trading platform
+
+Work Log:
+- Read and analyzed 10+ files related to AI Council/Orchestrator
+- Identified the 3 bugs and their exact locations in the code
+- Fix 1: Updated consensus score calculation in ai-orchestrator.service.ts and ai-direct-calls.ts
+- Fix 2: Updated system prompts for Bedrock, HuggingFace, Ollama in both NestJS services and direct calls
+- Fix 3: Added live market data fetching (price, RSI, MACD) with Binance API integration
+- Verified TypeScript compilation passes without errors
+- Pushed changes to GitHub (commit 40bbe22)
+
+Stage Summary:
+- 5 files modified: ai-orchestrator.service.ts, bedrock.service.ts, huggingface.service.ts, ollama.service.ts, ai-direct-calls.ts
+- 230 lines added, 28 lines removed
+- All 3 fixes implemented and pushed to main branch

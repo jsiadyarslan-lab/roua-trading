@@ -82,7 +82,7 @@ export class AIOrchestratorService {
   private readonly MODEL_KEY_MAP: Record<string, string[]> = {
     groq:        ['GROQ_API_KEY'],
     glm:         ['GLM_API_KEY'],
-    gemini:      ['GOOGLE_AI_STUDIO_API_KEY'],
+    gemini:      ['GOOGLE_AI_STUDIO_API_KEY', 'GEMINI_API_KEY'],  // FIX: Check both env var names
     huggingface: ['HUGGINGFACE_API_KEY', 'HF_API_KEY', 'OPENROUTER_API_KEY'],  // OpenRouter is fallback provider
     ollama:      ['OLLAMA_API_KEY'],  // Also checks OLLAMA_BASE_URL reachability
     bedrock:     ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'],
@@ -662,7 +662,7 @@ export class AIOrchestratorService {
   }> {
     const models = [
       { id: 'groq', name: 'Groq/Llama 3.3 70B', keyEnv: 'GROQ_API_KEY' },
-      { id: 'gemini', name: 'Gemini 2.0 Flash', keyEnv: 'GOOGLE_AI_STUDIO_API_KEY' },
+      { id: 'gemini', name: 'Gemini 2.0 Flash', keyEnv: 'GOOGLE_AI_STUDIO_API_KEY', altKeyEnv: 'GEMINI_API_KEY' },
       { id: 'glm', name: 'GLM-4 (Zhipu AI)', keyEnv: 'GLM_API_KEY' },
       { id: 'huggingface', name: 'HuggingFace/Mistral-7B', keyEnv: 'HF_API_KEY' },  // Also checks OPENROUTER_API_KEY as fallback
       { id: 'ollama', name: 'Ollama/Qwen2.5', keyEnv: 'OLLAMA_API_KEY' },
@@ -679,12 +679,16 @@ export class AIOrchestratorService {
         let keyHint: string | undefined;
 
         // Show key presence (first 4 chars + ***) for debugging
+        // FIX: Also check altKeyEnv (e.g., GEMINI_API_KEY as alternative to GOOGLE_AI_STUDIO_API_KEY)
+        const altKeyEnv = (m as any).altKeyEnv as string | undefined;
         let keyValue = this.configService.get<string>(m.keyEnv, '') ||
+          (altKeyEnv ? this.configService.get<string>(altKeyEnv, '') : '') ||
           (m.id === 'bedrock' ? this.configService.get<string>('AWS_ACCESS_KEY_ID', '') : '');
         if (keyValue) {
           keyHint = `${keyValue.substring(0, 4)}***${keyValue.length > 8 ? keyValue.substring(keyValue.length - 4) : ''}`;
+          if (altKeyEnv) keyHint += ` (checked: ${m.keyEnv} or ${altKeyEnv})`;
         } else {
-          keyHint = '(empty)';
+          keyHint = `(empty — tried: ${m.keyEnv}${altKeyEnv ? ` and ${altKeyEnv}` : ''})`;
         }
 
         // For Ollama, also show the base URL

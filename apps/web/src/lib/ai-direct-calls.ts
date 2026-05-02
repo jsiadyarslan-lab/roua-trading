@@ -205,12 +205,13 @@ async function callGroq(prompt: string): Promise<DirectAIResponse> {
 }
 
 async function callGemini(prompt: string): Promise<DirectAIResponse> {
-  const apiKey = getKey('GOOGLE_AI_STUDIO_API_KEY')
-  if (!apiKey) return { model: 'Gemini/unavailable', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key' }
+  // FIX: Check both GOOGLE_AI_STUDIO_API_KEY and GEMINI_API_KEY
+  const apiKey = getKey('GOOGLE_AI_STUDIO_API_KEY') || getKey('GEMINI_API_KEY')
+  if (!apiKey) return { model: 'Gemini/unavailable', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key (tried GOOGLE_AI_STUDIO_API_KEY and GEMINI_API_KEY)' }
 
   const start = Date.now()
-  // FIX: Model fallback chain — try multiple model names since availability varies
-  const modelCandidates = ['gemini-2.5-flash', 'gemini-2.0-flash-001', 'gemini-1.5-flash', 'gemini-2.0-flash-lite']
+  // FIX: Model fallback chain — updated model names to match current Google AI Studio availability
+  const modelCandidates = ['gemini-2.5-flash-preview-04-17', 'gemini-2.0-flash', 'gemini-2.0-flash-001', 'gemini-1.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-8b']
   
   for (const model of modelCandidates) {
     try {
@@ -293,36 +294,100 @@ async function callGLM(prompt: string): Promise<DirectAIResponse> {
 }
 
 async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
-  const apiKey = getKey('HUGGINGFACE_API_KEY')
-  if (!apiKey) return { model: 'HuggingFace/Mistral-7B', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key' }
+  // FIX: Check both HUGGINGFACE_API_KEY and HF_API_KEY, then try OpenRouter as fallback
+  const hfApiKey = getKey('HUGGINGFACE_API_KEY') || getKey('HF_API_KEY')
+  const openrouterApiKey = getKey('OPENROUTER_API_KEY')
+
+  if (!hfApiKey && !openrouterApiKey) {
+    return { model: 'HuggingFace/Mistral-7B', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key (tried HUGGINGFACE_API_KEY, HF_API_KEY, OPENROUTER_API_KEY)' }
+  }
 
   const start = Date.now()
-  try {
-    const fullPrompt = `<s>[INST] أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير أنماط مالي. كن موجزاً ومبنياً على البيانات. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"\n\n${prompt} [/INST]`
-    const res = await fetch('https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        inputs: fullPrompt,
-        parameters: { max_new_tokens: 512, temperature: 0.3, do_sample: true, return_full_text: false },
-      }),
-      signal: AbortSignal.timeout(MODEL_TIMEOUT),
-    })
 
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '')
-      return { model: 'HuggingFace/Mistral-7B', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `HF ${res.status}: ${errBody.slice(0, 150)}` }
+  // ── Strategy 1: HuggingFace Auto-Router (if HF key available) ──
+  if (hfApiKey) {
+    const hfModelCandidates = ['Qwen/Qwen2.5-7B-Instruct', 'mistralai/Mistral-7B-Instruct-v0.3', 'HuggingFaceH4/zephyr-7b-beta']
+
+    for (const model of hfModelCandidates) {
+      try {
+        // FIX: Use auto-router URL instead of direct model URL
+        // Auto-router: router.huggingface.co/v1/chat/completions
+        // Direct:      api-inference.huggingface.co/models/... (limited, often fails)
+        const res = await fetch('https://router.huggingface.co/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${hfApiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير أنماط مالي. كن موجزاً ومبنياً على البيانات. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+              { role: 'user', content: prompt },
+            ],
+            max_tokens: 1024,
+            temperature: 0.3,
+          }),
+          signal: AbortSignal.timeout(MODEL_TIMEOUT),
+        })
+
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => '')
+          if (res.status === 404 || res.status === 429) continue
+          if (res.status === 401) break // Auth error — try OpenRouter instead
+          continue
+        }
+
+        const data = await res.json()
+        const content = data.choices?.[0]?.message?.content || ''
+        if (content.trim().length > 0) {
+          return { model: `HuggingFace/${model.split('/').pop()}`, content, confidence: calcConfidence(content, 'huggingface'), processingTimeMs: Date.now() - start, success: true }
+        }
+      } catch {
+        continue
+      }
     }
-
-    const data = await res.json()
-    let content = ''
-    if (Array.isArray(data) && data.length > 0) content = data[0].generated_text || ''
-    else if (typeof data === 'string') content = data
-    content = content.replace(/\[\/INST\]/g, '').trim()
-    return { model: 'HuggingFace/Mistral-7B', content, confidence: calcConfidence(content, 'huggingface'), processingTimeMs: Date.now() - start, success: content.trim().length > 0 }
-  } catch (e: any) {
-    return { model: 'HuggingFace/Mistral-7B', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: e.message }
   }
+
+  // ── Strategy 2: OpenRouter fallback (if OR key available) ──
+  if (openrouterApiKey) {
+    const orModels = ['meta-llama/llama-3.1-8b-instruct:free', 'qwen/qwen-2.5-7b-instruct:free', 'google/gemma-2-9b-it:free']
+    for (const model of orModels) {
+      try {
+        const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openrouterApiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://roua-trading-production.up.railway.app',
+            'X-Title': 'Roua Trading AI',
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير أنماط مالي. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+              { role: 'user', content: prompt },
+            ],
+            max_tokens: 1024,
+            temperature: 0.3,
+          }),
+          signal: AbortSignal.timeout(MODEL_TIMEOUT),
+        })
+
+        if (!res.ok) {
+          if (res.status === 404 || res.status === 429) continue
+          break
+        }
+
+        const data = await res.json()
+        const content = data.choices?.[0]?.message?.content || ''
+        if (content.trim().length > 0) {
+          return { model: `OpenRouter/${model.split('/').pop()}`, content, confidence: calcConfidence(content, 'huggingface'), processingTimeMs: Date.now() - start, success: true }
+        }
+      } catch {
+        continue
+      }
+    }
+  }
+
+  return { model: 'HuggingFace/Mistral-7B', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: 'All HuggingFace/OpenRouter models failed' }
 }
 
 /**
@@ -909,9 +974,9 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
   // Calculate expected models (how many had keys configured)
   const expectedDirectModels = activeModelCalls.filter(mc => {
     if (mc.modelName === 'Groq') return !!getKey('GROQ_API_KEY')
-    if (mc.modelName === 'Gemini') return !!getKey('GOOGLE_AI_STUDIO_API_KEY')
+    if (mc.modelName === 'Gemini') return !!(getKey('GOOGLE_AI_STUDIO_API_KEY') || getKey('GEMINI_API_KEY'))
     if (mc.modelName === 'GLM-4') return !!getKey('GLM_API_KEY')
-    if (mc.modelName === 'HuggingFace') return !!getKey('HUGGINGFACE_API_KEY')
+    if (mc.modelName === 'HuggingFace') return !!(getKey('HUGGINGFACE_API_KEY') || getKey('HF_API_KEY') || getKey('OPENROUTER_API_KEY'))
     if (mc.modelName === 'Ollama') return shouldTryOllama
     if (mc.modelName === 'Bedrock') return !!(getKey('AWS_ACCESS_KEY_ID') && getKey('AWS_SECRET_ACCESS_KEY'))
     if (mc.modelName === 'OpenRouter') return !!getKey('OPENROUTER_API_KEY')
@@ -959,9 +1024,9 @@ export function getAvailableModelKeys(): { model: string; hasKey: boolean; note?
 
   return [
     { model: 'Groq', hasKey: !!getKey('GROQ_API_KEY') },
-    { model: 'Gemini', hasKey: !!getKey('GOOGLE_AI_STUDIO_API_KEY') },
+    { model: 'Gemini', hasKey: !!(getKey('GOOGLE_AI_STUDIO_API_KEY') || getKey('GEMINI_API_KEY')), note: 'Accepts GOOGLE_AI_STUDIO_API_KEY or GEMINI_API_KEY' },
     { model: 'GLM-4', hasKey: !!getKey('GLM_API_KEY') },
-    { model: 'HuggingFace', hasKey: !!getKey('HUGGINGFACE_API_KEY') },
+    { model: 'HuggingFace', hasKey: !!(getKey('HUGGINGFACE_API_KEY') || getKey('HF_API_KEY') || getKey('OPENROUTER_API_KEY')), note: 'Accepts HUGGINGFACE_API_KEY, HF_API_KEY, or uses OPENROUTER_API_KEY as fallback' },
     {
       model: 'Ollama',
       hasKey: !ollamaSkipped && (!!getKey('OLLAMA_API_KEY') || !isLocalhostUrl(ollamaBaseUrl)),

@@ -530,10 +530,11 @@ export default function AIPage() {
         {/* AI Models Status */}
         <div className="ai-model-status" style={{ display: 'flex', gap: 6 }}>
           {[
-            { name: 'Gemini', color: T.cyan, key: 'GOOGLE_AI_STUDIO_API_KEY' },
+            { name: 'Gemini', color: T.cyan, key: 'GEMINI_API_KEY' },  // Also checks GOOGLE_AI_STUDIO_API_KEY
             { name: 'Groq', color: T.blue, key: 'GROQ_API_KEY' },
             { name: 'GLM-4', color: T.amber, key: 'GLM_API_KEY' },
-            { name: 'HF', color: T.green, key: 'HUGGINGFACE_API_KEY' },
+            { name: 'HF', color: T.green, key: 'HF_API_KEY' },  // Also checks HUGGINGFACE_API_KEY, OPENROUTER_API_KEY
+            { name: 'OpenRouter', color: T.purple, key: 'OPENROUTER_API_KEY' },
             { name: 'Ollama', color: '#a78bfa', key: 'OLLAMA_API_KEY' },
             { name: 'Bedrock', color: '#ff9900', key: 'AWS_ACCESS_KEY_ID' },
           ].map(m => {

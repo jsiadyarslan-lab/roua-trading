@@ -642,11 +642,12 @@ async function callBedrock(prompt: string): Promise<DirectAIResponse> {
         body = { prompt: prompt, max_gen_len: 1024, temperature: 0.3 }
       }
 
-      // FIX: Do NOT encode the model ID in the URL path — AWS Bedrock expects
-      // the raw model ID with colons (e.g., anthropic.claude-3-5-sonnet-20241022-v2:0).
-      // encodeURIComponent breaks the URL by encoding the colon to %3A,
-      // which causes a 403 signature mismatch error.
-      const endpoint = `https://bedrock-runtime.${region}.amazonaws.com/model/${modelId}/invoke`
+      // FIX: AWS Bedrock requires the model ID to be URL-encoded in the HTTP path
+      // (colons must be %3A). However, the SigV4 canonical URI must use the EXACT
+      // same encoded path (no double-encoding). So we encode the model ID in the URL,
+      // then let the URL parser give us the pathname for SigV4 signing.
+      const encodedModelId = encodeURIComponent(modelId)
+      const endpoint = `https://bedrock-runtime.${region}.amazonaws.com/model/${encodedModelId}/invoke`
       const headers = await signAwsRequestV4(endpoint, body, accessKeyId, secretAccessKey, sessionToken, region)
 
       const res = await fetch(endpoint, {
@@ -658,7 +659,9 @@ async function callBedrock(prompt: string): Promise<DirectAIResponse> {
 
       if (!res.ok) {
         const errBody = await res.text().catch(() => '')
-        // 403 = IAM lacks permission or model not enabled, try next model
+        // 403 = IAM lacks permission, model not enabled, or signing error
+        // Log the error for diagnostics but continue to next model
+        console.warn(`[Bedrock] Model ${modelId} failed (${res.status}): ${errBody.slice(0, 200)}`)
         if (res.status === 403 || res.status === 404) continue
         // 429 = throttled, try next
         if (res.status === 429) continue

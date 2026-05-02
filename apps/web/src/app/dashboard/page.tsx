@@ -1076,7 +1076,7 @@ export default function DashboardPage() {
           )}
 
           {/* Center Column: Mode Banner + Chart + Balance + Positions */}
-          <div className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0, minHeight: 0 }}>
+          <div className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, minHeight: 0 }}>
             {/* Mode Banner */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
@@ -1118,155 +1118,14 @@ export default function DashboardPage() {
               )}
             </div>
             {/* Chart Panel */}
-            <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
-              <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden' }}>
+            <div className="panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none' }}>
+              <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(26, 29, 41, 0.65)' }}>
                 <RouaChart
                   currentPrice={currentPrice}
                   isChartFullscreen={chartFullscreen}
                   onToggleChartFullscreen={toggleChartFullscreen}
                 />
               </div>
-              {/* ── Desktop Chart Legend Trade Buttons (TradingView-style) ── */}
-              {!tradeDialogOpen ? (
-                <div style={{
-                  position: 'absolute',
-                  top: 10,
-                  left: 10,
-                  zIndex: 20,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '4px 8px',
-                  borderRadius: 8,
-                  background: 'rgba(11,14,20,0.85)',
-                  backdropFilter: 'blur(12px)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  boxShadow: '0 2px 12px rgba(0,0,0,0.4)',
-                }}>
-                  {/* Symbol label in legend */}
-                  <span style={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: 11,
-                    fontWeight: 800,
-                    color: '#00D4FF',
-                    letterSpacing: '0.03em',
-                    padding: '0 4px',
-                  }}>{selectedSymbol}</span>
-                  <span style={{
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: 10,
-                    fontWeight: 600,
-                    color: '#8B92A8',
-                    borderRight: '1px solid rgba(255,255,255,0.1)',
-                    paddingRight: 8,
-                    marginRight: 2,
-                  }}>{formatQuotePrice(currentPrice)}</span>
-                  {/* BUY button — compact TradingView legend style */}
-                  <button
-                    type="button"
-                    onClick={() => setTradeDialogOpen(true)}
-                    title="شراء"
-                    aria-label="فتح نافذة الشراء"
-                    style={{
-                      padding: '4px 12px',
-                      borderRadius: 6,
-                      border: 'none',
-                      background: 'linear-gradient(135deg, #00FFA3, #10B981)',
-                      color: '#fff',
-                      fontFamily: "'Cairo', sans-serif",
-                      fontSize: 11,
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 3,
-                      boxShadow: '0 0 10px rgba(0,255,163,0.2)',
-                      transition: 'transform 0.1s ease, box-shadow 0.2s ease',
-                    }}
-                    onMouseDown={e => e.currentTarget.style.transform = 'scale(0.94)'}
-                    onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 16px rgba(0,255,163,0.35)' }}
-                    onMouseOut={e => { e.currentTarget.style.boxShadow = '0 0 10px rgba(0,255,163,0.2)' }}
-                  >
-                    <span style={{ fontSize: 9 }}>▲</span> شراء
-                  </button>
-                  {/* SELL button — compact TradingView legend style */}
-                  <button
-                    type="button"
-                    onClick={() => setTradeDialogOpen(true)}
-                    title="بيع"
-                    aria-label="فتح نافذة البيع"
-                    style={{
-                      padding: '4px 12px',
-                      borderRadius: 6,
-                      border: 'none',
-                      background: 'linear-gradient(135deg, #FF4757, #EF4444)',
-                      color: '#fff',
-                      fontFamily: "'Cairo', sans-serif",
-                      fontSize: 11,
-                      fontWeight: 800,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 3,
-                      boxShadow: '0 0 10px rgba(255,71,87,0.2)',
-                      transition: 'transform 0.1s ease, box-shadow 0.2s ease',
-                    }}
-                    onMouseDown={e => e.currentTarget.style.transform = 'scale(0.94)'}
-                    onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                    onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 0 16px rgba(255,71,87,0.35)' }}
-                    onMouseOut={e => { e.currentTarget.style.boxShadow = '0 0 10px rgba(255,71,87,0.2)' }}
-                  >
-                    <span style={{ fontSize: 9 }}>▼</span> بيع
-                  </button>
-                </div>
-              ) : (
-                /* Expanded trade panel overlay */
-                <div className="chart-trade-overlay">
-                  <div className="chart-trade-overlay__header">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{
-                        width: 28, height: 28, borderRadius: 8,
-                        background: 'linear-gradient(135deg, rgba(0,212,255,0.2), rgba(0,255,163,0.1))',
-                        border: '1px solid rgba(0,212,255,0.25)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        boxShadow: '0 0 10px rgba(0,212,255,0.12)',
-                      }}>
-                        <Zap size={12} color="#00D4FF" />
-                      </div>
-                      <div>
-                        <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 800, color: '#F0F2F5' }}>تنفيذ الأوامر</div>
-                        <div style={{ fontSize: 9, color: '#8B92A8', fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol} · {formatQuotePrice(currentPrice)}</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setTradeDialogOpen(false)}
-                      style={{
-                        width: 28, height: 28, borderRadius: 8,
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                        color: '#8B92A8', cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        transition: 'all 0.2s',
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; e.currentTarget.style.color = '#FF4757' }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = '#8B92A8' }}
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                  <div style={{ maxHeight: 'calc(100% - 52px)', overflowY: 'auto' }}>
-                    <QuickExecutionMini
-                      mobile={false}
-                      dataStatus={quoteStatus}
-                      lastUpdatedAt={activeQuote?.timestamp ?? null}
-                      sourceLabel={sourceLabel}
-                    />
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* Balance Card + Positions Panel */}

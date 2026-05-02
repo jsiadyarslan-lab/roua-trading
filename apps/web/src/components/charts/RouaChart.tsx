@@ -36,6 +36,53 @@ interface RouaChartProps {
   onToggleChartFullscreen?: () => void;
 }
 
+// ── Price-Synced Candle Timer Component ──
+function PriceSyncedTimer({ chart, currentPrice, countdown }: { chart: any, currentPrice: number, countdown: string }) {
+  const [y, setY] = useState<number | null>(null);
+
+  useEffect(() => {
+    const update = () => {
+      const coord = chart.getPriceCoordinate(currentPrice);
+      setY(coord);
+    };
+    update();
+    const unsub = chart.onVisibleRangeChange(update);
+    const interval = setInterval(update, 100); // More frequent for price follow
+    return () => { unsub(); clearInterval(interval); };
+  }, [chart, currentPrice]);
+
+  if (y === null) return null;
+
+  return (
+    <div 
+      style={{
+        position: 'absolute',
+        top: y + 10, // Just below the price line
+        right: 0,
+        zIndex: 5,
+        pointerEvents: 'none',
+        display: 'flex',
+        alignItems: 'center',
+        paddingRight: 60, // Align with price scale
+      }}
+    >
+      <div style={{
+        background: 'rgba(0,212,255,0.95)',
+        color: '#000',
+        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 10,
+        fontWeight: 900,
+        padding: '2px 6px',
+        borderRadius: 4,
+        boxShadow: '0 0 10px rgba(0,212,255,0.4)',
+        border: '1px solid rgba(255,255,255,0.2)',
+      }}>
+        {countdown}
+      </div>
+    </div>
+  );
+}
+
 export default function RouaChart({
   currentPrice = null,
   mobile = false,
@@ -760,27 +807,17 @@ export default function RouaChart({
               />
             )}
 
-          {/* ── Quick Trade Buttons (top-left, simple) ── */}
+          {/* ── Top Right Trading Controls ── */}
           {!mobile && currentPrice && (
-            <div className="absolute top-3 left-3 z-10 flex gap-2">
-              <button
-                onClick={() => {
-                  const { addTrade } = usePaperTradesStore.getState();
-                  addTrade({
-                    symbol: selectedSymbol,
-                    side: 'long',
-                    qty: lotSize,
-                    entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
-                    currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
-                    entryTime: Date.now(),
-                    strategy: 'quick',
-                    source: 'manual',
-                  });
-                }}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-lg text-sm font-bold"
-                title="شراء سريع"
-              >شراء</button>
-
+            <div 
+              className="absolute top-3 right-3 z-20 flex items-center gap-1.5 p-1.5 rounded-xl border"
+              style={{ 
+                background: 'rgba(11,14,20,0.85)', 
+                backdropFilter: 'blur(12px)',
+                borderColor: 'rgba(255,255,255,0.08)',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.4)'
+              }}
+            >
               <button
                 onClick={() => {
                   const { addTrade } = usePaperTradesStore.getState();
@@ -795,10 +832,68 @@ export default function RouaChart({
                     source: 'manual',
                   });
                 }}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-lg text-sm font-bold"
-                title="بيع سريع"
-              >بيع</button>
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-white font-bold transition-all"
+                style={{ 
+                  background: 'linear-gradient(135deg, #FF4757, #EF4444)',
+                  fontSize: 11,
+                  boxShadow: '0 0 12px rgba(255,71,87,0.2)'
+                }}
+                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 0 20px rgba(255,71,87,0.4)'}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = '0 0 12px rgba(255,71,87,0.2)'}
+              >
+                <span>بيع</span>
+                <span className="opacity-70 text-[9px]">▼</span>
+              </button>
+
+              <div className="flex flex-col items-center px-2 border-x border-white/10">
+                <span className="text-[8px] text-white/40 font-bold mb-0.5">LOT</span>
+                <input 
+                  type="number"
+                  value={lotSize}
+                  onChange={(e) => setLotSize(parseFloat(e.target.value) || 0.01)}
+                  step="0.01"
+                  min="0.01"
+                  className="w-12 bg-transparent text-center text-[12px] font-bold text-white outline-none"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                />
+              </div>
+
+              <button
+                onClick={() => {
+                  const { addTrade } = usePaperTradesStore.getState();
+                  addTrade({
+                    symbol: selectedSymbol,
+                    side: 'long',
+                    qty: lotSize,
+                    entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                    currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                    entryTime: Date.now(),
+                    strategy: 'quick',
+                    source: 'manual',
+                  });
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-white font-bold transition-all"
+                style={{ 
+                  background: 'linear-gradient(135deg, #00FFA3, #10B981)',
+                  fontSize: 11,
+                  boxShadow: '0 0 12px rgba(0,255,163,0.2)'
+                }}
+                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 0 20px rgba(0,255,163,0.4)'}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = '0 0 12px rgba(0,255,163,0.2)'}
+              >
+                <span className="opacity-70 text-[9px]">▲</span>
+                <span>شراء</span>
+              </button>
             </div>
+          )}
+
+          {/* ── Price-Synced Candle Timer (Desktop Only) ── */}
+          {!mobile && currentPrice && candleCountdown && (
+            <PriceSyncedTimer 
+              chart={chart}
+              currentPrice={currentPrice}
+              countdown={candleCountdown}
+            />
           )}
 
           {/* Candle countdown removed from chart — shown only in header via CrosshairOverlay */}

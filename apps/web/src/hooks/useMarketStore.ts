@@ -214,7 +214,7 @@ class BinanceWSManager {
 
   private scheduleReconnect() {
     if (this.destroyed) return
-    clearTimeout(this.debounceTimer)
+    if (this.debounceTimer) clearTimeout(this.debounceTimer)
     this.debounceTimer = setTimeout(() => {
       this.reconnect()
     }, 500) // 500ms debounce to batch multiple subscriptions

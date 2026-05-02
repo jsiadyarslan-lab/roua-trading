@@ -136,7 +136,7 @@ function FormInput({ label, icon, value, onChange, type = 'text', placeholder, e
           width: '100%', padding: '10px 14px', borderRadius: 10,
           background: T.surface, border: `1px solid ${error ? T.red : focused ? T.cyan + '40' : T.border}`,
           color: T.text, fontSize: 13, fontFamily: dir === 'ltr' ? "'JetBrains Mono', monospace" : "'Cairo', sans-serif",
-          outline: 'none', direction: dir || 'rtl', transition: 'all 0.2s',
+          outline: 'none', direction: (dir || 'rtl') as React.CSSProperties['direction'], transition: 'all 0.2s',
           boxShadow: focused ? `0 0 0 3px ${T.cyan}15` : 'none',
           boxSizing: 'border-box',
           letterSpacing: dir === 'ltr' ? '0.5px' : 'normal',

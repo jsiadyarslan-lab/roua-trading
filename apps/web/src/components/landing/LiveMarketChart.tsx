@@ -58,7 +58,7 @@ function ChartInner() {
   const initChart = useCallback(async () => {
     if (!containerRef.current) return
 
-    const { createChart, ColorType } = await import('lightweight-charts')
+    const { createChart, ColorType, CandlestickSeries } = await import('lightweight-charts')
 
     if (chartRef.current) {
       chartRef.current.remove()
@@ -96,7 +96,7 @@ function ChartInner() {
 
     chartRef.current = chart
 
-    const candleSeries = chart.addCandlestickSeries({
+    const candleSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#10B981',
       downColor: '#EF4444',
       borderUpColor: '#10B981',

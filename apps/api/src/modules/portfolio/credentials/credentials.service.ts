@@ -10,6 +10,7 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AuditService } from '../../../audit/audit.service';
 import * as crypto from 'crypto';
 import * as ccxt from 'ccxt';
+import { hostname } from 'os';
 
 /**
  * Credentials Service — Secure Exchange API Key Management
@@ -40,7 +41,7 @@ export class CredentialsService {
       // is equivalent to using a fixed key. Instead, derive a deployment-specific
       // salt from the combination of NEXTAUTH_SECRET + NODE_ENV + machine hostname.
       const fallback = this.configService.get<string>('NEXTAUTH_SECRET', 'roua-dev-key-change-in-production');
-      const deploymentId = `${fallback}:${this.configService.get('NODE_ENV', 'development')}:${require('os').hostname()}`;
+      const deploymentId = `${fallback}:${this.configService.get('NODE_ENV', 'development')}:${hostname()}`;
       const salt = crypto.createHash('sha256').update(deploymentId).digest().slice(0, 16);
       this.encryptionKey = crypto.scryptSync(fallback, salt, 32);
       this.logger.warn('⚠️ ENCRYPTION_KEY not set — using derived key from NEXTAUTH_SECRET+deployment. Set ENCRYPTION_KEY in production!');

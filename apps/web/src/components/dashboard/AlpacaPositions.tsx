@@ -7,7 +7,7 @@ import { usePaperTradesStore, type ClosedPaperTrade } from '@/hooks/usePaperTrad
 
 interface Position {
   symbol: string
-  rawSymbol: string
+  rawSymbol?: string
   side: string
   qty: number
   avgEntryPrice: number

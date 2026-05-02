@@ -17,7 +17,7 @@ import {
 } from '@/components/dashboard/DesktopContextPanels'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
-import { useAgentStore, AgentStatus } from '@/hooks/useAgentStore'
+import { useAgentStore, AgentStatus, StrategyType } from '@/hooks/useAgentStore'
 import { getDataStatus, getSourceLabel } from '@/lib/dashboard-live'
 
 export interface ActiveTabInfo {
@@ -297,11 +297,11 @@ function TradingAgentMini() {
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
         {!isRunning ? (
           <button
-            onClick={() => startAgent('SCALPING')}
+            onClick={() => startAgent(StrategyType.SCALPING)}
             disabled={loading}
             style={{
               flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-              padding: '10px', borderRadius: 8, border: 'none',
+              padding: '10px', borderRadius: 8,
               background: 'linear-gradient(135deg, #00FFA3, #10B981)',
               color: '#000', fontSize: 11, fontWeight: 800,
               fontFamily: "'Cairo', sans-serif", cursor: loading ? 'not-allowed' : 'pointer',
@@ -317,7 +317,7 @@ function TradingAgentMini() {
             disabled={loading}
             style={{
               flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-              padding: '10px', borderRadius: 8, border: 'none',
+              padding: '10px', borderRadius: 8,
               background: 'rgba(255,71,87,0.15)',
               color: '#FF4757', fontSize: 11, fontWeight: 800,
               fontFamily: "'Cairo', sans-serif", cursor: loading ? 'not-allowed' : 'pointer',

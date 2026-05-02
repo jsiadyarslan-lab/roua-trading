@@ -8,16 +8,6 @@ const apiTarget = process.env.API_INTERNAL_URL || "http://localhost:3001";
 const nextConfig: NextConfig = {
   // reactStrictMode enabled to detect memory leaks and side effects (BUG-002 fix)
   reactStrictMode: true,
-  // TODO: Remove ignoreBuildErrors after fixing Prisma schema drift in:
-  //   - admin/api/notifications/config (notificationConfig model missing)
-  //   - admin/api/settings (setting model missing)
-  //   - admin/api/subscriptions (subscription model missing)
-  //   - admin/api/signals/stats (orders relation missing from Signal model)
-  // Run: cd apps/api && npx prisma db push to sync schema
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-
   serverExternalPackages: [
     '@prisma/client',
     'prisma',

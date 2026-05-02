@@ -1,20 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { alpacaFetch } from '@/lib/alpacaClient'
-
-/**
- * Verify that the request has a valid roua_session cookie.
- */
-function requireAuth(request: NextRequest): NextResponse | null {
-  const sessionToken = request.cookies.get('roua_session')?.value
-  if (!sessionToken) {
-    // Return graceful empty response instead of 401 to prevent cascading UI errors
-    return NextResponse.json(
-      { success: false, error: 'الرجاء تسجيل الدخول أولاً' },
-      { status: 200 }
-    )
-  }
-  return null
-}
+import { verifyUserSession } from '@/lib/session-auth'
 
 /**
  * DELETE /api/alpaca/positions/[symbol]
@@ -24,8 +10,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ symbol: string }> }
 ) {
-  const authError = requireAuth(req)
-  if (authError) return authError
+  const auth = await verifyUserSession(req)
+  if (auth.error) return auth.error
 
   try {
     const resolvedParams = await params

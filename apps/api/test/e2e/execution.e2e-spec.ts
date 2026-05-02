@@ -13,6 +13,7 @@ import { OrderLifecycleService } from '../../src/modules/execution/services/orde
 import { ConnectionResilienceService } from '../../src/modules/execution/services/connection-resilience.service';
 import { RateLimiterService } from '../../src/modules/execution/services/rate-limiter.service';
 import { CredentialsService } from '../../src/modules/portfolio/credentials/credentials.service';
+import { PaperTradingAdapter } from '../../src/modules/execution/adapters/paper-trading.adapter';
 import {
   IBrokerAdapter,
   UnifiedOrder,
@@ -20,7 +21,6 @@ import {
   OrderExecutionStatus,
   UnifiedBalance,
 } from '../../src/modules/execution/adapters/base-adapter.interface';
-import { PaperTradingAdapter } from '../../src/modules/execution/adapters/base-adapter.interface';
 
 /**
  * Execution Engine E2E Tests
@@ -172,8 +172,7 @@ describe('Execution Engine (e2e)', () => {
     beforeEach(() => {
       // Create PaperTradingAdapter instance with mocked dependencies
       // We need to use the actual class for real behavior testing
-      const PaperTradingAdapterClass = require('../../src/modules/execution/adapters/paper-trading.adapter').PaperTradingAdapter;
-      paperAdapter = new PaperTradingAdapterClass(
+      paperAdapter = new PaperTradingAdapter(
         mockPrismaService,
         mockAggregatorService,
         mockRedisService,
@@ -274,7 +273,7 @@ describe('Execution Engine (e2e)', () => {
     let lifecycleService: OrderLifecycleService;
 
     beforeEach(async () => {
-      const module = await Test.createTestingModule({
+      const testingModule = await Test.createTestingModule({
         providers: [
           ConnectionResilienceService,
           ExecutionGatewayService,
@@ -306,9 +305,9 @@ describe('Execution Engine (e2e)', () => {
         ],
       }).compile();
 
-      resilienceService = module.get<ConnectionResilienceService>(ConnectionResilienceService);
-      gatewayService = module.get<ExecutionGatewayService>(ExecutionGatewayService);
-      lifecycleService = module.get<OrderLifecycleService>(OrderLifecycleService);
+      resilienceService = testingModule.get<ConnectionResilienceService>(ConnectionResilienceService);
+      gatewayService = testingModule.get<ExecutionGatewayService>(ExecutionGatewayService);
+      lifecycleService = testingModule.get<OrderLifecycleService>(OrderLifecycleService);
     });
 
     it('should fall back to REST polling when Redis is unavailable', async () => {
@@ -366,7 +365,7 @@ describe('Execution Engine (e2e)', () => {
     let rateLimiter: RateLimiterService;
 
     beforeEach(async () => {
-      const module = await Test.createTestingModule({
+      const testingModule = await Test.createTestingModule({
         providers: [
           RateLimiterService,
           {
@@ -380,7 +379,7 @@ describe('Execution Engine (e2e)', () => {
         ],
       }).compile();
 
-      rateLimiter = module.get<RateLimiterService>(RateLimiterService);
+      rateLimiter = testingModule.get<RateLimiterService>(RateLimiterService);
 
       // Reset rate limit mock
       mockRedisService.checkRateLimit.mockReset();
@@ -450,7 +449,7 @@ describe('Execution Engine (e2e)', () => {
     let gatewayService: ExecutionGatewayService;
 
     beforeEach(async () => {
-      const module = await Test.createTestingModule({
+      const testingModule = await Test.createTestingModule({
         providers: [
           ExecutionGatewayService,
           {
@@ -476,7 +475,7 @@ describe('Execution Engine (e2e)', () => {
         ],
       }).compile();
 
-      gatewayService = module.get<ExecutionGatewayService>(ExecutionGatewayService);
+      gatewayService = testingModule.get<ExecutionGatewayService>(ExecutionGatewayService);
     });
 
     it('should reject credentials with withdraw/transfer permissions', async () => {
@@ -539,7 +538,7 @@ describe('Execution Engine (e2e)', () => {
     let lifecycleService: OrderLifecycleService;
 
     beforeEach(async () => {
-      const module = await Test.createTestingModule({
+      const testingModule = await Test.createTestingModule({
         providers: [
           OrderLifecycleService,
           {
@@ -553,7 +552,7 @@ describe('Execution Engine (e2e)', () => {
         ],
       }).compile();
 
-      lifecycleService = module.get<OrderLifecycleService>(OrderLifecycleService);
+      lifecycleService = testingModule.get<OrderLifecycleService>(OrderLifecycleService);
 
       // Reset mocks
       mockPrismaService.order.update.mockReset();

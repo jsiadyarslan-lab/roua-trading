@@ -190,7 +190,7 @@ function LoginForm() {
           userVerification: 'preferred',
           rpId: window.location.hostname,
           allowCredentials: challengeData.allowCredentials?.map((c: any) => ({
-            id: Uint8Array.from(atob(c.id), (ch: number) => ch),
+            id: Uint8Array.from(atob(c.id), (ch) => ch.charCodeAt(0)),
             type: c.type || 'public-key',
             transports: c.transports || ['internal'],
           })),

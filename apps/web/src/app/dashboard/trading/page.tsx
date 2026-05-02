@@ -61,10 +61,10 @@ interface Position {
   entryPrice: number
   currentPrice: number
   unrealizedPnl: number
-  exchange: string
+  exchange?: string
   stopLoss?: number
   takeProfit?: number
-  openedAt: string
+  openedAt?: string
 }
 
 interface Order {

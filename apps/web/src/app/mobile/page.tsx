@@ -72,7 +72,7 @@ function NewsTicker() {
 
   if (loading || news.length === 0) return (
     <div style={{ height: 32, marginTop: 4, marginBottom: 12, padding: '0 20px' }}>
-      <div style={{ height: '100%', borderRadius: 16, background: 'rgba(255,255,255,0.03)', animate: 'pulse' }} />
+      <div style={{ height: '100%', borderRadius: 16, background: 'rgba(255,255,255,0.03)' }} />
     </div>
   )
 
@@ -340,7 +340,7 @@ export default function MobileHomePage() {
     fetchConsensus()
   }, [])
 
-  const openPositions = trades.filter(t => t.status === 'open' || t.status === 'active')
+  const openPositions = trades
 
   // Pull-to-refresh handler
   const handleRefresh = useCallback(async () => {

@@ -60,41 +60,39 @@ export function fromAlpacaSymbol(alpacaSym: string): string {
 }
 
 function createFallbackResponse(path: string): Response {
-  // When Alpaca keys are not configured, return graceful 200 instead of 503
-  // to prevent browser console error flooding. The frontend handles the
-  // fallback chain (NestJS → Alpaca → defaults) properly.
+  // Production trading must fail loudly when broker credentials are absent.
+  // Returning 200 here makes the UI look healthy while execution is disabled.
   const isPositions = path.includes('/positions')
   const isAccount = path.includes('/account')
+  const payload = {
+    success: false,
+    offline: true,
+    error: 'ALPACA_CREDENTIALS_NOT_CONFIGURED',
+  }
 
   if (isPositions) {
     return NextResponse.json(
       {
-        success: false,
-        offline: true,
+        ...payload,
         data: [],
       },
-      { status: 200 }
+      { status: 503 }
     )
   }
 
   if (isAccount) {
     return NextResponse.json(
       {
-        success: false,
-        offline: true,
+        ...payload,
         data: null,
       },
-      { status: 200 }
+      { status: 503 }
     )
   }
 
   return NextResponse.json(
-    {
-      success: false,
-      offline: true,
-      error: 'Alpaca credentials not configured',
-    },
-    { status: 200 }
+    payload,
+    { status: 503 }
   )
 }
 

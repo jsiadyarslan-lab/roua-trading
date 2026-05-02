@@ -207,7 +207,7 @@ export function BotEngine() {
         }
 
         const maxOpenPositions = useBotStore.getState().settings.maxOpenPositions
-        const cooldownMs = (useBotStore.getState().settings.cooldownPeriod || 60) * 1000
+        const cooldownMs = 60 * 1000
 
         const res = await fetch('/api/market-scan', { cache: 'no-store' })
         const payload = await res.json()
@@ -326,7 +326,7 @@ export function BotEngine() {
       window.clearTimeout(startupDelay)
       clearInterval(interval)
     }
-  }, [hydrated, isOn, settings.confLimit, settings.riskPct, settings.strategy, settings.useAIConsensus, settings.maxDailyLoss, settings.maxOpenPositions, settings.cooldownPeriod, settings.maxDrawdown, addLog, addNotification, addPaperTrade, updatePaperTradePrice, closePaperTrade, patchStats, setEngineState])
+  }, [hydrated, isOn, settings.confLimit, settings.riskPct, settings.strategy, settings.useAIConsensus, settings.maxDailyLoss, settings.maxOpenPositions, settings.maxDrawdown, addLog, addNotification, addPaperTrade, updatePaperTradePrice, closePaperTrade, patchStats, setEngineState])
 
   const shouldExecuteSignal = (signal: SmartSignalLike) => {
     const confidence = Number(signal.strength || 0)
@@ -340,7 +340,7 @@ export function BotEngine() {
 
     const executionKey = `${signal.pair}:${signal.dir}`
     const lastExecutedAt = lastExecutionRef.current[executionKey] || 0
-    const cooldownMs = (useBotStore.getState().settings.cooldownPeriod || 60) * 1000
+    const cooldownMs = 60 * 1000
     if (Date.now() - lastExecutedAt < cooldownMs) return false
 
     const botTrades = tradesRef.current.filter((trade) => trade.source === 'bot')

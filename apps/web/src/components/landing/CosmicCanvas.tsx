@@ -19,7 +19,18 @@ export default function CosmicCanvas() {
     let mouseX = 0, mouseY = 0;
     let targetMouseX = 0, targetMouseY = 0;
 
-    const satellites = [
+    type Satellite = {
+      name: string
+      desc: string
+      color: string
+      angle: number
+      speed: number
+      radius: number
+      tilt: number
+      size: number
+    }
+
+    const satellites: Satellite[] = [
       { name: 'المحلل اللغوي', desc: 'يحلل الأسواق بلغات متعددة في الوقت الفعلي', color: '#00d4ff', angle: 0, speed: 0.0045, radius: 320, tilt: 0.45, size: 9 },
       { name: 'تحليل الرسوم البيانية', desc: 'تحليل متقدم للأنماط التقنية بدقة عالية', color: '#7dd3fc', angle: 1.0, speed: 0.0035, radius: 390, tilt: 0.35, size: 10 },
       { name: 'معالجة البيانات', desc: 'استدلال فائق السرعة في الوقت الفعلي', color: '#34d399', angle: 2.1, speed: 0.0055, radius: 290, tilt: 0.55, size: 8 },
@@ -317,7 +328,7 @@ export default function CosmicCanvas() {
     }
 
     function drawSatellites(centerX: number, centerY: number) {
-      let hoveredSat: typeof satellites[0] | null = null;
+      let hoveredSat: Satellite | null = null;
       satellites.forEach((sat) => {
         sat.angle += sat.speed;
         const x = centerX + Math.cos(sat.angle) * sat.radius;
@@ -367,13 +378,14 @@ export default function CosmicCanvas() {
       const panel = infoPanelRef.current;
       const titleEl = infoTitleRef.current;
       const descEl = infoDescRef.current;
-      if (hoveredSat) {
+      const activeSat = hoveredSat as Satellite | null;
+      if (activeSat) {
         if (panel) panel.classList.add('active');
         if (titleEl) {
-          titleEl.textContent = hoveredSat.name;
-          titleEl.style.color = hoveredSat.color;
+          titleEl.textContent = activeSat.name;
+          titleEl.style.color = activeSat.color;
         }
-        if (descEl) descEl.textContent = hoveredSat.desc;
+        if (descEl) descEl.textContent = activeSat.desc;
         canvas!.style.cursor = 'pointer';
       } else {
         if (panel) panel.classList.remove('active');

@@ -355,7 +355,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // NOTE: symbol is NOT a dependency — we reuse the same chart instance
   // when the symbol changes and just swap the data. This avoids a race
   // condition where the chart is destroyed/recreated while data is loading.
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Initialize on mount (once) ────────────────────────
   useEffect(() => {

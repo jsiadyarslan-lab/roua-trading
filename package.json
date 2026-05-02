@@ -28,9 +28,23 @@
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1040.0",
     "@prisma/client": "^6.19.3",
+    "@types/react": "18.3.28",
+    "@types/react-dom": "18.3.7",
     "csv-stringify": "^6.7.0",
     "exceljs": "^4.4.0",
     "pdfkit": "^0.18.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
     "technicalindicators": "^3.1.0"
+  },
+  "optionalDependencies": {
+    "@tailwindcss/oxide-darwin-x64": "^4.2.4",
+    "lightningcss-darwin-x64": "^1.32.0"
+  },
+  "overrides": {
+    "@types/react": "18.3.28",
+    "@types/react-dom": "18.3.7",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   }
 }

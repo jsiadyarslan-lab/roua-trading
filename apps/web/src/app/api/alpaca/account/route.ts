@@ -1,20 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { alpacaFetch } from '@/lib/alpacaClient'
-
-/**
- * Verify that the request has a valid roua_session cookie.
- */
-function requireAuth(request: NextRequest): NextResponse | null {
-  const sessionToken = request.cookies.get('roua_session')?.value
-  if (!sessionToken) {
-    // Return graceful empty response instead of 401 to prevent cascading UI errors
-    return NextResponse.json(
-      { success: true, data: null },
-      { status: 200 }
-    )
-  }
-  return null
-}
+import { verifyUserSession } from '@/lib/session-auth'
 
 /**
  * GET /api/alpaca/account
@@ -23,8 +9,8 @@ function requireAuth(request: NextRequest): NextResponse | null {
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
-  const authError = requireAuth(request)
-  if (authError) return authError
+  const auth = await verifyUserSession(request)
+  if (auth.error) return auth.error
 
   try {
     const res = await alpacaFetch('/v2/account')

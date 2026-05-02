@@ -5,6 +5,7 @@ import { UnifiedQuoteDto, UnifiedCandleDto } from '../exchange/exchange.types';
 import { IExchangeAdapter } from '../exchange/exchange.types';
 import { FinnhubQuoteDto } from './analytics.types';
 import axios from 'axios';
+import WebSocket from 'ws';
 import { Observable, Subject, from, of } from 'rxjs';
 import { switchMap, catchError, map, filter, debounceTime, tap } from 'rxjs/operators';
 
@@ -309,7 +310,6 @@ export class FinnhubAdapter implements IExchangeAdapter, OnModuleDestroy {
 
   private _initWebSocket(): void {
     try {
-      const WebSocket = require('ws');
       this.wsConnection = new WebSocket(`wss://ws.finnhub.io?token=${this.apiKey}`);
 
       this.wsConnection.on('open', () => {

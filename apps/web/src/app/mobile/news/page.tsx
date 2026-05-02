@@ -584,7 +584,6 @@ export default function MobileNewsPage() {
     if (!loading) {
       fetchNews(activeCategory, true)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCategory])
 
   /* ─── Pull-to-Refresh Handlers ─── */

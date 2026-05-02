@@ -928,7 +928,7 @@ export default function NotificationsPage() {
           return (
             <motion.button
               key={cat}
-              onClick={() => setActiveFilter(cat === activeFilter ? 'all' : cat)}
+              onClick={() => setActiveFilter(cat === activeFilter ? 'all' : cat as FilterTab)}
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               style={{

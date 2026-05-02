@@ -1,30 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { alpacaFetch, toAlpacaSymbol } from '@/lib/alpacaClient'
 import { randomUUID } from 'crypto'
-
-/**
- * Verify that the request has a valid roua_session cookie.
- * Returns graceful empty data for unauthenticated users instead of errors.
- */
-function requireAuth(request: NextRequest): NextResponse | null {
-  const sessionToken = request.cookies.get('roua_session')?.value
-  if (!sessionToken) {
-    // Return graceful empty response instead of 401 to prevent cascading UI errors
-    return NextResponse.json(
-      { success: true, data: [] },
-      { status: 200 }
-    )
-  }
-  return null
-}
+import { verifyUserSession } from '@/lib/session-auth'
 
 /**
  * POST /api/alpaca/orders
  * تنفيذ صفقة عبر Alpaca Paper Trading
  */
 export async function POST(req: NextRequest) {
-  const authError = requireAuth(req)
-  if (authError) return authError
+  const auth = await verifyUserSession(req)
+  if (auth.error) return auth.error
 
   try {
     const body = await req.json()
@@ -138,8 +123,8 @@ export async function POST(req: NextRequest) {
  * جلب قائمة الأوامر (مفتوحة أو كل الأوامر)
  */
 export async function GET(req: NextRequest) {
-  const authError = requireAuth(req)
-  if (authError) return authError
+  const auth = await verifyUserSession(req)
+  if (auth.error) return auth.error
 
   try {
     const { searchParams } = new URL(req.url)

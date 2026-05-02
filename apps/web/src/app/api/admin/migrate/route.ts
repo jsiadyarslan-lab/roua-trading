@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { verifyAdminAuth } from '@/lib/admin-auth'
 
 /**
  * Emergency migration endpoint — adds missing columns to existing tables.
@@ -12,7 +13,17 @@ import { db } from '@/lib/db'
  * Call this endpoint once after deployment to sync the schema.
  * It's safe to call multiple times — all statements are idempotent.
  */
-export async function POST() {
+export async function POST(req: NextRequest) {
+  const authError = await verifyAdminAuth(req)
+  if (authError) return authError
+
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_ADMIN_MIGRATIONS !== 'true') {
+    return NextResponse.json(
+      { error: 'ADMIN_MIGRATIONS_DISABLED' },
+      { status: 403 },
+    )
+  }
+
   const results: Record<string, any> = {}
 
   const migrations = [

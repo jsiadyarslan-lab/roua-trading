@@ -68,6 +68,7 @@ interface Position {
   side: 'BUY' | 'SELL'
   quantity: number
   entryPrice: number
+  exitPrice?: number
   currentPrice: number
   unrealizedPnl: number
   realizedPnl?: number
@@ -436,9 +437,10 @@ export default function PortfolioPage() {
   // ── Combined and Filtered History ──
   const combinedHistory = [
     ...closedPositions.map(p => ({
-      id: p.id, symbol: p.symbol, side: p.side, type: 'MARKET',
-      quantity: p.quantity, price: p.entryPrice, pnl: p.realizedPnl || 0,
-      fee: null, feeCurrency: null, executedAt: p.closedAt || p.openedAt,
+	      id: p.id, symbol: p.symbol, side: p.side, type: 'MARKET',
+	      quantity: p.quantity, price: p.entryPrice, pnl: p.realizedPnl || 0,
+	      exitPrice: p.exitPrice,
+	      fee: null, feeCurrency: null, executedAt: p.closedAt || p.openedAt,
       openedAt: p.openedAt
     })),
     ...closedPaperTrades.map(t => ({

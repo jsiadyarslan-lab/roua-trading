@@ -83,7 +83,7 @@ export default function MobileChartPage() {
 
   // Total P&L from positions
   const totalPnl = positions.reduce((sum, p) => {
-    const pnl = Number(p.unrealizedPnl || p.unrealized_pl || 0)
+    const pnl = Number(p.unrealizedPnl || 0)
     return sum + pnl
   }, 0)
 

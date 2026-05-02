@@ -383,7 +383,6 @@ export class TradingService {
     const quotes = await Promise.allSettled(quotePromises);
 
     // Build updates and results
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updates: any[] = [];
     const results: any[] = [];
 
@@ -731,7 +730,6 @@ export class TradingService {
       const quotes = await Promise.allSettled(quotePromises);
 
       // Build batch updates for open positions
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const updates: any[] = [];
       const enrichedMap = new Map<string, any>();
 

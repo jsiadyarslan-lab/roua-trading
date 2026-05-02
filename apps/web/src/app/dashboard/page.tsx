@@ -1125,7 +1125,7 @@ export default function DashboardPage() {
                   onToggleChartFullscreen={toggleChartFullscreen}
                 />
               </div>
-              {/* Desktop Zap Execution Button */}
+              {/* Desktop Trading Execution Button — labeled button with icon */}
               <button
                 type="button"
                 onClick={() => setTradeDialogOpen(true)}
@@ -1136,9 +1136,9 @@ export default function DashboardPage() {
                   top: 10,
                   left: 10,
                   zIndex: 20,
-                  width: 36,
-                  height: 36,
-                  borderRadius: 10,
+                  height: 34,
+                  padding: '0 14px',
+                  borderRadius: 8,
                   background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
                   border: 'none',
                   color: '#fff',
@@ -1146,20 +1146,26 @@ export default function DashboardPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  boxShadow: '0 0 12px rgba(0,255,198,0.3), 0 0 4px rgba(10,132,255,0.2)',
+                  gap: 6,
+                  fontFamily: "'Cairo', sans-serif",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  letterSpacing: '0.02em',
+                  boxShadow: '0 0 16px rgba(0,255,198,0.25), 0 2px 8px rgba(10,132,255,0.2)',
                   transition: 'transform 0.12s ease, box-shadow 0.2s ease',
                 }}
-                onMouseDown={e => e.currentTarget.style.transform = 'scale(0.9)'}
+                onMouseDown={e => e.currentTarget.style.transform = 'scale(0.95)'}
                 onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
                 onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                 onMouseEnter={e => {
-                  e.currentTarget.style.boxShadow = '0 0 20px rgba(0,255,198,0.45), 0 0 6px rgba(10,132,255,0.3)';
+                  e.currentTarget.style.boxShadow = '0 0 24px rgba(0,255,198,0.4), 0 4px 12px rgba(10,132,255,0.3)';
                 }}
                 onMouseOut={e => {
-                  e.currentTarget.style.boxShadow = '0 0 12px rgba(0,255,198,0.3), 0 0 4px rgba(10,132,255,0.2)';
+                  e.currentTarget.style.boxShadow = '0 0 16px rgba(0,255,198,0.25), 0 2px 8px rgba(10,132,255,0.2)';
                 }}
               >
-                <Zap size={16} fill="white" />
+                <Zap size={14} fill="white" />
+                تنفيذ الأوامر
               </button>
             </div>
 

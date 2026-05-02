@@ -132,6 +132,27 @@ export class RedisService implements OnModuleDestroy {
     return value;
   }
 
+  /**
+   * Scan for keys matching a pattern using Redis SCAN (safe for production).
+   * Returns all matching keys without blocking the server.
+   *
+   * @param pattern Glob pattern to match (e.g., 'agent:state:*')
+   * @param count Approximate number of keys per scan iteration (default: 100)
+   * @returns Array of matching key strings
+   */
+  async scanKeys(pattern: string, count: number = 100): Promise<string[]> {
+    const keys: string[] = [];
+    let cursor = '0';
+
+    do {
+      const result = await this.client.scan(cursor, 'MATCH', pattern, 'COUNT', count);
+      cursor = result[0];
+      keys.push(...result[1]);
+    } while (cursor !== '0');
+
+    return keys;
+  }
+
   async onModuleDestroy() {
     await this.client.quit();
     this.logger.log('🔴 Redis disconnected');

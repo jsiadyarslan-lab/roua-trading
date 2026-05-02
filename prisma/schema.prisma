@@ -36,6 +36,7 @@ model User {
   coachAdvices        CoachAdvice[]
   auditLogs           AuditLog[]
   autonomousTrades    AutonomousTrade[]
+  agentSessions       AgentSession[]
   contentArticles    ContentArticle[]
   telegramChatId      String?              // معرّف محادثة Telegram للمستخدم
 }
@@ -822,6 +823,48 @@ model AutonomousTrade {
   @@index([createdAt])
   @@index([userId, status])
   @@index([userId, strategy, createdAt])
+}
+
+// ── Agent Session (Persistence for Autonomous Trader) ──
+
+model AgentSession {
+  id              String   @id @default(cuid())
+  userId          String
+  agentRunId      String   @unique  // Unique session identifier
+
+  // Status
+  status          String   @default("RUNNING")  // RUNNING, STOPPED, PAUSED, EMERGENCY_STOP, DAILY_LIMIT_REACHED
+  strategy        String   @default("SCALPING") // SCALPING, SWING, GRID
+
+  // Configuration (JSON)
+  config          String   @default("{}")       // JSON: AgentConfig
+
+  // Stats
+  dailyPnL        Decimal  @default(0) @db.Decimal(19, 4)
+  dailyTradesCount Int     @default(0)
+  totalCycles     Int      @default(0)
+  consecutiveLosses Int    @default(0)
+  lastError       String?
+
+  // Credential
+  credentialId    String
+
+  // Timing
+  startedAt       DateTime @default(now())
+  stoppedAt       DateTime?
+  lastCycleAt     DateTime?
+  lastSignalAt    DateTime?
+  dailyResetAt    DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([userId, status])
+  @@index([startedAt])
 }
 
 // ── Content Agent (Phase 9) ──

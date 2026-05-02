@@ -248,7 +248,6 @@ export const useAgentStore = create<AgentStore>()(
             credentialId: currentCredentialId,
             symbols: selectedSymbols,
           }
-          console.log('[AgentStore] Starting agent with payload:', JSON.stringify(payload, null, 2))
 
           const res = await fetch('/api/agent/trader/start', {
             method: 'POST',
@@ -258,7 +257,7 @@ export const useAgentStore = create<AgentStore>()(
           const data = await res.json()
 
           if (!res.ok) {
-            console.error('[AgentStore] startAgent failed:', res.status, data)
+            // Silently log for debugging — not shown to user
           }
 
           if (data.success) {

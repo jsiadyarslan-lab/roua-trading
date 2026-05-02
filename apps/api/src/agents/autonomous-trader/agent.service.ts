@@ -135,6 +135,7 @@ export class AutonomousTraderAgentService {
     };
 
     // Build initial state
+    const agentRunId = `run-${userId}-${Date.now()}`;
     const state: AgentState = {
       status: AgentStatus.RUNNING,
       config,
@@ -146,8 +147,31 @@ export class AutonomousTraderAgentService {
       totalCycles: 0,
     };
 
-    // Store in Redis
+    // Store in Redis (fast access for cycle)
     await this._saveAgentState(userId, state);
+
+    // Persist to DB (survives Redis restart)
+    try {
+      await this.prisma.agentSession.create({
+        data: {
+          userId,
+          agentRunId,
+          status: AgentStatus.RUNNING,
+          strategy: config.strategy,
+          config: JSON.stringify(config),
+          credentialId: config.credentialId,
+          dailyPnL: 0,
+          dailyTradesCount: 0,
+          totalCycles: 0,
+          consecutiveLosses: 0,
+          startedAt: new Date(),
+          dailyResetAt: new Date(),
+        },
+      });
+    } catch (dbError: any) {
+      this.logger.error(`Failed to persist agent session to DB: ${dbError.message}`);
+      // Non-fatal — Redis is the primary store, DB is backup
+    }
 
     // Audit
     await this.audit.log({
@@ -180,6 +204,30 @@ export class AutonomousTraderAgentService {
     state.status = emergency ? AgentStatus.EMERGENCY_STOP : AgentStatus.STOPPED;
 
     await this._saveAgentState(userId, state);
+
+    // Update DB session
+    try {
+      const session = await this.prisma.agentSession.findFirst({
+        where: { userId, status: 'RUNNING' },
+        orderBy: { startedAt: 'desc' },
+      });
+      if (session) {
+        await this.prisma.agentSession.update({
+          where: { id: session.id },
+          data: {
+            status: state.status,
+            stoppedAt: new Date(),
+            dailyPnL: state.dailyPnL,
+            dailyTradesCount: state.dailyTradesCount,
+            totalCycles: state.totalCycles,
+            consecutiveLosses: state.consecutiveLosses,
+            lastError: state.lastError,
+          },
+        });
+      }
+    } catch (dbError: any) {
+      this.logger.error(`Failed to update agent session in DB: ${dbError.message}`);
+    }
 
     // If emergency, close all positions
     if (emergency) {
@@ -305,11 +353,25 @@ export class AutonomousTraderAgentService {
     });
 
     for (const trade of trades) {
+      // Safely parse strategy from metadata — fallback to SWING if unavailable
+      let strategy: StrategyType = StrategyType.SWING;
+      try {
+        const metadata = (trade as any).metadata;
+        if (metadata && typeof metadata === 'string') {
+          const parsed = JSON.parse(metadata);
+          if (parsed.strategy && Object.values(StrategyType).includes(parsed.strategy)) {
+            strategy = parsed.strategy;
+          }
+        }
+      } catch {
+        // Malformed JSON — use default
+      }
+
       tracker.addTrade({
         id: trade.id,
         symbol: trade.symbol,
         side: trade.side as 'BUY' | 'SELL',
-        strategy: (trade as any).metadata ? JSON.parse((trade as any).metadata).strategy : StrategyType.SWING,
+        strategy,
         pnl: Number(trade.pnl || 0),
         fee: Number(trade.fee || 0),
         openedAt: trade.executedAt,
@@ -410,8 +472,13 @@ export class AutonomousTraderAgentService {
         const risk = await this.riskCalculator.assessRisk(userId, signal, state.config);
 
         if (!risk.canTrade) {
-          // Record the rejection as an audit decision
+          // Record the rejection as an audit decision + update agent state
           this.logger.debug(`🧠 Trade rejected for ${symbol}: ${risk.reason}`);
+          state.lastError = risk.reason;
+          // If auto-trading is disabled, record prominently in agent state
+          if (risk.reason?.includes('AUTO_TRADING_ENABLED')) {
+            this.logger.warn(`🚫 Agent ${userId}: AUTO_TRADING_ENABLED is false — no trades will execute`);
+          }
           continue;
         }
 
@@ -457,10 +524,67 @@ export class AutonomousTraderAgentService {
   private async _getAgentState(userId: string): Promise<AgentState | null> {
     try {
       const raw = await this.redis.get(`agent:state:${userId}`);
-      return raw ? JSON.parse(raw) : null;
+      if (raw) {
+        return JSON.parse(raw);
+      }
     } catch {
-      return null;
+      // Redis read failed — try DB fallback
     }
+
+    // DB fallback: recover agent state if Redis lost it (e.g., Redis restart)
+    try {
+      const session = await this.prisma.agentSession.findFirst({
+        where: { userId, status: { in: ['RUNNING', 'PAUSED', 'DAILY_LIMIT_REACHED'] } },
+        orderBy: { startedAt: 'desc' },
+      });
+
+      if (session) {
+        this.logger.log(`🧠 Recovered agent state from DB for user ${userId} (session ${session.agentRunId})`);
+
+        let config: AgentConfig;
+        try {
+          config = JSON.parse(session.config);
+        } catch {
+          config = {
+            userId,
+            strategy: session.strategy as StrategyType,
+            enabled: true,
+            maxPositionSizePercent: 2,
+            maxDailyLossPercent: 5,
+            maxOpenPositions: 5,
+            riskPerTradePercent: 1.5,
+            strategyParams: this._getDefaultStrategyParams(session.strategy as StrategyType),
+            symbols: this.DEFAULT_SYMBOLS,
+            credentialId: session.credentialId,
+            createdAt: session.startedAt,
+            updatedAt: session.updatedAt,
+          };
+        }
+
+        const state: AgentState = {
+          status: session.status as AgentStatus,
+          config,
+          startedAt: session.startedAt,
+          dailyPnL: Number(session.dailyPnL),
+          dailyTradesCount: session.dailyTradesCount,
+          dailyResetAt: session.dailyResetAt ?? undefined,
+          consecutiveLosses: session.consecutiveLosses,
+          totalCycles: session.totalCycles,
+          lastError: session.lastError ?? undefined,
+          lastCycleAt: session.lastCycleAt ?? undefined,
+          lastSignalAt: session.lastSignalAt ?? undefined,
+        };
+
+        // Re-populate Redis from DB
+        await this._saveAgentState(userId, state);
+
+        return state;
+      }
+    } catch (dbError: any) {
+      this.logger.error(`DB fallback for agent state also failed: ${dbError.message}`);
+    }
+
+    return null;
   }
 
   private async _saveAgentState(userId: string, state: AgentState): Promise<void> {
@@ -473,20 +597,49 @@ export class AutonomousTraderAgentService {
     } catch (error: any) {
       this.logger.error(`Failed to save agent state for ${userId}: ${error.message}`);
     }
+
+    // Also sync to DB (fire-and-forget for performance)
+    this._syncStateToDB(userId, state).catch((err) => {
+      this.logger.error(`Failed to sync agent state to DB: ${err.message}`);
+    });
+  }
+
+  /**
+   * Sync agent state to DB for persistence across Redis restarts.
+   * Fire-and-forget — should not block the main cycle.
+   */
+  private async _syncStateToDB(userId: string, state: AgentState): Promise<void> {
+    try {
+      const session = await this.prisma.agentSession.findFirst({
+        where: { userId, status: { in: ['RUNNING', 'PAUSED', 'DAILY_LIMIT_REACHED'] } },
+        orderBy: { startedAt: 'desc' },
+      });
+
+      if (session) {
+        await this.prisma.agentSession.update({
+          where: { id: session.id },
+          data: {
+            status: state.status,
+            dailyPnL: state.dailyPnL,
+            dailyTradesCount: state.dailyTradesCount,
+            totalCycles: state.totalCycles,
+            consecutiveLosses: state.consecutiveLosses,
+            lastError: state.lastError ?? null,
+            lastCycleAt: state.lastCycleAt ?? null,
+            lastSignalAt: state.lastSignalAt ?? null,
+            dailyResetAt: state.dailyResetAt ?? null,
+          },
+        });
+      }
+    } catch {
+      // Silent — DB sync is best-effort
+    }
   }
 
   private async _getActiveAgents(): Promise<string[]> {
     try {
-      // Use SCAN to find all active agent states
-      const keys: string[] = [];
-      const client = this.redis['client'];
-      let cursor = '0';
-
-      do {
-        const result = await client.scan(cursor, 'MATCH', 'agent:state:*', 'COUNT', 100);
-        cursor = result[0];
-        keys.push(...result[1]);
-      } while (cursor !== '0');
+      // Use the public scanKeys method (safe, no private property access)
+      const keys = await this.redis.scanKeys('agent:state:*');
 
       const activeUsers: string[] = [];
 

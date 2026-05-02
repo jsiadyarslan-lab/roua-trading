@@ -160,6 +160,8 @@ export class RiskCalculatorService {
     if (!autoTradingEnabled) {
       canTrade = false;
       reason = 'التداول الذاتي معطّل — يمكن تفعيله عبر AUTO_TRADING_ENABLED';
+      // IMPORTANT: Log prominently so operators know trades are being silently rejected
+      this.logger.warn(`🚫 AUTO_TRADING_ENABLED=false — ALL trades for user ${userId} are being rejected. Set AUTO_TRADING_ENABLED=true to allow trading.`);
     }
 
     if (canTrade) {

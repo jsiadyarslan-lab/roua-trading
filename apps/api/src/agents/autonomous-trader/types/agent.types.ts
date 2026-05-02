@@ -238,25 +238,106 @@ export interface AgentState {
 
 // ── API DTOs ──
 
+import {
+  IsOptional, IsString, IsEnum, IsArray,
+  IsNumber, Min, Max, ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class StrategyParamsDto implements StrategyParams {
+  // Scalping
+  @IsOptional() @IsString() scalpingTimeframe?: string;
+  @IsOptional() @IsNumber() @Type(() => Number) scalpingTakeProfitPips?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) scalpingStopLossPips?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) scalpingMaxSpread?: number;
+
+  // Swing
+  @IsOptional() @IsString() swingTimeframe?: string;
+  @IsOptional() @IsNumber() @Type(() => Number) swingHoldingPeriodHours?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) swingTrendLookback?: number;
+
+  // Grid
+  @IsOptional() @IsNumber() @Type(() => Number) gridLevels?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) gridSpacingPercent?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) gridQuantityPerLevel?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) gridUpperBound?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) gridLowerBound?: number;
+}
+
 export class StartAgentDto {
+  @IsEnum(StrategyType)
   strategy: StrategyType;
+
+  @IsString()
   credentialId: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   symbols?: string[];
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0.1) @Max(100)
   maxPositionSizePercent?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0.1) @Max(100)
   maxDailyLossPercent?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1) @Max(50)
   maxOpenPositions?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0.1) @Max(10)
   riskPerTradePercent?: number;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => StrategyParamsDto)
   strategyParams?: StrategyParams;
 }
 
 export class ChangeStrategyDto {
+  @IsEnum(StrategyType)
   strategy: StrategyType;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => StrategyParamsDto)
   strategyParams?: StrategyParams;
 }
 
 export class UpdateRiskParamsDto {
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0.1) @Max(100)
   maxPositionSizePercent?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0.1) @Max(100)
   maxDailyLossPercent?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1) @Max(50)
   maxOpenPositions?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0.1) @Max(10)
   riskPerTradePercent?: number;
 }

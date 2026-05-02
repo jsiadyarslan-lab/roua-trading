@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Bot, Brain, ScanSearch, Sparkles, Waves, Cpu } from 'lucide-react'
 import { BotMini } from '@/components/dashboard/BotMini'
+import { AgentControlMini } from '@/components/dashboard/AgentControlMini'
 import { ScannerMini } from '@/components/dashboard/ScannerMini'
 import { BotCommandCenter } from '@/components/dashboard/BotCommandCenter'
 import { AICouncilPanel } from '@/components/dashboard/AICouncilPanel'
@@ -244,6 +245,11 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           transform: translateY(0) scale(0.98);
         }
       `}</style>
+
+      {/* Always-visible Agent Control Widget */}
+      <div style={{ flexShrink: 0, padding: '4px 4px 0', position: 'relative', zIndex: 1 }}>
+        <AgentControlMini />
+      </div>
 
       <div
         style={{

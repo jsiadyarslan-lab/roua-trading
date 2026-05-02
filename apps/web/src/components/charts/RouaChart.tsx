@@ -30,6 +30,7 @@ interface RouaChartProps {
   currentPrice?: number | null;
   mobile?: boolean;
   compact?: boolean;
+  hideToolbar?: boolean;
   onExpand?: (() => void) | null;
   isChartFullscreen?: boolean;
   onToggleChartFullscreen?: () => void;
@@ -39,6 +40,7 @@ export default function RouaChart({
   currentPrice = null,
   mobile = false,
   compact = false,
+  hideToolbar = false,
   onExpand = null,
   isChartFullscreen = false,
   onToggleChartFullscreen,
@@ -578,7 +580,7 @@ export default function RouaChart({
     warning: '#fbbf24',
   };
 
-  const toolbarHeight = mobile ? 32 : 38;
+  const toolbarHeight = hideToolbar ? 0 : mobile ? 32 : 38;
 
   return (
     <div
@@ -593,7 +595,7 @@ export default function RouaChart({
       className="roua-chart-root"
     >
       {/* ── TOOLBAR ── */}
-      <ChartToolbar
+      {!hideToolbar && <ChartToolbar
         symbol={selectedSymbol}
         timeframe={timeframe}
         chartType={chart.settings.type}
@@ -627,7 +629,7 @@ export default function RouaChart({
         showAIPanel={showAIPanel}
         showChartTrading={showChartTrading}
         showWatchlist={showWatchlist}
-      />
+      />}
 
       {/* ── CHART AREA ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>

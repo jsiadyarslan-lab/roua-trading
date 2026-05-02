@@ -273,7 +273,6 @@ export default function TradingPage() {
     <div style={{
       position: 'absolute',
       inset: 0,
-      paddingBottom: 80,
       background: '#000000',
       display: 'flex',
       flexDirection: 'column',
@@ -285,8 +284,8 @@ export default function TradingPage() {
       {/* ── Header (fixed at top) ── */}
       <div style={{
         flexShrink: 0,
-        padding: 'calc(env(safe-area-inset-top) + 16px) 20px 12px',
-        display: 'flex', alignItems: 'center', gap: 12,
+        padding: 'calc(env(safe-area-inset-top) + 8px) 16px 8px',
+        display: 'flex', alignItems: 'center', gap: 10,
         background: side === 'buy'
           ? 'linear-gradient(180deg, rgba(50,215,75,0.06), transparent)'
           : 'linear-gradient(180deg, rgba(255,69,58,0.06), transparent)',
@@ -296,15 +295,14 @@ export default function TradingPage() {
           whileTap={{ scale: 0.9 }}
           onClick={() => router.back()}
           style={{
-            width: 40, height: 40, borderRadius: 14,
+            width: 36, height: 36, borderRadius: 12,
             background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
             border: `0.5px solid ${c.border}`,
           }}
         >
-          <ChevronLeft size={20} color={c.text} />
+          <ChevronLeft size={18} color={c.text} />
         </motion.button>
-        <h1 style={{ fontSize: 20, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif", flex: 1 }}>التداول المباشر</h1>
-        {/* Connection Indicator */}
+        <h1 style={{ fontSize: 18, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif", flex: 1 }}>التداول المباشر</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <div style={{
             width: 6, height: 6, borderRadius: '50%',
@@ -320,7 +318,7 @@ export default function TradingPage() {
       {/* ── Pair Selector (fixed below header) ── */}
       <div style={{
         flexShrink: 0,
-        display: 'flex', gap: 8, padding: '0 20px 12px',
+        display: 'flex', gap: 6, padding: '0 16px 8px',
         overflowX: 'auto', direction: 'ltr',
         scrollbarWidth: 'none', msOverflowStyle: 'none',
       }}>
@@ -339,17 +337,17 @@ export default function TradingPage() {
               whileTap={{ scale: 0.95 }}
               onClick={() => setSelectedSymbol(symbol)}
               style={{
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
-                padding: '10px 16px', borderRadius: 16, minWidth: 80,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                padding: '6px 12px', borderRadius: 12, minWidth: 70,
                 background: isActive ? 'rgba(0,212,255,0.1)' : 'rgba(255,255,255,0.03)',
                 border: isActive ? `1px solid rgba(0,212,255,0.3)` : `0.5px solid ${c.border}`,
                 cursor: 'pointer', whiteSpace: 'nowrap',
               }}
             >
-              <span style={{ fontSize: 12, fontWeight: 800, color: isActive ? c.accent : c.text, fontFamily: "'JetBrains Mono', monospace" }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: isActive ? c.accent : c.text, fontFamily: "'JetBrains Mono', monospace" }}>
                 {symbol}
               </span>
-              <span style={{ fontSize: 11, fontWeight: 800, color: isUp ? c.success : c.danger, fontFamily: "'JetBrains Mono', monospace" }}>
+              <span style={{ fontSize: 10, fontWeight: 800, color: isUp ? c.success : c.danger, fontFamily: "'JetBrains Mono', monospace" }}>
                 {pairChange !== 0 ? `${isUp ? '+' : ''}${pairChange.toFixed(1)}%` : '—'}
               </span>
             </motion.button>
@@ -365,9 +363,9 @@ export default function TradingPage() {
           background: 'linear-gradient(165deg, rgba(35,35,45,0.9) 0%, rgba(20,20,25,0.9) 100%)',
           backdropFilter: 'blur(40px) saturate(190%)',
           WebkitBackdropFilter: 'blur(40px) saturate(190%)',
-          borderRadius: 28,
-          padding: 20,
-          margin: '0 20px 12px',
+          borderRadius: 24,
+          padding: 16,
+          margin: '0 16px 8px',
           border: '0.5px solid rgba(255,255,255,0.1)',
           position: 'relative',
           overflow: 'hidden',
@@ -380,23 +378,23 @@ export default function TradingPage() {
             zIndex: 10,
           }} />
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div>
-              <p style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>{selectedSymbol}</p>
-              <p style={{ fontSize: 28, fontWeight: 900, color: c.text, fontFamily: "'JetBrains Mono', monospace", letterSpacing: -1, marginTop: 2 }}>
+              <p style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>{selectedSymbol}</p>
+              <p style={{ fontSize: 24, fontWeight: 900, color: c.text, fontFamily: "'JetBrains Mono', monospace", letterSpacing: -1, marginTop: 2 }}>
                 {livePrice > 0
                   ? (livePrice < 10 ? livePrice.toFixed(4) : livePrice.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }))
                   : '—'}
               </p>
             </div>
             <div style={{
-              padding: '8px 14px', borderRadius: 14,
+              padding: '6px 12px', borderRadius: 12,
               background: changePercent >= 0 ? `${c.success}15` : `${c.danger}15`,
               border: `0.5px solid ${changePercent >= 0 ? `${c.success}30` : `${c.danger}30`}`,
               display: 'flex', alignItems: 'center', gap: 4,
             }}>
-              {changePercent >= 0 ? <TrendingUp size={16} color={c.success} /> : <TrendingDown size={16} color={c.danger} />}
-              <span style={{ fontSize: 14, fontWeight: 800, color: changePercent >= 0 ? c.success : c.danger, fontFamily: "'JetBrains Mono', monospace" }}>
+              {changePercent >= 0 ? <TrendingUp size={14} color={c.success} /> : <TrendingDown size={14} color={c.danger} />}
+              <span style={{ fontSize: 12, fontWeight: 800, color: changePercent >= 0 ? c.success : c.danger, fontFamily: "'JetBrains Mono', monospace" }}>
                 {changePercent !== 0 ? `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(2)}%` : '—'}
               </span>
             </div>
@@ -405,38 +403,38 @@ export default function TradingPage() {
           {/* ── Buy/Sell Toggle ── */}
           <div style={{
             display: 'flex', gap: 8, padding: 4,
-            background: 'rgba(255,255,255,0.03)', borderRadius: 16,
+            background: 'rgba(255,255,255,0.03)', borderRadius: 14,
           }}>
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={() => setSide('buy')}
               style={{
-                flex: 1, padding: '12px 0', borderRadius: 14,
+                flex: 1, padding: '10px 0', borderRadius: 12,
                 background: side === 'buy' ? c.success : 'transparent',
                 color: side === 'buy' ? '#000' : c.text2,
-                fontSize: 15, fontWeight: 900, fontFamily: "'Cairo', sans-serif",
+                fontSize: 14, fontWeight: 900, fontFamily: "'Cairo', sans-serif",
                 border: 'none', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 transition: '0.2s',
               }}
             >
-              <ArrowUpRight size={18} />
+              <ArrowUpRight size={16} />
               شراء
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={() => setSide('sell')}
               style={{
-                flex: 1, padding: '12px 0', borderRadius: 14,
+                flex: 1, padding: '10px 0', borderRadius: 12,
                 background: side === 'sell' ? c.danger : 'transparent',
                 color: side === 'sell' ? '#FFF' : c.text2,
-                fontSize: 15, fontWeight: 900, fontFamily: "'Cairo', sans-serif",
+                fontSize: 14, fontWeight: 900, fontFamily: "'Cairo', sans-serif",
                 border: 'none', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                 transition: '0.2s',
               }}
             >
-              <ArrowDownRight size={18} />
+              <ArrowDownRight size={16} />
               بيع
             </motion.button>
           </div>
@@ -447,38 +445,38 @@ export default function TradingPage() {
           background: 'rgba(28,28,30,0.65)',
           backdropFilter: 'blur(40px) saturate(190%)',
           WebkitBackdropFilter: 'blur(40px) saturate(190%)',
-          borderRadius: 28,
-          padding: 20,
-          margin: '0 20px 12px',
+          borderRadius: 24,
+          padding: 16,
+          margin: '0 16px 8px',
           border: '0.5px solid rgba(255,255,255,0.1)',
           position: 'relative',
           overflow: 'hidden',
           boxShadow: '0 4px 16px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.05)',
         }}>
           {/* Market/Limit Toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: c.text, fontFamily: "'Cairo', sans-serif" }}>نوع الأمر</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: c.text, fontFamily: "'Cairo', sans-serif" }}>نوع الأمر</span>
             <div style={{
               display: 'flex', gap: 6, padding: 3,
-              background: 'rgba(255,255,255,0.03)', borderRadius: 12,
+              background: 'rgba(255,255,255,0.03)', borderRadius: 10,
             }}>
               <button
                 onClick={() => setOrderType('market')}
                 style={{
-                  padding: '6px 14px', borderRadius: 10,
+                  padding: '5px 12px', borderRadius: 8,
                   background: orderType === 'market' ? c.accent : 'transparent',
                   color: orderType === 'market' ? '#000' : c.text2,
-                  fontSize: 12, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
+                  fontSize: 11, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
                   border: 'none', cursor: 'pointer', transition: '0.2s',
                 }}
               >سوقي</button>
               <button
                 onClick={() => setOrderType('limit')}
                 style={{
-                  padding: '6px 14px', borderRadius: 10,
+                  padding: '5px 12px', borderRadius: 8,
                   background: orderType === 'limit' ? c.accent : 'transparent',
                   color: orderType === 'limit' ? '#000' : c.text2,
-                  fontSize: 12, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
+                  fontSize: 11, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
                   border: 'none', cursor: 'pointer', transition: '0.2s',
                 }}
               >محدد</button>
@@ -491,17 +489,17 @@ export default function TradingPage() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              style={{ marginBottom: 14 }}
+              style={{ marginBottom: 12 }}
             >
-              <label style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 6 }}>سعر الحد</label>
+              <label style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 4 }}>سعر الحد</label>
               <input
                 value={limitPrice} onChange={e => setLimitPrice(e.target.value)}
                 placeholder={livePrice > 0 ? livePrice.toString() : '0.00'}
                 type="number"
                 style={{
-                  width: '100%', padding: '12px 14px', borderRadius: 14,
+                  width: '100%', padding: '10px 12px', borderRadius: 12,
                   background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${c.border}`,
-                  color: c.text, fontSize: 14, fontFamily: "'JetBrains Mono', monospace",
+                  color: c.text, fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
                   outline: 'none', direction: 'ltr', textAlign: 'left',
                 }}
               />
@@ -509,29 +507,29 @@ export default function TradingPage() {
           )}
 
           {/* Quantity Input */}
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 6 }}>الكمية</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ marginBottom: 12 }}>
+            <label style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 4 }}>الكمية</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={() => adjustQty(-1)}
                 style={{
-                  width: 44, height: 44, borderRadius: 14,
+                  width: 40, height: 40, borderRadius: 12,
                   background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${c.border}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer', flexShrink: 0,
                 }}
               >
-                <Minus size={18} color={c.text} />
+                <Minus size={16} color={c.text} />
               </motion.button>
               <input
                 value={quantity}
                 onChange={e => setQuantity(e.target.value)}
                 type="number"
                 style={{
-                  flex: 1, padding: '12px 14px', borderRadius: 14,
+                  flex: 1, padding: '10px 12px', borderRadius: 12,
                   background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${c.border}`,
-                  color: c.text, fontSize: 16, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
+                  color: c.text, fontSize: 14, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
                   outline: 'none', direction: 'ltr', textAlign: 'center',
                 }}
               />
@@ -539,28 +537,28 @@ export default function TradingPage() {
                 whileTap={{ scale: 0.9 }}
                 onClick={() => adjustQty(1)}
                 style={{
-                  width: 44, height: 44, borderRadius: 14,
+                  width: 40, height: 40, borderRadius: 12,
                   background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${c.border}`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer', flexShrink: 0,
                 }}
               >
-                <Plus size={18} color={c.text} />
+                <Plus size={16} color={c.text} />
               </motion.button>
             </div>
           </div>
 
           {/* Quick Qty Buttons */}
-          <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 5, marginBottom: 12 }}>
             {[25, 50, 75, 100].map(pct => (
               <motion.button
                 key={pct}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => handleQuickQty(pct)}
                 style={{
-                  flex: 1, padding: '8px 0', borderRadius: 10,
+                  flex: 1, padding: '6px 0', borderRadius: 8,
                   background: 'rgba(0,212,255,0.06)', border: `0.5px solid rgba(0,212,255,0.15)`,
-                  color: c.accent, fontSize: 11, fontWeight: 700,
+                  color: c.accent, fontSize: 10, fontWeight: 700,
                   fontFamily: "'JetBrains Mono', monospace", cursor: 'pointer',
                 }}
               >
@@ -570,37 +568,37 @@ export default function TradingPage() {
           </div>
 
           {/* TP/SL Inputs */}
-          <div style={{ display: 'flex', gap: 10, marginBottom: 0 }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 0 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
-                <Target size={12} color={c.success} />
-                <label style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>جني الأرباح (TP)</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                <Target size={11} color={c.success} />
+                <label style={{ fontSize: 10, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>جني الأرباح (TP)</label>
               </div>
               <input
                 value={takeProfit} onChange={e => setTakeProfit(e.target.value)}
                 placeholder="اختياري"
                 type="number"
                 style={{
-                  width: '100%', padding: '10px 12px', borderRadius: 12,
+                  width: '100%', padding: '8px 10px', borderRadius: 10,
                   background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${c.border}`,
-                  color: c.text, fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
+                  color: c.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                   outline: 'none', direction: 'ltr', textAlign: 'left',
                 }}
               />
             </div>
             <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 6 }}>
-                <Target size={12} color={c.danger} />
-                <label style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>وقف الخسارة (SL)</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                <Target size={11} color={c.danger} />
+                <label style={{ fontSize: 10, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>وقف الخسارة (SL)</label>
               </div>
               <input
                 value={stopLoss} onChange={e => setStopLoss(e.target.value)}
                 placeholder="اختياري"
                 type="number"
                 style={{
-                  width: '100%', padding: '10px 12px', borderRadius: 12,
+                  width: '100%', padding: '8px 10px', borderRadius: 10,
                   background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${c.border}`,
-                  color: c.text, fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
+                  color: c.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                   outline: 'none', direction: 'ltr', textAlign: 'left',
                 }}
               />
@@ -613,132 +611,54 @@ export default function TradingPage() {
           background: 'linear-gradient(165deg, rgba(35,35,45,0.9) 0%, rgba(20,20,25,0.9) 100%)',
           backdropFilter: 'blur(40px) saturate(190%)',
           WebkitBackdropFilter: 'blur(40px) saturate(190%)',
-          borderRadius: 28,
-          padding: 20,
-          margin: '0 20px 12px',
+          borderRadius: 24,
+          padding: 16,
+          margin: '0 16px 8px',
           border: '0.5px solid rgba(255,255,255,0.1)',
           position: 'relative',
           overflow: 'hidden',
           boxShadow: '0 12px 32px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.08)',
         }}>
-          {/* Accent line */}
           <div style={{
             position: 'absolute', top: 0, left: 0, right: 0, height: 1.5,
             background: `linear-gradient(90deg, transparent, ${c.accent}66, transparent)`,
             zIndex: 10,
           }} />
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <Zap size={16} color={c.accent} />
-            <span style={{ fontSize: 14, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>ملخص الأمر</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+            <Zap size={14} color={c.accent} />
+            <span style={{ fontSize: 12, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>ملخص الأمر</span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>الزوج</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: c.text, fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol}</span>
+              <span style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>الزوج</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: c.text, fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>الاتجاه</span>
-              <span style={{ fontSize: 12, fontWeight: 800, color: side === 'buy' ? c.success : c.danger, fontFamily: "'Cairo', sans-serif" }}>
+              <span style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>الاتجاه</span>
+              <span style={{ fontSize: 11, fontWeight: 800, color: side === 'buy' ? c.success : c.danger, fontFamily: "'Cairo', sans-serif" }}>
                 {side === 'buy' ? 'شراء' : 'بيع'}
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>النوع</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: c.text, fontFamily: "'Cairo', sans-serif" }}>
+              <span style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>النوع</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: c.text, fontFamily: "'Cairo', sans-serif" }}>
                 {orderType === 'market' ? 'سوقي' : 'محدد'}
               </span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>الكمية</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: c.text, fontFamily: "'JetBrains Mono', monospace" }}>{quantity}</span>
+              <span style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>الكمية</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: c.text, fontFamily: "'JetBrains Mono', monospace" }}>{quantity}</span>
             </div>
-            {stopLoss && (
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>وقف الخسارة</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: c.danger, fontFamily: "'JetBrains Mono', monospace" }}>{stopLoss}</span>
-              </div>
-            )}
-            {takeProfit && (
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>جني الأرباح</span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: c.success, fontFamily: "'JetBrains Mono', monospace" }}>{takeProfit}</span>
-              </div>
-            )}
-            <div style={{ height: 1, background: c.border, margin: '4px 0' }} />
+            <div style={{ height: 1, background: c.border, margin: '2px 0' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 13, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>القيمة الإجمالية</span>
-              <span style={{ fontSize: 15, fontWeight: 900, color: side === 'buy' ? c.success : c.danger, fontFamily: "'JetBrains Mono', monospace" }}>
+              <span style={{ fontSize: 12, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>القيمة الإجمالية</span>
+              <span style={{ fontSize: 13, fontWeight: 900, color: side === 'buy' ? c.success : c.danger, fontFamily: "'JetBrains Mono', monospace" }}>
                 ${orderValue.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
           </div>
-        </div>
-
-        {/* ── Recent Orders ── */}
-        <div style={{ padding: '0 20px', marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ fontSize: 16, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>أوامر حديثة</h2>
-          <motion.button whileTap={{ scale: 0.9 }} onClick={loadOrders} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-            <Clock size={16} color={c.accent} />
-          </motion.button>
-        </div>
-
-        <div style={{
-          background: 'rgba(28,28,30,0.65)',
-          backdropFilter: 'blur(40px) saturate(190%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(190%)',
-          borderRadius: 28,
-          padding: 20,
-          margin: '0 20px 12px',
-          border: '0.5px solid rgba(255,255,255,0.1)',
-          position: 'relative',
-          overflow: 'hidden',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.05)',
-        }}>
-          {recentOrders.length > 0 ? (
-            recentOrders.map((order) => (
-              <div key={order.id} style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '12px 0', borderBottom: `0.5px solid ${c.border}`,
-              }}>
-                <div style={{
-                  width: 36, height: 36, borderRadius: 10,
-                  background: order.side === 'buy' ? `${c.success}15` : `${c.danger}15`,
-                  border: `0.5px solid ${order.side === 'buy' ? `${c.success}25` : `${c.danger}25`}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                }}>
-                  {order.side === 'buy' ? <ArrowUpRight size={16} color={c.success} /> : <ArrowDownRight size={16} color={c.danger} />}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 800, color: c.text, fontFamily: "'JetBrains Mono', monospace" }}>{order.pair}</span>
-                    <span style={{ fontSize: 10, color: order.side === 'buy' ? c.success : c.danger, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>
-                      {order.side === 'buy' ? 'شراء' : 'بيع'}
-                    </span>
-                  </div>
-                  <span style={{ fontSize: 10, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>{order.qty} @ {order.price}</span>
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <span style={{
-                    fontSize: 10, fontWeight: 700,
-                    color: order.status === 'filled' ? c.success : c.amber,
-                    fontFamily: "'Cairo', sans-serif",
-                    padding: '3px 8px', borderRadius: 6,
-                    background: order.status === 'filled' ? `${c.success}15` : `${c.amber}15`,
-                  }}>
-                    {order.status === 'filled' ? 'مكتمل' : 'معلّق'}
-                  </span>
-                  <p style={{ fontSize: 9, color: c.text2, fontFamily: "'Cairo', sans-serif", marginTop: 3 }}>{order.time}</p>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div style={{ padding: '20px 0', textAlign: 'center' }}>
-              <Clock size={24} color={c.text2} style={{ opacity: 0.3 }} />
-              <p style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif", marginTop: 8 }}>لا توجد أوامر حديثة</p>
-            </div>
-          )}
         </div>
 
       </div>{/* END Scrollable Content */}
@@ -746,11 +666,12 @@ export default function TradingPage() {
       {/* ── Fixed Bottom — Buy/Sell Buttons (ALWAYS VISIBLE) ── */}
       <div style={{
         flexShrink: 0,
-        padding: '8px 20px calc(12px + env(safe-area-inset-bottom))',
+        padding: '6px 16px calc(8px + env(safe-area-inset-bottom))',
         borderTop: '0.5px solid rgba(255,255,255,0.08)',
         background: 'rgba(20,20,22,0.95)',
         backdropFilter: 'blur(20px)',
         WebkitBackdropFilter: 'blur(20px)',
+        marginBottom: 60,
       }}>
         {(execStatus === 'idle' || execStatus === 'error' || execStatus === 'rejected') && (
           <div style={{ display: 'flex', gap: 8 }}>
@@ -758,53 +679,59 @@ export default function TradingPage() {
               whileTap={{ scale: 0.96 }}
               onClick={() => { setSide('buy'); setTimeout(() => handleExecute(), 0) }}
               style={{
-                flex: 1, height: 50, borderRadius: 14,
-                background: c.success, border: 'none', cursor: 'pointer',
+                flex: 1, height: 48, borderRadius: 14,
+                background: 'linear-gradient(135deg, #32D74B, #28a745)',
+                border: '1px solid rgba(50,215,75,0.3)',
+                cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                fontSize: 17, fontWeight: 900, color: '#000', fontFamily: "'Cairo', sans-serif",
+                fontSize: 16, fontWeight: 900, color: '#000', fontFamily: "'Cairo', sans-serif",
+                boxShadow: '0 0 12px rgba(50,215,75,0.15)',
               }}
             >
-              <ArrowUpRight size={20} />
+              <ArrowUpRight size={18} />
               شراء
             </motion.button>
             <motion.button
               whileTap={{ scale: 0.96 }}
               onClick={() => { setSide('sell'); setTimeout(() => handleExecute(), 0) }}
               style={{
-                flex: 1, height: 50, borderRadius: 14,
-                background: c.danger, border: 'none', cursor: 'pointer',
+                flex: 1, height: 48, borderRadius: 14,
+                background: 'linear-gradient(135deg, #FF453A, #dc3545)',
+                border: '1px solid rgba(255,69,58,0.3)',
+                cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                fontSize: 17, fontWeight: 900, color: '#FFF', fontFamily: "'Cairo', sans-serif",
+                fontSize: 16, fontWeight: 900, color: '#FFF', fontFamily: "'Cairo', sans-serif",
+                boxShadow: '0 0 12px rgba(255,69,58,0.15)',
               }}
             >
-              <ArrowDownRight size={20} />
+              <ArrowDownRight size={18} />
               بيع
             </motion.button>
           </div>
         )}
         {execStatus === 'submitting' && (
           <div style={{
-            height: 50, borderRadius: 14,
+            height: 48, borderRadius: 14,
             background: 'rgba(0,212,255,0.1)', border: `0.5px solid rgba(0,212,255,0.2)`,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}>
             <Loader2 size={20} className="animate-spin" color={c.accent} />
-            <span style={{ fontSize: 15, fontWeight: 800, color: c.accent, fontFamily: "'Cairo', sans-serif" }}>جارٍ التنفيذ...</span>
+            <span style={{ fontSize: 14, fontWeight: 800, color: c.accent, fontFamily: "'Cairo', sans-serif" }}>جارٍ التنفيذ...</span>
           </div>
         )}
         {execStatus === 'filled' && (
           <div style={{
-            height: 50, borderRadius: 14,
+            height: 48, borderRadius: 14,
             background: 'rgba(50,215,75,0.15)', border: `0.5px solid rgba(50,215,75,0.3)`,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           }}>
             <CheckCircle size={20} color={c.success} />
-            <span style={{ fontSize: 15, fontWeight: 800, color: c.success, fontFamily: "'Cairo', sans-serif" }}>تم التنفيذ بنجاح</span>
+            <span style={{ fontSize: 14, fontWeight: 800, color: c.success, fontFamily: "'Cairo', sans-serif" }}>تم التنفيذ بنجاح</span>
           </div>
         )}
         {(execStatus === 'rejected' || execStatus === 'error') && execMessage && (
           <div style={{
-            marginTop: 6,
+            marginTop: 4,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
           }}>
             <AlertCircle size={14} color={c.danger} />

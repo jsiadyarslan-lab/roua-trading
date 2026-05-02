@@ -807,15 +807,24 @@ export default function RouaChart({
               />
             )}
 
-          {/* ── Top Right Trading Controls ── */}
+          {/* ── Top Right Trading Controls (Positioned below Toolbar) ── */}
           {!mobile && currentPrice && (
             <div 
-              className="absolute top-3 right-3 z-20 flex items-center gap-1.5 p-1.5 rounded-xl border"
               style={{ 
-                background: 'rgba(11,14,20,0.85)', 
+                position: 'absolute',
+                top: 50, // Below 38px toolbar
+                right: 12,
+                zIndex: 100,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px',
+                borderRadius: '12px',
+                background: 'rgba(11,14,20,0.9)', 
                 backdropFilter: 'blur(12px)',
-                borderColor: 'rgba(255,255,255,0.08)',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.4)'
+                border: '1px solid rgba(255,255,255,0.12)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                pointerEvents: 'auto'
               }}
             >
               <button
@@ -832,29 +841,45 @@ export default function RouaChart({
                     source: 'manual',
                   });
                 }}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-white font-bold transition-all"
                 style={{ 
                   background: 'linear-gradient(135deg, #FF4757, #EF4444)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#fff',
+                  padding: '6px 14px',
                   fontSize: 11,
-                  boxShadow: '0 0 12px rgba(255,71,87,0.2)'
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  boxShadow: '0 0 15px rgba(255,71,87,0.3)',
+                  transition: 'all 0.2s'
                 }}
-                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 0 20px rgba(255,71,87,0.4)'}
-                onMouseLeave={e => e.currentTarget.style.boxShadow = '0 0 12px rgba(255,71,87,0.2)'}
               >
                 <span>بيع</span>
-                <span className="opacity-70 text-[9px]">▼</span>
+                <span style={{ fontSize: 9, opacity: 0.8 }}>▼</span>
               </button>
 
-              <div className="flex flex-col items-center px-2 border-x border-white/10">
-                <span className="text-[8px] text-white/40 font-bold mb-0.5">LOT</span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 8px', borderLeft: '1px solid rgba(255,255,255,0.1)', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
+                <span style={{ fontSize: 8, color: '#8B92A8', fontWeight: 800, marginBottom: 1 }}>LOT</span>
                 <input 
                   type="number"
                   value={lotSize}
                   onChange={(e) => setLotSize(parseFloat(e.target.value) || 0.01)}
                   step="0.01"
                   min="0.01"
-                  className="w-12 bg-transparent text-center text-[12px] font-bold text-white outline-none"
-                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  style={{ 
+                    width: 45, 
+                    background: 'transparent', 
+                    border: 'none', 
+                    color: '#fff', 
+                    fontSize: 13, 
+                    fontWeight: 900, 
+                    textAlign: 'center', 
+                    outline: 'none',
+                    fontFamily: "'JetBrains Mono', monospace"
+                  }}
                 />
               </div>
 
@@ -872,16 +897,23 @@ export default function RouaChart({
                     source: 'manual',
                   });
                 }}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-white font-bold transition-all"
                 style={{ 
                   background: 'linear-gradient(135deg, #00FFA3, #10B981)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#fff',
+                  padding: '6px 14px',
                   fontSize: 11,
-                  boxShadow: '0 0 12px rgba(0,255,163,0.2)'
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  boxShadow: '0 0 15px rgba(0,255,163,0.3)',
+                  transition: 'all 0.2s'
                 }}
-                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 0 20px rgba(0,255,163,0.4)'}
-                onMouseLeave={e => e.currentTarget.style.boxShadow = '0 0 12px rgba(0,255,163,0.2)'}
               >
-                <span className="opacity-70 text-[9px]">▲</span>
+                <span style={{ fontSize: 9, opacity: 0.8 }}>▲</span>
                 <span>شراء</span>
               </button>
             </div>

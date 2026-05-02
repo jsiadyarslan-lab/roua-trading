@@ -1076,7 +1076,7 @@ export default function DashboardPage() {
           )}
 
           {/* Center Column: Mode Banner + Chart + Balance + Positions */}
-          <div className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0, minHeight: 0 }}>
+          <div className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0, minHeight: 0 }}>
             {/* Mode Banner */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,

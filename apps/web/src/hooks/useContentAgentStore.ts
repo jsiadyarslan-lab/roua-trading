@@ -247,7 +247,25 @@ export const useContentAgentStore = create<ContentAgentStore>()(
           const res = await fetch('/api/agent/content/stats')
           const data = await res.json()
           if (data.success && data.data) {
-            set({ stats: data.data })
+            // Backend returns { agent, publisher, trendingTopics, contentGaps }
+            // Flatten publisher stats to match frontend ContentStats interface
+            const raw = data.data
+            const pub = raw.publisher || raw
+            set({
+              stats: {
+                totalArticles: pub.totalArticles ?? 0,
+                publishedArticles: pub.publishedArticles ?? pub.published ?? 0,
+                draftArticles: pub.draftArticles ?? pub.drafts ?? 0,
+                scheduledArticles: pub.scheduledArticles ?? pub.scheduled ?? 0,
+                avgQualityScore: pub.avgQualityScore ?? 0,
+                totalViews: pub.totalViews ?? 0,
+                totalShares: pub.totalShares ?? 0,
+                articlesByCategory: pub.articlesByCategory ?? {},
+                articlesByType: pub.articlesByType ?? {},
+                recentPublishRate: pub.recentPublishRate ?? 0,
+                topPerformingCategory: pub.topPerformingCategory ?? 'CRYPTO',
+              }
+            })
           }
         } catch {
           // Silent fail for stats
@@ -272,7 +290,14 @@ export const useContentAgentStore = create<ContentAgentStore>()(
           }
           const data = await res.json()
           if (data.success && data.data) {
-            set({ articles: data.data.items || data.data || [] })
+            const items = Array.isArray(data.data)
+              ? data.data
+              : Array.isArray(data.data.articles)
+                ? data.data.articles
+                : Array.isArray(data.data.items)
+                  ? data.data.items
+                  : []
+            set({ articles: items })
           } else {
             set({ articles: [] })
           }

@@ -110,13 +110,43 @@ export async function POST(req: NextRequest) {
     // user always gets the maximum number of responding models.
     let layer1Result: { data: any; source: string; modelCount: number } | null = null
 
+    // FIX: Get or create a session token for NestJS auth.
+    // Previously, Layer 1 called NestJS WITHOUT auth headers, causing
+    // the AuthGuard to reject the request with 401. This is why Layer 1
+    // always failed and the system fell back to Layer 2 (direct calls).
+    let sessionToken = req.cookies.get('roua_session')?.value || ''
+    if (!sessionToken) {
+      try {
+        const guestRes = await fetch(`${apiTargets[0]}/api/auth/guest`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(5000),
+        })
+        if (guestRes.ok) {
+          const guestData = await guestRes.json()
+          if (guestData.success && guestData.sessionToken) {
+            sessionToken = guestData.sessionToken
+          }
+        }
+      } catch { /* Non-critical — try without auth */ }
+    }
+
     for (const apiTarget of apiTargets) {
       try {
         const targetUrl = `${apiTarget}/api/ai/consensus`
         console.log(`[consensus] Layer 1 — Trying NestJS AI at: ${targetUrl}`)
+        const nestjsHeaders: Record<string, string> = {
+          'Content-Type': 'application/json',
+        }
+        // FIX: Include auth headers so NestJS AuthGuard accepts the request
+        if (sessionToken) {
+          nestjsHeaders['Authorization'] = `Bearer ${sessionToken}`
+          nestjsHeaders['x-roua-session'] = sessionToken
+          nestjsHeaders['Cookie'] = `roua_session=${sessionToken}`
+        }
         const nestjsRes = await fetch(targetUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: nestjsHeaders,
           body: JSON.stringify({ symbol }),
           signal: AbortSignal.timeout(60000),
         })

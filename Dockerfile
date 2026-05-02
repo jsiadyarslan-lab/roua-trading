@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v33
+ARG BUILD_CACHE=v35
 
 # ─────────────────────────────────────────────────────────────
 # Stage 1: Install dependencies
@@ -115,4 +115,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=45s --retries=3 \
 # AND Next.js Web (port 3000) in a single container.
 # Previously only ran `next start`, leaving the API dead.
 CMD ["bash", "start.sh"]
-# Build cache v34
+

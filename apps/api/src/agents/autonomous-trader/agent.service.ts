@@ -9,6 +9,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { AuditService } from '../../audit/audit.service';
 import { ExchangeService } from '../../modules/exchange/exchange.service';
+import { TradingService } from '../../modules/trading/trading.service';
 import { isMarketOpen } from '../../common/utils/market-hours.util';
 
 import { MarketAnalyzerService } from './services/market-analyzer.service';
@@ -73,6 +74,7 @@ export class AutonomousTraderAgentService {
     private readonly audit: AuditService,
     private readonly configService: ConfigService,
     private readonly exchangeService: ExchangeService,
+    private readonly tradingService: TradingService,
     private readonly marketAnalyzer: MarketAnalyzerService,
     private readonly signalEvaluator: SignalEvaluatorService,
     private readonly riskCalculator: RiskCalculatorService,
@@ -91,6 +93,15 @@ export class AutonomousTraderAgentService {
     const existingState = await this._getAgentState(userId);
     if (existingState && existingState.status === AgentStatus.RUNNING) {
       throw new BadRequestException('الوكيل يعمل بالفعل — أوقفه أولاً ثم أعد تشغيله');
+    }
+
+    // CRITICAL CHECK: Fail-fast if AUTO_TRADING_ENABLED is false
+    const autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+    if (!autoTradingEnabled) {
+      this.logger.error(`🚫 AUTO_TRADING_ENABLED=false — cannot start agent for user ${userId}`);
+      throw new BadRequestException(
+        'التداول الذاتي معطّل في النظام — لا يمكن تفعيل الوكيل. تواصل مع الإدارة لتفعيل AUTO_TRADING_ENABLED',
+      );
     }
 
     // Validate credential
@@ -444,6 +455,9 @@ export class AutonomousTraderAgentService {
       return;
     }
 
+    // CRITICAL: Monitor existing positions for SL/TP exits BEFORE opening new ones
+    await this._monitorOpenPositions(userId, state);
+
     // Analyze markets for configured symbols
     const analyses = await this.marketAnalyzer.analyzeMultiple(state.config.symbols);
 
@@ -704,10 +718,99 @@ export class AutonomousTraderAgentService {
         return {
           gridLevels: 5,
           gridSpacingPercent: 0.5,
-          gridQuantityPerLevel: 0,
+          gridQuantityPerLevel: undefined, // Will be calculated by risk manager based on portfolio
         };
       default:
         return {};
+    }
+  }
+
+  /**
+   * Monitor open positions for stop-loss / take-profit hits.
+   * Closes positions when SL/TP is reached and updates daily PnL.
+   * This is CRITICAL — without it, the agent gets stuck after maxOpenPositions.
+   */
+  private async _monitorOpenPositions(userId: string, state: AgentState): Promise<void> {
+    try {
+      const positions = await this.prisma.position.findMany({
+        where: { userId, status: 'OPEN' },
+      });
+
+      if (positions.length === 0) return;
+
+      for (const position of positions) {
+        const currentPrice = Number(position.currentPrice || position.entryPrice);
+        const stopLoss = Number(position.stopLoss || 0);
+        const takeProfit = Number(position.takeProfit || 0);
+
+        let shouldClose = false;
+        let reason = '';
+
+        if (position.side === 'BUY') {
+          if (stopLoss > 0 && currentPrice <= stopLoss) {
+            shouldClose = true;
+            reason = 'STOP_LOSS_HIT';
+          } else if (takeProfit > 0 && currentPrice >= takeProfit) {
+            shouldClose = true;
+            reason = 'TAKE_PROFIT_HIT';
+          }
+        } else if (position.side === 'SELL') {
+          if (stopLoss > 0 && currentPrice >= stopLoss) {
+            shouldClose = true;
+            reason = 'STOP_LOSS_HIT';
+          } else if (takeProfit > 0 && currentPrice <= takeProfit) {
+            shouldClose = true;
+            reason = 'TAKE_PROFIT_HIT';
+          }
+        }
+
+        if (shouldClose) {
+          this.logger.log(`🧠 Auto-closing position ${position.id} (${position.symbol}): ${reason}`);
+          try {
+            const result = await this.tradingService.closePosition(userId, {
+              positionId: position.id,
+            });
+
+            // Update daily PnL tracking
+            const pnl = Number(result?.pnl || 0);
+            state.dailyPnL += pnl;
+            if (pnl < 0) {
+              state.consecutiveLosses++;
+            } else if (pnl > 0) {
+              state.consecutiveLosses = 0;
+            }
+
+            // Update the AutonomousTrade record
+            try {
+              await this.prisma.autonomousTrade.updateMany({
+                where: {
+                  userId,
+                  symbol: position.symbol,
+                  status: 'FILLED',
+                  exitPrice: null,
+                },
+                data: {
+                  exitPrice: currentPrice,
+                  pnl,
+                  closedAt: new Date(),
+                  holdingDurationMs: Date.now() - new Date(position.openedAt).getTime(),
+                  exitReason: reason === 'STOP_LOSS_HIT' ? 'STOP_LOSS' : 'TAKE_PROFIT',
+                  isWinning: pnl > 0,
+                  currentPrice,
+                },
+              });
+            } catch (tradeErr: any) {
+              this.logger.error(`Failed to update AutonomousTrade on close: ${tradeErr.message}`);
+            }
+
+            this.logger.log(`🧠 Position closed: ${position.symbol} PnL=${pnl.toFixed(2)} reason=${reason}`);
+          } catch (error: any) {
+            this.logger.error(`Failed to close position ${position.id}: ${error.message}`);
+          }
+        }
+      }
+    } catch (error: any) {
+      this.logger.error(`Position monitoring failed for ${userId}: ${error.message}`);
     }
   }
 

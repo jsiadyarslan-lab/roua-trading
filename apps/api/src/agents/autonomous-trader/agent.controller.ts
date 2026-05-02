@@ -13,7 +13,6 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
-  RawBodyRequest,
 } from '@nestjs/common';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { AutonomousTraderAgentService } from './agent.service';

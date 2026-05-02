@@ -1,9 +1,11 @@
-import { Controller, Post, Get, Delete, Body, Query, Req, Res, Logger } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, Query, Req, Res, Logger, UseGuards } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { Throttle } from '@nestjs/throttler';
+import { AuthGuard, Public } from '../common/guards/auth.guard';
 
 @Controller('auth')
+@UseGuards(AuthGuard)
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
@@ -14,8 +16,10 @@ export class AuthController {
 
   /**
    * POST /api/auth/register — Create registration challenge
+   * 🔒 PUBLIC: No auth needed to start registration
    */
   @Post('register')
+  @Public()
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async registerChallenge(
     @Body() body: { email: string; displayName?: string },
@@ -26,8 +30,10 @@ export class AuthController {
 
   /**
    * GET /api/auth/challenge — Get authentication challenge for existing user
+   * 🔒 PUBLIC: No auth needed to start authentication
    */
   @Get('challenge')
+  @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async authChallenge(@Query('email') email: string) {
     this.logger.log(`Authentication challenge requested for: ${email}`);
@@ -36,8 +42,10 @@ export class AuthController {
 
   /**
    * POST /api/auth/verify — Verify credential (registration or authentication)
+   * 🔒 PUBLIC: No auth needed to verify credentials
    */
   @Post('verify')
+  @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async verify(
     @Body() body: { credential?: any; assertion?: any; email: string },
@@ -98,8 +106,10 @@ export class AuthController {
 
   /**
    * GET /api/auth/session — Check session validity
+   * 🔒 PUBLIC: Anyone can check if they have a valid session
    */
   @Get('session')
+  @Public()
   async checkSession(@Req() req: Request) {
     const sessionToken =
       req.cookies?.['roua_session'] ||
@@ -114,8 +124,10 @@ export class AuthController {
 
   /**
    * DELETE /api/auth/session — Logout
+   * 🔒 PUBLIC: Anyone can logout (no auth needed to clear session)
    */
   @Delete('session')
+  @Public()
   async logout(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
@@ -134,14 +146,10 @@ export class AuthController {
 
   /**
    * POST /api/auth/guest — Create a guest session
-   *
-   * Public endpoint (no authentication required) that creates a guest
-   * user + session. Used by the Next.js proxy as a fallback when it
-   * can't create sessions directly (e.g., DB connection issues).
-   *
-   * Rate-limited to prevent abuse.
+   * 🔒 PUBLIC: Intentionally public endpoint for guest access
    */
   @Post('guest')
+  @Public()
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async createGuestSession(@Res({ passthrough: true }) res: Response) {
     this.logger.log('Guest session creation requested via /api/auth/guest');

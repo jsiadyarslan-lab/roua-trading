@@ -13,22 +13,25 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
-  RawBodyRequest,
 } from '@nestjs/common';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { AutonomousTraderAgentService } from './agent.service';
-import { StartAgentDto, ChangeStrategyDto, UpdateRiskParamsDto, StrategyType } from './types/agent.types';
+import { StartAgentDto, ChangeStrategyDto, UpdateRiskParamsDto, UpdateAgentSettingsDto, StrategyType } from './types/agent.types';
 
 /**
  * Autonomous Trader Agent API
  *
  * Endpoints:
- * - POST /api/agent/trader/start      → تفعيل الوكيل
- * - POST /api/agent/trader/stop       → إيقاف الوكيل
- * - GET  /api/agent/trader/status     → حالة الوكيل
- * - GET  /api/agent/trader/performance → تقرير الأداء
+ * - POST /api/agent/trader/start         → تفعيل الوكيل
+ * - POST /api/agent/trader/stop          → إيقاف الوكيل
+ * - GET  /api/agent/trader/status        → حالة الوكيل
+ * - GET  /api/agent/trader/performance   → تقرير الأداء
  * - GET  /api/agent/trader/open-positions → المراكز المفتوحة
- * - PUT  /api/agent/trader/strategy   → تغيير الاستراتيجية
+ * - PUT  /api/agent/trader/strategy      → تغيير الاستراتيجية
+ * - PUT  /api/agent/trader/risk-params   → تحديث معلمات المخاطر
+ * - GET  /api/agent/trader/settings      → إعدادات الوكيل
+ * - PUT  /api/agent/trader/settings      → تحديث إعدادات الوكيل
+ * - GET  /api/agent/trader/system-status → حالة النظام
  */
 @Controller('agent/trader')
 @UseGuards(AuthGuard)
@@ -40,8 +43,6 @@ export class AutonomousTraderAgentController {
   /**
    * POST /api/agent/trader/start
    * Start the autonomous trader with specified strategy and configuration
-   *
-   * Accepts both validated DTO and raw JSON fallback for resilience.
    */
   @Post('start')
   @HttpCode(HttpStatus.OK)
@@ -95,12 +96,10 @@ export class AutonomousTraderAgentController {
     } catch (error: any) {
       this.logger.error(`[startAgent] Service error: ${error.message}`);
 
-      // If it's already an HttpException, re-throw it (NestJS handles formatting)
       if (error.getStatus && typeof error.getStatus === 'function') {
         throw error;
       }
 
-      // Unexpected error — return a friendly response instead of 500
       return {
         success: false,
         message: error.message || 'فشل تفعيل وكيل التداول — يرجى المحاولة لاحقاً',
@@ -111,8 +110,6 @@ export class AutonomousTraderAgentController {
 
   /**
    * POST /api/agent/trader/stop
-   * Stop the autonomous trader
-   * Query param: emergency=true for emergency stop (closes all positions)
    */
   @Post('stop')
   @HttpCode(HttpStatus.OK)
@@ -133,7 +130,6 @@ export class AutonomousTraderAgentController {
 
   /**
    * GET /api/agent/trader/status
-   * Get current agent status
    */
   @Get('status')
   async getStatus(@Req() req: any) {
@@ -147,12 +143,10 @@ export class AutonomousTraderAgentController {
 
   /**
    * GET /api/agent/trader/performance
-   * Get performance report
-   * Query param: period=daily|weekly|monthly|all_time
    */
   @Get('performance')
   async getPerformance(@Req() req: any) {
-    const period = 'WEEKLY' as const; // Default to weekly
+    const period = 'WEEKLY' as const;
     const metrics = await this.agentService.getPerformance(req.user.id, period);
 
     return {
@@ -163,7 +157,6 @@ export class AutonomousTraderAgentController {
 
   /**
    * GET /api/agent/trader/open-positions
-   * Get all open positions managed by the agent
    */
   @Get('open-positions')
   async getOpenPositions(@Req() req: any) {
@@ -177,7 +170,6 @@ export class AutonomousTraderAgentController {
 
   /**
    * PUT /api/agent/trader/strategy
-   * Change the active trading strategy
    */
   @Put('strategy')
   async changeStrategy(@Req() req: any, @Body() dto: ChangeStrategyDto) {
@@ -192,7 +184,6 @@ export class AutonomousTraderAgentController {
 
   /**
    * PUT /api/agent/trader/risk-params
-   * Update risk parameters
    */
   @Put('risk-params')
   async updateRiskParams(@Req() req: any, @Body() dto: UpdateRiskParamsDto) {
@@ -203,5 +194,44 @@ export class AutonomousTraderAgentController {
       data: state,
       message: 'تم تحديث معلمات المخاطر',
     };
+  }
+
+  /**
+   * GET /api/agent/trader/settings
+   * Get per-user agent settings (persistent, survives restarts)
+   */
+  @Get('settings')
+  async getSettings(@Req() req: any) {
+    const settings = await this.agentService.getSettings(req.user.id);
+
+    return {
+      success: true,
+      data: settings,
+    };
+  }
+
+  /**
+   * PUT /api/agent/trader/settings
+   * Update per-user agent settings
+   */
+  @Put('settings')
+  async updateSettings(@Req() req: any, @Body() dto: UpdateAgentSettingsDto) {
+    const settings = await this.agentService.updateSettings(req.user.id, dto);
+
+    return {
+      success: true,
+      data: settings,
+      message: 'تم تحديث إعدادات الوكيل',
+    };
+  }
+
+  /**
+   * GET /api/agent/trader/system-status
+   * Get system-level status (AUTO_TRADING_ENABLED, etc.)
+   * This endpoint shows the global system configuration that affects all users.
+   */
+  @Get('system-status')
+  async getSystemStatus() {
+    return this.agentService.getSystemStatus();
   }
 }

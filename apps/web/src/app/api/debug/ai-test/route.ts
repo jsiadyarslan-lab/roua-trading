@@ -1,11 +1,20 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { verifyAdminAuth } from '@/lib/admin-auth'
 
 /**
  * GET /api/debug/ai-test
  * Comprehensive debug endpoint — tests ALL AI models directly
  * to reveal the actual errors (not hidden behind stubs)
+ *
+ * 🔒 SECURITY: Requires admin authentication.
+ * This endpoint exposes API key lengths and tests external services.
+ * It MUST NOT be accessible without authentication.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // 🔒 Require admin auth — this endpoint exposes sensitive key info
+  const authError = await verifyAdminAuth(req)
+  if (authError) return authError
+
   const results: Record<string, any> = {
     timestamp: new Date().toISOString(),
     keys: {

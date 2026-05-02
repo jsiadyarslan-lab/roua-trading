@@ -276,8 +276,11 @@ export class ExecutionGatewayService {
       }
     } catch (error: any) {
       if (error instanceof NotFoundException) throw error;
-      // On parse error, allow with warning
-      this.logger.warn(`Could not parse permissions for credential ${credential.id}`);
+      // On parse error, REJECT execution — safer than allowing with warning
+      this.logger.error(`Could not parse permissions for credential ${credential.id} — BLOCKING execution for safety`);
+      throw new NotFoundException(
+        'لا يمكن التحقق من صلاحيات مفتاح API — يرجى إعادة إنشاء المفتاح أو التحقق من إعدادات البورصة',
+      );
     }
   }
 }

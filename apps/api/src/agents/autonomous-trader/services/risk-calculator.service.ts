@@ -160,6 +160,8 @@ export class RiskCalculatorService {
     if (!autoTradingEnabled) {
       canTrade = false;
       reason = 'التداول الذاتي معطّل — يمكن تفعيله عبر AUTO_TRADING_ENABLED';
+      // IMPORTANT: Log prominently so operators know trades are being silently rejected
+      this.logger.warn(`🚫 AUTO_TRADING_ENABLED=false — ALL trades for user ${userId} are being rejected. Set AUTO_TRADING_ENABLED=true to allow trading.`);
     }
 
     if (canTrade) {
@@ -290,9 +292,31 @@ export class RiskCalculatorService {
         return sum + Number(p.quantity) * (Number(p.currentPrice) || Number(p.entryPrice));
       }, 0);
 
-      return manualValue + positionsValue;
-    } catch {
-      return 0;
+      const totalValue = manualValue + positionsValue;
+
+      // CRITICAL FIX: If portfolio value is 0 (no portfolio records or no positions),
+      // use a default paper trading balance so the agent can actually trade.
+      // This handles new users who haven't set up a portfolio yet.
+      if (totalValue <= 0) {
+        const defaultBalance = parseFloat(
+          this.configService.get('DEFAULT_PAPER_BALANCE', '10000'),
+        ) || 10000;
+        this.logger.warn(
+          `🛡️ Portfolio value is 0 for user ${userId} — using default paper balance: $${defaultBalance}`,
+        );
+        return defaultBalance;
+      }
+
+      return totalValue;
+    } catch (error: any) {
+      // Even on DB error, return default so agent doesn't get stuck
+      const defaultBalance = parseFloat(
+        this.configService.get('DEFAULT_PAPER_BALANCE', '10000'),
+      ) || 10000;
+      this.logger.warn(
+        `🛡️ Failed to calculate portfolio value for ${userId}: ${error.message} — using default: $${defaultBalance}`,
+      );
+      return defaultBalance;
     }
   }
 

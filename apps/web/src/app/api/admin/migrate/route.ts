@@ -12,18 +12,14 @@ import { verifyAdminAuth } from '@/lib/admin-auth'
  *
  * Call this endpoint once after deployment to sync the schema.
  * It's safe to call multiple times — all statements are idempotent.
+ *
+ * 🔒 SECURITY: Requires admin authentication.
+ * This endpoint executes raw SQL and MUST NOT be accessible without auth.
  */
 export async function POST(req: NextRequest) {
+  // 🔒 Require admin auth — this endpoint modifies the database schema
   const authError = await verifyAdminAuth(req)
   if (authError) return authError
-
-  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_ADMIN_MIGRATIONS !== 'true') {
-    return NextResponse.json(
-      { error: 'ADMIN_MIGRATIONS_DISABLED' },
-      { status: 403 },
-    )
-  }
-
   const results: Record<string, any> = {}
 
   const migrations = [

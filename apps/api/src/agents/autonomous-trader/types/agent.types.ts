@@ -342,3 +342,69 @@ export class UpdateRiskParamsDto {
   @Min(0.1) @Max(10)
   riskPerTradePercent?: number;
 }
+
+// ── Agent Settings DTO (Full Settings Management) ──
+
+export class UpdateAgentSettingsDto {
+  // Trading Mode
+  @IsOptional()
+  autoTradingEnabled?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(100) @Max(1000000)
+  paperBalance?: number;
+
+  // Risk Parameters
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0.1) @Max(100)
+  maxPositionSizePercent?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0.1) @Max(100)
+  maxDailyLossPercent?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1) @Max(50)
+  maxOpenPositions?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(0.1) @Max(10)
+  riskPerTradePercent?: number;
+
+  // Default Strategy
+  @IsOptional()
+  @IsIn(['SCALPING', 'SWING', 'GRID'])
+  defaultStrategy?: string;
+
+  // Scalping Params
+  @IsOptional() @IsString() scalpingTimeframe?: string;
+  @IsOptional() @IsNumber() @Type(() => Number) @Min(1) @Max(100) scalpingTakeProfitPips?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) @Min(1) @Max(100) scalpingStopLossPips?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) @Min(1) @Max(50) scalpingMaxSpread?: number;
+
+  // Swing Params
+  @IsOptional() @IsString() swingTimeframe?: string;
+  @IsOptional() @IsNumber() @Type(() => Number) @Min(1) @Max(720) swingHoldingPeriodHours?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) @Min(5) @Max(200) swingTrendLookback?: number;
+
+  // Grid Params
+  @IsOptional() @IsNumber() @Type(() => Number) @Min(2) @Max(50) gridLevels?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) @Min(0.1) @Max(10) gridSpacingPercent?: number;
+  @IsOptional() @IsNumber() @Type(() => Number) @Min(0) gridQuantityPerLevel?: number;
+
+  // Default Symbols
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  defaultSymbols?: string[];
+}

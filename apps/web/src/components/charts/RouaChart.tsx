@@ -30,7 +30,6 @@ interface RouaChartProps {
   currentPrice?: number | null;
   mobile?: boolean;
   compact?: boolean;
-  hideToolbar?: boolean;
   onExpand?: (() => void) | null;
   isChartFullscreen?: boolean;
   onToggleChartFullscreen?: () => void;
@@ -40,7 +39,6 @@ export default function RouaChart({
   currentPrice = null,
   mobile = false,
   compact = false,
-  hideToolbar = false,
   onExpand = null,
   isChartFullscreen = false,
   onToggleChartFullscreen,
@@ -77,7 +75,6 @@ export default function RouaChart({
     symbol: selectedSymbol,
     timeframe,
     onCrosshairMove: setCrosshairData,
-    mobile,
   });
 
   // ── WebSocket ──────────────────────────────────────────
@@ -581,7 +578,7 @@ export default function RouaChart({
     warning: '#fbbf24',
   };
 
-  const toolbarHeight = mobile ? 28 : 38;
+  const toolbarHeight = mobile ? 32 : 38;
 
   return (
     <div
@@ -596,43 +593,41 @@ export default function RouaChart({
       className="roua-chart-root"
     >
       {/* ── TOOLBAR ── */}
-      {hideToolbar ? null : (
-        <ChartToolbar
-          symbol={selectedSymbol}
-          timeframe={timeframe}
-          chartType={chart.settings.type}
-          onSetTimeframe={setTimeframe}
-          onSetChartType={chart.setChartType}
-          onZoomIn={chart.zoomIn}
-          onZoomOut={chart.zoomOut}
-          onResetView={chart.resetView}
-          onToggleDrawings={() => setShowDrawingPanel(!showDrawingPanel)}
-          onToggleIndicators={() => setShowIndicatorPanel(!showIndicatorPanel)}
-          onExportPNG={chart.exportPNG}
-          onExportCSV={chart.exportCSV}
-          onExportSVG={chart.exportSVG}
-          onToggleFullscreen={onToggleChartFullscreen || chart.toggleFullscreen}
-          isFullscreen={isChartFullscreen || chart.isFullscreen}
-          activeTool={chart.activeTool}
-          onSetTool={chart.setTool}
-          onClearDrawings={chart.clearDrawings}
-          isPaused={chart.isPaused}
-          onTogglePause={chart.togglePause}
-          mobile={mobile}
-          height={toolbarHeight}
-          // ── New Toolbar Props ──
-          onToggleVolumeProfile={() => setShowVolumeProfile(!showVolumeProfile)}
-          onToggleAIPanel={() => setShowAIPanel(!showAIPanel)}
-          onToggleChartTrading={() => setShowChartTrading(!showChartTrading)}
-          onToggleTemplateManager={() => setShowTemplateManager(!showTemplateManager)}
-          onToggleWatchlist={() => setShowWatchlist(!showWatchlist)}
-          onToggleChartSettings={() => setShowChartSettings(!showChartSettings)}
-          showVolumeProfile={showVolumeProfile}
-          showAIPanel={showAIPanel}
-          showChartTrading={showChartTrading}
-          showWatchlist={showWatchlist}
-        />
-      )}
+      <ChartToolbar
+        symbol={selectedSymbol}
+        timeframe={timeframe}
+        chartType={chart.settings.type}
+        onSetTimeframe={setTimeframe}
+        onSetChartType={chart.setChartType}
+        onZoomIn={chart.zoomIn}
+        onZoomOut={chart.zoomOut}
+        onResetView={chart.resetView}
+        onToggleDrawings={() => setShowDrawingPanel(!showDrawingPanel)}
+        onToggleIndicators={() => setShowIndicatorPanel(!showIndicatorPanel)}
+        onExportPNG={chart.exportPNG}
+        onExportCSV={chart.exportCSV}
+        onExportSVG={chart.exportSVG}
+        onToggleFullscreen={onToggleChartFullscreen || chart.toggleFullscreen}
+        isFullscreen={isChartFullscreen || chart.isFullscreen}
+        activeTool={chart.activeTool}
+        onSetTool={chart.setTool}
+        onClearDrawings={chart.clearDrawings}
+        isPaused={chart.isPaused}
+        onTogglePause={chart.togglePause}
+        mobile={mobile}
+        height={toolbarHeight}
+        // ── New Toolbar Props ──
+        onToggleVolumeProfile={() => setShowVolumeProfile(!showVolumeProfile)}
+        onToggleAIPanel={() => setShowAIPanel(!showAIPanel)}
+        onToggleChartTrading={() => setShowChartTrading(!showChartTrading)}
+        onToggleTemplateManager={() => setShowTemplateManager(!showTemplateManager)}
+        onToggleWatchlist={() => setShowWatchlist(!showWatchlist)}
+        onToggleChartSettings={() => setShowChartSettings(!showChartSettings)}
+        showVolumeProfile={showVolumeProfile}
+        showAIPanel={showAIPanel}
+        showChartTrading={showChartTrading}
+        showWatchlist={showWatchlist}
+      />
 
       {/* ── CHART AREA ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
@@ -667,25 +662,7 @@ export default function RouaChart({
           {/* Overlay Layer — sibling of canvas container, always on top */}
           <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible' }}>
 
-            {/* Symbol Watermark */}
-            <div style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              pointerEvents: 'none',
-              zIndex: 1,
-              opacity: 0.04,
-              fontFamily: "'JetBrains Mono', monospace",
-              fontSize: Math.min(120, Math.max(48, 80)),
-              fontWeight: 900,
-              color: COLORS.text,
-              whiteSpace: 'nowrap',
-              letterSpacing: -2,
-              userSelect: 'none',
-            }}>
-              {selectedSymbol.replace('/', '')}
-            </div>
+            {/* Symbol Watermark — REMOVED: name already shown in toolbar/CrosshairOverlay */}
 
             {/* ── Fill Zones (colored bands between entry-SL/TP) ── */}
             {fillZones.map(zone => (
@@ -781,25 +758,48 @@ export default function RouaChart({
               />
             )}
 
-          {/* ── Candle Countdown Timer (bottom-left corner, small transparent) ── */}
-          {candleCountdown && (
-            <div style={{
-              position: 'absolute',
-              bottom: 8,
-              left: 8,
-              zIndex: 10,
-              fontSize: 10,
-              color: '#64748b',
-              background: 'rgba(0,0,0,0.5)',
-              padding: '2px 8px',
-              borderRadius: 4,
-              fontFamily: "'JetBrains Mono', monospace",
-              fontWeight: 600,
-              pointerEvents: 'none',
-            }}>
-              {candleCountdown}
+          {/* ── Quick Trade Buttons (top-left, simple) ── */}
+          {!mobile && currentPrice && (
+            <div className="absolute top-3 left-3 z-10 flex gap-2">
+              <button
+                onClick={() => {
+                  const { addTrade } = usePaperTradesStore.getState();
+                  addTrade({
+                    symbol: selectedSymbol,
+                    side: 'long',
+                    qty: lotSize,
+                    entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                    currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                    entryTime: Date.now(),
+                    strategy: 'quick',
+                    source: 'manual',
+                  });
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-lg text-sm font-bold"
+                title="شراء سريع"
+              >شراء</button>
+
+              <button
+                onClick={() => {
+                  const { addTrade } = usePaperTradesStore.getState();
+                  addTrade({
+                    symbol: selectedSymbol,
+                    side: 'short',
+                    qty: lotSize,
+                    entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                    currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                    entryTime: Date.now(),
+                    strategy: 'quick',
+                    source: 'manual',
+                  });
+                }}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded-lg text-sm font-bold"
+                title="بيع سريع"
+              >بيع</button>
             </div>
           )}
+
+          {/* Candle countdown removed from chart — shown only in header via CrosshairOverlay */}
           </div>{/* ── Overlay Layer close ── */}
         </div>{/* ── Chart Wrapper close ── */}
 

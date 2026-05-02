@@ -2,7 +2,7 @@
 // Roua Trading (رؤى) — Order Executor Service
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { AuditService } from '../../../audit/audit.service';
@@ -39,7 +39,7 @@ import { EvaluatedSignal, TradeExecution, RiskAssessment, AgentDecision } from '
  * - Full audit trail for every decision
  */
 @Injectable()
-export class OrderExecutorService {
+export class OrderExecutorService implements OnModuleDestroy {
   private readonly logger = new Logger(OrderExecutorService.name);
 
   /** Slippage tolerance: reject if actual price deviates more than this % */
@@ -47,6 +47,9 @@ export class OrderExecutorService {
 
   /** Track executed orders for deduplication */
   private readonly recentOrders = new Map<string, Date>();
+
+  /** Reference to the cleanup interval for proper disposal */
+  private cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -58,7 +61,15 @@ export class OrderExecutorService {
     this.logger.log('⚡ Order Executor initialized — safe execution ready');
 
     // Clean up old order entries every 5 minutes
-    setInterval(() => this._cleanupOldOrders(), 5 * 60 * 1000);
+    this.cleanupInterval = setInterval(() => this._cleanupOldOrders(), 5 * 60 * 1000);
+  }
+
+  onModuleDestroy() {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+      this.logger.log('⚡ Order Executor cleanup interval cleared');
+    }
   }
 
   /**
@@ -162,6 +173,51 @@ export class OrderExecutorService {
           reasoning: signal.reasoning,
         }),
       });
+
+      // Record in AutonomousTrade table for agent-specific analytics
+      try {
+        await this.prisma.autonomousTrade.create({
+          data: {
+            userId,
+            agentRunId: `run-${userId}-${signal.strategy}`, // matches agent session
+            symbol: signal.symbol,
+            side: signal.action as any,
+            orderType: signal.type as any,
+            strategy: signal.strategy as any,
+            status: 'FILLED',
+            entryPrice: signal.entryPrice,
+            stopLoss: signal.stopLoss,
+            takeProfit: signal.takeProfit,
+            quantity: risk.positionSize,
+            filledQuantity: Number(order.filledQuantity) || risk.positionSize,
+            pnl: null, // Will be updated when position closes
+            fee: Number(order.fee) || 0,
+            feeCurrency: order.feeCurrency || 'USD',
+            riskScore: risk.riskScore,
+            confidence: signal.confidence,
+            riskRewardRatio: risk.riskRewardRatio,
+            reasoning: signal.reasoning,
+            signalData: JSON.stringify(signal.metadata || {}),
+            metadata: JSON.stringify({ orderId: order.id, executionTimeMs }),
+            execution: JSON.stringify({
+              success: true,
+              orderId: order.id,
+              exchangeOrderId: order.exchangeOrderId,
+              filledQuantity: Number(order.filledQuantity) || risk.positionSize,
+              averagePrice: Number(order.averagePrice) || signal.entryPrice,
+              fee: Number(order.fee) || 0,
+              slippage: this._calculateSlippage(signal.entryPrice, Number(order.averagePrice) || signal.entryPrice, signal.action),
+              executionTimeMs,
+            }),
+            credentialId,
+            exchangeOrderId: order.exchangeOrderId || null,
+            openedAt: new Date(),
+          },
+        });
+      } catch (tradeErr: any) {
+        this.logger.error(`Failed to record AutonomousTrade: ${tradeErr.message}`);
+        // Non-fatal — the order was still executed successfully
+      }
 
       this.logger.log(
         `✅ Order executed: ${order.id} — ${signal.action} ${risk.positionSize} ${signal.symbol} ` +

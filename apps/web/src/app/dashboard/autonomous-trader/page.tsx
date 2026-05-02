@@ -161,12 +161,14 @@ export default function AutonomousTraderPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'positions' | 'performance' | 'settings'>('overview')
   const [showStrategyPicker, setShowStrategyPicker] = useState(false)
   const [confirmEmergency, setConfirmEmergency] = useState(false)
+  const [enablingSystem, setEnablingSystem] = useState(false)
 
   const status = agentState?.status ?? null
   const isRunning = status === AgentStatus.RUNNING
   const config = agentState?.config
   const strategy = config?.strategy ?? StrategyType.SCALPING
   const hasCredential = !!selectedCredentialId && selectedCredentialId.trim() !== ''
+  const globalAutoTrading = systemStatus?.globalAutoTradingEnabled ?? true
 
   // ── Initial load & auto-refresh ──
   useEffect(() => {
@@ -491,6 +493,61 @@ export default function AutonomousTraderPage() {
             <span>
               <strong>مطلوب مفتاح API</strong> — يرجى ربط مفتاح API خاصتك من صفحة المحفظة أولاً لتفعيل وكيل التداول الذاتي
             </span>
+          </div>
+        )}
+
+        {/* ── Global Auto Trading Disabled Banner ── */}
+        {!globalAutoTrading && (
+          <div style={{
+            margin: '0 28px 16px', padding: '16px 20px',
+            background: 'rgba(255,71,87,0.08)',
+            border: `1px solid rgba(255,71,87,0.25)`,
+            borderRadius: 12,
+            display: 'flex', alignItems: 'center', gap: 14,
+            fontFamily: FONT_AR,
+          }}>
+            <div style={{
+              width: 42, height: 42, borderRadius: 11,
+              background: 'rgba(255,71,87,0.12)',
+              border: '1px solid rgba(255,71,87,0.25)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <AlertCircle size={22} color={T.red} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 800, color: T.red, marginBottom: 4 }}>
+                التداول الذاتي معطّل على مستوى النظام
+              </div>
+              <div style={{ fontSize: 11, color: T.text3, lineHeight: 1.7 }}>
+                وكيل التداول لا يعمل لأن التداول الذاتي معطّل.{' '}
+                {systemStatus?.source === 'database'
+                  ? 'الإعداد محفوظ في قاعدة البيانات — اضغط الزر لتفعيله فوراً.'
+                  : 'الإعداد يأتي من متغيرات البيئة (env) — اضغط الزر لحفظه في قاعدة البيانات وتفعيله.'
+                }
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                setEnablingSystem(true)
+                await updateSystemSettings({ autoTradingEnabled: true })
+                setEnablingSystem(false)
+              }}
+              disabled={enablingSystem}
+              style={{
+                padding: '10px 24px', borderRadius: 10,
+                background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
+                border: 'none', color: '#000',
+                fontFamily: FONT_AR, fontSize: 13, fontWeight: 800,
+                cursor: enablingSystem ? 'wait' : 'pointer',
+                transition: 'all 0.2s', flexShrink: 0,
+                opacity: enablingSystem ? 0.7 : 1,
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}
+            >
+              {enablingSystem ? <RefreshCw size={14} style={{ animation: 'agent-spin 1s linear infinite' }} /> : <Play size={14} />}
+              تفعيل الآن
+            </button>
           </div>
         )}
 
@@ -1629,6 +1686,10 @@ const AGENT_CSS = `
 @keyframes agent-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+@keyframes agent-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 @keyframes fadeInSlideUp {
   from { opacity: 0; transform: translateY(12px); }

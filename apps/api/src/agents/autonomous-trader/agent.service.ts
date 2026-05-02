@@ -2,7 +2,7 @@
 // Roua Trading (رؤى) — Autonomous Trader Agent Service
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger, BadRequestException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, ServiceUnavailableException, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -58,7 +58,7 @@ import { PerformanceTracker } from './models/performance';
  * Schedule: Runs every 60 seconds (configurable)
  */
 @Injectable()
-export class AutonomousTraderAgentService {
+export class AutonomousTraderAgentService implements OnModuleInit {
   private readonly logger = new Logger(AutonomousTraderAgentService.name);
 
   /** Track if a cycle is currently running to prevent overlap */
@@ -82,6 +82,36 @@ export class AutonomousTraderAgentService {
     private readonly orderExecutor: OrderExecutorService,
   ) {
     this.logger.log('🧠 Autonomous Trader Agent initialized');
+  }
+
+  /**
+   * OnModuleInit — Auto-seed critical system settings on startup.
+   * This ensures AUTO_TRADING_ENABLED exists in the DB with a default of `true`,
+   * so the agent can be controlled from the UI without relying on env vars.
+   */
+  async onModuleInit() {
+    try {
+      // Ensure AUTO_TRADING_ENABLED exists in the Setting table
+      const existing = await this.prisma.setting.findUnique({
+        where: { key: 'AUTO_TRADING_ENABLED' },
+      });
+
+      if (!existing) {
+        // Read current env var value to use as initial DB value, defaulting to true
+        const envValue = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+        await this.prisma.setting.create({
+          data: {
+            key: 'AUTO_TRADING_ENABLED',
+            value: JSON.stringify(envValue),
+          },
+        });
+        this.logger.log(`🔧 Auto-seeded AUTO_TRADING_ENABLED=${envValue} in DB (from env var / default)`);
+      } else {
+        this.logger.log(`🔧 AUTO_TRADING_ENABLED=${JSON.parse(existing.value)} already in DB (source: database)`);
+      }
+    } catch (error: any) {
+      this.logger.warn(`Could not auto-seed AUTO_TRADING_ENABLED: ${error.message} — will fall back to env var`);
+    }
   }
 
   // ── Agent Lifecycle ──
@@ -515,6 +545,39 @@ export class AutonomousTraderAgentService {
       this.logger.error(`Failed to update system AUTO_TRADING_ENABLED: ${error.message}`);
       throw error;
     }
+  }
+
+  /**
+   * Public status endpoint — no auth required.
+   * Returns only autoTradingEnabled and source (safe to expose publicly).
+   */
+  async getPublicStatus() {
+    let autoTradingEnabled = true;
+    let source: 'database' | 'env_var' = 'env_var';
+
+    try {
+      const dbSetting = await this.prisma.setting.findUnique({
+        where: { key: 'AUTO_TRADING_ENABLED' },
+      });
+      if (dbSetting) {
+        autoTradingEnabled = JSON.parse(dbSetting.value);
+        source = 'database';
+      } else {
+        autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+        source = 'env_var';
+      }
+    } catch {
+      autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+      source = 'env_var';
+    }
+
+    return {
+      success: true,
+      data: {
+        autoTradingEnabled,
+        source,
+      },
+    };
   }
 
   /**

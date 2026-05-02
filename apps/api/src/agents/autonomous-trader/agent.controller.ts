@@ -19,7 +19,22 @@ import { AutonomousTraderAgentService } from './agent.service';
 import { StartAgentDto, ChangeStrategyDto, UpdateRiskParamsDto, UpdateAgentSettingsDto, StrategyType } from './types/agent.types';
 
 /**
- * Autonomous Trader Agent API
+ * Public Agent Status Controller (no auth required)
+ * Provides read-only system status so the frontend can show
+ * whether auto-trading is enabled before the user logs in.
+ */
+@Controller('agent/trader')
+export class AutonomousTraderPublicController {
+  constructor(private readonly agentService: AutonomousTraderAgentService) {}
+
+  @Get('public-status')
+  async getPublicStatus() {
+    return this.agentService.getPublicStatus();
+  }
+}
+
+/**
+ * Autonomous Trader Agent API (authenticated)
  *
  * Endpoints:
  * - POST /api/agent/trader/start         → تفعيل الوكيل
@@ -230,6 +245,8 @@ export class AutonomousTraderAgentController {
    * GET /api/agent/trader/system-status
    * Get system-level status (AUTO_TRADING_ENABLED, etc.)
    * This endpoint shows the global system configuration that affects all users.
+   * NOTE: This is also accessible via the public /api/agent/trader/public-status endpoint
+   * without authentication, so the frontend can show the trading status on the landing page.
    */
   @Get('system-status')
   async getSystemStatus() {

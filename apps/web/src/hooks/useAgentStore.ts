@@ -188,6 +188,7 @@ interface AgentStore {
   updateSettings: (settings: Partial<AgentSettingsData>) => Promise<void>
   fetchSystemStatus: () => Promise<void>
   updateSystemSettings: (settings: { autoTradingEnabled?: boolean }) => Promise<void>
+  fetchPublicStatus: () => Promise<void>
 
   // Auto-refresh
   startAutoRefresh: () => void
@@ -494,6 +495,21 @@ export const useAgentStore = create<AgentStore>()(
           }
         } catch (e: any) {
           get().addLog(`❌ خطأ في تحديث إعدادات النظام: ${e.message}`, 'error')
+        }
+      },
+
+      fetchPublicStatus: async () => {
+        try {
+          const res = await fetch('/api/agent/trader/public-status')
+          const data = await res.json()
+          if (data.success && data.data) {
+            // Update systemStatus with public data if we don't have full status yet
+            if (!get().systemStatus) {
+              set({ systemStatus: { ...data.data, globalAutoTradingEnabled: data.data.autoTradingEnabled, defaultPaperBalance: 10000, nodeEnv: 'unknown', message: '' } })
+            }
+          }
+        } catch {
+          // Silent fail for public status
         }
       },
 

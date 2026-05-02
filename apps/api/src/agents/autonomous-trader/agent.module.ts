@@ -17,7 +17,7 @@ import { OrderExecutorService } from './services/order-executor.service';
 import { AutonomousTraderAgentService } from './agent.service';
 
 // Agent Controller
-import { AutonomousTraderAgentController } from './agent.controller';
+import { AutonomousTraderAgentController, AutonomousTraderPublicController } from './agent.controller';
 
 /**
  * AutonomousTraderAgentModule — The Crown Jewel of Roua Trading
@@ -55,7 +55,7 @@ import { AutonomousTraderAgentController } from './agent.controller';
     TradingModule,
     ExchangeModule,
   ],
-  controllers: [AutonomousTraderAgentController],
+  controllers: [AutonomousTraderPublicController, AutonomousTraderAgentController],
   providers: [
     // Core Services
     MarketAnalyzerService,

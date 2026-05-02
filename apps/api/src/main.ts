@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaService } from './common/prisma/prisma.service';
+import { RedisService } from './common/redis/redis.service';
 
 async function bootstrap() {
   try {
@@ -48,6 +49,7 @@ async function bootstrap() {
     // ── Health check endpoint (no auth required) ──
     // Must be registered BEFORE global pipes/filters to avoid auth interference
     const prisma = app.get(PrismaService);
+    const redisService = app.get(RedisService, { strict: false });
     app.getHttpAdapter().getInstance().get('/api/health', async (req: any, res: any) => {
       const start = Date.now();
       const checks: Record<string, { status: string; latencyMs?: number; detail?: string }> = {};
@@ -58,19 +60,20 @@ async function bootstrap() {
         await prisma.$queryRaw`SELECT 1`;
         checks.database = { status: 'ok', latencyMs: Date.now() - dbStart };
       } catch (error: any) {
-        checks.database = { status: 'error', detail: error.message };
+        checks.database = { status: 'error', detail: error.message?.substring(0, 100) };
       }
 
       // Redis check
       try {
         const redisStart = Date.now();
-        const redis = app.get('RedisService') as any;
-        if (redis && typeof redis.ping === 'function') {
-          await redis.ping();
+        if (redisService && typeof redisService.ping === 'function') {
+          await redisService.ping();
+          checks.redis = { status: 'ok', latencyMs: Date.now() - redisStart };
+        } else {
+          checks.redis = { status: 'degraded', detail: 'Redis service not available' };
         }
-        checks.redis = { status: 'ok', latencyMs: Date.now() - redisStart };
       } catch (error: any) {
-        checks.redis = { status: 'degraded', detail: error.message };
+        checks.redis = { status: 'degraded', detail: error.message?.substring(0, 100) };
       }
 
       // Memory check
@@ -86,7 +89,7 @@ async function bootstrap() {
 
       res.status(statusCode).json({
         status: allOk ? 'ok' : 'degraded',
-        uptime: process.uptime(),
+        uptime: Math.round(process.uptime()),
         timestamp: new Date().toISOString(),
         version: process.env.npm_package_version || '0.1.0',
         checks,

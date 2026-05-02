@@ -246,10 +246,12 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
         }
       `}</style>
 
-      {/* Always-visible Agent Control Widget */}
-      <div style={{ flexShrink: 0, padding: '4px 4px 0', position: 'relative', zIndex: 1 }}>
-        <AgentControlMini />
-      </div>
+      {/* Agent Control Widget — only visible in the Agent tab */}
+      {active === 'trader' && (
+        <div style={{ flexShrink: 0, padding: '4px 4px 0', position: 'relative', zIndex: 1 }}>
+          <AgentControlMini />
+        </div>
+      )}
 
       <div
         style={{

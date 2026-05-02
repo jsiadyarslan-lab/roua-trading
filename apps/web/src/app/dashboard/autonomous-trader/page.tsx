@@ -152,9 +152,9 @@ function StatCard({ icon, label, value, subValue, color, mono }: {
 export default function AutonomousTraderPage() {
   const {
     agentState, performance, positions, logs, loading, error,
-    fetchStatus, startAgent, stopAgent, changeStrategy, updateRiskParams,
+    fetchStatus, fetchCredentials, startAgent, stopAgent, changeStrategy, updateRiskParams,
     fetchPerformance, fetchPositions, startAutoRefresh, stopAutoRefresh, addLog,
-    selectedCredentialId,
+    selectedCredentialId, availableCredentials,
   } = useAgentStore()
 
   const [activeTab, setActiveTab] = useState<'overview' | 'positions' | 'performance' | 'settings'>('overview')
@@ -170,11 +170,12 @@ export default function AutonomousTraderPage() {
   // ── Initial load & auto-refresh ──
   useEffect(() => {
     fetchStatus()
+    fetchCredentials()
     fetchPerformance()
     fetchPositions()
     startAutoRefresh()
     return () => stopAutoRefresh()
-  }, [fetchStatus, fetchPerformance, fetchPositions, startAutoRefresh, stopAutoRefresh])
+  }, [fetchStatus, fetchCredentials, fetchPerformance, fetchPositions, startAutoRefresh, stopAutoRefresh])
 
   // ── Tab definitions ──
   const TABS = [
@@ -253,7 +254,7 @@ export default function AutonomousTraderPage() {
                 <Play size={15} />
                 تفعيل الوكيل
               </button>
-            )
+            )}
             {isRunning && (
               <>
                 <button
@@ -303,7 +304,7 @@ export default function AutonomousTraderPage() {
             )}
             {(status === AgentStatus.STOPPED || status === AgentStatus.EMERGENCY_STOP || status === AgentStatus.PAUSED) && !isRunning && agentState && (
               <button
-                onClick={() => startAgent(config?.strategy as StrategyType)}
+                onClick={() => startAgent(config?.strategy ?? StrategyType.SCALPING)}
                 disabled={loading}
                 style={{
                   ...btnStyle,

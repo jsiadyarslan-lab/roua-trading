@@ -287,18 +287,20 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
    Agent Mini — Compact autonomous trader widget
    ═══════════════════════════════════════════════ */
 function AgentMini() {
-  const { agentState, performance, positions, loading, fetchStatus, startAgent, stopAgent, changeStrategy, fetchPerformance, fetchPositions } = useAgentStore()
+  const { agentState, performance, positions, loading, fetchStatus, fetchCredentials, startAgent, stopAgent, changeStrategy, fetchPerformance, fetchPositions, selectedCredentialId, availableCredentials } = useAgentStore()
   const [strategy, setStrategy] = useState<'SCALPING' | 'SWING' | 'GRID'>('SCALPING')
 
   const status = agentState?.status ?? null
   const isRunning = status === AgentStatus.RUNNING
   const config = agentState?.config
+  const hasCredential = !!selectedCredentialId && selectedCredentialId.trim() !== ''
 
-  // Fetch agent data on mount
+  // Fetch agent data + credentials on mount
   useState(() => {
     fetchStatus()
     fetchPerformance()
     fetchPositions()
+    fetchCredentials()
   })
 
   const strategyLabels: Record<string, string> = { SCALPING: 'سكالبينغ', SWING: 'سوينغ', GRID: 'شبكة' }

@@ -129,13 +129,14 @@ export function SidebarContentPanel({
 
 /* ─── Trading Agent Mini Widget (sidebar) ─── */
 function TradingAgentMini() {
-  const { agentState, performance, positions, loading, fetchStatus, startAgent, stopAgent } = useAgentStore()
+  const { agentState, performance, positions, loading, fetchStatus, fetchCredentials, startAgent, stopAgent, selectedCredentialId } = useAgentStore()
 
   useEffect(() => {
     fetchStatus()
+    fetchCredentials()
     const interval = setInterval(fetchStatus, 30000)
     return () => clearInterval(interval)
-  }, [fetchStatus])
+  }, [fetchStatus, fetchCredentials])
 
   const status = agentState?.status ?? AgentStatus.IDLE
   const isRunning = status === AgentStatus.RUNNING

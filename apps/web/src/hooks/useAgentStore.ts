@@ -119,6 +119,7 @@ interface AgentStore {
   isConfigured: boolean
   selectedCredentialId: string
   selectedSymbols: string[]
+  availableCredentials: Array<{ id: string; exchange: string; label?: string; isValid: boolean }>
 
   // Actions
   setAgentState: (state: AgentState | null) => void
@@ -133,6 +134,7 @@ interface AgentStore {
 
   // API Actions
   fetchStatus: () => Promise<void>
+  fetchCredentials: () => Promise<void>
   startAgent: (strategy: StrategyType) => Promise<void>
   stopAgent: (emergency?: boolean) => Promise<void>
   changeStrategy: (strategy: StrategyType, params?: StrategyParams) => Promise<void>
@@ -166,6 +168,7 @@ export const useAgentStore = create<AgentStore>()(
       isConfigured: false,
       selectedCredentialId: '',
       selectedSymbols: DEFAULT_SYMBOLS,
+      availableCredentials: [],
 
       setAgentState: (agentState) => set({ agentState }),
       setPerformance: (performance) => set({ performance }),
@@ -180,6 +183,26 @@ export const useAgentStore = create<AgentStore>()(
       setSelectedSymbols: (symbols) => set({ selectedSymbols: symbols }),
 
       // ── API Actions ──
+      fetchCredentials: async () => {
+        try {
+          const res = await fetch('/api/portfolio/credentials')
+          if (res.ok) {
+            const data = await res.json()
+            if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+              const validCreds = data.data.filter((c: any) => c.isValid !== false)
+              set({ availableCredentials: validCreds })
+              // Auto-select first valid credential if none selected
+              const { selectedCredentialId } = get()
+              if (!selectedCredentialId && validCreds.length > 0) {
+                set({ selectedCredentialId: validCreds[0].id })
+              }
+            }
+          }
+        } catch {
+          // Silent — credentials may not be configured yet
+        }
+      },
+
       fetchStatus: async () => {
         try {
           const res = await fetch('/api/agent/trader/status')
@@ -197,8 +220,20 @@ export const useAgentStore = create<AgentStore>()(
       startAgent: async (strategy) => {
         const { selectedCredentialId, selectedSymbols } = get()
 
-        // Validate credential before making API call
+        // Ensure strategy is valid
+        const validStrategies = [StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID]
+        const safeStrategy = validStrategies.includes(strategy) ? strategy : StrategyType.SCALPING
+
+        // Auto-fetch credentials if not set
         if (!selectedCredentialId || selectedCredentialId.trim() === '') {
+          await get().fetchCredentials()
+        }
+
+        // Re-read after potential fetch
+        const currentCredentialId = get().selectedCredentialId
+
+        // Validate credential before making API call
+        if (!currentCredentialId || currentCredentialId.trim() === '') {
           const errorMsg = 'يرجى ربط مفتاح API أولاً من إعدادات المحفظة'
           set({ error: errorMsg, loading: false })
           get().addLog(`❌ ${errorMsg}`, 'error')
@@ -206,30 +241,50 @@ export const useAgentStore = create<AgentStore>()(
         }
 
         set({ loading: true, error: null })
-        get().addLog(`جارٍ تفعيل الوكيل باستراتيجية ${strategy === StrategyType.SCALPING ? 'السكالبينغ' : strategy === StrategyType.SWING ? 'السوينغ' : 'الشبكة'}...`, 'info')
+        get().addLog(`جارٍ تفعيل الوكيل باستراتيجية ${safeStrategy === StrategyType.SCALPING ? 'السكالبينغ' : safeStrategy === StrategyType.SWING ? 'السوينغ' : 'الشبكة'}...`, 'info')
         try {
+          const payload = {
+            strategy: safeStrategy,
+            credentialId: currentCredentialId,
+            symbols: selectedSymbols,
+          }
+          console.log('[AgentStore] Starting agent with payload:', JSON.stringify(payload, null, 2))
+
           const res = await fetch('/api/agent/trader/start', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              strategy,
-              credentialId: selectedCredentialId,
-              symbols: selectedSymbols,
-            }),
+            body: JSON.stringify(payload),
           })
           const data = await res.json()
+
+          if (!res.ok) {
+            console.error('[AgentStore] startAgent failed:', res.status, data)
+          }
+
           if (data.success) {
             set({ agentState: data.data, loading: false, isConfigured: true })
             get().addLog('✅ تم تفعيل وكيل التداول بنجاح', 'success')
           } else {
             // Map common backend error messages to user-friendly Arabic
             let msg = data.message || 'فشل التفعيل'
-            if (msg.includes('credentialId') || msg.includes('should not be empty')) {
-              msg = 'يرجى ربط مفتاح API أولاً من إعدادات المحفظة'
-            } else if (msg.includes('not valid') || msg.includes('غير صالحة')) {
-              msg = 'مفتاح API غير صالح أو منتهي الصلاحية — تحقق من إعدادات المحفظة'
+            // Handle array messages from ValidationPipe
+            if (Array.isArray(msg)) {
+              msg = msg.join('; ')
             }
-            set({ error: msg, loading: false })
+            if (typeof msg === 'string') {
+              if (msg.includes('credentialId') || msg.includes('should not be empty')) {
+                msg = 'يرجى ربط مفتاح API أولاً من إعدادات المحفظة'
+              } else if (msg.includes('not valid') || msg.includes('غير صالحة') || msg.includes('not found') || msg.includes('غير موجودة')) {
+                msg = 'مفتاح API غير صالح أو منتهي الصلاحية — تحقق من إعدادات المحفظة'
+              } else if (msg.includes('already running') || msg.includes('يعمل بالفعل')) {
+                msg = 'الوكيل يعمل بالفعل — أوقفه أولاً ثم أعد تشغيله'
+              } else if (msg.includes('trade permission') || msg.includes('صلاحية التداول')) {
+                msg = 'مفتاح API لا يملك صلاحية التداول — تحقق من إعدادات البورصة'
+              } else if (msg.includes('must be one of') || msg.includes('strategy')) {
+                msg = 'استراتيجية غير صالحة — يرجى اختيار سكالبينغ، سوينغ، أو شبكة'
+              }
+            }
+            set({ error: String(msg), loading: false })
             get().addLog(`❌ فشل التفعيل: ${msg}`, 'error')
           }
         } catch (e: any) {
@@ -366,13 +421,18 @@ export const useAgentStore = create<AgentStore>()(
         loading: false,
         error: null,
         isConfigured: persistedState?.isConfigured ?? false,
-        selectedCredentialId: persistedState?.selectedCredentialId ?? '',
-        selectedSymbols: persistedState?.selectedSymbols ?? DEFAULT_SYMBOLS,
+        // Only persist credentialId if it's a valid non-empty string
+        selectedCredentialId: (typeof persistedState?.selectedCredentialId === 'string' && persistedState.selectedCredentialId.trim() !== '')
+          ? persistedState.selectedCredentialId
+          : '',
+        selectedSymbols: Array.isArray(persistedState?.selectedSymbols) ? persistedState.selectedSymbols : DEFAULT_SYMBOLS,
+        availableCredentials: [],
       }),
       partialize: (state) => ({
         isConfigured: state.isConfigured,
         selectedCredentialId: state.selectedCredentialId,
         selectedSymbols: state.selectedSymbols,
+        // Don't persist availableCredentials — always fetch fresh
       }),
     }
   )

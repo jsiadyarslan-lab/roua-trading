@@ -86,10 +86,15 @@ async function bootstrap() {
     });
 
     // Global validation pipe
+    // NOTE: `forbidNonWhitelisted` is set to `false` because `whitelist: true`
+    // already strips unknown properties. Setting `forbidNonWhitelisted: true`
+    // caused confusing 400 errors when frontend DTOs evolved independently
+    // from backend DTOs — the whitelist still ensures security by removing
+    // any unexpected fields silently.
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: true,
+        forbidNonWhitelisted: false,
         transform: true,
         transformOptions: {
           enableImplicitConversion: true,

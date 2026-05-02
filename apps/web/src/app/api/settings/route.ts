@@ -16,20 +16,27 @@ export async function GET(req: NextRequest) {
 
     // Get user ID from session cookie
     const sessionToken = req.cookies.get('roua_session')?.value
-    let userId = 'default'
 
-    if (sessionToken) {
-      try {
-        const session = await db.session.findUnique({
-          where: { token: sessionToken },
-          select: { userId: true },
-        })
-        if (session?.userId) {
-          userId = session.userId
-        }
-      } catch {
-        // Session lookup failed — use default
+    if (!sessionToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    let userId: string | null = null
+
+    try {
+      const session = await db.session.findUnique({
+        where: { token: sessionToken },
+        select: { userId: true },
+      })
+      if (session?.userId) {
+        userId = session.userId
       }
+    } catch {
+      // Session lookup failed
+    }
+
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Load all settings for this user
@@ -76,20 +83,27 @@ export async function PUT(req: NextRequest) {
 
     // Get user ID from session cookie
     const sessionToken = req.cookies.get('roua_session')?.value
-    let userId = 'default'
 
-    if (sessionToken) {
-      try {
-        const session = await db.session.findUnique({
-          where: { token: sessionToken },
-          select: { userId: true },
-        })
-        if (session?.userId) {
-          userId = session.userId
-        }
-      } catch {
-        // Session lookup failed — use default
+    if (!sessionToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    let userId: string | null = null
+
+    try {
+      const session = await db.session.findUnique({
+        where: { token: sessionToken },
+        select: { userId: true },
+      })
+      if (session?.userId) {
+        userId = session.userId
       }
+    } catch {
+      // Session lookup failed
+    }
+
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Upsert each setting

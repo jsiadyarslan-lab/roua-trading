@@ -49,25 +49,32 @@ export class AllExceptionsFilter implements ExceptionFilter {
         }
       }
     } else if (exception instanceof Error) {
-      message = exception.message || 'Internal server error';
       details = exception.stack;
 
-      // Classify common error types
-      if (message.includes('ECONNREFUSED') || message.includes('ETIMEDOUT')) {
+      // In production, hide internal error details for non-HttpException errors
+      if (process.env.NODE_ENV === 'production') {
+        message = 'Internal server error';
+      } else {
+        message = exception.message || 'Internal server error';
+      }
+
+      // Classify common error types (applies user-friendly messages regardless of environment)
+      const rawMessage = exception.message || '';
+      if (rawMessage.includes('ECONNREFUSED') || rawMessage.includes('ETIMEDOUT')) {
         status = HttpStatus.BAD_GATEWAY;
         message = 'خدمة خارجية غير متاحة — يرجى المحاولة لاحقاً';
       } else if (
-        message.includes('Prisma') ||
-        message.includes('prisma') ||
-        message.includes('database')
+        rawMessage.includes('Prisma') ||
+        rawMessage.includes('prisma') ||
+        rawMessage.includes('database')
       ) {
         // Distinguish schema mismatch from connection errors
         if (
-          message.includes('does not exist') ||
-          message.includes('column') ||
-          message.includes('schema') ||
-          message.includes('relation') ||
-          message.includes('Invalid')
+          rawMessage.includes('does not exist') ||
+          rawMessage.includes('column') ||
+          rawMessage.includes('schema') ||
+          rawMessage.includes('relation') ||
+          rawMessage.includes('Invalid')
         ) {
           status = HttpStatus.SERVICE_UNAVAILABLE;
           message = 'خطأ في هيكل قاعدة البيانات — يتم إصلاحه تلقائياً عند إعادة النشر';
@@ -76,9 +83,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
           message = 'خطأ في قاعدة البيانات — يرجى المحاولة لاحقاً';
         }
       } else if (
-        message.includes('Redis') ||
-        message.includes('redis') ||
-        message.includes('ECONNRESET')
+        rawMessage.includes('Redis') ||
+        rawMessage.includes('redis') ||
+        rawMessage.includes('ECONNRESET')
       ) {
         status = HttpStatus.BAD_GATEWAY;
         message = 'خطأ في الاتصال بالذاكرة المؤقتة — يرجى المحاولة لاحقاً';

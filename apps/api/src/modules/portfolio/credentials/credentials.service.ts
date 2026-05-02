@@ -36,11 +36,16 @@ export class CredentialsService {
   ) {
     const key = this.configService.get<string>('ENCRYPTION_KEY');
     if (!key) {
-      // FIX: Generate a per-deployment salt instead of using a static 'roua-salt'.
-      // A static salt means the same password always produces the same key, which
-      // is equivalent to using a fixed key. Instead, derive a deployment-specific
-      // salt from the combination of NEXTAUTH_SECRET + NODE_ENV + machine hostname.
-      const fallback = this.configService.get<string>('NEXTAUTH_SECRET', 'roua-dev-key-change-in-production');
+      // FIX: No hardcoded fallback — must have ENCRYPTION_KEY or NEXTAUTH_SECRET.
+      const fallback = this.configService.get<string>('NEXTAUTH_SECRET');
+      if (!fallback) {
+        throw new Error(
+          'CRITICAL: ENCRYPTION_KEY or NEXTAUTH_SECRET must be set. ' +
+          'Without an encryption key, credentials cannot be securely stored. ' +
+          'Set ENCRYPTION_KEY (recommended) or NEXTAUTH_SECRET in your environment.'
+        );
+      }
+      // Derive a deployment-specific salt from NEXTAUTH_SECRET + NODE_ENV + hostname
       const deploymentId = `${fallback}:${this.configService.get('NODE_ENV', 'development')}:${hostname()}`;
       const salt = crypto.createHash('sha256').update(deploymentId).digest().slice(0, 16);
       this.encryptionKey = crypto.scryptSync(fallback, salt, 32);

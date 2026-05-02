@@ -66,10 +66,9 @@ export class IdempotencyService {
       this.logger.debug(`🔑 Idempotency key locked: ${key} (TTL: 24h)`);
       return true;
     } catch (error: any) {
-      // On Redis failure, be conservative: allow the request
-      // (better to process a potential duplicate than block all orders)
-      this.logger.error(`Idempotency check failed for ${key}: ${error.message} — allowing request`);
-      return true;
+      // On Redis failure, block the request to prevent duplicate orders
+      this.logger.error(`Idempotency check failed for ${key}: ${error.message} — blocking request to prevent duplicates`);
+      return false;
     }
   }
 

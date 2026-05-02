@@ -35,6 +35,7 @@ export class RiskGatekeeperService {
   private maxDailyLossPercent: number;
   private minOrderSizeUSD: number;
   private maxOrderSizeUSD: number;
+  private stopLossDefault: number;
   private circuitBreakerThresholdPercent: number;
 
   // ── Circuit Breaker State (in-memory, per symbol) ──
@@ -66,6 +67,9 @@ export class RiskGatekeeperService {
     );
     this.maxOrderSizeUSD = parseFloat(
       this.configService.get('RISK_MAX_ORDER_SIZE', '50000'),
+    );
+    this.stopLossDefault = parseFloat(
+      this.configService.get('RISK_STOP_LOSS_DEFAULT', '2'),
     );
     this.circuitBreakerThresholdPercent = parseFloat(
       this.configService.get('RISK_CIRCUIT_BREAKER_THRESHOLD', '10'),
@@ -105,7 +109,7 @@ export class RiskGatekeeperService {
       if (riskConfig) {
         if (riskConfig.maxDrawdown) this.maxDailyLossPercent = parseFloat(riskConfig.maxDrawdown);
         if (riskConfig.maxOpenPositions) this.maxOpenPositions = parseInt(riskConfig.maxOpenPositions, 10);
-        if (riskConfig.stopLossDefault) this.minOrderSizeUSD = parseFloat(riskConfig.stopLossDefault);
+        if (riskConfig.stopLossDefault) this.stopLossDefault = parseFloat(riskConfig.stopLossDefault);
         if (riskConfig.leverageLimit) this.circuitBreakerThresholdPercent = parseFloat(riskConfig.leverageLimit);
       }
 
@@ -360,7 +364,7 @@ export class RiskGatekeeperService {
           const quote = await this.exchangeService.getQuote(command.symbol);
           currentPrice = quote.price;
         } catch {
-          return { allowed: true };
+          return { allowed: false, reason: 'Price unavailable — cannot verify position size limit', failedCheck: 'POSITION_SIZE_LIMIT' };
         }
       }
 
@@ -381,7 +385,7 @@ export class RiskGatekeeperService {
       return { allowed: true };
     } catch (error: any) {
       this.logger.error(`Position size check error: ${error.message}`);
-      return { allowed: true };
+      return { allowed: false, reason: 'Cannot verify position size limit', failedCheck: 'POSITION_SIZE_LIMIT' };
     }
   }
 
@@ -425,7 +429,7 @@ export class RiskGatekeeperService {
       return { allowed: true };
     } catch (error: any) {
       this.logger.error(`Daily drawdown check error: ${error.message}`);
-      return { allowed: true };
+      return { allowed: false, reason: 'Cannot verify daily drawdown limit', failedCheck: 'DAILY_DRAWDOWN' };
     }
   }
 
@@ -485,6 +489,7 @@ export class RiskGatekeeperService {
       maxDailyLossPercent: this.maxDailyLossPercent,
       minOrderSizeUSD: this.minOrderSizeUSD,
       maxOrderSizeUSD: this.maxOrderSizeUSD,
+      stopLossDefault: this.stopLossDefault,
       circuitBreakerThresholdPercent: this.circuitBreakerThresholdPercent,
     };
   }

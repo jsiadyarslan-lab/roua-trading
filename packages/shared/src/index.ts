@@ -52,7 +52,7 @@ export interface AuthUser {
   id: string;
   email: string;
   displayName: string | null;
-  tier: 'FREE' | 'PREMIUM' | 'INSTITUTIONAL';
+  tier: 'FREE' | 'PRO' | 'PLUS' | 'PREMIUM' | 'INSTITUTIONAL';
 }
 
 export interface AuthSession {
@@ -82,6 +82,8 @@ export enum AssetType {
 // ── User Tier ──
 export enum Tier {
   FREE = 'FREE',
+  PRO = 'PRO',
+  PLUS = 'PLUS',
   PREMIUM = 'PREMIUM',
   INSTITUTIONAL = 'INSTITUTIONAL',
 }

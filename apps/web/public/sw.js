@@ -3,6 +3,7 @@ const CACHE_NAME = 'roua-v3';
 const APP_SHELL = [
   '/',
   '/dashboard',
+  '/mobile',
   '/manifest.json',
   '/logo.svg',
   '/logo-192.png',

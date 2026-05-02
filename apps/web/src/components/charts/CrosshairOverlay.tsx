@@ -88,16 +88,16 @@ export function CrosshairOverlay({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '4px 8px',
+        padding: '2px 6px',
         pointerEvents: 'none',
         zIndex: 3,
         background: 'linear-gradient(180deg, rgba(11,14,20,0.85) 0%, rgba(11,14,20,0.3) 80%, transparent 100%)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           {/* Symbol */}
           <span style={{
             fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 9,
+            fontSize: 8,
             fontWeight: 700,
             color: COLORS.cyan,
             letterSpacing: 0.3,
@@ -107,7 +107,7 @@ export function CrosshairOverlay({
           {/* Price */}
           <span style={{
             fontFamily: "'JetBrains Mono', monospace",
-            fontSize: `${overlayPriceSize}px`,
+            fontSize: '12px',
             fontWeight: 700,
             lineHeight: 1,
             color: pricePulse ? (isBull ? COLORS.success : COLORS.danger) : COLORS.text,
@@ -120,12 +120,12 @@ export function CrosshairOverlay({
           {/* Change % */}
           {displayData && (
             <span style={{
-              fontSize: 9,
+              fontSize: 8,
               fontFamily: "'JetBrains Mono', monospace",
               color: changeColor,
               fontWeight: 700,
-              padding: '1px 5px',
-              borderRadius: 4,
+              padding: '0px 4px',
+              borderRadius: 3,
               background: `${changeColor}15`,
             }}>
               {displayData.changePercent >= 0 ? '+' : ''}{displayData.changePercent.toFixed(2)}%
@@ -134,22 +134,22 @@ export function CrosshairOverlay({
         </div>
 
         {/* Right: Candle countdown + Feed status */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           {showCandleTimer && candleCountdown && (
             <span style={{
-              fontSize: 9,
+              fontSize: 8,
               color: COLORS.textMuted,
               fontFamily: "'JetBrains Mono', monospace",
               fontWeight: 600,
               background: 'rgba(0,0,0,0.4)',
-              padding: '1px 6px',
-              borderRadius: 4,
+              padding: '0px 5px',
+              borderRadius: 3,
             }}>
               {candleCountdown}
             </span>
           )}
           {feedState === 'fallback' && (
-            <span style={{ fontSize: 8, color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>بيانات احتياطية</span>
+            <span style={{ fontSize: 7, color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>بيانات احتياطية</span>
           )}
         </div>
       </div>

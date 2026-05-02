@@ -30,6 +30,7 @@ interface RouaChartProps {
   currentPrice?: number | null;
   mobile?: boolean;
   compact?: boolean;
+  hideToolbar?: boolean;
   onExpand?: (() => void) | null;
   isChartFullscreen?: boolean;
   onToggleChartFullscreen?: () => void;
@@ -39,6 +40,7 @@ export default function RouaChart({
   currentPrice = null,
   mobile = false,
   compact = false,
+  hideToolbar = false,
   onExpand = null,
   isChartFullscreen = false,
   onToggleChartFullscreen,
@@ -594,41 +596,43 @@ export default function RouaChart({
       className="roua-chart-root"
     >
       {/* ── TOOLBAR ── */}
-      <ChartToolbar
-        symbol={selectedSymbol}
-        timeframe={timeframe}
-        chartType={chart.settings.type}
-        onSetTimeframe={setTimeframe}
-        onSetChartType={chart.setChartType}
-        onZoomIn={chart.zoomIn}
-        onZoomOut={chart.zoomOut}
-        onResetView={chart.resetView}
-        onToggleDrawings={() => setShowDrawingPanel(!showDrawingPanel)}
-        onToggleIndicators={() => setShowIndicatorPanel(!showIndicatorPanel)}
-        onExportPNG={chart.exportPNG}
-        onExportCSV={chart.exportCSV}
-        onExportSVG={chart.exportSVG}
-        onToggleFullscreen={onToggleChartFullscreen || chart.toggleFullscreen}
-        isFullscreen={isChartFullscreen || chart.isFullscreen}
-        activeTool={chart.activeTool}
-        onSetTool={chart.setTool}
-        onClearDrawings={chart.clearDrawings}
-        isPaused={chart.isPaused}
-        onTogglePause={chart.togglePause}
-        mobile={mobile}
-        height={toolbarHeight}
-        // ── New Toolbar Props ──
-        onToggleVolumeProfile={() => setShowVolumeProfile(!showVolumeProfile)}
-        onToggleAIPanel={() => setShowAIPanel(!showAIPanel)}
-        onToggleChartTrading={() => setShowChartTrading(!showChartTrading)}
-        onToggleTemplateManager={() => setShowTemplateManager(!showTemplateManager)}
-        onToggleWatchlist={() => setShowWatchlist(!showWatchlist)}
-        onToggleChartSettings={() => setShowChartSettings(!showChartSettings)}
-        showVolumeProfile={showVolumeProfile}
-        showAIPanel={showAIPanel}
-        showChartTrading={showChartTrading}
-        showWatchlist={showWatchlist}
-      />
+      {hideToolbar ? null : (
+        <ChartToolbar
+          symbol={selectedSymbol}
+          timeframe={timeframe}
+          chartType={chart.settings.type}
+          onSetTimeframe={setTimeframe}
+          onSetChartType={chart.setChartType}
+          onZoomIn={chart.zoomIn}
+          onZoomOut={chart.zoomOut}
+          onResetView={chart.resetView}
+          onToggleDrawings={() => setShowDrawingPanel(!showDrawingPanel)}
+          onToggleIndicators={() => setShowIndicatorPanel(!showIndicatorPanel)}
+          onExportPNG={chart.exportPNG}
+          onExportCSV={chart.exportCSV}
+          onExportSVG={chart.exportSVG}
+          onToggleFullscreen={onToggleChartFullscreen || chart.toggleFullscreen}
+          isFullscreen={isChartFullscreen || chart.isFullscreen}
+          activeTool={chart.activeTool}
+          onSetTool={chart.setTool}
+          onClearDrawings={chart.clearDrawings}
+          isPaused={chart.isPaused}
+          onTogglePause={chart.togglePause}
+          mobile={mobile}
+          height={toolbarHeight}
+          // ── New Toolbar Props ──
+          onToggleVolumeProfile={() => setShowVolumeProfile(!showVolumeProfile)}
+          onToggleAIPanel={() => setShowAIPanel(!showAIPanel)}
+          onToggleChartTrading={() => setShowChartTrading(!showChartTrading)}
+          onToggleTemplateManager={() => setShowTemplateManager(!showTemplateManager)}
+          onToggleWatchlist={() => setShowWatchlist(!showWatchlist)}
+          onToggleChartSettings={() => setShowChartSettings(!showChartSettings)}
+          showVolumeProfile={showVolumeProfile}
+          showAIPanel={showAIPanel}
+          showChartTrading={showChartTrading}
+          showWatchlist={showWatchlist}
+        />
+      )}
 
       {/* ── CHART AREA ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>

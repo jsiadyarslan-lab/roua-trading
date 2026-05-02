@@ -42,7 +42,7 @@ type ExecStatus = 'idle' | 'validating' | 'submitting' | 'filled' | 'rejected' |
 
 export default function MobileChartPage() {
   const router = useRouter()
-  const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
+  const { selectedSymbol, setSelectedSymbol, timeframe, setTimeframe } = useSymbolStore()
   const quotes = useMarketStore(s => s.quotes)
   const addPaperTrade = usePaperTradesStore(s => s.addTrade)
   const addNotification = useNotificationStore(s => s.addNotification)
@@ -324,15 +324,16 @@ export default function MobileChartPage() {
         borderRadius: 16,
         overflow: 'hidden',
         background: '#0B0E14',
-        border: '1px solid rgba(0,212,255,0.25)',
+        border: '1.5px solid rgba(0,212,255,0.45)',
         position: 'relative',
         direction: 'ltr',
-        boxShadow: '0 0 0 1px rgba(0,212,255,0.15), 0 4px 20px rgba(0,0,0,0.3)',
+        boxShadow: '0 0 0 1px rgba(0,212,255,0.25), 0 4px 20px rgba(0,0,0,0.3)',
       }}>
         <RouaChart
           currentPrice={livePrice}
           mobile={true}
           compact={true}
+          hideToolbar={true}
         />
 
         {/* ── Small Trade Button — Top-Right Corner ── */}
@@ -341,7 +342,7 @@ export default function MobileChartPage() {
           onClick={() => { setOrderSide('buy'); setShowOrderSheet(true) }}
           style={{
             position: 'absolute',
-            top: 34,
+            top: 8,
             right: 8,
             zIndex: 100,
             height: 28,
@@ -362,6 +363,39 @@ export default function MobileChartPage() {
           </svg>
           <span style={{ fontSize: 9, fontWeight: 800, color: '#00D4FF', fontFamily: "'Cairo', sans-serif" }}>تداول</span>
         </motion.button>
+
+        {/* ── Floating Timeframe Buttons — Top-Left ── */}
+        <div style={{
+          position: 'absolute',
+          top: 8,
+          left: 8,
+          zIndex: 100,
+          display: 'flex',
+          gap: 3,
+          direction: 'ltr',
+        }}>
+          {['5m', '15m', '1h', '4h', '1d'].map(tf => (
+            <button
+              key={tf}
+              onClick={() => setTimeframe(tf)}
+              style={{
+                height: 24,
+                padding: '0 6px',
+                borderRadius: 6,
+                background: timeframe === tf ? 'rgba(0,212,255,0.18)' : 'rgba(0,0,0,0.5)',
+                border: timeframe === tf ? '1px solid rgba(0,212,255,0.35)' : '1px solid rgba(255,255,255,0.08)',
+                color: timeframe === tf ? '#00D4FF' : 'rgba(255,255,255,0.4)',
+                fontSize: 8,
+                fontWeight: timeframe === tf ? 800 : 600,
+                fontFamily: "'JetBrains Mono', monospace",
+                cursor: 'pointer',
+                backdropFilter: 'blur(8px)',
+              }}
+            >
+              {tf}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* ── Order Execution Sheet ── */}

@@ -29,7 +29,7 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
             overflow: 'hidden',
           }}
         >
-          <main className="flex-1 overflow-y-auto overflow-x-hidden" style={{ paddingBottom: 'calc(80px + env(safe-area-inset-bottom))' }}>
+          <main className="flex-1" style={{ overflow: 'hidden', position: 'relative' }}>
             {children}
           </main>
           <MobileNavBar />

@@ -233,7 +233,7 @@ export default function MobileNavBar() {
                     </div>
 
                     {/* Category Items Grid */}
-                    <div className="grid grid-cols-3 gap-2.5 px-4" dir="rtl">
+                    <div className="grid grid-cols-3 gap-2.5 px-4" dir="rtl" style={{ overflow: 'hidden' }}>
                       {category.items.map((item, i) => {
                         const Icon = item.icon
                         const globalIdx = catIdx * 100 + i

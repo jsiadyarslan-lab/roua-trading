@@ -41,6 +41,9 @@ import {
  * - EDUCATIONAL: Trading education content
  * - OPINION: Market opinion pieces
  * - BREAKING: Breaking news alerts
+ * - HOURLY_UPDATE: Hourly market updates
+ * - WEEKLY_REVIEW: Weekly market reviews
+ * - PAIR_ANALYSIS: Trading pair analysis reports
  */
 @Injectable()
 export class ContentGeneratorService {
@@ -237,6 +240,9 @@ export class ContentGeneratorService {
       [ContentType.EDUCATIONAL]: 'أنت معلم تداول خبير تكتب محتوى تعليمي مبسط ومفيد',
       [ContentType.OPINION]: 'أنت محلل رأي مالي تكتب مقالات رأي مبنية على تحليل عميق',
       [ContentType.BREAKING]: 'أنت محرر أخبار عاجلة تكتب تنبيهات سريعة ودقيقة',
+      [ContentType.HOURLY_UPDATE]: 'أنت محلل سوق تكتب تحديثات ساعية مركزة ومبنية على أحدث البيانات',
+      [ContentType.WEEKLY_REVIEW]: 'أنت معد تقارير أسبوعية تكتب مراجعات شاملة لأداء الأسواق خلال الأسبوع',
+      [ContentType.PAIR_ANALYSIS]: 'أنت محلل أزواج تداول خبير تكتب تحليلاً تقنياً مفصلاً مع مستويات وتوقعات',
     };
 
     return roleMap[request.type] || roleMap[ContentType.ARTICLE];
@@ -366,8 +372,11 @@ export class ContentGeneratorService {
 
   private _assessImpactLevel(request: ContentGenerationRequest): 'HIGH' | 'MEDIUM' | 'LOW' {
     if (request.type === ContentType.BREAKING) return 'HIGH';
+    if (request.type === ContentType.WEEKLY_REVIEW) return 'HIGH';
     if (request.type === ContentType.ANALYSIS && request.symbols?.length) return 'MEDIUM';
     if (request.type === ContentType.MARKET_REPORT) return 'MEDIUM';
+    if (request.type === ContentType.HOURLY_UPDATE) return 'MEDIUM';
+    if (request.type === ContentType.PAIR_ANALYSIS) return 'MEDIUM';
     return 'LOW';
   }
 
@@ -380,7 +389,7 @@ export class ContentGeneratorService {
     if (request.category === ContentCategory.FOREX) {
       warnings.push('تداول العملات الأجنبية ينطوي على رافعة مالية عالية ومخاطر كبيرة');
     }
-    if (request.type === ContentType.ANALYSIS) {
+    if (request.type === ContentType.ANALYSIS || request.type === ContentType.PAIR_ANALYSIS) {
       warnings.push('التحليل الفني ليس ضماناً للنتائج المستقبلية');
     }
 

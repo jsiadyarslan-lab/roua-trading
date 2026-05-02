@@ -403,6 +403,121 @@ export class ContentAgentService {
     }
   }
 
+  /**
+   * Auto-generate hourly market updates every hour
+   */
+  @Cron('0 * * * *')
+  async autoHourlyUpdate(): Promise<void> {
+    this.logger.log('🧠 Auto-generating hourly market updates...');
+
+    const categories = [
+      ContentCategory.CRYPTO,
+      ContentCategory.FOREX,
+      ContentCategory.STOCKS,
+    ];
+
+    for (const category of categories) {
+      try {
+        const sourceData = await this.curator.curateSources(category);
+        const topic = this._getHourlyUpdateTopic(category);
+
+        const content = await this.generator.generate({
+          type: ContentType.HOURLY_UPDATE,
+          category,
+          topic,
+          language: ContentLanguage.BILINGUAL,
+          priority: ContentPriority.HIGH,
+          sourceData,
+        });
+
+        const { content: optimized } = await this.optimizer.optimize(content);
+        await this.publisher.saveContent('system', optimized, ContentStatus.PUBLISHED);
+
+        this.logger.log(`🧠 Auto-published hourly update for ${category}`);
+      } catch (error: any) {
+        this.logger.error(`Hourly update failed for ${category}: ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Auto-generate weekly review every Monday at 8 AM
+   */
+  @Cron('0 8 * * 1')
+  async autoWeeklyReview(): Promise<void> {
+    this.logger.log('🧠 Auto-generating weekly review...');
+
+    const categories = [
+      ContentCategory.CRYPTO,
+      ContentCategory.FOREX,
+      ContentCategory.STOCKS,
+      ContentCategory.COMMODITIES,
+      ContentCategory.ECONOMY,
+    ];
+
+    for (const category of categories) {
+      try {
+        const sourceData = await this.curator.curateSources(category);
+        const topic = this._getWeeklyTopic(category);
+
+        const content = await this.generator.generate({
+          type: ContentType.WEEKLY_REVIEW,
+          category,
+          topic,
+          language: ContentLanguage.BILINGUAL,
+          priority: ContentPriority.HIGH,
+          sourceData,
+        });
+
+        const { content: optimized } = await this.optimizer.optimize(content);
+        await this.publisher.saveContent('system', optimized, ContentStatus.PUBLISHED);
+
+        this.logger.log(`🧠 Auto-published weekly review for ${category}`);
+      } catch (error: any) {
+        this.logger.error(`Weekly review failed for ${category}: ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Auto-generate pair analysis reports every 4 hours for top pairs
+   */
+  @Cron('0 */4 * * *')
+  async autoPairAnalysis(): Promise<void> {
+    this.logger.log('🧠 Auto-generating pair analysis reports...');
+
+    const topPairs = [
+      { symbol: 'BTC/USDT', category: ContentCategory.CRYPTO },
+      { symbol: 'ETH/USDT', category: ContentCategory.CRYPTO },
+      { symbol: 'EUR/USD', category: ContentCategory.FOREX },
+      { symbol: 'SOL/USDT', category: ContentCategory.CRYPTO },
+    ];
+
+    for (const pair of topPairs) {
+      try {
+        const sourceData = await this.curator.curateSources(pair.category, [pair.symbol]);
+        const topic = `تحليل ${pair.symbol} — المستويات والتوقعات`;
+
+        const content = await this.generator.generate({
+          type: ContentType.PAIR_ANALYSIS,
+          category: pair.category,
+          topic,
+          symbols: [pair.symbol],
+          language: ContentLanguage.BILINGUAL,
+          priority: ContentPriority.NORMAL,
+          sourceData,
+        });
+
+        const { content: optimized } = await this.optimizer.optimize(content);
+        await this.publisher.saveContent('system', optimized, ContentStatus.PUBLISHED);
+
+        this.logger.log(`🧠 Auto-published pair analysis for ${pair.symbol}`);
+      } catch (error: any) {
+        this.logger.error(`Pair analysis failed for ${pair.symbol}: ${error.message}`);
+      }
+    }
+  }
+
   // ── Private Helpers ──
 
   private async _updateState(updates: {
@@ -425,6 +540,40 @@ export class ContentAgentService {
     } catch {
       // Non-critical — state update failure shouldn't break content generation
     }
+  }
+
+  private _getHourlyUpdateTopic(category: ContentCategory): string {
+    const topics: Record<ContentCategory, string> = {
+      [ContentCategory.CRYPTO]: 'تحديث ساعي — سوق العملات الرقمية',
+      [ContentCategory.FOREX]: 'تحديث ساعي — سوق الفوركس',
+      [ContentCategory.STOCKS]: 'تحديث ساعي — سوق الأسهم الأمريكية',
+      [ContentCategory.COMMODITIES]: 'تحديث ساعي — سوق السلع',
+      [ContentCategory.ECONOMY]: 'تحديث ساعي — المؤشرات الاقتصادية',
+      [ContentCategory.REGULATION]: 'تحديث ساعي — التطورات التنظيمية',
+      [ContentCategory.TECHNOLOGY]: 'تحديث ساعي — أخبار التقنية',
+      [ContentCategory.EDUCATION]: 'نصيحة ساعية — درس سريع في التداول',
+      [ContentCategory.GEOPOLITICS]: 'تحديث ساعي — الأحداث الجيوسياسية',
+      [ContentCategory.DEFI]: 'تحديث ساعي — التمويل اللامركزي',
+      [ContentCategory.NFT]: 'تحديث ساعي — سوق NFT',
+    };
+    return topics[category] || 'تحديث ساعي — السوق';
+  }
+
+  private _getWeeklyTopic(category: ContentCategory): string {
+    const topics: Record<ContentCategory, string> = {
+      [ContentCategory.CRYPTO]: 'مراجعة أسبوعية — سوق العملات الرقمية',
+      [ContentCategory.FOREX]: 'مراجعة أسبوعية — سوق الفوركس',
+      [ContentCategory.STOCKS]: 'مراجعة أسبوعية — سوق الأسهم الأمريكية',
+      [ContentCategory.COMMODITIES]: 'مراجعة أسبوعية — سوق السلع',
+      [ContentCategory.ECONOMY]: 'مراجعة أسبوعية — المشهد الاقتصادي',
+      [ContentCategory.REGULATION]: 'مراجعة أسبوعية — التطورات التنظيمية',
+      [ContentCategory.TECHNOLOGY]: 'مراجعة أسبوعية — أخبار التقنية والابتكار',
+      [ContentCategory.EDUCATION]: 'مراجعة أسبوعية — دروس التداول',
+      [ContentCategory.GEOPOLITICS]: 'مراجعة أسبوعية — الأحداث الجيوسياسية وأثرها',
+      [ContentCategory.DEFI]: 'مراجعة أسبوعية — التمويل اللامركزي',
+      [ContentCategory.NFT]: 'مراجعة أسبوعية — سوق NFT',
+    };
+    return topics[category] || 'مراجعة أسبوعية — السوق';
   }
 
   private _getDailyDigestTopic(category: ContentCategory): string {

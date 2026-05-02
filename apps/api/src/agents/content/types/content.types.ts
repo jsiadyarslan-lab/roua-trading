@@ -24,6 +24,9 @@ export enum ContentType {
   EDUCATIONAL = 'EDUCATIONAL',
   OPINION = 'OPINION',
   BREAKING = 'BREAKING',
+  HOURLY_UPDATE = 'HOURLY_UPDATE',
+  WEEKLY_REVIEW = 'WEEKLY_REVIEW',
+  PAIR_ANALYSIS = 'PAIR_ANALYSIS',
 }
 
 // ── Content Categories ──

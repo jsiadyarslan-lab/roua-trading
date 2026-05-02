@@ -40,9 +40,9 @@ export class OpenRouterService {
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this.configService.get<string>('OPENROUTER_API_KEY', '')?.trim() || '';
     if (this.apiKey) {
-      this.logger.log('🔀 OpenRouter Service initialized (7th AI Model — Llama 3.1 + Qwen + Gemma free)');
+      this.logger.log(`🔀 OpenRouter Service initialized — key: ${this.apiKey.substring(0, 4)}***${this.apiKey.length > 8 ? this.apiKey.substring(this.apiKey.length - 4) : ''} (${this.apiKey.length} chars)`);
     } else {
-      this.logger.warn('⚠️ OPENROUTER_API_KEY not set');
+      this.logger.warn('⚠️ OPENROUTER_API_KEY not set or empty');
     }
   }
 
@@ -107,8 +107,8 @@ export class OpenRouterService {
           continue; // Try next model
         }
         if (status === 401 || status === 403) {
-          this.logger.error(`❌ OpenRouter auth failed (${status}) — API key may be invalid`);
-          return this._stubResponse(request);
+          this.logger.error(`❌ OpenRouter auth failed (${status}) — API key may be invalid. Key starts with: ${this.apiKey.substring(0, 4)}***`);
+          return this._stubResponse(request, true);
         }
         if (status === 402) {
           this.logger.warn(`💸 OpenRouter ${model} requires payment (402) — trying free model...`);
@@ -128,13 +128,16 @@ export class OpenRouterService {
     return `You are a professional financial AI analyst specializing in ${request.type}. You provide a unique perspective by looking for divergences, contrarian signals, and cross-model validation. Respond in ${lang}. Be concise, data-driven, and professional. Always include risk disclaimers.`;
   }
 
-  private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {
+  private _stubResponse(request: AIAnalysisResponse | AIAnalysisRequest, authFailed = false): AIAnalysisResponse {
+    const content = authFailed
+      ? `⚠️ OpenRouter API key is invalid or expired (401/403). Please check your OPENROUTER_API_KEY in Railway and make sure it's a valid key from openrouter.ai/keys.`
+      : `⚠️ OpenRouter API key not configured. Get a free key at openrouter.ai/keys and set OPENROUTER_API_KEY in Railway.`;
     return {
       model: 'OpenRouter/Unavailable',
-      content: `⚠️ OpenRouter API key not configured. Get a free key at openrouter.ai/keys and set OPENROUTER_API_KEY in Railway.`,
+      content,
       confidence: 0,
       processingTimeMs: 0,
-      language: request.language || 'ar',
+      language: (request as AIAnalysisRequest).language || 'ar',
     };
   }
 }

@@ -174,34 +174,60 @@ async function callGroq(prompt: string): Promise<DirectAIResponse> {
   const apiKey = getKey('GROQ_API_KEY')
   if (!apiKey) return { model: 'Groq/Llama-3.3-70B', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key' }
 
+  // FIX: Model fallback chain — llama-3.3-70b hits daily limits fast.
+  // Try multiple models in order: fast → capable → lightweight
+  const modelCandidates = [
+    'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',     // Higher daily limits, very fast
+    'llama3-70b-8192',
+    'mixtral-8x7b-32768',
+    'llama3-8b-8192',
+    'gemma2-9b-it',              // Google Gemma 2, good multilingual
+  ]
+
   const start = Date.now()
-  try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: [
-          { role: 'system', content: 'You are a financial analysis AI. Respond in Arabic. Be concise. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.3,
-        max_tokens: 512,
-      }),
-      signal: AbortSignal.timeout(MODEL_TIMEOUT),
-    })
+  const systemMsg = 'You are a financial analysis AI. Respond in Arabic. Be concise. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
 
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '')
-      return { model: 'Groq/Llama-3.3-70B', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Groq ${res.status}: ${errBody.slice(0, 150)}` }
+  for (const model of modelCandidates) {
+    try {
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemMsg },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.3,
+          max_tokens: 512,
+        }),
+        signal: AbortSignal.timeout(MODEL_TIMEOUT),
+      })
+
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '')
+        // 429 = rate limited on this model, try next
+        if (res.status === 429) continue
+        // 401/403 = auth error, no point trying other models
+        if (res.status === 401 || res.status === 403) {
+          return { model: `Groq/${model}`, content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Groq auth failed (${res.status})` }
+        }
+        continue // Try next model for other errors
+      }
+
+      const data = await res.json()
+      const content = data.choices?.[0]?.message?.content || ''
+      if (content.trim().length > 0) {
+        return { model: `Groq/${model}`, content, confidence: calcConfidence(content, 'groq'), processingTimeMs: Date.now() - start, success: true }
+      }
+    } catch {
+      continue // Try next model
     }
-
-    const data = await res.json()
-    const content = data.choices?.[0]?.message?.content || ''
-    return { model: 'Groq/Llama-3.3-70B', content, confidence: calcConfidence(content, 'groq'), processingTimeMs: Date.now() - start, success: content.trim().length > 0 }
-  } catch (e: any) {
-    return { model: 'Groq/Llama-3.3-70B', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: e.message }
   }
+
+  // All models failed
+  return { model: 'Groq/Llama-3.3-70B', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: 'All Groq models failed (rate limited or unavailable)' }
 }
 
 async function callGemini(prompt: string): Promise<DirectAIResponse> {
@@ -247,50 +273,69 @@ async function callGemini(prompt: string): Promise<DirectAIResponse> {
 
 async function callGLM(prompt: string): Promise<DirectAIResponse> {
   const apiKey = getKey('GLM_API_KEY')
-  if (!apiKey) return { model: 'GLM-4/glm-4', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key' }
+  if (!apiKey) return { model: 'GLM-4/glm-4-flash', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key' }
+
+  // FIX: Model fallback chain — glm-4 hits rate limits when balance is low.
+  // glm-4-flash is cheaper and more available.
+  const modelCandidates = ['glm-4-flash', 'glm-4', 'glm-3-turbo']
 
   const start = Date.now()
-  try {
-    let authToken: string
-    const parts = apiKey.split('.')
-    if (parts.length === 2) {
-      const [id, secret] = parts
-      const now = Date.now()
-      const crypto = await import('crypto')
-      const header = Buffer.from(JSON.stringify({ alg: 'HS256', sign_type: 'SIGN' }), 'utf8').toString('base64url')
-      const payload = Buffer.from(JSON.stringify({ api_key: id, exp: Math.floor(now / 1000) + 3600, timestamp: Math.floor(now / 1000) }), 'utf8').toString('base64url')
-      const signature = crypto.createHmac('sha256', secret).update(`${header}.${payload}`).digest('base64url')
-      authToken = `${header}.${payload}.${signature}`
-    } else {
-      authToken = apiKey
+  const systemMsg = 'أنت محلل مالي ذكي. أجب بالعربية باختصار. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
+
+  for (const model of modelCandidates) {
+    try {
+      let authToken: string
+      const parts = apiKey.split('.')
+      if (parts.length === 2) {
+        const [id, secret] = parts
+        const now = Date.now()
+        const crypto = await import('crypto')
+        const header = Buffer.from(JSON.stringify({ alg: 'HS256', sign_type: 'SIGN' }), 'utf8').toString('base64url')
+        const payload = Buffer.from(JSON.stringify({ api_key: id, exp: Math.floor(now / 1000) + 3600, timestamp: Math.floor(now / 1000) }), 'utf8').toString('base64url')
+        const signature = crypto.createHmac('sha256', secret).update(`${header}.${payload}`).digest('base64url')
+        authToken = `${header}.${payload}.${signature}`
+      } else {
+        authToken = apiKey
+      }
+
+      const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemMsg },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.4,
+          max_tokens: 1024,
+        }),
+        signal: AbortSignal.timeout(MODEL_TIMEOUT),
+      })
+
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '')
+        // 429 = rate limited/balance exhausted, try next model
+        if (res.status === 429) continue
+        // 401/403 = auth error, no point trying other models
+        if (res.status === 401 || res.status === 403) {
+          return { model: `GLM-4/${model}`, content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `GLM auth failed (${res.status})` }
+        }
+        continue
+      }
+
+      const data = await res.json()
+      const content = data.choices?.[0]?.message?.content || ''
+      if (content.trim().length > 0) {
+        return { model: `GLM-4/${model}`, content, confidence: calcConfidence(content, 'glm'), processingTimeMs: Date.now() - start, success: true }
+      }
+    } catch {
+      continue // Try next model
     }
-
-    const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'glm-4',
-        messages: [
-          { role: 'system', content: 'أنت محلل مالي ذكي. أجب بالعربية باختصار. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.4,
-        max_tokens: 1024,
-      }),
-      signal: AbortSignal.timeout(MODEL_TIMEOUT),
-    })
-
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '')
-      return { model: 'GLM-4/glm-4', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `GLM ${res.status}: ${errBody.slice(0, 150)}` }
-    }
-
-    const data = await res.json()
-    const content = data.choices?.[0]?.message?.content || ''
-    return { model: 'GLM-4/glm-4', content, confidence: calcConfidence(content, 'glm'), processingTimeMs: Date.now() - start, success: content.trim().length > 0 }
-  } catch (e: any) {
-    return { model: 'GLM-4/glm-4', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: e.message }
   }
+
+  // All models failed
+  return { model: 'GLM-4/glm-4-flash', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: 'All GLM models failed (rate limited or balance exhausted)' }
 }
 
 async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
@@ -490,7 +535,15 @@ async function callOpenRouter(prompt: string): Promise<DirectAIResponse> {
 
   const start = Date.now()
   // Free model candidates — diverse perspectives for divergence analysis
-  const modelCandidates = ['deepseek/deepseek-chat-v3-0324:free', 'meta-llama/llama-3.1-8b-instruct:free', 'qwen/qwen-2.5-7b-instruct:free', 'google/gemma-2-2b-it:free']
+  // FIX: Removed invalid model IDs — 'google/gemma-2-2b-it:free' is NOT a valid OpenRouter model.
+  // Added more reliable free models. DeepSeek V3 was removed as it may not be free.
+  const modelCandidates = [
+    'qwen/qwen-2.5-7b-instruct:free',           // Free — good Arabic + reasoning
+    'meta-llama/llama-3.1-8b-instruct:free',     // Free — fast, capable
+    'google/gemma-2-9b-it:free',                 // Free — good multilingual
+    'mistralai/mistral-7b-instruct:free',         // Free — fast, diverse
+    'huggingfaceh4/zephyr-7b-beta:free',          // Free — chat-optimized
+  ]
 
   for (const model of modelCandidates) {
     try {
@@ -554,49 +607,92 @@ async function callBedrock(prompt: string): Promise<DirectAIResponse> {
   }
 
   const start = Date.now()
-  const modelId = 'anthropic.claude-3-5-sonnet-20241022-v2:0'
+  // FIX: Model fallback chain — try cross-region inference IDs first (more available),
+  // then direct model IDs, then cheaper models.
+  const modelCandidates = [
+    'us.anthropic.claude-3-5-sonnet-20241022-v2:0',  // Cross-region inference (more available)
+    'us.anthropic.claude-3-haiku-20240307-v1:0',      // Cross-region Haiku (faster/cheaper)
+    'anthropic.claude-3-5-sonnet-20241022-v2:0',      // Direct model ID
+    'anthropic.claude-3-haiku-20240307-v1:0',         // Direct Haiku
+    'amazon.titan-text-premier-v1:0',                  // Amazon Titan — usually available
+  ]
 
-  try {
-    const systemPrompt = 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير مخاطر. قدّم تحليلاً حذراً مع التركيز على المخاطر. أبرز الجوانب السلبية دائماً. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
-    const body = {
-      anthropic_version: 'bedrock-2023-05-31',
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.3,
+  for (const modelId of modelCandidates) {
+    try {
+      const isClaude = modelId.includes('anthropic')
+      const isTitan = modelId.includes('titan')
+      
+      let body: any
+      if (isClaude) {
+        const systemPrompt = 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير مخاطر. قدّم تحليلاً حذراً مع التركيز على المخاطر. أبرز الجوانب السلبية دائماً. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
+        body = {
+          anthropic_version: 'bedrock-2023-05-31',
+          max_tokens: 1024,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.3,
+        }
+      } else if (isTitan) {
+        const systemPrompt = 'أنت محلل مالي. أجب بالعربية فقط. أنت خبير مخاطر. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
+        body = {
+          inputText: `${systemPrompt}\n\n${prompt}`,
+          textGenerationConfig: { maxTokenCount: 1024, temperature: 0.3, topP: 0.9 },
+        }
+      } else {
+        body = { prompt: prompt, max_gen_len: 1024, temperature: 0.3 }
+      }
+
+      // FIX: Do NOT encode the model ID in the URL path — AWS Bedrock expects
+      // the raw model ID with colons (e.g., anthropic.claude-3-5-sonnet-20241022-v2:0).
+      // encodeURIComponent breaks the URL by encoding the colon to %3A,
+      // which causes a 403 signature mismatch error.
+      const endpoint = `https://bedrock-runtime.${region}.amazonaws.com/model/${modelId}/invoke`
+      const headers = await signAwsRequestV4(endpoint, body, accessKeyId, secretAccessKey, sessionToken, region)
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(MODEL_TIMEOUT),
+      })
+
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '')
+        // 403 = IAM lacks permission or model not enabled, try next model
+        if (res.status === 403 || res.status === 404) continue
+        // 429 = throttled, try next
+        if (res.status === 429) continue
+        // For other errors, also try next model
+        continue
+      }
+
+      const data = await res.json()
+      // Extract content based on model type
+      let content = ''
+      if (data.content && Array.isArray(data.content)) {
+        // Claude response format
+        content = data.content[0]?.text || ''
+      } else if (data.results && Array.isArray(data.results) && data.results.length > 0) {
+        // Titan response format
+        content = data.results[0].outputText || ''
+      } else if (data.generation) {
+        // Llama/Mistral response format
+        content = data.generation
+      } else {
+        content = data.completion || data.text || data.outputText || ''
+      }
+
+      if (content.trim().length > 0) {
+        const modelShort = modelId.split('.').pop() || modelId
+        return { model: `Bedrock/${modelShort}`, content, confidence: calcConfidence(content, 'bedrock'), processingTimeMs: Date.now() - start, success: true }
+      }
+    } catch {
+      continue // Try next model
     }
+  } // end for loop
 
-    const encodedModelId = encodeURIComponent(modelId)
-    const endpoint = `https://bedrock-runtime.${region}.amazonaws.com/model/${encodedModelId}/invoke`
-    const headers = await signAwsRequestV4(endpoint, body, accessKeyId, secretAccessKey, sessionToken, region)
-
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(MODEL_TIMEOUT),
-    })
-
-    if (!res.ok) {
-      const errBody = await res.text().catch(() => '')
-      return { model: 'Bedrock/Claude-3.5-Sonnet', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Bedrock ${res.status}: ${errBody.slice(0, 200)}` }
-    }
-
-    const data = await res.json()
-    // Claude response format
-    let content = ''
-    if (data.content && Array.isArray(data.content)) {
-      content = data.content[0]?.text || ''
-    } else if (data.generation) {
-      content = data.generation
-    } else {
-      content = data.completion || data.text || ''
-    }
-
-    return { model: 'Bedrock/Claude-3.5-Sonnet', content, confidence: calcConfidence(content, 'bedrock'), processingTimeMs: Date.now() - start, success: content.trim().length > 0 }
-  } catch (e: any) {
-    return { model: 'Bedrock/Claude-3.5-Sonnet', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Bedrock failed: ${e.message}` }
-  }
+  // All Bedrock models failed
+  return { model: 'Bedrock/Claude-3.5-Sonnet', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: 'All Bedrock models failed (IAM permissions may be missing or Model Access not enabled)' }
 }
 
 /**
@@ -620,7 +716,13 @@ async function signAwsRequestV4(
   const payloadHash = crypto.createHash('sha256').update(bodyStr).digest('hex')
 
   const host = new URL(endpoint).host
-  const canonicalUri = new URL(endpoint).pathname.split('/').map(s => encodeURIComponent(decodeURIComponent(s))).join('/')
+  // FIX: AWS SigV4 canonical URI encoding — must NOT double-encode.
+  // The model ID contains colons (anthropic.claude-3-5-sonnet-20241022-v2:0)
+  // which are already percent-encoded in the URL by encodeURIComponent above.
+  // Previous code double-encoded by doing encodeURIComponent(decodeURIComponent(s))
+  // which broke the signature for model IDs with special chars.
+  // AWS SigV4 spec: use the URI path as-is (already encoded in the URL).
+  const canonicalUri = new URL(endpoint).pathname
 
   let canonicalHeaders: string
   let signedHeaders: string

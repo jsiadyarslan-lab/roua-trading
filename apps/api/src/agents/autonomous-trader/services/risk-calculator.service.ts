@@ -155,13 +155,39 @@ export class RiskCalculatorService {
       reason = `يوجد مركز مفتوح بالفعل لـ ${signal.symbol}`;
     }
 
-    // RULE 7: Check if AUTO_TRADING_ENABLED
-    const autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
-    if (!autoTradingEnabled) {
+    // RULE 7: Check if AUTO_TRADING_ENABLED (global DB/ENV = admin kill switch)
+    let globalAutoTradingEnabled: boolean;
+    try {
+      const dbSetting = await this.prisma.setting.findUnique({
+        where: { key: 'AUTO_TRADING_ENABLED' },
+      });
+      if (dbSetting) {
+        globalAutoTradingEnabled = JSON.parse(dbSetting.value);
+      } else {
+        globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+      }
+    } catch {
+      globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+    }
+
+    if (!globalAutoTradingEnabled) {
       canTrade = false;
-      reason = 'التداول الذاتي معطّل — يمكن تفعيله عبر AUTO_TRADING_ENABLED';
-      // IMPORTANT: Log prominently so operators know trades are being silently rejected
-      this.logger.warn(`🚫 AUTO_TRADING_ENABLED=false — ALL trades for user ${userId} are being rejected. Set AUTO_TRADING_ENABLED=true to allow trading.`);
+      reason = 'التداول الذاتي معطّل على مستوى النظام — تواصل مع الإدارة';
+      this.logger.warn(`🚫 AUTO_TRADING_ENABLED=false (global) — ALL trades for user ${userId} are being rejected.`);
+    } else {
+      // Also check per-user autoTradingEnabled from AgentSettings
+      try {
+        const userSettings = await this.prisma.agentSettings.findUnique({
+          where: { userId },
+        });
+        if (userSettings && !userSettings.autoTradingEnabled) {
+          canTrade = false;
+          reason = 'التداول الذاتي معطّل في إعداداتك — فعّله من صفحة إعدادات الوكيل';
+          this.logger.warn(`🚫 User ${userId} autoTradingEnabled=false — trades rejected.`);
+        }
+      } catch (e: any) {
+        this.logger.warn(`Could not check user autoTradingEnabled in risk assessment: ${e.message}`);
+      }
     }
 
     if (canTrade) {

@@ -155,7 +155,7 @@ export default function AutonomousTraderPage() {
     fetchStatus, fetchCredentials, startAgent, stopAgent, changeStrategy, updateRiskParams,
     fetchPerformance, fetchPositions, startAutoRefresh, stopAutoRefresh, addLog,
     selectedCredentialId, availableCredentials,
-    settings, systemStatus, fetchSettings, updateSettings, fetchSystemStatus,
+    settings, systemStatus, fetchSettings, updateSettings, fetchSystemStatus, updateSystemSettings,
   } = useAgentStore()
 
   const [activeTab, setActiveTab] = useState<'overview' | 'positions' | 'performance' | 'settings'>('overview')
@@ -1062,6 +1062,7 @@ export default function AutonomousTraderPage() {
 
     // System status banner
     const globalAutoTrading = systemStatus?.globalAutoTradingEnabled ?? true
+    const settingSource = systemStatus?.source ?? 'env_var'
 
     const SETTINGS_TABS = [
       { id: 'general' as const, label: 'عام', icon: <Settings2 size={12} /> },
@@ -1073,50 +1074,60 @@ export default function AutonomousTraderPage() {
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* System Status Banner */}
-        {!globalAutoTrading && (
-          <div style={{
-            padding: '12px 16px',
-            background: 'rgba(255,71,87,0.1)',
-            border: '1px solid rgba(255,71,87,0.3)',
-            borderRadius: 10,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}>
-            <AlertCircle size={16} color={T.red} />
-            <div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.red }}>
-                التداول الذاتي معطّل على مستوى النظام
+        {/* System Status Banner — Global Auto Trading Toggle */}
+        <GlassCard>
+          <div style={{ padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
+              <div style={{
+                width: 38, height: 38, borderRadius: 10,
+                background: globalAutoTrading ? 'rgba(0,255,163,0.10)' : 'rgba(255,71,87,0.10)',
+                border: `1px solid ${globalAutoTrading ? 'rgba(0,255,163,0.20)' : 'rgba(255,71,87,0.20)'}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                {globalAutoTrading
+                  ? <CheckCircle2 size={18} color={T.green} />
+                  : <AlertCircle size={18} color={T.red} />
+                }
               </div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text2, marginTop: 2 }}>
-                يجب تفعيل AUTO_TRADING_ENABLED=true في متغيرات بيئة الخادم (Railway) لتفعيل التداول
-              </div>
-            </div>
-          </div>
-        )}
-
-        {globalAutoTrading && (
-          <div style={{
-            padding: '12px 16px',
-            background: 'rgba(0,255,163,0.05)',
-            border: '1px solid rgba(0,255,163,0.2)',
-            borderRadius: 10,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}>
-            <CheckCircle2 size={16} color={T.green} />
-            <div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.green }}>
-                التداول الذاتي مفعّل على مستوى النظام
-              </div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text2, marginTop: 2 }}>
-                يمكن تفعيل الوكيل — إعداداتك محفوظة في قاعدة البيانات
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, color: globalAutoTrading ? T.green : T.red, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {globalAutoTrading ? 'التداول الذاتي مفعّل' : 'التداول الذاتي معطّل'}
+                  <span style={{
+                    fontSize: 9, padding: '2px 6px', borderRadius: 6,
+                    background: settingSource === 'database' ? `${T.accent}15` : `${T.amber}15`,
+                    color: settingSource === 'database' ? T.accent : T.amber,
+                    fontFamily: FONT_AR, fontWeight: 600,
+                  }}>
+                    {settingSource === 'database' ? 'من قاعدة البيانات' : 'من متغيرات البيئة'}
+                  </span>
+                </div>
+                <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 3 }}>
+                  {globalAutoTrading
+                    ? 'يمكن تفعيل الوكيل — الإعدادات محفوظة في قاعدة البيانات ويمكن التحكم بها من هنا'
+                    : 'يجب تفعيل التداول الذاتي أولاً لكي يعمل الوكيل — اضغط الزر للتفعيل'
+                  }
+                </div>
               </div>
             </div>
+            <button
+              onClick={() => updateSystemSettings({ autoTradingEnabled: !globalAutoTrading })}
+              style={{
+                minWidth: 80, padding: '10px 20px', borderRadius: 10,
+                background: globalAutoTrading
+                  ? 'rgba(255,71,87,0.10)'
+                  : 'linear-gradient(135deg, #00FFC6, #0A84FF)',
+                border: globalAutoTrading ? '1px solid rgba(255,71,87,0.25)' : 'none',
+                color: globalAutoTrading ? T.red : '#000',
+                fontFamily: FONT_AR, fontSize: 12, fontWeight: 800,
+                cursor: 'pointer', transition: 'all 0.2s',
+                flexShrink: 0,
+              }}
+            >
+              {globalAutoTrading ? 'إيقاف' : 'تفعيل'}
+            </button>
           </div>
-        )}
+        </GlassCard>
 
         {/* Settings Sub-tabs */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

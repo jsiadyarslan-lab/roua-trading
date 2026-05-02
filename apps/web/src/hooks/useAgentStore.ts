@@ -137,6 +137,7 @@ export interface AgentSettingsData {
 export interface SystemStatusData {
   autoTradingEnabled: boolean
   globalAutoTradingEnabled: boolean
+  source?: 'database' | 'env_var'
   defaultPaperBalance: number
   nodeEnv: string
   message: string
@@ -186,6 +187,7 @@ interface AgentStore {
   fetchSettings: () => Promise<void>
   updateSettings: (settings: Partial<AgentSettingsData>) => Promise<void>
   fetchSystemStatus: () => Promise<void>
+  updateSystemSettings: (settings: { autoTradingEnabled?: boolean }) => Promise<void>
 
   // Auto-refresh
   startAutoRefresh: () => void
@@ -472,6 +474,26 @@ export const useAgentStore = create<AgentStore>()(
           }
         } catch {
           // Silent fail for system status
+        }
+      },
+
+      updateSystemSettings: async (newSystemSettings) => {
+        try {
+          const res = await fetch('/api/agent/trader/system-settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newSystemSettings),
+          })
+          const data = await res.json()
+          if (data.success) {
+            // Refresh system status after update
+            await get().fetchSystemStatus()
+            get().addLog(`✅ تم تحديث إعدادات النظام`, 'success')
+          } else {
+            get().addLog(`❌ فشل تحديث إعدادات النظام: ${data.message}`, 'error')
+          }
+        } catch (e: any) {
+          get().addLog(`❌ خطأ في تحديث إعدادات النظام: ${e.message}`, 'error')
         }
       },
 

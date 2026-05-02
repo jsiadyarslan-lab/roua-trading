@@ -97,11 +97,45 @@ export class AutonomousTraderAgentService {
     }
 
     // CRITICAL CHECK: Fail-fast if AUTO_TRADING_ENABLED is false
-    const autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
-    if (!autoTradingEnabled) {
-      this.logger.error(`🚫 AUTO_TRADING_ENABLED=false — cannot start agent for user ${userId}`);
+    // Step 1: Check global system-level toggle (DB first, then env var)
+    let globalAutoTradingEnabled: boolean;
+    try {
+      const dbSetting = await this.prisma.setting.findUnique({
+        where: { key: 'AUTO_TRADING_ENABLED' },
+      });
+      if (dbSetting) {
+        globalAutoTradingEnabled = JSON.parse(dbSetting.value);
+      } else {
+        globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+      }
+    } catch {
+      globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+    }
+
+    if (!globalAutoTradingEnabled) {
+      this.logger.error(`🚫 AUTO_TRADING_ENABLED=false (global) — cannot start agent for user ${userId}`);
       throw new BadRequestException(
-        'التداول الذاتي معطّل في النظام — لا يمكن تفعيل الوكيل. تواصل مع الإدارة لتفعيل AUTO_TRADING_ENABLED',
+        'التداول الذاتي معطّل على مستوى النظام — لا يمكن تفعيل الوكيل. يمكنك تفعيله من إعدادات النظام',
+      );
+    }
+
+    // Step 2: Check per-user autoTradingEnabled from DB settings
+    let userAutoTradingEnabled = true;
+    try {
+      const userSettings = await this.prisma.agentSettings.findUnique({
+        where: { userId },
+      });
+      if (userSettings && !userSettings.autoTradingEnabled) {
+        userAutoTradingEnabled = false;
+      }
+    } catch (e: any) {
+      this.logger.warn(`Could not check user autoTradingEnabled: ${e.message}`);
+    }
+
+    if (!userAutoTradingEnabled) {
+      this.logger.warn(`🚫 User ${userId} has autoTradingEnabled=false — cannot start agent`);
+      throw new BadRequestException(
+        'التداول الذاتي معطّل في إعداداتك — فعّله من صفحة إعدادات الوكيل',
       );
     }
 
@@ -466,11 +500,46 @@ export class AutonomousTraderAgentService {
   }
 
   /**
+   * Update system-level AUTO_TRADING_ENABLED setting in DB
+   * This allows toggling auto-trading from the UI without changing env vars
+   */
+  async updateSystemAutoTrading(enabled: boolean): Promise<void> {
+    try {
+      await this.prisma.setting.upsert({
+        where: { key: 'AUTO_TRADING_ENABLED' },
+        update: { value: JSON.stringify(enabled) },
+        create: { key: 'AUTO_TRADING_ENABLED', value: JSON.stringify(enabled) },
+      });
+      this.logger.log(`🔧 System AUTO_TRADING_ENABLED set to ${enabled} in DB`);
+    } catch (error: any) {
+      this.logger.error(`Failed to update system AUTO_TRADING_ENABLED: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
    * Get system-level status information
    * Shows global configuration like AUTO_TRADING_ENABLED status.
+   * Checks DB first, then env var, then defaults to true.
    */
-  getSystemStatus() {
-    const autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+  async getSystemStatus() {
+    // Check DB first, then env var
+    let dbAutoTradingEnabled: boolean | null = null;
+    try {
+      const dbSetting = await this.prisma.setting.findUnique({
+        where: { key: 'AUTO_TRADING_ENABLED' },
+      });
+      if (dbSetting) {
+        dbAutoTradingEnabled = JSON.parse(dbSetting.value);
+      }
+    } catch {
+      // DB not available — fall through to env var
+    }
+
+    // Priority: DB setting > env var > default (true)
+    const envAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+    const autoTradingEnabled = dbAutoTradingEnabled !== null ? dbAutoTradingEnabled : envAutoTradingEnabled;
+
     const defaultPaperBalance = parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000;
 
     return {
@@ -478,13 +547,12 @@ export class AutonomousTraderAgentService {
       data: {
         autoTradingEnabled,
         globalAutoTradingEnabled: autoTradingEnabled,
+        source: dbAutoTradingEnabled !== null ? 'database' : 'env_var',
         defaultPaperBalance,
         nodeEnv: this.configService.get('NODE_ENV', 'development'),
-        // Note: autoTradingEnabled is a GLOBAL server setting.
-        // Per-user autoTradingEnabled is in AgentSettings.
         message: autoTradingEnabled
           ? 'التداول الذاتي مفعّل على مستوى النظام'
-          : 'التداول الذاتي معطّل على مستوى النظام — يجب تفعيل AUTO_TRADING_ENABLED=true في متغيرات البيئة',
+          : 'التداول الذاتي معطّل على مستوى النظام',
       },
     };
   }

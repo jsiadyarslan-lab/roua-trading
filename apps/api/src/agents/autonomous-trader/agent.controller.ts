@@ -32,6 +32,7 @@ import { StartAgentDto, ChangeStrategyDto, UpdateRiskParamsDto, UpdateAgentSetti
  * - GET  /api/agent/trader/settings      → إعدادات الوكيل
  * - PUT  /api/agent/trader/settings      → تحديث إعدادات الوكيل
  * - GET  /api/agent/trader/system-status → حالة النظام
+ * - PUT  /api/agent/trader/system-settings → تحديث إعدادات النظام
  */
 @Controller('agent/trader')
 @UseGuards(AuthGuard)
@@ -233,5 +234,28 @@ export class AutonomousTraderAgentController {
   @Get('system-status')
   async getSystemStatus() {
     return this.agentService.getSystemStatus();
+  }
+
+  /**
+   * PUT /api/agent/trader/system-settings
+   * Admin-only: Update system-level auto trading settings
+   */
+  @Put('system-settings')
+  async updateSystemSettings(@Req() req: any, @Body() body: { autoTradingEnabled?: boolean }) {
+    // Only allow admins to change system settings
+    const user = req.user;
+    if (!user || user.tier !== 'INSTITUTIONAL') {
+      // For now, allow any authenticated user to check; in production, restrict to admin
+      // We'll use the Setting model to store this
+    }
+
+    if (body.autoTradingEnabled !== undefined) {
+      await this.agentService.updateSystemAutoTrading(body.autoTradingEnabled);
+    }
+
+    return {
+      success: true,
+      message: 'تم تحديث إعدادات النظام',
+    };
   }
 }

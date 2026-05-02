@@ -14,7 +14,6 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { ensureAuth } from '@/lib/api-fetch'
-import SlideToConfirm from '@/components/mobile/SlideToConfirm'
 
 /* ─── Design Tokens ─── */
 const c = {
@@ -307,7 +306,7 @@ export default function TradingPage() {
   }, [selectedSymbol, side, qty, quantity, orderType, limitPrice, takeProfit, stopLoss, livePrice, addPaperTrade, addNotification, fetchAccount, fetchPositions, loadOrders])
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', paddingBottom: 100 }}>
+    <div style={{ height: '100dvh', background: '#000', direction: 'rtl', overflow: 'auto', WebkitOverflowScrolling: 'touch' }}>
 
       {/* ── Header ── */}
       <div style={{
@@ -652,7 +651,7 @@ export default function TradingPage() {
         </div>
       </IOSCard>
 
-      {/* ── Execute ── */}
+      {/* ── Execute — Fixed Buy/Sell Buttons ── */}
       <div style={{ margin: '0 20px 24px' }}>
         {execStatus === 'submitting' ? (
           <div style={{
@@ -695,11 +694,34 @@ export default function TradingPage() {
             <span style={{ fontSize: 13, fontWeight: 800, color: c.danger, fontFamily: "'Cairo', sans-serif" }}>{execMessage}</span>
           </motion.div>
         ) : (
-          <SlideToConfirm
-            onConfirm={handleExecute}
-            label={`اسحب لتنفيذ أمر ال${side === 'buy' ? 'شراء' : 'بيع'}`}
-            color={side === 'buy' ? c.success : c.danger}
-          />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => { setSide('buy'); setTimeout(() => handleExecute(), 0) }}
+              style={{
+                flex: 1, height: 50, borderRadius: 14,
+                background: c.success, border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                fontSize: 17, fontWeight: 900, color: '#000', fontFamily: "'Cairo', sans-serif",
+              }}
+            >
+              <ArrowUpRight size={20} />
+              شراء
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => { setSide('sell'); setTimeout(() => handleExecute(), 0) }}
+              style={{
+                flex: 1, height: 50, borderRadius: 14,
+                background: c.danger, border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                fontSize: 17, fontWeight: 900, color: '#FFF', fontFamily: "'Cairo', sans-serif",
+              }}
+            >
+              <ArrowDownRight size={20} />
+              بيع
+            </motion.button>
+          </div>
         )}
       </div>
 

@@ -12,9 +12,8 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { ensureAuth } from '@/lib/api-fetch'
 import { 
   X, Target, ShieldAlert, Loader2, CheckCircle, AlertCircle,
-  Minus, Plus, Wallet
+  Minus, Plus, Wallet, ArrowUpRight, ArrowDownRight
 } from 'lucide-react'
-import SlideToConfirm from '@/components/mobile/SlideToConfirm'
 
 const RouaChart = dynamic(() => import('@/components/charts/RouaChart'), { 
   ssr: false,
@@ -383,16 +382,21 @@ export default function MobileChartPage() {
                 backdropFilter: 'blur(50px) saturate(200%)',
                 borderRadius: '24px 24px 0 0',
                 borderTop: '0.5px solid rgba(255,255,255,0.15)',
-                padding: '12px 20px calc(24px + env(safe-area-inset-bottom))',
                 direction: 'rtl',
                 boxShadow: '0 -10px 40px rgba(0,0,0,0.5)',
                 maxHeight: '85vh',
-                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
               }}
             >
-              <div className="flex justify-center mb-4">
+              {/* Handle */}
+              <div className="flex justify-center pt-3 pb-2" style={{ flexShrink: 0 }}>
                 <div style={{ width: 36, height: 5, borderRadius: 2.5, background: 'rgba(255,255,255,0.2)' }} />
               </div>
+
+              {/* Scrollable content area */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', WebkitOverflowScrolling: 'touch' }}>
 
               {/* Header with Balance */}
               <div className="flex items-center justify-between mb-4">
@@ -586,44 +590,95 @@ export default function MobileChartPage() {
                 </div>
               )}
 
-              {/* Execution Status / Confirm */}
-              {execStatus === 'submitting' ? (
+              {/* Execution Status Messages */}
+              {execStatus === 'submitting' && (
                 <div style={{
-                  padding: '14px', borderRadius: 16,
+                  padding: '12px', borderRadius: 14,
                   background: 'rgba(0,212,255,0.08)', border: `0.5px solid rgba(0,212,255,0.2)`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  marginBottom: 10,
                 }}>
-                  <Loader2 size={20} className="animate-spin" color={C.accent} />
-                  <span style={{ fontSize: 14, fontWeight: 800, color: C.accent, fontFamily: "'Cairo', sans-serif" }}>{execMessage}</span>
+                  <Loader2 size={18} className="animate-spin" color={C.accent} />
+                  <span style={{ fontSize: 13, fontWeight: 800, color: C.accent, fontFamily: "'Cairo', sans-serif" }}>{execMessage}</span>
                 </div>
-              ) : execStatus === 'filled' ? (
+              )}
+              {execStatus === 'filled' && (
                 <div style={{
-                  padding: '14px', borderRadius: 16,
+                  padding: '12px', borderRadius: 14,
                   background: 'rgba(50,215,75,0.12)', border: `0.5px solid rgba(50,215,75,0.3)`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  marginBottom: 10,
                 }}>
-                  <CheckCircle size={20} color={C.success} />
+                  <CheckCircle size={18} color={C.success} />
                   <span style={{ fontSize: 13, fontWeight: 800, color: C.success, fontFamily: "'Cairo', sans-serif" }}>{execMessage}</span>
                 </div>
-              ) : execStatus === 'rejected' || execStatus === 'error' ? (
+              )}
+              {(execStatus === 'rejected' || execStatus === 'error') && (
                 <div style={{
-                  padding: '14px', borderRadius: 16,
+                  padding: '12px', borderRadius: 14,
                   background: 'rgba(255,69,58,0.12)', border: `0.5px solid rgba(255,69,58,0.3)`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 10,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  marginBottom: 10,
                 }}>
-                  <AlertCircle size={20} color={C.danger} />
+                  <AlertCircle size={18} color={C.danger} />
                   <span style={{ fontSize: 13, fontWeight: 800, color: C.danger, fontFamily: "'Cairo', sans-serif" }}>{execMessage}</span>
                 </div>
-              ) : null}
-
-              {/* SlideToConfirm (only when idle or after error) */}
-              {(execStatus === 'idle' || execStatus === 'error' || execStatus === 'rejected') && (
-                <SlideToConfirm 
-                  onConfirm={executeOrder}
-                  color={orderSide === 'buy' ? C.success : C.danger}
-                  label={orderSide === 'buy' ? 'اسحب لتأكيد الشراء' : 'اسحب لتأكيد البيع'}
-                />
               )}
+              </div>{/* END scrollable content */}
+
+              {/* Fixed Bottom — Buy / Sell Buttons (always visible) */}
+              <div style={{ flexShrink: 0, padding: '8px 20px calc(20px + env(safe-area-inset-bottom))', borderTop: '0.5px solid rgba(255,255,255,0.08)', background: 'rgba(20,20,22,0.95)' }}>
+                {(execStatus === 'idle' || execStatus === 'error' || execStatus === 'rejected') && (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <motion.button
+                      whileTap={{ scale: 0.96 }}
+                      onClick={() => { setOrderSide('buy'); setTimeout(() => executeOrder(), 0) }}
+                      style={{
+                        flex: 1, height: 50, borderRadius: 14,
+                        background: C.success, border: 'none', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        fontSize: 17, fontWeight: 900, color: '#000', fontFamily: "'Cairo', sans-serif",
+                      }}
+                    >
+                      <ArrowUpRight size={20} />
+                      شراء
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.96 }}
+                      onClick={() => { setOrderSide('sell'); setTimeout(() => executeOrder(), 0) }}
+                      style={{
+                        flex: 1, height: 50, borderRadius: 14,
+                        background: C.danger, border: 'none', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        fontSize: 17, fontWeight: 900, color: '#FFF', fontFamily: "'Cairo', sans-serif",
+                      }}
+                    >
+                      <ArrowDownRight size={20} />
+                      بيع
+                    </motion.button>
+                  </div>
+                )}
+                {execStatus === 'submitting' && (
+                  <div style={{
+                    height: 50, borderRadius: 14,
+                    background: 'rgba(0,212,255,0.1)', border: `0.5px solid rgba(0,212,255,0.2)`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  }}>
+                    <Loader2 size={20} className="animate-spin" color={C.accent} />
+                    <span style={{ fontSize: 15, fontWeight: 800, color: C.accent, fontFamily: "'Cairo', sans-serif" }}>جارٍ التنفيذ...</span>
+                  </div>
+                )}
+                {(execStatus === 'filled') && (
+                  <div style={{
+                    height: 50, borderRadius: 14,
+                    background: 'rgba(50,215,75,0.15)', border: `0.5px solid rgba(50,215,75,0.3)`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  }}>
+                    <CheckCircle size={20} color={C.success} />
+                    <span style={{ fontSize: 15, fontWeight: 800, color: C.success, fontFamily: "'Cairo', sans-serif" }}>تم التنفيذ بنجاح</span>
+                  </div>
+                )}
+              </div>
             </motion.div>
           </>
         )}

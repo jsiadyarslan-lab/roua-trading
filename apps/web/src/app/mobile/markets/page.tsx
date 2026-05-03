@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { Search } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useMarketStore, binanceWS } from '@/hooks/useMarketStore'
+import { useSymbolStore } from '@/hooks/useSymbolStore'
 
 const TABS = ['الكل', 'كريبتو', 'فوركس', 'سلع']
 
@@ -112,7 +113,11 @@ export default function MobileMarketsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.03 }}
               whileTap={{ scale: 0.98, backgroundColor: 'rgba(255,255,255,0.03)' }}
-              onClick={() => router.push(`/mobile/chart?symbol=${asset.symbol}`)}
+              onClick={() => {
+                // Set symbol in store immediately for instant chart load
+                useSymbolStore.getState().setSelectedSymbol(asset.symbol)
+                router.push(`/mobile/chart?symbol=${encodeURIComponent(asset.symbol)}`)
+              }}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '16px', width: '100%',

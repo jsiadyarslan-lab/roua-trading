@@ -522,7 +522,7 @@ export default function MobileChartPage() {
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 350 }}
               style={{
-                position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 101,
+                position: 'fixed', bottom: 'calc(60px + env(safe-area-inset-bottom))', left: 0, right: 0, zIndex: 101,
                 background: C.bg,
                 backdropFilter: 'blur(50px) saturate(200%)',
                 borderRadius: '24px 24px 0 0',
@@ -768,7 +768,7 @@ export default function MobileChartPage() {
               </div>{/* END scrollable content */}
 
               {/* Fixed Bottom — Buy / Sell Buttons (always visible in sheet, above navbar) */}
-              <div style={{ flexShrink: 0, padding: '8px 20px calc(20px + 68px + env(safe-area-inset-bottom))', borderTop: '0.5px solid rgba(255,255,255,0.08)', background: 'rgba(20,20,22,0.95)' }}>
+              <div style={{ flexShrink: 0, padding: '8px 20px 20px', borderTop: '0.5px solid rgba(255,255,255,0.08)', background: 'rgba(20,20,22,0.95)', position: 'relative', zIndex: 102 }}>
                 {(execStatus === 'idle' || execStatus === 'error' || execStatus === 'rejected') && (
                   <div style={{ display: 'flex', gap: 8 }}>
                     <motion.button

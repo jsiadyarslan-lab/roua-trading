@@ -356,7 +356,7 @@ export default function TradingPage() {
       </div>
 
       {/* ── Scrollable Content Area ── */}
-      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 8 }}>
+      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 8, minHeight: 0 }}>
 
         {/* ── Current Price + Buy/Sell Toggle ── */}
         <div style={{
@@ -661,83 +661,76 @@ export default function TradingPage() {
           </div>
         </div>
 
-      </div>{/* END Scrollable Content */}
+        {/* ── Inline Execution Buttons (inside scrollable area, no navbar overlap) ── */}
+        <div style={{ margin: '0 16px 16px' }}>
+          {(execStatus === 'idle' || execStatus === 'error' || execStatus === 'rejected') && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={() => { setSide('buy'); setTimeout(() => handleExecute(), 0) }}
+                style={{
+                  flex: 1, height: 48, borderRadius: 14,
+                  background: 'linear-gradient(135deg, #32D74B, #28a745)',
+                  border: '1px solid rgba(50,215,75,0.3)',
+                  cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  fontSize: 16, fontWeight: 900, color: '#000', fontFamily: "'Cairo', sans-serif",
+                  boxShadow: '0 0 12px rgba(50,215,75,0.15)',
+                }}
+              >
+                <ArrowUpRight size={18} />
+                شراء
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={() => { setSide('sell'); setTimeout(() => handleExecute(), 0) }}
+                style={{
+                  flex: 1, height: 48, borderRadius: 14,
+                  background: 'linear-gradient(135deg, #FF453A, #dc3545)',
+                  border: '1px solid rgba(255,69,58,0.3)',
+                  cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  fontSize: 16, fontWeight: 900, color: '#FFF', fontFamily: "'Cairo', sans-serif",
+                  boxShadow: '0 0 12px rgba(255,69,58,0.15)',
+                }}
+              >
+                <ArrowDownRight size={18} />
+                بيع
+              </motion.button>
+            </div>
+          )}
+          {execStatus === 'submitting' && (
+            <div style={{
+              height: 48, borderRadius: 14,
+              background: 'rgba(0,212,255,0.1)', border: `0.5px solid rgba(0,212,255,0.2)`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}>
+              <Loader2 size={20} className="animate-spin" color={c.accent} />
+              <span style={{ fontSize: 14, fontWeight: 800, color: c.accent, fontFamily: "'Cairo', sans-serif" }}>جارٍ التنفيذ...</span>
+            </div>
+          )}
+          {execStatus === 'filled' && (
+            <div style={{
+              height: 48, borderRadius: 14,
+              background: 'rgba(50,215,75,0.15)', border: `0.5px solid rgba(50,215,75,0.3)`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            }}>
+              <CheckCircle size={20} color={c.success} />
+              <span style={{ fontSize: 14, fontWeight: 800, color: c.success, fontFamily: "'Cairo', sans-serif" }}>تم التنفيذ بنجاح</span>
+            </div>
+          )}
+          {(execStatus === 'rejected' || execStatus === 'error') && execMessage && (
+            <div style={{
+              marginTop: 4,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}>
+              <AlertCircle size={14} color={c.danger} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: c.danger, fontFamily: "'Cairo', sans-serif" }}>{execMessage}</span>
+            </div>
+          )}
+        </div>
 
-      {/* ── Fixed Bottom — Buy/Sell Buttons (ALWAYS VISIBLE, above navbar) ── */}
-      <div style={{
-        flexShrink: 0,
-        padding: '8px 16px calc(8px + 68px + env(safe-area-inset-bottom))',
-        borderTop: '0.5px solid rgba(255,255,255,0.08)',
-        background: 'rgba(20,20,22,0.95)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-      }}>
-        {(execStatus === 'idle' || execStatus === 'error' || execStatus === 'rejected') && (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <motion.button
-              whileTap={{ scale: 0.96 }}
-              onClick={() => { setSide('buy'); setTimeout(() => handleExecute(), 0) }}
-              style={{
-                flex: 1, height: 48, borderRadius: 14,
-                background: 'linear-gradient(135deg, #32D74B, #28a745)',
-                border: '1px solid rgba(50,215,75,0.3)',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                fontSize: 16, fontWeight: 900, color: '#000', fontFamily: "'Cairo', sans-serif",
-                boxShadow: '0 0 12px rgba(50,215,75,0.15)',
-              }}
-            >
-              <ArrowUpRight size={18} />
-              شراء
-            </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.96 }}
-              onClick={() => { setSide('sell'); setTimeout(() => handleExecute(), 0) }}
-              style={{
-                flex: 1, height: 48, borderRadius: 14,
-                background: 'linear-gradient(135deg, #FF453A, #dc3545)',
-                border: '1px solid rgba(255,69,58,0.3)',
-                cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                fontSize: 16, fontWeight: 900, color: '#FFF', fontFamily: "'Cairo', sans-serif",
-                boxShadow: '0 0 12px rgba(255,69,58,0.15)',
-              }}
-            >
-              <ArrowDownRight size={18} />
-              بيع
-            </motion.button>
-          </div>
-        )}
-        {execStatus === 'submitting' && (
-          <div style={{
-            height: 48, borderRadius: 14,
-            background: 'rgba(0,212,255,0.1)', border: `0.5px solid rgba(0,212,255,0.2)`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          }}>
-            <Loader2 size={20} className="animate-spin" color={c.accent} />
-            <span style={{ fontSize: 14, fontWeight: 800, color: c.accent, fontFamily: "'Cairo', sans-serif" }}>جارٍ التنفيذ...</span>
-          </div>
-        )}
-        {execStatus === 'filled' && (
-          <div style={{
-            height: 48, borderRadius: 14,
-            background: 'rgba(50,215,75,0.15)', border: `0.5px solid rgba(50,215,75,0.3)`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          }}>
-            <CheckCircle size={20} color={c.success} />
-            <span style={{ fontSize: 14, fontWeight: 800, color: c.success, fontFamily: "'Cairo', sans-serif" }}>تم التنفيذ بنجاح</span>
-          </div>
-        )}
-        {(execStatus === 'rejected' || execStatus === 'error') && execMessage && (
-          <div style={{
-            marginTop: 4,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          }}>
-            <AlertCircle size={14} color={c.danger} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: c.danger, fontFamily: "'Cairo', sans-serif" }}>{execMessage}</span>
-          </div>
-        )}
-      </div>
+      </div>{/* END Scrollable Content */}
 
     </div>
   )

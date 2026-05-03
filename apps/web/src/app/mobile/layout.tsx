@@ -40,6 +40,10 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
             style={{
               position: 'relative',
               flex: '1 1 0%',
+              /* CRITICAL: minHeight: 0 allows flexbox child to shrink below content
+                 height, enabling proper overflow scrolling. Without this, the main
+                 area expands to fit all content and never scrolls. */
+              minHeight: 0,
               /* Padding at the bottom so the fixed MobileNavBar doesn't cover content.
                  Pages with their own fixed bottom bar (chart, trading) add extra
                  padding via their own styles. */
@@ -47,6 +51,7 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
               overflowY: 'auto',
               overflowX: 'hidden',
               WebkitOverflowScrolling: 'touch',
+              overscrollBehaviorY: 'contain',
               width: '100%',
             }}
           >

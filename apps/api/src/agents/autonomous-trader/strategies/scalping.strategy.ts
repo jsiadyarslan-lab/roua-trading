@@ -42,8 +42,10 @@ export class ScalpingStrategy extends BaseStrategy {
   constructor(params: any) {
     super(params);
     this.maxSpreadPips = params.scalpingMaxSpread ?? 3;
-    this.rsiOversold = 50;  // Relaxed from 45 → 50: RSI below 50 = bearish momentum = buy dip opportunity
-    this.rsiOverbought = 50; // Relaxed from 55 → 50: RSI above 50 = bullish momentum = sell rally opportunity
+    this.rsiOversold = 40;  // Was 50 (too aggressive — overlapped at midpoint, generating signals against trend)
+                         // Original doc says 35, relaxed to 40 as compromise: captures oversold dips without over-trading
+    this.rsiOverbought = 60; // Was 50 (too aggressive — same overlap issue)
+                         // Original doc says 65, relaxed to 60 as compromise: captures overbought rallies sensibly
   }
 
   protected analyze(market: MarketAnalysis): StrategyAnalysis {

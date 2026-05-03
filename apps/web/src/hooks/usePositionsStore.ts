@@ -9,6 +9,7 @@ interface Position {
   rawSymbol?: string
   side: string
   qty: number
+  entryPrice?: number
   avgEntryPrice: number
   currentPrice:  number
   marketValue:   number
@@ -275,12 +276,15 @@ export const usePositionsStore = create<PositionsState>()(
             symbol: p.symbol,
             side: p.side === 'long' ? 'long' : p.side === 'short' ? 'short' : p.side,
             qty: p.quantity ?? p.qty ?? 0,
-            avgEntryPrice: p.entryPrice ?? p.avgEntryPrice ?? 0,
-            currentPrice: p.currentPrice ?? 0,
-            marketValue: (p.quantity ?? p.qty ?? 0) * (p.currentPrice ?? 0),
-            unrealizedPnl: p.unrealizedPnL ?? p.unrealizedPnl ?? 0,
-            stopLoss: p.stopLoss,
-            takeProfit: p.takeProfit,
+            entryPrice: Number(p.entryPrice) || Number(p.avgEntryPrice) || 0,
+            avgEntryPrice: Number(p.entryPrice) || Number(p.avgEntryPrice) || 0,
+            currentPrice: Number(p.currentPrice) ?? 0,
+            marketValue: (Number(p.quantity) ?? Number(p.qty) ?? 0) * (Number(p.currentPrice) ?? 0),
+            unrealizedPnl: Number(p.unrealizedPnL) || Number(p.unrealizedPnl) || 0,
+            sl: Number(p.stopLoss) || Number(p.sl) || undefined,
+            tp: Number(p.takeProfit) || Number(p.tp) || undefined,
+            stopLoss: Number(p.stopLoss) || undefined,
+            takeProfit: Number(p.takeProfit) || undefined,
             exchange: p.exchange,
             openedAt: p.openedAt,
             source: 'nestjs' as const,

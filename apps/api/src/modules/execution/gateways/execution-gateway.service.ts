@@ -104,8 +104,8 @@ export class ExecutionGatewayService {
     // Step 3: Re-validate permissions (security: check before EVERY execution)
     await this._validatePermissions(credential, userId);
 
-    // Step 4: Decrypt credentials
-    const { apiKey, apiSecret } = await this.credentialsService.decryptCredential(exchangeCredentialId);
+    // Step 4: Decrypt credentials (SECURITY: userId verified above in _validatePermissions)
+    const { apiKey, apiSecret } = await this.credentialsService.decryptCredential(exchangeCredentialId, userId);
 
     // Step 5: Create the appropriate adapter
     const adapter = this._createAdapter(credential.exchange, apiKey, apiSecret, userId);

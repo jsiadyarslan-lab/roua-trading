@@ -1274,11 +1274,52 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             }
           } catch (quoteErr: any) {
             this.logger.warn(`Could not get quote for paper position ${position.symbol}: ${quoteErr.message}`);
+
+            // FIX: Fallback to simulated price movement when all exchange APIs are down
+            // Without this, paper positions stay frozen at their last price, SL/TP never triggers,
+            // positions accumulate and maxOpenPositions limit blocks all new trades.
+            const entryPrice = Number(position.entryPrice);
+            const lastPrice = Number(position.currentPrice || entryPrice);
+
+            // Small random walk: ±0.1% of entry price so positions can drift toward SL/TP
+            const maxDelta = entryPrice * 0.001;
+            const delta = (Math.random() - 0.5) * 2 * maxDelta;
+            currentPrice = Math.max(lastPrice + delta, entryPrice * 0.5); // ensure price stays positive
+
+            try {
+              await this.prisma.position.update({
+                where: { id: position.id },
+                data: {
+                  currentPrice,
+                  unrealizedPnl: position.side === 'BUY'
+                    ? (currentPrice - entryPrice) * Number(position.quantity)
+                    : (entryPrice - currentPrice) * Number(position.quantity),
+                },
+              });
+              this.logger.log(
+                `🧠 Simulated price for paper position ${position.symbol}: ${currentPrice.toFixed(2)} (last: ${lastPrice.toFixed(2)}, ±0.1% walk)`,
+              );
+            } catch (simErr: any) {
+              this.logger.warn(`Failed to save simulated price for ${position.symbol}: ${simErr.message}`);
+            }
           }
         }
 
         let shouldClose = false;
         let reason = '';
+
+        // FIX: MAX_HOLDING_TIME — close paper positions open >24h at breakeven to prevent accumulation.
+        // When APIs are persistently down, even simulated drift may not hit SL/TP within a reasonable time.
+        const holdingDurationMs = Date.now() - new Date(position.openedAt).getTime();
+        const MAX_HOLDING_TIME_MS = 24 * 60 * 60 * 1000; // 24 hours
+        if (isPaperPosition && holdingDurationMs > MAX_HOLDING_TIME_MS) {
+          this.logger.log(
+            `🧠 Paper position ${position.symbol} held for ${(holdingDurationMs / 3600000).toFixed(1)}h (>24h), closing at breakeven`,
+          );
+          currentPrice = Number(position.entryPrice); // breakeven exit
+          shouldClose = true;
+          reason = 'MAX_HOLDING_TIME';
+        }
 
         if (position.side === 'BUY') {
           if (stopLoss > 0 && currentPrice <= stopLoss) {
@@ -1339,7 +1380,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                     pnl,
                     closedAt: new Date(),
                     holdingDurationMs: Date.now() - new Date(position.openedAt).getTime(),
-                    exitReason: reason === 'STOP_LOSS_HIT' ? 'STOP_LOSS' : 'TAKE_PROFIT',
+                    exitReason: reason === 'STOP_LOSS_HIT' ? 'STOP_LOSS' : reason === 'MAX_HOLDING_TIME' ? 'STRATEGY_EXIT' : 'TAKE_PROFIT',
                     isWinning: pnl > 0,
                     currentPrice,
                     status: 'FILLED',
@@ -1379,7 +1420,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                     pnl,
                     closedAt: new Date(),
                     holdingDurationMs: Date.now() - new Date(position.openedAt).getTime(),
-                    exitReason: reason === 'STOP_LOSS_HIT' ? 'STOP_LOSS' : 'TAKE_PROFIT',
+                    exitReason: reason === 'STOP_LOSS_HIT' ? 'STOP_LOSS' : reason === 'MAX_HOLDING_TIME' ? 'STRATEGY_EXIT' : 'TAKE_PROFIT',
                     isWinning: pnl > 0,
                     currentPrice,
                   },

@@ -298,7 +298,7 @@ export class RiskGatekeeperService {
 
       // Try to verify actual balance via CCXT
       try {
-        const { apiKey, apiSecret } = await this.credentialsService.decryptCredential(credential.id);
+        const { apiKey, apiSecret } = await this.credentialsService.decryptCredential(credential.id, command.userId);
         const ExchangeClass = (ccxt as any)[credential.exchange];
         if (ExchangeClass) {
           const exchange = new ExchangeClass({

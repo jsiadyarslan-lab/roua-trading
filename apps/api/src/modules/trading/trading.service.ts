@@ -141,6 +141,7 @@ export class TradingService {
       credential.exchange,
       credential.id,
       request,
+      userId,
     );
 
     if (!execution.success) {
@@ -297,8 +298,9 @@ export class TradingService {
             where: { id: order.exchangeCredentialId! },
           });
         if (credential) {
+          // SECURITY: Pass userId to verify credential ownership before decrypting
           const { apiKey, apiSecret } =
-            await this.credentialsService.decryptCredential(credential.id);
+            await this.credentialsService.decryptCredential(credential.id, userId);
           const exchange = this._getExchangeInstance(credential.exchange, apiKey, apiSecret, credential.id);
           if (exchange) {
             await exchange.cancelOrder(order.exchangeOrderId, order.symbol);
@@ -541,6 +543,7 @@ export class TradingService {
         type: OrderType.MARKET,
         quantity: closeQuantity,
       },
+      userId,
     );
 
     if (!execution.success) {
@@ -854,6 +857,7 @@ export class TradingService {
     exchangeName: string,
     credentialId: string,
     request: PlaceOrderRequest,
+    userId?: string,
   ): Promise<{
     success: boolean;
     exchangeOrderId?: string;
@@ -864,8 +868,9 @@ export class TradingService {
     error?: string;
   }> {
     try {
+      // SECURITY: Pass userId to verify credential ownership before decrypting
       const { apiKey, apiSecret } =
-        await this.credentialsService.decryptCredential(credentialId);
+        await this.credentialsService.decryptCredential(credentialId, userId);
 
       const exchange = this._getExchangeInstance(exchangeName, apiKey, apiSecret, credentialId);
       if (!exchange) {

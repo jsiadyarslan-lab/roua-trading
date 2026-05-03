@@ -439,7 +439,7 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
   ): Promise<UnifiedCandleDto[]> {
     const [base, quote] = symbol.includes('/') ? symbol.split('/') : [symbol, 'USD'];
 
-    // ── Crypto: CoinGecko historical chart data ──
+    // ── Crypto: CoinGecko OHLC data ──
     const cryptoBases = new Set([
       'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'LTC',
       'AVAX', 'LINK', 'UNI', 'ATOM', 'ETC', 'XLM', 'BCH', 'ALGO', 'VET', 'ICP',
@@ -450,11 +450,84 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
     if (cryptoBases.has(base) && cryptoQuotes.has(quote)) {
       const coinId = FreeFallbackAdapter.COINGECKO_IDS[base];
       if (coinId) {
+        const vsCurrency = quote.toLowerCase() === 'usdt' ? 'usd' : quote.toLowerCase();
+        const days = Math.max(1, Math.min(90, Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000))));
+
+        // ── Approach 1: CoinGecko /coins/{id}/ohlc — returns real OHLC data ──
+        // Returns [timestamp, open, high, low, close] arrays
+        // Free tier, no API key. Granularity: 30min (1d), 4h (7-90d), 4h (180-365d)
         try {
-          const vsCurrency = quote.toLowerCase() === 'usdt' ? 'usd' : quote.toLowerCase();
-          // CoinGecko /coins/{id}/market_chart — free, returns hourly data
-          const days = Math.min(90, Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)));
-          const response = await axios.get(
+          const ohlcResponse = await axios.get(
+            `https://api.coingecko.com/api/v3/coins/${coinId}/ohlc`,
+            {
+              params: {
+                vs_currency: vsCurrency,
+                days: days.toString(),
+              },
+              timeout: 15000,
+            },
+          );
+
+          if (ohlcResponse.data && Array.isArray(ohlcResponse.data) && ohlcResponse.data.length > 0) {
+            // Fetch volume data separately from market_chart to enrich OHLC candles
+            const volumeMap = new Map<number, number>();
+            try {
+              const mcResponse = await axios.get(
+                `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart`,
+                {
+                  params: {
+                    vs_currency: vsCurrency,
+                    days: days.toString(),
+                    interval: 'daily',
+                  },
+                  timeout: 10000,
+                },
+              );
+              if (mcResponse.data?.total_volumes) {
+                for (const [ts, vol] of mcResponse.data.total_volumes as [number, number][]) {
+                  // Key by date (midnight UTC) so we can match OHLC candles to their day's volume
+                  const dayKey = new Date(ts).toISOString().split('T')[0];
+                  volumeMap.set(new Date(dayKey).getTime(), vol);
+                }
+              }
+            } catch {
+              // Volume enrichment is optional — continue with volume=0
+            }
+
+            const candles: UnifiedCandleDto[] = [];
+            for (const ohlc of ohlcResponse.data) {
+              const [timestamp, open, high, low, close] = ohlc as [number, number, number, number, number];
+              const ts = new Date(timestamp);
+              if (ts >= start && ts <= end && close > 0) {
+                // Find closest volume entry by date
+                const dayKey = new Date(timestamp).toISOString().split('T')[0];
+                const vol = volumeMap.get(new Date(dayKey).getTime()) ?? 0;
+                candles.push({
+                  symbol,
+                  timestamp: ts,
+                  open,
+                  high,
+                  low,
+                  close,
+                  volume: vol,
+                  source: 'CoinGecko',
+                });
+              }
+            }
+            if (candles.length > 0) {
+              this.logger.log(`CoinGecko OHLC: ${candles.length} candles for ${symbol} (real OHLC, not flat)`);
+              return candles;
+            }
+          }
+        } catch (error: any) {
+          this.logger.warn(`CoinGecko OHLC endpoint failed for ${symbol}: ${error.message}, falling back to market_chart aggregation`);
+        }
+
+        // ── Approach 2: Aggregate OHLC from market_chart hourly prices ──
+        // Group consecutive hourly price points into proper candles
+        // Each candle = one hour window: open=first, close=last, high=max, low=min
+        try {
+          const mcResponse = await axios.get(
             `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart`,
             {
               params: {
@@ -466,33 +539,72 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
             },
           );
 
-          if (response.data && response.data.prices && response.data.prices.length > 0) {
-            const candles: UnifiedCandleDto[] = [];
-            const prices = response.data.prices as [number, number][];
-            const volumes = (response.data.total_volumes || []) as [number, number][];
+          if (mcResponse.data?.prices && mcResponse.data.prices.length > 0) {
+            const prices = mcResponse.data.prices as [number, number][];
+            const volumes = (mcResponse.data.total_volumes || []) as [number, number][];
 
+            // Filter to requested date range
+            const filteredPrices: { ts: number; price: number; vol: number }[] = [];
             for (let i = 0; i < prices.length; i++) {
               const [timestamp, price] = prices[i];
-              const ts = new Date(timestamp);
-              // Only include data within the requested date range
-              if (ts >= start && ts <= end && price > 0) {
+              const tsDate = new Date(timestamp);
+              if (tsDate >= start && tsDate <= end && price > 0) {
                 const vol = volumes[i] ? volumes[i][1] : 0;
-                candles.push({
-                  symbol,
-                  timestamp: ts,
-                  open: price,  // CoinGecko doesn't provide OHLC in this endpoint
-                  high: price,
-                  low: price,
-                  close: price,
-                  volume: vol,
-                  source: 'CoinGecko',
-                });
+                filteredPrices.push({ ts: timestamp, price, vol });
               }
             }
-            if (candles.length > 0) return candles;
+
+            if (filteredPrices.length === 0) return [];
+
+            // Group into hourly candles by truncating to the hour
+            const candleMap = new Map<string, { open: number; close: number; high: number; low: number; volume: number; ts: number }>();
+            for (const point of filteredPrices) {
+              const dt = new Date(point.ts);
+              // Key by YYYY-MM-DD HH:00
+              const hourKey = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}T${String(dt.getUTCHours()).padStart(2, '0')}:00:00Z`;
+
+              const existing = candleMap.get(hourKey);
+              if (!existing) {
+                candleMap.set(hourKey, {
+                  open: point.price,
+                  close: point.price,
+                  high: point.price,
+                  low: point.price,
+                  volume: point.vol,
+                  ts: point.ts,
+                });
+              } else {
+                existing.close = point.price;            // last price in the hour
+                existing.high = Math.max(existing.high, point.price);
+                existing.low = Math.min(existing.low, point.price);
+                existing.volume += point.vol;
+              }
+            }
+
+            const candles: UnifiedCandleDto[] = [];
+            for (const [hourKey, data] of candleMap) {
+              candles.push({
+                symbol,
+                timestamp: new Date(hourKey),
+                open: data.open,
+                high: data.high,
+                low: data.low,
+                close: data.close,
+                volume: data.volume,
+                source: 'CoinGecko',
+              });
+            }
+
+            // Sort by timestamp ascending
+            candles.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+
+            if (candles.length > 0) {
+              this.logger.log(`CoinGecko market_chart aggregation: ${candles.length} candles for ${symbol} (OHLC aggregated from hourly points)`);
+              return candles;
+            }
           }
         } catch (error: any) {
-          this.logger.warn(`CoinGecko history failed for ${symbol}: ${error.message}`);
+          this.logger.warn(`CoinGecko market_chart aggregation failed for ${symbol}: ${error.message}`);
         }
       }
     }

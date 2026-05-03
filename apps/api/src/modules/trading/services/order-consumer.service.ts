@@ -120,7 +120,8 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
       }
 
       // Step 3: Decrypt credentials
-      const { apiKey, apiSecret } = await this.credentialsService.decryptCredential(credential.id);
+      // SECURITY: Pass userId from the queue message to verify credential ownership
+      const { apiKey, apiSecret } = await this.credentialsService.decryptCredential(credential.id, message.userId);
 
       // Step 4: Create CCXT exchange instance
       const ExchangeClass = ccxt[credential.exchange as keyof typeof ccxt] as any;

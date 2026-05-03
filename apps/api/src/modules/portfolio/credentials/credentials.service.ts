@@ -218,14 +218,41 @@ export class CredentialsService {
   /**
    * Decrypt a credential for internal use (e.g., to make API calls)
    * NEVER expose decrypted data to the frontend
+   *
+   * SECURITY FIX: Added userId parameter to verify credential ownership before
+   * decrypting. Previously, any caller with a credentialId could decrypt any
+   * user's API keys. Now, when userId is provided, we verify the credential
+   * belongs to that user before decrypting. If userId is omitted (system-level
+   * calls from background workers), the check is skipped — this is documented
+   * and acceptable for internal services that already have their own auth.
+   *
+   * @param credentialId The ID of the credential to decrypt
+   * @param userId Optional user ID — when provided, verifies the credential
+   *   belongs to this user before decrypting. Throws ForbiddenException if
+   *   the credential belongs to a different user.
    */
-  async decryptCredential(credentialId: string): Promise<{ apiKey: string; apiSecret: string }> {
+  async decryptCredential(credentialId: string, userId?: string): Promise<{ apiKey: string; apiSecret: string }> {
     const credential = await this.prisma.exchangeCredential.findUnique({
       where: { id: credentialId },
     });
 
     if (!credential) {
       throw new NotFoundException('بيانات الاعتماد غير موجودة');
+    }
+
+    // SECURITY: Verify credential ownership when userId is provided
+    if (userId && credential.userId !== userId) {
+      await this.auditService.log({
+        userId,
+        action: 'CREDENTIAL_DECRYPT_UNAUTHORIZED',
+        resource: 'exchange-credential',
+        details: JSON.stringify({
+          credentialId,
+          credentialOwner: credential.userId,
+          attemptBy: userId,
+        }),
+      });
+      throw new ForbiddenException('ليس لديك صلاحية الوصول إلى بيانات الاعتماد هذه');
     }
 
     const apiKey = this._decrypt({

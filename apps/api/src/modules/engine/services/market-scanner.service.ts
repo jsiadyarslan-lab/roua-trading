@@ -99,6 +99,9 @@ export class MarketScannerService {
       }
 
       // Step 1: Collect all symbols to scan
+      // NOTE: No userId passed — this is a system-level cron scan that scans
+      // all users' watchlists and signals. This is intentional for background
+      // market surveillance. User-scoped filtering only applies to forceScan().
       const symbols = await this._collectSymbols();
       this.logger.log(`🔍 Scanning ${symbols.length} symbols`);
 
@@ -154,7 +157,9 @@ export class MarketScannerService {
   async forceScan(userId: string, symbols?: string[]): Promise<any> {
     this.logger.log(`🔍 Manual scan triggered by user ${userId}`);
 
-    const scanSymbols = symbols || await this._collectSymbols();
+    // SECURITY: Pass userId so _collectSymbols only fetches this user's
+    // watchlists and signals, preventing cross-user data leakage.
+    const scanSymbols = symbols || await this._collectSymbols(userId);
     const results = await this._processBatch(scanSymbols);
 
     await this.audit.log({
@@ -184,15 +189,26 @@ export class MarketScannerService {
   /**
    * Collect all symbols to scan:
    * - Default symbols
-   * - Symbols from all user watchlists
-   * - Symbols from active signals
+   * - Symbols from user watchlists (filtered by userId when provided)
+   * - Symbols from active signals (filtered by userId when provided)
+   *
+   * @param userId Optional user ID — when provided, only fetches that user's
+   *   watchlists and signals. When omitted (cron job), fetches from all users
+   *   as a system-level scan.
+   *
+   * SECURITY FIX: Previously fetched ALL users' watchlists and signals regardless
+   * of who triggered the scan. When called via forceScan() (API), this leaked
+   * other users' watched symbols and trading signals to the requesting user.
    */
-  private async _collectSymbols(): Promise<string[]> {
+  private async _collectSymbols(userId?: string): Promise<string[]> {
     const symbolSet = new Set<string>(this.DEFAULT_SYMBOLS);
 
     try {
       // Add symbols from user watchlists (if table exists)
+      // SECURITY: Filter by userId when provided to prevent cross-user data leak
+      const watchlistWhere = userId ? { userId } : {};
       const watchlists = await (this.prisma as any).watchlist?.findMany({
+        where: watchlistWhere,
         select: { symbols: true },
       });
 
@@ -209,8 +225,13 @@ export class MarketScannerService {
 
     try {
       // Add symbols from active signals
+      // SECURITY: Filter by userId when provided to prevent cross-user data leak
+      const signalWhere: any = { status: 'ACTIVE' };
+      if (userId) {
+        signalWhere.userId = userId;
+      }
       const activeSignals = await this.prisma.signal.findMany({
-        where: { status: 'ACTIVE' },
+        where: signalWhere,
         select: { pair: true },
         distinct: ['pair'],
       });

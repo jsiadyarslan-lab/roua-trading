@@ -378,10 +378,10 @@ export default function RouaChart({
       positionsRef.current.forEach(pos => {
         const posSymbol = normalizeSymbol(pos.symbol || '');
         if (!posSymbol.includes(chartSymbol) && !chartSymbol.includes(posSymbol)) return;
-        const entryPrice = Number(pos.avgEntryPrice || 0);
+        const entryPrice = Number(pos.entryPrice || pos.avgEntryPrice || 0);
         if (entryPrice <= 0) return;
-        const slVal = Number(pos.sl || pos.stopLoss || 0);
-        const tpVal = Number(pos.tp || pos.takeProfit || 0);
+        const slVal = Number(pos.stopLoss || pos.sl || 0);
+        const tpVal = Number(pos.takeProfit || pos.tp || 0);
         processTrade(
           entryPrice,
           (pos.side || '').toLowerCase() === 'long' ? 'long' : 'short',
@@ -457,14 +457,14 @@ export default function RouaChart({
     positions.forEach(pos => {
       const posSymbol = normalizeSymbol(pos.symbol || '');
       if (!posSymbol.includes(chartSymbol) && !chartSymbol.includes(posSymbol)) return;
-      const entryPrice = Number(pos.avgEntryPrice || 0);
+      const entryPrice = Number(pos.entryPrice || pos.avgEntryPrice || 0);
       if (entryPrice > 0) {
         const isLong = (pos.side || '').toLowerCase() === 'long';
         addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0);
       }
-      const sl = Number(pos.sl || pos.stopLoss || 0);
+      const sl = Number(pos.stopLoss || pos.sl || 0);
       if (sl > 0) addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 1, 2);
-      const tp = Number(pos.tp || pos.takeProfit || 0);
+      const tp = Number(pos.takeProfit || pos.tp || 0);
       if (tp > 0) addLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 1, 2);
     });
 

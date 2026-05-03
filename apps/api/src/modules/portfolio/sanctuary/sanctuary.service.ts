@@ -95,7 +95,7 @@ export class SanctuaryService {
 
     for (const cred of credentials) {
       try {
-        const decrypted = await this.credentialsService.decryptCredential(cred.id);
+        const decrypted = await this.credentialsService.decryptCredential(cred.id, userId);
         const positions = await this._fetchExchangePositions(
           cred.exchange,
           decrypted.apiKey,

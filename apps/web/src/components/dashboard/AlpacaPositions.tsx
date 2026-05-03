@@ -139,7 +139,6 @@ export function AlpacaPositions() {
         direction: 'rtl',
         display: 'flex',
         flexDirection: 'column',
-        height: '100%',
         minHeight: 0,
         overflow: 'hidden',
         background: T.panel,

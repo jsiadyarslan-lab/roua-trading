@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useLayoutEffect, useMemo, useState, useRef, useCallback } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { QuoteData } from '@/hooks/useMarketStore'
 import { ChevronDown, PanelRight, Zap, X, Target } from 'lucide-react'
@@ -518,40 +518,6 @@ export default function DashboardPage() {
   const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false)
   const [sidebarPinned, setSidebarPinned] = useState(false)
   const [tradeDialogOpen, setTradeDialogOpen] = useState(false)
-
-  // ── Chart Height Calculation (JS-based, guaranteed to work) ──
-  const centerColRef = useRef<HTMLDivElement | null>(null)
-  const bannerRef = useRef<HTMLDivElement | null>(null)
-  const balancePanelRef = useRef<HTMLDivElement | null>(null)
-  const [chartHeight, setChartHeight] = useState<number | undefined>(undefined)
-
-  const recalcChartHeight = useCallback(() => {
-    const centerCol = centerColRef.current
-    const banner = bannerRef.current
-    const balancePanel = balancePanelRef.current
-    if (!centerCol || !banner || !balancePanel) return
-
-    const centerHeight = centerCol.clientHeight
-    const bannerHeight = banner.offsetHeight
-    const balanceHeight = balancePanel.offsetHeight
-    const available = centerHeight - bannerHeight - balanceHeight
-    setChartHeight(Math.max(available, 200))
-  }, [])
-
-  // Recalculate when positions panel opens/closes
-  useLayoutEffect(() => {
-    // Need a small delay for the balance panel height to update after posOpen changes
-    const timer = setTimeout(recalcChartHeight, 50)
-    return () => clearTimeout(timer)
-  }, [posOpen, recalcChartHeight])
-
-  // Recalculate on viewport resize
-  useEffect(() => {
-    if (!centerColRef.current) return
-    const ro = new ResizeObserver(() => recalcChartHeight())
-    ro.observe(centerColRef.current)
-    return () => ro.disconnect()
-  }, [recalcChartHeight])
 
   useEffect(() => {
     fetchAccount()
@@ -1128,9 +1094,9 @@ export default function DashboardPage() {
           )}
 
           {/* Center Column: Mode Banner + Chart + Balance + Positions */}
-          <div ref={centerColRef} className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0, minHeight: 0, height: '100%', overflow: 'hidden' }}>
+          <div className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0, minHeight: 0, height: '100%', overflow: 'hidden' }}>
             {/* Mode Banner */}
-            <div ref={bannerRef} style={{
+            <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '6px 14px', borderRadius: 10,
               background: modeConfig.glowBg,
@@ -1168,8 +1134,8 @@ export default function DashboardPage() {
                 </span>
               )}
             </div>
-            {/* Chart Panel — explicit height from JS calculation, with smooth transition */}
-            <div className="panel" style={{ height: chartHeight !== undefined ? chartHeight : undefined, flex: chartHeight !== undefined ? 'none' : '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none', transition: 'height 0.3s ease-out' }}>
+            {/* Chart Panel — pure CSS flex: takes remaining space */}
+            <div className="panel" style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none' }}>
               <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(26, 29, 41, 0.65)' }}>
                 <RouaChart
                   currentPrice={currentPrice}
@@ -1180,7 +1146,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Balance + Open Positions Panel — flexShrink:0, takes only the space it needs */}
-            <div ref={balancePanelRef} className="panel hover-glow" style={{ flexShrink: 0, flexBasis: 'auto', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div className="panel hover-glow" style={{ flexShrink: 0, flexBasis: 'auto', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {/* Balance Summary — always visible */}
               <div className="panel-header">
                 <div className="summary-row">

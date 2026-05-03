@@ -507,10 +507,11 @@ export default function DashboardPage() {
 
   const hasPositions = positions.length > 0 || paperTrades.length > 0
 
-  // Explicit heights for smooth calc-based transitions
-  const BANNER_H = 34      // mode banner height
-  const BALANCE_H = 36     // balance bar height (panel-header)
-  const POSITIONS_H = 200  // positions panel height when open
+  // Refs to measure actual heights for chart calculation
+  const centerColRef = useRef<HTMLDivElement>(null)
+  const bannerRef = useRef<HTMLDivElement>(null)
+  const balancePanelRef = useRef<HTMLDivElement>(null)
+  const [chartHeight, setChartHeight] = useState<number | null>(null)
 
   // Auto-expand positions panel when positions appear
   useEffect(() => {
@@ -518,6 +519,22 @@ export default function DashboardPage() {
       setPosOpen(true)
     }
   }, [hasPositions])
+
+  // Calculate target chart height immediately when posOpen changes
+  // CSS transition will animate the height change smoothly
+  useEffect(() => {
+    if (!centerColRef.current || !bannerRef.current) return
+    const totalH = centerColRef.current.clientHeight
+    const bannerH = bannerRef.current.offsetHeight
+    // Measure balance header height (always visible part)
+    const balanceHeader = balancePanelRef.current?.querySelector('.panel-header')
+    const balanceHeaderH = balanceHeader?.offsetHeight ?? 36
+    // Positions panel height — use the same value as maxHeight in the positions div
+    const positionsH = posOpen ? 200 : 0
+    const chartH = totalH - bannerH - balanceHeaderH - positionsH
+    if (chartH > 0) setChartHeight(chartH)
+  }, [posOpen])
+
   const [chartExpanded, setChartExpanded] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
   const [isCompactDesktopViewport, setIsCompactDesktopViewport] = useState(false)
@@ -1084,12 +1101,11 @@ export default function DashboardPage() {
           )}
 
           {/* Center Column: Mode Banner + Chart + Balance + Positions */}
-          <div className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0, minHeight: 0, height: '100%' }}>
+          <div ref={centerColRef} className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0, minHeight: 0, height: '100%' }}>
             {/* Mode Banner */}
-            <div style={{
+            <div ref={bannerRef} style={{
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '6px 14px', borderRadius: 10,
-              height: BANNER_H,
               background: modeConfig.glowBg,
               border: `1px solid ${modeConfig.accent}20`,
               flexShrink: 0,
@@ -1125,8 +1141,8 @@ export default function DashboardPage() {
                 </span>
               )}
             </div>
-            {/* Chart Panel — explicit height with calc() for smooth CSS transition */}
-            <div className="panel" style={{ height: `calc(100% - ${BANNER_H + BALANCE_H + (posOpen ? POSITIONS_H : 0)}px)`, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none', transition: 'height 0.3s cubic-bezier(0.4,0,0.2,1)', flexShrink: 0 }}>
+            {/* Chart Panel — height measured from refs, smooth transition */}
+            <div className="panel" style={{ height: chartHeight ?? undefined, flex: chartHeight == null ? '1 1 0%' : undefined, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none', transition: 'height 0.3s cubic-bezier(0.4,0,0.2,1)', flexShrink: 0 }}>
               <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(26, 29, 41, 0.65)' }}>
                 <RouaChart
                   currentPrice={currentPrice}
@@ -1136,8 +1152,8 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Balance + Open Positions Panel — explicit height with smooth transition */}
-            <div className="panel hover-glow" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: BALANCE_H + (posOpen ? POSITIONS_H : 0), transition: 'height 0.3s cubic-bezier(0.4,0,0.2,1)' }}>
+            {/* Balance + Open Positions Panel — height measured by ref, smooth transition */}
+            <div ref={balancePanelRef} className="panel hover-glow" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', transition: 'height 0.3s cubic-bezier(0.4,0,0.2,1)' }}>
               {/* Balance Summary — always visible */}
               <div className="panel-header">
                 <div className="summary-row">
@@ -1186,8 +1202,8 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {/* Positions List — visible when posOpen */}
-              <div style={{ flex: 1, overflow: posOpen ? 'auto' : 'hidden', opacity: posOpen ? 1 : 0, transition: 'opacity 0.25s ease' }}>
+              {/* Positions List — collapsible with max-height transition synced with chart */}
+              <div style={{ maxHeight: posOpen ? 200 : 0, overflow: 'hidden', opacity: posOpen ? 1 : 0, transition: 'max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease' }}>
                 <AlpacaPositions />
               </div>
             </div>

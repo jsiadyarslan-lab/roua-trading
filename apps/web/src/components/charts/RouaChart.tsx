@@ -793,24 +793,24 @@ export default function RouaChart({
               />
             )}
 
-          {/* ── Quick Trade Controls — Right Side (under Trading Hours) ── */}
+          {/* ── Quick Trade Controls — Left Side (under OHLC overlay, opposite of trading hours) ── */}
           {!mobile && currentPrice && (
             <div
               className="roua-quick-trade"
               style={{
                 position: 'absolute',
                 top: 32,
-                right: 10,
+                left: 10,
                 zIndex: 100,
                 display: 'flex',
                 alignItems: 'center',
-                gap: 6,
-                borderRadius: '16px',
+                gap: 5,
+                borderRadius: '14px',
                 background: 'rgba(8,10,18,0.82)',
                 backdropFilter: 'blur(24px) saturate(2)',
                 border: '1px solid rgba(255,255,255,0.07)',
                 boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset, 0 1px 0 rgba(255,255,255,0.06) inset',
-                padding: '5px 6px',
+                padding: '4px 5px',
                 pointerEvents: 'auto',
               }}
             >
@@ -834,18 +834,18 @@ export default function RouaChart({
                   position: 'relative',
                   background: 'linear-gradient(135deg, #00E676 0%, #00C853 40%, #00FFA3 100%)',
                   border: '1px solid rgba(0,255,163,0.35)',
-                  borderRadius: '12px',
+                  borderRadius: '10px',
                   color: '#000',
-                  padding: '7px 14px',
-                  fontSize: 12,
+                  padding: '6px 12px',
+                  fontSize: 10.2,
                   fontWeight: 900,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 5,
-                  letterSpacing: 0.4,
+                  gap: 4,
+                  letterSpacing: 0.3,
                   fontFamily: "'Cairo', sans-serif",
-                  boxShadow: '0 0 16px rgba(0,255,163,0.2), 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.35)',
+                  boxShadow: '0 0 14px rgba(0,255,163,0.2), 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.35)',
                   transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                   overflow: 'hidden',
                   outline: 'none',
@@ -854,7 +854,7 @@ export default function RouaChart({
                 {/* Animated glow ring */}
                 <span className="roua-buy-glow" style={{
                   position: 'absolute', inset: -1,
-                  borderRadius: '12px',
+                  borderRadius: '10px',
                   background: 'conic-gradient(from 0deg, transparent 0%, rgba(0,255,163,0.4) 25%, transparent 50%, rgba(0,255,163,0.2) 75%, transparent 100%)',
                   opacity: 0,
                   transition: 'opacity 0.3s ease',
@@ -865,11 +865,11 @@ export default function RouaChart({
                 <span style={{
                   position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
                   background: 'linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 100%)',
-                  borderRadius: '12px 12px 0 0',
+                  borderRadius: '10px 10px 0 0',
                   pointerEvents: 'none',
                 }} />
                 {/* Up arrow icon */}
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }}>
                   <polyline points="18 15 12 9 6 15" />
                 </svg>
                 <span style={{ textShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>شراء</span>
@@ -881,14 +881,14 @@ export default function RouaChart({
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '3px 8px',
+                padding: '2px 6px',
                 background: 'rgba(255,255,255,0.04)',
-                borderRadius: 10,
+                borderRadius: 8,
                 border: '1px solid rgba(255,255,255,0.06)',
-                minWidth: 50,
+                minWidth: 42,
                 gap: 1,
               }}>
-                <span style={{ fontSize: 6.5, color: 'rgba(255,255,255,0.4)', fontWeight: 800, letterSpacing: 2, textTransform: 'uppercase' }}>LOT</span>
+                <span style={{ fontSize: 5.5, color: 'rgba(255,255,255,0.4)', fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase' }}>LOT</span>
                 <input
                   type="number"
                   value={lotSize}
@@ -896,11 +896,11 @@ export default function RouaChart({
                   step="0.01"
                   min="0.01"
                   style={{
-                    width: 42,
+                    width: 36,
                     background: 'transparent',
                     border: 'none',
                     color: '#fff',
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: 900,
                     textAlign: 'center',
                     outline: 'none',
@@ -931,18 +931,18 @@ export default function RouaChart({
                   position: 'relative',
                   background: 'linear-gradient(135deg, #FF1744 0%, #FF5252 40%, #FF6B81 100%)',
                   border: '1px solid rgba(255,71,87,0.35)',
-                  borderRadius: '12px',
+                  borderRadius: '10px',
                   color: '#fff',
-                  padding: '7px 14px',
-                  fontSize: 12,
+                  padding: '6px 12px',
+                  fontSize: 10.2,
                   fontWeight: 900,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 5,
-                  letterSpacing: 0.4,
+                  gap: 4,
+                  letterSpacing: 0.3,
                   fontFamily: "'Cairo', sans-serif",
-                  boxShadow: '0 0 16px rgba(255,71,87,0.2), 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
+                  boxShadow: '0 0 14px rgba(255,71,87,0.2), 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
                   transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
                   overflow: 'hidden',
                   outline: 'none',
@@ -951,7 +951,7 @@ export default function RouaChart({
                 {/* Animated glow ring */}
                 <span className="roua-sell-glow" style={{
                   position: 'absolute', inset: -1,
-                  borderRadius: '12px',
+                  borderRadius: '10px',
                   background: 'conic-gradient(from 0deg, transparent 0%, rgba(255,71,87,0.4) 25%, transparent 50%, rgba(255,71,87,0.2) 75%, transparent 100%)',
                   opacity: 0,
                   transition: 'opacity 0.3s ease',
@@ -962,12 +962,12 @@ export default function RouaChart({
                 <span style={{
                   position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
                   background: 'linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 100%)',
-                  borderRadius: '12px 12px 0 0',
+                  borderRadius: '10px 10px 0 0',
                   pointerEvents: 'none',
                 }} />
                 <span style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>بيع</span>
                 {/* Down arrow icon */}
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }}>
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
               </button>
@@ -1142,10 +1142,10 @@ export default function RouaChart({
           animation: rouaGlowSpin 2s linear infinite;
         }
         .roua-quick-trade {
-          animation: rouaSlideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+          animation: rouaSlideInLeft 0.35s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        @keyframes rouaSlideInRight {
-          from { transform: translateX(24px); opacity: 0; }
+        @keyframes rouaSlideInLeft {
+          from { transform: translateX(-20px); opacity: 0; }
           to { transform: translateX(0); opacity: 1; }
         }
         @keyframes rouaGlowSpin {

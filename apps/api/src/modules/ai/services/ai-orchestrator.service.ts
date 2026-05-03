@@ -385,12 +385,12 @@ export class AIOrchestratorService {
       // + 1 Prediction Market role (8th model) — votes only when relevant events exist
       const roles = [
         { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',     fallbackModels: ['groq', 'glm', 'huggingface', 'openrouter'],  prompt: `${marketDataPrefix}حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.${decisionInstruction}` },
-        { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['gemini', 'glm', 'huggingface', 'openrouter'], prompt: `حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
-        { id: 'risk',   name: 'خبير المخاطر',     model: 'bedrock',    fallbackModels: ['glm', 'gemini', 'groq', 'openrouter'],        prompt: `حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة مع تقييم السيناريو الأسوأ.${decisionInstruction}` },
-        { id: 'macro',  name: 'خبير الماكرو',     model: 'glm',        fallbackModels: ['gemini', 'groq', 'huggingface', 'openrouter'], prompt: `حلل الوضع الاقتصادي العام وتأثيره على ${symbol} مع مراعاة السياق العربي.${decisionInstruction}` },
-        { id: 'pattern',name: 'خبير الأنماط',     model: 'huggingface',fallbackModels: ['groq', 'gemini', 'glm', 'openrouter'],        prompt: `هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟${decisionInstruction}` },
-        { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'ollama',     fallbackModels: ['groq', 'gemini', 'glm', 'openrouter'],        prompt: `ما هو أفضل توقيت للدخول في ${symbol} بناءً على السيولة والنماذج المتاحة؟${decisionInstruction}` },
-        { id: 'diverge',name: 'محلل التباين',     model: 'openrouter', fallbackModels: ['groq', 'gemini', 'glm', 'huggingface'],        prompt: `ابحث عن إشارات معاكسة أو تباينات في تحليل ${symbol} — هل هناك سبب لعدم اتباع الاتجاه السائد؟${decisionInstruction}` },
+        { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['gemini', 'glm', 'huggingface', 'openrouter'], prompt: `${marketDataPrefix}حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
+        { id: 'risk',   name: 'خبير المخاطر',     model: 'bedrock',    fallbackModels: ['glm', 'gemini', 'groq', 'openrouter'],        prompt: `${marketDataPrefix}حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة مع تقييم السيناريو الأسوأ.${decisionInstruction}` },
+        { id: 'macro',  name: 'خبير الماكرو',     model: 'glm',        fallbackModels: ['gemini', 'groq', 'huggingface', 'openrouter'], prompt: `${marketDataPrefix}حلل الوضع الاقتصادي العام وتأثيره على ${symbol} مع مراعاة السياق العربي.${decisionInstruction}` },
+        { id: 'pattern',name: 'خبير الأنماط',     model: 'huggingface',fallbackModels: ['groq', 'gemini', 'glm', 'openrouter'],        prompt: `${marketDataPrefix}هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟${decisionInstruction}` },
+        { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'ollama',     fallbackModels: ['groq', 'gemini', 'glm', 'openrouter'],        prompt: `${marketDataPrefix}ما هو أفضل توقيت للدخول في ${symbol} بناءً على السيولة والنماذج المتاحة؟${decisionInstruction}` },
+        { id: 'diverge',name: 'محلل التباين',     model: 'openrouter', fallbackModels: ['groq', 'gemini', 'glm', 'huggingface'],        prompt: `${marketDataPrefix}ابحث عن إشارات معاكسة أو تباينات في تحليل ${symbol} — هل هناك سبب لعدم اتباع الاتجاه السائد؟${decisionInstruction}` },
       ];
 
       // ── 8th Model: Prediction Market Analyst ──

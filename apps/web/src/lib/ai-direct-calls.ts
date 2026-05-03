@@ -869,7 +869,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
   }> = [
     {
       modelName: 'Groq',
-      callFn: () => callGroq(`حلل مشاعر السوق والتوجه العام حول ${symbol}. قيّم الزخم والمشاعر العامة ونقطة الدخول المثالية. هل السوق صعودي أم هبوطي من ناحية المشاعر؟`),
+      callFn: () => callGroq(`${marketDataPrefix}حلل مشاعر السوق والتوجه العام حول ${symbol}. قيّم الزخم والمشاعر العامة ونقطة الدخول المثالية. هل السوق صعودي أم هبوطي من ناحية المشاعر؟`),
       roles: ['محلل المشاعر'],
       prompt: 'sentiment',
       primaryOnly: false,
@@ -883,35 +883,35 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     },
     {
       modelName: 'GLM-4',
-      callFn: () => callGLM(`حلل الوضع الاقتصادي الكلي وتأثيره على ${symbol}. قيّم العوامل الكلية المؤثرة على الأصول الرقمية والسياق العربي. هل البيئة الماكروية مواتية؟`),
+      callFn: () => callGLM(`${marketDataPrefix}حلل الوضع الاقتصادي الكلي وتأثيره على ${symbol}. قيّم العوامل الكلية المؤثرة على الأصول الرقمية والسياق العربي. هل البيئة الماكروية مواتية؟`),
       roles: ['خبير الماكرو'],
       prompt: 'macro',
       primaryOnly: false,
     },
     {
       modelName: 'HuggingFace',
-      callFn: () => callHuggingFace(`هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟ ما النمط السائد وهل يتكرر بشكل موثوق؟ قدم رأياً مستقلاً.`),
+      callFn: () => callHuggingFace(`${marketDataPrefix}هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟ ما النمط السائد وهل يتكرر بشكل موثوق؟ قدم رأياً مستقلاً.`),
       roles: ['خبير الأنماط'],
       prompt: 'patterns',
       primaryOnly: false,
     },
     {
       modelName: 'Ollama',
-      callFn: () => callOllama(`أنت استراتيجي تنفيذ محترف. حلل أفضل توقيت وأسلوب لتنفيذ صفقة على ${symbol}. قيّم نقاط الدخول والخروج وحجم الصفقة المناسب وإدارة المخاطر.`),
+      callFn: () => callOllama(`${marketDataPrefix}أنت استراتيجي تنفيذ محترف. حلل أفضل توقيت وأسلوب لتنفيذ صفقة على ${symbol}. قيّم نقاط الدخول والخروج وحجم الصفقة المناسب وإدارة المخاطر.`),
       roles: ['استراتيجي التنفيذ'],
       prompt: 'execution',
       primaryOnly: false,
     },
     {
       modelName: 'Bedrock',
-      callFn: () => callBedrock(`حدد المخاطر المحتملة لصفقة على ${symbol}. قيّم مستوى التذبذب والسيناريو الأسوأ ومستويات وقف الخسارة. ما هي المخاطر الرئيسية وكيف يمكن التحوط ضدها؟`),
+      callFn: () => callBedrock(`${marketDataPrefix}حدد المخاطر المحتملة لصفقة على ${symbol}. قيّم مستوى التذبذب والسيناريو الأسوأ ومستويات وقف الخسارة. ما هي المخاطر الرئيسية وكيف يمكن التحوط ضدها؟`),
       roles: ['خبير المخاطر'],
       prompt: 'risk',
       primaryOnly: false,
     },
     {
       modelName: 'OpenRouter',
-      callFn: () => callOpenRouter(`ابحث عن إشارات معاكسة أو تباينات في تحليل ${symbol} — هل هناك سبب لعدم اتباع الاتجاه السائد؟ حلل من منظور مختلف وقدم رأياً مستقلاً.`),
+      callFn: () => callOpenRouter(`${marketDataPrefix}ابحث عن إشارات معاكسة أو تباينات في تحليل ${symbol} — هل هناك سبب لعدم اتباع الاتجاه السائد؟ حلل من منظور مختلف وقدم رأياً مستقلاً.`),
       roles: ['محلل التباين'],
       prompt: 'divergence',
       primaryOnly: false,
@@ -1014,8 +1014,48 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     successfulModels.push({ modelName, roles, response })
   }
 
-  // Build analyses — each successful model fills its assigned role
-  // FIX: Simplified — each model now has exactly 1 role, no complex reassignment needed
+  // FIX: Role redistribution — when models fail, redistribute their roles
+  // to working models with a 15% confidence penalty.
+  // This ensures all 7 council roles are filled even if some providers fail.
+  const CONFIDENCE_PENALTY = 0.85 // 15% penalty for redistributed roles
+  const ROLE_REDISTRIBUTION_MAP: Record<string, string[]> = {
+    // When a model fails, its role can be taken over by these models (in priority order)
+    'استراتيجي التنفيذ': ['Groq', 'Gemini', 'GLM-4'],  // Was Ollama's role
+    'خبير المخاطر': ['GLM-4', 'Gemini', 'Groq'],        // Was Bedrock's role
+    'خبير الأنماط': ['Groq', 'GLM-4', 'Gemini'],        // Was HuggingFace's role
+    'محلل التباين': ['Groq', 'GLM-4', 'Gemini'],        // Was OpenRouter's role
+    'محلل المشاعر': ['Gemini', 'GLM-4', 'Groq'],        // Was Groq's role
+    'المحلل الفني': ['GLM-4', 'Groq', 'Bedrock'],       // Was Gemini's role
+    'خبير الماكرو': ['Gemini', 'Groq', 'HuggingFace'],  // Was GLM-4's role
+  }
+
+  // Identify which roles were filled and which are missing
+  const filledRoleNames = new Set(successfulModels.flatMap(m => m.roles))
+  const allRoleNames = activeModelCalls.flatMap(mc => mc.roles)
+  const missingRoles = allRoleNames.filter(r => !filledRoleNames.has(r))
+
+  // Redistribute missing roles to successful models
+  if (missingRoles.length > 0 && successfulModels.length > 0) {
+    const successfulModelNames = new Set(successfulModels.map(m => m.modelName))
+
+    for (const missingRole of missingRoles) {
+      const candidates = ROLE_REDISTRIBUTION_MAP[missingRole] || []
+      // Find the first candidate model that succeeded and doesn't already have this role
+      const redistributor = candidates.find(candName => {
+        const model = successfulModels.find(m => m.modelName === candName)
+        return model && !model.roles.includes(missingRole)
+      })
+
+      if (redistributor) {
+        const model = successfulModels.find(m => m.modelName === redistributor)!
+        model.roles.push(missingRole)
+        console.log(`[direct-council] Redistributing role "${missingRole}" to ${redistributor} (with 15% confidence penalty)`)
+      }
+    }
+  }
+
+  // Build analyses — each successful model fills its assigned role(s)
+  // FIX: Redistributed roles get a 15% confidence penalty
   const analyses: CouncilVote[] = []
   let buyWeight = 0, sellWeight = 0, holdWeight = 0, totalConfidence = 0
   // FIX: Track individual confidences per vote type for accurate consensus calculation
@@ -1026,10 +1066,13 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
   for (const modelData of successfulModels) {
     const { roles: modelRoles, response } = modelData
     const vote = parseVote(response.content)
-    const conf = response.confidence
 
-    // Each model fills all its assigned roles (usually just 1)
+    // Each model fills all its assigned roles (primary + any redistributed)
     for (const roleName of modelRoles) {
+      // Apply 15% confidence penalty for redistributed roles (roles beyond the first/primary)
+      const isPrimaryRole = modelRoles.indexOf(roleName) === 0
+      const conf = isPrimaryRole ? response.confidence : response.confidence * CONFIDENCE_PENALTY
+
       if (vote === 'BUY') { buyWeight += conf; buyConfidences.push(conf) }
       else if (vote === 'SELL') { sellWeight += conf; sellConfidences.push(conf) }
       else { holdWeight += conf; holdConfidences.push(conf) }
@@ -1037,7 +1080,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
 
       analyses.push({
         role: roleName,
-        model: response.model,
+        model: response.model + (isPrimaryRole ? '' : ' (بديل)'),
         vote,
         confidence: Math.round(conf * 100),
         reason: response.content.slice(0, 300) + (response.content.length > 300 ? '...' : ''),

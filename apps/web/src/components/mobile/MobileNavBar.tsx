@@ -10,6 +10,7 @@ import {
   BellRing, UserCircle, Link2, CreditCard, Fingerprint, Users,
   Globe2,
 } from 'lucide-react'
+import { useNotificationStore } from '@/hooks/useNotificationStore'
 
 const NAV_ITEMS = [
   { label: 'الرئيسية', href: '/mobile', icon: Home },
@@ -78,6 +79,7 @@ export default function MobileNavBar() {
   const pathname = usePathname()
   const router = useRouter()
   const [showMore, setShowMore] = useState(false)
+  const unreadCount = useNotificationStore(s => s.notifications.filter(n => !n.read).length)
 
   const handleNav = (href: string) => {
     if (href === '__more__') {
@@ -150,7 +152,7 @@ export default function MobileNavBar() {
                 key={item.href}
                 onClick={() => handleNav(item.href)}
                 className="flex flex-col items-center justify-center h-full"
-                style={{ width: 44, flexShrink: 0 }}
+                style={{ width: 44, flexShrink: 0, position: 'relative' }}
               >
                 <motion.div 
                   whileTap={{ scale: 0.9 }} 
@@ -158,6 +160,25 @@ export default function MobileNavBar() {
                   className="relative"
                 >
                   <Icon size={18} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} />
+                  {/* Notification badge on Home icon */}
+                  {item.href === '/mobile' && unreadCount > 0 && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      style={{
+                        position: 'absolute', top: -4, right: -6,
+                        minWidth: 14, height: 14, borderRadius: 7,
+                        background: '#FF453A',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 8, fontWeight: 800, color: '#FFF',
+                        fontFamily: "'JetBrains Mono', monospace",
+                        padding: '0 3px',
+                        boxShadow: '0 0 8px rgba(255,69,58,0.6)',
+                      }}
+                    >
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </motion.div>
+                  )}
                   {active && (
                     <motion.div
                       layoutId="navIndicator"

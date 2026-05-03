@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import MobileNavBar from '@/components/mobile/MobileNavBar'
+import MobileToastOverlay from '@/components/mobile/MobileToastOverlay'
+import MobileNotificationAdapter from '@/components/mobile/MobileNotificationAdapter'
 import { AuthGuard } from '@/components/dashboard/AuthGuard'
 import { MarketProvider } from '@/components/dashboard/MarketProvider'
 import ViewportHeightSetter from '@/components/mobile/ViewportHeightSetter'
@@ -21,6 +23,8 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
     <MarketProvider>
       <AuthGuard>
         <ViewportHeightSetter />
+        <MobileNotificationAdapter />
+        <MobileToastOverlay />
         <div
           style={{
             position: 'relative',

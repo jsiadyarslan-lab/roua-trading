@@ -169,6 +169,21 @@ export const usePaperTradesStore = create<PaperTradesState>()(
             source: trade.source,
           }
 
+          // ── Send notification for closed position ──
+          try {
+            const { useNotificationStore } = require('@/hooks/useNotificationStore')
+            const isProfit = realizedPnl >= 0
+            useNotificationStore.getState().addNotification({
+              source: trade.source === 'bot' ? 'bot' : 'trade',
+              priority: isProfit ? 'high' : 'urgent',
+              action: isProfit ? 'CLOSE' : 'WARN',
+              title: `${trade.source === 'bot' ? '🤖 البوت' : '📊 المركز'}: ${isProfit ? 'إغلاق بربح' : 'إغلاق بخسارة'} ${trade.symbol}`,
+              body: `${trade.side === 'long' ? 'شراء' : 'بيع'} ${trade.qty} ${trade.symbol} @ $${exitPrice.toFixed(2)} — ${isProfit ? '+' : ''}$${realizedPnl.toFixed(2)} (${isProfit ? '+' : ''}${realizedPct.toFixed(1)}%)`,
+              pair: trade.symbol,
+              price: exitPrice,
+            })
+          } catch { /* Notification store not available */ }
+
           return {
             trades: state.trades.filter((t) => t.id !== id),
             closedTrades: [closedTrade, ...state.closedTrades].slice(0, 200), // Keep last 200

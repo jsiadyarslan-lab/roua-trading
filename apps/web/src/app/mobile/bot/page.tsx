@@ -237,16 +237,69 @@ export default function MobileBotPage() {
   }, [displayLogs.length])
 
   // ── Handlers ──
-  const handleToggle = useCallback(() => {
+  const handleToggle = useCallback(async () => {
     const newState = !isOn
     setIsOn(newState)
-    addLog(
-      newState
-        ? '🟢 تم تشغيل البوت الآلي — جاري التسلح...'
-        : '🔴 تم إيقاف البوت الآلي',
-      newState ? 'info' : 'warn'
-    )
-  }, [isOn, setIsOn, addLog])
+
+    if (newState) {
+      // ── Enable bot via backend API ──
+      addLog('🟢 جارٍ تشغيل البوت الآلي — إرسال طلب للخادم...', 'info')
+      try {
+        const res = await fetch('/api/engine/bot/enable', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            strategy: settings.strategy || 'AUTO',
+            riskPct: settings.riskPct,
+            confLimit: settings.confLimit,
+            useAIConsensus: settings.useAIConsensus,
+            maxDailyLoss: settings.maxDailyLoss,
+            maxDrawdown: settings.maxDrawdown,
+          }),
+        })
+        const data = await res.json()
+        if (res.ok) {
+          addLog('✅ تم تشغيل البوت بنجاح — المحرك نشط ويبحث عن فرص', 'info')
+          // Update engine state from server response
+          if (data.state) {
+            useBotStore.getState().setEngineState(data.state as BotEngineState)
+          }
+          // Send notification
+          const { addNotification } = await import('@/hooks/useNotificationStore')
+          addNotification({
+            source: 'bot',
+            priority: 'high',
+            action: 'INFO',
+            title: '🤖 البوت الآلي: تم التشغيل',
+            body: `البوت يعمل الآن باستراتيجية ${settings.strategy || 'AUTO'}`,
+          })
+        } else {
+          addLog(`⚠️ استجابة الخادم: ${data.message || 'خطأ غير معروف'}`, 'warn')
+          // Still keep local state on — the bot is "armed" locally even if server didn't fully respond
+        }
+      } catch (err) {
+        addLog('⚠️ فشل الاتصال بالخادم — البوت يعمل محلياً فقط', 'warn')
+      }
+    } else {
+      // ── Disable bot via backend API ──
+      addLog('🔴 جارٍ إيقاف البوت الآلي — إرسال طلب للخادم...', 'warn')
+      try {
+        const res = await fetch('/api/engine/bot/disable', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        })
+        const data = await res.json()
+        if (res.ok) {
+          addLog('✅ تم إيقاف البوت بنجاح', 'warn')
+          useBotStore.getState().setEngineState('idle' as BotEngineState)
+        } else {
+          addLog(`⚠️ استجابة الخادم: ${data.message || 'خطأ غير معروف'}`, 'warn')
+        }
+      } catch (err) {
+        addLog('⚠️ فشل الاتصال بالخادم — تم الإيقاف محلياً فقط', 'warn')
+      }
+    }
+  }, [isOn, setIsOn, addLog, settings])
 
   const handleResetStats = useCallback(async () => {
     setIsResetting(true)

@@ -389,7 +389,9 @@ export default function MobileHomePage() {
          calc(68px + env(safe-area-inset-bottom)) padding for the navbar */
       position: 'relative',
       overflowX: 'hidden',
+      overflowY: 'visible',
       width: '100%',
+      minHeight: '100%',
     }}>
       {/* ── Ambient Sentiment Glow ── */}
       <motion.div 

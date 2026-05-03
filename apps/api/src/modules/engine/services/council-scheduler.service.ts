@@ -45,8 +45,9 @@ export class CouncilSchedulerService {
   /** Is council currently in session */
   private isInSession = false;
 
-  /** FIX: Daily cost cap for council sessions — prevents runaway AI spending */
-  private readonly DAILY_COST_CAP_USD = 5.00; // $5/day max for automated council sessions
+  /** FIX: Daily cost cap for council sessions — prevents runaway AI spending.
+   *  Changed from $5 → $3 per user requirement (Fix #5). */
+  private readonly DAILY_COST_CAP_USD = 3.00; // $3/day max for automated council sessions
 
   /** Redis key for daily cost accumulator — persists across NestJS restarts */
   private readonly REDIS_DAILY_COST_KEY = 'council:daily_cost';

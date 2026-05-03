@@ -39,7 +39,20 @@ export class RiskGatekeeperService {
   private circuitBreakerThresholdPercent: number;
 
   // ── Circuit Breaker State (in-memory, per symbol) ──
-  private readonly circuitBreakerState: Map<string, { triggered: boolean; until: Date }> = new Map();
+  // FIX: Added progressive cooldown with exponential backoff.
+  // - Base cooldown: 60 seconds (was 15 min fixed — too long for first trigger, too short conceptually)
+  // - Each consecutive trigger doubles the cooldown: 60s → 120s → 240s → 480s → 960s → 1800s
+  // - Max cooldown: 30 minutes (1,800,000ms)
+  // - On cooldown expiry without re-trigger, level resets to 0
+  private readonly CB_BASE_COOLDOWN_MS = 60_000; // 60 seconds base cooldown
+  private readonly CB_MAX_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes max cooldown
+  private readonly circuitBreakerState: Map<string, {
+    triggered: boolean;
+    until: Date;
+    level: number; // Progressive cooldown level
+    triggeredAt: Date; // When the circuit breaker was first triggered
+    consecutiveTriggers: number; // Number of consecutive triggers
+  }> = new Map();
 
   // ── Last DB sync timestamp ──
   private lastSettingsSync = 0;
@@ -446,29 +459,100 @@ export class RiskGatekeeperService {
     if (state && state.triggered && state.until > new Date()) {
       const remainingMs = state.until.getTime() - Date.now();
       const remainingMin = Math.ceil(remainingMs / 60000);
+      const remainingSec = Math.ceil(remainingMs / 1000);
+
+      // FIX: Show more precise time (seconds when < 1 minute, minutes otherwise)
+      const timeStr = remainingMs < 60000
+        ? `${remainingSec} ثانية`
+        : `${remainingMin} دقيقة`;
 
       return {
         allowed: false,
-        reason: `تداول ${symbol} متوقف مؤقتاً بسبب تقلب شديد. يُستأنف بعد ${remainingMin} دقيقة.`,
+        reason: `تداول ${symbol} متوقف مؤقتاً بسبب تقلب شديد (مستوى ${state.level}). يُستأنف بعد ${timeStr}.`,
         failedCheck: 'CIRCUIT_BREAKER',
       };
+    }
+
+    // FIX: If cooldown has expired, check if we should reset the level
+    // If the market has calmed down (below threshold), reset the progressive level
+    if (state && state.triggered && state.until <= new Date()) {
+      // Cooldown expired — check if the extreme volatility has subsided
+      try {
+        const quote = await this.exchangeService.getQuote(symbol);
+        if (quote && Math.abs(quote.changePercent) <= this.circuitBreakerThresholdPercent) {
+          // Market has calmed — reset the circuit breaker completely
+          this.circuitBreakerState.delete(symbol);
+          this.logger.log(`🟢 Circuit breaker RESET for ${symbol} — volatility subsided (${quote.changePercent.toFixed(1)}%)`);
+        } else {
+          // Still volatile — extend cooldown with next exponential level
+          const newLevel = state.level + 1;
+          const cooldownMs = Math.min(
+            this.CB_BASE_COOLDOWN_MS * Math.pow(2, newLevel - 1),
+            this.CB_MAX_COOLDOWN_MS,
+          );
+          const newUntil = new Date(Date.now() + cooldownMs);
+
+          this.circuitBreakerState.set(symbol, {
+            triggered: true,
+            until: newUntil,
+            level: newLevel,
+            triggeredAt: state.triggeredAt,
+            consecutiveTriggers: state.consecutiveTriggers + 1,
+          });
+
+          this.logger.warn(
+            `🔴 Circuit breaker RE-TRIGGERED for ${symbol}: still volatile (${quote?.changePercent?.toFixed(1)}%) — level ${newLevel}, cooldown ${Math.round(cooldownMs / 1000)}s`,
+          );
+
+          return {
+            allowed: false,
+            reason: `تقلب شديد مستمر في ${symbol} (مستوى ${newLevel}). التداول متوقف لمدة ${Math.round(cooldownMs / 60000)} دقيقة حمايةً لك.`,
+            failedCheck: 'CIRCUIT_BREAKER',
+          };
+        }
+      } catch {
+        // Can't verify — reset cautiously (allow trading)
+        this.circuitBreakerState.delete(symbol);
+      }
     }
 
     // Try to detect extreme volatility from live data
     try {
       const quote = await this.exchangeService.getQuote(symbol);
       if (quote && Math.abs(quote.changePercent) > this.circuitBreakerThresholdPercent) {
-        // Trigger circuit breaker for 15 minutes
-        const until = new Date(Date.now() + 15 * 60 * 1000);
-        this.circuitBreakerState.set(symbol, { triggered: true, until });
+        // FIX: Progressive cooldown with exponential backoff
+        // Determine level: check if there's a recent expired state to build upon
+        const previousState = this.circuitBreakerState.get(symbol);
+        const level = previousState ? previousState.level + 1 : 1;
+        const consecutiveTriggers = previousState ? previousState.consecutiveTriggers + 1 : 1;
+
+        const cooldownMs = Math.min(
+          this.CB_BASE_COOLDOWN_MS * Math.pow(2, level - 1),
+          this.CB_MAX_COOLDOWN_MS,
+        );
+        const until = new Date(Date.now() + cooldownMs);
+
+        this.circuitBreakerState.set(symbol, {
+          triggered: true,
+          until,
+          level,
+          triggeredAt: new Date(),
+          consecutiveTriggers,
+        });
+
+        const cooldownSec = Math.round(cooldownMs / 1000);
+        const cooldownMin = Math.round(cooldownMs / 60000);
+        const cooldownStr = cooldownMs < 60000
+          ? `${cooldownSec} ثانية`
+          : `${cooldownMin} دقيقة`;
 
         this.logger.warn(
-          `🔴 Circuit breaker triggered for ${symbol}: ${quote.changePercent.toFixed(1)}% move`,
+          `🔴 Circuit breaker triggered for ${symbol}: ${quote.changePercent.toFixed(1)}% move (level ${level}, cooldown ${cooldownSec}s)`,
         );
 
         return {
           allowed: false,
-          reason: `تقلب شديد في ${symbol} (${quote.changePercent.toFixed(1)}%). التداول متوقف مؤقتاً لمدة 15 دقيقة حمايةً لك.`,
+          reason: `تقلب شديد في ${symbol} (${quote.changePercent.toFixed(1)}%). التداول متوقف مؤقتاً لمدة ${cooldownStr} حمايةً لك (مستوى ${level}).`,
           failedCheck: 'CIRCUIT_BREAKER',
         };
       }

@@ -734,7 +734,7 @@ export class AIOrchestratorService {
 
       // FIX: Cache with differentiated TTL — partial results (2 min) vs full results (10 min)
       // This prevents stale partial results from blocking retries that could reach more models.
-      const isPartial = analyses.length < 3
+      const isPartial = analyses.length < 3;
       const consensusCacheTTL = isPartial
         ? this.CACHE_TTL.consensus_partial   // 2 minutes for partial (< 3 models)
         : this.CACHE_TTL.consensus;           // 10 minutes for full (3+ models)

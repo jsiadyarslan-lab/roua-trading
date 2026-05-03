@@ -45,13 +45,22 @@ import {
 export class ScannerService {
   private readonly logger = new Logger(ScannerService.name);
 
+  /** FIX #5: Daily AI cost cap for scanner deep analysis — prevents runaway AI spending.
+   *  deepAnalysis() is called from the frontend when a user clicks on a symbol.
+   *  Without a cap, a single user making 200 requests could burn through AI credits.
+   *  The $3/day cap is shared with MarketScannerService and CouncilSchedulerService.
+   */
+  private readonly SCANNER_AI_DAILY_COST_CAP_USD = 3.00; // $3/day max for scanner AI calls
+  private readonly REDIS_SCANNER_AI_COST_KEY = 'scanner:ai:daily_cost';
+  private readonly REDIS_SCANNER_AI_COST_DATE_KEY = 'scanner:ai:daily_cost_date';
+
   constructor(
     private readonly aggregator: MarketDataAggregatorService,
     private readonly indicators: TechnicalIndicatorService,
     private readonly aiOrchestrator: AIOrchestratorService,
     private readonly redis: RedisService,
   ) {
-    this.logger.log('🔍 Advanced Scanner Service initialized');
+    this.logger.log('🔍 Advanced Scanner Service initialized (with $3/day AI cost cap)');
   }
 
   /**
@@ -422,22 +431,34 @@ export class ScannerService {
         aiSentiment = parsed.aiSentiment;
         riskLevel = parsed.riskLevel;
       } else {
-        const aiResult = await this.aiOrchestrator.analyze({
-          symbol,
-          prompt: `حلل الأصل المالي ${symbol} باللغة العربية. الحالة الحالية: السعر ${quote.price}, التغير ${quote.changePercent}%, مؤشر القوة النسبية ${technical?.rsi?.values?.slice(-1)[0]?.toFixed(1) ?? 'N/A'}, الدرجة الفنية ${technicalScore}. قدم تحليلاً موجزاً مع توصية واضحة ومستوى المخاطرة.`,
-          type: 'market_analysis',
-          language: 'ar',
-        });
+        // FIX #5: Check daily cost cap before making AI call
+        const todayCost = await this._getScannerAIDailyCost();
+        if (todayCost >= this.SCANNER_AI_DAILY_COST_CAP_USD) {
+          this.logger.warn(`💰 Scanner AI daily cost cap reached ($${todayCost.toFixed(2)}/$${this.SCANNER_AI_DAILY_COST_CAP_USD}) — skipping AI analysis for ${symbol}`);
+          // Use technical-only analysis instead
+          aiSentiment = technicalScore > 20 ? 'POSITIVE' : technicalScore < -20 ? 'NEGATIVE' : 'NEUTRAL';
+          riskLevel = Math.abs(quote.changePercent) > 3 ? 'HIGH' : Math.abs(quote.changePercent) > 1.5 ? 'MEDIUM' : 'LOW';
+        } else {
+          const aiResult = await this.aiOrchestrator.analyze({
+            symbol,
+            prompt: `حلل الأصل المالي ${symbol} باللغة العربية. الحالة الحالية: السعر ${quote.price}, التغير ${quote.changePercent}%, مؤشر القوة النسبية ${technical?.rsi?.values?.slice(-1)[0]?.toFixed(1) ?? 'N/A'}, الدرجة الفنية ${technicalScore}. قدم تحليلاً موجزاً مع توصية واضحة ومستوى المخاطرة.`,
+            type: 'market_analysis',
+            language: 'ar',
+          });
 
-        aiAnalysis = aiResult.content;
-        aiModel = aiResult.model;
-        aiSentiment = technicalScore > 20 ? 'POSITIVE' : technicalScore < -20 ? 'NEGATIVE' : 'NEUTRAL';
-        riskLevel = Math.abs(quote.changePercent) > 3 ? 'HIGH' : Math.abs(quote.changePercent) > 1.5 ? 'MEDIUM' : 'LOW';
+          aiAnalysis = aiResult.content;
+          aiModel = aiResult.model;
+          aiSentiment = technicalScore > 20 ? 'POSITIVE' : technicalScore < -20 ? 'NEGATIVE' : 'NEUTRAL';
+          riskLevel = Math.abs(quote.changePercent) > 3 ? 'HIGH' : Math.abs(quote.changePercent) > 1.5 ? 'MEDIUM' : 'LOW';
 
-        // Cache AI result for 5 minutes
-        await this.redis.set(aiCacheKey, JSON.stringify({
-          aiAnalysis, aiModel, aiSentiment, riskLevel,
-        }), 300_000).catch(() => {});
+          // FIX #5: Track estimated cost after AI call
+          await this._addScannerAICost(0.02); // ~$0.02 per deep analysis call
+
+          // Cache AI result for 5 minutes
+          await this.redis.set(aiCacheKey, JSON.stringify({
+            aiAnalysis, aiModel, aiSentiment, riskLevel,
+          }), 300_000).catch(() => {});
+        }
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -2487,6 +2508,53 @@ export class ScannerService {
         return `توافق هبوطي قوي (${alignedCount}/${total} أطر زمنية) — فرصة بيع مفضلة مع وقف خسارة محكم`;
       default:
         return `إشارات مختلطة (${alignedCount}/${total} متوافقة) — يُنصح بالانتظار حتى يتضح الاتجاه`;
+    }
+  }
+
+  // ── Private: Daily AI Cost Tracking (Fix #5) ──
+
+  /**
+   * FIX #5: Get today's total AI cost from Redis accumulator.
+   * Uses the same pattern as MarketScannerService for consistency.
+   */
+  private async _getScannerAIDailyCost(): Promise<number> {
+    try {
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+      // Check if we need to reset the daily counter (new day)
+      const storedDate = await this.redis.get(this.REDIS_SCANNER_AI_COST_DATE_KEY);
+      if (storedDate !== today) {
+        // New day — reset the accumulator
+        await this.redis.set(this.REDIS_SCANNER_AI_COST_KEY, '0', 86400000); // 24h TTL
+        await this.redis.set(this.REDIS_SCANNER_AI_COST_DATE_KEY, today, 86400000);
+        return 0;
+      }
+
+      // Get accumulated cost from Redis
+      const redisCost = await this.redis.get(this.REDIS_SCANNER_AI_COST_KEY);
+      if (redisCost) {
+        const cost = parseFloat(redisCost);
+        if (!isNaN(cost) && cost > 0) return cost;
+      }
+
+      return 0;
+    } catch {
+      return 0; // If we can't check cost, allow the analysis
+    }
+  }
+
+  /**
+   * FIX #5: Add cost to the daily Redis accumulator after an AI analysis is performed.
+   * Estimated cost: $0.02 per deepAnalysis() AI call (rough average across AI models).
+   */
+  private async _addScannerAICost(estimatedCostUsd: number): Promise<void> {
+    try {
+      const currentCost = await this._getScannerAIDailyCost();
+      const newCost = currentCost + estimatedCostUsd;
+      await this.redis.set(this.REDIS_SCANNER_AI_COST_KEY, newCost.toString(), 86400000);
+      this.logger.debug(`💰 Scanner AI cost: +$${estimatedCostUsd.toFixed(4)} (total today: $${newCost.toFixed(2)})`);
+    } catch {
+      // Non-critical — don't block on cost tracking errors
     }
   }
 }

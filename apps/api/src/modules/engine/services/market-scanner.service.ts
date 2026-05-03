@@ -52,6 +52,15 @@ export class MarketScannerService {
   /** Symbols being scanned in current cycle */
   private isScanning = false;
 
+  /** FIX #5: Daily AI cost cap for scanner — prevents runaway AI spending.
+   *  The scanner runs every 5 min and calls analyticalAI.analyzeAsset() for
+   *  each volatile symbol. Without a cap, this can easily exceed $3/day.
+   *  The cap is shared with the council scheduler via a common Redis key pattern.
+   */
+  private readonly SCANNER_DAILY_COST_CAP_USD = 3.00; // $3/day max for automated scanner AI calls
+  private readonly REDIS_SCANNER_COST_KEY = 'scanner:daily_cost';
+  private readonly REDIS_SCANNER_COST_DATE_KEY = 'scanner:daily_cost_date';
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
@@ -60,7 +69,7 @@ export class MarketScannerService {
     private readonly aggregator: MarketDataAggregatorService,
     private readonly audit: AuditService,
   ) {
-    this.logger.log('🔍 Market Scanner initialized — surveillance active');
+    this.logger.log('🔍 Market Scanner initialized — surveillance active (with $3/day AI cost cap)');
   }
 
   /**
@@ -81,6 +90,13 @@ export class MarketScannerService {
 
     try {
       this.logger.log('🔍 Starting market scan cycle...');
+
+      // FIX #5: Check global daily cost cap BEFORE starting the scan
+      const todayCost = await this._getScannerDailyCost();
+      if (todayCost >= this.SCANNER_DAILY_COST_CAP_USD) {
+        this.logger.warn(`💰 Scanner daily cost cap reached ($${todayCost.toFixed(2)}/$${this.SCANNER_DAILY_COST_CAP_USD}) — skipping scan cycle`);
+        return;
+      }
 
       // Step 1: Collect all symbols to scan
       const symbols = await this._collectSymbols();
@@ -259,8 +275,18 @@ export class MarketScannerService {
 
         // Step 3: Run full analysis for high-volatility or trending symbols
         if (Math.abs(quote.changePercent) >= 2) {
+          // FIX #5: Check daily cost cap before each AI analysis
+          const todayCost = await this._getScannerDailyCost();
+          if (todayCost >= this.SCANNER_DAILY_COST_CAP_USD) {
+            this.logger.warn(`💰 Scanner daily cost cap reached ($${todayCost.toFixed(2)}/$${this.SCANNER_DAILY_COST_CAP_USD}) — skipping remaining AI analyses`);
+            break; // Stop AI analyses for this scan cycle
+          }
+
           try {
             const analysis = await this.analyticalAI.analyzeAsset(symbol);
+
+            // FIX #5: Track estimated cost after each AI call
+            await this._addScannerCost(0.015); // ~$0.015 per analyzeAsset call
 
             // If high confidence and clear direction, generate signal
             if (
@@ -320,5 +346,52 @@ export class MarketScannerService {
 
   private _sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  // ── Private: Daily Cost Tracking (Fix #5) ──
+
+  /**
+   * FIX #5: Get today's total AI cost from Redis accumulator.
+   * Uses the same pattern as CouncilSchedulerService for consistency.
+   */
+  private async _getScannerDailyCost(): Promise<number> {
+    try {
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+      // Check if we need to reset the daily counter (new day)
+      const storedDate = await this.redis.get(this.REDIS_SCANNER_COST_DATE_KEY);
+      if (storedDate !== today) {
+        // New day — reset the accumulator
+        await this.redis.set(this.REDIS_SCANNER_COST_KEY, '0', 86400000); // 24h TTL
+        await this.redis.set(this.REDIS_SCANNER_COST_DATE_KEY, today, 86400000);
+        return 0;
+      }
+
+      // Get accumulated cost from Redis
+      const redisCost = await this.redis.get(this.REDIS_SCANNER_COST_KEY);
+      if (redisCost) {
+        const cost = parseFloat(redisCost);
+        if (!isNaN(cost) && cost > 0) return cost;
+      }
+
+      return 0;
+    } catch {
+      return 0; // If we can't check cost, allow the scan
+    }
+  }
+
+  /**
+   * FIX #5: Add cost to the daily Redis accumulator after an AI analysis is performed.
+   * Estimated cost: $0.015 per analyzeAsset() call (rough average across AI models).
+   */
+  private async _addScannerCost(estimatedCostUsd: number): Promise<void> {
+    try {
+      const currentCost = await this._getScannerDailyCost();
+      const newCost = currentCost + estimatedCostUsd;
+      await this.redis.set(this.REDIS_SCANNER_COST_KEY, newCost.toString(), 86400000);
+      this.logger.debug(`💰 Scanner cost: +$${estimatedCostUsd.toFixed(4)} (total today: $${newCost.toFixed(2)})`);
+    } catch {
+      // Non-critical — don't block on cost tracking errors
+    }
   }
 }

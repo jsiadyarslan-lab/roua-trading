@@ -76,36 +76,90 @@ function calcConfidence(content: string, model: string): number {
 // ─── Vote Parsing ────────────────────────────────────────────────
 
 function parseVote(content: string): 'BUY' | 'SELL' | 'HOLD' {
-  // Priority 1: Explicit DECISION: BUY/SELL/HOLD format
+  // ═══════════════════════════════════════════════════════════════
+  // FIX: Improved vote parsing — prevents false HOLD classification
+  //
+  // Previous bug: When AI gives nuanced analysis mentioning both
+  // bullish/bearish factors, parser defaulted to HOLD. This caused
+  // 89% consensus to be labeled "Neutral — Wait" because most votes
+  // were misclassified as HOLD.
+  //
+  // New approach: Weighted keyword scoring + stronger directional
+  // detection + final conclusion extraction.
+  // ═══════════════════════════════════════════════════════════════
+
+  // Priority 1: Explicit DECISION: BUY/SELL/HOLD format (strongest signal)
   const decisionMatch = content.match(/DECISION:\s*(BUY|SELL|HOLD)/i)
   if (decisionMatch) return decisionMatch[1].toUpperCase() as 'BUY' | 'SELL' | 'HOLD'
 
-  // Priority 2: Explicit recommendation keywords (Arabic + English)
-  // Arabic: أنصح بالشراء, أوصي بالشراء, التوصية شراء, أنصح بالبيع, أوصي بالبيع, التوصية بيع
-  const explicitBuy = /(?:أنصح|أوصي|التوصية|توصيتي|رأيي)\s*(?:بـ)?(?:الشراء|بالشراء|بشراء)/i.test(content)
-  const explicitSell = /(?:أنصح|أوصي|التوصية|توصيتي|رأيي)\s*(?:بـ)?(?:البيع|بالبيع|ببيع)/i.test(content)
-  const explicitHold = /(?:أنصح|أوصي|التوصية|توصيتي|رأيي)\s*(?:بـ)?(?:الانتظار|بالانتظار|بانتظار|الحياد|بالحشد|بالتوقف)/i.test(content)
-  if (explicitBuy && !explicitSell) return 'BUY'
-  if (explicitSell && !explicitBuy) return 'SELL'
-  if (explicitHold && !explicitBuy && !explicitSell) return 'HOLD'
+  // Priority 2: Arabic explicit recommendation patterns (expanded)
+  const arBuyPatterns = /(?:أنصح|أوصي|التوصية|توصيتي|رأيي|أرى|أميل|أرتئي|ننصح|نوصي)\s*(?:بـ)?(?:الشراء|بالشراء|بشراء|شراء|الدخول|بالشراء)/i
+  const arSellPatterns = /(?:أنصح|أوصي|التوصية|توصيتي|رأيي|أرى|أميل|أرتئي|ننصح|نوصي)\s*(?:بـ)?(?:البيع|بالبيع|ببيع|بيع|الخروج|بالبيع)/i
+  const arHoldPatterns = /(?:أنصح|أوصي|التوصية|توصيتي|رأيي|أرى|أميل|أرتئي|ننصح|نوصي)\s*(?:بـ)?(?:الانتظار|بالانتظار|بانتظار|الحياد|بالحشد|بالتوقف|التوقف|الحذر|الترقب)/i
 
-  // Priority 3: English recommendation patterns
-  const engBuy = /(?:I\s+recommend\s+(?:buying|a\s+buy|to\s+buy)|my\s+recommendation\s+is\s+(?:to\s+)?buy|recommend\s+BUY|go\s+long|enter\s+long|buy\s+signal)/i.test(content)
-  const engSell = /(?:I\s+recommend\s+(?:selling|a\s+sell|to\s+sell)|my\s+recommendation\s+is\s+(?:to\s+)?sell|recommend\s+SELL|go\s+short|enter\s+short|sell\s+signal)/i.test(content)
+  const hasArBuy = arBuyPatterns.test(content)
+  const hasArSell = arSellPatterns.test(content)
+  const hasArHold = arHoldPatterns.test(content)
+
+  if (hasArBuy && !hasArSell && !hasArHold) return 'BUY'
+  if (hasArSell && !hasArBuy && !hasArHold) return 'SELL'
+  if (hasArHold && !hasArBuy && !hasArSell) return 'HOLD'
+  // If both buy and hold/sell and hold, prioritize the directional signal
+  if (hasArBuy && hasArHold && !hasArSell) return 'BUY'  // "أميل للشراء مع الحذر" → BUY
+  if (hasArSell && hasArHold && !hasArBuy) return 'SELL' // "أوصي بالبيع مع الترقب" → SELL
+
+  // Priority 3: English recommendation patterns (expanded)
+  const engBuy = /(?:I\s+recommend\s+(?:buying|a\s+buy|to\s+buy)|my\s+recommendation\s+is\s+(?:to\s+)?buy|recommend\s+BUY|go\s+long|enter\s+long|buy\s+signal|bullish\s+outlook|upside|buy\s+on\s+dips|accumulate)/i.test(content)
+  const engSell = /(?:I\s+recommend\s+(?:selling|a\s+sell|to\s+sell)|my\s+recommendation\s+is\s+(?:to\s+)?sell|recommend\s+SELL|go\s+short|enter\s+short|sell\s+signal|bearish\s+outlook|downside|sell\s+on\s+rally|distribute)/i.test(content)
   if (engBuy && !engSell) return 'BUY'
   if (engSell && !engBuy) return 'SELL'
 
-  // Priority 4: General keyword frequency (last resort)
-  let buyIdx = -1, sellIdx = -1
-  const buyMatch = content.match(/(شراء|صعود|شرائية|إيجابي|ارتفاع|BUY|BULLISH|LONG|UPWARD|UPTREND)/gi)
-  const sellMatch = content.match(/(بيع|هبوط|بيعية|سلبي|انخفاض|SELL|BEARISH|SHORT|DOWNWARD|DOWNTREND)/gi)
-  if (buyMatch) buyIdx = content.lastIndexOf(buyMatch[buyMatch.length - 1])
-  if (sellMatch) sellIdx = content.lastIndexOf(sellMatch[sellMatch.length - 1])
+  // Priority 4: Weighted keyword scoring (replaces simple last-occurrence)
+  // FIX: Count ALL directional keywords with weights — bullish words
+  // near the end of the response get extra weight (conclusion emphasis).
+  const contentLen = content.length
+  const buyKeywords = /(شراء|صعود|شرائية|إيجابي|ارتفاع|BUY|BULLISH|LONG|UPWARD|UPTREND|أميل\s*للشراء|توقع\s*صعود|مستهدف\s*صعودي|استمرار\s*الصعود)/gi
+  const sellKeywords = /(بيع|هبوط|بيعية|سلبي|انخفاض|SELL|BEARISH|SHORT|DOWNWARD|DOWNTREND|أميل\s*للبيع|توقع\s*هبوط|مستهدف\s*هبوطي|استمرار\s*الهبوط)/gi
 
-  if (buyIdx === -1 && sellIdx === -1) return 'HOLD'
-  if (buyIdx > sellIdx) return 'BUY'
-  if (sellIdx > buyIdx) return 'SELL'
-  return 'HOLD'
+  let buyScore = 0, sellScore = 0
+  let match: RegExpExecArray | null
+
+  // Score buy keywords — words near the end count more
+  buyKeywords.lastIndex = 0
+  while ((match = buyKeywords.exec(content)) !== null) {
+    const position = match.index / contentLen // 0=start, 1=end
+    const weight = 1 + position * 1.5 // Words at end get 2.5x weight
+    buyScore += weight
+  }
+
+  // Score sell keywords — same weighting
+  sellKeywords.lastIndex = 0
+  while ((match = sellKeywords.exec(content)) !== null) {
+    const position = match.index / contentLen
+    const weight = 1 + position * 1.5
+    sellScore += weight
+  }
+
+  // Priority 5: Final conclusion extraction
+  // Look at the LAST 200 chars of the response — this is where the
+  // model usually states its conclusion. If the conclusion has a
+  // clear direction, trust it over the body analysis.
+  const conclusion = content.slice(-200)
+  const conclusionBuy = /(?:شراء|صعود|BUY|BULLISH|LONG|إيجابي|ارتفاع)/i.test(conclusion)
+  const conclusionSell = /(?:بيع|هبوط|SELL|BEARISH|SHORT|سلبي|انخفاض)/i.test(conclusion)
+
+  if (conclusionBuy && !conclusionSell) return 'BUY'
+  if (conclusionSell && !conclusionBuy) return 'SELL'
+
+  // Final: Use weighted scores to decide
+  if (buyScore > sellScore * 1.2) return 'BUY'  // Need 20% more sell to override
+  if (sellScore > buyScore * 1.2) return 'SELL'
+  if (buyScore > 0 && sellScore === 0) return 'BUY'  // FIX: Any buy signal with no sell → BUY (was HOLD)
+  if (sellScore > 0 && buyScore === 0) return 'SELL' // FIX: Any sell signal with no buy → SELL (was HOLD)
+  if (buyScore > sellScore) return 'BUY'  // FIX: Even slight buy edge → BUY (was HOLD)
+  if (sellScore > buyScore) return 'SELL' // FIX: Even slight sell edge → SELL (was HOLD)
+
+  return 'HOLD' // Only if truly no directional signal found
 }
 
 const MODEL_TIMEOUT = 15_000 // FIX: Reduced from 20s to 15s — faster failure, quicker Layer 2 completion
@@ -115,10 +169,41 @@ const OLLAMA_LOCAL_TIMEOUT = 8_000 // 8s for local Ollama (fail faster if unreac
 // ─── Live Market Data ────────────────────────────────────────────
 
 /**
+ * Map trading symbol to CoinGecko asset ID.
+ * CoinGecko uses different IDs than Binance (e.g., BTC/USD → bitcoin).
+ */
+function symbolToCoingeckoId(symbol: string): string {
+  const map: Record<string, string> = {
+    'BTC/USD': 'bitcoin', 'BTC/USDT': 'bitcoin', 'BTCUSDT': 'bitcoin',
+    'ETH/USD': 'ethereum', 'ETH/USDT': 'ethereum', 'ETHUSDT': 'ethereum',
+    'SOL/USD': 'solana', 'SOL/USDT': 'solana', 'SOLUSDT': 'solana',
+    'XRP/USD': 'ripple', 'XRP/USDT': 'ripple', 'XRPUSDT': 'ripple',
+    'BNB/USD': 'binancecoin', 'BNB/USDT': 'binancecoin', 'BNBUSDT': 'binancecoin',
+    'ADA/USD': 'cardano', 'ADA/USDT': 'cardano', 'ADAUSDT': 'cardano',
+    'DOGE/USD': 'dogecoin', 'DOGE/USDT': 'dogecoin', 'DOGEUSDT': 'dogecoin',
+    'DOT/USD': 'polkadot', 'DOT/USDT': 'polkadot', 'DOTUSDT': 'polkadot',
+    'AVAX/USD': 'avalanche-2', 'AVAX/USDT': 'avalanche-2', 'AVAXUSDT': 'avalanche-2',
+    'MATIC/USD': 'matic-network', 'MATIC/USDT': 'matic-network', 'MATICUSDT': 'matic-network',
+    'LINK/USD': 'chainlink', 'LINK/USDT': 'chainlink', 'LINKUSDT': 'chainlink',
+  }
+  const normalized = symbol.replace(/[\/\-]/g, '').replace('USD', 'USDT').toUpperCase()
+  // Try direct match first
+  for (const [key, id] of Object.entries(map)) {
+    if (key.toUpperCase() === normalized || key.toUpperCase() === symbol.toUpperCase()) return id
+  }
+  // Fallback: extract base currency
+  const base = symbol.split('/')[0].toUpperCase()
+  for (const [key, id] of Object.entries(map)) {
+    if (key.startsWith(base)) return id
+  }
+  return base.toLowerCase()
+}
+
+/**
  * FIX: Fetch quick market data (price, RSI, MACD) to prevent AI hallucinations.
  * Models were inventing prices (e.g., saying BTC is $28,500 when it's much higher).
  * Uses Binance public API for crypto — no auth required.
- * Falls back gracefully if fetch fails.
+ * Falls back to CoinGecko if Binance is unreachable (common on Railway).
  */
 async function fetchQuickMarketData(symbol: string): Promise<{ price: number; rsi: number; macd: string }> {
   try {
@@ -129,11 +214,17 @@ async function fetchQuickMarketData(symbol: string): Promise<{ price: number; rs
     const tickerRes = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`, {
       signal: AbortSignal.timeout(5000),
     })
-    if (!tickerRes.ok) return { price: 0, rsi: 50, macd: 'غير متوفر' }
+    if (!tickerRes.ok) {
+      // Binance failed — try CoinGecko fallback
+      return await _fetchCoinGeckoFallback(symbol)
+    }
     const tickerData = await tickerRes.json()
     const price = parseFloat(tickerData?.lastPrice || '0')
 
-    if (price === 0) return { price: 0, rsi: 50, macd: 'غير متوفر' }
+    if (price === 0) {
+      // Binance returned price=0 — try CoinGecko fallback
+      return await _fetchCoinGeckoFallback(symbol)
+    }
 
     // Fetch klines for RSI and MACD calculation — 30 candles on 1h timeframe
     const klinesRes = await fetch(`https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1h&limit=30`, {
@@ -148,8 +239,32 @@ async function fetchQuickMarketData(symbol: string): Promise<{ price: number; rs
 
     return { price, rsi, macd }
   } catch {
-    return { price: 0, rsi: 50, macd: 'غير متوفر' }
+    // Binance threw an error — try CoinGecko fallback
+    return await _fetchCoinGeckoFallback(symbol)
   }
+}
+
+/**
+ * CoinGecko fallback for when Binance is blocked/unreachable (common on Railway).
+ * Free, no auth required, works on cloud platforms.
+ */
+async function _fetchCoinGeckoFallback(symbol: string): Promise<{ price: number; rsi: number; macd: string }> {
+  try {
+    const coingeckoId = symbolToCoingeckoId(symbol)
+    const cgRes = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coingeckoId}&vs_currencies=usd&include_24hr_change=true`, {
+      signal: AbortSignal.timeout(5000),
+    })
+    if (cgRes.ok) {
+      const cgData = await cgRes.json()
+      const cgPrice = cgData[coingeckoId]?.usd
+      if (cgPrice && cgPrice > 0) {
+        return { price: cgPrice, rsi: 50, macd: 'غير متوفر' }
+      }
+    }
+  } catch {
+    // CoinGecko also failed — return defaults
+  }
+  return { price: 0, rsi: 50, macd: 'غير متوفر' }
 }
 
 /** Calculate RSI (Relative Strength Index) from closing prices */
@@ -496,6 +611,58 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
         } catch {
           continue
         }
+      }
+    }
+  }
+
+  // ── Strategy 2.5: HuggingFace Classic Inference API (works with ANY valid token!) ──
+  // This is the original HF Inference API endpoint. Unlike the router-based endpoints
+  // (Strategy 1 & 2), this works with ANY valid HF token — even read-only tokens.
+  // It uses a different request format (not OpenAI-compatible) but is more reliable.
+  if (hfApiKey) {
+    const classicModels = [
+      'mistralai/Mistral-7B-Instruct-v0.3',
+      'HuggingFaceH4/zephyr-7b-beta',
+      'microsoft/Phi-3-mini-4k-instruct',
+      'Qwen/Qwen2.5-7B-Instruct',
+    ]
+    for (const model of classicModels) {
+      try {
+        const res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${hfApiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            inputs: prompt,
+            parameters: {
+              max_new_tokens: 512,
+              temperature: 0.3,
+              return_full_text: false,
+            },
+            options: { wait_for_model: true },
+          }),
+          signal: AbortSignal.timeout(20_000), // 20s — model may need to warm up
+        })
+
+        if (!res.ok) {
+          if (res.status === 429 || res.status === 404 || res.status === 503) continue
+          if (res.status === 401) break
+          continue
+        }
+
+        const data = await res.json()
+        // Classic API returns array: [{ generated_text: "..." }] or object with error
+        let content = ''
+        if (Array.isArray(data) && data.length > 0 && data[0].generated_text) {
+          content = data[0].generated_text
+        } else if (typeof data === 'object' && data.generated_text) {
+          content = data.generated_text
+        }
+
+        if (content.trim().length > 0) {
+          return { model: `HF-Classic/${model.split('/').pop()}`, content, confidence: calcConfidence(content, 'huggingface'), processingTimeMs: Date.now() - start, success: true }
+        }
+      } catch {
+        continue
       }
     }
   }

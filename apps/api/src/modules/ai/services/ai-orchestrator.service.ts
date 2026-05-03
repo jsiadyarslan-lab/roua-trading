@@ -1020,7 +1020,19 @@ export class AIOrchestratorService {
    * 3. Use last occurrence (later statements override earlier ones)
    */
   private _parseVote(content: string): 'BUY' | 'SELL' | 'HOLD' {
-    // ── Step 1: Check for structured DECISION line ──
+    // ═══════════════════════════════════════════════════════════════
+    // FIX: Improved vote parsing — prevents false HOLD classification
+    //
+    // Previous bug: When AI gives nuanced analysis mentioning both
+    // bullish/bearish factors, parser defaulted to HOLD. This caused
+    // 89% consensus to be labeled "Neutral — Wait" because most votes
+    // were misclassified as HOLD.
+    //
+    // New approach: Weighted keyword scoring + stronger directional
+    // detection + final conclusion extraction.
+    // ═══════════════════════════════════════════════════════════════
+
+    // Priority 1: Explicit DECISION: BUY/SELL/HOLD format (strongest signal)
     const decisionMatch = content.match(/DECISION:\s*(BUY|SELL|HOLD)/i);
     if (decisionMatch) {
       const decision = decisionMatch[1].toUpperCase() as 'BUY' | 'SELL' | 'HOLD';
@@ -1028,79 +1040,67 @@ export class AIOrchestratorService {
       return decision;
     }
 
-    // ── Step 2: Keyword search with negation detection (fallback) ──
-    const negationPatternsAr = ['لا أنصح', 'لا نوصي', 'لا ينبغي', 'ليس', 'ليست', 'لن', 'غير', 'لا ننصح', 'لا يوصى'];
-    const negationPatternsEn = ["don't", 'not', 'no', 'never', 'avoid', 'against', 'refrain'];
+    // Priority 2: Arabic explicit recommendation patterns (expanded)
+    const arBuyPatterns = /(?:أنصح|أوصي|التوصية|توصيتي|رأيي|أرى|أميل|أرتئي|ننصح|نوصي)\s*(?:بـ)?(?:الشراء|بالشراء|بشراء|شراء|الدخول|بالشراء)/i;
+    const arSellPatterns = /(?:أنصح|أوصي|التوصية|توصيتي|رأيي|أرى|أميل|أرتئي|ننصح|نوصي)\s*(?:بـ)?(?:البيع|بالبيع|ببيع|بيع|الخروج|بالبيع)/i;
+    const arHoldPatterns = /(?:أنصح|أوصي|التوصية|توصيتي|رأيي|أرى|أميل|أرتئي|ننصح|نوصي)\s*(?:بـ)?(?:الانتظار|بالانتظار|بانتظار|الحياد|بالحشد|بالتوقف|التوقف|الحذر|الترقب)/i;
 
-    // Buy keywords and their Arabic/English variants
-    const buyKeywords = [
-      { word: 'شراء', lang: 'ar' },
-      { word: 'صعود', lang: 'ar' },
-      { word: 'شرائية', lang: 'ar' },
-      { word: 'BUY', lang: 'en' },
-      { word: 'BULLISH', lang: 'en' },
-      { word: 'LONG', lang: 'en' },
-    ];
-    const sellKeywords = [
-      { word: 'بيع', lang: 'ar' },
-      { word: 'هبوط', lang: 'ar' },
-      { word: 'بيعية', lang: 'ar' },
-      { word: 'SELL', lang: 'en' },
-      { word: 'BEARISH', lang: 'en' },
-      { word: 'SHORT', lang: 'en' },
-    ];
+    const hasArBuy = arBuyPatterns.test(content);
+    const hasArSell = arSellPatterns.test(content);
+    const hasArHold = arHoldPatterns.test(content);
 
-    // Find the LAST occurrence of buy/sell keywords with negation check
-    let lastBuyIndex = -1;
-    let lastBuyNegated = false;
-    let lastSellIndex = -1;
-    let lastSellNegated = false;
+    if (hasArBuy && !hasArSell && !hasArHold) return 'BUY';
+    if (hasArSell && !hasArBuy && !hasArHold) return 'SELL';
+    if (hasArHold && !hasArBuy && !hasArSell) return 'HOLD';
+    // If both buy and hold/sell and hold, prioritize the directional signal
+    if (hasArBuy && hasArHold && !hasArSell) return 'BUY';
+    if (hasArSell && hasArHold && !hasArBuy) return 'SELL';
 
-    const upperContent = content.toUpperCase();
+    // Priority 3: English recommendation patterns (expanded)
+    const engBuy = /(?:I\s+recommend\s+(?:buying|a\s+buy|to\s+buy)|my\s+recommendation\s+is\s+(?:to\s+)?buy|recommend\s+BUY|go\s+long|enter\s+long|buy\s+signal|bullish\s+outlook|upside|buy\s+on\s+dips|accumulate)/i.test(content);
+    const engSell = /(?:I\s+recommend\s+(?:selling|a\s+sell|to\s+sell)|my\s+recommendation\s+is\s+(?:to\s+)?sell|recommend\s+SELL|go\s+short|enter\s+short|sell\s+signal|bearish\s+outlook|downside|sell\s+on\s+rally|distribute)/i.test(content);
+    if (engBuy && !engSell) return 'BUY';
+    if (engSell && !engBuy) return 'SELL';
 
-    for (const kw of buyKeywords) {
-      const textToSearch = kw.lang === 'en' ? upperContent : content;
-      const wordToFind = kw.lang === 'en' ? kw.word.toUpperCase() : kw.word;
-      let searchFrom = 0;
-      while (true) {
-        const idx = textToSearch.indexOf(wordToFind, searchFrom);
-        if (idx === -1) break;
-        if (idx > lastBuyIndex) {
-          lastBuyIndex = idx;
-          // Check for negation before the keyword (look at 30 chars before)
-          const preceding = textToSearch.substring(Math.max(0, idx - 30), idx);
-          const negPatterns = kw.lang === 'ar' ? negationPatternsAr : negationPatternsEn;
-          lastBuyNegated = negPatterns.some(neg => preceding.includes(neg));
-        }
-        searchFrom = idx + wordToFind.length;
-      }
+    // Priority 4: Weighted keyword scoring (replaces simple last-occurrence)
+    const contentLen = content.length;
+    const buyKeywordRegex = /(شراء|صعود|شرائية|إيجابي|ارتفاع|BUY|BULLISH|LONG|UPWARD|UPTREND|أميل\s*للشراء|توقع\s*صعود|مستهدف\s*صعودي|استمرار\s*الصعود)/gi;
+    const sellKeywordRegex = /(بيع|هبوط|بيعية|سلبي|انخفاض|SELL|BEARISH|SHORT|DOWNWARD|DOWNTREND|أميل\s*للبيع|توقع\s*هبوط|مستهدف\s*هبوطي|استمرار\s*الهبوط)/gi;
+
+    let buyScore = 0, sellScore = 0;
+    let m: RegExpExecArray | null;
+
+    buyKeywordRegex.lastIndex = 0;
+    while ((m = buyKeywordRegex.exec(content)) !== null) {
+      const position = m.index / contentLen;
+      const weight = 1 + position * 1.5;
+      buyScore += weight;
     }
 
-    for (const kw of sellKeywords) {
-      const textToSearch = kw.lang === 'en' ? upperContent : content;
-      const wordToFind = kw.lang === 'en' ? kw.word.toUpperCase() : kw.word;
-      let searchFrom = 0;
-      while (true) {
-        const idx = textToSearch.indexOf(wordToFind, searchFrom);
-        if (idx === -1) break;
-        if (idx > lastSellIndex) {
-          lastSellIndex = idx;
-          const preceding = textToSearch.substring(Math.max(0, idx - 30), idx);
-          const negPatterns = kw.lang === 'ar' ? negationPatternsAr : negationPatternsEn;
-          lastSellNegated = negPatterns.some(neg => preceding.includes(neg));
-        }
-        searchFrom = idx + wordToFind.length;
-      }
+    sellKeywordRegex.lastIndex = 0;
+    while ((m = sellKeywordRegex.exec(content)) !== null) {
+      const position = m.index / contentLen;
+      const weight = 1 + position * 1.5;
+      sellScore += weight;
     }
 
-    // Determine vote based on last non-negated keyword occurrence
-    const lastBuy = lastBuyNegated ? -1 : lastBuyIndex;
-    const lastSell = lastSellNegated ? -1 : lastSellIndex;
+    // Priority 5: Final conclusion extraction
+    const conclusion = content.slice(-200);
+    const conclusionBuy = /(?:شراء|صعود|BUY|BULLISH|LONG|إيجابي|ارتفاع)/i.test(conclusion);
+    const conclusionSell = /(?:بيع|هبوط|SELL|BEARISH|SHORT|سلبي|انخفاض)/i.test(conclusion);
 
-    if (lastBuy === -1 && lastSell === -1) return 'HOLD';
-    if (lastBuy > lastSell) return 'BUY';
-    if (lastSell > lastBuy) return 'SELL';
-    return 'HOLD'; // equal or both -1
+    if (conclusionBuy && !conclusionSell) return 'BUY';
+    if (conclusionSell && !conclusionBuy) return 'SELL';
+
+    // Final: Use weighted scores to decide
+    if (buyScore > sellScore * 1.2) return 'BUY';
+    if (sellScore > buyScore * 1.2) return 'SELL';
+    if (buyScore > 0 && sellScore === 0) return 'BUY';
+    if (sellScore > 0 && buyScore === 0) return 'SELL';
+    if (buyScore > sellScore) return 'BUY';
+    if (sellScore > buyScore) return 'SELL';
+
+    return 'HOLD';
   }
 
   // ── Private: Cache Management ──
@@ -1243,7 +1243,7 @@ export class AIOrchestratorService {
    * Models like Groq were inventing prices (e.g., saying BTC is $28,500 when it's
    * actually $95,000+). This method fetches real data and injects it into prompts.
    * Uses Binance public API for crypto — no auth required.
-   * Falls back gracefully if fetch fails (returns price=0).
+   * Falls back to CoinGecko if Binance is unreachable (common on Railway).
    */
   private async _fetchQuickMarketData(symbol: string): Promise<{ price: number; rsi: number; macd: string }> {
     try {
@@ -1255,7 +1255,10 @@ export class AIOrchestratorService {
       const tickerRes = await axios.get(tickerUrl, { timeout: 5000 });
       const price = parseFloat(tickerRes.data?.lastPrice || '0');
 
-      if (price === 0) return { price: 0, rsi: 50, macd: 'غير متوفر' };
+      if (price === 0) {
+        // Binance returned price=0 — try CoinGecko fallback
+        return await this._fetchCoinGeckoFallback(symbol);
+      }
 
       // Fetch klines (OHLCV) for RSI and MACD calculation — 30 candles on 1h timeframe
       const klinesUrl = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1h&limit=30`;
@@ -1268,9 +1271,60 @@ export class AIOrchestratorService {
       this.logger.debug(`📊 Market data for ${symbol}: price=${price}, RSI=${rsi}, MACD=${macd}`);
       return { price, rsi, macd };
     } catch (error: any) {
-      this.logger.debug(`📊 Market data fetch failed for ${symbol}: ${error.message} — using defaults`);
-      return { price: 0, rsi: 50, macd: 'غير متوفر' };
+      this.logger.debug(`📊 Binance fetch failed for ${symbol}: ${error.message} — trying CoinGecko fallback`);
+      return await this._fetchCoinGeckoFallback(symbol);
     }
+  }
+
+  /**
+   * Map trading symbol to CoinGecko asset ID.
+   * CoinGecko uses different IDs than Binance (e.g., BTC/USD → bitcoin).
+   */
+  private _symbolToCoingeckoId(symbol: string): string {
+    const map: Record<string, string> = {
+      'BTC/USD': 'bitcoin', 'BTC/USDT': 'bitcoin', 'BTCUSDT': 'bitcoin',
+      'ETH/USD': 'ethereum', 'ETH/USDT': 'ethereum', 'ETHUSDT': 'ethereum',
+      'SOL/USD': 'solana', 'SOL/USDT': 'solana', 'SOLUSDT': 'solana',
+      'XRP/USD': 'ripple', 'XRP/USDT': 'ripple', 'XRPUSDT': 'ripple',
+      'BNB/USD': 'binancecoin', 'BNB/USDT': 'binancecoin', 'BNBUSDT': 'binancecoin',
+      'ADA/USD': 'cardano', 'ADA/USDT': 'cardano', 'ADAUSDT': 'cardano',
+      'DOGE/USD': 'dogecoin', 'DOGE/USDT': 'dogecoin', 'DOGEUSDT': 'dogecoin',
+      'DOT/USD': 'polkadot', 'DOT/USDT': 'polkadot', 'DOTUSDT': 'polkadot',
+      'AVAX/USD': 'avalanche-2', 'AVAX/USDT': 'avalanche-2', 'AVAXUSDT': 'avalanche-2',
+      'MATIC/USD': 'matic-network', 'MATIC/USDT': 'matic-network', 'MATICUSDT': 'matic-network',
+      'LINK/USD': 'chainlink', 'LINK/USDT': 'chainlink', 'LINKUSDT': 'chainlink',
+    };
+    const normalized = symbol.replace(/[\/\-]/g, '').replace('USD', 'USDT').toUpperCase();
+    // Try direct match first
+    for (const [key, id] of Object.entries(map)) {
+      if (key.toUpperCase() === normalized || key.toUpperCase() === symbol.toUpperCase()) return id;
+    }
+    // Fallback: extract base currency
+    const base = symbol.split('/')[0].toUpperCase();
+    for (const [key, id] of Object.entries(map)) {
+      if (key.startsWith(base)) return id;
+    }
+    return base.toLowerCase();
+  }
+
+  /**
+   * CoinGecko fallback for when Binance is blocked/unreachable (common on Railway).
+   * Free, no auth required, works on cloud platforms.
+   */
+  private async _fetchCoinGeckoFallback(symbol: string): Promise<{ price: number; rsi: number; macd: string }> {
+    try {
+      const coingeckoId = this._symbolToCoingeckoId(symbol);
+      const cgUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${coingeckoId}&vs_currencies=usd&include_24hr_change=true`;
+      const cgRes = await axios.get(cgUrl, { timeout: 5000 });
+      const cgPrice = cgRes.data?.[coingeckoId]?.usd;
+      if (cgPrice && cgPrice > 0) {
+        this.logger.debug(`📊 CoinGecko fallback for ${symbol}: price=${cgPrice}`);
+        return { price: cgPrice, rsi: 50, macd: 'غير متوفر' };
+      }
+    } catch (error: any) {
+      this.logger.debug(`📊 CoinGecko fallback also failed for ${symbol}: ${error.message}`);
+    }
+    return { price: 0, rsi: 50, macd: 'غير متوفر' };
   }
 
   /** Calculate RSI (Relative Strength Index) from closing prices */

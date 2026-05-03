@@ -177,6 +177,14 @@ export class HuggingFaceService {
       strategyErrors.push('HF Direct Inference: All models failed or unavailable');
     }
 
+    // ===== Strategy 2.5: HuggingFace Classic Inference API =====
+    // This is the ORIGINAL HF endpoint — works with ANY valid token, even read-only!
+    if (this.hfApiKey) {
+      const result = await this._tryClassicInference(systemPrompt, request.prompt, startTime);
+      if (result) return result;
+      strategyErrors.push('HF Classic Inference: All models failed');
+    }
+
     // ===== Strategy 3: OpenRouter fallback =====
     if (this.openrouterApiKey) {
       const result = await this._tryOpenRouter(systemPrompt, request.prompt, startTime);
@@ -280,6 +288,81 @@ export class HuggingFaceService {
           this.logger.debug(`🤗 HF ${provider.name}/${model.split('/').pop()} failed (${status}): ${errData}`);
           continue;
         }
+      }
+    }
+    return null;
+  }
+
+  // ──────────────────────────────────────────────────────
+  // Strategy 2.5: HuggingFace Classic Inference API
+  // The ORIGINAL endpoint (api-inference.huggingface.co/models/MODEL)
+  // Works with ANY valid HF token — even read-only tokens!
+  // Different request format than the OpenAI-compatible router.
+  // ──────────────────────────────────────────────────────
+
+  private readonly classicInferenceBaseUrl = 'https://api-inference.huggingface.co/models';
+
+  private async _tryClassicInference(systemPrompt: string, userPrompt: string, startTime: number): Promise<AIAnalysisResponse | null> {
+    const models = [
+      'mistralai/Mistral-7B-Instruct-v0.3',
+      'HuggingFaceH4/zephyr-7b-beta',
+      'microsoft/Phi-3-mini-4k-instruct',
+      'Qwen/Qwen2.5-7B-Instruct',
+    ];
+
+    for (const model of models) {
+      try {
+        const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+        const response = await axios.post(
+          `${this.classicInferenceBaseUrl}/${model}`,
+          {
+            inputs: fullPrompt,
+            parameters: {
+              max_new_tokens: 512,
+              temperature: 0.3,
+              return_full_text: false,
+            },
+            options: { wait_for_model: true },
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${this.hfApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 20000, // Model may need to warm up
+          },
+        );
+
+        // Classic API returns array: [{ generated_text: "..." }]
+        let content = '';
+        if (Array.isArray(response.data) && response.data.length > 0 && response.data[0].generated_text) {
+          content = response.data[0].generated_text;
+        } else if (response.data?.generated_text) {
+          content = response.data.generated_text;
+        }
+
+        if (content.trim().length > 0) {
+          this.resolvedProvider = 'hf-inference';
+          this.resolvedModel = model;
+          this.logger.log(`🤗 Resolved: HF-Classic/${model.split('/').pop()}`);
+          return this._formatResponse('HuggingFace', model, content.trim(), startTime);
+        }
+      } catch (error: any) {
+        const status = error.response?.status;
+        if (status === 429) {
+          this.logger.warn(`🚫 HF Classic ${model.split('/').pop()} rate limited (429)`);
+          continue;
+        }
+        if (status === 401) {
+          this.logger.error(`❌ HF Classic API key invalid (401)`);
+          return null;
+        }
+        if (status === 503) {
+          this.logger.debug(`🤗 HF Classic ${model.split('/').pop()} loading (503) — trying next`);
+          continue;
+        }
+        this.logger.debug(`🤗 HF Classic ${model.split('/').pop()} failed (${status || 'no status'})`);
+        continue;
       }
     }
     return null;

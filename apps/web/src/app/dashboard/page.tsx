@@ -502,14 +502,14 @@ export default function DashboardPage() {
   const toggleChartFullscreen = useDashboardStore(state => state.toggleChartFullscreen)
   const mode = useDashboardStore(state => state.mode)
   const paperTrades = usePaperTradesStore(state => state.trades)
-  const [posOpen, setPosOpen] = useState(true)
+  const [posOpen, setPosOpen] = useState(false)
   const modeConfig = MODE_CONFIG[mode]
 
   const hasPositions = positions.length > 0 || paperTrades.length > 0
 
-  // Auto-expand positions panel when positions appear (only if user hasn't manually collapsed)
+  // Auto-expand positions panel when positions appear
   useEffect(() => {
-    if (hasPositions && !posOpen) {
+    if (hasPositions) {
       setPosOpen(true)
     }
   }, [hasPositions])

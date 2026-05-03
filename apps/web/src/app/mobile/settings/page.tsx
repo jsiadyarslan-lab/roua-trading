@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ChevronRight, ChevronDown, Link2, Key, Bell, Shield, Globe,
+  ChevronLeft, ChevronRight, ChevronDown, Link2, Key, Bell, Shield, Globe,
   Moon, FileText, HelpCircle, LogOut, Crown, RefreshCw, Check,
   AlertTriangle, Bot, CreditCard, Info, User,
   Smartphone, Eye, X,
@@ -145,11 +145,6 @@ function SettingsRow({
       {content}
     </div>
   )
-}
-
-// ChevronLeft for RTL
-function ChevronLeft({ size, color, style }: { size: number; color: string; style?: React.CSSProperties }) {
-  return <ChevronRight size={size} color={color} style={{ ...style, transform: 'rotate(180deg)' }} />
 }
 
 // ── Skeleton ──
@@ -378,7 +373,7 @@ export default function MobileSettingsPage() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: T.bgApp, direction: 'rtl', paddingBottom: 40 }}>
+    <div style={{ minHeight: '100%', background: T.bgApp, direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
       {/* ── Global Keyframe ── */}
       <style>{`
         @keyframes shimmer {

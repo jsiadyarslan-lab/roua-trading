@@ -120,7 +120,7 @@ export default function MobileSignalsPage() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#000000', direction: 'rtl', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100%', background: '#000000', direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
       
       {/* ── Header ── */}
       <div style={{
@@ -146,7 +146,7 @@ export default function MobileSignalsPage() {
               توصيات ذكاء اصطناعي حية
             </p>
           </div>
-          <button onClick={() => fetchSignals()} style={{ marginRight: 'auto', background: 'none', border: 'none' }}>
+          <button onClick={() => fetchSignals()} style={{ marginInlineStart: 'auto', background: 'none', border: 'none' }}>
             <RefreshCw size={18} color="#00D4FF" className={loading ? 'animate-spin' : ''} />
           </button>
         </div>

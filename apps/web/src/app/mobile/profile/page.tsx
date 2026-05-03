@@ -235,14 +235,14 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100%', background: '#000', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center', overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
         <Loader2 size={32} className="animate-spin" color={c.accent} />
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100%', background: '#000', direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
 
       {/* ── Header ── */}
       <div style={{

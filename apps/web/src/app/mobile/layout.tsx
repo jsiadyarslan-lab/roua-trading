@@ -20,16 +20,36 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
     <MarketProvider>
       <AuthGuard>
         <div
-          className="relative flex flex-col md:hidden"
           style={{
-            background: '#000000', color: '#F0F2F5', maxWidth: 480, margin: '0 auto',
-            paddingTop: 0,
-            paddingBottom: 'env(safe-area-inset-bottom)',
+            position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            background: '#000000',
+            color: '#F0F2F5',
+            maxWidth: 480,
+            width: '100%',
+            margin: '0 auto',
+            /* FIXED height instead of minHeight — prevents pages from
+               expanding beyond the viewport and getting cut off */
             height: '100dvh',
             overflow: 'hidden',
           }}
         >
-          <main className="flex-1" style={{ overflow: 'hidden', position: 'relative' }}>
+          {/* Scrollable content area — fills remaining space above the navbar spacer */}
+          <main
+            style={{
+              position: 'relative',
+              flex: '1 1 0%',
+              /* Padding at the bottom so the fixed MobileNavBar doesn't cover content.
+                 Pages with their own fixed bottom bar (chart, trading) add extra
+                 padding via their own styles. */
+              paddingBottom: 'calc(68px + env(safe-area-inset-bottom))',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              WebkitOverflowScrolling: 'touch',
+              width: '100%',
+            }}
+          >
             {children}
           </main>
           <MobileNavBar />

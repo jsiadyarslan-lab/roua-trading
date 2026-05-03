@@ -8,12 +8,21 @@ import {
   Link2, CreditCard, Fingerprint,
 } from 'lucide-react'
 
-/* ─── Design Tokens ─── */
-import { T as _T } from '@/lib/unified-tokens'
+/* ─── Design Tokens (consistent with all mobile pages) ─── */
 const c = {
-  ..._T,
+  accent: '#00D4FF',
   success: '#32D74B',
-  danger:  '#FF453A',
+  danger: '#FF453A',
+  amber: '#FFB800',
+  text: '#F0F2F5',
+  text2: 'rgba(235,235,245,0.5)',
+  text3: 'rgba(235,235,245,0.3)',
+  bg: '#000000',
+  border: 'rgba(255,255,255,0.08)',
+  cyan: '#00D4FF',
+  purple: '#B388FF',
+  green: '#32D74B',
+  gold: '#d4af37',
 }
 
 /* ─── Category Structure ─── */
@@ -63,13 +72,13 @@ const MORE_CATEGORIES: MoreCategory[] = [
   },
 ]
 
-const ALL_ITEMS = MORE_CATEGORIES.flatMap(c => c.items)
+const ALL_ITEMS = MORE_CATEGORIES.flatMap(cat => cat.items)
 
 export default function MobileMorePage() {
   const router = useRouter()
 
   return (
-    <div style={{ minHeight: '100dvh', background: c.bg, direction: 'rtl', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100%', background: c.bg, direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
 
       {/* ── Header ── */}
       <div style={{
@@ -213,7 +222,7 @@ export default function MobileMorePage() {
         }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: c.green, boxShadow: `0 0 10px ${c.green}` }} className="animate-pulse" />
           <span style={{ fontSize: 12, color: c.gold, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>
-            رؤى للتداول — إصدار الجوال v2.0
+            رؤى للتداول — إصدار الجوال v2.1.0
           </span>
         </div>
       </div>

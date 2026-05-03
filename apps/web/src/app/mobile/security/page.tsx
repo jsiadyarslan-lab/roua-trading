@@ -125,7 +125,7 @@ function SessionItem({ device, location, time, current }: { device: string; loca
           )}
         </div>
         <p style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>
-          <Globe size={10} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: 3 }} />
+          <Globe size={10} style={{ display: 'inline', verticalAlign: 'middle', marginInlineEnd: 3 }} />
           {location} · {time}
         </p>
       </div>
@@ -208,7 +208,7 @@ export default function SecurityPage() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100%', background: '#000', direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
 
       {/* ── Header ── */}
       <div style={{

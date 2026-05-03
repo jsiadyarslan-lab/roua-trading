@@ -271,15 +271,14 @@ export default function TradingPage() {
 
   return (
     <div style={{
-      position: 'absolute',
-      inset: 0,
+      /* Use 100% instead of 100dvh — the parent <main> already constrains height */
+      height: '100%',
+      minHeight: '100%',
       background: '#000000',
       display: 'flex',
       flexDirection: 'column',
-      overflow: 'hidden',
       direction: 'rtl',
-      zIndex: 40,
-      paddingBottom: 60,
+      position: 'relative',
     }}>
 
       {/* ── Header (fixed at top) ── */}
@@ -357,7 +356,7 @@ export default function TradingPage() {
       </div>
 
       {/* ── Scrollable Content Area ── */}
-      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: 8 }}>
 
         {/* ── Current Price + Buy/Sell Toggle ── */}
         <div style={{
@@ -668,6 +667,9 @@ export default function TradingPage() {
       <div style={{
         flexShrink: 0,
         padding: '8px 16px',
+        /* The layout's <main> already adds paddingBottom for the MobileNavBar.
+           Only add the 8px for this bar's own spacing. */
+        paddingBottom: 'calc(8px)',
         borderTop: '0.5px solid rgba(255,255,255,0.08)',
         background: 'rgba(20,20,22,0.95)',
         backdropFilter: 'blur(20px)',

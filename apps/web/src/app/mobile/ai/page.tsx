@@ -348,11 +348,14 @@ export default function MobileAICouncilPage() {
   return (
     <div
       style={{
-        minHeight: '100dvh',
+        minHeight: '100%',
         background: C.black,
         direction: 'rtl',
         fontFamily: "'Cairo', sans-serif",
-        paddingBottom: 'calc(80px + env(safe-area-inset-bottom))',
+        paddingBottom: 20,
+        overflowX: 'hidden',
+        width: '100%',
+        maxWidth: '100vw',
       }}
     >
       {/* ── 1. HEADER ── */}
@@ -678,7 +681,7 @@ export default function MobileAICouncilPage() {
                     style={{
                       fontSize: 10,
                       color: C.text2,
-                      marginRight: 'auto',
+                      marginInlineStart: 'auto',
                       direction: 'ltr',
                     }}
                   >

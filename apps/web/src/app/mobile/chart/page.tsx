@@ -311,14 +311,12 @@ export default function MobileChartPage() {
 
   return (
     <div style={{
-      position: 'absolute',
-      inset: 0,
+      /* Use 100% instead of 100dvh — the parent <main> already constrains height */
+      height: '100%',
+      minHeight: '100%',
       background: '#000000',
       display: 'flex',
       flexDirection: 'column',
-      overflow: 'hidden',
-      zIndex: 40,
-      paddingBottom: 60,
     }}>
 
       {/* ═══ TOP BAR: Pair Name + Price + Trade Button ═══ */}
@@ -499,6 +497,9 @@ export default function MobileChartPage() {
         display: 'flex',
         gap: 6,
         padding: '8px 8px',
+        /* The layout's <main> already adds paddingBottom for the MobileNavBar.
+           Only add the 8px for this bar's own spacing. */
+        paddingBottom: 'calc(8px)',
         background: 'rgba(10,10,12,0.95)',
         backdropFilter: 'blur(10px)',
         borderTop: '1px solid rgba(0,212,255,0.1)',

@@ -393,14 +393,16 @@ export default function MobilePositionsPage() {
   const [isClosing, setIsClosing] = useState(false)
 
   // Subscribe to real-time price updates for open positions
+  // FIX: Use useMemo to create stable symbol list to prevent infinite re-renders
+  const tradeSymbols = useMemo(() => [...new Set(trades.map(t => t.symbol))], [trades])
+  const tradeSymbolsKey = tradeSymbols.join(',')
+
   useEffect(() => {
-    const symbols = trades.map(t => t.symbol)
-    const unique = [...new Set(symbols)]
-    unique.forEach(s => binanceWS.subscribe(s))
+    tradeSymbols.forEach(s => binanceWS.subscribe(s))
     return () => {
-      unique.forEach(s => binanceWS.unsubscribe(s))
+      tradeSymbols.forEach(s => binanceWS.unsubscribe(s))
     }
-  }, [trades.map(t => t.symbol).join(',')])
+  }, [tradeSymbolsKey, tradeSymbols])
 
   // Sync market prices into paper trades store
   useEffect(() => {
@@ -445,9 +447,12 @@ export default function MobilePositionsPage() {
   return (
     <div
       style={{
-        minHeight: '100dvh',
+        minHeight: '100%',
         background: '#000000',
         direction: 'rtl',
+        overflowX: 'hidden',
+        width: '100%',
+        maxWidth: '100vw',
         paddingBottom: 24,
       }}
     >

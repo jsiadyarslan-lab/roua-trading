@@ -53,11 +53,14 @@ const LOG_COLORS: Record<string, string> = {
   warn: '#FFB800',
 }
 
-/* ─── iOS-style Toggle Switch ─── */
+/* ─── iOS-style Toggle Switch (RTL-safe) ─── */
 function IOSSwitch({ isOn, onToggle }: { isOn: boolean; onToggle: () => void }) {
   return (
     <button
       onClick={onToggle}
+      role="switch"
+      aria-checked={isOn}
+      aria-label="تبديل البوت"
       className="relative"
       style={{
         width: 64, height: 36, borderRadius: 18, border: 'none',
@@ -67,13 +70,14 @@ function IOSSwitch({ isOn, onToggle }: { isOn: boolean; onToggle: () => void }) 
         boxShadow: isOn ? `0 0 20px ${C.success}40` : 'none',
       }}
     >
+      {/* FIX: Use insetInlineStart (logical property) instead of x+left for RTL-safe thumb positioning */}
       <motion.div
-        animate={{ x: isOn ? 28 : 0 }}
+        animate={{ insetInlineStart: isOn ? 32 : 4 }}
         transition={{ type: 'spring', stiffness: 500, damping: 30 }}
         style={{
           width: 28, height: 28, borderRadius: 14,
           background: '#FFFFFF',
-          position: 'absolute', top: 4, left: 4,
+          position: 'absolute', top: 4,
           boxShadow: '0 2px 8px rgba(0,0,0,0.3), 0 0 1px rgba(0,0,0,0.1)',
         }}
       />
@@ -250,14 +254,14 @@ export default function MobileBotPage() {
 
   if (!hydrated) {
     return (
-      <div style={{ minHeight: '100dvh', background: '#000000', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100%', background: '#000000', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Loader2 size={28} className="animate-spin" color={C.accent} />
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#000000', direction: 'rtl', paddingBottom: 24 }}>
+    <div style={{ minHeight: '100%', background: '#000000', direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
 
       {/* ══════════════ Sticky Header ══════════════ */}
       <div
@@ -391,7 +395,7 @@ export default function MobileBotPage() {
                 {statusCfg.label}
               </span>
               {engineState === 'scanning' && (
-                <Loader2 size={12} className="animate-spin" color={C.amber} style={{ marginRight: 'auto' }} />
+                <Loader2 size={12} className="animate-spin" color={C.amber} style={{ marginInlineStart: 'auto' }} />
               )}
             </motion.div>
           </AnimatePresence>

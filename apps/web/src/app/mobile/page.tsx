@@ -130,7 +130,7 @@ function CurrencyTicker() {
       position: 'relative'
     }}>
       <div style={{
-        position: 'absolute', left: 0, top: 0, bottom: 0, zIndex: 2,
+        position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, zIndex: 2,
         background: 'linear-gradient(90deg, #000 0%, transparent 100%)',
         paddingInlineStart: 20, display: 'flex', alignItems: 'center', width: 100
       }}>
@@ -363,12 +363,14 @@ export default function MobileHomePage() {
 
   return (
     <div style={{ 
-      minHeight: '100dvh', 
+      minHeight: '100%', 
       background: '#000000', 
       direction: 'rtl', 
       paddingBottom: 20,
       position: 'relative',
-      overflow: 'hidden'
+      overflowX: 'hidden',
+      width: '100%',
+      maxWidth: '100vw',
     }}>
       {/* ── Ambient Sentiment Glow ── */}
       <motion.div 

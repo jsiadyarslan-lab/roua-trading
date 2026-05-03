@@ -4,11 +4,11 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ArrowRight, Cpu, Play, Pause, Square, AlertTriangle, Flame,
+  ArrowRight, Cpu, Play, AlertTriangle, Flame,
   Activity, TrendingUp, TrendingDown, Target, Shield, Clock,
-  ChevronDown, RefreshCw, Loader2, CheckCircle, XCircle,
+  ChevronDown, RefreshCw, Loader2,
   DollarSign, BarChart3, Zap, Brain, RotateCcw, Layers,
-  PiggyBank, Rocket, Eye, Settings2
+  PiggyBank, Rocket, Eye
 } from 'lucide-react'
 import {
   useAgentStore, AgentStatus, StrategyType, MarketRegime,
@@ -76,11 +76,13 @@ const REGIME_COLORS: Record<string, string> = {
   TRANSITIONAL: 'rgba(235,235,245,0.5)',
 }
 
-/* ─── iOS Switch ─── */
+/* ─── iOS Switch (RTL-safe) ─── */
 function IOSSwitch({ isOn, onToggle }: { isOn: boolean; onToggle: () => void }) {
   return (
     <button
       onClick={onToggle}
+      role="switch"
+      aria-checked={isOn}
       style={{
         width: 64, height: 36, borderRadius: 18, border: 'none',
         background: isOn ? C.success : 'rgba(120,120,128,0.32)',
@@ -89,12 +91,13 @@ function IOSSwitch({ isOn, onToggle }: { isOn: boolean; onToggle: () => void }) 
         position: 'relative',
       }}
     >
+      {/* FIX: Use insetInlineStart instead of x+left for RTL-safe thumb positioning */}
       <motion.div
-        animate={{ x: isOn ? 28 : 0 }}
+        animate={{ insetInlineStart: isOn ? 32 : 4 }}
         transition={{ type: 'spring', stiffness: 500, damping: 30 }}
         style={{
           width: 28, height: 28, borderRadius: 14,
-          background: '#FFFFFF', position: 'absolute', top: 4, left: 4,
+          background: '#FFFFFF', position: 'absolute', top: 4,
           boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
         }}
       />
@@ -203,14 +206,14 @@ export default function MobileAgentPage() {
 
   if (!hydrated) {
     return (
-      <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100%', background: '#000', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Loader2 size={28} className="animate-spin" color={C.accent} />
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', paddingBottom: 24 }}>
+    <div style={{ minHeight: '100%', background: '#000', direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
 
       {/* ═══ Sticky Header ═══ */}
       <div style={{
@@ -366,7 +369,7 @@ export default function MobileAgentPage() {
                 }}>ورقي</span>
               )}
               {config && (
-                <span style={{ fontSize: 10, color: C.text2, fontFamily: FONT_AR, marginRight: 8 }}>
+                <span style={{ fontSize: 10, color: C.text2, fontFamily: FONT_AR, marginInlineStart: 8 }}>
                   {currentStrategyData.nameAr}
                 </span>
               )}
@@ -795,7 +798,7 @@ export default function MobileAgentPage() {
                       style={{
                         padding: '8px 10px', borderRadius: 12,
                         background: 'rgba(255,255,255,0.02)',
-                        borderRight: `2px solid ${color}40`,
+                        borderInlineStart: `2px solid ${color}40`,
                         display: 'flex', alignItems: 'flex-start', gap: 8,
                       }}
                     >

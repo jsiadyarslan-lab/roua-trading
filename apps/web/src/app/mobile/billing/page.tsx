@@ -168,14 +168,14 @@ export default function BillingPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100%', background: '#000', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center', overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
         <Loader2 size={32} className="animate-spin" color={c.accent} />
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100%', background: '#000', direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
 
       {/* ── Header ── */}
       <div style={{
@@ -211,7 +211,7 @@ export default function BillingPage() {
             <div>
               <p style={{ fontSize: 18, fontWeight: 900, color: c.text, fontFamily: "'Cairo', sans-serif" }}>خطة {currentPlanData.name}</p>
               <p style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>
-                <Calendar size={12} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: 4 }} />
+                <Calendar size={12} style={{ display: 'inline', verticalAlign: 'middle', marginInlineEnd: 4 }} />
                 تنتهي في {new Date(expiryDate).toLocaleDateString('ar-SA')}
               </p>
             </div>

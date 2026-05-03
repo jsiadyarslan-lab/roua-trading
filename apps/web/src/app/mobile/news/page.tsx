@@ -108,7 +108,7 @@ function NewsSkeleton() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
             <div style={{ width: 60, height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.06)' }} />
-            <div style={{ marginRight: 'auto', width: 40, height: 18, borderRadius: 8, background: 'rgba(255,255,255,0.06)' }} />
+            <div style={{ marginInlineStart: 'auto', height: 18, borderRadius: 8, background: 'rgba(255,255,255,0.06)' }} />
           </div>
           <div style={{ width: '90%', height: 14, borderRadius: 6, background: 'rgba(255,255,255,0.06)', marginBottom: 8 }} />
           <div style={{ width: '70%', height: 14, borderRadius: 6, background: 'rgba(255,255,255,0.06)', marginBottom: 12 }} />
@@ -324,7 +324,7 @@ function NewsCard({
 
           {/* Affected Assets */}
           {item.affectedAssets && item.affectedAssets.length > 0 && (
-            <div style={{ display: 'flex', gap: 4, marginRight: 8 }}>
+            <div style={{ display: 'flex', gap: 4, marginInlineStart: 8 }}>
               {item.affectedAssets.slice(0, 3).map((asset) => (
                 <span
                   key={asset}
@@ -512,7 +512,7 @@ function PullRefreshIndicator({ pulling, refreshing }: { pulling: boolean; refre
               color: C.accent,
               fontFamily: FONT_AR,
               fontWeight: 600,
-              marginRight: 8,
+              marginInlineStart: 8,
             }}
           >
             {refreshing ? 'جاري التحديث...' : 'اسحب للتحديث'}
@@ -643,13 +643,16 @@ export default function MobileNewsPage() {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       style={{
-        minHeight: '100dvh',
+        minHeight: '100%',
         background: '#000000',
         direction: 'rtl',
         fontFamily: FONT_AR,
         overflowY: 'auto',
+        overflowX: 'hidden',
+        width: '100%',
+        maxWidth: '100vw',
         WebkitOverflowScrolling: 'touch',
-        paddingBottom: 'calc(80px + env(safe-area-inset-bottom))',
+        paddingBottom: 20,
       }}
     >
       {/* ── Sticky Header ── */}

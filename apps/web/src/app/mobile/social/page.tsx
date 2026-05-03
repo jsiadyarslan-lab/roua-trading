@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import {
   ChevronLeft, Users, Trophy, Copy, TrendingUp, TrendingDown,
-  Crown, Star, ArrowUpRight, ArrowDownRight, Activity,
-  Heart, MessageCircle, Eye, CheckCircle, Loader2, Zap
+  Crown, ArrowUpRight, ArrowDownRight, Activity,
+  CheckCircle, Loader2, Zap
 } from 'lucide-react'
 
 /* ─── Design Tokens ─── */
@@ -183,7 +183,7 @@ export default function SocialPage() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100%', background: '#000', direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
 
       {/* ── Header ── */}
       <div style={{

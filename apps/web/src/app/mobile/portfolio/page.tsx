@@ -367,7 +367,7 @@ export default function MobilePortfolioPage() {
   }, [chartData])
 
   return (
-    <div style={{ minHeight: '100dvh', background: T.bgApp, direction: 'rtl', paddingBottom: 40 }}>
+    <div style={{ minHeight: '100%', background: T.bgApp, direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
       {/* ── Global Keyframe ── */}
       <style>{`
         @keyframes shimmer {

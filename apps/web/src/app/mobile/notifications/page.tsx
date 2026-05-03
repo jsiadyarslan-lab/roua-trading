@@ -597,12 +597,14 @@ export default function MobileNotificationsPage() {
 
   return (
     <div style={{
-      minHeight: '100dvh',
+      minHeight: '100%',
       background: '#000000',
       direction: 'rtl',
-      paddingBottom: 100,
+      paddingBottom: 'calc(20px + 68px + env(safe-area-inset-bottom))',
       position: 'relative',
-      overflow: 'hidden',
+      overflowX: 'hidden',
+      width: '100%',
+      maxWidth: '100vw',
     }}>
       {/* ── Ambient Glow ── */}
       <div style={{

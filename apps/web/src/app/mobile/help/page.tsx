@@ -158,7 +158,7 @@ export default function HelpPage() {
   ]
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100%', background: '#000', direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
 
       {/* ── Header ── */}
       <div style={{
@@ -285,11 +285,11 @@ export default function HelpPage() {
         }}>
           <Info size={14} color={c.text2} />
           <span style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>
-            رؤى للتداول — الإصدار 2.0.0
+            رؤى للتداول — الإصدار 2.1.0
           </span>
         </div>
         <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontFamily: "'Cairo', sans-serif", marginTop: 8 }}>
-          © 2025 Roua Trading. جميع الحقوق محفوظة.
+          © 2026 Roua Trading. جميع الحقوق محفوظة.
         </p>
       </div>
 

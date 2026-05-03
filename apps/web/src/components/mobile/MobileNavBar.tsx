@@ -15,7 +15,7 @@ const NAV_ITEMS = [
   { label: 'الرئيسية', href: '/mobile', icon: Home },
   { label: 'الأسواق', href: '/mobile/markets', icon: TrendingUp },
   { label: 'الشارت', href: '/mobile/chart', icon: BarChart2 },
-  { label: 'المحفظة', href: '/mobile/portfolio', icon: Wallet },
+  { label: 'المحفظة', href: '/mobile/portfolio', icon: Wallet, isCenter: true },
   { label: 'الإعدادات', href: '/mobile/settings', icon: Settings },
   { label: 'المزيد', href: '__more__', icon: Grid3X3 },
 ]
@@ -109,34 +109,34 @@ export default function MobileNavBar() {
       >
         <div className="flex items-center justify-around h-full px-1" dir="rtl">
           {NAV_ITEMS.map((item, idx) => {
-            /* Center logo button between chart (idx=2) and wallet (idx=3) */
-            if (idx === 3) {
+            /* Center wallet button — elevated floating style */
+            if ((item as any).isCenter) {
+              const active = isActive(item.href)
               return (
-                <div key="__logo" style={{ position: 'relative', marginTop: -20, zIndex: 10 }}>
+                <div key={item.href} style={{ position: 'relative', marginTop: -20, zIndex: 10 }}>
                   <motion.button
                     whileTap={{ scale: 0.92 }}
-                    onClick={() => router.push('/mobile')}
+                    onClick={() => handleNav(item.href)}
                     style={{
                       width: 50, height: 50, borderRadius: '50%',
-                      background: 'radial-gradient(circle at 50% 40%, #0D1520, #020308)',
-                      border: '2px solid rgba(0,200,255,0.35)',
-                      boxShadow: '0 0 16px rgba(0,200,255,0.3), 0 0 0 3px rgba(0,200,255,0.08)',
+                      background: active
+                        ? 'linear-gradient(135deg, #00D4FF, #0099CC)'
+                        : 'linear-gradient(135deg, #1C1C1E, #0D0D0F)',
+                      border: active ? '2px solid rgba(0,212,255,0.5)' : '1.5px solid rgba(255,255,255,0.15)',
+                      boxShadow: active
+                        ? '0 0 16px rgba(0,212,255,0.4), 0 0 0 3px rgba(0,212,255,0.1)'
+                        : '0 4px 12px rgba(0,0,0,0.4)',
                       display: 'flex', flexDirection: 'column',
                       alignItems: 'center', justifyContent: 'center',
                       gap: 0, cursor: 'pointer',
                     }}
                   >
-                    <Globe2 size={16} color="#00D4FF" strokeWidth={2.5} />
-                    <span style={{
-                      fontFamily: "'Cairo', sans-serif", fontWeight: 900,
-                      fontSize: 6, color: '#F0F2F5', lineHeight: 1, marginTop: 1,
-                    }}>رؤى</span>
+                    <Wallet size={18} color={active ? '#FFFFFF' : '#00D4FF'} strokeWidth={2.5} />
                   </motion.button>
                   <span style={{
                     display: 'block', textAlign: 'center', marginTop: 2,
-                    fontSize: 7, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
-                    letterSpacing: '0.05em',
-                  }}>ROUA</span>
+                    fontSize: 7, color: active ? '#00D4FF' : 'rgba(255,255,255,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+                  }}>المحفظة</span>
                 </div>
               )
             }

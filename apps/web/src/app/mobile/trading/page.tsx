@@ -663,13 +663,10 @@ export default function TradingPage() {
 
       </div>{/* END Scrollable Content */}
 
-      {/* ── Fixed Bottom — Buy/Sell Buttons (ALWAYS VISIBLE) ── */}
+      {/* ── Fixed Bottom — Buy/Sell Buttons (ALWAYS VISIBLE, above navbar) ── */}
       <div style={{
         flexShrink: 0,
-        padding: '8px 16px',
-        /* The layout's <main> already adds paddingBottom for the MobileNavBar.
-           Only add the 8px for this bar's own spacing. */
-        paddingBottom: 'calc(8px)',
+        padding: '8px 16px calc(8px + 68px + env(safe-area-inset-bottom))',
         borderTop: '0.5px solid rgba(255,255,255,0.08)',
         background: 'rgba(20,20,22,0.95)',
         backdropFilter: 'blur(20px)',

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -542,6 +542,40 @@ export default function MobileNotificationsPage() {
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
+  // Fetch real notifications from server on mount and periodically
+  useEffect(() => {
+    const fetchServerNotifications = async () => {
+      try {
+        const res = await fetch('/api/notifications/events?limit=50')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success && Array.isArray(data.data)) {
+            const { addNotification } = useNotificationStore.getState()
+            for (const notif of data.data) {
+              // Avoid duplicates
+              const exists = useNotificationStore.getState().notifications.some(n => n.id === notif.id)
+              if (!exists) {
+                addNotification({
+                  source: notif.source || 'system',
+                  priority: notif.priority || 'medium',
+                  action: notif.action || notif.type || 'INFO',
+                  title: notif.title || '',
+                  body: notif.body || notif.message || '',
+                  pair: notif.pair || notif.symbol,
+                  price: notif.price,
+                  confidence: notif.confidence,
+                })
+              }
+            }
+          }
+        }
+      } catch { /* silent */ }
+    }
+    fetchServerNotifications()
+    const interval = setInterval(fetchServerNotifications, 30000) // 30s polling
+    return () => clearInterval(interval)
+  }, [])
+
   /* ── Computed ─────────────────────── */
   const unreadCount = useMemo(
     () => notifications.filter((n) => !n.read).length,
@@ -576,10 +610,32 @@ export default function MobileNotificationsPage() {
     setShowClearConfirm(false)
   }, [clearAll])
 
-  const handleRefresh = useCallback(() => {
+  const handleRefresh = useCallback(async () => {
     setIsRefreshing(true)
-    // Simulate pull-to-refresh delay (store is local, but we give UX feedback)
-    setTimeout(() => setIsRefreshing(false), 800)
+    try {
+      const res = await fetch('/api/notifications/events?limit=50')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && Array.isArray(data.data)) {
+          const { addNotification } = useNotificationStore.getState()
+          for (const notif of data.data) {
+            const exists = useNotificationStore.getState().notifications.some(n => n.id === notif.id)
+            if (!exists) {
+              addNotification({
+                source: notif.source || 'system',
+                priority: notif.priority || 'medium',
+                action: notif.action || notif.type || 'INFO',
+                title: notif.title || '',
+                body: notif.body || notif.message || '',
+                pair: notif.pair || notif.symbol,
+                price: notif.price,
+                confidence: notif.confidence,
+              })
+            }
+          }
+        }
+      }
+    } catch { /* silent */ } finally { setIsRefreshing(false) }
   }, [])
 
   /* ── Unread count per filter ─── */

@@ -223,35 +223,27 @@ function IOSCard({ children, onClick, highlight = false, noMargin = false }: { c
   )
 }
 
-/* ─── Real-time Latest Signal Card ─── */
-function LatestSignalCard() {
-  const [signal, setSignal] = useState<any>(null)
+/* ─── Latest Smart Recommendations Widget ─── */
+function LatestRecommendations() {
+  const [recommendations, setRecommendations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
-    async function fetchSignal() {
+    async function fetchRecommendations() {
       try {
-        const res = await fetch('/api/signals/active')
+        const res = await fetch('/api/signals/smart?limit=3')
         if (res.ok) {
           const data = await res.json()
-          if (data.success && data.data.length > 0) {
-            const raw = data.data[0]
-            // Sanitize to prevent React Error #31 — API may return SmartScore objects
-            setSignal({
-              ...raw,
-              confidence: safeConfidence(raw.confidence),
-              reason: safeReason(raw.reason),
-              action: safeAction(raw.action),
-              takeProfit: safeNumber(raw.takeProfit),
-              entryPrice: safeNumber(raw.entryPrice),
-              stopLoss: safeNumber(raw.stopLoss),
-            })
+          if (data.success && Array.isArray(data.data)) {
+            setRecommendations(data.data)
           }
         }
       } catch { /* silent */ } finally { setLoading(false) }
     }
-    fetchSignal()
+    fetchRecommendations()
+    const interval = setInterval(fetchRecommendations, 120000) // 2 min refresh
+    return () => clearInterval(interval)
   }, [])
 
   if (loading) return (
@@ -262,51 +254,79 @@ function LatestSignalCard() {
     </IOSCard>
   )
 
-  if (!signal) return (
+  if (recommendations.length === 0) return (
     <IOSCard onClick={() => router.push('/mobile/signals')}>
       <div className="flex flex-col items-center py-2 text-center">
-        <Zap size={24} color="rgba(255,255,255,0.1)" className="mb-2" />
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', fontFamily: "'Cairo', sans-serif" }}>لا توجد إشارات نشطة حالياً</p>
+        <Brain size={24} color="rgba(255,255,255,0.1)" className="mb-2" />
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.3)', fontFamily: "'Cairo', sans-serif" }}>لا توجد توصيات حالياً — جاري المسح...</p>
       </div>
     </IOSCard>
   )
 
-  const isBuy = safeAction(signal.action) === 'BUY'
-  const color = isBuy ? '#32D74B' : '#FF453A'
-
   return (
-    <IOSCard onClick={() => router.push('/mobile/signals')} highlight>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div style={{ 
-            padding: '4px 10px', borderRadius: 20, 
-            background: `${color}15`, 
-            color: color, fontSize: 10, fontWeight: 800,
-            border: `0.5px solid ${color}30`
-          }}>إشارة {isBuy ? 'شراء' : 'بيع'} حية</div>
-          <span style={{ fontSize: 11, color: 'rgba(235,235,245,0.3)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>منذ دقائق</span>
-        </div>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#32D74B', boxShadow: '0 0 10px #32D74B' }} className="animate-pulse" />
-      </div>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div style={{ 
-            width: 48, height: 48, borderRadius: 16, 
-            background: 'rgba(255,255,255,0.03)', 
-            display: 'flex', alignItems: 'center', justifyContent: 'center', 
-            fontSize: 22, border: '0.5px solid rgba(255,255,255,0.08)' 
-          }}>{signal.pair.startsWith('BTC') ? '₿' : signal.pair.startsWith('ETH') ? 'Ξ' : 'S'}</div>
-          <div>
-            <p style={{ fontSize: 17, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>{signal.pair}</p>
-            <p style={{ fontSize: 13, color: color, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>ثقة {signal.confidence}%</p>
-          </div>
-        </div>
-        <div style={{ textAlign: 'start' }}>
-          <p style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>🎯 {signal.takeProfit || '—'}</p>
-          <p style={{ fontSize: 11, color: 'rgba(235,235,245,0.3)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>الهدف</p>
-        </div>
-      </div>
-    </IOSCard>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {recommendations.map((rec, idx) => {
+        const isBuy = rec.type === 'BUY'
+        const color = isBuy ? '#32D74B' : '#FF453A'
+        const freshnessColor = rec.freshness === 'fresh' ? '#32D74B' : rec.freshness === 'stale' ? '#FFB800' : '#FF453A'
+
+        return (
+          <IOSCard key={rec.id || idx} onClick={() => router.push(`/mobile/chart?symbol=${rec.pair}`)} highlight={idx === 0}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div style={{ 
+                  padding: '3px 8px', borderRadius: 16, 
+                  background: `${color}15`, 
+                  color: color, fontSize: 10, fontWeight: 800,
+                  border: `0.5px solid ${color}30`
+                }}>{isBuy ? 'شراء' : 'بيع'}</div>
+                <div style={{ 
+                  padding: '2px 6px', borderRadius: 10,
+                  background: `${freshnessColor}10`, 
+                  border: `0.5px solid ${freshnessColor}30`,
+                  display: 'flex', alignItems: 'center', gap: 3
+                }}>
+                  <div style={{ width: 5, height: 5, borderRadius: '50%', background: freshnessColor }} className={rec.freshness === 'fresh' ? 'animate-pulse' : ''} />
+                  <span style={{ fontSize: 8, color: freshnessColor, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{rec.freshness === 'fresh' ? 'حية' : rec.freshness === 'stale' ? 'متأخرة' : 'متدهورة'}</span>
+                </div>
+              </div>
+              <span style={{ fontSize: 10, color: 'rgba(235,235,245,0.3)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>{rec.timeframe} • {rec.time}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div style={{ 
+                  width: 40, height: 40, borderRadius: 12, 
+                  background: `${color}10`, 
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                  fontSize: 16, border: `0.5px solid ${color}20`,
+                  color: color, fontWeight: 900,
+                  fontFamily: "'JetBrains Mono', monospace"
+                }}>{rec.pair.split('/')[0].slice(0, 2)}</div>
+                <div>
+                  <p style={{ fontSize: 15, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>{rec.pair}</p>
+                  <p style={{ fontSize: 11, color: color, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>ثقة {Math.round(rec.conf || rec.confidence || 0)}%</p>
+                </div>
+              </div>
+              <div style={{ textAlign: 'start' }}>
+                <div className="flex items-center gap-3">
+                  <div>
+                    <p style={{ fontSize: 10, color: 'rgba(235,235,245,0.3)', fontFamily: "'Cairo', sans-serif" }}>هدف</p>
+                    <p style={{ fontSize: 13, fontWeight: 800, color: '#32D74B', fontFamily: "'JetBrains Mono', monospace" }}>{rec.tp ? `$${rec.tp.toLocaleString()}` : '—'}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 10, color: 'rgba(235,235,245,0.3)', fontFamily: "'Cairo', sans-serif" }}>وقف</p>
+                    <p style={{ fontSize: 13, fontWeight: 800, color: '#FF453A', fontFamily: "'JetBrains Mono', monospace" }}>{rec.sl ? `$${rec.sl.toLocaleString()}` : '—'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {rec.reason && (
+              <p style={{ fontSize: 10, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif", marginTop: 8, lineHeight: 1.5 }}>{rec.reason}</p>
+            )}
+          </IOSCard>
+        )
+      })}
+    </div>
   )
 }
 
@@ -363,7 +383,6 @@ export default function MobileHomePage() {
 
   return (
     <div style={{ 
-      minHeight: '100%', 
       background: '#000000', 
       direction: 'rtl', 
       paddingBottom: 20,
@@ -475,11 +494,19 @@ export default function MobileHomePage() {
         </div>
       </IOSCard>
       
-      {/* ── Latest Signals ── */}
+      {/* ── أحدث التوصيات من محرك المتابعة الذكي ── */}
       <div className="flex items-center justify-between px-6 mb-4 mt-6">
-        <h2 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>
-          إشارات السوق
-        </h2>
+        <div className="flex items-center gap-2">
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>
+            أحدث التوصيات
+          </h2>
+          <span style={{
+            fontSize: 8, fontWeight: 800, padding: '2px 6px', borderRadius: 8,
+            background: 'rgba(0,212,255,0.12)', color: '#00D4FF',
+            fontFamily: "'JetBrains Mono', monospace",
+            border: '0.5px solid rgba(0,212,255,0.2)',
+          }}>ذكي</span>
+        </div>
         <button 
           onClick={() => router.push('/mobile/signals')}
           style={{ fontSize: 13, color: '#00D4FF', fontWeight: 800, fontFamily: "'Cairo', sans-serif", background: 'none', border: 'none' }}
@@ -487,7 +514,7 @@ export default function MobileHomePage() {
           شاهد الكل
         </button>
       </div>
-      <LatestSignalCard />
+      <LatestRecommendations />
 
       {/* ── AI Council Card ── */}
       <h2 style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif", margin: '24px 24px 12px' }}>

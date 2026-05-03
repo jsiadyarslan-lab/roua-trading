@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
@@ -40,6 +40,7 @@ type ExecStatus = 'idle' | 'validating' | 'submitting' | 'filled' | 'rejected' |
 
 export default function MobileChartPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { selectedSymbol, setSelectedSymbol, timeframe, setTimeframe } = useSymbolStore()
   const quotes = useMarketStore(s => s.quotes)
   const addPaperTrade = usePaperTradesStore(s => s.addTrade)
@@ -48,6 +49,20 @@ export default function MobileChartPage() {
   const fetchPositions = usePositionsStore(s => s.fetchPositions)
   const account = usePositionsStore(s => s.account)
   const positions = usePositionsStore(s => s.positions)
+
+  // Read symbol and side from URL params (e.g. from Markets page click)
+  useEffect(() => {
+    const symbolParam = searchParams.get('symbol')
+    if (symbolParam) {
+      setSelectedSymbol(symbolParam)
+    }
+    const sideParam = searchParams.get('side')
+    if (sideParam === 'BUY' || sideParam === 'buy') {
+      setOrderSide('buy')
+    } else if (sideParam === 'SELL' || sideParam === 'sell') {
+      setOrderSide('sell')
+    }
+  }, [searchParams, setSelectedSymbol])
 
   // Order form state
   const [showOrderSheet, setShowOrderSheet] = useState(false)
@@ -491,52 +506,8 @@ export default function MobileChartPage() {
         </div>
       </div>
 
-      {/* ═══ BOTTOM BAR: Buy/Sell Buttons (ALWAYS VISIBLE, above navbar) ═══ */}
-      <div style={{
-        flexShrink: 0,
-        display: 'flex',
-        gap: 6,
-        padding: '8px 8px',
-        /* The layout's <main> already adds paddingBottom for the MobileNavBar.
-           Only add the 8px for this bar's own spacing. */
-        paddingBottom: 'calc(8px)',
-        background: 'rgba(10,10,12,0.95)',
-        backdropFilter: 'blur(10px)',
-        borderTop: '1px solid rgba(0,212,255,0.1)',
-      }}>
-        <motion.button
-          whileTap={{ scale: 0.96 }}
-          onClick={handleQuickBuy}
-          style={{
-            flex: 1, height: 44, borderRadius: 12,
-            background: 'linear-gradient(135deg, #32D74B, #28a745)',
-            border: '1px solid rgba(50,215,75,0.3)',
-            cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-            fontSize: 15, fontWeight: 900, color: '#000', fontFamily: "'Cairo', sans-serif",
-            boxShadow: '0 0 12px rgba(50,215,75,0.15)',
-          }}
-        >
-          <ArrowUpRight size={18} />
-          شراء
-        </motion.button>
-        <motion.button
-          whileTap={{ scale: 0.96 }}
-          onClick={handleQuickSell}
-          style={{
-            flex: 1, height: 44, borderRadius: 12,
-            background: 'linear-gradient(135deg, #FF453A, #dc3545)',
-            border: '1px solid rgba(255,69,58,0.3)',
-            cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-            fontSize: 15, fontWeight: 900, color: '#FFF', fontFamily: "'Cairo', sans-serif",
-            boxShadow: '0 0 12px rgba(255,69,58,0.15)',
-          }}
-        >
-          <ArrowDownRight size={18} />
-          بيع
-        </motion.button>
-      </div>
+      {/* ═══ Bottom spacer for navbar ═══ */}
+      <div style={{ flexShrink: 0, height: 8 }} />
 
       {/* ═══ ORDER EXECUTION SHEET (Bottom Sheet) ═══ */}
       <AnimatePresence>
@@ -796,8 +767,8 @@ export default function MobileChartPage() {
                 )}
               </div>{/* END scrollable content */}
 
-              {/* Fixed Bottom — Buy / Sell Buttons (always visible in sheet) */}
-              <div style={{ flexShrink: 0, padding: '8px 20px calc(20px + env(safe-area-inset-bottom))', borderTop: '0.5px solid rgba(255,255,255,0.08)', background: 'rgba(20,20,22,0.95)' }}>
+              {/* Fixed Bottom — Buy / Sell Buttons (always visible in sheet, above navbar) */}
+              <div style={{ flexShrink: 0, padding: '8px 20px calc(20px + 68px + env(safe-area-inset-bottom))', borderTop: '0.5px solid rgba(255,255,255,0.08)', background: 'rgba(20,20,22,0.95)' }}>
                 {(execStatus === 'idle' || execStatus === 'error' || execStatus === 'rejected') && (
                   <div style={{ display: 'flex', gap: 8 }}>
                     <motion.button

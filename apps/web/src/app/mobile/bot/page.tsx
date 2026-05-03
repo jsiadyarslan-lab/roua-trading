@@ -205,6 +205,31 @@ export default function MobileBotPage() {
     setHydrated(true)
   }, [])
 
+  // Fetch real engine status from server periodically
+  useEffect(() => {
+    const fetchEngineStatus = async () => {
+      try {
+        const res = await fetch('/api/engine/status')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success && data.data) {
+            const engine = data.data
+            if (engine.state) {
+              // Sync engine state from server
+              useBotStore.getState().setEngineState(engine.state as BotEngineState)
+            }
+            if (engine.stats) {
+              useBotStore.getState().patchStats(engine.stats)
+            }
+          }
+        }
+      } catch { /* silent */ }
+    }
+    fetchEngineStatus()
+    const interval = setInterval(fetchEngineStatus, 15000) // 15s polling
+    return () => clearInterval(interval)
+  }, [])
+
   useEffect(() => {
     if (logEndRef.current) {
       logEndRef.current.scrollIntoView({ behavior: 'smooth' })

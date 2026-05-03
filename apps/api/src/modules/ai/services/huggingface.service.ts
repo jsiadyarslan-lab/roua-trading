@@ -44,8 +44,15 @@ export class HuggingFaceService {
   private readonly hfDirectUrl = 'https://router.huggingface.co/hf-inference/v1/chat/completions';
 
   // ━━━ FIX: Direct Inference API — works with ANY valid HF token ━━━
-  // No Inference Providers permission needed!
-  private readonly hfInferenceBaseUrl = 'https://api-inference.huggingface.co/models';
+  // The old api-inference.huggingface.co endpoint has been deprecated.
+  // Now use router.huggingface.co with dedicated provider paths.
+  // No Inference Providers permission needed for these endpoints!
+  private readonly hfInferenceProviders = [
+    { name: 'hf-inference', url: 'https://router.huggingface.co/hf-inference/v1/chat/completions' },
+    { name: 'sambanova', url: 'https://router.huggingface.co/sambanova/v1/chat/completions' },
+    { name: 'novita', url: 'https://router.huggingface.co/novita/v1/chat/completions' },
+    { name: 'fireworks', url: 'https://router.huggingface.co/fireworks/v1/chat/completions' },
+  ];
 
   // OpenRouter endpoint (OpenAI-compatible)
   private readonly openrouterUrl = 'https://openrouter.ai/api/v1/chat/completions';
@@ -239,86 +246,38 @@ export class HuggingFaceService {
   }
 
   // ──────────────────────────────────────────────────────
-  // Strategy 2: HuggingFace Direct Inference API (NEW!)
-  // Works with ANY valid HF token — no Inference Providers permission needed
+  // Strategy 2: HuggingFace Direct Inference via multiple providers
+  // Try each provider (hf-inference, sambanova, novita, fireworks)
+  // with each model. No Inference Providers permission needed!
   // ──────────────────────────────────────────────────────
 
   private async _tryDirectInference(systemPrompt: string, userPrompt: string, startTime: number): Promise<AIAnalysisResponse | null> {
-    for (const model of this.hfDirectInferenceCandidates) {
-      try {
-        const result = await this._hfDirectInferenceCall(model, systemPrompt, userPrompt, startTime);
-        if (result) {
-          this.resolvedProvider = 'hf-inference';
-          this.resolvedModel = model;
-          this.logger.log(`🤗 Resolved: HF-DirectInference/${model.split('/').pop()}`);
-          return result;
-        }
-      } catch (error: any) {
-        const status = error.response?.status;
-        const errData = error.response?.data ? JSON.stringify(error.response.data).substring(0, 150) : '';
+    for (const provider of this.hfInferenceProviders) {
+      for (const model of this.hfDirectInferenceCandidates) {
+        try {
+          const result = await this._hfCall(provider.url, model, systemPrompt, userPrompt, startTime);
+          if (result) {
+            this.resolvedProvider = 'hf-inference';
+            this.resolvedModel = model;
+            this.logger.log(`🤗 Resolved: ${provider.name}/${model.split('/').pop()}`);
+            return result;
+          }
+        } catch (error: any) {
+          const status = error.response?.status;
+          const errData = error.response?.data ? JSON.stringify(error.response.data).substring(0, 150) : '';
 
-        if (status === 429) {
-          this.logger.warn(`🚫 HF Direct Inference ${model.split('/').pop()} rate limited (429)`);
+          if (status === 429) {
+            this.logger.warn(`🚫 HF ${provider.name}/${model.split('/').pop()} rate limited (429)`);
+            continue;
+          }
+          if (status === 401) {
+            this.logger.error(`❌ HF API key invalid for ${provider.name} (401) — ${errData}`);
+            return null; // No point trying more with bad key
+          }
+          this.logger.debug(`🤗 HF ${provider.name}/${model.split('/').pop()} failed (${status}): ${errData}`);
           continue;
         }
-        if (status === 401) {
-          this.logger.error(`❌ HF API key invalid for Direct Inference (401) — ${errData}`);
-          return null; // No point trying more models with bad key
-        }
-        // Model loading — HuggingFace returns 503 when model is cold
-        if (status === 503) {
-          const estimatedTime = error.response?.data?.estimated_time;
-          this.logger.warn(`🤗 HF Direct Inference ${model.split('/').pop()} is loading (503) — estimated ${estimatedTime || 'unknown'}s — trying next`);
-          continue;
-        }
-        this.logger.debug(`🤗 HF Direct Inference ${model.split('/').pop()} failed (${status}): ${errData}`);
-        continue;
       }
-    }
-    return null;
-  }
-
-  /**
-   * FIX: Call HuggingFace Direct Inference API
-   * Endpoint: https://api-inference.huggingface.co/models/MODEL
-   * This uses a different format than the chat/completions API.
-   * Works with any valid HF token — no special permission needed.
-   */
-  private async _hfDirectInferenceCall(model: string, systemPrompt: string, userPrompt: string, startTime: number): Promise<AIAnalysisResponse | null> {
-    const url = `${this.hfInferenceBaseUrl}/${model}`;
-    const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
-
-    const response = await axios.post(
-      url,
-      {
-        inputs: fullPrompt,
-        parameters: {
-          max_new_tokens: 1024,
-          temperature: 0.3,
-          return_full_text: false,
-        },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${this.hfApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        timeout: 60000,
-      },
-    );
-
-    // Direct Inference API returns an array of generated texts
-    let content = '';
-    if (Array.isArray(response.data)) {
-      content = response.data[0]?.generated_text || '';
-    } else if (typeof response.data === 'object' && response.data.generated_text) {
-      content = response.data.generated_text;
-    } else if (typeof response.data === 'string') {
-      content = response.data;
-    }
-
-    if (content.trim().length > 0) {
-      return this._formatResponse('HuggingFace-DI', model, content.trim(), startTime);
     }
     return null;
   }
@@ -388,11 +347,24 @@ export class HuggingFaceService {
   // Shared helpers
   // ──────────────────────────────────────────────────────
 
+  /**
+   * Call resolved provider — routes to the correct method based on provider type
+   */
   private async _callResolved(systemPrompt: string, userPrompt: string, startTime: number): Promise<AIAnalysisResponse | null> {
     if (this.resolvedProvider === 'openrouter') {
       return this._openrouterChat(this.resolvedModel!, systemPrompt, userPrompt, startTime);
     } else if (this.resolvedProvider === 'hf-inference') {
-      return this._hfDirectInferenceCall(this.resolvedModel!, systemPrompt, userPrompt, startTime);
+      // hf-inference uses the same chat/completions format as hf-direct
+      // Try hf-inference provider URL first, then fall back to other providers
+      for (const provider of this.hfInferenceProviders) {
+        try {
+          const result = await this._hfCall(provider.url, this.resolvedModel!, systemPrompt, userPrompt, startTime);
+          if (result) return result;
+        } catch (_error: any) {
+          continue;
+        }
+      }
+      return null;
     } else {
       // Both hf-auto and hf-direct use the same chat format
       const url = this.resolvedProvider === 'hf-auto' ? this.hfAutoRouterUrl : this.hfDirectUrl;

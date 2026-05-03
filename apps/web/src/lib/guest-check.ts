@@ -21,7 +21,13 @@ import { NextRequest, NextResponse } from 'next/server'
  * - View news and signals (read-only)
  */
 
-const GUEST_EMAIL = 'guest@roua.auto'
+/**
+ * Check if an email belongs to a guest user.
+ * Matches both the legacy guest@roua.auto and the new unique guest-{uuid}@roua.auto pattern.
+ */
+function isGuestEmail(email: string): boolean {
+  return email === 'guest@roua.auto' || /^guest-[a-f0-9]+@roua\.auto$/.test(email)
+}
 
 /**
  * Server-side: Check if a request is from a guest user.
@@ -69,7 +75,7 @@ export function rejectGuest(request: NextRequest): NextResponse | null {
 export function isGuestUser(user: { email?: string; id?: string; isGuest?: boolean } | null): boolean {
   if (!user) return true
   if (user.isGuest) return true
-  if (user.email === GUEST_EMAIL) return true
+  if (isGuestEmail(user.email)) return true
   if (user.id?.startsWith('guest')) return true
   return false
 }

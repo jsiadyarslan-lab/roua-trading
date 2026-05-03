@@ -21,6 +21,14 @@ const REFRESH_DURATION_MS = 30 * 24 * 60 * 60 * 1000 // 30 days (refresh token)
 const GUEST_EMAIL = 'guest@roua.auto'
 
 /**
+ * Check if an email belongs to a guest user.
+ * Matches both the legacy guest@roua.auto and the new unique guest-{uuid}@roua.auto pattern.
+ */
+function isGuestEmail(email: string): boolean {
+  return email === GUEST_EMAIL || /^guest-[a-f0-9]+@roua\.auto$/.test(email)
+}
+
+/**
  * Parse user-agent string into structured device info
  */
 function parseUserAgent(userAgent?: string | null): { browser: string; os: string; type: string; device: string } | null {
@@ -72,7 +80,7 @@ export async function POST(request: NextRequest) {
         })
 
         if (sessionByRefresh && sessionByRefresh.isActive) {
-          const isGuest = sessionByRefresh.user.email === GUEST_EMAIL || sessionByRefresh.user.id.startsWith('guest')
+          const isGuest = isGuestEmail(sessionByRefresh.user.email) || sessionByRefresh.user.id.startsWith('guest')
 
           // Check refresh token expiry (30 days from creation)
           const refreshExpiryMs = sessionByRefresh.createdAt.getTime() + REFRESH_DURATION_MS
@@ -167,7 +175,7 @@ export async function POST(request: NextRequest) {
         return response
       }
 
-      const isGuestUser = session.user.email === GUEST_EMAIL || session.user.id.startsWith('guest')
+      const isGuestUser = isGuestEmail(session.user.email) || session.user.id.startsWith('guest')
 
       // Session expired
       if (session.expiresAt < new Date()) {

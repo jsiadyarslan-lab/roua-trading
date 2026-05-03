@@ -16,6 +16,14 @@ import { db, ensureDbReady } from '@/lib/db'
 
 const GUEST_EMAIL = 'guest@roua.auto'
 
+/**
+ * Check if an email belongs to a guest user.
+ * Matches both the legacy guest@roua.auto and the new unique guest-{uuid}@roua.auto pattern.
+ */
+function isGuestEmail(email: string): boolean {
+  return email === GUEST_EMAIL || /^guest-[a-f0-9]+@roua\.auto$/.test(email)
+}
+
 export async function GET(request: NextRequest) {
   try {
     const dbReady = await ensureDbReady()
@@ -37,7 +45,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'INVALID_SESSION' }, { status: 401 })
     }
 
-    const isGuest = currentSession.user.email === GUEST_EMAIL || currentSession.user.id.startsWith('guest')
+    const isGuest = isGuestEmail(currentSession.user.email) || currentSession.user.id.startsWith('guest')
     if (isGuest) {
       return NextResponse.json({ sessions: [] })
     }

@@ -16,6 +16,14 @@ import crypto from 'crypto'
  */
 
 const GUEST_EMAIL = 'guest@roua.auto'
+
+/**
+ * Check if an email belongs to a guest user.
+ * Matches both the legacy guest@roua.auto and the new unique guest-{uuid}@roua.auto pattern.
+ */
+function isGuestEmail(email: string): boolean {
+  return email === GUEST_EMAIL || /^guest-[a-f0-9]+@roua\.auto$/.test(email)
+}
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000 // 24 hours
 const REFRESH_DURATION_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 
@@ -68,7 +76,7 @@ export async function GET(request: NextRequest) {
           include: { user: true },
         })
         if (session && session.isActive && session.expiresAt > new Date()) {
-          const isGuestUser = session.user.email === GUEST_EMAIL || session.user.id.startsWith('guest')
+          const isGuestUser = isGuestEmail(session.user.email) || session.user.id.startsWith('guest')
 
           return NextResponse.json({
             authenticated: !isGuestUser,
@@ -96,7 +104,7 @@ export async function GET(request: NextRequest) {
 
     // ── Email login flow: ?email=xxx ──
     if (requestedEmail) {
-      if (requestedEmail === GUEST_EMAIL) {
+      if (isGuestEmail(requestedEmail)) {
         return NextResponse.json({
           authenticated: false,
           error: 'GUEST_LOGIN_BLOCKED',
@@ -249,7 +257,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    if (requestedEmail === GUEST_EMAIL) {
+    if (isGuestEmail(requestedEmail)) {
       return NextResponse.json({
         authenticated: false,
         error: 'GUEST_LOGIN_BLOCKED',

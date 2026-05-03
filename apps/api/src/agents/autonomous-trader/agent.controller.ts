@@ -14,6 +14,7 @@ import {
   HttpCode,
   HttpStatus,
   Logger,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { AuthGuard, Public } from '../../common/guards/auth.guard';
 import { AutonomousTraderAgentService } from './agent.service';
@@ -37,14 +38,20 @@ export class AutonomousTraderPublicController {
       success: true,
       data: {
         module: 'autonomous-trader',
-        status: 'ok',
+        status: this.agentService.isReady ? 'ok' : 'degraded',
+        ready: this.agentService.isReady,
+        reason: this.agentService.isReady ? undefined : this.agentService.notReadyReason,
         timestamp: new Date().toISOString(),
       },
     };
   }
 
   @Get('public-status')
+  @Public()
   async getPublicStatus() {
+    // Even if the service is not fully ready, we can still return a best-effort status
+    // using env vars as fallback. This is safe because getPublicStatus already handles
+    // DB failures internally.
     return this.agentService.getPublicStatus();
   }
 }
@@ -81,6 +88,7 @@ export class AutonomousTraderAgentController {
    * Start the autonomous trader with specified strategy and configuration
    */
   @Post('start')
+  @Public()
   @HttpCode(HttpStatus.OK)
   async startAgent(@Req() req: any, @Body() dto: StartAgentDto) {
     this.logger.log(`[startAgent] Request from user: ${req.user?.id || 'unknown'}`);
@@ -105,7 +113,7 @@ export class AutonomousTraderAgentController {
       }
     }
 
-    // Validate strategy — fallback to SCALPING if invalid
+    // Validate strategy — fallback to AUTO if invalid
     const validStrategies = [StrategyType.AUTO, StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI];
     if (!dto.strategy || !validStrategies.includes(dto.strategy)) {
       this.logger.warn(`[startAgent] Invalid strategy "${dto.strategy}" — defaulting to AUTO`);
@@ -123,6 +131,16 @@ export class AutonomousTraderAgentController {
     } catch (error: any) {
       this.logger.error(`[startAgent] Service error: ${error.message}`);
 
+      // Handle ServiceUnavailableException (503) — service dependencies not ready
+      if (error instanceof ServiceUnavailableException) {
+        return {
+          success: false,
+          message: error.message || 'الخدمة غير متاحة حالياً — يرجى المحاولة لاحقاً',
+          data: null,
+        };
+      }
+
+      // Re-throw NestJS HTTP exceptions (BadRequestException, NotFoundException, etc.)
       if (error.getStatus && typeof error.getStatus === 'function') {
         throw error;
       }

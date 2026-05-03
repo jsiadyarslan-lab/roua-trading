@@ -442,12 +442,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       } as any);
     }
 
-    // Update volume
+    // Update volume — use `updated` (not `last`) for correct color after price change
     if (volumeSeriesRef.current) {
       volumeSeriesRef.current.update({
         time: last.time as Time,
         value: last.volume,
-        color: last.close >= last.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
+        color: updated.close >= updated.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
       } as any);
     }
   }, [isPaused, settings.type]);

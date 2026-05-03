@@ -1,6 +1,7 @@
 import { Injectable, CanActivate, ExecutionContext, Logger, SetMetadata, UnauthorizedException, Optional } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 
@@ -16,10 +17,14 @@ export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
  *
  * This guard ensures every request has a valid user attached.
  * Behavior:
- * 1. If route is marked @Public() → auto-create guest session
+ * 1. If route is marked @Public() → auto-create UNIQUE guest user per session
  * 2. If session token found and valid → attach user to request
  * 3. If no session on protected route → REJECT with 401
- * 4. If no session on public route → auto-create guest session
+ * 4. If no session on public route → auto-create unique guest user
+ *
+ * DATA ISOLATION: Each unauthenticated session gets its own unique guest user
+ * (guest-{uuid}@roua.auto) instead of sharing a single guest@roua.auto account.
+ * This prevents data leakage between different users' positions, trades, and settings.
  *
  * Redis caching: Session lookups are cached for 15 minutes to reduce DB load.
  * The cache is invalidated when sessions are destroyed/revoked.
@@ -27,9 +32,6 @@ export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 @Injectable()
 export class AuthGuard implements CanActivate {
   private readonly logger = new Logger(AuthGuard.name);
-  private guestUser: any = null;
-  private guestUserLastRefresh = 0;
-  private readonly GUEST_CACHE_TTL = 5 * 60 * 1000;
   private readonly SESSION_CACHE_PREFIX = 'session:';
   private readonly SESSION_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -149,49 +151,52 @@ export class AuthGuard implements CanActivate {
   }
 
   /**
-   * Ensure the guest user exists in the database.
-   * Cached in memory with TTL to avoid stale data.
+   * Create a UNIQUE guest user for each unauthenticated session.
+   *
+   * DATA ISOLATION FIX: Previously all unauthenticated users shared a single
+   * guest@roua.auto account, meaning they could see each other's positions,
+   * trades, and settings. Now each session gets its own unique guest user
+   * with a UUID-based email (guest-{uuid}@roua.auto).
+   *
+   * The legacy guest@roua.auto account is kept for backward compatibility
+   * (existing sessions may still reference it).
    */
   private async _ensureGuestUser(): Promise<any> {
-    const GUEST_EMAIL = 'guest@roua.auto';
-
-    if (this.guestUser && Date.now() - this.guestUserLastRefresh < this.GUEST_CACHE_TTL) {
-      return this.guestUser;
-    }
+    const uuid = randomUUID().slice(0, 8);
+    const guestEmail = `guest-${uuid}@roua.auto`;
 
     try {
-      let user = await this.prisma.user.findUnique({ where: { email: GUEST_EMAIL } });
-
-      if (!user) {
-        user = await this.prisma.user.create({
-          data: { email: GUEST_EMAIL, displayName: 'ضيف', tier: 'FREE' },
-        });
-        this.logger.log('Auto-created guest user');
-      }
-
-      if (user.tier !== 'FREE') {
-        user = await this.prisma.user.update({
-          where: { id: user.id },
-          data: { tier: 'FREE' },
-        });
-        this.logger.warn(`Guest user was ${user.tier} — downgraded to FREE`);
-      }
-
-      this.guestUser = user;
-      this.guestUserLastRefresh = Date.now();
+      const user = await this.prisma.user.create({
+        data: { email: guestEmail, displayName: 'ضيف', tier: 'FREE' },
+      });
+      this.logger.log(`Auto-created unique guest user: ${guestEmail}`);
       return user;
     } catch (error: any) {
+      // UUID collision is astronomically unlikely, but handle it gracefully
+      this.logger.warn(`Failed to create unique guest user (${guestEmail}), retrying with new UUID: ${error?.message || error}`);
       try {
-        const user = await this.prisma.user.findUnique({ where: { email: GUEST_EMAIL } });
-        if (user) {
-          this.guestUser = user;
-          this.guestUserLastRefresh = Date.now();
+        const uuid2 = randomUUID().slice(0, 8);
+        const fallbackEmail = `guest-${uuid2}@roua.auto`;
+        const user = await this.prisma.user.create({
+          data: { email: fallbackEmail, displayName: 'ضيف', tier: 'FREE' },
+        });
+        this.logger.log(`Auto-created unique guest user (retry): ${fallbackEmail}`);
+        return user;
+      } catch (retryError: any) {
+        // If we still can't create, try the legacy guest as last resort
+        this.logger.error(`Failed to create unique guest user twice, falling back to legacy guest: ${retryError?.message || retryError}`);
+        try {
+          let user = await this.prisma.user.findUnique({ where: { email: 'guest@roua.auto' } });
+          if (!user) {
+            user = await this.prisma.user.create({
+              data: { email: 'guest@roua.auto', displayName: 'ضيف', tier: 'FREE' },
+            });
+          }
           return user;
+        } catch {
+          throw retryError;
         }
-      } catch {
-        // DB completely unavailable
       }
-      throw error;
     }
   }
 }

@@ -369,7 +369,7 @@ export class AuthService {
       throw new BadRequestException('انتهت صلاحية رمز التحديث. يرجى تسجيل الدخول مرة أخرى.');
     }
 
-    const isGuest = session.user.email === 'guest@roua.auto' || session.user.id.startsWith('guest');
+    const isGuest = session.user.email === 'guest@roua.auto' || session.user.email.startsWith('guest-') || session.user.id.startsWith('guest');
     if (isGuest) {
       throw new BadRequestException('لا يمكن تجديد جلسة الضيف');
     }
@@ -550,19 +550,50 @@ export class AuthService {
 
   // ── Guest Session ──
 
+  /**
+   * Create a guest session with a UNIQUE guest user per session.
+   *
+   * DATA ISOLATION FIX: Previously all guest sessions shared a single
+   * guest@roua.auto account, meaning different users could see each
+   * other's data. Now each guest session gets its own unique user with
+   * a UUID-based email (guest-{uuid}@roua.auto).
+   *
+   * The legacy guest@roua.auto account is kept for backward compatibility.
+   */
   async createGuestSession() {
-    const GUEST_EMAIL = 'guest@roua.auto';
+    const uuid = crypto.randomUUID().slice(0, 8);
+    const guestEmail = `guest-${uuid}@roua.auto`;
 
-    let guestUser = await this.prisma.user.findUnique({ where: { email: GUEST_EMAIL } });
+    let guestUser;
 
-    if (!guestUser) {
+    try {
+      guestUser = await this.prisma.user.create({
+        data: { email: guestEmail, displayName: 'ضيف', tier: 'FREE' },
+      });
+      this.logger.log(`Unique guest user created: ${guestEmail}`);
+    } catch (createErr: any) {
+      // UUID collision is extremely unlikely, but retry with new UUID
+      this.logger.warn(`Failed to create unique guest (${guestEmail}), retrying: ${createErr?.message || createErr}`);
+      const uuid2 = crypto.randomUUID().slice(0, 8);
+      const retryEmail = `guest-${uuid2}@roua.auto`;
       try {
         guestUser = await this.prisma.user.create({
-          data: { email: GUEST_EMAIL, displayName: 'ضيف', tier: 'FREE' },
+          data: { email: retryEmail, displayName: 'ضيف', tier: 'FREE' },
         });
-        this.logger.log(`Guest user created: ${GUEST_EMAIL}`);
-      } catch (createErr: any) {
-        guestUser = await this.prisma.user.findUnique({ where: { email: GUEST_EMAIL } });
+        this.logger.log(`Unique guest user created (retry): ${retryEmail}`);
+      } catch {
+        // Last resort: fall back to legacy shared guest account
+        this.logger.warn('Falling back to legacy guest@roua.auto account');
+        guestUser = await this.prisma.user.findUnique({ where: { email: 'guest@roua.auto' } });
+        if (!guestUser) {
+          try {
+            guestUser = await this.prisma.user.create({
+              data: { email: 'guest@roua.auto', displayName: 'ضيف', tier: 'FREE' },
+            });
+          } catch {
+            guestUser = await this.prisma.user.findUnique({ where: { email: 'guest@roua.auto' } });
+          }
+        }
       }
     }
 
@@ -572,7 +603,7 @@ export class AuthService {
 
     const session = await this.createSession(guestUser.id);
 
-    this.logger.log(`Guest session created for: ${GUEST_EMAIL}`);
+    this.logger.log(`Guest session created for: ${guestUser.email}`);
 
     return {
       sessionToken: session.token,

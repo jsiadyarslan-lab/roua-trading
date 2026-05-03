@@ -15,6 +15,14 @@ const OTP_EXPIRY_MS = 10 * 60 * 1000 // 10 minutes
 const OTP_LENGTH = 6
 const GUEST_EMAIL = 'guest@roua.auto'
 
+/**
+ * Check if an email belongs to a guest user.
+ * Matches both the legacy guest@roua.auto and the new unique guest-{uuid}@roua.auto pattern.
+ */
+function isGuestEmail(email: string): boolean {
+  return email === GUEST_EMAIL || /^guest-[a-f0-9]+@roua\.auto$/.test(email)
+}
+
 export async function POST(request: NextRequest) {
   try {
     const dbReady = await ensureDbReady()
@@ -29,7 +37,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'INVALID_EMAIL' }, { status: 400 })
     }
 
-    if (email === GUEST_EMAIL) {
+    if (isGuestEmail(email)) {
       return NextResponse.json({ error: 'GUEST_LOGIN_BLOCKED' }, { status: 403 })
     }
 

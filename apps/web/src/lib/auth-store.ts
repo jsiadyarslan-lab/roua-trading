@@ -46,6 +46,14 @@ const CACHE_TIME_KEY = 'roua_auth_cache_time'
 const CACHE_DURATION_MS = 5 * 60 * 1000 // 5 minutes cache TTL
 const GUEST_EMAIL = 'guest@roua.auto'
 
+/**
+ * Check if an email belongs to a guest user.
+ * Matches both the legacy guest@roua.auto and the new unique guest-{uuid}@roua.auto pattern.
+ */
+function isGuestEmail(email: string): boolean {
+  return email === GUEST_EMAIL || /^guest-[a-f0-9]+@roua\.auto$/.test(email)
+}
+
 let _refreshInterval: ReturnType<typeof setInterval> | null = null
 const REFRESH_INTERVAL_MS = 15 * 60 * 1000 // Check every 15 minutes
 
@@ -121,7 +129,7 @@ function clearCache() {
 
 function isGuestUser(user: AuthUser | null): boolean {
   if (!user) return true
-  return user.isGuest || user.email === GUEST_EMAIL || user.id.startsWith('guest')
+  return user.isGuest || isGuestEmail(user.email) || user.id.startsWith('guest')
 }
 
 // ── BroadcastChannel for real-time cross-tab auth sync ──

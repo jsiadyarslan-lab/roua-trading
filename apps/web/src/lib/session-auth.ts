@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
 
-const GUEST_EMAIL = 'guest@roua.auto'
+/**
+ * Check if an email belongs to a guest user.
+ * Matches both the legacy guest@roua.auto and the new unique guest-{uuid}@roua.auto pattern.
+ */
+function isGuestEmail(email: string): boolean {
+  return email === 'guest@roua.auto' || /^guest-[a-f0-9]+@roua\.auto$/.test(email)
+}
 
 export type VerifiedSession = {
   token: string
@@ -49,7 +55,7 @@ export async function verifyUserSession(
     }
   }
 
-  const isGuest = session.user.email === GUEST_EMAIL || session.user.id.startsWith('guest')
+  const isGuest = isGuestEmail(session.user.email) || session.user.id.startsWith('guest')
   if (isGuest && !options.allowGuest) {
     return {
       session: null,

@@ -2,7 +2,7 @@
 // Roua Trading (رؤى) — Autonomous Trader Agent Service
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger, BadRequestException, NotFoundException, ServiceUnavailableException, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, ServiceUnavailableException, OnModuleInit, Optional } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -64,24 +64,66 @@ export class AutonomousTraderAgentService implements OnModuleInit {
   /** Track if a cycle is currently running to prevent overlap */
   private isCycleRunning = false;
 
+  /** Track whether critical dependencies (Prisma/Redis) are available */
+  private _isReady = false;
+
+  /** Human-readable reason why the service is not ready (for error messages) */
+  private _notReadyReason = 'الخدمة لم تكتمل بعد — يتم التهيئة';
+
   /** Default symbols to trade when not specified */
   private readonly DEFAULT_SYMBOLS = [
     'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT',
   ];
 
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
-    private readonly audit: AuditService,
+    @Optional() private readonly prisma: PrismaService,
+    @Optional() private readonly redis: RedisService,
+    @Optional() private readonly audit: AuditService,
     private readonly configService: ConfigService,
-    private readonly exchangeService: ExchangeService,
-    private readonly tradingService: TradingService,
+    @Optional() private readonly exchangeService: ExchangeService,
+    @Optional() private readonly tradingService: TradingService,
     private readonly marketAnalyzer: MarketAnalyzerService,
     private readonly signalEvaluator: SignalEvaluatorService,
     private readonly riskCalculator: RiskCalculatorService,
     private readonly orderExecutor: OrderExecutorService,
   ) {
-    this.logger.log('🧠 Autonomous Trader Agent initialized');
+    // Check if critical dependencies were injected successfully
+    if (!this.prisma) {
+      this.logger.error('❌ PrismaService not available — service will operate in degraded mode');
+      this._notReadyReason = 'قاعدة البيانات غير متاحة — يرجى المحاولة لاحقاً';
+    } else if (!this.redis) {
+      this.logger.error('❌ RedisService not available — service will operate in degraded mode');
+      this._notReadyReason = 'خدمة التخزين المؤقت غير متاحة — يرجى المحاولة لاحقاً';
+    } else {
+      this._isReady = true;
+    }
+
+    this.logger.log(`🧠 Autonomous Trader Agent initialized (ready=${this._isReady})`);
+  }
+
+  /**
+   * Check if the service is fully ready to handle DB-dependent operations.
+   * If not, throw ServiceUnavailableException with a clear Arabic message.
+   */
+  private _ensureReady(): void {
+    if (!this._isReady) {
+      this.logger.warn(`Service not ready: ${this._notReadyReason}`);
+      throw new ServiceUnavailableException(this._notReadyReason);
+    }
+  }
+
+  /**
+   * Public getter — allows controller to check readiness without throwing.
+   */
+  get isReady(): boolean {
+    return this._isReady;
+  }
+
+  /**
+   * Public getter — returns the reason the service is not ready.
+   */
+  get notReadyReason(): string {
+    return this._notReadyReason;
   }
 
   /**
@@ -97,9 +139,23 @@ export class AutonomousTraderAgentService implements OnModuleInit {
   async onModuleInit() {
     // CRITICAL FIX: Do NOT let any error escape — a failing onModuleInit prevents
     // the controller from loading, which causes 404 on ALL agent routes.
-    // Previous version could still throw on Prisma connection timeouts.
-    // Now using a bounded timeout to prevent module loading from hanging.
+    //
+    // This method must be safe even when PrismaService/RedisService are null
+    // (e.g., DB not ready during cold start, dependency injection failed).
     const INIT_TIMEOUT_MS = 5000; // 5 seconds max — don't block module loading
+
+    // If critical dependencies are missing, skip initialization entirely
+    if (!this.prisma || !this.redis) {
+      this.logger.warn(
+        `⚠️ Skipping onModuleInit auto-seed: prisma=${!!this.prisma}, redis=${!!this.redis}. ` +
+        `Agent routes will still be registered. Service will retry on next DB access.`
+      );
+
+      // Attempt to mark ready if both dependencies became available by now
+      // (edge case: DI resolved them after constructor but before onModuleInit)
+      this._tryMarkReady();
+      return;
+    }
 
     try {
       await Promise.race([
@@ -112,6 +168,24 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       // DB not ready yet (cold start, connection issue, timeout) — non-fatal.
       // The service will fall back to env vars for AUTO_TRADING_ENABLED.
       this.logger.warn(`Could not auto-seed AUTO_TRADING_ENABLED: ${error?.message || error} — will fall back to env var. Agent routes will still be registered.`);
+
+      // Mark as not-ready if we couldn't talk to the DB
+      this._isReady = false;
+      this._notReadyReason = 'قاعدة البيانات غير جاهزة بعد — يرجى المحاولة لاحقاً';
+    }
+  }
+
+  /**
+   * Attempt to transition the service to "ready" state.
+   * Called lazily when a method detects that dependencies may now be available.
+   */
+  private _tryMarkReady(): void {
+    if (this._isReady) return;
+
+    if (this.prisma && this.redis) {
+      this._isReady = true;
+      this._notReadyReason = '';
+      this.logger.log('🧠 Service marked as READY — dependencies now available');
     }
   }
 
@@ -146,6 +220,11 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * Start the autonomous trader for a user
    */
   async startAgent(userId: string, dto: StartAgentDto): Promise<AgentState> {
+    // CRITICAL: Ensure the service has its dependencies before attempting DB ops.
+    // Try a lazy readiness check — maybe DB came up after initial cold start.
+    this._tryMarkReady();
+    this._ensureReady();
+
     // Check if agent is already running
     const existingState = await this._getAgentState(userId);
     if (existingState && existingState.status === AgentStatus.RUNNING) {
@@ -339,19 +418,25 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       // Non-fatal — Redis is the primary store, DB is backup
     }
 
-    // Audit
-    await this.audit.log({
-      userId,
-      action: 'AGENT_STARTED',
-      resource: 'autonomous-trader',
-      details: JSON.stringify({
-        strategy: config.strategy,
-        symbols: config.symbols,
-        maxPositionSizePercent: config.maxPositionSizePercent,
-        maxDailyLossPercent: config.maxDailyLossPercent,
-        maxOpenPositions: config.maxOpenPositions,
-      }),
-    });
+    // Audit (best-effort — don't fail if AuditService is unavailable)
+    try {
+      if (this.audit) {
+        await this.audit.log({
+          userId,
+          action: 'AGENT_STARTED',
+          resource: 'autonomous-trader',
+          details: JSON.stringify({
+            strategy: config.strategy,
+            symbols: config.symbols,
+            maxPositionSizePercent: config.maxPositionSizePercent,
+            maxDailyLossPercent: config.maxDailyLossPercent,
+            maxOpenPositions: config.maxOpenPositions,
+          }),
+        });
+      }
+    } catch (auditError: any) {
+      this.logger.warn(`Audit log failed (non-critical): ${auditError.message}`);
+    }
 
     this.logger.log(`🧠 Agent started for user ${userId} — Strategy: ${config.strategy}`);
 
@@ -362,6 +447,9 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * Stop the autonomous trader for a user
    */
   async stopAgent(userId: string, emergency: boolean = false): Promise<AgentState> {
+    this._tryMarkReady();
+    this._ensureReady();
+
     const state = await this._getAgentState(userId);
     if (!state) {
       throw new NotFoundException('الوكيل غير نشط');
@@ -404,17 +492,23 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     // Clear strategy cache
     this.signalEvaluator.clearUserStrategies(userId);
 
-    // Audit
-    await this.audit.log({
-      userId,
-      action: emergency ? 'AGENT_EMERGENCY_STOP' : 'AGENT_STOPPED',
-      resource: 'autonomous-trader',
-      details: JSON.stringify({
-        dailyPnL: state.dailyPnL,
-        dailyTradesCount: state.dailyTradesCount,
-        totalCycles: state.totalCycles,
-      }),
-    });
+    // Audit (best-effort)
+    try {
+      if (this.audit) {
+        await this.audit.log({
+          userId,
+          action: emergency ? 'AGENT_EMERGENCY_STOP' : 'AGENT_STOPPED',
+          resource: 'autonomous-trader',
+          details: JSON.stringify({
+            dailyPnL: state.dailyPnL,
+            dailyTradesCount: state.dailyTradesCount,
+            totalCycles: state.totalCycles,
+          }),
+        });
+      }
+    } catch (auditError: any) {
+      this.logger.warn(`Audit log failed (non-critical): ${auditError.message}`);
+    }
 
     this.logger.log(`🧠 Agent ${emergency ? 'emergency ' : ''}stopped for user ${userId}`);
 
@@ -425,6 +519,11 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * Get agent status for a user
    */
   async getStatus(userId: string): Promise<AgentState | null> {
+    this._tryMarkReady();
+    // getStatus is non-critical — return null if not ready instead of throwing
+    if (!this._isReady) {
+      return null;
+    }
     return this._getAgentState(userId);
   }
 
@@ -432,6 +531,9 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * Change the active strategy
    */
   async changeStrategy(userId: string, dto: ChangeStrategyDto): Promise<AgentState> {
+    this._tryMarkReady();
+    this._ensureReady();
+
     const state = await this._getAgentState(userId);
     if (!state || state.status !== AgentStatus.RUNNING) {
       throw new BadRequestException('الوكيل ليس في حالة تشغيل');
@@ -447,16 +549,22 @@ export class AutonomousTraderAgentService implements OnModuleInit {
 
     await this._saveAgentState(userId, state);
 
-    // Audit
-    await this.audit.log({
-      userId,
-      action: 'AGENT_STRATEGY_CHANGED',
-      resource: 'autonomous-trader',
-      details: JSON.stringify({
-        from: previousStrategy,
-        to: dto.strategy,
-      }),
-    });
+    // Audit (best-effort)
+    try {
+      if (this.audit) {
+        await this.audit.log({
+          userId,
+          action: 'AGENT_STRATEGY_CHANGED',
+          resource: 'autonomous-trader',
+          details: JSON.stringify({
+            from: previousStrategy,
+            to: dto.strategy,
+          }),
+        });
+      }
+    } catch (auditError: any) {
+      this.logger.warn(`Audit log failed (non-critical): ${auditError.message}`);
+    }
 
     this.logger.log(`🧠 Strategy changed for user ${userId}: ${previousStrategy} → ${dto.strategy}`);
 
@@ -467,6 +575,9 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * Update risk parameters
    */
   async updateRiskParams(userId: string, dto: UpdateRiskParamsDto): Promise<AgentState> {
+    this._tryMarkReady();
+    this._ensureReady();
+
     const state = await this._getAgentState(userId);
     if (!state) {
       throw new NotFoundException('الوكيل غير نشط');
@@ -480,12 +591,19 @@ export class AutonomousTraderAgentService implements OnModuleInit {
 
     await this._saveAgentState(userId, state);
 
-    await this.audit.log({
-      userId,
-      action: 'AGENT_RISK_PARAMS_UPDATED',
-      resource: 'autonomous-trader',
-      details: JSON.stringify(dto),
-    });
+    // Audit (best-effort)
+    try {
+      if (this.audit) {
+        await this.audit.log({
+          userId,
+          action: 'AGENT_RISK_PARAMS_UPDATED',
+          resource: 'autonomous-trader',
+          details: JSON.stringify(dto),
+        });
+      }
+    } catch (auditError: any) {
+      this.logger.warn(`Audit log failed (non-critical): ${auditError.message}`);
+    }
 
     return state;
   }
@@ -495,6 +613,9 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * Returns DB settings if they exist, otherwise creates defaults from env vars.
    */
   async getSettings(userId: string) {
+    this._tryMarkReady();
+    this._ensureReady();
+
     let settings = await this.prisma.agentSettings.findUnique({
       where: { userId },
     });
@@ -519,6 +640,9 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * when starting the agent.
    */
   async updateSettings(userId: string, dto: UpdateAgentSettingsDto) {
+    this._tryMarkReady();
+    this._ensureReady();
+
     // Ensure settings row exists
     let settings = await this.prisma.agentSettings.findUnique({
       where: { userId },
@@ -580,13 +704,19 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       await this._saveAgentState(userId, state);
     }
 
-    // Audit
-    await this.audit.log({
-      userId,
-      action: 'AGENT_SETTINGS_UPDATED',
-      resource: 'autonomous-trader',
-      details: JSON.stringify(dto),
-    });
+    // Audit (best-effort)
+    try {
+      if (this.audit) {
+        await this.audit.log({
+          userId,
+          action: 'AGENT_SETTINGS_UPDATED',
+          resource: 'autonomous-trader',
+          details: JSON.stringify(dto),
+        });
+      }
+    } catch (auditError: any) {
+      this.logger.warn(`Audit log failed (non-critical): ${auditError.message}`);
+    }
 
     // Parse defaultSymbols for response
     const result = { ...updated };
@@ -602,6 +732,9 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * This allows toggling auto-trading from the UI without changing env vars
    */
   async updateSystemAutoTrading(enabled: boolean): Promise<void> {
+    this._tryMarkReady();
+    this._ensureReady();
+
     try {
       await this.prisma.setting.upsert({
         where: { key: 'AUTO_TRADING_ENABLED' },
@@ -620,19 +753,27 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * Returns only autoTradingEnabled and source (safe to expose publicly).
    */
   async getPublicStatus() {
+    this._tryMarkReady();
+
     let autoTradingEnabled = true;
     let source: 'database' | 'env_var' = 'env_var';
 
     try {
-      const dbSetting = await this.prisma.setting.findUnique({
-        where: { key: 'AUTO_TRADING_ENABLED' },
-      });
-      if (dbSetting) {
-        autoTradingEnabled = JSON.parse(dbSetting.value);
-        source = 'database';
-      } else {
+      if (!this.prisma) {
+        // Prisma not available — fall back to env var
         autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
         source = 'env_var';
+      } else {
+        const dbSetting = await this.prisma.setting.findUnique({
+          where: { key: 'AUTO_TRADING_ENABLED' },
+        });
+        if (dbSetting) {
+          autoTradingEnabled = JSON.parse(dbSetting.value);
+          source = 'database';
+        } else {
+          autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+          source = 'env_var';
+        }
       }
     } catch {
       autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
@@ -654,14 +795,18 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * Checks DB first, then env var, then defaults to true.
    */
   async getSystemStatus() {
+    this._tryMarkReady();
+
     // Check DB first, then env var
     let dbAutoTradingEnabled: boolean | null = null;
     try {
-      const dbSetting = await this.prisma.setting.findUnique({
-        where: { key: 'AUTO_TRADING_ENABLED' },
-      });
-      if (dbSetting) {
-        dbAutoTradingEnabled = JSON.parse(dbSetting.value);
+      if (this.prisma) {
+        const dbSetting = await this.prisma.setting.findUnique({
+          where: { key: 'AUTO_TRADING_ENABLED' },
+        });
+        if (dbSetting) {
+          dbAutoTradingEnabled = JSON.parse(dbSetting.value);
+        }
       }
     } catch {
       // DB not available — fall through to env var
@@ -761,6 +906,9 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * Get open positions managed by the agent
    */
   async getOpenPositions(userId: string) {
+    this._tryMarkReady();
+    this._ensureReady();
+
     return this.prisma.position.findMany({
       where: { userId, status: 'OPEN' },
       orderBy: { openedAt: 'desc' },
@@ -771,6 +919,9 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * Get performance report
    */
   async getPerformance(userId: string, period: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'ALL_TIME' = 'WEEKLY'): Promise<PerformanceMetrics> {
+    this._tryMarkReady();
+    this._ensureReady();
+
     const tracker = new PerformanceTracker();
 
     // Get completed trades from DB
@@ -823,6 +974,14 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    */
   @Cron('*/1 * * * *')
   async runCycle(): Promise<void> {
+    // If dependencies aren't ready, skip this cycle silently
+    if (!this._isReady) {
+      this._tryMarkReady();
+      if (!this._isReady) {
+        return; // DB/Redis still unavailable — skip cycle
+      }
+    }
+
     if (this.isCycleRunning) {
       this.logger.debug('Previous cycle still running — skipping');
       return;

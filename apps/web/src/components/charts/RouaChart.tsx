@@ -144,6 +144,13 @@ export default function RouaChart({
     },
     onPriceUpdate: (price) => {
       chart.updateLastCandle(price);
+      // Keep paper trades currentPrice in sync with live feed
+      try {
+        const { updatePrice } = usePaperTradesStore.getState();
+        updatePrice(selectedSymbol, price);
+      } catch { /* store may not be ready */ }
+      // Schedule overlay recalculation so trade markers stay aligned
+      scheduleOverlayUpdateRef.current();
     },
     enabled: !chart.isPaused,
   });
@@ -312,6 +319,10 @@ export default function RouaChart({
   const rafIdRef = useRef<number>(0);
   const isMountedRef = useRef(true);
 
+  // Ref for scheduleOverlayUpdate so the onPriceUpdate callback (defined earlier)
+  // can call it without stale-closure issues — the ref is updated each render.
+  const scheduleOverlayUpdateRef = useRef<() => void>(() => {});
+
   // ── Recalculate overlay positions (runs on every scroll/zoom via rAF) ──
   const scheduleOverlayUpdate = useCallback(() => {
     cancelAnimationFrame(rafIdRef.current);
@@ -413,6 +424,9 @@ export default function RouaChart({
       setFillZones(zones);
     });
   }, [chart]);
+
+  // Keep the ref in sync with the latest scheduleOverlayUpdate callback
+  scheduleOverlayUpdateRef.current = scheduleOverlayUpdate;
 
   // ── Subscribe to chart scroll/zoom (horizontal + vertical) ──
   useEffect(() => {

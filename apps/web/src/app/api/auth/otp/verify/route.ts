@@ -18,6 +18,14 @@ import crypto from 'crypto'
 
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000 // 7 days for OTP-verified users
 const GUEST_EMAIL = 'guest@roua.auto'
+
+/**
+ * Check if an email belongs to a guest user.
+ * Matches both the legacy guest@roua.auto and the new unique guest-{uuid}@roua.auto pattern.
+ */
+function isGuestEmail(email: string): boolean {
+  return email === GUEST_EMAIL || /^guest-[a-f0-9]+@roua\.auto$/.test(email)
+}
 const MAX_OTP_ATTEMPTS = 5
 const OTP_ATTEMPT_WINDOW_MS = 5 * 60 * 1000 // 5 minutes
 const MAX_INVALID_ATTEMPTS_LOCKOUT = 5
@@ -90,7 +98,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'INVALID_OTP_FORMAT', message: 'رمز التحقق غير صالح' }, { status: 400 })
     }
 
-    if (email === GUEST_EMAIL) {
+    if (isGuestEmail(email)) {
       return NextResponse.json({ error: 'GUEST_LOGIN_BLOCKED' }, { status: 403 })
     }
 

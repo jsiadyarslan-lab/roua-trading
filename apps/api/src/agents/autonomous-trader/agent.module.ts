@@ -2,7 +2,7 @@
 // Roua Trading (رؤى) — Autonomous Trader Agent Module
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { RedisModule } from '../../common/redis/redis.module';
 import { AuditModule } from '../../audit/audit.module';
@@ -53,14 +53,20 @@ import { AutonomousTraderAgentController, AutonomousTraderPublicController } fro
  * │  └─ Full audit trail for every decision                   │
  * │                                                            │
  * └────────────────────────────────────────────────────────────┘
+ *
+ * RESILIENCE: Uses forwardRef for PrismaModule and RedisModule to prevent
+ * circular dependency issues during cold start. The agent.service.ts uses
+ * @Optional() for these dependencies so the module can load even if they
+ * are temporarily unavailable, returning 503 Service Unavailable instead
+ * of causing the entire module (and all its routes) to fail with 404.
  */
 @Module({
   imports: [
-    PrismaModule,
-    RedisModule,
-    AuditModule,
-    TradingModule,
-    ExchangeModule,
+    forwardRef(() => PrismaModule),
+    forwardRef(() => RedisModule),
+    forwardRef(() => AuditModule),
+    forwardRef(() => TradingModule),
+    forwardRef(() => ExchangeModule),
   ],
   controllers: [AutonomousTraderPublicController, AutonomousTraderAgentController],
   providers: [

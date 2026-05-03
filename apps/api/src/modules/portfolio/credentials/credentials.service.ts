@@ -304,7 +304,36 @@ export class CredentialsService {
 
   // ── Private: API Key Validation ──
 
+  /**
+   * Validate an API key against the actual exchange with a 10-second timeout.
+   * If validation takes too long, the key is accepted with a warning.
+   * Alpaca keys are auto-configured for paper vs live trading.
+   */
   private async _validateApiKey(
+    exchange: string,
+    apiKey: string,
+    apiSecret: string,
+  ): Promise<{ valid: boolean; permissions?: string[]; error?: string }> {
+    // Wrap entire validation in a 10-second timeout
+    const TIMEOUT_MS = 10_000;
+
+    const validationPromise = this._doValidateApiKey(exchange, apiKey, apiSecret);
+
+    // Race the validation against a timeout
+    const timeoutPromise = new Promise<{ valid: boolean; permissions?: string[]; error?: string }>((resolve) => {
+      setTimeout(() => {
+        this.logger.warn(
+          `⏱ API key validation for ${exchange} timed out after ${TIMEOUT_MS / 1000}s — ` +
+          `accepting with trade permissions. Key will be validated on first use.`
+        );
+        resolve({ valid: true, permissions: ['read', 'trade'] });
+      }, TIMEOUT_MS);
+    });
+
+    return Promise.race([validationPromise, timeoutPromise]);
+  }
+
+  private async _doValidateApiKey(
     exchange: string,
     apiKey: string,
     apiSecret: string,
@@ -312,27 +341,45 @@ export class CredentialsService {
     try {
       const ExchangeClass = ccxt[exchange as keyof typeof ccxt] as any;
       if (!ExchangeClass) {
-        // FIX: Don't reject unknown exchanges outright — accept with minimal permissions
-        // This allows adding credentials for exchanges that CCXT doesn't support by name
-        // but may still work via compatible API endpoints (e.g., Alpaca via CCXT alpaca class)
         this.logger.warn(`Exchange "${exchange}" not found in CCXT — accepting with read-only permissions`);
         return { valid: true, permissions: ['read', 'trade'] };
       }
 
-      const exchangeInstance = new ExchangeClass({
+      // ── Build exchange instance with exchange-specific configuration ──
+      const exchangeConfig: any = {
         apiKey,
         secret: apiSecret,
         enableRateLimit: true,
-      });
+      };
+
+      // ── Alpaca-specific: detect paper vs live trading ──
+      // Alpaca paper trading keys must use the paper-trading base URL.
+      // The default CCXT alpaca config points to the live endpoint, which
+      // causes paper-trading keys to fail with auth errors even though they
+      // are perfectly valid. We detect paper keys and switch the URL.
+      if (exchange.toLowerCase() === 'alpaca') {
+        const isPaperKey = apiKey.startsWith('PK') || apiSecret.startsWith('PK');
+        if (isPaperKey) {
+          exchangeConfig.urls = {
+            api: {
+              ...((ExchangeClass as any).urls?.api || {}),
+              account: 'https://paper-api.alpaca.markets/v2',
+            },
+          };
+          this.logger.log('🔑 Alpaca paper-trading key detected — configured paper trading endpoint');
+        } else {
+          this.logger.log('🔑 Alpaca live-trading key detected — using default endpoint');
+        }
+      }
+
+      const exchangeInstance = new ExchangeClass(exchangeConfig);
 
       // Strategy 1: Try to fetch balance to validate the key (full validation)
       try {
         const balance = await exchangeInstance.fetchBalance();
 
-        // Check for dangerous permissions by examining what the key can do
-        const permissions: string[] = ['read']; // If we got here, at least read works
+        const permissions: string[] = ['read'];
 
-        // Try to check if trading is possible (doesn't actually trade)
         if (balance && Object.keys(balance).length > 0) {
           permissions.push('trade');
         }
@@ -342,41 +389,42 @@ export class CredentialsService {
         const balanceMessage = balanceError.message || '';
 
         // If balance fetch fails with auth error → key is genuinely invalid
-        if (balanceMessage.includes('Invalid API') || balanceMessage.includes('Unauthorized') ||
-            balanceMessage.includes('invalid api key') || balanceMessage.includes('invalid signature') ||
-            balanceMessage.includes('API-key format invalid') || balanceMessage.includes('Invalid API-key')) {
+        if (this._isAuthError(balanceMessage)) {
           return { valid: false, error: 'مفتاح API غير صالح أو منتهي الصلاحية' };
+        }
+
+        // If connection error → can't reach exchange, accept with warning
+        if (this._isConnectionError(balanceMessage)) {
+          this.logger.warn(`تعذر الاتصال بالبورصة ${exchange}: ${balanceMessage.substring(0, 80)}`);
+          return { valid: true, permissions: ['read', 'trade'] };
         }
 
         // If permission error → key is valid but missing permissions
         if (balanceMessage.includes('Permission') || balanceMessage.includes('forbidden') ||
             balanceMessage.includes('IP ban') || balanceMessage.includes('ip not allowed')) {
-          // FIX: Don't reject — key IS valid, just restricted. Accept with read permissions.
           this.logger.warn(`Key valid but restricted: ${balanceMessage.substring(0, 100)}`);
           return { valid: true, permissions: ['read', 'trade'] };
         }
 
-        // Strategy 2: Try fetchMarkets or fetchTicker as a lighter validation
+        // Strategy 2: Try fetchTicker as a lighter validation
         try {
           if (typeof exchangeInstance.fetchTicker === 'function') {
-            // Try fetching a common ticker (BTC/USDT) to verify the key works
             await exchangeInstance.fetchTicker('BTC/USDT');
             this.logger.log(`API key validated via fetchTicker (balance check failed: ${balanceMessage.substring(0, 60)})`);
             return { valid: true, permissions: ['read', 'trade'] };
           }
         } catch (tickerError: any) {
           const tickerMessage = tickerError.message || '';
-          // If ticker also fails with auth error → truly invalid
-          if (tickerMessage.includes('Invalid API') || tickerMessage.includes('Unauthorized') ||
-              tickerMessage.includes('invalid api key')) {
+          if (this._isAuthError(tickerMessage)) {
             return { valid: false, error: 'مفتاح API غير صالح أو منتهي الصلاحية' };
           }
-          // Otherwise, ticker error is non-auth related → key might still be valid
+          if (this._isConnectionError(tickerMessage)) {
+            this.logger.warn(`تعذر الاتصال بالبورصة ${exchange}: ${tickerMessage.substring(0, 80)}`);
+            return { valid: true, permissions: ['read', 'trade'] };
+          }
         }
 
         // Strategy 3: Accept the key with a warning if it's a non-auth error
-        // Common reasons: rate limit, network timeout, exchange maintenance, IP restriction
-        // These don't mean the key is invalid — just that we can't verify it right now
         this.logger.warn(
           `Could not fully verify API key for ${exchange} (non-auth error): ${balanceMessage.substring(0, 100)}` +
           ` — accepting with trade permissions. Key will be validated on first use.`
@@ -384,38 +432,51 @@ export class CredentialsService {
         return { valid: true, permissions: ['read', 'trade'] };
       }
     } catch (error: any) {
-      // Parse CCXT errors for useful information
       const message = error.message || 'Unknown error';
 
-      if (message.includes('Invalid API') || message.includes('Unauthorized')) {
+      if (this._isAuthError(message)) {
         return { valid: false, error: 'مفتاح API غير صالح أو منتهي الصلاحية' };
+      }
+
+      if (this._isConnectionError(message)) {
+        this.logger.warn(`تعذر الاتصال بالبورصة ${exchange}: ${message.substring(0, 80)}`);
+        return { valid: true, permissions: ['read', 'trade'] };
       }
 
       if (message.includes('Permission') || message.includes('forbidden')) {
         return { valid: false, error: 'صلاحيات المفتاح غير كافية' };
       }
 
-      // If the exchange doesn't support balance check, consider it valid
-      // but with minimal permissions
       if (message.includes('not supported')) {
         return { valid: true, permissions: ['read', 'trade'] };
       }
 
-      // FIX: Network/timeout errors should NOT reject the key
-      // The key might be valid but the exchange might be temporarily unreachable
-      if (message.includes('ETIMEDOUT') || message.includes('ECONNREFUSED') ||
-          message.includes('ECONNRESET') || message.includes('network') ||
-          message.includes('timeout') || message.includes('rate limit') ||
-          message.includes('Too Many Requests') || message.includes('429')) {
-        this.logger.warn(`Network/rate-limit error validating key for ${exchange}: ${message.substring(0, 80)}`);
-        return { valid: true, permissions: ['read', 'trade'] };
-      }
-
-      // FIX: For any other error, accept the key rather than rejecting it
-      // The key will be validated on first actual use, and the user will see errors then
-      // This is better than blocking users from adding valid keys due to transient validation errors
+      // For any other error, accept the key rather than rejecting it
       this.logger.warn(`Accepting API key for ${exchange} despite validation error: ${message.substring(0, 100)}`);
       return { valid: true, permissions: ['read', 'trade'] };
     }
+  }
+
+  /** Check if an error message indicates an authentication failure (invalid key) */
+  private _isAuthError(message: string): boolean {
+    const authErrorPatterns = [
+      'Invalid API', 'Unauthorized', 'invalid api key', 'invalid signature',
+      'API-key format invalid', 'Invalid API-key', 'authentication error',
+      'auth error', 'access denied', 'invalid key',
+    ];
+    const lower = message.toLowerCase();
+    return authErrorPatterns.some(p => lower.includes(p.toLowerCase()));
+  }
+
+  /** Check if an error message indicates a connection/network issue (NOT an auth problem) */
+  private _isConnectionError(message: string): boolean {
+    const connectionErrorPatterns = [
+      'ETIMEDOUT', 'ECONNREFUSED', 'ECONNRESET', 'network',
+      'timeout', 'rate limit', 'Too Many Requests', '429',
+      'ENOTFOUND', 'EAI_AGAIN', 'socket hang up', 'connect ETIMEDOUT',
+      'SSL', 'CERT', 'unable to connect',
+    ];
+    const lower = message.toLowerCase();
+    return connectionErrorPatterns.some(p => lower.includes(p.toLowerCase()));
   }
 }

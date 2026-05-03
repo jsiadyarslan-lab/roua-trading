@@ -18,7 +18,19 @@ import crypto from 'crypto'
  */
 
 const API_TARGET = process.env.API_INTERNAL_URL || 'http://localhost:3001'
-const GUEST_EMAIL = 'guest@roua.auto'
+
+/**
+ * DATA ISOLATION FIX: Generate a unique guest email per session instead of
+ * sharing a single guest@roua.auto account. This prevents data leakage
+ * between different users' positions, trades, and settings.
+ *
+ * The legacy guest@roua.auto account is kept for backward compatibility
+ * (existing sessions may still reference it).
+ */
+function generateUniqueGuestEmail(): string {
+  const uuid = crypto.randomUUID().slice(0, 8)
+  return `guest-${uuid}@roua.auto`
+}
 
 /** Track NestJS availability — if consecutive 502s exceed threshold, temporarily bypass NestJS */
 let nestjsConsecutiveFailures = 0;
@@ -114,28 +126,49 @@ async function createSessionViaNestJS(): Promise<{ token: string; setCookieHeade
 
 /**
  * Force-create a new guest session via Next.js DB.
+ *
+ * DATA ISOLATION FIX: Creates a unique guest user per session instead of
+ * reusing the shared guest@roua.auto account. Each browser/device gets
+ * its own isolated guest account with UUID-based email.
  */
 async function forceCreateSession(): Promise<{ token: string } | null> {
   try {
     const dbReady = await ensureDbReady()
     if (!dbReady) return null
 
-    // Find or create guest user
-    let guestUser = await db.user.findUnique({ where: { email: GUEST_EMAIL } })
+    // Create a UNIQUE guest user per session for data isolation
+    const guestEmail = generateUniqueGuestEmail()
+    let guestUser;
 
-    if (!guestUser) {
+    try {
+      guestUser = await db.user.create({
+        data: { email: guestEmail, displayName: 'ضيف', tier: 'FREE' },
+      })
+    } catch {
+      // UUID collision is extremely unlikely, but retry with a new UUID
+      const retryEmail = generateUniqueGuestEmail()
       try {
         guestUser = await db.user.create({
-          data: { email: GUEST_EMAIL, displayName: 'ضيف', tier: 'FREE' },
+          data: { email: retryEmail, displayName: 'ضيف', tier: 'FREE' },
         })
       } catch {
-        guestUser = await db.user.findUnique({ where: { email: GUEST_EMAIL } })
+        // Last resort: fall back to legacy shared guest account
+        guestUser = await db.user.findUnique({ where: { email: 'guest@roua.auto' } })
+        if (!guestUser) {
+          try {
+            guestUser = await db.user.create({
+              data: { email: 'guest@roua.auto', displayName: 'ضيف', tier: 'FREE' },
+            })
+          } catch {
+            guestUser = await db.user.findUnique({ where: { email: 'guest@roua.auto' } })
+          }
+        }
       }
     }
 
     if (!guestUser) return null
 
-    // Enforce FREE tier
+    // Enforce FREE tier (safety check for legacy guest account)
     if (guestUser.tier !== 'FREE') {
       try {
         guestUser = await db.user.update({

@@ -12,6 +12,14 @@ export const runtime = 'nodejs'
 
 const GUEST_EMAIL = 'guest@roua.auto'
 
+/**
+ * Check if an email belongs to a guest user.
+ * Matches both the legacy guest@roua.auto and the new unique guest-{uuid}@roua.auto pattern.
+ */
+function isGuestEmail(email: string): boolean {
+  return email === GUEST_EMAIL || /^guest-[a-f0-9]+@roua\.auto$/.test(email)
+}
+
 export async function GET(request: NextRequest) {
   try {
     const dbReady = await ensureDbReady()
@@ -31,7 +39,7 @@ export async function GET(request: NextRequest) {
           include: { user: true },
         })
         if (existingSession && existingSession.isActive && existingSession.expiresAt > new Date()) {
-          const isGuest = existingSession.user.email === GUEST_EMAIL || existingSession.user.id.startsWith('guest')
+          const isGuest = isGuestEmail(existingSession.user.email) || existingSession.user.id.startsWith('guest')
 
           if (isGuest) {
             await db.session.update({

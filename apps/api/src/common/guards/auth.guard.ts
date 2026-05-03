@@ -139,9 +139,13 @@ export class AuthGuard implements CanActivate {
       }
     }
 
-    // 🔒 PROTECTED ROUTE: No valid session → reject
+    // 🔒 PROTECTED ROUTE: No valid session → reject with 401
+    // FIX: Previously returned `false` which caused NestJS to return 403 Forbidden.
+    // Returning `false` from canActivate() results in a 403, but the proxy and
+    // frontend expect 401 for unauthenticated requests. Throwing UnauthorizedException
+    // ensures the proxy can properly handle auth failures and retry with a new session.
     this.logger.warn(`Unauthenticated request to protected route: ${request.method} ${request.url}`);
-    return false;
+    throw new UnauthorizedException('يرجى تسجيل الدخول للوصول إلى هذا المورد');
   }
 
   /**

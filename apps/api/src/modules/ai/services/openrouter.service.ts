@@ -16,30 +16,37 @@ import { calculateConfidence } from './confidence.util';
  *
  * Env var: OPENROUTER_API_KEY  (or OPEN_ROUTER_API_KEY as alternate name)
  *
- * CRITICAL FIX: ConfigService.get() returns empty string during service construction
- * because the ConfigModule may not have loaded env vars yet. Solution:
- *   1. _resolveApiKey() reads process.env.OPENROUTER_API_KEY directly
- *   2. Also checks OPEN_ROUTER_API_KEY as alternate env var name
- *   3. Re-resolves key on every analyze() call if still empty
- *   4. Collects errors from every model attempt + improved stub responses
+ * FIX LOG:
+ * - ConfigService.get() returns empty during construction → _resolveApiKey() reads process.env directly
+ * - Free model names change frequently → dynamic model discovery from /api/v1/models
+ * - OPEN_ROUTER_API_KEY added as alternate env var name
+ * - Re-resolves key on every analyze() call if still empty
+ * - Collects errors from every model attempt + improved stub responses
  */
 @Injectable()
 export class OpenRouterService {
   private readonly logger = new Logger(OpenRouterService.name);
   private apiKey: string; // Not readonly — allows on-demand key resolution
   private readonly baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
+  private readonly modelsUrl = 'https://openrouter.ai/api/v1/models';
 
-  // Model candidates — updated May 2025 with currently available models
-  // FIX: Previous free model names returned 404. Updated with working models.
-  private readonly modelCandidates = [
-    'google/gemini-2.0-flash-exp:free',           // Free — Gemini 2.0 Flash experimental
-    'deepseek/deepseek-r1-0528:free',             // Free — DeepSeek R1 reasoning
-    'meta-llama/llama-4-maverick:free',           // Free — Llama 4 Maverick
-    'qwen/qwen3-30b-a3b:free',                    // Free — Qwen 3 MoE
-    'meta-llama/llama-3.3-70b-instruct:free',    // Free — Llama 3.3 70B
-    'deepseek/deepseek-chat-v3-0324',             // Low cost — excellent reasoning
-    'qwen/qwen-2.5-72b-instruct',                // Low cost — top-tier reasoning
+  // Static model candidates — used as fallback if dynamic discovery fails
+  // Updated May 2025 — free models on OpenRouter change frequently
+  private readonly staticModelCandidates = [
+    'deepseek/deepseek-r1:free',                   // Free — DeepSeek R1
+    'deepseek/deepseek-chat-v3-0324:free',         // Free — DeepSeek V3
+    'meta-llama/llama-3.3-70b-instruct:free',     // Free — Llama 3.3 70B
+    'meta-llama/llama-3.1-8b-instruct:free',      // Free — Llama 3.1 8B
+    'google/gemma-3-27b-it:free',                  // Free — Gemma 3 27B
+    'qwen/qwen-2.5-7b-instruct:free',             // Free — Qwen 2.5 7B
+    'mistralai/mistral-small-3.1-24b-instruct:free', // Free — Mistral Small 3.1
+    'deepseek/deepseek-chat',                      // Low cost — excellent reasoning
   ];
+
+  // Dynamically discovered free models (cached for 30 minutes)
+  private discoveredFreeModels: string[] = [];
+  private lastDiscoveryTime = 0;
+  private readonly discoveryCacheMs = 30 * 60 * 1000; // 30 minutes
 
   private resolvedModel: string | null = null;
 
@@ -77,6 +84,55 @@ export class OpenRouterService {
     return '';
   }
 
+  /**
+   * FIX: Dynamically discover free models from OpenRouter API.
+   * Free models on OpenRouter change frequently — hardcoded names quickly become stale.
+   * This method fetches /api/v1/models and filters for free ones.
+   */
+  private async _discoverFreeModels(): Promise<string[]> {
+    // Return cached discovery if still fresh
+    if (this.discoveredFreeModels.length > 0 && Date.now() - this.lastDiscoveryTime < this.discoveryCacheMs) {
+      return this.discoveredFreeModels;
+    }
+
+    try {
+      const response = await axios.get(this.modelsUrl, {
+        headers: this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {},
+        timeout: 15000,
+      });
+
+      const models = response.data?.data || [];
+      // Filter for free models (pricing.prompt === "0" or model ID ends with :free)
+      const freeModels = models
+        .filter((m: any) => {
+          const id: string = m.id || '';
+          const promptPrice = m.pricing?.prompt;
+          // Model is free if it has :free suffix OR prompt price is "0"
+          return id.endsWith(':free') || promptPrice === '0' || promptPrice === '0.0' || promptPrice === '0.00';
+        })
+        .map((m: any) => m.id as string)
+        .filter((id: string) => {
+          // Prefer models that are good for Arabic/financial analysis
+          const lower = id.toLowerCase();
+          return lower.includes('deepseek') || lower.includes('llama') || lower.includes('qwen')
+            || lower.includes('gemma') || lower.includes('mistral') || lower.includes('phi')
+            || lower.includes('zephyr') || lower.includes('hermes');
+        });
+
+      if (freeModels.length > 0) {
+        this.discoveredFreeModels = freeModels;
+        this.lastDiscoveryTime = Date.now();
+        this.logger.log(`🔀 Discovered ${freeModels.length} free models from OpenRouter: ${freeModels.slice(0, 5).join(', ')}...`);
+        return freeModels;
+      }
+    } catch (error: any) {
+      this.logger.warn(`🔀 Failed to discover models from OpenRouter: ${error.message}`);
+    }
+
+    // Fallback to static list
+    return this.staticModelCandidates;
+  }
+
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
     // FIX: Re-resolve key on EVERY call — ConfigService may have loaded it after construction
     if (!this.apiKey) {
@@ -93,10 +149,15 @@ export class OpenRouterService {
     const startTime = Date.now();
     const systemPrompt = this._buildSystemPrompt(request);
 
+    // FIX: Dynamically discover free models, then merge with static candidates
+    const discoveredModels = await this._discoverFreeModels();
+    // Merge: discovered models first (most likely to work), then static candidates as fallback
+    const allCandidates = [...new Set([...discoveredModels, ...this.staticModelCandidates])];
+
     // Try resolved model first, then all candidates
     const modelsToTry = this.resolvedModel
-      ? [this.resolvedModel, ...this.modelCandidates.filter(m => m !== this.resolvedModel)]
-      : this.modelCandidates;
+      ? [this.resolvedModel, ...allCandidates.filter(m => m !== this.resolvedModel)]
+      : allCandidates;
 
     // FIX: Collect errors from every model attempt
     const errors: string[] = [];

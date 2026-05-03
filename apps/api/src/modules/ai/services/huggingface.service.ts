@@ -68,13 +68,16 @@ export class HuggingFaceService {
     'Qwen/Qwen2.5-7B-Instruct',
   ];
 
-  // OpenRouter free model candidates — updated May 2025
+  // OpenRouter free model candidates — updated May 2025 with dynamic discovery
+  // These are used as fallback; the OpenRouter service itself does dynamic discovery
   private readonly openrouterModelCandidates = [
-    'google/gemini-2.0-flash-exp:free',
-    'deepseek/deepseek-r1-0528:free',
-    'meta-llama/llama-4-maverick:free',
-    'qwen/qwen3-30b-a3b:free',
+    'deepseek/deepseek-r1:free',
+    'deepseek/deepseek-chat-v3-0324:free',
     'meta-llama/llama-3.3-70b-instruct:free',
+    'meta-llama/llama-3.1-8b-instruct:free',
+    'qwen/qwen-2.5-7b-instruct:free',
+    'google/gemma-3-27b-it:free',
+    'mistralai/mistral-small-3.1-24b-instruct:free',
   ];
 
   // Cache the working provider + model + method

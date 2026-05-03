@@ -56,7 +56,7 @@ export class AIOrchestratorService {
    */
   private readonly modelCooldowns = new Map<string, number>();
   private readonly modelConsecutiveFailures = new Map<string, number>();
-  private readonly COOLDOWN_MS = 10_000; // Short cooldown: 10s after 3+ consecutive 429s
+  private readonly COOLDOWN_MS = 60_000; // FIX: Extended from 10s to 60s — matches provider rate-limit reset windows (Groq: 60s, Gemini: 60s)
   private readonly FAILURES_BEFORE_COOLDOWN = 3; // Only cooldown after 3+ consecutive 429 failures
 
   /** In-flight request deduplication — prevents duplicate AI calls for the same symbol+type */
@@ -83,7 +83,7 @@ export class AIOrchestratorService {
     groq:        ['GROQ_API_KEY'],
     glm:         ['GLM_API_KEY'],
     gemini:      ['GOOGLE_AI_STUDIO_API_KEY', 'GEMINI_API_KEY'],  // FIX: Check both env var names
-    huggingface: ['HUGGINGFACE_API_KEY', 'HF_API_KEY', 'OPENROUTER_API_KEY'],  // OpenRouter is fallback provider
+    huggingface: ['HUGGINGFACE_API_KEY', 'HF_API_KEY'],  // FIX: Removed OPENROUTER_API_KEY — HuggingFace should only be marked available if its own key exists
     ollama:      ['OLLAMA_API_KEY'],  // Also checks OLLAMA_BASE_URL reachability
     bedrock:     ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'],
     openrouter:  ['OPENROUTER_API_KEY'],  // 7th model — also serves as HF fallback
@@ -148,6 +148,22 @@ export class AIOrchestratorService {
     // Log which models have keys available
     const available = this.getModelsStatus().filter(m => m.available);
     this.logger.log(`🔑 Models with API keys: ${available.map(m => m.model).join(', ') || 'NONE'}`);
+
+    // FIX: Periodic cleanup of expired in-memory cache entries (every 5 minutes)
+    // Prevents memory leak where expired entries persist indefinitely when the service is idle.
+    setInterval(() => {
+      const now = Date.now();
+      let expired = 0;
+      for (const [key, entry] of this.responseCache) {
+        if (now >= entry.expiresAt) {
+          this.responseCache.delete(key);
+          expired++;
+        }
+      }
+      if (expired > 0) {
+        this.logger.debug(`🧹 Cleaned ${expired} expired cache entries (remaining: ${this.responseCache.size})`);
+      }
+    }, 5 * 60 * 1000);
   }
 
   /**
@@ -156,13 +172,22 @@ export class AIOrchestratorService {
    */
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
     // Generate a single consistent cache key for Redis
-    const redisCacheKey = `ai:analysis:${this._hashPrompt(JSON.stringify(request))}`;
+    const redisCacheKey = `ai:analysis:${this._hashPrompt(this._stableStringify(request))}`;
 
     // Check Redis cache first (shared across instances)
     try {
       const cached = await this.redis?.get(redisCacheKey);
       if (cached) {
         this.logger.debug(`🎼 Redis cache hit for ${request.type} analysis`);
+        // FIX: Log cache hits so the dashboard shows real cache rate instead of 0%
+        this.usageLogger?.logSuccess({
+          model: 'cache/redis',
+          endpoint: request.type || 'general',
+          inputPrompt: request.prompt,
+          outputContent: '[cached]',
+          latencyMs: 0,
+          cached: true,
+        });
         return JSON.parse(cached);
       }
     } catch {}
@@ -174,12 +199,21 @@ export class AIOrchestratorService {
     const memCached = this._getCachedResult(memCacheKey);
     if (memCached) {
       this.logger.debug(`🎯 Memory cache hit for ${enrichedRequest.type} analysis`);
+      // FIX: Log cache hits so the dashboard shows real cache rate instead of 0%
+      this.usageLogger?.logSuccess({
+        model: 'cache/memory',
+        endpoint: enrichedRequest.type || 'general',
+        inputPrompt: enrichedRequest.prompt,
+        outputContent: '[cached]',
+        latencyMs: 0,
+        cached: true,
+      });
       return memCached;
     }
 
     // In-flight request deduplication: if the same symbol+type+prompt is already
     // being processed, reuse that promise instead of making a duplicate AI call.
-    const dedupeKey = `ai:${enrichedRequest.type}:${enrichedRequest.symbol || ''}:${this._hashPrompt(JSON.stringify(enrichedRequest))}`;
+    const dedupeKey = `ai:${enrichedRequest.type}:${enrichedRequest.symbol || ''}:${this._hashPrompt(this._stableStringify(enrichedRequest))}`;
     const existing = this.inFlightRequests.get(dedupeKey);
     if (existing) {
       this.logger.debug(`🔄 Deduplicating in-flight AI request for ${dedupeKey}`);
@@ -266,7 +300,7 @@ export class AIOrchestratorService {
           this.modelConsecutiveFailures.set(model, fails);
           if (fails >= this.FAILURES_BEFORE_COOLDOWN) {
             this.modelCooldowns.set(model, Date.now() + this.COOLDOWN_MS);
-            this.logger.warn(`🚫 Model ${model} rate-limited ${fails}x consecutively — 10s cooldown`);
+            this.logger.warn(`🚫 Model ${model} rate-limited ${fails}x consecutively — 60s cooldown`);
           } else {
             this.logger.warn(`🚫 Model ${model} rate-limited (429) attempt ${fails}/${this.FAILURES_BEFORE_COOLDOWN} — still trying`);
           }
@@ -385,8 +419,14 @@ export class AIOrchestratorService {
 
       // FIX: Resolve the best available model for each role (primary → fallback chain)
       // Uses the new lenient cooldown: only skip if 3+ consecutive 429 failures
+      // FIX: On cloud, Ollama is unreachable — skip it as primary for 'exec' role
       const activeRoles = roles.map(role => {
-        const models = [role.model, ...(role.fallbackModels || [])];
+        let roleModels = [role.model, ...(role.fallbackModels || [])];
+        // If Ollama is the primary model but we're on cloud, move it to end of fallback list
+        if (role.model === 'ollama' && this._isCloudEnvironment()) {
+          roleModels = [...(role.fallbackModels || []), 'ollama'];
+        }
+        const models = roleModels;
         for (const model of models) {
           // Check cooldown: only active after 3+ consecutive 429 failures
           const consecutiveFails = this.modelConsecutiveFailures.get(model) || 0;
@@ -883,7 +923,7 @@ export class AIOrchestratorService {
     }
 
     // ── Step 2: Keyword search with negation detection (fallback) ──
-    const negationPatternsAr = ['لا', 'ليس', 'ليست', 'لن', 'غير', 'لا أنصح', 'لا ننصح', 'لا يوصى'];
+    const negationPatternsAr = ['لا أنصح', 'لا نوصي', 'لا ينبغي', 'ليس', 'ليست', 'لن', 'غير', 'لا ننصح', 'لا يوصى'];
     const negationPatternsEn = ["don't", 'not', 'no', 'never', 'avoid', 'against', 'refrain'];
 
     // Buy keywords and their Arabic/English variants
@@ -1055,6 +1095,18 @@ export class AIOrchestratorService {
       case 'openrouter':  return this.openrouterService.analyze(request);
       default:            return this.geminiService.analyze(request);
     }
+  }
+
+  /**
+   * FIX: Deterministic JSON serialization — sort object keys recursively.
+   * Prevents cache key mismatches when the same request object has
+   * different key ordering across calls.
+   */
+  private _stableStringify(obj: any): string {
+    if (obj === null || typeof obj !== 'object') return JSON.stringify(obj);
+    if (Array.isArray(obj)) return '[' + obj.map(v => this._stableStringify(v)).join(',') + ']';
+    const keys = Object.keys(obj).sort();
+    return '{' + keys.map(k => JSON.stringify(k) + ':' + this._stableStringify(obj[k])).join(',') + '}';
   }
 
   // ── Private: Cache Key Hashing ──

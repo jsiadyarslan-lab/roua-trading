@@ -5,8 +5,21 @@ import {
   fetchMarketContext,
 } from '@/lib/trading-intelligence'
 import { runDirectCouncilConsensus, getAvailableModelKeys } from '@/lib/ai-direct-calls'
+import { db, ensureDbReady } from '@/lib/db'
 
 type Vote = 'BUY' | 'SELL' | 'HOLD'
+
+function extractProviderFromModel(model: string): string {
+  const lower = (model || '').toLowerCase()
+  if (lower.includes('groq')) return 'groq'
+  if (lower.includes('gemini')) return 'gemini'
+  if (lower.includes('glm')) return 'glm'
+  if (lower.includes('huggingface') || lower.includes('hf')) return 'huggingface'
+  if (lower.includes('ollama')) return 'ollama'
+  if (lower.includes('bedrock') || lower.includes('claude')) return 'bedrock'
+  if (lower.includes('openrouter')) return 'openrouter'
+  return 'unknown'
+}
 
 function toVote(dir: 'buy' | 'sell' | 'neutral'): Vote {
   return dir === 'buy' ? 'BUY' : dir === 'sell' ? 'SELL' : 'HOLD'
@@ -20,7 +33,7 @@ function directionLabel(dir: 'buy' | 'sell' | 'neutral') {
 // PERSISTENT AI CACHE — Short TTL, only for same-symbol dedup
 // ═══════════════════════════════════════════════════════════════
 const aiResultCache = new Map<string, { data: any; source: string; cachedAt: number }>()
-const AI_CACHE_TTL = 5 * 60 * 1000 // 5 minutes — just for dedup, not for masking failures
+const AI_CACHE_TTL = 10 * 60 * 1000 // FIX: Unified with NestJS 10-min TTL (was 5 min)
 
 function getCachedAIResult(symbol: string): { data: any; source: string } | null {
   const entry = aiResultCache.get(symbol)
@@ -226,6 +239,32 @@ export async function POST(req: NextRequest) {
         const directResult = await runDirectCouncilConsensus(symbol)
 
         if (directResult.success && directResult.data.analyses.length > 0) {
+          // FIX: Log Layer 2 AI calls to AiUsageLog so costs are visible in dashboard
+          try {
+            const dbReady = await ensureDbReady()
+            if (dbReady) {
+              await db.aiUsageLog.create({
+                data: {
+                  id: `aul_l2_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+                  userId: null,
+                  model: directResult.data.analyses.map((a: any) => a.model).filter(Boolean).join(','),
+                  provider: extractProviderFromModel(directResult.data.analyses[0]?.model || ''),
+                  endpoint: 'consensus-layer2',
+                  inputTokens: directResult.data.meta?.modelsResponded ? Math.ceil(directResult.data.meta.modelsResponded * 300) : 0,
+                  outputTokens: directResult.data.analyses.reduce((sum: number, a: any) => sum + Math.ceil((a.reason?.length || 0) / 3), 0),
+                  costUsd: 0, // Free models or estimated
+                  latencyMs: directResult.data.meta?.processingTimeMs || 0,
+                  cached: false,
+                  success: true,
+                  errorMessage: null,
+                },
+              })
+            }
+          } catch (logErr) {
+            // Non-critical — don't block consensus if logging fails
+            console.warn('[consensus] Failed to log Layer 2 usage:', logErr)
+          }
+
           // FIX: If Layer 1 had partial results, MERGE with Layer 2
           if (layer1Result && layer1Result.modelCount > 0) {
             const l1Analyses = layer1Result.data.analyses || []

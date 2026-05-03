@@ -671,8 +671,59 @@ done
 
 cd "$PROJECT_ROOT"
 
+# ── NestJS Process Monitor — auto-restart if NestJS crashes ──
+# FIX: Previously, if NestJS crashed, the entire AI subsystem went offline
+# with no recovery. Now we monitor the process and restart it automatically.
+NESTJS_RESTART_COUNT=0
+NESTJS_MAX_RESTARTS=10  # Max restarts per hour (prevents infinite restart loop)
+NESTJS_RESTART_WINDOW=3600  # 1 hour window
+NESTJS_RESTART_TIMES=()  # Track restart timestamps
+
+monitor_nestjs() {
+  while true; do
+    if ! kill -0 $API_PID 2>/dev/null; then
+      local now=$(date +%s)
+
+      # Clean old restart timestamps outside the window
+      NESTJS_RESTART_TIMES=($(echo "${NESTJS_RESTART_TIMES[@]}" | tr ' ' '\n' | awk -v cutoff=$((now - NESTJS_RESTART_WINDOW)) '$1 > cutoff'))
+
+      if [ ${#NESTJS_RESTART_TIMES[@]} -ge $NESTJS_MAX_RESTARTS ]; then
+        echo "❌ NestJS has crashed ${NESTJS_MAX_RESTARTS} times in the last hour — NOT restarting (possible persistent error). Check logs!"
+        break
+      fi
+
+      echo "❌ NestJS process died (PID: $API_PID)! Restarting..."
+      NESTJS_RESTART_TIMES+=($now)
+
+      cd "$PROJECT_ROOT/apps/api"
+      node dist/main &
+      API_PID=$!
+      echo "🔧 NestJS restarted (new PID: $API_PID, restart #$(( ${#NESTJS_RESTART_TIMES[@]} )) this hour)"
+
+      # Wait for it to be ready
+      for i in $(seq 1 30); do
+        if curl -fsS "http://127.0.0.1:3001/api/auth/session" > /dev/null 2>&1; then
+          echo "✅ NestJS is ready after restart! (attempt $i)"
+          break
+        fi
+        if [ $i -eq 30 ]; then
+          echo "⚠️ NestJS did not start in 30s after restart"
+        fi
+        sleep 1
+      done
+
+      cd "$PROJECT_ROOT"
+    fi
+    sleep 10
+  done
+}
+
+echo "🔍 Starting NestJS process monitor..."
+monitor_nestjs &
+MONITOR_PID=$!
+
 # Start the Next.js web application
 echo "🌐 Starting Next.js server (port 3000)..."
 cd apps/web
-trap "kill $API_PID 2>/dev/null || true" EXIT
+trap "kill $API_PID $MONITOR_PID 2>/dev/null || true" EXIT
 run_web_start

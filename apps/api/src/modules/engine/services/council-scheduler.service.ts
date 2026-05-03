@@ -45,6 +45,9 @@ export class CouncilSchedulerService {
   /** Is council currently in session */
   private isInSession = false;
 
+  /** FIX: Daily cost cap for council sessions — prevents runaway AI spending */
+  private readonly DAILY_COST_CAP_USD = 5.00; // $5/day max for automated council sessions
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
@@ -94,6 +97,13 @@ export class CouncilSchedulerService {
       for (const symbol of symbols) {
         try {
           this.logger.log(`🏛️ Council deliberating on ${symbol}...`);
+
+          // FIX: Check daily cost before running council session
+          const todayCost = await this._getTodayCost();
+          if (todayCost >= this.DAILY_COST_CAP_USD) {
+            this.logger.warn(`💰 Daily cost cap reached ($${todayCost.toFixed(2)}/$${this.DAILY_COST_CAP_USD}) — skipping ${symbol}`);
+            continue;
+          }
 
           const consensus = await this.orchestrator.getConsensusAnalysis(symbol);
 
@@ -322,6 +332,25 @@ export class CouncilSchedulerService {
 
   private _sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * FIX: Get today's total AI cost from AiUsageLog
+   */
+  private async _getTodayCost(): Promise<number> {
+    try {
+      const prisma = (this as any).prisma;
+      if (!prisma) return 0;
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const result = await prisma.aiUsageLog.aggregate({
+        where: { createdAt: { gte: startOfDay } },
+        _sum: { costUsd: true },
+      });
+      return result._sum.costUsd || 0;
+    } catch {
+      return 0; // If we can't check cost, allow the session
+    }
   }
 }
 

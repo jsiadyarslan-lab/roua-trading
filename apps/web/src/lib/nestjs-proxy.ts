@@ -34,8 +34,32 @@ async function createSessionViaNestJS(): Promise<{ token: string } | null> {
 
     if (response.ok) {
       const data = await response.json()
-      if (data.success && data.sessionToken) {
-        return { token: data.sessionToken }
+
+      // FIX: NestJS removed sessionToken from the response body for security.
+      // Instead, NestJS sets the session as an httpOnly cookie (roua_session).
+      // Extract the token from the set-cookie header.
+      if (data.success) {
+        // Strategy 1: Extract from set-cookie header
+        const setCookie = response.headers.get('set-cookie')
+        if (setCookie) {
+          const match = setCookie.match(/roua_session=([^;]+)/)
+          if (match) {
+            return { token: match[1] }
+          }
+        }
+
+        // Strategy 2: Check response body (backward compat if re-added)
+        if (data.sessionToken) {
+          return { token: data.sessionToken }
+        }
+
+        // Strategy 3: Check for token in data.token or data.data.token
+        if (data.token) {
+          return { token: data.token }
+        }
+        if (data.data?.token) {
+          return { token: data.data.token }
+        }
       }
     }
     return null

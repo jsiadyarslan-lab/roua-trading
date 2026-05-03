@@ -41,7 +41,9 @@ const COST_PER_1K: Record<string, { input: number; output: number }> = {
   'huggingface': { input: 0,        output: 0        },
   'ollama':      { input: 0,        output: 0        },
   'bedrock':     { input: 0.00300,  output: 0.01500  },
-  'openrouter':  { input: 0,        output: 0        },  // Free models — $0 cost
+  'openrouter':  { input: 0,        output: 0        },  // Free models — $0 cost (paid models tracked separately)
+  'openrouter-paid': { input: 0.00015, output: 0.00015 },  // Paid models (e.g., Claude Haiku via OR)
+  'deepseek':    { input: 0.00014, output: 0.00028  },  // DeepSeek Chat via OpenRouter
 };
 
 function extractProvider(model: string): string {
@@ -52,7 +54,12 @@ function extractProvider(model: string): string {
   if (lower.includes('huggingface') || lower.includes('hf')) return 'huggingface';
   if (lower.includes('ollama')) return 'ollama';
   if (lower.includes('bedrock') || lower.includes('claude')) return 'bedrock';
-  if (lower.includes('openrouter') || lower.includes('deepseek')) return 'openrouter';
+  if (lower.includes('deepseek')) return 'deepseek';
+  if (lower.includes('openrouter')) {
+    // FIX: Differentiate between free and paid OpenRouter models
+    if (lower.includes(':free')) return 'openrouter';  // Free model
+    return 'openrouter-paid';  // Paid model
+  }
   return 'unknown';
 }
 
@@ -111,10 +118,17 @@ export class AiUsageLoggerService {
     userId?: string;
   }): void {
     const provider = extractProvider(params.model);
-    // Estimate tokens: ~4 chars per token for English, ~2 chars per token for Arabic
-    const avgCharsPerToken = 3;
-    const inputTokens = Math.ceil(params.inputPrompt.length / avgCharsPerToken);
-    const outputTokens = Math.ceil(params.outputContent.length / avgCharsPerToken);
+    // FIX: Better token estimation — Arabic uses ~2 chars/token, English ~4 chars/token
+    // Detect Arabic content by checking for Arabic Unicode range
+    const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF]/g;
+    const inputArabicChars = (params.inputPrompt.match(arabicRegex) || []).length;
+    const outputArabicChars = (params.outputContent.match(arabicRegex) || []).length;
+    const inputArabicRatio = params.inputPrompt.length > 0 ? inputArabicChars / params.inputPrompt.length : 0;
+    const outputArabicRatio = params.outputContent.length > 0 ? outputArabicChars / params.outputContent.length : 0;
+    const inputCharsPerToken = 2 * inputArabicRatio + 4 * (1 - inputArabicRatio); // Blend Arabic and English
+    const outputCharsPerToken = 2 * outputArabicRatio + 4 * (1 - outputArabicRatio);
+    const inputTokens = Math.ceil(params.inputPrompt.length / inputCharsPerToken);
+    const outputTokens = Math.ceil(params.outputContent.length / outputCharsPerToken);
 
     this.log({
       userId: params.userId,
@@ -141,7 +155,7 @@ export class AiUsageLoggerService {
     userId?: string;
   }): void {
     const provider = extractProvider(params.model);
-    const inputTokens = Math.ceil(params.inputPrompt.length / 3);
+    const inputTokens = Math.ceil(params.inputPrompt.length / 3); // Approximate for failure logs
 
     this.log({
       userId: params.userId,
@@ -160,8 +174,13 @@ export class AiUsageLoggerService {
   /**
    * Flush queued entries to the database (batch write)
    */
+  private isFlushing = false;  // FIX: Flush lock to prevent race conditions
+
   private async flush(): Promise<void> {
     if (this.writeQueue.length === 0) return;
+    // FIX: Prevent concurrent flush operations that could lose entries
+    if (this.isFlushing) return;
+    this.isFlushing = true;
 
     // Take all entries from queue
     const entries = this.writeQueue.splice(0, this.writeQueue.length);
@@ -192,6 +211,8 @@ export class AiUsageLoggerService {
       // Don't crash the app if logging fails — it's non-critical
       this.dbAvailable = false;
       this.logger.warn(`Failed to flush AI usage logs: ${error.message}`);
+    } finally {
+      this.isFlushing = false;  // FIX: Release flush lock
     }
   }
 

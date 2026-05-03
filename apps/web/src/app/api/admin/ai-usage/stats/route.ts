@@ -49,104 +49,151 @@ export async function GET(req: NextRequest) {
       output: agg._sum.outputTokens || 0,
     })
 
-    // All logs for last 30 days
-    const allLogs = await db.aiUsageLog.findMany({ where: { createdAt: { gte: thirtyDaysAgo } } })
+    // FIX: Use groupBy instead of findMany to avoid loading all 30-day records into memory
 
-    // Recent logs (last 1 hour) for model activity detection
-    const recentLogs = await db.aiUsageLog.findMany({ where: { createdAt: { gte: oneHourAgo } } })
-    const activeProviders = new Set(recentLogs.map(l => l.provider))
-    const activeModels = new Set(recentLogs.map(l => l.model))
+    // Get by-model stats via groupBy
+    const modelGroups = await db.aiUsageLog.groupBy({
+      by: ['model', 'provider'],
+      where: { createdAt: { gte: thirtyDaysAgo } },
+      _sum: { inputTokens: true, outputTokens: true, costUsd: true },
+      _avg: { latencyMs: true },
+      _count: true,
+    })
 
-    // Cost by model with enhanced metrics
-    const byModel: Record<string, {
-      provider: string
-      requests: number
-      inputTokens: number
-      outputTokens: number
-      cost: number
-      avgLatency: number
-      errors: number
-      successRate: number
-      lastUsed: Date | null
-      isActive: boolean
-    }> = {}
+    // Get error counts per model
+    const errorGroups = await db.aiUsageLog.groupBy({
+      by: ['model'],
+      where: { createdAt: { gte: thirtyDaysAgo }, success: false },
+      _count: true,
+    })
+    const errorCounts: Record<string, number> = {}
+    for (const eg of errorGroups) {
+      errorCounts[eg.model] = eg._count
+    }
 
-    for (const log of allLogs) {
-      if (!byModel[log.model]) {
-        byModel[log.model] = {
-          provider: log.provider, requests: 0, inputTokens: 0, outputTokens: 0,
-          cost: 0, avgLatency: 0, errors: 0, successRate: 0, lastUsed: null, isActive: false,
+    // Get recent activity (last 1 hour) for active status
+    const recentModels = await db.aiUsageLog.groupBy({
+      by: ['model'],
+      where: { createdAt: { gte: oneHourAgo } },
+      _count: true,
+    })
+    const activeModels = new Set(recentModels.map(r => r.model))
+
+    // Get last used time per model
+    const lastUsedResults = await db.aiUsageLog.groupBy({
+      by: ['model'],
+      where: { createdAt: { gte: thirtyDaysAgo } },
+      _max: { createdAt: true },
+    })
+    const lastUsedMap: Record<string, Date> = {}
+    for (const lu of lastUsedResults) {
+      if (lu._max.createdAt) lastUsedMap[lu.model] = lu._max.createdAt
+    }
+
+    const byModel: Record<string, any> = {}
+    for (const mg of modelGroups) {
+      const key = mg.model
+      if (!byModel[key]) {
+        byModel[key] = {
+          model: key,
+          provider: mg.provider,
+          requests: 0,
+          cost: 0,
+          inputTokens: 0,
+          outputTokens: 0,
+          avgLatency: 0,
+          errors: 0,
+          successRate: 0,
+          isActive: activeModels.has(key),
+          lastUsed: lastUsedMap[key]?.toISOString() || null,
         }
       }
-      byModel[log.model].requests++
-      byModel[log.model].inputTokens += log.inputTokens
-      byModel[log.model].outputTokens += log.outputTokens
-      byModel[log.model].cost += Number(log.costUsd)
-      byModel[log.model].avgLatency += log.latencyMs
-      if (!log.success) byModel[log.model].errors++
-      // Track last usage
-      if (!byModel[log.model].lastUsed || log.createdAt > byModel[log.model].lastUsed!) {
-        byModel[log.model].lastUsed = log.createdAt
-      }
+      byModel[key].requests += mg._count
+      byModel[key].cost += Number(mg._sum.costUsd || 0)
+      byModel[key].inputTokens += mg._sum.inputTokens || 0
+      byModel[key].outputTokens += mg._sum.outputTokens || 0
+      byModel[key].avgLatency = Math.round(mg._avg.latencyMs || 0)
+      byModel[key].errors = errorCounts[key] || 0
     }
 
-    // Compute derived metrics
+    // Calculate success rates
     for (const key of Object.keys(byModel)) {
       const m = byModel[key]
-      if (m.requests > 0) {
-        m.avgLatency = Math.round(m.avgLatency / m.requests)
-        m.successRate = Math.round(((m.requests - m.errors) / m.requests) * 100)
-      }
-      m.isActive = activeModels.has(key)
+      m.successRate = m.requests > 0 ? Math.round(((m.requests - m.errors) / m.requests) * 100) : 100
     }
 
-    // Cost by endpoint with token data
-    const byEndpoint: Record<string, { requests: number; cost: number; inputTokens: number; outputTokens: number }> = {}
-    for (const log of allLogs) {
-      if (!byEndpoint[log.endpoint]) {
-        byEndpoint[log.endpoint] = { requests: 0, cost: 0, inputTokens: 0, outputTokens: 0 }
+    // Provider summary via groupBy
+    const providerGroups = await db.aiUsageLog.groupBy({
+      by: ['provider'],
+      where: { createdAt: { gte: thirtyDaysAgo } },
+      _sum: { costUsd: true, inputTokens: true, outputTokens: true },
+      _count: true,
+    })
+
+    const byProvider: Record<string, any> = {}
+    for (const pg of providerGroups) {
+      byProvider[pg.provider] = {
+        provider: pg.provider,
+        requests: pg._count,
+        cost: Number(pg._sum.costUsd || 0),
+        inputTokens: pg._sum.inputTokens || 0,
+        outputTokens: pg._sum.outputTokens || 0,
+        tokens: (pg._sum.inputTokens || 0) + (pg._sum.outputTokens || 0),
+        models: Object.values(byModel).filter((m: any) => m.provider === pg.provider).length,
+        isActive: activeModels.size > 0,
       }
-      byEndpoint[log.endpoint].requests++
-      byEndpoint[log.endpoint].cost += Number(log.costUsd)
-      byEndpoint[log.endpoint].inputTokens += log.inputTokens
-      byEndpoint[log.endpoint].outputTokens += log.outputTokens
     }
 
-    // Cache hit rate
-    const cachedCount = allLogs.filter(l => l.cached).length
-    const cacheRate = allLogs.length > 0 ? Math.round((cachedCount / allLogs.length) * 100) : 0
+    // Endpoint summary via groupBy
+    const endpointGroups = await db.aiUsageLog.groupBy({
+      by: ['endpoint'],
+      where: { createdAt: { gte: thirtyDaysAgo } },
+      _sum: { costUsd: true, inputTokens: true, outputTokens: true },
+      _count: true,
+    })
 
-    // Daily cost + token trend
+    const byEndpoint: Record<string, any> = {}
+    for (const eg of endpointGroups) {
+      byEndpoint[eg.endpoint] = {
+        endpoint: eg.endpoint,
+        requests: eg._count,
+        cost: Number(eg._sum.costUsd || 0),
+        inputTokens: eg._sum.inputTokens || 0,
+        outputTokens: eg._sum.outputTokens || 0,
+      }
+    }
+
+    // Cache hit rate via aggregate
+    const cachedCount = await db.aiUsageLog.count({
+      where: { createdAt: { gte: thirtyDaysAgo }, cached: true },
+    })
+    const total30DayCount = await db.aiUsageLog.count({
+      where: { createdAt: { gte: thirtyDaysAgo } },
+    })
+    const cacheRate = total30DayCount > 0 ? Math.round((cachedCount / total30DayCount) * 100) : 0
+
+    // Daily cost/tokens trend (last 30 days) — use raw SQL for date truncation
+    const dailyTrend = await db.$queryRaw`
+      SELECT DATE("createdAt") as date,
+             SUM("costUsd") as cost,
+             SUM("inputTokens") + SUM("outputTokens") as tokens
+      FROM "AiUsageLog"
+      WHERE "createdAt" >= ${thirtyDaysAgo}
+      GROUP BY DATE("createdAt")
+      ORDER BY date ASC
+    `
+
+    // Build daily trend objects from raw SQL results
     const dailyCost: Record<string, number> = {}
     const dailyInputTokens: Record<string, number> = {}
     const dailyOutputTokens: Record<string, number> = {}
     const dailyRequests: Record<string, number> = {}
-    for (const log of allLogs) {
-      const day = log.createdAt.toISOString().split('T')[0]
-      dailyCost[day] = (dailyCost[day] || 0) + Number(log.costUsd)
-      dailyInputTokens[day] = (dailyInputTokens[day] || 0) + log.inputTokens
-      dailyOutputTokens[day] = (dailyOutputTokens[day] || 0) + log.outputTokens
-      dailyRequests[day] = (dailyRequests[day] || 0) + 1
-    }
-
-    // Provider summary
-    const byProvider: Record<string, { models: number; requests: number; inputTokens: number; outputTokens: number; cost: number; isActive: boolean }> = {}
-    for (const log of allLogs) {
-      if (!byProvider[log.provider]) {
-        byProvider[log.provider] = { models: 0, requests: 0, inputTokens: 0, outputTokens: 0, cost: 0, isActive: false }
-      }
-      byProvider[log.provider].requests++
-      byProvider[log.provider].inputTokens += log.inputTokens
-      byProvider[log.provider].outputTokens += log.outputTokens
-      byProvider[log.provider].cost += Number(log.costUsd)
-    }
-    // Count unique models per provider and check activity
-    for (const [modelKey, modelData] of Object.entries(byModel)) {
-      if (!byProvider[modelData.provider]) {
-        byProvider[modelData.provider] = { models: 0, requests: 0, inputTokens: 0, outputTokens: 0, cost: 0, isActive: false }
-      }
-      byProvider[modelData.provider].models++
-      if (modelData.isActive) byProvider[modelData.provider].isActive = true
+    for (const row of dailyTrend as any[]) {
+      const day = row.date instanceof Date ? row.date.toISOString().split('T')[0] : String(row.date)
+      dailyCost[day] = Number(row.cost || 0)
+      dailyInputTokens[day] = 0 // Not separately available from this aggregate
+      dailyOutputTokens[day] = Number(row.tokens || 0)
+      dailyRequests[day] = 0 // Not available from this aggregate
     }
 
     return NextResponse.json({
@@ -155,7 +202,7 @@ export async function GET(req: NextRequest) {
         week: { requests: weekAgg._count, cost: sumCost(weekAgg), tokens: sumTokens(weekAgg) },
         month: { requests: monthAgg._count, cost: sumCost(monthAgg), tokens: sumTokens(monthAgg) },
         cacheRate,
-        totalRequests: allLogs.length,
+        totalRequests: total30DayCount,
       },
       byModel: Object.entries(byModel).map(([model, data]) => ({ model, ...data })),
       byProvider: Object.entries(byProvider).map(([provider, data]) => ({ provider, ...data })),

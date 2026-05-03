@@ -794,75 +794,66 @@ export default function RouaChart({
               />
             )}
 
-          {/* ── Quick Trade Controls — Right Side (under trading hours) ── */}
+          {/* ── Quick Trade Controls — Left Side ── */}
           {!mobile && currentPrice && (
             <div
               className="roua-quick-trade"
               style={{
                 position: 'absolute',
-                top: 28,
-                right: 10,
+                top: 32,
+                left: 10,
                 zIndex: 100,
                 display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-end',
+                alignItems: 'center',
                 gap: 3,
+                borderRadius: 10,
+                background: 'rgba(8,10,18,0.88)',
+                backdropFilter: 'blur(24px) saturate(2)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset, 0 1px 0 rgba(255,255,255,0.06) inset',
+                padding: '3px 4px',
                 pointerEvents: 'auto',
+                overflow: 'hidden',
+                maxWidth: tradePanelCollapsed ? 26 : 400,
+                transition: 'max-width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s ease',
               }}
             >
-              {/* Collapse/Expand Toggle */}
+              {/* Collapse Toggle — icon only */}
               <button
                 onClick={() => setTradePanelCollapsed(!tradePanelCollapsed)}
                 style={{
-                  background: 'rgba(8,10,18,0.88)',
-                  backdropFilter: 'blur(24px) saturate(2)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: 7,
-                  color: 'rgba(255,255,255,0.5)',
-                  padding: '2px 8px',
-                  fontSize: 8.7,
-                  fontWeight: 700,
+                  background: 'rgba(255,255,255,0.06)',
+                  border: 'none',
+                  borderRadius: 5,
+                  color: 'rgba(255,255,255,0.45)',
+                  width: 20,
+                  height: 20,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 3,
-                  fontFamily: "'Cairo', sans-serif",
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  justifyContent: 'center',
                   transition: 'all 0.2s ease',
                   outline: 'none',
-                  letterSpacing: 0.3,
+                  padding: 0,
+                  flexShrink: 0,
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
                   e.currentTarget.style.color = 'rgba(255,255,255,0.8)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                  e.currentTarget.style.color = 'rgba(255,255,255,0.5)';
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                  e.currentTarget.style.color = 'rgba(255,255,255,0.45)';
                 }}
               >
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'transform 0.25s ease', transform: tradePanelCollapsed ? 'rotate(0deg)' : 'rotate(180deg)' }}>
-                  <polyline points="6 9 12 15 18 9" />
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'transform 0.25s ease', transform: tradePanelCollapsed ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                  <polyline points="15 18 9 12 15 6" />
                 </svg>
-                {tradePanelCollapsed ? 'تداول' : 'إخفاء'}
               </button>
 
-              {/* Main Trade Panel (collapsible) */}
+              {/* Trade Buttons (collapsible) */}
               {!tradePanelCollapsed && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 3,
-                    borderRadius: 10,
-                    background: 'rgba(8,10,18,0.88)',
-                    backdropFilter: 'blur(24px) saturate(2)',
-                    border: '1px solid rgba(255,255,255,0.07)',
-                    boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset, 0 1px 0 rgba(255,255,255,0.06) inset',
-                    padding: '3px 4px',
-                    animation: 'rouaTradeSlideIn 0.22s ease-out',
-                  }}
-                >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                   {/* Buy Button */}
                   <button
                     className="roua-btn-buy"
@@ -900,14 +891,12 @@ export default function RouaChart({
                       outline: 'none',
                     }}
                   >
-                    {/* Glass sheen overlay */}
                     <span style={{
                       position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
                       background: 'linear-gradient(180deg, rgba(255,255,255,0.22) 0%, transparent 100%)',
                       borderRadius: '7px 7px 0 0',
                       pointerEvents: 'none',
                     }} />
-                    {/* Up arrow icon */}
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.2))' }}>
                       <polyline points="18 15 12 9 6 15" />
                     </svg>
@@ -924,7 +913,7 @@ export default function RouaChart({
                     padding: '1px 2px',
                     gap: 0,
                   }}>
-                    {/* Decrease Lot Button */}
+                    {/* Decrease Lot */}
                     <button
                       onClick={() => setLotSize(prev => Math.max(0.01, +(prev - 0.01).toFixed(2)))}
                       style={{
@@ -981,7 +970,7 @@ export default function RouaChart({
                       </span>
                     </div>
 
-                    {/* Increase Lot Button */}
+                    {/* Increase Lot */}
                     <button
                       onClick={() => setLotSize(prev => +(prev + 0.01).toFixed(2))}
                       style={{
@@ -1053,7 +1042,6 @@ export default function RouaChart({
                       outline: 'none',
                     }}
                   >
-                    {/* Glass sheen overlay */}
                     <span style={{
                       position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
                       background: 'linear-gradient(180deg, rgba(255,255,255,0.18) 0%, transparent 100%)',
@@ -1061,7 +1049,6 @@ export default function RouaChart({
                       pointerEvents: 'none',
                     }} />
                     <span style={{ textShadow: '0 1px 1px rgba(0,0,0,0.25)' }}>بيع</span>
-                    {/* Down arrow icon */}
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.2))' }}>
                       <polyline points="6 9 12 15 18 9" />
                     </svg>

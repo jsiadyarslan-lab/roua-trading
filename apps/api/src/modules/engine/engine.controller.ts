@@ -171,6 +171,42 @@ export class EngineController {
     return { success: true, data: status };
   }
 
+  /**
+   * GET /api/engine/bot/strategies
+   *
+   * Get available bot strategies.
+   */
+  @Get('bot/strategies')
+  async getBotStrategies() {
+    const strategies = this.bot.getAvailableStrategies();
+    return {
+      success: true,
+      data: strategies,
+    };
+  }
+
+  /**
+   * POST /api/engine/bot/strategy
+   *
+   * Change the default bot strategy.
+   */
+  @Post('bot/strategy')
+  async setBotStrategy(@Body() body: { strategy: string }) {
+    if (!body.strategy) {
+      return { success: false, message: 'يرجى تحديد الاستراتيجية' };
+    }
+
+    try {
+      this.bot.setDefaultStrategy(body.strategy as any);
+      return {
+        success: true,
+        message: `تم تغيير استراتيجية البوت إلى: ${body.strategy}`,
+      };
+    } catch (error: any) {
+      return { success: false, message: error.message };
+    }
+  }
+
   // ── Council Controls ──
 
   /**

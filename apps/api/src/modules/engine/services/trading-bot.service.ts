@@ -1,5 +1,5 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Roua Trading (رؤى) — Trading Bot Service
+// Roua Trading (رؤى) — Trading Bot Service (with Strategy System)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -13,24 +13,48 @@ import { AuditService } from '../../../audit/audit.service';
 import { PlaceOrderRequest, OrderSide, OrderType } from '../../trading/trading.types';
 import { isMarketOpen } from '../../../common/utils/market-hours.util';
 
+// Bot Strategy System
+import { BotStrategyType, BotMarketData, BotStrategyAnalysis } from '../strategies/bot-strategy.types';
+import { BotBaseStrategy } from '../strategies/bot-base-strategy';
+import { TrendFollowingStrategy } from '../strategies/trend-following.strategy';
+import { MeanReversionBotStrategy } from '../strategies/mean-reversion.strategy';
+import { BreakoutBotStrategy } from '../strategies/breakout.strategy';
+import { MomentumBotStrategy } from '../strategies/momentum.strategy';
+import { AutoBotStrategy } from '../strategies/auto-bot.strategy';
+
 /**
- * Trading Bot Service — Autonomous Signal Executor
+ * Trading Bot Service — Autonomous Signal Executor with Strategy System
  *
  * Monitors active signals and automatically executes those
- * that meet strict confidence and risk criteria.
+ * that meet strict confidence and risk criteria, now enhanced with
+ * a strategy system that provides intelligent signal filtering
+ * and market analysis.
  *
- * IMPORTANT: Risk parameters are now loaded from the Setting table
- * in the database (synced with admin dashboard). Previously these
- * were hardcoded constants, meaning admin changes were never applied.
+ * Strategy System:
+ * ┌─────────────────────────────────────────────────────────────┐
+ * │ 5 STRATEGIES AVAILABLE:                                     │
+ * │                                                             │
+ * │ 1. TREND_FOLLOWING — Ride strong trends (EMA alignment)    │
+ * │ 2. MEAN_REVERSION  — Trade reversals to the mean           │
+ * │ 3. BREAKOUT        — Enter on breakouts with momentum      │
+ * │ 4. MOMENTUM        — Trade with the momentum flow          │
+ * │ 5. AUTO            — Auto-select best strategy per market  │
+ * │                                                             │
+ * │ EXECUTION MODES:                                            │
+ * │ - SIGNAL + STRATEGY: Filter signals through strategy lens   │
+ * │ - STRATEGY ONLY: Generate signals directly from analysis   │
+ * │ - SIGNAL ONLY (legacy): Original signal-based execution    │
+ * └─────────────────────────────────────────────────────────────┘
  *
  * Execution Rules:
  * ┌─────────────────────────────────────────────────────────────┐
  * │ 1. Signal confidence >= minConfidence (from DB)             │
- * │ 2. Signal is ACTIVE and not expired                        │
- * │ 3. User has valid exchange credentials with trade perm     │
- * │ 4. User has bot mode enabled                               │
- * │ 5. Risk per trade <= riskPerTrade (from DB)                │
- * │ 6. No duplicate positions for same symbol                  │
+ * │ 2. Strategy analysis confirms signal direction              │
+ * │ 3. Signal is ACTIVE and not expired                        │
+ * │ 4. User has valid exchange credentials with trade perm     │
+ * │ 5. User has bot mode enabled                               │
+ * │ 6. Risk per trade <= riskPerTrade (from DB)                │
+ * │ 7. No duplicate positions for same symbol                  │
  * └─────────────────────────────────────────────────────────────┘
  *
  * Safety Features:
@@ -38,6 +62,7 @@ import { isMarketOpen } from '../../../common/utils/market-hours.util';
  * - Position sizing based on risk percentage
  * - Max concurrent bot positions per user (from DB)
  * - Daily loss limit (from DB)
+ * - Strategy-level risk validation
  *
  * Frequency: Every 2 minutes
  */
@@ -58,6 +83,12 @@ export class TradingBotService {
   private lastSettingsSync = 0;
   private readonly SETTINGS_SYNC_INTERVAL = 30000; // 30 seconds
 
+  /** Strategy instances */
+  private readonly strategies: Map<BotStrategyType, BotBaseStrategy> = new Map();
+
+  /** Default bot strategy */
+  private defaultStrategy: BotStrategyType = BotStrategyType.AUTO;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
@@ -69,7 +100,47 @@ export class TradingBotService {
     // Load settings from DB on startup
     this.syncSettingsFromDB();
 
-    this.logger.log('🤖 Trading Bot initialized — autonomous execution ready (with DB sync)');
+    // Initialize strategy instances
+    this._initStrategies();
+
+    this.logger.log('🤖 Trading Bot initialized — autonomous execution ready (with strategy system + DB sync)');
+  }
+
+  /**
+   * Initialize all bot strategies
+   */
+  private _initStrategies(): void {
+    const trendFollowing = new TrendFollowingStrategy();
+    const meanReversion = new MeanReversionBotStrategy();
+    const breakout = new BreakoutBotStrategy();
+    const momentum = new MomentumBotStrategy();
+    const auto = new AutoBotStrategy();
+
+    this.strategies.set(BotStrategyType.TREND_FOLLOWING, trendFollowing);
+    this.strategies.set(BotStrategyType.MEAN_REVERSION, meanReversion);
+    this.strategies.set(BotStrategyType.BREAKOUT, breakout);
+    this.strategies.set(BotStrategyType.MOMENTUM, momentum);
+    this.strategies.set(BotStrategyType.AUTO, auto);
+
+    this.logger.log(`🤖 Loaded ${this.strategies.size} strategies: ${Array.from(this.strategies.keys()).join(', ')}`);
+  }
+
+  /**
+   * Get a strategy instance by type
+   */
+  getStrategy(type: BotStrategyType): BotBaseStrategy | undefined {
+    return this.strategies.get(type);
+  }
+
+  /**
+   * Get all available strategy types
+   */
+  getAvailableStrategies(): Array<{ type: BotStrategyType; name: string; description: string }> {
+    return Array.from(this.strategies.values()).map(s => ({
+      type: s.type,
+      name: s.name,
+      description: s.description,
+    }));
   }
 
   /**
@@ -100,13 +171,15 @@ export class TradingBotService {
       const botConfig = settingsMap.botConfig;
       if (botConfig) {
         if (botConfig.maxDailyLoss) {
-          // maxDailyLoss is stored as a positive dollar value (e.g., "2000")
-          // We need to convert it to a percentage for the backend
-          // For now, we keep DAILY_LOSS_LIMIT as percentage (5%)
-          // but log the dollar value for reference
           this.logger.debug(`🤖 Admin maxDailyLoss (USD): ${botConfig.maxDailyLoss}`);
         }
-        if (botConfig.strategy) this.logger.debug(`🤖 Admin strategy: ${botConfig.strategy}`);
+        if (botConfig.strategy) {
+          const strategyType = botConfig.strategy as BotStrategyType;
+          if (Object.values(BotStrategyType).includes(strategyType)) {
+            this.defaultStrategy = strategyType;
+            this.logger.debug(`🤖 Admin strategy: ${strategyType}`);
+          }
+        }
         if (botConfig.refreshInterval) this.logger.debug(`🤖 Admin refreshInterval: ${botConfig.refreshInterval}s`);
       }
 
@@ -129,6 +202,7 @@ export class TradingBotService {
    *
    * Scans for high-confidence signals and executes them
    * for users who have bot mode enabled.
+   * Now enhanced with strategy-based signal analysis.
    */
   @Cron('*/2 * * * *')
   async runBotCycle(): Promise<void> {
@@ -153,18 +227,20 @@ export class TradingBotService {
         return;
       }
 
-      this.logger.log(`🤖 Processing ${botUsers.length} bot users`);
+      this.logger.log(`🤖 Processing ${botUsers.length} bot users (strategy: ${this.defaultStrategy})`);
 
       let executedCount = 0;
       let skippedCount = 0;
+      let strategyFiltered = 0;
       let errorCount = 0;
 
-      // Step 2: For each bot user, check their signals
+      // Step 2: For each bot user, check their signals with strategy analysis
       for (const user of botUsers) {
         try {
           const result = await this._processUserSignals(user);
           executedCount += result.executed;
           skippedCount += result.skipped;
+          strategyFiltered += result.strategyFiltered;
           errorCount += result.errors;
         } catch (userError: any) {
           this.logger.error(`🤖 Error processing user ${user.id}: ${userError.message}`);
@@ -174,7 +250,8 @@ export class TradingBotService {
 
       const elapsed = Date.now() - startTime;
       this.logger.log(
-        `🤖 Bot cycle complete: ${executedCount} executed, ${skippedCount} skipped, ${errorCount} errors (${elapsed}ms)`,
+        `🤖 Bot cycle complete: ${executedCount} executed, ${skippedCount} skipped, ` +
+        `${strategyFiltered} strategy-filtered, ${errorCount} errors (${elapsed}ms)`,
       );
 
       // Store bot status in Redis
@@ -186,7 +263,9 @@ export class TradingBotService {
           usersProcessed: botUsers.length,
           executed: executedCount,
           skipped: skippedCount,
+          strategyFiltered,
           errors: errorCount,
+          strategy: this.defaultStrategy,
         }),
         3600000,
       );
@@ -208,17 +287,18 @@ export class TradingBotService {
         minConfidence: config?.minConfidence || this.MIN_CONFIDENCE,
         maxPositions: config?.maxPositions || this.MAX_CONCURRENT_POSITIONS,
         riskPerTrade: config?.riskPerTrade || this.RISK_PER_TRADE,
+        strategy: config?.strategy || this.defaultStrategy,
         ...config,
       }),
     );
 
-    this.logger.log(`🤖 Bot enabled for user ${userId}`);
+    this.logger.log(`🤖 Bot enabled for user ${userId} (strategy: ${config?.strategy || this.defaultStrategy})`);
 
     await this.audit.log({
       userId,
       action: 'BOT_ENABLED',
       resource: 'trading-bot',
-      details: JSON.stringify(config || {}),
+      details: JSON.stringify({ ...config, defaultStrategy: this.defaultStrategy }),
     });
   }
 
@@ -244,6 +324,7 @@ export class TradingBotService {
     config: BotConfig | null;
     activePositions: number;
     todayPnl: number;
+    strategies: Array<{ type: BotStrategyType; name: string; description: string }>;
   }> {
     const configRaw = await this.redis.get(`bot:config:${userId}`);
     const config: BotConfig | null = configRaw ? JSON.parse(configRaw) : null;
@@ -271,6 +352,7 @@ export class TradingBotService {
       config,
       activePositions,
       todayPnl,
+      strategies: this.getAvailableStrategies(),
     };
   }
 
@@ -280,6 +362,17 @@ export class TradingBotService {
   async getLastCycle(): Promise<any> {
     const cached = await this.redis.get('bot:last_cycle');
     return cached ? JSON.parse(cached) : null;
+  }
+
+  /**
+   * Update the default bot strategy
+   */
+  setDefaultStrategy(strategy: BotStrategyType): void {
+    if (!Object.values(BotStrategyType).includes(strategy)) {
+      throw new Error(`Invalid strategy type: ${strategy}`);
+    }
+    this.defaultStrategy = strategy;
+    this.logger.log(`🤖 Default bot strategy changed to: ${strategy}`);
   }
 
   // ── Private: User Processing ──
@@ -320,9 +413,10 @@ export class TradingBotService {
   private async _processUserSignals(user: { id: string }): Promise<{
     executed: number;
     skipped: number;
+    strategyFiltered: number;
     errors: number;
   }> {
-    const results = { executed: 0, skipped: 0, errors: 0 };
+    const results = { executed: 0, skipped: 0, strategyFiltered: 0, errors: 0 };
 
     // Get user's bot config
     const configRaw = await this.redis.get(`bot:config:${user.id}`);
@@ -330,6 +424,10 @@ export class TradingBotService {
 
     const config: BotConfig = JSON.parse(configRaw);
     if (!config.enabled) return results;
+
+    // Determine the strategy to use
+    const strategyType = (config.strategy as BotStrategyType) || this.defaultStrategy;
+    const strategy = this.strategies.get(strategyType) || this.strategies.get(BotStrategyType.AUTO);
 
     // Check daily loss limit
     const todayPnl = (await this.getBotStatus(user.id)).todayPnl;
@@ -370,8 +468,6 @@ export class TradingBotService {
         // ═══════════════════════════════════════════════════
         // MARKET HOURS GATE: Check if the market for this
         // symbol is currently open. Skip if market is closed.
-        // This prevents executing trades on stale/fake prices
-        // from closed markets (e.g., forex on weekends).
         // ═══════════════════════════════════════════════════
         const marketStatus = isMarketOpen(signal.pair);
         if (!marketStatus.open) {
@@ -380,6 +476,61 @@ export class TradingBotService {
           );
           results.skipped++;
           continue;
+        }
+
+        // ═══════════════════════════════════════════════════
+        // STRATEGY ANALYSIS: Run the configured strategy
+        // against market data for this signal's symbol.
+        // If the strategy disagrees with the signal direction,
+        // the signal is filtered out (strategy-filtered).
+        // ═══════════════════════════════════════════════════
+        if (strategy) {
+          try {
+            const marketData = await this._buildMarketData(signal);
+            if (marketData) {
+              const analysis = await strategy.evaluate(marketData);
+
+              if (!analysis) {
+                // Strategy rejected the signal — no opportunity
+                this.logger.debug(
+                  `🤖 Strategy ${strategyType} rejected ${signal.pair} ${signal.action} — no opportunity detected`,
+                );
+                results.strategyFiltered++;
+                continue;
+              }
+
+              // Check if strategy direction matches signal direction
+              if (analysis.direction !== signal.action) {
+                this.logger.debug(
+                  `🤖 Strategy ${strategyType} disagrees: strategy=${analysis.direction} vs signal=${signal.action} for ${signal.pair}`,
+                );
+                results.strategyFiltered++;
+                continue;
+              }
+
+              // Strategy confirmed the signal — log it
+              this.logger.log(
+                `🤖 Strategy ${strategyType} confirmed ${signal.action} ${signal.pair} ` +
+                `(confidence: ${analysis.confidence}%, strength: ${analysis.strength}, R:R: ${analysis.riskRewardRatio.toFixed(2)})`,
+              );
+
+              // If strategy has better SL/TP, use them
+              if (analysis.stopLoss > 0) {
+                (signal as any).strategyStopLoss = analysis.stopLoss;
+              }
+              if (analysis.takeProfit > 0) {
+                (signal as any).strategyTakeProfit = analysis.takeProfit;
+              }
+              if (analysis.reasoning) {
+                (signal as any).strategyReasoning = analysis.reasoning;
+              }
+            }
+          } catch (strategyError: any) {
+            // Strategy analysis failed — fall through to signal-based execution
+            this.logger.warn(
+              `🤖 Strategy analysis failed for ${signal.pair}: ${strategyError.message} — falling back to signal-only`,
+            );
+          }
         }
 
         // Skip if already have position for this symbol
@@ -419,8 +570,10 @@ export class TradingBotService {
         }
 
         // Calculate position size based on risk
+        // Use strategy SL if available, otherwise signal SL
         const entryPrice = Number(signal.entryPrice) || 0;
-        const stopLoss = Number(signal.stopLoss) || 0;
+        const stopLoss = (signal as any).strategyStopLoss || Number(signal.stopLoss) || 0;
+        const takeProfit = (signal as any).strategyTakeProfit || Number(signal.takeProfit) || 0;
 
         if (!entryPrice || !stopLoss) {
           results.skipped++;
@@ -450,13 +603,17 @@ export class TradingBotService {
           side: signal.action === 'BUY' ? OrderSide.BUY : OrderSide.SELL,
           type: OrderType.MARKET,
           quantity: parseFloat(quantity.toFixed(6)),
-          stopLoss: signal.stopLoss != null ? Number(signal.stopLoss) : undefined,
-          takeProfit: signal.takeProfit != null ? Number(signal.takeProfit) : undefined,
+          stopLoss,
+          takeProfit: takeProfit > 0 ? takeProfit : undefined,
           signalId: signal.id,
         };
 
+        const strategyReasoning = (signal as any).strategyReasoning || '';
+
         this.logger.log(
-          `🤖 Auto-executing: ${signal.action} ${signal.pair} @ ${entryPrice} (qty: ${quantity.toFixed(4)}, SL: ${stopLoss})`,
+          `🤖 Auto-executing [${strategyType}]: ${signal.action} ${signal.pair} @ ${entryPrice} ` +
+          `(qty: ${quantity.toFixed(4)}, SL: ${stopLoss}, TP: ${takeProfit})` +
+          (strategyReasoning ? ` — ${strategyReasoning}` : ''),
         );
 
         await this.tradingService.placeOrder(user.id, orderRequest);
@@ -472,9 +629,12 @@ export class TradingBotService {
             symbol: signal.pair,
             action: signal.action,
             confidence: signal.confidence,
+            strategy: strategyType,
+            strategyReasoning,
             quantity,
             entryPrice,
             stopLoss,
+            takeProfit,
           }),
         });
       } catch (error: any) {
@@ -484,6 +644,118 @@ export class TradingBotService {
     }
 
     return results;
+  }
+
+  /**
+   * Build BotMarketData from a Signal record.
+   *
+   * Tries to get real-time market data from the MarketBroadcasterService.
+   * Falls back to signal data if real-time data is unavailable.
+   */
+  private async _buildMarketData(signal: any): Promise<BotMarketData | null> {
+    try {
+      // Try to get cached market data from Redis (set by MarketBroadcasterService)
+      const cachedQuote = await this.redis.get(`market:quote:${signal.pair}`);
+      if (cachedQuote) {
+        const quote = JSON.parse(cachedQuote);
+
+        return {
+          symbol: signal.pair,
+          price: quote.price || Number(signal.entryPrice) || 0,
+          change24h: quote.change24h || quote.change || 0,
+          changePercent24h: quote.changePercent24h || quote.changePercent || 0,
+          volume24h: quote.volume24h || quote.volume || 0,
+          high24h: quote.high24h || quote.high || 0,
+          low24h: quote.low24h || quote.low || 0,
+
+          // Technical indicators (from cache or default estimates)
+          rsi: quote.rsi || this._estimateRSI(quote.changePercent24h || 0),
+          macdHistogram: quote.macdHistogram || 0,
+          macdCrossover: quote.macdCrossover || 'NONE',
+          bbPercentB: quote.bbPercentB || 0.5,
+          bbBandwidth: quote.bbBandwidth || 0.04,
+          bbUpper: quote.bbUpper || quote.price * 1.02,
+          bbMiddle: quote.bbMiddle || quote.price,
+          bbLower: quote.bbLower || quote.price * 0.98,
+          ema9: quote.ema9 || quote.price,
+          ema21: quote.ema21 || quote.price,
+          ema50: quote.ema50 || quote.price,
+          atr: quote.atr || quote.price * 0.01, // Default 1% ATR
+
+          volatility: quote.volatility || this._estimateVolatility(quote.changePercent24h || 0),
+          trend: quote.trend || this._estimateTrend(quote.changePercent24h || 0),
+          trendStrength: quote.trendStrength || 50,
+
+          signalAction: signal.action,
+          signalConfidence: signal.confidence,
+
+          timestamp: new Date(),
+        };
+      }
+
+      // No cached data — build from signal data
+      const price = Number(signal.entryPrice) || 0;
+      if (price <= 0) return null;
+
+      return {
+        symbol: signal.pair,
+        price,
+        change24h: 0,
+        changePercent24h: 0,
+        volume24h: 0,
+        high24h: price * 1.02,
+        low24h: price * 0.98,
+        rsi: 50, // Neutral
+        macdHistogram: 0,
+        macdCrossover: 'NONE',
+        bbPercentB: 0.5,
+        bbBandwidth: 0.04,
+        bbUpper: price * 1.02,
+        bbMiddle: price,
+        bbLower: price * 0.98,
+        ema9: price,
+        ema21: price,
+        ema50: price,
+        atr: price * 0.01,
+        volatility: 'MEDIUM',
+        trend: 'SIDEWAYS',
+        trendStrength: 50,
+        signalAction: signal.action,
+        signalConfidence: signal.confidence,
+        timestamp: new Date(),
+      };
+    } catch (error: any) {
+      this.logger.warn(`🤖 Failed to build market data for ${signal.pair}: ${error.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Estimate RSI from 24h change percent
+   */
+  private _estimateRSI(changePercent: number): number {
+    // Rough estimation: positive change → higher RSI, negative → lower
+    return Math.max(10, Math.min(90, 50 + changePercent * 3));
+  }
+
+  /**
+   * Estimate volatility from 24h change percent
+   */
+  private _estimateVolatility(changePercent: number): 'LOW' | 'MEDIUM' | 'HIGH' | 'EXTREME' {
+    const abs = Math.abs(changePercent);
+    if (abs > 5) return 'EXTREME';
+    if (abs > 3) return 'HIGH';
+    if (abs > 1) return 'MEDIUM';
+    return 'LOW';
+  }
+
+  /**
+   * Estimate trend from 24h change percent
+   */
+  private _estimateTrend(changePercent: number): 'BULLISH' | 'BEARISH' | 'SIDEWAYS' {
+    if (changePercent > 1) return 'BULLISH';
+    if (changePercent < -1) return 'BEARISH';
+    return 'SIDEWAYS';
   }
 
   private async _getPortfolioValue(userId: string): Promise<number> {
@@ -504,4 +776,5 @@ export interface BotConfig {
   maxPositions?: number;
   riskPerTrade?: number;
   preferredExchange?: string;
+  strategy?: string; // BotStrategyType as string
 }

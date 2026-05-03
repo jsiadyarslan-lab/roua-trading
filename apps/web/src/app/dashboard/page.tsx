@@ -1133,17 +1133,48 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Open Positions Panel — always visible, collapsible */}
-            <div className="panel hover-glow" style={{ flexShrink: 0, height: posOpen ? 220 : PANEL_H, transition: ANIM, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div className="panel-header" style={{ cursor: 'pointer' }} onClick={() => setPosOpen(prev => !prev)}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, fontWeight: 800, color: T.cyan, letterSpacing: 0.3 }}>الصفقات المفتوحة</span>
-                  {hasPositions && (
-                    <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: T.text3, fontWeight: 700 }}>({positions.length + paperTrades.length})</span>
+            {/* Balance + Open Positions Panel */}
+            <div className="panel hover-glow" style={{ flexShrink: 0, transition: ANIM, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: posOpen ? 240 : 'auto' }}>
+              {/* Balance Summary — always visible */}
+              <div className="panel-header">
+                <div className="summary-row">
+                  <div className="summary-item" style={{ gap: 8 }}>
+                    <div className="led-indicator" style={{ background: getStatusTone(accountDataStatus), boxShadow: `0 0 6px ${getStatusTone(accountDataStatus)}, 0 0 12px ${getStatusTone(accountDataStatus)}33` }} />
+                    <span className="summary-label">الرصيد:</span>
+                    <span className="summary-value count-up" style={{ fontSize: 13, fontWeight: 800 }}>{formatMoney(account?.equity)}</span>
+                    <span style={{ fontSize: 9, color: getStatusTone(accountDataStatus), fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 0.5 }}>
+                      {getStatusLabel(accountDataStatus)}
+                    </span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">الهامش الحر:</span>
+                    <span className="summary-value summary-value--success">{formatMoney(freeMargin)}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">قيمة المراكز:</span>
+                    <span className="summary-value summary-value--accent">{formatMoney(positionsValue)}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">كمية الهامش:</span>
+                    <span className="summary-value">{formatMoney(initialMargin)}</span>
+                  </div>
+                  {unrealizedPnl !== 0 && (
+                    <div className="summary-item">
+                      <span className="summary-label">P&L:</span>
+                      <span className="summary-value" style={{
+                        color: isProfitable ? T.success : T.danger,
+                        fontWeight: 800,
+                      }}>
+                        {isProfitable ? '+' : '-'}{formatMoney(Math.abs(unrealizedPnl))}
+                      </span>
+                    </div>
                   )}
                 </div>
+
                 <button
-                  onClick={(e) => { e.stopPropagation(); setPosOpen(prev => !prev) }}
+                  onClick={() => setPosOpen(prev => !prev)}
+                  title={posOpen ? 'إخفاء المراكز' : 'إظهار المراكز'}
+                  aria-label={posOpen ? 'إخفاء المراكز' : 'إظهار المراكز'}
                   style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.text3, padding: 4, borderRadius: 6, transition: 'all 0.2s' }}
                   onMouseEnter={e => (e.currentTarget.style.color = T.cyan)}
                   onMouseLeave={e => (e.currentTarget.style.color = T.text3)}
@@ -1152,7 +1183,8 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              <div className="striped-rows" style={{ flex: 1, opacity: posOpen ? 1 : 0, transition: 'opacity 0.2s', overflow: 'hidden' }}>
+              {/* Positions List — collapsible */}
+              <div className="striped-rows" style={{ flex: 1, opacity: posOpen ? 1 : 0, maxHeight: posOpen ? 'none' : 0, transition: 'opacity 0.2s, max-height 0.22s cubic-bezier(0.4,0,0.2,1)', overflow: 'hidden' }}>
                 <AlpacaPositions />
               </div>
             </div>

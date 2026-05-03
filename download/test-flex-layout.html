@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #0b0e14; color: #fff; font-family: sans-serif; height: 100vh; overflow: hidden; }
+
+/* Simulating the dash-grid */
+.dash-grid {
+  display: grid;
+  grid-template-columns: 260px 1fr 320px;
+  gap: 8px;
+  height: 100vh;
+  padding: 8px;
+  overflow: hidden;
+}
+
+/* Simulating the center column */
+.center-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Simulating .panel */
+.panel {
+  background: rgba(26, 29, 41, 0.65);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+
+/* Banner */
+.banner {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: rgba(0,212,255,0.04);
+  border: 1px solid rgba(0,212,255,0.12);
+  margin-bottom: 4px;
+}
+
+/* Chart panel - THIS IS THE KEY */
+.chart-panel {
+  flex: 1 1 0%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 2px solid #00d4ff; /* VISIBLE BORDER FOR TESTING */
+  background: transparent;
+  box-shadow: none;
+}
+
+.chart-inner {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(26, 29, 41, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #00d4ff;
+}
+
+/* Balance panel */
+.balance-panel {
+  flex-shrink: 0;
+  flex-basis: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.balance-bar {
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: linear-gradient(90deg, rgba(0,212,255,0.05), transparent 60%);
+}
+
+.positions-section {
+  transition: max-height 0.3s ease-out, opacity 0.25s ease-out;
+  overflow: hidden;
+}
+.positions-section--closed {
+  max-height: 0 !important;
+  opacity: 0;
+}
+.positions-section--open {
+  opacity: 1;
+}
+
+.position-item {
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.toggle-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #00d4ff;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.toggle-btn:hover { background: rgba(0,212,255,0.1); }
+
+.left-sidebar { background: rgba(26,29,41,0.5); border-radius: 14px; padding: 16px; }
+.right-panel { background: rgba(26,29,41,0.5); border-radius: 14px; padding: 16px; }
+</style>
+</head>
+<body>
+<div class="dash-grid">
+  <div class="left-sidebar">Left Sidebar</div>
+  
+  <div class="center-col">
+    <div class="banner">📊 Trader Mode</div>
+    
+    <div class="chart-panel panel">
+      <div class="chart-inner" id="chartInner">
+        CHART — Height: <span id="chartHeight">?</span>px
+      </div>
+    </div>
+    
+    <div class="balance-panel panel">
+      <div class="balance-bar">
+        <span>💰 الرصيد: $10,000</span>
+        <span>📐 الهامش الحر: $8,000</span>
+        <button class="toggle-btn" onclick="togglePositions()">▼ المراكز</button>
+      </div>
+      <div id="positionsSection" class="positions-section positions-section--closed" style="max-height: 0;">
+        <div class="position-item">BTC/USD — Long +$150.00</div>
+        <div class="position-item">ETH/USD — Short -$45.00</div>
+        <div class="position-item">XAU/USD — Long +$230.00</div>
+        <div class="position-item">AAPL — Long +$85.00</div>
+        <div class="position-item">TSLA — Short -$120.00</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="right-panel">Right Panel</div>
+</div>
+
+<script>
+let posOpen = false;
+
+function togglePositions() {
+  posOpen = !posOpen;
+  const section = document.getElementById('positionsSection');
+  if (posOpen) {
+    section.className = 'positions-section positions-section--open';
+    section.style.maxHeight = '300px';
+  } else {
+    section.className = 'positions-section positions-section--closed';
+    section.style.maxHeight = '0';
+  }
+}
+
+// Monitor chart height
+const chartInner = document.getElementById('chartInner');
+const chartHeightSpan = document.getElementById('chartHeight');
+
+const ro = new ResizeObserver(entries => {
+  if (entries[0]) {
+    chartHeightSpan.textContent = Math.round(entries[0].contentRect.height);
+  }
+});
+ro.observe(chartInner);
+
+// Initial measurement
+chartHeightSpan.textContent = Math.round(chartInner.clientHeight);
+</script>
+</body>
+</html>

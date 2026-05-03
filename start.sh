@@ -657,13 +657,14 @@ fi
 echo "⏳ Waiting for API to be ready..."
 # Use a public endpoint for readiness; /api/auth/session is public and returns authenticated=false when no session exists.
 API_HEALTH_URL="http://127.0.0.1:3001/api/auth/session"
-for i in $(seq 1 45); do
+# FIX: Increased from 45s to 60s for cold starts (Railway cold starts take 45-60s)
+for i in $(seq 1 60); do
   if curl -fsS "$API_HEALTH_URL" > /dev/null 2>&1; then
     echo "✅ API is ready! (attempt $i)"
     break
   fi
-  if [ $i -eq 45 ]; then
-    echo "⚠️ API did not start in 45s — critical routes will fail!"
+  if [ $i -eq 60 ]; then
+    echo "⚠️ API did not start in 60s — critical routes will fail!"
     echo "⚠️ Check logs above for NestJS startup errors."
   fi
   sleep 1
@@ -678,6 +679,10 @@ NESTJS_RESTART_COUNT=0
 NESTJS_MAX_RESTARTS=10  # Max restarts per hour (prevents infinite restart loop)
 NESTJS_RESTART_WINDOW=3600  # 1 hour window
 NESTJS_RESTART_TIMES=()  # Track restart timestamps
+# FIX: Exponential backoff for NestJS restarts — 1s, 2s, 4s, 8s... max 30s
+# Prevents rapid restart loops when NestJS has persistent startup errors
+NESTJS_BACKOFF_SECONDS=1
+NESTJS_BACKOFF_MAX=30
 
 monitor_nestjs() {
   while true; do
@@ -692,6 +697,10 @@ monitor_nestjs() {
         break
       fi
 
+      # FIX: Exponential backoff before restarting
+      echo "⏳ Waiting ${NESTJS_BACKOFF_SECONDS}s before restarting NestJS (exponential backoff)..."
+      sleep $NESTJS_BACKOFF_SECONDS
+
       echo "❌ NestJS process died (PID: $API_PID)! Restarting..."
       NESTJS_RESTART_TIMES+=($now)
 
@@ -704,6 +713,8 @@ monitor_nestjs() {
       for i in $(seq 1 30); do
         if curl -fsS "http://127.0.0.1:3001/api/auth/session" > /dev/null 2>&1; then
           echo "✅ NestJS is ready after restart! (attempt $i)"
+          # FIX: Reset backoff on successful start
+          NESTJS_BACKOFF_SECONDS=1
           break
         fi
         if [ $i -eq 30 ]; then
@@ -711,6 +722,12 @@ monitor_nestjs() {
         fi
         sleep 1
       done
+
+      # FIX: Increase backoff for next restart (1s → 2s → 4s → 8s → 16s → 30s max)
+      NESTJS_BACKOFF_SECONDS=$(( NESTJS_BACKOFF_SECONDS * 2 ))
+      if [ $NESTJS_BACKOFF_SECONDS -gt $NESTJS_BACKOFF_MAX ]; then
+        NESTJS_BACKOFF_SECONDS=$NESTJS_BACKOFF_MAX
+      fi
 
       cd "$PROJECT_ROOT"
     fi

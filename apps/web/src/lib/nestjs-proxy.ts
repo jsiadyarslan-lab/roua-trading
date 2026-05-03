@@ -20,6 +20,12 @@ import crypto from 'crypto'
 const API_TARGET = process.env.API_INTERNAL_URL || 'http://localhost:3001'
 const GUEST_EMAIL = 'guest@roua.auto'
 
+/** Track NestJS availability — if consecutive 502s exceed threshold, temporarily bypass NestJS */
+let nestjsConsecutiveFailures = 0;
+const NESTJS_BYPASS_THRESHOLD = 3; // After 3 consecutive 502s, bypass NestJS
+const NESTJS_RETRY_AFTER_MS = 60_000; // Try NestJS again after 60 seconds
+let nestjsBypassUntil = 0; // Timestamp when we'll try NestJS again
+
 /**
  * Create a guest session via NestJS's /api/auth/guest endpoint.
  * Fallback when Next.js can't create sessions directly.
@@ -175,6 +181,18 @@ async function ensureSession(request: NextRequest): Promise<{
  * Proxy a request to NestJS with auth headers injected.
  */
 export async function proxyToNestJS(request: NextRequest, method: string): Promise<NextResponse> {
+  // Check if NestJS should be bypassed due to recent failures
+  if (nestjsConsecutiveFailures >= NESTJS_BYPASS_THRESHOLD && Date.now() < nestjsBypassUntil) {
+    return NextResponse.json(
+      { success: false, offline: true, error: 'NestJS غير متاح مؤقتاً', bypass: true },
+      { status: 502 },
+    );
+  }
+  // If bypass period expired, reset and try NestJS again
+  if (Date.now() >= nestjsBypassUntil && nestjsConsecutiveFailures >= NESTJS_BYPASS_THRESHOLD) {
+    nestjsConsecutiveFailures = 0;
+  }
+
   const session = await ensureSession(request)
 
   // If no session could be created, return 502 immediately
@@ -237,6 +255,14 @@ async function proxyWithToken(
 
     const response = await fetch(targetUrl, fetchOptions)
 
+    // Reset NestJS failure counter on ANY response (even 4xx) — server is alive
+    nestjsConsecutiveFailures = 0;
+
+    // 503 = auth service unavailable — don't retry, just forward
+    if (response.status === 503) {
+      console.warn(`[nestjs-proxy] 503 on ${method} ${pathname} — auth service unavailable`);
+    }
+
     // If NestJS returns 401, the AuthGuard should have auto-authenticated.
     // This means something is wrong with the session. Create a new one and retry.
     // Max 2 retries to prevent infinite loops.
@@ -293,6 +319,12 @@ async function proxyWithToken(
 
     return nextResponse
   } catch (error: any) {
+    // Track NestJS failures for bypass logic
+    nestjsConsecutiveFailures++;
+    if (nestjsConsecutiveFailures >= NESTJS_BYPASS_THRESHOLD) {
+      nestjsBypassUntil = Date.now() + NESTJS_RETRY_AFTER_MS;
+      console.warn(`[nestjs-proxy] NestJS failed ${nestjsConsecutiveFailures}x — bypassing for 60s`);
+    }
     // FIX: Return 502 (Bad Gateway) instead of 200 when NestJS is offline.
     // Previously returned HTTP 200 with `offline: true`, which:
     // 1. Masks real errors from monitoring/alerting systems

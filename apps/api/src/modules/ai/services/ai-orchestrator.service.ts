@@ -9,6 +9,7 @@ import { BedrockService } from './bedrock.service';
 import { OpenRouterService } from './openrouter.service';
 import { RagService } from './rag.service';
 import { AiUsageLoggerService } from './ai-usage-logger.service';
+import { withExponentialBackoff } from './retry.util';
 import { RedisService } from '../../../common/redis/redis.service';
 import { PredictionMarketService } from '../../prediction-market/prediction-market.service';
 import * as crypto from 'crypto';
@@ -56,8 +57,8 @@ export class AIOrchestratorService {
    */
   private readonly modelCooldowns = new Map<string, number>();
   private readonly modelConsecutiveFailures = new Map<string, number>();
-  private readonly COOLDOWN_MS = 60_000; // FIX: Extended from 10s to 60s — matches provider rate-limit reset windows (Groq: 60s, Gemini: 60s)
-  private readonly FAILURES_BEFORE_COOLDOWN = 3; // Only cooldown after 3+ consecutive 429 failures
+  private readonly COOLDOWN_MS = 120_000; // Extended from 60s to 120s — Railway cold starts take 45-60s, provider rate-limit windows are 60s
+  private readonly FAILURES_BEFORE_COOLDOWN = 2; // Reduced from 3 to 2 — faster cooldown to prevent wasting requests during cold starts
 
   /** In-flight request deduplication — prevents duplicate AI calls for the same symbol+type */
   private readonly inFlightRequests = new Map<string, Promise<AIAnalysisResponse>>();
@@ -300,7 +301,7 @@ export class AIOrchestratorService {
           this.modelConsecutiveFailures.set(model, fails);
           if (fails >= this.FAILURES_BEFORE_COOLDOWN) {
             this.modelCooldowns.set(model, Date.now() + this.COOLDOWN_MS);
-            this.logger.warn(`🚫 Model ${model} rate-limited ${fails}x consecutively — 60s cooldown`);
+            this.logger.warn(`🚫 Model ${model} rate-limited ${fails}x consecutively — 120s cooldown`);
           } else {
             this.logger.warn(`🚫 Model ${model} rate-limited (429) attempt ${fails}/${this.FAILURES_BEFORE_COOLDOWN} — still trying`);
           }
@@ -699,6 +700,13 @@ export class AIOrchestratorService {
       keyHint?: string;
     }>;
     summary: { total: number; keysAvailable: number; apiWorking: number };
+    circuitBreaker: Array<{
+      model: string;
+      consecutiveFailures: number;
+      inCooldown: boolean;
+      cooldownExpiresAt: string | null;
+      cooldownRemainingMs: number;
+    }>;
   }> {
     const models = [
       { id: 'groq', name: 'Groq/Llama 3.3 70B', keyEnv: 'GROQ_API_KEY' },
@@ -810,7 +818,40 @@ export class AIOrchestratorService {
         keysAvailable: results.filter(r => r.keyAvailable).length,
         apiWorking: results.filter(r => r.apiWorking).length,
       },
+      circuitBreaker: this.getCircuitBreakerStatus(),
     };
+  }
+
+  /**
+   * FIX #15: Get the current circuit breaker status for all models.
+   * Returns which models are in cooldown, their consecutive failure counts,
+   * and when their cooldown expires.
+   * Useful for monitoring and debugging why certain models are being skipped.
+   */
+  getCircuitBreakerStatus(): Array<{
+    model: string;
+    consecutiveFailures: number;
+    inCooldown: boolean;
+    cooldownExpiresAt: string | null;
+    cooldownRemainingMs: number;
+  }> {
+    const models = ['groq', 'glm', 'gemini', 'huggingface', 'ollama', 'bedrock', 'openrouter'];
+    const now = Date.now();
+
+    return models.map(model => {
+      const failures = this.modelConsecutiveFailures.get(model) || 0;
+      const cooldownUntil = this.modelCooldowns.get(model) || 0;
+      const inCooldown = failures >= this.FAILURES_BEFORE_COOLDOWN && now < cooldownUntil;
+      const remaining = inCooldown ? cooldownUntil - now : 0;
+
+      return {
+        model,
+        consecutiveFailures: failures,
+        inCooldown,
+        cooldownExpiresAt: inCooldown ? new Date(cooldownUntil).toISOString() : null,
+        cooldownRemainingMs: remaining,
+      };
+    });
   }
 
   /**
@@ -1085,16 +1126,29 @@ export class AIOrchestratorService {
 
   // ── Private: Model Routing ──
   private async _callModel(model: string, request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
-    switch (model) {
-      case 'groq':        return this.groqService.analyze(request);
-      case 'glm':         return this.glmService.analyze(request);
-      case 'gemini':      return this.geminiService.analyze(request);
-      case 'huggingface': return this.huggingfaceService.analyze(request);
-      case 'ollama':      return this.ollamaService.analyze(request);
-      case 'bedrock':     return this.bedrockService.analyze(request);
-      case 'openrouter':  return this.openrouterService.analyze(request);
-      default:            return this.geminiService.analyze(request);
-    }
+    // FIX #10: Wrap model calls with exponential backoff retry.
+    // Only retries on 429 rate-limit and network errors.
+    // Auth errors (401/403), validation errors (400), and 404s are NOT retried.
+    return withExponentialBackoff(
+      () => {
+        switch (model) {
+          case 'groq':        return this.groqService.analyze(request);
+          case 'glm':         return this.glmService.analyze(request);
+          case 'gemini':      return this.geminiService.analyze(request);
+          case 'huggingface': return this.huggingfaceService.analyze(request);
+          case 'ollama':      return this.ollamaService.analyze(request);
+          case 'bedrock':     return this.bedrockService.analyze(request);
+          case 'openrouter':  return this.openrouterService.analyze(request);
+          default:            return this.geminiService.analyze(request);
+        }
+      },
+      {
+        maxAttempts: 2,        // 2 retries (3 total attempts) — keep it low to avoid blocking the fallback chain
+        baseDelayMs: 1000,    // Start with 1s delay
+        maxDelayMs: 8000,     // Cap at 8s — don't want retries to delay the whole council
+        jitterMs: 200,        // Add 0-200ms random jitter
+      },
+    );
   }
 
   /**

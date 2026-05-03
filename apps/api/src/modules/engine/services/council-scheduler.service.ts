@@ -48,6 +48,10 @@ export class CouncilSchedulerService {
   /** FIX: Daily cost cap for council sessions — prevents runaway AI spending */
   private readonly DAILY_COST_CAP_USD = 5.00; // $5/day max for automated council sessions
 
+  /** Redis key for daily cost accumulator — persists across NestJS restarts */
+  private readonly REDIS_DAILY_COST_KEY = 'council:daily_cost';
+  private readonly REDIS_DAILY_COST_DATE_KEY = 'council:daily_cost_date';
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
@@ -82,6 +86,13 @@ export class CouncilSchedulerService {
     try {
       this.logger.log('🏛️ Convening AI Council session...');
 
+      // FIX: Check global daily cost cap BEFORE starting the session
+      const todayCost = await this._getTodayCost();
+      if (todayCost >= this.DAILY_COST_CAP_USD) {
+        this.logger.warn(`💰 Daily cost cap reached ($${todayCost.toFixed(2)}/$${this.DAILY_COST_CAP_USD}) — skipping entire council session`);
+        return;
+      }
+
       // Step 1: Select symbols for this session
       const symbols = await this._selectCouncilSymbols();
       if (symbols.length === 0) {
@@ -101,8 +112,8 @@ export class CouncilSchedulerService {
           // FIX: Check daily cost before running council session
           const todayCost = await this._getTodayCost();
           if (todayCost >= this.DAILY_COST_CAP_USD) {
-            this.logger.warn(`💰 Daily cost cap reached ($${todayCost.toFixed(2)}/$${this.DAILY_COST_CAP_USD}) — skipping ${symbol}`);
-            continue;
+            this.logger.warn(`💰 Daily cost cap reached ($${todayCost.toFixed(2)}/$${this.DAILY_COST_CAP_USD}) — skipping ${symbol} and remaining symbols`);
+            break; // Stop processing remaining symbols
           }
 
           const consensus = await this.orchestrator.getConsensusAnalysis(symbol);
@@ -335,10 +346,31 @@ export class CouncilSchedulerService {
   }
 
   /**
-   * FIX: Get today's total AI cost from AiUsageLog
+   * FIX: Get today's total AI cost from Redis accumulator (with AiUsageLog fallback)
+   * Uses Redis for persistence across NestJS restarts, with automatic
+   * daily reset at midnight.
    */
   private async _getTodayCost(): Promise<number> {
     try {
+      const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+
+      // Check if we need to reset the daily counter (new day)
+      const storedDate = await this.redis.get(this.REDIS_DAILY_COST_DATE_KEY);
+      if (storedDate !== today) {
+        // New day — reset the accumulator
+        await this.redis.set(this.REDIS_DAILY_COST_KEY, '0', 86400000); // 24h TTL
+        await this.redis.set(this.REDIS_DAILY_COST_DATE_KEY, today, 86400000);
+        return 0;
+      }
+
+      // Get accumulated cost from Redis
+      const redisCost = await this.redis.get(this.REDIS_DAILY_COST_KEY);
+      if (redisCost) {
+        const cost = parseFloat(redisCost);
+        if (!isNaN(cost) && cost > 0) return cost;
+      }
+
+      // Fallback: sum from AiUsageLog (if Redis accumulator is missing/stale)
       const prisma = (this as any).prisma;
       if (!prisma) return 0;
       const startOfDay = new Date();
@@ -347,9 +379,34 @@ export class CouncilSchedulerService {
         where: { createdAt: { gte: startOfDay } },
         _sum: { costUsd: true },
       });
-      return result._sum.costUsd || 0;
+      const dbCost = result._sum.costUsd || 0;
+
+      // Sync Redis with DB value
+      await this.redis.set(this.REDIS_DAILY_COST_KEY, dbCost.toString(), 86400000);
+
+      return dbCost;
     } catch {
       return 0; // If we can't check cost, allow the session
+    }
+  }
+
+  /**
+   * FIX: Add cost to the daily Redis accumulator after a council symbol is processed.
+   */
+  private async _addCost(symbol: string, recommendation: string, analysesCount: number): Promise<void> {
+    try {
+      // Estimate cost per symbol based on model count
+      // Rough estimate: $0.02 per model call for free-tier models, $0.05 for paid
+      const estimatedCostPerModel = 0.02;
+      const estimatedCost = analysesCount * estimatedCostPerModel;
+
+      const currentCost = await this._getTodayCost();
+      const newCost = currentCost + estimatedCost;
+
+      await this.redis.set(this.REDIS_DAILY_COST_KEY, newCost.toString(), 86400000);
+      this.logger.debug(`💰 Estimated cost for ${symbol}: $${estimatedCost.toFixed(4)} (total today: $${newCost.toFixed(2)})`);
+    } catch {
+      // Non-critical — don't block on cost tracking errors
     }
   }
 }

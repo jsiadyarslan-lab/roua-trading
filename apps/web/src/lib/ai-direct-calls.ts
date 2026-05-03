@@ -802,6 +802,79 @@ function getBedrockStatus(): { available: boolean; reason: string } {
   return { available: false, reason: 'AWS credentials not configured' }
 }
 
+// ─── AI Usage Logger (works independently from NestJS) ───────────
+
+/**
+ * Log AI usage to database from Next.js direct calls.
+ * Mirrors the AiUsageLoggerService in NestJS but works independently.
+ *
+ * Uses Arabic-aware token estimation: Arabic text takes ~2 chars/token
+ * while English takes ~4 chars/token. The ratio is used to weight the estimate.
+ */
+async function logDirectAiUsage(params: {
+  model: string;
+  endpoint: string;
+  inputPrompt: string;
+  outputContent: string;
+  latencyMs: number;
+  success: boolean;
+  cached?: boolean;
+}): Promise<void> {
+  try {
+    const { db, ensureDbReady } = await import('@/lib/db');
+    const dbReady = await ensureDbReady();
+    if (!dbReady) return;
+
+    const provider = params.model.toLowerCase().includes('groq') ? 'groq'
+      : params.model.toLowerCase().includes('gemini') ? 'gemini'
+      : params.model.toLowerCase().includes('glm') ? 'glm'
+      : params.model.toLowerCase().includes('huggingface') || params.model.toLowerCase().includes('hf') ? 'huggingface'
+      : params.model.toLowerCase().includes('ollama') ? 'ollama'
+      : params.model.toLowerCase().includes('bedrock') || params.model.toLowerCase().includes('claude') ? 'bedrock'
+      : params.model.toLowerCase().includes('openrouter') ? 'openrouter'
+      : 'unknown';
+
+    const COST_PER_1K: Record<string, { input: number; output: number }> = {
+      groq:        { input: 0.00059,  output: 0.00079 },
+      gemini:      { input: 0.000075, output: 0.00030 },
+      glm:         { input: 0.00140,  output: 0.00140 },
+      huggingface: { input: 0,        output: 0 },
+      ollama:      { input: 0,        output: 0 },
+      bedrock:     { input: 0.00300,  output: 0.01500 },
+      openrouter:  { input: 0,        output: 0 },
+    };
+
+    const arabicRegex = /[\u0600-\u06FF]/g;
+    const inputArabicRatio = params.inputPrompt.length > 0
+      ? (params.inputPrompt.match(arabicRegex) || []).length / params.inputPrompt.length : 0;
+    const outputArabicRatio = params.outputContent.length > 0
+      ? (params.outputContent.match(arabicRegex) || []).length / params.outputContent.length : 0;
+    const inputTokens = Math.ceil(params.inputPrompt.length / (2 * inputArabicRatio + 4 * (1 - inputArabicRatio)));
+    const outputTokens = params.success ? Math.ceil(params.outputContent.length / (2 * outputArabicRatio + 4 * (1 - outputArabicRatio))) : 0;
+    const rates = COST_PER_1K[provider] || { input: 0, output: 0 };
+    const costUsd = (inputTokens / 1000) * rates.input + (outputTokens / 1000) * rates.output;
+
+    await db.aiUsageLog.create({
+      data: {
+        id: `aul_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+        model: params.model,
+        provider,
+        endpoint: params.endpoint,
+        inputTokens,
+        outputTokens,
+        costUsd,
+        latencyMs: params.latencyMs,
+        cached: params.cached || false,
+        success: params.success,
+        errorMessage: params.success ? null : (params.outputContent || '').substring(0, 500),
+        createdAt: new Date(),
+      },
+    });
+  } catch {
+    // Non-critical — don't crash AI calls if logging fails
+  }
+}
+
 // ─── Master Council — Full Consensus ─────────────────────────────
 
 /**
@@ -935,69 +1008,23 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     })
   )
 
-  // ── Log AI usage to AiUsageLog (same table as NestJS AiUsageLoggerService) ──
+  // ── Log AI usage to AiUsageLog for each model call ──
   // This ensures costs are tracked even when NestJS is down and the direct fallback path runs.
-  try {
-    const { db, ensureDbReady } = await import('@/lib/db')
-    const dbReady = await ensureDbReady()
-    if (dbReady) {
-      const COST_PER_1K: Record<string, { input: number; output: number }> = {
-        groq: { input: 0.00059, output: 0.00079 },
-        gemini: { input: 0.000075, output: 0.00030 },
-        glm: { input: 0.00140, output: 0.00140 },
-        huggingface: { input: 0, output: 0 },
-        ollama: { input: 0, output: 0 },
-        bedrock: { input: 0.00300, output: 0.01500 },
-        openrouter: { input: 0, output: 0 },
-      }
-      const extractProvider = (model: string): string => {
-        const lower = model.toLowerCase()
-        if (lower.includes('groq')) return 'groq'
-        if (lower.includes('gemini')) return 'gemini'
-        if (lower.includes('glm')) return 'glm'
-        if (lower.includes('huggingface') || lower.includes('hf')) return 'huggingface'
-        if (lower.includes('ollama')) return 'ollama'
-        if (lower.includes('bedrock') || lower.includes('claude')) return 'bedrock'
-        if (lower.includes('openrouter') || lower.includes('deepseek')) return 'openrouter'
-        return 'unknown'
-      }
-      const calcCost = (provider: string, inputTokens: number, outputTokens: number): number => {
-        const rates = COST_PER_1K[provider] || { input: 0, output: 0 }
-        return (inputTokens / 1000) * rates.input + (outputTokens / 1000) * rates.output
-      }
-
-      const records = callResults
-        .filter(r => r.status === 'fulfilled')
-        .map(r => {
-          const { modelName, prompt: promptType, response } = r.value
-          const provider = extractProvider(response.model)
-          // FIX: Estimate input tokens from actual prompt text in modelCalls, not role type key
-          // Average ~3 chars per token (mixed Arabic/English)
-          const estimatedInputTokens = Math.ceil(response.success ? 300 : 0) // ~100 tokens per consensus prompt (approximate)
-          const outputTokens = Math.ceil(response.content.length / 3)
-          return {
-            id: `aul_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
-            model: response.model,
-            provider,
-            endpoint: 'consensus',
-            inputTokens: estimatedInputTokens,
-            outputTokens: response.success ? outputTokens : 0,
-            costUsd: response.success ? calcCost(provider, estimatedInputTokens, outputTokens) : 0,
-            latencyMs: response.processingTimeMs,
-            cached: false,
-            success: response.success,
-            errorMessage: response.success ? null : (response.error || 'failed').substring(0, 500),
-          }
-        })
-
-      if (records.length > 0) {
-        await db.aiUsageLog.createMany({ data: records })
-        console.log(`[direct-council] Logged ${records.length} AI usage records to AiUsageLog`)
-      }
+  // Uses the logDirectAiUsage function for per-model-call logging with Arabic-aware token estimation.
+  for (const res of callResults) {
+    if (res.status === 'fulfilled') {
+      const { response } = res.value
+      // Find the original prompt for this model call
+      const mc = activeModelCalls.find(m => m.modelName === res.value.modelName)
+      await logDirectAiUsage({
+        model: response.model,
+        endpoint: 'consensus',
+        inputPrompt: mc?.prompt || 'consensus',
+        outputContent: response.content,
+        latencyMs: response.processingTimeMs,
+        success: response.success,
+      })
     }
-  } catch (logError: any) {
-    // Don't crash the consensus if logging fails — it's non-critical
-    console.warn(`[direct-council] Failed to log AI usage: ${logError?.message || logError}`)
   }
 
   // Collect successful models — each fills exactly 1 role now

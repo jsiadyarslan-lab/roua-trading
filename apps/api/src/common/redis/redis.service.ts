@@ -35,7 +35,16 @@ export class RedisService implements OnModuleDestroy {
     if (ttlMs) {
       await this.client.set(key, value, 'PX', ttlMs);
     } else {
-      await this.client.set(key, value);
+      // FIX #11: Warn and set a default 24h TTL in production when no TTL is provided.
+      // Keys without TTL cause memory leaks as they persist indefinitely.
+      const env = process.env.NODE_ENV || 'development';
+      const defaultTtlMs = 24 * 60 * 60 * 1000; // 24 hours
+      if (env === 'production') {
+        this.logger.warn(`[Redis] Setting key "${key}" without TTL in production — defaulting to 24h. Pass ttlMs to set() to avoid this warning.`);
+        await this.client.set(key, value, 'PX', defaultTtlMs);
+      } else {
+        await this.client.set(key, value);
+      }
     }
   }
 
@@ -151,6 +160,37 @@ export class RedisService implements OnModuleDestroy {
     } while (cursor !== '0');
 
     return keys;
+  }
+
+  /**
+   * FIX #11: Scan and clean up keys that have no TTL set.
+   * Finds keys matching a pattern that have TTL = -1 (no expiry) and sets a default TTL.
+   * This prevents memory leaks from keys set without TTL.
+   *
+   * @param pattern Key pattern to scan (default: '*' — all keys)
+   * @param defaultTtlMs Default TTL to set on keys without TTL (default: 24 hours)
+   * @returns Number of keys that were cleaned up
+   */
+  async scanAndCleanup(pattern: string = '*', defaultTtlMs: number = 24 * 60 * 60 * 1000): Promise<number> {
+    let cleaned = 0;
+    try {
+      const keys = await this.scanKeys(pattern);
+      for (const key of keys) {
+        const ttl = await this.client.pttl(key);
+        // ttl === -1 means no expiry set, ttl === -2 means key doesn't exist
+        if (ttl === -1) {
+          await this.client.pexpire(key, defaultTtlMs);
+          cleaned++;
+          this.logger.debug(`[Redis] Set TTL ${defaultTtlMs}ms on key "${key}" (was -1 = no expiry)`);
+        }
+      }
+      if (cleaned > 0) {
+        this.logger.log(`[Redis] Cleanup: set default TTL on ${cleaned}/${keys.length} keys matching "${pattern}"`);
+      }
+    } catch (error: any) {
+      this.logger.error(`[Redis] Cleanup scan failed: ${error?.message || error}`);
+    }
+    return cleaned;
   }
 
   async onModuleDestroy() {

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { AIAnalysisRequest, AIAnalysisResponse } from './groq.service';
 import { calculateConfidence } from './confidence.util';
+import { resolveEnvKey, reResolveKey } from './env-resolver';
 
 /**
  * OpenRouter Service — 7th AI Model for the AI Council
@@ -60,28 +61,12 @@ export class OpenRouterService {
   }
 
   /**
-   * FIX: Resolve API key from multiple sources with fallback chain:
-   *   1. ConfigService.get('OPENROUTER_API_KEY')
-   *   2. process.env.OPENROUTER_API_KEY (direct)
-   *   3. ConfigService.get('OPEN_ROUTER_API_KEY') (alternate name)
-   *   4. process.env.OPEN_ROUTER_API_KEY (alternate name, direct)
+   * FIX: Resolve API key from multiple sources using env-resolver utility.
+   * Replaces the custom _resolveApiKey() with a shared resolver that
+   * follows the same resolution order (ConfigService → process.env → alternates).
    */
   private _resolveApiKey(): string {
-    const env = process.env as Record<string, string | undefined>;
-
-    const configKey1 = this.configService.get<string>('OPENROUTER_API_KEY', '')?.trim() || '';
-    if (configKey1) return configKey1;
-
-    const envKey1 = env['OPENROUTER_API_KEY']?.trim() || '';
-    if (envKey1) return envKey1;
-
-    const configKey2 = this.configService.get<string>('OPEN_ROUTER_API_KEY', '')?.trim() || '';
-    if (configKey2) return configKey2;
-
-    const envKey2 = env['OPEN_ROUTER_API_KEY']?.trim() || '';
-    if (envKey2) return envKey2;
-
-    return '';
+    return resolveEnvKey(this.configService, 'OPENROUTER_API_KEY', ['OPEN_ROUTER_API_KEY']);
   }
 
   /**
@@ -134,9 +119,9 @@ export class OpenRouterService {
   }
 
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
-    // FIX: Re-resolve key on EVERY call — ConfigService may have loaded it after construction
+    // FIX: Re-resolve key on EVERY call using env-resolver — ConfigService may have loaded it after construction
     if (!this.apiKey) {
-      const resolved = this._resolveApiKey();
+      const resolved = reResolveKey(this.configService, this.apiKey, 'OPENROUTER_API_KEY', ['OPEN_ROUTER_API_KEY']);
       if (resolved) {
         this.apiKey = resolved;
         this.logger.log(`🔀 OpenRouter key resolved on-demand (key: ${resolved.substring(0, 4)}***${resolved.substring(resolved.length - 4)})`);

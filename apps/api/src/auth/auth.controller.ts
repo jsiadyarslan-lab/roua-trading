@@ -263,7 +263,10 @@ export class AuthController {
     });
 
     // Guest sessions don't need long-lived refresh tokens
-    return { success: true, user: result.user };
+    // FIX: Include sessionToken in response body so server-side fetch
+    // (createSessionViaNestJS) can extract it — httpOnly cookies are not
+    // readable from cross-origin fetch responses.
+    return { success: true, sessionToken: result.sessionToken, user: result.user };
   }
 
   // ── Cleanup Expired Sessions (internal/admin) ──

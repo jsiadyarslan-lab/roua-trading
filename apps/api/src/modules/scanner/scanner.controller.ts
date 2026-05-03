@@ -17,7 +17,7 @@ import {
 } from '@nestjs/common';
 import { ScannerService } from './scanner.service';
 import { MarketCategory } from './scanner.types';
-import { AuthGuard } from '../../common/guards/auth.guard';
+import { AuthGuard, Public } from '../../common/guards/auth.guard';
 
 @Controller('scanner')
 @UseGuards(AuthGuard)
@@ -30,7 +30,11 @@ export class ScannerController {
    * GET /api/scanner/scan
    * Full market scan with all symbols
    * Query params: timeframe (15min|1h|4h|1day), category (ALL|CRYPTO|FOREX|STOCK|COMMODITY)
+   *
+   * FIX #18: Marked @Public() — scanner data is public market data and should work
+   * even when NestJS auth is unstable (e.g., guest session creation failures causing 502).
    */
+  @Public()
   @Get('scan')
   async fullScan(
     @Query('timeframe') timeframe?: string,
@@ -53,7 +57,10 @@ export class ScannerController {
    * GET /api/scanner/heatmap
    * Heatmap data sorted by change percentage
    * Query params: category
+   *
+   * FIX #18: Marked @Public() — heatmap data is public market data.
    */
+  @Public()
   @Get('heatmap')
   async heatmap(@Query('category') category?: string) {
     const cat = Object.values(MarketCategory).includes(category as MarketCategory)
@@ -72,7 +79,10 @@ export class ScannerController {
    * GET /api/scanner/analysis/:symbol
    * Deep analysis for a single symbol
    * Includes technical indicators, AI analysis, patterns, support/resistance
+   *
+   * FIX #18: Marked @Public() — analysis data is public market data.
    */
+  @Public()
   @Get('analysis/:symbol')
   async deepAnalysis(@Param('symbol') symbol: string) {
     try {
@@ -87,7 +97,10 @@ export class ScannerController {
    * GET /api/scanner/multi-tf/:symbol
    * Multi-timeframe analysis for a single symbol
    * Analyzes 15min, 1h, 4h, 1day and computes alignment
+   *
+   * FIX #18: Marked @Public() — multi-timeframe data is public market data.
    */
+  @Public()
   @Get('multi-tf/:symbol')
   async multiTimeframeAnalysis(@Param('symbol') symbol: string) {
     try {
@@ -101,7 +114,10 @@ export class ScannerController {
   /**
    * GET /api/scanner/overview
    * Market overview with sentiment, top movers, strongest signals
+   *
+   * FIX #18: Marked @Public() — overview data is public market data.
    */
+  @Public()
   @Get('overview')
   async marketOverview() {
     try {
@@ -115,6 +131,8 @@ export class ScannerController {
   /**
    * POST /api/scanner/run
    * Force a fresh scan (rate-limited)
+   *
+   * NOT @Public() — force-scan requires authentication to prevent abuse.
    */
   @Post('run')
   @HttpCode(HttpStatus.OK)

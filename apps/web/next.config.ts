@@ -14,9 +14,9 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // NOTE: eslint.ignoreDuringBuilds removed in Next.js 16.
+  // The build will skip ESLint checks by default.
+  // If ESLint issues arise, configure via .eslintrc instead.
   serverExternalPackages: [
     '@prisma/client',
     'prisma',

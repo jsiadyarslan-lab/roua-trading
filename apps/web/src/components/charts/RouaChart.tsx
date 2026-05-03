@@ -98,6 +98,7 @@ export default function RouaChart({
   const [feedState, setFeedState] = useState<'live' | 'fallback' | 'waiting'>('waiting');
   const [candleCountdown, setCandleCountdown] = useState('—');
   const [lotSize, setLotSize] = useState(0.01);
+  const [tradePanelCollapsed, setTradePanelCollapsed] = useState(false);
   const [showDrawingPanel, setShowDrawingPanel] = useState(false);
   const [showIndicatorPanel, setShowIndicatorPanel] = useState(false);
   const [settingsIndicator, setSettingsIndicator] = useState<ActiveIndicator | null>(null);
@@ -793,184 +794,280 @@ export default function RouaChart({
               />
             )}
 
-          {/* ── Quick Trade Controls — Left Side (under OHLC overlay, opposite of trading hours) ── */}
+          {/* ── Quick Trade Controls — Right Side (under trading hours) ── */}
           {!mobile && currentPrice && (
             <div
               className="roua-quick-trade"
               style={{
                 position: 'absolute',
-                top: 32,
-                left: 10,
+                top: 28,
+                right: 10,
                 zIndex: 100,
                 display: 'flex',
-                alignItems: 'center',
-                gap: 5,
-                borderRadius: '14px',
-                background: 'rgba(8,10,18,0.82)',
-                backdropFilter: 'blur(24px) saturate(2)',
-                border: '1px solid rgba(255,255,255,0.07)',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset, 0 1px 0 rgba(255,255,255,0.06) inset',
-                padding: '4px 5px',
+                flexDirection: 'column',
+                alignItems: 'flex-end',
+                gap: 3,
                 pointerEvents: 'auto',
               }}
             >
-              {/* Buy Button */}
+              {/* Collapse/Expand Toggle */}
               <button
-                className="roua-btn-buy"
-                onClick={() => {
-                  const { addTrade } = usePaperTradesStore.getState();
-                  addTrade({
-                    symbol: selectedSymbol,
-                    side: 'long',
-                    qty: lotSize,
-                    entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
-                    currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
-                    entryTime: Date.now(),
-                    strategy: 'quick',
-                    source: 'manual',
-                  });
-                }}
+                onClick={() => setTradePanelCollapsed(!tradePanelCollapsed)}
                 style={{
-                  position: 'relative',
-                  background: 'linear-gradient(135deg, #00E676 0%, #00C853 40%, #00FFA3 100%)',
-                  border: '1px solid rgba(0,255,163,0.35)',
-                  borderRadius: '10px',
-                  color: '#000',
-                  padding: '6px 12px',
-                  fontSize: 10.2,
-                  fontWeight: 900,
+                  background: 'rgba(8,10,18,0.88)',
+                  backdropFilter: 'blur(24px) saturate(2)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  borderRadius: 7,
+                  color: 'rgba(255,255,255,0.5)',
+                  padding: '2px 8px',
+                  fontSize: 8.7,
+                  fontWeight: 700,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 4,
-                  letterSpacing: 0.3,
+                  gap: 3,
                   fontFamily: "'Cairo', sans-serif",
-                  boxShadow: '0 0 14px rgba(0,255,163,0.2), 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.35)',
-                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                  overflow: 'hidden',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                  transition: 'all 0.2s ease',
                   outline: 'none',
+                  letterSpacing: 0.3,
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
+                  e.currentTarget.style.color = 'rgba(255,255,255,0.8)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                  e.currentTarget.style.color = 'rgba(255,255,255,0.5)';
                 }}
               >
-                {/* Animated glow ring */}
-                <span className="roua-buy-glow" style={{
-                  position: 'absolute', inset: -1,
-                  borderRadius: '10px',
-                  background: 'conic-gradient(from 0deg, transparent 0%, rgba(0,255,163,0.4) 25%, transparent 50%, rgba(0,255,163,0.2) 75%, transparent 100%)',
-                  opacity: 0,
-                  transition: 'opacity 0.3s ease',
-                  pointerEvents: 'none',
-                  zIndex: -1,
-                }} />
-                {/* Glass sheen overlay */}
-                <span style={{
-                  position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
-                  background: 'linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 100%)',
-                  borderRadius: '10px 10px 0 0',
-                  pointerEvents: 'none',
-                }} />
-                {/* Up arrow icon */}
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }}>
-                  <polyline points="18 15 12 9 6 15" />
-                </svg>
-                <span style={{ textShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>شراء</span>
-              </button>
-
-              {/* LOT Input — Pill Style */}
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '2px 6px',
-                background: 'rgba(255,255,255,0.04)',
-                borderRadius: 8,
-                border: '1px solid rgba(255,255,255,0.06)',
-                minWidth: 42,
-                gap: 1,
-              }}>
-                <span style={{ fontSize: 5.5, color: 'rgba(255,255,255,0.4)', fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase' }}>LOT</span>
-                <input
-                  type="number"
-                  value={lotSize}
-                  onChange={(e) => setLotSize(parseFloat(e.target.value) || 0.01)}
-                  step="0.01"
-                  min="0.01"
-                  style={{
-                    width: 36,
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#fff',
-                    fontSize: 11,
-                    fontWeight: 900,
-                    textAlign: 'center',
-                    outline: 'none',
-                    fontFamily: "'JetBrains Mono', monospace",
-                    padding: 0,
-                    lineHeight: 1.2,
-                  }}
-                />
-              </div>
-
-              {/* Sell Button */}
-              <button
-                className="roua-btn-sell"
-                onClick={() => {
-                  const { addTrade } = usePaperTradesStore.getState();
-                  addTrade({
-                    symbol: selectedSymbol,
-                    side: 'short',
-                    qty: lotSize,
-                    entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
-                    currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
-                    entryTime: Date.now(),
-                    strategy: 'quick',
-                    source: 'manual',
-                  });
-                }}
-                style={{
-                  position: 'relative',
-                  background: 'linear-gradient(135deg, #FF1744 0%, #FF5252 40%, #FF6B81 100%)',
-                  border: '1px solid rgba(255,71,87,0.35)',
-                  borderRadius: '10px',
-                  color: '#fff',
-                  padding: '6px 12px',
-                  fontSize: 10.2,
-                  fontWeight: 900,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  letterSpacing: 0.3,
-                  fontFamily: "'Cairo', sans-serif",
-                  boxShadow: '0 0 14px rgba(255,71,87,0.2), 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)',
-                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                  overflow: 'hidden',
-                  outline: 'none',
-                }}
-              >
-                {/* Animated glow ring */}
-                <span className="roua-sell-glow" style={{
-                  position: 'absolute', inset: -1,
-                  borderRadius: '10px',
-                  background: 'conic-gradient(from 0deg, transparent 0%, rgba(255,71,87,0.4) 25%, transparent 50%, rgba(255,71,87,0.2) 75%, transparent 100%)',
-                  opacity: 0,
-                  transition: 'opacity 0.3s ease',
-                  pointerEvents: 'none',
-                  zIndex: -1,
-                }} />
-                {/* Glass sheen overlay */}
-                <span style={{
-                  position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
-                  background: 'linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 100%)',
-                  borderRadius: '10px 10px 0 0',
-                  pointerEvents: 'none',
-                }} />
-                <span style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>بيع</span>
-                {/* Down arrow icon */}
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.2))' }}>
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'transform 0.25s ease', transform: tradePanelCollapsed ? 'rotate(0deg)' : 'rotate(180deg)' }}>
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
+                {tradePanelCollapsed ? 'تداول' : 'إخفاء'}
               </button>
+
+              {/* Main Trade Panel (collapsible) */}
+              {!tradePanelCollapsed && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 3,
+                    borderRadius: 10,
+                    background: 'rgba(8,10,18,0.88)',
+                    backdropFilter: 'blur(24px) saturate(2)',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset, 0 1px 0 rgba(255,255,255,0.06) inset',
+                    padding: '3px 4px',
+                    animation: 'rouaTradeSlideIn 0.22s ease-out',
+                  }}
+                >
+                  {/* Buy Button */}
+                  <button
+                    className="roua-btn-buy"
+                    onClick={() => {
+                      const { addTrade } = usePaperTradesStore.getState();
+                      addTrade({
+                        symbol: selectedSymbol,
+                        side: 'long',
+                        qty: lotSize,
+                        entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                        currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                        entryTime: Date.now(),
+                        strategy: 'quick',
+                        source: 'manual',
+                      });
+                    }}
+                    style={{
+                      position: 'relative',
+                      background: 'linear-gradient(135deg, #00E676 0%, #00C853 40%, #00FFA3 100%)',
+                      border: '1px solid rgba(0,255,163,0.35)',
+                      borderRadius: 7,
+                      color: '#000',
+                      padding: '4px 8px',
+                      fontSize: 8.7,
+                      fontWeight: 900,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 3,
+                      letterSpacing: 0.3,
+                      fontFamily: "'Cairo', sans-serif",
+                      boxShadow: '0 0 10px rgba(0,255,163,0.18), 0 1px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3)',
+                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                      overflow: 'hidden',
+                      outline: 'none',
+                    }}
+                  >
+                    {/* Glass sheen overlay */}
+                    <span style={{
+                      position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
+                      background: 'linear-gradient(180deg, rgba(255,255,255,0.22) 0%, transparent 100%)',
+                      borderRadius: '7px 7px 0 0',
+                      pointerEvents: 'none',
+                    }} />
+                    {/* Up arrow icon */}
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.2))' }}>
+                      <polyline points="18 15 12 9 6 15" />
+                    </svg>
+                    <span style={{ textShadow: '0 1px 1px rgba(0,0,0,0.12)' }}>شراء</span>
+                  </button>
+
+                  {/* LOT Size Control with +/- buttons */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    background: 'rgba(255,255,255,0.04)',
+                    borderRadius: 6,
+                    border: '1px solid rgba(255,255,255,0.06)',
+                    padding: '1px 2px',
+                    gap: 0,
+                  }}>
+                    {/* Decrease Lot Button */}
+                    <button
+                      onClick={() => setLotSize(prev => Math.max(0.01, +(prev - 0.01).toFixed(2)))}
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: 'none',
+                        borderRadius: 4,
+                        color: 'rgba(255,255,255,0.6)',
+                        width: 18,
+                        height: 18,
+                        fontSize: 10,
+                        fontWeight: 900,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontFamily: "'JetBrains Mono', monospace",
+                        transition: 'all 0.15s ease',
+                        outline: 'none',
+                        padding: 0,
+                        lineHeight: 1,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(255,71,87,0.2)';
+                        e.currentTarget.style.color = '#FF4757';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                        e.currentTarget.style.color = 'rgba(255,255,255,0.6)';
+                      }}
+                    >
+                      −
+                    </button>
+
+                    {/* Lot Value Display */}
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '1px 3px',
+                      minWidth: 30,
+                      gap: 0,
+                    }}>
+                      <span style={{ fontSize: 4.7, color: 'rgba(255,255,255,0.35)', fontWeight: 800, letterSpacing: 1.2, textTransform: 'uppercase', lineHeight: 1 }}>LOT</span>
+                      <span style={{
+                        color: '#fff',
+                        fontSize: 9.4,
+                        fontWeight: 900,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        lineHeight: 1.2,
+                        textAlign: 'center',
+                      }}>
+                        {lotSize.toFixed(2)}
+                      </span>
+                    </div>
+
+                    {/* Increase Lot Button */}
+                    <button
+                      onClick={() => setLotSize(prev => +(prev + 0.01).toFixed(2))}
+                      style={{
+                        background: 'rgba(255,255,255,0.06)',
+                        border: 'none',
+                        borderRadius: 4,
+                        color: 'rgba(255,255,255,0.6)',
+                        width: 18,
+                        height: 18,
+                        fontSize: 10,
+                        fontWeight: 900,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontFamily: "'JetBrains Mono', monospace",
+                        transition: 'all 0.15s ease',
+                        outline: 'none',
+                        padding: 0,
+                        lineHeight: 1,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = 'rgba(0,255,163,0.2)';
+                        e.currentTarget.style.color = '#00FFA3';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                        e.currentTarget.style.color = 'rgba(255,255,255,0.6)';
+                      }}
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  {/* Sell Button */}
+                  <button
+                    className="roua-btn-sell"
+                    onClick={() => {
+                      const { addTrade } = usePaperTradesStore.getState();
+                      addTrade({
+                        symbol: selectedSymbol,
+                        side: 'short',
+                        qty: lotSize,
+                        entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                        currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                        entryTime: Date.now(),
+                        strategy: 'quick',
+                        source: 'manual',
+                      });
+                    }}
+                    style={{
+                      position: 'relative',
+                      background: 'linear-gradient(135deg, #FF1744 0%, #FF5252 40%, #FF6B81 100%)',
+                      border: '1px solid rgba(255,71,87,0.35)',
+                      borderRadius: 7,
+                      color: '#fff',
+                      padding: '4px 8px',
+                      fontSize: 8.7,
+                      fontWeight: 900,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 3,
+                      letterSpacing: 0.3,
+                      fontFamily: "'Cairo', sans-serif",
+                      boxShadow: '0 0 10px rgba(255,71,87,0.18), 0 1px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
+                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                      overflow: 'hidden',
+                      outline: 'none',
+                    }}
+                  >
+                    {/* Glass sheen overlay */}
+                    <span style={{
+                      position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
+                      background: 'linear-gradient(180deg, rgba(255,255,255,0.18) 0%, transparent 100%)',
+                      borderRadius: '7px 7px 0 0',
+                      pointerEvents: 'none',
+                    }} />
+                    <span style={{ textShadow: '0 1px 1px rgba(0,0,0,0.25)' }}>بيع</span>
+                    {/* Down arrow icon */}
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.2))' }}>
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

@@ -677,16 +677,14 @@ export default function DashboardPage() {
           overflow: hidden !important;
         }
 
-        /* Chart panel is the 2nd child (1st is the mode banner) */
+        /* Chart panel — 2nd grid item, ensure it takes 1fr space in fullscreen */
         .dash-grid.chart-fullscreen .dash-col-center > .panel:nth-child(2) {
-          flex: 1 1 0% !important;
           min-height: 0 !important;
           overflow: hidden !important;
         }
 
-        /* Balance+Positions panel is the 3rd child — no fixed min/max height, sizes to content */
+        /* Balance+Positions panel — 3rd grid item, visible and interactive in fullscreen */
         .dash-grid.chart-fullscreen .dash-col-center > .panel:nth-child(3) {
-          flex-shrink: 0 !important;
           visibility: visible !important;
           pointer-events: auto !important;
         }
@@ -1079,14 +1077,13 @@ export default function DashboardPage() {
           )}
 
           {/* Center Column: Mode Banner + Chart + Balance + Positions */}
-          <div className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0, minHeight: 0 }}>
+          <div className="dash-col dash-col-center animate-in-2" style={{ display: 'grid', gridTemplateRows: 'auto 1fr auto', gap: 0, minWidth: 0, minHeight: 0 }}>
             {/* Mode Banner */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '6px 14px', borderRadius: 10,
               background: modeConfig.glowBg,
               border: `1px solid ${modeConfig.accent}20`,
-              flexShrink: 0,
               transition: 'all 0.3s ease',
             }}>
               <div style={{
@@ -1120,8 +1117,8 @@ export default function DashboardPage() {
                 </span>
               )}
             </div>
-            {/* Chart Panel — flex:1 shrinks smoothly when positions panel expands */}
-            <div className="panel" style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none' }}>
+            {/* Chart Panel — grid row 1fr takes all remaining space */}
+            <div className="panel" style={{ minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none' }}>
               <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(26, 29, 41, 0.65)' }}>
                 <RouaChart
                   currentPrice={currentPrice}
@@ -1131,8 +1128,8 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Balance + Open Positions Panel — no fixed height, sizes to content */}
-            <div className="panel hover-glow" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* Balance + Open Positions Panel — grid row auto sizes to content */}
+            <div className="panel hover-glow" style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {/* Balance Summary — always visible */}
               <div className="panel-header">
                 <div className="summary-row">

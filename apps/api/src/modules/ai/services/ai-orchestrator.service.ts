@@ -72,6 +72,11 @@ export class AIOrchestratorService {
   private readonly responseCache = new Map<string, { result: AIAnalysisResponse; expiresAt: number }>();
   /** Maximum number of entries in the in-memory cache (prevents unbounded growth) */
   private readonly MAX_CACHE_SIZE = 500;
+
+  /** Last-known-good price cache — prevents hallucination when all sources fail */
+  private readonly lastKnownPriceCache = new Map<string, { price: number; rsi: number; macd: string; timestamp: number }>();
+  private readonly PRICE_CACHE_MAX_AGE = 30 * 60 * 1000; // 30 minutes — stale price > no price
+
   private readonly CACHE_TTL: Record<string, number> = {
     sentiment: 5 * 60 * 1000,        // 5 minutes
     market_analysis: 15 * 60 * 1000,  // 15 minutes
@@ -1304,6 +1309,16 @@ export class AIOrchestratorService {
         if (price <= 0) throw new Error('Bybit price=0');
         return { price, source: 'bybit' };
       })(),
+      // Source 5: TwelveData (API key available, reliable on cloud)
+      (async () => {
+        const tdApiKey = this.configService.get<string>('TWELVE_DATA_API_KEY', '');
+        if (!tdApiKey) throw new Error('No TwelveData key');
+        const tdSymbol = symbol.replace(/[\/\-]/g, '');
+        const res = await axios.get(`https://api.twelvedata.com/price?symbol=${tdSymbol}&apikey=${tdApiKey}`, { timeout: 5000 });
+        const price = parseFloat(res.data?.price || '0');
+        if (price <= 0) throw new Error('TwelveData price=0');
+        return { price, source: 'twelvedata' };
+      })(),
     ]).catch(() => null);
 
     // Also try to get klines for RSI/MACD (Binance only)
@@ -1343,11 +1358,26 @@ export class AIOrchestratorService {
 
     const priceResult = await pricePromise;
     if (priceResult && priceResult.price > 0) {
+      // Save to last-known-good cache
+      this.lastKnownPriceCache.set(symbol, { price: priceResult.price, rsi, macd, timestamp: Date.now() });
+      // Clean old entries periodically
+      if (this.lastKnownPriceCache.size > 50) {
+        const now = Date.now();
+        for (const [key, entry] of this.lastKnownPriceCache) {
+          if (now - entry.timestamp > this.PRICE_CACHE_MAX_AGE) this.lastKnownPriceCache.delete(key);
+        }
+      }
       this.logger.debug(`📊 Market data for ${symbol}: price=${priceResult.price} from ${priceResult.source}, RSI=${rsi}, MACD=${macd}`);
       return { price: priceResult.price, rsi, macd };
     }
 
-    // All sources failed
+    // All sources failed — try last-known-good price cache
+    const cachedPrice = this.lastKnownPriceCache.get(symbol);
+    if (cachedPrice && (Date.now() - cachedPrice.timestamp) < this.PRICE_CACHE_MAX_AGE) {
+      this.logger.debug(`📊 Using cached price for ${symbol}: $${cachedPrice.price} (${Math.round((Date.now() - cachedPrice.timestamp) / 1000)}s old)`);
+      return { price: cachedPrice.price, rsi: cachedPrice.rsi, macd: cachedPrice.macd };
+    }
+
     this.logger.warn(`📊 ALL price sources failed for ${symbol} — AI may hallucinate prices`);
     return { price: 0, rsi: 50, macd: 'غير متوفر' };
   }

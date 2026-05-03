@@ -29,6 +29,50 @@ function directionLabel(dir: 'buy' | 'sell' | 'neutral') {
   return dir === 'buy' ? 'صاعد' : dir === 'sell' ? 'هابط' : 'محايد'
 }
 
+// FIX: Recalculate consensus from merged analyses (not just Layer 2)
+// When Layer 1 + Layer 2 results are merged, the consensusScore and recommendation
+// must reflect the MERGED set, not just one layer's values.
+function recalculateConsensus(analyses: any[]): { consensusScore: number; recommendation: 'BUY' | 'SELL' | 'HOLD' } {
+  let buyWeight = 0, sellWeight = 0, holdWeight = 0, totalConfidence = 0
+  let buyConfidences: number[] = [], sellConfidences: number[] = [], holdConfidences: number[] = []
+
+  for (const a of analyses) {
+    const conf = (a.confidence || 50) / 100
+    if (a.vote === 'BUY') { buyWeight += conf; buyConfidences.push(conf) }
+    else if (a.vote === 'SELL') { sellWeight += conf; sellConfidences.push(conf) }
+    else { holdWeight += conf; holdConfidences.push(conf) }
+    totalConfidence += conf
+  }
+
+  if (totalConfidence === 0) return { consensusScore: 0, recommendation: 'HOLD' }
+
+  const buyPct = buyWeight / totalConfidence
+  const sellPct = sellWeight / totalConfidence
+  const holdPct = holdWeight / totalConfidence
+
+  let recommendation: 'BUY' | 'SELL' | 'HOLD' = 'HOLD'
+  let consensusScore = 0
+
+  if (buyPct > sellPct && buyPct > holdPct) {
+    recommendation = 'BUY'
+    consensusScore = buyConfidences.length > 0
+      ? Math.round(buyConfidences.reduce((a, b) => a + b, 0) / buyConfidences.length * 100)
+      : Math.round(buyPct * 100)
+  } else if (sellPct > buyPct && sellPct > holdPct) {
+    recommendation = 'SELL'
+    consensusScore = sellConfidences.length > 0
+      ? Math.round(sellConfidences.reduce((a, b) => a + b, 0) / sellConfidences.length * 100)
+      : Math.round(sellPct * 100)
+  } else {
+    recommendation = 'HOLD'
+    consensusScore = holdConfidences.length > 0
+      ? Math.round(holdConfidences.reduce((a, b) => a + b, 0) / holdConfidences.length * 100)
+      : Math.round((1 - Math.abs(buyPct - sellPct)) * 50)
+  }
+
+  return { consensusScore, recommendation }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // PERSISTENT AI CACHE — Short TTL, only for same-symbol dedup
 // ═══════════════════════════════════════════════════════════════
@@ -274,18 +318,25 @@ export async function POST(req: NextRequest) {
             const totalModels = mergedAnalyses.length
             const mergedSource = totalModels >= 3 ? 'real-ai' : 'partial-ai'
 
+            // FIX: Recalculate consensus from MERGED analyses (not just Layer 2)
+            const { consensusScore, recommendation } = recalculateConsensus(mergedAnalyses)
+            const recLabel = recommendation === 'BUY' ? 'شراء' : recommendation === 'SELL' ? 'بيع' : 'انتظار'
+            const recStrength = consensusScore >= 80 ? 'قوي' : consensusScore >= 60 ? 'واضح' : 'محتمل'
+            const masterStrategy = directResult.data.masterStrategy || `إجماع المجلس (${totalModels} نماذج): ${recLabel} ${recStrength} بنسبة ثقة ${consensusScore}%.`
+
             const result = {
               success: true,
               source: mergedSource,
               data: {
                 ...directResult.data,
                 analyses: mergedAnalyses,
-                consensusScore: directResult.data.consensusScore,
-                recommendation: directResult.data.recommendation,
-                masterStrategy: directResult.data.masterStrategy,
+                consensusScore,
+                recommendation,
+                masterStrategy,
                 meta: {
                   ...directResult.data.meta,
                   modelsResponded: totalModels,
+                  modelsExpected: (layer1Result.modelCount || 0) + (directResult.data.meta?.modelsExpected || l2Analyses.length),
                   aiEngine: `Merged-L1+L2-${totalModels}-Models`,
                   connectionLayer: 'merged',
                   layer1Models: layer1Result.modelCount,

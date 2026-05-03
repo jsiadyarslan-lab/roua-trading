@@ -38,6 +38,10 @@ interface CouncilVote {
   reason: string
 }
 
+// Last-known-good price cache — prevents price hallucination when all sources fail
+const lastKnownPriceCache = new Map<string, { price: number; rsi: number; macd: string; timestamp: number }>()
+const PRICE_CACHE_MAX_AGE = 30 * 60 * 1000 // 30 minutes — stale price is better than no price
+
 // ─── Environment Key Access ──────────────────────────────────────
 
 function getKey(name: string): string {
@@ -265,6 +269,20 @@ async function fetchQuickMarketData(symbol: string): Promise<{ price: number; rs
       if (price <= 0) throw new Error('Bybit price=0')
       return { price, source: 'bybit' }
     })(),
+    // Source 5: TwelveData (API key available, reliable on cloud)
+    (async () => {
+      const tdApiKey = getKey('TWELVE_DATA_API_KEY')
+      if (!tdApiKey) throw new Error('No TwelveData key')
+      const tdSymbol = symbol.replace('/', '').replace('-', '')
+      const res = await fetch(`https://api.twelvedata.com/price?symbol=${tdSymbol}&apikey=${tdApiKey}`, {
+        signal: AbortSignal.timeout(5000),
+      })
+      if (!res.ok) throw new Error(`TwelveData ${res.status}`)
+      const data = await res.json()
+      const price = parseFloat(data?.price || '0')
+      if (price <= 0) throw new Error('TwelveData price=0')
+      return { price, source: 'twelvedata' }
+    })(),
   ]).catch(() => null)
 
   // Also try to get klines for RSI/MACD (Binance only)
@@ -312,10 +330,25 @@ async function fetchQuickMarketData(symbol: string): Promise<{ price: number; rs
   const priceResult = await pricePromise
   if (priceResult && priceResult.price > 0) {
     console.log(`[market-data] ${symbol} price=$${priceResult.price} from ${priceResult.source}`)
+    // Save to last-known-good cache
+    lastKnownPriceCache.set(symbol, { price: priceResult.price, rsi, macd, timestamp: Date.now() })
+    // Clean old entries periodically
+    if (lastKnownPriceCache.size > 50) {
+      const now = Date.now()
+      for (const [key, entry] of lastKnownPriceCache) {
+        if (now - entry.timestamp > PRICE_CACHE_MAX_AGE) lastKnownPriceCache.delete(key)
+      }
+    }
     return { price: priceResult.price, rsi, macd }
   }
 
-  // All sources failed — return defaults
+  // All fresh sources failed — try last-known-good price cache
+  const cached = lastKnownPriceCache.get(symbol)
+  if (cached && (Date.now() - cached.timestamp) < PRICE_CACHE_MAX_AGE) {
+    console.log(`[market-data] ${symbol} using cached price=$${cached.price} (${Math.round((Date.now() - cached.timestamp) / 1000)}s old)`)
+    return { price: cached.price, rsi: cached.rsi, macd: cached.macd }
+  }
+
   console.warn(`[market-data] ALL price sources failed for ${symbol} — AI may hallucinate prices`)
   return { price: 0, rsi: 50, macd: 'غير متوفر' }
 }
@@ -1655,7 +1688,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
         aiEngine: `Direct-AI (${filledRoles} roles from ${modelsRespondedCount} models)`,
         modelsUsed: uniqueModels,
         modelsResponded: modelsRespondedCount,
-        modelsExpected: 8, // 8 roles in the full council
+        modelsExpected: activeModelCalls.length, // Dynamic: reflects actual models attempted (may exclude Ollama on cloud)
         modelsWithKeys: expectedDirectModels,
         bedrockAvailable: bedrockStatus.available,
         bedrockNote: bedrockStatus.available ? 'Direct call enabled (AWS SigV4)' : 'AWS credentials not configured',

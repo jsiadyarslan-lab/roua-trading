@@ -1119,9 +1119,9 @@ export default function DashboardPage() {
                 </span>
               )}
             </div>
-            {/* Chart Panel — flex:1 takes all remaining space, shrinks when positions expand */}
-            <div className="panel" style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none' }}>
-              <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(26, 29, 41, 0.65)' }}>
+            {/* Chart Panel — flex:1 takes all remaining space, smooth shrink/expand with positions panel */}
+            <div className="panel" style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none', transition: 'flex 0.3s cubic-bezier(0.4,0,0.2,1)' }}>
+              <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(26, 29, 41, 0.65)', transition: 'height 0.3s cubic-bezier(0.4,0,0.2,1)' }}>
                 <RouaChart
                   currentPrice={currentPrice}
                   isChartFullscreen={chartFullscreen}
@@ -1130,8 +1130,8 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Balance + Open Positions Panel — sizes to content, flexShrink:0 so it never shrinks */}
-            <div className="panel hover-glow" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* Balance + Open Positions Panel — sizes to content, smooth transition when expanding */}
+            <div className="panel hover-glow" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', transition: 'max-height 0.3s cubic-bezier(0.4,0,0.2,1)' }}>
               {/* Balance Summary — always visible */}
               <div className="panel-header">
                 <div className="summary-row">

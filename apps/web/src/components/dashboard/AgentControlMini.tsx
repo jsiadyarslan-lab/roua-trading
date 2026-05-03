@@ -59,18 +59,28 @@ function getStatusLabel(status: AgentStatus | null): string {
 
 function getStrategyLabel(s: StrategyType): string {
   switch (s) {
+    case StrategyType.AUTO: return 'تلقائي'
     case StrategyType.SCALPING: return 'سكالبينغ'
     case StrategyType.SWING: return 'سوينغ'
     case StrategyType.GRID: return 'شبكة'
+    case StrategyType.MEAN_REVERSION: return 'عودة للمتوسط'
+    case StrategyType.MOMENTUM_BREAKOUT: return 'اختراق الزخم'
+    case StrategyType.DCA: return 'متوسط التكلفة'
+    case StrategyType.VWAP_RSI: return 'VWAP+RSI'
     default: return s
   }
 }
 
 function getStrategyAccent(s: StrategyType): string {
   switch (s) {
+    case StrategyType.AUTO: return '#FF9F43'
     case StrategyType.SCALPING: return T.accent
     case StrategyType.SWING: return T.green
     case StrategyType.GRID: return T.purple
+    case StrategyType.MEAN_REVERSION: return '#FFB800'
+    case StrategyType.MOMENTUM_BREAKOUT: return '#FF6B9D'
+    case StrategyType.DCA: return '#00B894'
+    case StrategyType.VWAP_RSI: return '#A29BFE'
     default: return T.accent
   }
 }
@@ -110,7 +120,7 @@ export function AgentControlMini() {
   const isRunning = status === AgentStatus.RUNNING
   const isEmergency = status === AgentStatus.EMERGENCY_STOP
   const config = agentState?.config
-  const strategy = config?.strategy ?? StrategyType.SCALPING
+  const strategy = config?.strategy ?? StrategyType.AUTO
   const isPaperTrading = config?.isPaperTrading ?? !selectedCredentialId
   const statusColor = getStatusColor(status)
   const dailyPnL = agentState?.dailyPnL ?? 0

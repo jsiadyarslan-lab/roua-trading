@@ -7,7 +7,7 @@ import {
   RefreshCw, ChevronDown, ChevronUp, Plus, Minus, Cpu,
   DollarSign, Target, Timer, Gauge, Layers, ArrowUpDown,
   AlertCircle, CheckCircle2, XCircle, Pause, Flame,
-  RotateCcw, Rocket, PiggyBank
+  RotateCcw, Rocket, PiggyBank, Brain
 } from 'lucide-react'
 import { useAgentStore, AgentStatus, StrategyType } from '@/hooks/useAgentStore'
 
@@ -77,6 +77,7 @@ function getStatusLabel(status: AgentStatus | null): string {
 
 function getStrategyLabel(s: StrategyType): string {
   switch (s) {
+    case StrategyType.AUTO: return 'تلقائي'
     case StrategyType.SCALPING: return 'سكالبينغ'
     case StrategyType.SWING: return 'سوينغ'
     case StrategyType.GRID: return 'شبكة'
@@ -90,6 +91,7 @@ function getStrategyLabel(s: StrategyType): string {
 
 function getStrategyIcon(s: StrategyType) {
   switch (s) {
+    case StrategyType.AUTO: return <Brain size={14} />
     case StrategyType.SCALPING: return <Zap size={14} />
     case StrategyType.SWING: return <TrendingUp size={14} />
     case StrategyType.GRID: return <Layers size={14} />
@@ -103,6 +105,7 @@ function getStrategyIcon(s: StrategyType) {
 
 function getStrategyDesc(s: StrategyType): string {
   switch (s) {
+    case StrategyType.AUTO: return 'تلقائي تكيفي — يختار أفضل استراتيجية حسب ظروف السوق'
     case StrategyType.SCALPING: return 'صفقات سريعة — أرباح صغيرة متكررة'
     case StrategyType.SWING: return 'صفقات متأرجحة — أرباح أكبر على مدى أيام'
     case StrategyType.GRID: return 'شبكة أوامر — ربح من التذبذب'
@@ -363,9 +366,10 @@ export default function AutonomousTraderPage() {
                   اختر استراتيجية التداول
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                  {[StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI].map((s) => {
+                  {[StrategyType.AUTO, StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI].map((s) => {
                     const isActive = strategy === s
                     const accentMap: Record<StrategyType, string> = {
+                      [StrategyType.AUTO]: '#FF9F43',
                       [StrategyType.SCALPING]: '#00D4FF',
                       [StrategyType.SWING]: '#00FFA3',
                       [StrategyType.GRID]: '#B388FF',

@@ -8,6 +8,7 @@ import {
   Get,
   Put,
   Body,
+  Query,
   UseGuards,
   Req,
   HttpCode,
@@ -16,6 +17,8 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { AutonomousTraderAgentService } from './agent.service';
+import { MarketAnalyzerService } from './services/market-analyzer.service';
+import { SignalEvaluatorService } from './services/signal-evaluator.service';
 import { StartAgentDto, ChangeStrategyDto, UpdateRiskParamsDto, UpdateAgentSettingsDto, StrategyType } from './types/agent.types';
 
 /**
@@ -54,7 +57,11 @@ export class AutonomousTraderPublicController {
 export class AutonomousTraderAgentController {
   private readonly logger = new Logger(AutonomousTraderAgentController.name);
 
-  constructor(private readonly agentService: AutonomousTraderAgentService) {}
+  constructor(
+    private readonly agentService: AutonomousTraderAgentService,
+    private readonly marketAnalyzer: MarketAnalyzerService,
+    private readonly signalEvaluator: SignalEvaluatorService,
+  ) {}
 
   /**
    * POST /api/agent/trader/start
@@ -74,7 +81,7 @@ export class AutonomousTraderAgentController {
         const rawBody = (req as any).rawBody || (req as any).body;
         if (rawBody && typeof rawBody === 'object') {
           dto = {
-            strategy: rawBody.strategy || StrategyType.SCALPING,
+            strategy: rawBody.strategy || StrategyType.AUTO,
             credentialId: rawBody.credentialId || '',
             symbols: rawBody.symbols,
           } as StartAgentDto;
@@ -86,10 +93,10 @@ export class AutonomousTraderAgentController {
     }
 
     // Validate strategy — fallback to SCALPING if invalid
-    const validStrategies = [StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI];
+    const validStrategies = [StrategyType.AUTO, StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI];
     if (!dto.strategy || !validStrategies.includes(dto.strategy)) {
-      this.logger.warn(`[startAgent] Invalid strategy "${dto.strategy}" — defaulting to SCALPING`);
-      dto.strategy = StrategyType.SCALPING;
+      this.logger.warn(`[startAgent] Invalid strategy "${dto.strategy}" — defaulting to AUTO`);
+      dto.strategy = StrategyType.AUTO;
     }
 
     try {
@@ -187,6 +194,39 @@ export class AutonomousTraderAgentController {
       data: state,
       message: `تم تغيير الاستراتيجية إلى: ${dto.strategy}`,
     };
+  }
+
+  /**
+   * GET /api/agent/trader/regime-info?symbol=BTC/USDT
+   * Get current market regime info and AUTO strategy selection details
+   */
+  @Get('regime-info')
+  async getRegimeInfo(@Req() req: any, @Query('symbol') symbol?: string) {
+    const targetSymbol = symbol || 'BTC/USDT';
+
+    try {
+      const market = await this.marketAnalyzer.analyze(targetSymbol);
+      if (!market) {
+        return {
+          success: false,
+          message: 'لا يمكن تحليل السوق حالياً',
+          data: null,
+        };
+      }
+
+      const regimeInfo = await this.signalEvaluator.getAutoRegimeInfo(req.user.id, market);
+
+      return {
+        success: true,
+        data: regimeInfo,
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        message: error.message || 'فشل الحصول على معلومات النظام',
+        data: null,
+      };
+    }
   }
 
   /**

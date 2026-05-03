@@ -12,6 +12,7 @@ import { MeanReversionStrategy } from '../strategies/mean-reversion.strategy';
 import { MomentumBreakoutStrategy } from '../strategies/momentum-breakout.strategy';
 import { DCAStrategy } from '../strategies/dca.strategy';
 import { VWAPRSIStrategy } from '../strategies/vwap-rsi.strategy';
+import { AdaptiveStrategySelectorService } from './adaptive-strategy-selector.service';
 
 /**
  * SignalEvaluatorService — Evaluates market data against strategies
@@ -29,8 +30,10 @@ import { VWAPRSIStrategy } from '../strategies/vwap-rsi.strategy';
  * │ 5. If not → log reason and continue monitoring             │
  * └─────────────────────────────────────────────────────────────┘
  *
- * Multi-strategy support: Can evaluate the same market data
- * across multiple strategies and pick the best signal.
+ * AUTO Strategy:
+ * When strategy type is AUTO, the service uses AdaptiveStrategySelector
+ * to detect market regime and automatically select the best strategy.
+ * This is the recommended mode for most users.
  */
 @Injectable()
 export class SignalEvaluatorService {
@@ -39,12 +42,23 @@ export class SignalEvaluatorService {
   /** Active strategy instances per user */
   private readonly strategies = new Map<string, BaseStrategy>();
 
-  constructor() {
-    this.logger.log('📊 Signal Evaluator initialized');
+  /** Last AUTO-selected strategy per user (for logging) */
+  private readonly lastAutoSelection = new Map<string, StrategyType>();
+
+  constructor(
+    private readonly adaptiveSelector: AdaptiveStrategySelectorService,
+  ) {
+    this.logger.log('📊 Signal Evaluator initialized (with AUTO adaptive selection)');
   }
 
   /**
    * Evaluate market analysis using the configured strategy
+   *
+   * When strategyType is AUTO:
+   * 1. Detect market regime
+   * 2. Score all strategies
+   * 3. Select the best strategy
+   * 4. Evaluate using the selected strategy
    */
   async evaluate(
     market: MarketAnalysis,
@@ -53,11 +67,30 @@ export class SignalEvaluatorService {
     userId: string,
   ): Promise<EvaluatedSignal | null> {
     try {
+      let effectiveStrategy = strategyType;
+
+      // ── AUTO Strategy: Detect regime and select best strategy ──
+      if (strategyType === StrategyType.AUTO) {
+        const selection = await this.adaptiveSelector.selectBestStrategy(userId, market);
+
+        effectiveStrategy = selection.strategy;
+
+        // Log regime change if strategy changed
+        const lastStrategy = this.lastAutoSelection.get(userId);
+        if (lastStrategy && lastStrategy !== effectiveStrategy) {
+          this.logger.log(
+            `📊 AUTO strategy switched for ${userId}: ${lastStrategy} → ${effectiveStrategy} ` +
+            `(regime: ${selection.regime.regime}, score: ${selection.scores[0]?.score})`,
+          );
+        }
+        this.lastAutoSelection.set(userId, effectiveStrategy);
+      }
+
       // Get or create strategy instance
-      const strategy = this._getOrCreateStrategy(strategyType, strategyParams, userId);
+      const strategy = this._getOrCreateStrategy(effectiveStrategy, strategyParams, userId);
 
       if (!strategy) {
-        this.logger.warn(`Unknown strategy type: ${strategyType}`);
+        this.logger.warn(`Unknown strategy type: ${effectiveStrategy}`);
         return null;
       }
 
@@ -66,14 +99,25 @@ export class SignalEvaluatorService {
 
       if (!signal) {
         this.logger.debug(
-          `📊 No signal for ${market.symbol} using ${strategyType} strategy`,
+          `📊 No signal for ${market.symbol} using ${effectiveStrategy} strategy`,
         );
         return null;
       }
 
+      // Add AUTO metadata if this was an auto-selected strategy
+      if (strategyType === StrategyType.AUTO) {
+        signal.metadata = {
+          ...signal.metadata,
+          autoSelected: true,
+          originalStrategy: StrategyType.AUTO,
+          effectiveStrategy,
+        };
+      }
+
       this.logger.log(
         `📊 Signal generated: ${signal.action} ${signal.symbol} ` +
-        `(confidence: ${signal.confidence}%, R:R ${signal.riskRewardRatio.toFixed(2)}) ` +
+        `(strategy: ${effectiveStrategy}${strategyType === StrategyType.AUTO ? ' [AUTO]' : ''}, ` +
+        `confidence: ${signal.confidence}%, R:R ${signal.riskRewardRatio.toFixed(2)}) ` +
         `— ${signal.reasoning.substring(0, 80)}`,
       );
 
@@ -88,6 +132,7 @@ export class SignalEvaluatorService {
 
   /**
    * Evaluate market analysis across ALL strategies and return the best signal
+   * Used for comparative analysis and AUTO fallback
    */
   async evaluateAll(
     market: MarketAnalysis,
@@ -125,6 +170,29 @@ export class SignalEvaluatorService {
   }
 
   /**
+   * Get current AUTO regime info for a user (for UI display)
+   */
+  async getAutoRegimeInfo(userId: string, market: MarketAnalysis) {
+    if (!market) return null;
+
+    const regime = this.adaptiveSelector.detectRegime(market);
+    const scores = await this.adaptiveSelector.scoreStrategies(userId, regime);
+
+    return {
+      regime: regime.regime,
+      confidence: regime.confidence,
+      indicators: regime.indicators,
+      recommendedStrategies: regime.recommendedStrategies,
+      currentStrategy: this.lastAutoSelection.get(userId) || null,
+      strategyScores: scores.map(s => ({
+        strategy: s.strategy,
+        score: s.score,
+        reason: s.reason,
+      })),
+    };
+  }
+
+  /**
    * Update strategy parameters for a user
    */
   updateStrategy(userId: string, strategyType: StrategyType, params: StrategyParams): void {
@@ -142,6 +210,7 @@ export class SignalEvaluatorService {
         this.strategies.delete(key);
       }
     }
+    this.lastAutoSelection.delete(userId);
   }
 
   // ── Private Helpers ──
@@ -151,6 +220,12 @@ export class SignalEvaluatorService {
     params: StrategyParams,
     userId: string,
   ): BaseStrategy | null {
+    // AUTO is not a real strategy — should be resolved before this call
+    if (strategyType === StrategyType.AUTO) {
+      this.logger.warn('AUTO strategy should be resolved before _getOrCreateStrategy');
+      return null;
+    }
+
     const key = `${userId}:${strategyType}`;
 
     let strategy = this.strategies.get(key);

@@ -14,6 +14,7 @@ export enum AgentStatus {
 }
 
 export enum StrategyType {
+  AUTO = 'AUTO',
   SCALPING = 'SCALPING',
   SWING = 'SWING',
   GRID = 'GRID',
@@ -288,8 +289,8 @@ export const useAgentStore = create<AgentStore>()(
         const { selectedCredentialId, selectedSymbols } = get()
 
         // Ensure strategy is valid
-        const validStrategies = [StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI]
-        const safeStrategy = validStrategies.includes(strategy) ? strategy : StrategyType.SCALPING
+        const validStrategies = [StrategyType.AUTO, StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI]
+        const safeStrategy = validStrategies.includes(strategy) ? strategy : StrategyType.AUTO
 
         // Auto-fetch credentials if not set
         if (!selectedCredentialId || selectedCredentialId.trim() === '') {
@@ -304,6 +305,7 @@ export const useAgentStore = create<AgentStore>()(
 
         set({ loading: true, error: null })
         const strategyNameMap: Record<string, string> = {
+          AUTO: 'تلقائي (تكيفي)',
           SCALPING: 'السكالبينغ',
           SWING: 'السوينغ',
           GRID: 'الشبكة',
@@ -399,6 +401,7 @@ export const useAgentStore = create<AgentStore>()(
       changeStrategy: async (strategy, params) => {
         set({ loading: true, error: null })
         const strategyNameMap: Record<string, string> = {
+          AUTO: 'تلقائي (تكيفي)',
           SCALPING: 'السكالبينغ',
           SWING: 'السوينغ',
           GRID: 'الشبكة',

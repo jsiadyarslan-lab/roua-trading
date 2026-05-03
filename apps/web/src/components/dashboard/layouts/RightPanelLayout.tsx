@@ -296,7 +296,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
    ═══════════════════════════════════════════════ */
 function AgentMini() {
   const { agentState, performance, positions, loading, fetchStatus, fetchCredentials, startAgent, stopAgent, changeStrategy, fetchPerformance, fetchPositions, selectedCredentialId, availableCredentials } = useAgentStore()
-  const [strategy, setStrategy] = useState<StrategyType>(StrategyType.SCALPING)
+  const [strategy, setStrategy] = useState<StrategyType>(StrategyType.AUTO)
 
   const status = agentState?.status ?? null
   const isRunning = status === AgentStatus.RUNNING
@@ -311,7 +311,7 @@ function AgentMini() {
     fetchCredentials()
   })
 
-  const strategyLabels: Record<string, string> = { SCALPING: 'سكالبينغ', SWING: 'سوينغ', GRID: 'شبكة', MEAN_REVERSION: 'عودة للمتوسط', MOMENTUM_BREAKOUT: 'اختراق الزخم', DCA: 'متوسط التكلفة', VWAP_RSI: 'VWAP+RSI' }
+  const strategyLabels: Record<string, string> = { AUTO: 'تلقائي', SCALPING: 'سكالبينغ', SWING: 'سوينغ', GRID: 'شبكة', MEAN_REVERSION: 'عودة للمتوسط', MOMENTUM_BREAKOUT: 'اختراق الزخم', DCA: 'متوسط التكلفة', VWAP_RSI: 'VWAP+RSI' }
   const statusLabels: Record<string, string> = {
     IDLE: 'في الانتظار', RUNNING: 'يعمل', PAUSED: 'متوقف مؤقتاً',
     STOPPED: 'متوقف', EMERGENCY_STOP: 'إيقاف طارئ', DAILY_LIMIT_REACHED: 'حد الخسارة اليومية',
@@ -364,7 +364,7 @@ function AgentMini() {
       {/* Strategy Picker */}
       {!isRunning && (
         <div style={{ display: 'flex', gap: 3, padding: '4px 6px', background: '#09111a', borderBottom: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap' }}>
-          {([StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI]).map(s => (
+          {([StrategyType.AUTO, StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI]).map(s => (
             <button key={s} onClick={() => setStrategy(s)} style={{
               flex: '1 1 calc(33% - 3px)', minHeight: 20, padding: '3px 5px', fontSize: 7,
               background: strategy === s ? 'rgba(0,229,255,0.14)' : 'rgba(255,255,255,0.03)',

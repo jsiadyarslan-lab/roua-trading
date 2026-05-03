@@ -21,6 +21,7 @@ export enum AgentStatus {
 // ── Strategy Types ──
 
 export enum StrategyType {
+  AUTO = 'AUTO',
   SCALPING = 'SCALPING',
   SWING = 'SWING',
   GRID = 'GRID',
@@ -28,6 +29,41 @@ export enum StrategyType {
   MOMENTUM_BREAKOUT = 'MOMENTUM_BREAKOUT',
   DCA = 'DCA',
   VWAP_RSI = 'VWAP_RSI',
+}
+
+// ── Market Regime Types ──
+
+export enum MarketRegime {
+  TRENDING_UP = 'TRENDING_UP',
+  TRENDING_DOWN = 'TRENDING_DOWN',
+  RANGING = 'RANGING',
+  VOLATILE = 'VOLATILE',
+  TRANSITIONAL = 'TRANSITIONAL',
+}
+
+export interface RegimeDetection {
+  regime: MarketRegime;
+  confidence: number; // 0-100
+  indicators: {
+    trendStrength: number;
+    volatilityLevel: string;
+    emaAlignment: 'BULLISH' | 'BEARISH' | 'MIXED';
+    bbBandwidth: number;
+    adxProxy: number;
+    momentumDirection: 'UP' | 'DOWN' | 'FLAT';
+  };
+  recommendedStrategies: StrategyType[];
+  timestamp: Date;
+}
+
+export interface StrategyScore {
+  strategy: StrategyType;
+  score: number; // 0-100
+  regimeMatch: number; // 0-100
+  recentPerformance: number; // 0-100
+  drawdownPenalty: number; // 0-100
+  winRateTrend: number; // 0-100
+  reason: string;
 }
 
 export enum StrategySignal {
@@ -294,7 +330,7 @@ export class StrategyParamsDto implements StrategyParams {
 }
 
 export class StartAgentDto {
-  @IsIn(['SCALPING', 'SWING', 'GRID', 'MEAN_REVERSION', 'MOMENTUM_BREAKOUT', 'DCA', 'VWAP_RSI'])
+  @IsIn(['AUTO', 'SCALPING', 'SWING', 'GRID', 'MEAN_REVERSION', 'MOMENTUM_BREAKOUT', 'DCA', 'VWAP_RSI'])
   strategy: StrategyType;
 
   @IsOptional()
@@ -337,7 +373,7 @@ export class StartAgentDto {
 }
 
 export class ChangeStrategyDto {
-  @IsIn(['SCALPING', 'SWING', 'GRID', 'MEAN_REVERSION', 'MOMENTUM_BREAKOUT', 'DCA', 'VWAP_RSI'])
+  @IsIn(['AUTO', 'SCALPING', 'SWING', 'GRID', 'MEAN_REVERSION', 'MOMENTUM_BREAKOUT', 'DCA', 'VWAP_RSI'])
   strategy: StrategyType;
 
   @IsOptional()
@@ -412,7 +448,7 @@ export class UpdateAgentSettingsDto {
 
   // Default Strategy
   @IsOptional()
-  @IsIn(['SCALPING', 'SWING', 'GRID', 'MEAN_REVERSION', 'MOMENTUM_BREAKOUT', 'DCA', 'VWAP_RSI'])
+  @IsIn(['AUTO', 'SCALPING', 'SWING', 'GRID', 'MEAN_REVERSION', 'MOMENTUM_BREAKOUT', 'DCA', 'VWAP_RSI'])
   defaultStrategy?: string;
 
   // Scalping Params

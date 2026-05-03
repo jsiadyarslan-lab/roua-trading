@@ -14,6 +14,7 @@ import { MarketAnalyzerService } from './services/market-analyzer.service';
 import { SignalEvaluatorService } from './services/signal-evaluator.service';
 import { RiskCalculatorService } from './services/risk-calculator.service';
 import { OrderExecutorService } from './services/order-executor.service';
+import { AdaptiveStrategySelectorService } from './services/adaptive-strategy-selector.service';
 import { AutonomousTraderAgentService } from './agent.service';
 
 // Agent Controller
@@ -28,16 +29,22 @@ import { AutonomousTraderAgentController, AutonomousTraderPublicController } fro
  *
  * ┌────────────────────────────────────────────────────────────┐
  * │                                                            │
- * │  🔍 MarketAnalyzerService   — Real-time market analysis   │
- * │  📊 SignalEvaluatorService  — Strategy-based evaluation   │
- * │  🛡️ RiskCalculatorService   — Capital protection engine   │
- * │  ⚡ OrderExecutorService    — Safe order execution         │
- * │  🧠 AgentService            — Orchestration & lifecycle    │
+ * │  🔍 MarketAnalyzerService           — Real-time analysis  │
+ * │  🧠 AdaptiveStrategySelectorService — Auto regime detect  │
+ * │  📊 SignalEvaluatorService          — Strategy evaluation  │
+ * │  🛡️ RiskCalculatorService           — Capital protection   │
+ * │  ⚡ OrderExecutorService            — Safe execution       │
+ * │  🧠 AgentService                    — Orchestration        │
  * │                                                            │
  * │  Strategies:                                               │
- * │  ├─ Scalping — High-frequency small profits               │
- * │  ├─ Swing    — Medium-term trend following                │
- * │  └─ Grid     — Range-bound systematic trading             │
+ * │  ├─ AUTO          — Adaptive auto-selection (recommended)  │
+ * │  ├─ Scalping      — High-frequency small profits           │
+ * │  ├─ Swing         — Medium-term trend following            │
+ * │  ├─ Grid          — Range-bound systematic trading         │
+ * │  ├─ MeanReversion — Statistical price reversion            │
+ * │  ├─ Breakout      — Momentum breakout detection            │
+ * │  ├─ DCA           — Dollar-cost averaging                  │
+ * │  └─ VWAP+RSI      — Institutional benchmark strategy       │
  * │                                                            │
  * │  Safety Systems:                                           │
  * │  ├─ Mandatory stop-loss (non-disableable)                 │
@@ -59,6 +66,7 @@ import { AutonomousTraderAgentController, AutonomousTraderPublicController } fro
   providers: [
     // Core Services
     MarketAnalyzerService,
+    AdaptiveStrategySelectorService,
     SignalEvaluatorService,
     RiskCalculatorService,
     OrderExecutorService,
@@ -68,6 +76,7 @@ import { AutonomousTraderAgentController, AutonomousTraderPublicController } fro
     AutonomousTraderAgentService,
     MarketAnalyzerService,
     SignalEvaluatorService,
+    AdaptiveStrategySelectorService,
     RiskCalculatorService,
     OrderExecutorService,
   ],

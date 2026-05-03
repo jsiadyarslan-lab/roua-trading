@@ -675,7 +675,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         maxDailyLossPercent: parseFloat(this.configService.get('MAX_DAILY_LOSS_PERCENT', '5')) || 5,
         maxOpenPositions: parseInt(this.configService.get('MAX_OPEN_POSITIONS', '5'), 10) || 5,
         riskPerTradePercent: 1.5,
-        defaultStrategy: StrategyType.SCALPING,
+        defaultStrategy: StrategyType.AUTO,
         scalpingTimeframe: '5m',
         scalpingTakeProfitPips: 15,
         scalpingStopLossPips: 10,
@@ -695,6 +695,16 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    */
   private _buildStrategyParamsFromSettings(settings: any, strategy: StrategyType): StrategyParams {
     switch (strategy) {
+      case StrategyType.AUTO:
+        // AUTO uses all strategy params — build comprehensive params
+        return {
+          ...this._buildStrategyParamsFromSettings(settings, StrategyType.SCALPING),
+          ...this._buildStrategyParamsFromSettings(settings, StrategyType.SWING),
+          ...this._buildStrategyParamsFromSettings(settings, StrategyType.MEAN_REVERSION),
+          ...this._buildStrategyParamsFromSettings(settings, StrategyType.MOMENTUM_BREAKOUT),
+          ...this._buildStrategyParamsFromSettings(settings, StrategyType.DCA),
+          ...this._buildStrategyParamsFromSettings(settings, StrategyType.VWAP_RSI),
+        };
       case StrategyType.SCALPING:
         return {
           scalpingTimeframe: settings.scalpingTimeframe || '5m',
@@ -1121,6 +1131,16 @@ export class AutonomousTraderAgentService implements OnModuleInit {
 
   private _getDefaultStrategyParams(strategy: StrategyType): StrategyParams {
     switch (strategy) {
+      case StrategyType.AUTO:
+        // AUTO uses all strategy params — return comprehensive defaults
+        return {
+          ...this._getDefaultStrategyParams(StrategyType.SCALPING),
+          ...this._getDefaultStrategyParams(StrategyType.SWING),
+          ...this._getDefaultStrategyParams(StrategyType.MEAN_REVERSION),
+          ...this._getDefaultStrategyParams(StrategyType.MOMENTUM_BREAKOUT),
+          ...this._getDefaultStrategyParams(StrategyType.DCA),
+          ...this._getDefaultStrategyParams(StrategyType.VWAP_RSI),
+        };
       case StrategyType.SCALPING:
         return {
           scalpingTimeframe: '5m',

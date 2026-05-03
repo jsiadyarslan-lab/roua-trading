@@ -735,9 +735,14 @@ model PredictionEvent {
 // ── Autonomous Trader Agent (Phase 8) ──
 
 enum AgentStrategy {
+  AUTO
   SCALPING
   SWING
   GRID
+  MEAN_REVERSION
+  MOMENTUM_BREAKOUT
+  DCA
+  VWAP_RSI
 }
 
 enum AgentTradeStatus {
@@ -885,7 +890,7 @@ model AgentSettings {
   riskPerTradePercent       Decimal  @default(1.5) @db.Decimal(5, 2)
 
   // Default Strategy
-  defaultStrategy           String   @default("SCALPING")
+  defaultStrategy           String   @default("AUTO")
 
   // Scalping Params
   scalpingTimeframe         String   @default("5m")

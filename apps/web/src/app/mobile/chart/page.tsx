@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMarketStore } from '@/hooks/useMarketStore'
@@ -38,7 +38,7 @@ const C = {
 
 type ExecStatus = 'idle' | 'validating' | 'submitting' | 'filled' | 'rejected' | 'error'
 
-export default function MobileChartPage() {
+function ChartPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { selectedSymbol, setSelectedSymbol, timeframe, setTimeframe } = useSymbolStore()
@@ -516,13 +516,13 @@ export default function MobileChartPage() {
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => { if (execStatus !== 'submitting') setShowOrderSheet(false) }}
-              style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)' }}
+              style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)' }}
             />
             <motion.div
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 350 }}
               style={{
-                position: 'fixed', bottom: 'calc(60px + env(safe-area-inset-bottom))', left: 0, right: 0, zIndex: 201,
+                position: 'fixed', bottom: 'calc(60px + env(safe-area-inset-bottom))', left: 0, right: 0, zIndex: 301,
                 background: C.bg,
                 backdropFilter: 'blur(50px) saturate(200%)',
                 borderRadius: '24px 24px 0 0',
@@ -768,7 +768,7 @@ export default function MobileChartPage() {
               </div>{/* END scrollable content */}
 
               {/* Fixed Bottom — Buy / Sell Buttons (always visible in sheet, above navbar) */}
-              <div style={{ flexShrink: 0, padding: '8px 20px 20px', borderTop: '0.5px solid rgba(255,255,255,0.08)', background: 'rgba(20,20,22,0.95)', position: 'relative', zIndex: 202 }}>
+              <div style={{ flexShrink: 0, padding: '8px 20px 20px', borderTop: '0.5px solid rgba(255,255,255,0.08)', background: 'rgba(20,20,22,0.95)', position: 'relative', zIndex: 302 }}>
                 {(execStatus === 'idle' || execStatus === 'error' || execStatus === 'rejected') && (
                   <div style={{ display: 'flex', gap: 8 }}>
                     <motion.button
@@ -825,5 +825,17 @@ export default function MobileChartPage() {
         )}
       </AnimatePresence>
     </div>
+  )
+}
+
+export default function MobileChartPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ height: '100%', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="animate-spin" style={{ width: 24, height: 24, border: '2px solid rgba(0,212,255,0.1)', borderTopColor: '#00D4FF', borderRadius: '50%' }} />
+      </div>
+    }>
+      <ChartPageContent />
+    </Suspense>
   )
 }

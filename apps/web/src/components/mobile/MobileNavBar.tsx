@@ -97,8 +97,9 @@ export default function MobileNavBar() {
     <>
       {/* Bottom Navigation */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
+        className="fixed bottom-0 left-0 right-0 md:hidden"
         style={{
+          zIndex: 50,
           height: 'calc(60px + env(safe-area-inset-bottom))',
           paddingBottom: 'env(safe-area-inset-bottom)',
           background: 'rgba(11, 14, 20, 0.4)',
@@ -201,8 +202,8 @@ export default function MobileNavBar() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowMore(false)}
-              className="fixed inset-0 z-50 md:hidden"
-              style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+              className="fixed inset-0 md:hidden"
+              style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 50 }}
             />
 
             {/* Sheet */}
@@ -211,8 +212,9 @@ export default function MobileNavBar() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-              className="fixed bottom-0 left-0 right-0 z-50 md:hidden"
+              className="fixed bottom-0 left-0 right-0 md:hidden"
               style={{
+                zIndex: 50,
                 background: 'rgba(11, 14, 20, 0.92)',
                 backdropFilter: 'blur(40px) saturate(200%)',
                 WebkitBackdropFilter: 'blur(40px) saturate(200%)',

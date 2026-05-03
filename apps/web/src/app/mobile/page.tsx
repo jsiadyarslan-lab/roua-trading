@@ -385,7 +385,8 @@ export default function MobileHomePage() {
     <div style={{ 
       background: '#000000', 
       direction: 'rtl', 
-      paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+      /* paddingBottom removed — the layout's <main> already provides
+         calc(68px + env(safe-area-inset-bottom)) padding for the navbar */
       position: 'relative',
       overflowX: 'hidden',
       width: '100%',

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import MobileNavBar from '@/components/mobile/MobileNavBar'
 import { AuthGuard } from '@/components/dashboard/AuthGuard'
 import { MarketProvider } from '@/components/dashboard/MarketProvider'
+import ViewportHeightSetter from '@/components/mobile/ViewportHeightSetter'
 
 export const metadata: Metadata = {
   title: 'رؤى للتداول — تطبيق الجوال',
@@ -19,6 +20,7 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
   return (
     <MarketProvider>
       <AuthGuard>
+        <ViewportHeightSetter />
         <div
           style={{
             position: 'relative',
@@ -29,9 +31,9 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
             maxWidth: 480,
             width: '100%',
             margin: '0 auto',
-            /* FIXED height instead of minHeight — prevents pages from
-               expanding beyond the viewport and getting cut off */
-            height: '100dvh',
+            /* Use --app-height (set via JS window.innerHeight) as primary,
+               fall back to 100dvh for SSR/before hydration */
+            height: 'var(--app-height, 100dvh)',
             overflow: 'hidden',
           }}
         >

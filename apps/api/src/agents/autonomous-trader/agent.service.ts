@@ -95,31 +95,48 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * loading, which causes ALL agent routes to return 404.
    */
   async onModuleInit() {
-    // Do NOT let any error escape — a failing onModuleInit prevents
-    // the controller from loading, which causes 404 on all agent routes.
-    try {
-      // Ensure AUTO_TRADING_ENABLED exists in the Setting table
-      const existing = await this.prisma.setting.findUnique({
-        where: { key: 'AUTO_TRADING_ENABLED' },
-      });
+    // CRITICAL FIX: Do NOT let any error escape — a failing onModuleInit prevents
+    // the controller from loading, which causes 404 on ALL agent routes.
+    // Previous version could still throw on Prisma connection timeouts.
+    // Now using a bounded timeout to prevent module loading from hanging.
+    const INIT_TIMEOUT_MS = 5000; // 5 seconds max — don't block module loading
 
-      if (!existing) {
-        // Read current env var value to use as initial DB value, defaulting to true
-        const envValue = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
-        await this.prisma.setting.create({
-          data: {
-            key: 'AUTO_TRADING_ENABLED',
-            value: JSON.stringify(envValue),
-          },
-        });
-        this.logger.log(`🔧 Auto-seeded AUTO_TRADING_ENABLED=${envValue} in DB (from env var / default)`);
-      } else {
-        this.logger.log(`🔧 AUTO_TRADING_ENABLED=${JSON.parse(existing.value)} already in DB (source: database)`);
-      }
+    try {
+      await Promise.race([
+        this._initAutoTradingSetting(),
+        new Promise<void>((_, reject) =>
+          setTimeout(() => reject(new Error('onModuleInit timeout')), INIT_TIMEOUT_MS)
+        ),
+      ]);
     } catch (error: any) {
-      // DB not ready yet (cold start, connection issue) — non-fatal.
+      // DB not ready yet (cold start, connection issue, timeout) — non-fatal.
       // The service will fall back to env vars for AUTO_TRADING_ENABLED.
-      this.logger.warn(`Could not auto-seed AUTO_TRADING_ENABLED: ${error?.message || error} — will fall back to env var`);
+      this.logger.warn(`Could not auto-seed AUTO_TRADING_ENABLED: ${error?.message || error} — will fall back to env var. Agent routes will still be registered.`);
+    }
+  }
+
+  /**
+   * Initialize AUTO_TRADING_ENABLED setting in DB.
+   * Extracted from onModuleInit for timeout wrapping.
+   */
+  private async _initAutoTradingSetting(): Promise<void> {
+    // Ensure AUTO_TRADING_ENABLED exists in the Setting table
+    const existing = await this.prisma.setting.findUnique({
+      where: { key: 'AUTO_TRADING_ENABLED' },
+    });
+
+    if (!existing) {
+      // Read current env var value to use as initial DB value, defaulting to true
+      const envValue = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+      await this.prisma.setting.create({
+        data: {
+          key: 'AUTO_TRADING_ENABLED',
+          value: JSON.stringify(envValue),
+        },
+      });
+      this.logger.log(`🔧 Auto-seeded AUTO_TRADING_ENABLED=${envValue} in DB (from env var / default)`);
+    } else {
+      this.logger.log(`🔧 AUTO_TRADING_ENABLED=${JSON.parse(existing.value)} already in DB (source: database)`);
     }
   }
 

@@ -102,12 +102,13 @@ export class RiskCalculatorService {
     const maxOpenPositions = config.maxOpenPositions || this.defaultMaxOpenPositions;
     const riskPerTradePercent = config.riskPerTradePercent || this.defaultRiskPerTradePercent;
 
-    // Step 5: Calculate position size
+    // Step 5: Calculate position size (with maxPositionSizePercent cap)
     const positionSize = this._calculatePositionSize(
       portfolioValue,
       riskPerTradePercent,
       signal.entryPrice,
       signal.stopLoss,
+      maxPositionSizePercent,
     );
 
     // Step 6: Calculate risk-reward ratio
@@ -268,8 +269,12 @@ export class RiskCalculatorService {
     riskPerTradePercent: number,
     entryPrice: number,
     stopLoss: number,
+    maxPositionSizePercent?: number,
   ): number {
     if (portfolioValue <= 0 || entryPrice <= 0 || stopLoss <= 0) return 0;
+
+    // Use config maxPositionSizePercent or fallback to default
+    const maxSizePercent = maxPositionSizePercent || this.defaultMaxPositionSizePercent;
 
     // Risk amount = portfolio × risk %
     const riskAmount = portfolioValue * (riskPerTradePercent / 100);
@@ -279,8 +284,25 @@ export class RiskCalculatorService {
 
     if (priceRisk === 0) return 0;
 
-    // Position size = risk amount / price risk
-    const quantity = riskAmount / priceRisk;
+    // Position size = risk amount / price risk (how many units we can buy given our risk budget)
+    let quantity = riskAmount / priceRisk;
+
+    // CRITICAL FIX: Cap position size to maxPositionSizePercent of portfolio.
+    // Previously, when priceRisk was very small relative to entryPrice
+    // (e.g., BTC=$94,500 with SL=$94,200 → priceRisk=$300), the calculated
+    // quantity could be huge (0.5 BTC = $47,250 = 472% of $10,000 portfolio).
+    // Now we enforce: positionValue <= portfolio * maxSizePercent / 100
+    const maxPositionValue = portfolioValue * (maxSizePercent / 100);
+    const currentPositionValue = quantity * entryPrice;
+
+    if (currentPositionValue > maxPositionValue) {
+      // Reduce quantity to fit within max position size limit
+      quantity = maxPositionValue / entryPrice;
+      this.logger.debug(
+        `🛡️ Position size capped: ${currentPositionValue.toFixed(2)} > ${maxPositionValue.toFixed(2)} ` +
+        `(max ${maxSizePercent}% of portfolio) → reduced to ${quantity.toFixed(8)} units`,
+      );
+    }
 
     return parseFloat(quantity.toFixed(8));
   }

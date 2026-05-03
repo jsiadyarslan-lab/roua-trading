@@ -505,22 +505,14 @@ export default function DashboardPage() {
   const [posOpen, setPosOpen] = useState(true)
   const modeConfig = MODE_CONFIG[mode]
 
-  // Auto-collapse when no positions exist, auto-expand when positions appear
   const hasPositions = positions.length > 0 || paperTrades.length > 0
+
+  // Auto-expand positions panel when positions appear (only if user hasn't manually collapsed)
   useEffect(() => {
-    if (!hasPositions && posOpen) {
-      setPosOpen(false)
-    } else if (hasPositions && !posOpen) {
+    if (hasPositions && !posOpen) {
       setPosOpen(true)
     }
   }, [hasPositions])
-
-  // Auto-expand positions panel when entering fullscreen
-  useEffect(() => {
-    if (chartFullscreen && !posOpen) {
-      setPosOpen(true)
-    }
-  }, [chartFullscreen])
   const [chartExpanded, setChartExpanded] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
   const [isCompactDesktopViewport, setIsCompactDesktopViewport] = useState(false)
@@ -1141,29 +1133,29 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Open Positions Panel — only visible when positions exist */}
-            {hasPositions && (
-              <div className="panel hover-glow" style={{ flexShrink: 0, height: posOpen ? 220 : PANEL_H, transition: ANIM, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <div className="panel-header" style={{ cursor: 'pointer' }} onClick={() => setPosOpen(prev => !prev)}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, fontWeight: 800, color: T.cyan, letterSpacing: 0.3 }}>الصفقات المفتوحة</span>
+            {/* Open Positions Panel — always visible, collapsible */}
+            <div className="panel hover-glow" style={{ flexShrink: 0, height: posOpen ? 220 : PANEL_H, transition: ANIM, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div className="panel-header" style={{ cursor: 'pointer' }} onClick={() => setPosOpen(prev => !prev)}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, fontWeight: 800, color: T.cyan, letterSpacing: 0.3 }}>الصفقات المفتوحة</span>
+                  {hasPositions && (
                     <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: T.text3, fontWeight: 700 }}>({positions.length + paperTrades.length})</span>
-                  </div>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setPosOpen(prev => !prev) }}
-                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.text3, padding: 4, borderRadius: 6, transition: 'all 0.2s' }}
-                    onMouseEnter={e => (e.currentTarget.style.color = T.cyan)}
-                    onMouseLeave={e => (e.currentTarget.style.color = T.text3)}
-                  >
-                    <ChevronDown size={14} style={{ transform: posOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.3s' }} />
-                  </button>
+                  )}
                 </div>
-
-                <div className="striped-rows" style={{ flex: 1, opacity: posOpen ? 1 : 0, transition: 'opacity 0.2s', overflow: 'hidden' }}>
-                  <AlpacaPositions />
-                </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setPosOpen(prev => !prev) }}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.text3, padding: 4, borderRadius: 6, transition: 'all 0.2s' }}
+                  onMouseEnter={e => (e.currentTarget.style.color = T.cyan)}
+                  onMouseLeave={e => (e.currentTarget.style.color = T.text3)}
+                >
+                  <ChevronDown size={14} style={{ transform: posOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.3s' }} />
+                </button>
               </div>
-            )}
+
+              <div className="striped-rows" style={{ flex: 1, opacity: posOpen ? 1 : 0, transition: 'opacity 0.2s', overflow: 'hidden' }}>
+                <AlpacaPositions />
+              </div>
+            </div>
           </div>
 
           {/* Right Panel — mode-aware content */}

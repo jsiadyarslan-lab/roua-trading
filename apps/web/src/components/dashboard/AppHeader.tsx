@@ -147,7 +147,7 @@ function LogoCircle({ state }: { state: MarketState }) {
   const c = STATE[state]
   return (
     <div className="logo-orb" style={{
-      position: 'absolute', top: '50%', insetInlineEnd: 10,
+      position: 'absolute', top: '50%', insetInlineStart: 10,
       transform: 'translateY(-50%)',
       width: ORB_D, height: ORB_D, borderRadius: '50%',
       background: `radial-gradient(circle at 50% 40%, #0D1520, #020308)`,
@@ -232,7 +232,7 @@ function NewsTicker() {
       borderBottom: `0.5px solid ${T.border}`,
       display: 'flex', alignItems: 'center',
       overflow: 'hidden',
-      borderStartEndRadius: ORB_D / 2,
+      borderStartStartRadius: ORB_D / 2,
     }}>
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
         {doubled.length > 0 ? (
@@ -1014,7 +1014,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
       display: 'flex', alignItems: 'center',
       padding: '0 8px', gap: 0,
       overflow: 'hidden',
-      borderEndEndRadius: ORB_D / 2,
+      borderEndStartRadius: ORB_D / 2,
     }}>
       {NAV_LINKS.slice(0, 8).map((link) => {
         const { href, label, icon: Icon, children } = link
@@ -1430,15 +1430,28 @@ export function AppHeader() {
              <Menu size={22} />
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0, paddingInline: 6 }}>
-             <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 900, fontSize: 14, color: T.text, whiteSpace: 'nowrap' }}>رؤى</span>
-             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: 'var(--accent)', letterSpacing: '0.08em', opacity: 0.8 }}>ROUA</span>
+          <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, paddingInline: 6 }}>
+             <div style={{
+               width: 34, height: 34, borderRadius: '50%',
+               background: `radial-gradient(circle at 50% 40%, #0D1520, #020308)`,
+               border: '1.5px solid rgba(0,200,255,0.25)',
+               boxShadow: '0 0 12px rgba(0,200,255,0.25), 0 0 0 2px rgba(0,200,255,0.08)',
+               display: 'flex', alignItems: 'center', justifyContent: 'center',
+               flexShrink: 0,
+             }}>
+               <CosmicOrb state={marketState} size={22} />
+             </div>
+             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+               <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 900, fontSize: 15, color: T.text, whiteSpace: 'nowrap', lineHeight: 1.1 }}>رؤى</span>
+               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7, color: 'var(--accent)', letterSpacing: '0.1em', opacity: 0.7, lineHeight: 1 }}>ROUA</span>
+             </div>
+          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
              <CurrencyTicker isMobile />
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
              <NotificationCenter />
-             <CosmicOrb state={marketState} size={24} />
           </div>
         </div>
         {/* Mobile news ticker (hidden on small screens via CSS) */}

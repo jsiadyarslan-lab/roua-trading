@@ -9,7 +9,7 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
 import {
   Brain, Bot, ScanSearch, ChevronRight, TrendingUp, TrendingDown,
   Bell, Activity, Plus, ShieldCheck, Link2, ChevronLeft, Zap, Loader2, Target,
-  RefreshCw, Eye, EyeOff, Wallet, Cpu
+  RefreshCw, Eye, EyeOff, Wallet, Cpu, Globe2
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -389,17 +389,19 @@ export default function MobileHomePage() {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         position: 'relative', zIndex: 1
       }}>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <div style={{
-            width: 48, height: 48, borderRadius: 16,
-            background: 'linear-gradient(135deg, #00D4FF 0%, #7DD3FC 50%, #BAE6FD 100%)',
+            width: 44, height: 44, borderRadius: '50%',
+            background: 'radial-gradient(circle at 50% 40%, #0D1520, #020308)',
+            border: '1.5px solid rgba(0,200,255,0.3)',
+            boxShadow: '0 0 16px rgba(0,200,255,0.3), 0 0 0 3px rgba(0,200,255,0.08)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 24, fontWeight: 900, color: '#000',
-            boxShadow: '0 8px 24px rgba(0, 212, 255, 0.35), inset 0 2px 2px rgba(255,255,255,0.4)',
-            border: '1px solid rgba(255,255,255,0.1)'
-          }}>ر</div>
+            flexShrink: 0,
+          }}>
+            <Globe2 size={20} color="#00D4FF" strokeWidth={2.5} />
+          </div>
           <div>
-            <h1 style={{ fontSize: 22, fontWeight: 900, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif", letterSpacing: -0.5 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 900, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif", letterSpacing: -0.5, lineHeight: 1.1 }}>
               رؤى للتداول
             </h1>
             <div className="flex items-center gap-1.5 mt-0.5">

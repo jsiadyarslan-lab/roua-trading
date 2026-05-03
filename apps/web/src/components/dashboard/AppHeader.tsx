@@ -143,34 +143,42 @@ function CosmicOrb({ state, size = 68 }: { state: MarketState, size?: number }) 
 }
 
 /* ══ Logo Circle ══ */
-function LogoCircle({ state }: { state: MarketState }) {
+function LogoCircle({ state, size = 'desktop' }: { state: MarketState, size?: 'desktop' | 'mobile' }) {
   const c = STATE[state]
+  const isDesktop = size === 'desktop'
+  const D = isDesktop ? ORB_D : 48
+  const orbSize = isDesktop ? 68 : 28
   return (
-    <div className="logo-orb" style={{
-      position: 'absolute', top: '50%', insetInlineStart: 10,
-      transform: 'translateY(-50%)',
-      width: ORB_D, height: ORB_D, borderRadius: '50%',
+    <div className={isDesktop ? 'logo-orb' : 'logo-orb-mobile'} style={{
+      position: isDesktop ? 'absolute' : 'relative',
+      top: isDesktop ? '50%' : undefined,
+      insetInlineStart: isDesktop ? 10 : undefined,
+      transform: isDesktop ? 'translateY(-50%)' : undefined,
+      width: D, height: D, borderRadius: '50%',
       background: `radial-gradient(circle at 50% 40%, #0D1520, #020308)`,
       border: `1.5px solid ${c.core}44`,
-      boxShadow: `0 0 28px ${c.glow}, 0 0 0 4px ${c.core}11`,
+      boxShadow: `0 0 28px ${c.glow}, 0 0 0 ${isDesktop ? 4 : 2}px ${c.core}11`,
       display: 'flex', flexDirection: 'column',
       alignItems: 'center', justifyContent: 'center',
-      gap: 6, zIndex: 20,
+      gap: isDesktop ? 2 : 0, zIndex: 20,
       transition: 'border-color 1s, box-shadow 1s',
+      flexShrink: 0,
     }}>
-      <CosmicOrb state={state} />
-      <div style={{ textAlign: 'center' }}>
-        <div style={{
-          fontFamily: "'Cairo', sans-serif",
-          fontWeight: 900, fontSize: 11.5,
-          color: T.text, lineHeight: 1.1,
-        }}>رؤى</div>
-        <div style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: 6, color: c.core,
-          letterSpacing: '0.1em', opacity: 0.85,
-        }}>ROUA</div>
-      </div>
+      <CosmicOrb state={state} size={orbSize} />
+      {isDesktop && (
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            fontFamily: "'Cairo', sans-serif",
+            fontWeight: 900, fontSize: 11.5,
+            color: T.text, lineHeight: 1.1,
+          }}>رؤى</div>
+          <div style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 6, color: c.core,
+            letterSpacing: '0.1em', opacity: 0.85,
+          }}>ROUA</div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1215,10 +1223,14 @@ const KF = `
 header *            { scrollbar-width:none; -ms-overflow-style:none; }
 header *::-webkit-scrollbar { display:none; }
 
+@media (min-width: 1025px) {
+  .logo-orb-mobile { display: none !important; }
+}
 @media (max-width: 1024px) {
   .desktop-header { display: none !important; }
   .mobile-header { display: flex !important; }
   .logo-orb { display: none !important; }
+  .logo-orb-mobile { display: flex !important; }
   .mobile-news-ticker { display: none !important; }
 }
 `
@@ -1430,20 +1442,11 @@ export function AppHeader() {
              <Menu size={22} />
           </button>
 
-          <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, paddingInline: 6 }}>
-             <div style={{
-               width: 34, height: 34, borderRadius: '50%',
-               background: `radial-gradient(circle at 50% 40%, #0D1520, #020308)`,
-               border: '1.5px solid rgba(0,200,255,0.25)',
-               boxShadow: '0 0 12px rgba(0,200,255,0.25), 0 0 0 2px rgba(0,200,255,0.08)',
-               display: 'flex', alignItems: 'center', justifyContent: 'center',
-               flexShrink: 0,
-             }}>
-               <CosmicOrb state={marketState} size={22} />
-             </div>
+          <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, paddingInline: 6 }}>
+             <LogoCircle state={marketState} size="mobile" />
              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-               <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 900, fontSize: 15, color: T.text, whiteSpace: 'nowrap', lineHeight: 1.1 }}>رؤى</span>
-               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7, color: 'var(--accent)', letterSpacing: '0.1em', opacity: 0.7, lineHeight: 1 }}>ROUA</span>
+               <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 900, fontSize: 16, color: T.text, whiteSpace: 'nowrap', lineHeight: 1.1 }}>رؤى</span>
+               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7, color: 'var(--accent)', letterSpacing: '0.12em', opacity: 0.8, lineHeight: 1 }}>ROUA</span>
              </div>
           </Link>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>

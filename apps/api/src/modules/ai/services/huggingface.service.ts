@@ -68,13 +68,13 @@ export class HuggingFaceService {
     'Qwen/Qwen2.5-7B-Instruct',
   ];
 
-  // OpenRouter free model candidates
+  // OpenRouter free model candidates — updated May 2025
   private readonly openrouterModelCandidates = [
-    'meta-llama/llama-3.1-8b-instruct:free',
-    'mistralai/mistral-7b-instruct:free',
-    'google/gemma-2-9b-it:free',
-    'qwen/qwen-2.5-7b-instruct:free',
-    'huggingfaceh4/zephyr-7b-beta:free',
+    'google/gemini-2.0-flash-exp:free',
+    'deepseek/deepseek-r1-0528:free',
+    'meta-llama/llama-4-maverick:free',
+    'qwen/qwen3-30b-a3b:free',
+    'meta-llama/llama-3.3-70b-instruct:free',
   ];
 
   // Cache the working provider + model + method
@@ -150,12 +150,13 @@ export class HuggingFaceService {
     }
 
     let lastError = '';
+    let strategyErrors: string[] = [];
 
     // ===== Strategy 1: HuggingFace Auto-Router =====
     if (this.hfApiKey) {
       const result = await this._tryHuggingFace(systemPrompt, request.prompt, startTime);
       if (result) return result;
-      lastError = 'HF AutoRouter: Token needs "Make calls to Inference Providers" permission or credits exhausted';
+      strategyErrors.push('HF AutoRouter: Token needs "Make calls to Inference Providers" permission or credits exhausted');
     }
 
     // ===== Strategy 2: HuggingFace Direct Inference API (NEW!) =====
@@ -163,20 +164,21 @@ export class HuggingFaceService {
     if (this.hfApiKey) {
       const result = await this._tryDirectInference(systemPrompt, request.prompt, startTime);
       if (result) return result;
-      lastError = lastError || 'HF Direct Inference: All models failed or unavailable';
+      strategyErrors.push('HF Direct Inference: All models failed or unavailable');
     }
 
     // ===== Strategy 3: OpenRouter fallback =====
     if (this.openrouterApiKey) {
       const result = await this._tryOpenRouter(systemPrompt, request.prompt, startTime);
       if (result) return result;
-      lastError = lastError || 'OpenRouter: All models failed';
+      strategyErrors.push('OpenRouter: All models failed');
     }
 
     // All providers failed
     this.resolvedProvider = null;
     this.resolvedModel = null;
-    this.logger.warn(`🤗 All providers failed — returning stub. Last: ${lastError}`);
+    lastError = strategyErrors.join(' → ');
+    this.logger.warn(`🤗 All providers failed — returning stub. Errors: ${lastError}`);
     return {
       ...this._stubResponse(request),
       content: `⚠️ HuggingFace/OpenRouter error: ${lastError.substring(0, 250)}`,

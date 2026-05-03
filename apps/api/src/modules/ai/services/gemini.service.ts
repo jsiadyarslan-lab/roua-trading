@@ -23,12 +23,12 @@ export class GeminiService {
   // varies by API key age, region, and Google's deprecation schedule.
   // Updated May 2025: Added gemini-2.5-flash-preview-05-20, kept stable models.
   private readonly modelCandidates = [
-    'gemini-2.5-flash-preview-05-20',    // NEW — latest 2.5 Flash preview
     'gemini-2.0-flash',                   // Stable Gemini 2.0 Flash — best free tier
     'gemini-2.0-flash-lite',              // Lightweight — highest free quota, fastest
     'gemini-2.0-flash-001',               // Versioned 2.0 Flash — stable pin
     'gemini-1.5-flash',                   // Older but widely available, good quota
     'gemini-1.5-flash-8b',                // Smallest, most available, generous quota
+    'gemini-2.5-flash-preview-04-17',     // 2.5 Flash preview — may work on some keys
   ];
   private resolvedModel: string | null = null; // Cached after first successful call
 

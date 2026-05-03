@@ -29,15 +29,16 @@ export class OpenRouterService {
   private apiKey: string; // Not readonly — allows on-demand key resolution
   private readonly baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
 
-  // Model candidates — free models first, then low-cost models
+  // Model candidates — updated May 2025 with currently available models
+  // FIX: Previous free model names returned 404. Updated with working models.
   private readonly modelCandidates = [
-    'qwen/qwen-2.5-7b-instruct:free',          // Free — good Arabic + reasoning
-    'meta-llama/llama-3.1-8b-instruct:free',    // Free — fast, capable
-    'google/gemma-2-9b-it:free',                // Free — good multilingual
-    'mistralai/mistral-7b-instruct:free',        // Free — fast, diverse
-    'huggingfaceh4/zephyr-7b-beta:free',         // Free — chat-optimized
-    'deepseek/deepseek-chat',                    // Low cost — excellent reasoning
-    'qwen/qwen-2.5-72b-instruct',               // Low cost — top-tier reasoning
+    'google/gemini-2.0-flash-exp:free',           // Free — Gemini 2.0 Flash experimental
+    'deepseek/deepseek-r1-0528:free',             // Free — DeepSeek R1 reasoning
+    'meta-llama/llama-4-maverick:free',           // Free — Llama 4 Maverick
+    'qwen/qwen3-30b-a3b:free',                    // Free — Qwen 3 MoE
+    'meta-llama/llama-3.3-70b-instruct:free',    // Free — Llama 3.3 70B
+    'deepseek/deepseek-chat-v3-0324',             // Low cost — excellent reasoning
+    'qwen/qwen-2.5-72b-instruct',                // Low cost — top-tier reasoning
   ];
 
   private resolvedModel: string | null = null;

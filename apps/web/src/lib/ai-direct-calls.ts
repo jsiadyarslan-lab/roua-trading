@@ -202,46 +202,99 @@ function symbolToCoingeckoId(symbol: string): string {
 /**
  * FIX: Fetch quick market data (price, RSI, MACD) to prevent AI hallucinations.
  * Models were inventing prices (e.g., saying BTC is $28,500 when it's much higher).
- * Uses Binance public API for crypto — no auth required.
- * Falls back to CoinGecko if Binance is unreachable (common on Railway).
+ *
+ * Strategy: Try multiple price sources in parallel for reliability:
+ * 1. Binance public API (fastest, most accurate) — often blocked on Railway/cloud
+ * 2. CoinGecko (free, no auth) — strict rate limits
+ * 3. CoinCap (free, no auth) — reliable on cloud platforms
+ * 4. Bybit public API — alternative exchange, works on cloud
+ *
+ * First valid response wins. RSI/MACD calculated from Binance klines if available,
+ * otherwise default to RSI=50.
  */
 async function fetchQuickMarketData(symbol: string): Promise<{ price: number; rsi: number; macd: string }> {
+  // Normalize symbol for Binance: BTC/USD → BTCUSDT
+  const binanceSymbol = symbol.replace(/[\/\-]/g, '').replace('USD', 'USDT').toUpperCase()
+
+  // Try ALL price sources in parallel — first valid price wins
+  const pricePromise = Promise.any([
+    // Source 1: Binance (most accurate, but often blocked on Railway)
+    (async () => {
+      const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`, {
+        signal: AbortSignal.timeout(4000),
+      })
+      if (!res.ok) throw new Error(`Binance ${res.status}`)
+      const data = await res.json()
+      const price = parseFloat(data?.lastPrice || '0')
+      if (price <= 0) throw new Error('Binance price=0')
+      return { price, source: 'binance' }
+    })(),
+    // Source 2: CoinGecko (reliable, free, no auth)
+    (async () => {
+      const coingeckoId = symbolToCoingeckoId(symbol)
+      const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coingeckoId}&vs_currencies=usd&include_24hr_change=true`, {
+        signal: AbortSignal.timeout(5000),
+      })
+      if (!res.ok) throw new Error(`CoinGecko ${res.status}`)
+      const data = await res.json()
+      const price = data[coingeckoId]?.usd
+      if (!price || price <= 0) throw new Error('CoinGecko no price')
+      return { price, source: 'coingecko' }
+    })(),
+    // Source 3: CoinCap (free, no auth, works on cloud platforms)
+    (async () => {
+      const base = symbol.split('/')[0].toLowerCase()
+      const res = await fetch(`https://api.coincap.io/v2/assets/${base}`, {
+        signal: AbortSignal.timeout(5000),
+      })
+      if (!res.ok) throw new Error(`CoinCap ${res.status}`)
+      const data = await res.json()
+      const price = parseFloat(data?.data?.priceUsd || '0')
+      if (price <= 0) throw new Error('CoinCap price=0')
+      return { price, source: 'coincap' }
+    })(),
+    // Source 4: Bybit (alternative exchange, works on cloud)
+    (async () => {
+      const bybitSymbol = symbol.replace(/[\/\-]/g, '').toUpperCase()
+      const res = await fetch(`https://api.bybit.com/v5/market/tickers?category=spot&symbol=${bybitSymbol}`, {
+        signal: AbortSignal.timeout(4000),
+      })
+      if (!res.ok) throw new Error(`Bybit ${res.status}`)
+      const data = await res.json()
+      const price = parseFloat(data?.result?.list?.[0]?.lastPrice || '0')
+      if (price <= 0) throw new Error('Bybit price=0')
+      return { price, source: 'bybit' }
+    })(),
+  ]).catch(() => null)
+
+  // Also try to get klines for RSI/MACD (Binance only)
+  let rsi = 50
+  let macd = 'غير متوفر'
   try {
-    // Normalize symbol for Binance: BTC/USD → BTCUSDT
-    const binanceSymbol = symbol.replace(/[\/\-]/g, '').replace('USD', 'USDT').toUpperCase()
-
-    // Fetch 24hr ticker for current price
-    const tickerRes = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`, {
-      signal: AbortSignal.timeout(5000),
-    })
-    if (!tickerRes.ok) {
-      // Binance failed — try CoinGecko fallback
-      return await _fetchCoinGeckoFallback(symbol)
-    }
-    const tickerData = await tickerRes.json()
-    const price = parseFloat(tickerData?.lastPrice || '0')
-
-    if (price === 0) {
-      // Binance returned price=0 — try CoinGecko fallback
-      return await _fetchCoinGeckoFallback(symbol)
-    }
-
-    // Fetch klines for RSI and MACD calculation — 30 candles on 1h timeframe
     const klinesRes = await fetch(`https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1h&limit=30`, {
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(4000),
     })
-    if (!klinesRes.ok) return { price, rsi: 50, macd: 'غير متوفر' }
-    const klinesData = await klinesRes.json()
-    const closes: number[] = (klinesData || []).map((k: any) => parseFloat(k[4])).filter((v: number) => !isNaN(v))
-
-    const rsi = calcRSI(closes)
-    const macd = calcMACD(closes)
-
-    return { price, rsi, macd }
+    if (klinesRes.ok) {
+      const klinesData = await klinesRes.json()
+      const closes: number[] = (klinesData || []).map((k: any) => parseFloat(k[4])).filter((v: number) => !isNaN(v))
+      if (closes.length > 14) {
+        rsi = calcRSI(closes)
+        macd = calcMACD(closes)
+      }
+    }
   } catch {
-    // Binance threw an error — try CoinGecko fallback
-    return await _fetchCoinGeckoFallback(symbol)
+    // Klines unavailable — use defaults
   }
+
+  const priceResult = await pricePromise
+  if (priceResult && priceResult.price > 0) {
+    console.log(`[market-data] ${symbol} price=$${priceResult.price} from ${priceResult.source}`)
+    return { price: priceResult.price, rsi, macd }
+  }
+
+  // All sources failed — return defaults
+  console.warn(`[market-data] ALL price sources failed for ${symbol} — AI may hallucinate prices`)
+  return { price: 0, rsi: 50, macd: 'غير متوفر' }
 }
 
 /**
@@ -527,107 +580,25 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
   }
 
   const start = Date.now()
+  const TOTAL_HF_TIMEOUT = 25_000 // FIX: 25s max for ALL HuggingFace strategies (was unbounded)
+  const deadline = Date.now() + TOTAL_HF_TIMEOUT
+  const systemMsg = 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير أنماط مالي. كن موجزاً ومبنياً على البيانات. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
 
-  // ── Strategy 1: HuggingFace Auto-Router (needs "Inference Providers" permission) ──
-  if (hfApiKey) {
-    const hfModelCandidates = ['Qwen/Qwen2.5-7B-Instruct', 'mistralai/Mistral-7B-Instruct-v0.3', 'HuggingFaceH4/zephyr-7b-beta']
-
-    for (const model of hfModelCandidates) {
-      try {
-        const res = await fetch('https://router.huggingface.co/v1/chat/completions', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${hfApiKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: 'system', content: 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير أنماط مالي. كن موجزاً ومبنياً على البيانات. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
-              { role: 'user', content: prompt },
-            ],
-            max_tokens: 1024,
-            temperature: 0.3,
-          }),
-          signal: AbortSignal.timeout(MODEL_TIMEOUT),
-        })
-
-        if (!res.ok) {
-          if (res.status === 404 || res.status === 429) continue
-          if (res.status === 401) break // Auth error — try Strategy 2
-          continue
-        }
-
-        const data = await res.json()
-        const content = data.choices?.[0]?.message?.content || ''
-        if (content.trim().length > 0) {
-          return { model: `HuggingFace/${model.split('/').pop()}`, content, confidence: calcConfidence(content, 'huggingface'), processingTimeMs: Date.now() - start, success: true }
-        }
-      } catch {
-        continue
-      }
-    }
-  }
-
-  // ── Strategy 2: HuggingFace Direct Inference Providers (NEW!) ──
-  // Works with ANY valid HF token — no "Inference Providers" permission needed!
-  // Try multiple providers (hf-inference, sambanova, novita, fireworks)
-  // Each provider has different models available — try all combinations.
-  if (hfApiKey) {
-    const hfInferenceProviders = [
-      { name: 'hf-inference', url: 'https://router.huggingface.co/hf-inference/v1/chat/completions' },
-      { name: 'sambanova', url: 'https://router.huggingface.co/sambanova/v1/chat/completions' },
-      { name: 'novita', url: 'https://router.huggingface.co/novita/v1/chat/completions' },
-      { name: 'fireworks', url: 'https://router.huggingface.co/fireworks/v1/chat/completions' },
-    ]
-    const directModels = ['Qwen/Qwen2.5-7B-Instruct', 'mistralai/Mistral-7B-Instruct-v0.3', 'microsoft/Phi-3-mini-4k-instruct']
-
-    for (const provider of hfInferenceProviders) {
-      for (const model of directModels) {
-        try {
-          const res = await fetch(provider.url, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${hfApiKey}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model,
-              messages: [
-                { role: 'system', content: 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير أنماط مالي. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
-                { role: 'user', content: prompt },
-              ],
-              max_tokens: 1024,
-              temperature: 0.3,
-            }),
-            signal: AbortSignal.timeout(MODEL_TIMEOUT),
-          })
-
-          if (!res.ok) {
-            if (res.status === 429 || res.status === 404) continue
-            if (res.status === 401) break // Bad key, stop trying providers
-            continue
-          }
-
-          const data = await res.json()
-          const content = data.choices?.[0]?.message?.content || ''
-          if (content.trim().length > 0) {
-            return { model: `HF-${provider.name}/${model.split('/').pop()}`, content, confidence: calcConfidence(content, 'huggingface'), processingTimeMs: Date.now() - start, success: true }
-          }
-        } catch {
-          continue
-        }
-      }
-    }
-  }
-
-  // ── Strategy 2.5: HuggingFace Classic Inference API (works with ANY valid token!) ──
-  // This is the original HF Inference API endpoint. Unlike the router-based endpoints
-  // (Strategy 1 & 2), this works with ANY valid HF token — even read-only tokens.
-  // It uses a different request format (not OpenAI-compatible) but is more reliable.
+  // ── Strategy 1: Classic Inference API (MOST RELIABLE — works with ANY token!) ──
+  // FIX: Moved Classic API to FIRST strategy because it works with ANY valid HF token,
+  // including read-only tokens. The router-based endpoints (old Strategy 1 & 2) require
+  // "Inference Providers" permission which most tokens don't have.
   if (hfApiKey) {
     const classicModels = [
       'mistralai/Mistral-7B-Instruct-v0.3',
+      'Qwen/Qwen2.5-7B-Instruct',
       'HuggingFaceH4/zephyr-7b-beta',
       'microsoft/Phi-3-mini-4k-instruct',
-      'Qwen/Qwen2.5-7B-Instruct',
     ]
     for (const model of classicModels) {
+      if (Date.now() > deadline) break // Total timeout check
       try {
+        const remaining = deadline - Date.now()
         const res = await fetch(`https://api-inference.huggingface.co/models/${model}`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${hfApiKey}`, 'Content-Type': 'application/json' },
@@ -640,17 +611,16 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
             },
             options: { wait_for_model: true },
           }),
-          signal: AbortSignal.timeout(20_000), // 20s — model may need to warm up
+          signal: AbortSignal.timeout(Math.min(15_000, remaining)),
         })
 
         if (!res.ok) {
+          if (res.status === 401) break // Bad key — stop trying HF
           if (res.status === 429 || res.status === 404 || res.status === 503) continue
-          if (res.status === 401) break
           continue
         }
 
         const data = await res.json()
-        // Classic API returns array: [{ generated_text: "..." }] or object with error
         let content = ''
         if (Array.isArray(data) && data.length > 0 && data[0].generated_text) {
           content = data[0].generated_text
@@ -667,11 +637,54 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
     }
   }
 
+  // ── Strategy 2: HuggingFace Auto-Router (needs "Inference Providers" permission) ──
+  // Only try if we still have time and Strategy 1 didn't get 401
+  if (hfApiKey && Date.now() < deadline) {
+    const hfModelCandidates = ['Qwen/Qwen2.5-7B-Instruct', 'mistralai/Mistral-7B-Instruct-v0.3']
+
+    for (const model of hfModelCandidates) {
+      if (Date.now() > deadline) break
+      try {
+        const remaining = deadline - Date.now()
+        const res = await fetch('https://router.huggingface.co/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${hfApiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model,
+            messages: [
+              { role: 'system', content: systemMsg },
+              { role: 'user', content: prompt },
+            ],
+            max_tokens: 1024,
+            temperature: 0.3,
+          }),
+          signal: AbortSignal.timeout(Math.min(10_000, remaining)),
+        })
+
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) break // No permission — stop router
+          if (res.status === 404 || res.status === 429) continue
+          continue
+        }
+
+        const data = await res.json()
+        const content = data.choices?.[0]?.message?.content || ''
+        if (content.trim().length > 0) {
+          return { model: `HuggingFace/${model.split('/').pop()}`, content, confidence: calcConfidence(content, 'huggingface'), processingTimeMs: Date.now() - start, success: true }
+        }
+      } catch {
+        continue
+      }
+    }
+  }
+
   // ── Strategy 3: OpenRouter fallback (if OR key available) ──
-  if (openrouterApiKey) {
+  if (openrouterApiKey && Date.now() < deadline) {
     const orModels = ['meta-llama/llama-3.1-8b-instruct:free', 'qwen/qwen-2.5-7b-instruct:free', 'google/gemma-2-9b-it:free']
     for (const model of orModels) {
+      if (Date.now() > deadline) break
       try {
+        const remaining = deadline - Date.now()
         const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -683,13 +696,13 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
           body: JSON.stringify({
             model,
             messages: [
-              { role: 'system', content: 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير أنماط مالي. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+              { role: 'system', content: systemMsg },
               { role: 'user', content: prompt },
             ],
             max_tokens: 1024,
             temperature: 0.3,
           }),
-          signal: AbortSignal.timeout(MODEL_TIMEOUT),
+          signal: AbortSignal.timeout(Math.min(10_000, remaining)),
         })
 
         if (!res.ok) {
@@ -712,24 +725,45 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
 }
 
 /**
- * Call Ollama — only works if:
- * 1. OLLAMA_BASE_URL is set to a non-localhost URL, OR
- * 2. We're running locally (not on cloud)
+ * Call Ollama — works with both local and cloud Ollama instances.
  *
- * On cloud with localhost URL, Ollama is unreachable, so we skip it.
+ * FIX: Previous code auto-skipped Ollama on cloud if URL was localhost.
+ * This was correct but too aggressive — if the user has set OLLAMA_BASE_URL
+ * to a cloud URL (like ollama.com or a custom server), it should work!
+ *
+ * Now properly supports:
+ * - Local Ollama (localhost:11434) — only works in development
+ * - Cloud Ollama (ollama.com, custom server) — works everywhere
+ * - OpenAI-compatible endpoints (any /v1 endpoint)
  */
 async function callOllama(prompt: string): Promise<DirectAIResponse> {
-  const baseUrl = getKey('OLLAMA_BASE_URL') || 'http://localhost:11434'
-
-  // Skip if on cloud and URL is localhost — it will never work
-  if (isCloudEnvironment() && isLocalhostUrl(baseUrl)) {
+  const baseUrl = getKey('OLLAMA_BASE_URL') || ''
+  
+  // FIX: If no OLLAMA_BASE_URL is set at all, check if we're on cloud
+  // On cloud without a configured URL, Ollama is definitely unreachable
+  // On local without a configured URL, try the default localhost
+  const effectiveBaseUrl = baseUrl || (isCloudEnvironment() ? '' : 'http://localhost:11434')
+  
+  if (!effectiveBaseUrl) {
     return {
       model: 'Ollama/Qwen2.5',
       content: '',
       confidence: 0,
       processingTimeMs: 0,
       success: false,
-      error: 'Ollama localhost unreachable on cloud',
+      error: 'Ollama not configured — set OLLAMA_BASE_URL to your Ollama server URL',
+    }
+  }
+
+  // Skip localhost on cloud — it will never work
+  if (isCloudEnvironment() && isLocalhostUrl(effectiveBaseUrl)) {
+    return {
+      model: 'Ollama/Qwen2.5',
+      content: '',
+      confidence: 0,
+      processingTimeMs: 0,
+      success: false,
+      error: `Ollama localhost (${effectiveBaseUrl}) unreachable on cloud — set OLLAMA_BASE_URL to a cloud URL`,
     }
   }
 
@@ -1074,13 +1108,22 @@ async function signAwsRequestV4(
   const payloadHash = crypto.createHash('sha256').update(bodyStr).digest('hex')
 
   const host = new URL(endpoint).host
-  // FIX: AWS SigV4 canonical URI encoding — must NOT double-encode.
-  // The model ID contains colons (anthropic.claude-3-5-sonnet-20241022-v2:0)
-  // which are already percent-encoded in the URL by encodeURIComponent above.
-  // Previous code double-encoded by doing encodeURIComponent(decodeURIComponent(s))
-  // which broke the signature for model IDs with special chars.
-  // AWS SigV4 spec: use the URI path as-is (already encoded in the URL).
-  const canonicalUri = new URL(endpoint).pathname
+  // FIX: AWS SigV4 canonical URI encoding — CRITICAL BUG FIX!
+  //
+  // BUG: new URL(endpoint).pathname DECODES percent-encoded characters!
+  // Example: /model/us.anthropic.claude-3-5-sonnet-20241022-v2%3A0/invoke
+  //       → /model/us.anthropic.claude-3-5-sonnet-20241022-v2:0/invoke (WRONG!)
+  //
+  // This caused ALL Bedrock calls to fail with 403 because the SigV4 signature
+  // was computed with the decoded path (containing raw colons), but AWS expected
+  // the encoded path (with %3A). The signature mismatch = 403 Forbidden.
+  //
+  // FIX: Extract the path directly from the URL string without decoding.
+  // We find the path by locating the first '/' after '://'.
+  const urlObj = new URL(endpoint)
+  const pathStart = endpoint.indexOf(urlObj.host) + urlObj.host.length
+  const canonicalUri = endpoint.substring(pathStart) || '/'
+  // This preserves %3A in the path, producing the correct canonical URI for SigV4
 
   let canonicalHeaders: string
   let signedHeaders: string
@@ -1265,8 +1308,9 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
   }
 
   // Determine if Ollama should be attempted
-  const ollamaBaseUrl = getKey('OLLAMA_BASE_URL') || 'http://localhost:11434'
-  const shouldTryOllama = !isCloudEnvironment() || !isLocalhostUrl(ollamaBaseUrl)
+  const ollamaBaseUrl = getKey('OLLAMA_BASE_URL') || ''
+  const effectiveOllamaBaseUrl = ollamaBaseUrl || (isCloudEnvironment() ? '' : 'http://localhost:11434')
+  const shouldTryOllama = !!effectiveOllamaBaseUrl && !(isCloudEnvironment() && isLocalhostUrl(effectiveOllamaBaseUrl))
 
   // FIX: Fetch live market data before building prompts to prevent hallucinations
   // (e.g., models inventing BTC price as $28,500 when it's actually much higher)
@@ -1561,7 +1605,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
         bedrockNote: bedrockStatus.available ? 'Direct call enabled (AWS SigV4)' : 'AWS credentials not configured',
         redistributedRoles: redistributedCount,
         ollamaAttempted: shouldTryOllama,
-        ollamaUrl: shouldTryOllama ? ollamaBaseUrl : 'skipped (localhost on cloud)',
+        ollamaUrl: shouldTryOllama ? effectiveOllamaBaseUrl : 'skipped (not configured or localhost on cloud)',
       },
     },
     errors,
@@ -1573,8 +1617,8 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
  * All 8 models checked including Bedrock, OpenRouter, and DeepSeek (direct call now supported).
  */
 export function getAvailableModelKeys(): { model: string; hasKey: boolean; note?: string }[] {
-  const ollamaBaseUrl = getKey('OLLAMA_BASE_URL') || 'http://localhost:11434'
-  const ollamaSkipped = isCloudEnvironment() && isLocalhostUrl(ollamaBaseUrl)
+  const ollamaBaseUrl = getKey('OLLAMA_BASE_URL') || ''
+  const ollamaSkipped = isCloudEnvironment() && (!ollamaBaseUrl || isLocalhostUrl(ollamaBaseUrl))
   const bedrockStatus = getBedrockStatus()
 
   return [
@@ -1584,8 +1628,8 @@ export function getAvailableModelKeys(): { model: string; hasKey: boolean; note?
     { model: 'HuggingFace', hasKey: !!(getKey('HUGGINGFACE_API_KEY') || getKey('HF_API_KEY') || getKey('OPENROUTER_API_KEY')), note: 'Accepts HUGGINGFACE_API_KEY, HF_API_KEY, or uses OPENROUTER_API_KEY as fallback' },
     {
       model: 'Ollama',
-      hasKey: !ollamaSkipped && (!!getKey('OLLAMA_API_KEY') || !isLocalhostUrl(ollamaBaseUrl)),
-      note: ollamaSkipped ? 'localhost unreachable on cloud — set OLLAMA_BASE_URL to cloud URL' : `URL: ${ollamaBaseUrl}`,
+      hasKey: !ollamaSkipped && (!!getKey('OLLAMA_API_KEY') || !!ollamaBaseUrl),
+      note: ollamaSkipped ? 'localhost unreachable on cloud — set OLLAMA_BASE_URL to cloud URL' : ollamaBaseUrl ? `URL: ${ollamaBaseUrl}` : 'local only',
     },
     {
       model: 'Bedrock',

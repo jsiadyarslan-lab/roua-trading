@@ -35,6 +35,15 @@ async function runSchemaMigrations(): Promise<void> {
   if (globalForPrisma.schemaMigrated) return
 
   const migrations = [
+    // ── Session table: cross-device sync columns (CRITICAL for Google OAuth + refresh tokens) ──
+    // These MUST be added before any session.create() call, because Prisma's
+    // RETURNING clause references ALL model columns. If any column is missing,
+    // PostgreSQL throws "column does not exist" — even for "minimal" creates.
+    `ALTER TABLE "Session" ADD COLUMN IF NOT EXISTS "refreshToken" TEXT`,
+    `ALTER TABLE "Session" ADD COLUMN IF NOT EXISTS "deviceInfo" TEXT`,
+    `ALTER TABLE "Session" ADD COLUMN IF NOT EXISTS "ipAddress" TEXT`,
+    `ALTER TABLE "Session" ADD COLUMN IF NOT EXISTS "userAgent" TEXT`,
+    `ALTER TABLE "Session" ADD COLUMN IF NOT EXISTS "isActive" BOOLEAN NOT NULL DEFAULT true`,
     `ALTER TABLE "Session" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
     `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
     `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "riskTolerance" TEXT DEFAULT 'moderate'`,
@@ -47,6 +56,11 @@ async function runSchemaMigrations(): Promise<void> {
     `ALTER TABLE "AuditLog" ADD COLUMN IF NOT EXISTS "userId" TEXT`,
     // User table: add telegramChatId (used by alert-agent for Telegram notifications)
     `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "telegramChatId" TEXT`,
+    // Session table: add unique index on refreshToken (needed by Prisma schema @unique)
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Session_refreshToken_key" ON "Session"("refreshToken")`,
+    `CREATE INDEX IF NOT EXISTS "Session_refreshToken_idx" ON "Session"("refreshToken")`,
+    `CREATE INDEX IF NOT EXISTS "Session_userId_isActive_idx" ON "Session"("userId", "isActive")`,
+    `CREATE INDEX IF NOT EXISTS "Session_expiresAt_idx" ON "Session"("expiresAt")`,
     // Subscription table
     `CREATE TABLE IF NOT EXISTS "Subscription" ("id" TEXT NOT NULL, "userId" TEXT NOT NULL, "tier" "Tier" NOT NULL DEFAULT 'FREE', "previousTier" "Tier", "startDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "endDate" TIMESTAMP(3), "status" TEXT NOT NULL DEFAULT 'active', "paymentMethod" TEXT, "amount" DECIMAL(19,4), "currency" TEXT NOT NULL DEFAULT 'USD', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Subscription_pkey" PRIMARY KEY ("id"))`,
     `CREATE INDEX IF NOT EXISTS "Subscription_userId_idx" ON "Subscription"("userId")`,
@@ -107,7 +121,7 @@ async function runSchemaMigrations(): Promise<void> {
     }
   }
 
-  // Verify critical tables exist after migrations (including AiUsageLog for dashboard costs)
+  // Verify critical tables + Session columns exist after migrations
   try {
     const tableCheck = await db.$queryRaw`
       SELECT table_name FROM information_schema.tables
@@ -122,8 +136,23 @@ async function runSchemaMigrations(): Promise<void> {
     } else {
       console.log('[db] All critical tables verified: Setting, NotificationConfig, AdminSession, AiUsageLog')
     }
+
+    // Verify Session table has the critical cross-device sync columns
+    const sessionColumns = await db.$queryRaw`
+      SELECT column_name FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'Session'
+      ORDER BY column_name
+    `
+    const columnNames = (sessionColumns as any[]).map((r: any) => r.column_name)
+    const requiredSessionColumns = ['refreshToken', 'deviceInfo', 'ipAddress', 'userAgent', 'isActive', 'updatedAt']
+    const missingColumns = requiredSessionColumns.filter(c => !columnNames.includes(c))
+    if (missingColumns.length > 0) {
+      console.error(`[db] CRITICAL: Session table missing columns: ${missingColumns.join(', ')} — Google OAuth and session refresh will FAIL`)
+    } else {
+      console.log('[db] Session table has all required columns for cross-device sync')
+    }
   } catch (err: any) {
-    console.warn(`[db] Could not verify table existence: ${err?.message || err}`)
+    console.warn(`[db] Could not verify table/column existence: ${err?.message || err}`)
   }
 
   globalForPrisma.schemaMigrated = true

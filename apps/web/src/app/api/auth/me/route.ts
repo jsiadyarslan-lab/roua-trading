@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
+import { createSessionSafely } from '@/lib/session-create'
 import crypto from 'crypto'
 
 /**
@@ -162,32 +163,22 @@ export async function GET(request: NextRequest) {
       const newRefreshToken = crypto.randomBytes(48).toString('hex')
       const expiresAt = new Date(Date.now() + SESSION_DURATION_MS)
 
-      try {
-        await db.session.create({
-          data: {
-            userId: user.id,
-            token: newToken,
-            refreshToken: newRefreshToken,
-            deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
-            ipAddress,
-            userAgent,
-            isActive: true,
-            expiresAt,
-          },
+      const createdToken = await createSessionSafely({
+        userId: user.id,
+        token: newToken,
+        refreshToken: newRefreshToken,
+        deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
+        ipAddress,
+        userAgent,
+        isActive: true,
+        expiresAt,
+      })
+
+      if (!createdToken) {
+        return NextResponse.json({
+          authenticated: false,
+          error: 'SESSION_CREATION_FAILED',
         })
-      } catch (sessionErr: any) {
-        // Fallback: try minimal session (missing columns from partial migration)
-        console.warn('[auth/me GET] Full session create failed, trying minimal:', sessionErr?.message)
-        try {
-          await db.session.create({
-            data: { userId: user.id, token: newToken, expiresAt },
-          })
-        } catch {
-          return NextResponse.json({
-            authenticated: false,
-            error: 'SESSION_CREATION_FAILED',
-          })
-        }
       }
 
       const response = NextResponse.json({
@@ -315,32 +306,22 @@ export async function POST(request: NextRequest) {
     const newRefreshToken = crypto.randomBytes(48).toString('hex')
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
 
-    try {
-      await db.session.create({
-        data: {
-          userId: user.id,
-          token: newToken,
-          refreshToken: newRefreshToken,
-          deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
-          ipAddress,
-          userAgent,
-          isActive: true,
-          expiresAt,
-        },
+    const createdToken = await createSessionSafely({
+      userId: user.id,
+      token: newToken,
+      refreshToken: newRefreshToken,
+      deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
+      ipAddress,
+      userAgent,
+      isActive: true,
+      expiresAt,
+    })
+
+    if (!createdToken) {
+      return NextResponse.json({
+        authenticated: false,
+        error: 'SESSION_CREATION_FAILED',
       })
-    } catch (sessionErr: any) {
-      // Fallback: try minimal session (missing columns from partial migration)
-      console.warn('[auth/me POST] Full session create failed, trying minimal:', sessionErr?.message)
-      try {
-        await db.session.create({
-          data: { userId: user.id, token: newToken, expiresAt },
-        })
-      } catch {
-        return NextResponse.json({
-          authenticated: false,
-          error: 'SESSION_CREATION_FAILED',
-        })
-      }
     }
 
     const response = NextResponse.json({

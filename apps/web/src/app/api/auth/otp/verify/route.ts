@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
+import { createSessionSafely } from '@/lib/session-create'
 import crypto from 'crypto'
 
 /**
@@ -181,29 +182,19 @@ export async function POST(request: NextRequest) {
     const newRefreshToken = crypto.randomBytes(48).toString('hex')
     const expiresAt = new Date(Date.now() + SESSION_DURATION_MS)
 
-    try {
-      await db.session.create({
-        data: {
-          userId: user.id,
-          token: newToken,
-          refreshToken: newRefreshToken,
-          deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
-          ipAddress,
-          userAgent,
-          isActive: true,
-          expiresAt,
-        },
-      })
-    } catch (sessionErr: any) {
-      // Fallback: try minimal session (missing columns from partial migration)
-      console.warn('[auth/otp/verify] Full session create failed, trying minimal:', sessionErr?.message)
-      try {
-        await db.session.create({
-          data: { userId: user.id, token: newToken, expiresAt },
-        })
-      } catch {
-        return NextResponse.json({ error: 'SESSION_CREATION_FAILED' }, { status: 500 })
-      }
+    const createdToken = await createSessionSafely({
+      userId: user.id,
+      token: newToken,
+      refreshToken: newRefreshToken,
+      deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
+      ipAddress,
+      userAgent,
+      isActive: true,
+      expiresAt,
+    })
+
+    if (!createdToken) {
+      return NextResponse.json({ error: 'SESSION_CREATION_FAILED' }, { status: 500 })
     }
 
     const response = NextResponse.json({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
 import { getPublicOrigin } from '@/lib/origin'
+import { createSessionSafely } from '@/lib/session-create'
 import crypto from 'crypto'
 
 /**
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
   const error = request.nextUrl.searchParams.get('error')
 
   if (error === 'access_denied' || !code) {
+    console.warn(`[auth/callback/google] Access denied or no code. error=${error}`)
     return NextResponse.redirect(new URL('/login?error=access_denied', getPublicOrigin(request)))
   }
 
@@ -52,6 +54,7 @@ export async function GET(request: NextRequest) {
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET
 
   if (!clientId || !clientSecret) {
+    console.error('[auth/callback/google] GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set')
     return NextResponse.redirect(new URL('/login?error=oauth_not_configured', getPublicOrigin(request)))
   }
 
@@ -90,7 +93,8 @@ export async function GET(request: NextRequest) {
     })
 
     if (!tokenResponse.ok) {
-      console.error('[auth/callback/google] Token exchange failed:', tokenResponse.status)
+      const errBody = await tokenResponse.text().catch(() => '')
+      console.error(`[auth/callback/google] Token exchange failed: ${tokenResponse.status} ${errBody.substring(0, 200)}`)
       return NextResponse.redirect(new URL('/login?error=token_exchange_failed', getPublicOrigin(request)))
     }
 
@@ -98,6 +102,7 @@ export async function GET(request: NextRequest) {
     const accessToken = tokenData.access_token
 
     if (!accessToken) {
+      console.error('[auth/callback/google] No access_token in response:', Object.keys(tokenData))
       return NextResponse.redirect(new URL('/login?error=no_access_token', getPublicOrigin(request)))
     }
 
@@ -107,7 +112,7 @@ export async function GET(request: NextRequest) {
     })
 
     if (!userResponse.ok) {
-      console.error('[auth/callback/google] User info fetch failed:', userResponse.status)
+      console.error(`[auth/callback/google] User info fetch failed: ${userResponse.status}`)
       return NextResponse.redirect(new URL('/login?error=user_info_failed', getPublicOrigin(request)))
     }
 
@@ -116,11 +121,15 @@ export async function GET(request: NextRequest) {
     const displayName = googleUser.name || googleUser.given_name || email?.split('@')[0]
 
     if (!email) {
+      console.error('[auth/callback/google] No email in Google user info')
       return NextResponse.redirect(new URL('/login?error=no_email', getPublicOrigin(request)))
     }
 
+    console.log(`[auth/callback/google] Got user: ${email}`)
+
     const dbReady = await ensureDbReady()
     if (!dbReady) {
+      console.error('[auth/callback/google] Database not ready')
       return NextResponse.redirect(new URL('/login?error=db_unavailable', getPublicOrigin(request)))
     }
 
@@ -136,6 +145,7 @@ export async function GET(request: NextRequest) {
             avatar: googleUser.picture || null,
           },
         })
+        console.log(`[auth/callback/google] Created new user: ${user.id}`)
       } catch {
         user = await db.user.findUnique({ where: { email } })
       }
@@ -152,10 +162,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (!user) {
+      console.error('[auth/callback/google] User creation/lookup failed')
       return NextResponse.redirect(new URL('/login?error=user_creation_failed', getPublicOrigin(request)))
     }
 
-    // Create session with device info
+    // Create session with device info using the safe helper
     const userAgent = request.headers.get('user-agent')
     const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
       || request.headers.get('x-real-ip')
@@ -165,37 +176,23 @@ export async function GET(request: NextRequest) {
     const refreshToken = crypto.randomBytes(48).toString('hex')
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days for OAuth
 
-    // Try creating session with full device info (cross-device sync columns)
-    try {
-      await db.session.create({
-        data: {
-          userId: user.id,
-          token: sessionToken,
-          refreshToken,
-          deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
-          ipAddress,
-          userAgent,
-          isActive: true,
-          expiresAt,
-        },
-      })
-    } catch (sessionErr: any) {
-      // Fallback: if session creation fails (e.g. missing columns like refreshToken, deviceInfo),
-      // try again with only the core columns that always exist
-      console.warn('[auth/callback/google] Full session create failed, trying minimal:', sessionErr?.message || sessionErr)
-      try {
-        await db.session.create({
-          data: {
-            userId: user.id,
-            token: sessionToken,
-            expiresAt,
-          },
-        })
-      } catch (minimalErr: any) {
-        console.error('[auth/callback/google] Minimal session create also failed:', minimalErr?.message || minimalErr)
-        return NextResponse.redirect(new URL('/login?error=session_creation_failed', getPublicOrigin(request)))
-      }
+    const createdToken = await createSessionSafely({
+      userId: user.id,
+      token: sessionToken,
+      refreshToken,
+      deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
+      ipAddress,
+      userAgent,
+      isActive: true,
+      expiresAt,
+    })
+
+    if (!createdToken) {
+      console.error('[auth/callback/google] Session creation failed after all strategies')
+      return NextResponse.redirect(new URL('/login?error=session_creation_failed', getPublicOrigin(request)))
     }
+
+    console.log(`[auth/callback/google] Session created successfully for user ${user.id}`)
 
     // Redirect with session + refresh cookies
     const response = NextResponse.redirect(new URL(callbackUrl, getPublicOrigin(request)))
@@ -218,7 +215,7 @@ export async function GET(request: NextRequest) {
 
     return response
   } catch (error: any) {
-    console.error('[auth/callback/google] Error:', error?.message || error)
+    console.error(`[auth/callback/google] Unhandled error: ${error?.message || error}\n${error?.stack || ''}`)
     return NextResponse.redirect(new URL('/login?error=unknown', getPublicOrigin(request)))
   }
 }

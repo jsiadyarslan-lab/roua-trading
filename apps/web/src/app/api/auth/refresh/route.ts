@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
+import { createSessionSafely } from '@/lib/session-create'
 import crypto from 'crypto'
 
 /**
@@ -98,18 +99,23 @@ export async function POST(request: NextRequest) {
           const newRefreshToken = crypto.randomBytes(48).toString('hex')
           const newExpiresAt = new Date(Date.now() + SESSION_DURATION_MS)
 
-          await db.session.create({
-            data: {
-              userId: sessionByRefresh.user.id,
-              token: newToken,
-              refreshToken: newRefreshToken,
-              deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : sessionByRefresh.deviceInfo,
-              ipAddress: ipAddress || sessionByRefresh.ipAddress,
-              userAgent: userAgent || sessionByRefresh.userAgent,
-              isActive: true,
-              expiresAt: newExpiresAt,
-            },
+          const created = await createSessionSafely({
+            userId: sessionByRefresh.user.id,
+            token: newToken,
+            refreshToken: newRefreshToken,
+            deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : sessionByRefresh.deviceInfo,
+            ipAddress: ipAddress || sessionByRefresh.ipAddress,
+            userAgent: userAgent || sessionByRefresh.userAgent,
+            isActive: true,
+            expiresAt: newExpiresAt,
           })
+
+          if (!created) {
+            const response = NextResponse.json({ error: 'SESSION_CREATION_FAILED' }, { status: 500 })
+            response.cookies.delete('roua_session')
+            response.cookies.delete('roua_refresh')
+            return response
+          }
 
           const response = NextResponse.json({
             refreshed: true,
@@ -188,18 +194,23 @@ export async function POST(request: NextRequest) {
               data: { isActive: false },
             })
 
-            await db.session.create({
-              data: {
-                userId: sessionByRefresh.user.id,
-                token: newToken,
-                refreshToken: newRefreshToken,
-                deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : sessionByRefresh.deviceInfo,
-                ipAddress: ipAddress || sessionByRefresh.ipAddress,
-                userAgent: userAgent || sessionByRefresh.userAgent,
-                isActive: true,
-                expiresAt: newExpiresAt,
-              },
+            const created = await createSessionSafely({
+              userId: sessionByRefresh.user.id,
+              token: newToken,
+              refreshToken: newRefreshToken,
+              deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : sessionByRefresh.deviceInfo,
+              ipAddress: ipAddress || sessionByRefresh.ipAddress,
+              userAgent: userAgent || sessionByRefresh.userAgent,
+              isActive: true,
+              expiresAt: newExpiresAt,
             })
+
+            if (!created) {
+              const response = NextResponse.json({ error: 'SESSION_CREATION_FAILED' }, { status: 500 })
+              response.cookies.delete('roua_session')
+              response.cookies.delete('roua_refresh')
+              return response
+            }
 
             const response = NextResponse.json({
               refreshed: true,
@@ -256,18 +267,23 @@ export async function POST(request: NextRequest) {
         })
 
         // Create new session with device info
-        await db.session.create({
-          data: {
-            userId: session.user.id,
-            token: newToken,
-            refreshToken: newRefreshToken,
-            deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : session.deviceInfo,
-            ipAddress: ipAddress || session.ipAddress,
-            userAgent: userAgent || session.userAgent,
-            isActive: true,
-            expiresAt: newExpiresAt,
-          },
+        const created = await createSessionSafely({
+          userId: session.user.id,
+          token: newToken,
+          refreshToken: newRefreshToken,
+          deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : session.deviceInfo,
+          ipAddress: ipAddress || session.ipAddress,
+          userAgent: userAgent || session.userAgent,
+          isActive: true,
+          expiresAt: newExpiresAt,
         })
+
+        if (!created) {
+          const response = NextResponse.json({ error: 'SESSION_CREATION_FAILED' }, { status: 500 })
+          response.cookies.delete('roua_session')
+          response.cookies.delete('roua_refresh')
+          return response
+        }
 
         const response = NextResponse.json({
           refreshed: true,

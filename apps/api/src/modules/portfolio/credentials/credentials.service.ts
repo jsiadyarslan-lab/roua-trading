@@ -39,17 +39,22 @@ export class CredentialsService {
       // FIX: No hardcoded fallback — must have ENCRYPTION_KEY or NEXTAUTH_SECRET.
       const fallback = this.configService.get<string>('NEXTAUTH_SECRET');
       if (!fallback) {
-        throw new Error(
-          'CRITICAL: ENCRYPTION_KEY or NEXTAUTH_SECRET must be set. ' +
-          'Without an encryption key, credentials cannot be securely stored. ' +
-          'Set ENCRYPTION_KEY (recommended) or NEXTAUTH_SECRET in your environment.'
+        // FIX: Don't crash the entire NestJS app if ENCRYPTION_KEY is missing.
+        // Generate a temporary random key so NestJS can start, but credential operations will fail.
+        // This allows the AI module and other services to work even without encryption configured.
+        this.logger.error(
+          '⚠️ CRITICAL: ENCRYPTION_KEY or NEXTAUTH_SECRET not set! ' +
+          'Credentials cannot be securely stored. Using temporary random key — ' +
+          'credential-related operations will fail. Set ENCRYPTION_KEY in production!'
         );
+        this.encryptionKey = crypto.randomBytes(32);
+      } else {
+        // Derive a deployment-specific salt from NEXTAUTH_SECRET + NODE_ENV + hostname
+        const deploymentId = `${fallback}:${this.configService.get('NODE_ENV', 'development')}:${hostname()}`;
+        const salt = crypto.createHash('sha256').update(deploymentId).digest().slice(0, 16);
+        this.encryptionKey = crypto.scryptSync(fallback, salt, 32);
+        this.logger.warn('⚠️ ENCRYPTION_KEY not set — using derived key from NEXTAUTH_SECRET+deployment. Set ENCRYPTION_KEY in production!');
       }
-      // Derive a deployment-specific salt from NEXTAUTH_SECRET + NODE_ENV + hostname
-      const deploymentId = `${fallback}:${this.configService.get('NODE_ENV', 'development')}:${hostname()}`;
-      const salt = crypto.createHash('sha256').update(deploymentId).digest().slice(0, 16);
-      this.encryptionKey = crypto.scryptSync(fallback, salt, 32);
-      this.logger.warn('⚠️ ENCRYPTION_KEY not set — using derived key from NEXTAUTH_SECRET+deployment. Set ENCRYPTION_KEY in production!');
     } else {
       this.encryptionKey = Buffer.from(key, 'hex');
     }

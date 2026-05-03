@@ -56,7 +56,7 @@ interface BotState {
 const DEFAULT_SETTINGS: BotState['settings'] = {
   riskPct: 2,
   confLimit: 65,
-  strategy: 'Trend Follow',
+  strategy: 'AUTO',
   useAIConsensus: true,
   // Default protection values — will be overwritten by admin DB settings
   maxDailyLoss: -2000,

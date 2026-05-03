@@ -25,12 +25,13 @@ const C = {
 const FONT_AR   = "'Cairo', sans-serif"
 const FONT_MONO = "'JetBrains Mono', monospace"
 
-/* ─── Strategy Options ─── */
+/* ─── Strategy Options (synced with backend BotStrategyType) ─── */
 const STRATEGIES = [
-  { id: 'Scalp AI',     icon: '⚡', desc: 'صفقات سريعة الدخول والخروج' },
-  { id: 'Swing Master', icon: '📈', desc: 'مراكز متأرجحة متوسطة المدى' },
-  { id: 'DCA Pro',      icon: '🔄', desc: 'متوسط التكلفة بالدولار' },
-  { id: 'Grid Bot',     icon: '🔲', desc: 'شبكة أوامر متدرجة' },
+  { id: 'AUTO',            icon: '🤖', desc: 'اختيار تلقائي لأفضل استراتيجية حسب السوق' },
+  { id: 'TREND_FOLLOWING', icon: '📈', desc: 'متابعة الاتجاه القوي مع EMA و MACD' },
+  { id: 'MEAN_REVERSION',  icon: '🔄', desc: 'العودة للمتوسط عند الانحرافات الكبيرة' },
+  { id: 'BREAKOUT',        icon: '⚡', desc: 'الدخول عند اختراق المستويات مع زخم قوي' },
+  { id: 'MOMENTUM',        icon: '🚀', desc: 'التداول مع تدفق الزخم بناءً على معدل التغيير' },
 ]
 
 /* ─── Status Config ─── */
@@ -572,7 +573,7 @@ export default function MobileBotPage() {
                     {STRATEGIES.find(s => s.id === settings.strategy)?.icon || '📋'}
                   </span>
                   <span style={{ fontSize: 14, fontWeight: 700, color: C.text, fontFamily: FONT_AR }}>
-                    {settings.strategy || 'Trend Follow'}
+                    {settings.strategy || 'AUTO'}
                   </span>
                 </div>
                 <motion.div

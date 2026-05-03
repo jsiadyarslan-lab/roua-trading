@@ -8,6 +8,7 @@ import {
   Target, Activity, Play, CheckCircle, Loader2, ArrowUpRight,
   ArrowDownRight, Clock, Flame, Grid3X3, Cpu
 } from 'lucide-react'
+import { useBotStore } from '@/hooks/useBotStore'
 
 /* ─── Design Tokens ─── */
 const c = {
@@ -21,59 +22,72 @@ const c = {
   border: 'rgba(255,255,255,0.08)',
 }
 
-/* ─── Strategy Data ─── */
+/* ─── Strategy Data (synced with backend BotStrategyType) ─── */
 const STRATEGIES = [
   {
-    id: 'scalp-ai',
-    name: 'Scalp AI',
-    nameAr: 'سكالب AI',
-    desc: 'تداول سريع بالذكاء الاصطناعي',
-    icon: Zap,
-    color: c.accent,
-    winRate: 78.5,
-    totalTrades: 1240,
-    dailyPnL: +2.34,
-    active: true,
-    backtest: { period: '30 يوم', return: '+18.4%', maxDD: '-3.2%', sharpe: 2.1 },
-  },
-  {
-    id: 'swing-master',
-    name: 'Swing Master',
-    nameAr: 'سوينغ ماستر',
-    desc: 'استراتيجية تداول متأرجح',
-    icon: TrendingUp,
-    color: c.success,
-    winRate: 65.2,
-    totalTrades: 480,
-    dailyPnL: +1.12,
-    active: false,
-    backtest: { period: '60 يوم', return: '+12.8%', maxDD: '-5.1%', sharpe: 1.6 },
-  },
-  {
-    id: 'dca-pro',
-    name: 'DCA Pro',
-    nameAr: 'DCA برو',
-    desc: 'متوسط تكلفة دولار متقدم',
-    icon: Target,
-    color: c.amber,
-    winRate: 82.1,
-    totalTrades: 890,
-    dailyPnL: +0.87,
-    active: false,
-    backtest: { period: '90 يوم', return: '+24.2%', maxDD: '-2.8%', sharpe: 2.8 },
-  },
-  {
-    id: 'grid-bot',
-    name: 'Grid Bot',
-    nameAr: 'جرید بوت',
-    desc: 'بوت شبكة تداول آلي',
-    icon: Grid3X3,
+    id: 'AUTO',
+    name: 'Auto',
+    nameAr: 'تلقائي',
+    desc: 'اختيار تلقائي لأفضل استراتيجية حسب ظروف السوق',
+    icon: Cpu,
     color: '#B388FF',
-    winRate: 71.8,
-    totalTrades: 3200,
-    dailyPnL: -0.45,
+    winRate: 76.3,
+    totalTrades: 1580,
+    dailyPnL: +2.10,
+    active: true,
+    backtest: { period: '90 يوم', return: '+22.1%', maxDD: '-3.8%', sharpe: 2.4 },
+  },
+  {
+    id: 'TREND_FOLLOWING',
+    name: 'Trend Following',
+    nameAr: 'اتباع الاتجاه',
+    desc: 'متابعة الاتجاه القوي مع EMA و MACD',
+    icon: TrendingUp,
+    color: c.accent,
+    winRate: 72.5,
+    totalTrades: 640,
+    dailyPnL: +1.85,
     active: false,
-    backtest: { period: '45 يوم', return: '+8.6%', maxDD: '-7.4%', sharpe: 1.2 },
+    backtest: { period: '60 يوم', return: '+16.7%', maxDD: '-4.5%', sharpe: 1.9 },
+  },
+  {
+    id: 'MEAN_REVERSION',
+    name: 'Mean Reversion',
+    nameAr: 'ارتداد متوسط',
+    desc: 'العودة للمتوسط عند الانحرافات الكبيرة',
+    icon: ArrowDownRight,
+    color: c.amber,
+    winRate: 68.4,
+    totalTrades: 920,
+    dailyPnL: +1.22,
+    active: false,
+    backtest: { period: '45 يوم', return: '+11.3%', maxDD: '-5.2%', sharpe: 1.5 },
+  },
+  {
+    id: 'BREAKOUT',
+    name: 'Breakout',
+    nameAr: 'الاختراق',
+    desc: 'الدخول عند اختراق المستويات مع زخم قوي',
+    icon: Zap,
+    color: c.success,
+    winRate: 62.8,
+    totalTrades: 380,
+    dailyPnL: +2.45,
+    active: false,
+    backtest: { period: '30 يوم', return: '+19.6%', maxDD: '-6.1%', sharpe: 2.0 },
+  },
+  {
+    id: 'MOMENTUM',
+    name: 'Momentum',
+    nameAr: 'الزخم',
+    desc: 'التداول مع تدفق الزخم بناءً على معدل التغيير',
+    icon: Flame,
+    color: c.danger,
+    winRate: 70.1,
+    totalTrades: 510,
+    dailyPnL: +1.67,
+    active: false,
+    backtest: { period: '60 يوم', return: '+14.8%', maxDD: '-4.9%', sharpe: 1.7 },
   },
 ]
 
@@ -233,10 +247,14 @@ function StrategyCard({ strategy, onApply }: { strategy: typeof STRATEGIES[0]; o
 /* ─── Main Page ─── */
 export default function StrategiesPage() {
   const router = useRouter()
-  const [activeStrategies, setActiveStrategies] = useState<string[]>(['scalp-ai'])
+  const { settings, updateSettings } = useBotStore()
+  const activeStrategy = settings.strategy || 'AUTO'
+  const [activeStrategies, setActiveStrategies] = useState<string[]>([activeStrategy])
 
   const handleApply = (id: string) => {
     setActiveStrategies(prev => prev.includes(id) ? prev : [...prev, id])
+    // Actually update the bot store strategy
+    updateSettings({ strategy: id })
   }
 
   return (

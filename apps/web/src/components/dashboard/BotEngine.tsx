@@ -363,11 +363,32 @@ export function BotEngine() {
     const tradeAmount = Math.max(10, buyingPower * (settings.riskPct / 100))
     const qty = parseFloat((tradeAmount / price).toFixed(6))
     const isBuy = signal.dir === 'buy'
-    // Dynamic Risk:Reward Profiles based on Strategy
+    // Dynamic Risk:Reward Profiles based on Strategy (synced with backend BotStrategyType)
     let tpPct = 0.025 // Default 2.5%
     let slPct = 0.015 // Default 1.5%
     
     switch (settings.strategy) {
+      case 'TREND_FOLLOWING':
+        tpPct = 0.040 // 4.0% Target — ride the trend
+        slPct = 0.020 // 2.0% Stop Loss
+        break
+      case 'MEAN_REVERSION':
+        tpPct = 0.020 // 2.0% Target — quick reversion
+        slPct = 0.012 // 1.2% Stop Loss
+        break
+      case 'BREAKOUT':
+        tpPct = 0.050 // 5.0% Target — capture the breakout move
+        slPct = 0.020 // 2.0% Stop Loss
+        break
+      case 'MOMENTUM':
+        tpPct = 0.035 // 3.5% Target — follow momentum flow
+        slPct = 0.015 // 1.5% Stop Loss
+        break
+      case 'AUTO':
+        tpPct = 0.030 // 3.0% Target — balanced for auto mode
+        slPct = 0.015 // 1.5% Stop Loss
+        break
+      // Legacy strategy names (for backward compatibility with persisted store data)
       case 'scalping':
         tpPct = 0.008 // 0.8% Target
         slPct = 0.004 // 0.4% Stop Loss

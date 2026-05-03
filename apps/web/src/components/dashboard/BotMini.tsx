@@ -289,9 +289,11 @@ export function BotMini() {
                 touchAction: 'manipulation',
               }}
             >
-              <option value="Trend Follow">Trend Follow (اتباع الاتجاه)</option>
-              <option value="Mean Reversion">Mean Reversion (ارتداد متوسط)</option>
-              <option value="Scalping">Scalping (مضاربة سريعة)</option>
+              <option value="AUTO">AUTO (تلقائي — اختيار أفضل استراتيجية)</option>
+              <option value="TREND_FOLLOWING">Trend Following (اتباع الاتجاه)</option>
+              <option value="MEAN_REVERSION">Mean Reversion (ارتداد متوسط)</option>
+              <option value="BREAKOUT">Breakout (الاختراق)</option>
+              <option value="MOMENTUM">Momentum (الزخم)</option>
             </select>
           </div>
 

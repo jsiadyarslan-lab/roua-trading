@@ -1,6 +1,7 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import { ensureAuth } from '@/lib/api-fetch'
+import { useAuthStore } from '@/lib/auth-store'
 
 interface Position {
   id?: string
@@ -39,7 +40,38 @@ interface PositionsState {
   fetchPositions: () => Promise<void>
   fetchAccount: () => Promise<void>
   updatePositionPrice: (symbol: string, price: number) => void
+  /** SECURITY: Clear all cached data when user changes */
+  clearUserData: () => void
+  /** SECURITY: Current userId that the store data belongs to */
+  _ownerUserId: string | null
 }
+
+/**
+ * SECURITY: Get a user-scoped localStorage key to prevent data leakage.
+ * Without userId in the key, user B would see user A's cached positions.
+ */
+function getStorageKey(): string {
+  try {
+    const user = useAuthStore.getState().user
+    if (user?.id) return `roua-positions-store:${user.id}`
+  } catch { /* Auth store not yet initialized */ }
+  return 'roua-positions-store:guest'
+}
+
+/**
+ * SECURITY: Get current userId for cache validation.
+ * Returns null for guest/unauthenticated users.
+ */
+function getCurrentUserId(): string | null {
+  try {
+    const user = useAuthStore.getState().user
+    if (user?.id && !user.isGuest) return user.id
+  } catch { /* Auth store not yet initialized */ }
+  return null
+}
+
+/** Track the userId that the store was last hydrated for */
+let _lastHydratedUserId: string | null = null
 
 export const usePositionsStore = create<PositionsState>()(
   persist(
@@ -51,6 +83,8 @@ export const usePositionsStore = create<PositionsState>()(
   lastUpdate: null,
   _cacheTimestamp: null,
   dataSource: null,
+  /** Current userId that the store data belongs to */
+  _ownerUserId: null as string | null,
   setPositions: (positions) => set({ positions }),
   setAccount: (account) => set({ account }),
   setLoading: (loading) => set({ loading }),
@@ -188,7 +222,44 @@ export const usePositionsStore = create<PositionsState>()(
       },
     })
   },
+  /**
+   * SECURITY: Clear all cached data when user changes.
+   * This prevents user B from seeing user A's positions.
+   */
+  clearUserData: () => {
+    set({
+      positions: [],
+      account: null,
+      lastUpdate: null,
+      _cacheTimestamp: null,
+      dataSource: null,
+      error: null,
+      _ownerUserId: null,
+    })
+    // Also remove ALL position-related keys from localStorage
+    try {
+      const keysToRemove: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.startsWith('roua-positions-store')) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key))
+    } catch { /* localStorage unavailable */ }
+  },
+
   fetchPositions: async () => {
+    // SECURITY: Verify user hasn't changed — if it has, clear stale data first
+    const currentUserId = getCurrentUserId()
+    const ownerUserId = get()._ownerUserId
+    if (currentUserId && ownerUserId && currentUserId !== ownerUserId) {
+      // User changed! Clear stale data from previous user
+      get().clearUserData()
+    }
+    // Track current user as owner of this data
+    if (currentUserId) set({ _ownerUserId: currentUserId })
+
     set({ loading: true, error: null })
     await ensureAuth()
 
@@ -262,7 +333,13 @@ export const usePositionsStore = create<PositionsState>()(
   },
 }),
     {
-      name: 'roua-positions-store',
+      /**
+       * SECURITY: Use user-scoped storage key to prevent data leakage.
+       * Each user gets their own localStorage key: roua-positions-store:${userId}
+       * Guest users share 'roua-positions-store:guest'
+       */
+      name: getStorageKey(),
+      storage: createJSONStorage(() => localStorage),
       // Only persist account data and positions (not loading/error states)
       partialize: (state) => ({
         account: state.account,
@@ -270,6 +347,7 @@ export const usePositionsStore = create<PositionsState>()(
         lastUpdate: state.lastUpdate,
         dataSource: state.dataSource,
         _cacheTimestamp: state._cacheTimestamp,
+        _ownerUserId: state._ownerUserId,
       }),
       // Sync across tabs via storage events & force refresh stale data
       onRehydrateStorage: () => {
@@ -277,6 +355,23 @@ export const usePositionsStore = create<PositionsState>()(
           if (error) {
             console.warn('[PositionsStore] Rehydration failed:', error)
           }
+
+          // SECURITY: Validate that rehydrated data belongs to current user
+          // If _ownerUserId doesn't match current auth user, discard the data
+          if (state) {
+            const currentUserId = getCurrentUserId()
+            const storedOwner = state._ownerUserId
+            if (storedOwner && currentUserId && storedOwner !== currentUserId) {
+              // Data belongs to a different user — clear it!
+              console.warn('[PositionsStore] SECURITY: Data belongs to different user, clearing')
+              state.clearUserData()
+              // Fetch fresh data for the current user
+              state.fetchAccount()
+              state.fetchPositions()
+              return
+            }
+          }
+
           // If cached data is stale (older than 5 min), immediately fetch fresh data
           if (state?._cacheTimestamp) {
             const cacheAge = Date.now() - state._cacheTimestamp

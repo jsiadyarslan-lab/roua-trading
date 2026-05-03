@@ -8,8 +8,10 @@ import { create } from 'zustand'
  * - LocalStorage caching with TTL (5 minutes)
  * - refreshUser: re-validate session via /api/auth/me
  * - loginWithEmail: create session via email login flow
- * - logout: clear session and redirect to /login
+ * - logout: clear session, clear ALL user-specific stores, and redirect to /login
  * - Auto-refresh: periodic session refresh every 15 minutes (sliding sessions)
+ * - SECURITY: On logout, clears all persisted stores (positions, paper trades)
+ *   to prevent user B from seeing user A's data
  */
 
 // ── Types ──
@@ -46,6 +48,40 @@ const GUEST_EMAIL = 'guest@roua.auto'
 
 let _refreshInterval: ReturnType<typeof setInterval> | null = null
 const REFRESH_INTERVAL_MS = 15 * 60 * 1000 // Check every 15 minutes
+
+/**
+ * SECURITY: Clear all user-specific stores to prevent data leakage.
+ * Called when user changes (login with different account, logout).
+ * Dynamically imports stores to avoid circular dependencies.
+ */
+async function _clearAllUserStores(): Promise<void> {
+  try {
+    const { usePositionsStore } = await import('@/hooks/usePositionsStore')
+    usePositionsStore.getState().clearUserData()
+  } catch { /* Store not loaded yet */ }
+  try {
+    const { usePaperTradesStore } = await import('@/hooks/usePaperTradesStore')
+    usePaperTradesStore.getState().clearUserData()
+  } catch { /* Store not loaded yet */ }
+
+  // Clear all user-specific localStorage keys
+  try {
+    const keysToRemove: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && (
+        key.startsWith('roua-positions-store') ||
+        key.startsWith('roua-paper-trades') ||
+        key.startsWith('roua-bot') ||
+        key.startsWith('roua-alerts') ||
+        key.startsWith('roua-decision')
+      )) {
+        keysToRemove.push(key)
+      }
+    }
+    keysToRemove.forEach(key => localStorage.removeItem(key))
+  } catch { /* localStorage unavailable */ }
+}
 
 // ── Helpers ──
 
@@ -124,6 +160,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (data.user) {
           const user = data.user as AuthUser
           const isGuest = data.isGuest || isGuestUser(user)
+
+          // SECURITY: Detect user change — if new user differs from current, clear all stores
+          const previousUser = get().user
+          if (previousUser?.id && user.id && previousUser.id !== user.id) {
+            console.warn('[AuthStore] SECURITY: User changed from', previousUser.id, 'to', user.id, '— clearing all stores')
+            _clearAllUserStores()
+          }
+
           writeCache(user)
           set({ user, isAuthenticated: !isGuest, isGuest, loading: false })
           _authChannel?.postMessage({ type: 'auth_update', user, isAuthenticated: !isGuest, isGuest })
@@ -156,6 +200,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const data = await res.json()
         if (data.authenticated && data.user && !data.isGuest) {
           const user = data.user as AuthUser
+
+          // SECURITY: Detect user change — clear all stores if user changed
+          const previousUser = get().user
+          if (previousUser?.id && user.id && previousUser.id !== user.id) {
+            console.warn('[AuthStore] SECURITY: User changed during login — clearing all stores')
+            _clearAllUserStores()
+          }
+
           writeCache(user)
           set({ user, isAuthenticated: true, isGuest: false, loading: false })
           _authChannel?.postMessage({ type: 'auth_update', user, isAuthenticated: true, isGuest: false })
@@ -173,6 +225,36 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     // Stop auto-refresh
     get().stopAutoRefresh()
+
+    // SECURITY: Clear ALL user-specific stores before logout
+    // This prevents user B from seeing user A's cached data
+    try {
+      const { usePositionsStore } = await import('@/hooks/usePositionsStore')
+      usePositionsStore.getState().clearUserData()
+    } catch { /* Store not loaded yet */ }
+    try {
+      const { usePaperTradesStore } = await import('@/hooks/usePaperTradesStore')
+      usePaperTradesStore.getState().clearUserData()
+    } catch { /* Store not loaded yet */ }
+
+    // Clear additional user-specific localStorage keys
+    try {
+      const keysToRemove: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        // Remove all user-specific data keys (positions, paper-trades, bots, etc.)
+        if (key && (
+          key.startsWith('roua-positions-store') ||
+          key.startsWith('roua-paper-trades') ||
+          key.startsWith('roua-bot') ||
+          key.startsWith('roua-alerts') ||
+          key.startsWith('roua-decision')
+        )) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key))
+    } catch { /* localStorage unavailable */ }
 
     try {
       await fetch('/api/auth/me', { method: 'DELETE' })

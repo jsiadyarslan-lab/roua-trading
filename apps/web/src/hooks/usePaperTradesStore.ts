@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { useAuthStore } from '@/lib/auth-store'
 
 export interface PaperTrade {
   id: string
@@ -45,6 +46,33 @@ interface PaperTradesState {
   clearAll: () => void
   clearClosedTrades: () => void
   syncWithServer?: () => Promise<void>
+  /** SECURITY: Clear all data when user changes */
+  clearUserData: () => void
+  /** SECURITY: Current userId that the store data belongs to */
+  _ownerUserId: string | null
+}
+
+/**
+ * SECURITY: Get a user-scoped localStorage key to prevent data leakage.
+ * Without userId in the key, user B would see user A's paper trades.
+ */
+function getStorageKey(): string {
+  try {
+    const user = useAuthStore.getState().user
+    if (user?.id) return `roua-paper-trades:${user.id}`
+  } catch { /* Auth store not yet initialized */ }
+  return 'roua-paper-trades:guest'
+}
+
+/**
+ * SECURITY: Get current userId for cache validation.
+ */
+function getCurrentUserId(): string | null {
+  try {
+    const user = useAuthStore.getState().user
+    if (user?.id && !user.isGuest) return user.id
+  } catch { /* Auth store not yet initialized */ }
+  return null
 }
 
 export const usePaperTradesStore = create<PaperTradesState>()(
@@ -52,6 +80,7 @@ export const usePaperTradesStore = create<PaperTradesState>()(
     (set, get) => ({
       trades: [],
       closedTrades: [],
+      _ownerUserId: null as string | null,
 
       addTrade: (t) => {
         set((state) => ({
@@ -156,6 +185,29 @@ export const usePaperTradesStore = create<PaperTradesState>()(
         set({ closedTrades: [] })
         triggerBackgroundSync()
       },
+
+      /**
+       * SECURITY: Clear all cached data when user changes.
+       * This prevents user B from seeing user A's paper trades.
+       */
+      clearUserData: () => {
+        set({
+          trades: [],
+          closedTrades: [],
+          _ownerUserId: null,
+        })
+        // Remove ALL paper-trades-related keys from localStorage
+        try {
+          const keysToRemove: string[] = []
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i)
+            if (key && key.startsWith('roua-paper-trades')) {
+              keysToRemove.push(key)
+            }
+          }
+          keysToRemove.forEach(key => localStorage.removeItem(key))
+        } catch { /* localStorage unavailable */ }
+      },
       
       // Syncs current paper trades state to the backend silently
       syncWithServer: async () => {
@@ -174,7 +226,36 @@ export const usePaperTradesStore = create<PaperTradesState>()(
         }
       }
     }),
-    { name: 'roua-paper-trades' }
+    {
+      /**
+       * SECURITY: Use user-scoped storage key to prevent data leakage.
+       * Each user gets their own localStorage key: roua-paper-trades:${userId}
+       */
+      name: getStorageKey(),
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({
+        trades: state.trades,
+        closedTrades: state.closedTrades,
+        _ownerUserId: state._ownerUserId,
+      }),
+      onRehydrateStorage: () => {
+        return (state, error) => {
+          if (error) {
+            console.warn('[PaperTradesStore] Rehydration failed:', error)
+          }
+          // SECURITY: Validate that rehydrated data belongs to current user
+          if (state) {
+            const currentUserId = getCurrentUserId()
+            const storedOwner = state._ownerUserId
+            if (storedOwner && currentUserId && storedOwner !== currentUserId) {
+              console.warn('[PaperTradesStore] SECURITY: Data belongs to different user, clearing')
+              state.clearUserData()
+              return
+            }
+          }
+        }
+      },
+    }
   )
 )
 

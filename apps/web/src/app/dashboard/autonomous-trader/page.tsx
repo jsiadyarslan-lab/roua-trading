@@ -7,9 +7,9 @@ import {
   RefreshCw, ChevronDown, ChevronUp, Plus, Minus, Cpu,
   DollarSign, Target, Timer, Gauge, Layers, ArrowUpDown,
   AlertCircle, CheckCircle2, XCircle, Pause, Flame,
-  RotateCcw, Rocket, PiggyBank, Brain
+  RotateCcw, Rocket, PiggyBank, Brain, Eye, BarChart2
 } from 'lucide-react'
-import { useAgentStore, AgentStatus, StrategyType } from '@/hooks/useAgentStore'
+import { useAgentStore, AgentStatus, StrategyType, MarketRegime, RegimeInfo } from '@/hooks/useAgentStore'
 
 /* ═══════════════════════════════════════════════
    Design Tokens — matching Roua Trading theme
@@ -118,6 +118,80 @@ function getStrategyDesc(s: StrategyType): string {
 }
 
 /* ═══════════════════════════════════════════════
+   Regime Helper Functions
+   ═══════════════════════════════════════════════ */
+function getRegimeLabel(regime: MarketRegime): string {
+  switch (regime) {
+    case MarketRegime.TRENDING_UP: return 'صعودي متجه'
+    case MarketRegime.TRENDING_DOWN: return 'هبوطي متجه'
+    case MarketRegime.RANGING: return 'نطاق عرضي'
+    case MarketRegime.VOLATILE: return 'متقلب'
+    case MarketRegime.TRANSITIONAL: return 'انتقالي'
+    default: return regime
+  }
+}
+
+function getRegimeColor(regime: MarketRegime): string {
+  switch (regime) {
+    case MarketRegime.TRENDING_UP: return '#00FFA3'
+    case MarketRegime.TRENDING_DOWN: return '#FF4757'
+    case MarketRegime.RANGING: return '#FFB800'
+    case MarketRegime.VOLATILE: return '#FF6B9D'
+    case MarketRegime.TRANSITIONAL: return '#8B92A8'
+    default: return '#8B92A8'
+  }
+}
+
+function getRegimeIcon(regime: MarketRegime): React.ReactNode {
+  switch (regime) {
+    case MarketRegime.TRENDING_UP: return <TrendingUp size={18} color="#00FFA3" />
+    case MarketRegime.TRENDING_DOWN: return <TrendingDown size={18} color="#FF4757" />
+    case MarketRegime.RANGING: return <ArrowUpDown size={18} color="#FFB800" />
+    case MarketRegime.VOLATILE: return <Zap size={18} color="#FF6B9D" />
+    case MarketRegime.TRANSITIONAL: return <Activity size={18} color="#8B92A8" />
+    default: return <Activity size={18} color="#8B92A8" />
+  }
+}
+
+function getMomentumLabel(dir: string): string {
+  switch (dir) {
+    case 'UP': return 'صعودي'
+    case 'DOWN': return 'هبوطي'
+    case 'FLAT': return 'محايد'
+    default: return '—'
+  }
+}
+
+function getVolatilityLabel(level: string): string {
+  switch (level) {
+    case 'LOW': return 'منخفض'
+    case 'MEDIUM': return 'متوسط'
+    case 'HIGH': return 'مرتفع'
+    case 'EXTREME': return 'شديد'
+    default: return '—'
+  }
+}
+
+function getVolatilityColor(level: string): string {
+  switch (level) {
+    case 'LOW': return '#00FFA3'
+    case 'MEDIUM': return '#FFB800'
+    case 'HIGH': return '#FF6B9D'
+    case 'EXTREME': return '#FF4757'
+    default: return '#8B92A8'
+  }
+}
+
+function getEMAAlignmentLabel(alignment: string): string {
+  switch (alignment) {
+    case 'BULLISH': return 'صعودي'
+    case 'BEARISH': return 'هبوطي'
+    case 'MIXED': return 'مختلط'
+    default: return '—'
+  }
+}
+
+/* ═══════════════════════════════════════════════
    Reusable Components
    ═══════════════════════════════════════════════ */
 function GlassCard({ children, style, glow }: { children: React.ReactNode; style?: React.CSSProperties; glow?: string }) {
@@ -174,6 +248,7 @@ export default function AutonomousTraderPage() {
     fetchPerformance, fetchPositions, startAutoRefresh, stopAutoRefresh, addLog,
     selectedCredentialId, availableCredentials,
     settings, systemStatus, fetchSettings, updateSettings, fetchSystemStatus, updateSystemSettings,
+    regimeInfo, fetchRegimeInfo,
   } = useAgentStore()
 
   const [activeTab, setActiveTab] = useState<'overview' | 'positions' | 'performance' | 'settings'>('overview')
@@ -201,6 +276,14 @@ export default function AutonomousTraderPage() {
     startAutoRefresh()
     return () => stopAutoRefresh()
   }, [fetchStatus, fetchCredentials, fetchPerformance, fetchPositions, fetchSettings, fetchSystemStatus, startAutoRefresh, stopAutoRefresh])
+
+  // ── Fetch regime info when AUTO strategy is active ──
+  useEffect(() => {
+    if (config?.strategy === StrategyType.AUTO && isRunning) {
+      const firstSymbol = config?.symbols?.[0] || 'BTC/USDT'
+      fetchRegimeInfo(firstSymbol)
+    }
+  }, [config?.strategy, isRunning, fetchRegimeInfo])
 
   // ── Tab definitions ──
   const TABS = [
@@ -419,6 +502,13 @@ export default function AutonomousTraderPage() {
                         <div style={{
                           marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap',
                         }}>
+                          {s === StrategyType.AUTO && (
+                            <>
+                              <StrategyTag label="كشف النظام تلقائي" />
+                              <StrategyTag label="تبديل ذكي" />
+                              <StrategyTag label="مُوصى به" />
+                            </>
+                          )}
                           {s === StrategyType.SCALPING && (
                             <>
                               <StrategyTag label="فريم: 1m-5m" />
@@ -770,6 +860,13 @@ export default function AutonomousTraderPage() {
                   </div>
                   {/* Strategy Params */}
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {config.strategy === StrategyType.AUTO && (
+                      <>
+                        <StrategyTag label="كشف النظام تلقائي" />
+                        <StrategyTag label="تبديل ذكي" />
+                        <StrategyTag label="مُوصى به" />
+                      </>
+                    )}
                     {config.strategy === StrategyType.SCALPING && (
                       <>
                         <StrategyTag label={`فريم: ${config.strategyParams?.scalpingTimeframe || '5m'}`} />
@@ -844,6 +941,152 @@ export default function AutonomousTraderPage() {
               )}
             </div>
           </GlassCard>
+
+          {/* Regime Info Card — Only when AUTO strategy is active */}
+          {config?.strategy === StrategyType.AUTO && (
+            <GlassCard glow="rgba(255,159,67,0.08)">
+              <div style={{ padding: 20 }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Eye size={15} color="#FF9F43" />
+                  تحليل النظام (AUTO)
+                  <button
+                    onClick={() => {
+                      const sym = config?.symbols?.[0] || 'BTC/USDT'
+                      fetchRegimeInfo(sym)
+                    }}
+                    style={{
+                      ...btnStyle, padding: '4px 10px', fontSize: 10,
+                      background: 'rgba(255,255,255,0.06)', color: T.text3,
+                      marginRight: 'auto',
+                    }}
+                  >
+                    <RefreshCw size={10} />
+                    تحديث
+                  </button>
+                </div>
+
+                {regimeInfo ? (
+                  <div>
+                    {/* Current Regime */}
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '12px 14px', borderRadius: 10,
+                      background: `${getRegimeColor(regimeInfo.regime)}12`,
+                      border: `1px solid ${getRegimeColor(regimeInfo.regime)}30`,
+                      marginBottom: 14,
+                    }}>
+                      <div style={{
+                        width: 38, height: 38, borderRadius: 10,
+                        background: `${getRegimeColor(regimeInfo.regime)}20`,
+                        border: `1px solid ${getRegimeColor(regimeInfo.regime)}40`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {getRegimeIcon(regimeInfo.regime)}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: getRegimeColor(regimeInfo.regime) }}>
+                          {getRegimeLabel(regimeInfo.regime)}
+                        </div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>
+                          ثقة: {regimeInfo.confidence}% • ADX: {regimeInfo.indicators?.adxProxy?.toFixed(0) || '—'} • زخم: {getMomentumLabel(regimeInfo.indicators?.momentumDirection)}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Auto-selected Strategy */}
+                    {regimeInfo.currentStrategy && (
+                      <div style={{
+                        padding: '10px 14px', borderRadius: 8,
+                        background: 'rgba(255,255,255,0.04)',
+                        border: `1px solid ${T.border}`,
+                        marginBottom: 12,
+                        display: 'flex', alignItems: 'center', gap: 10,
+                      }}>
+                        <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>الاستراتيجية المختارة:</span>
+                        <span style={{ color: T.accent, display: 'flex' }}>{getStrategyIcon(regimeInfo.currentStrategy)}</span>
+                        <span style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, color: T.text }}>
+                          {getStrategyLabel(regimeInfo.currentStrategy)}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Strategy Scores */}
+                    {regimeInfo.strategyScores && regimeInfo.strategyScores.length > 0 && (
+                      <div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 10, fontWeight: 700, color: T.text3, marginBottom: 8 }}>
+                          ترتيب الاستراتيجيات
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {regimeInfo.strategyScores.slice(0, 5).map((score, i) => (
+                            <div key={score.strategy} style={{
+                              display: 'flex', alignItems: 'center', gap: 8,
+                              padding: '6px 10px', borderRadius: 6,
+                              background: i === 0 ? 'rgba(255,159,67,0.08)' : 'transparent',
+                              border: i === 0 ? '1px solid rgba(255,159,67,0.2)' : '1px solid transparent',
+                            }}>
+                              <span style={{
+                                fontFamily: FONT_MONO, fontSize: 9, fontWeight: 800,
+                                color: i === 0 ? '#FF9F43' : T.text3,
+                                width: 16, textAlign: 'center',
+                              }}>#{i + 1}</span>
+                              <span style={{ color: i === 0 ? T.accent : T.text3, display: 'flex' }}>{getStrategyIcon(score.strategy)}</span>
+                              <span style={{ fontFamily: FONT_AR, fontSize: 11, fontWeight: i === 0 ? 700 : 400, color: i === 0 ? T.text : T.text2, flex: 1 }}>
+                                {getStrategyLabel(score.strategy)}
+                              </span>
+                              <div style={{
+                                width: 60, height: 6, borderRadius: 3,
+                                background: 'rgba(255,255,255,0.06)',
+                                overflow: 'hidden',
+                              }}>
+                                <div style={{
+                                  width: `${score.score}%`, height: '100%', borderRadius: 3,
+                                  background: i === 0
+                                    ? 'linear-gradient(90deg, #FF9F43, #FFB800)'
+                                    : score.score > 50 ? T.accent : T.text3,
+                                }} />
+                              </div>
+                              <span style={{ fontFamily: FONT_MONO, fontSize: 10, fontWeight: 700, color: i === 0 ? '#FF9F43' : T.text3, width: 28, textAlign: 'left' }}>
+                                {score.score}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Indicators Summary */}
+                    <div style={{
+                      marginTop: 12, paddingTop: 12,
+                      borderTop: `1px solid ${T.border}`,
+                      display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8,
+                    }}>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>قوة الاتجاه</div>
+                        <div style={{ fontFamily: FONT_MONO, fontSize: 12, fontWeight: 800, color: T.text }}>{regimeInfo.indicators?.trendStrength ?? '—'}</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>تقلب</div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 800, color: getVolatilityColor(regimeInfo.indicators?.volatilityLevel) }}>{getVolatilityLabel(regimeInfo.indicators?.volatilityLevel)}</div>
+                      </div>
+                      <div style={{ textAlign: 'center' }}>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>EMA</div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 800, color: regimeInfo.indicators?.emaAlignment === 'BULLISH' ? T.green : regimeInfo.indicators?.emaAlignment === 'BEARISH' ? T.red : T.text3 }}>{getEMAAlignmentLabel(regimeInfo.indicators?.emaAlignment)}</div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{
+                    padding: '20px 0', textAlign: 'center',
+                    fontFamily: FONT_AR, fontSize: 11, color: T.text3,
+                  }}>
+                    <Brain size={24} style={{ marginBottom: 8, opacity: 0.3 }} />
+                    <div>اضغط "تحديث" لعرض تحليل النظام الحالي</div>
+                    <div style={{ fontSize: 9, marginTop: 4 }}>يحلل الوضع الحالي للسوق ويختار أفضل استراتيجية تلقائياً</div>
+                  </div>
+                )}
+              </div>
+            </GlassCard>
+          )}
         </div>
 
         {/* Right Column: Logs */}

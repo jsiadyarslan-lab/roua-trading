@@ -166,6 +166,46 @@ export interface SystemStatusData {
   message: string
 }
 
+// ── Regime Info (AUTO Strategy) ──
+
+export enum MarketRegime {
+  TRENDING_UP = 'TRENDING_UP',
+  TRENDING_DOWN = 'TRENDING_DOWN',
+  RANGING = 'RANGING',
+  VOLATILE = 'VOLATILE',
+  TRANSITIONAL = 'TRANSITIONAL',
+}
+
+export interface StrategyScore {
+  strategy: StrategyType
+  score: number
+  regimeMatch: number
+  recentPerformance: number
+  drawdownPenalty: number
+  winRateTrend: number
+  reason: string
+}
+
+export interface RegimeInfo {
+  regime: MarketRegime
+  confidence: number
+  indicators: {
+    trendStrength: number
+    volatilityLevel: string
+    emaAlignment: 'BULLISH' | 'BEARISH' | 'MIXED'
+    bbBandwidth: number
+    adxProxy: number
+    momentumDirection: 'UP' | 'DOWN' | 'FLAT'
+  }
+  recommendedStrategies: StrategyType[]
+  currentStrategy: StrategyType | null
+  strategyScores: Array<{
+    strategy: StrategyType
+    score: number
+    reason: string
+  }>
+}
+
 // ── Store ──
 interface AgentStore {
   // State
@@ -181,6 +221,7 @@ interface AgentStore {
   availableCredentials: Array<{ id: string; exchange: string; label?: string; isValid: boolean }>
   settings: AgentSettingsData | null
   systemStatus: SystemStatusData | null
+  regimeInfo: RegimeInfo | null
 
   // Actions
   setAgentState: (state: AgentState | null) => void
@@ -212,6 +253,7 @@ interface AgentStore {
   fetchSystemStatus: () => Promise<void>
   updateSystemSettings: (settings: { autoTradingEnabled?: boolean }) => Promise<void>
   fetchPublicStatus: () => Promise<void>
+  fetchRegimeInfo: (symbol?: string) => Promise<void>
 
   // Auto-refresh
   startAutoRefresh: () => void
@@ -237,6 +279,7 @@ export const useAgentStore = create<AgentStore>()(
       availableCredentials: [],
       settings: null,
       systemStatus: null,
+      regimeInfo: null,
 
       setAgentState: (agentState) => set({ agentState }),
       setPerformance: (performance) => set({ performance }),
@@ -561,6 +604,19 @@ export const useAgentStore = create<AgentStore>()(
         }
       },
 
+      fetchRegimeInfo: async (symbol?: string) => {
+        try {
+          const params = symbol ? `?symbol=${encodeURIComponent(symbol)}` : ''
+          const res = await fetch(`/api/agent/trader/regime-info${params}`)
+          const data = await res.json()
+          if (data.success && data.data) {
+            set({ regimeInfo: data.data })
+          }
+        } catch {
+          // Silent fail for regime info
+        }
+      },
+
       // ── Auto-refresh (every 15s when agent is running) ──
       startAutoRefresh: () => {
         if (_refreshInterval) return
@@ -570,6 +626,11 @@ export const useAgentStore = create<AgentStore>()(
             get().fetchStatus()
             get().fetchPositions()
             get().fetchPerformance()
+            // Fetch regime info if AUTO strategy is active
+            if (agentState?.config?.strategy === StrategyType.AUTO) {
+              const firstSymbol = agentState?.config?.symbols?.[0] || 'BTC/USDT'
+              get().fetchRegimeInfo(firstSymbol)
+            }
           } else {
             get().fetchStatus()
           }

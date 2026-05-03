@@ -2,10 +2,10 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   ChevronLeft, Link2, Key, Shield, CheckCircle, AlertCircle,
-  Loader2, ChevronRight, Lock, Eye, EyeOff, Zap
+  Loader2, ChevronRight, Lock, Eye, EyeOff, Zap, Trash2
 } from 'lucide-react'
 
 /* ─── Design Tokens ─── */
@@ -23,10 +23,22 @@ const c = {
 /* ─── Exchange Data ─── */
 const EXCHANGES = [
   { id: 'binance', name: 'Binance', nameAr: 'باينانس', color: '#F0B90B', desc: 'أكبر منصة تداول عملات رقمية' },
-  { id: 'alpaca', name: 'Alpaca', nameAr: 'ألباكا', color: c.accent, desc: 'وسيط أسهم أمريكي بـ API' },
-  { id: 'ibkr', name: 'Interactive Brokers', nameAr: 'إنتراكتيف بروكرز', color: c.danger, desc: 'وسيط عالمي متعدد الأسواق' },
-  { id: 'coinbase', name: 'Coinbase', nameAr: 'كوينبيس', color: '#0052FF', desc: 'منصة عملات رقمية منظمة' },
+  { id: 'kucoin', name: 'KuCoin', nameAr: 'كوکوين', color: '#23AF91', desc: 'منصة تداول عملات رقمية' },
+  { id: 'bybit', name: 'Bybit', nameAr: 'بايبيت', color: '#F7A600', desc: 'منصة مشتقات رقمية' },
+  { id: 'okx', name: 'OKX', nameAr: 'أو كي إكس', color: '#ffffff', desc: 'منصة تداول رقمية متعددة' },
+  { id: 'gate', name: 'Gate.io', nameAr: 'جيت دوت آيو', color: '#2354E6', desc: 'منصة تداول عملات رقمية' },
 ]
+
+/* ─── Credential type ─── */
+interface Credential {
+  id: string
+  exchange: string
+  label: string
+  permissions: string
+  isValid: boolean
+  lastValidatedAt: string | null
+  createdAt: string
+}
 
 /* ─── iOS Card ─── */
 function IOSCard({ children, highlight = false }: { children: React.ReactNode; highlight?: boolean }) {
@@ -100,45 +112,54 @@ function StepIndicator({ current, total = 3 }: { current: number; total?: number
 export default function KYCPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [adapters, setAdapters] = useState<any[]>([])
+  const [credentials, setCredentials] = useState<Credential[]>([])
   const [linkedExchanges, setLinkedExchanges] = useState<Record<string, boolean>>({})
 
   // Flow state
   const [flowActive, setFlowActive] = useState(false)
   const [step, setStep] = useState(0)
   const [selectedExchange, setSelectedExchange] = useState<any>(null)
+  const [label, setLabel] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [apiSecret, setApiSecret] = useState('')
   const [showSecret, setShowSecret] = useState(false)
   const [verifying, setVerifying] = useState(false)
   const [verified, setVerified] = useState(false)
   const [verifyError, setVerifyError] = useState('')
+  const [deleting, setDeleting] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function fetchAdapters() {
-      try {
-        const res = await fetch('/api/exchange/adapters')
-        if (res.ok) {
-          const data = await res.json()
-          setAdapters(data.data || data.adapters || [])
-          // Determine linked status from response
+  // ── Fetch real credentials from /api/portfolio/credentials ──
+  const fetchCredentials = useCallback(async () => {
+    try {
+      const res = await fetch('/api/portfolio/credentials')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && Array.isArray(data.data)) {
+          setCredentials(data.data)
+          // Build linked exchanges map from real credential data
           const linked: Record<string, boolean> = {}
-          ;(data.data || data.adapters || []).forEach((a: any) => {
-            linked[a.id || a.name?.toLowerCase()] = a.linked || a.connected || false
+          data.data.forEach((cred: Credential) => {
+            if (cred.isValid) {
+              linked[cred.exchange] = true
+            }
           })
           setLinkedExchanges(linked)
         }
-      } catch {
-        // Use defaults
-      } finally {
-        setLoading(false)
       }
+    } catch {
+      // Error handled silently — will show exchanges as not linked
+    } finally {
+      setLoading(false)
     }
-    fetchAdapters()
   }, [])
+
+  useEffect(() => {
+    fetchCredentials()
+  }, [fetchCredentials])
 
   const startFlow = (exchange: any) => {
     setSelectedExchange(exchange)
+    setLabel('')
     setApiKey('')
     setApiSecret('')
     setVerified(false)
@@ -147,36 +168,59 @@ export default function KYCPage() {
     setFlowActive(true)
   }
 
+  // ── Actually save credentials via /api/portfolio/credentials ──
   const handleVerify = async () => {
-    if (!apiKey || !apiSecret) return
+    if (!apiKey || !apiSecret || !selectedExchange) return
     setVerifying(true)
     setVerifyError('')
     try {
-      const res = await fetch('/api/exchange/adapters', {
+      const res = await fetch('/api/portfolio/credentials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ exchange: selectedExchange?.id, apiKey, apiSecret }),
+        body: JSON.stringify({
+          exchange: selectedExchange.id,
+          label: label || `${selectedExchange.id}-key`,
+          apiKey,
+          apiSecret,
+        }),
       })
-      if (res.ok) {
+
+      const data = await res.json()
+
+      if (res.ok && data.success) {
         setVerified(true)
-        setLinkedExchanges(prev => ({ ...prev, [selectedExchange?.id]: true }))
+        // Refresh credentials list from server
+        await fetchCredentials()
         setTimeout(() => {
           setFlowActive(false)
           setStep(0)
         }, 1500)
       } else {
-        // Show as verified for demo
-        setVerified(true)
-        setLinkedExchanges(prev => ({ ...prev, [selectedExchange?.id]: true }))
-        setTimeout(() => {
-          setFlowActive(false)
-          setStep(0)
-        }, 1500)
+        // REAL error from server — show the actual error message
+        setVerifyError(data.error || data.message || 'فشل في التحقق من المفتاح')
+        setStep(1) // Go back to edit keys
       }
-    } catch {
-      setVerifyError('فشل التحقق، تأكد من صحة المفاتيح')
+    } catch (err: any) {
+      setVerifyError('فشل الاتصال بالخادم، تأكد من اتصالك بالإنترنت')
+      setStep(1) // Go back to edit keys
     } finally {
       setVerifying(false)
+    }
+  }
+
+  // ── Delete a credential ──
+  const handleDelete = async (credId: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذا المفتاح؟ هذا الإجراء لا يمكن التراجع عنه.')) return
+    setDeleting(credId)
+    try {
+      const res = await fetch(`/api/portfolio/credentials/${credId}`, { method: 'DELETE' })
+      if (res.ok) {
+        await fetchCredentials()
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setDeleting(null)
     }
   }
 
@@ -238,6 +282,23 @@ export default function KYCPage() {
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {/* Label field */}
+                    <div>
+                      <label style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 6 }}>تسمية المفتاح (اختياري)</label>
+                      <input
+                        value={label}
+                        onChange={e => setLabel(e.target.value)}
+                        placeholder={`مثال: ${selectedExchange?.id}-main`}
+                        style={{
+                          width: '100%', padding: '12px 14px', borderRadius: 14,
+                          background: 'rgba(255,255,255,0.05)',
+                          border: `0.5px solid ${c.border}`, color: c.text,
+                          fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
+                          outline: 'none', direction: 'ltr', textAlign: 'left',
+                        }}
+                      />
+                    </div>
+
                     <div>
                       <label style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 6 }}>مفتاح API</label>
                       <div style={{ position: 'relative' }}>
@@ -285,6 +346,31 @@ export default function KYCPage() {
                         </button>
                       </div>
                     </div>
+
+                    {/* Error message */}
+                    {verifyError && (
+                      <div style={{
+                        padding: '12px 16px', borderRadius: 14,
+                        background: `${c.danger}10`, border: `0.5px solid ${c.danger}30`,
+                        display: 'flex', alignItems: 'center', gap: 10,
+                      }}>
+                        <AlertCircle size={16} color={c.danger} />
+                        <p style={{ fontSize: 12, color: c.danger, fontFamily: "'Cairo', sans-serif", flex: 1 }}>{verifyError}</p>
+                      </div>
+                    )}
+
+                    {/* Security note */}
+                    <div style={{
+                      padding: '10px 14px', borderRadius: 12,
+                      background: 'rgba(0,212,255,0.04)', border: `0.5px solid rgba(0,212,255,0.1)`,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Shield size={12} color={c.accent} />
+                        <p style={{ fontSize: 10, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>
+                          مفاتيح API مشفرة بـ AES-256-GCM. المفاتيح ذات صلاحيات السحب تُرفض.
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   <motion.button
@@ -314,7 +400,7 @@ export default function KYCPage() {
                       <>
                         <Loader2 size={40} className="animate-spin" color={c.accent} />
                         <p style={{ fontSize: 16, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>جاري التحقق...</p>
-                        <p style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>يتم التأكد من صحة المفاتيح</p>
+                        <p style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>يتم التأكد من صحة المفاتيح وتشفيرها</p>
                       </>
                     ) : verified ? (
                       <>
@@ -331,7 +417,7 @@ export default function KYCPage() {
                         </motion.div>
                         <p style={{ fontSize: 16, fontWeight: 800, color: c.success, fontFamily: "'Cairo', sans-serif" }}>تم الربط بنجاح!</p>
                         <p style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>
-                          تم ربط حساب {selectedExchange?.nameAr} بنجاح
+                          تم ربط حساب {selectedExchange?.nameAr} وحفظه بشكل مشفر
                         </p>
                       </>
                     ) : verifyError ? (
@@ -382,65 +468,120 @@ export default function KYCPage() {
               <div style={{ margin: '0 20px 16px', padding: '14px 16px', borderRadius: 18, background: 'rgba(0,212,255,0.06)', border: '0.5px solid rgba(0,212,255,0.15)', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Shield size={18} color={c.accent} />
                 <p style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif", flex: 1 }}>
-                  مفاتيح API مشفرة بالكامل ولا يتم تخزين المفاتيح السرية على خوادمنا
+                  مفاتيح API مشفرة بـ AES-256-GCM وتُستخدم فقط للقراءة. المفاتيح ذات صلاحيات السحب تُرفض.
                 </p>
               </div>
 
-              {/* ── Exchange Cards ── */}
-              {EXCHANGES.map((exchange, i) => {
-                const isLinked = linkedExchanges[exchange.id] || false
-                return (
-                  <motion.div
-                    key={exchange.id}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.06 }}
-                  >
-                    <IOSCard highlight={isLinked}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                        <div style={{
-                          width: 52, height: 52, borderRadius: 16,
-                          background: `${exchange.color}15`, border: `0.5px solid ${exchange.color}25`,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 22, fontWeight: 900, color: exchange.color,
-                          fontFamily: "'JetBrains Mono', monospace",
-                        }}>
-                          {exchange.name[0]}
-                        </div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <p style={{ fontSize: 16, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>{exchange.nameAr}</p>
-                            {isLinked && <CheckCircle size={14} color={c.success} />}
+              {/* ── Active Credentials ── */}
+              {credentials.length > 0 && (
+                <div style={{ margin: '0 20px 16px' }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: c.text, fontFamily: "'Cairo', sans-serif", marginBottom: 10, paddingRight: 4 }}>
+                    المفاتيح النشطة ({credentials.length})
+                  </p>
+                  {credentials.map((cred) => {
+                    const exInfo = EXCHANGES.find(e => e.id === cred.exchange)
+                    return (
+                      <IOSCard key={cred.id} highlight={cred.isValid}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <div style={{
+                            width: 44, height: 44, borderRadius: 14,
+                            background: `${exInfo?.color || c.accent}15`,
+                            border: `0.5px solid ${exInfo?.color || c.accent}25`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 18, fontWeight: 900, color: exInfo?.color || c.accent,
+                            fontFamily: "'JetBrains Mono', monospace",
+                          }}>
+                            {(exInfo?.name || cred.exchange)[0]}
                           </div>
-                          <p style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>{exchange.desc}</p>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <p style={{ fontSize: 14, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>{cred.label}</p>
+                              {cred.isValid ? (
+                                <CheckCircle size={13} color={c.success} />
+                              ) : (
+                                <AlertCircle size={13} color={c.danger} />
+                              )}
+                            </div>
+                            <p style={{ fontSize: 10, color: c.text2, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>
+                              {exInfo?.nameAr || cred.exchange} • {cred.isValid ? 'صالح' : 'غير صالح'}
+                            </p>
+                          </div>
+                          <motion.button
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => handleDelete(cred.id)}
+                            disabled={deleting === cred.id}
+                            style={{
+                              width: 36, height: 36, borderRadius: 12,
+                              background: `${c.danger}10`, border: `0.5px solid ${c.danger}25`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              cursor: deleting === cred.id ? 'wait' : 'pointer',
+                            }}
+                          >
+                            {deleting === cred.id ? (
+                              <Loader2 size={14} className="animate-spin" color={c.danger} />
+                            ) : (
+                              <Trash2 size={14} color={c.danger} />
+                            )}
+                          </motion.button>
                         </div>
-                        <motion.button
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => !isLinked && startFlow(exchange)}
-                          style={{
-                            padding: '8px 14px', borderRadius: 14,
-                            background: isLinked ? `${c.success}15` : `${c.accent}15`,
-                            border: `0.5px solid ${isLinked ? `${c.success}30` : `${c.accent}30`}`,
-                            color: isLinked ? c.success : c.accent,
-                            fontSize: 12, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
-                            cursor: isLinked ? 'default' : 'pointer',
-                          }}
-                        >
-                          {isLinked ? 'مربوط ✓' : 'ربط'}
-                        </motion.button>
-                      </div>
-                    </IOSCard>
-                  </motion.div>
-                )
-              })}
-
-              {/* ── Empty state if no exchanges ── */}
-              {EXCHANGES.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-                  <Link2 size={36} color={c.text2} style={{ opacity: 0.3 }} />
-                  <p style={{ fontSize: 14, color: c.text2, fontFamily: "'Cairo', sans-serif", marginTop: 12 }}>لا توجد منصات متاحة حالياً</p>
+                      </IOSCard>
+                    )
+                  })}
                 </div>
               )}
+
+              {/* ── Available Exchanges ── */}
+              <div style={{ margin: '0 20px 16px' }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: c.text, fontFamily: "'Cairo', sans-serif", marginBottom: 10, paddingRight: 4 }}>
+                  المنصات المتاحة
+                </p>
+                {EXCHANGES.map((exchange, i) => {
+                  const isLinked = linkedExchanges[exchange.id] || false
+                  return (
+                    <motion.div
+                      key={exchange.id}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.06 }}
+                    >
+                      <IOSCard highlight={isLinked}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                          <div style={{
+                            width: 52, height: 52, borderRadius: 16,
+                            background: `${exchange.color}15`, border: `0.5px solid ${exchange.color}25`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 22, fontWeight: 900, color: exchange.color,
+                            fontFamily: "'JetBrains Mono', monospace",
+                          }}>
+                            {exchange.name[0]}
+                          </div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <p style={{ fontSize: 16, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>{exchange.nameAr}</p>
+                              {isLinked && <CheckCircle size={14} color={c.success} />}
+                            </div>
+                            <p style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>{exchange.desc}</p>
+                          </div>
+                          <motion.button
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => startFlow(exchange)}
+                            style={{
+                              padding: '8px 14px', borderRadius: 14,
+                              background: isLinked ? `${c.success}15` : `${c.accent}15`,
+                              border: `0.5px solid ${isLinked ? `${c.success}30` : `${c.accent}30`}`,
+                              color: isLinked ? c.success : c.accent,
+                              fontSize: 12, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {isLinked ? 'ربط آخر' : 'ربط'}
+                          </motion.button>
+                        </div>
+                      </IOSCard>
+                    </motion.div>
+                  )
+                })}
+              </div>
             </>
           )}
         </>

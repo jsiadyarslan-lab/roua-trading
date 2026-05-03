@@ -2,12 +2,13 @@
 
 import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   ChevronLeft, User, Mail, Calendar, Trophy, TrendingUp,
   Edit3, Shield, Link2, CheckCircle, AlertCircle, Loader2,
   Crown, Star, BarChart3, Target, Award
 } from 'lucide-react'
+import { useAuthStore, type AuthUser } from '@/lib/auth-store'
 
 /* ─── Design Tokens ─── */
 const c = {
@@ -19,6 +20,29 @@ const c = {
   text2: 'rgba(235,235,245,0.5)',
   bg: '#1C1C1E',
   border: 'rgba(255,255,255,0.08)',
+}
+
+/* ─── Exchange info map ─── */
+const EXCHANGE_INFO: Record<string, { name: string; nameAr: string; color: string }> = {
+  binance: { name: 'Binance', nameAr: 'باينانس', color: '#F0B90B' },
+  kucoin: { name: 'KuCoin', nameAr: 'كوکوين', color: '#23AF91' },
+  bybit: { name: 'Bybit', nameAr: 'بايبيت', color: '#F7A600' },
+  okx: { name: 'OKX', nameAr: 'أو كي إكس', color: '#ffffff' },
+  gate: { name: 'Gate.io', nameAr: 'جيت دوت آيو', color: '#2354E6' },
+  alpaca: { name: 'Alpaca', nameAr: 'ألباكا', color: '#00D4FF' },
+  coinbase: { name: 'Coinbase', nameAr: 'كوينبيس', color: '#0052FF' },
+  ibkr: { name: 'Interactive Brokers', nameAr: 'إنتراكتيف بروكرز', color: '#FF453A' },
+}
+
+/* ─── Credential type ─── */
+interface Credential {
+  id: string
+  exchange: string
+  label: string
+  permissions: string
+  isValid: boolean
+  lastValidatedAt: string | null
+  createdAt: string
 }
 
 /* ─── iOS Card ─── */
@@ -100,7 +124,7 @@ function TierBadge({ tier }: { tier: string }) {
 }
 
 /* ─── Linked Account Item ─── */
-function LinkedAccountItem({ name, linked, color }: { name: string; linked: boolean; color: string }) {
+function LinkedAccountItem({ name, linked, color, label }: { name: string; linked: boolean; color: string; label?: string }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 14,
@@ -119,7 +143,7 @@ function LinkedAccountItem({ name, linked, color }: { name: string; linked: bool
       <div style={{ flex: 1 }}>
         <p style={{ fontSize: 14, fontWeight: 700, color: c.text, fontFamily: "'Cairo', sans-serif" }}>{name}</p>
         <p style={{ fontSize: 11, color: linked ? c.success : c.text2, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>
-          {linked ? 'مربوط' : 'غير مربوط'}
+          {linked ? (label || 'مربوط') : 'غير مربوط'}
         </p>
       </div>
       {linked ? (
@@ -135,52 +159,18 @@ function LinkedAccountItem({ name, linked, color }: { name: string; linked: bool
 export default function ProfilePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<any>(null)
-  const [error, setError] = useState('')
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [credentials, setCredentials] = useState<Credential[]>([])
+  const [credentialsLoading, setCredentialsLoading] = useState(true)
 
+  // ── Fetch user via auth store ──
   useEffect(() => {
     async function fetchUser() {
       try {
-        const res = await fetch('/api/auth/me')
-        if (res.ok) {
-          const data = await res.json()
-          setUser(data.user || data.data || data)
-        } else {
-          // Use mock data
-          setUser({
-            name: 'مستخدم رؤى',
-            email: 'user@roua.trading',
-            tier: 'PRO',
-            trades: 248,
-            winRate: 72.4,
-            profit: 4250.80,
-            joinedAt: '2024-03-15',
-            avatar: null,
-            linkedAccounts: [
-              { name: 'Binance', linked: true, color: '#F0B90B' },
-              { name: 'Alpaca', linked: false, color: c.accent },
-              { name: 'Interactive Brokers', linked: false, color: c.danger },
-              { name: 'Coinbase', linked: false, color: '#0052FF' },
-            ],
-          })
-        }
+        const authUser = await useAuthStore.getState().refreshUser()
+        setUser(authUser)
       } catch {
-        setUser({
-          name: 'مستخدم رؤى',
-          email: 'user@roua.trading',
-          tier: 'PRO',
-          trades: 248,
-          winRate: 72.4,
-          profit: 4250.80,
-          joinedAt: '2024-03-15',
-          avatar: null,
-          linkedAccounts: [
-            { name: 'Binance', linked: true, color: '#F0B90B' },
-            { name: 'Alpaca', linked: false, color: c.accent },
-            { name: 'Interactive Brokers', linked: false, color: c.danger },
-            { name: 'Coinbase', linked: false, color: '#0052FF' },
-          ],
-        })
+        setUser(null)
       } finally {
         setLoading(false)
       }
@@ -188,11 +178,58 @@ export default function ProfilePage() {
     fetchUser()
   }, [])
 
+  // ── Fetch real credentials from /api/portfolio/credentials ──
+  const fetchCredentials = useCallback(async () => {
+    setCredentialsLoading(true)
+    try {
+      const res = await fetch('/api/portfolio/credentials')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && Array.isArray(data.data)) {
+          setCredentials(data.data)
+        }
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setCredentialsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchCredentials()
+  }, [fetchCredentials])
+
+  // ── Build linked accounts from real credential data ──
+  const linkedAccounts = credentials
+    .filter(c => c.isValid)
+    .map(cred => {
+      const info = EXCHANGE_INFO[cred.exchange] || { name: cred.exchange, nameAr: cred.exchange, color: c.text2 }
+      return {
+        name: info.nameAr,
+        linked: true,
+        color: info.color,
+        label: cred.label,
+      }
+    })
+
+  // Also include exchanges the user has NOT linked yet
+  const allExchangeIds = ['binance', 'alpaca', 'coinbase', 'ibkr']
+  const linkedExchangeIds = new Set(credentials.filter(c => c.isValid).map(c => c.exchange))
+  const unlinkedAccounts = allExchangeIds
+    .filter(id => !linkedExchangeIds.has(id))
+    .map(id => {
+      const info = EXCHANGE_INFO[id]
+      return { name: info.nameAr, linked: false, color: info.color, label: undefined as string | undefined }
+    })
+
+  const allAccounts = [...linkedAccounts, ...unlinkedAccounts]
+
   const [editMode, setEditMode] = useState(false)
   const [editName, setEditName] = useState('')
 
   const handleSave = () => {
-    if (user) user.name = editName
+    if (user) user.displayName = editName
     setEditMode(false)
   }
 
@@ -200,16 +237,6 @@ export default function ProfilePage() {
     return (
       <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Loader2 size={32} className="animate-spin" color={c.accent} />
-      </div>
-    )
-  }
-
-  if (error && !user) {
-    return (
-      <div style={{ minHeight: '100dvh', background: '#000', direction: 'rtl', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 20 }}>
-        <AlertCircle size={40} color={c.danger} />
-        <p style={{ fontSize: 14, color: c.text2, fontFamily: "'Cairo', sans-serif", textAlign: 'center' }}>{error || 'فشل في تحميل البيانات'}</p>
-        <button onClick={() => window.location.reload()} style={{ padding: '10px 24px', borderRadius: 14, background: c.accent, color: '#000', fontWeight: 800, fontFamily: "'Cairo', sans-serif", border: 'none', cursor: 'pointer' }}>إعادة المحاولة</button>
       </div>
     )
   }
@@ -248,7 +275,7 @@ export default function ProfilePage() {
             boxShadow: '0 8px 24px rgba(0, 212, 255, 0.3)',
             border: '2px solid rgba(255,255,255,0.1)',
           }}>
-            {user?.name?.[0] || 'ر'}
+            {(user?.displayName || user?.email || 'ر')[0].toUpperCase()}
           </div>
 
           {editMode ? (
@@ -274,11 +301,11 @@ export default function ProfilePage() {
           ) : (
             <div style={{ textAlign: 'center' }}>
               <p style={{ fontSize: 20, fontWeight: 900, color: c.text, fontFamily: "'Cairo', sans-serif" }}>
-                {user?.name || 'مستخدم رؤى'}
+                {user?.displayName || 'مستخدم رؤى'}
               </p>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 4 }}>
                 <Mail size={13} color={c.text2} />
-                <span style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>{user?.email || 'user@roua.trading'}</span>
+                <span style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>{user?.email || '—'}</span>
               </div>
             </div>
           )}
@@ -287,7 +314,7 @@ export default function ProfilePage() {
             <TierBadge tier={user?.tier || 'FREE'} />
             <motion.button
               whileTap={{ scale: 0.9 }}
-              onClick={() => { setEditMode(true); setEditName(user?.name || '') }}
+              onClick={() => { setEditMode(true); setEditName(user?.displayName || '') }}
               style={{
                 width: 32, height: 32, borderRadius: 10,
                 background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${c.border}`,
@@ -300,14 +327,6 @@ export default function ProfilePage() {
           </div>
         </div>
       </IOSCard>
-
-      {/* ── Stats Grid ── */}
-      <div style={{ display: 'flex', gap: 10, margin: '0 20px 16px', padding: 0 }}>
-        <StatItem icon={BarChart3} label="الصفقات" value={`${user?.trades || 0}`} color={c.accent} />
-        <StatItem icon={Target} label="نسبة الفوز" value={`${user?.winRate || 0}%`} color={c.success} />
-        <StatItem icon={TrendingUp} label="الربح" value={`$${(user?.profit || 0).toLocaleString()}`} color={c.amber} />
-        <StatItem icon={Calendar} label="تاريخ الانضمام" value={user?.joinedAt ? new Date(user.joinedAt).toLocaleDateString('ar-SA', { month: 'short', year: 'numeric' }) : '—'} color={c.text2} />
-      </div>
 
       {/* ── Account Info ── */}
       <IOSCard>
@@ -335,7 +354,7 @@ export default function ProfilePage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontSize: 13, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>الحسابات المربوطة</span>
             <span style={{ fontSize: 13, color: c.text, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
-              {user?.linkedAccounts?.filter((a: any) => a.linked).length || 0}
+              {linkedAccounts.length}
             </span>
           </div>
         </div>
@@ -353,9 +372,13 @@ export default function ProfilePage() {
           <span style={{ fontSize: 15, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>الحسابات المربوطة</span>
         </div>
 
-        {user?.linkedAccounts?.length > 0 ? (
-          user.linkedAccounts.map((acc: any, i: number) => (
-            <LinkedAccountItem key={i} name={acc.name} linked={acc.linked} color={acc.color} />
+        {credentialsLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '20px 0' }}>
+            <Loader2 size={20} className="animate-spin" color={c.accent} />
+          </div>
+        ) : allAccounts.length > 0 ? (
+          allAccounts.map((acc, i) => (
+            <LinkedAccountItem key={acc.name + i} name={acc.name} linked={acc.linked} color={acc.color} label={acc.label} />
           ))
         ) : (
           <div style={{ padding: '24px 0', textAlign: 'center' }}>

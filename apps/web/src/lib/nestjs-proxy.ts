@@ -133,10 +133,11 @@ async function ensureSession(request: NextRequest): Promise<{
         const session = await db.session.findUnique({
           where: { token: existingToken },
         })
-        if (session && session.expiresAt > new Date()) {
+        // Check both isActive AND expiry — must match NestJS AuthGuard logic
+        if (session && session.isActive !== false && session.expiresAt > new Date()) {
           return { token: existingToken, cookieAlreadySet: true }
         }
-        // Invalid/expired — clean up
+        // Invalid/expired/inactive — clean up
         if (session) {
           await db.session.delete({ where: { id: session.id } }).catch(() => {})
         }
@@ -239,16 +240,19 @@ async function proxyWithToken(
     // If NestJS returns 401, the AuthGuard should have auto-authenticated.
     // This means something is wrong with the session. Create a new one and retry.
     // Max 2 retries to prevent infinite loops.
+    // IMPORTANT: Do NOT overwrite the user's real cookie with a guest session.
+    // Guest sessions should only be used for the current request, not persisted.
     if (response.status === 401 && retryCount < 2) {
       console.warn(`[nestjs-proxy] 401 on ${method} ${pathname} — retrying with new session (attempt ${retryCount + 1}/2)`)
       const newSession = await forceCreateSession()
       if (newSession) {
-        return proxyWithToken(request, method, newSession.token, true, retryCount + 1)
+        // setCookie=false to avoid overwriting real user's cookie with guest token
+        return proxyWithToken(request, method, newSession.token, false, retryCount + 1)
       }
       // Can't create new session — try NestJS fallback
       const nestjsSession = await createSessionViaNestJS()
       if (nestjsSession) {
-        return proxyWithToken(request, method, nestjsSession.token, true, retryCount + 1)
+        return proxyWithToken(request, method, nestjsSession.token, false, retryCount + 1)
       }
     }
 

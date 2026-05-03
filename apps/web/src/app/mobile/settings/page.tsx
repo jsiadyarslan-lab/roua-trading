@@ -235,26 +235,39 @@ export default function MobileSettingsPage() {
     }
   }, [refreshUser])
 
-  // ── Fetch Adapters ──
+  // ── Fetch Adapters with real connection status from credentials ──
   const fetchAdapters = useCallback(async () => {
     setAdaptersLoading(true)
     try {
+      // Fetch real user credentials to determine which exchanges are connected
+      const credRes = await fetch('/api/portfolio/credentials')
+      const linkedExchanges = new Set<string>()
+      if (credRes.ok) {
+        const credData = await credRes.json()
+        if (credData.success && Array.isArray(credData.data)) {
+          credData.data.forEach((c: any) => {
+            if (c.isValid) linkedExchanges.add(c.exchange.toLowerCase())
+          })
+        }
+      }
+
+      // Fetch available adapters
       const res = await fetch('/api/exchange/adapters')
       if (res.ok) {
         const data = await res.json()
         const adapterNames: string[] = data.data || data.adapters || []
         const mapped: AdapterInfo[] = adapterNames.map(name => ({
           name,
-          connected: false, // Will be determined by user's linked accounts
+          connected: linkedExchanges.has(name.toLowerCase()),
           label: name === 'Binance' ? 'بينانس' : name === 'Alpaca' ? 'ألباكا' : name === 'TwelveData' ? 'Twelve Data' : name === 'CoinGecko' ? 'CoinGecko' : name,
           icon: name === 'Binance' ? '🟡' : name === 'Alpaca' ? '🔵' : '📊',
         }))
         setAdapters(mapped)
       } else {
-        // Fallback default adapters
+        // Fallback default adapters with real connection status
         setAdapters([
-          { name: 'Binance', connected: false, label: 'بينانس', icon: '🟡' },
-          { name: 'Alpaca', connected: false, label: 'ألباكا', icon: '🔵' },
+          { name: 'Binance', connected: linkedExchanges.has('binance'), label: 'بينانس', icon: '🟡' },
+          { name: 'Alpaca', connected: linkedExchanges.has('alpaca'), label: 'ألباكا', icon: '🔵' },
         ])
       }
     } catch {

@@ -52,7 +52,7 @@ const T = {
 
 const HEADER_H = 108
 const PANEL_H = 30
-const ANIM = 'height 0.22s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease'
+
 
 // Mode configuration — determines UI accent and available features per mode
 const MODE_CONFIG: Record<TradingMode, { accent: string; glowBg: string; label: string; labelAr: string; description: string }> = {
@@ -677,20 +677,18 @@ export default function DashboardPage() {
           overflow: hidden !important;
         }
 
-        .dash-grid.chart-fullscreen .dash-col-center .panel:first-child {
+        /* Chart panel is the 2nd child (1st is the mode banner) */
+        .dash-grid.chart-fullscreen .dash-col-center > .panel:nth-child(2) {
           flex: 1 1 0% !important;
           min-height: 0 !important;
           overflow: hidden !important;
         }
 
-        .dash-grid.chart-fullscreen .dash-col-center .panel:last-child {
+        /* Balance+Positions panel is the 3rd child — no fixed min/max height, sizes to content */
+        .dash-grid.chart-fullscreen .dash-col-center > .panel:nth-child(3) {
           flex-shrink: 0 !important;
-          min-height: 160px !important;
-          max-height: 280px !important;
-          height: auto !important;
           visibility: visible !important;
           pointer-events: auto !important;
-          overflow-y: auto !important;
         }
 
         .dash-col {
@@ -1133,8 +1131,8 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Balance + Open Positions Panel */}
-            <div className="panel hover-glow" style={{ flexShrink: 0, transition: ANIM, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: posOpen ? 240 : 'auto' }}>
+            {/* Balance + Open Positions Panel — no fixed height, sizes to content */}
+            <div className="panel hover-glow" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {/* Balance Summary — always visible */}
               <div className="panel-header">
                 <div className="summary-row">
@@ -1183,8 +1181,13 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {/* Positions List — collapsible */}
-              <div className="striped-rows" style={{ flex: 1, opacity: posOpen ? 1 : 0, maxHeight: posOpen ? 'none' : 0, transition: 'opacity 0.2s, max-height 0.22s cubic-bezier(0.4,0,0.2,1)', overflow: 'hidden' }}>
+              {/* Positions List — collapsible with smooth max-height transition */}
+              <div style={{
+                maxHeight: posOpen ? 200 : 0,
+                opacity: posOpen ? 1 : 0,
+                overflow: posOpen ? 'auto' : 'hidden',
+                transition: 'max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease',
+              }}>
                 <AlpacaPositions />
               </div>
             </div>

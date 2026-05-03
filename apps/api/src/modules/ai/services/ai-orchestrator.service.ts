@@ -7,6 +7,7 @@ import { HuggingFaceService } from './huggingface.service';
 import { OllamaService } from './ollama.service';
 import { BedrockService } from './bedrock.service';
 import { OpenRouterService } from './openrouter.service';
+import { DeepSeekService } from './deepseek.service';
 import { RagService } from './rag.service';
 import { AiUsageLoggerService } from './ai-usage-logger.service';
 import { withExponentialBackoff } from './retry.util';
@@ -18,7 +19,7 @@ import axios from 'axios';
 /**
  * AI Orchestrator — Routes tasks to the optimal AI model
  *
- * 7 AI Models Available (using existing API keys):
+ * 8 AI Models Available (using existing API keys):
  * ┌──────────────────────────────────────────────────────────────────────┐
  * │ Model                 │ Key                │ Specialty              │
  * ├───────────────────────┼────────────────────┼────────────────────────┤
@@ -29,6 +30,7 @@ import axios from 'axios';
  * │ Ollama/Qwen2.5       │ OLLAMA_API_KEY     │ 🏠 محلي — بدون تكلفة  │
  * │ Bedrock/Claude 3.5   │ AWS_ACCESS_KEY_ID  │ ☁️ مؤسسي — مخاطر/أمان │
  * │ OpenRouter/Llama 3.1 │ OPENROUTER_API_KEY │ 🔀 تباين — نماذج مجانية│
+ * │ DeepSeek V3          │ DEEPSEEK_API_KEY   │ 🔬 سيناريوهات — تحليل │
  * └───────────────────────┴────────────────────┴────────────────────────┘
  *
  * Task → Model Routing:
@@ -91,6 +93,7 @@ export class AIOrchestratorService {
     ollama:      ['OLLAMA_API_KEY'],  // Also checks OLLAMA_BASE_URL reachability
     bedrock:     ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'],
     openrouter:  ['OPENROUTER_API_KEY'],  // 7th model — also serves as HF fallback
+    deepseek:    ['DEEPSEEK_API_KEY'],     // 8th model — DeepSeek V3
   };
 
   /**
@@ -114,15 +117,15 @@ export class AIOrchestratorService {
     return url.includes('localhost') || url.includes('127.0.0.1') || url.includes('0.0.0.0');
   }
 
-  /** Model routing — 7 models with smart fallbacks */
+  /** Model routing — 8 models with smart fallbacks */
   private readonly ROUTING: Record<string, { primary: string; fallback: string[] }> = {
-    sentiment:        { primary: 'groq',       fallback: ['glm', 'huggingface', 'ollama', 'gemini', 'bedrock', 'openrouter'] },
-    market_analysis:  { primary: 'gemini',     fallback: ['bedrock', 'glm', 'huggingface', 'ollama', 'groq', 'openrouter'] },
-    prediction:       { primary: 'glm',        fallback: ['ollama', 'gemini', 'bedrock', 'huggingface', 'groq', 'openrouter'] },
-    signal_generation:{ primary: 'gemini',     fallback: ['bedrock', 'groq', 'glm', 'huggingface', 'ollama', 'openrouter'] },
-    risk_analysis:    { primary: 'bedrock',    fallback: ['glm', 'ollama', 'gemini', 'huggingface', 'groq', 'openrouter'] },
-    translation:      { primary: 'groq',       fallback: ['glm', 'ollama', 'huggingface', 'gemini', 'bedrock', 'openrouter'] },
-    general:          { primary: 'gemini',     fallback: ['groq', 'glm', 'huggingface', 'ollama', 'bedrock', 'openrouter'] },
+    sentiment:        { primary: 'groq',       fallback: ['glm', 'huggingface', 'ollama', 'gemini', 'bedrock', 'deepseek', 'openrouter'] },
+    market_analysis:  { primary: 'gemini',     fallback: ['bedrock', 'glm', 'huggingface', 'ollama', 'groq', 'deepseek', 'openrouter'] },
+    prediction:       { primary: 'glm',        fallback: ['ollama', 'gemini', 'bedrock', 'huggingface', 'groq', 'deepseek', 'openrouter'] },
+    signal_generation:{ primary: 'gemini',     fallback: ['bedrock', 'groq', 'glm', 'huggingface', 'ollama', 'deepseek', 'openrouter'] },
+    risk_analysis:    { primary: 'bedrock',    fallback: ['glm', 'ollama', 'gemini', 'huggingface', 'groq', 'deepseek', 'openrouter'] },
+    translation:      { primary: 'groq',       fallback: ['glm', 'ollama', 'huggingface', 'gemini', 'bedrock', 'deepseek', 'openrouter'] },
+    general:          { primary: 'gemini',     fallback: ['groq', 'glm', 'huggingface', 'ollama', 'bedrock', 'deepseek', 'openrouter'] },
   };
 
   constructor(
@@ -134,17 +137,18 @@ export class AIOrchestratorService {
     private readonly ollamaService: OllamaService,
     private readonly bedrockService: BedrockService,
     private readonly openrouterService: OpenRouterService,
+    private readonly deepseekService: DeepSeekService,
     private readonly usageLogger: AiUsageLoggerService,
     @Optional() private readonly ragService?: RagService,
     @Optional() @Inject(forwardRef(() => PredictionMarketService)) private readonly predictionMarket?: PredictionMarketService,
     @Optional() private readonly redis?: RedisService,
   ) {
-    this.logger.log('🎼 AI Orchestrator initialized — 7 models + Prediction Market (Groq, Gemini, GLM-4, HuggingFace, Ollama, Bedrock, OpenRouter)');
+    this.logger.log('🎼 AI Orchestrator initialized — 8 models + Prediction Market (Groq, Gemini, GLM-4, HuggingFace, Ollama, Bedrock, OpenRouter, DeepSeek)');
     if (this.ragService) {
       this.logger.log('📚 RAG integration enabled — context retrieval active');
     }
     if (this.predictionMarket) {
-      this.logger.log('🔮 Prediction Market integration enabled — 8th model active');
+      this.logger.log('🔮 Prediction Market integration enabled — 9th model active');
     }
     if (this.usageLogger) {
       this.logger.log('📊 AI Usage Logger enabled — all calls will be tracked');
@@ -377,7 +381,7 @@ export class AIOrchestratorService {
       return memCached as any;
     }
 
-    this.logger.log(`🎼 Initiating AI Council Consensus for ${symbol} — 7 models + Prediction Market`);
+    this.logger.log(`🎼 Initiating AI Council Consensus for ${symbol} — 8 models + Prediction Market`);
 
     try {
       const decisionInstruction = '\n\nIMPORTANT: End your response with a single line in exactly this format: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD". This line must be the last line of your response.';
@@ -390,8 +394,8 @@ export class AIOrchestratorService {
         : '\n⚠️ لم نتمكن من جلب بيانات السوق الحية — لا تخترع أسعاراً أو أرقاماً من عندك. اكتب "السعر غير متاح" إذا احتجت لذكر السعر.\n';
 
       // FIX: Each model has exactly ONE role — no duplicates, no role overlap
-      // 7 models = 7 roles (1:1 mapping) — clean, predictable, no rate-limiting
-      // + 1 Prediction Market role (8th model) — votes only when relevant events exist
+      // 8 models = 8 roles (1:1 mapping) — clean, predictable, no rate-limiting
+      // + 1 Prediction Market role (9th model) — votes only when relevant events exist
       const roles = [
         { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',     fallbackModels: ['groq', 'glm', 'huggingface', 'openrouter'],  prompt: `${marketDataPrefix}حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.${decisionInstruction}` },
         { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['gemini', 'glm', 'huggingface', 'openrouter'], prompt: `${marketDataPrefix}حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
@@ -400,9 +404,10 @@ export class AIOrchestratorService {
         { id: 'pattern',name: 'خبير الأنماط',     model: 'huggingface',fallbackModels: ['groq', 'gemini', 'glm', 'openrouter'],        prompt: `${marketDataPrefix}هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟${decisionInstruction}` },
         { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'ollama',     fallbackModels: ['groq', 'gemini', 'glm', 'openrouter'],        prompt: `${marketDataPrefix}ما هو أفضل توقيت للدخول في ${symbol} بناءً على السيولة والنماذج المتاحة؟${decisionInstruction}` },
         { id: 'diverge',name: 'محلل التباين',     model: 'openrouter', fallbackModels: ['groq', 'gemini', 'glm', 'huggingface'],        prompt: `${marketDataPrefix}ابحث عن إشارات معاكسة أو تباينات في تحليل ${symbol} — هل هناك سبب لعدم اتباع الاتجاه السائد؟${decisionInstruction}` },
+        { id: 'scenario', name: 'محلل السيناريوهات', model: 'deepseek',    fallbackModels: ['gemini', 'groq', 'glm', 'openrouter'],        prompt: `${marketDataPrefix}حلل السيناريوهات المحتملة لـ ${symbol} مع تقدير احتمالات كل سيناريو.${decisionInstruction}` },
       ];
 
-      // ── 8th Model: Prediction Market Analyst ──
+      // ── 9th Model: Prediction Market Analyst ──
       // Only votes when there are relevant prediction market events for this symbol.
       // Dynamic confidence based on event count and liquidity (per architecture review).
       let predictionMarketVote: { role: string; model: string; vote: string; confidence: number; reason: string } | null = null;
@@ -417,10 +422,10 @@ export class AIOrchestratorService {
               confidence: pmVote.confidence,
               reason: pmVote.reason,
             };
-            this.logger.log(`🔮 8th model vote: ${pmVote.vote} (${pmVote.confidence}%) — ${pmVote.eventsAnalyzed} events`);
+            this.logger.log(`🔮 9th model vote: ${pmVote.vote} (${pmVote.confidence}%) — ${pmVote.eventsAnalyzed} events`);
           }
         } catch (error: any) {
-          this.logger.debug(`🔮 8th model abstained (no data or error): ${error.message}`);
+          this.logger.debug(`🔮 9th model abstained (no data or error): ${error.message}`);
         }
       }
 
@@ -616,7 +621,7 @@ export class AIOrchestratorService {
         });
       }
 
-      // ── Add 8th model (Prediction Market) vote if available ──
+      // ── Add 9th model (Prediction Market) vote if available ──
       if (predictionMarketVote) {
         const pmConf = predictionMarketVote.confidence / 100;
         if (predictionMarketVote.vote === 'BUY') { buyWeight += pmConf; buyConfidences.push(pmConf); }
@@ -659,7 +664,7 @@ export class AIOrchestratorService {
         }
 
         // Ensure minimum consensus score of 50% when majority direction is clear
-        // (prevents showing 30% consensus when 5/7 models agree just because confidences are low)
+        // (prevents showing 30% consensus when 5/8 models agree just because confidences are low)
         if (recommendation !== 'HOLD' && consensusScore < 50) {
           const votersForRec = recommendation === 'BUY' ? buyConfidences : sellConfidences;
           const totalVoters = analyses.length + (predictionMarketVote ? 1 : 0);
@@ -671,7 +676,7 @@ export class AIOrchestratorService {
 
       // FIX: Generate master strategy with 15s timeout — don't let it block the response
       // If it fails, use a quick summary instead
-      const totalModels = 7 + (predictionMarketVote ? 1 : 0);
+      const totalModels = 8 + (predictionMarketVote ? 1 : 0);
       // FIX: Label must ALWAYS match recommendation — no contradictions
       const recLabel = recommendation === 'BUY' ? 'شراء' : recommendation === 'SELL' ? 'بيع' : 'انتظار';
       const recStrength = consensusScore >= 80 ? 'قوي' : consensusScore >= 60 ? 'واضح' : 'محتمل';
@@ -757,6 +762,7 @@ export class AIOrchestratorService {
       { id: 'ollama', name: 'Ollama/Qwen2.5', keyEnv: 'OLLAMA_API_KEY' },
       { id: 'bedrock', name: 'Bedrock/Claude 3.5', keyEnv: 'AWS_ACCESS_KEY_ID' },
       { id: 'openrouter', name: 'OpenRouter/Llama 3.1', keyEnv: 'OPENROUTER_API_KEY' },
+      { id: 'deepseek', name: 'DeepSeek V3', keyEnv: 'DEEPSEEK_API_KEY' },
     ];
 
     const results = await Promise.all(
@@ -903,7 +909,7 @@ export class AIOrchestratorService {
     consensus: string;
   }> {
     const enrichedRequest = await this._enrichWithContext(request);
-    this.logger.debug(`🎼 Multi-model analysis for ${enrichedRequest.type} — 7 models`);
+    this.logger.debug(`🎼 Multi-model analysis for ${enrichedRequest.type} — 8 models`);
 
     const results = await Promise.allSettled([
       this.groqService.analyze(enrichedRequest),
@@ -913,6 +919,7 @@ export class AIOrchestratorService {
       this.ollamaService.analyze(enrichedRequest),
       this.bedrockService.analyze(enrichedRequest),
       this.openrouterService.analyze(enrichedRequest),
+      this.deepseekService.analyze(enrichedRequest),
     ]);
 
     const analyses: AIAnalysisResponse[] = [];
@@ -923,14 +930,14 @@ export class AIOrchestratorService {
     }
 
     const consensus = analyses.length > 0
-      ? `تم الحصول على ${analyses.length} تحليل من ${analyses.length}/7 نماذج ذكاء اصطناعي`
+      ? `تم الحصول على ${analyses.length} تحليل من ${analyses.length}/8 نماذج ذكاء اصطناعي`
       : 'لا توجد نماذج متاحة حالياً';
 
     return { analyses, consensus };
   }
 
   /**
-   * Get available models status — 7 models
+   * Get available models status — 8 models
    * Checks actual API key availability from environment variables
    */
   getModelsStatus(): { model: string; available: boolean; specialty: string }[] {
@@ -942,6 +949,7 @@ export class AIOrchestratorService {
       { model: 'Ollama/Qwen2.5',             available: this._isModelKeyAvailable('ollama'),      specialty: '🏠 محلي بدون تكلفة — دعم عربي ممتاز' },
       { model: 'Bedrock/Claude 3.5 Sonnet',  available: this._isModelKeyAvailable('bedrock'),     specialty: '☁️ مؤسسي AWS — مخاطر وامتثال' },
       { model: 'OpenRouter/Llama 3.1',       available: this._isModelKeyAvailable('openrouter'),  specialty: '🔀 تباين ومعاكسة — نماذج مجانية متنوعة' },
+      { model: 'DeepSeek V3',                available: this._isModelKeyAvailable('deepseek'),    specialty: '🔬 سيناريوهات — تحليل عميق' },
     ];
   }
 
@@ -1197,6 +1205,7 @@ export class AIOrchestratorService {
           case 'ollama':      return this.ollamaService.analyze(request);
           case 'bedrock':     return this.bedrockService.analyze(request);
           case 'openrouter':  return this.openrouterService.analyze(request);
+          case 'deepseek':    return this.deepseekService.analyze(request);
           default:            return this.geminiService.analyze(request);
         }
       },

@@ -8,7 +8,7 @@
  * model's response to one or more council roles. This prevents rate-limiting
  * from calling the same model 6 times.
  *
- * Available models (up to 7):
+ * Available models (up to 8):
  * - Groq/Llama 3.3 70B  (GROQ_API_KEY)        → محلل المشاعر
  * - Gemini 2.0 Flash     (GOOGLE_AI_STUDIO_API_KEY) → المحلل الفني
  * - GLM-4 (Zhipu AI)    (GLM_API_KEY)          → خبير الماكرو
@@ -16,6 +16,7 @@
  * - Ollama/Qwen2.5      (OLLAMA_BASE_URL)       → استراتيجي التنفيذ (non-localhost only)
  * - Bedrock/Claude 3.5   (AWS_ACCESS_KEY_ID)     → خبير المخاطر (direct call with AWS SigV4)
  * - OpenRouter/DeepSeek  (OPENROUTER_API_KEY)    → محلل التباين (free models)
+ * - DeepSeek V3          (DEEPSEEK_API_KEY)       → محلل السيناريوهات (8th model)
  */
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -67,7 +68,7 @@ function calcConfidence(content: string, model: string): number {
   if (content.length > 500) confidence += 0.1
   if (content.length > 1000) confidence += 0.05
   if (/شراء|بيع|انتظار|BUY|SELL|HOLD|صعود|هبوط/i.test(content)) confidence += 0.15
-  const MODEL_BASE: Record<string, number> = { groq: 0, gemini: 0.05, glm: 0.02, huggingface: -0.05, ollama: 0.03, bedrock: 0.08, openrouter: 0.01 }
+  const MODEL_BASE: Record<string, number> = { groq: 0, gemini: 0.05, glm: 0.02, huggingface: -0.05, ollama: 0.03, bedrock: 0.08, openrouter: 0.01, deepseek: 0.03 }
   confidence += MODEL_BASE[model] || 0
   return Math.min(Math.max(confidence, 0.1), 0.95)
 }
@@ -75,12 +76,29 @@ function calcConfidence(content: string, model: string): number {
 // ─── Vote Parsing ────────────────────────────────────────────────
 
 function parseVote(content: string): 'BUY' | 'SELL' | 'HOLD' {
+  // Priority 1: Explicit DECISION: BUY/SELL/HOLD format
   const decisionMatch = content.match(/DECISION:\s*(BUY|SELL|HOLD)/i)
   if (decisionMatch) return decisionMatch[1].toUpperCase() as 'BUY' | 'SELL' | 'HOLD'
 
+  // Priority 2: Explicit recommendation keywords (Arabic + English)
+  // Arabic: أنصح بالشراء, أوصي بالشراء, التوصية شراء, أنصح بالبيع, أوصي بالبيع, التوصية بيع
+  const explicitBuy = /(?:أنصح|أوصي|التوصية|توصيتي|رأيي)\s*(?:بـ)?(?:الشراء|بالشراء|بشراء)/i.test(content)
+  const explicitSell = /(?:أنصح|أوصي|التوصية|توصيتي|رأيي)\s*(?:بـ)?(?:البيع|بالبيع|ببيع)/i.test(content)
+  const explicitHold = /(?:أنصح|أوصي|التوصية|توصيتي|رأيي)\s*(?:بـ)?(?:الانتظار|بالانتظار|بانتظار|الحياد|بالحشد|بالتوقف)/i.test(content)
+  if (explicitBuy && !explicitSell) return 'BUY'
+  if (explicitSell && !explicitBuy) return 'SELL'
+  if (explicitHold && !explicitBuy && !explicitSell) return 'HOLD'
+
+  // Priority 3: English recommendation patterns
+  const engBuy = /(?:I\s+recommend\s+(?:buying|a\s+buy|to\s+buy)|my\s+recommendation\s+is\s+(?:to\s+)?buy|recommend\s+BUY|go\s+long|enter\s+long|buy\s+signal)/i.test(content)
+  const engSell = /(?:I\s+recommend\s+(?:selling|a\s+sell|to\s+sell)|my\s+recommendation\s+is\s+(?:to\s+)?sell|recommend\s+SELL|go\s+short|enter\s+short|sell\s+signal)/i.test(content)
+  if (engBuy && !engSell) return 'BUY'
+  if (engSell && !engBuy) return 'SELL'
+
+  // Priority 4: General keyword frequency (last resort)
   let buyIdx = -1, sellIdx = -1
-  const buyMatch = content.match(/(شراء|صعود|شرائية|BUY|BULLISH|LONG)/gi)
-  const sellMatch = content.match(/(بيع|هبوط|بيعية|SELL|BEARISH|SHORT)/gi)
+  const buyMatch = content.match(/(شراء|صعود|شرائية|إيجابي|ارتفاع|BUY|BULLISH|LONG|UPWARD|UPTREND)/gi)
+  const sellMatch = content.match(/(بيع|هبوط|بيعية|سلبي|انخفاض|SELL|BEARISH|SHORT|DOWNWARD|DOWNTREND)/gi)
   if (buyMatch) buyIdx = content.lastIndexOf(buyMatch[buyMatch.length - 1])
   if (sellMatch) sellIdx = content.lastIndexOf(sellMatch[sellMatch.length - 1])
 
@@ -681,9 +699,61 @@ async function callOpenRouter(prompt: string): Promise<DirectAIResponse> {
 }
 
 /**
+ * DeepSeek — 8th AI provider (محلل السيناريوهات / Scenario Analyst)
+ * DeepSeek V3 is excellent at reasoning and Arabic support.
+ * Uses the official DeepSeek API (also works via OpenRouter as fallback).
+ */
+async function callDeepSeek(prompt: string): Promise<DirectAIResponse> {
+  const apiKey = getKey('DEEPSEEK_API_KEY')
+  if (!apiKey) return { model: 'DeepSeek/unavailable', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No DEEPSEEK_API_KEY' }
+
+  const start = Date.now()
+  const modelCandidates = ['deepseek-chat', 'deepseek-reasoner']
+  const systemMsg = 'أنت محلل سيناريوهات مالي محترف. دورك هو تحليل السيناريوهات المحتملة وتقدير احتمالاتها. أجب بالعربية فقط. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
+
+  for (const model of modelCandidates) {
+    try {
+      const res = await fetch('https://api.deepseek.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemMsg },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.3,
+          max_tokens: 1024,
+        }),
+        signal: AbortSignal.timeout(20_000), // 20s for DeepSeek (slower than Groq)
+      })
+
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '')
+        if (res.status === 429) continue
+        if (res.status === 401 || res.status === 403) {
+          return { model: `DeepSeek/${model}`, content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `DeepSeek auth failed (${res.status})` }
+        }
+        continue
+      }
+
+      const data = await res.json()
+      const content = data.choices?.[0]?.message?.content || ''
+      if (content.trim().length > 0) {
+        return { model: `DeepSeek/${model}`, content, confidence: calcConfidence(content, 'deepseek'), processingTimeMs: Date.now() - start, success: true }
+      }
+    } catch {
+      continue
+    }
+  }
+
+  return { model: 'DeepSeek/deepseek-chat', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: 'All DeepSeek models failed' }
+}
+
+/**
  * Bedrock — Direct call with AWS SigV4 signing.
  * Previously marked "too complex for direct" but now implemented
- * so ALL 7 models work even when NestJS is down (Layer 2).
+ * so ALL 8 models work even when NestJS is down (Layer 2).
  *
  * Uses the same SigV4 signing as the NestJS BedrockService.
  */
@@ -1096,6 +1166,13 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
       prompt: 'divergence',
       primaryOnly: false,
     },
+    {
+      modelName: 'DeepSeek',
+      callFn: () => callDeepSeek(`${marketDataPrefix}حلل السيناريوهات المحتملة لـ ${symbol}. ما السيناريو الصعودي والسيناريو الهبوطي والسيناريو المحايد؟ قيّم احتمال كل سيناريو وقدم توصية واضحة.`),
+      roles: ['محلل السيناريوهات'],
+      prompt: 'scenario',
+      primaryOnly: false,
+    },
   ]
 
   // Filter out Ollama if it shouldn't be attempted (localhost on cloud)
@@ -1161,6 +1238,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     'محلل المشاعر': ['Gemini', 'GLM-4', 'Groq'],        // Was Groq's role
     'المحلل الفني': ['GLM-4', 'Groq', 'Bedrock'],       // Was Gemini's role
     'خبير الماكرو': ['Gemini', 'Groq', 'HuggingFace'],  // Was GLM-4's role
+    'محلل السيناريوهات': ['DeepSeek', 'GLM-4', 'Groq'],  // Was DeepSeek's role
   }
 
   // Identify which roles were filled and which are missing
@@ -1288,6 +1366,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     if (mc.modelName === 'Ollama') return shouldTryOllama
     if (mc.modelName === 'Bedrock') return !!(getKey('AWS_ACCESS_KEY_ID') && getKey('AWS_SECRET_ACCESS_KEY'))
     if (mc.modelName === 'OpenRouter') return !!getKey('OPENROUTER_API_KEY')
+    if (mc.modelName === 'DeepSeek') return !!getKey('DEEPSEEK_API_KEY')
     return false
   }).length
 
@@ -1309,7 +1388,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
         aiEngine: `Direct-AI (${filledRoles} roles from ${modelsRespondedCount} models)`,
         modelsUsed: uniqueModels,
         modelsResponded: modelsRespondedCount,
-        modelsExpected: 7, // 7 roles in the full council
+        modelsExpected: 8, // 8 roles in the full council
         modelsWithKeys: expectedDirectModels,
         bedrockAvailable: bedrockStatus.available,
         bedrockNote: bedrockStatus.available ? 'Direct call enabled (AWS SigV4)' : 'AWS credentials not configured',
@@ -1324,7 +1403,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
 
 /**
  * Quick health check: which AI models have API keys configured?
- * All 7 models checked including Bedrock and OpenRouter (direct call now supported).
+ * All 8 models checked including Bedrock, OpenRouter, and DeepSeek (direct call now supported).
  */
 export function getAvailableModelKeys(): { model: string; hasKey: boolean; note?: string }[] {
   const ollamaBaseUrl = getKey('OLLAMA_BASE_URL') || 'http://localhost:11434'
@@ -1350,6 +1429,11 @@ export function getAvailableModelKeys(): { model: string; hasKey: boolean; note?
       model: 'OpenRouter',
       hasKey: !!getKey('OPENROUTER_API_KEY'),
       note: 'Free models — divergence analyst',
+    },
+    {
+      model: 'deepseek',
+      hasKey: !!getKey('DEEPSEEK_API_KEY'),
+      note: 'DeepSeek V3 — scenario analysis',
     },
   ]
 }

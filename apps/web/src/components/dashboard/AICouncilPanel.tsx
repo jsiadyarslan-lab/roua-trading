@@ -37,6 +37,7 @@ function getModelShortName(model: string): string {
   if (model.includes('HuggingFace') || model.includes('HF')) return 'HF'
   if (model.includes('Ollama')) return 'Ollama'
   if (model.includes('Bedrock') || model.includes('Claude')) return 'Bedrock'
+  if (model.includes('DeepSeek')) return 'DeepSeek'
   if (model.includes('Scanner')) return 'Scanner'
   if (model.includes('Risk')) return 'Risk'
   if (model.includes('MTF')) return 'MTF'
@@ -52,6 +53,7 @@ function getModelColor(model: string): string {
   if (model.includes('HuggingFace') || model.includes('HF')) return '#FBBF24' // yellow
   if (model.includes('Ollama')) return '#8B5CF6' // purple
   if (model.includes('Bedrock') || model.includes('Claude')) return '#EC4899' // pink
+  if (model.includes('DeepSeek')) return '#06B6D4' // cyan
   return T.text2 // default
 }
 
@@ -235,7 +237,7 @@ export function AICouncilPanel() {
   const respondedModels = data?.analyses
     ? [...new Set(data.analyses.map(a => a.model).filter(m => !m.includes('Scanner') && !m.includes('Risk/') && !m.includes('MTF/') && !m.includes('Execution/') && !m.includes('Fallback')))]
     : []
-  const totalModels = data?.meta?.modelsExpected || 7
+  const totalModels = data?.meta?.modelsExpected || 8
 
   return (
     <div className="flex flex-col h-full overflow-hidden custom-scrollbar" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', fontFamily: "'Cairo', sans-serif", direction: 'rtl', border: `1px solid ${isRealAI ? 'rgba(0,212,255,0.15)' : 'rgba(0,212,255,0.08)'}`, borderRadius: 16 }}>
@@ -313,7 +315,7 @@ export function AICouncilPanel() {
             </span>
             {isRealAI && (
               <div className="flex gap-1 mt-1 flex-wrap justify-center px-4">
-                {['Gemini', 'Groq', 'GLM-4', 'HF', 'Ollama', 'Bedrock', 'OR'].map((m, i) => {
+                {['Gemini', 'Groq', 'GLM-4', 'HF', 'Ollama', 'Bedrock', 'OR', 'DS'].map((m, i) => {
                   const isActive = i % phases.length === loadingPhase
                   return (
                     <div 
@@ -475,7 +477,7 @@ export function AICouncilPanel() {
                 className="inline-flex px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest relative z-10"
                 style={{ background: `${recColor}15`, color: recColor, border: `1px solid ${recColor}30`, boxShadow: `0 0 10px ${recColor}20` }}
               >
-                {data.recommendation === 'BUY' ? (data.consensusScore >= 75 ? '⬆ شراء قوي' : '⬆ شراء') : data.recommendation === 'SELL' ? (data.consensusScore >= 75 ? '⬇ بيع قوي' : '⬇ بيع') : (data.consensusScore >= 70 ? '◆ تثبيت مؤكد' : data.consensusScore >= 50 ? '◆ ميل للانتظار' : '◆ حياد')}
+                {data.recommendation === 'BUY' ? (data.consensusScore >= 75 ? '⬆ شراء قوي' : '⬆ شراء') : data.recommendation === 'SELL' ? (data.consensusScore >= 75 ? '⬇ بيع قوي' : '⬇ بيع') : (data.consensusScore >= 75 ? '◆ إجماع على الانتظار' : data.consensusScore >= 50 ? '◆ ميل للانتظار' : '◆ حياد')}
               </div>
             </div>
 
@@ -571,7 +573,7 @@ export function AICouncilPanel() {
         <div className="flex items-center gap-1.5" style={{ opacity: 0.4 }}>
           <Heart size={7} color={keepAliveStatus?.nestJSUp ? T.green : T.amber} />
           <Info size={9} />
-          <span className="text-[7px] font-bold">Council v5.0 — {isRealAI ? `${data?.meta?.modelsResponded || '?'}/${data?.meta?.modelsExpected || 7} AI` : '7 Roles'}</span>
+          <span className="text-[7px] font-bold">Council v5.0 — {isRealAI ? `${data?.meta?.modelsResponded || '?'}/${data?.meta?.modelsExpected || 8} AI` : '8 Roles'}</span>
         </div>
       </div>
     </div>

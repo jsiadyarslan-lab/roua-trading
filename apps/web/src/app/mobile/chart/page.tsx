@@ -507,7 +507,7 @@ function ChartPageContent() {
       </div>
 
       {/* ═══ Bottom spacer for navbar ═══ */}
-      <div style={{ flexShrink: 0, height: 8 }} />
+      <div style={{ flexShrink: 0, height: 12 }} />
 
       {/* ═══ ORDER EXECUTION SHEET (Bottom Sheet) ═══ */}
       <AnimatePresence>

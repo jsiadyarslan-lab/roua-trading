@@ -656,7 +656,7 @@ export default function MobileNotificationsPage() {
       minHeight: '100%',
       background: '#000000',
       direction: 'rtl',
-      paddingBottom: 'calc(20px + 68px + env(safe-area-inset-bottom))',
+      paddingBottom: 20,
       position: 'relative',
       overflowX: 'hidden',
       width: '100%',

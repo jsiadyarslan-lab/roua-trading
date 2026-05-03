@@ -1141,60 +1141,29 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Balance Card + Positions Panel */}
-            <div className="panel hover-glow" style={{ flexShrink: 0, height: posOpen ? (chartFullscreen ? 220 : 240) : PANEL_H, transition: ANIM, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div className="panel-header">
-                <div className="summary-row">
-                  {/* Balance with gradient */}
-                  <div className="summary-item" style={{ gap: 8 }}>
-                    <div className="led-indicator" style={{ background: getStatusTone(accountDataStatus), boxShadow: `0 0 6px ${getStatusTone(accountDataStatus)}, 0 0 12px ${getStatusTone(accountDataStatus)}33` }} />
-                    <span className="summary-label">الرصيد:</span>
-                    <span className="summary-value count-up" style={{ fontSize: 13, fontWeight: 800 }}>{formatMoney(account?.equity)}</span>
-                    <span style={{ fontSize: 9, color: getStatusTone(accountDataStatus), fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 0.5 }}>
-                      {getStatusLabel(accountDataStatus)}
-                    </span>
+            {/* Open Positions Panel — only visible when positions exist */}
+            {hasPositions && (
+              <div className="panel hover-glow" style={{ flexShrink: 0, height: posOpen ? 220 : PANEL_H, transition: ANIM, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div className="panel-header" style={{ cursor: 'pointer' }} onClick={() => setPosOpen(prev => !prev)}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, fontWeight: 800, color: T.cyan, letterSpacing: 0.3 }}>الصفقات المفتوحة</span>
+                    <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: T.text3, fontWeight: 700 }}>({positions.length + paperTrades.length})</span>
                   </div>
-                  <div className="summary-item">
-                    <span className="summary-label">الهامش الحر:</span>
-                    <span className="summary-value summary-value--success">{formatMoney(freeMargin)}</span>
-                  </div>
-                  <div className="summary-item">
-                    <span className="summary-label">قيمة المراكز:</span>
-                    <span className="summary-value summary-value--accent">{formatMoney(positionsValue)}</span>
-                  </div>
-                  <div className="summary-item">
-                    <span className="summary-label">كمية الهامش:</span>
-                    <span className="summary-value">{formatMoney(initialMargin)}</span>
-                  </div>
-                  {unrealizedPnl !== 0 && (
-                    <div className="summary-item">
-                      <span className="summary-label">P&L:</span>
-                      <span className="summary-value" style={{
-                        color: isProfitable ? T.success : T.danger,
-                        fontWeight: 800,
-                      }}>
-                        {isProfitable ? '+' : '-'}{formatMoney(Math.abs(unrealizedPnl))}
-                      </span>
-                    </div>
-                  )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setPosOpen(prev => !prev) }}
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.text3, padding: 4, borderRadius: 6, transition: 'all 0.2s' }}
+                    onMouseEnter={e => (e.currentTarget.style.color = T.cyan)}
+                    onMouseLeave={e => (e.currentTarget.style.color = T.text3)}
+                  >
+                    <ChevronDown size={14} style={{ transform: posOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.3s' }} />
+                  </button>
                 </div>
 
-                <button
-                  onClick={() => setPosOpen(prev => !prev)}
-                  title={posOpen ? 'إخفاء المراكز' : 'إظهار المراكز'}
-                  aria-label={posOpen ? 'إخفاء المراكز' : 'إظهار المراكز'}
-                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.text3, padding: 4, borderRadius: 6, transition: 'all 0.2s' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = T.cyan)}
-                  onMouseLeave={e => (e.currentTarget.style.color = T.text3)}
-                >
-                  <ChevronDown size={14} style={{ transform: posOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 0.3s' }} />
-                </button>
+                <div className="striped-rows" style={{ flex: 1, opacity: posOpen ? 1 : 0, transition: 'opacity 0.2s', overflow: 'hidden' }}>
+                  <AlpacaPositions />
+                </div>
               </div>
-
-              <div className="striped-rows" style={{ flex: 1, opacity: posOpen ? 1 : 0, transition: 'opacity 0.2s', overflow: 'hidden' }}>
-                <AlpacaPositions />
-              </div>
-            </div>
+            )}
           </div>
 
           {/* Right Panel — mode-aware content */}

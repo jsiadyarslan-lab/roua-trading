@@ -9,7 +9,7 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
 import {
   Brain, Bot, ScanSearch, ChevronRight, TrendingUp, TrendingDown,
   Bell, Activity, Plus, ShieldCheck, Link2, ChevronLeft, Zap, Loader2, Target,
-  RefreshCw, Eye, EyeOff, Wallet
+  RefreshCw, Eye, EyeOff, Wallet, Cpu
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -542,44 +542,46 @@ export default function MobileHomePage() {
         </div>
       </IOSCard>
 
-      {/* ── Bot & Scanner Grid ── */}
-      <div className="grid grid-cols-2 gap-4 px-5 mb-8">
+      {/* ── Agent, Bot & Scanner Grid ── */}
+      <div className="grid grid-cols-3 gap-3 px-5 mb-8">
+        {/* Agent Card */}
+        <motion.div
+          whileTap={{ scale: 0.96 }}
+          onClick={() => router.push('/mobile/agent')}
+          style={{ background: '#1C1C1E', borderRadius: 28, padding: 16, position: 'relative', overflow: 'hidden', border: '0.5px solid rgba(255,255,255,0.06)' }}
+        >
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,159,67,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            <Cpu size={20} color="#FF9F43" />
+          </div>
+          <p style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>الوكيل</p>
+          <p style={{ fontSize: 10, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginTop: 2 }}>تداول ذاتي</p>
+        </motion.div>
+
         {/* Bot Card */}
         <motion.div
           whileTap={{ scale: 0.96 }}
           onClick={() => router.push('/mobile/bot')}
-          style={{ background: '#1C1C1E', borderRadius: 28, padding: 20, position: 'relative', overflow: 'hidden', border: '0.5px solid rgba(255,255,255,0.06)' }}
+          style={{ background: '#1C1C1E', borderRadius: 28, padding: 16, position: 'relative', overflow: 'hidden', border: '0.5px solid rgba(255,255,255,0.06)' }}
         >
           {isOn && <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: '#00D4FF', boxShadow: '0 0 15px #00D4FF' }} />}
-          <div className="flex items-center justify-between mb-4">
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: isOn ? 'rgba(0,212,255,0.1)' : 'rgba(235,235,245,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Bot size={22} color={isOn ? '#00D4FF' : 'rgba(235,235,245,0.3)'} />
-            </div>
-            <div onClick={(e) => { e.stopPropagation(); setIsOn(!isOn) }} style={{ width: 46, height: 26, borderRadius: 13, background: isOn ? '#32D74B' : 'rgba(255,255,255,0.1)', position: 'relative', cursor: 'pointer', transition: '0.3s' }}>
-              <motion.div animate={{ x: isOn ? 22 : 2 }} transition={{ type: 'spring', stiffness: 400, damping: 25 }} style={{ position: 'absolute', top: 3, width: 20, height: 20, borderRadius: '50%', background: '#FFFFFF', boxShadow: '0 2px 5px rgba(0,0,0,0.3)' }} />
-            </div>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: isOn ? 'rgba(0,212,255,0.1)' : 'rgba(235,235,245,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            <Bot size={20} color={isOn ? '#00D4FF' : 'rgba(235,235,245,0.3)'} />
           </div>
-          <p style={{ fontSize: 15, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>البوت الآلي</p>
-          <p style={{ fontSize: 11, color: isOn ? '#32D74B' : 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginTop: 2 }}>{isOn ? 'نشط الآن' : 'متوقف'}</p>
+          <p style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>البوت</p>
+          <p style={{ fontSize: 10, color: isOn ? '#32D74B' : 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginTop: 2 }}>{isOn ? 'نشط' : 'متوقف'}</p>
         </motion.div>
 
         {/* Scanner Card */}
         <motion.div
           whileTap={{ scale: 0.96 }}
           onClick={() => router.push('/mobile/scanner')}
-          style={{ background: '#1C1C1E', borderRadius: 28, padding: 20, border: '0.5px solid rgba(255,255,255,0.06)' }}
+          style={{ background: '#1C1C1E', borderRadius: 28, padding: 16, border: '0.5px solid rgba(255,255,255,0.06)' }}
         >
-          <div className="flex items-center justify-between mb-4">
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <ScanSearch size={22} color="#FFFFFF" />
-            </div>
-            <div style={{ padding: '4px 10px', borderRadius: 12, background: 'rgba(0,212,255,0.1)', display: 'flex', alignItems: 'center', gap: 5 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00D4FF' }} />
-              <span style={{ fontSize: 10, color: '#00D4FF', fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>Live</span>
-            </div>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            <ScanSearch size={20} color="#FFFFFF" />
           </div>
-          <p style={{ fontSize: 15, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>سكانر السوق</p>
-          <p style={{ fontSize: 11, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginTop: 2 }}>فحص مباشر</p>
+          <p style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>السكانر</p>
+          <p style={{ fontSize: 10, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginTop: 2 }}>فحص مباشر</p>
         </motion.div>
       </div>
 

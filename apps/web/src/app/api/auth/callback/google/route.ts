@@ -165,18 +165,37 @@ export async function GET(request: NextRequest) {
     const refreshToken = crypto.randomBytes(48).toString('hex')
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days for OAuth
 
-    await db.session.create({
-      data: {
-        userId: user.id,
-        token: sessionToken,
-        refreshToken,
-        deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
-        ipAddress,
-        userAgent,
-        isActive: true,
-        expiresAt,
-      },
-    })
+    // Try creating session with full device info (cross-device sync columns)
+    try {
+      await db.session.create({
+        data: {
+          userId: user.id,
+          token: sessionToken,
+          refreshToken,
+          deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
+          ipAddress,
+          userAgent,
+          isActive: true,
+          expiresAt,
+        },
+      })
+    } catch (sessionErr: any) {
+      // Fallback: if session creation fails (e.g. missing columns like refreshToken, deviceInfo),
+      // try again with only the core columns that always exist
+      console.warn('[auth/callback/google] Full session create failed, trying minimal:', sessionErr?.message || sessionErr)
+      try {
+        await db.session.create({
+          data: {
+            userId: user.id,
+            token: sessionToken,
+            expiresAt,
+          },
+        })
+      } catch (minimalErr: any) {
+        console.error('[auth/callback/google] Minimal session create also failed:', minimalErr?.message || minimalErr)
+        return NextResponse.redirect(new URL('/login?error=session_creation_failed', getPublicOrigin(request)))
+      }
+    }
 
     // Redirect with session + refresh cookies
     const response = NextResponse.redirect(new URL(callbackUrl, getPublicOrigin(request)))

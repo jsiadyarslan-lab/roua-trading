@@ -175,11 +175,19 @@ export async function GET(request: NextRequest) {
             expiresAt,
           },
         })
-      } catch {
-        return NextResponse.json({
-          authenticated: false,
-          error: 'SESSION_CREATION_FAILED',
-        })
+      } catch (sessionErr: any) {
+        // Fallback: try minimal session (missing columns from partial migration)
+        console.warn('[auth/me GET] Full session create failed, trying minimal:', sessionErr?.message)
+        try {
+          await db.session.create({
+            data: { userId: user.id, token: newToken, expiresAt },
+          })
+        } catch {
+          return NextResponse.json({
+            authenticated: false,
+            error: 'SESSION_CREATION_FAILED',
+          })
+        }
       }
 
       const response = NextResponse.json({
@@ -320,11 +328,19 @@ export async function POST(request: NextRequest) {
           expiresAt,
         },
       })
-    } catch {
-      return NextResponse.json({
-        authenticated: false,
-        error: 'SESSION_CREATION_FAILED',
-      })
+    } catch (sessionErr: any) {
+      // Fallback: try minimal session (missing columns from partial migration)
+      console.warn('[auth/me POST] Full session create failed, trying minimal:', sessionErr?.message)
+      try {
+        await db.session.create({
+          data: { userId: user.id, token: newToken, expiresAt },
+        })
+      } catch {
+        return NextResponse.json({
+          authenticated: false,
+          error: 'SESSION_CREATION_FAILED',
+        })
+      }
     }
 
     const response = NextResponse.json({

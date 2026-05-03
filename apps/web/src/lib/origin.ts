@@ -14,9 +14,18 @@ import { NextRequest } from 'next/server'
  * 4. request.nextUrl.origin (last resort — may be wrong in containers)
  */
 export function getPublicOrigin(request: NextRequest): string {
-  // 1. ORIGIN env var (explicitly set) — but reject localhost/0.0.0.0 in production
+  // 1. ORIGIN env var (explicitly set)
+  // In production: reject localhost/0.0.0.0 (causes redirect_uri_mismatch with OAuth)
+  // In development: allow localhost (needed for local OAuth testing)
   const origin = process.env.ORIGIN?.replace(/\/+$/, '')
-  if (origin && !origin.includes('0.0.0.0') && !origin.includes('localhost')) return origin
+  const isProduction = process.env.NODE_ENV === 'production'
+  if (origin) {
+    if (isProduction && (origin.includes('0.0.0.0') || origin.includes('localhost'))) {
+      // Skip — will fall through to Railway detection
+    } else {
+      return origin
+    }
+  }
 
   // 2. Railway provides RAILWAY_PUBLIC_DOMAIN (e.g. "roua.up.railway.app")
   const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN

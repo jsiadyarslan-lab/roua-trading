@@ -259,18 +259,28 @@ if [ -n "${DATABASE_URL:-}" ]; then
     CREATE UNIQUE INDEX IF NOT EXISTS "User_email_key" ON "User"("email");
 
     -- Session table (critical for auth — /api/auth/me creates/validates sessions)
+    -- Includes refreshToken, deviceInfo, ipAddress, userAgent, isActive for cross-device sync
     CREATE TABLE IF NOT EXISTS "Session" (
       "id" TEXT NOT NULL,
       "userId" TEXT NOT NULL,
       "token" TEXT NOT NULL,
+      "refreshToken" TEXT,
+      "deviceInfo" TEXT,
+      "ipAddress" TEXT,
+      "userAgent" TEXT,
+      "isActive" BOOLEAN NOT NULL DEFAULT true,
       "expiresAt" TIMESTAMP(3) NOT NULL,
       "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt" TIMESTAMP(3) NOT NULL,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "Session_pkey" PRIMARY KEY ("id")
     );
     CREATE UNIQUE INDEX IF NOT EXISTS "Session_token_key" ON "Session"("token");
+    CREATE UNIQUE INDEX IF NOT EXISTS "Session_refreshToken_key" ON "Session"("refreshToken");
     CREATE INDEX IF NOT EXISTS "Session_userId_idx" ON "Session"("userId");
     CREATE INDEX IF NOT EXISTS "Session_token_idx" ON "Session"("token");
+    CREATE INDEX IF NOT EXISTS "Session_refreshToken_idx" ON "Session"("refreshToken");
+    CREATE INDEX IF NOT EXISTS "Session_userId_isActive_idx" ON "Session"("userId", "isActive");
+    CREATE INDEX IF NOT EXISTS "Session_expiresAt_idx" ON "Session"("expiresAt");
 
     -- Challenge table (used by WebAuthn/passkey auth)
     CREATE TABLE IF NOT EXISTS "Challenge" (
@@ -320,6 +330,69 @@ EOSQL
         WHERE table_name = 'Session' AND column_name = 'updatedAt'
       ) THEN
         ALTER TABLE "Session" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      END IF;
+    END $$;
+
+    -- Session table: add refreshToken if missing (critical for cross-device session sync + Google OAuth)
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Session' AND column_name = 'refreshToken'
+      ) THEN
+        ALTER TABLE "Session" ADD COLUMN "refreshToken" TEXT;
+        CREATE UNIQUE INDEX IF NOT EXISTS "Session_refreshToken_key" ON "Session"("refreshToken");
+        CREATE INDEX IF NOT EXISTS "Session_refreshToken_idx" ON "Session"("refreshToken");
+      END IF;
+    END $$;
+
+    -- Session table: add deviceInfo if missing (for device management UI)
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Session' AND column_name = 'deviceInfo'
+      ) THEN
+        ALTER TABLE "Session" ADD COLUMN "deviceInfo" TEXT;
+      END IF;
+    END $$;
+
+    -- Session table: add ipAddress if missing
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Session' AND column_name = 'ipAddress'
+      ) THEN
+        ALTER TABLE "Session" ADD COLUMN "ipAddress" TEXT;
+      END IF;
+    END $$;
+
+    -- Session table: add userAgent if missing
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Session' AND column_name = 'userAgent'
+      ) THEN
+        ALTER TABLE "Session" ADD COLUMN "userAgent" TEXT;
+      END IF;
+    END $$;
+
+    -- Session table: add isActive if missing (critical for session revocation)
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Session' AND column_name = 'isActive'
+      ) THEN
+        ALTER TABLE "Session" ADD COLUMN "isActive" BOOLEAN NOT NULL DEFAULT true;
+        CREATE INDEX IF NOT EXISTS "Session_userId_isActive_idx" ON "Session"("userId", "isActive");
+      END IF;
+    END $$;
+
+    -- Session table: add expiresAt index if missing
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_indexes
+        WHERE tablename = 'Session' AND indexname = 'Session_expiresAt_idx'
+      ) THEN
+        CREATE INDEX IF NOT EXISTS "Session_expiresAt_idx" ON "Session"("expiresAt");
       END IF;
     END $$;
 

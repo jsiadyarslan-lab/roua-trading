@@ -194,8 +194,16 @@ export async function POST(request: NextRequest) {
           expiresAt,
         },
       })
-    } catch {
-      return NextResponse.json({ error: 'SESSION_CREATION_FAILED' }, { status: 500 })
+    } catch (sessionErr: any) {
+      // Fallback: try minimal session (missing columns from partial migration)
+      console.warn('[auth/otp/verify] Full session create failed, trying minimal:', sessionErr?.message)
+      try {
+        await db.session.create({
+          data: { userId: user.id, token: newToken, expiresAt },
+        })
+      } catch {
+        return NextResponse.json({ error: 'SESSION_CREATION_FAILED' }, { status: 500 })
+      }
     }
 
     const response = NextResponse.json({

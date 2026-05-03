@@ -1181,10 +1181,12 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {/* Positions List — collapsible with max-height transition synced with chart */}
-              <div style={{ maxHeight: posOpen ? 200 : 0, overflow: 'hidden', opacity: posOpen ? 1 : 0, transition: 'max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease' }}>
-                <AlpacaPositions />
-              </div>
+              {/* Positions List — collapsible, shown/hidden instantly so flexbox recalculates chart size */}
+              {posOpen && (
+                <div style={{ maxHeight: 200, overflow: 'auto' }}>
+                  <AlpacaPositions />
+                </div>
+              )}
             </div>
           </div>
 

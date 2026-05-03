@@ -507,6 +507,11 @@ export default function DashboardPage() {
 
   const hasPositions = positions.length > 0 || paperTrades.length > 0
 
+  // Explicit heights for smooth calc-based transitions
+  const BANNER_H = 34      // mode banner height
+  const BALANCE_H = 36     // balance bar height (panel-header)
+  const POSITIONS_H = 200  // positions panel height when open
+
   // Auto-expand positions panel when positions appear
   useEffect(() => {
     if (hasPositions) {
@@ -1084,6 +1089,7 @@ export default function DashboardPage() {
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
               padding: '6px 14px', borderRadius: 10,
+              height: BANNER_H,
               background: modeConfig.glowBg,
               border: `1px solid ${modeConfig.accent}20`,
               flexShrink: 0,
@@ -1119,9 +1125,9 @@ export default function DashboardPage() {
                 </span>
               )}
             </div>
-            {/* Chart Panel — flex:1 takes all remaining space, smooth shrink/expand with positions panel */}
-            <div className="panel" style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none', transition: 'flex 0.3s cubic-bezier(0.4,0,0.2,1)' }}>
-              <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(26, 29, 41, 0.65)', transition: 'height 0.3s cubic-bezier(0.4,0,0.2,1)' }}>
+            {/* Chart Panel — explicit height with calc() for smooth CSS transition */}
+            <div className="panel" style={{ height: `calc(100% - ${BANNER_H + BALANCE_H + (posOpen ? POSITIONS_H : 0)}px)`, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none', transition: 'height 0.3s cubic-bezier(0.4,0,0.2,1)', flexShrink: 0 }}>
+              <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(26, 29, 41, 0.65)' }}>
                 <RouaChart
                   currentPrice={currentPrice}
                   isChartFullscreen={chartFullscreen}
@@ -1130,8 +1136,8 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Balance + Open Positions Panel — sizes to content, smooth transition when expanding */}
-            <div className="panel hover-glow" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', transition: 'max-height 0.3s cubic-bezier(0.4,0,0.2,1)' }}>
+            {/* Balance + Open Positions Panel — explicit height with smooth transition */}
+            <div className="panel hover-glow" style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', height: BALANCE_H + (posOpen ? POSITIONS_H : 0), transition: 'height 0.3s cubic-bezier(0.4,0,0.2,1)' }}>
               {/* Balance Summary — always visible */}
               <div className="panel-header">
                 <div className="summary-row">
@@ -1180,13 +1186,8 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {/* Positions List — collapsible with smooth max-height transition */}
-              <div style={{
-                maxHeight: posOpen ? 200 : 0,
-                opacity: posOpen ? 1 : 0,
-                overflow: posOpen ? 'auto' : 'hidden',
-                transition: 'max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.25s ease',
-              }}>
+              {/* Positions List — visible when posOpen */}
+              <div style={{ flex: 1, overflow: posOpen ? 'auto' : 'hidden', opacity: posOpen ? 1 : 0, transition: 'opacity 0.25s ease' }}>
                 <AlpacaPositions />
               </div>
             </div>

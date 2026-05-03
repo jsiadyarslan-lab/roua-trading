@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, useRef } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { QuoteData } from '@/hooks/useMarketStore'
 import { ChevronDown, PanelRight, Zap, X, Target } from 'lucide-react'
@@ -682,7 +682,24 @@ export default function DashboardPage() {
         .dash-grid.chart-fullscreen .dash-col-center > .panel:nth-child(2) {
           flex: 1 1 0% !important;
           min-height: 0 !important;
-          overflow: hidden !important;
+        }
+
+        /* Chart panel — smooth resize when positions open/close */
+        .dash-col-center > .panel:nth-child(2) {
+          transition: none; /* flex height can't be transitioned — chart ResizeObserver handles visual smoothness */
+        }
+
+        /* Positions section — smooth slide animation */
+        .positions-section {
+          transition: max-height 0.3s ease-out, opacity 0.25s ease-out;
+          overflow: hidden;
+        }
+        .positions-section--closed {
+          max-height: 0 !important;
+          opacity: 0;
+        }
+        .positions-section--open {
+          opacity: 1;
         }
 
         /* Balance+Positions panel — visible and interactive in fullscreen */
@@ -707,6 +724,7 @@ export default function DashboardPage() {
           border-radius: 14px;
           overflow: hidden;
           min-width: 0;
+          min-height: 0;
           box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04);
           position: relative;
         }
@@ -1181,12 +1199,13 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {/* Positions List — collapsible, shown/hidden instantly so flexbox recalculates chart size */}
-              {posOpen && (
-                <div style={{ maxHeight: 200, overflow: 'auto' }}>
-                  <AlpacaPositions />
-                </div>
-              )}
+              {/* Positions List — always rendered, collapsible via maxHeight transition */}
+              <div
+                className={`positions-section ${posOpen ? 'positions-section--open' : 'positions-section--closed'}`}
+                style={{ maxHeight: posOpen ? 300 : 0, overflow: 'auto' }}
+              >
+                <AlpacaPositions />
+              </div>
             </div>
           </div>
 

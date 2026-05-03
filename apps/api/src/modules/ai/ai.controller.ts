@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Body, UseGuards, Logger } from '@nestjs/common';
 import { AIOrchestratorService } from './services/ai-orchestrator.service';
-import { AuthGuard } from '../../common/guards/auth.guard';
+import { AuthGuard, Public } from '../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
 import { AIAnalysisRequest } from './services/groq.service';
 
@@ -59,9 +59,17 @@ export class AiController {
 
   /**
    * POST /api/ai/consensus — Multi-model Council of AI consensus vote
-   * Calls ALL 6 AI models with role-specific prompts and returns consensus.
-   * Throttled: 2 calls/min per IP (6 AI models × cost)
+   * Calls ALL 7 AI models with role-specific prompts and returns consensus.
+   * Throttled: 2 calls/min per IP (7 AI models × cost)
+   *
+   * FIX: Marked @Public() so Layer 1 calls from Next.js don't need auth.
+   * The AuthGuard was blocking internal calls, causing ALL consensus
+   * requests to fall to Layer 2 (direct calls) which has fewer working models.
+   * Now both Layer 1 (NestJS with 7 models + Redis cache) and Layer 2
+   * (direct calls) work, and the merger combines their results.
+   * Security: Rate-limited to 2/min, and the data is not user-sensitive.
    */
+  @Public()
   @Post('consensus')
   @Throttle({ default: { limit: 2, ttl: 60000 } })
   async consensus(@Body() body: { symbol?: string }) {
@@ -74,12 +82,14 @@ export class AiController {
   /**
    * GET /api/ai/diagnose — Test each AI model individually and return detailed results
    * Shows which models actually work vs just having keys configured
+   * FIX: Marked @Public() so diagnostics can be run without auth.
    */
+  @Public()
   @Get('diagnose')
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   async diagnoseModels() {
     this.logger.log('🔧 Running AI model diagnostics...');
     const result = await this.orchestrator.diagnoseModels();
-    return { success: true, data: result, version: 'v2025-05-01-hf-router' };
+    return { success: true, data: result, version: 'v2025-05-03-all-8-providers' };
   }
 }

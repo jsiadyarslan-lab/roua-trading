@@ -1035,8 +1035,8 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
   // (e.g., models inventing BTC price as $28,500 when it's actually much higher)
   const marketData = await fetchQuickMarketData(symbol)
   const marketDataPrefix = marketData.price > 0
-    ? `\nبيانات السوق الحية:\n- السعر الحالي: ${marketData.price.toLocaleString()}$\n- مؤشر RSI: ${marketData.rsi}\n- مؤشر MACD: ${marketData.macd}\n\nاستخدم هذه البيانات الحية كأساس لتحليلك. لا تخترع أسعاراً أو مؤشرات من عندك.\n`
-    : ''
+    ? `\n⛔ تحذير حرج — بيانات السوق الحية (لا تخترع أسعاراً!):\n- السعر الحالي الفعلي: ${marketData.price.toLocaleString()}$ (استخدم هذا الرقم فقط ولا تخترع سعراً آخر)\n- مؤشر RSI: ${marketData.rsi} (استخدم هذه القيمة فقط)\n- مؤشر MACD: ${marketData.macd}\n\n⚠️ ممنوع تماماً اختراع أسعار أو مؤشرات مختلفة عن المعطاة أعلاه. إذا ذكرت سعراً في تحليلك فيجب أن يتطابق تماماً مع ${marketData.price.toLocaleString()}$.\n`
+    : '\n⚠️ لم نتمكن من جلب بيانات السوق الحية — لا تخترع أسعاراً أو أرقاماً من عندك. اكتب "السعر غير متاح" إذا احتجت لذكر السعر.\n'
 
   // Define prompts for each model — each model gets a different perspective
   // Primary role assignment for 6 models
@@ -1224,21 +1224,23 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     }
   }
 
-  // FIX: Consensus score = average confidence of models that agreed on the final recommendation
-  // Previously, HOLD used (1 - |buyPct - sellPct|) * 50 which capped at 50%
-  // Now: BUY score = avg confidence of BUY voters, SELL score = avg of SELL voters, HOLD = avg of HOLD voters
+  // FIX: Majority vote — threshold lowered from 0.6 to majority wins.
+  // Previously, 59% BUY would be labeled HOLD which is contradictory!
+  // Now: whichever direction has the highest weighted percentage wins.
   let recommendation: 'BUY' | 'SELL' | 'HOLD' = 'HOLD'
   let consensusScore = 0
 
   if (totalConfidence > 0) {
     const buyPct = buyWeight / totalConfidence
     const sellPct = sellWeight / totalConfidence
-    if (buyPct > 0.6) {
+    const holdPct = holdWeight / totalConfidence
+
+    if (buyPct > sellPct && buyPct > holdPct) {
       recommendation = 'BUY'
       consensusScore = buyConfidences.length > 0
         ? Math.round(buyConfidences.reduce((a, b) => a + b, 0) / buyConfidences.length * 100)
         : Math.round(buyPct * 100)
-    } else if (sellPct > 0.6) {
+    } else if (sellPct > buyPct && sellPct > holdPct) {
       recommendation = 'SELL'
       consensusScore = sellConfidences.length > 0
         ? Math.round(sellConfidences.reduce((a, b) => a + b, 0) / sellConfidences.length * 100)
@@ -1249,13 +1251,24 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
         ? Math.round(holdConfidences.reduce((a, b) => a + b, 0) / holdConfidences.length * 100)
         : Math.round((1 - Math.abs(buyPct - sellPct)) * 50)
     }
+
+    // Ensure minimum score when majority is clear
+    if (recommendation !== 'HOLD' && consensusScore < 50) {
+      const votersForRec = recommendation === 'BUY' ? buyConfidences : sellConfidences
+      const totalVoters = analyses.length
+      if (votersForRec.length >= Math.ceil(totalVoters / 2)) {
+        consensusScore = Math.max(consensusScore, Math.round((votersForRec.length / totalVoters) * 100))
+      }
+    }
   }
 
   const filledRoles = analyses.length
   const uniqueModels = [...new Set(analyses.map(a => a.model))]
   const modelsRespondedCount = uniqueModels.length
 
-  const masterStrategy = `إجماع مجلس الذكاء الاصطناعي (${filledRoles} أدوار من ${modelsRespondedCount} نماذج): ${recommendation === 'BUY' ? 'شراء' : recommendation === 'SELL' ? 'بيع' : 'انتظار'} بنسبة ثقة ${consensusScore}%.`
+  const recLabel = recommendation === 'BUY' ? 'شراء' : recommendation === 'SELL' ? 'بيع' : 'انتظار'
+  const recStrength = consensusScore >= 80 ? 'قوي' : consensusScore >= 60 ? 'واضح' : 'محتمل'
+  const masterStrategy = `إجماع مجلس الذكاء الاصطناعي (${filledRoles} أدوار من ${modelsRespondedCount} نماذج): ${recLabel} ${recStrength} بنسبة ثقة ${consensusScore}%.`
 
   const conflictExplanation = filledRoles < 4
     ? `بعض النماذج لم تستجب — النماذج المتاحة (${uniqueModels.join('، ')}) توصلت لإجماع.`

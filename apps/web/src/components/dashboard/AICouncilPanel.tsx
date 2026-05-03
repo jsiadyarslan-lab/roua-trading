@@ -475,7 +475,7 @@ export function AICouncilPanel() {
                 className="inline-flex px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest relative z-10"
                 style={{ background: `${recColor}15`, color: recColor, border: `1px solid ${recColor}30`, boxShadow: `0 0 10px ${recColor}20` }}
               >
-                {data.recommendation === 'BUY' ? '⬆ قوة شرائية' : data.recommendation === 'SELL' ? '⬇ ضغط بيعي' : data.consensusScore >= 70 ? '◆ تثبيت مؤكد' : data.consensusScore >= 50 ? '◆ ميل للانتظار' : '◆ حياد'}
+                {data.recommendation === 'BUY' ? (data.consensusScore >= 75 ? '⬆ شراء قوي' : '⬆ شراء') : data.recommendation === 'SELL' ? (data.consensusScore >= 75 ? '⬇ بيع قوي' : '⬇ بيع') : (data.consensusScore >= 70 ? '◆ تثبيت مؤكد' : data.consensusScore >= 50 ? '◆ ميل للانتظار' : '◆ حياد')}
               </div>
             </div>
 

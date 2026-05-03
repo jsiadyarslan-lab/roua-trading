@@ -121,16 +121,22 @@ export default function MobileNavBar() {
                       background: 'radial-gradient(circle at 50% 40%, #0D1520, #020308)',
                       border: '2px solid rgba(0,200,255,0.35)',
                       boxShadow: '0 0 16px rgba(0,200,255,0.3), 0 0 0 3px rgba(0,200,255,0.08)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      cursor: 'pointer',
+                      display: 'flex', flexDirection: 'column',
+                      alignItems: 'center', justifyContent: 'center',
+                      gap: 0, cursor: 'pointer',
                     }}
                   >
-                    <Globe2 size={20} color="#00D4FF" strokeWidth={2.5} />
+                    <Globe2 size={16} color="#00D4FF" strokeWidth={2.5} />
+                    <span style={{
+                      fontFamily: "'Cairo', sans-serif", fontWeight: 900,
+                      fontSize: 6, color: '#F0F2F5', lineHeight: 1, marginTop: 1,
+                    }}>رؤى</span>
                   </motion.button>
                   <span style={{
                     display: 'block', textAlign: 'center', marginTop: 2,
-                    fontSize: 7, color: '#00D4FF', fontFamily: "'Cairo', sans-serif", fontWeight: 800,
-                  }}>رؤى</span>
+                    fontSize: 7, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+                    letterSpacing: '0.05em',
+                  }}>ROUA</span>
                 </div>
               )
             }

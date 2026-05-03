@@ -152,7 +152,7 @@ function LogoCircle({ state, size = 'desktop' }: { state: MarketState, size?: 'd
     <div className={isDesktop ? 'logo-orb' : 'logo-orb-mobile'} style={{
       position: isDesktop ? 'absolute' : 'relative',
       top: isDesktop ? '50%' : undefined,
-      insetInlineStart: isDesktop ? 10 : undefined,
+      right: isDesktop ? 10 : undefined,
       transform: isDesktop ? 'translateY(-50%)' : undefined,
       width: D, height: D, borderRadius: '50%',
       background: `radial-gradient(circle at 50% 40%, #0D1520, #020308)`,
@@ -163,9 +163,10 @@ function LogoCircle({ state, size = 'desktop' }: { state: MarketState, size?: 'd
       gap: isDesktop ? 2 : 0, zIndex: 20,
       transition: 'border-color 1s, box-shadow 1s',
       flexShrink: 0,
+      cursor: 'pointer',
     }}>
       <CosmicOrb state={state} size={orbSize} />
-      {isDesktop && (
+      {(isDesktop) && (
         <div style={{ textAlign: 'center' }}>
           <div style={{
             fontFamily: "'Cairo', sans-serif",
@@ -1225,6 +1226,7 @@ header *::-webkit-scrollbar { display:none; }
 
 @media (min-width: 1025px) {
   .logo-orb-mobile { display: none !important; }
+  .mobile-header { display: none !important; }
 }
 @media (max-width: 1024px) {
   .desktop-header { display: none !important; }
@@ -1413,6 +1415,7 @@ export function AppHeader() {
       <header className="desktop-header" style={{
         position: 'sticky', top: 0, zIndex: 100,
         direction: 'rtl', height: H_TOTAL,
+        overflow: 'visible',
       }}>
         <LogoCircle state={marketState} />
         <div style={{
@@ -1427,39 +1430,41 @@ export function AppHeader() {
 
       {/* Mobile Header Layout */}
       <header className="mobile-header" style={{
-        display: 'none', position: 'sticky', top: 0, zIndex: 100,
-        background: 'rgba(11, 14, 20, 0.92)', borderBottom: `1px solid rgba(0,212,255,0.10)`,
-        backdropFilter: 'blur(20px) saturate(1.6)',
-        WebkitBackdropFilter: 'blur(20px) saturate(1.6)',
+        position: 'sticky', top: 0, zIndex: 100,
+        background: 'rgba(11, 14, 20, 0.95)',
+        borderBottom: `1px solid rgba(0,212,255,0.10)`,
+        backdropFilter: 'blur(24px) saturate(1.8)',
+        WebkitBackdropFilter: 'blur(24px) saturate(1.8)',
         paddingTop: 'env(safe-area-inset-top)',
+        direction: 'rtl',
       }}>
         {/* Mobile top row: hamburger + brand + ticker + orb */}
         <div style={{
           display: 'flex', alignItems: 'center', height: MOBILE_HEADER_H,
-          padding: '0 10px', justifyContent: 'space-between',
+          padding: '0 10px', justifyContent: 'space-between', gap: 6,
         }}>
-          <button onClick={() => setMenuOpen(true)} style={{ background: 'transparent', border: 'none', color: T.text, cursor: 'pointer', minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8 }}>
+          <button onClick={() => setMenuOpen(true)} style={{ background: 'transparent', border: 'none', color: T.text, cursor: 'pointer', minWidth: 40, minHeight: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, flexShrink: 0 }}>
              <Menu size={22} />
           </button>
 
-          <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, paddingInline: 6 }}>
+          <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, flex: 0, minWidth: 0, flexShrink: 0 }}>
              <LogoCircle state={marketState} size="mobile" />
              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-               <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 900, fontSize: 16, color: T.text, whiteSpace: 'nowrap', lineHeight: 1.1 }}>رؤى</span>
-               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7, color: 'var(--accent)', letterSpacing: '0.12em', opacity: 0.8, lineHeight: 1 }}>ROUA</span>
+               <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 900, fontSize: 15, color: T.text, whiteSpace: 'nowrap', lineHeight: 1.1 }}>رؤى</span>
+               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7, color: '#00C8FF', letterSpacing: '0.12em', opacity: 0.85, lineHeight: 1 }}>ROUA</span>
              </div>
           </Link>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
              <CurrencyTicker isMobile />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
              <NotificationCenter />
           </div>
         </div>
-        {/* Mobile news ticker (hidden on small screens via CSS) */}
+        {/* Mobile news ticker (hidden on very small screens via CSS) */}
         <div className="mobile-news-ticker" style={{
-          height: 26, overflow: 'hidden', background: T.bg,
+          height: 24, overflow: 'hidden', background: T.bg,
           borderBottom: `0.5px solid ${T.border}`, display: 'flex', alignItems: 'center',
         }}>
           <MobileNewsTicker />

@@ -157,6 +157,10 @@ export class BedrockService {
 
   /**
    * Build request body based on model type
+   *
+   * FIX: Added Amazon Nova model format (messages + inferenceConfig)
+   * and Mistral model format. Different Bedrock models require
+   * different request body structures.
    */
   private _buildRequestBody(request: AIAnalysisRequest, model: string): any {
     const systemPrompt = this._buildSystemPrompt(request);
@@ -171,6 +175,32 @@ export class BedrockService {
           { role: 'user', content: request.prompt },
         ],
         temperature: 0.3,
+      };
+    }
+
+    // FIX: Amazon Nova model format (messages + inferenceConfig)
+    // Nova uses a messages-based API similar to Anthropic but with
+    // inferenceConfig instead of top-level parameters.
+    if (model.includes('nova')) {
+      return {
+        messages: [
+          { role: 'user', content: [{ text: `${systemPrompt}\n\n${request.prompt}` }] },
+        ],
+        inferenceConfig: {
+          maxTokens: 2048,
+          temperature: 0.3,
+          topP: 0.9,
+        },
+      };
+    }
+
+    // FIX: Mistral model format (Bedrock Mistral uses prompt + max_tokens)
+    if (model.includes('mistral')) {
+      return {
+        prompt: `${systemPrompt}\n\n[INST] ${request.prompt} [/INST]`,
+        max_tokens: 1024,
+        temperature: 0.3,
+        top_p: 0.9,
       };
     }
 
@@ -205,20 +235,42 @@ export class BedrockService {
 
   /**
    * Extract content from Bedrock response based on model type
+   *
+   * FIX: Added Amazon Nova response extraction (output.message.content[0].text)
+   * and Mistral response extraction. Different Bedrock models return
+   * different response structures.
    */
   private _extractContent(data: any, model: string): string {
     // Claude response format
     if (data.content && Array.isArray(data.content)) {
       return data.content[0]?.text || '';
     }
+
+    // FIX: Amazon Nova response format
+    // Nova returns: { output: { message: { content: [{ text: "..." }] } } }
+    if (model.includes('nova') && data.output?.message?.content) {
+      const novaContent = data.output.message.content;
+      if (Array.isArray(novaContent) && novaContent.length > 0) {
+        return novaContent[0].text || '';
+      }
+    }
+
     // Titan response format
     if (data.results && Array.isArray(data.results) && data.results.length > 0) {
       return data.results[0].outputText || '';
     }
-    // Llama/Mistral response format
+
+    // FIX: Mistral response format
+    // Mistral returns: { outputs: [{ text: "..." }] }
+    if (model.includes('mistral') && data.outputs && Array.isArray(data.outputs)) {
+      return data.outputs[0]?.text || '';
+    }
+
+    // Llama response format
     if (data.generation) {
       return data.generation;
     }
+
     // Fallback
     return data.completion || data.text || data.outputText || '';
   }

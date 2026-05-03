@@ -23,6 +23,7 @@ const MODEL_BASE: Record<string, number> = {
   huggingface: -0.05,
   ollama: 0.0,
   bedrock: 0.08,
+  openrouter: -0.03,  // FIX: OpenRouter uses free/cheap models — slightly lower base confidence
 };
 
 /**

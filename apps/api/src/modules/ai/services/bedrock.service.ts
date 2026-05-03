@@ -20,21 +20,18 @@ import { calculateConfidence } from './confidence.util';
  * 1. IAM policy with bedrock:InvokeModel permission (user created "roua" policy)
  * 2. Model access enabled in AWS Console → Bedrock → Model Access
  *
- * Best for: Enterprise-grade reliability, compliance, multi-model access through one API
- * Cost: Pay-per-token (varies by model)
+ * FIX: Re-resolves AWS keys on every call — ConfigService may not have loaded them at construction time.
  */
 @Injectable()
 export class BedrockService {
   private readonly logger = new Logger(BedrockService.name);
-  private readonly accessKeyId: string;
-  private readonly secretAccessKey: string;
+  private accessKeyId: string; // FIX: Not readonly — allows on-demand key resolution
+  private secretAccessKey: string; // FIX: Not readonly — allows on-demand key resolution
   private readonly region: string;
-  private readonly available: boolean;
-  private readonly client: BedrockRuntimeClient | null = null;
+  private available: boolean; // FIX: Not readonly — re-evaluated on each call
+  private client: BedrockRuntimeClient | null = null;
 
   // Model fallback chain — try most capable models first, then cheaper ones
-  // FIX: Updated May 2025 — Added Claude 3.5 Haiku (faster, cheaper than Sonnet)
-  // and Amazon Nova models which are available in more regions.
   private readonly modelCandidates = [
     // Cross-region inference IDs (work from any region, often more available)
     'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
@@ -56,13 +53,32 @@ export class BedrockService {
   private lastError: string = '';
 
   constructor(private readonly configService: ConfigService) {
-    this.accessKeyId = this.configService.get<string>('AWS_ACCESS_KEY_ID', '')?.trim() || '';
-    this.secretAccessKey = this.configService.get<string>('AWS_SECRET_ACCESS_KEY', '')?.trim() || '';
+    this.accessKeyId = this._resolveKey('AWS_ACCESS_KEY_ID');
+    this.secretAccessKey = this._resolveKey('AWS_SECRET_ACCESS_KEY');
     this.region = this.configService.get<string>('AWS_REGION', 'us-east-1')?.trim() || 'us-east-1';
     this.available = !!(this.accessKeyId && this.secretAccessKey);
 
+    this._initClient();
+  }
+
+  /**
+   * FIX: Resolve an env key from multiple sources — ConfigService → process.env
+   */
+  private _resolveKey(keyName: string): string {
+    const env = process.env as Record<string, string | undefined>;
+    return (
+      this.configService.get<string>(keyName, '')?.trim() ||
+      env[keyName]?.trim() ||
+      ''
+    );
+  }
+
+  /**
+   * FIX: Initialize or re-initialize the Bedrock client with current keys.
+   * Called at construction and when keys are resolved on-demand.
+   */
+  private _initClient(): void {
     if (this.available) {
-      // FIX: Use official AWS SDK client — handles SigV4 signing automatically
       this.client = new BedrockRuntimeClient({
         region: this.region,
         credentials: {
@@ -72,11 +88,23 @@ export class BedrockService {
       });
       this.logger.log(`☁️ AWS Bedrock Service initialized — region: ${this.region} (AWS SDK)`);
     } else {
+      this.client = null;
       this.logger.warn('⚠️ AWS credentials not configured — Bedrock unavailable');
     }
   }
 
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
+    // FIX: Re-resolve keys on every call — ConfigService may load keys after construction
+    if (!this.available) {
+      this.accessKeyId = this._resolveKey('AWS_ACCESS_KEY_ID');
+      this.secretAccessKey = this._resolveKey('AWS_SECRET_ACCESS_KEY');
+      this.available = !!(this.accessKeyId && this.secretAccessKey);
+      if (this.available) {
+        this._initClient();
+        this.logger.log('☁️ Bedrock keys resolved on-demand');
+      }
+    }
+
     if (!this.available || !this.client) {
       return this._stubResponse(request);
     }
@@ -88,7 +116,6 @@ export class BedrockService {
       try {
         const body = this._buildRequestBody(request, modelToUse);
 
-        // FIX: Use AWS SDK InvokeModelCommand — handles SigV4 signing automatically
         const command = new InvokeModelCommand({
           modelId: modelToUse,
           body: JSON.stringify(body),
@@ -102,7 +129,6 @@ export class BedrockService {
         const content = this._extractContent(data, modelToUse);
 
         if (content.trim().length > 0) {
-          // Success — cache this model for future calls
           if (!this.resolvedModel) {
             this.resolvedModel = modelToUse;
             this.logger.log(`☁️ Bedrock model resolved: ${modelToUse}`);
@@ -122,13 +148,11 @@ export class BedrockService {
         const errorMessage = error.message || String(error);
         this.lastError = `${modelToUse}: ${errorName} — ${errorMessage.substring(0, 150)}`;
 
-        // Check for specific error types
         if (errorName === 'ThrottlingException' || errorMessage.includes('429')) {
           this.logger.warn(`☁️ Bedrock rate limited for model ${modelToUse} — throwing for circuit breaker`);
           throw error;
         }
         if (errorName === 'AccessDeniedException' || errorMessage.includes('403')) {
-          // 403 = IAM lacks bedrock:InvokeModel for THIS model, or model not enabled
           this.logger.warn(`☁️ Bedrock 403 for model ${modelToUse} — IAM may lack bedrock:InvokeModel or model not enabled in Console. ${errorMessage.substring(0, 200)}`);
           continue;
         }
@@ -146,7 +170,6 @@ export class BedrockService {
       }
     }
 
-    // All models failed
     this.resolvedModel = null;
     this.logger.warn(`☁️ All Bedrock models failed — last error: ${this.lastError}`);
     return {
@@ -155,17 +178,9 @@ export class BedrockService {
     };
   }
 
-  /**
-   * Build request body based on model type
-   *
-   * FIX: Added Amazon Nova model format (messages + inferenceConfig)
-   * and Mistral model format. Different Bedrock models require
-   * different request body structures.
-   */
   private _buildRequestBody(request: AIAnalysisRequest, model: string): any {
     const systemPrompt = this._buildSystemPrompt(request);
 
-    // Claude-style request (Anthropic format)
     if (model.includes('anthropic')) {
       return {
         anthropic_version: 'bedrock-2023-05-31',
@@ -178,9 +193,6 @@ export class BedrockService {
       };
     }
 
-    // FIX: Amazon Nova model format (messages + inferenceConfig)
-    // Nova uses a messages-based API similar to Anthropic but with
-    // inferenceConfig instead of top-level parameters.
     if (model.includes('nova')) {
       return {
         messages: [
@@ -194,7 +206,6 @@ export class BedrockService {
       };
     }
 
-    // FIX: Mistral model format (Bedrock Mistral uses prompt + max_tokens)
     if (model.includes('mistral')) {
       return {
         prompt: `${systemPrompt}\n\n[INST] ${request.prompt} [/INST]`,
@@ -204,7 +215,6 @@ export class BedrockService {
       };
     }
 
-    // Titan-style request
     if (model.includes('titan')) {
       return {
         inputText: `${systemPrompt}\n\n${request.prompt}`,
@@ -216,7 +226,6 @@ export class BedrockService {
       };
     }
 
-    // Llama-style request
     if (model.includes('llama')) {
       return {
         prompt: `${systemPrompt}\n\n[INST] ${request.prompt} [/INST]`,
@@ -225,7 +234,6 @@ export class BedrockService {
       };
     }
 
-    // Default: generic text prompt format
     return {
       prompt: `${systemPrompt}\n\n${request.prompt}`,
       max_gen_len: 1024,
@@ -233,21 +241,11 @@ export class BedrockService {
     };
   }
 
-  /**
-   * Extract content from Bedrock response based on model type
-   *
-   * FIX: Added Amazon Nova response extraction (output.message.content[0].text)
-   * and Mistral response extraction. Different Bedrock models return
-   * different response structures.
-   */
   private _extractContent(data: any, model: string): string {
-    // Claude response format
     if (data.content && Array.isArray(data.content)) {
       return data.content[0]?.text || '';
     }
 
-    // FIX: Amazon Nova response format
-    // Nova returns: { output: { message: { content: [{ text: "..." }] } } }
     if (model.includes('nova') && data.output?.message?.content) {
       const novaContent = data.output.message.content;
       if (Array.isArray(novaContent) && novaContent.length > 0) {
@@ -255,28 +253,22 @@ export class BedrockService {
       }
     }
 
-    // Titan response format
     if (data.results && Array.isArray(data.results) && data.results.length > 0) {
       return data.results[0].outputText || '';
     }
 
-    // FIX: Mistral response format
-    // Mistral returns: { outputs: [{ text: "..." }] }
     if (model.includes('mistral') && data.outputs && Array.isArray(data.outputs)) {
       return data.outputs[0]?.text || '';
     }
 
-    // Llama response format
     if (data.generation) {
       return data.generation;
     }
 
-    // Fallback
     return data.completion || data.text || data.outputText || '';
   }
 
   private _buildSystemPrompt(request: AIAnalysisRequest): string {
-    // FIX: Force Arabic-only responses — previous English prompts caused English responses in Arabic council
     return `أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير مخاطر متخصص في ${request.type}. قدّم تحليلاً حذراً وشاملاً مع التركيز على عوامل المخاطر والحالات الاستثنائية. أبرز دائماً الجوانب السلبية وأسوأ السيناريوهات إلى جانب الفرص. أضف تنبيهات المخاطر بوضوح. IMPORTANT: Respond in Arabic only.`;
   }
 

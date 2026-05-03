@@ -89,16 +89,21 @@ export class AIOrchestratorService {
     consensus_partial: 2 * 60 * 1000, // FIX: 2 minutes for PARTIAL consensus (< 3 models)
   };
 
-  /** Model key environment variable mapping */
+  /** Model key environment variable mapping
+   *  FIX: Added alternate env var names for ALL models to match the
+   *  resolution logic in individual services. Previously, only gemini
+   *  and huggingface had alternates, causing models to be marked
+   *  "unavailable" when the user set the alternate name.
+   */
   private readonly MODEL_KEY_MAP: Record<string, string[]> = {
     groq:        ['GROQ_API_KEY'],
     glm:         ['GLM_API_KEY'],
-    gemini:      ['GOOGLE_AI_STUDIO_API_KEY', 'GEMINI_API_KEY'],  // FIX: Check both env var names
-    huggingface: ['HUGGINGFACE_API_KEY', 'HF_API_KEY'],  // FIX: Removed OPENROUTER_API_KEY — HuggingFace should only be marked available if its own key exists
-    ollama:      ['OLLAMA_API_KEY'],  // Also checks OLLAMA_BASE_URL reachability
-    bedrock:     ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'],
-    openrouter:  ['OPENROUTER_API_KEY'],  // 7th model — also serves as HF fallback
-    deepseek:    ['DEEPSEEK_API_KEY'],     // 8th model — DeepSeek V3
+    gemini:      ['GOOGLE_AI_STUDIO_API_KEY', 'GEMINI_API_KEY'],  // Either key works
+    huggingface: ['HUGGINGFACE_API_KEY', 'HF_API_KEY'],  // Either key works; OR fallback handled separately
+    ollama:      ['OLLAMA_API_KEY', 'OLLAMA_BASE_URL'],  // Either API key or cloud base URL
+    bedrock:     ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'],  // Both required
+    openrouter:  ['OPENROUTER_API_KEY', 'OPEN_ROUTER_API_KEY'],  // FIX: Added alternate name
+    deepseek:    ['DEEPSEEK_API_KEY'],     // DeepSeek V3
   };
 
   /**
@@ -985,55 +990,76 @@ export class AIOrchestratorService {
    * Only skip Ollama if the URL is localhost on a cloud platform.
    * If OLLAMA_API_KEY is set and OLLAMA_BASE_URL is a cloud URL, it's available.
    */
+  /**
+   * FIX: Check if a model's API key is available.
+   *
+   * CRITICAL BUG FIX: Previously, this method ONLY used ConfigService.get()
+   * which may return empty on Railway/cloud even when the key exists in
+   * process.env. This caused models to be marked "unavailable" and skipped
+   * entirely — the orchestrator never even tried calling them!
+   *
+   * Now uses the same resolution pattern as resolveEnvKey():
+   *   1. ConfigService.get() (NestJS managed)
+   *   2. process.env direct access (always available)
+   *   3. Alternate env var names from MODEL_KEY_MAP
+   *
+   * This matches what the individual services (DeepSeek, OpenRouter) already
+   * do in their _resolveApiKey() methods.
+   */
   private _isModelKeyAvailable(model: string): boolean {
     const keys = this.MODEL_KEY_MAP[model];
     if (!keys) return false;
-    if (!this.configService) return false;
+
+    const env = process.env as Record<string, string | undefined>;
+
+    // Helper: resolve a single key from ConfigService → process.env
+    const resolveKey = (keyName: string): string => {
+      // Try ConfigService first
+      if (this.configService) {
+        const configValue = this.configService.get<string>(keyName, '')?.trim() || '';
+        if (configValue) return configValue;
+      }
+      // Fallback to process.env directly (FIX: This was missing!)
+      return env[keyName]?.trim() || '';
+    };
 
     // Special handling for Ollama: cloud URLs are reachable, localhost is not on cloud
     if (model === 'ollama') {
-      const apiKey = this.configService.get<string>('OLLAMA_API_KEY', '');
-      const baseUrl = this.configService.get<string>('OLLAMA_BASE_URL', '');
+      const apiKey = resolveKey('OLLAMA_API_KEY');
+      const baseUrl = resolveKey('OLLAMA_BASE_URL');
 
       // If on cloud AND URL is localhost → unreachable
-      if (this._isCloudEnvironment() && this._isLocalhostUrl(baseUrl || 'http://localhost:11434')) {
+      const effectiveBaseUrl = baseUrl || 'http://localhost:11434';
+      if (this._isCloudEnvironment() && this._isLocalhostUrl(effectiveBaseUrl)) {
         this.logger.debug(`🏠 Ollama skipped — localhost URL unreachable on cloud platform`);
         return false;
       }
 
       // Available if API key is set OR a non-default base URL is configured (cloud Ollama)
-      return !!(apiKey && apiKey.trim()) || !!(baseUrl && baseUrl.trim() && !this._isLocalhostUrl(baseUrl));
+      return !!apiKey || !!(baseUrl && !this._isLocalhostUrl(baseUrl));
+    }
+
+    // For huggingface: ANY of the listed keys works, PLUS OpenRouter as fallback
+    if (model === 'huggingface') {
+      const hasOwnKey = keys.some(key => !!resolveKey(key));
+      if (hasOwnKey) return true;
+      // FIX: Also check OPENROUTER_API_KEY — HuggingFaceService can use it as fallback
+      const orKey = resolveKey('OPENROUTER_API_KEY') || resolveKey('OPEN_ROUTER_API_KEY');
+      return !!orKey;
     }
 
     // For gemini: ANY of the listed keys works (GOOGLE_AI_STUDIO_API_KEY or GEMINI_API_KEY)
-    // For huggingface: ANY of the listed keys works (HF_API_KEY, HUGGINGFACE_API_KEY, or OPENROUTER_API_KEY)
-    // For bedrock: ALL listed keys must be present (AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY)
-    if (model === 'huggingface') {
-      // Check HF keys first, then also check if OpenRouter key exists as fallback
-      // (HuggingFaceService.analyze() can use OpenRouter as Strategy 3)
-      const hasOwnKey = keys.some(key => {
-        const value = this.configService!.get<string>(key, '');
-        return !!(value && value.trim());
-      });
-      if (hasOwnKey) return true;
-      // BUG FIX: Also check OPENROUTER_API_KEY — HuggingFaceService can use it as fallback
-      const orKey = this.configService!.get<string>('OPENROUTER_API_KEY', '');
-      return !!(orKey && orKey.trim());
-    }
     if (model === 'gemini') {
-      // BUG FIX: Gemini only needs ONE of the keys (GOOGLE_AI_STUDIO_API_KEY or GEMINI_API_KEY),
-      // not BOTH. Previously used keys.every() which required both to be set,
-      // causing Gemini to be marked unavailable when only one key was configured.
-      return keys.some(key => {
-        const value = this.configService!.get<string>(key, '');
-        return !!(value && value.trim());
-      });
+      return keys.some(key => !!resolveKey(key));
     }
-    // Default: ALL listed keys must be present and non-empty
-    return keys.every(key => {
-      const value = this.configService!.get<string>(key, '');
-      return !!(value && value.trim());
-    });
+
+    // For bedrock: ALL listed keys must be present
+    if (model === 'bedrock') {
+      return keys.every(key => !!resolveKey(key));
+    }
+
+    // Default for groq, glm, openrouter, deepseek: at least ONE key must be present
+    return keys.some(key => !!resolveKey(key));
   }
 
   // ── Private: Vote Parsing ──

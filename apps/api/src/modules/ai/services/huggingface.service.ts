@@ -35,7 +35,7 @@ import { calculateConfidence } from './confidence.util';
 @Injectable()
 export class HuggingFaceService {
   private readonly logger = new Logger(HuggingFaceService.name);
-  private readonly hfApiKey: string;
+  private hfApiKey: string; // FIX: Not readonly — allows on-demand key resolution
   private openrouterApiKey: string; // Not readonly — re-resolved on each call
 
   // ━━━ AUTO-ROUTER (needs Inference Providers permission) ━━━
@@ -95,11 +95,7 @@ export class HuggingFaceService {
   private resolvedModel: string | null = null;
 
   constructor(private readonly configService: ConfigService) {
-    this.hfApiKey = this.configService.get<string>('HUGGINGFACE_API_KEY', '')?.trim()
-      || this.configService.get<string>('HF_API_KEY', '')?.trim()
-      || '';
-
-    // FIX: Read OpenRouter key from process.env directly (same fix as OpenRouter service)
+    this.hfApiKey = this._resolveHfKey();
     this.openrouterApiKey = this._resolveOpenRouterKey();
 
     const providers: string[] = [];
@@ -110,6 +106,21 @@ export class HuggingFaceService {
     } else {
       this.logger.warn('⚠️ No API keys set — need HF_API_KEY or OPENROUTER_API_KEY');
     }
+  }
+
+  /**
+   * FIX: Resolve HuggingFace key from multiple sources — same pattern as other services.
+   * ConfigService.get() may return empty during construction on Railway/cloud.
+   */
+  private _resolveHfKey(): string {
+    const env = process.env as Record<string, string | undefined>;
+    return (
+      this.configService.get<string>('HUGGINGFACE_API_KEY', '')?.trim() ||
+      env['HUGGINGFACE_API_KEY']?.trim() ||
+      this.configService.get<string>('HF_API_KEY', '')?.trim() ||
+      env['HF_API_KEY']?.trim() ||
+      ''
+    );
   }
 
   /**
@@ -134,7 +145,14 @@ export class HuggingFaceService {
   }
 
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
-    // FIX: Re-resolve OpenRouter key on every call
+    // FIX: Re-resolve both HF and OpenRouter keys on every call
+    if (!this.hfApiKey) {
+      const resolved = this._resolveHfKey();
+      if (resolved) {
+        this.hfApiKey = resolved;
+        this.logger.log(`🤗 HuggingFace key resolved on-demand`);
+      }
+    }
     if (!this.openrouterApiKey) {
       const resolved = this._resolveOpenRouterKey();
       if (resolved) {

@@ -13,7 +13,7 @@ import { calculateConfidence } from './confidence.util';
 @Injectable()
 export class GlmService {
   private readonly logger = new Logger(GlmService.name);
-  private readonly apiKey: string;
+  private apiKey: string; // FIX: Not readonly — allows on-demand key resolution
   private readonly baseUrl = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
   // FIX: Model fallback chain — glm-4 hits rate limits when balance is low.
   // glm-4-flash is cheaper and more available.
@@ -25,15 +25,36 @@ export class GlmService {
   private resolvedModel: string | null = null; // Cached after first successful call
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('GLM_API_KEY', '')?.trim() || '';
+    this.apiKey = this._resolveApiKey();
     if (this.apiKey) {
       this.logger.log('🧠 GLM-4 Service initialized (Zhipu AI)');
     } else {
-      this.logger.warn('⚠️ GLM_API_KEY not set');
+      this.logger.warn('⚠️ GLM_API_KEY not set (will re-check on each call)');
     }
   }
 
+  /**
+   * FIX: Resolve API key from multiple sources — same pattern as DeepSeek/OpenRouter.
+   * ConfigService.get() may return empty during construction on Railway/cloud.
+   */
+  private _resolveApiKey(): string {
+    const env = process.env as Record<string, string | undefined>;
+    return (
+      this.configService.get<string>('GLM_API_KEY', '')?.trim() ||
+      env['GLM_API_KEY']?.trim() ||
+      ''
+    );
+  }
+
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
+    // FIX: Re-resolve key on every call
+    if (!this.apiKey) {
+      const resolved = this._resolveApiKey();
+      if (resolved) {
+        this.apiKey = resolved;
+        this.logger.log('🧠 GLM key resolved on-demand');
+      }
+    }
     if (!this.apiKey) {
       return this._stubResponse(request);
     }

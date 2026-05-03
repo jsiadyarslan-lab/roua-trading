@@ -26,7 +26,7 @@ export interface AIAnalysisResponse {
 @Injectable()
 export class GroqService {
   private readonly logger = new Logger(GroqService.name);
-  private readonly apiKey: string;
+  private apiKey: string; // FIX: Not readonly — allows on-demand key resolution
   private readonly baseUrl = 'https://api.groq.com/openai/v1/chat/completions';
   // FIX: Model fallback chain — llama-3.3-70b hits daily limits fast.
   // Try multiple models in order: fast → capable → lightweight
@@ -41,15 +41,36 @@ export class GroqService {
   private resolvedModel: string | null = null; // Cached after first successful call
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('GROQ_API_KEY', '')?.trim() || '';
+    this.apiKey = this._resolveApiKey();
     if (this.apiKey) {
       this.logger.log('⚡ Groq Service initialized (Llama 3.3 70B)');
     } else {
-      this.logger.warn('⚠️ GROQ_API_KEY not set');
+      this.logger.warn('⚠️ GROQ_API_KEY not set (will re-check on each call)');
     }
   }
 
+  /**
+   * FIX: Resolve API key from multiple sources — same pattern as DeepSeek/OpenRouter services.
+   * ConfigService.get() may return empty during construction on Railway/cloud.
+   */
+  private _resolveApiKey(): string {
+    const env = process.env as Record<string, string | undefined>;
+    return (
+      this.configService.get<string>('GROQ_API_KEY', '')?.trim() ||
+      env['GROQ_API_KEY']?.trim() ||
+      ''
+    );
+  }
+
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
+    // FIX: Re-resolve key on every call — ConfigService may load keys after construction
+    if (!this.apiKey) {
+      const resolved = this._resolveApiKey();
+      if (resolved) {
+        this.apiKey = resolved;
+        this.logger.log('⚡ Groq key resolved on-demand');
+      }
+    }
     if (!this.apiKey) {
       return this._stubResponse(request);
     }

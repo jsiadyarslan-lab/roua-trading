@@ -23,7 +23,7 @@ import { calculateConfidence } from './confidence.util';
 @Injectable()
 export class OllamaService {
   private readonly logger = new Logger(OllamaService.name);
-  private readonly apiKey: string;
+  private apiKey: string; // FIX: Not readonly — allows on-demand key resolution
   private readonly baseUrl: string;
   
   // Model name — configurable via OLLAMA_MODEL env var (for cloud Ollama providers)
@@ -31,18 +31,40 @@ export class OllamaService {
   private readonly defaultModel: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('OLLAMA_API_KEY', '')?.trim() || '';
+    this.apiKey = this._resolveApiKey();
     this.baseUrl = this.configService.get<string>('OLLAMA_BASE_URL', 'http://localhost:11434')?.trim() || 'http://localhost:11434';
     this.defaultModel = this.configService.get<string>('OLLAMA_MODEL', 'qwen2.5:7b')?.trim() || 'qwen2.5:7b';
     
     if (this.apiKey || this._isOllamaReachable()) {
       this.logger.log(`🏠 Ollama Service initialized (${this.defaultModel}) — URL: ${this.baseUrl}`);
     } else {
-      this.logger.warn('⚠️ Ollama not reachable — set OLLAMA_API_KEY or start Ollama server');
+      this.logger.warn('⚠️ Ollama not reachable (will re-check on each call) — set OLLAMA_API_KEY or start Ollama server');
     }
   }
 
+  /**
+   * FIX: Resolve API key from multiple sources — same pattern as other services.
+   * ConfigService.get() may return empty during construction on Railway/cloud.
+   */
+  private _resolveApiKey(): string {
+    const env = process.env as Record<string, string | undefined>;
+    return (
+      this.configService.get<string>('OLLAMA_API_KEY', '')?.trim() ||
+      env['OLLAMA_API_KEY']?.trim() ||
+      ''
+    );
+  }
+
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
+    // FIX: Re-resolve key on every call
+    if (!this.apiKey) {
+      const resolved = this._resolveApiKey();
+      if (resolved) {
+        this.apiKey = resolved;
+        this.logger.log('🏠 Ollama key resolved on-demand');
+      }
+    }
+
     // Skip Ollama call entirely if running on cloud with localhost URL
     // This prevents 30s timeouts on Railway/Render/etc.
     if (this._isCloudWithLocalhost()) {

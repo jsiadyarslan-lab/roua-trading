@@ -17,7 +17,7 @@ import { calculateConfidence } from './confidence.util';
 @Injectable()
 export class GeminiService {
   private readonly logger = new Logger(GeminiService.name);
-  private readonly apiKey: string;
+  private apiKey: string; // FIX: Not readonly — allows on-demand key resolution
   private readonly baseUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
   // Model fallback chain — try multiple model names since availability
   // varies by API key age, region, and Google's deprecation schedule.
@@ -35,18 +35,38 @@ export class GeminiService {
   private resolvedModel: string | null = null; // Cached after first successful call
 
   constructor(private readonly configService: ConfigService) {
-    // Check both GOOGLE_AI_STUDIO_API_KEY and GEMINI_API_KEY
-    this.apiKey = this.configService.get<string>('GOOGLE_AI_STUDIO_API_KEY', '')?.trim()
-      || this.configService.get<string>('GEMINI_API_KEY', '')?.trim()
-      || '';
+    this.apiKey = this._resolveApiKey();
     if (this.apiKey) {
       this.logger.log(`💎 Gemini Service initialized (trying: ${this.modelCandidates.join(' → ')})`);
     } else {
-      this.logger.warn('⚠️ GOOGLE_AI_STUDIO_API_KEY / GEMINI_API_KEY not set');
+      this.logger.warn('⚠️ GOOGLE_AI_STUDIO_API_KEY / GEMINI_API_KEY not set (will re-check on each call)');
     }
   }
 
+  /**
+   * FIX: Resolve API key from multiple sources — same pattern as DeepSeek/OpenRouter.
+   * ConfigService.get() may return empty during construction on Railway/cloud.
+   */
+  private _resolveApiKey(): string {
+    const env = process.env as Record<string, string | undefined>;
+    return (
+      this.configService.get<string>('GOOGLE_AI_STUDIO_API_KEY', '')?.trim() ||
+      env['GOOGLE_AI_STUDIO_API_KEY']?.trim() ||
+      this.configService.get<string>('GEMINI_API_KEY', '')?.trim() ||
+      env['GEMINI_API_KEY']?.trim() ||
+      ''
+    );
+  }
+
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
+    // FIX: Re-resolve key on every call — ConfigService may load keys after construction
+    if (!this.apiKey) {
+      const resolved = this._resolveApiKey();
+      if (resolved) {
+        this.apiKey = resolved;
+        this.logger.log('💎 Gemini key resolved on-demand');
+      }
+    }
     if (!this.apiKey) {
       return this._stubResponse(request, ['API key not configured']);
     }

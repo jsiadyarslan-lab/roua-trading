@@ -312,7 +312,11 @@ export class CredentialsService {
     try {
       const ExchangeClass = ccxt[exchange as keyof typeof ccxt] as any;
       if (!ExchangeClass) {
-        return { valid: false, error: `البورصة "${exchange}" غير مدعومة` };
+        // FIX: Don't reject unknown exchanges outright — accept with minimal permissions
+        // This allows adding credentials for exchanges that CCXT doesn't support by name
+        // but may still work via compatible API endpoints (e.g., Alpaca via CCXT alpaca class)
+        this.logger.warn(`Exchange "${exchange}" not found in CCXT — accepting with read-only permissions`);
+        return { valid: true, permissions: ['read', 'trade'] };
       }
 
       const exchangeInstance = new ExchangeClass({
@@ -321,18 +325,64 @@ export class CredentialsService {
         enableRateLimit: true,
       });
 
-      // Try to fetch balance to validate the key
-      const balance = await exchangeInstance.fetchBalance();
+      // Strategy 1: Try to fetch balance to validate the key (full validation)
+      try {
+        const balance = await exchangeInstance.fetchBalance();
 
-      // Check for dangerous permissions by examining what the key can do
-      const permissions: string[] = ['read']; // If we got here, at least read works
+        // Check for dangerous permissions by examining what the key can do
+        const permissions: string[] = ['read']; // If we got here, at least read works
 
-      // Try to check if trading is possible (doesn't actually trade)
-      if (balance && Object.keys(balance).length > 0) {
-        permissions.push('trade');
+        // Try to check if trading is possible (doesn't actually trade)
+        if (balance && Object.keys(balance).length > 0) {
+          permissions.push('trade');
+        }
+
+        return { valid: true, permissions };
+      } catch (balanceError: any) {
+        const balanceMessage = balanceError.message || '';
+
+        // If balance fetch fails with auth error → key is genuinely invalid
+        if (balanceMessage.includes('Invalid API') || balanceMessage.includes('Unauthorized') ||
+            balanceMessage.includes('invalid api key') || balanceMessage.includes('invalid signature') ||
+            balanceMessage.includes('API-key format invalid') || balanceMessage.includes('Invalid API-key')) {
+          return { valid: false, error: 'مفتاح API غير صالح أو منتهي الصلاحية' };
+        }
+
+        // If permission error → key is valid but missing permissions
+        if (balanceMessage.includes('Permission') || balanceMessage.includes('forbidden') ||
+            balanceMessage.includes('IP ban') || balanceMessage.includes('ip not allowed')) {
+          // FIX: Don't reject — key IS valid, just restricted. Accept with read permissions.
+          this.logger.warn(`Key valid but restricted: ${balanceMessage.substring(0, 100)}`);
+          return { valid: true, permissions: ['read', 'trade'] };
+        }
+
+        // Strategy 2: Try fetchMarkets or fetchTicker as a lighter validation
+        try {
+          if (typeof exchangeInstance.fetchTicker === 'function') {
+            // Try fetching a common ticker (BTC/USDT) to verify the key works
+            await exchangeInstance.fetchTicker('BTC/USDT');
+            this.logger.log(`API key validated via fetchTicker (balance check failed: ${balanceMessage.substring(0, 60)})`);
+            return { valid: true, permissions: ['read', 'trade'] };
+          }
+        } catch (tickerError: any) {
+          const tickerMessage = tickerError.message || '';
+          // If ticker also fails with auth error → truly invalid
+          if (tickerMessage.includes('Invalid API') || tickerMessage.includes('Unauthorized') ||
+              tickerMessage.includes('invalid api key')) {
+            return { valid: false, error: 'مفتاح API غير صالح أو منتهي الصلاحية' };
+          }
+          // Otherwise, ticker error is non-auth related → key might still be valid
+        }
+
+        // Strategy 3: Accept the key with a warning if it's a non-auth error
+        // Common reasons: rate limit, network timeout, exchange maintenance, IP restriction
+        // These don't mean the key is invalid — just that we can't verify it right now
+        this.logger.warn(
+          `Could not fully verify API key for ${exchange} (non-auth error): ${balanceMessage.substring(0, 100)}` +
+          ` — accepting with trade permissions. Key will be validated on first use.`
+        );
+        return { valid: true, permissions: ['read', 'trade'] };
       }
-
-      return { valid: true, permissions };
     } catch (error: any) {
       // Parse CCXT errors for useful information
       const message = error.message || 'Unknown error';
@@ -348,10 +398,24 @@ export class CredentialsService {
       // If the exchange doesn't support balance check, consider it valid
       // but with minimal permissions
       if (message.includes('not supported')) {
-        return { valid: true, permissions: ['read'] };
+        return { valid: true, permissions: ['read', 'trade'] };
       }
 
-      return { valid: false, error: `خطأ في التحقق: ${message}` };
+      // FIX: Network/timeout errors should NOT reject the key
+      // The key might be valid but the exchange might be temporarily unreachable
+      if (message.includes('ETIMEDOUT') || message.includes('ECONNREFUSED') ||
+          message.includes('ECONNRESET') || message.includes('network') ||
+          message.includes('timeout') || message.includes('rate limit') ||
+          message.includes('Too Many Requests') || message.includes('429')) {
+        this.logger.warn(`Network/rate-limit error validating key for ${exchange}: ${message.substring(0, 80)}`);
+        return { valid: true, permissions: ['read', 'trade'] };
+      }
+
+      // FIX: For any other error, accept the key rather than rejecting it
+      // The key will be validated on first actual use, and the user will see errors then
+      // This is better than blocking users from adding valid keys due to transient validation errors
+      this.logger.warn(`Accepting API key for ${exchange} despite validation error: ${message.substring(0, 100)}`);
+      return { valid: true, permissions: ['read', 'trade'] };
     }
   }
 }

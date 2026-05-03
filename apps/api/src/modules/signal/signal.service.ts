@@ -268,11 +268,12 @@ ${newsContext ? `📰 أخبار ذات صلة:\n${newsContext}` : ''}
    * Cancel a signal
    */
   async cancelSignal(userId: string, signalId: string) {
-    const signal = await this.prisma.signal.findUnique({
-      where: { id: signalId },
+    // DATA ISOLATION: Use findFirst with userId to prevent accessing other users' signals
+    const signal = await this.prisma.signal.findFirst({
+      where: { id: signalId, userId },
     });
 
-    if (!signal || signal.userId !== userId) {
+    if (!signal) {
       throw new Error('الإشارة غير موجودة');
     }
 

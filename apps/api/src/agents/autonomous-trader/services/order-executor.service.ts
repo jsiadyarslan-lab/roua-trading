@@ -110,16 +110,42 @@ export class OrderExecutorService implements OnModuleDestroy {
       }
 
       // Pre-flight: Verify credential has trade permission
-      const credential = await this.prisma.exchangeCredential.findUnique({
-        where: { id: credentialId },
+      // DATA ISOLATION: Use findFirst with userId to prevent accessing other users' credentials
+      const credential = await this.prisma.exchangeCredential.findFirst({
+        where: { id: credentialId, userId },
       });
 
       // Paper trading mode — simulate execution without real exchange
       if (credential && credential.exchange === 'paper-trading') {
         this.logger.log(`⚡ Paper trading mode — simulating ${signal.action} ${signal.symbol}`);
 
-        const simulatedFee = signal.entryPrice * risk.positionSize * 0.001; // 0.1% fee
+        // FIX: Get the actual current live price instead of using the stale signal.entryPrice.
+        // The signal price comes from the market analysis cache which may be outdated,
+        // causing trade markers on the chart to not match the current candle.
+        let actualExecutionPrice = signal.entryPrice;
+        let usedLivePrice = false;
+        try {
+          const liveQuote = await this.exchangeService.getQuote(signal.symbol);
+          if (liveQuote && liveQuote.price && liveQuote.price > 0) {
+            // Apply realistic slippage for crypto: 0.01–0.05% random
+            const slippagePercent = 0.01 + Math.random() * 0.04; // 0.01% to 0.05%
+            const slippageDirection = signal.action === 'BUY' ? 1 : -1; // BUY: price goes up, SELL: price goes down
+            actualExecutionPrice = liveQuote.price * (1 + slippageDirection * slippagePercent / 100);
+            usedLivePrice = true;
+            this.logger.log(
+              `⚡ Paper trade using live price: ${liveQuote.price.toFixed(2)} → execution: ${actualExecutionPrice.toFixed(2)} ` +
+              `(slippage: ${slippagePercent.toFixed(4)}%, signal price was: ${signal.entryPrice})`,
+            );
+          }
+        } catch (quoteErr: any) {
+          this.logger.warn(
+            `⚡ Could not get live quote for ${signal.symbol}: ${quoteErr.message} — falling back to signal price ${signal.entryPrice}`,
+          );
+        }
+
+        const simulatedFee = actualExecutionPrice * risk.positionSize * 0.001; // 0.1% fee
         const executionTimeMs = Date.now() - startTime;
+        const calculatedSlippage = this._calculateSlippage(signal.entryPrice, actualExecutionPrice, signal.action);
 
         // Record in AutonomousTrade table
         try {
@@ -132,7 +158,7 @@ export class OrderExecutorService implements OnModuleDestroy {
               orderType: signal.type as any,
               strategy: signal.strategy as any,
               status: 'FILLED',
-              entryPrice: signal.entryPrice,
+              entryPrice: actualExecutionPrice,
               stopLoss: signal.stopLoss,
               takeProfit: signal.takeProfit,
               quantity: risk.positionSize,
@@ -145,14 +171,23 @@ export class OrderExecutorService implements OnModuleDestroy {
               riskRewardRatio: risk.riskRewardRatio,
               reasoning: signal.reasoning,
               signalData: JSON.stringify(signal.metadata || {}),
-              metadata: JSON.stringify({ paperTrading: true, executionTimeMs }),
+              metadata: JSON.stringify({
+                paperTrading: true,
+                executionTimeMs,
+                signalPrice: signal.entryPrice,
+                executionPrice: actualExecutionPrice,
+                slippage: actualExecutionPrice !== signal.entryPrice
+                  ? Math.abs((actualExecutionPrice - signal.entryPrice) / signal.entryPrice * 100).toFixed(4) + '%'
+                  : '0%',
+                usedLivePrice,
+              }),
               execution: JSON.stringify({
                 success: true,
                 paperTrading: true,
                 filledQuantity: risk.positionSize,
-                averagePrice: signal.entryPrice,
+                averagePrice: actualExecutionPrice,
                 fee: simulatedFee,
-                slippage: 0,
+                slippage: calculatedSlippage,
                 executionTimeMs,
               }),
               credentialId,
@@ -174,8 +209,8 @@ export class OrderExecutorService implements OnModuleDestroy {
               side: signal.action as any,
               status: 'OPEN',
               quantity: risk.positionSize,
-              entryPrice: signal.entryPrice,
-              currentPrice: signal.entryPrice,
+              entryPrice: actualExecutionPrice,
+              currentPrice: actualExecutionPrice,
               unrealizedPnl: 0,
               stopLoss: signal.stopLoss,
               takeProfit: signal.takeProfit,
@@ -197,17 +232,21 @@ export class OrderExecutorService implements OnModuleDestroy {
             side: signal.action,
             type: signal.type,
             quantity: risk.positionSize,
-            entryPrice: signal.entryPrice,
+            signalPrice: signal.entryPrice,
+            executionPrice: actualExecutionPrice,
+            slippage: calculatedSlippage,
             stopLoss: signal.stopLoss,
             takeProfit: signal.takeProfit,
             confidence: signal.confidence,
             strategy: signal.strategy,
             paperTrading: true,
+            usedLivePrice,
           }),
         });
 
         this.logger.log(
           `✅ Paper order executed: ${signal.action} ${risk.positionSize} ${signal.symbol} ` +
+          `@ ${actualExecutionPrice.toFixed(2)} (signal: ${signal.entryPrice}, slippage: ${calculatedSlippage.toFixed(4)}%) ` +
           `(paper trading — no real funds)`,
         );
 
@@ -215,15 +254,16 @@ export class OrderExecutorService implements OnModuleDestroy {
           success: true,
           orderId: `paper-${Date.now()}`,
           filledQuantity: risk.positionSize,
-          averagePrice: signal.entryPrice,
+          averagePrice: actualExecutionPrice,
           fee: simulatedFee,
           feeCurrency: 'USD',
-          slippage: 0,
+          slippage: calculatedSlippage,
           executionTimeMs,
         };
       }
 
-      if (!credential || credential.userId !== userId || !credential.isValid) {
+      // DATA ISOLATION: credential was already filtered by userId in findFirst above
+      if (!credential || !credential.isValid) {
         return {
           success: false,
           error: 'بيانات الاعتماد غير صالحة',

@@ -88,8 +88,15 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * OnModuleInit — Auto-seed critical system settings on startup.
    * This ensures AUTO_TRADING_ENABLED exists in the DB with a default of `true`,
    * so the agent can be controlled from the UI without relying on env vars.
+   *
+   * IMPORTANT: This method MUST NEVER throw. If the DB isn't ready yet
+   * (cold start, connection issues), we gracefully skip and fall back to
+   * env vars. A throwing onModuleInit prevents the entire module from
+   * loading, which causes ALL agent routes to return 404.
    */
   async onModuleInit() {
+    // Do NOT let any error escape — a failing onModuleInit prevents
+    // the controller from loading, which causes 404 on all agent routes.
     try {
       // Ensure AUTO_TRADING_ENABLED exists in the Setting table
       const existing = await this.prisma.setting.findUnique({
@@ -110,7 +117,9 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         this.logger.log(`🔧 AUTO_TRADING_ENABLED=${JSON.parse(existing.value)} already in DB (source: database)`);
       }
     } catch (error: any) {
-      this.logger.warn(`Could not auto-seed AUTO_TRADING_ENABLED: ${error.message} — will fall back to env var`);
+      // DB not ready yet (cold start, connection issue) — non-fatal.
+      // The service will fall back to env vars for AUTO_TRADING_ENABLED.
+      this.logger.warn(`Could not auto-seed AUTO_TRADING_ENABLED: ${error?.message || error} — will fall back to env var`);
     }
   }
 
@@ -1115,8 +1124,9 @@ export class AutonomousTraderAgentService implements OnModuleInit {
           // Skip invalid entries
         }
       }
-    } catch {
-      // Redis scan failed — fall through to DB check
+    } catch (redisError: any) {
+      // Redis scan failed (not connected, timeout, etc.) — fall through to DB check
+      this.logger.warn(`Redis scanKeys failed in _getActiveAgents: ${redisError?.message || redisError} — falling back to DB`);
     }
 
     // Step 2: CRITICAL FIX — Also check DB for running agent sessions
@@ -1141,7 +1151,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         }
       }
     } catch (dbError: any) {
-      this.logger.error(`Failed to check DB for active agents: ${dbError.message}`);
+      this.logger.error(`Failed to check DB for active agents: ${dbError?.message || dbError}`);
     }
 
     return activeUsers;

@@ -15,7 +15,7 @@ import {
   HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { AuthGuard } from '../../common/guards/auth.guard';
+import { AuthGuard, Public } from '../../common/guards/auth.guard';
 import { AutonomousTraderAgentService } from './agent.service';
 import { MarketAnalyzerService } from './services/market-analyzer.service';
 import { SignalEvaluatorService } from './services/signal-evaluator.service';
@@ -29,6 +29,19 @@ import { StartAgentDto, ChangeStrategyDto, UpdateRiskParamsDto, UpdateAgentSetti
 @Controller('agent/trader')
 export class AutonomousTraderPublicController {
   constructor(private readonly agentService: AutonomousTraderAgentService) {}
+
+  @Get('health')
+  @Public()
+  async getHealth() {
+    return {
+      success: true,
+      data: {
+        module: 'autonomous-trader',
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
 
   @Get('public-status')
   async getPublicStatus() {

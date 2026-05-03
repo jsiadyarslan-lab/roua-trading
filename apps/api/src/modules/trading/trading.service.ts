@@ -73,11 +73,12 @@ export class TradingService {
     );
 
     // Step 1: Validate credential ownership
-    const credential = await this.prisma.exchangeCredential.findUnique({
-      where: { id: request.credentialId },
+    // DATA ISOLATION: Use findFirst with userId to prevent accessing other users' credentials
+    const credential = await this.prisma.exchangeCredential.findFirst({
+      where: { id: request.credentialId, userId },
     });
 
-    if (!credential || credential.userId !== userId) {
+    if (!credential) {
       throw new NotFoundException('بيانات الاعتماد غير موجودة');
     }
 
@@ -229,10 +230,11 @@ export class TradingService {
       });
 
       // Step 9: If this was triggered by a signal, update signal status
+      // DATA ISOLATION: Added userId filter to prevent updating other users' signals
       if (request.signalId) {
         await tx.signal
-          .update({
-            where: { id: request.signalId },
+          .updateMany({
+            where: { id: request.signalId, userId },
             data: { status: 'EXECUTED' },
           })
           .catch(() => {}); // Don't fail if signal not found
@@ -276,11 +278,12 @@ export class TradingService {
     ipAddress?: string,
     userAgent?: string,
   ) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
+    // DATA ISOLATION: Use findFirst with userId to prevent accessing other users' orders
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, userId },
     });
 
-    if (!order || order.userId !== userId) {
+    if (!order) {
       throw new NotFoundException('الطلب غير موجود');
     }
 
@@ -353,11 +356,12 @@ export class TradingService {
    * Get a specific order
    */
   async getOrder(userId: string, orderId: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id: orderId },
+    // DATA ISOLATION: Use findFirst with userId to prevent accessing other users' orders
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, userId },
     });
 
-    if (!order || order.userId !== userId) {
+    if (!order) {
       throw new NotFoundException('الطلب غير موجود');
     }
 
@@ -496,11 +500,12 @@ export class TradingService {
     ipAddress?: string,
     userAgent?: string,
   ) {
-    const position = await this.prisma.position.findUnique({
-      where: { id: request.positionId },
+    // DATA ISOLATION: Use findFirst with userId to prevent accessing other users' positions
+    const position = await this.prisma.position.findFirst({
+      where: { id: request.positionId, userId },
     });
 
-    if (!position || position.userId !== userId) {
+    if (!position) {
       throw new NotFoundException('المركز غير موجود');
     }
 
@@ -667,11 +672,12 @@ export class TradingService {
     positionId: string,
     data: { stopLoss?: number; takeProfit?: number },
   ) {
-    const position = await this.prisma.position.findUnique({
-      where: { id: positionId },
+    // DATA ISOLATION: Use findFirst with userId to prevent accessing other users' positions
+    const position = await this.prisma.position.findFirst({
+      where: { id: positionId, userId },
     });
 
-    if (!position || position.userId !== userId) {
+    if (!position) {
       throw new NotFoundException('المركز غير موجود');
     }
 

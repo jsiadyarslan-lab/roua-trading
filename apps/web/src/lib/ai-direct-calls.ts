@@ -286,6 +286,29 @@ async function fetchQuickMarketData(symbol: string): Promise<{ price: number; rs
     // Klines unavailable — use defaults
   }
 
+  // FIX: Try Bybit klines as fallback for RSI/MACD when Binance is blocked (common on Railway)
+  if (rsi === 50) {
+    try {
+      const bybitSymbol = symbol.replace(/[\/\-]/g, '').toUpperCase()
+      const bybitKlinesRes = await fetch(`https://api.bybit.com/v5/market/kline?category=spot&symbol=${bybitSymbol}&interval=60&limit=30`, {
+        signal: AbortSignal.timeout(4000),
+      })
+      if (bybitKlinesRes.ok) {
+        const bybitData = await bybitKlinesRes.json()
+        const closes: number[] = (bybitData?.result?.list || [])
+          .map((k: any) => parseFloat(k[4]))
+          .filter((v: number) => !isNaN(v))
+          .reverse() // Bybit returns newest-first, we need oldest-first for RSI
+        if (closes.length > 14) {
+          rsi = calcRSI(closes)
+          macd = calcMACD(closes)
+        }
+      }
+    } catch {
+      // Bybit klines also unavailable
+    }
+  }
+
   const priceResult = await pricePromise
   if (priceResult && priceResult.price > 0) {
     console.log(`[market-data] ${symbol} price=$${priceResult.price} from ${priceResult.source}`)
@@ -580,7 +603,7 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
   }
 
   const start = Date.now()
-  const TOTAL_HF_TIMEOUT = 25_000 // FIX: 25s max for ALL HuggingFace strategies (was unbounded)
+  const TOTAL_HF_TIMEOUT = 40_000 // FIX: Increased from 25s to 40s — cold models need more time to load
   const deadline = Date.now() + TOTAL_HF_TIMEOUT
   const systemMsg = 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير أنماط مالي. كن موجزاً ومبنياً على البيانات. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
 
@@ -817,7 +840,7 @@ async function callOllama(prompt: string): Promise<DirectAIResponse> {
       method: 'POST',
       headers: requestHeaders,
       body: JSON.stringify(requestBody),
-      signal: AbortSignal.timeout(baseUrl.includes('ollama.com') ? OLLAMA_CLOUD_TIMEOUT : OLLAMA_LOCAL_TIMEOUT),
+      signal: AbortSignal.timeout(isCloudEnvironment() ? OLLAMA_CLOUD_TIMEOUT : OLLAMA_LOCAL_TIMEOUT),
     })
 
     if (!res.ok) {
@@ -1043,7 +1066,15 @@ async function callBedrock(prompt: string): Promise<DirectAIResponse> {
         const errBody = await res.text().catch(() => '')
         // 403 = IAM lacks permission, model not enabled, or signing error
         // Log the error for diagnostics but continue to next model
-        console.warn(`[Bedrock] Model ${modelId} failed (${res.status}): ${errBody.slice(0, 200)}`)
+        console.warn(`[Bedrock] Model ${modelId} failed (${res.status}): ${errBody.slice(0, 300)}`)
+        // FIX: Check for common IAM issues and log helpful diagnostics
+        if (res.status === 403) {
+          if (errBody.includes('validation')) {
+            console.warn(`[Bedrock] Model ${modelId} validation error — model may not be enabled in AWS console. Enable it at: https://console.aws.amazon.com/bedrock/ → Model Access`)
+          } else if (errBody.includes('not authorized')) {
+            console.warn(`[Bedrock] IAM not authorized for ${modelId} — add bedrock:InvokeModel permission to your IAM role`)
+          }
+        }
         if (res.status === 403 || res.status === 404) continue
         // 429 = throttled, try next
         if (res.status === 429) continue
@@ -1316,8 +1347,8 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
   // (e.g., models inventing BTC price as $28,500 when it's actually much higher)
   const marketData = await fetchQuickMarketData(symbol)
   const marketDataPrefix = marketData.price > 0
-    ? `\n⛔ تحذير حرج — بيانات السوق الحية (لا تخترع أسعاراً!):\n- السعر الحالي الفعلي: ${marketData.price.toLocaleString()}$ (استخدم هذا الرقم فقط ولا تخترع سعراً آخر)\n- مؤشر RSI: ${marketData.rsi} (استخدم هذه القيمة فقط)\n- مؤشر MACD: ${marketData.macd}\n\n⚠️ ممنوع تماماً اختراع أسعار أو مؤشرات مختلفة عن المعطاة أعلاه. إذا ذكرت سعراً في تحليلك فيجب أن يتطابق تماماً مع ${marketData.price.toLocaleString()}$.\n`
-    : '\n⚠️ لم نتمكن من جلب بيانات السوق الحية — لا تخترع أسعاراً أو أرقاماً من عندك. اكتب "السعر غير متاح" إذا احتجت لذكر السعر.\n'
+    ? `\n⛔⛔⛔ تحذير حرج — بيانات السوق الحية (ممنوع اختراع أسعار!):\n- 🔴 السعر الحالي الفعلي: ${marketData.price.toLocaleString()}$ — استخدم هذا الرقم فقط! أي سعر آخر تذكره سيكون كاذباً!\n- مؤشر RSI الحقيقي: ${marketData.rsi} (استخدم هذه القيمة فقط)\n- مؤشر MACD: ${marketData.macd}\n\n⚠️ تحذير نهائي: إذا ذكرت أي سعر غير ${marketData.price.toLocaleString()}$ فتحليلك كله سيكون مرفوضاً وكاذباً. السعر هو ${marketData.price.toLocaleString()}$ فقط لا غير.\n`
+    : '\n⚠️⚠️⚠️ لم نتمكن من جلب بيانات السوق الحية — ممنوع تماماً اختراع أي سعر أو رقم من عندك. إذا احتجت لذكر السعر اكتب "السعر غير متاح". أي سعر تختلقه سيجعل تحليلك غير موثوق.\n'
 
   // Define prompts for each model — each model gets a different perspective
   // Primary role assignment for 6 models

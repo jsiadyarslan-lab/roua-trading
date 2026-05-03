@@ -63,7 +63,7 @@ export class AIOrchestratorService {
   private readonly modelCooldownLevel = new Map<string, number>(); // FIX #4: Progressive level
   private readonly BASE_COOLDOWN_MS = 120_000; // Base cooldown: 2 minutes
   private readonly MAX_COOLDOWN_MS = 30 * 60 * 1000; // Max cooldown: 30 minutes
-  private readonly FAILURES_BEFORE_COOLDOWN = 2; // Triggers cooldown after 2 consecutive 429s
+  private readonly FAILURES_BEFORE_COOLDOWN = 3; // FIX: Increased from 2 to 3 — give models more chances before cooldown
 
   /** In-flight request deduplication — prevents duplicate AI calls for the same symbol+type */
   private readonly inFlightRequests = new Map<string, Promise<AIAnalysisResponse>>();
@@ -201,6 +201,22 @@ export class AIOrchestratorService {
     } catch {}
 
     const enrichedRequest = await this._enrichWithContext(request);
+
+    // FIX: Inject live market data into ALL analysis requests to prevent price hallucinations.
+    // Previously, only getConsensusAnalysis() injected market data. Single-model analysis
+    // via analyze() had ZERO price grounding, causing AI to invent prices like "BTC is $28,500".
+    if (enrichedRequest.symbol) {
+      try {
+        const marketData = await this._fetchQuickMarketData(enrichedRequest.symbol);
+        if (marketData.price > 0) {
+          enrichedRequest.prompt = `⛔ بيانات السوق الحية (لا تخترع أسعاراً!): السعر الفعلي=${marketData.price.toLocaleString()}$, RSI=${marketData.rsi}, MACD=${marketData.macd}. ممنوع اختراع أسعار مختلفة.\n\n${enrichedRequest.prompt}`;
+        } else {
+          enrichedRequest.prompt = `⚠️ لم نتمكن من جلب بيانات السوق — لا تخترع أسعاراً. اكتب "السعر غير متاح".\n\n${enrichedRequest.prompt}`;
+        }
+      } catch {
+        // Market data fetch failed — continue without it
+      }
+    }
 
     // Check in-memory cache as fallback (faster, per-instance)
     const memCacheKey = this._getCacheKey(enrichedRequest);
@@ -363,7 +379,10 @@ export class AIOrchestratorService {
     masterStrategy: string;
   }> {
     // Check Redis cache first — consensus valid for 10 minutes (increased from 5)
-    const cacheKey = `ai:consensus:${symbol}`;
+    // FIX: Cache key version bumped to v3 to invalidate stale pre-fix results
+    // that had contradictory labels (e.g., 89% HOLD). Old v1/v2 cache entries
+    // will not be found, forcing fresh computation with the fixed parseVote().
+    const cacheKey = `ai:consensus:v3:${symbol}`;
     try {
       const cached = await this.redis?.get(cacheKey);
       if (cached) {
@@ -390,8 +409,8 @@ export class AIOrchestratorService {
       // (e.g., Groq saying BTC is $28,500 when it's actually much higher)
       const marketData = await this._fetchQuickMarketData(symbol);
       const marketDataPrefix = marketData.price > 0
-        ? `\n⛔ تحذير حرج — بيانات السوق الحية (لا تخترع أسعاراً!):\n- السعر الحالي الفعلي: ${marketData.price.toLocaleString()}$ (استخدم هذا الرقم فقط ولا تخترع سعراً آخر)\n- مؤشر RSI: ${marketData.rsi} (استخدم هذه القيمة فقط)\n- مؤشر MACD: ${marketData.macd}\n\n⚠️ ممنوع تماماً اختراع أسعار أو مؤشرات مختلفة عن المعطاة أعلاه. إذا ذكرت سعراً في تحليلك فيجب أن يتطابق تماماً مع ${marketData.price.toLocaleString()}$.\n`
-        : '\n⚠️ لم نتمكن من جلب بيانات السوق الحية — لا تخترع أسعاراً أو أرقاماً من عندك. اكتب "السعر غير متاح" إذا احتجت لذكر السعر.\n';
+        ? `\n⛔⛔⛔ تحذير حرج — بيانات السوق الحية (ممنوع اختراع أسعار!):\n- 🔴 السعر الحالي الفعلي: ${marketData.price.toLocaleString()}$ — استخدم هذا الرقم فقط! أي سعر آخر تذكره سيكون كاذباً!\n- مؤشر RSI الحقيقي: ${marketData.rsi} (استخدم هذه القيمة فقط)\n- مؤشر MACD: ${marketData.macd}\n\n⚠️ تحذير نهائي: إذا ذكرت أي سعر غير ${marketData.price.toLocaleString()}$ فتحليلك كله سيكون مرفوضاً وكاذباً. السعر هو ${marketData.price.toLocaleString()}$ فقط لا غير.\n`
+        : '\n⚠️⚠️⚠️ لم نتمكن من جلب بيانات السوق الحية — ممنوع تماماً اختراع أي سعر أو رقم من عندك. إذا احتجت لذكر السعر اكتب "السعر غير متاح". أي سعر تختلقه سيجعل تحليلك غير موثوق.\n';
 
       // FIX: Each model has exactly ONE role — no duplicates, no role overlap
       // 8 models = 8 roles (1:1 mapping) — clean, predictable, no rate-limiting
@@ -1299,6 +1318,27 @@ export class AIOrchestratorService {
       }
     } catch {
       // Klines unavailable — use defaults
+    }
+
+    // FIX: Try Bybit klines as fallback for RSI/MACD when Binance is blocked (common on Railway)
+    if (rsi === 50) {
+      try {
+        const bybitSymbol = symbol.replace(/[\/\-]/g, '').toUpperCase();
+        const bybitKlinesRes = await axios.get(
+          `https://api.bybit.com/v5/market/kline?category=spot&symbol=${bybitSymbol}&interval=60&limit=30`,
+          { timeout: 4000 },
+        );
+        const closes: number[] = (bybitKlinesRes.data?.result?.list || [])
+          .map((k: any) => parseFloat(k[4]))
+          .filter((v: number) => !isNaN(v))
+          .reverse(); // Bybit returns newest-first, we need oldest-first for RSI
+        if (closes.length > 14) {
+          rsi = this._calculateRSI(closes);
+          macd = this._calculateMACD(closes);
+        }
+      } catch {
+        // Bybit klines also unavailable
+      }
     }
 
     const priceResult = await pricePromise;

@@ -121,10 +121,10 @@ export function AICouncilPanel() {
         const newSource = j.source || 'unknown'
         const isAIResult = newSource === 'real-ai' || newSource === 'partial-ai'
 
-        // FIX: If we got scanner-rules but have recent AI data (<30 min old), keep AI data
+        // FIX: If we got scanner-rules but have recent AI data (<5 min old), keep AI data
         if (!isAIResult && lastGoodAIData.current) {
           const ageMs = Date.now() - lastGoodAIData.current.timestamp
-          if (ageMs < 30 * 60 * 1000) { // Less than 30 minutes old
+          if (ageMs < 5 * 60 * 1000) { // FIX: Reduced from 30 min to 5 min — stale data is worse than no data
             console.log('[AI Council] Got scanner-rules, but keeping last AI result (still fresh)')
             // Keep the last good AI data, just update the timestamp
             setData(lastGoodAIData.current.data)
@@ -172,7 +172,7 @@ export function AICouncilPanel() {
       // FIX: On error, if we have recent AI data, keep showing it instead of error
       if (lastGoodAIData.current) {
         const ageMs = Date.now() - lastGoodAIData.current.timestamp
-        if (ageMs < 30 * 60 * 1000) {
+        if (ageMs < 5 * 60 * 1000) { // FIX: Reduced from 30 min to 5 min
           console.log('[AI Council] Fetch failed, keeping last AI result')
           setData(lastGoodAIData.current.data)
           setDataSource(lastGoodAIData.current.source as 'real-ai' | 'partial-ai')

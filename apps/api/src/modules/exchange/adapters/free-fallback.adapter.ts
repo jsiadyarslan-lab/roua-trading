@@ -86,6 +86,22 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
       return this._fetchSilverQuote(symbol);
     }
 
+    // ── Crypto: CoinGecko free API (CRITICAL FIX - was missing!) ──
+    // This is the #1 reason the autonomous trader never executed trades:
+    // Binance CCXT often fails on Railway/cloud IPs, and FreeFallback had no
+    // crypto support, so ALL market data requests for BTC/USDT, ETH/USDT etc.
+    // returned null → no analysis → no signals → no trades.
+    const cryptoBases = new Set([
+      'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'LTC',
+      'AVAX', 'LINK', 'UNI', 'ATOM', 'ETC', 'XLM', 'BCH', 'ALGO', 'VET', 'ICP',
+      'FIL', 'TRX', 'NEAR', 'FTM', 'AAVE', 'SHIB', 'SUI', 'SEI', 'TIA', 'INJ',
+      'STX', 'IMX', 'RUNE', 'PEPE', 'WIF', 'ARB', 'OP',
+    ]);
+    const cryptoQuotes = new Set(['USDT', 'USD', 'BUSD', 'USDC', 'DAI', 'TUSD']);
+    if (cryptoBases.has(base) && cryptoQuotes.has(quote)) {
+      return this._fetchCryptoQuote(symbol, base, quote);
+    }
+
     // ── Forex pairs ──
     const fiatCurrencies = new Set([
       'USD', 'EUR', 'GBP', 'JPY', 'CHF', 'AUD', 'CAD', 'NZD', 'SEK', 'NOK',
@@ -423,7 +439,65 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
   ): Promise<UnifiedCandleDto[]> {
     const [base, quote] = symbol.includes('/') ? symbol.split('/') : [symbol, 'USD'];
 
-    // Only forex supported for historical data via Frankfurter
+    // ── Crypto: CoinGecko historical chart data ──
+    const cryptoBases = new Set([
+      'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'LTC',
+      'AVAX', 'LINK', 'UNI', 'ATOM', 'ETC', 'XLM', 'BCH', 'ALGO', 'VET', 'ICP',
+      'FIL', 'TRX', 'NEAR', 'FTM', 'AAVE', 'SHIB', 'SUI', 'SEI', 'TIA', 'INJ',
+      'STX', 'IMX', 'RUNE', 'PEPE', 'WIF', 'ARB', 'OP',
+    ]);
+    const cryptoQuotes = new Set(['USDT', 'USD', 'BUSD', 'USDC', 'DAI', 'TUSD']);
+    if (cryptoBases.has(base) && cryptoQuotes.has(quote)) {
+      const coinId = FreeFallbackAdapter.COINGECKO_IDS[base];
+      if (coinId) {
+        try {
+          const vsCurrency = quote.toLowerCase() === 'usdt' ? 'usd' : quote.toLowerCase();
+          // CoinGecko /coins/{id}/market_chart — free, returns hourly data
+          const days = Math.min(90, Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)));
+          const response = await axios.get(
+            `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart`,
+            {
+              params: {
+                vs_currency: vsCurrency,
+                days: days.toString(),
+                interval: 'hourly',
+              },
+              timeout: 15000,
+            },
+          );
+
+          if (response.data && response.data.prices && response.data.prices.length > 0) {
+            const candles: UnifiedCandleDto[] = [];
+            const prices = response.data.prices as [number, number][];
+            const volumes = (response.data.total_volumes || []) as [number, number][];
+
+            for (let i = 0; i < prices.length; i++) {
+              const [timestamp, price] = prices[i];
+              const ts = new Date(timestamp);
+              // Only include data within the requested date range
+              if (ts >= start && ts <= end && price > 0) {
+                const vol = volumes[i] ? volumes[i][1] : 0;
+                candles.push({
+                  symbol,
+                  timestamp: ts,
+                  open: price,  // CoinGecko doesn't provide OHLC in this endpoint
+                  high: price,
+                  low: price,
+                  close: price,
+                  volume: vol,
+                  source: 'CoinGecko',
+                });
+              }
+            }
+            if (candles.length > 0) return candles;
+          }
+        } catch (error: any) {
+          this.logger.warn(`CoinGecko history failed for ${symbol}: ${error.message}`);
+        }
+      }
+    }
+
+    // ── Forex: Frankfurter supports historical forex rates ──
     const fiatCurrencies = new Set([
       'USD', 'EUR', 'GBP', 'JPY', 'CHF', 'AUD', 'CAD', 'NZD', 'SEK', 'NOK',
     ]);
@@ -467,6 +541,179 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
 
     // No free historical data source available for this symbol
     return [];
+  }
+
+  // ── Private: Crypto via CoinGecko (FREE, no API key) ──
+
+  /**
+   * CoinGecko free API coin ID mapping.
+   * CoinGecko uses lowercase IDs (e.g., "bitcoin" not "BTC").
+   * This is the most reliable free fallback when Binance CCXT fails on cloud IPs.
+   */
+  private static readonly COINGECKO_IDS: Record<string, string> = {
+    BTC: 'bitcoin',
+    ETH: 'ethereum',
+    SOL: 'solana',
+    BNB: 'binancecoin',
+    XRP: 'ripple',
+    ADA: 'cardano',
+    DOGE: 'dogecoin',
+    DOT: 'polkadot',
+    MATIC: 'matic-network',
+    LTC: 'litecoin',
+    AVAX: 'avalanche-2',
+    LINK: 'chainlink',
+    UNI: 'uniswap',
+    ATOM: 'cosmos',
+    ETC: 'ethereum-classic',
+    XLM: 'stellar',
+    BCH: 'bitcoin-cash',
+    ALGO: 'algorand',
+    VET: 'vechain',
+    ICP: 'internet-computer',
+    FIL: 'filecoin',
+    TRX: 'tron',
+    NEAR: 'near',
+    FTM: 'fantom',
+    AAVE: 'aave',
+    SHIB: 'shiba-inu',
+    SUI: 'sui',
+    SEI: 'sei-network',
+    TIA: 'celestia',
+    INJ: 'injective-protocol',
+    STX: 'blockstack',
+    IMX: 'immutable-x',
+    RUNE: 'thorchain',
+    PEPE: 'pepe',
+    WIF: 'dogwifcoin',
+    ARB: 'arbitrum',
+    OP: 'optimism',
+  };
+
+  /**
+   * Fetch crypto quote from CoinGecko (completely free, no API key).
+   * This is the critical fallback when Binance CCXT fails on Railway/cloud.
+   *
+   * CoinGecko /simple/price endpoint:
+   * - Free tier: ~30 calls/minute
+   * - No API key required
+   * - Returns current price, 24h change, market cap, volume
+   */
+  private async _fetchCryptoQuote(symbol: string, base: string, quote: string): Promise<UnifiedQuoteDto> {
+    const coinId = FreeFallbackAdapter.COINGECKO_IDS[base];
+    if (!coinId) {
+      this.logger.warn(`No CoinGecko ID mapping for ${base}`);
+      throw new Error(`No CoinGecko mapping for ${base}`);
+    }
+
+    // Map quote currency to CoinGecko's vs_currency format
+    const vsCurrency = quote.toLowerCase() === 'usdt' ? 'usd' : quote.toLowerCase();
+
+    // Try CoinGecko /simple/price with 24h change data
+    try {
+      const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
+        params: {
+          ids: coinId,
+          vs_currencies: vsCurrency,
+          include_24hr_change: 'true',
+          include_24hr_vol: 'true',
+          include_market_cap: 'true',
+        },
+        timeout: 10000,
+      });
+
+      if (response.data && response.data[coinId]) {
+        const data = response.data[coinId];
+        const price = data[vsCurrency] ?? 0;
+
+        if (price > 0) {
+          const changePercent = data[`${vsCurrency}_24h_change`] ?? 0;
+          const change = price * (changePercent / 100);
+          const volume = data[`${vsCurrency}_24h_vol`] ?? 0;
+          const marketCap = data[`${vsCurrency}_market_cap`] ?? null;
+
+          const result: UnifiedQuoteDto = {
+            symbol,
+            name: `${base}/${quote}`,
+            exchange: 'CoinGecko',
+            currency: quote,
+            price,
+            change,
+            changePercent,
+            open: price - change, // Approximate
+            high: price * 1.01,   // Approximate
+            low: price * 0.99,    // Approximate
+            close: price,
+            volume,
+            marketCap,
+            fiftyTwoWeekHigh: null,
+            fiftyTwoWeekLow: null,
+            timestamp: new Date(),
+            source: 'CoinGecko',
+          };
+          await this._saveLastKnownPrice(symbol, result);
+          return result;
+        }
+      }
+    } catch (error: any) {
+      this.logger.warn(`CoinGecko failed for ${symbol}: ${error.message}`);
+    }
+
+    // Try Yahoo Finance as secondary fallback (works for major cryptos like BTC-USD)
+    try {
+      const yahooSymbol = `${base}-USD`;
+      const response = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}`, {
+        params: { range: '1d', interval: '1d' },
+        timeout: 10000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+        },
+      });
+
+      if (response.data?.chart?.result?.[0]?.meta) {
+        const meta = response.data.chart.result[0].meta;
+        const price = meta.regularMarketPrice ?? 0;
+        if (price > 0) {
+          const prevClose = meta.chartPreviousClose ?? meta.previousClose ?? price;
+          const change = price - prevClose;
+          const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
+          const result: UnifiedQuoteDto = {
+            symbol,
+            name: `${base}/${quote}`,
+            exchange: 'Yahoo Finance',
+            currency: quote,
+            price,
+            change,
+            changePercent,
+            open: meta.regularMarketDayOpen ?? price,
+            high: meta.regularMarketDayHigh ?? price,
+            low: meta.regularMarketDayLow ?? price,
+            close: price,
+            volume: meta.regularMarketVolume ?? 0,
+            marketCap: null,
+            fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh ?? null,
+            fiftyTwoWeekLow: meta.fiftyTwoWeekLow ?? null,
+            timestamp: new Date(meta.regularMarketTime * 1000 || Date.now()),
+            source: 'Yahoo Finance',
+          };
+          await this._saveLastKnownPrice(symbol, result);
+          return result;
+        }
+      }
+    } catch (error: any) {
+      this.logger.warn(`Yahoo Finance crypto failed for ${symbol}: ${error.message}`);
+    }
+
+    // Try last known price from cache
+    const lastKnown = await this._getLastKnownPrice(symbol);
+    if (lastKnown) {
+      this.logger.warn(`Returning cached price for crypto ${symbol}`);
+      return lastKnown;
+    }
+
+    throw new Error(`All free crypto sources failed for ${symbol}`);
   }
 
   // ── Private: Last Known Price Cache ──

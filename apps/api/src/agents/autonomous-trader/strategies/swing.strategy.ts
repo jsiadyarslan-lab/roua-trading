@@ -42,7 +42,7 @@ export class SwingStrategy extends BaseStrategy {
     super(params);
     this.holdingPeriodHours = params.swingHoldingPeriodHours ?? 48;
     this.minRiskRewardRatio = 1.5; // Swing requires good R:R (using ATR 2x/4x gives 2:1)
-    this.minConfidence = 40; // Lowered from 65 — was too strict, signals never reached this threshold
+    this.minConfidence = 30; // Lowered from 40 — was still too strict, signals in 30-40 range are valid
   }
 
   protected analyze(market: MarketAnalysis): StrategyAnalysis {
@@ -100,9 +100,8 @@ export class SwingStrategy extends BaseStrategy {
 
     const hasOpportunity =
       direction !== 'NEUTRAL' &&
-      strength >= 30 && // Lowered from 45 — was too strict, rarely reached
-      market.trend !== 'SIDEWAYS' &&
-      market.volatility !== 'EXTREME';
+      strength >= 20 && // Lowered from 30 — was too strict, rarely reached
+      market.volatility !== 'EXTREME'; // REMOVED SIDEWAYS check — swing can trade in mild sideways too
 
     return {
       hasOpportunity,

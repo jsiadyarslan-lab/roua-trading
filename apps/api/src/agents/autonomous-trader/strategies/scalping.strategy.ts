@@ -42,10 +42,8 @@ export class ScalpingStrategy extends BaseStrategy {
   constructor(params: any) {
     super(params);
     this.maxSpreadPips = params.scalpingMaxSpread ?? 3;
-    // Relaxed thresholds from 35/65 → 45/55 to allow more signals in typical markets
-    // Markets with RSI 45-55 are the most common — we must be able to trade in them
-    this.rsiOversold = 45;
-    this.rsiOverbought = 55;
+    this.rsiOversold = 50;  // Relaxed from 45 → 50: RSI below 50 = bearish momentum = buy dip opportunity
+    this.rsiOverbought = 50; // Relaxed from 55 → 50: RSI above 50 = bullish momentum = sell rally opportunity
   }
 
   protected analyze(market: MarketAnalysis): StrategyAnalysis {
@@ -63,10 +61,10 @@ export class ScalpingStrategy extends BaseStrategy {
     const bullishMACD = macd.crossover === 'BULLISH' || macd.histogram > 0;
     const bearishMACD = macd.crossover === 'BEARISH' || macd.histogram < 0;
 
-    // Check Bollinger Band position (relaxed from 0.2/0.8 → 0.35/0.65 for more signals)
-    // In typical markets, BB %B oscillates between 0.3-0.7, so we need wider thresholds
-    const nearLowerBand = bollingerBands.percentB < 0.35;
-    const nearUpperBand = bollingerBands.percentB > 0.65;
+    // Check Bollinger Band position (relaxed from 0.35/0.65 → 0.45/0.55 for more signals)
+    // In typical markets, BB %B oscillates between 0.3-0.7, so wider thresholds capture more
+    const nearLowerBand = bollingerBands.percentB < 0.45;
+    const nearUpperBand = bollingerBands.percentB > 0.55;
 
     // Check spread (using ATR as proxy — if ATR is very low relative to price, spread may be too wide)
     const spreadTooWide = atr > 0 && (atr / market.price) * 100 > 0.5;
@@ -98,11 +96,11 @@ export class ScalpingStrategy extends BaseStrategy {
       trendAlignment = bearishTrend;
     }
 
-    // Lowered strength threshold from 40 → 20 to allow more trades in typical markets
+    // Lowered strength threshold from 20 → 15 to allow more trades in typical markets
     // With 4 indicator checks, even 1-2 matches should be valid for scalping
     const hasOpportunity =
       direction !== 'NEUTRAL' &&
-      strength >= 20 &&
+      strength >= 15 &&
       !spreadTooWide &&
       market.volatility !== 'EXTREME';
 

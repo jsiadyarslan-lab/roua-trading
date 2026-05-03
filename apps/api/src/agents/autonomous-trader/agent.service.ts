@@ -857,6 +857,18 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     // Analyze markets for configured symbols
     const analyses = await this.marketAnalyzer.analyzeMultiple(state.config.symbols);
 
+    // CRITICAL FIX: If ALL market analyses failed, record the error in agent state
+    // so the user can see WHY no trades are executing in the UI
+    if (analyses.size === 0 && state.config.symbols.length > 0) {
+      state.lastError = `فشل جلب بيانات السوق لجميع الرموز (${state.config.symbols.join(', ')}). قد يكون هناك مشكلة في الاتصال بمنصة البيانات.`;
+      this.logger.error(
+        `🧠 Agent ${userId}: ALL ${state.config.symbols.length} market analyses FAILED. ` +
+        `Symbols: ${state.config.symbols.join(', ')}. Check ExchangeService adapters.`,
+      );
+      await this._saveAgentState(userId, state);
+      return;
+    }
+
     this.logger.log(
       `🧠 Agent ${userId} cycle #${state.totalCycles + 1}: ` +
       `analyzing ${analyses.size}/${state.config.symbols.length} symbols ` +

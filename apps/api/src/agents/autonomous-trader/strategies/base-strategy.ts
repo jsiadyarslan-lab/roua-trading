@@ -25,7 +25,7 @@ export abstract class BaseStrategy {
 
   protected params: StrategyParams;
   protected minRiskRewardRatio: number = 1.0; // Minimum R:R ratio (lowered from 1.2 to match risk calculator strategy-specific minimums)
-  protected minConfidence: number = 30; // Minimum confidence to generate signal (lowered from 40 — typical signals are 30-50 range)
+  protected minConfidence: number = 25; // Minimum confidence to generate signal (lowered from 30 — typical signals are 25-50 range)
 
   constructor(params: StrategyParams) {
     this.params = params;

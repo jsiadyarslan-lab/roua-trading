@@ -911,7 +911,7 @@ export class AIOrchestratorService {
     cooldownExpiresAt: string | null;
     cooldownRemainingMs: number;
   }> {
-    const models = ['groq', 'glm', 'gemini', 'huggingface', 'ollama', 'bedrock', 'openrouter'];
+    const models = ['groq', 'glm', 'gemini', 'huggingface', 'ollama', 'bedrock', 'openrouter', 'deepseek'];
     const now = Date.now();
 
     return models.map(model => {

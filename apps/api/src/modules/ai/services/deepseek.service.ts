@@ -134,6 +134,54 @@ export class DeepSeekService {
       }
     }
 
+    // FIX: DeepSeek direct API failed — try DeepSeek via OpenRouter as fallback
+    // This ensures DeepSeek still works even when balance is exhausted on direct API
+    const env = process.env as Record<string, string | undefined>;
+    const orApiKey = this.configService.get<string>('OPENROUTER_API_KEY', '')?.trim() || env['OPENROUTER_API_KEY']?.trim() || '';
+    if (orApiKey) {
+      try {
+        this.logger.log(`🔬 DeepSeek direct failed — trying OpenRouter fallback`);
+        const orResponse = await withExponentialBackoff(
+          () => axios.post(
+            'https://openrouter.ai/api/v1/chat/completions',
+            {
+              model: 'deepseek/deepseek-chat-v3-0324:free',
+              messages: [
+                { role: 'system', content: request.language === 'ar' ? 'أنت محلل مالي ذكي. أجب بالعربية باختصار. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' : 'You are a smart financial analyst. Be concise. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+                { role: 'user', content: request.prompt },
+              ],
+              temperature: 0.3,
+              max_tokens: 1024,
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${orApiKey}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://roua-trading-production.up.railway.app',
+                'X-Title': 'Roua Trading AI',
+              },
+              timeout: 30000,
+            },
+          ),
+          { maxAttempts: 1, baseDelayMs: 500 },
+        );
+
+        const orContent = orResponse.data?.choices?.[0]?.message?.content || '';
+        if (orContent.trim().length > 0) {
+          this.logger.log(`🔬 DeepSeek via OpenRouter fallback succeeded`);
+          return {
+            model: 'DeepSeek/OpenRouter-V3',
+            content: orContent,
+            confidence: calculateConfidence(orContent, 'deepseek'),
+            processingTimeMs: Date.now() - start,
+            language: request.language || 'ar',
+          };
+        }
+      } catch (orError: any) {
+        this.logger.warn(`🔬 DeepSeek OpenRouter fallback also failed: ${orError.message}`);
+      }
+    }
+
     return {
       model: 'DeepSeek/Stub',
       content: '',

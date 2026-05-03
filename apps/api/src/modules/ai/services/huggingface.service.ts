@@ -334,7 +334,7 @@ export class HuggingFaceService {
       'TinyLlama/TinyLlama-1.1B-Chat-v1.0', // Tiny — last resort
     ];
 
-    const TOTAL_TIMEOUT = 45_000; // FIX: Increased total timeout — cold models need time
+    const TOTAL_TIMEOUT = 65_000; // FIX: Increased total timeout — cold models need 50+ seconds to load
     const deadline = Date.now() + TOTAL_TIMEOUT;
 
     for (const model of models) {

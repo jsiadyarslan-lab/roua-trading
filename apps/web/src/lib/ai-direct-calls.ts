@@ -636,7 +636,7 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
   }
 
   const start = Date.now()
-  const TOTAL_HF_TIMEOUT = 40_000 // FIX: Increased from 25s to 40s — cold models need more time to load
+  const TOTAL_HF_TIMEOUT = 65_000 // FIX: Increased from 40s to 65s — cold models on HF can take 50+ seconds to load
   const deadline = Date.now() + TOTAL_HF_TIMEOUT
   const systemMsg = 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير أنماط مالي. كن موجزاً ومبنياً على البيانات. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
 
@@ -646,10 +646,11 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
   // "Inference Providers" permission which most tokens don't have.
   if (hfApiKey) {
     const classicModels = [
-      'mistralai/Mistral-7B-Instruct-v0.3',
-      'Qwen/Qwen2.5-7B-Instruct',
-      'HuggingFaceH4/zephyr-7b-beta',
-      'microsoft/Phi-3-mini-4k-instruct',
+      'Qwen/Qwen2.5-7B-Instruct',            // Best Arabic support — try first
+      'microsoft/Phi-3-mini-4k-instruct',     // Lightweight — almost always warm
+      'mistralai/Mistral-7B-Instruct-v0.3',   // Fast, multilingual
+      'HuggingFaceH4/zephyr-7b-beta',         // Chat-optimized
+      'google/gemma-2b-it',                   // Very small — always warm (last resort)
     ]
     for (const model of classicModels) {
       if (Date.now() > deadline) break // Total timeout check
@@ -1029,7 +1030,43 @@ async function callDeepSeek(prompt: string): Promise<DirectAIResponse> {
     }
   }
 
-  return { model: 'DeepSeek/deepseek-chat', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: 'All DeepSeek models failed' }
+  // FIX: DeepSeek direct API failed — try DeepSeek via OpenRouter as fallback
+  // OpenRouter offers deepseek-chat-v3-0324:free which doesn't require DeepSeek balance
+  const orApiKey = getKey('OPENROUTER_API_KEY')
+  if (orApiKey) {
+    try {
+      const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${orApiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://roua-trading-production.up.railway.app',
+          'X-Title': 'Roua Trading AI',
+        },
+        body: JSON.stringify({
+          model: 'deepseek/deepseek-chat-v3-0324:free',
+          messages: [
+            { role: 'system', content: systemMsg },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.3,
+          max_tokens: 1024,
+        }),
+        signal: AbortSignal.timeout(25_000),
+      })
+      if (orRes.ok) {
+        const orData = await orRes.json()
+        const orContent = orData.choices?.[0]?.message?.content || ''
+        if (orContent.trim().length > 0) {
+          return { model: 'DeepSeek/OpenRouter-V3', content: orContent, confidence: calcConfidence(orContent, 'deepseek'), processingTimeMs: Date.now() - start, success: true }
+        }
+      }
+    } catch {
+      // OpenRouter fallback also failed
+    }
+  }
+
+  return { model: 'DeepSeek/deepseek-chat', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: 'All DeepSeek models failed (direct + OpenRouter fallback)' }
 }
 
 /**
@@ -1131,9 +1168,14 @@ async function callBedrock(prompt: string): Promise<DirectAIResponse> {
             console.warn(`[Bedrock] Model ${modelId} validation error — model may not be enabled in AWS console. Enable it at: https://console.aws.amazon.com/bedrock/ → Model Access`)
           } else if (errBody.includes('not authorized')) {
             console.warn(`[Bedrock] IAM not authorized for ${modelId} — add bedrock:InvokeModel permission to your IAM role`)
+          } else if (errBody.includes('SignatureDoesNotMatch') || errBody.includes('signature')) {
+            console.warn(`[Bedrock] SigV4 signing error for ${modelId} — this is a code bug. Falling back to NestJS Layer 1 which uses official AWS SDK.`)
           }
         }
-        if (res.status === 403 || res.status === 404) continue
+        if (res.status === 400) {
+          console.warn(`[Bedrock] Model ${modelId} bad request — model may not be available in region ${region} or request format is wrong`)
+        }
+        if (res.status === 403 || res.status === 404 || res.status === 400) continue
         // 429 = throttled, try next
         if (res.status === 429) continue
         // For other errors, also try next model

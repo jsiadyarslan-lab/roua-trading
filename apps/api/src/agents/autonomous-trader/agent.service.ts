@@ -1081,11 +1081,12 @@ export class AutonomousTraderAgentService implements OnModuleInit {
   }
 
   private async _getActiveAgents(): Promise<string[]> {
-    try {
-      // Use the public scanKeys method (safe, no private property access)
-      const keys = await this.redis.scanKeys('agent:state:*');
+    const activeUsers: string[] = [];
+    const seenUserIds = new Set<string>();
 
-      const activeUsers: string[] = [];
+    // Step 1: Check Redis for active agent states
+    try {
+      const keys = await this.redis.scanKeys('agent:state:*');
 
       for (const key of keys) {
         try {
@@ -1095,17 +1096,43 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             if (state.status === AgentStatus.RUNNING) {
               const userId = key.replace('agent:state:', '');
               activeUsers.push(userId);
+              seenUserIds.add(userId);
             }
           }
         } catch {
           // Skip invalid entries
         }
       }
-
-      return activeUsers;
     } catch {
-      return [];
+      // Redis scan failed — fall through to DB check
     }
+
+    // Step 2: CRITICAL FIX — Also check DB for running agent sessions
+    // This is essential because Redis can lose data on restart (common on Railway),
+    // which would cause the cron to find NO active agents and skip all cycles.
+    // The DB is the source of truth for agent session persistence.
+    try {
+      const dbSessions = await this.prisma.agentSession.findMany({
+        where: { status: { in: ['RUNNING', 'PAUSED', 'DAILY_LIMIT_REACHED'] } },
+        orderBy: { startedAt: 'desc' },
+      });
+
+      for (const session of dbSessions) {
+        if (!seenUserIds.has(session.userId)) {
+          // This agent is in DB but not in Redis — Redis likely lost it
+          activeUsers.push(session.userId);
+          seenUserIds.add(session.userId);
+          this.logger.warn(
+            `🧠 Agent for user ${session.userId} found in DB but NOT in Redis — ` +
+            `likely lost after Redis restart. Will recover on next cycle.`
+          );
+        }
+      }
+    } catch (dbError: any) {
+      this.logger.error(`Failed to check DB for active agents: ${dbError.message}`);
+    }
+
+    return activeUsers;
   }
 
   private _resetDailyStatsIfNeeded(state: AgentState): void {

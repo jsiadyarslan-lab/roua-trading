@@ -62,8 +62,8 @@ export class VWAPRSIStrategy extends BaseStrategy {
     this.rsiBuyMax = params.vwapRsiBuyMax ?? 70;
     this.rsiSellMin = params.vwapRsiSellMin ?? 30;
     this.rsiSellMax = params.vwapRsiSellMax ?? 50;
-    this.minRiskRewardRatio = 1.3; // Balanced R:R for intraday
-    this.minConfidence = 35;
+    this.minRiskRewardRatio = 1.0; // Lowered from 1.3 — to match risk calculator strategy-specific minimum
+    this.minConfidence = 30; // Lowered from 35 — to allow more VWAP+RSI signals
   }
 
   protected analyze(market: MarketAnalysis): StrategyAnalysis {

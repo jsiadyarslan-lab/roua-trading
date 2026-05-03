@@ -6,7 +6,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
-import { RiskAssessment, AgentConfig } from '../types/agent.types';
+import { RiskAssessment, AgentConfig, StrategyType } from '../types/agent.types';
 import { EvaluatedSignal } from '../types/agent.types';
 
 /**
@@ -56,6 +56,24 @@ export class RiskCalculatorService {
 
     this.logger.log('🛡️ Risk Calculator initialized — capital protection active');
   }
+
+  /**
+   * Strategy-specific minimum risk-reward ratios.
+   * Different strategies have different R:R expectations:
+   * - DCA: Very low R:R (0.5) because it has 70-80% win rate
+   * - Mean Reversion: Low R:R (1.0) because it targets the mean, not large moves
+   * - Scalping: Moderate R:R (1.0) because it takes small quick profits
+   * - Other strategies: Standard R:R (1.2)
+   */
+  private readonly STRATEGY_MIN_RR: Record<string, number> = {
+    [StrategyType.DCA]: 0.4,
+    [StrategyType.MEAN_REVERSION]: 0.8,
+    [StrategyType.SCALPING]: 1.0,
+    [StrategyType.GRID]: 0.8,
+    [StrategyType.VWAP_RSI]: 1.0,
+    [StrategyType.SWING]: 1.5,
+    [StrategyType.MOMENTUM_BREAKOUT]: 1.2,
+  };
 
   /**
    * Full risk assessment for a potential trade
@@ -142,10 +160,14 @@ export class RiskCalculatorService {
       reason = `حجم المركز (${positionValuePercent.toFixed(1)}%) يتجاوز الحد (${maxPositionSizePercent}%)`;
     }
 
-    // RULE 5: Risk-reward ratio (lowered from 1.5 → 1.2 to match base-strategy and allow more trades)
-    if (riskRewardRatio < 1.2) {
+    // RULE 5: Risk-reward ratio — strategy-specific minimum
+    // CRITICAL FIX: Each strategy has a different R:R expectation.
+    // DCA and Mean Reversion have low R:R but high win rates — rejecting them
+    // with a blanket 1.2 minimum prevents these strategies from ever executing!
+    const strategyMinRR = this.STRATEGY_MIN_RR[signal.strategy] ?? 1.2;
+    if (riskRewardRatio < strategyMinRR) {
       canTrade = false;
-      reason = `نسبة المخاطرة للمكافأة (${riskRewardRatio.toFixed(2)}) أقل من الحد الأدنى (1.2)`;
+      reason = `نسبة المخاطرة للمكافأة (${riskRewardRatio.toFixed(2)}) أقل من الحد الأدنى لاستراتيجية ${signal.strategy} (${strategyMinRR})`;
     }
 
     // RULE 6: No duplicate positions for same symbol

@@ -164,15 +164,15 @@ export class DCAStrategy extends BaseStrategy {
     const sizeMultiplier = (analysis.metadata?.sizeMultiplier as number) || 1.0;
 
     if (side === OrderSide.BUY) {
-      // DCA BUY: SL below recent support, TP at EMA21 (mean)
+      // DCA BUY: SL below recent support, TP based on ATR (not just EMA21)
+      // CRITICAL FIX: When price > EMA21, targeting EMA21 gives a NEGATIVE reward!
+      // Instead, always use ATR-based TP which guarantees positive R:R
       const stopLoss = market.price - market.atr * 2.5; // Wide SL — DCA is long-term
-      const takeProfit = market.ema.ema21 > market.price
-        ? market.ema.ema21 // Target the mean if below it
-        : market.price + market.atr * 2.0; // Otherwise modest TP
+      const takeProfit = market.price + market.atr * 2.0; // ATR-based TP — always positive reward
 
       const risk = Math.abs(market.price - stopLoss);
       const reward = Math.abs(takeProfit - market.price);
-      const riskRewardRatio = risk > 0 ? reward / risk : 0.5;
+      const riskRewardRatio = risk > 0 ? reward / risk : 0.8; // Default 0.8 if calculation fails
 
       return {
         symbol: market.symbol,

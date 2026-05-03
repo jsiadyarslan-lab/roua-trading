@@ -58,8 +58,8 @@ export class MeanReversionStrategy extends BaseStrategy {
     this.bbLowerThreshold = params.meanReversionBbLower ?? 0.15;
     this.bbUpperThreshold = params.meanReversionBbUpper ?? 0.85;
     this.deviationMultiplier = params.meanReversionDeviation ?? 1.5;
-    this.minRiskRewardRatio = 1.0; // Mean reversion has lower R:R but high win rate
-    this.minConfidence = 35; // Can work with moderate confidence
+    this.minRiskRewardRatio = 1.0; // Mean reversion: ATR-based TP gives R:R >= 1.25
+    this.minConfidence = 30; // Can work with moderate confidence
   }
 
   protected analyze(market: MarketAnalysis): StrategyAnalysis {
@@ -148,18 +148,16 @@ export class MeanReversionStrategy extends BaseStrategy {
     const side = analysis.direction as OrderSide;
 
     // SL: 2x ATR from entry (wider than trend-following to survive continued deviation)
-    // TP: At the mean (EMA21) — the expected reversion target
-    const stopLoss = side === OrderSide.BUY
-      ? market.price - market.atr * 2.0
-      : market.price + market.atr * 2.0;
-
-    const takeProfit = side === OrderSide.BUY
-      ? Math.min(market.ema.ema21, market.bollingerBands.middle) // Target the mean
-      : Math.max(market.ema.ema21, market.bollingerBands.middle);
-
-    const risk = Math.abs(market.price - stopLoss);
-    const reward = Math.abs(takeProfit - market.price);
-    const riskRewardRatio = risk > 0 ? reward / risk : 0;
+    // TP: Use ATR-based calculation instead of EMA21/BB middle
+    // CRITICAL FIX: Targeting EMA21/BB middle often produces R:R < 1.0 because
+    // the mean is too close to current price. Using ATR ensures consistent R:R >= 1.0
+    const { stopLoss, takeProfit, riskRewardRatio } = this.calculateLevels(
+      market.price,
+      side as any,
+      market.atr,
+      2.0, // SL: 2x ATR (wider to survive continued deviation)
+      2.5, // TP: 2.5x ATR (gives R:R of 1.25 — above both strategy and risk calculator minimums)
+    );
 
     const confidence = this.calculateConfidence({
       trendAlignment: false,

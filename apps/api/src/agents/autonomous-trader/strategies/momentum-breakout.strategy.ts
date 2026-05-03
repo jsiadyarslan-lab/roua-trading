@@ -50,8 +50,8 @@ export class MomentumBreakoutStrategy extends BaseStrategy {
 
   constructor(params: any) {
     super(params);
-    this.minRiskRewardRatio = 1.5; // Breakout needs good R:R to compensate for lower win rate
-    this.minConfidence = 40;
+    this.minRiskRewardRatio = 1.2; // Breakout needs good R:R (ATR 1.5x/3x gives 2:1)
+    this.minConfidence = 30; // Lowered from 40 — to allow more breakout signals
   }
 
   protected analyze(market: MarketAnalysis): StrategyAnalysis {
@@ -106,7 +106,7 @@ export class MomentumBreakoutStrategy extends BaseStrategy {
 
     const hasOpportunity =
       direction !== 'NEUTRAL' &&
-      strength >= 35 &&
+      strength >= 25 && // Lowered from 35 — to allow more breakout signals
       market.volatility !== 'EXTREME' && // Avoid trading during extreme chaos
       atr > 0;
 

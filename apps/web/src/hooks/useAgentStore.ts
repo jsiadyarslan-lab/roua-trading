@@ -307,6 +307,14 @@ export const useAgentStore = create<AgentStore>()(
               if (!selectedCredentialId && validCreds.length > 0) {
                 set({ selectedCredentialId: validCreds[0].id })
               }
+              // Clear stale credential if it's no longer in the valid list
+              const currentId = get().selectedCredentialId
+              if (currentId) {
+                const stillValid = validCreds.some((c: any) => c.id === currentId)
+                if (!stillValid) {
+                  set({ selectedCredentialId: '' })
+                }
+              }
             }
           }
         } catch {
@@ -397,16 +405,31 @@ export const useAgentStore = create<AgentStore>()(
               msg = msg.join('; ')
             }
             if (typeof msg === 'string') {
-              if (msg.includes('credentialId') || msg.includes('should not be empty')) {
-                msg = 'يرجى ربط مفتاح API أولاً من إعدادات المحفظة'
-              } else if (msg.includes('not valid') || msg.includes('غير صالحة') || msg.includes('not found') || msg.includes('غير موجودة')) {
-                msg = 'مفتاح API غير صالح أو منتهي الصلاحية — تحقق من إعدادات المحفظة'
-              } else if (msg.includes('already running') || msg.includes('يعمل بالفعل')) {
-                msg = 'الوكيل يعمل بالفعل — أوقفه أولاً ثم أعد تشغيله'
-              } else if (msg.includes('trade permission') || msg.includes('صلاحية التداول')) {
-                msg = 'مفتاح API لا يملك صلاحية التداول — تحقق من إعدادات البورصة'
-              } else if (msg.includes('must be one of') || msg.includes('strategy')) {
-                msg = 'استراتيجية غير صالحة — يرجى اختيار سكالبينغ، سوينغ، أو شبكة'
+              // Only map to API key errors when user actually has a credential selected
+              if (isPaperMode) {
+                // Paper trading mode — don't show API key errors
+                if (msg.includes('credentialId') || msg.includes('should not be empty')) {
+                  msg = 'فشل تفعيل وضع التداول الورقي — يرجى المحاولة لاحقاً'
+                } else if (msg.includes('already running') || msg.includes('يعمل بالفعل')) {
+                  msg = 'الوكيل يعمل بالفعل — أوقفه أولاً ثم أعد تشغيله'
+                }
+                // For all other errors in paper mode, don't map to API key error
+                if (msg.includes('not valid') || msg.includes('غير صالحة') || msg.includes('not found') || msg.includes('غير موجودة')) {
+                  msg = 'فشل تفعيل وكيل التداول — يرجى المحاولة لاحقاً'
+                }
+              } else {
+                // Real credential mode — show API key errors
+                if (msg.includes('credentialId') || msg.includes('should not be empty')) {
+                  msg = 'يرجى ربط مفتاح API أولاً من إعدادات المحفظة'
+                } else if (msg.includes('not valid') || msg.includes('غير صالحة') || msg.includes('not found') || msg.includes('غير موجودة')) {
+                  msg = 'مفتاح API غير صالح أو منتهي الصلاحية — تحقق من إعدادات المحفظة'
+                } else if (msg.includes('already running') || msg.includes('يعمل بالفعل')) {
+                  msg = 'الوكيل يعمل بالفعل — أوقفه أولاً ثم أعد تشغيله'
+                } else if (msg.includes('trade permission') || msg.includes('صلاحية التداول')) {
+                  msg = 'مفتاح API لا يملك صلاحية التداول — تحقق من إعدادات البورصة'
+                } else if (msg.includes('must be one of') || msg.includes('strategy')) {
+                  msg = 'استراتيجية غير صالحة — يرجى اختيار سكالبينغ، سوينغ، أو شبكة'
+                }
               }
             }
             set({ error: String(msg), loading: false })

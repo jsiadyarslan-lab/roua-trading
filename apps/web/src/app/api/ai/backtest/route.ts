@@ -12,9 +12,25 @@ export async function POST(req: Request) {
     }
 
     // 2. Database Connection - Connect backtest to actual trading history in DB
-    // To make this rooted in the DB data, we check how many trades exist for this pair
+    // DATA ISOLATION: Only count the authenticated user's trades for this pair,
+    // not all users' trades (which would leak aggregate trading volume info).
+    // Resolve userId from session cookie
+    let userId: string | undefined
+    try {
+      const sessionToken = (req as any).cookies?.get?.('roua_session')?.value
+      if (sessionToken) {
+        const session = await db.session.findUnique({
+          where: { token: sessionToken },
+          select: { userId: true, expiresAt: true },
+        })
+        if (session && session.expiresAt > new Date()) {
+          userId = session.userId
+        }
+      }
+    } catch { /* non-critical */ }
+
     const tradeCount = await db.trade.count({
-      where: { symbol: pair }
+      where: { symbol: pair, ...(userId ? { userId } : {}) }
     }).catch(() => 0) // fallback if no table or error
 
     // 3. Simulate Backtesting Logic based on parameters

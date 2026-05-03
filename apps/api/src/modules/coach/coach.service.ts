@@ -159,10 +159,12 @@ ${contextSummary}
     const contextSummary = this.buildContextSummary(stats, trades.slice(0, 10), closedPositions.slice(0, 10));
 
     // Get previous advice if provided
+    // DATA ISOLATION: Use findFirst with userId to prevent IDOR —
+    // users must not access other users' advice via contextAdviceId
     let previousAdvice = '';
     if (contextAdviceId) {
-      const prev = await this.prisma.coachAdvice.findUnique({
-        where: { id: contextAdviceId },
+      const prev = await this.prisma.coachAdvice.findFirst({
+        where: { id: contextAdviceId, userId },
       });
       if (prev) {
         previousAdvice = `\n\nنصيحة سابقة من المُدرّب:\n${prev.adviceText}`;

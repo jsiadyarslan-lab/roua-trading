@@ -53,13 +53,13 @@ export class MeanReversionStrategy extends BaseStrategy {
 
   constructor(params: any) {
     super(params);
-    this.rsiOversold = params.meanReversionRsiOversold ?? 30;
-    this.rsiOverbought = params.meanReversionRsiOverbought ?? 70;
-    this.bbLowerThreshold = params.meanReversionBbLower ?? 0.15;
-    this.bbUpperThreshold = params.meanReversionBbUpper ?? 0.85;
-    this.deviationMultiplier = params.meanReversionDeviation ?? 1.5;
+    this.rsiOversold = params.meanReversionRsiOversold ?? 35;   // FIX: Lowered from 30 to 35 — RSI < 30 is too rare, missing valid reversion opportunities
+    this.rsiOverbought = params.meanReversionRsiOverbought ?? 65; // FIX: Raised from 70 to 65 — RSI > 70 is too rare, missing valid reversion opportunities
+    this.bbLowerThreshold = params.meanReversionBbLower ?? 0.20;  // FIX: Raised from 0.15 to 0.20 — percentB < 0.15 is extremely rare
+    this.bbUpperThreshold = params.meanReversionBbUpper ?? 0.80;  // FIX: Lowered from 0.85 to 0.80 — percentB > 0.85 is extremely rare
+    this.deviationMultiplier = params.meanReversionDeviation ?? 1.2; // FIX: Lowered from 1.5 to 1.2 — 1.5σ deviation is too strict for typical markets
     this.minRiskRewardRatio = 1.0; // Mean reversion: ATR-based TP gives R:R >= 1.25
-    this.minConfidence = 30; // Can work with moderate confidence
+    this.minConfidence = 25; // FIX: Lowered from 30 — many valid reversion signals score 25-35
   }
 
   protected analyze(market: MarketAnalysis): StrategyAnalysis {
@@ -111,7 +111,7 @@ export class MeanReversionStrategy extends BaseStrategy {
     // Mean reversion works best in non-extreme volatility
     const hasOpportunity =
       direction !== 'NEUTRAL' &&
-      strength >= 30 &&
+      strength >= 25 && // FIX: Lowered from 30 to 25 — was too strict, single-indicator confirmations (RSI only) scored 20-25
       market.volatility !== 'EXTREME' &&
       atr > 0;
 

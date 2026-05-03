@@ -439,7 +439,7 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
   ): Promise<UnifiedCandleDto[]> {
     const [base, quote] = symbol.includes('/') ? symbol.split('/') : [symbol, 'USD'];
 
-    // ── Crypto: CoinGecko OHLC data ──
+    // ── Crypto: Multiple free sources ──
     const cryptoBases = new Set([
       'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'LTC',
       'AVAX', 'LINK', 'UNI', 'ATOM', 'ETC', 'XLM', 'BCH', 'ALGO', 'VET', 'ICP',
@@ -449,11 +449,62 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
     const cryptoQuotes = new Set(['USDT', 'USD', 'BUSD', 'USDC', 'DAI', 'TUSD']);
     if (cryptoBases.has(base) && cryptoQuotes.has(quote)) {
       const coinId = FreeFallbackAdapter.COINGECKO_IDS[base];
-      if (coinId) {
-        const vsCurrency = quote.toLowerCase() === 'usdt' ? 'usd' : quote.toLowerCase();
-        const days = Math.max(1, Math.min(90, Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000))));
+      const coincapId = FreeFallbackAdapter.COINCAP_IDS[base];
+      const vsCurrency = quote.toLowerCase() === 'usdt' ? 'usd' : quote.toLowerCase();
+      const days = Math.max(1, Math.min(90, Math.ceil((end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000))));
 
-        // ── Approach 1: CoinGecko /coins/{id}/ohlc — returns real OHLC data ──
+      // ── Approach 0: Binance direct public klines API (no API key, no CCXT) ──
+      // FIX: Added as the first historical data source for crypto because:
+      // 1. Returns real OHLCV data (not flat/estimated)
+      // 2. No API key required
+      // 3. Works when CCXT fails (no market loading overhead)
+      // 4. High granularity (1h candles) for accurate indicator calculation
+      try {
+        const binanceSymbol = `${base}${quote === 'USDT' ? 'USDT' : quote}`;
+        const intervalMap: Record<string, string> = {
+          '1min': '1m', '5min': '5m', '15min': '15m', '30min': '30m',
+          '1h': '1h', '2h': '2h', '4h': '4h', '1day': '1d', '1week': '1w',
+        };
+        const binanceInterval = intervalMap[interval] || '1h';
+        const response = await axios.get('https://api.binance.com/api/v3/klines', {
+          params: {
+            symbol: binanceSymbol,
+            interval: binanceInterval,
+            startTime: start.getTime(),
+            endTime: end.getTime(),
+            limit: 1000,
+          },
+          timeout: 15000,
+        });
+
+        if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+          const candles: UnifiedCandleDto[] = [];
+          for (const kline of response.data) {
+            const candle: UnifiedCandleDto = {
+              symbol,
+              timestamp: new Date(kline[0]),
+              open: parseFloat(kline[1]),
+              high: parseFloat(kline[2]),
+              low: parseFloat(kline[3]),
+              close: parseFloat(kline[4]),
+              volume: parseFloat(kline[5]),
+              source: 'Binance (direct)',
+            };
+            if (candle.close > 0) {
+              candles.push(candle);
+            }
+          }
+          if (candles.length > 0) {
+            this.logger.log(`Binance direct klines: ${candles.length} candles for ${symbol} (real OHLCV)`);
+            return candles;
+          }
+        }
+      } catch (error: any) {
+        this.logger.warn(`Binance direct klines failed for ${symbol}: ${error.message}`);
+      }
+
+      // ── Approach 1: CoinGecko /coins/{id}/ohlc — returns real OHLC data ──
+      if (coinId) {
         // Returns [timestamp, open, high, low, close] arrays
         // Free tier, no API key. Granularity: 30min (1d), 4h (7-90d), 4h (180-365d)
         try {
@@ -606,7 +657,89 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
         } catch (error: any) {
           this.logger.warn(`CoinGecko market_chart aggregation failed for ${symbol}: ${error.message}`);
         }
-      }
+      } // end if (coinId)
+
+      // ── Approach 3: CoinCap historical data (free, no API key) ──
+      // FIX: Added CoinCap as additional historical data source.
+      // CoinCap returns candle data with proper OHLCV values.
+      if (coincapId) {
+        try {
+          // CoinCap interval format: m1, m5, m15, m30, h1, h2, h6, h12, d1
+          const coincapIntervalMap: Record<string, string> = {
+            '1min': 'm1', '5min': 'm5', '15min': 'm15', '30min': 'm30',
+            '1h': 'h1', '2h': 'h2', '4h': 'h6', '1day': 'd1',
+          };
+          const coincapInterval = coincapIntervalMap[interval] || 'h1';
+          const response = await axios.get(`https://api.coincap.io/v2/assets/${coincapId}/history`, {
+            params: {
+              interval: coincapInterval,
+              start: start.getTime(),
+              end: end.getTime(),
+            },
+            timeout: 15000,
+          });
+
+          if (response.data?.data && Array.isArray(response.data.data) && response.data.data.length > 0) {
+            // CoinCap returns {priceUsd, time, circulatingSupply} per point
+            // We need to aggregate into OHLCV candles
+            const points = response.data.data;
+            const candleMap = new Map<string, { open: number; close: number; high: number; low: number; volume: number; ts: number }>();
+
+            for (const point of points) {
+              const price = parseFloat(point.priceUsd ?? '0');
+              if (price <= 0) continue;
+
+              const dt = new Date(point.time);
+              // Key by hour for h1 interval, by day for d1
+              let candleKey: string;
+              if (coincapInterval.startsWith('m') || coincapInterval === 'h1' || coincapInterval === 'h2') {
+                candleKey = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}T${String(dt.getUTCHours()).padStart(2, '0')}:00:00Z`;
+              } else {
+                candleKey = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}T00:00:00Z`;
+              }
+
+              const existing = candleMap.get(candleKey);
+              if (!existing) {
+                candleMap.set(candleKey, {
+                  open: price,
+                  close: price,
+                  high: price,
+                  low: price,
+                  volume: 0,
+                  ts: point.time,
+                });
+              } else {
+                existing.close = price;
+                existing.high = Math.max(existing.high, price);
+                existing.low = Math.min(existing.low, price);
+              }
+            }
+
+            const candles: UnifiedCandleDto[] = [];
+            for (const [candleKey, data] of candleMap) {
+              candles.push({
+                symbol,
+                timestamp: new Date(candleKey),
+                open: data.open,
+                high: data.high,
+                low: data.low,
+                close: data.close,
+                volume: data.volume,
+                source: 'CoinCap',
+              });
+            }
+
+            candles.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+
+            if (candles.length > 0) {
+              this.logger.log(`CoinCap history: ${candles.length} candles for ${symbol}`);
+              return candles;
+            }
+          }
+        } catch (error: any) {
+          this.logger.warn(`CoinCap history failed for ${symbol}: ${error.message}`);
+        }
+      } // end if (coincapId)
     }
 
     // ── Forex: Frankfurter supports historical forex rates ──
@@ -655,7 +788,7 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
     return [];
   }
 
-  // ── Private: Crypto via CoinGecko (FREE, no API key) ──
+  // ── Private: Crypto ID Mappings (FREE, no API key) ──
 
   /**
    * CoinGecko free API coin ID mapping.
@@ -703,75 +836,221 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
   };
 
   /**
-   * Fetch crypto quote from CoinGecko (completely free, no API key).
-   * This is the critical fallback when Binance CCXT fails on Railway/cloud.
+   * CoinCap API coin ID mapping.
+   * CoinCap uses lowercase IDs similar to CoinGecko but sometimes different.
+   * Completely free, no API key, generous rate limits.
+   * FIX: Added as a second free source when CoinGecko is rate-limited.
+   */
+  private static readonly COINCAP_IDS: Record<string, string> = {
+    BTC: 'bitcoin',
+    ETH: 'ethereum',
+    SOL: 'solana',
+    BNB: 'binance-coin',
+    XRP: 'xrp',
+    ADA: 'cardano',
+    DOGE: 'dogecoin',
+    DOT: 'polkadot',
+    MATIC: 'polygon',
+    LTC: 'litecoin',
+    AVAX: 'avalanche',
+    LINK: 'chainlink',
+    UNI: 'uniswap',
+    ATOM: 'cosmos',
+    ETC: 'ethereum-classic',
+    XLM: 'stellar',
+    BCH: 'bitcoin-cash',
+    ALGO: 'algorand',
+    VET: 'vechain',
+    ICP: 'internet-computer',
+    FIL: 'filecoin',
+    TRX: 'tron',
+    NEAR: 'near-protocol',
+    FTM: 'fantom',
+    AAVE: 'aave',
+    SHIB: 'shiba-inu',
+    SUI: 'sui',
+    SEI: 'sei-network',
+    TIA: 'celestia',
+    INJ: 'injective-protocol',
+    STX: 'blockstack',
+    IMX: 'immutable-x',
+    RUNE: 'thorchain',
+    PEPE: 'pepe',
+    WIF: 'dogwifcoin',
+    ARB: 'arbitrum',
+    OP: 'optimism',
+  };
+
+  /**
+   * Fetch crypto quote from multiple free sources (no API key required).
+   * Fallback chain: CoinGecko → CoinCap → Binance direct API → Yahoo Finance → cache
    *
-   * CoinGecko /simple/price endpoint:
-   * - Free tier: ~30 calls/minute
-   * - No API key required
-   * - Returns current price, 24h change, market cap, volume
+   * FIX: Added CoinCap and Binance direct API as additional free sources.
+   * CoinGecko rate-limits aggressively (429), and Yahoo Finance blocks cloud IPs.
+   * Having more sources ensures crypto data is ALWAYS available.
    */
   private async _fetchCryptoQuote(symbol: string, base: string, quote: string): Promise<UnifiedQuoteDto> {
     const coinId = FreeFallbackAdapter.COINGECKO_IDS[base];
-    if (!coinId) {
-      this.logger.warn(`No CoinGecko ID mapping for ${base}`);
-      throw new Error(`No CoinGecko mapping for ${base}`);
-    }
+    const coincapId = FreeFallbackAdapter.COINCAP_IDS[base];
 
     // Map quote currency to CoinGecko's vs_currency format
     const vsCurrency = quote.toLowerCase() === 'usdt' ? 'usd' : quote.toLowerCase();
 
-    // Try CoinGecko /simple/price with 24h change data
+    // ── Source 1: CoinGecko /simple/price ──
+    if (coinId) {
+      try {
+        const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
+          params: {
+            ids: coinId,
+            vs_currencies: vsCurrency,
+            include_24hr_change: 'true',
+            include_24hr_vol: 'true',
+            include_market_cap: 'true',
+          },
+          timeout: 10000,
+        });
+
+        if (response.data && response.data[coinId]) {
+          const data = response.data[coinId];
+          const price = data[vsCurrency] ?? 0;
+
+          if (price > 0) {
+            const changePercent = data[`${vsCurrency}_24h_change`] ?? 0;
+            const change = price * (changePercent / 100);
+            const volume = data[`${vsCurrency}_24h_vol`] ?? 0;
+            const marketCap = data[`${vsCurrency}_market_cap`] ?? null;
+
+            const result: UnifiedQuoteDto = {
+              symbol,
+              name: `${base}/${quote}`,
+              exchange: 'CoinGecko',
+              currency: quote,
+              price,
+              change,
+              changePercent,
+              open: price - change, // Approximate
+              high: price * 1.01,   // Approximate
+              low: price * 0.99,    // Approximate
+              close: price,
+              volume,
+              marketCap,
+              fiftyTwoWeekHigh: null,
+              fiftyTwoWeekLow: null,
+              timestamp: new Date(),
+              source: 'CoinGecko',
+            };
+            await this._saveLastKnownPrice(symbol, result);
+            return result;
+          }
+        }
+      } catch (error: any) {
+        this.logger.warn(`CoinGecko failed for ${symbol}: ${error.message}`);
+      }
+    }
+
+    // ── Source 2: CoinCap API (completely free, no API key, no rate limit issues) ──
+    // FIX: Added CoinCap as a reliable alternative when CoinGecko is rate-limited.
+    // CoinCap has generous rate limits and returns price + 24h change + volume.
+    if (coincapId) {
+      try {
+        const response = await axios.get(`https://api.coincap.io/v2/assets/${coincapId}`, {
+          timeout: 10000,
+        });
+
+        if (response.data?.data) {
+          const data = response.data.data;
+          const price = parseFloat(data.priceUsd ?? '0');
+
+          if (price > 0) {
+            const changePercent = parseFloat(data.changePercent24Hr ?? '0');
+            const change = price * (changePercent / 100);
+            const volume = parseFloat(data.volumeUsd24Hr ?? '0');
+            const marketCap = parseFloat(data.marketCapUsd ?? '0') || null;
+
+            // CoinCap returns USD prices — adjust for non-USD quotes if needed
+            let adjustedPrice = price;
+            if (quote !== 'USD' && quote !== 'USDT') {
+              // For non-USD quotes, we'd need a conversion — for now use USD as approximation
+              // Most crypto trading pairs use USDT/USD anyway
+            }
+
+            const result: UnifiedQuoteDto = {
+              symbol,
+              name: `${base}/${quote}`,
+              exchange: 'CoinCap',
+              currency: quote,
+              price: adjustedPrice,
+              change,
+              changePercent,
+              open: adjustedPrice - change, // Approximate
+              high: adjustedPrice * 1.01,   // Approximate
+              low: adjustedPrice * 0.99,    // Approximate
+              close: adjustedPrice,
+              volume,
+              marketCap,
+              fiftyTwoWeekHigh: null,
+              fiftyTwoWeekLow: null,
+              timestamp: new Date(),
+              source: 'CoinCap',
+            };
+            await this._saveLastKnownPrice(symbol, result);
+            return result;
+          }
+        }
+      } catch (error: any) {
+        this.logger.warn(`CoinCap failed for ${symbol}: ${error.message}`);
+      }
+    }
+
+    // ── Source 3: Binance direct public REST API (no API key, no CCXT overhead) ──
+    // FIX: Binance public endpoints work even when CCXT fails on cloud IPs.
+    // The /api/v3/ticker/24hr endpoint doesn't require authentication.
+    // This bypasses CCXT initialization issues and IP-specific market data loading.
     try {
-      const response = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
-        params: {
-          ids: coinId,
-          vs_currencies: vsCurrency,
-          include_24hr_change: 'true',
-          include_24hr_vol: 'true',
-          include_market_cap: 'true',
-        },
+      const binanceSymbol = `${base}${quote === 'USDT' ? 'USDT' : quote}`;
+      const response = await axios.get(`https://api.binance.com/api/v3/ticker/24hr`, {
+        params: { symbol: binanceSymbol },
         timeout: 10000,
       });
 
-      if (response.data && response.data[coinId]) {
-        const data = response.data[coinId];
-        const price = data[vsCurrency] ?? 0;
+      if (response.data) {
+        const data = response.data;
+        const price = parseFloat(data.lastPrice ?? '0');
 
         if (price > 0) {
-          const changePercent = data[`${vsCurrency}_24h_change`] ?? 0;
-          const change = price * (changePercent / 100);
-          const volume = data[`${vsCurrency}_24h_vol`] ?? 0;
-          const marketCap = data[`${vsCurrency}_market_cap`] ?? null;
+          const changePercent = parseFloat(data.priceChangePercent ?? '0');
+          const change = parseFloat(data.priceChange ?? '0');
+          const volume = parseFloat(data.volume ?? '0');
+          const quoteVolume = parseFloat(data.quoteVolume ?? '0');
 
           const result: UnifiedQuoteDto = {
             symbol,
             name: `${base}/${quote}`,
-            exchange: 'CoinGecko',
+            exchange: 'Binance',
             currency: quote,
             price,
             change,
             changePercent,
-            open: price - change, // Approximate
-            high: price * 1.01,   // Approximate
-            low: price * 0.99,    // Approximate
+            open: parseFloat(data.openPrice ?? String(price)),
+            high: parseFloat(data.highPrice ?? String(price * 1.01)),
+            low: parseFloat(data.lowPrice ?? String(price * 0.99)),
             close: price,
             volume,
-            marketCap,
+            marketCap: null,
             fiftyTwoWeekHigh: null,
             fiftyTwoWeekLow: null,
-            timestamp: new Date(),
-            source: 'CoinGecko',
+            timestamp: new Date(data.closeTime ?? Date.now()),
+            source: 'Binance (direct)',
           };
           await this._saveLastKnownPrice(symbol, result);
           return result;
         }
       }
     } catch (error: any) {
-      this.logger.warn(`CoinGecko failed for ${symbol}: ${error.message}`);
+      this.logger.warn(`Binance direct API failed for ${symbol}: ${error.message}`);
     }
 
-    // Try Yahoo Finance as secondary fallback (works for major cryptos like BTC-USD)
+    // ── Source 4: Yahoo Finance (works for major cryptos like BTC-USD) ──
     try {
       const yahooSymbol = `${base}-USD`;
       const response = await axios.get(`https://query1.finance.yahoo.com/v8/finance/chart/${yahooSymbol}`, {

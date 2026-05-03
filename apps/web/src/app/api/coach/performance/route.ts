@@ -15,8 +15,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { userId: bodyUserId, closedPaperTrades = [], openPaperTrades = [] } = body
 
-    // Resolve userId: prefer session cookie over body param for security
-    let userId = bodyUserId
+    // DATA ISOLATION: Always resolve userId from session cookie.
+    // Never trust bodyUserId from the request body — it allows user spoofing.
+    let userId: string | undefined
     const sessionToken = req.cookies.get('roua_session')?.value
     if (sessionToken) {
       try {
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!userId) {
-      return NextResponse.json({ success: false, error: 'userId is required' }, { status: 400 })
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
     }
 
     const origin = req.nextUrl.origin

@@ -3,9 +3,11 @@ import { db, ensureDbReady } from '@/lib/db'
 
 /**
  * Resolve userId from session cookie, with DEV_MODE fallback.
- * Returns 'default-user' only when no session is found (anonymous mode).
+ * DATA ISOLATION: Returns 401 in production when no session is found,
+ * rather than defaulting to a shared 'default-user' ID which would
+ * let unauthenticated users read/write shared chart preferences.
  */
-async function resolveUserId(req: Request): Promise<string> {
+async function resolveUserId(req: Request): Promise<string | null> {
   // DEV_MODE auto-authenticate (mirrors /api/auth/me logic)
   if (process.env.DEV_MODE === '1' && process.env.NODE_ENV !== 'production') {
     return 'dev-user-00000000'
@@ -24,10 +26,10 @@ async function resolveUserId(req: Request): Promise<string> {
       }
     }
   } catch (error) {
-    console.warn('[chart-preference] Session lookup failed, using anonymous:', error)
+    console.warn('[chart-preference] Session lookup failed:', error)
   }
 
-  return 'default-user'
+  return null
 }
 
 export async function GET(req: Request) {
@@ -35,6 +37,10 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url)
     const symbol = searchParams.get('symbol') || 'global'
     const userId = await resolveUserId(req)
+
+    if (!userId) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
+    }
 
     const pref = await db.chartPreference.findUnique({
       where: { userId_symbol: { userId, symbol } }
@@ -52,6 +58,10 @@ export async function POST(req: Request) {
     const { searchParams } = new URL(req.url)
     const symbol = searchParams.get('symbol') || 'global'
     const userId = await resolveUserId(req)
+
+    if (!userId) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
+    }
     
     const body = await req.json()
     const { settings, drawings } = body

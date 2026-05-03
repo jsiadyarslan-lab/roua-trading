@@ -59,6 +59,8 @@ export class SignalEvaluatorService {
    * 2. Score all strategies
    * 3. Select the best strategy
    * 4. Evaluate using the selected strategy
+   * 5. FIX: If no signal from best strategy, try the next-best strategies
+   *    (previously gave up after first attempt, now tries top 3 scored strategies)
    */
   async evaluate(
     market: MarketAnalysis,
@@ -68,12 +70,14 @@ export class SignalEvaluatorService {
   ): Promise<EvaluatedSignal | null> {
     try {
       let effectiveStrategy = strategyType;
+      let autoScores: Array<{ strategy: StrategyType; score: number }> | null = null;
 
       // ── AUTO Strategy: Detect regime and select best strategy ──
       if (strategyType === StrategyType.AUTO) {
         const selection = await this.adaptiveSelector.selectBestStrategy(userId, market);
 
         effectiveStrategy = selection.strategy;
+        autoScores = selection.scores;
 
         // Log regime change if strategy changed
         const lastStrategy = this.lastAutoSelection.get(userId);
@@ -95,7 +99,37 @@ export class SignalEvaluatorService {
       }
 
       // Run strategy evaluation
-      const signal = await strategy.evaluate(market);
+      let signal = await strategy.evaluate(market);
+
+      // FIX: If AUTO strategy and no signal from best strategy, try next-best strategies.
+      // This prevents the agent from being stuck when the top-scored strategy's conditions
+      // aren't met but a lower-scored strategy might still generate a valid signal.
+      if (!signal && strategyType === StrategyType.AUTO && autoScores && autoScores.length > 1) {
+        // Try up to 3 next-best strategies
+        const fallbackStrategies = autoScores
+          .filter(s => s.strategy !== effectiveStrategy)
+          .slice(0, 3);
+
+        for (const fallback of fallbackStrategies) {
+          const fallbackStrategy = this._getOrCreateStrategy(fallback.strategy, strategyParams, userId);
+          if (!fallbackStrategy) continue;
+
+          try {
+            const fallbackSignal = await fallbackStrategy.evaluate(market);
+            if (fallbackSignal) {
+              signal = fallbackSignal;
+              effectiveStrategy = fallback.strategy;
+              this.logger.log(
+                `📊 AUTO fallback: ${fallback.strategy} generated signal for ${market.symbol} ` +
+                `(best strategy had no signal, fallback score: ${fallback.score})`,
+              );
+              break;
+            }
+          } catch {
+            // Continue to next fallback strategy
+          }
+        }
+      }
 
       if (!signal) {
         this.logger.debug(

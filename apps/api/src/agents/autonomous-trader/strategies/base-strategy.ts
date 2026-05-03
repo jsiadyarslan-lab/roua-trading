@@ -25,7 +25,7 @@ export abstract class BaseStrategy {
 
   protected params: StrategyParams;
   protected minRiskRewardRatio: number = 1.0; // Minimum R:R ratio (lowered from 1.2 to match risk calculator strategy-specific minimums)
-  protected minConfidence: number = 25; // Minimum confidence to generate signal (lowered from 30 — typical signals are 25-50 range)
+  protected minConfidence: number = 20; // Minimum confidence to generate signal (lowered from 25 — many valid signals score 20-30, especially in ranging markets)
 
   constructor(params: StrategyParams) {
     this.params = params;
@@ -167,12 +167,22 @@ export abstract class BaseStrategy {
     }
 
     // AI signal agreement (20 points)
+    // FIX: Apply AI bonus for BOTH buy and sell signals, not just buy.
+    // Previously only BUY signals got the bonus when trendAlignment was true,
+    // which unfairly penalized SELL signals.
     if (factors.aiSignal) {
       if (
-        (factors.aiSignal === StrategySignal.STRONG_BUY || factors.aiSignal === StrategySignal.BUY) &&
+        (factors.aiSignal === StrategySignal.STRONG_BUY || factors.aiSignal === StrategySignal.BUY ||
+         factors.aiSignal === StrategySignal.STRONG_SELL || factors.aiSignal === StrategySignal.SELL) &&
         factors.trendAlignment
       ) {
         confidence += 20;
+      } else if (
+        factors.aiSignal === StrategySignal.STRONG_BUY || factors.aiSignal === StrategySignal.BUY ||
+        factors.aiSignal === StrategySignal.STRONG_SELL || factors.aiSignal === StrategySignal.SELL
+      ) {
+        // Non-aligned AI signal — smaller bonus
+        confidence += 10;
       } else if (factors.aiSignal === StrategySignal.NEUTRAL) {
         confidence += 5;
       }

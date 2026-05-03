@@ -420,12 +420,18 @@ export class AIOrchestratorService {
 
       // FIX: Resolve the best available model for each role (primary → fallback chain)
       // Uses the new lenient cooldown: only skip if 3+ consecutive 429 failures
-      // FIX: On cloud, Ollama is unreachable — skip it as primary for 'exec' role
+      // FIX: On cloud with localhost Ollama URL, skip it as primary for 'exec' role
+      // FIX 2: If Ollama has a cloud URL (like ollama.com), keep it as primary — it works!
       const activeRoles = roles.map(role => {
         let roleModels = [role.model, ...(role.fallbackModels || [])];
-        // If Ollama is the primary model but we're on cloud, move it to end of fallback list
+        // If Ollama is the primary model but we're on cloud WITH localhost URL, move it to end of fallback list
+        // Cloud Ollama URLs (ollama.com, etc.) should remain as primary — they work fine
         if (role.model === 'ollama' && this._isCloudEnvironment()) {
-          roleModels = [...(role.fallbackModels || []), 'ollama'];
+          const ollamaBaseUrl = this.configService.get<string>('OLLAMA_BASE_URL', 'http://localhost:11434');
+          if (this._isLocalhostUrl(ollamaBaseUrl || 'http://localhost:11434')) {
+            roleModels = [...(role.fallbackModels || []), 'ollama'];
+          }
+          // If Ollama has a cloud URL, keep it as primary — no deprioritization needed
         }
         const models = roleModels;
         for (const model of models) {

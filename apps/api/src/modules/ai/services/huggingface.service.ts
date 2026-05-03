@@ -215,8 +215,8 @@ export class HuggingFaceService {
         const errData = error.response?.data ? JSON.stringify(error.response.data).substring(0, 150) : '';
 
         if (status === 429) {
-          this.logger.warn(`🚫 HF ${model} rate limited (429)`);
-          throw error;
+          this.logger.warn(`🚫 HF AutoRouter ${model} rate limited (429) — trying next model`);
+          continue; // FIX: Don't throw — try next model in auto-router list
         }
         if (status === 401) {
           this.logger.error(`❌ HF API key invalid (401) — skipping HF entirely. ${errData}`);
@@ -236,7 +236,10 @@ export class HuggingFaceService {
         }
       } catch (error: any) {
         const status = error.response?.status;
-        if (status === 429) throw error;
+        if (status === 429) {
+          this.logger.warn(`🚫 HF Direct ${model} rate limited (429) — trying next model`);
+          continue; // FIX: Don't throw — try next model instead of aborting
+        }
         if (status === 401) return null;
         this.logger.debug(`🤗 HF direct failed for ${model.split('/').pop()} (${status})`);
         continue;

@@ -159,7 +159,7 @@ function FeedItem({ item }: { item: typeof FEED[0] }) {
         </div>
       </div>
 
-      <div style={{ textAlign: 'left' }}>
+      <div style={{ textAlign: 'start' }}>
         <p style={{ fontSize: 12, fontWeight: 800, color: c.text, fontFamily: "'JetBrains Mono', monospace" }}>{item.price}</p>
         <p style={{ fontSize: 10, color: item.pnl.startsWith('+') ? c.success : c.danger, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>{item.pnl}</p>
       </div>

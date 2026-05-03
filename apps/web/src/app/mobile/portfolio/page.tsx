@@ -562,7 +562,7 @@ export default function MobilePortfolioPage() {
                           </p>
                         </div>
                       </div>
-                      <div style={{ textAlign: 'left' }}>
+                      <div style={{ textAlign: 'start' }}>
                         <p style={{ fontSize: 14, fontWeight: 700, color: pos.pnl >= 0 ? T.success : T.danger, fontFamily: T.mono }}>
                           {pos.pnl >= 0 ? '+' : '-'}${fmt(pos.pnl)}
                         </p>
@@ -806,7 +806,7 @@ export default function MobilePortfolioPage() {
                         </span>
                       </div>
                     </div>
-                    <div style={{ textAlign: 'left' }}>
+                    <div style={{ textAlign: 'start' }}>
                       <span style={{
                         fontSize: 15, fontWeight: 800,
                         color: trade.pnl >= 0 ? T.success : T.danger,

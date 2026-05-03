@@ -50,7 +50,7 @@ export default function MobileMarketsPage() {
   })
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#0B0E14', direction: 'rtl', paddingBottom: 100 }}>
+    <div style={{ minHeight: '100dvh', background: '#000000', direction: 'rtl', paddingBottom: 100 }}>
 
       {/* ── Header ── */}
       <div style={{ padding: 'calc(env(safe-area-inset-top) + 16px) 16px 12px' }}>
@@ -132,7 +132,7 @@ export default function MobileMarketsPage() {
                 }}>
                   {asset.symbol.split('/')[0].slice(0, 2)}
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div style={{ textAlign: 'start' }}>
                   <div style={{ fontSize: 15, fontWeight: 800, color: '#F0F2F5', fontFamily: "'JetBrains Mono', monospace" }}>
                     {asset.symbol}
                   </div>
@@ -144,7 +144,7 @@ export default function MobileMarketsPage() {
 
               <div className="flex items-center gap-4">
                 <MiniSparkline positive={pos} />
-                <div style={{ textAlign: 'left', minWidth: 90 }}>
+                <div style={{ textAlign: 'start', minWidth: 90 }}>
                   <div style={{ 
                     fontSize: 15, fontWeight: 800, color: '#F0F2F5', 
                     fontFamily: "'JetBrains Mono', monospace", 

@@ -113,7 +113,7 @@ function PaymentItem({ date, amount, plan, status }: { date: string; amount: str
         <p style={{ fontSize: 13, fontWeight: 700, color: c.text, fontFamily: "'Cairo', sans-serif" }}>خطة {plan}</p>
         <p style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>{date}</p>
       </div>
-      <div style={{ textAlign: 'left' }}>
+      <div style={{ textAlign: 'start' }}>
         <p style={{ fontSize: 14, fontWeight: 800, color: c.text, fontFamily: "'JetBrains Mono', monospace" }}>{amount}</p>
         <span style={{ fontSize: 10, color: status === 'paid' ? c.success : c.amber, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>
           {status === 'paid' ? 'مدفوع' : 'معلّق'}

@@ -105,7 +105,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
         }}>
           <HelpCircle size={14} color={c.accent} />
         </div>
-        <p style={{ flex: 1, fontSize: 13, fontWeight: 700, color: c.text, fontFamily: "'Cairo', sans-serif", textAlign: 'right' }}>{q}</p>
+        <p style={{ flex: 1, fontSize: 13, fontWeight: 700, color: c.text, fontFamily: "'Cairo', sans-serif", textAlign: 'start' }}>{q}</p>
         {open ? <ChevronUp size={16} color={c.text2} /> : <ChevronDown size={16} color={c.text2} />}
       </motion.button>
       <AnimatePresence>

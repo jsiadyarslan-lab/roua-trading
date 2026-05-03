@@ -301,7 +301,7 @@ function LatestSignalCard() {
             <p style={{ fontSize: 13, color: color, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>ثقة {signal.confidence}%</p>
           </div>
         </div>
-        <div style={{ textAlign: 'left' }}>
+        <div style={{ textAlign: 'start' }}>
           <p style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>🎯 {signal.takeProfit || '—'}</p>
           <p style={{ fontSize: 11, color: 'rgba(235,235,245,0.3)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>الهدف</p>
         </div>

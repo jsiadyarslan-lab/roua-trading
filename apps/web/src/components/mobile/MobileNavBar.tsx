@@ -8,6 +8,7 @@ import {
   Grid3X3, Brain, FlaskConical, ScanSearch, Radio,
   Newspaper, HelpCircle, X, Activity, Zap, Target,
   BellRing, UserCircle, Link2, CreditCard, Fingerprint, Users,
+  Globe2,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
@@ -106,8 +107,34 @@ export default function MobileNavBar() {
           borderTop: '0.5px solid rgba(255,255,255,0.12)',
         }}
       >
-        <div className="flex items-center justify-around h-full px-2" dir="rtl">
-          {NAV_ITEMS.map((item) => {
+        <div className="flex items-center justify-around h-full px-1" dir="rtl">
+          {NAV_ITEMS.map((item, idx) => {
+            /* Center logo button between chart (idx=2) and wallet (idx=3) */
+            if (idx === 3) {
+              return (
+                <div key="__logo" style={{ position: 'relative', marginTop: -20, zIndex: 10 }}>
+                  <motion.button
+                    whileTap={{ scale: 0.92 }}
+                    onClick={() => router.push('/mobile')}
+                    style={{
+                      width: 50, height: 50, borderRadius: '50%',
+                      background: 'radial-gradient(circle at 50% 40%, #0D1520, #020308)',
+                      border: '2px solid rgba(0,200,255,0.35)',
+                      boxShadow: '0 0 16px rgba(0,200,255,0.3), 0 0 0 3px rgba(0,200,255,0.08)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Globe2 size={20} color="#00D4FF" strokeWidth={2.5} />
+                  </motion.button>
+                  <span style={{
+                    display: 'block', textAlign: 'center', marginTop: 2,
+                    fontSize: 7, color: '#00D4FF', fontFamily: "'Cairo', sans-serif", fontWeight: 800,
+                  }}>رؤى</span>
+                </div>
+              )
+            }
+
             const Icon = item.icon
             const active = isActive(item.href)
 
@@ -116,7 +143,7 @@ export default function MobileNavBar() {
                 key={item.href}
                 onClick={() => handleNav(item.href)}
                 className="flex flex-col items-center justify-center h-full"
-                style={{ width: 44 }}
+                style={{ width: 44, flexShrink: 0 }}
               >
                 <motion.div 
                   whileTap={{ scale: 0.9 }} 

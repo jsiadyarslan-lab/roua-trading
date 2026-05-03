@@ -728,7 +728,7 @@ export default function MobileAgentPage() {
                         ثقة: {pos.confidence}% • SL: {pos.stopLoss ? `$${pos.stopLoss.toFixed(2)}` : '—'} • TP: {pos.takeProfit ? `$${pos.takeProfit.toFixed(2)}` : '—'}
                       </div>
                     </div>
-                    <div style={{ textAlign: 'left' }}>
+                    <div style={{ textAlign: 'start' }}>
                       <span style={{ fontSize: 13, fontWeight: 800, color: pnlColor, fontFamily: FONT_MONO }}>
                         {pos.unrealizedPnl >= 0 ? '+' : ''}{pos.unrealizedPnl.toFixed(2)}
                       </span>

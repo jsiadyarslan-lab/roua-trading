@@ -151,7 +151,7 @@ function CloseSheet({
                   {sign(trade.unrealizedPct)}{fmt(trade.unrealizedPct)}%
                 </div>
               </div>
-              <div style={{ textAlign: 'left' }}>
+              <div style={{ textAlign: 'start' }}>
                 <div style={{ fontSize: 10, color: C.text2, fontFamily: FONT_AR, marginBottom: 2 }}>سعر الإغلاق</div>
                 <div style={{ fontSize: 16, fontWeight: 700, color: C.text, fontFamily: FONT_MONO }}>
                   {trade.currentPrice?.toFixed(2) || trade.entryPrice.toFixed(2)}

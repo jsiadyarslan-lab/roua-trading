@@ -111,7 +111,7 @@ function SettingsRow({
       }}>
         <Icon size={16} color={iconColor} />
       </div>
-      <div style={{ flex: 1, textAlign: 'right' }}>
+      <div style={{ flex: 1, textAlign: 'start' }}>
         <p style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: T.font }}>{label}</p>
         {sub && (
           <p style={{ fontSize: 11, color: T.text2, fontFamily: T.font, marginTop: 1 }}>{sub}</p>
@@ -131,7 +131,7 @@ function SettingsRow({
         onClick={onClick}
         style={{
           width: '100%', background: 'transparent', border: 'none',
-          cursor: 'pointer', textAlign: 'right', padding: 0,
+          cursor: 'pointer', textAlign: 'start', padding: 0,
           borderBottom: `1px solid ${T.border}`,
         }}
       >
@@ -677,7 +677,7 @@ export default function MobileSettingsPage() {
                     }}>
                       <Icon size={15} color={color} />
                     </div>
-                    <div style={{ flex: 1, textAlign: 'right' }}>
+                    <div style={{ flex: 1, textAlign: 'start' }}>
                       <p style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: T.font }}>{label}</p>
                       {config.description && (
                         <p style={{ fontSize: 10, color: T.text2, fontFamily: T.font, marginTop: 1 }}>{config.description}</p>
@@ -741,7 +741,7 @@ export default function MobileSettingsPage() {
             }}>
               <Moon size={16} color={T.amber} />
             </div>
-            <div style={{ flex: 1, textAlign: 'right' }}>
+            <div style={{ flex: 1, textAlign: 'start' }}>
               <p style={{ fontSize: 13, fontWeight: 600, color: T.text, fontFamily: T.font }}>المظهر الداكن</p>
               <p style={{ fontSize: 11, color: T.text2, fontFamily: T.font, marginTop: 1 }}>مفعّل دائماً</p>
             </div>
@@ -876,7 +876,7 @@ export default function MobileSettingsPage() {
                       padding: '16px 18px', borderRadius: 18,
                       background: language === lang.code ? `${T.accent}12` : 'rgba(255,255,255,0.03)',
                       border: `1px solid ${language === lang.code ? `${T.accent}30` : T.border}`,
-                      cursor: 'pointer', width: '100%', textAlign: 'right',
+                      cursor: 'pointer', width: '100%', textAlign: 'start',
                     }}
                   >
                     <span style={{ fontSize: 24 }}>{lang.flag}</span>

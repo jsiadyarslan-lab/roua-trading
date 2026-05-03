@@ -385,11 +385,10 @@ export default function MobileHomePage() {
     <div style={{ 
       background: '#000000', 
       direction: 'rtl', 
-      paddingBottom: 20,
+      paddingBottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
       position: 'relative',
       overflowX: 'hidden',
       width: '100%',
-      maxWidth: '100vw',
     }}>
       {/* ── Ambient Sentiment Glow ── */}
       <motion.div 

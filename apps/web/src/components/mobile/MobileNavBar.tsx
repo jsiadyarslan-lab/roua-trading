@@ -15,7 +15,7 @@ const NAV_ITEMS = [
   { label: 'الرئيسية', href: '/mobile', icon: Home },
   { label: 'الأسواق', href: '/mobile/markets', icon: TrendingUp },
   { label: 'الشارت', href: '/mobile/chart', icon: BarChart2 },
-  { label: 'المحفظة', href: '/mobile/portfolio', icon: Wallet, isCenter: true },
+  { label: 'المحفظة', href: '/mobile/wallet', icon: Wallet, isCenter: true },
   { label: 'الإعدادات', href: '/mobile/settings', icon: Settings },
   { label: 'المزيد', href: '__more__', icon: Grid3X3 },
 ]

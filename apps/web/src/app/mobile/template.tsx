@@ -9,7 +9,7 @@ export default function MobileTemplate({ children }: { children: React.ReactNode
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: -20, opacity: 0 }}
       transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      style={{ minHeight: '100%', width: '100%' }}
+      style={{ height: '100%', minHeight: '100%', width: '100%' }}
     >
       {children}
     </motion.div>

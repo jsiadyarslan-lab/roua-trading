@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Delete, Body, Query, Req, Res, Logger, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, Param, Query, Req, Res, Logger, UseGuards } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { Throttle } from '@nestjs/throttler';
@@ -10,14 +10,11 @@ export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
   constructor(private readonly authService: AuthService) {
-    // Log WebAuthn configuration on startup for debugging
-    this.logger.log('AuthController initialized — WebAuthn endpoints ready');
+    this.logger.log('AuthController initialized — WebAuthn + Session Management endpoints ready');
   }
 
-  /**
-   * POST /api/auth/register — Create registration challenge
-   * 🔒 PUBLIC: No auth needed to start registration
-   */
+  // ── WebAuthn Registration ──
+
   @Post('register')
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60000 } })
@@ -28,10 +25,8 @@ export class AuthController {
     return this.authService.generateRegistrationChallenge(body.email, body.displayName);
   }
 
-  /**
-   * GET /api/auth/challenge — Get authentication challenge for existing user
-   * 🔒 PUBLIC: No auth needed to start authentication
-   */
+  // ── WebAuthn Authentication Challenge ──
+
   @Get('challenge')
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
@@ -40,10 +35,8 @@ export class AuthController {
     return this.authService.generateAuthenticationChallenge(email);
   }
 
-  /**
-   * POST /api/auth/verify — Verify credential (registration or authentication)
-   * 🔒 PUBLIC: No auth needed to verify credentials
-   */
+  // ── WebAuthn Verify (Registration or Authentication) ──
+
   @Post('verify')
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
@@ -56,17 +49,13 @@ export class AuthController {
     const ipAddress = req.ip || req.socket.remoteAddress;
 
     if (body.credential) {
-      // Registration verification
       this.logger.log(`Registration verification for: ${body.email}`);
 
       const result = await this.authService.verifyRegistration(
-        body.email,
-        body.credential,
-        userAgent,
-        ipAddress,
+        body.email, body.credential, userAgent, ipAddress,
       );
 
-      // Set session cookie
+      // Set session cookie (access token — 24h)
       res.cookie('roua_session', result.sessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -75,28 +64,46 @@ export class AuthController {
         path: '/',
       });
 
+      // Set refresh token cookie (30 days)
+      if (result.refreshToken) {
+        res.cookie('roua_refresh', result.refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+          path: '/',
+        });
+      }
+
       return { success: true, user: result.user };
     }
 
     if (body.assertion) {
-      // Authentication verification
       this.logger.log(`Authentication verification for: ${body.email}`);
 
       const result = await this.authService.verifyAuthentication(
-        body.email,
-        body.assertion,
-        userAgent,
-        ipAddress,
+        body.email, body.assertion, userAgent, ipAddress,
       );
 
-      // Set session cookie
+      // Set session cookie (access token — 24h)
       res.cookie('roua_session', result.sessionToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        maxAge: 24 * 60 * 60 * 1000,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
         path: '/',
       });
+
+      // Set refresh token cookie (30 days)
+      if (result.refreshToken) {
+        res.cookie('roua_refresh', result.refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+          path: '/',
+        });
+      }
 
       return { success: true, user: result.user };
     }
@@ -104,10 +111,8 @@ export class AuthController {
     return { error: 'بيانات اعتماد غير صالحة' };
   }
 
-  /**
-   * GET /api/auth/session — Check session validity
-   * 🔒 PUBLIC: Anyone can check if they have a valid session
-   */
+  // ── Check Session ──
+
   @Get('session')
   @Public()
   @Throttle({ default: { limit: 30, ttl: 60000 } })
@@ -123,10 +128,8 @@ export class AuthController {
     return this.authService.validateSession(sessionToken);
   }
 
-  /**
-   * DELETE /api/auth/session — Logout
-   * 🔒 PUBLIC: Anyone can logout (no auth needed to clear session)
-   */
+  // ── Logout ──
+
   @Delete('session')
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60000 } })
@@ -143,13 +146,106 @@ export class AuthController {
     }
 
     res.clearCookie('roua_session');
+    res.clearCookie('roua_refresh');
     return { success: true };
   }
 
-  /**
-   * POST /api/auth/guest — Create a guest session
-   * 🔒 PUBLIC: Intentionally public endpoint for guest access
-   */
+  // ── Refresh Session (using refresh token) ──
+
+  @Post('refresh')
+  @Public()
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  async refreshSession(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = req.cookies?.['roua_refresh'];
+    const userAgent = req.headers['user-agent'];
+    const ipAddress = req.ip || req.socket.remoteAddress;
+
+    if (!refreshToken) {
+      return { authenticated: false, error: 'NO_REFRESH_TOKEN' };
+    }
+
+    try {
+      const result = await this.authService.refreshSession(refreshToken, userAgent, ipAddress);
+
+      // Set new session cookie
+      res.cookie('roua_session', result.sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        path: '/',
+      });
+
+      // Set new refresh token cookie
+      if (result.refreshToken) {
+        res.cookie('roua_refresh', result.refreshToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+          path: '/',
+        });
+      }
+
+      return { success: true, authenticated: true, user: result.user };
+    } catch (error: any) {
+      // Refresh failed — clear both cookies
+      res.clearCookie('roua_session');
+      res.clearCookie('roua_refresh');
+      return {
+        authenticated: false,
+        error: error.message || 'REFRESH_FAILED',
+      };
+    }
+  }
+
+  // ── List User Sessions (Device Management) ──
+
+  @Get('sessions')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async listSessions(@Req() req: Request) {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return { sessions: [] };
+    }
+    const sessions = await this.authService.getUserSessions(userId);
+    return { sessions };
+  }
+
+  // ── Revoke a Specific Session ──
+
+  @Delete('sessions/:id')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async revokeSession(
+    @Param('id') sessionId: string,
+    @Req() req: Request,
+  ) {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return { success: false, error: 'UNAUTHENTICATED' };
+    }
+    return this.authService.revokeSession(sessionId, userId);
+  }
+
+  // ── Revoke All Other Sessions ──
+
+  @Delete('sessions')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async revokeAllOtherSessions(@Req() req: Request) {
+    const userId = (req as any).user?.id;
+    const currentToken = req.cookies?.['roua_session'] || req.headers.authorization?.replace('Bearer ', '');
+
+    if (!userId) {
+      return { success: false, error: 'UNAUTHENTICATED' };
+    }
+    return this.authService.revokeAllOtherSessions(userId, currentToken);
+  }
+
+  // ── Guest Session ──
+
   @Post('guest')
   @Public()
   @Throttle({ default: { limit: 5, ttl: 60000 } })
@@ -158,22 +254,23 @@ export class AuthController {
 
     const result = await this.authService.createGuestSession();
 
-    // Set session cookie so subsequent requests are authenticated
     res.cookie('roua_session', result.sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (matching OTP session TTL)
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: '/',
     });
 
-    return {
-      success: true,
-      // SECURITY: sessionToken is NOT returned in the response body.
-      // The httpOnly cookie is the only secure way to transmit the session token.
-      // Previously, including sessionToken in the JSON body defeated the
-      // purpose of httpOnly cookies by exposing the token to XSS attacks.
-      user: result.user,
-    };
+    // Guest sessions don't need long-lived refresh tokens
+    return { success: true, user: result.user };
+  }
+
+  // ── Cleanup Expired Sessions (internal/admin) ──
+
+  @Post('cleanup')
+  @Throttle({ default: { limit: 2, ttl: 60000 } })
+  async cleanupSessions() {
+    return this.authService.cleanupExpiredSessions();
   }
 }

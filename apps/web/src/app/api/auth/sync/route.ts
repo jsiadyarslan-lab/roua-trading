@@ -30,17 +30,20 @@ export async function GET(request: NextRequest) {
           where: { token: existingToken },
           include: { user: true },
         })
-        if (existingSession && existingSession.expiresAt > new Date()) {
+        if (existingSession && existingSession.isActive && existingSession.expiresAt > new Date()) {
           const isGuest = existingSession.user.email === GUEST_EMAIL || existingSession.user.id.startsWith('guest')
 
-          // If this is a guest session, treat as unauthenticated
           if (isGuest) {
-            await db.session.delete({ where: { id: existingSession.id } }).catch(() => {})
+            await db.session.update({
+              where: { id: existingSession.id },
+              data: { isActive: false },
+            }).catch(() => {})
             const response = NextResponse.json({
               authenticated: false,
               error: 'GUEST_SESSION_INVALID',
             })
             response.cookies.delete('roua_session')
+            response.cookies.delete('roua_refresh')
             return response
           }
 
@@ -56,9 +59,12 @@ export async function GET(request: NextRequest) {
             },
           })
         }
-        // Session expired — clean up
+        // Session expired or inactive — clean up
         if (existingSession) {
-          await db.session.delete({ where: { id: existingSession.id } }).catch(() => {})
+          await db.session.update({
+            where: { id: existingSession.id },
+            data: { isActive: false },
+          }).catch(() => {})
         }
       } catch (dbErr: any) {
         console.warn('[auth/sync] DB error checking existing session:', dbErr?.message || dbErr)

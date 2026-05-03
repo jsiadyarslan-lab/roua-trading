@@ -1,7 +1,8 @@
-import { Injectable, CanActivate, ExecutionContext, Logger, SetMetadata, UnauthorizedException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, Logger, SetMetadata, UnauthorizedException, Optional } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisService } from '../redis/redis.service';
 
 /**
  * Metadata key for marking routes as public (skip auth)
@@ -11,7 +12,7 @@ export const IS_PUBLIC_KEY = 'isPublic';
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 
 /**
- * AuthGuard — Authentication with public route support
+ * AuthGuard — Authentication with public route support + Redis caching
  *
  * This guard ensures every request has a valid user attached.
  * Behavior:
@@ -20,19 +21,22 @@ export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
  * 3. If no session on protected route → REJECT with 401
  * 4. If no session on public route → auto-create guest session
  *
- * 🔒 SECURITY FIX: Protected routes now properly reject unauthenticated
- * requests instead of silently auto-authenticating everyone.
+ * Redis caching: Session lookups are cached for 15 minutes to reduce DB load.
+ * The cache is invalidated when sessions are destroyed/revoked.
  */
 @Injectable()
 export class AuthGuard implements CanActivate {
   private readonly logger = new Logger(AuthGuard.name);
   private guestUser: any = null;
   private guestUserLastRefresh = 0;
-  private readonly GUEST_CACHE_TTL = 5 * 60 * 1000; // Refresh guest user cache every 5 minutes
+  private readonly GUEST_CACHE_TTL = 5 * 60 * 1000;
+  private readonly SESSION_CACHE_PREFIX = 'session:';
+  private readonly SESSION_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly reflector: Reflector,
+    @Optional() private readonly redis?: RedisService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -56,30 +60,74 @@ export class AuthGuard implements CanActivate {
 
     // ── Try to validate existing session ──
     if (sessionToken) {
+      // Try Redis cache first
+      if (this.redis) {
+        const cacheKey = `${this.SESSION_CACHE_PREFIX}${sessionToken}`;
+        try {
+          const cached = await this.redis.get(cacheKey);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (parsed.authenticated && parsed.user) {
+              (request as any).user = parsed.user;
+              return true;
+            }
+          }
+        } catch {
+          // Cache miss — continue to DB
+        }
+      }
+
+      // DB lookup
       try {
         const session = await this.prisma.session.findUnique({
           where: { token: sessionToken },
           include: { user: true },
         });
 
-        if (session && session.expiresAt > new Date()) {
+        if (session && session.isActive && session.expiresAt > new Date()) {
           (request as any).user = session.user;
+
+          // Cache the session for fast subsequent lookups
+          if (this.redis) {
+            try {
+              const cacheKey = `${this.SESSION_CACHE_PREFIX}${sessionToken}`;
+              const cacheData = JSON.stringify({
+                authenticated: true,
+                user: {
+                  id: session.user.id,
+                  email: session.user.email,
+                  displayName: session.user.displayName,
+                  tier: session.user.tier,
+                },
+              });
+              await this.redis.set(cacheKey, cacheData, this.SESSION_CACHE_TTL_MS);
+            } catch {
+              // Non-critical
+            }
+          }
+
           return true;
         }
 
-        // Clean up expired session
+        // Clean up expired/inactive session
         if (session) {
-          await this.prisma.session.delete({ where: { id: session.id } }).catch(() => {});
+          await this.prisma.session.update({
+            where: { id: session.id },
+            data: { isActive: false },
+          }).catch(() => {});
+
+          // Remove from cache
+          if (this.redis) {
+            const cacheKey = `${this.SESSION_CACHE_PREFIX}${sessionToken}`;
+            await this.redis.del(cacheKey).catch(() => {});
+          }
         }
       } catch (error: any) {
-        // DB might be unavailable — fall through
         this.logger.warn(`Session validation failed: ${error?.message || error}`);
       }
     }
 
     // ── No valid session found ──
-    // For PUBLIC routes: auto-create guest session
-    // For PROTECTED routes: reject with 401
     if (isPublic) {
       try {
         const user = await this._ensureGuestUser();
@@ -87,7 +135,6 @@ export class AuthGuard implements CanActivate {
         return true;
       } catch (error: any) {
         this.logger.error(`Guest auto-auth failed: ${error?.message || error}`);
-        // Do NOT create phantom/mock users — throw instead to prevent orphaned DB records
         throw new UnauthorizedException('Unable to establish guest session. Please try again.');
       }
     }
@@ -104,7 +151,6 @@ export class AuthGuard implements CanActivate {
   private async _ensureGuestUser(): Promise<any> {
     const GUEST_EMAIL = 'guest@roua.auto';
 
-    // Return cached guest user if fresh
     if (this.guestUser && Date.now() - this.guestUserLastRefresh < this.GUEST_CACHE_TTL) {
       return this.guestUser;
     }
@@ -114,16 +160,11 @@ export class AuthGuard implements CanActivate {
 
       if (!user) {
         user = await this.prisma.user.create({
-          data: {
-            email: GUEST_EMAIL,
-            displayName: 'ضيف',
-            tier: 'FREE',
-          },
+          data: { email: GUEST_EMAIL, displayName: 'ضيف', tier: 'FREE' },
         });
         this.logger.log('Auto-created guest user');
       }
 
-      // Enforce FREE tier for guest
       if (user.tier !== 'FREE') {
         user = await this.prisma.user.update({
           where: { id: user.id },
@@ -136,7 +177,6 @@ export class AuthGuard implements CanActivate {
       this.guestUserLastRefresh = Date.now();
       return user;
     } catch (error: any) {
-      // DB might be unavailable — try to find existing user
       try {
         const user = await this.prisma.user.findUnique({ where: { email: GUEST_EMAIL } });
         if (user) {

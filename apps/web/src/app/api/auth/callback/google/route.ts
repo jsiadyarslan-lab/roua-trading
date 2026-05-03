@@ -10,19 +10,40 @@ import crypto from 'crypto'
  * with an authorization code. This handler:
  * 1. Exchanges the code for user info (email, name, picture)
  * 2. Finds or creates a user in the database
- * 3. Creates a session and sets the roua_session cookie
+ * 3. Creates a session with device info and refresh token, sets cookies
  * 4. Redirects to the callbackUrl (default: /dashboard)
- *
- * FIXES:
- * - Uses getPublicOrigin() for consistent redirect_uri (matches signin route)
- * - Fixed `image` → `avatar` to match Prisma User model
  */
+
+function parseUserAgent(userAgent?: string | null) {
+  if (!userAgent) return null
+  const ua = userAgent.toLowerCase()
+
+  let type = 'desktop'
+  if (/mobile|android|iphone|ipod|blackberry|iemobile|opera mini/i.test(ua)) type = 'mobile'
+  else if (/ipad|tablet|kindle|silk/i.test(ua)) type = 'tablet'
+
+  let browser = 'Unknown'
+  if (ua.includes('edg/')) browser = 'Edge'
+  else if (ua.includes('chrome/') && !ua.includes('edg/')) browser = 'Chrome'
+  else if (ua.includes('firefox/')) browser = 'Firefox'
+  else if (ua.includes('safari/') && !ua.includes('chrome/')) browser = 'Safari'
+  else if (ua.includes('opera/') || ua.includes('opr/')) browser = 'Opera'
+
+  let os = 'Unknown'
+  if (ua.includes('windows')) os = 'Windows'
+  else if (ua.includes('mac os')) os = 'macOS'
+  else if (ua.includes('linux')) os = 'Linux'
+  else if (ua.includes('android')) os = 'Android'
+  else if (ua.includes('iphone') || ua.includes('ipad')) os = 'iOS'
+
+  return { browser, os, type, device: type }
+}
+
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get('code')
   const stateParam = request.nextUrl.searchParams.get('state')
   const error = request.nextUrl.searchParams.get('error')
 
-  // User denied consent
   if (error === 'access_denied' || !code) {
     return NextResponse.redirect(new URL('/login?error=access_denied', getPublicOrigin(request)))
   }
@@ -34,13 +55,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/login?error=oauth_not_configured', getPublicOrigin(request)))
   }
 
-  // Parse callbackUrl from state — validate against same-origin allowlist
   let callbackUrl = '/dashboard'
   try {
     if (stateParam) {
       const state = JSON.parse(Buffer.from(stateParam, 'base64url').toString())
       if (state.callbackUrl) {
-        // SECURITY: Only allow same-origin relative URLs to prevent open redirect attacks
         const url = state.callbackUrl as string
         if (url.startsWith('/') && !url.startsWith('//') && !url.startsWith('/\\')) {
           callbackUrl = url
@@ -52,13 +71,11 @@ export async function GET(request: NextRequest) {
   } catch { /* Use default */ }
 
   try {
-    // Use the SAME origin helper as the signin route for consistent redirect_uri
     const publicOrigin = getPublicOrigin(request)
     const redirectUri = `${publicOrigin}/api/auth/callback/google`
 
     console.log(`[auth/callback/google] Using redirect URI: ${redirectUri} (origin: ${publicOrigin})`)
 
-    // Exchange code for tokens
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -84,7 +101,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/login?error=no_access_token', getPublicOrigin(request)))
     }
 
-    // Get user info from Google
     const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${accessToken}` },
       signal: AbortSignal.timeout(10000),
@@ -103,7 +119,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/login?error=no_email', getPublicOrigin(request)))
     }
 
-    // Find or create user in database
     const dbReady = await ensureDbReady()
     if (!dbReady) {
       return NextResponse.redirect(new URL('/login?error=db_unavailable', getPublicOrigin(request)))
@@ -112,8 +127,6 @@ export async function GET(request: NextRequest) {
     let user = await db.user.findUnique({ where: { email } })
 
     if (!user) {
-      // Create new user with BASIC tier (higher than guest FREE)
-      // FIX: Use `avatar` not `image` — matches Prisma User model
       try {
         user = await db.user.create({
           data: {
@@ -127,8 +140,6 @@ export async function GET(request: NextRequest) {
         user = await db.user.findUnique({ where: { email } })
       }
     } else {
-      // Update display name and avatar if changed
-      // FIX: Use `avatar` not `image` — matches Prisma User model
       try {
         user = await db.user.update({
           where: { id: user.id },
@@ -144,15 +155,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/login?error=user_creation_failed', getPublicOrigin(request)))
     }
 
-    // Create session
+    // Create session with device info
+    const userAgent = request.headers.get('user-agent')
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')
+      || null
+    const deviceInfo = parseUserAgent(userAgent)
     const sessionToken = crypto.randomBytes(32).toString('hex')
+    const refreshToken = crypto.randomBytes(48).toString('hex')
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days for OAuth
 
     await db.session.create({
-      data: { userId: user.id, token: sessionToken, expiresAt },
+      data: {
+        userId: user.id,
+        token: sessionToken,
+        refreshToken,
+        deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
+        ipAddress,
+        userAgent,
+        isActive: true,
+        expiresAt,
+      },
     })
 
-    // Redirect with session cookie
+    // Redirect with session + refresh cookies
     const response = NextResponse.redirect(new URL(callbackUrl, getPublicOrigin(request)))
 
     response.cookies.set('roua_session', sessionToken, {
@@ -160,6 +186,14 @@ export async function GET(request: NextRequest) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: '/',
+    })
+
+    response.cookies.set('roua_refresh', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60, // 30 days
       path: '/',
     })
 

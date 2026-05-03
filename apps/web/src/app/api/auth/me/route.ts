@@ -15,6 +15,36 @@ import crypto from 'crypto'
  */
 
 const GUEST_EMAIL = 'guest@roua.auto'
+const SESSION_DURATION_MS = 24 * 60 * 60 * 1000 // 24 hours
+const REFRESH_DURATION_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
+
+/**
+ * Parse user-agent string into structured device info
+ */
+function parseUserAgent(userAgent?: string | null) {
+  if (!userAgent) return null
+  const ua = userAgent.toLowerCase()
+
+  let type = 'desktop'
+  if (/mobile|android|iphone|ipod|blackberry|iemobile|opera mini/i.test(ua)) type = 'mobile'
+  else if (/ipad|tablet|kindle|silk/i.test(ua)) type = 'tablet'
+
+  let browser = 'Unknown'
+  if (ua.includes('edg/')) browser = 'Edge'
+  else if (ua.includes('chrome/') && !ua.includes('edg/')) browser = 'Chrome'
+  else if (ua.includes('firefox/')) browser = 'Firefox'
+  else if (ua.includes('safari/') && !ua.includes('chrome/')) browser = 'Safari'
+  else if (ua.includes('opera/') || ua.includes('opr/')) browser = 'Opera'
+
+  let os = 'Unknown'
+  if (ua.includes('windows')) os = 'Windows'
+  else if (ua.includes('mac os')) os = 'macOS'
+  else if (ua.includes('linux')) os = 'Linux'
+  else if (ua.includes('android')) os = 'Android'
+  else if (ua.includes('iphone') || ua.includes('ipad')) os = 'iOS'
+
+  return { browser, os, type, device: type }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,9 +56,7 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Check if a specific email was requested (for email login flow)
     const requestedEmail = request.nextUrl.searchParams.get('email')
-
     const sessionToken = request.cookies.get('roua_session')?.value
 
     // ── Check existing session ──
@@ -38,12 +66,9 @@ export async function GET(request: NextRequest) {
           where: { token: sessionToken },
           include: { user: true },
         })
-        if (session && session.expiresAt > new Date()) {
+        if (session && session.isActive && session.expiresAt > new Date()) {
           const isGuestUser = session.user.email === GUEST_EMAIL || session.user.id.startsWith('guest')
 
-          // FIX: Return guest sessions with isGuest flag instead of deleting them.
-          // This unifies behavior with NestJS AuthGuard which auto-creates guests.
-          // The frontend can show a banner prompting login for guest users.
           return NextResponse.json({
             authenticated: !isGuestUser,
             isGuest: isGuestUser,
@@ -56,9 +81,12 @@ export async function GET(request: NextRequest) {
             },
           })
         }
-        // Session expired — clean up
+        // Session expired or inactive — clean up
         if (session) {
-          await db.session.delete({ where: { id: session.id } }).catch(() => {})
+          await db.session.update({
+            where: { id: session.id },
+            data: { isActive: false },
+          }).catch(() => {})
         }
       } catch (dbErr: any) {
         console.warn('[auth/me] Session check failed:', dbErr?.message || dbErr)
@@ -66,13 +94,7 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Email login flow: ?email=xxx ──
-    // SECURITY FIX: Only allow login for existing users who have previously
-    // verified their email (via OTP or Passkey). New users must register
-    // through the OTP verification flow (/api/auth/otp/send + /api/auth/otp/verify).
-    // This prevents email impersonation — anyone could previously access any
-    // account by simply providing an email address.
     if (requestedEmail) {
-      // Block guest email
       if (requestedEmail === GUEST_EMAIL) {
         return NextResponse.json({
           authenticated: false,
@@ -80,7 +102,6 @@ export async function GET(request: NextRequest) {
         })
       }
 
-      // Validate email format
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(requestedEmail)) {
         return NextResponse.json({
           authenticated: false,
@@ -88,20 +109,14 @@ export async function GET(request: NextRequest) {
         })
       }
 
-      // SECURITY: Only allow login for existing verified users.
-      // A user is considered "verified" if they have a passkeyId (registered via WebAuthn)
-      // OR if they have a VerificationToken record (verified via OTP at least once)
-      // OR if they have an existing valid session (already authenticated via another method).
-      // New users must go through the OTP flow to prove email ownership.
       const user = await db.user.findUnique({
         where: { email: requestedEmail },
         include: {
-          accounts: { take: 1 }, // Has OAuth account = verified
+          accounts: { take: 1 },
         },
       }).catch(() => null)
 
       if (!user) {
-        // User doesn't exist — they need to register via OTP flow
         return NextResponse.json({
           authenticated: false,
           error: 'USER_NOT_FOUND',
@@ -109,18 +124,16 @@ export async function GET(request: NextRequest) {
         })
       }
 
-      // Check if the request already carries a valid session token for this user
       let hasValidSession = false
       if (sessionToken) {
         try {
           const existingSession = await db.session.findFirst({
-            where: { token: sessionToken, userId: user.id, expiresAt: { gt: new Date() } },
+            where: { token: sessionToken, userId: user.id, isActive: true, expiresAt: { gt: new Date() } },
           })
           hasValidSession = !!existingSession
         } catch { /* Ignore DB errors */ }
       }
 
-      // Check if user has an OTP verification record (proved email ownership)
       let hasOtpVerification = false
       try {
         const otpRecord = await db.verificationToken.findFirst({
@@ -129,11 +142,9 @@ export async function GET(request: NextRequest) {
         hasOtpVerification = !!otpRecord
       } catch { /* Ignore DB errors */ }
 
-      // Check if user is verified (has passkey, OAuth account, OTP verification, or existing valid session)
       const isVerified = !!(user.passkeyId || user.accounts.length > 0 || hasOtpVerification || hasValidSession)
 
       if (!isVerified) {
-        // User exists but hasn't verified their email yet
         return NextResponse.json({
           authenticated: false,
           error: 'EMAIL_NOT_VERIFIED',
@@ -141,13 +152,28 @@ export async function GET(request: NextRequest) {
         })
       }
 
-      // Verified user — create session
+      // Create session with device info
+      const userAgent = request.headers.get('user-agent')
+      const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+        || request.headers.get('x-real-ip')
+        || null
+      const deviceInfo = parseUserAgent(userAgent)
       const newToken = crypto.randomBytes(32).toString('hex')
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours (not 30 days)
+      const newRefreshToken = crypto.randomBytes(48).toString('hex')
+      const expiresAt = new Date(Date.now() + SESSION_DURATION_MS)
 
       try {
         await db.session.create({
-          data: { userId: user.id, token: newToken, expiresAt },
+          data: {
+            userId: user.id,
+            token: newToken,
+            refreshToken: newRefreshToken,
+            deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
+            ipAddress,
+            userAgent,
+            isActive: true,
+            expiresAt,
+          },
         })
       } catch {
         return NextResponse.json({
@@ -176,6 +202,14 @@ export async function GET(request: NextRequest) {
         path: '/',
       })
 
+      response.cookies.set('roua_refresh', newRefreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60, // 30 days
+        path: '/',
+      })
+
       return response
     }
 
@@ -195,9 +229,6 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/auth/me — Email login flow (secure alternative to GET ?email=xxx)
- *
- * SECURITY: Uses POST instead of GET to prevent email leaking in
- * URL query parameters, server access logs, browser history, and referrer headers.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -219,7 +250,6 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Block guest email
     if (requestedEmail === GUEST_EMAIL) {
       return NextResponse.json({
         authenticated: false,
@@ -227,7 +257,6 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Validate email format
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(requestedEmail)) {
       return NextResponse.json({
         authenticated: false,
@@ -235,7 +264,6 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // SECURITY: Only allow login for existing verified users.
     const user = await db.user.findUnique({
       where: { email: requestedEmail },
       include: {
@@ -251,7 +279,6 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Check if user has verified their email
     let hasOtpVerification = false
     try {
       const otpRecord = await db.verificationToken.findFirst({
@@ -270,13 +297,28 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Create session for verified user
+    // Create session with device info
+    const userAgent = request.headers.get('user-agent')
+    const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')
+      || null
+    const deviceInfo = parseUserAgent(userAgent)
     const newToken = crypto.randomBytes(32).toString('hex')
+    const newRefreshToken = crypto.randomBytes(48).toString('hex')
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
 
     try {
       await db.session.create({
-        data: { userId: user.id, token: newToken, expiresAt },
+        data: {
+          userId: user.id,
+          token: newToken,
+          refreshToken: newRefreshToken,
+          deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
+          ipAddress,
+          userAgent,
+          isActive: true,
+          expiresAt,
+        },
       })
     } catch {
       return NextResponse.json({
@@ -305,6 +347,14 @@ export async function POST(request: NextRequest) {
       path: '/',
     })
 
+    response.cookies.set('roua_refresh', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60, // 30 days
+      path: '/',
+    })
+
     return response
   } catch (error: any) {
     console.error('[auth/me POST] Error:', error?.message || error)
@@ -322,11 +372,16 @@ export async function DELETE(request: NextRequest) {
   try {
     const sessionToken = request.cookies.get('roua_session')?.value
     if (sessionToken) {
-      await db.session.deleteMany({ where: { token: sessionToken } }).catch(() => {})
+      // Mark session as inactive instead of deleting (audit trail)
+      await db.session.updateMany({
+        where: { token: sessionToken, isActive: true },
+        data: { isActive: false },
+      }).catch(() => {})
     }
   } catch { /* Ignore */ }
 
   const response = NextResponse.json({ success: true })
   response.cookies.delete('roua_session')
+  response.cookies.delete('roua_refresh')
   return response
 }

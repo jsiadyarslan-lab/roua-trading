@@ -35,9 +35,12 @@ export async function verifyUserSession(
     include: { user: true },
   })
 
-  if (!session || session.expiresAt <= new Date()) {
+  if (!session || !session.isActive || session.expiresAt <= new Date()) {
     if (session) {
-      await db.session.delete({ where: { id: session.id } }).catch(() => {})
+      await db.session.update({
+        where: { id: session.id },
+        data: { isActive: false },
+      }).catch(() => {})
     }
 
     return {

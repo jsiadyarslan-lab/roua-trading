@@ -10,22 +10,18 @@ import crypto from 'crypto'
  * 2. Look up the OTP in VerificationToken table
  * 3. Check if it's expired
  * 4. If valid, find or create the user
- * 5. Create a session
+ * 5. Create a session with device info and refresh token
  * 6. Delete the used OTP
- * 7. Return user data with session cookie
- *
- * SECURITY: Rate limiting prevents brute-force attacks on the 6-digit OTP.
- * Without it, an attacker could try all 1,000,000 combinations in minutes.
+ * 7. Return user data with session + refresh cookies
  */
 
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000 // 7 days for OTP-verified users
 const GUEST_EMAIL = 'guest@roua.auto'
 const MAX_OTP_ATTEMPTS = 5
 const OTP_ATTEMPT_WINDOW_MS = 5 * 60 * 1000 // 5 minutes
-const MAX_INVALID_ATTEMPTS_LOCKOUT = 5 // After 5 wrong attempts, lock for 30 minutes
+const MAX_INVALID_ATTEMPTS_LOCKOUT = 5
 const LOCKOUT_DURATION_MS = 30 * 60 * 1000 // 30 minutes
 
-// In-memory rate limit store (resets on server restart — acceptable for this use case)
 const otpAttemptStore = new Map<string, { count: number; firstAttemptAt: number }>()
 const otpLockoutStore = new Map<string, { until: number }>()
 
@@ -33,7 +29,31 @@ function getRateLimitKey(email: string, ip: string): string {
   return `${email}:${ip}`
 }
 
-// Clean up stale entries every 10 minutes
+function parseUserAgent(userAgent?: string | null) {
+  if (!userAgent) return null
+  const ua = userAgent.toLowerCase()
+
+  let type = 'desktop'
+  if (/mobile|android|iphone|ipod|blackberry|iemobile|opera mini/i.test(ua)) type = 'mobile'
+  else if (/ipad|tablet|kindle|silk/i.test(ua)) type = 'tablet'
+
+  let browser = 'Unknown'
+  if (ua.includes('edg/')) browser = 'Edge'
+  else if (ua.includes('chrome/') && !ua.includes('edg/')) browser = 'Chrome'
+  else if (ua.includes('firefox/')) browser = 'Firefox'
+  else if (ua.includes('safari/') && !ua.includes('chrome/')) browser = 'Safari'
+  else if (ua.includes('opera/') || ua.includes('opr/')) browser = 'Opera'
+
+  let os = 'Unknown'
+  if (ua.includes('windows')) os = 'Windows'
+  else if (ua.includes('mac os')) os = 'macOS'
+  else if (ua.includes('linux')) os = 'Linux'
+  else if (ua.includes('android')) os = 'Android'
+  else if (ua.includes('iphone') || ua.includes('ipad')) os = 'iOS'
+
+  return { browser, os, type, device: type }
+}
+
 if (typeof setInterval !== 'undefined') {
   setInterval(() => {
     const now = Date.now()
@@ -65,7 +85,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'MISSING_FIELDS' }, { status: 400 })
     }
 
-    // Validate OTP format (must be exactly 6 digits)
     if (!/^\d{6}$/.test(otp)) {
       return NextResponse.json({ error: 'INVALID_OTP_FORMAT', message: 'رمز التحقق غير صالح' }, { status: 400 })
     }
@@ -74,7 +93,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'GUEST_LOGIN_BLOCKED' }, { status: 403 })
     }
 
-    // ── Rate limiting: check lockout ──
+    // ── Rate limiting ──
     const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
       || request.headers.get('x-real-ip')
       || 'unknown'
@@ -89,7 +108,6 @@ export async function POST(request: NextRequest) {
       }, { status: 429 })
     }
 
-    // ── Rate limiting: check attempt count ──
     const attempts = otpAttemptStore.get(rateLimitKey)
     if (attempts && attempts.count >= MAX_OTP_ATTEMPTS) {
       const elapsed = Date.now() - attempts.firstAttemptAt
@@ -99,11 +117,9 @@ export async function POST(request: NextRequest) {
           message: 'محاولات كثيرة. حاول مرة أخرى بعد قليل.',
         }, { status: 429 })
       }
-      // Window expired — reset counter
       otpAttemptStore.delete(rateLimitKey)
     }
 
-    // Increment attempt counter
     const current = otpAttemptStore.get(rateLimitKey)
     if (current) {
       current.count++
@@ -122,7 +138,6 @@ export async function POST(request: NextRequest) {
     })
 
     if (!storedOtp) {
-      // Track invalid attempts for lockout
       const currentAttempts = otpAttemptStore.get(rateLimitKey)
       if (currentAttempts && currentAttempts.count >= MAX_INVALID_ATTEMPTS_LOCKOUT) {
         otpLockoutStore.set(rateLimitKey, { until: Date.now() + LOCKOUT_DURATION_MS })
@@ -134,13 +149,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'INVALID_OTP', message: 'رمز التحقق غير صحيح' }, { status: 400 })
     }
 
-    // Check expiry
     if (storedOtp.expires < new Date()) {
       await db.verificationToken.delete({ where: { id: storedOtp.id } }).catch(() => {})
       return NextResponse.json({ error: 'OTP_EXPIRED', message: 'انتهت صلاحية رمز التحقق' }, { status: 400 })
     }
 
-    // OTP is valid — delete it
     await db.verificationToken.delete({ where: { id: storedOtp.id } }).catch(() => {})
 
     // Find or create user
@@ -149,11 +162,7 @@ export async function POST(request: NextRequest) {
     if (!user) {
       try {
         user = await db.user.create({
-          data: {
-            email,
-            displayName: email.split('@')[0],
-            tier: 'FREE',
-          },
+          data: { email, displayName: email.split('@')[0], tier: 'FREE' },
         })
       } catch {
         user = await db.user.findUnique({ where: { email } })
@@ -164,13 +173,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'USER_CREATION_FAILED' }, { status: 500 })
     }
 
-    // Create session
+    // Create session with device info
+    const userAgent = request.headers.get('user-agent')
+    const ipAddress = clientIp !== 'unknown' ? clientIp : null
+    const deviceInfo = parseUserAgent(userAgent)
     const newToken = crypto.randomBytes(32).toString('hex')
+    const newRefreshToken = crypto.randomBytes(48).toString('hex')
     const expiresAt = new Date(Date.now() + SESSION_DURATION_MS)
 
     try {
       await db.session.create({
-        data: { userId: user.id, token: newToken, expiresAt },
+        data: {
+          userId: user.id,
+          token: newToken,
+          refreshToken: newRefreshToken,
+          deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
+          ipAddress,
+          userAgent,
+          isActive: true,
+          expiresAt,
+        },
       })
     } catch {
       return NextResponse.json({ error: 'SESSION_CREATION_FAILED' }, { status: 500 })
@@ -193,6 +215,14 @@ export async function POST(request: NextRequest) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60, // 7 days
+      path: '/',
+    })
+
+    response.cookies.set('roua_refresh', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 30 * 24 * 60 * 60, // 30 days
       path: '/',
     })
 

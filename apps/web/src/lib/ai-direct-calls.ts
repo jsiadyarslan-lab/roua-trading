@@ -1033,11 +1033,11 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
   const filledRoleNames = new Set(successfulModels.flatMap(m => m.roles))
   const allRoleNames = activeModelCalls.flatMap(mc => mc.roles)
   const missingRoles = allRoleNames.filter(r => !filledRoleNames.has(r))
+  console.log(`[direct-council] Role redistribution: filled=${JSON.stringify([...filledRoleNames])}, missing=${JSON.stringify(missingRoles)}, successfulModels=${successfulModels.map(m => m.modelName).join(',')}`)
 
   // Redistribute missing roles to successful models
+  let redistributedCount = 0
   if (missingRoles.length > 0 && successfulModels.length > 0) {
-    const successfulModelNames = new Set(successfulModels.map(m => m.modelName))
-
     for (const missingRole of missingRoles) {
       const candidates = ROLE_REDISTRIBUTION_MAP[missingRole] || []
       // Find the first candidate model that succeeded and doesn't already have this role
@@ -1049,10 +1049,12 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
       if (redistributor) {
         const model = successfulModels.find(m => m.modelName === redistributor)!
         model.roles.push(missingRole)
+        redistributedCount++
         console.log(`[direct-council] Redistributing role "${missingRole}" to ${redistributor} (with 15% confidence penalty)`)
       }
     }
   }
+  console.log(`[direct-council] After redistribution: total redistributed=${redistributedCount}, model roles: ${successfulModels.map(m => `${m.modelName}=[${m.roles.join(',')}]`).join(' | ')}`)
 
   // Build analyses — each successful model fills its assigned role(s)
   // FIX: Redistributed roles get a 15% confidence penalty
@@ -1164,6 +1166,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
         modelsWithKeys: expectedDirectModels,
         bedrockAvailable: bedrockStatus.available,
         bedrockNote: bedrockStatus.available ? 'Direct call enabled (AWS SigV4)' : 'AWS credentials not configured',
+        redistributedRoles: redistributedCount,
         ollamaAttempted: shouldTryOllama,
         ollamaUrl: shouldTryOllama ? ollamaBaseUrl : 'skipped (localhost on cloud)',
       },

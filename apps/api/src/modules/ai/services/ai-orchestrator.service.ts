@@ -735,7 +735,7 @@ export class AIOrchestratorService {
       { id: 'groq', name: 'Groq/Llama 3.3 70B', keyEnv: 'GROQ_API_KEY' },
       { id: 'gemini', name: 'Gemini 2.0 Flash', keyEnv: 'GOOGLE_AI_STUDIO_API_KEY', altKeyEnv: 'GEMINI_API_KEY' },
       { id: 'glm', name: 'GLM-4 (Zhipu AI)', keyEnv: 'GLM_API_KEY' },
-      { id: 'huggingface', name: 'HuggingFace/Mistral-7B', keyEnv: 'HF_API_KEY' },  // Also checks OPENROUTER_API_KEY as fallback
+      { id: 'huggingface', name: 'HuggingFace/Mistral-7B', keyEnv: 'HUGGINGFACE_API_KEY', altKeyEnv: 'HF_API_KEY' },  // Also checks OPENROUTER_API_KEY as fallback
       { id: 'ollama', name: 'Ollama/Qwen2.5', keyEnv: 'OLLAMA_API_KEY' },
       { id: 'bedrock', name: 'Bedrock/Claude 3.5', keyEnv: 'AWS_ACCESS_KEY_ID' },
       { id: 'openrouter', name: 'OpenRouter/Llama 3.1', keyEnv: 'OPENROUTER_API_KEY' },
@@ -955,9 +955,25 @@ export class AIOrchestratorService {
       return !!(apiKey && apiKey.trim()) || !!(baseUrl && baseUrl.trim() && !this._isLocalhostUrl(baseUrl));
     }
 
+    // For gemini: ANY of the listed keys works (GOOGLE_AI_STUDIO_API_KEY or GEMINI_API_KEY)
     // For huggingface: ANY of the listed keys works (HF_API_KEY, HUGGINGFACE_API_KEY, or OPENROUTER_API_KEY)
     // For bedrock: ALL listed keys must be present (AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY)
     if (model === 'huggingface') {
+      // Check HF keys first, then also check if OpenRouter key exists as fallback
+      // (HuggingFaceService.analyze() can use OpenRouter as Strategy 3)
+      const hasOwnKey = keys.some(key => {
+        const value = this.configService!.get<string>(key, '');
+        return !!(value && value.trim());
+      });
+      if (hasOwnKey) return true;
+      // BUG FIX: Also check OPENROUTER_API_KEY — HuggingFaceService can use it as fallback
+      const orKey = this.configService!.get<string>('OPENROUTER_API_KEY', '');
+      return !!(orKey && orKey.trim());
+    }
+    if (model === 'gemini') {
+      // BUG FIX: Gemini only needs ONE of the keys (GOOGLE_AI_STUDIO_API_KEY or GEMINI_API_KEY),
+      // not BOTH. Previously used keys.every() which required both to be set,
+      // causing Gemini to be marked unavailable when only one key was configured.
       return keys.some(key => {
         const value = this.configService!.get<string>(key, '');
         return !!(value && value.trim());

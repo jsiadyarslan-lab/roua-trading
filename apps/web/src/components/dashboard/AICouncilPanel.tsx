@@ -282,7 +282,7 @@ export function AICouncilPanel() {
           }}>
             {isRealAI ? <Cpu size={8} color={T.purple} /> : <WifiOff size={8} color={T.amber} />}
             <span style={{ fontSize: 7, fontWeight: 700, color: isPartialAI ? T.accent : isRealAI ? T.purple : T.amber, fontFamily: 'monospace' }}>
-              {isPartialAI ? `${data?.meta?.modelsResponded || '?'}/6 AI` : isRealAI ? `${data?.meta?.modelsResponded || '6'} AI Models` : dataSource === 'scanner-rules' ? '📐 تقني' : 'FB'}
+              {isPartialAI ? `${data?.meta?.modelsResponded || '?'}/${data?.meta?.modelsExpected || 7} AI` : isRealAI ? `${data?.meta?.modelsResponded || 7}/${data?.meta?.modelsExpected || 7} AI` : dataSource === 'scanner-rules' ? '📐 تقني' : 'FB'}
             </span>
           </div>
           {/* Countdown */}
@@ -313,7 +313,7 @@ export function AICouncilPanel() {
             </span>
             {isRealAI && (
               <div className="flex gap-1 mt-1 flex-wrap justify-center px-4">
-                {['Gemini', 'Groq', 'GLM-4', 'HF', 'Ollama', 'Bedrock'].map((m, i) => {
+                {['Gemini', 'Groq', 'GLM-4', 'HF', 'Ollama', 'Bedrock', 'OR'].map((m, i) => {
                   const isActive = i % phases.length === loadingPhase
                   return (
                     <div 
@@ -571,7 +571,7 @@ export function AICouncilPanel() {
         <div className="flex items-center gap-1.5" style={{ opacity: 0.4 }}>
           <Heart size={7} color={keepAliveStatus?.nestJSUp ? T.green : T.amber} />
           <Info size={9} />
-          <span className="text-[7px] font-bold">Council v5.0 — {isRealAI ? `${data?.meta?.modelsResponded || '?'}/6 AI Models` : '6 Roles'}</span>
+          <span className="text-[7px] font-bold">Council v5.0 — {isRealAI ? `${data?.meta?.modelsResponded || '?'}/${data?.meta?.modelsExpected || 7} AI` : '7 Roles'}</span>
         </div>
       </div>
     </div>

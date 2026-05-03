@@ -236,46 +236,85 @@ async function callGemini(prompt: string): Promise<DirectAIResponse> {
   if (!apiKey) return { model: 'Gemini/unavailable', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key (tried GOOGLE_AI_STUDIO_API_KEY and GEMINI_API_KEY)' }
 
   const start = Date.now()
-  // FIX: Model fallback chain — updated May 2025 to use current stable models.
-  // Models with higher free-tier quotas listed first to reduce 429 errors.
   const modelCandidates = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash-001', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.5-flash-preview-04-17']
-  
-  for (const model of modelCandidates) {
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: `You are a financial AI analyst. Respond in Arabic. Provide analysis. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"\n\n${prompt}` }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
-        }),
-        signal: AbortSignal.timeout(MODEL_TIMEOUT),
-      })
+  const errors: string[] = []
 
-      if (!res.ok) {
-        const errBody = await res.text().catch(() => '')
-        // FIX: 429 can mean rate-limit OR quota exhaustion — try next model!
-        // Different Gemini models may have separate quota pools.
-        // Previously returned immediately on 429, causing premature failure.
-        if (res.status === 429) {
-          continue // Try next model — different models have separate quotas
-        }
-        // 404 = model not available, try next
-        if (res.status === 404) {
+  for (const model of modelCandidates) {
+    // FIX: Try BOTH auth methods — header auth first, then query-param auth
+    for (const authMethod of ['header', 'queryparam'] as const) {
+      try {
+        const url = authMethod === 'queryparam'
+          ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
+          : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
+
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+        if (authMethod === 'header') headers['x-goog-api-key'] = apiKey
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: `You are a financial AI analyst. Respond in Arabic. Provide analysis. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"\n\n${prompt}` }] }],
+            generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
+            // FIX: safetySettings — prevent financial content from being blocked as "dangerous"
+            // Without these, Gemini frequently blocks financial analysis with finishReason: SAFETY
+            safetySettings: [
+              { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+              { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+              { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+              { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+            ],
+          }),
+          signal: AbortSignal.timeout(MODEL_TIMEOUT),
+        })
+
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => '')
+          if (res.status === 429) {
+            errors.push(`${model} (${authMethod}): 429 rate-limited`)
+            if (authMethod === 'header') break // Try query-param for this model
+            continue // Both methods failed for this model, try next
+          }
+          if (res.status === 404) {
+            errors.push(`${model}: not found (404)`)
+            break // Model doesn't exist regardless of auth method
+          }
+          if (res.status === 401 || res.status === 403) {
+            errors.push(`${model} (${authMethod}): auth failed (${res.status})`)
+            if (authMethod === 'header') break // Try query-param
+            continue // Both auth methods failed, try next model
+          }
+          errors.push(`${model} (${authMethod}): ${res.status} — ${errBody.slice(0, 100)}`)
+          if (authMethod === 'header') break // Try query-param
           continue
         }
-        return { model: `Gemini/${model}`, content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `Gemini ${res.status}: ${errBody.slice(0, 150)}` }
-      }
 
-      const data = await res.json()
-      const content = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-      return { model: `Gemini/${model}`, content, confidence: calcConfidence(content, 'gemini'), processingTimeMs: Date.now() - start, success: content.trim().length > 0 }
-    } catch (e: any) {
-      continue // Try next model
+        const data = await res.json()
+
+        // FIX: Detect blocked responses (finishReason: SAFETY or RECITATION)
+        // Previously, blocked responses returned empty content and were treated as failures
+        const candidate = data.candidates?.[0]
+        const finishReason = candidate?.finishReason
+        if (finishReason === 'SAFETY' || finishReason === 'RECITATION') {
+          errors.push(`${model}: blocked (${finishReason}) — trying next model`)
+          break // This model blocks financial content, try next model
+        }
+
+        const content = candidate?.content?.parts?.[0]?.text || ''
+        if (content.trim().length > 0) {
+          return { model: `Gemini/${model}`, content, confidence: calcConfidence(content, 'gemini'), processingTimeMs: Date.now() - start, success: true }
+        }
+        errors.push(`${model}: empty content (finishReason: ${finishReason || 'UNKNOWN'})`)
+        break // Try query-param for this model
+      } catch (e: any) {
+        errors.push(`${model}: ${e.message?.slice(0, 80)}`)
+        if (authMethod === 'header') continue // Try query-param
+        continue // Try next model
+      }
     }
   }
-  
-  return { model: 'Gemini/unavailable', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: 'All Gemini models unavailable (quota exhausted or all 429)' }
+
+  return { model: 'Gemini/unavailable', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `All Gemini models failed: ${errors.slice(0, 3).join(' | ')}` }
 }
 
 async function callGLM(prompt: string): Promise<DirectAIResponse> {
@@ -356,15 +395,12 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
 
   const start = Date.now()
 
-  // ── Strategy 1: HuggingFace Auto-Router (if HF key available) ──
+  // ── Strategy 1: HuggingFace Auto-Router (needs "Inference Providers" permission) ──
   if (hfApiKey) {
     const hfModelCandidates = ['Qwen/Qwen2.5-7B-Instruct', 'mistralai/Mistral-7B-Instruct-v0.3', 'HuggingFaceH4/zephyr-7b-beta']
 
     for (const model of hfModelCandidates) {
       try {
-        // FIX: Use auto-router URL instead of direct model URL
-        // Auto-router: router.huggingface.co/v1/chat/completions
-        // Direct:      api-inference.huggingface.co/models/... (limited, often fails)
         const res = await fetch('https://router.huggingface.co/v1/chat/completions', {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${hfApiKey}`, 'Content-Type': 'application/json' },
@@ -381,9 +417,8 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
         })
 
         if (!res.ok) {
-          const errBody = await res.text().catch(() => '')
           if (res.status === 404 || res.status === 429) continue
-          if (res.status === 401) break // Auth error — try OpenRouter instead
+          if (res.status === 401) break // Auth error — try Strategy 2
           continue
         }
 
@@ -398,7 +433,56 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
     }
   }
 
-  // ── Strategy 2: OpenRouter fallback (if OR key available) ──
+  // ── Strategy 2: HuggingFace Direct Inference Providers (NEW!) ──
+  // Works with ANY valid HF token — no "Inference Providers" permission needed!
+  // Try multiple providers (hf-inference, sambanova, novita, fireworks)
+  // Each provider has different models available — try all combinations.
+  if (hfApiKey) {
+    const hfInferenceProviders = [
+      { name: 'hf-inference', url: 'https://router.huggingface.co/hf-inference/v1/chat/completions' },
+      { name: 'sambanova', url: 'https://router.huggingface.co/sambanova/v1/chat/completions' },
+      { name: 'novita', url: 'https://router.huggingface.co/novita/v1/chat/completions' },
+      { name: 'fireworks', url: 'https://router.huggingface.co/fireworks/v1/chat/completions' },
+    ]
+    const directModels = ['Qwen/Qwen2.5-7B-Instruct', 'mistralai/Mistral-7B-Instruct-v0.3', 'microsoft/Phi-3-mini-4k-instruct']
+
+    for (const provider of hfInferenceProviders) {
+      for (const model of directModels) {
+        try {
+          const res = await fetch(provider.url, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${hfApiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: 'system', content: 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير أنماط مالي. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+                { role: 'user', content: prompt },
+              ],
+              max_tokens: 1024,
+              temperature: 0.3,
+            }),
+            signal: AbortSignal.timeout(MODEL_TIMEOUT),
+          })
+
+          if (!res.ok) {
+            if (res.status === 429 || res.status === 404) continue
+            if (res.status === 401) break // Bad key, stop trying providers
+            continue
+          }
+
+          const data = await res.json()
+          const content = data.choices?.[0]?.message?.content || ''
+          if (content.trim().length > 0) {
+            return { model: `HF-${provider.name}/${model.split('/').pop()}`, content, confidence: calcConfidence(content, 'huggingface'), processingTimeMs: Date.now() - start, success: true }
+          }
+        } catch {
+          continue
+        }
+      }
+    }
+  }
+
+  // ── Strategy 3: OpenRouter fallback (if OR key available) ──
   if (openrouterApiKey) {
     const orModels = ['meta-llama/llama-3.1-8b-instruct:free', 'qwen/qwen-2.5-7b-instruct:free', 'google/gemma-2-9b-it:free']
     for (const model of orModels) {
@@ -632,6 +716,7 @@ async function callBedrock(prompt: string): Promise<DirectAIResponse> {
     try {
       const isClaude = modelId.includes('anthropic')
       const isTitan = modelId.includes('titan')
+      const isNova = modelId.includes('nova')
       
       let body: any
       if (isClaude) {
@@ -642,6 +727,21 @@ async function callBedrock(prompt: string): Promise<DirectAIResponse> {
           system: systemPrompt,
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.3,
+        }
+      } else if (isNova) {
+        // FIX: Amazon Nova model format — messages + inferenceConfig
+        // Nova uses a different API format than Claude/Titan. Without this,
+        // Nova models return validation errors and fail silently.
+        const systemPrompt = 'أنت محلل مالي. أجب بالعربية فقط. أنت خبير مخاطر. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
+        body = {
+          messages: [
+            { role: 'user', content: [{ text: `${systemPrompt}\n\n${prompt}` }] },
+          ],
+          inferenceConfig: {
+            maxTokens: 1024,
+            temperature: 0.3,
+            topP: 0.9,
+          },
         }
       } else if (isTitan) {
         const systemPrompt = 'أنت محلل مالي. أجب بالعربية فقط. أنت خبير مخاطر. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
@@ -686,6 +786,13 @@ async function callBedrock(prompt: string): Promise<DirectAIResponse> {
       if (data.content && Array.isArray(data.content)) {
         // Claude response format
         content = data.content[0]?.text || ''
+      } else if (isNova && data.output?.message?.content) {
+        // FIX: Amazon Nova response format
+        // Nova returns: { output: { message: { content: [{ text: "..." }] } } }
+        const novaContent = data.output.message.content
+        if (Array.isArray(novaContent) && novaContent.length > 0) {
+          content = novaContent[0].text || ''
+        }
       } else if (data.results && Array.isArray(data.results) && data.results.length > 0) {
         // Titan response format
         content = data.results[0].outputText || ''

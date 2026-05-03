@@ -334,13 +334,13 @@ export default function SecurityPage() {
               type={showCurrentPass ? 'text' : 'password'}
               placeholder="كلمة المرور الحالية"
               style={{
-                width: '100%', padding: '12px 14px', paddingRight: 14, paddingLeft: 40,
+                width: '100%', padding: '12px 14px', paddingInlineEnd: 14, paddingInlineStart: 40,
                 borderRadius: 14, background: 'rgba(255,255,255,0.05)',
                 border: `0.5px solid ${c.border}`, color: c.text,
                 fontSize: 13, fontFamily: "'Cairo', sans-serif", outline: 'none',
               }}
             />
-            <button onClick={() => setShowCurrentPass(!showCurrentPass)} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}>
+            <button onClick={() => setShowCurrentPass(!showCurrentPass)} style={{ position: 'absolute', insetInlineStart: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}>
               {showCurrentPass ? <EyeOff size={16} color={c.text2} /> : <Eye size={16} color={c.text2} />}
             </button>
           </div>
@@ -351,13 +351,13 @@ export default function SecurityPage() {
               type={showNewPass ? 'text' : 'password'}
               placeholder="كلمة المرور الجديدة"
               style={{
-                width: '100%', padding: '12px 14px', paddingRight: 14, paddingLeft: 40,
+                width: '100%', padding: '12px 14px', paddingInlineEnd: 14, paddingInlineStart: 40,
                 borderRadius: 14, background: 'rgba(255,255,255,0.05)',
                 border: `0.5px solid ${c.border}`, color: c.text,
                 fontSize: 13, fontFamily: "'Cairo', sans-serif", outline: 'none',
               }}
             />
-            <button onClick={() => setShowNewPass(!showNewPass)} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}>
+            <button onClick={() => setShowNewPass(!showNewPass)} style={{ position: 'absolute', insetInlineStart: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}>
               {showNewPass ? <EyeOff size={16} color={c.text2} /> : <Eye size={16} color={c.text2} />}
             </button>
           </div>

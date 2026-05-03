@@ -60,8 +60,8 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
     cyan: '#00D4FF',
     text: '#F0F2F5',
     textSecondary: '#8B92A8',
-    textMuted: '#64748b',
-    success: '#3fb950',
+    textMuted: '#8B92A8',
+    success: '#00FFA3',
     bg: '#0B0E14',
   };
 

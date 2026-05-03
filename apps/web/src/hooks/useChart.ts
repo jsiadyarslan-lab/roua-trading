@@ -17,6 +17,7 @@ import { DrawingRenderer } from '../lib/charts/DrawingRenderer';
 import { KeyboardShortcuts } from '../lib/charts/KeyboardShortcuts';
 import { ChartExporter } from '../lib/charts/ChartExporter';
 import { ChartTemplateManager } from '../lib/charts/ChartTemplate';
+import { T } from '@/lib/unified-tokens';
 
 interface UseChartOptions {
   symbol: string;
@@ -100,7 +101,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     crosshairType: 'cross',
     upColor: '#3fb950',
     downColor: '#f85149',
-    bgColor: '#0B0E14',
+    bgColor: T.bg,
     gridColor: 'rgba(42,49,60,0.5)',
     ...options.settings,
   });
@@ -121,12 +122,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   }, [activeIndicators]);
 
   // ── Chart Colors ───────────────────────────────────────
-  const COLORS = {
-    bg: '#0B0E14',
-    card: '#151A22',
-    border: '#2A313C',
-    text: '#F0F2F5',
-    textSecondary: '#8B92A8',
+  const CHART_COLORS = {
     grid: 'rgba(42,49,60,0.5)',
     crosshair: 'rgba(160,200,220,0.3)',
     upColor: '#3fb950',
@@ -180,37 +176,37 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       width: initialWidth,
       height: initialHeight,
       layout: {
-        background: { color: COLORS.bg },
-        textColor: COLORS.textSecondary,
+        background: { color: T.bg },
+        textColor: T.text2,
         fontSize: isMobile ? 9 : 11,
         fontFamily: "'JetBrains Mono', monospace",
         attributionLogo: false,
       },
       grid: {
-        vertLines: { color: COLORS.grid },
-        horzLines: { color: COLORS.grid },
+        vertLines: { color: CHART_COLORS.grid },
+        horzLines: { color: CHART_COLORS.grid },
       },
       crosshair: {
         mode: 0, // Normal
         vertLine: {
-          color: COLORS.crosshair,
+          color: CHART_COLORS.crosshair,
           width: 1,
           style: 2,
-          labelBackgroundColor: '#151A22',
+          labelBackgroundColor: T.card,
         },
         horzLine: {
-          color: COLORS.crosshair,
+          color: CHART_COLORS.crosshair,
           width: 1,
           style: 2,
-          labelBackgroundColor: '#151A22',
+          labelBackgroundColor: T.card,
         },
       },
       rightPriceScale: {
-        borderColor: isMobile ? 'transparent' : COLORS.border,
+        borderColor: isMobile ? 'transparent' : T.cardBorder,
         scaleMargins: { top: 0.1, bottom: 0.2 },
       },
       timeScale: {
-        borderColor: COLORS.border,
+        borderColor: T.cardBorder,
         timeVisible: true,
         secondsVisible: true,
         rightOffset: 5,
@@ -225,12 +221,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
     // ── Candlestick Series ──
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: COLORS.upColor,
-      downColor: COLORS.downColor,
-      borderUpColor: COLORS.upColor,
-      borderDownColor: COLORS.downColor,
-      wickUpColor: COLORS.upWick,
-      wickDownColor: COLORS.downWick,
+      upColor: CHART_COLORS.upColor,
+      downColor: CHART_COLORS.downColor,
+      borderUpColor: CHART_COLORS.upColor,
+      borderDownColor: CHART_COLORS.downColor,
+      wickUpColor: CHART_COLORS.upWick,
+      wickDownColor: CHART_COLORS.downWick,
     });
     candleSeriesRef.current = candleSeries;
     mainSeriesRef.current = candleSeries;
@@ -974,20 +970,20 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       if (type === 'hollow' && candleSeriesRef.current) {
         candleSeriesRef.current.applyOptions({
           upColor: 'transparent',
-          downColor: COLORS.downColor,
-          borderUpColor: COLORS.upColor,
-          borderDownColor: COLORS.downColor,
-          wickUpColor: COLORS.upWick,
-          wickDownColor: COLORS.downWick,
+          downColor: CHART_COLORS.downColor,
+          borderUpColor: CHART_COLORS.upColor,
+          borderDownColor: CHART_COLORS.downColor,
+          wickUpColor: CHART_COLORS.upWick,
+          wickDownColor: CHART_COLORS.downWick,
         });
       } else if (candleSeriesRef.current) {
         candleSeriesRef.current.applyOptions({
-          upColor: COLORS.upColor,
-          downColor: COLORS.downColor,
-          borderUpColor: COLORS.upColor,
-          borderDownColor: COLORS.downColor,
-          wickUpColor: COLORS.upWick,
-          wickDownColor: COLORS.downWick,
+          upColor: CHART_COLORS.upColor,
+          downColor: CHART_COLORS.downColor,
+          borderUpColor: CHART_COLORS.upColor,
+          borderDownColor: CHART_COLORS.downColor,
+          wickUpColor: CHART_COLORS.upWick,
+          wickDownColor: CHART_COLORS.downWick,
         });
       }
 
@@ -1013,7 +1009,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
     if (type === 'line') {
       const lineSeries = chart.addSeries(LineSeries, {
-        color: COLORS.upColor,
+        color: CHART_COLORS.upColor,
         lineWidth: 2 as any,
         priceLineVisible: true,
         lastValueVisible: true,
@@ -1028,7 +1024,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const areaSeries = chart.addSeries(AreaSeries, {
         topColor: 'rgba(63,185,80,0.3)',
         bottomColor: 'rgba(63,185,80,0.02)',
-        lineColor: COLORS.upColor,
+        lineColor: CHART_COLORS.upColor,
         lineWidth: 2 as any,
         priceLineVisible: true,
         lastValueVisible: true,
@@ -1041,8 +1037,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     }
     else if (type === 'bar') {
       const barSeries = chart.addSeries(BarSeries, {
-        upColor: COLORS.upColor,
-        downColor: COLORS.downColor,
+        upColor: CHART_COLORS.upColor,
+        downColor: CHART_COLORS.downColor,
       });
       const displayCandles = candles.map(c => ({
         time: c.time as Time,
@@ -1168,14 +1164,14 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         } else if (settings.crosshairType === 'dot') {
           return {
             mode: 0,
-            vertLine: { visible: true, style: 0, width: 0 as any, labelVisible: true, labelBackgroundColor: '#151A22' },
-            horzLine: { visible: true, style: 0, width: 0 as any, labelVisible: true, labelBackgroundColor: '#151A22' },
+            vertLine: { visible: true, style: 0, width: 0 as any, labelVisible: true, labelBackgroundColor: T.card },
+            horzLine: { visible: true, style: 0, width: 0 as any, labelVisible: true, labelBackgroundColor: T.card },
           };
         } else {
           return {
             mode: 0, // Normal
-            vertLine: { visible: true, color: COLORS.crosshair, width: 1, style: 2, labelBackgroundColor: '#151A22' },
-            horzLine: { visible: true, color: COLORS.crosshair, width: 1, style: 2, labelBackgroundColor: '#151A22' },
+            vertLine: { visible: true, color: CHART_COLORS.crosshair, width: 1, style: 2, labelBackgroundColor: T.card },
+            horzLine: { visible: true, color: CHART_COLORS.crosshair, width: 1, style: 2, labelBackgroundColor: T.card },
           };
         }
       })(),
@@ -1338,7 +1334,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const chart = chartInstanceRef.current;
     if (chart) {
       if (updates.showGrid !== undefined) {
-        const gridColor = updates.gridColor || (updates.showGrid ? COLORS.grid : 'transparent');
+        const gridColor = updates.gridColor || (updates.showGrid ? CHART_COLORS.grid : 'transparent');
         chart.applyOptions({
           grid: {
             vertLines: { color: updates.showGrid ? gridColor : 'transparent' },
@@ -1356,12 +1352,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       }
       if (updates.upColor !== undefined || updates.downColor !== undefined) {
         candleSeriesRef.current?.applyOptions({
-          upColor: updates.upColor || COLORS.upColor,
-          downColor: updates.downColor || COLORS.downColor,
-          borderUpColor: updates.upColor || COLORS.upColor,
-          borderDownColor: updates.downColor || COLORS.downColor,
-          wickUpColor: updates.upColor || COLORS.upWick,
-          wickDownColor: updates.downColor || COLORS.downWick,
+          upColor: updates.upColor || CHART_COLORS.upColor,
+          downColor: updates.downColor || CHART_COLORS.downColor,
+          borderUpColor: updates.upColor || CHART_COLORS.upColor,
+          borderDownColor: updates.downColor || CHART_COLORS.downColor,
+          wickUpColor: updates.upColor || CHART_COLORS.upWick,
+          wickDownColor: updates.downColor || CHART_COLORS.downWick,
         });
       }
       if (updates.showVolume !== undefined) {
@@ -1398,8 +1394,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           chart.applyOptions({
             crosshair: {
               mode: 0,
-              vertLine: { visible: true, color: COLORS.crosshair, width: 1, style: 2, labelVisible: true },
-              horzLine: { visible: true, color: COLORS.crosshair, width: 1, style: 2, labelVisible: true },
+              vertLine: { visible: true, color: CHART_COLORS.crosshair, width: 1, style: 2, labelVisible: true },
+              horzLine: { visible: true, color: CHART_COLORS.crosshair, width: 1, style: 2, labelVisible: true },
             },
           });
         }

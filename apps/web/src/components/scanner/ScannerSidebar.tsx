@@ -4,8 +4,8 @@ import { ScanSearch, LayoutGrid, Map, Brain, Clock, BarChart3, Filter, RefreshCw
 import { useScannerContext } from './ScannerProvider'
 
 const T = {
-  bg: '#04050C', bg2: '#0D1117', card: '#08090F', surface: '#1A1D29',
-  cyan: '#00D4FF', green: '#00FFA3', text: '#F0F2F5', text2: '#94a3b8',
+  bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', surface: '#1A1D29',
+  cyan: '#00D4FF', green: '#00FFA3', text: '#F0F2F5', text2: '#8B92A8',
   text3: '#8B92A8', border: 'rgba(255,255,255,0.06)', border2: 'rgba(0,212,255,0.16)',
 }
 
@@ -34,7 +34,7 @@ export function ScannerSidebar() {
   return (
     <div style={{
       width: 200, minWidth: 200, height: '100%', background: T.card,
-      borderLeft: `1px solid ${T.border}`, direction: 'rtl',
+      borderInlineStart: `1px solid ${T.border}`, direction: 'rtl',
       display: 'flex', flexDirection: 'column',
     }}>
       {/* Header */}
@@ -61,7 +61,7 @@ export function ScannerSidebar() {
                 display: 'flex', alignItems: 'center', gap: 10,
                 width: '100%', padding: '10px 14px', border: 'none', cursor: 'pointer',
                 background: active ? `${T.cyan}08` : 'transparent',
-                borderRight: active ? `2px solid ${T.cyan}` : '2px solid transparent',
+                borderInlineEnd: active ? `2px solid ${T.cyan}` : '2px solid transparent',
                 color: active ? T.cyan : T.text3,
                 transition: 'all 0.2s', direction: 'rtl', textAlign: 'right',
               }}

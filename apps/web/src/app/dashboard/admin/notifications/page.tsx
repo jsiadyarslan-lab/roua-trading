@@ -713,7 +713,7 @@ export default function AdminNotificationsPage() {
                       width: 16, height: 16, borderRadius: 8,
                       background: isEnabled ? '#000' : '#666',
                       position: 'absolute', top: 2,
-                      left: isEnabled ? 18 : 2,
+                      insetInlineStart: isEnabled ? 18 : 2,
                       transition: 'all 0.2s',
                     }} />
                   </div>

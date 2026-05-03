@@ -261,7 +261,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           padding: 4,
           display: 'flex',
           flexDirection: 'column',
-          background: '#071019',
+          background: '#0B0E14',
           position: 'relative',
           zIndex: 1,
         }}
@@ -322,14 +322,14 @@ function AgentMini() {
     <div style={{
       display: 'flex', flexDirection: 'column', height: '100%',
       background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))',
-      borderRadius: 16, border: '1px solid rgba(0,229,255,0.08)',
+      borderRadius: 16, border: '1px solid rgba(0,212,255,0.08)',
       overflow: 'hidden', fontFamily: "'Cairo', sans-serif",
     }}>
       {/* Header */}
       <div style={{
         padding: '7px 10px 6px',
-        background: 'linear-gradient(90deg, rgba(0,229,255,0.12), transparent)',
-        borderBottom: '1px solid rgba(0,229,255,0.08)',
+        background: 'linear-gradient(90deg, rgba(0,212,255,0.12), transparent)',
+        borderBottom: '1px solid rgba(0,212,255,0.08)',
         display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -353,7 +353,7 @@ function AgentMini() {
           style={{
             fontSize: 8, minHeight: 26, minWidth: 54, padding: '4px 8px',
             borderRadius: 7, border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
-            background: isRunning ? 'rgba(255,71,87,0.2)' : 'rgba(0,229,255,0.2)',
+            background: isRunning ? 'rgba(255,71,87,0.2)' : 'rgba(0,212,255,0.2)',
             color: isRunning ? T.danger : T.cyan, fontWeight: 800,
           }}
         >
@@ -363,12 +363,12 @@ function AgentMini() {
 
       {/* Strategy Picker */}
       {!isRunning && (
-        <div style={{ display: 'flex', gap: 3, padding: '4px 6px', background: '#09111a', borderBottom: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 3, padding: '4px 6px', background: '#0B0E14', borderBottom: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap' }}>
           {([StrategyType.AUTO, StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI]).map(s => (
             <button key={s} onClick={() => setStrategy(s)} style={{
               flex: '1 1 calc(33% - 3px)', minHeight: 20, padding: '3px 5px', fontSize: 7,
-              background: strategy === s ? 'rgba(0,229,255,0.14)' : 'rgba(255,255,255,0.03)',
-              border: `1px solid ${strategy === s ? 'rgba(0,229,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
+              background: strategy === s ? 'rgba(0,212,255,0.14)' : 'rgba(255,255,255,0.03)',
+              border: `1px solid ${strategy === s ? 'rgba(0,212,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
               borderRadius: 6, color: strategy === s ? T.cyan : T.text3, cursor: 'pointer',
             }}>
               {strategyLabels[s]}
@@ -380,7 +380,7 @@ function AgentMini() {
       {/* Stats */}
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5, padding: 6,
-        borderBottom: '1px solid rgba(0,229,255,0.08)',
+        borderBottom: '1px solid rgba(0,212,255,0.08)',
       }}>
         <div style={{ padding: 5, textAlign: 'center', minHeight: 30, background: 'rgba(255,255,255,0.02)', borderRadius: 6 }}>
           <div style={{ fontSize: 7, color: T.text3 }}>ر/خ اليوم</div>
@@ -402,7 +402,7 @@ function AgentMini() {
 
       {/* Active Strategy Info */}
       {config && (
-        <div style={{ padding: '4px 8px', borderBottom: '1px solid rgba(0,229,255,0.08)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ padding: '4px 8px', borderBottom: '1px solid rgba(0,212,255,0.08)', display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 7, color: T.text3 }}>الاستراتيجية:</span>
           <span style={{ fontSize: 8, fontWeight: 800, color: T.cyan }}>{strategyLabels[config.strategy] || config.strategy}</span>
           <span style={{ fontSize: 7, color: T.text3 }}>• خطر/صفقة: {config.riskPerTradePercent}%</span>
@@ -413,7 +413,7 @@ function AgentMini() {
       {/* Positions List */}
       <div style={{
         flex: 1, minHeight: 0, maxHeight: '40vh', overflowY: 'auto',
-        padding: 4, background: 'rgba(5,10,18,0.45)',
+        padding: 4, background: 'rgba(11,14,20,0.45)',
       }} className="custom-scrollbar">
         {positions.length === 0 ? (
           <div style={{ padding: 20, textAlign: 'center', opacity: 0.3, fontSize: 9, fontFamily: "'Cairo', sans-serif" }}>

@@ -119,7 +119,7 @@ function FAQItem({ q, a }: { q: string; a: string }) {
           >
             <p style={{
               fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif",
-              lineHeight: 1.8, marginTop: 10, paddingRight: 38,
+              lineHeight: 1.8, marginTop: 10, paddingInlineEnd: 38,
             }}>
               {a}
             </p>

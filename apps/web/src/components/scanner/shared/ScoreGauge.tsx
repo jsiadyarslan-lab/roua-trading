@@ -2,7 +2,7 @@
 
 const T = {
   green: '#00FFA3', greenDim: '#00CC82', red: '#FF4757', redDim: '#FF3344',
-  amber: '#FFB800', text2: '#94a3b8', text3: '#8B92A8', text: '#F0F2F5',
+  amber: '#FFB800', text2: '#8B92A8', text3: '#8B92A8', text: '#F0F2F5',
 }
 
 interface ScoreGaugeProps {

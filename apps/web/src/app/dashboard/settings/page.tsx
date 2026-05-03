@@ -16,15 +16,9 @@ import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useAuthStore } from '@/lib/auth-store'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { hasPermission, getPermissions, ROLE_INFO, type Role, type Permission } from '@/lib/permissions'
+import { T as SharedT } from '@/lib/unified-tokens'
 
-const T = {
-  bg: '#04050C', bg2: '#0D1117', card: '#08090F', cardHover: '#0B0F19',
-  surface: '#1A1D29', cyan: '#00D4FF', green: '#00FFA3', greenDim: '#00CC82',
-  red: '#FF4757', redDim: '#FF3344', amber: '#FFB800', purple: '#B388FF',
-  blue: '#0A84FF', pink: '#f472b6',
-  text: '#F0F2F5', text2: '#94a3b8', text3: '#8B92A8', text4: '#475569',
-  border: 'rgba(255,255,255,0.06)', border2: 'rgba(0,212,255,0.16)',
-}
+const T = { ...SharedT, pink: '#f472b6', text4: '#475569' }
 
 /* ─── Toggle Switch ─── */
 function Toggle({ checked, onChange, color, size = 'md', ariaLabel }: {
@@ -48,7 +42,7 @@ function Toggle({ checked, onChange, color, size = 'md', ariaLabel }: {
       <div style={{
         width: s.dot, height: s.dot, borderRadius: s.dot / 2, background: checked ? color : T.text3,
         position: 'absolute', top: (s.h - s.dot) / 2,
-        right: checked ? (s.h - s.dot) / 2 : 'auto', left: checked ? 'auto' : (s.h - s.dot) / 2,
+        insetInlineEnd: checked ? (s.h - s.dot) / 2 : 'auto', insetInlineStart: checked ? 'auto' : (s.h - s.dot) / 2,
         transition: 'all 0.3s',
         boxShadow: checked ? `0 0 6px ${color}50` : 'none',
       }} />
@@ -133,7 +127,7 @@ function SettingRow({ icon, label, description, children, indent }: {
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       padding: '10px 0', minHeight: 40,
       borderBottom: `1px solid ${T.border}`,
-      paddingRight: indent ? 20 : 0,
+      paddingInlineEnd: indent ? 20 : 0,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
         {icon && <span style={{ flexShrink: 0, display: 'flex' }}>{icon}</span>}
@@ -142,7 +136,7 @@ function SettingRow({ icon, label, description, children, indent }: {
           {description && <div style={{ fontSize: 10, color: T.text4, marginTop: 1 }}>{description}</div>}
         </div>
       </div>
-      <div style={{ flexShrink: 0, marginRight: 8 }}>{children}</div>
+      <div style={{ flexShrink: 0, marginInlineStart: 8 }}>{children}</div>
     </div>
   )
 }

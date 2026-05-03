@@ -12,32 +12,12 @@ import {
   Fingerprint as BiometricIcon, CircleCheck, CircleX
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { T as SharedT } from '@/lib/unified-tokens'
 
 /* ═══════════════════════════════════════════════════════
-   Design Tokens
+   Design Tokens (canonical + local extensions)
 ═══════════════════════════════════════════════════════ */
-const T = {
-  bg: '#04050C',
-  bg2: '#0D1117',
-  card: '#08090F',
-  cardHover: '#0B0F19',
-  surface: '#1A1D29',
-  cyan: '#00D4FF',
-  green: '#00FFA3',
-  greenDim: '#00CC82',
-  red: '#FF4757',
-  redDim: '#FF3344',
-  amber: '#FFB800',
-  purple: '#B388FF',
-  blue: '#0A84FF',
-  pink: '#f472b6',
-  text: '#F0F2F5',
-  text2: '#94a3b8',
-  text3: '#8B92A8',
-  text4: '#475569',
-  border: 'rgba(255,255,255,0.06)',
-  border2: 'rgba(0,212,255,0.16)',
-}
+const T = { ...SharedT, pink: '#f472b6', text4: '#475569' }
 
 /* ═══════════════════════════════════════════════════════
    Types
@@ -94,8 +74,8 @@ function Toggle({ checked, onChange, color, size = 'md', ariaLabel, disabled }: 
         width: s.dot, height: s.dot, borderRadius: s.dot / 2,
         background: checked ? color : T.text3,
         position: 'absolute', top: (s.h - s.dot) / 2,
-        right: checked ? (s.h - s.dot) / 2 : 'auto',
-        left: checked ? 'auto' : (s.h - s.dot) / 2,
+        insetInlineEnd: checked ? (s.h - s.dot) / 2 : 'auto',
+        insetInlineStart: checked ? 'auto' : (s.h - s.dot) / 2,
         transition: 'all 0.3s',
         boxShadow: checked ? `0 0 6px ${color}50` : 'none',
       }} />

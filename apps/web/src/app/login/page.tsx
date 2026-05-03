@@ -450,7 +450,7 @@ function LoginForm() {
             className="mb-3"
           >
             <div className="relative">
-              <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#64748B' }} />
+              <Mail className="absolute end-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: '#64748B' }} />
               <input
                 type="email"
                 value={email}
@@ -607,7 +607,7 @@ function LoginForm() {
                     className="text-white/25 hover:text-white/40 text-[11px] transition-colors"
                     style={{ fontFamily: 'var(--font-ar)' }}
                   >
-                    تسجيل الدخول المباشر ←
+                    ← تسجيل الدخول المباشر
                   </button>
                 </div>
               </motion.div>
@@ -727,21 +727,36 @@ function LoginForm() {
               <span style={{ fontFamily: 'var(--font-ar)' }}>بدون كلمة مرور</span>
             </div>
           </motion.div>
+
+          {/* Terms & Privacy */}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.1, duration: 0.5 }}
+            className="mt-4 text-center text-white/15 text-[10px]"
+            style={{ fontFamily: 'var(--font-ar)' }}
+          >
+            بتسجيل الدخول، أنت توافق على{' '}
+            <a href="/terms" className="text-white/25 hover:text-white/40 transition-colors underline decoration-white/10">شروط الاستخدام</a>
+            {' '}و{' '}
+            <a href="/privacy" className="text-white/25 hover:text-white/40 transition-colors underline decoration-white/10">سياسة الخصوصية</a>
+          </motion.p>
         </motion.div>
 
-        {/* Bottom Link */}
-        <motion.p
+        {/* Bottom Links */}
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1, duration: 0.5 }}
-          className="text-center mt-5 text-white/15 text-xs"
-          style={{ fontFamily: 'var(--font-ar)' }}
+          className="text-center mt-5"
         >
-          <a href="/" className="hover:text-white/30 transition-colors flex items-center justify-center gap-1.5">
-            <ArrowRight className="w-3 h-3" />
-            العودة إلى الصفحة الرئيسية
-          </a>
-        </motion.p>
+          <p className="text-white/15 text-xs" style={{ fontFamily: 'var(--font-ar)' }}>
+            <a href="/" className="hover:text-white/30 transition-colors flex items-center justify-center gap-1.5">
+              <ArrowRight className="w-3 h-3" />
+              العودة إلى الصفحة الرئيسية
+            </a>
+          </p>
+        </motion.div>
       </div>
     </div>
   )

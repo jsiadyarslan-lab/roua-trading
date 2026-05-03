@@ -114,7 +114,7 @@ export function PriceAlertsPanel() {
               <label style={{ fontSize: 9, color: T.muted, fontWeight: 700 }}>
                 القيمة
                 {currentPrice !== null && (
-                  <span style={{ color: T.blue, marginRight: 4 }}>
+                  <span style={{ color: T.blue, marginInlineEnd: 4 }}>
                     (حالي: {currentPrice > 100 ? currentPrice.toLocaleString('en', { maximumFractionDigits: 2 }) : currentPrice.toFixed(4)})
                   </span>
                 )}
@@ -241,7 +241,7 @@ function AlertRow({ alert, onRemove, currentPrice }: {
               ? `${alert.targetPrice}%`
               : `$${alert.targetPrice.toLocaleString('en', { maximumFractionDigits: 4 })}`}
             {currentPrice && !isTriggered && (
-              <span style={{ color: 'var(--muted)', fontSize: 9, fontWeight: 400, marginRight: 6 }}>
+              <span style={{ color: 'var(--muted)', fontSize: 9, fontWeight: 400, marginInlineEnd: 6 }}>
                 (حالي: ${currentPrice > 100
                   ? currentPrice.toLocaleString('en', { maximumFractionDigits: 2 })
                   : currentPrice.toFixed(4)})

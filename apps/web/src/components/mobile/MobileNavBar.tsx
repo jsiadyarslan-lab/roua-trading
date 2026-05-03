@@ -254,7 +254,7 @@ export default function MobileNavBar() {
                             {/* New badge */}
                             {item.isNew && (
                               <div style={{
-                                position: 'absolute', top: 4, left: 4,
+                                position: 'absolute', top: 4, insetInlineStart: 4,
                                 width: 7, height: 7, borderRadius: '50%',
                                 background: '#00D4FF',
                                 boxShadow: '0 0 6px rgba(0,212,255,0.6)',

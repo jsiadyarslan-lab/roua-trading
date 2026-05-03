@@ -64,7 +64,7 @@ export function createNewsChartMarkers(newsMarkers: NewsMarker[]) {
   return newsMarkers.map(marker => ({
     time: marker.time as any,
     position: 'aboveBar' as const,
-    color: marker.sentiment === 'positive' ? '#3fb950' : marker.sentiment === 'negative' ? '#f85149' : '#fbbf24',
+    color: marker.sentiment === 'positive' ? '#00FFA3' : marker.sentiment === 'negative' ? '#FF4757' : '#FFB800',
     shape: 'circle' as const,
     text: '🔔',
   }));

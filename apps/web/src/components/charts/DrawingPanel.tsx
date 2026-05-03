@@ -46,8 +46,8 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
     cyan: '#00D4FF',
     text: '#F0F2F5',
     textSecondary: '#8B92A8',
-    textMuted: '#64748b',
-    danger: '#f85149',
+    textMuted: '#8B92A8',
+    danger: '#FF4757',
     hoverBg: 'rgba(0,212,255,0.08)',
     activeBg: '#00D4FF',
   };

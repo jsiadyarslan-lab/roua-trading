@@ -65,7 +65,7 @@ export function SidebarIconRail({
         display: 'flex',
         flexDirection: 'column',
         background: `linear-gradient(180deg, #0A0D14, #0E1118)`,
-        borderLeft: '1px solid rgba(0,212,255,0.12)',
+        borderInlineStart: '1px solid rgba(0,212,255,0.12)',
         direction: 'rtl',
         position: 'relative',
         overflow: 'visible',
@@ -127,7 +127,7 @@ export function SidebarIconRail({
                   <div
                     style={{
                       position: 'absolute',
-                      right: 0,
+                      insetInlineEnd: 0,
                       top: '20%',
                       bottom: '20%',
                       width: 1.5,
@@ -190,8 +190,7 @@ export function SidebarIconRail({
                     padding: '3px 8px',
                     boxShadow: `0 4px 12px rgba(0,0,0,0.4), 0 0 8px ${tab.accent}15`,
                     backdropFilter: 'blur(8px)',
-                    // Position will be calculated below via ref — but for simplicity use CSS
-                    // This fixed approach avoids overflow clipping
+                    direction: 'rtl',
                     top: 'auto',
                     right: 'auto',
                     left: 'auto',
@@ -199,11 +198,12 @@ export function SidebarIconRail({
                   }}
                   ref={(el) => {
                     if (!el) return
-                    // Position tooltip to the left of the icon (in RTL: towards content)
+                    // Position tooltip on the inline-start side (towards content area in RTL)
                     const parent = el.parentElement
                     if (parent) {
                       const rect = parent.getBoundingClientRect()
                       el.style.top = `${rect.top + rect.height / 2 - 12}px`
+                      // In RTL, tooltip goes to the left (inline-start = left visually)
                       el.style.left = `${rect.left - el.offsetWidth - 6}px`
                     }
                   }}

@@ -16,28 +16,10 @@ const MarketOverview = dynamic(() => import('@/components/scanner/tabs/MarketOve
 const ScreenerTab = dynamic(() => import('@/components/scanner/tabs/ScreenerTab').then(m => ({ default: m.ScreenerTab })), { ssr: false })
 const DeepAnalysisModal = dynamic(() => import('@/components/scanner/modals/DeepAnalysisModal').then(m => ({ default: m.DeepAnalysisModal })), { ssr: false })
 
-// ── Design Tokens ──
-const T = {
-  bg:      '#04050C',
-  bg2:     '#0D1117',
-  card:    '#08090F',
-  cardHover:'#0B0F19',
-  card2:   '#0B0E14',
-  surface: '#1A1D29',
-  blue:    '#0A84FF',
-  cyan:    '#00D4FF',
-  green:   '#00FFA3',
-  greenDim:'#00CC82',
-  red:     '#FF4757',
-  redDim:  '#FF3344',
-  amber:   '#FFB800',
-  purple:  '#B388FF',
-  text:    '#F0F2F5',
-  text2:   '#94a3b8',
-  text3:   '#8B92A8',
-  border:  'rgba(255,255,255,0.06)',
-  border2: 'rgba(0,212,255,0.16)',
-}
+import { T as SharedT } from '@/lib/unified-tokens'
+
+// ── Design Tokens (canonical + local extensions) ──
+const T = { ...SharedT, card2: '#0B0E14' }
 
 // ── Main Content Router ──
 function ScannerContent() {
@@ -102,7 +84,7 @@ function ScannerContent() {
         .scanner-table-scroll { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
         @media (max-width: 767px) {
           .scanner-sidebar-wrapper { display: none !important; }
-          .scanner-sidebar-wrapper.scanner-sidebar-visible { display: flex !important; position: fixed; top: 0; right: 0; bottom: 0; z-index: 50; box-shadow: -4px 0 20px rgba(0,0,0,0.5); }
+          .scanner-sidebar-wrapper.scanner-sidebar-visible { display: flex !important; position: fixed; top: 0; inset-inline-end: 0; bottom: 0; z-index: 50; box-shadow: -4px 0 20px rgba(0,0,0,0.5); }
         }
       `}</style>
 

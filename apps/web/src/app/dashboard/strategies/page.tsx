@@ -8,25 +8,10 @@ import {
   Download, Calendar, Save, AlertTriangle, BarChart, ChevronDown
 } from 'lucide-react'
 
-// Unified Theme matching Portfolio and Scanner exactly
-const T = {
-  bg:      '#04050C',
-  bg2:     '#0D1117',
-  card:    '#08090F',
-  cardHover:'#0B0F19',
-  blue:    '#0A84FF',
-  cyan:    '#00C8FF',
-  green:   '#00FFC6',
-  red:     '#FF4D4D',
-  amber:   '#FFB800',
-  amber2:  '#E6A23C',
-  purple:  '#B388FF', 
-  text:    '#E6EBF5',
-  text2:   '#8090A8',
-  text3:   '#A0AFC3',
-  border:  'rgba(10,132,255,0.10)',
-  border2: 'rgba(10,132,255,0.16)',
-}
+import { T as SharedT } from '@/lib/unified-tokens'
+
+// Unified Theme matching Portfolio and Scanner exactly (canonical + local extensions)
+const T = { ...SharedT, amber2: '#E6A23C' }
 
 const Gauge = ({ value, max, label, color }: { value: number, max: number, label: string, color: string }) => {
   const radius = 20
@@ -200,7 +185,7 @@ export default function StrategiesPage() {
         @media (max-width: 767px) {
           .strategies-top-bar { display: none !important; }
           .strategies-sidebar { display: none !important; }
-          .strategies-sidebar.strategies-sidebar-open { display: flex !important; position: fixed; top: 0; right: 0; bottom: 0; z-index: 50; width: 280px !important; box-shadow: -4px 0 20px rgba(0,0,0,0.5); }
+          .strategies-sidebar.strategies-sidebar-open { display: flex !important; position: fixed; top: 0; inset-inline-end: 0; bottom: 0; z-index: 50; width: 280px !important; box-shadow: -4px 0 20px rgba(0,0,0,0.5); }
           .strategies-main { flex: 1 !important; }
           .strategies-row-2col { flex-direction: column !important; }
           .strategies-quant-grid { grid-template-columns: repeat(2, 1fr) !important; }
@@ -228,7 +213,7 @@ export default function StrategiesPage() {
             { label: 'FED Target', val: '5.25 - 5.50%', chg: 'Unchanged', color: T.text2 },
             { label: 'Smart Money Index', val: '112.4', chg: '+2.1%', color: T.cyan },
           ].map((id, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, borderLeft: i > 0 ? `0.5px solid ${T.border}` : 'none', paddingLeft: i > 0 ? 20 : 0 }}>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, borderInlineStart: i > 0 ? `0.5px solid ${T.border}` : 'none', paddingInlineStart: i > 0 ? 20 : 0 }}>
               <div>
                 <div style={{ fontSize: 9, color: T.text3, marginBottom: 1, letterSpacing: 0.5 }}>{id.label}</div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
@@ -457,7 +442,7 @@ export default function StrategiesPage() {
 
             {/* ROW 3: Hidden Signature Alert + Dark Pools Flow */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 16 }}>
-              <div style={{ background: `${T.amber}05`, border: `0.5px solid ${T.amber}30`, borderRight: `3px solid ${T.amber}`, borderRadius: 6, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ background: `${T.amber}05`, border: `0.5px solid ${T.amber}30`, borderInlineEnd: `3px solid ${T.amber}`, borderRadius: 6, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
                 <AlertTriangle size={16} color={T.amber} />
                 <div>
                   <h3 style={{ margin: '0 0 2px', fontSize: 11, fontWeight: 700, color: T.amber }}>البصمة الخفية (Hidden Signature)</h3>
@@ -498,7 +483,7 @@ export default function StrategiesPage() {
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {active.deepAnalysis.map((line, i) => (
-                  <div key={i} style={{ fontSize: 11, color: T.text, lineHeight: 1.7, position: 'relative', paddingRight: 12, borderRight: `2px solid ${T.text3}` }}>
+                  <div key={i} style={{ fontSize: 11, color: T.text, lineHeight: 1.7, position: 'relative', paddingInlineEnd: 12, borderInlineEnd: `2px solid ${T.text3}` }}>
                     {line}
                   </div>
                 ))}

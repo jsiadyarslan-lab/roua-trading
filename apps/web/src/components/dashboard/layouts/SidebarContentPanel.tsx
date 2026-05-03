@@ -278,7 +278,7 @@ function TradingAgentMini() {
                 <span style={{ fontSize: 10, fontWeight: 700, color: '#F0F2F5', fontFamily: "'JetBrains Mono', monospace" }}>{pos.symbol}</span>
                 <span style={{ fontSize: 9, color: pos.side === 'BUY' ? '#00FFA3' : '#FF4757', fontWeight: 700 }}>{pos.side === 'BUY' ? 'شراء' : 'بيع'}</span>
                 <span style={{
-                  fontSize: 10, fontWeight: 700, marginLeft: 'auto',
+                  fontSize: 10, fontWeight: 700, marginInlineStart: 'auto',
                   color: pos.unrealizedPnl >= 0 ? '#00FFA3' : '#FF4757',
                   fontFamily: "'JetBrains Mono', monospace",
                 }}>
@@ -371,7 +371,7 @@ function TradingAgentMini() {
           border: '1px solid rgba(255,71,87,0.2)',
           fontSize: 9, color: '#FF4757', fontFamily: "'Cairo', sans-serif",
         }}>
-          <AlertTriangle size={10} style={{ display: 'inline', marginLeft: 4 }} />
+          <AlertTriangle size={10} style={{ display: 'inline', marginInlineStart: 4 }} />
           {agentState.lastError}
         </div>
       )}

@@ -112,13 +112,13 @@ export function ChartToolbar(props: ChartToolbarProps) {
     cyan: '#00D4FF',
     text: '#F0F2F5',
     textSecondary: '#8B92A8',
-    textMuted: '#64748b',
+    textMuted: '#8B92A8',
     card: '#151A22',
     hoverBg: 'rgba(0,212,255,0.08)',
     activeBg: '#00D4FF',
-    danger: '#f85149',
+    danger: '#FF4757',
     warning: '#fbbf24',
-    success: '#3fb950',
+    success: '#00FFA3',
   };
 
   const btnStyle: React.CSSProperties = {

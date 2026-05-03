@@ -196,7 +196,7 @@ export default function AdminSystemLogsPage() {
             const cfg = levelCfg[log.level]
             const LIcon = cfg.Icon
             return (
-              <div key={log.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 10px', borderRadius: 4, marginBottom: 2, background: `${cfg.color}10`, borderLeft: `2px solid ${cfg.color}`, fontSize: 11, lineHeight: 1.6 }}>
+              <div key={log.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 10px', borderRadius: 4, marginBottom: 2, background: `${cfg.color}10`, borderInlineStart: `2px solid ${cfg.color}`, fontSize: 11, lineHeight: 1.6 }}>
                 <LIcon size={12} color={cfg.color} style={{ flexShrink: 0, marginTop: 3 }} />
                 <span style={{ color: COLORS.muted, flexShrink: 0, fontSize: 10 }} dir="ltr">{new Date(log.timestamp).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                 <span style={{ color: COLORS.text, flex: 1, direction: 'ltr', textAlign: 'left' }}>{log.message}</span>

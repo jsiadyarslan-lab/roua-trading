@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Lock, TrendingUp } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
+import { T } from '@/lib/unified-tokens'
 
 /**
  * GuestGuard — Prevents guest users from executing actions.
@@ -108,8 +109,8 @@ function GuestUpgradeModal({
           <div
             className="w-14 h-14 rounded-2xl flex items-center justify-center"
             style={{
-              background: 'linear-gradient(135deg, #059669, #10B981)',
-              boxShadow: '0 0 30px rgba(16, 185, 129, 0.2)',
+              background: `linear-gradient(135deg, ${T.accent}, ${T.profit})`,
+              boxShadow: `0 0 30px ${T.profit}33`,
             }}
           >
             <Lock className="w-6 h-6 text-white" />
@@ -133,7 +134,7 @@ function GuestUpgradeModal({
                      bg-gradient-to-l from-emerald-600 to-emerald-500 text-white font-bold text-sm
                      hover:from-emerald-500 hover:to-emerald-400
                      transition-all duration-200 mb-3"
-          style={{ boxShadow: '0 0 20px rgba(16, 185, 129, 0.15)' }}
+          style={{ boxShadow: `0 0 20px ${T.profit}26` }}
         >
           <TrendingUp className="w-4 h-4" />
           <span style={{ fontFamily: 'var(--font-ar)' }}>تسجيل الدخول</span>
@@ -169,8 +170,8 @@ export function GuestBanner() {
     <div
       className="w-full py-2 px-4 flex items-center justify-center gap-3 border-b"
       style={{
-        background: 'rgba(16, 185, 129, 0.08)',
-        borderColor: 'rgba(16, 185, 129, 0.15)',
+        background: `${T.profit}14`,
+        borderColor: `${T.profit}26`,
       }}
       dir="rtl"
     >
@@ -182,8 +183,8 @@ export function GuestBanner() {
         onClick={() => router.push('/login')}
         className="text-xs font-bold px-3 py-1 rounded-lg transition-all duration-200 shrink-0"
         style={{
-          background: 'rgba(16, 185, 129, 0.15)',
-          color: '#10B981',
+          background: `${T.profit}26`,
+          color: T.profit,
           fontFamily: 'var(--font-ar)',
         }}
       >

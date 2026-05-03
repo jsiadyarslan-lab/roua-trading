@@ -21,19 +21,19 @@ const SRC_ICON: Record<NotifSource, React.ReactNode> = {
 }
 
 const SRC_COLOR: Record<NotifSource, string> = {
-  bot: '#00f2ff',
+  bot: '#00D4FF',
   ai: '#b388ff',
   scanner: '#FFB800',
-  trade: '#00C853',
-  system: '#8090A8',
+  trade: '#00FFA3',
+  system: '#8B92A8',
 }
 
 const ACTION_COLOR: Record<NotifAction, string> = {
-  BUY: '#00C853',
-  SELL: '#FF3B30',
-  INFO: '#00f2ff',
+  BUY: '#00FFA3',
+  SELL: '#FF4757',
+  INFO: '#00D4FF',
   WARN: '#FFB800',
-  CLOSE: '#FF3B30',
+  CLOSE: '#FF4757',
   CANCEL: '#FF9500',
 }
 
@@ -117,7 +117,7 @@ function ToastCard({
       onClick={() => notif.pair && setSelectedSymbol(notif.pair)}
       style={{
         width: 300,
-        background: 'rgba(15,17,19,0.95)',
+        background: 'rgba(11,14,20,0.95)',
         backdropFilter: 'blur(12px)',
         border: `1px solid ${color}30`,
         borderRadius: 12,
@@ -172,7 +172,7 @@ function ToastCard({
           style={{
             fontSize: 11,
             fontWeight: 800,
-            color: '#e6ebf5',
+            color: '#F0F2F5',
             margin: '0 0 3px 0',
           }}
         >
@@ -181,7 +181,7 @@ function ToastCard({
         <p
           style={{
             fontSize: 10,
-            color: '#8090A8',
+            color: '#8B92A8',
             margin: 0,
             lineHeight: 1.4,
           }}
@@ -239,7 +239,7 @@ function ToastCard({
                   border: `1px solid ${
                     executed ? 'rgba(255,255,255,0.1)' : `${actionColor}40`
                   }`,
-                  color: executed ? '#8090A8' : actionColor,
+                  color: executed ? '#8B92A8' : actionColor,
                   padding: '3px 8px',
                   borderRadius: 4,
                   fontSize: 9,
@@ -265,7 +265,7 @@ function ToastCard({
           background: 'transparent',
           border: 'none',
           cursor: 'pointer',
-          color: '#8090A8',
+          color: '#8B92A8',
           padding: 0,
           flexShrink: 0,
           marginTop: 2,
@@ -375,14 +375,14 @@ function NotificationItem({
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-          <span style={{ fontSize: 11, fontWeight: 800, color: '#e6ebf5' }}>{notif.title}</span>
-          <span style={{ fontSize: 9, color: '#8090A8', flexShrink: 0, marginRight: 8 }}>{timeAgo(notif.timestamp)}</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#F0F2F5' }}>{notif.title}</span>
+          <span style={{ fontSize: 9, color: '#8B92A8', flexShrink: 0, marginInlineEnd: 8 }}>{timeAgo(notif.timestamp)}</span>
         </div>
-        <p style={{ fontSize: 10, color: '#8090A8', margin: 0, lineHeight: 1.5 }}>{notif.body}</p>
+        <p style={{ fontSize: 10, color: '#8B92A8', margin: 0, lineHeight: 1.5 }}>{notif.body}</p>
         {notif.pair && (
           <div style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center' }}>
             <span style={{ fontSize: 9, fontFamily: 'monospace', color: '#fff', fontWeight: 700 }}>{notif.pair}</span>
-            {notif.price && <span style={{ fontSize: 9, color: '#8090A8' }}>{notif.price}</span>}
+            {notif.price && <span style={{ fontSize: 9, color: '#8B92A8' }}>{notif.price}</span>}
             <span
               style={{
                 fontSize: 8,
@@ -411,7 +411,7 @@ function NotificationItem({
           background: 'transparent',
           border: 'none',
           cursor: 'pointer',
-          color: '#8090A8',
+          color: '#8B92A8',
           padding: 2,
           flexShrink: 0,
           opacity: 0.5,
@@ -439,7 +439,7 @@ function NotifSettingsPanel() {
     <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
       {rows.map((r) => (
         <div key={r.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: '#e6ebf5' }}>{r.label}</span>
+          <span style={{ fontSize: 11, color: '#F0F2F5' }}>{r.label}</span>
           <button
             onClick={() => updateSettings({ [r.key]: !(settings as any)[r.key] })}
             style={{
@@ -457,8 +457,8 @@ function NotifSettingsPanel() {
               style={{
                 position: 'absolute',
                 top: 3,
-                right: (settings as any)[r.key] ? 3 : 'auto',
-                left: (settings as any)[r.key] ? 'auto' : 3,
+                insetInlineEnd: (settings as any)[r.key] ? 3 : 'auto',
+                insetInlineStart: (settings as any)[r.key] ? 'auto' : 3,
                 width: 14,
                 height: 14,
                 borderRadius: '50%',
@@ -472,7 +472,7 @@ function NotifSettingsPanel() {
       ))}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span style={{ fontSize: 11, color: '#e6ebf5' }}>حد الثقة الأدنى</span>
+          <span style={{ fontSize: 11, color: '#F0F2F5' }}>حد الثقة الأدنى</span>
           <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 800 }}>{settings.minConfidence}%</span>
         </div>
         <input
@@ -502,10 +502,10 @@ export function NotificationCenter() {
         onClick={() => setOpen((o) => !o)}
         style={{
           position: 'relative',
-          background: open ? 'rgba(0,242,255,0.1)' : 'transparent',
-          border: open ? '1px solid rgba(0,242,255,0.25)' : '1px solid transparent',
+          background: open ? 'rgba(0,212,255,0.1)' : 'transparent',
+          border: open ? '1px solid rgba(0,212,255,0.25)' : '1px solid transparent',
           borderRadius: 8,
-          color: open ? '#00f2ff' : '#8090A8',
+          color: open ? '#00D4FF' : '#8B92A8',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
@@ -527,7 +527,7 @@ export function NotificationCenter() {
         >
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-          {unread > 0 && <circle cx="18" cy="5" r="4" fill="#FF3B30" stroke="#060b13" strokeWidth="2" />}
+          {unread > 0 && <circle cx="18" cy="5" r="4" fill="#FF4757" stroke="#060b13" strokeWidth="2" />}
         </svg>
         {unread > 0 && (
           <span
@@ -539,7 +539,7 @@ export function NotificationCenter() {
               height: 16,
               borderRadius: 8,
               padding: '0 4px',
-              background: '#FF3B30',
+              background: '#FF4757',
               fontSize: 8,
               color: '#fff',
               display: 'flex',
@@ -565,12 +565,12 @@ export function NotificationCenter() {
               left: 16,
               zIndex: 9999,
               width: 360,
-              background: 'rgba(6,11,19,0.98)',
+              background: 'rgba(11,14,20,0.98)',
               backdropFilter: 'blur(24px)',
-              border: '1px solid rgba(0,242,255,0.12)',
+              border: '1px solid rgba(0,212,255,0.12)',
               borderRadius: 14,
               boxShadow:
-                '0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(0,242,255,0.04)',
+                '0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(0,212,255,0.04)',
               overflow: 'hidden',
               fontFamily: "'Cairo', sans-serif",
               direction: 'rtl',
@@ -583,12 +583,12 @@ export function NotificationCenter() {
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                background: 'rgba(0,242,255,0.03)',
+                background: 'rgba(0,212,255,0.03)',
               }}
             >
               <span style={{ fontSize: 13, fontWeight: 900, color: '#fff' }}>
                 مركز التنبيهات{' '}
-                {unread > 0 && <span style={{ color: '#00f2ff', fontSize: 11 }}>({unread} جديد)</span>}
+                {unread > 0 && <span style={{ color: '#00D4FF', fontSize: 11 }}>({unread} جديد)</span>}
               </span>
               <div style={{ display: 'flex', gap: 6 }}>
                 {unread > 0 && (
@@ -596,7 +596,7 @@ export function NotificationCenter() {
                     onClick={markAllRead}
                     style={{
                       fontSize: 9,
-                      color: '#8090A8',
+                      color: '#8B92A8',
                       background: 'transparent',
                       border: 'none',
                       cursor: 'pointer',
@@ -610,7 +610,7 @@ export function NotificationCenter() {
                     onClick={clearAll}
                     style={{
                       fontSize: 9,
-                      color: '#FF3B30',
+                      color: '#FF4757',
                       background: 'transparent',
                       border: 'none',
                       cursor: 'pointer',
@@ -633,9 +633,9 @@ export function NotificationCenter() {
                     fontSize: 11,
                     background: 'transparent',
                     border: 'none',
-                    color: tab === t ? '#00f2ff' : '#8090A8',
+                    color: tab === t ? '#00D4FF' : '#8B92A8',
                     cursor: 'pointer',
-                    borderBottom: tab === t ? '2px solid #00f2ff' : 'none',
+                    borderBottom: tab === t ? '2px solid #00D4FF' : 'none',
                     fontFamily: "'Cairo', sans-serif",
                   }}
                 >

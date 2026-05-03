@@ -395,13 +395,13 @@ export default function AIPage() {
         }
         .ai-right-col {
           flex: 0 0 300px;
-          border-left: 1px solid ${T.border};
+          border-inline-start: 1px solid ${T.border};
           display: flex; flex-direction: column;
           overflow-y: auto;
         }
         .ai-left-col {
           flex: 0 0 320px;
-          border-right: 1px solid ${T.border};
+          border-inline-end: 1px solid ${T.border};
           display: flex; flex-direction: column;
           overflow-y: auto;
         }
@@ -427,13 +427,13 @@ export default function AIPage() {
           }
           .ai-right-col {
             flex: 0 0 auto !important;
-            border-left: none !important;
+            border-inline-start: none !important;
             border-bottom: 1px solid ${T.border};
             max-height: 300px;
           }
           .ai-left-col {
             flex: 0 0 auto !important;
-            border-right: none !important;
+            border-inline-end: none !important;
             border-top: 1px solid ${T.border};
           }
           .ai-top-bar {
@@ -474,7 +474,7 @@ export default function AIPage() {
         gap: 12,
       }}>
         {/* Title */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginInlineEnd: 16 }}>
           <div style={{
             width: 34, height: 34, borderRadius: 10,
             background: `linear-gradient(135deg, ${T.purple}20, ${T.cyan}20)`,
@@ -535,8 +535,8 @@ export default function AIPage() {
             { name: 'GLM-4', color: T.amber, key: 'GLM_API_KEY' },
             { name: 'HF', color: T.green, key: 'HF_API_KEY' },  // Also checks HUGGINGFACE_API_KEY, OPENROUTER_API_KEY
             { name: 'OpenRouter', color: T.purple, key: 'OPENROUTER_API_KEY' },
-            { name: 'Ollama', color: '#a78bfa', key: 'OLLAMA_API_KEY' },
-            { name: 'Bedrock', color: '#ff9900', key: 'AWS_ACCESS_KEY_ID' },
+            { name: 'Ollama', color: T.purple, key: 'OLLAMA_API_KEY' },
+            { name: 'Bedrock', color: T.amber, key: 'AWS_ACCESS_KEY_ID' },
           ].map(m => {
             const modelInfo = modelsStatus.find(ms => ms.model.includes(m.name))
             const available = nestjsConnected && (modelInfo?.available ?? false)
@@ -607,7 +607,7 @@ export default function AIPage() {
           <span style={{ fontSize: 11, color: T.red }}>{fetchError}</span>
           <button onClick={() => setFetchError(null)} style={{
             background: 'none', border: 'none', color: T.text3,
-            cursor: 'pointer', marginRight: 'auto', fontSize: 10,
+            cursor: 'pointer', marginInlineStart: 'auto', fontSize: 10,
           }}>✕</button>
         </div>
       )}
@@ -616,7 +616,7 @@ export default function AIPage() {
         {/* ═══════ Right Column: Technical Indicators & Market Context ═══════ */}
         <div className="ai-right-col" style={{
           flex: '0 0 300px',
-          borderLeft: `1px solid ${T.border}`,
+          borderInlineStart: `1px solid ${T.border}`,
           display: 'flex', flexDirection: 'column',
           overflowY: 'auto',
         }}>
@@ -893,7 +893,7 @@ export default function AIPage() {
                     width: 6, height: 6, borderRadius: '50%', background: T.cyan,
                     animation: 'dot-pulse 1.4s infinite ease-in-out 0.4s',
                   }} />
-                  <span style={{ fontSize: 10, color: T.text3, marginRight: 6 }}>
+                  <span style={{ fontSize: 10, color: T.text3, marginInlineStart: 6 }}>
                     {nestjsConnected ? 'AI يحلل...' : 'تحليل محلي...'}
                   </span>
                 </div>
@@ -975,7 +975,7 @@ export default function AIPage() {
         {/* ═══════ Left Column: AI Council + Narrator ═══════ */}
         <div className="ai-left-col" style={{
           flex: '0 0 320px',
-          borderRight: `1px solid ${T.border}`,
+          borderInlineEnd: `1px solid ${T.border}`,
           display: 'flex', flexDirection: 'column',
           overflowY: 'auto',
         }}>
@@ -1058,7 +1058,7 @@ export default function AIPage() {
                     }}>
                       إجماع {councilResult.consensusScore}%
                       {councilResult.source === 'nestjs' && (
-                        <span style={{ color: T.green, marginRight: 6 }}>• AI حقيقي</span>
+                        <span style={{ color: T.green, marginInlineStart: 6 }}>• AI حقيقي</span>
                       )}
                     </div>
                     {/* Score Bar */}

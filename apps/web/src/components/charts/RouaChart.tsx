@@ -25,6 +25,7 @@ import { AIPatternPanel } from './AIPatternPanel';
 import { ChartTrading } from './ChartTrading';
 import { TemplateManager } from './TemplateManager';
 import { ChartSettingsPanel } from './ChartSettingsPanel';
+import { T } from '@/lib/unified-tokens';
 
 interface RouaChartProps {
   currentPrice?: number | null;
@@ -458,12 +459,12 @@ export default function RouaChart({
       const entryPrice = Number(pos.avgEntryPrice || 0);
       if (entryPrice > 0) {
         const isLong = (pos.side || '').toLowerCase() === 'long';
-        addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, isLong ? '#3fb950' : '#f85149', 2, 0);
+        addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0);
       }
       const sl = Number(pos.sl || pos.stopLoss || 0);
-      if (sl > 0) addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#f85149', 1, 2);
+      if (sl > 0) addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 1, 2);
       const tp = Number(pos.tp || pos.takeProfit || 0);
-      if (tp > 0) addLine(`pos-tp-${pos.id || posSymbol}`, tp, '#3fb950', 1, 2);
+      if (tp > 0) addLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 1, 2);
     });
 
     // Paper trades (including bot trades)
@@ -473,10 +474,10 @@ export default function RouaChart({
       const entryPrice = Number(trade.entryPrice || 0);
       if (entryPrice > 0) {
         const isLong = (trade.side || '').toLowerCase() === 'long';
-        addLine(`trade-entry-${trade.id}`, entryPrice, isLong ? '#3fb950' : '#f85149', 2, 0);
+        addLine(`trade-entry-${trade.id}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0);
       }
-      if (trade.sl && Number(trade.sl) > 0) addLine(`trade-sl-${trade.id}`, Number(trade.sl), '#f85149', 1, 2);
-      if (trade.tp && Number(trade.tp) > 0) addLine(`trade-tp-${trade.id}`, Number(trade.tp), '#3fb950', 1, 2);
+      if (trade.sl && Number(trade.sl) > 0) addLine(`trade-sl-${trade.id}`, Number(trade.sl), '#FF4757', 1, 2);
+      if (trade.tp && Number(trade.tp) > 0) addLine(`trade-tp-${trade.id}`, Number(trade.tp), '#00FFA3', 1, 2);
     });
 
     return () => {
@@ -601,7 +602,7 @@ export default function RouaChart({
         combinedMarkers.push({
           time: p.time as any,
           position: (p.direction === 'bullish' ? 'belowBar' : 'aboveBar') as 'belowBar' | 'aboveBar',
-          color: p.direction === 'bullish' ? '#3fb950' : p.direction === 'bearish' ? '#f85149' : '#fbbf24',
+          color: p.direction === 'bullish' ? '#00FFA3' : p.direction === 'bearish' ? '#FF4757' : '#fbbf24',
           shape: (p.direction === 'bullish' ? 'arrowUp' : 'arrowDown') as 'arrowUp' | 'arrowDown',
           text: p.labelAr || p.type,
         });
@@ -613,20 +614,6 @@ export default function RouaChart({
     chart.setMarkers(combinedMarkers);
   }, [newsMarkers, aiPatterns, chart]);
 
-  // ── Color Palette ──────────────────────────────────────
-  const COLORS = {
-    bg: '#0B0E14',
-    card: '#151A22',
-    border: '#2A313C',
-    text: '#F0F2F5',
-    textSecondary: '#8B92A8',
-    textMuted: '#64748b',
-    cyan: '#00D4FF',
-    success: '#3fb950',
-    danger: '#f85149',
-    warning: '#fbbf24',
-  };
-
   const toolbarHeight = hideToolbar ? 0 : mobile ? 32 : 38;
 
   return (
@@ -636,8 +623,7 @@ export default function RouaChart({
         flexDirection: 'column',
         height: '100%',
         width: '100%',
-        background: COLORS.bg,
-        position: 'relative',
+        background: T.bg,
       }}
       className="roua-chart-root"
     >
@@ -704,7 +690,7 @@ export default function RouaChart({
             style={{
               position: 'absolute',
               inset: 0,
-              background: COLORS.bg,
+              background: T.bg,
             }}
           />
 
@@ -739,8 +725,8 @@ export default function RouaChart({
               const isSL = ov.type === 'sl';
               const isTP = ov.type === 'tp';
               const isLong = ov.direction === 'long';
-              const entryColor = isLong ? '#3fb950' : '#f85149';
-              const lineColor = isSL ? '#f85149' : isTP ? '#3fb950' : entryColor;
+              const entryColor = isLong ? '#00FFA3' : '#FF4757';
+              const lineColor = isSL ? '#FF4757' : isTP ? '#00FFA3' : entryColor;
 
               let labelText = '';
               let bg: string;
@@ -757,11 +743,11 @@ export default function RouaChart({
               } else if (isSL) {
                 labelText = `SL ${fmt(ov.price)}`;
                 bg = 'rgba(248,81,73,0.18)';
-                textColor = '#f85149';
+                textColor = '#FF4757';
               } else {
                 labelText = `TP ${fmt(ov.price)}`;
                 bg = 'rgba(63,185,80,0.18)';
-                textColor = '#3fb950';
+                textColor = '#00FFA3';
               }
 
               return (
@@ -862,7 +848,7 @@ export default function RouaChart({
               </button>
 
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '0 8px', borderLeft: '1px solid rgba(255,255,255,0.1)', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
-                <span style={{ fontSize: 8, color: '#8B92A8', fontWeight: 800, marginBottom: 1 }}>LOT</span>
+                <span style={{ fontSize: 8, color: T.text2, fontWeight: 800, marginBottom: 1 }}>LOT</span>
                 <input 
                   type="number"
                   value={lotSize}
@@ -1072,10 +1058,10 @@ export default function RouaChart({
           gap: 8,
           maxWidth: '90%',
         }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f85149" strokeWidth="2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF4757" strokeWidth="2">
             <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
           </svg>
-          <span style={{ fontSize: 12, color: '#f85149', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>
+          <span style={{ fontSize: 12, color: '#FF4757', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>
             {orderError}
           </span>
         </div>

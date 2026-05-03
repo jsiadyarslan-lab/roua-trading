@@ -180,7 +180,7 @@ export function getPermissions(role: Role | string | undefined): Permission[] {
 export const ROLE_INFO: Record<Role, { label: string; color: string; description: string }> = {
   FREE: {
     label: 'مجاني',
-    color: '#94a3b8',
+    color: '#8B92A8',
     description: 'ربط حساب واحد ورؤى أساسية',
   },
   PRO: {

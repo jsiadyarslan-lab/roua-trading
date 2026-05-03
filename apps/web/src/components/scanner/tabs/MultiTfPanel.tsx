@@ -7,10 +7,10 @@ import { DirectionTag } from '../shared/DirectionTag'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
 
 const T = {
-  bg: '#04050C', bg2: '#0D1117', card: '#08090F', cardHover: '#0B0F19',
+  bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', cardHover: '#1F2335',
   surface: '#1A1D29', blue: '#0A84FF', cyan: '#00D4FF', green: '#00FFA3',
   greenDim: '#00CC82', red: '#FF4757', redDim: '#FF3344', amber: '#FFB800',
-  purple: '#B388FF', text: '#F0F2F5', text2: '#94a3b8', text3: '#8B92A8',
+  purple: '#B388FF', text: '#F0F2F5', text2: '#8B92A8', text3: '#8B92A8',
   border: 'rgba(255,255,255,0.06)', border2: 'rgba(0,212,255,0.16)',
 }
 
@@ -82,7 +82,7 @@ function TfRow({ tf, data, weight }: { tf: typeof TIMEFRAMES[number]; data: TfDa
         <IndicatorBadge label="RSI" value={data.rsi !== null ? data.rsi.toFixed(0) : '—'} status={data.rsi !== null ? (data.rsi <= 30 ? 'oversold' : data.rsi >= 70 ? 'overbought' : data.rsi < 50 ? 'bearish' : 'bullish') : 'neutral'} />
         <IndicatorBadge label="MACD" value={data.macdSignal ?? '—'} status={data.macdSignal?.includes('BUY') ? 'bullish' : data.macdSignal?.includes('SELL') ? 'bearish' : 'neutral'} />
         <IndicatorBadge label="ADX" value={data.adx !== null ? data.adx.toFixed(0) : '—'} status={(data.adx ?? 0) > 25 ? 'bullish' : 'neutral'} />
-        <span style={{ fontSize: 8, fontWeight: 700, color: T.text3, fontFamily: "'Cairo', sans-serif", marginRight: 4 }}>
+        <span style={{ fontSize: 8, fontWeight: 700, color: T.text3, fontFamily: "'Cairo', sans-serif", marginInlineEnd: 4 }}>
           ثقة: {data.confidence.toFixed(0)}%
         </span>
       </div>

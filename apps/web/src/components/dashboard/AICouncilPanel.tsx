@@ -4,17 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Brain, Shield, Zap, TrendingUp, TrendingDown, Minus, Info, RefreshCw, Layers, AlertCircle, Cpu, Wifi, WifiOff, Heart, Activity } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
-
-const T = {
-  bg: '#0F1113',
-  accent: '#00E5FF',
-  green: '#00C853',
-  red: '#FF3B30',
-  amber: '#FFB800',
-  text: '#E6EBF5',
-  text2: '#8090A8',
-  purple: '#B388FF',
-}
+import { T } from '@/lib/unified-tokens'
 
 interface Analysis {
   role: string
@@ -248,9 +238,9 @@ export function AICouncilPanel() {
   const totalModels = data?.meta?.modelsExpected || 7
 
   return (
-    <div className="flex flex-col h-full overflow-hidden custom-scrollbar" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', fontFamily: "'Cairo', sans-serif", direction: 'rtl', border: `1px solid ${isRealAI ? 'rgba(0,229,255,0.15)' : 'rgba(0,229,255,0.08)'}`, borderRadius: 16 }}>
+    <div className="flex flex-col h-full overflow-hidden custom-scrollbar" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', fontFamily: "'Cairo', sans-serif", direction: 'rtl', border: `1px solid ${isRealAI ? 'rgba(0,212,255,0.15)' : 'rgba(0,212,255,0.08)'}`, borderRadius: 16 }}>
       {/* Header */}
-      <div className="p-3 border-b border-white/5 flex items-center justify-between" style={{ background: isRealAI ? 'linear-gradient(90deg, rgba(0,229,255,0.18), rgba(179,136,255,0.08), transparent)' : 'linear-gradient(90deg, rgba(0,229,255,0.12), transparent)' }}>
+      <div className="p-3 border-b border-white/5 flex items-center justify-between" style={{ background: isRealAI ? 'linear-gradient(90deg, rgba(0,212,255,0.18), rgba(179,136,255,0.08), transparent)' : 'linear-gradient(90deg, rgba(0,212,255,0.12), transparent)' }}>
         <div className="flex items-center gap-2">
           <div className="relative">
             <Brain size={16} color={isRealAI ? T.purple : T.accent} />
@@ -275,8 +265,8 @@ export function AICouncilPanel() {
           <div className="flex items-center gap-1" style={{
             padding: '1px 4px',
             borderRadius: 3,
-            background: keepAliveStatus?.nestJSUp ? 'rgba(0,200,83,0.12)' : 'rgba(255,184,0,0.12)',
-            border: `1px solid ${keepAliveStatus?.nestJSUp ? 'rgba(0,200,83,0.25)' : 'rgba(255,184,0,0.2)'}`,
+            background: keepAliveStatus?.nestJSUp ? 'rgba(0,255,163,0.12)' : 'rgba(255,184,0,0.12)',
+            border: `1px solid ${keepAliveStatus?.nestJSUp ? 'rgba(0,255,163,0.25)' : 'rgba(255,184,0,0.2)'}`,
           }} title={`Keep-alive: NestJS ${keepAliveStatus?.nestJSUp ? 'UP' : 'DOWN'} | Last ping: ${keepAliveStatus?.lastPingAt || 'never'}`}>
             <Heart size={7} color={keepAliveStatus?.nestJSUp ? T.green : T.amber} className={keepAliveStatus?.nestJSUp ? '' : 'animate-pulse'} />
             <span style={{ fontSize: 6, fontWeight: 700, color: keepAliveStatus?.nestJSUp ? T.green : T.amber, fontFamily: 'monospace' }}>
@@ -384,7 +374,7 @@ export function AICouncilPanel() {
                   {isCachedAI ? 'تحليل AI مخزّن مؤقتاً — لا يزال صالحاً' : `تحليل AI حقيقي من ${data.meta?.modelsResponded || 0} نماذج — ${data.meta?.processingTimeMs || 0}ms`}
                 </span>
                 {connectionLayer === 'direct' && (
-                  <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(0,229,255,0.15)', color: T.accent, fontFamily: 'monospace', fontWeight: 700 }}>مباشر</span>
+                  <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(0,212,255,0.15)', color: T.accent, fontFamily: 'monospace', fontWeight: 700 }}>مباشر</span>
                 )}
                 {connectionLayer === 'nestjs' && (
                   <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(179,136,255,0.15)', color: T.purple, fontFamily: 'monospace', fontWeight: 700 }}>NestJS</span>
@@ -392,13 +382,13 @@ export function AICouncilPanel() {
               </div>
             )}
             {isPartialAI && (
-              <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(0,229,255,0.06)', border: '1px solid rgba(0,229,255,0.15)' }}>
+              <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.15)' }}>
                 <Cpu size={10} color={T.accent} />
                 <span className="text-[8px]" style={{ color: T.accent }}>
                   تحليل AI من {data.meta?.modelsResponded || '?'}/6 نماذج — بعض النماذج تستجيب عبر البديل
                 </span>
                 {connectionLayer === 'direct' && (
-                  <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(0,229,255,0.15)', color: T.accent, fontFamily: 'monospace', fontWeight: 700 }}>مباشر</span>
+                  <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(0,212,255,0.15)', color: T.accent, fontFamily: 'monospace', fontWeight: 700 }}>مباشر</span>
                 )}
               </div>
             )}
@@ -452,7 +442,7 @@ export function AICouncilPanel() {
 
             {/* Consensus Gauge */}
             <div className="relative p-3 rounded-xl text-center overflow-hidden" style={{ 
-              background: '#0d0f12', 
+              background: T.bg2, 
               border: `1px solid ${recColor}20`,
               boxShadow: `inset 0 0 40px ${recColor}08`
             }}>
@@ -573,7 +563,7 @@ export function AICouncilPanel() {
       </div>
 
       {/* Footer */}
-      <div className="p-2 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255,255,255,0.04)', background: '#080a0c' }}>
+      <div className="p-2 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255,255,255,0.04)', background: T.bg2 }}>
         <div className="flex items-center gap-1" style={{ opacity: 0.4 }}>
           <Shield size={9} />
           <span className="text-[7px] font-bold uppercase">{isRealAI ? 'Real AI Engine' : 'Quantum AI Engine'}</span>

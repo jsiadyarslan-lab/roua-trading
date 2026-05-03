@@ -78,9 +78,9 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: Ch
     cyan: '#00D4FF',
     text: '#F0F2F5',
     textSecondary: '#8B92A8',
-    textMuted: '#64748b',
-    success: '#3fb950',
-    danger: '#f85149',
+    textMuted: '#8B92A8',
+    success: '#00FFA3',
+    danger: '#FF4757',
     warning: '#fbbf24',
     bg: '#0B0E14',
   };

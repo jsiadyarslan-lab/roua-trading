@@ -132,7 +132,7 @@ function CurrencyTicker() {
       <div style={{
         position: 'absolute', left: 0, top: 0, bottom: 0, zIndex: 2,
         background: 'linear-gradient(90deg, #000 0%, transparent 100%)',
-        paddingLeft: 20, display: 'flex', alignItems: 'center', width: 100
+        paddingInlineStart: 20, display: 'flex', alignItems: 'center', width: 100
       }}>
          <div style={{ 
            fontSize: 10, fontWeight: 900, color: '#00D4FF', 
@@ -143,7 +143,7 @@ function CurrencyTicker() {
       
       <div style={{
         display: 'flex', gap: 40, animation: 'tickerScroll 25s linear infinite',
-        whiteSpace: 'nowrap', direction: 'ltr', width: 'max-content', paddingLeft: 120
+        whiteSpace: 'nowrap', direction: 'ltr', width: 'max-content', paddingInlineStart: 120
       }}>
         {[...displayPairs, ...displayPairs].map((pair, i) => {
           const quoteKey = Object.keys(quotes).find(k => k.replace('/', '') === pair.replace('/', ''))

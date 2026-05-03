@@ -302,13 +302,13 @@ export default function KYCPage() {
                     <div>
                       <label style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 6 }}>مفتاح API</label>
                       <div style={{ position: 'relative' }}>
-                        <Key size={16} color={c.text2} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }} />
+                        <Key size={16} color={c.text2} style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)' }} />
                         <input
                           value={apiKey}
                           onChange={e => setApiKey(e.target.value)}
                           placeholder="أدخل مفتاح API"
                           style={{
-                            width: '100%', padding: '12px 14px 12px 14px', paddingRight: 40,
+                            width: '100%', padding: '12px 14px 12px 14px', paddingInlineEnd: 40,
                             borderRadius: 14, background: 'rgba(255,255,255,0.05)',
                             border: `0.5px solid ${c.border}`, color: c.text,
                             fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
@@ -321,14 +321,14 @@ export default function KYCPage() {
                     <div>
                       <label style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 6 }}>المفتاح السري</label>
                       <div style={{ position: 'relative' }}>
-                        <Lock size={16} color={c.text2} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)' }} />
+                        <Lock size={16} color={c.text2} style={{ position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)' }} />
                         <input
                           value={apiSecret}
                           onChange={e => setApiSecret(e.target.value)}
                           type={showSecret ? 'text' : 'password'}
                           placeholder="أدخل المفتاح السري"
                           style={{
-                            width: '100%', padding: '12px 14px 12px 40px', paddingRight: 40,
+                            width: '100%', padding: '12px 14px 12px 40px', paddingInlineEnd: 40,
                             borderRadius: 14, background: 'rgba(255,255,255,0.05)',
                             border: `0.5px solid ${c.border}`, color: c.text,
                             fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
@@ -338,7 +338,7 @@ export default function KYCPage() {
                         <button
                           onClick={() => setShowSecret(!showSecret)}
                           style={{
-                            position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
+                            position: 'absolute', insetInlineStart: 14, top: '50%', transform: 'translateY(-50%)',
                             background: 'none', border: 'none', cursor: 'pointer',
                           }}
                         >

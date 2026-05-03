@@ -2,8 +2,8 @@
 
 const T = {
   green: '#00FFA3', red: '#FF4757', amber: '#FFB800',
-  purple: '#B388FF', cyan: '#00D4FF', text2: '#94a3b8',
-  bg2: '#0D1117', border: 'rgba(255,255,255,0.06)',
+  purple: '#B388FF', cyan: '#00D4FF', text2: '#8B92A8',
+  bg2: '#1A1D29', border: 'rgba(255,255,255,0.06)',
 }
 
 type BadgeStatus = 'bullish' | 'bearish' | 'neutral' | 'warning' | 'oversold' | 'overbought'

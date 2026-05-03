@@ -5,17 +5,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { Activity, CalendarDays, GitMerge, Newspaper, RefreshCw } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { formatFreshness } from '@/lib/dashboard-live'
+import { T as _T } from '@/lib/unified-tokens'
 
 const T = {
-  border: 'rgba(0, 229, 255, 0.08)',
-  text: '#E6EBF5',
-  text2: '#8090A8',
-  text3: '#A0AFC3',
-  cyan: '#00E5FF',
-  success: '#00C853',
-  danger: '#FF3B30',
-  amber: '#FFB800',
-  purple: '#B388FF',
+  ..._T,
 }
 
 function PanelShell({
@@ -34,7 +27,7 @@ function PanelShell({
   children: ReactNode
 }) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, background: '#111214' }}>
+    <div style={{ direction: 'rtl', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, background: T.card }}>
       <div
         style={{
           padding: '10px 12px 8px',

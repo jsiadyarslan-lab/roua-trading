@@ -106,7 +106,7 @@ export function LeftSidebarLayout() {
         style={{
           position: 'absolute',
           top: 8,
-          left: collapsed ? 10 : 8,
+          insetInlineStart: collapsed ? 10 : 8,
           zIndex: 10,
           width: 24,
           height: 24,

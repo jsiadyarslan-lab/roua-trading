@@ -8,8 +8,8 @@ import dynamic from 'next/dynamic'
 const AICoachPanel = dynamic(
   () => import('@/components/portfolio/AICoachPanel').catch(() => ({
     default: () => (
-      <div style={{ padding: 24, textAlign: 'center', background: '#1A1D29', borderRadius: 12 }}>
-        <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: '#FF4757' }}>
+      <div style={{ padding: 24, textAlign: 'center', background: T.card, borderRadius: 12 }}>
+        <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.red }}>
           تعذر تحميل المُدرّب الذكي. يرجى تحديث الصفحة.
         </div>
       </div>
@@ -19,7 +19,7 @@ const AICoachPanel = dynamic(
     ssr: false,
     loading: () => (
       <div style={{ padding: 24, textAlign: 'center' }}>
-        <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: '#8090A8' }}>جاري تحميل المُدرّب الذكي...</div>
+        <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3 }}>جاري تحميل المُدرّب الذكي...</div>
       </div>
     ),
   },
@@ -151,7 +151,7 @@ function TabButton({ label, active, onClick, icon: Icon, count }: {
         <span style={{
           padding: '1px 6px', borderRadius: 10,
           background: active ? T.blue : T.border,
-          fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: active ? '#fff' : T.text3,
+          fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: active ? T.text : T.text3,
         }}>{count}</span>
       )}
     </button>
@@ -163,7 +163,7 @@ function ChartTooltip({ active, payload, label, prefix = '$' }: any) {
   if (!active || !payload?.length) return null
   return (
     <div style={{
-      background: '#0D1520', border: `0.5px solid ${T.blue}44`,
+      background: T.bg2, border: `0.5px solid ${T.blue}44`,
       borderRadius: 8, padding: '6px 12px',
       fontFamily: "'JetBrains Mono', monospace",
     }}>
@@ -458,7 +458,7 @@ export default function PortfolioPage() {
         }
         ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: #0B0E14; }
-        ::-webkit-scrollbar-thumb { background: #0A84FF44; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
         .portfolio-charts-row { display: flex; gap: 10px; margin-bottom: 12px; }
         .portfolio-distribution { flex: 0 0 300px; }
         .portfolio-tabs-row { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -571,7 +571,7 @@ export default function PortfolioPage() {
                     <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }} />
                     <Tooltip
                       formatter={(val: any) => [`${val}%`, '']}
-                      contentStyle={{ background: '#0D1520', border: `0.5px solid ${T.border2}`, borderRadius: 8, fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}
+                      contentStyle={{ background: T.bg2, border: `0.5px solid ${T.border2}`, borderRadius: 8, fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -639,7 +639,7 @@ export default function PortfolioPage() {
                 <span style={{
                   fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
                   color: totalUnrealizedPnl >= 0 ? T.green : T.red, fontWeight: 700,
-                  marginRight: 8,
+                  marginInlineStart: 8,
                 }}>
                   P&L: {totalUnrealizedPnl > 0 ? '+' : totalUnrealizedPnl < 0 ? '-' : ''}${fmt(Math.abs(totalUnrealizedPnl), 2)}
                 </span>
@@ -740,7 +740,7 @@ export default function PortfolioPage() {
                     onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
                     onMouseLeave={(e) => e.currentTarget.style.background = i % 2 === 0 ? 'rgba(255,255,255,0.005)' : 'transparent'}
                   >
-                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, color: T.text }}>{pos.symbol}</div>
+                    <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.symbol}</div>
                     <div style={{ display: 'flex', justifyContent: 'center' }}>
                       <span style={{
                         padding: '2px 8px', borderRadius: 4,
@@ -750,15 +750,16 @@ export default function PortfolioPage() {
                         border: `0.5px solid ${pos.side === 'BUY' ? T.green : T.red}44`,
                       }}>{pos.side === 'BUY' ? 'شراء ↑' : 'بيع ↓'}</span>
                     </div>
-                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{pos.quantity}</div>
-                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{formatPrice(pos.entryPrice)}</div>
-                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, color: T.text }}>{pos.currentPrice ? formatPrice(pos.currentPrice) : '—'}</div>
-                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.red }}>{pos.stopLoss ? formatPrice(pos.stopLoss) : '—'}</div>
-                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.green }}>{pos.takeProfit ? formatPrice(pos.takeProfit) : '—'}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.quantity}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatPrice(pos.entryPrice)}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.currentPrice ? formatPrice(pos.currentPrice) : '—'}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.red, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.stopLoss ? formatPrice(pos.stopLoss) : '—'}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.green, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.takeProfit ? formatPrice(pos.takeProfit) : '—'}</div>
                     <div style={{
                       textAlign: 'center', fontFamily: "'JetBrains Mono', monospace",
                       fontSize: 11, fontWeight: 700,
                       color: (pos.unrealizedPnl || 0) >= 0 ? T.green : T.red,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>
                       {(pos.unrealizedPnl || 0) > 0 ? '+' : (pos.unrealizedPnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pos.unrealizedPnl || 0))}
                     </div>
@@ -815,7 +816,7 @@ export default function PortfolioPage() {
                 <span style={{
                   fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
                   color: totalRealizedPnl >= 0 ? T.green : T.red, fontWeight: 700,
-                  marginRight: 8,
+                  marginInlineStart: 8,
                 }}>
                   P&L: {totalRealizedPnl > 0 ? '+' : totalRealizedPnl < 0 ? '-' : ''}${fmt(Math.abs(totalRealizedPnl), 2)}
                 </span>
@@ -1026,7 +1027,7 @@ export default function PortfolioPage() {
                 <span style={{
                   fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
                   color: totalTradePnl >= 0 ? T.green : T.red, fontWeight: 700,
-                  marginRight: 8,
+                  marginInlineStart: 8,
                 }}>
                   P&L: {totalTradePnl > 0 ? '+' : totalTradePnl < 0 ? '-' : ''}${fmt(Math.abs(totalTradePnl), 2)}
                 </span>
@@ -1173,7 +1174,7 @@ export default function PortfolioPage() {
                   <XAxis dataKey="date" tick={{ fontSize: 9, fill: T.text2 }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 9, fill: T.text2 }} axisLine={false} tickLine={false} width={50} />
                   <Tooltip
-                    contentStyle={{ background: '#0D1520', border: `0.5px solid ${T.border2}`, borderRadius: 8, fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}
+                    contentStyle={{ background: T.bg2, border: `0.5px solid ${T.border2}`, borderRadius: 8, fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}
                     formatter={(val: any) => [`$${Number(val).toFixed(2)}`, 'P&L']}
                   />
                   <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
@@ -1279,7 +1280,7 @@ export default function PortfolioPage() {
                     <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>متوسط الربح</span>
                     <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 700, color: T.green }}>+${fmt(avgWin, 2)}</div>
                   </div>
-                  <div style={{ textAlign: 'left' }}>
+                  <div style={{ textAlign: 'start' }}>
                     <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>متوسط الخسارة</span>
                     <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 700, color: T.red }}>-${fmt(avgLoss, 2)}</div>
                   </div>

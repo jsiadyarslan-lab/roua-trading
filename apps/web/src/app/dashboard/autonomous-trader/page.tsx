@@ -14,21 +14,10 @@ import { useAgentStore, AgentStatus, StrategyType, MarketRegime, RegimeInfo } fr
 /* ═══════════════════════════════════════════════
    Design Tokens — matching Roua Trading theme
    ═══════════════════════════════════════════════ */
+import { T as _T } from '@/lib/unified-tokens'
 const T = {
-  bg:       '#0B0E14',
-  bg2:      '#1A1D29',
+  ..._T,
   bg3:      '#141824',
-  card:     '#1A1D29',
-  accent:   '#00D4FF',
-  green:    '#00FFA3',
-  red:      '#FF4757',
-  amber:    '#FFB800',
-  purple:   '#B388FF',
-  text:     '#F0F2F5',
-  text2:    '#8B92A8',
-  text3:    '#5A6178',
-  border:   'rgba(255,255,255,0.06)',
-  border2:  'rgba(255,255,255,0.12)',
   glass:    'rgba(26, 29, 41, 0.65)',
   glow:     'rgba(0,212,255,0.15)',
 }
@@ -343,7 +332,7 @@ export default function AutonomousTraderPage() {
                   </span>
                 )}
                 {config && (
-                  <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginRight: 8 }}>
+                  <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginInlineEnd: 8 }}>
                     • {getStrategyLabel(config.strategy as StrategyType)}
                   </span>
                 )}
@@ -957,7 +946,7 @@ export default function AutonomousTraderPage() {
                     style={{
                       ...btnStyle, padding: '4px 10px', fontSize: 10,
                       background: 'rgba(255,255,255,0.06)', color: T.text3,
-                      marginRight: 'auto',
+                      marginInlineEnd: 'auto',
                     }}
                   >
                     <RefreshCw size={10} />

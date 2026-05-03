@@ -179,7 +179,7 @@ export function OrderBookMini() {
   return (
     <div style={{
       width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
-      background: 'var(--bg)', overflow: 'hidden', direction: 'rtl'
+      background: 'var(--bg)', overflow: 'hidden', direction: 'rtl', fontFamily: "'Cairo', sans-serif"
     }}>
       {/* Symbol Selection Tabs */}
       <div style={{
@@ -291,7 +291,7 @@ function OrderRowUI({ row, type, maxTotal, maxSize, index }: {
   row: OrderRow; type: 'ask' | 'bid'; maxTotal: number; maxSize: number; index: number
 }) {
   const color = type === 'ask' ? 'var(--danger)' : 'var(--success)'
-  const rawColor = type === 'ask' ? '255,59,48' : '0,200,83'
+  const rawColor = type === 'ask' ? '255,71,87' : '0,255,163'
 
   const widthPct = Math.min((row.total / maxTotal) * 100, 100)
   const heatPct  = Math.min(row.size / maxSize, 1)
@@ -302,7 +302,7 @@ function OrderRowUI({ row, type, maxTotal, maxSize, index }: {
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       padding: '4px 16px', position: 'relative', height: 26, cursor: 'pointer',
       background: isWall ? `rgba(${rawColor}, 0.10)` : (index % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.012)'),
-      borderRight: isWall ? `3px solid rgb(${rawColor})` : '3px solid transparent',
+      borderInlineEnd: isWall ? `3px solid rgb(${rawColor})` : '3px solid transparent',
       transition: 'all 0.1s',
     }}
       onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.07)'}
@@ -313,7 +313,7 @@ function OrderRowUI({ row, type, maxTotal, maxSize, index }: {
         position: 'absolute', top: 1, bottom: 1, right: 0,
         width: `${widthPct}%`,
         background: `rgba(${rawColor}, 0.07)`,
-        borderLeft: `1px solid rgba(${rawColor}, 0.25)`,
+        borderInlineStart: `1px solid rgba(${rawColor}, 0.25)`,
         zIndex: 0,
         transition: 'width 0.15s ease-out'
       }} />

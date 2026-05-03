@@ -131,6 +131,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
 
   return (
     <div style={{
+      direction: 'rtl',
       display: 'flex', flexDirection: 'column', height: '100%',
       background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 16,
       border: '1px solid rgba(0,229,255,0.08)',

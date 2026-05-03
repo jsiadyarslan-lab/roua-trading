@@ -7,10 +7,10 @@ import { DirectionTag } from '../shared/DirectionTag'
 import { ScoreGauge } from '../shared/ScoreGauge'
 
 const T = {
-  bg: '#04050C', bg2: '#0D1117', card: '#08090F', cardHover: '#0B0F19',
+  bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', cardHover: '#1F2335',
   surface: '#1A1D29', cyan: '#00D4FF', green: '#00FFA3', greenDim: '#00CC82',
   red: '#FF4757', redDim: '#FF3344', amber: '#FFB800', purple: '#B388FF',
-  blue: '#0A84FF', text: '#F0F2F5', text2: '#94a3b8', text3: '#8B92A8',
+  blue: '#0A84FF', text: '#F0F2F5', text2: '#8B92A8', text3: '#8B92A8',
   border: 'rgba(255,255,255,0.06)', border2: 'rgba(0,212,255,0.16)',
 }
 
@@ -110,7 +110,7 @@ export function MarketOverview() {
                   <span style={{ fontSize: 10, fontWeight: 800, color: item.technicalScore >= 40 ? T.green : T.amber, fontFamily: "'JetBrains Mono', monospace" }}>
                     {item.technicalScore > 0 ? '+' : ''}{item.technicalScore}
                   </span>
-                  <span style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace", marginRight: 4 }}>
+                  <span style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace", marginInlineEnd: 4 }}>
                     {item.confidence.toFixed(0)}%
                   </span>
                 </div>

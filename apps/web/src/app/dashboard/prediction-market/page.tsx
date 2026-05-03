@@ -340,7 +340,7 @@ function EventCard({ event, index, onAnalyze, analyzing }: {
       <div className="pm-event-card" style={{ padding: '16px' }}>
         {/* Header Row */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
-          <div style={{ flex: 1, paddingRight: '8px' }}>
+          <div style={{ flex: 1, paddingInlineEnd: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'var(--font-ar), Inter, sans-serif', lineHeight: '1.5' }}>
                 {event.title}
@@ -493,7 +493,7 @@ function GapCard({ event, index }: { event: PredictionEvent; index: number }) {
       style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border)',
-        borderRight: `3px solid ${gapColor(gapVal)}`,
+        borderInlineEnd: `3px solid ${gapColor(gapVal)}`,
         borderRadius: '10px',
         padding: '14px',
         position: 'relative',

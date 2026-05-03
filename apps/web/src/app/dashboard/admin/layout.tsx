@@ -185,7 +185,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         .admin-nav-item--active { background: rgba(0,229,255,0.10); }
         @media (max-width: 767px) {
           .admin-mobile-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 49; }
-          .admin-sidebar-mobile { position: fixed; top: 0; right: 0; bottom: 0; z-index: 50; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+          .admin-sidebar-mobile { position: fixed; top: 0; inset-inline-end: 0; bottom: 0; z-index: 50; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
           .admin-sidebar-mobile--open { transform: translateX(0); }
         }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -203,7 +203,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           width: sidebarWidth,
           minWidth: sidebarWidth,
           background: SIDEBAR_BG,
-          borderLeft: `1px solid ${SIDEBAR_BORDER}`,
+          borderInlineStart: `1px solid ${SIDEBAR_BORDER}`,
           display: 'flex',
           flexDirection: 'column',
           overflowY: 'auto',
@@ -263,7 +263,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   gap: 10,
                   padding: collapsed ? '8px 0' : '8px 16px',
                   justifyContent: collapsed ? 'center' : 'flex-start',
-                  borderRight: active ? `3px solid ${ACCENT}` : '3px solid transparent',
+                  borderInlineEnd: active ? `3px solid ${ACCENT}` : '3px solid transparent',
                   cursor: 'pointer',
                   position: 'relative',
                 }}

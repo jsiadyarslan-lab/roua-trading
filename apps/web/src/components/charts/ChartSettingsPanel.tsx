@@ -25,7 +25,7 @@ const TABS: { key: SettingsTab; label: string; icon: string }[] = [
 ];
 
 const PRESET_THEMES = [
-  { name: 'ROUA Classic', bg: '#0B0E14', up: '#3fb950', down: '#f85149' },
+  { name: 'ROUA Classic', bg: '#0B0E14', up: '#00FFA3', down: '#FF4757' },
   { name: 'Ocean', bg: '#0a1628', up: '#00d4ff', down: '#ff6b6b' },
   { name: 'Neon', bg: '#0d0221', up: '#00ff88', down: '#ff0055' },
   { name: 'Sunset', bg: '#1a0a2e', up: '#ffd700', down: '#ff4500' },
@@ -44,9 +44,9 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
     cyan: '#00D4FF',
     text: '#F0F2F5',
     textSecondary: '#8B92A8',
-    textMuted: '#64748b',
-    success: '#3fb950',
-    danger: '#f85149',
+    textMuted: '#8B92A8',
+    success: '#00FFA3',
+    danger: '#FF4757',
     warning: '#fbbf24',
   };
 
@@ -68,7 +68,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
     background: isOn ? '#000' : COLORS.textSecondary,
     position: 'absolute',
     top: 2,
-    left: isOn ? 18 : 2,
+    insetInlineStart: isOn ? 18 : 2,
     transition: 'all 0.2s',
   });
 
@@ -361,8 +361,8 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
               showSessions: true,
               showCandleTimer: true,
               crosshairType: 'cross',
-              upColor: '#3fb950',
-              downColor: '#f85149',
+              upColor: '#00FFA3',
+              downColor: '#FF4757',
               bgColor: '#0B0E14',
               gridColor: 'rgba(42,49,60,0.5)',
             });

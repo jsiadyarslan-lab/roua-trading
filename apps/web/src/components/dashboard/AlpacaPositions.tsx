@@ -17,17 +17,17 @@ interface Position {
 }
 
 const T = {
-  success: '#00C853',
-  danger: '#FF5A54',
-  cyan: '#00E5FF',
-  amber: '#F5B942',
-  text: '#E6EBF5',
-  text2: '#8FA5BE',
-  text3: '#6E839B',
-  border: 'rgba(255,255,255,0.08)',
-  panel: '#0A1118',
-  card: '#111A24',
-  cardAlt: '#0E1620',
+  success: '#00FFA3',
+  danger: '#FF4757',
+  cyan: '#00D4FF',
+  amber: '#FFB800',
+  text: '#F0F2F5',
+  text2: '#8B92A8',
+  text3: '#8B92A8',
+  border: 'rgba(255,255,255,0.06)',
+  panel: '#0B0E14',
+  card: '#1A1D29',
+  cardAlt: '#1F2335',
 }
 
 const fmtPrice = (value: number) =>
@@ -136,6 +136,7 @@ export function AlpacaPositions() {
   return (
     <div
       style={{
+        direction: 'rtl',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
@@ -221,7 +222,7 @@ export function AlpacaPositions() {
               key={position.id}
               style={{
                 borderRadius: 10,
-                border: `1px solid ${pnlUp ? 'rgba(0,200,83,0.16)' : 'rgba(255,90,84,0.16)'}`,
+                border: `1px solid ${pnlUp ? 'rgba(0,255,163,0.16)' : 'rgba(255,71,87,0.16)'}`,
                 background: `linear-gradient(180deg, ${T.card}, ${T.cardAlt})`,
                 boxShadow: `inset 0 1px 0 rgba(255,255,255,0.02), 0 4px 10px rgba(0,0,0,0.12)`,
                 padding: '5px 6px',
@@ -250,8 +251,8 @@ export function AlpacaPositions() {
                     gap: 2,
                     padding: '1px 4px',
                     borderRadius: 999,
-                    background: isLong ? 'rgba(0,200,83,0.14)' : 'rgba(255,90,84,0.14)',
-                    border: `1px solid ${isLong ? 'rgba(0,200,83,0.28)' : 'rgba(255,90,84,0.28)'}`,
+                    background: isLong ? 'rgba(0,255,163,0.14)' : 'rgba(255,71,87,0.14)',
+                    border: `1px solid ${isLong ? 'rgba(0,255,163,0.28)' : 'rgba(255,71,87,0.28)'}`,
                     color: isLong ? T.success : T.danger,
                     fontSize: 6,
                     fontWeight: 900,
@@ -266,8 +267,8 @@ export function AlpacaPositions() {
                     style={{
                       padding: '1px 4px',
                       borderRadius: 999,
-                      background: 'rgba(0,229,255,0.10)',
-                      border: '1px solid rgba(0,229,255,0.20)',
+                      background: 'rgba(0,212,255,0.10)',
+                      border: '1px solid rgba(0,212,255,0.20)',
                       color: T.cyan,
                       fontSize: 5.5,
                       fontWeight: 800,
@@ -344,8 +345,8 @@ export function AlpacaPositions() {
                     height: 20,
                     padding: '0 5px',
                     borderRadius: 6,
-                    border: `1px solid ${confirmClose === position.id ? 'rgba(255,90,84,0.42)' : 'rgba(255,90,84,0.22)'}`,
-                    background: confirmClose === position.id ? 'rgba(255,90,84,0.16)' : 'rgba(255,90,84,0.08)',
+                    border: `1px solid ${confirmClose === position.id ? 'rgba(255,71,87,0.42)' : 'rgba(255,71,87,0.22)'}`,
+                    background: confirmClose === position.id ? 'rgba(255,71,87,0.16)' : 'rgba(255,71,87,0.08)',
                     color: T.danger,
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -400,7 +401,7 @@ export function AlpacaPositions() {
                 const pnlUp = ct.realizedPnl >= 0
                 return (
                   <div key={ct.id} style={{
-                    borderRadius: 8, border: `1px solid ${pnlUp ? 'rgba(0,200,83,0.12)' : 'rgba(255,90,84,0.12)'}`,
+                    borderRadius: 8, border: `1px solid ${pnlUp ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)'}`,
                     background: T.cardAlt, padding: '6px 8px', display: 'flex', alignItems: 'center',
                     justifyContent: 'space-between', gap: 8,
                   }}>

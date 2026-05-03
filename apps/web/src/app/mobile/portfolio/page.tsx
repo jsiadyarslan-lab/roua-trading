@@ -159,7 +159,7 @@ function GlassCard({ children, style }: { children: React.ReactNode; style?: Rea
 // ── Section Title ──
 function SectionTitle({ children, icon: Icon }: { children: React.ReactNode; icon?: LucideIcon }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingRight: 4 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingInlineEnd: 4 }}>
       {Icon && <Icon size={14} color={T.accent} />}
       <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: T.font }}>{children}</span>
     </div>

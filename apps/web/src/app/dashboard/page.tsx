@@ -16,6 +16,7 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
+import { T as SharedT } from '@/lib/unified-tokens'
 
 const DASHBOARD_SYMBOLS = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA']
 
@@ -32,20 +33,21 @@ const PortfolioMini = dynamic(() => import('@/components/portfolio/PortfolioMini
 const QuickExecutionMini = dynamic(() => import('@/components/dashboard/QuickExecutionMini').then(m => ({ default: m.QuickExecutionMini })), { ssr: false })
 
 const T = {
-  bg: '#0B0E14',
-  bg2: '#0F1117',
-  card: '#1A1D29',
-  border: 'rgba(255,255,255,0.05)',
-  cyan: '#00D4FF',
-  success: '#00FFA3',
-  danger: '#FF4757',
-  warning: '#FFB800',
-  info: '#00D4FF',
-  text: '#F0F2F5',
-  text3: '#8B92A8',
-  gradientProfit: 'linear-gradient(135deg, #00FFA3, #00CC82)',
-  gradientLoss: 'linear-gradient(135deg, #FF4757, #FF3344)',
-  gradientInfo: 'linear-gradient(135deg, #00D4FF, #0A84FF)',
+  bg: SharedT.bg,
+  bg2: SharedT.bg2,
+  card: SharedT.card,
+  border: SharedT.border,
+  cyan: SharedT.cyan,
+  success: SharedT.success,
+  danger: SharedT.danger,
+  warning: SharedT.warning,
+  info: SharedT.info,
+  text: SharedT.text,
+  text2: SharedT.text2,
+  text3: SharedT.text3,
+  gradientProfit: SharedT.gradientProfit,
+  gradientLoss: SharedT.gradientLoss,
+  gradientInfo: SharedT.gradientInfo,
 }
 
 const HEADER_H = 108
@@ -217,7 +219,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
     background: color ? `${color}08` : 'rgba(255,255,255,0.03)',
     border: `1px solid ${color ? `${color}25` : 'rgba(255,255,255,0.08)'}`,
     borderRadius: 10,
-    color: color || '#F0F2F5',
+    color: color || T.text,
     fontSize: isMobile ? 14 : 13,
     padding: isMobile ? '12px 14px' : '10px 12px',
     fontFamily: "'JetBrains Mono', monospace",
@@ -320,13 +322,13 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
               background: orderType === key
                 ? 'rgba(0,212,255,0.12)'
                 : 'transparent',
-              color: orderType === key ? '#00D4FF' : '#8B92A8',
+              color: orderType === key ? T.cyan : T.text2,
               fontSize: 11,
               fontWeight: 700,
               fontFamily: "'Cairo', sans-serif",
               cursor: 'pointer',
               transition: 'all 0.15s ease',
-              borderLeft: orderType === key ? '2px solid #00D4FF' : '2px solid transparent',
+              borderInlineStart: orderType === key ? `2px solid ${T.cyan}` : '2px solid transparent',
             }}
           >
             {label}
@@ -337,7 +339,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
       {/* Limit Price (when limit/stop_limit) */}
       {(orderType === 'limit' || orderType === 'stop_limit') && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 10, color: '#8B92A8', fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>سعر الحد</label>
+          <label style={{ fontSize: 10, color: T.text2, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>سعر الحد</label>
           <input
             value={limitPrice}
             onChange={e => setLimitPrice(e.target.value)}
@@ -353,7 +355,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
 
       {/* Quantity */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <label style={{ fontSize: 10, color: '#8B92A8', fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>الكمية</label>
+        <label style={{ fontSize: 10, color: T.text2, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>الكمية</label>
         <input
           value={quantity}
           onChange={e => setQuantity(e.target.value)}
@@ -370,7 +372,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
       {/* SL / TP Row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 10, color: '#FF4757', fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>وقف الخسارة</label>
+          <label style={{ fontSize: 10, color: T.danger, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>وقف الخسارة</label>
           <input
             value={stopLoss}
             onChange={e => setStopLoss(e.target.value)}
@@ -383,7 +385,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
           />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 10, color: '#00FFA3', fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>جني الأرباح</label>
+          <label style={{ fontSize: 10, color: T.success, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>جني الأرباح</label>
           <input
             value={takeProfit}
             onChange={e => setTakeProfit(e.target.value)}
@@ -410,7 +412,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
             background: 'rgba(0,212,255,0.08)',
             border: '1px solid rgba(0,212,255,0.15)',
             borderRadius: 10,
-            color: '#00D4FF',
+            color: T.cyan,
             fontSize: 10,
             fontWeight: 700,
             padding: '10px 14px',
@@ -437,7 +439,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
           borderRadius: 10,
           background: status.type === 'success' ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)',
           border: `1px solid ${status.type === 'success' ? 'rgba(0,255,163,0.25)' : 'rgba(255,71,87,0.25)'}`,
-          color: status.type === 'success' ? '#00FFA3' : '#FF4757',
+          color: status.type === 'success' ? T.success : T.danger,
           fontSize: 12,
           fontWeight: 700,
           fontFamily: "'Cairo', sans-serif",
@@ -637,11 +639,11 @@ export default function DashboardPage() {
       <style>{`
         .dashboard-shell {
           min-height: calc(100dvh - ${HEADER_H}px);
-          background: #0B0E14;
+          background: ${T.bg};
           background-image:
             radial-gradient(ellipse at 20% 0%, rgba(0,212,255,0.04) 0%, transparent 50%),
             radial-gradient(ellipse at 80% 100%, rgba(0,255,163,0.02) 0%, transparent 50%);
-          color: #F0F2F5;
+          color: ${T.text};
           overflow: hidden;
         }
 
@@ -1098,7 +1100,7 @@ export default function DashboardPage() {
               }}>{modeConfig.labelAr}</span>
               <span style={{
                 fontFamily: "'Cairo', sans-serif", fontSize: 10,
-                color: T.text3, marginRight: 8,
+                color: T.text3, marginInlineEnd: 8,
               }}>— {modeConfig.description}</span>
               <div style={{ flex: 1 }} />
               {mode === 'trader' && (

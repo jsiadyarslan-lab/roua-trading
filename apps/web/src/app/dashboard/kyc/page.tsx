@@ -10,29 +10,12 @@ import {
   KeyRound, Plug, Server, Globe, ToggleLeft, ToggleRight
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
+import { T as SharedT } from '@/lib/unified-tokens'
 
 /* ═══════════════════════════════════════════════════════
-   Design Tokens
+   Design Tokens (canonical + local extensions)
 ═══════════════════════════════════════════════════════ */
-const T = {
-  bg: '#04050C',
-  bg2: '#0D1117',
-  card: '#08090F',
-  cardHover: '#0B0F19',
-  surface: '#1A1D29',
-  cyan: '#00D4FF',
-  green: '#00FFA3',
-  red: '#FF4757',
-  amber: '#FFB800',
-  purple: '#B388FF',
-  blue: '#0A84FF',
-  text: '#F0F2F5',
-  text2: '#94a3b8',
-  text3: '#8B92A8',
-  text4: '#475569',
-  border: 'rgba(255,255,255,0.06)',
-  border2: 'rgba(0,212,255,0.16)',
-}
+const T = { ...SharedT, text4: '#475569' }
 
 /* ═══════════════════════════════════════════════════════
    Types

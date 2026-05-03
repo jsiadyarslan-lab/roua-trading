@@ -6,16 +6,16 @@ import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 import { RefreshCw, Layers, Activity } from 'lucide-react'
 
 const T = {
-  bg:      '#0F1113',
-  bg2:     '#111214',
-  border:  'rgba(0, 229, 255, 0.08)',
-  accent:  '#00E5FF',
-  green:   '#00C853',
-  red:     '#FF3B30',
+  bg:      '#0B0E14',
+  bg2:     '#1A1D29',
+  border:  'rgba(255,255,255,0.06)',
+  accent:  '#00D4FF',
+  green:   '#00FFA3',
+  red:     '#FF4757',
   amber:   '#FFB800',
   purple:  '#B388FF',
-  text:    '#E6EBF5',
-  text2:   '#8090A8',
+  text:    '#F0F2F5',
+  text2:   '#8B92A8',
 }
 
 export function MultiTfScannerMini() {
@@ -69,7 +69,7 @@ export function MultiTfScannerMini() {
             useTabAlertStore.getState().pushAlert('multi-tf', {
               action: direction,
               label: `${direction === 'BUY' ? '⬆' : '⬇'} ${mtData.alignment} ${selectedSymbol}`,
-              color: direction === 'BUY' ? '#00C853' : '#FF3B30',
+              color: direction === 'BUY' ? '#00FFA3' : '#FF4757',
             })
           }
         } else {
@@ -108,7 +108,7 @@ export function MultiTfScannerMini() {
   const strategy = overallStrength > 100 ? 'Trend Follow (Long)' : overallStrength < -100 ? 'Trend Follow (Short)' : 'Wait / Pullback'
 
   return (
-    <div className="custom-scrollbar" style={{ height: '100%', padding: '14px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 16, border: `1px solid ${T.border}` }}>
+    <div className="custom-scrollbar" style={{ direction: 'rtl', height: '100%', padding: '14px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 16, border: `1px solid ${T.border}` }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, padding: '0 2px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Activity size={12} color={T.purple} className={loading ? 'animate-pulse' : ''} />

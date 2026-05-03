@@ -9,10 +9,10 @@ import { MiniHeatmap } from '../shared/MiniHeatmap'
 import type { ScannerItem } from '../hooks/useScannerData'
 
 const T = {
-  bg2: '#0D1117', card: '#08090F', cardHover: '#0B0F19', surface: '#1A1D29',
+  bg2: '#1A1D29', card: '#1A1D29', cardHover: '#1F2335', surface: '#1A1D29',
   green: '#00FFA3', greenDim: '#00CC82', red: '#FF4757', redDim: '#FF3344',
   amber: '#FFB800', blue: '#0A84FF', cyan: '#00D4FF', purple: '#B388FF',
-  text: '#F0F2F5', text2: '#94a3b8', text3: '#8B92A8',
+  text: '#F0F2F5', text2: '#8B92A8', text3: '#8B92A8',
   border: 'rgba(255,255,255,0.06)',
 }
 

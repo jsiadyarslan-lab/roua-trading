@@ -262,7 +262,7 @@ export function OrderBookPanelInner({
                 background: 'rgba(255,77,77,0.06)',
                 width: `${ask.percent}%`,
                 borderRadius: '2px',
-                marginLeft: 'auto',
+                marginInlineStart: 'auto',
               }} />
               <span style={{
                 fontSize: '9.5px',
@@ -320,7 +320,7 @@ export function OrderBookPanelInner({
                 background: 'rgba(0,255,198,0.06)',
                 width: `${bid.percent}%`,
                 borderRadius: '2px',
-                marginLeft: 'auto',
+                marginInlineStart: 'auto',
               }} />
               <span style={{
                 fontSize: '9.5px',

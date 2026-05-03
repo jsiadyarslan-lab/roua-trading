@@ -3,7 +3,7 @@
 const T = {
   green: '#00FFA3', greenDim: '#00CC82', red: '#FF4757', redDim: '#FF3344',
   amber: '#FFB800', blue: '#0A84FF', cyan: '#00D4FF',
-  text: '#F0F2F5', text3: '#8B92A8', bg: '#04050C',
+  text: '#F0F2F5', text3: '#8B92A8', bg: '#0B0E14',
   surface: '#1A1D29', border: 'rgba(255,255,255,0.06)',
 }
 

@@ -61,8 +61,10 @@ export default function TickerBar() {
     <div className="ticker-bar" style={{ gridArea: 'ticker' }}>
       <div style={{ width: '100%', height: '38px', overflow: 'hidden', background: 'var(--bg-ticker)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', flexShrink: 0, position: 'relative', boxShadow: 'var(--shadow-sm)' }}>
         {/* Fade edges */}
-        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '28px', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(90deg, var(--bg-ticker), transparent)' }} />
-        <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '28px', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(-90deg, var(--bg-ticker), transparent)' }} />
+        {/* RTL: fade edge on inline-start side */}
+        <div style={{ position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: '28px', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(270deg, transparent, var(--bg-ticker))' }} />
+        {/* RTL: fade edge on inline-end side */}
+        <div style={{ position: 'absolute', insetInlineEnd: 0, top: 0, bottom: 0, width: '28px', zIndex: 2, pointerEvents: 'none', background: 'linear-gradient(90deg, transparent, var(--bg-ticker))' }} />
 
         <div ref={tickerRef} style={{ display: 'inline-flex', alignItems: 'center', height: '100%', whiteSpace: 'nowrap', willChange: 'transform', animationName: 'ql-ticker', animationDuration: '72s', animationTimingFunction: 'linear', animationIterationCount: 'infinite', animationPlayState: 'running' }}>
           {ticks.map((tick, i) => renderTick(tick, i))}

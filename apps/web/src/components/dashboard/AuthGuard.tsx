@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
+import { T } from '@/lib/unified-tokens'
 
 /**
  * AuthGuard — Enforces authentication for the dashboard.
@@ -50,7 +51,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (status === 'loading') {
     return (
-      <div className="flex items-center justify-center" style={{ minHeight: '100dvh', background: '#0B0E14' }}>
+      <div className="flex items-center justify-center" style={{ minHeight: '100dvh', background: T.bg }}>
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center animate-pulse" style={{ background: 'linear-gradient(135deg, #0891b2, #00d4ff)' }}>
             <svg className="w-4 h-4 text-white animate-spin" fill="none" viewBox="0 0 24 24">
@@ -66,7 +67,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (status === 'unauthenticated') {
     return (
-      <div className="flex items-center justify-center" style={{ minHeight: '100dvh', background: '#0B0E14' }}>
+      <div className="flex items-center justify-center" style={{ minHeight: '100dvh', background: T.bg }}>
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center animate-pulse" style={{ background: 'linear-gradient(135deg, #0891b2, #00d4ff)' }}>
             <svg className="w-4 h-4 text-white animate-spin" fill="none" viewBox="0 0 24 24">

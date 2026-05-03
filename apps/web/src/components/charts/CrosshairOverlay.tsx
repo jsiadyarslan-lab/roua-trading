@@ -62,15 +62,15 @@ export function CrosshairOverlay({
   }, [symbol, price]);
 
   const isBull = displayData ? displayData.close >= displayData.open : true;
-  const changeColor = displayData && displayData.change >= 0 ? '#3fb950' : '#f85149';
+  const changeColor = displayData && displayData.change >= 0 ? '#00FFA3' : '#FF4757';
 
   const COLORS = {
     text: '#F0F2F5',
     textSecondary: '#8B92A8',
-    textMuted: '#64748b',
+    textMuted: '#8B92A8',
     cyan: '#00D4FF',
-    success: '#3fb950',
-    danger: '#f85149',
+    success: '#00FFA3',
+    danger: '#FF4757',
     bg: 'rgba(11,14,20,0.82)',
   };
 

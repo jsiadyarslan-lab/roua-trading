@@ -9,18 +9,18 @@ import { useBotStore } from '@/hooks/useBotStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 
 const T = {
-  bg:      '#0F1113',
-  bg2:     '#111214',
-  card:    '#111214',
-  border:  'rgba(0, 229, 255, 0.08)',
-  accent:  '#00E5FF',
-  success: '#00C853',
-  danger:  '#FF3B30',
+  bg:      '#0B0E14',
+  bg2:     '#1A1D29',
+  card:    '#1A1D29',
+  border:  'rgba(255,255,255,0.06)',
+  accent:  '#00D4FF',
+  success: '#00FFA3',
+  danger:  '#FF4757',
   amber:   '#FFB800',
   purple:  '#B388FF',
-  text:    '#E6EBF5',
-  text2:   '#8090A8',
-  text3:   '#A0AFC3',
+  text:    '#F0F2F5',
+  text2:   '#8B92A8',
+  text3:   '#8B92A8',
 }
 
 interface SmartSignal {
@@ -77,7 +77,7 @@ export function BotCommandCenter() {
           useTabAlertStore.getState().pushAlert('signals', {
             action: sig.type,
             label: `${sig.type === 'BUY' ? '⬆' : '⬇'} ${sig.pair} ${sig.conf}%`,
-            color: sig.type === 'BUY' ? '#00C853' : '#FF3B30',
+            color: sig.type === 'BUY' ? '#00FFA3' : '#FF4757',
           })
         }
       }
@@ -139,12 +139,12 @@ export function BotCommandCenter() {
   }
 
   return (
-    <div className="custom-scrollbar no-scrollbar" style={{ height: '100%', overflowY: 'auto', padding: '7px', display: 'flex', flexDirection: 'column', gap: 6, background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 12, border: `1px solid ${T.border}` }}>
+    <div className="custom-scrollbar no-scrollbar" style={{ direction: 'rtl', height: '100%', overflowY: 'auto', padding: '7px', display: 'flex', flexDirection: 'column', gap: 6, background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 12, border: `1px solid ${T.border}` }}>
 
       {/* Bot Master Switch */}
       <div style={{
-        background: isActive ? 'rgba(0,200,83,0.05)' : 'rgba(255,59,48,0.05)',
-        border: `1px solid ${isActive ? 'rgba(0,200,83,0.2)' : 'rgba(255,59,48,0.2)'}`,
+        background: isActive ? 'rgba(0,255,163,0.05)' : 'rgba(255,71,87,0.05)',
+        border: `1px solid ${isActive ? 'rgba(0,255,163,0.2)' : 'rgba(255,71,87,0.2)'}`,
         borderRadius: 8, padding: '5px 7px', display: 'flex', alignItems: 'center', justifyContent: 'space-between'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>

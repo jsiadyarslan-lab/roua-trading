@@ -6,6 +6,7 @@ import { useExecutionEngine } from './hooks/useExecutionEngine'
 import { ExecutionOverlay } from './ExecutionOverlay'
 import { OrderHistory } from './OrderHistory'
 import type { DataStatus } from '@/lib/dashboard-live'
+import { T } from '@/lib/unified-tokens'
 
 export function ExecutionPanel({
   mobile = false,
@@ -31,7 +32,7 @@ export function ExecutionPanel({
   const qtyNum = parseFloat(engine.quantity) || 0
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-y-auto overflow-x-hidden" style={{ direction: 'rtl', background: 'linear-gradient(180deg, #0E1118, #0A0D14)' }}>
+    <div className="relative flex h-full w-full flex-col overflow-y-auto overflow-x-hidden" style={{ direction: 'rtl', background: `linear-gradient(180deg, ${T.bg}, ${T.bgLight})` }}>
 
       {/* ── Row 1: Symbol + Price + Balance ── */}
       <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-[rgba(255,255,255,0.04)]">

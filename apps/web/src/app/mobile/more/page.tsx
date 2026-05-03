@@ -9,16 +9,11 @@ import {
 } from 'lucide-react'
 
 /* ─── Design Tokens ─── */
+import { T as _T } from '@/lib/unified-tokens'
 const c = {
-  accent: '#00D4FF',
+  ..._T,
   success: '#32D74B',
-  danger: '#FF453A',
-  amber: '#FFB800',
-  text: '#F0F2F5',
-  text2: 'rgba(235,235,245,0.5)',
-  text3: 'rgba(235,235,245,0.3)',
-  bg: '#000',
-  border: 'rgba(255,255,255,0.08)',
+  danger:  '#FF453A',
 }
 
 /* ─── Category Structure ─── */
@@ -41,29 +36,29 @@ const MORE_CATEGORIES: MoreCategory[] = [
     title: 'التداول',
     items: [
       { icon: Activity, label: 'المراكز المفتوحة', sub: 'تتبع صفقاتك الحية ومراكزك المفتوحة', color: '#00C853', href: '/mobile/positions', isNew: true },
-      { icon: Zap, label: 'التداول الحي', sub: 'تداول مباشر من الجوال بسرعة فائقة', color: '#00D4FF', href: '/mobile/trading', isNew: true },
-      { icon: FlaskConical, label: 'الاستراتيجيات', sub: 'اختبر وبنِ استراتيجياتك الخاصة', color: '#B388FF', href: '/mobile/strategies', isNew: true },
+      { icon: Zap, label: 'التداول الحي', sub: 'تداول مباشر من الجوال بسرعة فائقة', color: c.cyan, href: '/mobile/trading', isNew: true },
+      { icon: FlaskConical, label: 'الاستراتيجيات', sub: 'اختبر وبنِ استراتيجياتك الخاصة', color: c.purple, href: '/mobile/strategies', isNew: true },
       { icon: Users, label: 'التداول الاجتماعي', sub: 'تابع وانسخ أفضل المتداولين', color: '#FF6B9D', href: '/mobile/social', isNew: true },
     ],
   },
   {
     title: 'الأدوات',
     items: [
-      { icon: Brain, label: 'التحليلات الذكية', sub: 'رؤية شاملة من 6 نماذج AI', color: '#B388FF', href: '/mobile/ai' },
-      { icon: ScanSearch, label: 'سكانر السوق', sub: 'اكتشاف الفرص الذهبية لحظياً', color: '#00FFA3', href: '/mobile/scanner' },
-      { icon: Radio, label: 'إشارات رؤى', sub: 'توصيات تداول احترافية', color: '#FFB800', href: '/mobile/signals' },
-      { icon: Newspaper, label: 'الأخبار', sub: 'تغطية حية لأخبار الأسواق المالية', color: '#d4af37', href: '/mobile/news', isNew: true },
-      { icon: BellRing, label: 'الإشعارات', sub: 'تنبيهات البوت والنظام والصفقات', color: '#FF4757', href: '/mobile/notifications', isNew: true },
+      { icon: Brain, label: 'التحليلات الذكية', sub: 'رؤية شاملة من 6 نماذج AI', color: c.purple, href: '/mobile/ai' },
+      { icon: ScanSearch, label: 'سكانر السوق', sub: 'اكتشاف الفرص الذهبية لحظياً', color: c.green, href: '/mobile/scanner' },
+      { icon: Radio, label: 'إشارات رؤى', sub: 'توصيات تداول احترافية', color: c.amber, href: '/mobile/signals' },
+      { icon: Newspaper, label: 'الأخبار', sub: 'تغطية حية لأخبار الأسواق المالية', color: c.gold, href: '/mobile/news', isNew: true },
+      { icon: BellRing, label: 'الإشعارات', sub: 'تنبيهات البوت والنظام والصفقات', color: c.danger, href: '/mobile/notifications', isNew: true },
     ],
   },
   {
     title: 'الحساب',
     items: [
-      { icon: UserCircle, label: 'الملف الشخصي', sub: 'إدارة معلوماتك الشخصية وصورتك', color: '#00D4FF', href: '/mobile/profile', isNew: true },
-      { icon: Link2, label: 'ربط الحسابات', sub: 'ربط حسابات الوساطة والتحقق KYC', color: '#00FFA3', href: '/mobile/kyc', isNew: true },
-      { icon: CreditCard, label: 'الفواتير والاشتراكات', sub: 'إدارة اشتراكك وعرض الفواتير', color: '#d4af37', href: '/mobile/billing', isNew: true },
-      { icon: Fingerprint, label: 'الأمان و 2FA', sub: 'حماية حسابك وتفعيل المصادقة الثنائية', color: '#32D74B', href: '/mobile/security', isNew: true },
-      { icon: HelpCircle, label: 'المساعدة والدعم', sub: 'مركز المساعدة وفتح تذاكر الدعم', color: '#8B92A8', href: '/mobile/help', isNew: true },
+      { icon: UserCircle, label: 'الملف الشخصي', sub: 'إدارة معلوماتك الشخصية وصورتك', color: c.cyan, href: '/mobile/profile', isNew: true },
+      { icon: Link2, label: 'ربط الحسابات', sub: 'ربط حسابات الوساطة والتحقق KYC', color: c.green, href: '/mobile/kyc', isNew: true },
+      { icon: CreditCard, label: 'الفواتير والاشتراكات', sub: 'إدارة اشتراكك وعرض الفواتير', color: c.gold, href: '/mobile/billing', isNew: true },
+      { icon: Fingerprint, label: 'الأمان و 2FA', sub: 'حماية حسابك وتفعيل المصادقة الثنائية', color: c.success, href: '/mobile/security', isNew: true },
+      { icon: HelpCircle, label: 'المساعدة والدعم', sub: 'مركز المساعدة وفتح تذاكر الدعم', color: c.text2, href: '/mobile/help', isNew: true },
     ],
   },
 ]
@@ -166,7 +161,7 @@ export default function MobileMorePage() {
                       <Icon size={20} color={item.color} />
                       {item.isNew && (
                         <div style={{
-                          position: 'absolute', top: -3, left: -3,
+                          position: 'absolute', top: -3, insetInlineStart: -3,
                           width: 9, height: 9, borderRadius: '50%',
                           background: c.accent,
                           boxShadow: '0 0 8px rgba(0,212,255,0.6)',
@@ -216,8 +211,8 @@ export default function MobileMorePage() {
           padding: '12px 24px', borderRadius: 16,
           background: 'rgba(212,175,55,0.05)', border: '0.5px solid rgba(212,175,55,0.15)',
         }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00FFA3', boxShadow: '0 0 10px #00FFA3' }} className="animate-pulse" />
-          <span style={{ fontSize: 12, color: '#d4af37', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: c.green, boxShadow: `0 0 10px ${c.green}` }} className="animate-pulse" />
+          <span style={{ fontSize: 12, color: c.gold, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>
             رؤى للتداول — إصدار الجوال v2.0
           </span>
         </div>

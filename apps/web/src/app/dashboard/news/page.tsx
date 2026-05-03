@@ -11,26 +11,16 @@ import { useContentAgentStore, ContentType, ContentCategory, ContentStatus } fro
 import type { ContentArticle } from '@/hooks/useContentAgentStore'
 import type { LucideIcon } from 'lucide-react'
 
-// ── Design Tokens ──
-const T = {
-  bg: '#0B0E14',
-  bg2: '#111420',
-  card: '#161A26',
-  cardHover: '#1C2030',
-  accent: '#00D4FF',
-  green: '#00FFA3',
-  red: '#FF4757',
-  amber: '#FFB800',
-  purple: '#B388FF',
+// ── Design Tokens (canonical from unified-tokens) ──
+import { TExtended as T } from '@/lib/unified-tokens'
+
+// Local extensions not in canonical set
+const TLocal = {
   orange: '#FF8C42',
-  text: '#F0F2F5',
-  text2: '#8B92A8',
-  text3: '#5A6178',
-  border: 'rgba(255,255,255,0.06)',
-  border2: 'rgba(255,255,255,0.10)',
-}
-const FONT_AR = "'Cairo', sans-serif"
-const FONT_MONO = "'JetBrains Mono', monospace"
+} as const
+
+const FONT_AR = 'var(--font-ar)'
+const FONT_MONO = 'var(--font-mono)'
 
 // ── Tab definitions ──
 type TabKey = 'hourly' | 'daily' | 'weekly' | 'pair' | 'financial' | 'economic'
@@ -47,9 +37,9 @@ interface TabDef {
 
 const TABS: TabDef[] = [
   { key: 'hourly', label: 'ساعي', icon: Clock, accent: T.amber, desc: 'تحديثات ساعية للأسواق', contentTypes: [ContentType.HOURLY_UPDATE], categories: [] },
-  { key: 'daily', label: 'يومي', icon: Newspaper, accent: T.accent, desc: 'ملخصات يومية شاملة', contentTypes: [ContentType.NEWS_DIGEST, ContentType.MARKET_REPORT], categories: [] },
+  { key: 'daily', label: 'يومي', icon: Newspaper, accent: T.cyan, desc: 'ملخصات يومية شاملة', contentTypes: [ContentType.NEWS_DIGEST, ContentType.MARKET_REPORT], categories: [] },
   { key: 'weekly', label: 'أسبوعي', icon: Calendar, accent: T.purple, desc: 'مراجعات أسبوعية معمّقة', contentTypes: [ContentType.WEEKLY_REVIEW], categories: [] },
-  { key: 'pair', label: 'حسب الزوج', icon: TrendingUp, accent: T.orange, desc: 'تحليلات مفصّلة للأزواج', contentTypes: [ContentType.PAIR_ANALYSIS], categories: [] },
+  { key: 'pair', label: 'حسب الزوج', icon: TrendingUp, accent: TLocal.orange, desc: 'تحليلات مفصّلة للأزواج', contentTypes: [ContentType.PAIR_ANALYSIS], categories: [] },
   { key: 'financial', label: 'مالية', icon: BarChart3, accent: T.green, desc: 'تقارير الأسواق المالية', contentTypes: [], categories: ['CRYPTO', 'FOREX', 'STOCKS', 'COMMODITIES', 'DEFI'] },
   { key: 'economic', label: 'اقتصادية', icon: Globe2, accent: T.red, desc: 'تحليلات اقتصادية وتنظيمية', contentTypes: [], categories: ['ECONOMY', 'REGULATION', 'GEOPOLITICS'] },
 ]
@@ -79,11 +69,11 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 const TYPE_BADGES: Record<string, { color: string; label: string }> = {
   HOURLY_UPDATE: { color: T.amber, label: 'ساعي' },
-  NEWS_DIGEST: { color: T.accent, label: 'يومي' },
+  NEWS_DIGEST: { color: T.cyan, label: 'يومي' },
   MARKET_REPORT: { color: T.green, label: 'تقرير سوق' },
   WEEKLY_REVIEW: { color: T.purple, label: 'أسبوعي' },
-  PAIR_ANALYSIS: { color: T.orange, label: 'تحليل زوج' },
-  ANALYSIS: { color: T.accent, label: 'تحليل' },
+  PAIR_ANALYSIS: { color: TLocal.orange, label: 'تحليل زوج' },
+  ANALYSIS: { color: T.cyan, label: 'تحليل' },
   ARTICLE: { color: T.text3, label: 'مقال' },
   BREAKING: { color: T.red, label: 'عاجل' },
   EDUCATIONAL: { color: '#10B981', label: 'تعليمي' },
@@ -297,7 +287,7 @@ function ReportsPageContent() {
                 fontWeight: 600, transition: 'all 0.15s',
               }}
             >
-              <Info size={13} color={T.accent} />
+              <Info size={13} color={T.cyan} />
               جدولة التوليد
             </button>
             <button
@@ -328,15 +318,15 @@ function ReportsPageContent() {
             animation: 'fade-in 0.2s ease-out',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <Bot size={16} color={T.accent} />
+              <Bot size={16} color={T.cyan} />
               <span style={{ fontSize: 14, fontWeight: 800, color: T.text }}>كيف ومتى تُولَّد التقارير؟</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
               {[
                 { icon: Clock, label: 'تقارير ساعية', schedule: 'كل ساعة', types: 'كريبتو، فوركس، أسهم', color: T.amber },
-                { icon: Newspaper, label: 'ملخصات يومية', schedule: 'يومياً الساعة 8 صباحاً', types: 'كريبتو، فوركس، أسهم', color: T.accent },
+                { icon: Newspaper, label: 'ملخصات يومية', schedule: 'يومياً الساعة 8 صباحاً', types: 'كريبتو، فوركس، أسهم', color: T.cyan },
                 { icon: Calendar, label: 'مراجعات أسبوعية', schedule: 'كل إثنين الساعة 8 صباحاً', types: '5 فئات', color: T.purple },
-                { icon: TrendingUp, label: 'تحليلات الأزواج', schedule: 'كل 4 ساعات', types: 'BTC, ETH, EUR, SOL', color: T.orange },
+                { icon: TrendingUp, label: 'تحليلات الأزواج', schedule: 'كل 4 ساعات', types: 'BTC, ETH, EUR, SOL', color: TLocal.orange },
               ].map((item, i) => (
                 <div key={i} style={{
                   padding: '10px 14px', borderRadius: 10,
@@ -368,7 +358,7 @@ function ReportsPageContent() {
           display: 'flex', gap: 12, marginBottom: 16,
         }}>
           {[
-            { label: 'إجمالي التقارير', value: computedStats.total, color: T.accent },
+            { label: 'إجمالي التقارير', value: computedStats.total, color: T.cyan },
             { label: 'اليوم', value: computedStats.today, color: T.green },
             { label: 'آخر تحديث', value: computedStats.lastUpdate || '—', color: T.amber, isText: true },
             { label: 'الحالة', value: agentState?.status === 'GENERATING' ? 'يولّد' : agentState?.status === 'IDLE' ? 'جاهز' : '—', color: agentState?.status === 'GENERATING' ? T.amber : T.green, isText: true },
@@ -483,9 +473,9 @@ function ReportsPageContent() {
               onClick={() => setSelectedPair(null)}
               style={{
                 padding: '5px 14px', borderRadius: 8,
-                border: `1px solid ${!selectedPair ? T.orange : T.border}`,
+                border: `1px solid ${!selectedPair ? TLocal.orange : T.border}`,
                 background: !selectedPair ? 'rgba(255,140,66,0.12)' : T.card,
-                color: !selectedPair ? T.orange : T.text3,
+                color: !selectedPair ? TLocal.orange : T.text3,
                 cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: FONT_MONO,
               }}
             >
@@ -499,9 +489,9 @@ function ReportsPageContent() {
                   onClick={() => setSelectedPair(isActive ? null : pair.value)}
                   style={{
                     padding: '5px 14px', borderRadius: 8,
-                    border: `1px solid ${isActive ? T.orange : T.border}`,
+                    border: `1px solid ${isActive ? TLocal.orange : T.border}`,
                     background: isActive ? 'rgba(255,140,66,0.12)' : T.card,
-                    color: isActive ? T.orange : T.text3,
+                    color: isActive ? TLocal.orange : T.text3,
                     cursor: 'pointer', fontSize: 11, fontWeight: 700, fontFamily: FONT_MONO,
                   }}
                 >
@@ -586,7 +576,7 @@ export default function ReportsPage() {
         direction: 'rtl', fontFamily: FONT_AR, minHeight: '100dvh',
         background: T.bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
-        <RefreshCw size={24} color={T.accent} style={{ animation: 'spin 1s linear infinite' }} />
+        <RefreshCw size={24} color={T.cyan} style={{ animation: 'spin 1s linear infinite' }} />
       </div>
     }>
       <ReportsPageContent />
@@ -655,7 +645,7 @@ function ReportCard({
           {Array.isArray(article.relatedSymbols) && article.relatedSymbols.slice(0, 3).map((sym) => (
             <span key={sym} style={{
               fontSize: 8, padding: '2px 8px', borderRadius: 5,
-              background: 'rgba(0,212,255,0.04)', color: T.accent,
+              background: 'rgba(0,212,255,0.04)', color: T.cyan,
               fontWeight: 800, fontFamily: FONT_MONO,
               border: '1px solid rgba(0,212,255,0.10)',
             }}>
@@ -685,7 +675,7 @@ function ReportCard({
         {article.titleEn && (
           <p style={{
             color: T.text3, fontSize: 10, margin: '0 0 8px',
-            direction: 'ltr', textAlign: 'left',
+            direction: 'ltr', textAlign: 'left', // English content — keep left alignment
             fontFamily: FONT_MONO, lineHeight: 1.4,
           }}>
             {article.titleEn}
@@ -739,7 +729,7 @@ function ReportCard({
           {/* Expand indicator */}
           {article.contentAr && (
             <span style={{
-              fontSize: 10, color: T.accent, fontWeight: 700,
+              fontSize: 10, color: T.cyan, fontWeight: 700,
               marginInlineStart: 'auto',
               display: 'flex', alignItems: 'center', gap: 3,
             }}>

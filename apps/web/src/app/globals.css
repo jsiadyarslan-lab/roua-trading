@@ -52,17 +52,23 @@
   --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   --font-brand: Orbitron, Inter, ui-sans-serif, system-ui, sans-serif;
 
-  /* Roua Trading Platform - Dark Theme */
-  --bg-app: #0d1117;
+  /* ── Roua Trading Platform - Unified Dark Theme ──
+   * CANONICAL values: aligned with unified-tokens.ts
+   * All JS tokens (T.bg, T.card, T.text, etc.) MUST match these values.
+   */
+
+  /* Backgrounds — aligned with unified-tokens.ts */
+  --bg-app: #0B0E14;
   --bg-nav: #05070efa;
   --bg-panel: #111827;
-  --bg-card: #1a2332;
-  --bg-card-hover: #1e2a3d;
+  --bg-card: #1A1D29;
+  --bg-card-hover: #1F2335;
   --bg-chart: #0d1520;
   --bg-input: #ffffff0a;
   --bg-sidebar: #05070efa;
   --bg-ticker: #08090f;
 
+  /* Borders */
   --border-subtle: #ffffff0f;
   --border-strong: #ffffff1a;
   --border-accent: #05966940;
@@ -70,20 +76,23 @@
   --border-loss: #ef444440;
   --border-warning: #d4af3740;
 
-  --text-main: #e5e7eb;
-  --text-secondary: #94a3b8;
-  --text-muted: #94a3b899;
+  /* Text — aligned with unified-tokens.ts T.text=#F0F2F5, T.text2=#8B92A8 */
+  --text-main: #F0F2F5;
+  --text-secondary: #8B92A8;
+  --text-muted: #8B92A899;
 
+  /* Accent Colors */
   --accent: #059669;
   --accent-bg: #0596690f;
   --accent-border: #05966940;
 
+  /* Profit / Loss — aligned with unified-tokens.ts */
   --profit: #10b981;
   --profit-bg: #10b98114;
   --loss: #ef4444;
   --loss-bg: #ef444414;
 
-  /* Dashboard component variables (used by AppHeader, etc.) */
+  /* Dashboard component variables (used by AppHeader, etc.) — aligned with unified-tokens.ts */
   --success: #00FFA3;
   --danger: #FF4757;
   --surface: #1A1D29;
@@ -106,20 +115,20 @@
   --glow-profit: 0 0 8px #10b9814d;
   --glow-loss: 0 0 8px #ef44444d;
 
-  /* shadcn dark theme variables */
+  /* shadcn dark theme variables — aligned with canonical values */
   --radius: 0.625rem;
-  --background: #0d1117;
-  --foreground: #e5e7eb;
-  --card: #1a2332;
-  --card-foreground: #e5e7eb;
-  --popover: #1a2332;
-  --popover-foreground: #e5e7eb;
+  --background: #0B0E14;
+  --foreground: #F0F2F5;
+  --card: #1A1D29;
+  --card-foreground: #F0F2F5;
+  --popover: #1A1D29;
+  --popover-foreground: #F0F2F5;
   --primary: #059669;
   --primary-foreground: #ffffff;
-  --secondary: #1e2a3d;
-  --secondary-foreground: #e5e7eb;
+  --secondary: #1F2335;
+  --secondary-foreground: #F0F2F5;
   --muted: #111827;
-  --muted-foreground: #94a3b8;
+  --muted-foreground: #8B92A8;
   --accent: #059669;
   --accent-foreground: #ffffff;
   --destructive: #ef4444;
@@ -132,11 +141,11 @@
   --chart-4: #0d9488;
   --chart-5: #ef4444;
   --sidebar: #05070efa;
-  --sidebar-foreground: #e5e7eb;
+  --sidebar-foreground: #F0F2F5;
   --sidebar-primary: #059669;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #0596690f;
-  --sidebar-accent-foreground: #e5e7eb;
+  --sidebar-accent-foreground: #F0F2F5;
   --sidebar-border: #ffffff0f;
   --sidebar-ring: #059669;
 }
@@ -164,7 +173,7 @@
   }
 }
 
-/* Layout Shell - CSS Grid */
+/* Layout Shell - CSS Grid — RTL-aware */
 .layout-shell {
   display: grid;
   grid-template-areas:
@@ -178,6 +187,7 @@
   max-height: 100dvh;
   overflow: hidden;
   background: var(--bg-app);
+  direction: rtl;
 }
 
 /* Glass morphism effect */
@@ -203,13 +213,39 @@
   color: var(--loss);
 }
 
-/* News ticker marquee animation */
+/* ── RTL-aware Marquee Animations ──
+ * In RTL, content flows right-to-left, so the scroll animation
+ * must move content in the logical inline direction.
+ * We use CSS logical properties where possible.
+ */
+
+/* News ticker marquee — RTL: scrolls right-to-left */
+@keyframes news-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(50%);
+  }
+}
+
+/* Legacy alias (used by old components) */
 @keyframes ql-news {
   0% {
     transform: translateX(0);
   }
   100% {
-    transform: translateX(-50%);
+    transform: translateX(50%);
+  }
+}
+
+/* Market ticker — RTL: scrolls right-to-left */
+@keyframes ql-ticker {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(50%);
   }
 }
 
@@ -223,6 +259,90 @@
     opacity: 1;
     transform: scale(1.05);
   }
+}
+
+/* ── AppHeader Cosmic Animations ── */
+@keyframes orb-glow {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes star-blink {
+  0%, 100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes ring-cw {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ring-ccw {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
+/* ── Dropdown Animations ── */
+@keyframes fadeInSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* LED pulse animation for connection indicators */
+@keyframes ledPulse {
+  0%, 100% { opacity: 0.7; box-shadow: 0 0 4px var(--success); }
+  50% { opacity: 1; box-shadow: 0 0 8px var(--success), 0 0 16px rgba(0,255,163,0.4); }
+}
+
+/* Live status dot animation */
+@keyframes live-dot {
+  0%, 100% { transform: scale(1); opacity: 0.65; }
+  50% { transform: scale(1.35); opacity: 1; }
+}
+
+/* Count-up animation */
+@keyframes countUp {
+  from { opacity: 0.4; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Brand box specific classes */
@@ -422,7 +542,7 @@
 .chart-trade-overlay {
   position: absolute;
   top: 10px;
-  left: 10px;
+  inset-inline-start: 10px;
   width: 320px;
   max-height: calc(100% - 20px);
   background: linear-gradient(180deg, rgba(17,21,32,0.96) 0%, rgba(11,14,20,0.98) 100%);

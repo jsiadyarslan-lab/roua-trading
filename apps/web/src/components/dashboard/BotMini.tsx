@@ -33,6 +33,7 @@ export function BotMini() {
     <div
       className="bot-mini-shell"
       style={{
+        direction: 'rtl',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
@@ -40,7 +41,7 @@ export function BotMini() {
         maxHeight: '100%',
         background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))',
         borderRadius: 16,
-        border: '1px solid rgba(0,229,255,0.08)',
+        border: '1px solid rgba(0,212,255,0.08)',
         overflow: 'hidden',
         fontFamily: "'Cairo', sans-serif",
         touchAction: 'manipulation',
@@ -51,8 +52,8 @@ export function BotMini() {
         className="bot-mini-header"
         style={{
           padding: '7px 10px 6px',
-          background: 'linear-gradient(90deg, rgba(0,229,255,0.12), transparent)',
-          borderBottom: '1px solid rgba(0,229,255,0.08)',
+          background: 'linear-gradient(90deg, rgba(0,212,255,0.12), transparent)',
+          borderBottom: '1px solid rgba(0,212,255,0.08)',
           display: 'flex',
           justifyContent: 'space-between',
           gap: 8,
@@ -100,7 +101,7 @@ export function BotMini() {
               fontSize: 6.5,
               padding: '1px 5px',
               borderRadius: 4,
-              background: 'rgba(0,229,255,0.12)',
+              background: 'rgba(0,212,255,0.12)',
               color: 'var(--accent)',
               fontWeight: 700,
               fontFamily: 'monospace',
@@ -132,7 +133,7 @@ export function BotMini() {
       </div>
 
       {/* Tabs */}
-      <div className="bot-mini-tabs" style={{ display: 'flex', background: '#09111a', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '3px 5px', gap: 3 }}>
+      <div className="bot-mini-tabs" style={{ display: 'flex', background: '#0B0E14', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '3px 5px', gap: 3 }}>
         <button
           type="button"
           onClick={() => setActiveTab('log')}
@@ -141,8 +142,8 @@ export function BotMini() {
             minHeight: 20,
             padding: '3px 5px',
             fontSize: 7.5,
-            background: activeTab === 'log' ? 'rgba(0,229,255,0.14)' : 'rgba(255,255,255,0.03)',
-            border: `1px solid ${activeTab === 'log' ? 'rgba(0,229,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
+            background: activeTab === 'log' ? 'rgba(0,212,255,0.14)' : 'rgba(255,255,255,0.03)',
+            border: `1px solid ${activeTab === 'log' ? 'rgba(0,212,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
             borderRadius: 6,
             color: activeTab === 'log' ? 'var(--accent)' : 'var(--text3)',
             cursor: 'pointer',
@@ -160,8 +161,8 @@ export function BotMini() {
             minHeight: 20,
             padding: '3px 5px',
             fontSize: 7.5,
-            background: activeTab === 'config' ? 'rgba(0,229,255,0.14)' : 'rgba(255,255,255,0.03)',
-            border: `1px solid ${activeTab === 'config' ? 'rgba(0,229,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
+            background: activeTab === 'config' ? 'rgba(0,212,255,0.14)' : 'rgba(255,255,255,0.03)',
+            border: `1px solid ${activeTab === 'config' ? 'rgba(0,212,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
             borderRadius: 6,
             color: activeTab === 'config' ? 'var(--accent)' : 'var(--text3)',
             cursor: 'pointer',
@@ -184,7 +185,7 @@ export function BotMini() {
               gap: 5,
               padding: 6,
               background: 'transparent',
-              borderBottom: '1px solid rgba(0,229,255,0.08)',
+              borderBottom: '1px solid rgba(0,212,255,0.08)',
               flexShrink: 0,
             }}
           >
@@ -209,7 +210,7 @@ export function BotMini() {
               gap: 5,
               padding: '0 6px 6px',
               background: 'transparent',
-              borderBottom: '1px solid rgba(0,229,255,0.08)',
+              borderBottom: '1px solid rgba(0,212,255,0.08)',
               flexShrink: 0,
             }}
           >
@@ -238,7 +239,7 @@ export function BotMini() {
               maxHeight: '40vh',
               overflowY: 'auto',
               padding: 6,
-              background: 'rgba(5,10,18,0.45)',
+              background: 'rgba(11,14,20,0.45)',
               scrollbarGutter: 'stable',
               WebkitOverflowScrolling: 'touch',
             }}
@@ -249,7 +250,7 @@ export function BotMini() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {logs.map((log, i) => (
                   <div key={i} className="card" style={{ fontSize: 8, padding: '5px 6px', lineHeight: 1.4 }}>
-                    <span style={{ color: 'var(--text4)', marginRight: 5 }}>[{log.time}]</span>
+                    <span style={{ color: 'var(--text4)', marginInlineEnd: 5 }}>[{log.time}]</span>
                     <span
                       style={{
                         color:
@@ -342,7 +343,7 @@ export function BotMini() {
                 width: '100%',
                 minHeight: 48,
                 padding: '10px 12px',
-                background: settings.useAIConsensus ? 'rgba(0,229,255,0.1)' : 'var(--bg2)',
+                background: settings.useAIConsensus ? 'rgba(0,212,255,0.1)' : 'var(--bg2)',
                 border: `1px solid ${settings.useAIConsensus ? 'var(--accent)' : 'var(--border)'}`,
                 borderRadius: 8,
                 display: 'flex',

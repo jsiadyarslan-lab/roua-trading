@@ -147,7 +147,7 @@ function LogoCircle({ state }: { state: MarketState }) {
   const c = STATE[state]
   return (
     <div className="logo-orb" style={{
-      position: 'absolute', top: '50%', right: 10,
+      position: 'absolute', top: '50%', insetInlineEnd: 10,
       transform: 'translateY(-50%)',
       width: ORB_D, height: ORB_D, borderRadius: '50%',
       background: `radial-gradient(circle at 50% 40%, #0D1520, #020308)`,
@@ -200,7 +200,7 @@ function fetchNewsData(): Promise<NewsItem[]> {
             text: rawText,
             textAr: hasRealArabic ? rawTextAr : rawText,
             categoryAr: item.categoryAr || 'عام',
-            color: item.color || '#94a3b8',
+            color: item.color || '#8B92A8',
             impact: item.impact || 'medium',
           }
         })
@@ -232,7 +232,7 @@ function NewsTicker() {
       borderBottom: `0.5px solid ${T.border}`,
       display: 'flex', alignItems: 'center',
       overflow: 'hidden',
-      borderTopRightRadius: ORB_D / 2,
+      borderStartEndRadius: ORB_D / 2,
     }}>
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
         {doubled.length > 0 ? (
@@ -263,9 +263,10 @@ function NewsTicker() {
             fontSize: 9, color: T.text3,
           }}>جارٍ تحميل الأخبار...</span>
         )}
+        {/* RTL: fade edge on the inline-start side (right in RTL) */}
         <div style={{
-          position: 'absolute', left: 0, top: 0, bottom: 0, width: 36,
-          background: `linear-gradient(to right, ${T.bg}, transparent)`,
+          position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: 36,
+          background: `linear-gradient(270deg, transparent, ${T.bg})`,
           pointerEvents: 'none',
         }} />
       </div>
@@ -342,7 +343,7 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
             flex: 1, display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
             padding: isMobile ? '0 4px' : '2px 6px',
-            borderLeft: i < finalRows.length - 1 ? `0.5px solid ${T.border}` : 'none',
+            borderInlineStart: i < finalRows.length - 1 ? `0.5px solid ${T.border}` : 'none',
             borderRadius: 4,
             background: sym === selectedSymbol ? 'rgba(0,212,255,0.08)' : flashBg,
             cursor: 'pointer',
@@ -627,11 +628,11 @@ function MoreDropdown({
               >
                 <Icon size={15} strokeWidth={active ? 2.5 : 2} />
                 {label}
-                {children && <ChevronDown size={11} style={{ marginRight: 'auto', opacity: 0.5 }} />}
+                {children && <ChevronDown size={11} style={{ marginInlineEnd: 'auto', opacity: 0.5 }} />}
               </div>
             </Link>
             {children && (
-              <div style={{ paddingRight: 12, direction: 'rtl' }}>
+              <div style={{ paddingInlineEnd: 12, direction: 'rtl' }}>
                 {children.map((child) => {
                   const childActive = isChildActive(child.href, pathname)
                   return (
@@ -1013,7 +1014,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
       display: 'flex', alignItems: 'center',
       padding: '0 8px', gap: 0,
       overflow: 'hidden',
-      borderBottomRightRadius: ORB_D / 2,
+      borderEndEndRadius: ORB_D / 2,
     }}>
       {NAV_LINKS.slice(0, 8).map((link) => {
         const { href, label, icon: Icon, children } = link
@@ -1105,7 +1106,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
       {/* Mode Switcher (Trader / Investor / AI) */}
       <div style={{
          display: 'flex', background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 8,
-         border: '1px solid var(--card-border)', marginLeft: 12
+         border: '1px solid var(--card-border)', marginInlineStart: 12
       }}>
          {([['trader', 'Trader'], ['investor', 'Investor'], ['ai', 'AI']] as [TradingMode, string][]).map(([m, label]) => {
            const cfg = modeConfig[m]
@@ -1237,7 +1238,7 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
             display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', minHeight: 44,
             borderRadius: 10, background: active ? 'rgba(0,212,255,0.10)' : 'transparent',
             color: active ? 'var(--accent)' : T.text2,
-            borderLeft: active ? '3px solid var(--accent)' : '3px solid transparent',
+            borderInlineStart: active ? '3px solid var(--accent)' : '3px solid transparent',
             fontSize: 14, fontWeight: 600, fontFamily: "'Cairo', sans-serif",
             transition: 'all 0.15s',
           }}>
@@ -1263,7 +1264,7 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
       {hasChildren && mobileExpanded && (
         <div style={{
           display: 'flex', flexDirection: 'column', gap: 2,
-          paddingRight: 20, marginBottom: 4,
+          paddingInlineEnd: 20, marginBottom: 4,
         }}>
           {children!.map((child) => {
             const childActive = isChildActive(child.href, pathname)
@@ -1275,7 +1276,7 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
                   padding: '10px 14px', minHeight: 40,
                   borderRadius: 8, background: childActive ? 'rgba(0,212,255,0.08)' : 'transparent',
                   color: childActive ? 'var(--accent)' : T.text3,
-                  borderLeft: childActive ? '2px solid var(--accent)' : '2px solid transparent',
+                  borderInlineStart: childActive ? '2px solid var(--accent)' : '2px solid transparent',
                   fontSize: 12.5, fontWeight: childActive ? 600 : 400,
                   fontFamily: "'Cairo', sans-serif", transition: 'all 0.15s',
                 }}>
@@ -1331,7 +1332,7 @@ export function AppHeader() {
         }} onClick={() => setMenuOpen(false)}>
           <div style={{
             position: 'absolute', right: 0, top: 0, bottom: 0, width: 'min(280px, 85vw)',
-            background: 'rgba(26,29,41,0.95)', borderLeft: `1px solid rgba(0,212,255,0.12)`,
+            background: 'rgba(26,29,41,0.95)', borderInlineStart: `1px solid rgba(0,212,255,0.12)`,
             display: 'flex', flexDirection: 'column', padding: '20px',
             overflowY: 'auto',
             animation: 'slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1)',

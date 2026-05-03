@@ -48,7 +48,7 @@ function GlassCard({ children, style }: { children: React.ReactNode; style?: Rea
 // ── Section Title ──
 function SectionTitle({ children, icon: Icon }: { children: React.ReactNode; icon?: LucideIcon }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingRight: 4 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, paddingInlineEnd: 4 }}>
       {Icon && <Icon size={14} color={T.accent} />}
       <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: T.font }}>{children}</span>
     </div>
@@ -77,8 +77,8 @@ function Toggle({ on, onToggle, disabled = false }: { on: boolean; onToggle: () 
           width: 26, height: 26, borderRadius: 13,
           background: '#fff',
           position: 'absolute', top: 2,
-          right: on ? 2 : 'auto',
-          left: on ? 'auto' : 2,
+          insetInlineEnd: on ? 2 : 'auto',
+          insetInlineStart: on ? 'auto' : 2,
           boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
         }}
       />

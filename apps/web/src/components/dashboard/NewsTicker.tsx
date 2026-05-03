@@ -46,8 +46,8 @@ export default function NewsTicker() {
               .map((item: any) => ({
               category: item.category || 'General',
               categoryAr: item.categoryAr || item.category || 'عام',
-              color: item.color || '#94a3b8',
-              bgColor: item.bgColor || '#94a3b812',
+              color: item.color || '#8B92A8',
+              bgColor: item.bgColor || '#8B92A812',
               text: item.text || item.headline || item.title || '',
               textAr: item.textAr || item.translatedTitle || item.text || item.headline || item.title || '',
               impact: item.impact || (item.sentiment === 'positive' ? 'medium' : 'high'),

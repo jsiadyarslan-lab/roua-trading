@@ -3,7 +3,7 @@
 const T = {
   green: '#00FFA3', greenDim: '#00CC82', red: '#FF4757', redDim: '#FF3344',
   blue: '#0A84FF', purple: '#B388FF', amber: '#FFB800', cyan: '#00D4FF',
-  text2: '#94a3b8', text3: '#8B92A8',
+  text2: '#8B92A8', text3: '#8B92A8',
 }
 
 type TagSize = 'sm' | 'md' | 'lg'

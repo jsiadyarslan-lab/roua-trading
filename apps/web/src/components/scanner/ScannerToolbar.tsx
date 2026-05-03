@@ -6,8 +6,8 @@ import { useScannerContext } from './ScannerProvider'
 import type { CategoryFilter, DirectionFilter, SignalFilter } from './hooks/useScannerFilters'
 
 const T = {
-  bg2: '#0D1117', card: '#08090F', surface: '#1A1D29', blue: '#0A84FF',
-  cyan: '#00D4FF', text: '#F0F2F5', text2: '#94a3b8', text3: '#8B92A8',
+  bg2: '#1A1D29', card: '#1A1D29', surface: '#1A1D29', blue: '#0A84FF',
+  cyan: '#00D4FF', text: '#F0F2F5', text2: '#8B92A8', text3: '#8B92A8',
   border: 'rgba(255,255,255,0.06)', border2: 'rgba(0,212,255,0.16)',
 }
 
@@ -159,7 +159,7 @@ export function ScannerToolbar() {
         <div style={{
           position: 'relative', display: 'flex', alignItems: 'center',
         }}>
-          <Search size={13} color={T.text3} style={{ position: 'absolute', right: 8 }} />
+          <Search size={13} color={T.text3} style={{ position: 'absolute', insetInlineEnd: 8 }} />
           <input
             type="text" placeholder="بحث..." value={localSearch}
             onChange={e => handleSearchChange(e.target.value)}

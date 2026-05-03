@@ -8,16 +8,10 @@ import {
   Zap, Globe, RefreshCw, ExternalLink, Sparkles, X, Link2, Bell, Eye
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
+import { T as SharedT } from '@/lib/unified-tokens'
 
-/* ── Design Tokens ── */
-const T = {
-  bg: '#04050C', bg2: '#0D1117', card: '#08090F', cardHover: '#0B0F19',
-  surface: '#1A1D29', cyan: '#00D4FF', green: '#00FFA3', greenDim: '#00CC82',
-  red: '#FF4757', redDim: '#FF3344', amber: '#FFB800', purple: '#B388FF',
-  blue: '#0A84FF', pink: '#f472b6',
-  text: '#F0F2F5', text2: '#94a3b8', text3: '#8B92A8', text4: '#475569',
-  border: 'rgba(255,255,255,0.06)', border2: 'rgba(0,212,255,0.16)',
-}
+/* ── Design Tokens (canonical + local extensions) ── */
+const T = { ...SharedT, pink: '#f472b6', text4: '#475569' }
 
 /* ── FAQ Data ── */
 interface FAQItem {
@@ -464,7 +458,7 @@ export default function HelpCenterPage() {
             size={16}
             color={T.text4}
             style={{
-              position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
+              position: 'absolute', insetInlineEnd: 14, top: '50%', transform: 'translateY(-50%)',
               pointerEvents: 'none',
             }}
           />
@@ -489,7 +483,7 @@ export default function HelpCenterPage() {
               onClick={() => setSearchQuery('')}
               aria-label="مسح البحث"
               style={{
-                position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+                position: 'absolute', insetInlineStart: 10, top: '50%', transform: 'translateY(-50%)',
                 background: 'none', border: 'none', cursor: 'pointer',
                 color: T.text4, display: 'flex', alignItems: 'center',
               }}

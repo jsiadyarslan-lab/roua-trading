@@ -726,7 +726,7 @@ export default function SanctuaryPage() {
                   transition={{ delay: i * 0.04, duration: 0.3 }}
                   style={{
                     background: 'var(--bg-card)', border: '1px solid var(--border)',
-                    borderRight: pos.change24h >= 0 ? '3px solid var(--profit)' : '3px solid var(--loss)',
+                    borderInlineEnd: pos.change24h >= 0 ? '3px solid var(--profit)' : '3px solid var(--loss)',
                     borderRadius: '10px', padding: '14px 16px',
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     position: 'relative', overflow: 'hidden',

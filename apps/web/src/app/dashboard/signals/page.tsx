@@ -134,8 +134,8 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
       style={{
         background: 'var(--bg-card)',
         border: `1px solid ${config.borderColor}`,
-        borderRightWidth: '3px',
-        borderRightColor: config.color,
+        borderInlineEndWidth: '3px',
+        borderInlineEndColor: config.color,
         borderRadius: '10px',
         overflow: 'hidden',
         position: 'relative',
@@ -153,7 +153,7 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
 
       <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div style={{ flex: 1, paddingRight: '8px' }}>
+        <div style={{ flex: 1, paddingInlineEnd: '8px' }}>
           {/* Header Row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
             <div style={{

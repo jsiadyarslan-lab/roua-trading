@@ -53,9 +53,9 @@ export function WatchlistOverlay({
     border: 'rgba(42,49,60,0.6)',
     text: '#F0F2F5',
     textSecondary: '#8B92A8',
-    textMuted: '#64748b',
-    success: '#3fb950',
-    danger: '#f85149',
+    textMuted: '#8B92A8',
+    success: '#00FFA3',
+    danger: '#FF4757',
     cyan: '#00D4FF',
     card: '#151A22',
   };

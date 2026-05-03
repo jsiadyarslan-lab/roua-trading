@@ -285,7 +285,7 @@ export default function AdminSignalsPage() {
                   padding: '12px', borderRadius: 8,
                   background: 'rgba(255,255,255,0.02)',
                   border: `1px solid ${COLORS.border}`,
-                  borderRight: `3px solid ${config.color}`,
+                  borderInlineEnd: `3px solid ${config.color}`,
                   opacity: signal.status === 'EXPIRED' ? 0.6 : 1,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>

@@ -77,50 +77,50 @@ const CATEGORY_CONFIG: Record<NotificationCategory, {
   signal: {
     label: 'الإشارات',
     icon: <Zap size={14} />,
-    color: '#00FFA3',
-    bgColor: 'rgba(0,255,163,0.08)',
-    borderColor: 'rgba(0,255,163,0.20)',
-    gradient: 'linear-gradient(135deg, #00FFA3, #10B981)',
+    color: T.success,
+    bgColor: `${T.success}14`,
+    borderColor: `${T.success}33`,
+    gradient: T.gradientGreen,
   },
   trade: {
     label: 'الحسابات المربوطة',
     icon: <BarChart3 size={14} />,
-    color: '#00D4FF',
-    bgColor: 'rgba(0,212,255,0.08)',
-    borderColor: 'rgba(0,212,255,0.20)',
-    gradient: 'linear-gradient(135deg, #00D4FF, #0A84FF)',
+    color: T.cyan,
+    bgColor: `${T.cyan}14`,
+    borderColor: `${T.cyan}33`,
+    gradient: T.gradientInfo,
   },
   security: {
     label: 'الأمان',
     icon: <ShieldCheck size={14} />,
-    color: '#FF4757',
-    bgColor: 'rgba(255,71,87,0.08)',
-    borderColor: 'rgba(255,71,87,0.20)',
-    gradient: 'linear-gradient(135deg, #FF4757, #FF6B81)',
+    color: T.danger,
+    bgColor: `${T.danger}14`,
+    borderColor: `${T.danger}33`,
+    gradient: T.gradientRed,
   },
   system: {
     label: 'النظام',
     icon: <Settings2 size={14} />,
-    color: '#8B92A8',
-    bgColor: 'rgba(139,146,168,0.08)',
-    borderColor: 'rgba(139,146,168,0.15)',
-    gradient: 'linear-gradient(135deg, #8B92A8, #64748B)',
+    color: T.text2,
+    bgColor: `${T.text2}14`,
+    borderColor: `${T.text2}26`,
+    gradient: `linear-gradient(135deg, ${T.text2}, #64748B)`,
   },
   price: {
     label: 'الأسعار',
     icon: <Target size={14} />,
-    color: '#FFB800',
-    bgColor: 'rgba(255,184,0,0.08)',
-    borderColor: 'rgba(255,184,0,0.20)',
-    gradient: 'linear-gradient(135deg, #FFB800, #F59E0B)',
+    color: T.amber,
+    bgColor: `${T.amber}14`,
+    borderColor: `${T.amber}33`,
+    gradient: `linear-gradient(135deg, ${T.amber}, #F59E0B)`,
   },
   ai: {
     label: 'الذكاء الاصطناعي',
     icon: <Brain size={14} />,
-    color: '#B388FF',
-    bgColor: 'rgba(179,136,255,0.08)',
-    borderColor: 'rgba(179,136,255,0.20)',
-    gradient: 'linear-gradient(135deg, #B388FF, #A259FF)',
+    color: T.purple,
+    bgColor: `${T.purple}14`,
+    borderColor: `${T.purple}33`,
+    gradient: `linear-gradient(135deg, ${T.purple}, #A259FF)`,
   },
 }
 
@@ -356,8 +356,8 @@ function NotificationCard({
             ? `${config.color}04`
             : 'transparent',
         border: `1px solid ${isSelected ? config.borderColor : isHovered ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)'}`,
-        borderRightWidth: !item.read ? '3px' : '1px',
-        borderRightColor: !item.read ? config.color : isSelected ? config.borderColor : 'rgba(255,255,255,0.04)',
+        borderInlineEndWidth: !item.read ? '3px' : '1px',
+        borderInlineEndColor: !item.read ? config.color : isSelected ? config.borderColor : 'rgba(255,255,255,0.04)',
         borderRadius: '10px',
         padding: '14px 16px',
         cursor: 'pointer',
@@ -443,7 +443,7 @@ function NotificationCard({
                   ? 'rgba(0,255,163,0.12)'
                   : 'rgba(255,71,87,0.12)',
                 border: `1px solid ${item.signalDirection === 'BUY' ? 'rgba(0,255,163,0.25)' : 'rgba(255,71,87,0.25)'}`,
-                color: item.signalDirection === 'BUY' ? '#00FFA3' : '#FF4757',
+                color: item.signalDirection === 'BUY' ? T.success : T.danger,
                 fontFamily: "'Cairo', sans-serif",
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -474,7 +474,7 @@ function NotificationCard({
                 fontSize: '9px',
                 fontWeight: 700,
                 fontFamily: "'JetBrains Mono', monospace",
-                color: item.signalConfidence >= 80 ? '#00FFA3' : item.signalConfidence >= 60 ? '#FFB800' : '#FF4757',
+                color: item.signalConfidence >= 80 ? T.success : item.signalConfidence >= 60 ? T.amber : T.danger,
               }} dir="ltr">
                 {item.signalConfidence}%
               </span>
@@ -598,7 +598,7 @@ function NotificationCard({
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              color: '#FF4757',
+              color: T.danger,
               flexShrink: 0,
               transition: 'all 0.15s',
             }}
@@ -618,7 +618,7 @@ function NotificationCard({
 function ToggleSwitch({
   enabled,
   onToggle,
-  color = '#00D4FF',
+  color = T.cyan,
 }: {
   enabled: boolean
   onToggle: () => void
@@ -642,8 +642,8 @@ function ToggleSwitch({
       <div style={{
         position: 'absolute',
         top: '3px',
-        right: enabled ? '3px' : 'auto',
-        left: enabled ? 'auto' : '3px',
+        insetInlineEnd: enabled ? '3px' : 'auto',
+        insetInlineStart: enabled ? 'auto' : '3px',
         width: '16px',
         height: '16px',
         borderRadius: '50%',
@@ -683,7 +683,7 @@ function EmptyState({ filterLabel }: { filterLabel: string }) {
         transform: 'translate(-50%, -50%)',
         width: '140px',
         height: '140px',
-        background: 'linear-gradient(135deg, #00D4FF, #B388FF)',
+        background: `linear-gradient(135deg, ${T.cyan}, ${T.purple})`,
         filter: 'blur(60px)',
         opacity: 0.06,
         pointerEvents: 'none',
@@ -693,14 +693,14 @@ function EmptyState({ filterLabel }: { filterLabel: string }) {
         width: '56px',
         height: '56px',
         borderRadius: '16px',
-        background: 'linear-gradient(135deg, rgba(0,212,255,0.15), rgba(179,136,255,0.15))',
+        background: `linear-gradient(135deg, ${T.cyan}26, ${T.purple}26)`,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         margin: '0 auto 16px',
-        border: '1px solid rgba(0,212,255,0.12)',
+        border: `1px solid ${T.cyan}1F`,
       }}>
-        <BellRing size={24} color="#00D4FF" />
+        <BellRing size={24} color={T.cyan} />
       </div>
 
       <p style={{
@@ -829,7 +829,7 @@ export default function NotificationsPage() {
     <SubPageLayout
       title="مركز الإشعارات"
       icon={<Bell size={14} color="#fff" />}
-      iconBg="linear-gradient(135deg, #00D4FF, #B388FF)"
+      iconBg={`linear-gradient(135deg, ${T.cyan}, ${T.purple})`}
       actions={
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {/* Unread count badge */}
@@ -839,9 +839,9 @@ export default function NotificationsPage() {
               fontWeight: 800,
               padding: '2px 9px',
               borderRadius: '10px',
-              background: 'rgba(0,212,255,0.12)',
-              border: '1px solid rgba(0,212,255,0.25)',
-              color: '#00D4FF',
+              background: `${T.cyan}1F`,
+              border: `1px solid ${T.cyan}40`,
+              color: T.cyan,
               fontFamily: "'JetBrains Mono', monospace",
             }}>
               {unreadCount} جديد
@@ -857,9 +857,9 @@ export default function NotificationsPage() {
                 gap: '5px',
                 padding: '5px 12px',
                 borderRadius: '7px',
-                border: '1px solid rgba(0,255,163,0.20)',
-                background: 'rgba(0,255,163,0.06)',
-                color: '#00FFA3',
+                border: `1px solid ${T.success}33`,
+                background: `${T.success}0F`,
+                color: T.success,
                 fontSize: '10px',
                 fontWeight: 700,
                 fontFamily: "'Cairo', sans-serif",
@@ -885,7 +885,7 @@ export default function NotificationsPage() {
               background: showPreferences
                 ? 'rgba(179,136,255,0.08)'
                 : 'rgba(255,255,255,0.03)',
-              color: showPreferences ? '#B388FF' : T.text2,
+              color: showPreferences ? T.purple : T.text2,
               fontSize: '10px',
               fontWeight: 700,
               fontFamily: "'Cairo', sans-serif",
@@ -1010,7 +1010,7 @@ export default function NotificationsPage() {
                 fontSize: '11px',
                 fontWeight: 600,
                 fontFamily: "'Cairo', sans-serif",
-                background: activeFilter === tab.id ? '#00D4FF' : 'transparent',
+                background: activeFilter === tab.id ? T.cyan : 'transparent',
                 color: activeFilter === tab.id ? '#fff' : T.text2,
                 transition: 'all 0.15s',
               }}
@@ -1018,13 +1018,13 @@ export default function NotificationsPage() {
               {tab.label}
               {tab.id !== 'all' && categoryStats[tab.id] > 0 && (
                 <span style={{
-                  marginRight: '4px',
+                  marginInlineEnd: '4px',
                   fontSize: '8px',
                   fontWeight: 800,
                   padding: '0px 5px',
                   borderRadius: '8px',
                   background: activeFilter === tab.id ? 'rgba(255,255,255,0.2)' : 'rgba(0,212,255,0.12)',
-                  color: activeFilter === tab.id ? '#fff' : '#00D4FF',
+                  color: activeFilter === tab.id ? '#fff' : T.cyan,
                 }}>
                   {categoryStats[tab.id]}
                 </span>
@@ -1069,7 +1069,7 @@ export default function NotificationsPage() {
                   borderRadius: '6px',
                   border: '1px solid rgba(0,255,163,0.15)',
                   background: 'rgba(0,255,163,0.06)',
-                  color: '#00FFA3',
+                  color: T.success,
                   fontSize: '10px',
                   fontWeight: 600,
                   fontFamily: "'Cairo', sans-serif",
@@ -1090,7 +1090,7 @@ export default function NotificationsPage() {
                   borderRadius: '6px',
                   border: '1px solid rgba(255,71,87,0.15)',
                   background: 'rgba(255,71,87,0.06)',
-                  color: '#FF4757',
+                  color: T.danger,
                   fontSize: '10px',
                   fontWeight: 600,
                   fontFamily: "'Cairo', sans-serif",
@@ -1116,7 +1116,7 @@ export default function NotificationsPage() {
           gap: '6px',
           maxHeight: 'calc(100vh - 360px)',
           overflowY: 'auto',
-          paddingRight: '2px',
+          paddingInlineEnd: '2px',
         }} className="notif-scroll">
           <AnimatePresence mode="popLayout">
             {filteredNotifications.map((item, i) => (
@@ -1162,7 +1162,7 @@ export default function NotificationsPage() {
                 left: '-20px',
                 width: '80px',
                 height: '80px',
-                background: '#B388FF',
+                background: T.purple,
                 filter: 'blur(50px)',
                 opacity: 0.06,
                 pointerEvents: 'none',
@@ -1181,7 +1181,7 @@ export default function NotificationsPage() {
                   width: '28px',
                   height: '28px',
                   borderRadius: '8px',
-                  background: 'linear-gradient(135deg, #B388FF, #A259FF)',
+                  background: `linear-gradient(135deg, ${T.purple}, #A259FF)`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -1198,7 +1198,7 @@ export default function NotificationsPage() {
                   borderRadius: '4px',
                   background: 'rgba(179,136,255,0.10)',
                   border: '1px solid rgba(179,136,255,0.20)',
-                  color: '#B388FF',
+                  color: T.purple,
                   fontFamily: "'Cairo', sans-serif",
                 }}>
                   الإعدادات
@@ -1226,7 +1226,7 @@ export default function NotificationsPage() {
                         alignItems: 'center',
                         gap: '12px',
                         borderBottom: i < preferences.length - 2 ? `1px solid ${T.border}` : 'none',
-                        borderLeft: !isEven ? `1px solid ${T.border}` : 'none',
+                        borderInlineStart: !isEven ? `1px solid ${T.border}` : 'none',
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
@@ -1239,7 +1239,7 @@ export default function NotificationsPage() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: pref.enabled ? '#00D4FF' : T.text2,
+                          color: pref.enabled ? T.cyan : T.text2,
                           flexShrink: 0,
                           transition: 'all 0.2s',
                         }}>
@@ -1271,7 +1271,7 @@ export default function NotificationsPage() {
                       <ToggleSwitch
                         enabled={pref.enabled}
                         onToggle={() => togglePreference(pref.key)}
-                        color={pref.enabled ? '#00D4FF' : '#8B92A8'}
+                        color={pref.enabled ? T.cyan : T.text2}
                       />
                     </div>
                   )
@@ -1319,16 +1319,16 @@ export default function NotificationsPage() {
             {notifications.length} إشعار إجمالي
           </span>
           <span style={{ width: '1px', height: '12px', background: 'rgba(255,255,255,0.08)' }} />
-          <span style={{ fontSize: '10px', color: '#00D4FF', fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: '10px', color: T.cyan, fontFamily: "'Cairo', sans-serif" }}>
             {unreadCount} غير مقروء
           </span>
           <span style={{ width: '1px', height: '12px', background: 'rgba(255,255,255,0.08)' }} />
-          <span style={{ fontSize: '10px', color: '#00FFA3', fontFamily: "'Cairo', sans-serif" }}>
+          <span style={{ fontSize: '10px', color: T.success, fontFamily: "'Cairo', sans-serif" }}>
             {notifications.length - unreadCount} مقروء
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Wifi size={10} style={{ color: '#00FFA3' }} />
+          <Wifi size={10} style={{ color: T.success }} />
           <span style={{ fontSize: '9px', color: T.text2, fontFamily: "'Cairo', sans-serif" }}>
             متصل مباشر
           </span>

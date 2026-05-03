@@ -279,7 +279,7 @@ export function PortfolioMini({
           background: `${pnlUp ? T.green : T.red}0d`,
           border: `0.5px solid ${pnlUp ? T.green : T.red}22`,
         }}>
-          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9.5, color: T.text2, marginRight: 6 }}>P&L</span>
+          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9.5, color: T.text2, marginInlineEnd: 6 }}>P&L</span>
           <span style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: 11, fontWeight: 700,

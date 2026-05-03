@@ -1,64 +1,31 @@
 /**
  * Shared Theme Tokens for Roua Trading Dashboard
  *
- * Central source of truth for all design tokens used across dashboard pages.
- * Instead of duplicating `const T = { ... }` in every page component,
- * import from this shared module.
+ * Re-exports from unified-tokens to ensure consistency.
+ * For backward compatibility, this module also provides spacing/radius scales.
  *
  * Usage:
  *   import { T } from '@/lib/theme-tokens';
  */
 
+import { T as _T } from './unified-tokens';
+
 export const T = {
-  // ── Background (aligned with globals.css --bg and --bg2) ──
-  bg: '#0B0E14',
-  bg2: '#0F1117',
+  ..._T,
 
-  // ── Surface / Card (aligned with globals.css --card-bg and --surface) ──
-  card: '#1A1D29',
-  cardHover: '#1E2233',
-  card2: '#0B0E14',
-  surface: '#1A1D29',
+  // Additional surface variants (aligned with CSS --bg-card-hover, etc.)
+  card2: '#0B0E14' as const,
+  cardHover: '#1F2335' as const,
 
-  // ── Borders ──
-  border: 'rgba(255,255,255,0.06)',
-  border2: 'rgba(10,132,255,0.20)',
-  borderWhite: 'rgba(255,255,255,0.06)',
-  borderCyan: 'rgba(0,212,255,0.16)',
+  // Additional text variants (aligned with CSS --text-main, --text-secondary)
+  textBright: '#F0F2F5' as const,
+  text3Alt: '#8B92A8' as const,
+  text2Alt: '#8B92A8' as const,
 
-  // ── Accent Colors (aligned with globals.css --success, --danger, etc.) ──
-  blue: '#0A84FF',
-  cyan: '#00D4FF',
-  cyanBright: '#00D4FF',
-  green: '#00FFA3',
-  greenAlt: '#00FFC6',
-  greenDim: '#00CC82',
-  red: '#FF4757',
-  redAlt: '#FF4D4D',
-  redDim: '#FF3344',
-  amber: '#FFB800',
-  amber2: '#E6A23C',
-  purple: '#B388FF',
+  // Additional color variants
+  amber2: '#E6A23C' as const,
 
-  // ── Text ──
-  text: '#F0F2F5',
-  textBright: '#F0F2F5',
-  text2: '#8B92A8',
-  text3: '#94a3b8',
-  text3Alt: '#8B92A8',
-  textMuted: '#5A6A80',
-  text2Alt: '#94a3b8',
-
-  // ── Semantic Aliases ──
-  success: '#00FFA3',
-  danger: '#FF4757',
-  warning: '#FFB800',
-  info: '#00D4FF',
-
-  // ── Glass / Transparency ──
-  glass: 'rgba(10,132,255,0.04)',
-
-  // ── Spacing (px) ──
+  // Spacing (px)
   spacing: {
     xs: 4,
     sm: 8,
@@ -67,9 +34,9 @@ export const T = {
     xl: 20,
     '2xl': 24,
     '3xl': 32,
-  },
+  } as const,
 
-  // ── Border Radius (px) ──
+  // Border Radius (px)
   radius: {
     sm: 4,
     md: 8,
@@ -77,7 +44,7 @@ export const T = {
     xl: 16,
     '2xl': 20,
     full: 9999,
-  },
+  } as const,
 } as const;
 
 /**
@@ -115,4 +82,8 @@ export const TExtended = {
   text2Alt: T.text2Alt,
   text3Alt: T.text3Alt,
   border2: T.borderCyan,
+  profit: T.profit,
+  loss: T.loss,
+  gold: T.gold,
+  accent: T.accent,
 } as const;

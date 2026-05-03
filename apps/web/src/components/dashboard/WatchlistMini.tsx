@@ -93,8 +93,9 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selected
 
   return (
     <div style={{
+      direction: 'rtl',
       width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
-      background: 'var(--bg)', overflow: 'hidden'
+      background: 'var(--bg)', overflow: 'hidden', fontFamily: "'Cairo', sans-serif"
     }}>
       <style>{`
         @keyframes dash-pulse {
@@ -184,7 +185,7 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selected
                 style={{
                   display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
                   height: 96, padding: '14px 16px',
-                  background: sym === activeSymbol ? 'rgba(0, 229, 255, 0.05)' : 'var(--surface)',
+                  background: sym === activeSymbol ? 'rgba(0, 212, 255, 0.05)' : 'var(--surface)',
                   borderColor: sym === activeSymbol ? 'var(--accent)' : 'var(--card-border)',
                   transition: 'border-color 0.22s ease, box-shadow 0.22s ease, background-color 0.22s ease',
                   cursor: 'pointer', position: 'relative', overflow: 'hidden'
@@ -192,7 +193,7 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selected
                 onMouseEnter={e => {
                   const el = e.currentTarget as HTMLDivElement
                   el.style.borderColor = 'var(--accent)'
-                  el.style.boxShadow = '0 0 0 1px rgba(0,229,255,0.10) inset, 0 10px 24px rgba(0,0,0,0.16)'
+                  el.style.boxShadow = '0 0 0 1px rgba(0,212,255,0.10) inset, 0 10px 24px rgba(0,0,0,0.16)'
                 }}
                 onMouseLeave={e => {
                   const el = e.currentTarget as HTMLDivElement
@@ -209,7 +210,7 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selected
                   {q ? (
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px',
-                      borderRadius: 20, background: isUp ? 'rgba(0,200,83,0.1)' : 'rgba(255,59,48,0.1)',
+                      borderRadius: 20, background: isUp ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)',
                       border: `1px solid ${color}30`,
                       color: color, fontSize: 10, fontWeight: 800, fontFamily: 'var(--mono)'
                     }}>

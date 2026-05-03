@@ -72,13 +72,13 @@ export function SidebarDrawer({
         style={{
           position: pinned ? 'relative' : 'fixed',
           top: 0,
-          right: 0,
+          insetInlineEnd: 0,
           bottom: 0,
           width: pinned ? '100%' : 380,
           maxWidth: pinned ? '100%' : '90vw',
           height: '100%',
-          background: 'linear-gradient(180deg, #0F1117, #0B0E14)',
-          borderLeft: '1px solid rgba(0,212,255,0.15)',
+          background: 'linear-gradient(180deg, #0B0E14, #1A1D29)',
+          borderInlineStart: '1px solid rgba(0,212,255,0.15)',
           zIndex: 50,
           display: 'flex',
           flexDirection: 'column',
@@ -123,7 +123,7 @@ export function SidebarDrawer({
               style={{
                 fontSize: 10,
                 fontWeight: 800,
-                color: '#E8EEF8',
+                color: '#F0F2F5',
                 fontFamily: "'Cairo', sans-serif",
               }}
             >
@@ -153,7 +153,7 @@ export function SidebarDrawer({
               >
                 <Pin
                   size={12}
-                  color={pinned ? '#00D4FF' : '#6F849C'}
+                  color={pinned ? '#00D4FF' : '#8B92A8'}
                   style={{
                     transform: pinned ? 'rotate(45deg)' : 'rotate(0deg)',
                     transition: 'transform 0.2s ease',
@@ -178,7 +178,7 @@ export function SidebarDrawer({
                   alignItems: 'center',
                 }}
               >
-                <XIcon size={12} color="#6F849C" />
+                <XIcon size={12} color="#8B92A8" />
               </button>
             )}
           </div>

@@ -8,6 +8,7 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { formatExecutionLabel, formatFreshness, getStatusLabel, getStatusTone, type DataStatus, type ExecutionState } from '@/lib/dashboard-live'
+import { T } from '@/lib/unified-tokens'
 
 function formatCashValue(value: unknown) {
   const cash = Number(value)
@@ -217,6 +218,7 @@ export function QuickExecutionMini({
 
   return (
     <div style={{
+      direction: 'rtl',
       width: '100%', height: '100%',
       padding: cardPadding,
       display: 'flex', flexDirection: 'column', gap: 10,
@@ -601,7 +603,7 @@ export function QuickExecutionMini({
       {status.msg && (
         <div style={{
           position: 'absolute', inset: 0,
-          background: 'rgba(15,17,19,0.94)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
+          background: `${T.bg}f0`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
           fontSize: 13, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
           color: status.type === 'success' ? 'var(--success)' : status.type === 'error' ? 'var(--danger)' : 'var(--foreground)',
           backdropFilter: 'blur(8px)', zIndex: 20, borderRadius: 12,

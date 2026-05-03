@@ -81,7 +81,7 @@ function IOSSwitch({ isOn, onToggle }: { isOn: boolean; onToggle: () => void }) 
       <span
         style={{
           position: 'absolute', top: '50%', transform: 'translateY(-50%)',
-          right: isOn ? 8 : 'auto', left: isOn ? 'auto' : 10,
+          insetInlineEnd: isOn ? 8 : 'auto', insetInlineStart: isOn ? 'auto' : 10,
           fontSize: 10, fontWeight: 800, color: isOn ? '#fff' : 'rgba(255,255,255,0.5)',
           fontFamily: FONT_AR, pointerEvents: 'none',
           transition: 'opacity 0.2s',
@@ -146,7 +146,7 @@ function LogEntry({ time, msg, type }: { time: string; msg: string; type: string
       style={{
         padding: '8px 10px', borderRadius: 12,
         background: 'rgba(255,255,255,0.02)',
-        borderRight: `2px solid ${color}40`,
+        borderInlineEnd: `2px solid ${color}40`,
       }}
     >
       <div

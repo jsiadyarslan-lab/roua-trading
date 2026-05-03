@@ -392,7 +392,7 @@ export class AIOrchestratorService {
     // FIX: Cache key version bumped to v3 to invalidate stale pre-fix results
     // that had contradictory labels (e.g., 89% HOLD). Old v1/v2 cache entries
     // will not be found, forcing fresh computation with the fixed parseVote().
-    const cacheKey = `ai:consensus:v3:${symbol}`;
+    const cacheKey = `ai:consensus:v4:${symbol}`;
     try {
       const cached = await this.redis?.get(cacheKey);
       if (cached) {

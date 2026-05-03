@@ -80,9 +80,10 @@ const aiResultCache = new Map<string, { data: any; source: string; cachedAt: num
 const AI_CACHE_TTL = 10 * 60 * 1000 // FIX: Unified with NestJS 10-min TTL (was 5 min)
 
 function getCachedAIResult(symbol: string): { data: any; source: string } | null {
-  // FIX: Use v3 namespace to invalidate stale pre-fix cached results
-  // that had contradictory labels (89% HOLD). Old v1/v2 entries won't match.
-  const entry = aiResultCache.get(`v3:${symbol}`)
+  // FIX: Use v4 namespace to invalidate stale pre-fix cached results
+  // that had contradictory labels (89% HOLD) or slow HuggingFace timeouts.
+  // Old v1/v2/v3 entries won't match.
+  const entry = aiResultCache.get(`v4:${symbol}`)
   if (!entry) return null
   const age = Date.now() - entry.cachedAt
   if (age > AI_CACHE_TTL) {
@@ -93,8 +94,8 @@ function getCachedAIResult(symbol: string): { data: any; source: string } | null
 }
 
 function setCachedAIResult(symbol: string, data: any, source: string) {
-  // FIX: Use v3 namespace to match getCachedAIResult()
-  aiResultCache.set(`v3:${symbol}`, { data, source, cachedAt: Date.now() })
+  // FIX: Use v4 namespace to match getCachedAIResult()
+  aiResultCache.set(`v4:${symbol}`, { data, source, cachedAt: Date.now() })
   if (aiResultCache.size > 100) {
     const now = Date.now()
     for (const [key, entry] of aiResultCache) {

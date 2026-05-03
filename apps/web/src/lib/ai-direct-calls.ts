@@ -169,6 +169,7 @@ function parseVote(content: string): 'BUY' | 'SELL' | 'HOLD' {
 const MODEL_TIMEOUT = 15_000 // FIX: Reduced from 20s to 15s — faster failure, quicker Layer 2 completion
 const OLLAMA_CLOUD_TIMEOUT = 30_000 // 30s for Ollama cloud (slower than local)
 const OLLAMA_LOCAL_TIMEOUT = 8_000 // 8s for local Ollama (fail faster if unreachable)
+const CONSENSUS_OVERALL_TIMEOUT = 40_000 // FIX: Overall timeout for all model calls — return partial results after 40s (was unlimited)
 
 // ─── Live Market Data ────────────────────────────────────────────
 
@@ -636,7 +637,7 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
   }
 
   const start = Date.now()
-  const TOTAL_HF_TIMEOUT = 65_000 // FIX: Increased from 40s to 65s — cold models on HF can take 50+ seconds to load
+  const TOTAL_HF_TIMEOUT = 35_000 // FIX: Reduced from 65s to 35s — prevents HuggingFace from blocking the entire consensus for over a minute. Most models respond in 5-10s if warm, 20-30s if cold. 35s is enough for 2 model attempts.
   const deadline = Date.now() + TOTAL_HF_TIMEOUT
   const systemMsg = 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير أنماط مالي. كن موجزاً ومبنياً على البيانات. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
 
@@ -645,12 +646,13 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
   // including read-only tokens. The router-based endpoints (old Strategy 1 & 2) require
   // "Inference Providers" permission which most tokens don't have.
   if (hfApiKey) {
+    // FIX: Reduced from 5 to 3 models — trying 5 models sequentially with 15s each
+    // caused 75s+ total time, blocking the entire consensus. 3 most reliable models
+    // with 10s each = 30s max, well within the 35s TOTAL_HF_TIMEOUT.
     const classicModels = [
-      'Qwen/Qwen2.5-7B-Instruct',            // Best Arabic support — try first
-      'microsoft/Phi-3-mini-4k-instruct',     // Lightweight — almost always warm
-      'mistralai/Mistral-7B-Instruct-v0.3',   // Fast, multilingual
-      'HuggingFaceH4/zephyr-7b-beta',         // Chat-optimized
-      'google/gemma-2b-it',                   // Very small — always warm (last resort)
+      'microsoft/Phi-3-mini-4k-instruct',     // Lightweight — almost always warm, fastest response
+      'Qwen/Qwen2.5-7B-Instruct',            // Best Arabic support — good second choice
+      'mistralai/Mistral-7B-Instruct-v0.3',   // Fast, multilingual — reliable fallback
     ]
     for (const model of classicModels) {
       if (Date.now() > deadline) break // Total timeout check
@@ -697,7 +699,7 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
   // ── Strategy 2: HuggingFace Auto-Router (needs "Inference Providers" permission) ──
   // Only try if we still have time and Strategy 1 didn't get 401
   if (hfApiKey && Date.now() < deadline) {
-    const hfModelCandidates = ['Qwen/Qwen2.5-7B-Instruct', 'mistralai/Mistral-7B-Instruct-v0.3']
+    const hfModelCandidates = ['Qwen/Qwen2.5-7B-Instruct'] // FIX: Reduced to 1 model — router is unreliable, just try the best one
 
     for (const model of hfModelCandidates) {
       if (Date.now() > deadline) break
@@ -737,7 +739,8 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
 
   // ── Strategy 3: OpenRouter fallback (if OR key available) ──
   if (openrouterApiKey && Date.now() < deadline) {
-    const orModels = ['meta-llama/llama-3.1-8b-instruct:free', 'qwen/qwen-2.5-7b-instruct:free', 'google/gemma-2-9b-it:free']
+    // FIX: Updated model list with currently available free models (May 2025)
+    const orModels = ['qwen/qwen-2.5-7b-instruct:free', 'google/gemma-3-27b-it:free', 'meta-llama/llama-3.1-8b-instruct:free']
     for (const model of orModels) {
       if (Date.now() > deadline) break
       try {
@@ -904,12 +907,13 @@ async function callOpenRouter(prompt: string): Promise<DirectAIResponse> {
   // Free model candidates — diverse perspectives for divergence analysis
   // FIX: Removed invalid model IDs — 'google/gemma-2-2b-it:free' is NOT a valid OpenRouter model.
   // Added more reliable free models. DeepSeek V3 was removed as it may not be free.
+  // FIX: Updated May 2025 — removed deprecated models, added currently available free models
   const modelCandidates = [
     'qwen/qwen-2.5-7b-instruct:free',           // Free — good Arabic + reasoning
+    'google/gemma-3-27b-it:free',                 // Free — large model, excellent reasoning (NEW)
     'meta-llama/llama-3.1-8b-instruct:free',     // Free — fast, capable
-    'google/gemma-2-9b-it:free',                 // Free — good multilingual
-    'mistralai/mistral-7b-instruct:free',         // Free — fast, diverse
-    'huggingfaceh4/zephyr-7b-beta:free',          // Free — chat-optimized
+    'deepseek/deepseek-chat-v3-0324:free',        // Free — DeepSeek V3 via OpenRouter
+    'mistralai/mistral-small-3.1-24b-instruct:free', // Free — Mistral Small 3.1 (NEW)
   ]
 
   for (const model of modelCandidates) {
@@ -1523,14 +1527,30 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
     ? modelCalls
     : modelCalls.filter(mc => mc.modelName !== 'Ollama')
 
-  // Call ALL models in parallel — each model is called ONLY ONCE
+  // FIX: Call ALL models in parallel with OVERALL TIMEOUT — don't let one slow model
+  // (especially HuggingFace at 35s+) block the entire consensus.
+  // Each model call is individually wrapped with the CONSENSUS_OVERALL_TIMEOUT.
+  // Models that don't respond in time are treated as failed (not blocking others).
   const callResults = await Promise.allSettled(
     activeModelCalls.map(async (mc) => {
-      const response = await mc.callFn()
-      if (!response.success) {
-        errors.push(`${mc.modelName}: ${response.error || 'failed'}`)
+      // Wrap each model call with the overall consensus timeout
+      const result = await Promise.race([
+        mc.callFn(),
+        new Promise<DirectAIResponse>((resolve) =>
+          setTimeout(() => resolve({
+            model: mc.modelName,
+            content: '',
+            confidence: 0,
+            processingTimeMs: CONSENSUS_OVERALL_TIMEOUT,
+            success: false,
+            error: `Timed out after ${CONSENSUS_OVERALL_TIMEOUT / 1000}s`,
+          }), CONSENSUS_OVERALL_TIMEOUT)
+        ),
+      ])
+      if (!result.success) {
+        errors.push(`${mc.modelName}: ${result.error || 'failed'}`)
       }
-      return { ...mc, response }
+      return { ...mc, response: result }
     })
   )
 
@@ -1621,7 +1641,27 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
 
   for (const modelData of successfulModels) {
     const { roles: modelRoles, response } = modelData
-    const vote = parseVote(response.content)
+    
+    // FIX: Price hallucination validation — if we have the real price from market data,
+    // check if the AI response contains a clearly wrong price. If so, replace it with
+    // the real price and add a warning, rather than accepting the hallucinated price.
+    let validatedContent = response.content
+    if (marketData.price > 0) {
+      const realPrice = marketData.price
+      // Pattern: any dollar amount that differs from the real price by more than 20%
+      const pricePattern = /\$?([\d,]+(?:\.\d+)?)\s*(?:دولار|د\.ع|USD|\$)/gi
+      validatedContent = validatedContent.replace(pricePattern, (match, numStr) => {
+        const mentionedPrice = parseFloat(numStr.replace(/,/g, ''))
+        if (mentionedPrice > 0 && Math.abs(mentionedPrice - realPrice) / realPrice > 0.2) {
+          // Price is off by more than 20% — replace with real price
+          console.warn(`[direct-council] Price hallucination detected: ${match} vs real ${realPrice} — correcting`)
+          return `${realPrice.toLocaleString()}$ (فعلي)`
+        }
+        return match
+      })
+    }
+    
+    const vote = parseVote(validatedContent)
 
     // Each model fills all its assigned roles (primary + any redistributed)
     for (const roleName of modelRoles) {
@@ -1639,7 +1679,7 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
         model: response.model + (isPrimaryRole ? '' : ' (بديل)'),
         vote,
         confidence: Math.round(conf * 100),
-        reason: response.content.slice(0, 300) + (response.content.length > 300 ? '...' : ''),
+        reason: validatedContent.slice(0, 300) + (validatedContent.length > 300 ? '...' : ''),
       })
     }
   }

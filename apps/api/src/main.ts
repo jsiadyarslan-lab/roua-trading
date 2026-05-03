@@ -10,7 +10,13 @@ import { RedisService } from './common/redis/redis.service';
 
 async function bootstrap() {
   try {
-    const app = await NestFactory.create(AppModule);
+    // FIX #2: Enable graceful shutdown — ensures in-flight requests complete
+    // before the process exits, preventing 502 errors during Railway deploys.
+    // Without this, SIGTERM kills the process immediately, causing connection drops.
+    const app = await NestFactory.create(AppModule, {
+      logger: ['error', 'warn', 'log'],
+    });
+    app.enableShutdownHooks();
 
     // Security headers via Helmet (CSP, HSTS, X-Frame-Options, etc.)
     app.use(helmet({
@@ -149,9 +155,40 @@ async function bootstrap() {
     await app.listen(port);
     console.log(`🚀 Roua API running on http://localhost:${port}/api`);
     console.log(`📊 Environment: ${configService.get('NODE_ENV', 'development')}`);
+
+    // FIX #2: Graceful shutdown — handle SIGTERM from Railway
+    // Railway sends SIGTERM before killing the container. We need to:
+    // 1. Stop accepting new connections
+    // 2. Complete in-flight requests
+    // 3. Close DB/Redis connections gracefully
+    // This prevents 502 errors during deployments.
+    const shutdown = async (signal: string) => {
+      console.log(`📡 Received ${signal} — shutting down gracefully...`);
+      try {
+        // Give in-flight requests 10 seconds to complete
+        const shutdownTimeout = setTimeout(() => {
+          console.warn('⚠️ Graceful shutdown timeout — forcing exit');
+          process.exit(1);
+        }, 10000);
+
+        await app.close();
+        clearTimeout(shutdownTimeout);
+        console.log('✅ Graceful shutdown complete');
+        process.exit(0);
+      } catch (err) {
+        console.error('❌ Error during graceful shutdown:', err);
+        process.exit(1);
+      }
+    };
+
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT', () => shutdown('SIGINT'));
   } catch (error) {
     console.error('❌ NestJS bootstrap failed:', error);
-    process.exit(1);
+    // FIX #2: Auto-restart on bootstrap failure — Railway will restart the container
+    // but adding a small delay prevents rapid restart loops
+    console.log('🔄 Restarting in 5 seconds...');
+    setTimeout(() => process.exit(1), 5000);
   }
 }
 

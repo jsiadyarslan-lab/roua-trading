@@ -49,16 +49,19 @@ export class AIOrchestratorService {
   private readonly logger = new Logger(AIOrchestratorService.name);
 
   /** Circuit breaker: track consecutive failures per model
-   *  FIX: Previous cooldown was too aggressive — it blocked ALL models after
-   *  a few failures, causing the entire AI Council to go offline.
-   *  New approach: Only skip models after 3+ CONSECUTIVE failures (429 only).
-   *  Other errors are logged but don't trigger cooldown.
-   *  Cooldown is very short (10s) and resets on success.
+   *  FIX #4: Previous cooldown was too short (10s → 120s now).
+   *  However, the REAL problem was that after cooldown expires, the model
+   *  was immediately retried without checking if it's actually healthy.
+   *  New approach: Progressive cooldown — each consecutive cooldown period
+   *  doubles (120s → 240s → 480s) up to a max of 30 minutes.
+   *  On success, cooldown resets immediately.
    */
   private readonly modelCooldowns = new Map<string, number>();
   private readonly modelConsecutiveFailures = new Map<string, number>();
-  private readonly COOLDOWN_MS = 120_000; // Extended from 60s to 120s — Railway cold starts take 45-60s, provider rate-limit windows are 60s
-  private readonly FAILURES_BEFORE_COOLDOWN = 2; // Reduced from 3 to 2 — faster cooldown to prevent wasting requests during cold starts
+  private readonly modelCooldownLevel = new Map<string, number>(); // FIX #4: Progressive level
+  private readonly BASE_COOLDOWN_MS = 120_000; // Base cooldown: 2 minutes
+  private readonly MAX_COOLDOWN_MS = 30 * 60 * 1000; // Max cooldown: 30 minutes
+  private readonly FAILURES_BEFORE_COOLDOWN = 2; // Triggers cooldown after 2 consecutive 429s
 
   /** In-flight request deduplication — prevents duplicate AI calls for the same symbol+type */
   private readonly inFlightRequests = new Map<string, Promise<AIAnalysisResponse>>();
@@ -279,8 +282,9 @@ export class AIOrchestratorService {
           latencyMs: response.processingTimeMs,
           cached: false,
         });
-        // Reset consecutive failure counter on success
+        // Reset consecutive failure counter AND cooldown level on success
         this.modelConsecutiveFailures.delete(model);
+        this.modelCooldownLevel.delete(model); // FIX #4: Reset progressive level on success
         result = response;
         // Override fixed confidence with dynamic calculation
         result.confidence = this._calculateDynamicConfidence(model, result.content, enrichedRequest.type);
@@ -300,8 +304,12 @@ export class AIOrchestratorService {
           const fails = (this.modelConsecutiveFailures.get(model) || 0) + 1;
           this.modelConsecutiveFailures.set(model, fails);
           if (fails >= this.FAILURES_BEFORE_COOLDOWN) {
-            this.modelCooldowns.set(model, Date.now() + this.COOLDOWN_MS);
-            this.logger.warn(`🚫 Model ${model} rate-limited ${fails}x consecutively — 120s cooldown`);
+            // FIX #4: Progressive cooldown — doubles each time (120s → 240s → 480s → ...)
+            const level = (this.modelCooldownLevel.get(model) || 0) + 1;
+            this.modelCooldownLevel.set(model, level);
+            const cooldownMs = Math.min(this.BASE_COOLDOWN_MS * Math.pow(2, level - 1), this.MAX_COOLDOWN_MS);
+            this.modelCooldowns.set(model, Date.now() + cooldownMs);
+            this.logger.warn(`🚫 Model ${model} rate-limited ${fails}x consecutively — ${Math.round(cooldownMs / 1000)}s cooldown (level ${level})`);
           } else {
             this.logger.warn(`🚫 Model ${model} rate-limited (429) attempt ${fails}/${this.FAILURES_BEFORE_COOLDOWN} — still trying`);
           }
@@ -480,6 +488,7 @@ export class AIOrchestratorService {
             // Reset consecutive failures on success
             if (response.confidence > 0) {
               this.modelConsecutiveFailures.delete(role.resolvedModel);
+              this.modelCooldownLevel.delete(role.resolvedModel); // FIX #4: Reset progressive level
             }
             return { ...role, response };
           } catch (error: any) {
@@ -495,7 +504,11 @@ export class AIOrchestratorService {
               const fails = (this.modelConsecutiveFailures.get(role.resolvedModel) || 0) + 1;
               this.modelConsecutiveFailures.set(role.resolvedModel, fails);
               if (fails >= this.FAILURES_BEFORE_COOLDOWN) {
-                this.modelCooldowns.set(role.resolvedModel, Date.now() + this.COOLDOWN_MS);
+                // FIX #4: Progressive cooldown
+                const level = (this.modelCooldownLevel.get(role.resolvedModel) || 0) + 1;
+                this.modelCooldownLevel.set(role.resolvedModel, level);
+                const cooldownMs = Math.min(this.BASE_COOLDOWN_MS * Math.pow(2, level - 1), this.MAX_COOLDOWN_MS);
+                this.modelCooldowns.set(role.resolvedModel, Date.now() + cooldownMs);
               }
             }
             // Don't put model in cooldown for other errors — just try again next time
@@ -569,7 +582,11 @@ export class AIOrchestratorService {
                 const fails = (this.modelConsecutiveFailures.get(fallbackModel) || 0) + 1;
                 this.modelConsecutiveFailures.set(fallbackModel, fails);
                 if (fails >= this.FAILURES_BEFORE_COOLDOWN) {
-                  this.modelCooldowns.set(fallbackModel, Date.now() + this.COOLDOWN_MS);
+                  // FIX #4: Progressive cooldown
+                  const level = (this.modelCooldownLevel.get(fallbackModel) || 0) + 1;
+                  this.modelCooldownLevel.set(fallbackModel, level);
+                  const cooldownMs = Math.min(this.BASE_COOLDOWN_MS * Math.pow(2, level - 1), this.MAX_COOLDOWN_MS);
+                  this.modelCooldowns.set(fallbackModel, Date.now() + cooldownMs);
                 }
               }
               this.logger.warn(`❌ Fallback model ${fallbackModel} failed for role "${role.name}": ${error.message}`);
@@ -1132,9 +1149,10 @@ export class AIOrchestratorService {
 
   // ── Private: Model Routing ──
   private async _callModel(model: string, request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
-    // FIX #10: Wrap model calls with exponential backoff retry.
+    // FIX #10/#17: Wrap model calls with exponential backoff retry.
     // Only retries on 429 rate-limit and network errors.
     // Auth errors (401/403), validation errors (400), and 404s are NOT retried.
+    // FIX #16: Pass logger to retry utility for consistent logging
     return withExponentialBackoff(
       () => {
         switch (model) {
@@ -1153,6 +1171,7 @@ export class AIOrchestratorService {
         baseDelayMs: 1000,    // Start with 1s delay
         maxDelayMs: 8000,     // Cap at 8s — don't want retries to delay the whole council
         jitterMs: 200,        // Add 0-200ms random jitter
+        logger: { warn: (msg: string) => this.logger.warn(msg) }, // FIX #16: Consistent logging
       },
     );
   }

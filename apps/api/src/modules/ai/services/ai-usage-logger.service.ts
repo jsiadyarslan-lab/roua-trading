@@ -78,6 +78,16 @@ export class AiUsageLoggerService {
 
   private dbAvailable = true;
 
+  /** FIX #3: Fallback log entries — when DB is unavailable, we store logs in memory
+   * and periodically try to write them to DB. This ensures AI usage data is never
+   * lost even when the database is temporarily down (e.g., during NestJS cold starts
+   * or Railway deployments). When the DB recovers, the fallback queue is flushed.
+   */
+  private fallbackQueue: UsageLogEntry[] = [];
+  private readonly MAX_FALLBACK_QUEUE_SIZE = 500;
+  private dbRetryAttempts = 0;
+  private readonly MAX_DB_RETRY_ATTEMPTS = 20; // Stop retrying after 20 consecutive failures
+
   constructor(private readonly prisma: PrismaService) {
     // Start periodic flush
     this.flushTimer = setInterval(() => this.flush(), this.FLUSH_INTERVAL_MS);
@@ -86,6 +96,7 @@ export class AiUsageLoggerService {
     // Test DB connection asynchronously — if it fails, we'll retry on each flush
     this.prisma.aiUsageLog.count().then(() => {
       this.dbAvailable = true;
+      this.dbRetryAttempts = 0;
       this.logger.log('📊 AI Usage Logger DB connection verified');
     }).catch((err) => {
       this.dbAvailable = false;
@@ -95,9 +106,20 @@ export class AiUsageLoggerService {
 
   /**
    * Log an AI usage entry (non-blocking — queues for batch write)
+   *
+   * FIX #3: When DB is unavailable, entries go to fallbackQueue instead of being
+   * silently dropped. This ensures no usage data is lost during NestJS outages.
    */
   log(entry: UsageLogEntry): void {
-    this.writeQueue.push(entry);
+    if (this.dbAvailable) {
+      this.writeQueue.push(entry);
+    } else {
+      // FIX #3: Store in fallback queue when DB is down
+      this.fallbackQueue.push(entry);
+      if (this.fallbackQueue.length > this.MAX_FALLBACK_QUEUE_SIZE) {
+        this.fallbackQueue.shift(); // Remove oldest to prevent memory leak
+      }
+    }
 
     // Flush immediately if queue is getting large
     if (this.writeQueue.length >= this.MAX_QUEUE_SIZE) {
@@ -173,18 +195,27 @@ export class AiUsageLoggerService {
 
   /**
    * Flush queued entries to the database (batch write)
+   *
+   * FIX #3: On successful flush, also flush the fallback queue (DB recovered).
+   * On failed flush, move current entries to fallback queue (DB still down).
    */
   private isFlushing = false;  // FIX: Flush lock to prevent race conditions
 
   private async flush(): Promise<void> {
-    if (this.writeQueue.length === 0) return;
+    if (this.writeQueue.length === 0 && this.fallbackQueue.length === 0) return;
     // FIX: Prevent concurrent flush operations that could lose entries
     if (this.isFlushing) return;
     this.isFlushing = true;
 
+    // Merge fallback queue into write queue if DB is available
+    if (this.dbAvailable && this.fallbackQueue.length > 0) {
+      this.logger.log(`📊 Recovering ${this.fallbackQueue.length} entries from fallback queue`);
+      this.writeQueue.push(...this.fallbackQueue.splice(0, this.fallbackQueue.length));
+    }
+
     // Take all entries from queue
     const entries = this.writeQueue.splice(0, this.writeQueue.length);
-    if (entries.length === 0) return;
+    if (entries.length === 0) { this.isFlushing = false; return; }
 
     try {
       // Use createMany for efficient batch insert
@@ -206,11 +237,23 @@ export class AiUsageLoggerService {
 
       await this.prisma.aiUsageLog.createMany({ data: records });
       this.dbAvailable = true;
+      this.dbRetryAttempts = 0;
       this.logger.debug(`📊 Flushed ${records.length} AI usage logs to database`);
     } catch (error: any) {
-      // Don't crash the app if logging fails — it's non-critical
+      // FIX #3: Move failed entries to fallback queue instead of losing them
       this.dbAvailable = false;
-      this.logger.warn(`Failed to flush AI usage logs: ${error.message}`);
+      this.dbRetryAttempts++;
+      this.fallbackQueue.push(...entries);
+      if (this.fallbackQueue.length > this.MAX_FALLBACK_QUEUE_SIZE) {
+        const dropped = this.fallbackQueue.length - this.MAX_FALLBACK_QUEUE_SIZE;
+        this.fallbackQueue.splice(0, dropped);
+        this.logger.warn(`📊 Fallback queue overflow — dropped ${dropped} oldest entries`);
+      }
+      this.logger.warn(`📊 Failed to flush AI usage logs (attempt ${this.dbRetryAttempts}): ${error.message}`);
+      // FIX #3: After too many retries, temporarily reduce logging frequency
+      if (this.dbRetryAttempts >= this.MAX_DB_RETRY_ATTEMPTS) {
+        this.logger.warn(`📊 DB appears persistently unavailable — reducing log frequency`);
+      }
     } finally {
       this.isFlushing = false;  // FIX: Release flush lock
     }

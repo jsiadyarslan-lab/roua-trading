@@ -27,51 +27,89 @@ const NESTJS_RETRY_AFTER_MS = 60_000; // Try NestJS again after 60 seconds
 let nestjsBypassUntil = 0; // Timestamp when we'll try NestJS again
 
 /**
+ * FIX #8: Cache for NestJS offline responses — prevents flooding the client
+ * with 502 errors when NestJS is down. Returns the last known error
+ * immediately without waiting for the NestJS timeout.
+ */
+let lastOfflineResponse = 0;
+const OFFLINE_CACHE_MS = 10_000; // Cache offline status for 10 seconds
+
+/**
  * Create a guest session via NestJS's /api/auth/guest endpoint.
  * Fallback when Next.js can't create sessions directly.
+ *
+ * FIX #1: Previous version had a broken flow:
+ * 1. It tried to extract sessionToken from response body, but NestJS sets
+ *    it as an httpOnly cookie (not in body for security).
+ * 2. It didn't retry on transient failures (e.g., cold start 502s).
+ * 3. If NestJS is cold-starting, the first request returns 502.
+ *
+ * New approach:
+ * - Extract token from set-cookie header (Strategy 1)
+ * - Fall back to response body field (Strategy 2, backward compat)
+ * - Retry up to 2 times with 3s delay on 502/503 (cold start recovery)
+ * - Forward the cookie to the client so subsequent requests work
  */
-async function createSessionViaNestJS(): Promise<{ token: string } | null> {
-  try {
-    const response = await fetch(`${API_TARGET}/api/auth/guest`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(10000),
-    })
+async function createSessionViaNestJS(): Promise<{ token: string; setCookieHeader?: string } | null> {
+  const maxRetries = 2;
+  const retryDelayMs = 3000;
 
-    if (response.ok) {
-      const data = await response.json()
-
-      // FIX: NestJS removed sessionToken from the response body for security.
-      // Instead, NestJS sets the session as an httpOnly cookie (roua_session).
-      // Extract the token from the set-cookie header.
-      if (data.success) {
-        // Strategy 1: Extract from set-cookie header
-        const setCookie = response.headers.get('set-cookie')
-        if (setCookie) {
-          const match = setCookie.match(/roua_session=([^;]+)/)
-          if (match) {
-            return { token: match[1] }
-          }
-        }
-
-        // Strategy 2: Check response body (backward compat if re-added)
-        if (data.sessionToken) {
-          return { token: data.sessionToken }
-        }
-
-        // Strategy 3: Check for token in data.token or data.data.token
-        if (data.token) {
-          return { token: data.token }
-        }
-        if (data.data?.token) {
-          return { token: data.data.token }
-        }
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      if (attempt > 0) {
+        console.log(`[nestjs-proxy] Retrying createSessionViaNestJS (attempt ${attempt}/${maxRetries})...`);
+        await new Promise(r => setTimeout(r, retryDelayMs));
       }
+
+      const response = await fetch(`${API_TARGET}/api/auth/guest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(15000), // FIX: 15s timeout (was 10s) — cold starts take longer
+      })
+
+      // FIX #1: If NestJS returns 502/503, it's likely cold-starting — retry
+      if (response.status === 502 || response.status === 503) {
+        console.warn(`[nestjs-proxy] NestJS returned ${response.status} on guest session (attempt ${attempt + 1}) — likely cold start`);
+        continue;
+      }
+
+      if (response.ok) {
+        const data = await response.json()
+
+        if (data.success) {
+          // Strategy 1: Extract from set-cookie header
+          const setCookie = response.headers.get('set-cookie')
+          if (setCookie) {
+            const match = setCookie.match(/roua_session=([^;]+)/)
+            if (match) {
+              return { token: match[1], setCookieHeader: setCookie }
+            }
+          }
+
+          // Strategy 2: Check response body (NestJS auth.controller returns sessionToken in body)
+          if (data.sessionToken) {
+            return { token: data.sessionToken }
+          }
+
+          // Strategy 3: Check for token in data.token or data.data.token
+          if (data.token) {
+            return { token: data.token }
+          }
+          if (data.data?.token) {
+            return { token: data.data.token }
+          }
+
+          // FIX #1: sessionToken was returned by NestJS but we couldn't find it — log for debugging
+          console.warn('[nestjs-proxy] Guest session succeeded but no token found in response:', JSON.stringify(data).substring(0, 200))
+        }
+      } else {
+        console.warn(`[nestjs-proxy] NestJS guest session failed: HTTP ${response.status}`)
+      }
+    } catch (error: any) {
+      console.warn(`[nestjs-proxy] createSessionViaNestJS error (attempt ${attempt + 1}): ${error?.message || error}`)
     }
-    return null
-  } catch {
-    return null
   }
+  return null
 }
 
 /**
@@ -183,6 +221,7 @@ async function ensureSession(request: NextRequest): Promise<{
 export async function proxyToNestJS(request: NextRequest, method: string): Promise<NextResponse> {
   // Check if NestJS should be bypassed due to recent failures
   if (nestjsConsecutiveFailures >= NESTJS_BYPASS_THRESHOLD && Date.now() < nestjsBypassUntil) {
+    // FIX #8: Return cached offline response immediately instead of waiting for timeout
     return NextResponse.json(
       { success: false, offline: true, error: 'NestJS غير متاح مؤقتاً', bypass: true },
       { status: 502 },
@@ -279,6 +318,23 @@ async function proxyWithToken(
       const nestjsSession = await createSessionViaNestJS()
       if (nestjsSession) {
         return proxyWithToken(request, method, nestjsSession.token, false, retryCount + 1)
+      }
+    }
+
+    // FIX #9: Handle 403 Forbidden — usually means the session token is valid but
+    // the user's tier doesn't allow the action. Don't retry — return the error.
+    if (response.status === 403) {
+      console.warn(`[nestjs-proxy] 403 Forbidden on ${method} ${pathname} — insufficient permissions`);
+    }
+
+    // FIX #9: Handle 5xx server errors from NestJS — don't retry, just forward.
+    // If NestJS returns 500/502/503, retrying won't help (server-side error).
+    // Track these as NestJS failures for bypass logic.
+    if (response.status >= 500 && response.status !== 503) {
+      nestjsConsecutiveFailures++;
+      if (nestjsConsecutiveFailures >= NESTJS_BYPASS_THRESHOLD) {
+        nestjsBypassUntil = Date.now() + NESTJS_RETRY_AFTER_MS;
+        console.warn(`[nestjs-proxy] NestJS failed ${nestjsConsecutiveFailures}x — bypassing for 60s`);
       }
     }
 

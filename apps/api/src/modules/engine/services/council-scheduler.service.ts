@@ -129,6 +129,10 @@ export class CouncilSchedulerService {
 
           results.push(result);
 
+          // FIX #5: Track actual cost after each symbol analysis
+          // Uses the _addCost() method which estimates based on model count
+          await this._addCost(symbol, consensus.recommendation, consensus.analyses.length);
+
           // Store in Redis
           await this.redis.set(
             `council:result:${symbol}`,

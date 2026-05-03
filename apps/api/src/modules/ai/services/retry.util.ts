@@ -11,6 +11,7 @@ export interface RetryOptions {
   maxDelayMs: number;       // Maximum delay cap (default: 30000)
   jitterMs: number;         // Random jitter to add (default: 200)
   retryableCheck?: (error: any) => boolean;  // Function to determine if error is retryable
+  logger?: { warn: (msg: string) => void };  // FIX #16: Optional logger for consistent logging
 }
 
 const DEFAULT_OPTIONS: RetryOptions = {
@@ -64,7 +65,9 @@ export async function withExponentialBackoff<T>(
         opts.maxDelayMs,
       );
 
-      console.warn(`[retry] Attempt ${attempt + 1}/${opts.maxAttempts} failed, retrying in ${Math.round(delay)}ms: ${error?.message || error}`);
+      // FIX #16: Use provided logger or fall back to console.warn for consistent error logging
+      const logFn = opts.logger?.warn || console.warn;
+      logFn(`[retry] Attempt ${attempt + 1}/${opts.maxAttempts} failed, retrying in ${Math.round(delay)}ms: ${error?.message || error}`);
 
       await new Promise(resolve => setTimeout(resolve, delay));
     }

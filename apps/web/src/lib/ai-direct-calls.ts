@@ -445,7 +445,7 @@ async function callGemini(prompt: string): Promise<DirectAIResponse> {
   if (!apiKey) return { model: 'Gemini/unavailable', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key (tried GOOGLE_AI_STUDIO_API_KEY and GEMINI_API_KEY)' }
 
   const start = Date.now()
-  const modelCandidates = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash-001', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.5-flash-preview-04-17']
+  const modelCandidates = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash-001', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.5-flash-preview-04-17', 'gemini-2.5-flash-preview-05-20', 'gemini-2.0-flash-exp']
   const errors: string[] = []
 
   for (const model of modelCandidates) {
@@ -932,6 +932,8 @@ async function callDeepSeek(prompt: string): Promise<DirectAIResponse> {
   if (!apiKey) return { model: 'DeepSeek/unavailable', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No DEEPSEEK_API_KEY' }
 
   const start = Date.now()
+  // FIX: Try deepseek-chat FIRST — deepseek-reasoner returns empty content
+  // and puts the actual answer in reasoning_content, which is hard to extract.
   const modelCandidates = ['deepseek-chat', 'deepseek-reasoner']
   const systemMsg = 'أنت محلل سيناريوهات مالي محترف. دورك هو تحليل السيناريوهات المحتملة وتقدير احتمالاتها. أجب بالعربية فقط. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
 
@@ -949,23 +951,46 @@ async function callDeepSeek(prompt: string): Promise<DirectAIResponse> {
           temperature: 0.3,
           max_tokens: 1024,
         }),
-        signal: AbortSignal.timeout(20_000), // 20s for DeepSeek (slower than Groq)
+        signal: AbortSignal.timeout(25_000), // FIX: Increased from 20s — DeepSeek can be slow
       })
 
       if (!res.ok) {
         const errBody = await res.text().catch(() => '')
         if (res.status === 429) continue
+        // FIX: Don't break on 401/403 — try next model
         if (res.status === 401 || res.status === 403) {
-          return { model: `DeepSeek/${model}`, content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `DeepSeek auth failed (${res.status})` }
+          console.warn(`[DeepSeek] ${model} auth failed (${res.status}): ${errBody.slice(0, 100)}`)
+          continue
+        }
+        if (res.status === 402) {
+          console.warn(`[DeepSeek] ${model} requires payment (402) — balance may be exhausted`)
+          continue
         }
         continue
       }
 
       const data = await res.json()
-      const content = data.choices?.[0]?.message?.content || ''
+      const message = data.choices?.[0]?.message
+      let content = message?.content || ''
+      const reasoningContent = message?.reasoning_content || ''
+
+      // FIX: DeepSeek reasoner returns reasoning_content instead of content
+      if (!content.trim() && reasoningContent.trim()) {
+        content = reasoningContent
+      }
+      // FIX: If both present for reasoner, combine them
+      if (content.trim() && reasoningContent.trim() && model === 'deepseek-reasoner') {
+        const reasoningSummary = reasoningContent.length > 300
+          ? reasoningContent.slice(0, 300) + '...'
+          : reasoningContent
+        content = `[تحليل منطقي]: ${reasoningSummary}\n\n[التوصية]: ${content}`
+      }
+
       if (content.trim().length > 0) {
         return { model: `DeepSeek/${model}`, content, confidence: calcConfidence(content, 'deepseek'), processingTimeMs: Date.now() - start, success: true }
       }
+      // FIX: Log why content is empty for debugging
+      console.warn(`[DeepSeek] ${model} returned empty content — message: ${JSON.stringify(message)?.substring(0, 200)}`)
     } catch {
       continue
     }

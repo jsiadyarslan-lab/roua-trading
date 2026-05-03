@@ -33,15 +33,17 @@ export class OpenRouterService {
 
   // Static model candidates — used as fallback if dynamic discovery fails
   // Updated May 2025 — free models on OpenRouter change frequently
+  // FIX: Re-ordered — most reliable free models first, with alternatives
   private readonly staticModelCandidates = [
-    'deepseek/deepseek-r1:free',                   // Free — DeepSeek R1
-    'deepseek/deepseek-chat-v3-0324:free',         // Free — DeepSeek V3
-    'meta-llama/llama-3.3-70b-instruct:free',     // Free — Llama 3.3 70B
-    'meta-llama/llama-3.1-8b-instruct:free',      // Free — Llama 3.1 8B
-    'google/gemma-3-27b-it:free',                  // Free — Gemma 3 27B
-    'qwen/qwen-2.5-7b-instruct:free',             // Free — Qwen 2.5 7B
+    'qwen/qwen-2.5-7b-instruct:free',             // Free — good Arabic, reliable
+    'meta-llama/llama-3.1-8b-instruct:free',      // Free — fast, capable
+    'google/gemma-3-27b-it:free',                  // Free — large model, good reasoning
     'mistralai/mistral-small-3.1-24b-instruct:free', // Free — Mistral Small 3.1
+    'deepseek/deepseek-r1:free',                   // Free — DeepSeek R1 (may be slow)
+    'meta-llama/llama-3.3-70b-instruct:free',     // Free — Llama 3.3 70B (may hit limits fast)
+    'deepseek/deepseek-chat-v3-0324:free',         // Free — DeepSeek V3
     'deepseek/deepseek-chat',                      // Low cost — excellent reasoning
+    'huggingfaceh4/zephyr-7b-beta:free',            // Free — chat-optimized
   ];
 
   // Dynamically discovered free models (cached for 30 minutes)
@@ -195,6 +197,9 @@ export class OpenRouterService {
           if (this.resolvedModel === model) {
             this.resolvedModel = null; // Reset resolved model
           }
+          // FIX: Don't immediately try next — short pause to avoid rapid-fire 429s
+          // that waste the daily free quota. Only 1-2 second pause.
+          await new Promise(r => setTimeout(r, 500));
           continue;
         }
         if (status === 401 || status === 403) {
@@ -203,6 +208,11 @@ export class OpenRouterService {
         }
         if (status === 402) {
           this.logger.warn(`💸 OpenRouter ${model} requires payment (402) — trying free model...`);
+          continue;
+        }
+        // FIX: 400 = model not available or input too long — skip to next model
+        if (status === 400) {
+          this.logger.debug(`🔀 OpenRouter ${model} bad request (400) — model may be deprecated`);
           continue;
         }
         this.logger.warn(`🔀 OpenRouter ${model} failed (${status || 'N/A'}): ${errData}`);

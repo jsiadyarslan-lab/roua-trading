@@ -68,11 +68,14 @@ export class HuggingFaceService {
 
   // FIX: Direct Inference API model candidates — models known to be hosted on HF servers
   // These are specifically models available via api-inference.huggingface.co
+  // FIX: Added more models and re-ordered — smaller models are more likely to be warm/available
   private readonly hfDirectInferenceCandidates = [
-    'mistralai/Mistral-7B-Instruct-v0.3',
-    'HuggingFaceH4/zephyr-7b-beta',
-    'microsoft/Phi-3-mini-4k-instruct',
-    'Qwen/Qwen2.5-7B-Instruct',
+    'Qwen/Qwen2.5-7B-Instruct',            // Best Arabic support among free models
+    'mistralai/Mistral-7B-Instruct-v0.3',  // Fast, multilingual
+    'microsoft/Phi-3-mini-4k-instruct',     // Lightweight — almost always warm
+    'HuggingFaceH4/zephyr-7b-beta',         // Chat-optimized
+    'google/gemma-2b-it',                   // Very small — always warm
+    'TinyLlama/TinyLlama-1.1B-Chat-v1.0',  // Tiny — always available as last resort
   ];
 
   // OpenRouter free model candidates — updated May 2025 with dynamic discovery
@@ -303,16 +306,24 @@ export class HuggingFaceService {
   private readonly classicInferenceBaseUrl = 'https://api-inference.huggingface.co/models';
 
   private async _tryClassicInference(systemPrompt: string, userPrompt: string, startTime: number): Promise<AIAnalysisResponse | null> {
+    // FIX: Added more models and smaller/faster models that are more likely to be warm
     const models = [
+      'Qwen/Qwen2.5-7B-Instruct',
+      'microsoft/Phi-3-mini-4k-instruct',
       'mistralai/Mistral-7B-Instruct-v0.3',
       'HuggingFaceH4/zephyr-7b-beta',
-      'microsoft/Phi-3-mini-4k-instruct',
-      'Qwen/Qwen2.5-7B-Instruct',
+      'google/gemma-2b-it',               // Very small — almost always warm
+      'TinyLlama/TinyLlama-1.1B-Chat-v1.0', // Tiny — last resort
     ];
 
+    const TOTAL_TIMEOUT = 45_000; // FIX: Increased total timeout — cold models need time
+    const deadline = Date.now() + TOTAL_TIMEOUT;
+
     for (const model of models) {
+      if (Date.now() > deadline) break; // FIX: Honor total timeout
       try {
         const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+        const remaining = deadline - Date.now();
         const response = await axios.post(
           `${this.classicInferenceBaseUrl}/${model}`,
           {
@@ -322,14 +333,14 @@ export class HuggingFaceService {
               temperature: 0.3,
               return_full_text: false,
             },
-            options: { wait_for_model: true },
+            options: { wait_for_model: true }, // FIX: Keep this — tells HF to load the model if cold
           },
           {
             headers: {
               Authorization: `Bearer ${this.hfApiKey}`,
               'Content-Type': 'application/json',
             },
-            timeout: 20000, // Model may need to warm up
+            timeout: Math.min(20_000, remaining), // FIX: Dynamic timeout based on remaining time
           },
         );
 
@@ -341,11 +352,14 @@ export class HuggingFaceService {
           content = response.data.generated_text;
         }
 
-        if (content.trim().length > 0) {
+        // FIX: Filter out garbage responses (repetitions, empty, or too short)
+        if (content.trim().length > 20) { // FIX: Lowered from 0 to 20 chars minimum for quality
           this.resolvedProvider = 'hf-inference';
           this.resolvedModel = model;
           this.logger.log(`🤗 Resolved: HF-Classic/${model.split('/').pop()}`);
           return this._formatResponse('HuggingFace', model, content.trim(), startTime);
+        } else if (content.trim().length > 0) {
+          this.logger.debug(`🤗 HF Classic ${model.split('/').pop()} returned too short (${content.length} chars) — trying next`);
         }
       } catch (error: any) {
         const status = error.response?.status;
@@ -359,6 +373,11 @@ export class HuggingFaceService {
         }
         if (status === 503) {
           this.logger.debug(`🤗 HF Classic ${model.split('/').pop()} loading (503) — trying next`);
+          continue;
+        }
+        // FIX: 500/502/504 errors are transient — try next model
+        if (status === 500 || status === 502 || status === 504) {
+          this.logger.debug(`🤗 HF Classic ${model.split('/').pop()} server error (${status}) — trying next`);
           continue;
         }
         this.logger.debug(`🤗 HF Classic ${model.split('/').pop()} failed (${status || 'no status'})`);

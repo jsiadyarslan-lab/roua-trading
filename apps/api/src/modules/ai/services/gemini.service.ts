@@ -29,6 +29,8 @@ export class GeminiService {
     'gemini-1.5-flash',                   // Older but widely available, good quota
     'gemini-1.5-flash-8b',                // Smallest, most available, generous quota
     'gemini-2.5-flash-preview-04-17',     // 2.5 Flash preview — may work on some keys
+    'gemini-2.5-flash-preview-05-20',     // FIX: Latest 2.5 Flash — separate quota pool
+    'gemini-2.0-flash-exp',               // FIX: Experimental — may have separate quota
   ];
   private resolvedModel: string | null = null; // Cached after first successful call
 

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AIAnalysisRequest, AIAnalysisResponse } from './groq.service';
 import { withExponentialBackoff } from './retry.util';
+import { calculateConfidence } from './confidence.util';
 import axios from 'axios';
 
 @Injectable()
@@ -10,8 +11,19 @@ export class DeepSeekService {
 
   constructor(private readonly configService: ConfigService) {}
 
+  // FIX: Re-resolve API key on every call — ConfigService may load keys after construction
+  private _resolveApiKey(): string {
+    const env = process.env as Record<string, string | undefined>;
+    return (
+      this.configService.get<string>('DEEPSEEK_API_KEY', '')?.trim() ||
+      env['DEEPSEEK_API_KEY']?.trim() ||
+      ''
+    );
+  }
+
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
-    const apiKey = this.configService.get<string>('DEEPSEEK_API_KEY', '');
+    // FIX: Re-resolve key on every call
+    const apiKey = this._resolveApiKey();
     if (!apiKey) {
       return {
         model: 'DeepSeek/Stub',
@@ -23,6 +35,9 @@ export class DeepSeekService {
       };
     }
 
+    // FIX: Try deepseek-chat FIRST — deepseek-reasoner returns empty content
+    // and puts the actual answer in reasoning_content, which is hard to extract.
+    // deepseek-chat is more reliable for structured financial analysis.
     const modelCandidates = ['deepseek-chat', 'deepseek-reasoner'];
     const start = Date.now();
 
@@ -39,8 +54,8 @@ export class DeepSeekService {
                     role: 'system',
                     content:
                       request.language === 'ar'
-                        ? 'أنت محلل مالي ذكي. أجب بالعربية باختصار.'
-                        : 'You are a smart financial analyst. Be concise.',
+                        ? 'أنت محلل مالي ذكي. أجب بالعربية باختصار. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
+                        : 'You are a smart financial analyst. Be concise. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"',
                   },
                   { role: 'user', content: request.prompt },
                 ],
@@ -52,7 +67,7 @@ export class DeepSeekService {
                   Authorization: `Bearer ${apiKey}`,
                   'Content-Type': 'application/json',
                 },
-                timeout: 20000,
+                timeout: 25000, // FIX: Increased from 20s — DeepSeek can be slow
               },
             ),
           {
@@ -61,20 +76,33 @@ export class DeepSeekService {
           },
         );
 
-        const content = response.data?.choices?.[0]?.message?.content || '';
-        if (content.trim().length === 0) continue;
+        // FIX: DeepSeek reasoner returns reasoning_content + content
+        // Sometimes content is empty but reasoning_content has the answer
+        const message = response.data?.choices?.[0]?.message;
+        let content = message?.content || '';
+        const reasoningContent = message?.reasoning_content || '';
 
-        const confidence = Math.min(
-          Math.max(
-            0.5 +
-              (content.length > 200 ? 0.1 : 0) +
-              (content.length > 500 ? 0.1 : 0) +
-              (/شراء|بيع|انتظار|BUY|SELL|HOLD|صعود|هبوط/i.test(content) ? 0.15 : 0) +
-              0.03, // DeepSeek base bonus
-            0.1,
-          ),
-          0.95,
-        );
+        // FIX: If content is empty but reasoning_content exists, use reasoning
+        if (!content.trim() && reasoningContent.trim()) {
+          this.logger.debug(`🔬 DeepSeek/${model} returned reasoning_content instead of content — using it`);
+          content = reasoningContent;
+        }
+
+        // FIX: If both are present, prepend reasoning as context (shortened)
+        if (content.trim() && reasoningContent.trim() && model === 'deepseek-reasoner') {
+          const reasoningSummary = reasoningContent.length > 300
+            ? reasoningContent.slice(0, 300) + '...'
+            : reasoningContent;
+          content = `[تحليل منطقي]: ${reasoningSummary}\n\n[التوصية]: ${content}`;
+        }
+
+        if (content.trim().length === 0) {
+          // FIX: Log the full response for debugging empty content
+          this.logger.warn(`🔬 DeepSeek/${model} returned empty — full message: ${JSON.stringify(message)?.substring(0, 300)}`);
+          continue;
+        }
+
+        const confidence = calculateConfidence(content, 'deepseek');
 
         this.logger.debug(`✅ DeepSeek/${model} responded in ${Date.now() - start}ms`);
         return {
@@ -85,15 +113,23 @@ export class DeepSeekService {
           language: request.language || 'ar',
         };
       } catch (error: any) {
-        if (error.response?.status === 429) {
-          this.logger.warn(`🚫 DeepSeek/${model} rate-limited — trying next model`);
+        const status = error.response?.status;
+        const errData = error.response?.data ? JSON.stringify(error.response.data).substring(0, 200) : '';
+
+        if (status === 429) {
+          this.logger.warn(`🚫 DeepSeek/${model} rate-limited — trying next model. ${errData}`);
           continue;
         }
-        if (error.response?.status === 401 || error.response?.status === 403) {
-          this.logger.error(`❌ DeepSeek auth failed (${error.response.status})`);
-          break;
+        if (status === 401 || status === 403) {
+          this.logger.error(`❌ DeepSeek auth failed (${status}) — key may be invalid. ${errData}`);
+          // FIX: Don't break — try next model with different auth
+          continue;
         }
-        this.logger.warn(`❌ DeepSeek/${model} failed: ${error.message}`);
+        if (status === 402) {
+          this.logger.warn(`💸 DeepSeek/${model} requires payment (402) — balance may be exhausted. ${errData}`);
+          continue;
+        }
+        this.logger.warn(`❌ DeepSeek/${model} failed: ${error.message} (status: ${status}) ${errData}`);
         continue;
       }
     }

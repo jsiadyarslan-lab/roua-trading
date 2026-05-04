@@ -8,7 +8,7 @@ import {
   ArrowRight, CheckCheck, Trash2, RefreshCw, Info, ShieldAlert,
   X, Activity, Volume2, VolumeX, Brain, ScanSearch, Zap, Sliders
 } from 'lucide-react'
-import { useNotificationStore, type Notification, type NotifSource, type NotifPriority } from '@/hooks/useNotificationStore'
+import { useNotificationStore, type Notification, type NotifSource, type NotifPriority, type NotifAction } from '@/hooks/useNotificationStore'
 
 /* ═══════════════════════════════════════════════════════════
    Color Tokens
@@ -778,6 +778,31 @@ export default function MobileNotificationsPage() {
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
+  // Map server notification sources to valid NotifSource types
+  const mapServerSource = (source: string): NotifSource => {
+    const sourceMap: Record<string, NotifSource> = {
+      new_user: 'system',
+      subscription_upgrade: 'system',
+      system_error: 'system',
+      performance_alert: 'trade',
+      large_trade: 'trade',
+      system_update: 'system',
+      admin_test: 'system',
+      push: 'system',
+    }
+    const validSources: NotifSource[] = ['bot', 'ai', 'scanner', 'trade', 'system']
+    if (validSources.includes(source as NotifSource)) return source as NotifSource
+    return sourceMap[source] || 'system'
+  }
+
+  // Map server action/type to valid NotifAction
+  const mapServerAction = (action: string, type?: string): NotifAction => {
+    const validActions: NotifAction[] = ['BUY', 'SELL', 'INFO', 'WARN', 'CLOSE', 'CANCEL']
+    if (validActions.includes(action as NotifAction)) return action as NotifAction
+    if (type && validActions.includes(type as NotifAction)) return type as NotifAction
+    return 'INFO'
+  }
+
   // Fetch real notifications from server on mount and periodically
   useEffect(() => {
     const fetchServerNotifications = async () => {
@@ -788,13 +813,19 @@ export default function MobileNotificationsPage() {
           if (data.success && Array.isArray(data.data)) {
             const { addNotification } = useNotificationStore.getState()
             for (const notif of data.data) {
-              // Avoid duplicates
-              const exists = useNotificationStore.getState().notifications.some(n => n.id === notif.id)
+              const mappedSource = mapServerSource(notif.source || 'system')
+              const mappedAction = mapServerAction(notif.action || '', notif.type)
+              // Dedup by title + source + body to prevent re-adding server notifications
+              const exists = useNotificationStore.getState().notifications.some(n =>
+                n.title === (notif.title || '') &&
+                n.source === mappedSource &&
+                n.body === (notif.body || notif.message || '')
+              )
               if (!exists) {
                 addNotification({
-                  source: notif.source || 'system',
+                  source: mappedSource,
                   priority: notif.priority || 'medium',
-                  action: notif.action || notif.type || 'INFO',
+                  action: mappedAction,
                   title: notif.title || '',
                   body: notif.body || notif.message || '',
                   pair: notif.pair || notif.symbol,
@@ -856,12 +887,18 @@ export default function MobileNotificationsPage() {
         if (data.success && Array.isArray(data.data)) {
           const { addNotification } = useNotificationStore.getState()
           for (const notif of data.data) {
-            const exists = useNotificationStore.getState().notifications.some(n => n.id === notif.id)
+            const mappedSource = mapServerSource(notif.source || 'system')
+            const mappedAction = mapServerAction(notif.action || '', notif.type)
+            const exists = useNotificationStore.getState().notifications.some(n =>
+              n.title === (notif.title || '') &&
+              n.source === mappedSource &&
+              n.body === (notif.body || notif.message || '')
+            )
             if (!exists) {
               addNotification({
-                source: notif.source || 'system',
+                source: mappedSource,
                 priority: notif.priority || 'medium',
-                action: notif.action || notif.type || 'INFO',
+                action: mappedAction,
                 title: notif.title || '',
                 body: notif.body || notif.message || '',
                 pair: notif.pair || notif.symbol,

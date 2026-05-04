@@ -8,7 +8,7 @@ import {
   Grid3X3, Brain, FlaskConical, ScanSearch, Radio,
   Newspaper, HelpCircle, X, Activity, Zap, Target,
   BellRing, UserCircle, Link2, CreditCard, Fingerprint, Users,
-  Globe2,
+  Globe2, GitMerge, Trophy, Eye, Cpu, Code, CalendarDays, Shield,
 } from 'lucide-react'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 
@@ -43,10 +43,15 @@ const MORE_CATEGORIES: MoreCategory[] = [
   {
     title: 'التداول',
     items: [
-      { label: 'المراكز المفتوحة', href: '/mobile/positions', icon: Activity, color: '#00C853', isNew: true, sub: 'تتبع صفقاتك الحية' },
-      { label: 'التداول الحي', href: '/mobile/trading', icon: Zap, color: '#00D4FF', isNew: true, sub: 'تداول مباشر من الجوال' },
-      { label: 'الاستراتيجيات', href: '/mobile/strategies', icon: FlaskConical, color: '#B388FF', isNew: true, sub: 'اختبر وبنِ استراتيجياتك' },
-      { label: 'التداول الاجتماعي', href: '/mobile/social', icon: Users, color: '#FF6B9D', isNew: true, sub: 'تابع أفضل المتداولين' },
+      { label: 'المراكز المفتوحة', href: '/mobile/positions', icon: Activity, color: '#00C853', sub: 'تتبع صفقاتك الحية' },
+      { label: 'التداول الحي', href: '/mobile/trading', icon: Zap, color: '#00D4FF', sub: 'تداول مباشر من الجوال' },
+      { label: 'الاستراتيجيات', href: '/mobile/strategies', icon: FlaskConical, color: '#B388FF', sub: 'اختبر وبنِ استراتيجياتك' },
+      { label: 'محرر الاستراتيجيات', href: '/mobile/strategy-builder', icon: GitMerge, color: '#00D4FF', isNew: true, sub: 'محرر بصري No-Code' },
+      { label: 'اختبار الاستراتيجيات', href: '/mobile/strategies/backtest', icon: FlaskConical, color: '#FF9F43', isNew: true, sub: 'Backtest على بيانات تاريخية' },
+      { label: 'التداول الاجتماعي', href: '/mobile/social', icon: Users, color: '#FF6B9D', sub: 'تابع أفضل المتداولين' },
+      { label: 'متابعة الحسابات', href: '/mobile/copy-trading', icon: Eye, color: '#10B981', isNew: true, sub: 'تابع أداء الحسابات المربوطة' },
+      { label: 'لوحة الصدارة', href: '/mobile/leaderboard', icon: Trophy, color: '#FFB800', isNew: true, sub: 'أفضل الحسابات المربوطة' },
+      { label: 'وكيل التداول', href: '/mobile/agent', icon: Cpu, color: '#FF9F43', sub: 'تداول ذاتي بالذكاء الاصطناعي' },
     ],
   },
   {
@@ -55,19 +60,25 @@ const MORE_CATEGORIES: MoreCategory[] = [
       { label: 'التحليلات', href: '/mobile/ai', icon: Brain, color: '#B388FF', sub: 'رؤى من 6 نماذج AI' },
       { label: 'سكانر السوق', href: '/mobile/scanner', icon: ScanSearch, color: '#00FFA3', sub: 'اكتشف الفرص لحظياً' },
       { label: 'إشارات رؤى', href: '/mobile/signals', icon: Radio, color: '#FFB800', sub: 'توصيات تداول احترافية' },
-      { label: 'الأسواق التنبؤية', href: '/dashboard/prediction-market', icon: Target, color: '#00D4FF', isNew: true, sub: 'تنبؤات AI مقابل السوق' },
-      { label: 'الأخبار', href: '/mobile/news', icon: Newspaper, color: '#d4af37', isNew: true, sub: 'أخبار الأسواق لحظة بلحظة' },
-      { label: 'الإشعارات', href: '/mobile/notifications', icon: BellRing, color: '#FF4757', isNew: true, sub: 'تنبيهات البوت والنظام' },
+      { label: 'الأسواق التنبؤية', href: '/mobile/prediction-market', icon: Target, color: '#00D4FF', isNew: true, sub: 'تنبؤات AI مقابل السوق' },
+      { label: 'AI Trading Lab', href: '/mobile/neural', icon: Brain, color: '#A259FF', isNew: true, sub: 'مختبر التداول الذكي' },
+      { label: 'مصفوفة الارتباط', href: '/mobile/correlation', icon: GitMerge, color: '#00D4FF', isNew: true, sub: 'ارتباط بيرسون بين الأصول' },
+      { label: 'الأجندة الاقتصادية', href: '/mobile/calendar', icon: CalendarDays, color: '#FFB800', isNew: true, sub: 'أحداث اقتصادية مع تحليل AI' },
+      { label: 'ملاذ المحفظة', href: '/mobile/sanctuary', icon: Shield, color: '#FFB800', isNew: true, sub: 'تحليل مخاطر وتنويع المحفظة' },
+      { label: 'الأخبار', href: '/mobile/news', icon: Newspaper, color: '#d4af37', sub: 'أخبار الأسواق لحظة بلحظة' },
+      { label: 'الإشعارات', href: '/mobile/notifications', icon: BellRing, color: '#FF4757', sub: 'تنبيهات البوت والنظام' },
+      { label: 'توثيق API', href: '/mobile/api-docs', icon: Code, color: '#00D4FF', isNew: true, sub: 'المرجع البرمجي للمنصة' },
     ],
   },
   {
     title: 'الحساب',
     items: [
-      { label: 'الملف الشخصي', href: '/mobile/profile', icon: UserCircle, color: '#00D4FF', isNew: true, sub: 'معلوماتك الشخصية' },
-      { label: 'ربط الحسابات', href: '/mobile/kyc', icon: Link2, color: '#00FFA3', isNew: true, sub: 'ربط حسابات الوساطة' },
-      { label: 'الفواتير والاشتراكات', href: '/mobile/billing', icon: CreditCard, color: '#d4af37', isNew: true, sub: 'إدارة الاشتراك والمدفوعات' },
-      { label: 'الأمان و 2FA', href: '/mobile/security', icon: Fingerprint, color: '#32D74B', isNew: true, sub: 'حماية حسابك ومصادقتك' },
-      { label: 'المساعدة والدعم', href: '/mobile/help', icon: HelpCircle, color: '#8B92A8', isNew: true, sub: 'مركز المساعدة والتذاكر' },
+      { label: 'الملف الشخصي', href: '/mobile/profile', icon: UserCircle, color: '#00D4FF', sub: 'معلوماتك الشخصية' },
+      { label: 'ربط الحسابات', href: '/mobile/kyc', icon: Link2, color: '#00FFA3', sub: 'ربط حسابات الوساطة' },
+      { label: 'إعدادات البورصة', href: '/mobile/settings/exchange', icon: Link2, color: '#00D4FF', isNew: true, sub: 'مفاتيح API للبورصات' },
+      { label: 'الفواتير والاشتراكات', href: '/mobile/billing', icon: CreditCard, color: '#d4af37', sub: 'إدارة الاشتراك والمدفوعات' },
+      { label: 'الأمان و 2FA', href: '/mobile/security', icon: Fingerprint, color: '#32D74B', sub: 'حماية حسابك ومصادقتك' },
+      { label: 'المساعدة والدعم', href: '/mobile/help', icon: HelpCircle, color: '#8B92A8', sub: 'مركز المساعدة والتذاكر' },
     ],
   },
 ]
@@ -121,7 +132,7 @@ export default function MobileNavBar() {
                     whileTap={{ scale: 0.92 }}
                     onClick={() => handleNav(item.href)}
                     style={{
-                      width: 44, height: 44, borderRadius: '50%',
+                      width: 66, height: 66, borderRadius: '50%',
                       background: active
                         ? 'linear-gradient(135deg, #00D4FF, #0099CC)'
                         : 'linear-gradient(135deg, #1C1C1E, #0D0D0F)',
@@ -134,7 +145,7 @@ export default function MobileNavBar() {
                       gap: 0, cursor: 'pointer',
                     }}
                   >
-                    <Wallet size={22} color={active ? '#FFFFFF' : '#00D4FF'} strokeWidth={2.5} />
+                    <Wallet size={33} color={active ? '#FFFFFF' : '#00D4FF'} strokeWidth={2.5} />
                   </motion.button>
                 </div>
               )
@@ -148,14 +159,14 @@ export default function MobileNavBar() {
                 key={item.href}
                 onClick={() => handleNav(item.href)}
                 className="flex items-center justify-center h-full"
-                style={{ width: 48, flexShrink: 0, position: 'relative' }}
+                style={{ width: 72, flexShrink: 0, position: 'relative' }}
               >
                 <motion.div 
                   whileTap={{ scale: 0.9 }} 
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   className="relative"
                 >
-                  <Icon size={21} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} />
+                  <Icon size={32} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} />
                   {/* Notification badge on Home icon */}
                   {item.href === '/mobile' && unreadCount > 0 && (
                     <motion.div

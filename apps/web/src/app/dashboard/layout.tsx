@@ -21,10 +21,15 @@ export const metadata: Metadata = {
   applicationName: 'Roua Link',
   icons: {
     icon: [
+      { url: '/logo.svg', type: 'image/svg+xml', sizes: 'any' },
       { url: '/favicon.svg', type: 'image/svg+xml' },
-      { url: '/logo.svg', type: 'image/svg+xml' },
+      { url: '/logo-192.png', type: 'image/png', sizes: '192x192' },
+      { url: '/logo-512.png', type: 'image/png', sizes: '512x512' },
     ],
-    apple: '/logo-192.png',
+    apple: [
+      { url: '/logo-192.png', sizes: '192x192' },
+      { url: '/logo-512.png', sizes: '512x512' },
+    ],
   },
   appleWebApp: {
     capable: true,

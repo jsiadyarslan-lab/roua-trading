@@ -697,14 +697,15 @@ export default function RouaChart({
         />
 
         {/* Chart Wrapper — contains canvas + overlays */}
-        <div style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+        <div style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
 
           {/* Chart Canvas Container — lightweight-charts renders here ONLY */}
           <div
             ref={chart.containerRef as any}
             style={{
-              position: 'absolute',
-              inset: 0,
+              width: '100%',
+              flex: 1,
+              minHeight: 0,
               background: T.bg,
             }}
           />

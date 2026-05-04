@@ -277,27 +277,11 @@ export default function MobileWalletPage() {
         const data = j.data.map((p: any) => Number(p.equity || p.value || 0)).filter(Boolean)
         if (data.length > 2) { setChartData(data); return }
       }
-      const base = account?.equity || 100000
-      const data: number[] = []
-      let value = base * 0.92
-      for (let i = 0; i < 30; i++) {
-        value += (Math.random() - 0.45) * (base * 0.015)
-        value = Math.max(value, base * 0.8)
-        data.push(value)
-      }
-      data[data.length - 1] = base
-      setChartData(data)
+      // No real chart data available — show empty state instead of fake data
+      setChartData([])
     } catch {
-      const base = account?.equity || 100000
-      const data: number[] = []
-      let value = base * 0.92
-      for (let i = 0; i < 30; i++) {
-        value += (Math.random() - 0.45) * (base * 0.015)
-        value = Math.max(value, base * 0.8)
-        data.push(value)
-      }
-      data[data.length - 1] = base
-      setChartData(data)
+      // No real chart data available — show empty state instead of fake data
+      setChartData([])
     } finally {
       setChartLoading(false)
     }

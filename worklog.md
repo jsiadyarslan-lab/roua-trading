@@ -259,3 +259,23 @@ Stage Summary:
   - `apps/web/src/hooks/useChart.ts` — Fixed volume color using updated candle data
 - ESLint: 0 errors on all modified files
 - Dev server: running successfully
+
+---
+Task ID: 1
+Agent: main
+Task: Fix mobile page crash + reduce navbar height by half
+
+Work Log:
+- Found CRITICAL bug: `useNotificationStore` was used in mobile/page.tsx line 341 but NEVER imported — causing ReferenceError crash during SSR
+- Added missing import: `import { useNotificationStore } from '@/hooks/useNotificationStore'`
+- Reduced navbar container height from 48px → 24px (half as requested)
+- Adjusted navbar inner elements proportionally: icons 20→14px, button width 44→32px, center wallet 40→28px
+- Removed text labels from nav items (icons-only for ultra-compact design)
+- Updated layout paddingBottom from calc(56px) → calc(32px) to match new navbar height
+- Build verified successfully
+- Pushed to GitHub (commit 853888a), Railway deployment triggered
+
+Stage Summary:
+- Mobile page crash ROOT CAUSE: missing import of useNotificationStore in page.tsx
+- Navbar height reduced by half: container height 48px → 24px
+- All changes pushed and deployed

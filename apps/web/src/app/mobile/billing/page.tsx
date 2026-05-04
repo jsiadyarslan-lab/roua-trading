@@ -127,28 +127,27 @@ function PaymentItem({ date, amount, plan, status }: { date: string; amount: str
 export default function BillingPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [currentPlan, setCurrentPlan] = useState('PRO')
-  const [expiryDate, setExpiryDate] = useState('2025-06-15')
+  const [currentPlan, setCurrentPlan] = useState<string | null>(null)
+  const [expiryDate, setExpiryDate] = useState<string | null>(null)
   const [paymentHistory, setPaymentHistory] = useState<any[]>([])
   const [upgrading, setUpgrading] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchBilling() {
       try {
+        // Fetch real subscription data from user's account
         const res = await fetch('/api/admin/subscriptions/stats')
         if (res.ok) {
           const data = await res.json()
-          setCurrentPlan(data.currentPlan || data.plan || 'PRO')
-          setExpiryDate(data.expiryDate || data.expiresAt || '2025-06-15')
+          setCurrentPlan(data.currentPlan || data.plan || null)
+          setExpiryDate(data.expiryDate || data.expiresAt || null)
           setPaymentHistory(data.history || data.payments || [])
         }
       } catch {
-        // Use mock data
-        setPaymentHistory([
-          { date: '2025-05-01', amount: '$29.00', plan: 'المحترف', status: 'paid' },
-          { date: '2025-04-01', amount: '$29.00', plan: 'المحترف', status: 'paid' },
-          { date: '2025-03-01', amount: '$0.00', plan: 'المجاني', status: 'paid' },
-        ])
+        // No mock data — show real empty state
+        setCurrentPlan(null)
+        setExpiryDate(null)
+        setPaymentHistory([])
       } finally {
         setLoading(false)
       }
@@ -156,15 +155,29 @@ export default function BillingPage() {
     fetchBilling()
   }, [])
 
-  const handleUpgrade = (planId: string) => {
+  const handleUpgrade = async (planId: string) => {
     setUpgrading(planId)
-    setTimeout(() => {
-      setCurrentPlan(planId)
+    try {
+      const res = await fetch('/api/admin/subscriptions/upgrade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planId }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setCurrentPlan(planId)
+        if (data.expiryDate || data.expiresAt) {
+          setExpiryDate(data.expiryDate || data.expiresAt)
+        }
+      }
+    } catch {
+      // Upgrade failed — stay on current plan
+    } finally {
       setUpgrading(null)
-    }, 1500)
+    }
   }
 
-  const currentPlanData = PLANS.find(p => p.id === currentPlan) || PLANS[0]
+  const currentPlanData = PLANS.find(p => p.id === currentPlan) || PLANS[0] // FREE as default
 
   if (loading) {
     return (
@@ -212,7 +225,7 @@ export default function BillingPage() {
               <p style={{ fontSize: 18, fontWeight: 900, color: c.text, fontFamily: "'Cairo', sans-serif" }}>خطة {currentPlanData.name}</p>
               <p style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>
                 <Calendar size={12} style={{ display: 'inline', verticalAlign: 'middle', marginInlineEnd: 4 }} />
-                تنتهي في {new Date(expiryDate).toLocaleDateString('ar-SA')}
+                {expiryDate ? `تنتهي في ${new Date(expiryDate).toLocaleDateString('ar-SA')}` : 'لا يوجد اشتراك فعّال'}
               </p>
             </div>
           </div>

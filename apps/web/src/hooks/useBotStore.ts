@@ -70,8 +70,8 @@ const DEFAULT_SETTINGS: BotState['settings'] = {
 export const useBotStore = create<BotState>()(
   persist(
     (set, get) => ({
-      isOn: true,
-      engineState: 'armed',
+      isOn: false,
+      engineState: 'idle',
       logs: [],
       stats: { trades: 0, profit: 0, winRate: 0, wins: 0, losses: 0, openPositions: 0, sessionLoss: 0 },
       settings: DEFAULT_SETTINGS,
@@ -132,11 +132,11 @@ export const useBotStore = create<BotState>()(
     }),
     {
       name: 'roua-bot-storage',
-      version: 5,
+      version: 6,
       migrate: (persistedState: any) => ({
         ...persistedState,
-        isOn: true,
-        engineState: persistedState?.isOn === false ? 'idle' : (persistedState?.engineState ?? 'armed'),
+        isOn: persistedState?.isOn === true,
+        engineState: persistedState?.isOn === true ? 'armed' : 'idle',
         settings: {
           ...DEFAULT_SETTINGS,
           ...(persistedState?.settings ?? {}),

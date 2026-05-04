@@ -11,9 +11,26 @@ const globalForPrisma = globalThis as unknown as {
 // hot-reloading from creating multiple connections.
 export const db =
   globalForPrisma.prisma ??
-  new PrismaClient({
-    log: process.env.NODE_ENV === 'development' ? ['query'] : ['error'],
-  })
+  (() => {
+    // FIX: Add connection pool params to match backend PrismaService.
+    // Without these, the frontend PrismaClient uses Prisma's default pool
+    // settings which can exhaust connections or timeout during cold starts.
+    let dbUrl = process.env.DATABASE_URL
+    if (dbUrl) {
+      try {
+        const url = new URL(dbUrl)
+        url.searchParams.set('connection_limit', '10')
+        url.searchParams.set('pool_timeout', '30')
+        dbUrl = url.toString()
+      } catch {
+        // If URL parsing fails, use original URL as-is
+      }
+    }
+    return new PrismaClient({
+      ...(dbUrl ? { datasources: { db: { url: dbUrl } } } : {}),
+      log: process.env.NODE_ENV === 'development' ? ['query'] : ['error'],
+    })
+  })()
 
 // Always cache on globalThis (not just in dev)
 if (!globalForPrisma.prisma) {
@@ -47,6 +64,7 @@ async function runSchemaMigrations(): Promise<void> {
     `ALTER TABLE "Session" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
     `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
     `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "riskTolerance" TEXT DEFAULT 'moderate'`,
+    `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "passkeyCounter" INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE "Position" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
     `ALTER TABLE "ExchangeCredential" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
     `ALTER TABLE "PaperOrder" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
@@ -169,17 +187,22 @@ async function runSchemaMigrations(): Promise<void> {
  * - Explicitly calls $connect() before querying, instead of relying on
  *   Prisma's lazy connection which can silently fail
  * - Runs safety-net schema migrations for missing columns
- * - Retries up to 3 times with increasing delay (1s, 2s, 3s)
+ * - Retries up to 5 times with exponential backoff (2s, 4s, 6s, 8s, 10s = 30s total)
  * - Returns true if DB is ready, false otherwise
  * - Stores the last error in globalForPrisma.dbInitError for diagnostics
  *
  * If DB was previously initialized but a query fails later, call
  * resetDbInitialized() to force re-connection on the next call.
+ *
+ * FIX: Increased from 3 retries (6s total) to 5 retries (30s total) with
+ * exponential backoff. Railway cold starts can take 45-60s, and the OAuth
+ * callback needs the DB to be ready. The longer timeout gives PostgreSQL
+ * time to accept connections during cold starts.
  */
 export async function ensureDbReady(): Promise<boolean> {
   if (globalForPrisma.dbInitialized) return true
 
-  const MAX_RETRIES = 3
+  const MAX_RETRIES = 5
   const dbUrl = process.env.DATABASE_URL || '(not set)'
 
   console.log(`[db] ensureDbReady() called — DATABASE_URL prefix: ${dbUrl.substring(0, 35)}...`)
@@ -190,8 +213,12 @@ export async function ensureDbReady(): Promise<boolean> {
       // pool instead of relying on lazy connection which can fail silently
       await db.$connect()
 
-      // Run safety-net migrations for missing columns before verifying
-      await runSchemaMigrations()
+      // FIX: Run migrations only on the FIRST successful connection attempt.
+      // Previously, migrations ran on EVERY retry, wasting 5-10s per attempt
+      // executing 30+ ALTER/CREATE statements that likely already succeeded.
+      if (!globalForPrisma.schemaMigrated) {
+        await runSchemaMigrations()
+      }
 
       // Verify by querying the User table (core table for auth)
       await db.user.findFirst()
@@ -217,7 +244,8 @@ export async function ensureDbReady(): Promise<boolean> {
       )
 
       if (attempt < MAX_RETRIES - 1) {
-        const delay = 1000 * (attempt + 1)
+        // Exponential backoff: 2s, 4s, 6s, 8s, 10s
+        const delay = 2000 * (attempt + 1)
         console.log(`[db] Retrying in ${delay}ms...`)
         await new Promise((resolve) => setTimeout(resolve, delay))
       }

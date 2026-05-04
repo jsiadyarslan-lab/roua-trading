@@ -28,7 +28,7 @@ function LoginForm() {
     if (urlError === 'no_access_token') return 'فشل في الحصول على رمز الوصول من Google.'
     if (urlError === 'user_info_failed') return 'فشل في جلب معلومات الحساب.'
     if (urlError === 'no_email') return 'لم يتم العثور على بريد إلكتروني في حساب Google.'
-    if (urlError === 'db_unavailable') return 'قاعدة البيانات غير متاحة حالياً.'
+    if (urlError === 'db_unavailable') return 'قاعدة البيانات غير متاحة حالياً. يرجى إعادة المحاولة بعد بضع ثوانٍ.'
     if (urlError === 'user_creation_failed') return 'فشل إنشاء حساب المستخدم.'
     if (urlError === 'session_creation_failed') return 'فشل إنشاء الجلسة. يرجى المحاولة مرة أخرى.'
     if (urlError === 'unknown') return 'حدث خطأ غير متوقع. حاول مرة أخرى.'

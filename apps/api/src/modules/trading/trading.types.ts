@@ -2,6 +2,8 @@
 // Roua Trading (رؤى) — Trading Engine Types
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+import { IsString, IsNumber, IsEnum, IsOptional, IsBoolean, Min, IsUUID } from 'class-validator';
+
 export enum OrderSide {
   BUY = 'BUY',
   SELL = 'SELL',
@@ -31,6 +33,52 @@ export enum TradeType {
   ENTRY = 'ENTRY',
   EXIT = 'EXIT',
   PARTIAL_EXIT = 'PARTIAL_EXIT',
+}
+
+// ── DTOs with class-validator ──
+
+export class PlaceOrderDto {
+  @IsUUID()
+  credentialId!: string;
+
+  @IsString()
+  symbol!: string;
+
+  @IsEnum(OrderSide)
+  side!: OrderSide;
+
+  @IsEnum(OrderType)
+  type!: OrderType;
+
+  @IsNumber()
+  @Min(0.00001)
+  quantity!: number;
+
+  @IsOptional()
+  @IsNumber()
+  price?: number;
+
+  @IsOptional()
+  @IsNumber()
+  stopLoss?: number;
+
+  @IsOptional()
+  @IsNumber()
+  takeProfit?: number;
+
+  @IsOptional()
+  @IsUUID()
+  signalId?: string;
+}
+
+export class ClosePositionDto {
+  @IsUUID()
+  positionId!: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.00001)
+  quantity?: number;
 }
 
 export interface PlaceOrderRequest {

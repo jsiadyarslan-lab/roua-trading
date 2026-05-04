@@ -394,7 +394,7 @@ export function AgentControlMini() {
                 color: Number(pos.unrealizedPnl) >= 0 ? T.green : T.red,
                 fontWeight: 800, fontFamily: FONT_MONO,
               }}>
-                {Number(pos.unrealizedPnl) >= 0 ? '+' : ''}{Number(pos.unrealizedPnl).toFixed(2)}
+                {Number(pos.unrealizedPnl) > 0 ? '+' : ''}{Number(pos.unrealizedPnl).toFixed(2)}
               </span>
             </div>
           ))}

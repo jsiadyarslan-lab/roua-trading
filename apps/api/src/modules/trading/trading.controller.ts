@@ -20,6 +20,8 @@ import { Throttle } from '@nestjs/throttler';
 import {
   PlaceOrderRequest,
   ClosePositionRequest,
+  PlaceOrderDto,
+  ClosePositionDto,
   OrderSide,
   OrderType,
 } from './trading.types';
@@ -50,7 +52,7 @@ export class TradingController {
    */
   @Post('orders')
   @Throttle({ medium: { limit: 10, ttl: 60000 } })
-  async placeOrder(@Req() req: any, @Body() body: any) {
+  async placeOrder(@Req() req: any, @Body() body: PlaceOrderDto) {
     const userId = req.user.id;
 
     const request: PlaceOrderRequest = {
@@ -58,10 +60,10 @@ export class TradingController {
       symbol: body.symbol,
       side: body.side as OrderSide,
       type: body.type as OrderType,
-      quantity: parseFloat(body.quantity),
-      price: body.price ? parseFloat(body.price) : undefined,
-      stopLoss: body.stopLoss ? parseFloat(body.stopLoss) : undefined,
-      takeProfit: body.takeProfit ? parseFloat(body.takeProfit) : undefined,
+      quantity: Number(body.quantity),
+      price: body.price != null ? Number(body.price) : undefined,
+      stopLoss: body.stopLoss != null ? Number(body.stopLoss) : undefined,
+      takeProfit: body.takeProfit != null ? Number(body.takeProfit) : undefined,
       signalId: body.signalId,
     };
 
@@ -96,7 +98,7 @@ export class TradingController {
 
     // ── Stop-loss is MANDATORY (enforced by RiskGatekeeper check #1) ──
     // Validate here BEFORE calling gatekeeper to give a clear error message
-    if (!body.stopLoss || parseFloat(body.stopLoss) <= 0) {
+    if (!body.stopLoss || Number(body.stopLoss) <= 0) {
       throw new BadRequestException(
         'وقف الخسارة إجباري. لا يمكن تقديم أمر بدون وقف خسارة — هذا القانون الأول في منصة رؤى.',
       );
@@ -277,10 +279,10 @@ export class TradingController {
    */
   @Post('positions/close')
   @Throttle({ medium: { limit: 10, ttl: 60000 } })
-  async closePosition(@Req() req: any, @Body() body: any) {
+  async closePosition(@Req() req: any, @Body() body: ClosePositionDto) {
     const request: ClosePositionRequest = {
       positionId: body.positionId,
-      quantity: body.quantity ? parseFloat(body.quantity) : undefined,
+      quantity: body.quantity != null ? Number(body.quantity) : undefined,
     };
 
     if (!request.positionId) {

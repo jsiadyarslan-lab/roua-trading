@@ -282,7 +282,7 @@ function TradingAgentMini() {
                   color: Number(pos.unrealizedPnl) >= 0 ? '#00FFA3' : '#FF4757',
                   fontFamily: "'JetBrains Mono', monospace",
                 }}>
-                  {Number(pos.unrealizedPnl) >= 0 ? '+' : ''}{Number(pos.unrealizedPnl).toFixed(2)}
+                  {Number(pos.unrealizedPnl) > 0 ? '+' : ''}{Number(pos.unrealizedPnl).toFixed(2)}
                 </span>
               </div>
             ))}

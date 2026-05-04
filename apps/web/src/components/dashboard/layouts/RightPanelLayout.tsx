@@ -435,7 +435,7 @@ function AgentMini() {
                 <span style={{ color: T.text, fontWeight: 700, fontFamily: 'monospace' }}>{pos.symbol}</span>
                 <div style={{ flex: 1 }} />
                 <span style={{ color: Number(pos.unrealizedPnl) >= 0 ? T.success : T.danger, fontWeight: 800, fontFamily: 'monospace' }}>
-                  ${Number(pos.unrealizedPnl).toFixed(2)}
+                  {Number(pos.unrealizedPnl) > 0 ? '+' : ''}${Number(pos.unrealizedPnl).toFixed(2)}
                 </span>
               </div>
             ))}

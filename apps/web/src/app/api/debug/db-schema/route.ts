@@ -66,9 +66,9 @@ export async function GET(request: NextRequest) {
       },
       environment: {
         NODE_ENV: process.env.NODE_ENV,
-        ORIGIN: process.env.ORIGIN || '(not set)',
+        ORIGIN: process.env.ORIGIN ? '***SET***' : '(not set)',
         RAILWAY_PUBLIC_DOMAIN: process.env.RAILWAY_PUBLIC_DOMAIN || '(not set)',
-        DATABASE_URL: process.env.DATABASE_URL ? `${process.env.DATABASE_URL.substring(0, 30)}...` : '(not set)',
+        DATABASE_URL: process.env.DATABASE_URL ? '***SET***' : '(not set)',
         GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ? '***SET***' : '(not set)',
         GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ? '***SET***' : '(not set)',
       },

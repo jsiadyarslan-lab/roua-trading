@@ -537,9 +537,13 @@ export default function DashboardPage() {
     setChartHeight(Math.max(available, 200))
   }, [])
 
-  // Immediate recalc when positions toggle
+  // Recalc when positions toggle — useLayoutEffect runs after DOM mutation before paint
   useLayoutEffect(() => {
     recalcChartHeight()
+    // Also schedule a second recalc after browser has had a chance to layout
+    // (needed because conditional rendering of AlpacaPositions may not have fully resolved)
+    const raf = requestAnimationFrame(() => recalcChartHeight())
+    return () => cancelAnimationFrame(raf)
   }, [posOpen, recalcChartHeight])
 
   // ResizeObserver on center column (window resize)
@@ -1174,8 +1178,8 @@ export default function DashboardPage() {
                 </span>
               )}
             </div>
-            {/* Chart Panel — explicit height from JS, smooth transition, shrinks when positions open */}
-            <div className="panel" style={{ height: chartHeight, flex: 'none', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none', transition: 'height 0.3s ease-out' }}>
+            {/* Chart Panel — explicit height from JS, NO transition (prevents black space gap) */}
+            <div className="panel" style={{ height: chartHeight, flex: 'none', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none' }}>
               <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(26, 29, 41, 0.65)' }}>
                 <RouaChart
                   currentPrice={currentPrice}

@@ -260,8 +260,8 @@ export default function SanctuaryPage() {
         const data = await res.json()
         throw new Error(data.error || 'فشل في تحليل المحفظة')
       }
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
       setAnalyzing(false)
@@ -284,8 +284,8 @@ export default function SanctuaryPage() {
           const data = await res.json()
           throw new Error(data.error || 'فشل في تحليل المحفظة')
         }
-      } catch (err: any) {
-        if (!cancelled) setError(err.message)
+      } catch (err: unknown) {
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err))
       } finally {
         if (!cancelled) {
           setLoading(false)

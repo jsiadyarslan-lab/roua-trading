@@ -184,7 +184,7 @@ export default function AdminTradingPage() {
       {/* P&L Summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
         {[
-          { label: 'إجمالي P&L', value: `$${totalPnl.toLocaleString()}`, color: totalPnl >= 0 ? COLORS.success : COLORS.danger, icon: DollarSign, trend: totalPnl >= 0 ? '+' : '' },
+          { label: 'إجمالي P&L', value: `$${totalPnl.toLocaleString()}`, color: totalPnl > 0 ? COLORS.success : totalPnl < 0 ? COLORS.danger : COLORS.muted, icon: DollarSign, trend: totalPnl > 0 ? '+' : '' },
           { label: 'المراكز النشطة', value: `${stats.activePositions}`, color: COLORS.accent, icon: Package, trend: '' },
           { label: 'أوامر معلقة', value: `${stats.pendingOrders}`, color: COLORS.amber, icon: Clock, trend: '' },
           { label: 'صفقات اليوم', value: `${stats.dailyTrades}`, color: COLORS.success, icon: BarChart3, trend: stats.winRate > 0 ? `${stats.winRate}%` : '' },
@@ -241,7 +241,7 @@ export default function AdminTradingPage() {
             { label: 'الاستراتيجية', value: primaryBot?.strategy || '—', color: COLORS.accent },
             { label: 'إجمالي الصفقات', value: `${primaryBot?.totalTrades ?? 0}`, color: COLORS.text },
             { label: 'نسبة النجاح', value: primaryBot ? `${Number(primaryBot.winRate) > 1 ? Number(primaryBot.winRate).toFixed(1) : (Number(primaryBot.winRate) * 100).toFixed(1)}%` : '—', color: COLORS.success },
-            { label: 'P&L اليومي', value: primaryBot ? `$${Number(primaryBot.dailyPnl).toLocaleString()}` : '—', color: Number(primaryBot?.dailyPnl ?? 0) >= 0 ? COLORS.success : COLORS.danger },
+            { label: 'P&L اليومي', value: primaryBot ? `$${Number(primaryBot.dailyPnl).toLocaleString()}` : '—', color: Number(primaryBot?.dailyPnl ?? 0) > 0 ? COLORS.success : Number(primaryBot?.dailyPnl ?? 0) < 0 ? COLORS.danger : COLORS.muted },
           ].map((item, i) => (
             <div key={i} style={{
               padding: '10px 12px', borderRadius: 6,
@@ -302,15 +302,15 @@ export default function AdminTradingPage() {
                     <div style={{
                       fontSize: 12, fontWeight: 700,
                       fontFamily: "'JetBrains Mono', monospace",
-                      color: pnl >= 0 ? COLORS.success : COLORS.danger,
+                      color: pnl > 0 ? COLORS.success : pnl < 0 ? COLORS.danger : COLORS.muted,
                     }}>
-                      {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
+                      {pnl > 0 ? '+' : ''}${pnl.toFixed(2)}
                     </div>
                     <div style={{
                       fontSize: 9, fontFamily: "'JetBrains Mono', monospace",
-                      color: pnlPercent >= 0 ? COLORS.success : COLORS.danger,
+                      color: pnlPercent > 0 ? COLORS.success : pnlPercent < 0 ? COLORS.danger : COLORS.muted,
                     }}>
-                      {pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%
+                      {pnlPercent > 0 ? '+' : ''}{pnlPercent.toFixed(2)}%
                     </div>
                   </div>
                 </div>
@@ -360,9 +360,9 @@ export default function AdminTradingPage() {
                     <div style={{
                       fontSize: 9, fontWeight: 700,
                       fontFamily: "'JetBrains Mono', monospace",
-                      color: pnl !== null ? (pnl >= 0 ? COLORS.success : COLORS.danger) : COLORS.muted,
+                      color: pnl !== null ? (pnl > 0 ? COLORS.success : pnl < 0 ? COLORS.danger : COLORS.muted) : COLORS.muted,
                     }}>
-                      {pnl !== null ? `${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}` : '—'}
+                      {pnl !== null ? `${pnl > 0 ? '+' : ''}$${pnl.toFixed(2)}` : '—'}
                     </div>
                     <div style={{ fontSize: 8, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>
                       {new Date(trade.executedAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}

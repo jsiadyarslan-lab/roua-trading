@@ -58,9 +58,9 @@ export default function AdminLoginPage() {
       } else {
         setError(data.error || 'كلمة المرور غير صحيحة')
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Network error (server unreachable, timeout, etc.)
-      if (err?.name === 'AbortError') {
+      if (err instanceof DOMException && err.name === 'AbortError') {
         setError('انتهت مهلة الاتصال — الخادم لا يستجيب')
       } else {
         setError('لا يمكن الاتصال بالخادم — تحقق من اتصال الإنترنت')

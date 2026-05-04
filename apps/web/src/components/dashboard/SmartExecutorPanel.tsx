@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react'
 
+import { getPnlColor } from '@/lib/unified-tokens'
+
 const T = {
   bg: '#0B0E14',
   bg2: '#1A1D29',
@@ -225,7 +227,7 @@ export function SmartExecutorPanel() {
         <StatBox label="Briefs نشطة" value={activeBriefs.toString()} color={T.cyan} />
         <StatBox label="تنفيذات اليوم" value={todayExecs.toString()} color={T.green} />
         <StatBox label="مراكز مفتوحة" value={(status?.openPositions ?? 0).toString()} color={T.purple} />
-        <StatBox label="ر/خ اليوم" value={`$${Number(userState?.dailyPnL ?? 0).toFixed(2)}`} color={Number(userState?.dailyPnL ?? 0) >= 0 ? T.success : T.danger} />
+        <StatBox label="ر/خ اليوم" value={`$${Number(userState?.dailyPnL ?? 0).toFixed(2)}`} color={getPnlColor(Number(userState?.dailyPnL ?? 0))} />
         <StatBox label="صفقات اليوم" value={(userState?.dailyTrades ?? 0).toString()} color={T.amber} />
         <StatBox label="خسائر متتالية" value={(userState?.consecutiveLosses ?? 0).toString()} color={(userState?.consecutiveLosses ?? 0) >= 3 ? T.danger : T.text3} />
       </div>
@@ -279,7 +281,7 @@ export function SmartExecutorPanel() {
                 <span style={{ color: T.text, fontWeight: 700, fontFamily: 'monospace' }}>{pos.symbol}</span>
                 <div style={{ flex: 1 }} />
                 <span style={{
-                  color: Number(pos.unrealizedPnl ?? 0) >= 0 ? T.success : T.danger,
+                  color: getPnlColor(Number(pos.unrealizedPnl ?? 0)),
                   fontWeight: 800, fontFamily: 'monospace',
                 }}>
                   ${Number(pos.unrealizedPnl ?? 0).toFixed(2)}

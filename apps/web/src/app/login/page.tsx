@@ -114,8 +114,8 @@ function LoginForm() {
       }
 
       window.location.href = '/api/auth/signin/google'
-    } catch (err: any) {
-      setError(err.message || 'فشل تسجيل الدخول عبر Google')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'فشل تسجيل الدخول عبر Google')
       setLoading(null)
     }
   }
@@ -226,11 +226,11 @@ function LoginForm() {
           setError(data.error || 'فشل التحقق من Passkey')
         }
       }
-    } catch (err: any) {
-      if (err.name === 'NotAllowedError') {
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'NotAllowedError') {
         setError('')
       } else {
-        setError(err.message || 'فشل تسجيل الدخول عبر Passkey')
+        setError(err instanceof Error ? err.message : 'فشل تسجيل الدخول عبر Passkey')
       }
     } finally {
       setLoading(null)

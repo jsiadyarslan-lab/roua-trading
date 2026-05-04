@@ -76,7 +76,7 @@ export function usePortfolioSummary() {
     totalPositions += positions.length
     positions.forEach(p => {
       totalPnl += p.unrealizedPnl || 0
-      if (p.unrealizedPnl >= 0) {
+      if (p.unrealizedPnl > 0) {
         totalProfit += p.unrealizedPnl
         win++
       } else {
@@ -88,7 +88,7 @@ export function usePortfolioSummary() {
     totalPositions += paperTrades.length
     paperTrades.forEach(pt => {
       totalPnl += pt.unrealizedPnl
-      if (pt.unrealizedPnl >= 0) {
+      if (pt.unrealizedPnl > 0) {
         totalProfit += pt.unrealizedPnl
         win++
       } else {
@@ -127,7 +127,7 @@ function useSparklineData(balance: number, pnl: number): number[] {
     const base = balance || 100000
     const points = 24
     const volatility = base * 0.003 // 0.3% volatility per point
-    const trend = pnl >= 0 ? 1 : -1
+    const trend = pnl > 0 ? 1 : pnl < 0 ? -1 : 0
     const newData: number[] = []
     let current = base - (pnl * 0.5) // Start from half the P&L ago
 
@@ -163,7 +163,7 @@ export function PortfolioMini({
 }) {
   const { data } = usePortfolioSummary()
   const positions = usePositionsStore(s => s.positions)
-  const pnlUp = data.totalPnl >= 0
+  const pnlUp = data.totalPnl > 0
   const cardGap = compact ? 6 : 8
   const pad = compact ? '10px 12px' : '8px 10px'
   const balanceSize = compact ? 16 : 18
@@ -250,7 +250,7 @@ export function PortfolioMini({
         <div style={{ flexShrink: 0, width: 80, height: 32 }}>
           <PortfolioSparkline
             data={sparklineData}
-            color={pnlUp ? T.green : T.red}
+            color={data.totalPnl > 0 ? T.green : data.totalPnl < 0 ? T.red : T.text2}
             width={80}
             height={32}
           />
@@ -262,30 +262,30 @@ export function PortfolioMini({
         <div style={{
           display: 'flex', alignItems: 'center', gap: 3,
           padding: '2px 7px', borderRadius: 12,
-          background: `${pnlUp ? T.green : T.red}18`,
-          border: `0.5px solid ${pnlUp ? T.green : T.red}44`,
+          background: `${data.totalPnl > 0 ? T.green : data.totalPnl < 0 ? T.red : T.text2}18`,
+          border: `0.5px solid ${data.totalPnl > 0 ? T.green : data.totalPnl < 0 ? T.red : T.text2}44`,
         }}>
           <span style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: 10, fontWeight: 700,
-            color: pnlUp ? T.green : T.red,
+            color: data.totalPnl > 0 ? T.green : data.totalPnl < 0 ? T.red : T.text2,
           }}>
-            {pnlUp ? '+' : '-'}{fmt(Math.abs(data.pnlPercent))}%
+            {data.totalPnl > 0 ? '+' : data.totalPnl < 0 ? '-' : ''}{fmt(Math.abs(data.pnlPercent))}%
           </span>
         </div>
         <div style={{
           display: 'flex', justifyContent: 'space-between',
           padding: '5px 8px', borderRadius: 7,
-          background: `${pnlUp ? T.green : T.red}0d`,
-          border: `0.5px solid ${pnlUp ? T.green : T.red}22`,
+          background: `${data.totalPnl > 0 ? T.green : data.totalPnl < 0 ? T.red : T.text2}0d`,
+          border: `0.5px solid ${data.totalPnl > 0 ? T.green : data.totalPnl < 0 ? T.red : T.text2}22`,
         }}>
           <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9.5, color: T.text2, marginInlineEnd: 6 }}>P&L</span>
           <span style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: 11, fontWeight: 700,
-            color: pnlUp ? T.green : T.red,
+            color: data.totalPnl > 0 ? T.green : data.totalPnl < 0 ? T.red : T.text2,
           }}>
-            {pnlUp ? '+' : '-'}${fmt(Math.abs(data.totalPnl), 0)}
+            {data.totalPnl > 0 ? '+' : data.totalPnl < 0 ? '-' : ''}${fmt(Math.abs(data.totalPnl), 0)}
           </span>
         </div>
       </div>
@@ -296,8 +296,8 @@ export function PortfolioMini({
           { label: 'مراكز', value: data.totalPositions, color: T.cyan },
           { label: 'فوز%', value: `${data.winRate}%`, color: T.green },
           { label: 'Exposure', value: `${Math.min(100, Math.abs(data.margin) > 0 && data.balance > 0 ? Math.round((Math.abs(data.margin) / data.balance) * 100) : 0)}%`, color: T.amber },
-        ].map((stat, i) => (
-          <div key={i} style={{
+        ].map((stat) => (
+          <div key={stat.label} style={{
             flex: 1, textAlign: 'center',
             padding: '4px 2px', borderRadius: 6,
             background: `${stat.color}0d`,

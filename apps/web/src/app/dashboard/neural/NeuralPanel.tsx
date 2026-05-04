@@ -77,8 +77,8 @@ export default function NeuralPanel() {
       } else {
         setError(data.error || 'فشل في التدريب');
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setTraining(false);
     }
@@ -103,8 +103,8 @@ export default function NeuralPanel() {
       } else {
         setError(data.error || 'فشل في التنبؤ');
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
     } finally {
       setLoading(false);
     }

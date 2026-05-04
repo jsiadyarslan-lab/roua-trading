@@ -64,7 +64,7 @@ export default function MobileExchangeSettingsPage() {
       setSuccess('تم إضافة المفتاح بنجاح! ✅')
       setLabel(''); setApiKey(''); setApiSecret(''); setPassphrase('')
       setShowForm(false); fetchCredentials()
-    } catch (err: any) { setError(err.message) } finally { setSubmitting(false) }
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : String(err)) } finally { setSubmitting(false) }
   }
 
   const handleDelete = async (id: string) => {

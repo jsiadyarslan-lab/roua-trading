@@ -287,8 +287,8 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: Ch
           )}
           {pnl && (
             <span style={{ fontSize: 9, color: COLORS.textSecondary, fontFamily: "'JetBrains Mono', monospace" }}>
-              P&L: <b style={{ color: parseFloat(pnl) >= 0 ? COLORS.success : COLORS.danger }}>
-                {parseFloat(pnl) >= 0 ? '+' : ''}{pnl}$
+              P&L: <b style={{ color: parseFloat(pnl) > 0 ? COLORS.success : parseFloat(pnl) < 0 ? COLORS.danger : COLORS.textSecondary }}>
+                {parseFloat(pnl) > 0 ? '+' : ''}{pnl}$
               </b>
             </span>
           )}

@@ -232,7 +232,7 @@ export function BotCommandCenter() {
               const isHovered = hoveredSignal === sigKey
 
               return (
-                <div key={i} onClick={() => setSelectedSymbol(sig.pair)}
+                <div key={sigKey} onClick={() => setSelectedSymbol(sig.pair)}
                   onMouseEnter={() => setHoveredSignal(sigKey)}
                   onMouseLeave={() => setHoveredSignal(null)}
                   style={{

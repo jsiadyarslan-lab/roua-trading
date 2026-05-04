@@ -112,7 +112,7 @@ export default function MobileSignalsPage() {
       const data = await res.json()
       if (!res.ok || !data.success) throw new Error(data.error || 'فشل توليد الإشارة')
       await fetchSignals()
-    } catch (err: any) { setError(err.message) } finally { setGenerating(null) }
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : String(err)) } finally { setGenerating(null) }
   }
 
   const handleExecute = (signal: Signal) => {

@@ -57,7 +57,7 @@ export default function MobileSanctuaryPage() {
       const res = await fetch('/api/portfolio/sanctuary')
       if (res.ok) { const data = await res.json(); if (data.success) setReport({ ...data.data, positions: data.data.positions ?? [], metrics: data.data.metrics ?? {} }) }
       else { const data = await res.json(); throw new Error(data.error || 'فشل في تحليل المحفظة') }
-    } catch (err: any) { setError(err.message) } finally { setLoading(false); setAnalyzing(false) }
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : String(err)) } finally { setLoading(false); setAnalyzing(false) }
   }
 
   useEffect(() => { analyzePortfolio() }, [])

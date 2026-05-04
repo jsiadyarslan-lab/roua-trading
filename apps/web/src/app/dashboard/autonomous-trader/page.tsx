@@ -15,7 +15,7 @@ import { fmtPriceLocale } from '@/lib/price-format'
 /* ═══════════════════════════════════════════════
    Design Tokens — matching Roua Trading theme
    ═══════════════════════════════════════════════ */
-import { T as _T } from '@/lib/unified-tokens'
+import { T as _T, getPnlColor } from '@/lib/unified-tokens'
 const T = {
   ..._T,
   bg3:      '#141824',
@@ -31,7 +31,7 @@ const FONT_MONO = "'JetBrains Mono', monospace"
    ═══════════════════════════════════════════════ */
 function formatUSD(v: number | undefined | null): string {
   if (v == null || !Number.isFinite(v)) return '—'
-  const sign = v >= 0 ? '+' : ''
+  const sign = v > 0 ? '+' : ''
   return `${sign}$${Math.abs(v).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
@@ -569,7 +569,7 @@ export default function AutonomousTraderPage() {
             icon={<DollarSign size={13} />}
             label="ربح/خسارة اليوم"
             value={formatUSD(agentState?.dailyPnL)}
-            color={(agentState?.dailyPnL ?? 0) >= 0 ? T.green : T.red}
+            color={(agentState?.dailyPnL ?? 0) > 0 ? T.green : (agentState?.dailyPnL ?? 0) < 0 ? T.red : T.text2}
             mono
           />
           <StatCard
@@ -1167,7 +1167,7 @@ export default function AutonomousTraderPage() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         {positions.map((pos, i) => {
           const isBuy = pos.side === 'BUY'
-          const pnlColor = pos.unrealizedPnl >= 0 ? T.green : T.red
+          const pnlColor = pos.unrealizedPnl > 0 ? T.green : pos.unrealizedPnl < 0 ? T.red : T.text2
           return (
             <GlassCard key={pos.id}>
               <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -1229,8 +1229,8 @@ export default function AutonomousTraderPage() {
                 <div style={{
                   textAlign: 'left', direction: 'ltr',
                   padding: '8px 14px', borderRadius: 8,
-                  background: pos.unrealizedPnl >= 0 ? 'rgba(0,255,163,0.08)' : 'rgba(255,71,87,0.08)',
-                  border: `1px solid ${pos.unrealizedPnl >= 0 ? 'rgba(0,255,163,0.15)' : 'rgba(255,71,87,0.15)'}`,
+                  background: pos.unrealizedPnl > 0 ? 'rgba(0,255,163,0.08)' : pos.unrealizedPnl < 0 ? 'rgba(255,71,87,0.08)' : 'rgba(139,146,168,0.06)',
+                  border: `1px solid ${pos.unrealizedPnl > 0 ? 'rgba(0,255,163,0.15)' : pos.unrealizedPnl < 0 ? 'rgba(255,71,87,0.15)' : 'rgba(139,146,168,0.1)'}`,
                 }}>
                   <div style={{ fontFamily: FONT_MONO, fontSize: 14, fontWeight: 800, color: pnlColor }}>
                     {formatUSD(pos.unrealizedPnl)}
@@ -1271,7 +1271,7 @@ export default function AutonomousTraderPage() {
       )
     }
 
-    const pnlColor = performance.totalPnL >= 0 ? T.green : T.red
+    const pnlColor = performance.totalPnL > 0 ? T.green : performance.totalPnL < 0 ? T.red : T.text2
     const winRateColor = performance.winRate >= 50 ? T.green : T.red
 
     return (

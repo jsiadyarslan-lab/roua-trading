@@ -56,6 +56,9 @@ import {
  * - DELETE /api/trading/orders/:id      — Cancel order
  * - GET    /api/trading/positions       — Get open positions
  * - GET    /api/trading/portfolio       — Get portfolio summary
+ *
+ * NOTE: @Body() must NEVER be used on @Get() endpoints per HTTP spec.
+ * GET requests should use @Query() for filtering/pagination parameters.
  */
 @Controller('trading/v2')
 @UseGuards(AuthGuard)

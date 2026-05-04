@@ -199,8 +199,8 @@ export default function AdminSettingsPage() {
         const data = await res.json().catch(() => ({}))
         setSaveError(data.error || `فشل في حفظ الإعدادات (HTTP ${res.status})`)
       }
-    } catch (err: any) {
-      setSaveError(`⚠️ فشل الاتصال بالخادم أثناء الحفظ: ${err?.message || 'خطأ شبكة'}`)
+    } catch (err: unknown) {
+      setSaveError(`⚠️ فشل الاتصال بالخادم أثناء الحفظ: ${err instanceof Error ? err.message : 'خطأ شبكة'}`)
     }
     setSaving(false)
   }

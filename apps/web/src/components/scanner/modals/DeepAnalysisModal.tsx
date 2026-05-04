@@ -197,8 +197,8 @@ export function DeepAnalysisModal() {
               {/* Support / Resistance */}
               <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>مستويات الدعم والمقاومة</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-                {(data?.support || []).map((s, i) => <LevelPill key={i} price={s.price} type="support" strength={s.strength} />)}
-                {(data?.resistance || []).map((r, i) => <LevelPill key={i} price={r.price} type="resistance" strength={r.strength} />)}
+                {(data?.support || []).map((s, i) => <LevelPill key={`s-${s.price}-${i}`} price={s.price} type="support" strength={s.strength} />)}
+                {(data?.resistance || []).map((r, i) => <LevelPill key={`r-${r.price}-${i}`} price={r.price} type="resistance" strength={r.strength} />)}
                 {!data?.support?.length && !data?.resistance?.length && <span style={{ fontSize: 9, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>لا توجد بيانات مستويات</span>}
               </div>
 
@@ -210,7 +210,7 @@ export function DeepAnalysisModal() {
                     {data.patterns.map((p, i) => {
                       const pColor = p.type === 'bullish' ? T.green : p.type === 'bearish' ? T.red : T.amber
                       return (
-                        <div key={i} style={{ padding: 8, borderRadius: 6, background: T.bg, border: `0.5px solid ${T.border}` }}>
+                        <div key={p.nameAr + '-' + i} style={{ padding: 8, borderRadius: 6, background: T.bg, border: `0.5px solid ${T.border}` }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                             <span style={{ fontSize: 10, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{p.nameAr}</span>
                             <span style={{ fontSize: 8, padding: '1px 6px', borderRadius: 3, background: `${pColor}15`, color: pColor, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{p.type === 'bullish' ? 'صعودي' : p.type === 'bearish' ? 'هبوطي' : 'محايد'}</span>
@@ -234,7 +234,7 @@ export function DeepAnalysisModal() {
                     {data.candlePatterns.map((cp, i) => {
                       const cpColor = cp.type === 'BULLISH' ? T.green : cp.type === 'BEARISH' ? T.red : T.amber
                       return (
-                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 6, background: T.bg, border: `0.5px solid ${T.border}` }}>
+                        <div key={cp.nameAr + '-' + i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 6, background: T.bg, border: `0.5px solid ${T.border}` }}>
                           <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{cp.nameAr}</span>
                           <span style={{ fontSize: 7, padding: '1px 5px', borderRadius: 3, background: `${cpColor}15`, color: cpColor, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
                             {cp.type === 'BULLISH' ? 'صعودي' : cp.type === 'BEARISH' ? 'هبوطي' : 'محايد'}
@@ -284,7 +284,7 @@ export function DeepAnalysisModal() {
                   {data.signal.reasons?.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 6 }}>
                       {data.signal.reasons.map((r, i) => (
-                        <span key={i} style={{ fontSize: 9, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>• {r}</span>
+                        <span key={`reason-${i}`} style={{ fontSize: 9, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>• {r}</span>
                       ))}
                     </div>
                   )}

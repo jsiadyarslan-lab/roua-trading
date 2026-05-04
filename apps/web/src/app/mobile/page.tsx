@@ -797,7 +797,7 @@ function MobilePositions() {
         <div style={{ maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
           {allPositions.map(pos => {
             const isLong = pos.side === 'long' || pos.side === 'LONG'
-            const pnlUp = pos.unrealizedPnl >= 0
+            const pnlUp = pos.unrealizedPnl > 0
             const pnlColor = pnlUp ? '#32D74B' : '#FF453A'
 
             return (

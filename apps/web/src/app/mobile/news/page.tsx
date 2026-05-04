@@ -562,8 +562,8 @@ export default function MobileNewsPage() {
         } else {
           setNews([])
         }
-      } catch (err: any) {
-        setError(err.message || 'حدث خطأ أثناء تحميل الأخبار')
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'حدث خطأ أثناء تحميل الأخبار')
         setNews([])
       } finally {
         setLoading(false)

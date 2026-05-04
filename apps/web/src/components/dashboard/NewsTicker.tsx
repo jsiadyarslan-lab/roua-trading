@@ -77,7 +77,7 @@ export default function NewsTicker() {
   }, [newsItems])
 
   const renderNewsItem = (item: NewsItem, index: number) => (
-    <div key={index} className="inline-flex items-center gap-2 mx-6 whitespace-nowrap">
+    <div key={`${item.textAr?.slice(0, 30) || item.text?.slice(0, 30)}-${index}`} className="inline-flex items-center gap-2 mx-6 whitespace-nowrap">
       <span className="text-[9px] font-bold px-1.5 py-0 rounded" style={{ color: item.color, background: item.bgColor }}>
         {item.categoryAr}
       </span>

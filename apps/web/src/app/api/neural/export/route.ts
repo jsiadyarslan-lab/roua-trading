@@ -184,7 +184,7 @@ export async function POST(request: NextRequest) {
           ]);
           // Color PnL cells
           const pnlCell = row.getCell(4);
-          pnlCell.font = { color: { argb: t.pnl >= 0 ? '22C55E' : 'EF4444' } };
+          pnlCell.font = { color: { argb: t.pnl > 0 ? '22C55E' : t.pnl < 0 ? 'EF4444' : '8B92A8' } };
         }
       }
 
@@ -267,7 +267,7 @@ export async function POST(request: NextRequest) {
         for (let i = 0; i < tradesToShow.length; i++) {
           const t = tradesToShow[i];
           const side = t.side === 'BUY' ? 'BUY' : 'SELL';
-          const pnl = t.pnl >= 0 ? `+$${t.pnl.toFixed(2)}` : `-$${Math.abs(t.pnl).toFixed(2)}`;
+          const pnl = t.pnl > 0 ? `+$${t.pnl.toFixed(2)}` : `-$${Math.abs(t.pnl).toFixed(2)}`;
           doc.text(
             `#${i + 1} ${side} Entry: $${t.entryPrice.toFixed(2)} Exit: $${t.exitPrice.toFixed(2)} PnL: ${pnl} (${t.pnlPercent.toFixed(2)}%)`,
             { indent: 10 },

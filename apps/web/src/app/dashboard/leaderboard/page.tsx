@@ -7,7 +7,7 @@ import {
   ChevronUp, Flame, Award, CheckCircle, ChevronDown,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import { T as SharedT } from '@/lib/unified-tokens'
+import { T as SharedT, getPnlColor } from '@/lib/unified-tokens'
 
 /* ──────────────── Design Tokens (canonical + local extensions) ──────────────── */
 const T = { ...SharedT, silver: '#8B92A8', bronze: '#CD7F32' }
@@ -70,7 +70,7 @@ const BADGES = [
 /* ──────────────── Helper Functions ──────────────── */
 const formatNumber = (n: number) => n.toLocaleString('en-US')
 
-const returnTypeColor = (val: number) => val >= 0 ? T.green : T.red
+const returnTypeColor = (val: number) => val > 0 ? T.green : val < 0 ? T.red : T.text2
 
 const drawdownColor = (val: number) => {
   const abs = Math.abs(val)
@@ -510,8 +510,8 @@ export default function LeaderboardPage() {
                     whiteSpace: 'nowrap',
                   }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                      {trader.returnPct >= 0 ? <ChevronUp size={12} /> : <TrendingDown size={12} />}
-                      {trader.returnPct >= 0 ? '+' : ''}{trader.returnPct.toFixed(1)}%
+                      {trader.returnPct > 0 ? <ChevronUp size={12} /> : <TrendingDown size={12} />}
+                      {trader.returnPct > 0 ? '+' : ''}{trader.returnPct.toFixed(1)}%
                     </span>
                   </td>
 

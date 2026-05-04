@@ -7,6 +7,7 @@ import {
   Activity, Zap, TrendingUp, Clock, Settings2,
 } from 'lucide-react'
 import { useAgentStore, AgentStatus, StrategyType } from '@/hooks/useAgentStore'
+import { getPnlColor, getPnlSign } from '@/lib/unified-tokens'
 
 /* ═══════════════════════════════════════════════
    Design Tokens — Roua Trading dark theme
@@ -332,10 +333,10 @@ export function AgentControlMini() {
           <div style={{ fontSize: 7, color: T.text3 }}>ر/خ اليوم</div>
           <div style={{
             fontSize: 10, fontWeight: 800,
-            color: dailyPnL >= 0 ? T.green : T.red,
+            color: dailyPnL > 0 ? T.green : dailyPnL < 0 ? T.red : T.text2,
             fontFamily: FONT_MONO, direction: 'ltr', textAlign: 'center',
           }}>
-            {Number(dailyPnL) >= 0 ? '+' : ''}{Number(dailyPnL).toFixed(2)}
+            {getPnlSign(Number(dailyPnL))}{Number(dailyPnL).toFixed(2)}
           </div>
         </div>
 
@@ -391,7 +392,7 @@ export function AgentControlMini() {
               </span>
               <div style={{ flex: 1 }} />
               <span style={{
-                color: Number(pos.unrealizedPnl) >= 0 ? T.green : T.red,
+                color: getPnlColor(Number(pos.unrealizedPnl)),
                 fontWeight: 800, fontFamily: FONT_MONO,
               }}>
                 {Number(pos.unrealizedPnl) > 0 ? '+' : ''}{Number(pos.unrealizedPnl).toFixed(2)}

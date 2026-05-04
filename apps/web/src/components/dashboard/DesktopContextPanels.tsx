@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Activity, CalendarDays, GitMerge, Newspaper, RefreshCw } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { formatFreshness } from '@/lib/dashboard-live'
-import { T as _T } from '@/lib/unified-tokens'
+import { T as _T, getPnlColor } from '@/lib/unified-tokens'
 
 const T = {
   ..._T,
@@ -262,7 +262,7 @@ export function DesktopBacktestPanel() {
         <div style={{ display: 'grid', gap: 8 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 8 }}>
             {[
-              { label: 'العائد', value: `${Number(summary.return || 0).toFixed(2)}%`, color: Number(summary.return || 0) >= 0 ? T.success : T.danger },
+              { label: 'العائد', value: `${Number(summary.return || 0).toFixed(2)}%`, color: getPnlColor(Number(summary.return || 0)) },
               { label: 'نسبة الفوز', value: `${Number(summary.winRate || 0).toFixed(1)}%`, color: T.cyan },
               { label: 'الصفقات', value: `${summary.totalTrades || 0}`, color: T.text },
               { label: 'أقصى تراجع', value: `${Number(summary.maxDrawdown || 0).toFixed(2)}%`, color: T.amber },

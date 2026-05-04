@@ -459,7 +459,7 @@ export default function AICoachPanel() {
             </span>
           </div>
           {coachData.adviceItems.map((item, i) => (
-            <div key={i} className="coach-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
+            <div key={`advice-${item.type}-${i}`} className="coach-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
               <AdviceCard item={item} index={i} onAskCoach={(text) => handleAskCoach(`أخبرني أكثر عن: ${text}`)} />
             </div>
           ))}
@@ -515,7 +515,7 @@ export default function AICoachPanel() {
                   </div>
                 )}
                 {chatMessages.map((msg, i) => (
-                  <ChatBubble key={i} message={msg} />
+                  <ChatBubble key={`msg-${i}-${msg.role}`} message={msg} />
                 ))}
                 {chatLoading && (
                   <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>

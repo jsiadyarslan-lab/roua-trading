@@ -653,7 +653,7 @@ export default function DashboardPage() {
   // P&L لحظي من المراكز (محسوب من الأسعار المباشرة) بدلاً من account.unrealizedPnl المتجمد
   const livePositionsPnl = positions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)
   const unrealizedPnl = positions.length > 0 ? livePositionsPnl : (Number(account?.unrealizedPnl) || 0)
-  const isProfitable = unrealizedPnl >= 0
+  const isProfitable = unrealizedPnl > 0
 
   return (
     <>
@@ -1184,10 +1184,10 @@ export default function DashboardPage() {
                     <div className="summary-item">
                       <span className="summary-label">P&L:</span>
                       <span className="summary-value" style={{
-                        color: isProfitable ? T.success : T.danger,
+                        color: isProfitable ? T.success : unrealizedPnl < 0 ? T.danger : T.text2,
                         fontWeight: 800,
                       }}>
-                        {isProfitable ? '+' : '-'}{formatMoney(Math.abs(unrealizedPnl))}
+                        {isProfitable ? '+' : unrealizedPnl < 0 ? '-' : ''}{formatMoney(Math.abs(unrealizedPnl))}
                       </span>
                     </div>
                   )}

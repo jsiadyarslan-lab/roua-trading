@@ -140,7 +140,15 @@ export default function PositionsPage() {
   useEffect(() => {
     fetchPositions()
     fetchSummary()
-  }, [])
+
+    // Auto-refresh position data every 30 seconds
+    const intervalId = setInterval(() => {
+      fetchPositions()
+      fetchSummary()
+    }, 30000)
+
+    return () => clearInterval(intervalId)
+  }, [fetchPositions, fetchSummary])
 
   const openCloseDialog = (pos: Position) => {
     setCloseQuantity(pos.quantity.toString())
@@ -167,8 +175,8 @@ export default function PositionsPage() {
       } else {
         throw new Error(result.error || 'فشل في إغلاق المركز')
       }
-    } catch (err: any) {
-      setCloseError(err.message)
+    } catch (err: unknown) {
+      setCloseError(err instanceof Error ? err.message : String(err))
     } finally {
       setClosing(false)
     }
@@ -201,8 +209,8 @@ export default function PositionsPage() {
         const data = await res.json()
         throw new Error(data.error || 'فشل في تحديث المستويات')
       }
-    } catch (err: any) {
-      setEditError(err.message)
+    } catch (err: unknown) {
+      setEditError(err instanceof Error ? err.message : String(err))
     } finally {
       setUpdating(false)
     }

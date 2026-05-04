@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X as XIcon, TrendingUp, TrendingDown } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
+import { getPnlColor, isPnlPositive } from '@/lib/unified-tokens'
 import { fmtPrice, fmtPriceLocale } from '@/lib/price-format'
 
 interface PositionCardProps {
@@ -67,8 +68,8 @@ export function PositionCard({
     (avgEntryPrice > 0
       ? ((currentPrice - avgEntryPrice) / avgEntryPrice) * 100 * (isLong ? 1 : -1)
       : 0)
-  const isProfitable = unrealizedPnl >= 0
-  const pnlColor = isProfitable ? T.green : T.red
+  const isProfitable = isPnlPositive(unrealizedPnl)
+  const pnlColor = getPnlColor(unrealizedPnl)
   const sideColor = isLong ? T.green : T.red
   const sideLabel = isLong ? 'شراء' : 'بيع'
 
@@ -91,25 +92,25 @@ export function PositionCard({
         gap: 8,
         padding: '6px 8px',
         borderRadius: 8,
-        border: `1px solid ${isProfitable ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)'}`,
-        background: isProfitable
+        border: `1px solid ${unrealizedPnl > 0 ? 'rgba(0,255,163,0.12)' : unrealizedPnl < 0 ? 'rgba(255,71,87,0.12)' : 'rgba(255,255,255,0.06)'}`,
+        background: unrealizedPnl > 0
           ? 'rgba(0,255,163,0.03)'
-          : 'rgba(255,71,87,0.03)',
+          : unrealizedPnl < 0 ? 'rgba(255,71,87,0.03)' : 'transparent',
         direction: 'rtl',
         transition: 'all 0.15s ease',
         position: 'relative',
       }}
       onMouseEnter={(e) => {
         const el = e.currentTarget as HTMLDivElement
-        el.style.borderColor = isProfitable
+        el.style.borderColor = unrealizedPnl > 0
           ? 'rgba(0,255,163,0.25)'
-          : 'rgba(255,71,87,0.25)'
+          : unrealizedPnl < 0 ? 'rgba(255,71,87,0.25)' : 'rgba(255,255,255,0.12)'
       }}
       onMouseLeave={(e) => {
         const el = e.currentTarget as HTMLDivElement
-        el.style.borderColor = isProfitable
+        el.style.borderColor = unrealizedPnl > 0
           ? 'rgba(0,255,163,0.12)'
-          : 'rgba(255,71,87,0.12)'
+          : unrealizedPnl < 0 ? 'rgba(255,71,87,0.12)' : 'rgba(255,255,255,0.06)'
       }}
     >
       {/* Side indicator */}
@@ -213,7 +214,7 @@ export function PositionCard({
           flexShrink: 0,
         }}
       >
-        <MiniDirectionArrow isUp={isProfitable} color={pnlColor} />
+        <MiniDirectionArrow isUp={unrealizedPnl > 0} color={pnlColor} />
         <div style={{ textAlign: 'right' }}>
           <div
             style={{
@@ -223,8 +224,7 @@ export function PositionCard({
               fontFamily: "'JetBrains Mono', monospace",
             }}
           >
-            {isProfitable ? '+' : ''}
-            {Number(unrealizedPnl).toFixed(2)}
+            {unrealizedPnl > 0 ? '+' : ''}{Number(unrealizedPnl).toFixed(2)}
           </div>
           <div
             style={{
@@ -234,8 +234,7 @@ export function PositionCard({
               fontFamily: "'JetBrains Mono', monospace",
             }}
           >
-            {pnlPct >= 0 ? '+' : ''}
-            {pnlPct.toFixed(1)}%
+            {pnlPct > 0 ? '+' : ''}{pnlPct.toFixed(1)}%
           </div>
         </div>
       </div>

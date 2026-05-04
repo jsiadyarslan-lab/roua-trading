@@ -10,10 +10,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { NewsService } from './news.service';
-import { AuthGuard } from '../../common/guards/auth.guard';
+import { AuthGuard, Public } from '../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
 
 @Controller('news')
+@UseGuards(AuthGuard)
 export class NewsController {
   private readonly logger = new Logger(NewsController.name);
 
@@ -28,6 +29,7 @@ export class NewsController {
    * News is read-only and should be accessible without authentication
    * so that the dashboard news ticker and feed can work for all users.
    */
+  @Public()
   @Get('latest')
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   async getLatestNews(
@@ -61,7 +63,6 @@ export class NewsController {
    * PROTECTED — requires authentication (uses AI resources)
    */
   @Post('analyze')
-  @UseGuards(AuthGuard)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async analyzeNewsText(@Body() body: { text: string; symbol?: string }) {
     if (!body.text) {
@@ -87,7 +88,6 @@ export class NewsController {
    * PROTECTED — requires authentication (triggers resource-intensive operation)
    */
   @Post('fetch')
-  @UseGuards(AuthGuard)
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   async triggerFetch() {
     try {

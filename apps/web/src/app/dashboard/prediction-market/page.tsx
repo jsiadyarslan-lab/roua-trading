@@ -763,8 +763,8 @@ export default function PredictionMarketPage() {
       if (!res.ok || !data.success) throw new Error(data.error || data.message || 'فشل في المزامنة')
       await fetchEvents()
       await fetchGaps()
-    } catch (err: any) {
-      setError(err.message || 'فشل في المزامنة')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'فشل في المزامنة')
     } finally {
       setSyncing(false)
     }

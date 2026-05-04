@@ -344,11 +344,14 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
    * Fetch from CoinTelegraph RSS
    */
   private async _fetchCoinTelegraph(): Promise<RawNewsItem[]> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
     const res = await fetch('https://cointelegraph.com/rss', {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; RouaTradingBot/1.0)',
       },
-      signal: AbortSignal.timeout(15000), // 15s timeout
+      signal: controller.signal,
     });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -396,6 +399,9 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
     }
 
     return items;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   /**
@@ -413,9 +419,12 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
 
     const url = `https://cryptopanic.com/api/v1/posts/?auth_token=${apiKey}&currencies=BTC,ETH,SOL&kind=news&filter=hot`;
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
     const res = await fetch(url, {
       headers: { 'User-Agent': 'RouaTradingBot/1.0' },
-      signal: AbortSignal.timeout(15000), // 15s timeout
+      signal: controller.signal,
     });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -431,17 +440,23 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
       source: item.source?.domain || 'CryptoPanic',
       category: item.currencies?.[0] || 'Crypto',
     }));
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   /**
    * Fetch from CoinDesk RSS
    */
   private async _fetchCoinDesk(): Promise<RawNewsItem[]> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
     const res = await fetch('https://www.coindesk.com/arc/outboundfeeds/rss/', {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; RouaTradingBot/1.0)',
       },
-      signal: AbortSignal.timeout(15000), // 15s timeout
+      signal: controller.signal,
     });
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -480,6 +495,9 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
     }
 
     return items;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   /**

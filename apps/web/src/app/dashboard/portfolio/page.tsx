@@ -244,8 +244,8 @@ export default function PortfolioPage() {
       } else {
         setApiError(null)
       }
-    } catch (e: any) {
-      setApiError(`خطأ في الاتصال بخادم التداول: ${e.message || 'غير معروف'}`)
+    } catch (e: unknown) {
+      setApiError(`خطأ في الاتصال بخادم التداول: ${e instanceof Error ? e.message : 'غير معروف'}`)
     }
   }, [])
 
@@ -257,7 +257,7 @@ export default function PortfolioPage() {
         setClosedPositions(Array.isArray(data) ? data : (data.data || data.positions || []))
       }
       // Don't override apiError from open positions fetch
-    } catch (e: any) {
+    } catch (_e: unknown) {
       // Closed positions fetch failure is non-critical, but log a user-friendly message
       // Error handled silently — closed positions fetch is non-critical
     }
@@ -269,7 +269,7 @@ export default function PortfolioPage() {
       if (result.summary) {
         setSummary(result.summary as PositionSummary)
       }
-    } catch (e: any) {
+    } catch (_e: unknown) {
       // Error handled silently
     }
   }, [])
@@ -281,7 +281,7 @@ export default function PortfolioPage() {
         const data = await res.json()
         setTrades(Array.isArray(data) ? data : (data.data || data.trades || []))
       }
-    } catch (e: any) {
+    } catch (_e: unknown) {
       // Error handled silently
     }
   }, [])
@@ -307,8 +307,8 @@ export default function PortfolioPage() {
       } else {
         setApiError(`فشل في إغلاق المركز: ${result.error || 'غير معروف'}`)
       }
-    } catch (e: any) {
-      setApiError(`خطأ في إغلاق المركز: ${e.message || 'غير معروف'}`)
+    } catch (e: unknown) {
+      setApiError(`خطأ في إغلاق المركز: ${e instanceof Error ? e.message : 'غير معروف'}`)
     }
     setClosing(null)
   }
@@ -338,8 +338,8 @@ export default function PortfolioPage() {
       await fetchClosedPositions()
       await fetchTrades()
       setShowPanicConfirm(false)
-    } catch (e: any) {
-      setApiError(`خطأ في إغلاق المراكز: ${e.message || 'غير معروف'}`)
+    } catch (e: unknown) {
+      setApiError(`خطأ في إغلاق المراكز: ${e instanceof Error ? e.message : 'غير معروف'}`)
     }
     setClosingAll(false)
   }
@@ -510,7 +510,7 @@ export default function PortfolioPage() {
         <StatCard
           label="أ.خ غير محققة" value={`${totalUnrealizedPnl > 0 ? '+' : totalUnrealizedPnl < 0 ? '-' : ''}$${fmt(Math.abs(totalUnrealizedPnl), 2)}`}
           color={totalUnrealizedPnl > 0 ? T.green : totalUnrealizedPnl < 0 ? T.red : T.text2}
-          icon={totalUnrealizedPnl >= 0 ? TrendingUp : TrendingDown}
+          icon={totalUnrealizedPnl > 0 ? TrendingUp : totalUnrealizedPnl < 0 ? TrendingDown : BarChart2}
         />
         <StatCard
           label="أرباح محققة" value={`${totalRealizedPnl > 0 ? '+' : totalRealizedPnl < 0 ? '-' : ''}$${fmt(Math.abs(totalRealizedPnl), 2)}`}
@@ -565,7 +565,7 @@ export default function PortfolioPage() {
                       stroke="none"
                     >
                       {distribution.map((entry, i) => (
-                        <Cell key={i} fill={entry.color} opacity={0.85} />
+                        <Cell key={entry.name + '-' + i} fill={entry.color} opacity={0.85} />
                       ))}
                     </Pie>
                     <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }} />
@@ -709,15 +709,16 @@ export default function PortfolioPage() {
             ) : (
               <>
                 {/* Table head */}
-                <div role="table" aria-label="الصفقات المفتوحة">
+                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                <div role="table" aria-label="الصفقات المفتوحة" style={{ minWidth: 800 }}>
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: '100px 70px 70px 90px 90px 80px 80px 80px 80px',
                   padding: '5px 14px', gap: 0,
                   borderBottom: `0.5px solid ${T.border}`,
                 }}>
-                  {['الزوج','اتجاه','حجم','سعر الدخول','السعر الحالي','SL','TP','P&L','إجراء'].map((h, i) => (
-                    <div key={i} style={{
+                  {['الزوج','اتجاه','حجم','سعر الدخول','السعر الحالي','SL','TP','P&L','إجراء'].map((h) => (
+                    <div key={h} style={{
                       fontFamily: "'Cairo', sans-serif", fontSize: 9.5,
                       color: T.text3, textAlign: 'center',
                     }}>{h}</div>
@@ -783,6 +784,7 @@ export default function PortfolioPage() {
                     </div>
                   </div>
                 ))}
+                </div>
                 </div>
               </>
             )}
@@ -929,8 +931,8 @@ export default function PortfolioPage() {
                     padding: '5px 14px', gap: 0,
                     borderBottom: `0.5px solid ${T.border}`,
                   }}>
-                    {['الزوج','اتجاه','حجم','دخول','إغلاق','ر.خ محققة','الحالة','المدة','وقت الإغلاق'].map((h, i) => (
-                      <div key={i} style={{
+                    {['الزوج','اتجاه','حجم','دخول','إغلاق','ر.خ محققة','الحالة','المدة','وقت الإغلاق'].map((h) => (
+                      <div key={h} style={{
                         fontFamily: "'Cairo', sans-serif", fontSize: 9.5,
                         color: T.text3, textAlign: 'center',
                       }}>{h}</div>
@@ -1068,7 +1070,7 @@ export default function PortfolioPage() {
                       <span style={{
                         fontFamily: "'JetBrains Mono', monospace",
                         fontSize: 13, fontWeight: 700,
-                        color: (trade.pnl || 0) >= 0 ? T.green : (trade.pnl || 0) < 0 ? T.red : T.text3,
+                        color: (trade.pnl || 0) > 0 ? T.green : (trade.pnl || 0) < 0 ? T.red : T.text3,
                       }}>
                         {trade.pnl !== null ? `${(trade.pnl) > 0 ? '+' : (trade.pnl) < 0 ? '-' : ''}$${fmt(Math.abs(trade.pnl), 2)}` : '—'}
                       </span>
@@ -1089,8 +1091,8 @@ export default function PortfolioPage() {
                   padding: '5px 14px', gap: 0,
                   borderBottom: `0.5px solid ${T.border}`,
                 }}>
-                  {['الزوج','اتجاه','نوع','الكمية','السعر','ر/خ','الوقت'].map((h, i) => (
-                    <div key={i} style={{
+                  {['الزوج','اتجاه','نوع','الكمية','السعر','ر/خ','الوقت'].map((h) => (
+                    <div key={h} style={{
                       fontFamily: "'Cairo', sans-serif", fontSize: 9.5,
                       color: T.text3, textAlign: 'center',
                     }}>{h}</div>
@@ -1129,7 +1131,7 @@ export default function PortfolioPage() {
                     <div style={{
                       textAlign: 'center', fontFamily: "'JetBrains Mono', monospace",
                       fontSize: 10, fontWeight: 700,
-                      color: (trade.pnl || 0) >= 0 ? T.green : (trade.pnl || 0) < 0 ? T.red : T.text3,
+                      color: (trade.pnl || 0) > 0 ? T.green : (trade.pnl || 0) < 0 ? T.red : T.text3,
                     }}>
                       {trade.pnl !== null ? `${(trade.pnl) > 0 ? '+' : (trade.pnl) < 0 ? '-' : ''}$${fmt(Math.abs(trade.pnl), 2)}` : '—'}
                     </div>
@@ -1179,7 +1181,7 @@ export default function PortfolioPage() {
                   />
                   <Bar dataKey="pnl" radius={[4, 4, 0, 0]}>
                     {performanceData.map((entry, i) => (
-                      <Cell key={i} fill={entry.pnl >= 0 ? T.green : T.red} opacity={0.8} />
+                      <Cell key={entry.date + '-' + i} fill={entry.pnl > 0 ? T.green : entry.pnl < 0 ? T.red : T.text2} opacity={0.8} />
                     ))}
                   </Bar>
                 </BarChart>

@@ -93,8 +93,8 @@ export default function ComparisonPanel() {
       } else {
         setError(data.error || 'فشل في المقارنة');
       }
-    } catch (err: any) {
-      setError(err.message || 'خطأ في الاتصال');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'خطأ في الاتصال');
     } finally {
       setLoading(false);
     }

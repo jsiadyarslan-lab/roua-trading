@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import { T } from '@/lib/theme-tokens'
+import { getPnlSign } from '@/lib/unified-tokens'
 
 interface HeatMapPosition {
   symbol: string
@@ -14,21 +15,23 @@ interface PortfolioHeatMapProps {
 }
 
 function pnlToColor(pnlPct: number): string {
-  // Green shades for profitable, red shades for losing
-  if (pnlPct >= 0) {
+  // Green shades for profitable, red shades for losing, neutral for zero
+  if (pnlPct > 0) {
     const intensity = Math.min(Math.abs(pnlPct) / 10, 1) // normalize to 0-1
     const r = Math.round(0 + intensity * 0)
     const g = Math.round(100 + intensity * 155)
     const b = Math.round(60 + intensity * 43)
     const a = 0.3 + intensity * 0.7
     return `rgba(${r},${g},${b},${a})`
-  } else {
+  } else if (pnlPct < 0) {
     const intensity = Math.min(Math.abs(pnlPct) / 10, 1)
     const r = Math.round(180 + intensity * 75)
     const g = Math.round(50 - intensity * 30)
     const b = Math.round(50 - intensity * 30)
     const a = 0.3 + intensity * 0.7
     return `rgba(${r},${g},${b},${a})`
+  } else {
+    return 'rgba(139,146,168,0.3)'
   }
 }
 
@@ -120,7 +123,7 @@ export function PortfolioHeatMap({ positions }: PortfolioHeatMapProps) {
           const offset = (cellSize - rectSize) / 2
 
           const pnlLabel =
-            item.pnlPct >= 0
+            item.pnlPct > 0
               ? `+${item.pnlPct.toFixed(1)}%`
               : `${item.pnlPct.toFixed(1)}%`
 
@@ -134,12 +137,12 @@ export function PortfolioHeatMap({ positions }: PortfolioHeatMapProps) {
                 rx={4}
                 ry={4}
                 fill={item.color}
-                stroke={item.pnlPct >= 0 ? T.green : T.red}
+                stroke={item.pnlPct > 0 ? T.green : item.pnlPct < 0 ? T.red : T.text2}
                 strokeWidth={0.5}
                 strokeOpacity={0.3}
               >
                 <title>
-                  {item.symbol}: {pnlLabel} (${Number(item.unrealizedPnl) >= 0 ? '+' : ''}
+                  {item.symbol}: {pnlLabel} (${Number(item.unrealizedPnl) > 0 ? '+' : ''}
                   {Number(item.unrealizedPnl).toFixed(2)})
                 </title>
               </rect>
@@ -165,7 +168,7 @@ export function PortfolioHeatMap({ positions }: PortfolioHeatMapProps) {
                 y={y + cellSize / 2 + 7}
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fill={item.pnlPct >= 0 ? T.green : T.red}
+                fill={item.pnlPct > 0 ? T.green : item.pnlPct < 0 ? T.red : T.text2}
                 fontSize={6}
                 fontWeight={700}
                 fontFamily="'JetBrains Mono', monospace"

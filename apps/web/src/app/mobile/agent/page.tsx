@@ -699,7 +699,7 @@ export default function MobileAgentPage() {
             <div style={{ padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
               {positions.slice(0, 5).map((pos, i) => {
                 const isBuy = pos.side === 'BUY'
-                const pnlColor = pos.unrealizedPnl >= 0 ? C.success : C.danger
+                const pnlColor = pos.unrealizedPnl > 0 ? C.success : pos.unrealizedPnl < 0 ? C.danger : 'rgba(235,235,245,0.5)'
                 const sData = STRATEGIES.find(s => s.id === pos.strategy)
                 return (
                   <div key={pos.id} style={{
@@ -733,7 +733,7 @@ export default function MobileAgentPage() {
                     </div>
                     <div style={{ textAlign: 'start' }}>
                       <span style={{ fontSize: 13, fontWeight: 800, color: pnlColor, fontFamily: FONT_MONO }}>
-                        {Number(pos.unrealizedPnl) >= 0 ? '+' : ''}{Number(pos.unrealizedPnl).toFixed(2)}
+                        {Number(pos.unrealizedPnl) > 0 ? '+' : ''}{Number(pos.unrealizedPnl).toFixed(2)}
                       </span>
                     </div>
                   </div>

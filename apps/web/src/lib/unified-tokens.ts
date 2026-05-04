@@ -123,6 +123,38 @@ export const TMinimal = {
 /**
  * Extended theme with surface/cardHover for richer pages
  */
+/**
+ * P/L Color Utility — Single source of truth for profit/loss coloring
+ *
+ * Rule: ZERO is NEUTRAL (not profit, not loss).
+ *   > 0 → profit color (green)
+ *   < 0 → loss color (red)
+ *   = 0 → neutral/muted color (gray)
+ *
+ * Usage:
+ *   import { getPnlColor, isPnlPositive, getPnlSign } from '@/lib/unified-tokens';
+ *   color: getPnlColor(pnl)           // → T.profit | T.loss | T.text2
+ *   {isPnlPositive(pnl) ? '+' : ''}   // → '+' only when truly positive
+ *   {getPnlSign(pnl)}{Math.abs(pnl)}  // → '+$100' / '-$50' / '$0'
+ */
+export function getPnlColor(value: number): string {
+  if (value > 0) return T.profit;
+  if (value < 0) return T.loss;
+  return T.text2; // neutral/gray for zero
+}
+
+/** Returns true ONLY when value is strictly positive (> 0) */
+export function isPnlPositive(value: number): boolean {
+  return value > 0;
+}
+
+/** Returns '+' for positive, '-' for negative, '' for zero */
+export function getPnlSign(value: number): string {
+  if (value > 0) return '+';
+  if (value < 0) return '-';
+  return '';
+}
+
 export const TExtended = {
   ...TMinimal,
   cardHover: T.cardHover,

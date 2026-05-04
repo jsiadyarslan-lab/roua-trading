@@ -359,8 +359,8 @@ export default function TradingPage() {
       // Refresh positions and orders
       fetchPositions()
       fetchOrders()
-    } catch (err: any) {
-      setOrderError(err.message)
+    } catch (err: unknown) {
+      setOrderError(err instanceof Error ? err.message : String(err))
     } finally {
       setSubmitting(false)
     }

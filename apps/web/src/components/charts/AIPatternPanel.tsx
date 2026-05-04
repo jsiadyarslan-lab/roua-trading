@@ -113,8 +113,8 @@ export function AIPatternPanel({ symbol, candles, onPatternsDetected, onClose }:
 
       setPatterns(detectedPatterns);
       onPatternsDetected(detectedPatterns);
-    } catch (err: any) {
-      setError(err.message || 'حدث خطأ أثناء التحليل');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'حدث خطأ أثناء التحليل');
       // Fallback: local detection
       const last50 = candles.slice(-50);
       const localPatterns = detectLocalPatterns(last50);

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Play, TrendingUp, TrendingDown, BarChart2, Activity, Target, Award } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
+import { getPnlColor } from '@/lib/unified-tokens'
 
 const STRATEGIES = [
   { id: 'EMA_CROSSOVER', label: 'تقاطع EMA', desc: 'شراء عند تقاطع EMA سريع فوق بطيء والعكس', color: T.cyan },
@@ -162,8 +163,8 @@ export default function BacktestPage() {
                 {[
                   { label: 'إجمالي الصفقات', value: s.totalTrades, color: T.cyan, icon: '📊' },
                   { label: 'معدل الربح', value: `${s.winRate.toFixed(1)}%`, color: s.winRate >= 50 ? T.green : T.red, icon: '🎯' },
-                  { label: 'صافي الربح', value: `$${s.totalPnl.toFixed(0)}`, color: s.totalPnl >= 0 ? T.green : T.red, icon: '💰' },
-                  { label: 'العائد الإجمالي', value: `${s.return.toFixed(2)}%`, color: s.return >= 0 ? T.green : T.red, icon: '📈' },
+                  { label: 'صافي الربح', value: `$${s.totalPnl.toFixed(0)}`, color: s.totalPnl > 0 ? T.green : s.totalPnl < 0 ? T.red : T.text2, icon: '💰' },
+                  { label: 'العائد الإجمالي', value: `${s.return.toFixed(2)}%`, color: s.return > 0 ? T.green : s.return < 0 ? T.red : T.text2, icon: '📈' },
                   { label: 'أقصى انسحاب', value: `${s.maxDrawdown.toFixed(1)}%`, color: s.maxDrawdown > 20 ? T.red : T.amber, icon: '⚠️' },
                   { label: 'عامل الربح', value: s.profitFactor.toFixed(2), color: s.profitFactor >= 1.5 ? T.green : T.amber, icon: '⚡' },
                   { label: 'نسبة شارب', value: s.sharpe.toFixed(2), color: s.sharpe >= 1 ? T.green : T.amber, icon: '🏆' },
@@ -230,7 +231,7 @@ export default function BacktestPage() {
                       </thead>
                       <tbody>
                         {result.trades.slice().reverse().map((t: any, i: number) => (
-                          <tr key={i} style={{ borderTop: `1px solid ${T.border}` }}>
+                          <tr key={`${t.entry}-${t.exit}-${i}`} style={{ borderTop: `1px solid ${T.border}` }}>
                             <td style={{ padding: '8px 12px', color: T.text, fontFamily: 'monospace' }}>${t.entry.toFixed(2)}</td>
                             <td style={{ padding: '8px 12px', color: T.text, fontFamily: 'monospace' }}>${t.exit.toFixed(2)}</td>
                             <td style={{ padding: '8px 12px', color: t.isWin ? T.green : T.red, fontFamily: 'monospace', fontWeight: 800 }}>

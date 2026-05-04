@@ -200,7 +200,7 @@ export default function KYCPage() {
         setVerifyError(data.error || data.message || 'فشل في التحقق من المفتاح')
         setStep(1) // Go back to edit keys
       }
-    } catch (err: any) {
+    } catch (_err: unknown) {
       setVerifyError('فشل الاتصال بالخادم، تأكد من اتصالك بالإنترنت')
       setStep(1) // Go back to edit keys
     } finally {

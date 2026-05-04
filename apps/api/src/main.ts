@@ -56,6 +56,12 @@ async function bootstrap() {
 
     // ── Health check endpoint (no auth required) ──
     // Must be registered BEFORE global pipes/filters to avoid auth interference
+    //
+    // SECURITY: This endpoint intentionally does NOT expose database schema info,
+    // table names, column definitions, or any other sensitive internals.
+    // It only returns basic status checks (ok/error) with latency metrics.
+    // For schema diagnostics, use the separate /api/debug/db-schema endpoint
+    // which requires authentication and is restricted to admin/dev use.
     const prisma = app.get(PrismaService);
     const redisService = app.get(RedisService, { strict: false });
     app.getHttpAdapter().getInstance().get('/api/health', async (req: any, res: any) => {
@@ -102,7 +108,15 @@ async function bootstrap() {
       });
     });
 
-    // Global exception filter — returns actual error messages instead of "Internal server error"
+    // Global exception filter — standardizes ALL error responses to:
+    // { statusCode: number, message: string, timestamp: string, path: string }
+    //
+    // NOTE on inconsistency: Some controllers return { success, data } while
+    // the exception filter returns { statusCode, message, timestamp, path }.
+    // This is a known inconsistency — successful responses use a wrapper format
+    // while error responses use the filter format. Both formats are stable and
+    // documented; a future refactor should unify them, but changing now would
+    // break frontend error handling.
     app.useGlobalFilters(new AllExceptionsFilter());
 
     // Enable CORS for Next.js frontend
@@ -148,6 +162,26 @@ async function bootstrap() {
 
     const configService = app.get(ConfigService);
     const port = configService.get<number>('API_PORT', 3001);
+
+    // SECURITY: Warn if NEXTAUTH_SECRET is not explicitly set in production.
+    // It's used as a fallback for ENCRYPTION_KEY derivation in development,
+    // and in production, ENCRYPTION_KEY must be set explicitly instead.
+    // If NEXTAUTH_SECRET is auto-derived from other env vars, it creates a
+    // false sense of security — the secret should be explicitly random.
+    if (process.env.NODE_ENV === 'production') {
+      if (!process.env.NEXTAUTH_SECRET && !process.env.ENCRYPTION_KEY) {
+        console.error(
+          '⚠️ CRITICAL: Neither NEXTAUTH_SECRET nor ENCRYPTION_KEY is set in production! ' +
+          'Credentials cannot be securely encrypted. Set ENCRYPTION_KEY (preferred) or NEXTAUTH_SECRET immediately.',
+        );
+      } else if (!process.env.ENCRYPTION_KEY && process.env.NEXTAUTH_SECRET) {
+        console.warn(
+          '⚠️ WARNING: ENCRYPTION_KEY not set — using NEXTAUTH_SECRET as fallback for credential encryption. ' +
+          'This is insecure because NEXTAUTH_SECRET was designed for signing, not encryption. ' +
+          'Set ENCRYPTION_KEY explicitly for production use.',
+        );
+      }
+    }
 
     await app.listen(port);
     console.log(`🚀 Roua API running on http://localhost:${port}/api`);

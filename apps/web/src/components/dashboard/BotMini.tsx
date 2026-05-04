@@ -249,7 +249,7 @@ export function BotMini() {
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {logs.map((log, i) => (
-                  <div key={i} className="card" style={{ fontSize: 8, padding: '5px 6px', lineHeight: 1.4 }}>
+                  <div key={`${log.time}-${log.type}-${i}`} className="card" style={{ fontSize: 8, padding: '5px 6px', lineHeight: 1.4 }}>
                     <span style={{ color: 'var(--text4)', marginInlineEnd: 5 }}>[{log.time}]</span>
                     <span
                       style={{

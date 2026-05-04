@@ -26,8 +26,8 @@ const FONT_MONO = "'JetBrains Mono', monospace"
 
 /* ─── Helpers ─── */
 const fmt  = (n: number, d = 2) => Math.abs(n).toFixed(d)
-const sign = (n: number) => (n >= 0 ? '+' : '-')
-const pnlColor = (n: number) => (n >= 0 ? C.success : C.danger)
+const sign = (n: number) => (n > 0 ? '+' : n < 0 ? '-' : '')
+const pnlColor = (n: number) => (n > 0 ? C.success : n < 0 ? C.danger : C.text2)
 
 function calcTpSlProgress(trade: PaperTrade): number {
   // Returns 0..1 representing where current price is between SL and TP

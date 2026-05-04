@@ -319,7 +319,7 @@ export function AICouncilPanel() {
                   const isActive = i % phases.length === loadingPhase
                   return (
                     <div 
-                      key={i} 
+                      key={m + '-' + i} 
                       className="transition-all duration-500" 
                       style={{ 
                         fontSize: 6, padding: '2px 5px', borderRadius: 3, 
@@ -405,7 +405,7 @@ export function AICouncilPanel() {
                   const shortName = getModelShortName(model)
                   return (
                     <span
-                      key={i}
+                      key={model}
                       style={{
                         fontSize: 6,
                         padding: '1px 5px',
@@ -514,7 +514,7 @@ export function AICouncilPanel() {
                 const modelShortName = getModelShortName(a.model)
                 return (
                   <div
-                    key={i}
+                    key={a.model + '-' + i}
                     className="card transition-colors group"
                     style={{
                       padding: '10px 11px',

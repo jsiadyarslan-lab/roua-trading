@@ -105,7 +105,7 @@ export default function MobilePredictionMarketPage() {
       const res = await fetch('/api/prediction-market/sync?force=true', { method: 'POST' })
       const data = await res.json(); if (!res.ok || !data.success) throw new Error(data.error || 'فشل في المزامنة')
       await fetchEvents(); await fetchGaps()
-    } catch (err: any) { setError(err.message || 'فشل في المزامنة') } finally { setSyncing(false) }
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : 'فشل في المزامنة') } finally { setSyncing(false) }
   }
 
   const handleAnalyze = async (id: string) => {

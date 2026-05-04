@@ -460,7 +460,7 @@ export function BotEngine() {
       : trade.entryPrice - exitPrice
     const pnl = diff * trade.qty
     const currentStats = useBotStore.getState().stats
-    const wins = currentStats.wins + (pnl >= 0 ? 1 : 0)
+    const wins = currentStats.wins + (pnl > 0 ? 1 : 0)
     const losses = currentStats.losses + (pnl < 0 ? 1 : 0)
     const closedTrades = wins + losses
     const profit = currentStats.profit + pnl
@@ -478,16 +478,16 @@ export function BotEngine() {
       openPositions: Math.max(0, currentStats.openPositions - 1),
     })
 
-    const profitable = pnl >= 0
+    const profitable = pnl > 0
     addLog(
-      `[خروج] ${trade.symbol} أُغلق عبر ${reason} @ $${exitPrice.toFixed(2)} | PnL ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}`,
+      `[خروج] ${trade.symbol} أُغلق عبر ${reason} @ $${exitPrice.toFixed(2)} | PnL ${pnl > 0 ? '+' : ''}${pnl.toFixed(2)}`,
       profitable ? 'buy' : 'sell'
     )
 
     // Push tab alert for bot exit
     useTabAlertStore.getState().pushAlert('bot', {
       action: profitable ? 'BUY' : 'SELL',
-      label: `${reason === 'TP' ? '✅ ربح' : '❌ خسارة'} ${trade.symbol} ${pnl >= 0 ? '+' : ''}${pnl.toFixed(0)}$`,
+      label: `${reason === 'TP' ? '✅ ربح' : '❌ خسارة'} ${trade.symbol} ${pnl > 0 ? '+' : ''}${pnl.toFixed(0)}$`,
       color: profitable ? '#00C853' : '#FF3B30',
     })
     addNotification({
@@ -495,7 +495,7 @@ export function BotEngine() {
       priority: profitable ? 'medium' : 'high',
       action: profitable ? 'BUY' : 'SELL',
       title: `تم إغلاق مركز البوت على ${trade.symbol}`,
-      body: `${reason} · ${pnl >= 0 ? 'ربح' : 'خسارة'} ${pnl.toFixed(2)}$`,
+      body: `${reason} · ${pnl > 0 ? 'ربح' : 'خسارة'} ${pnl.toFixed(2)}$`,
       pair: trade.symbol,
       price: exitPrice,
       confidence: 80,

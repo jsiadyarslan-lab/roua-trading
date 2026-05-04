@@ -338,7 +338,7 @@ export default function SignalsPage() {
       const data = await res.json()
       if (!res.ok || !data.success) throw new Error(data.error || data.message || 'فشل في توليد الإشارة')
       await fetchSignals()
-    } catch (err: any) { setError(err.message) } finally { setGenerating(null) }
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : String(err)) } finally { setGenerating(null) }
   }
 
   const handleCancel = async (id: string) => {

@@ -106,8 +106,8 @@ export default function ExchangeSettingsPage() {
       setPassphrase('')
       setShowForm(false)
       fetchCredentials()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
       setSubmitting(false)
     }

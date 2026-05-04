@@ -109,8 +109,8 @@ export default function BacktestPanel() {
       } else {
         setError(data.error || 'فشل في تشغيل الباك تست');
       }
-    } catch (err: any) {
-      setError(err.message || 'خطأ في الاتصال');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'خطأ في الاتصال');
     } finally {
       setLoading(false);
     }
@@ -348,7 +348,7 @@ export default function BacktestPanel() {
                   </thead>
                   <tbody>
                     {result.trades.slice(0, 20).map((t, i) => (
-                      <tr key={i} className="border-b border-white/[0.02]">
+                      <tr key={`${t.entryDate}-${t.side}-${i}`} className="border-b border-white/[0.02]">
                         <td className={`px-2 py-1.5 font-medium ${t.side === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
                           {t.side === 'BUY' ? '🟢 شراء' : '🔴 بيع'}
                         </td>

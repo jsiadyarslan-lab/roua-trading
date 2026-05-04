@@ -168,9 +168,9 @@ export default function AdminNotificationsPage() {
         return { ok: false, error: data.error || `HTTP ${res.status}` }
       }
       return { ok: true }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`[notifications] Save ${type} error:`, err)
-      return { ok: false, error: err?.message || 'خطأ في الاتصال' }
+      return { ok: false, error: err instanceof Error ? err.message : 'خطأ في الاتصال' }
     }
   }
 
@@ -203,8 +203,8 @@ export default function AdminNotificationsPage() {
       } else {
         setSaveMessage(`فشل الحفظ: ${errors.join(' | ')}`)
       }
-    } catch (err: any) {
-      setSaveMessage(`خطأ في الاتصال: ${err?.message || 'غير معروف'}`)
+    } catch (err: unknown) {
+      setSaveMessage(`خطأ في الاتصال: ${err instanceof Error ? err.message : 'غير معروف'}`)
     } finally {
       setSaving(false)
     }

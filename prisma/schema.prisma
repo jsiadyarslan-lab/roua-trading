@@ -14,6 +14,7 @@ model User {
   avatar              String?
   passkeyId           String?
   passkeyPub          String?
+  passkeyCounter      Int       @default(0)
   tier                Tier                 @default(FREE)
   maxPositionSize     Decimal?             @db.Decimal(19, 4)
   maxDailyLoss        Decimal?             @db.Decimal(19, 4)
@@ -193,6 +194,7 @@ model AuditLog {
   ipAddress String?
   userAgent String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
@@ -305,7 +307,7 @@ enum TradeType {
 }
 
 model Order {
-  id                  String      @id @default(uuid())
+  id                  String      @id @default(cuid())
   userId              String
   exchangeCredentialId String
   exchange            String
@@ -344,7 +346,7 @@ model Order {
 }
 
 model OrderEvent {
-  id        String         @id @default(uuid())
+  id        String         @id @default(cuid())
   orderId   String
   eventType OrderEventType
   payload   String?
@@ -418,7 +420,7 @@ model Trade {
 
 // ── Paper Trading Orders (Execution Engine) ──
 model PaperOrder {
-  id              String      @id @default(uuid())
+  id              String      @id @default(cuid())
   userId          String
   symbol          String
   side            OrderSide

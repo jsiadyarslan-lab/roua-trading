@@ -192,10 +192,36 @@ export class AuthService {
         data: {
           passkeyId: credential.id,
           passkeyPub: Buffer.from(credential.publicKey).toString('base64'),
+          passkeyCounter: credential.counter || 0,
         },
       });
 
       const deviceInfo = this.parseUserAgent(userAgent);
+
+      // Session rotation: invalidate all previous sessions for this user
+      // before creating a new one. This prevents session accumulation and
+      // ensures only the latest login is active.
+      try {
+        const existingSessions = await this.prisma.session.findMany({
+          where: { userId: user.id, isActive: true },
+          select: { id: true, token: true },
+        });
+        if (existingSessions.length > 0) {
+          await this.prisma.session.updateMany({
+            where: { userId: user.id, isActive: true },
+            data: { isActive: false },
+          });
+          // Clear all old sessions from Redis cache
+          for (const s of existingSessions) {
+            const cacheKey = `${this.sessionRedisPrefix}${s.token}`;
+            await this.redis.del(cacheKey).catch(() => {});
+          }
+        }
+      } catch (rotationError: any) {
+        // Don't fail login if session rotation fails — just log
+        this.logger.warn(`Session rotation failed for ${email}: ${rotationError?.message || rotationError}`);
+      }
+
       const session = await this.createSession(user.id, { userAgent, ipAddress, deviceInfo });
 
       await this.auditService.log({
@@ -238,7 +264,7 @@ export class AuthService {
         credential: {
           id: user.passkeyId,
           publicKey: user.passkeyPub ? Uint8Array.from(atob(user.passkeyPub), (c) => c.charCodeAt(0)) : new Uint8Array(),
-          counter: 0,
+          counter: user.passkeyCounter || 0,
           transports: ['internal' as const],
         },
       });
@@ -247,7 +273,39 @@ export class AuthService {
 
       await this.redis.del(challengeKey);
 
+      // Update the stored counter with the new counter from the authenticator
+      const newCounter = verification.authenticationInfo?.newCounter ?? user.passkeyCounter ?? 0;
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { passkeyCounter: newCounter },
+      });
+
       const deviceInfo = this.parseUserAgent(userAgent);
+
+      // Session rotation: invalidate all previous sessions for this user
+      // before creating a new one. This prevents session accumulation and
+      // ensures only the latest login is active.
+      try {
+        const existingSessions = await this.prisma.session.findMany({
+          where: { userId: user.id, isActive: true },
+          select: { id: true, token: true },
+        });
+        if (existingSessions.length > 0) {
+          await this.prisma.session.updateMany({
+            where: { userId: user.id, isActive: true },
+            data: { isActive: false },
+          });
+          // Clear all old sessions from Redis cache
+          for (const s of existingSessions) {
+            const cacheKey = `${this.sessionRedisPrefix}${s.token}`;
+            await this.redis.del(cacheKey).catch(() => {});
+          }
+        }
+      } catch (rotationError: any) {
+        // Don't fail login if session rotation fails — just log
+        this.logger.warn(`Session rotation failed for ${email}: ${rotationError?.message || rotationError}`);
+      }
+
       const session = await this.createSession(user.id, { userAgent, ipAddress, deviceInfo });
 
       await this.auditService.log({

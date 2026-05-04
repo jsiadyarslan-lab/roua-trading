@@ -92,8 +92,8 @@ export default function OptimizerPanel() {
       } else {
         setError(data.error || 'فشل في التحسين');
       }
-    } catch (err: any) {
-      setError(err.message || 'خطأ في الاتصال');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'خطأ في الاتصال');
     } finally {
       setLoading(false);
     }
@@ -268,7 +268,7 @@ export default function OptimizerPanel() {
                   </thead>
                   <tbody>
                     {result.allResults.map((r, i) => (
-                      <tr key={i} className={`border-b border-white/[0.02] ${i === 0 ? 'bg-emerald-500/5' : ''}`}>
+                      <tr key={`iter-${r.totalReturn}-${r.winRate}-${i}`} className={`border-b border-white/[0.02] ${i === 0 ? 'bg-emerald-500/5' : ''}`}>
                         <td className="px-2 py-1.5 text-gray-300">{i + 1}</td>
                         <td className={`px-2 py-1.5 font-medium ${r.totalReturn >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                           {r.totalReturn}%

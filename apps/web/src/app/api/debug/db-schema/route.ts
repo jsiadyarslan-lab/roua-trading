@@ -30,20 +30,12 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get all columns in the Session table
+    // Get column names for the Session table
     const sessionColumns = await db.$queryRaw`
-      SELECT column_name, data_type, is_nullable, column_default
+      SELECT column_name
       FROM information_schema.columns
       WHERE table_schema = 'public' AND table_name = 'Session'
       ORDER BY ordinal_position
-    `
-
-    // Get all indexes on the Session table
-    const sessionIndexes = await db.$queryRaw`
-      SELECT indexname, indexdef
-      FROM pg_indexes
-      WHERE tablename = 'Session' AND schemaname = 'public'
-      ORDER BY indexname
     `
 
     // Check for required columns
@@ -57,20 +49,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       dbReady: true,
       sessionTable: {
-        columns: sessionColumns,
-        indexes: sessionIndexes,
         columnNames,
         missingColumns,
         hasAllRequiredColumns: missingColumns.length === 0,
         rowCount: sessionCount,
+        // SECURITY: Full column/index details are omitted to avoid exposing
+        // schema internals over the network. Only column names and missing
+        // columns are returned for diagnostic purposes.
       },
       environment: {
         NODE_ENV: process.env.NODE_ENV,
         ORIGIN: process.env.ORIGIN ? '***SET***' : '(not set)',
         RAILWAY_PUBLIC_DOMAIN: process.env.RAILWAY_PUBLIC_DOMAIN || '(not set)',
         DATABASE_URL: process.env.DATABASE_URL ? '***SET***' : '(not set)',
-        GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ? '***SET***' : '(not set)',
-        GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET ? '***SET***' : '(not set)',
       },
     })
   } catch (error: any) {

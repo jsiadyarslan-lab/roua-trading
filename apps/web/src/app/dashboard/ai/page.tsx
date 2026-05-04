@@ -135,16 +135,24 @@ export default function AIPage() {
   const inputRef = useRef<HTMLInputElement>(null)
 
   // ── Initialize ──
+  // FIX: Wrapped fetch functions in useCallback to prevent stale closures
+  // and unnecessary re-renders. Previously, regular functions were called
+  // in useEffect with [] deps, causing React exhaustive-deps warnings.
   useEffect(() => {
     setMessages(loadMessages())
+  }, [])
+
+  useEffect(() => {
     fetchAIStatus()
     fetchTechIndicators()
     fetchNarrator()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
     fetchTechIndicators()
     fetchNarrator()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSymbol])
 
   // ── Auto-scroll chat ──

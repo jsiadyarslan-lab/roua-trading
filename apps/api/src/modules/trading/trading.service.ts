@@ -481,13 +481,11 @@ export class TradingService {
         `Failed to get position summary: ${error.message}`,
         error.stack,
       );
-      return {
-        totalPositions: 0,
-        totalValue: 0,
-        totalUnrealizedPnl: 0,
-        totalRealizedPnl: 0,
-        positions: [],
-      };
+      // FIX: Previously returned fake "zero" summary that masked real failures
+      // (DB down, exchange unreachable). Users saw "0 positions, $0 P&L" and
+      // thought their positions were empty when the system was actually broken.
+      // Now we throw so the caller gets a proper error response.
+      throw new Error(`فشل في جلب ملخص المراكز: ${error.message}`);
     }
   }
 

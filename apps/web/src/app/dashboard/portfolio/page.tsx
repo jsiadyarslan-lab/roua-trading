@@ -509,12 +509,12 @@ export default function PortfolioPage() {
         />
         <StatCard
           label="أ.خ غير محققة" value={`${totalUnrealizedPnl > 0 ? '+' : totalUnrealizedPnl < 0 ? '-' : ''}$${fmt(Math.abs(totalUnrealizedPnl), 2)}`}
-          color={totalUnrealizedPnl >= 0 ? T.green : T.red}
+          color={totalUnrealizedPnl > 0 ? T.green : totalUnrealizedPnl < 0 ? T.red : T.text2}
           icon={totalUnrealizedPnl >= 0 ? TrendingUp : TrendingDown}
         />
         <StatCard
           label="أرباح محققة" value={`${totalRealizedPnl > 0 ? '+' : totalRealizedPnl < 0 ? '-' : ''}$${fmt(Math.abs(totalRealizedPnl), 2)}`}
-          color={totalRealizedPnl >= 0 ? T.green : T.red}
+          color={totalRealizedPnl > 0 ? T.green : totalRealizedPnl < 0 ? T.red : T.text2}
           icon={TrendingUp}
           sub={`${closedPositions.length} صفقة مغلقة`}
         />
@@ -638,7 +638,7 @@ export default function PortfolioPage() {
               {positions.length > 0 && (
                 <span style={{
                   fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
-                  color: totalUnrealizedPnl >= 0 ? T.green : T.red, fontWeight: 700,
+                  color: totalUnrealizedPnl > 0 ? T.green : totalUnrealizedPnl < 0 ? T.red : T.text2, fontWeight: 700,
                   marginInlineStart: 8,
                 }}>
                   P&L: {totalUnrealizedPnl > 0 ? '+' : totalUnrealizedPnl < 0 ? '-' : ''}${fmt(Math.abs(totalUnrealizedPnl), 2)}
@@ -680,7 +680,7 @@ export default function PortfolioPage() {
                         <span style={{
                           fontFamily: "'JetBrains Mono', monospace",
                           fontSize: 13, fontWeight: 700,
-                          color: (pos.unrealizedPnl || 0) >= 0 ? T.green : T.red,
+                          color: (pos.unrealizedPnl || 0) > 0 ? T.green : (pos.unrealizedPnl || 0) < 0 ? T.red : T.text2,
                         }}>
                           {(pos.unrealizedPnl || 0) > 0 ? '+' : (pos.unrealizedPnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pos.unrealizedPnl || 0))}
                         </span>
@@ -758,7 +758,7 @@ export default function PortfolioPage() {
                     <div style={{
                       textAlign: 'center', fontFamily: "'JetBrains Mono', monospace",
                       fontSize: 11, fontWeight: 700,
-                      color: (pos.unrealizedPnl || 0) >= 0 ? T.green : T.red,
+                      color: (pos.unrealizedPnl || 0) > 0 ? T.green : (pos.unrealizedPnl || 0) < 0 ? T.red : T.text2,
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                     }}>
                       {(pos.unrealizedPnl || 0) > 0 ? '+' : (pos.unrealizedPnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pos.unrealizedPnl || 0))}
@@ -815,7 +815,7 @@ export default function PortfolioPage() {
               {totalRealizedPnl !== 0 && (
                 <span style={{
                   fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
-                  color: totalRealizedPnl >= 0 ? T.green : T.red, fontWeight: 700,
+                  color: totalRealizedPnl > 0 ? T.green : totalRealizedPnl < 0 ? T.red : T.text2, fontWeight: 700,
                   marginInlineStart: 8,
                 }}>
                   P&L: {totalRealizedPnl > 0 ? '+' : totalRealizedPnl < 0 ? '-' : ''}${fmt(Math.abs(totalRealizedPnl), 2)}
@@ -906,7 +906,7 @@ export default function PortfolioPage() {
                             <span style={{
                               fontFamily: "'JetBrains Mono', monospace",
                               fontSize: 13, fontWeight: 700,
-                              color: (pt.pnl || 0) >= 0 ? T.green : T.red,
+                              color: (pt.pnl || 0) > 0 ? T.green : (pt.pnl || 0) < 0 ? T.red : T.text2,
                             }}>
                               {(pt.pnl || 0) > 0 ? '+' : (pt.pnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pt.pnl || 0))}
                             </span>
@@ -979,7 +979,7 @@ export default function PortfolioPage() {
                       <div style={{
                         textAlign: 'center', fontFamily: "'JetBrains Mono', monospace",
                         fontSize: 10, fontWeight: 700,
-                        color: (pt.pnl || 0) >= 0 ? T.green : T.red,
+                        color: (pt.pnl || 0) > 0 ? T.green : (pt.pnl || 0) < 0 ? T.red : T.text2,
                       }}>
                         {(pt.pnl || 0) > 0 ? '+' : (pt.pnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pt.pnl || 0))}
                       </div>
@@ -1026,7 +1026,7 @@ export default function PortfolioPage() {
               {totalTradePnl !== 0 && (
                 <span style={{
                   fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
-                  color: totalTradePnl >= 0 ? T.green : T.red, fontWeight: 700,
+                  color: totalTradePnl > 0 ? T.green : totalTradePnl < 0 ? T.red : T.text2, fontWeight: 700,
                   marginInlineStart: 8,
                 }}>
                   P&L: {totalTradePnl > 0 ? '+' : totalTradePnl < 0 ? '-' : ''}${fmt(Math.abs(totalTradePnl), 2)}
@@ -1290,7 +1290,7 @@ export default function PortfolioPage() {
               {/* Open exposure */}
               <div style={{ padding: '12px', background: T.bg, borderRadius: 8, border: `0.5px solid ${T.border}` }}>
                 <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2, marginBottom: 6 }}>التعرض المفتوح</div>
-                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 18, fontWeight: 800, color: totalUnrealizedPnl >= 0 ? T.green : T.red }}>
+                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 18, fontWeight: 800, color: totalUnrealizedPnl > 0 ? T.green : totalUnrealizedPnl < 0 ? T.red : T.text2 }}>
                   {totalUnrealizedPnl > 0 ? '+' : totalUnrealizedPnl < 0 ? '-' : ''}${fmt(Math.abs(totalUnrealizedPnl), 2)}
                 </div>
                 <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>عبر {positions.length} مركز مفتوح</span>

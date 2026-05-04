@@ -185,27 +185,31 @@ export class PositionMonitorService {
     let nearTP = 0;
 
     try {
-      openPositions = await this.prisma.position.count({
-        where: { status: 'OPEN' },
-      });
-
-      // Count positions near SL/TP (within 1%)
+      // FIX: Previously ran count() AND findMany() as two separate queries
+      // for the same filter — N+1 pattern. Now combined into a single query.
       const allPositions = await this.prisma.position.findMany({
         where: { status: 'OPEN' },
       });
+      openPositions = allPositions.length;
 
-      // Fetch all quotes in parallel
-      const quotePromises = allPositions.map((pos) =>
-        this.exchangeService.getQuote(pos.symbol).catch(() => null),
-      );
-      const quotes = await Promise.allSettled(quotePromises);
+      // Fetch all quotes in parallel — deduplicate by symbol first
+      // FIX: Previously fetched a quote for EACH position, even if multiple
+      // positions shared the same symbol. Now deduplicates by symbol.
+      const uniqueSymbols = [...new Set(allPositions.map(p => p.symbol))];
+      const quoteMap = new Map<string, any>();
+      const quotePromises = uniqueSymbols.map(async (symbol) => {
+        try {
+          const quote = await this.exchangeService.getQuote(symbol);
+          if (quote?.price) quoteMap.set(symbol, quote);
+        } catch { /* ignore individual quote failures */ }
+      });
+      await Promise.allSettled(quotePromises);
 
-      for (let i = 0; i < allPositions.length; i++) {
-        const pos = allPositions[i];
-        const quoteResult = quotes[i];
-        if (quoteResult.status !== 'fulfilled' || !quoteResult.value?.price) continue;
+      for (const pos of allPositions) {
+        const quote = quoteMap.get(pos.symbol);
+        if (!quote?.price) continue;
 
-        const currentPrice = quoteResult.value.price;
+        const currentPrice = quote.price;
 
         if (pos.stopLoss) {
           const slDistance = Math.abs(currentPrice - pos.stopLoss.toNumber()) / pos.entryPrice.toNumber();

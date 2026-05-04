@@ -244,6 +244,7 @@ export default function BacktestPanel() {
               type="date"
               value={periodStart}
               onChange={(e) => setPeriodStart(e.target.value)}
+              max={periodEnd || defaultEnd}
               className="w-full rounded-lg border border-white/10 bg-[#0a0e17] px-3 py-2 text-sm text-white focus:border-violet-500 focus:outline-none"
             />
           </div>
@@ -255,6 +256,7 @@ export default function BacktestPanel() {
               type="date"
               value={periodEnd}
               onChange={(e) => setPeriodEnd(e.target.value)}
+              max={defaultEnd}
               className="w-full rounded-lg border border-white/10 bg-[#0a0e17] px-3 py-2 text-sm text-white focus:border-violet-500 focus:outline-none"
             />
           </div>

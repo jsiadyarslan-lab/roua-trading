@@ -307,7 +307,7 @@ export default function PositionsPage() {
           value={`${(summary?.unrealizedPnl ?? totalUnrealizedPnl) > 0 ? '+' : (summary?.unrealizedPnl ?? totalUnrealizedPnl) < 0 ? '-' : ''}${formatCurrency(Math.abs(summary?.unrealizedPnl ?? totalUnrealizedPnl))}`}
           gradientFrom="#00FFC6"
           gradientTo="#0A84FF"
-          color={(summary?.unrealizedPnl ?? totalUnrealizedPnl) >= 0 ? 'var(--profit)' : 'var(--loss)'}
+          color={(summary?.unrealizedPnl ?? totalUnrealizedPnl) > 0 ? 'var(--profit)' : (summary?.unrealizedPnl ?? totalUnrealizedPnl) < 0 ? 'var(--loss)' : 'var(--text-secondary)'}
         />
         <StatCard
           icon={<Target size={12} stroke="#fff" strokeWidth={2} />}
@@ -315,7 +315,7 @@ export default function PositionsPage() {
           value={`${(summary?.realizedPnl ?? 0) > 0 ? '+' : (summary?.realizedPnl ?? 0) < 0 ? '-' : ''}${formatCurrency(Math.abs(summary?.realizedPnl ?? 0))}`}
           gradientFrom="#A259FF"
           gradientTo="#7C3AED"
-          color={(summary?.realizedPnl ?? 0) >= 0 ? 'var(--profit)' : 'var(--loss)'}
+          color={(summary?.realizedPnl ?? 0) > 0 ? 'var(--profit)' : (summary?.realizedPnl ?? 0) < 0 ? 'var(--loss)' : 'var(--text-secondary)'}
         />
       </motion.div>
 
@@ -340,7 +340,7 @@ export default function PositionsPage() {
             {filteredPositions.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <span style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar)' }}>الإجمالي:</span>
-                <span dir="ltr" style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: totalUnrealizedPnl >= 0 ? 'var(--profit)' : 'var(--loss)' }}>
+                <span dir="ltr" style={{ fontSize: '11px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: totalUnrealizedPnl > 0 ? 'var(--profit)' : totalUnrealizedPnl < 0 ? 'var(--loss)' : 'var(--text-secondary)' }}>
                   {totalUnrealizedPnl > 0 ? '+' : totalUnrealizedPnl < 0 ? '-' : ''}{formatCurrency(Math.abs(totalUnrealizedPnl))}
                 </span>
               </div>
@@ -531,7 +531,7 @@ export default function PositionsPage() {
                 { label: 'الاتجاه', value: closeDialog.side === 'BUY' ? 'شراء' : 'بيع', color: closeDialog.side === 'BUY' ? 'var(--profit)' : 'var(--loss)' },
                 { label: 'الكمية', value: String(closeDialog.quantity), color: 'var(--text-main)' },
                 { label: 'سعر الدخول', value: formatPrice(closeDialog.entryPrice), color: 'var(--text-main)' },
-                { label: 'ر/خ غير محقق', value: formatCurrency(closeDialog.unrealizedPnl || 0), color: (closeDialog.unrealizedPnl || 0) >= 0 ? 'var(--profit)' : 'var(--loss)' },
+                { label: 'ر/خ غير محقق', value: formatCurrency(closeDialog.unrealizedPnl || 0), color: (closeDialog.unrealizedPnl || 0) > 0 ? 'var(--profit)' : (closeDialog.unrealizedPnl || 0) < 0 ? 'var(--loss)' : 'var(--text-secondary)' },
               ].map((item) => (
                 <div key={item.label} style={{ padding: '8px 10px', borderRadius: '7px', background: 'var(--bg-input)', border: '1px solid var(--border-subtle)' }}>
                   <span style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar)' }}>{item.label}</span>

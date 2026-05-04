@@ -35,28 +35,45 @@ export class CredentialsService {
     private readonly auditService: AuditService,
   ) {
     const key = this.configService.get<string>('ENCRYPTION_KEY');
-    if (!key) {
-      // FIX: No hardcoded fallback — must have ENCRYPTION_KEY or NEXTAUTH_SECRET.
+    const isProduction = this.configService.get('NODE_ENV') === 'production';
+
+    if (key) {
+      this.encryptionKey = Buffer.from(key, 'hex');
+    } else if (isProduction) {
+      // FIX: In production, ENCRYPTION_KEY is MANDATORY — no weak fallbacks.
+      // Previously, a derived key from NEXTAUTH_SECRET was used, which is
+      // insecure because: (1) NEXTAUTH_SECRET was designed for signing, not
+      // encryption; (2) if NEXTAUTH_SECRET leaks, all credentials are exposed;
+      // (3) the derivation used a predictable salt (hostname+env).
+      // Now we fail fast — the operator must set ENCRYPTION_KEY explicitly.
+      this.logger.error(
+        '🚨 FATAL: ENCRYPTION_KEY is not set in production! ' +
+        'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))" ' +
+        'Then add it to your environment variables. Application cannot start without it.'
+      );
+      throw new Error('ENCRYPTION_KEY is required in production. Set it in your environment variables.');
+    } else {
+      // Development-only fallback: derive from NEXTAUTH_SECRET with deployment-specific salt
+      // This is acceptable for local development where no real credentials are stored
       const fallback = this.configService.get<string>('NEXTAUTH_SECRET');
       if (!fallback) {
-        // FIX: Don't crash the entire NestJS app if ENCRYPTION_KEY is missing.
-        // Generate a temporary random key so NestJS can start, but credential operations will fail.
-        // This allows the AI module and other services to work even without encryption configured.
+        // No fallback available — generate temporary random key
+        // Credentials encrypted with this key will NOT survive a restart
         this.logger.error(
-          '⚠️ CRITICAL: ENCRYPTION_KEY or NEXTAUTH_SECRET not set! ' +
-          'Credentials cannot be securely stored. Using temporary random key — ' +
-          'credential-related operations will fail. Set ENCRYPTION_KEY in production!'
+          '⚠️ CRITICAL: ENCRYPTION_KEY and NEXTAUTH_SECRET not set! ' +
+          'Using temporary random key — credentials will be lost on restart. ' +
+          'Set ENCRYPTION_KEY for development: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
         );
         this.encryptionKey = crypto.randomBytes(32);
       } else {
-        // Derive a deployment-specific salt from NEXTAUTH_SECRET + NODE_ENV + hostname
         const deploymentId = `${fallback}:${this.configService.get('NODE_ENV', 'development')}:${hostname()}`;
         const salt = crypto.createHash('sha256').update(deploymentId).digest().slice(0, 16);
         this.encryptionKey = crypto.scryptSync(fallback, salt, 32);
-        this.logger.warn('⚠️ ENCRYPTION_KEY not set — using derived key from NEXTAUTH_SECRET+deployment. Set ENCRYPTION_KEY in production!');
+        this.logger.warn(
+          '⚠️ ENCRYPTION_KEY not set — using derived key from NEXTAUTH_SECRET+deployment (development only). ' +
+          'Set ENCRYPTION_KEY for production!'
+        );
       }
-    } else {
-      this.encryptionKey = Buffer.from(key, 'hex');
     }
   }
 

@@ -83,9 +83,11 @@ export class GeminiService {
     const errors: string[] = [];
 
     for (const model of modelsToTry) {
-      // FIX: Dual auth — try header-based auth first, fall back to query param
+      // FIX: Use ONLY header-based auth (x-goog-api-key).
+      // Query-param auth (?key=) removed — API key in URL leaks to server logs,
+      // proxy caches, and browser DevTools. Header auth is equally supported
+      // by the Gemini API and is the recommended approach.
       const url = `${this.baseUrl}/${model}:generateContent`;
-      const urlWithKey = `${this.baseUrl}/${model}:generateContent?key=${this.apiKey}`;
 
       // Strategy 1: Header-based auth (x-goog-api-key)
       try {
@@ -154,7 +156,7 @@ export class GeminiService {
         const status = error.response?.status;
         const errData = error.response?.data;
         const errMsg = errData ? JSON.stringify(errData).substring(0, 200) : error.message;
-        errors.push(`${model} (header auth): ${status || 'N/A'} — ${errMsg}`);
+        errors.push(`${model}: ${status || 'N/A'} — ${errMsg}`);
 
         // FIX: 429 can mean either temporary rate-limit OR permanent quota exhaustion.
         if (status === 429) {
@@ -172,95 +174,12 @@ export class GeminiService {
         }
         if (status === 401 || status === 403) {
           this.logger.error(`💎 Gemini auth failed (${status}) — API key may be invalid. Response: ${errMsg}`);
-          // FIX: Don't give up yet — try query-param auth as fallback
+          // Auth error likely persists across models, but try next anyway
+          continue;
         } else {
           this.logger.warn(`💎 Gemini inference failed with ${model}: ${errMsg} (status: ${status})`);
           continue;
         }
-      }
-
-      // Strategy 2: Query-param auth fallback (?key=) — some API keys only work this way
-      try {
-        const response = await axios.post(
-          urlWithKey,
-          {
-            contents: [
-              {
-                role: 'user',
-                parts: [{ text: `${systemPrompt}\n\n${request.prompt}` }],
-              },
-            ],
-            generationConfig: {
-              temperature: 0.4,
-              maxOutputTokens: 2048,
-            },
-            safetySettings: [
-              { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
-              { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
-              { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
-              { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-            ],
-          },
-          {
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            timeout: 60000,
-          },
-        );
-
-        // FIX: Detect blocked responses (finishReason: SAFETY or RECITATION)
-        const candidate = response.data.candidates?.[0];
-        const finishReason = candidate?.finishReason;
-        if (finishReason === 'SAFETY' || finishReason === 'RECITATION') {
-          const blockMsg = `Model ${model} blocked response (finishReason: ${finishReason}, query-param auth)`;
-          this.logger.warn(`💎 ${blockMsg}`);
-          errors.push(blockMsg);
-          continue;
-        }
-
-        const content = candidate?.content?.parts?.[0]?.text || '';
-        if (!content.trim()) {
-          const emptyMsg = `Model ${model} returned empty content via query-param auth (finishReason: ${finishReason || 'UNKNOWN'})`;
-          errors.push(emptyMsg);
-          this.logger.warn(`💎 ${emptyMsg}`);
-          continue;
-        }
-
-        // Success — cache this model name for future calls
-        if (!this.resolvedModel) {
-          this.resolvedModel = model;
-          this.logger.log(`💎 Gemini model resolved (query-param auth): ${model}`);
-        }
-
-        return {
-          model: `Gemini/${model}`,
-          content,
-          confidence: calculateConfidence(content, 'gemini'),
-          processingTimeMs: Date.now() - startTime,
-          language: request.language || 'ar',
-        };
-      } catch (error: any) {
-        const status = error.response?.status;
-        const errData = error.response?.data;
-        const errMsg = errData ? JSON.stringify(errData).substring(0, 200) : error.message;
-        errors.push(`${model} (query-param auth): ${status || 'N/A'} — ${errMsg}`);
-
-        if (status === 401 || status === 403) {
-          this.logger.error(`💎 Gemini auth failed with both methods (${status}) — API key invalid: ${errMsg}`);
-          // Auth error won't change with different model — but still try other models
-          continue;
-        }
-        if (status === 429) {
-          this.logger.warn(`💎 Gemini rate limited (429) for ${model} (query-param) — trying next...`);
-          continue;
-        }
-        if (status === 404) {
-          this.logger.warn(`💎 Gemini model ${model} not available (404, query-param) — trying next...`);
-          continue;
-        }
-        this.logger.warn(`💎 Gemini ${model} failed (query-param auth): ${errMsg}`);
-        continue;
       }
     }
 

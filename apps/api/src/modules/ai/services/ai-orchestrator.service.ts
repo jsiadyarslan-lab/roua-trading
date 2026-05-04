@@ -1505,34 +1505,75 @@ export class AIOrchestratorService {
    * - Arabic content detection (boost for Arabic-focused platform)
    */
   private _calculateDynamicConfidence(model: string, content: string, type: string): number {
-    let confidence = 0.5; // Base confidence
+    // FIX: Previously, confidence was ~70-88% fixed per model name regardless
+    // of response quality. A hallucinated response from Gemini got 0.85 base
+    // simply because it's Gemini. Now, confidence is primarily driven by
+    // CONTENT QUALITY signals, with only a small model reliability modifier.
 
-    // Factor 1: Response completeness (0-0.15)
-    if (content.length > 200) confidence += 0.05;
-    if (content.length > 500) confidence += 0.05;
+    let confidence = 0.3; // Low base — must earn confidence through quality
+
+    // ── Factor 1: Response completeness (0-0.20) ──
+    // Longer, more detailed responses are generally more reliable
+    if (content.length > 100) confidence += 0.05;
+    if (content.length > 300) confidence += 0.05;
+    if (content.length > 600) confidence += 0.05;
     if (content.length > 1000) confidence += 0.05;
 
-    // Factor 2: Structured output (0-0.15)
-    if (content.includes('DECISION:')) confidence += 0.10;
-    if (content.includes('{') && content.includes('}')) confidence += 0.05;
+    // ── Factor 2: Structured output (0-0.15) ──
+    // Structured responses indicate the model followed instructions
+    if (content.includes('DECISION:') || content.includes('القرار:')) confidence += 0.05;
+    if (content.includes('{') && content.includes('}')) confidence += 0.03;
+    if (content.includes('```') || content.includes('1.') || content.includes('-')) confidence += 0.04;
+    // Has price levels (entry/SL/TP) — very relevant for trading analysis
+    if (/(\$?\d+[\.,]?\d*|\d+\s*%)/.test(content)) confidence += 0.03;
 
-    // Factor 3: Model-specific base confidence
-    const modelBaseConfidence: Record<string, number> = {
-      groq: 0.75,
-      gemini: 0.85,
-      glm: 0.80,
-      huggingface: 0.70,
-      ollama: 0.75,
-      bedrock: 0.88,
-      openrouter: 0.72,
-    };
-    confidence = (confidence + (modelBaseConfidence[model] || 0.7)) / 2;
+    // ── Factor 3: Actionable recommendation present (0-0.15) ──
+    // Presence of a clear trading recommendation
+    const hasBuy = /شراء|BUY|صعود|long/i.test(content);
+    const hasSell = /بيع|SELL|هبوط|short/i.test(content);
+    const hasHold = /انتظار|HOLD|WAIT|محايد/i.test(content);
+    // FIX: Check for NEGATION context — "لا أنصح بالشراء" should NOT count as buy
+    const hasNegation = /لا أنصح|لا أ 推荐|غير مستحسن|لا يُنصح|I don't recommend|not recommended|avoid/i.test(content);
+    if ((hasBuy || hasSell || hasHold) && !hasNegation) confidence += 0.10;
+    if ((hasBuy || hasSell || hasHold) && hasNegation) confidence += 0.03; // Less confident if negation present
 
-    // Factor 4: Arabic content detection (boost for Arabic-focused platform)
+    // ── Factor 4: Risk awareness (0-0.10) ──
+    // Good analysis mentions risks — shows balanced thinking
+    const hasRisk = /مخاطر|risk|تحذير|warning|حذر|caution|قد يخسر|may lose/i.test(content);
+    const hasDisclaimer = /إخلاء مسؤولية|disclaimer|تعليمي|educational|ليس نصيحة/i.test(content);
+    if (hasRisk) confidence += 0.05;
+    if (hasDisclaimer) confidence += 0.05;
+
+    // ── Factor 5: Arabic content quality (0-0.05) ──
+    // Arabic content is expected for this platform
     const arabicPattern = /[\u0600-\u06FF]/;
     if (arabicPattern.test(content)) confidence += 0.03;
+    // Mixed Arabic + English suggests deeper analysis
+    if (arabicPattern.test(content) && /[a-zA-Z]{3,}/.test(content)) confidence += 0.02;
 
-    return Math.min(Math.max(confidence, 0.1), 0.99);
+    // ── Factor 6: Model reliability modifier (small, ±0.05) ──
+    // FIX: Reduced from ±0.15 to ±0.05 — model name should NOT dominate
+    // confidence. A poor response from a "reliable" model should score
+    // lower than a great response from a "less reliable" model.
+    const modelReliability: Record<string, number> = {
+      groq: 0.02,
+      gemini: 0.05,
+      glm: 0.03,
+      huggingface: -0.02,
+      ollama: 0.00,
+      bedrock: 0.05,
+      openrouter: 0.00,
+      deepseek: 0.03,
+    };
+    confidence += (modelReliability[model] || 0.00);
+
+    // ── Factor 7: Penalty for warning signs (0 to -0.15) ──
+    // Stub responses, errors, or generic text should score LOW
+    if (content.includes('⚠️') || content.includes('غير متاح') || content.includes('unavailable')) confidence -= 0.15;
+    if (content.length < 50) confidence -= 0.10; // Too short to be meaningful
+    if (/لم أتمكن|لا أستطيع|I cannot|I'm unable/i.test(content)) confidence -= 0.10;
+
+    return Math.min(Math.max(confidence, 0.05), 0.95);
   }
 
 }

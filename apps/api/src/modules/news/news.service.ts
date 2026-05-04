@@ -119,8 +119,11 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
         take: filter.limit || 20,
       });
     } catch (error: any) {
-      this.logger.error(`DB query failed: ${error.message}`);
-      return [];
+      this.logger.error(`DB query failed: ${error.message}`, error.stack);
+      // FIX: Previously returned [] which masked database failures.
+      // Now throw so the client gets a proper 500 error instead of
+      // silently showing "no news" when the DB is actually down.
+      throw new Error(`فشل في جلب الأخبار: ${error.message}`);
     }
   }
 

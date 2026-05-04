@@ -1,29 +1,32 @@
 /**
  * Shared Confidence Calculation Utility
  *
- * Previously, the `_calculateConfidence` method was duplicated across
- * all 6 AI model service files (Groq, Gemini, GLM-4, HuggingFace,
- * Ollama, Bedrock). This shared utility eliminates that duplication
- * and provides a single source of truth for confidence scoring.
+ * FIX: Previously, confidence was dominated by model name (~0.5 base + 0.15
+ * for any keyword match). A hallucinated response mentioning "BUY" got 0.65+
+ * regardless of quality. "لا أنصح بالشراء" was counted as a buy recommendation.
  *
- * Confidence is calculated based on:
- * 1. Base confidence (0.5)
- * 2. Length bonus — longer analysis = more confident (capped)
- * 3. Clear recommendation bonus — explicit BUY/SELL/HOLD keywords
- * 4. Model-specific base adjustment — reflects model capability tier
+ * Now, confidence is CONTENT-QUALITY driven:
+ * 1. Base confidence (0.3) — must earn confidence through quality signals
+ * 2. Length/completeness bonus — detailed analysis scores higher
+ * 3. Structured output bonus — clear DECISION/JSON/numbered lists
+ * 4. Recommendation with NEGATION detection — "لا أنصح بالشراء" is NOT a buy
+ * 5. Risk awareness bonus — mentions risks/disclaimers
+ * 6. Model reliability — small modifier (±0.05), NOT the dominant factor
+ * 7. Penalty for stub/error/low-quality responses
  *
- * Result is clamped to [0.1, 0.95]
+ * Result is clamped to [0.05, 0.95]
  */
 
-/** Model-specific confidence adjustments based on model capability */
-const MODEL_BASE: Record<string, number> = {
-  groq: 0.0,
+/** Model-specific confidence adjustments — SMALL modifiers only */
+const MODEL_RELIABILITY: Record<string, number> = {
+  groq: 0.02,
   gemini: 0.05,
-  glm: 0.02,
-  huggingface: -0.05,
-  ollama: 0.0,
-  bedrock: 0.08,
-  openrouter: -0.03,  // FIX: OpenRouter uses free/cheap models — slightly lower base confidence
+  glm: 0.03,
+  huggingface: -0.02,
+  ollama: 0.00,
+  bedrock: 0.05,
+  openrouter: 0.00,
+  deepseek: 0.03,
 };
 
 /**
@@ -31,22 +34,55 @@ const MODEL_BASE: Record<string, number> = {
  *
  * @param content The AI-generated text content
  * @param model The model identifier (groq, gemini, glm, huggingface, ollama, bedrock)
- * @returns Confidence score between 0.1 and 0.95
+ * @returns Confidence score between 0.05 and 0.95
  */
 export function calculateConfidence(content: string, model: string): number {
-  let confidence = 0.5; // base
+  let confidence = 0.3; // Low base — must earn through quality
 
-  // Length bonus: longer analysis = more confident (capped)
-  if (content.length > 200) confidence += 0.1;
-  if (content.length > 500) confidence += 0.1;
+  // ── Length/completeness bonus (0-0.20) ──
+  if (content.length > 100) confidence += 0.05;
+  if (content.length > 300) confidence += 0.05;
+  if (content.length > 600) confidence += 0.05;
   if (content.length > 1000) confidence += 0.05;
 
-  // Clear recommendation bonus
-  const hasRecommendation = /شراء|بيع|انتظار|BUY|SELL|HOLD|صعود|هبوط/i.test(content);
-  if (hasRecommendation) confidence += 0.15;
+  // ── Structured output bonus (0-0.12) ──
+  if (content.includes('DECISION:') || content.includes('القرار:')) confidence += 0.04;
+  if (content.includes('{') && content.includes('}')) confidence += 0.03;
+  if (content.includes('```') || content.includes('1.') || content.includes('-')) confidence += 0.03;
+  // Contains price levels — relevant for trading analysis
+  if (/(\$?\d+[\.,]?\d*|\d+\s*%)/.test(content)) confidence += 0.02;
 
-  // Model base confidence
-  confidence += MODEL_BASE[model] || 0;
+  // ── Recommendation with NEGATION detection (0-0.13) ──
+  // FIX: "لا أنصح بالشراء" should NOT count as a buy recommendation
+  const hasBuy = /شراء|BUY|صعود|long/i.test(content);
+  const hasSell = /بيع|SELL|هبوط|short/i.test(content);
+  const hasHold = /انتظار|HOLD|WAIT|محايد/i.test(content);
+  const hasNegation = /لا أنصح|لا أ 推荐|غير مستحسن|لا يُنصح|I don't recommend|not recommended|avoid|لا أنصح بال/i.test(content);
 
-  return Math.min(Math.max(confidence, 0.1), 0.95); // Clamp 0.1-0.95
+  if ((hasBuy || hasSell || hasHold) && !hasNegation) {
+    confidence += 0.10; // Clear, affirmative recommendation
+  } else if ((hasBuy || hasSell || hasHold) && hasNegation) {
+    confidence += 0.03; // Recommendation with negation — less confident
+  }
+
+  // ── Risk awareness bonus (0-0.08) ──
+  const hasRisk = /مخاطر|risk|تحذير|warning|حذر|caution|قد يخسر|may lose/i.test(content);
+  const hasDisclaimer = /إخلاء مسؤولية|disclaimer|تعليمي|educational|ليس نصيحة/i.test(content);
+  if (hasRisk) confidence += 0.04;
+  if (hasDisclaimer) confidence += 0.04;
+
+  // ── Arabic content quality (0-0.05) ──
+  const arabicPattern = /[\u0600-\u06FF]/;
+  if (arabicPattern.test(content)) confidence += 0.03;
+  if (arabicPattern.test(content) && /[a-zA-Z]{3,}/.test(content)) confidence += 0.02;
+
+  // ── Model reliability modifier (small, ±0.05) ──
+  confidence += MODEL_RELIABILITY[model] || 0.00;
+
+  // ── Penalty for low-quality responses (0 to -0.15) ──
+  if (content.includes('⚠️') || content.includes('غير متاح') || content.includes('unavailable')) confidence -= 0.15;
+  if (content.length < 50) confidence -= 0.10;
+  if (/لم أتمكن|لا أستطيع|I cannot|I'm unable/i.test(content)) confidence -= 0.10;
+
+  return Math.min(Math.max(confidence, 0.05), 0.95);
 }

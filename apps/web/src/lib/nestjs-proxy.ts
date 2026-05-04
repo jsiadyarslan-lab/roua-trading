@@ -330,9 +330,15 @@ async function proxyWithToken(
     // Reset NestJS failure counter on ANY response (even 4xx) — server is alive
     nestjsConsecutiveFailures = 0;
 
-    // 404 = route not found in NestJS — log for diagnosis (often means NestJS module failed to load)
+    // 404 = route not found in NestJS — often means NestJS module is still loading during cold start.
+    // FIX: Retry with delay (up to 2 times) to give NestJS time to register routes.
+    if (response.status === 404 && retryCount < 2) {
+      console.warn(`[nestjs-proxy] 404 on ${method} ${pathname} — route not found (attempt ${retryCount + 1}/3). NestJS module may still be loading, retrying in 2s...`);
+      await new Promise(r => setTimeout(r, 2000));
+      return proxyWithToken(request, method, token, false, retryCount + 1);
+    }
     if (response.status === 404) {
-      console.warn(`[nestjs-proxy] 404 on ${method} ${pathname} — route not found in NestJS. This may indicate a module failed to load (check NestJS startup logs).`);
+      console.warn(`[nestjs-proxy] 404 on ${method} ${pathname} — route still not found after 3 attempts. Check NestJS startup logs.`);
     }
 
     // 503 = auth service unavailable — don't retry, just forward

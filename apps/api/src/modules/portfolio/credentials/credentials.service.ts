@@ -73,14 +73,15 @@ export class CredentialsService {
       label: string;
       apiKey: string;
       apiSecret: string;
+      passphrase?: string;
     },
     ipAddress?: string,
     userAgent?: string,
   ) {
-    const { exchange, label, apiKey, apiSecret } = data;
+    const { exchange, label, apiKey, apiSecret, passphrase } = data;
 
     // Step 1: Validate the API key against the actual exchange
-    const validation = await this._validateApiKey(exchange, apiKey, apiSecret);
+    const validation = await this._validateApiKey(exchange, apiKey, apiSecret, passphrase);
 
     if (!validation.valid) {
       await this.auditService.log({
@@ -119,9 +120,10 @@ export class CredentialsService {
       }
     }
 
-    // Step 3: Encrypt the API key and secret (each gets its own IV/authTag)
+    // Step 3: Encrypt the API key, secret, and passphrase (each gets its own IV/authTag)
     const encryptedApiKey = this._encrypt(apiKey);
     const encryptedSecret = this._encrypt(apiSecret);
+    const encryptedPassphrase = passphrase ? this._encrypt(passphrase) : null;
 
     // Step 4: Store in database with separate IV/authTag for each field
     const credential = await this.prisma.exchangeCredential.create({
@@ -135,6 +137,9 @@ export class CredentialsService {
         authTag: encryptedApiKey.authTag,
         secretIv: encryptedSecret.iv,
         secretAuthTag: encryptedSecret.authTag,
+        passphraseIv: encryptedPassphrase?.iv || null,
+        passphraseAuthTag: encryptedPassphrase?.authTag || null,
+        encryptedPassphrase: encryptedPassphrase?.encrypted || null,
         permissions: JSON.stringify(validation.permissions || ['read']),
         isValid: true,
         lastValidatedAt: new Date(),
@@ -231,7 +236,7 @@ export class CredentialsService {
    *   belongs to this user before decrypting. Throws ForbiddenException if
    *   the credential belongs to a different user.
    */
-  async decryptCredential(credentialId: string, userId?: string): Promise<{ apiKey: string; apiSecret: string }> {
+  async decryptCredential(credentialId: string, userId?: string): Promise<{ apiKey: string; apiSecret: string; passphrase?: string }> {
     const credential = await this.prisma.exchangeCredential.findUnique({
       where: { id: credentialId },
     });
@@ -268,7 +273,22 @@ export class CredentialsService {
       authTag: credential.secretAuthTag ?? credential.authTag,
     });
 
-    return { apiKey, apiSecret };
+    // Decrypt passphrase if it exists
+    let passphrase: string | undefined;
+    if ((credential as any).encryptedPassphrase && (credential as any).passphraseIv) {
+      try {
+        passphrase = this._decrypt({
+          encrypted: (credential as any).encryptedPassphrase,
+          iv: (credential as any).passphraseIv,
+          authTag: (credential as any).passphraseAuthTag,
+        });
+      } catch {
+        // Passphrase decryption failed — may be legacy data without passphrase
+        this.logger.warn('Failed to decrypt passphrase — may be legacy data');
+      }
+    }
+
+    return { apiKey, apiSecret, passphrase };
   }
 
   // ── Private: Encryption (AES-256-GCM) ──
@@ -326,11 +346,12 @@ export class CredentialsService {
     exchange: string,
     apiKey: string,
     apiSecret: string,
+    passphrase?: string,
   ): Promise<{ valid: boolean; permissions?: string[]; error?: string }> {
     // Wrap entire validation in a 10-second timeout
     const TIMEOUT_MS = 10_000;
 
-    const validationPromise = this._doValidateApiKey(exchange, apiKey, apiSecret);
+    const validationPromise = this._doValidateApiKey(exchange, apiKey, apiSecret, passphrase);
 
     // Race the validation against a timeout
     const timeoutPromise = new Promise<{ valid: boolean; permissions?: string[]; error?: string }>((resolve) => {
@@ -350,6 +371,7 @@ export class CredentialsService {
     exchange: string,
     apiKey: string,
     apiSecret: string,
+    passphrase?: string,
   ): Promise<{ valid: boolean; permissions?: string[]; error?: string }> {
     try {
       const ExchangeClass = ccxt[exchange as keyof typeof ccxt] as any;
@@ -364,6 +386,12 @@ export class CredentialsService {
         secret: apiSecret,
         enableRateLimit: true,
       };
+
+      // FIX: Add passphrase for exchanges that require it (KuCoin, OKX)
+      // CCXT expects the passphrase as the 'password' property
+      if (passphrase) {
+        exchangeConfig.password = passphrase;
+      }
 
       // ── Alpaca-specific: detect paper vs live trading ──
       // Alpaca paper trading keys must use the paper-trading base URL.

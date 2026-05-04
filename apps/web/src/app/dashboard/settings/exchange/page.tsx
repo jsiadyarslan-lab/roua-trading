@@ -33,10 +33,10 @@ interface Credential {
 
 const SUPPORTED_EXCHANGES = [
   { id: 'binance', name: 'Binance', icon: '🔶' },
-  { id: 'kucoin', name: 'KuCoin', icon: '🟢' },
+  { id: 'kucoin', name: 'KuCoin', icon: '🟢', requiresPassphrase: false },
   { id: 'bybit', name: 'Bybit', icon: '🟠' },
-  { id: 'okx', name: 'OKX', icon: '⚪' },
-  { id: 'gate', name: 'Gate.io', icon: '🔵' },
+  { id: 'okx', name: 'OKX', icon: '⚪', requiresPassphrase: true },
+  { id: 'gateio', name: 'Gate.io', icon: '🔵' },
 ]
 
 export default function ExchangeSettingsPage() {
@@ -54,6 +54,7 @@ export default function ExchangeSettingsPage() {
   const [label, setLabel] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [apiSecret, setApiSecret] = useState('')
+  const [passphrase, setPassphrase] = useState('')
 
   // Auth handled by useAuth hook
 
@@ -89,7 +90,7 @@ export default function ExchangeSettingsPage() {
       const res = await fetch('/api/portfolio/credentials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ exchange, label: label || `${exchange}-key`, apiKey, apiSecret }),
+        body: JSON.stringify({ exchange, label: label || `${exchange}-key`, apiKey, apiSecret, passphrase: passphrase || undefined }),
       })
 
       const data = await res.json()
@@ -102,6 +103,7 @@ export default function ExchangeSettingsPage() {
       setLabel('')
       setApiKey('')
       setApiSecret('')
+      setPassphrase('')
       setShowForm(false)
       fetchCredentials()
     } catch (err: any) {
@@ -238,6 +240,24 @@ export default function ExchangeSettingsPage() {
                         required
                       />
                     </div>
+
+                    {/* Passphrase (for OKX and other exchanges that require it) */}
+                    {SUPPORTED_EXCHANGES.find(e => e.id === exchange)?.requiresPassphrase && (
+                      <div className="space-y-2">
+                        <Label htmlFor="passphrase">عبارة المرور (Passphrase)</Label>
+                        <Input
+                          id="passphrase"
+                          type="password"
+                          placeholder="أدخل عبارة المرور الخاصة بالبورصة"
+                          value={passphrase}
+                          onChange={(e) => setPassphrase(e.target.value)}
+                          dir="ltr"
+                          className="bg-background"
+                          required
+                        />
+                        <p className="text-xs text-muted-foreground">هذه البورصة تتطلب عبارة مرور إضافية عند إنشاء مفتاح API</p>
+                      </div>
+                    )}
 
                     {/* Error */}
                     {error && (

@@ -738,8 +738,61 @@ export const useAgentStore = create<AgentStore>()(
       },
     }),
     {
-      name: 'roua-agent-storage',
+      /**
+       * SECURITY FIX: Dynamic storage key to prevent data leakage.
+       * Old version used hard-coded 'roua-agent-storage' — all users shared one key.
+       * Now we resolve the key dynamically based on current auth state.
+       */
+      name: 'roua-agent-storage', // Base name — actual key resolved dynamically
       version: 1,
+      storage: (() => {
+        const baseStorage = (() => {
+          // Minimal createJSONStorage equivalent for persist middleware
+          return {
+            getItem: (name: string) => {
+              const value = localStorage.getItem(name)
+              return value
+            },
+            setItem: (name: string, value: string) => {
+              localStorage.setItem(name, value)
+            },
+            removeItem: (name: string) => {
+              localStorage.removeItem(name)
+            },
+          }
+        })()
+
+        // Resolve user-scoped key
+        const getDynamicKey = (baseName: string): string => {
+          try {
+            const { useAuthStore } = require('@/lib/auth-store')
+            const user = useAuthStore.getState()?.user
+            if (user?.id) return `${baseName}:${user.id}`
+          } catch { /* Auth store not ready */ }
+          try {
+            let sid = sessionStorage.getItem('roua-guest-session-id')
+            if (!sid) {
+              sid = `guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+              sessionStorage.setItem('roua-guest-session-id', sid)
+            }
+            return `${baseName}:${sid}`
+          } catch {
+            return baseName
+          }
+        }
+
+        return {
+          getItem: (name: string) => {
+            return baseStorage.getItem(getDynamicKey(name))
+          },
+          setItem: (name: string, value: string) => {
+            baseStorage.setItem(getDynamicKey(name), value)
+          },
+          removeItem: (name: string) => {
+            baseStorage.removeItem(getDynamicKey(name))
+          },
+        }
+      })(),
       migrate: (persistedState: any) => ({
         ...persistedState,
         agentState: persistedState?.agentState ?? null,

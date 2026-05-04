@@ -27,7 +27,7 @@ export class CredentialsController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async addCredential(
     @Request() req: any,
-    @Body() body: { exchange: string; label: string; apiKey: string; apiSecret: string },
+    @Body() body: { exchange: string; label: string; apiKey: string; apiSecret: string; passphrase?: string },
   ) {
     if (!body.exchange || !body.label || !body.apiKey || !body.apiSecret) {
       return { success: false, error: 'جميع الحقول مطلوبة' };

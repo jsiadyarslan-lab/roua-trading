@@ -707,6 +707,32 @@ EOSQL
           FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
       END IF;
     END $$;
+
+    -- ExchangeCredential: add passphrase fields for OKX/KuCoin support
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'ExchangeCredential' AND column_name = 'encryptedPassphrase'
+      ) THEN
+        ALTER TABLE "ExchangeCredential" ADD COLUMN "encryptedPassphrase" TEXT;
+      END IF;
+    END $$;
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'ExchangeCredential' AND column_name = 'passphraseIv'
+      ) THEN
+        ALTER TABLE "ExchangeCredential" ADD COLUMN "passphraseIv" TEXT;
+      END IF;
+    END $$;
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'ExchangeCredential' AND column_name = 'passphraseAuthTag'
+      ) THEN
+        ALTER TABLE "ExchangeCredential" ADD COLUMN "passphraseAuthTag" TEXT;
+      END IF;
+    END $$;
 EOSQL
 
   echo "📦 Adding missing columns via ALTER TABLE..."

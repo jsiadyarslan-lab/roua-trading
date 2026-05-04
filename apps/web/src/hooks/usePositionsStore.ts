@@ -50,13 +50,28 @@ interface PositionsState {
 /**
  * SECURITY: Get a user-scoped localStorage key to prevent data leakage.
  * Without userId in the key, user B would see user A's cached positions.
+ *
+ * FIX: This now returns a DYNAMIC key function, not a static string.
+ * The old version evaluated once at module load time (before auth was ready),
+ * so ALL users shared the 'guest' key.
  */
 function getStorageKey(): string {
   try {
     const user = useAuthStore.getState().user
     if (user?.id) return `roua-positions-store:${user.id}`
   } catch { /* Auth store not yet initialized */ }
-  return 'roua-positions-store:guest'
+  // Use a session-unique key to prevent guest-to-guest data leakage
+  // Each browser session gets its own key via sessionStorage
+  try {
+    let sessionId = sessionStorage.getItem('roua-guest-session-id')
+    if (!sessionId) {
+      sessionId = `guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      sessionStorage.setItem('roua-guest-session-id', sessionId)
+    }
+    return `roua-positions-store:${sessionId}`
+  } catch {
+    return 'roua-positions-store:guest'
+  }
 }
 
 /**
@@ -338,12 +353,31 @@ export const usePositionsStore = create<PositionsState>()(
 }),
     {
       /**
-       * SECURITY: Use user-scoped storage key to prevent data leakage.
-       * Each user gets their own localStorage key: roua-positions-store:${userId}
-       * Guest users share 'roua-positions-store:guest'
+       * SECURITY FIX: Dynamic storage key to prevent data leakage.
+       * The old `name: getStorageKey()` was evaluated ONCE at module load time
+       * (before auth was initialized), so all users shared the same 'guest' key.
+       *
+       * Now we use a custom storage adapter that dynamically resolves the key
+       * on every getItem/setItem call based on the current auth state.
        */
-      name: getStorageKey(),
-      storage: createJSONStorage(() => localStorage),
+      name: 'roua-positions-store', // Base name — actual key is resolved dynamically
+      storage: (() => {
+        const baseStorage = createJSONStorage(() => localStorage)
+        return {
+          getItem: (name: string) => {
+            const dynamicKey = getStorageKey()
+            return baseStorage.getItem(dynamicKey)
+          },
+          setItem: (name: string, value: string) => {
+            const dynamicKey = getStorageKey()
+            baseStorage.setItem(dynamicKey, value)
+          },
+          removeItem: (name: string) => {
+            const dynamicKey = getStorageKey()
+            baseStorage.removeItem(dynamicKey)
+          },
+        }
+      })(),
       // Only persist account data and positions (not loading/error states)
       partialize: (state) => ({
         account: state.account,

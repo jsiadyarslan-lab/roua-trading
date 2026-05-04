@@ -31,6 +31,14 @@ interface SessionCreateOptions {
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+
+  // TODO: [SECURITY][BUG 4] When OAuth/NextAuth tokens are stored in the Account model
+  // (access_token, refresh_token, id_token), they are saved as plaintext. These must be
+  // encrypted at rest using AES-256-GCM via CredentialsService._encrypt() before persisting
+  // to the database. See prisma/schema.prisma Account model for the full TODO plan.
+  // This service currently handles WebAuthn (passkey) auth which doesn't use OAuth tokens,
+  // but if NextAuth OAuth is added in the future, the token callback must encrypt before
+  // saving and the session callback must decrypt when reading.
   private readonly rpId: string;
   private readonly rpName: string;
   private readonly origin: string;

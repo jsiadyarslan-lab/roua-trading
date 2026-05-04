@@ -258,7 +258,16 @@ export class BacktestRunnerService {
         return null;
 
       case BacktestStrategy.AI_COUNCIL:
-        // Randomized but biased — real AI Council is called for live predictions
+        // KNOWN LIMITATION: AI_COUNCIL strategy is faked in backtest mode.
+        // Instead of making real-time AI Council consensus calls for each candle
+        // (which would be prohibitively expensive and slow), this uses a simplified
+        // RSI-based heuristic. RSI < 40 → BUY, RSI > 60 → SELL.
+        // A proper implementation would need to either:
+        //   1. Pre-compute AI Council signals for the backtest period, or
+        //   2. Use a cached/fast AI model for each step, or
+        //   3. Run the backtest in "simulation mode" with reduced AI calls.
+        // For now, results from AI_COUNCIL backtests should be treated as
+        // approximations and not compared directly with technical strategies.
         if (rsi < 40) return 'BUY';
         if (rsi > 60) return 'SELL';
         return null;

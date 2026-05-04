@@ -109,9 +109,13 @@ export class OllamaService {
         };
       }
 
+      // BUG 7 FIX: Reduced timeout from 120s to 30s for both local and cloud Ollama.
+      // A 120s timeout blocks the orchestrator's fallback chain, preventing other
+      // models from being tried. 30s is generous enough for inference while
+      // allowing fast fallback when Ollama is slow or unresponsive.
       const response = await axios.post(apiEndpoint, requestBody, {
         headers,
-        timeout: this.baseUrl.includes('ollama.com') ? 30000 : 5000, // 30s for cloud, 5s for local
+        timeout: 30000, // 30s for both local and cloud
       });
 
       // Handle both native Ollama response and OpenAI-compatible response

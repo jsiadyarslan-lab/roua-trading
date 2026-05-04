@@ -18,8 +18,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     let dbUrl = process.env.DATABASE_URL!;
     try {
       const url = new URL(dbUrl);
-      url.searchParams.set('connection_limit', '15');
-      url.searchParams.set('pool_timeout', '20');
+      url.searchParams.set('connection_limit', '20');
+      url.searchParams.set('pool_timeout', '10');
       dbUrl = url.toString();
     } catch {
       // Fallback: if URL parsing fails, use original URL as-is
@@ -48,8 +48,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    // Log connection pool configuration (now auto-configured in constructor)
-    this.logger.log('📦 Prisma connection pool: connection_limit=15, pool_timeout=20');
+    // BUG 12 FIX: Updated connection pool params — connection_limit=20, pool_timeout=10
+    this.logger.log('📦 Prisma connection pool: connection_limit=20, pool_timeout=10');
 
     const connected = await this.tryConnect();
 

@@ -1,7 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { MarketDataAggregatorService } from '../../analytics/aggregator.service';
 import { PositionInfo, PortfolioSummary } from '../events/order.events';
+import { RedisService } from '../../../common/redis/redis.service';
 
 /**
  * Position Manager Service — Portfolio & Position Tracking
@@ -28,9 +29,17 @@ import { PositionInfo, PortfolioSummary } from '../events/order.events';
 export class PositionManagerService {
   private readonly logger = new Logger(PositionManagerService.name);
 
+  /** BUG 9 FIX: Redis cache TTL for daily P&L — 60 seconds.
+   *  Multiple services (PositionManager, RiskGatekeeper, RiskCalculator) independently
+   *  query the database for today's trades to calculate daily P&L. This shared
+   *  Redis cache ensures the DB is only queried once per minute per user.
+   */
+  private readonly DAILY_PNL_TTL_MS = 60_000; // 60 seconds
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly aggregator: MarketDataAggregatorService,
+    @Optional() private readonly redis?: RedisService,
   ) {
     this.logger.log('📊 Position Manager initialized — tracking across all exchanges');
   }
@@ -194,19 +203,8 @@ export class PositionManagerService {
       0,
     );
 
-    // Calculate today's realized P&L
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    const todayTrades = await this.prisma.trade.findMany({
-      where: {
-        userId,
-        executedAt: { gte: todayStart },
-        type: { in: ['EXIT', 'PARTIAL_EXIT'] },
-      },
-    });
-
-    const dailyPnL = todayTrades.reduce((sum, t) => sum + Number(t.pnl || 0), 0);
+    // Calculate today's realized P&L (BUG 9 FIX: use shared cached method)
+    const dailyPnL = await this.getDailyPnL(userId);
 
     // Calculate daily P&L percentage
     const totalBalance = baseBalance + totalExposure;
@@ -245,5 +243,49 @@ export class PositionManagerService {
       unrealizedPnL,
       positions,
     };
+  }
+
+  /**
+   * BUG 9 FIX: Shared daily P&L calculation with Redis cache.
+   * Key: `daily:pnl:{userId}`, TTL: 60 seconds.
+   * Other services (RiskGatekeeper, RiskCalculator) should use this
+   * instead of independently querying the trades table.
+   *
+   * Usage from other services:
+   *   import { PositionManagerService } from '../trading/services/position-manager.service';
+   *   const dailyPnL = await positionManager.getDailyPnL(userId);
+   */
+  async getDailyPnL(userId: string): Promise<number> {
+    const cacheKey = `daily:pnl:${userId}`;
+
+    // Try Redis cache first
+    try {
+      const cached = await this.redis?.get(cacheKey);
+      if (cached !== null && cached !== undefined) {
+        const parsed = parseFloat(cached);
+        if (!isNaN(parsed)) return parsed;
+      }
+    } catch { /* cache miss */ }
+
+    // Cache miss — calculate from DB
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const todayTrades = await this.prisma.trade.findMany({
+      where: {
+        userId,
+        executedAt: { gte: todayStart },
+        type: { in: ['EXIT', 'PARTIAL_EXIT'] },
+      },
+    });
+
+    const dailyPnL = todayTrades.reduce((sum, t) => sum + Number(t.pnl || 0), 0);
+
+    // Store in Redis with 60-second TTL
+    try {
+      await this.redis?.set(cacheKey, dailyPnL.toString(), this.DAILY_PNL_TTL_MS);
+    } catch { /* non-critical */ }
+
+    return dailyPnL;
   }
 }

@@ -39,8 +39,26 @@ async function bootstrap() {
       referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     }));
 
-    // Explicit X-Content-Type-Options header (defense-in-depth, even though Helmet may set it)
+    // BUG 11 FIX: Add Cache-Control headers based on response type.
+    // - Static-ish data (exchange rates, quotes): public, max-age=5
+    // - User-specific data: private, no-cache
     app.use((req: any, res: any, next: any) => {
+      const originalEnd = res.end;
+      res.end = function (...args: any[]) {
+        // Only set Cache-Control if not already set by a specific endpoint
+        if (!res.getHeader('Cache-Control')) {
+          const path = req.url || req.originalUrl || '';
+          if (path.includes('/api/exchange/') || path.includes('/api/health') || path.includes('/api/scanner/overview') || path.includes('/api/scanner/heatmap')) {
+            // Public data that changes infrequently — cache for 5 seconds
+            res.setHeader('Cache-Control', 'public, max-age=5');
+          } else {
+            // User-specific or dynamic data — no cache
+            res.setHeader('Cache-Control', 'private, no-cache');
+          }
+        }
+        return originalEnd.apply(res, args);
+      };
+
       res.setHeader('X-Content-Type-Options', 'nosniff');
       // X-XSS-Protection disabled — modern CSP is the preferred defense
       // Setting '1; mode=block' is deprecated and can introduce vulnerabilities

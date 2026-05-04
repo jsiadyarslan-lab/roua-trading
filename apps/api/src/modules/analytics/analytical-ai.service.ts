@@ -1,10 +1,11 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { AIOrchestratorService } from '../ai/services/ai-orchestrator.service';
 import { RagService } from '../ai/services/rag.service';
 import { MarketDataAggregatorService } from './aggregator.service';
 import { TechnicalIndicatorService } from './indicators.service';
 import { AnalysisCardDto, AggregatedQuoteDto } from './analytics.types';
 import { TechnicalAnalysisDto } from './analytics.types';
+import { RedisService } from '../../common/redis/redis.service';
 
 /**
  * Analytical AI Service — AI-Powered Market Analysis
@@ -38,13 +39,17 @@ import { TechnicalAnalysisDto } from './analytics.types';
 export class AnalyticalAIService {
   private readonly logger = new Logger(AnalyticalAIService.name);
 
+  /** Redis cache TTL for scanner analysis: 3 minutes */
+  private readonly SCANNER_ANALYSIS_TTL_MS = 3 * 60 * 1000;
+
   constructor(
     private readonly aggregator: MarketDataAggregatorService,
     private readonly indicators: TechnicalIndicatorService,
     private readonly orchestrator: AIOrchestratorService,
     private readonly ragService: RagService,
+    @Optional() private readonly redis?: RedisService,
   ) {
-    this.logger.log('🧠 Analytical AI Service initialized — analysis pipeline ready');
+    this.logger.log('🧠 Analytical AI Service initialized — analysis pipeline ready' + (this.redis ? ' (with Redis cache)' : ''));
   }
 
   /**
@@ -58,6 +63,19 @@ export class AnalyticalAIService {
   async analyzeAsset(symbol: string): Promise<AnalysisCardDto> {
     this.logger.log(`🧠 Starting full analysis for ${symbol}`);
     const startTime = Date.now();
+
+    // BUG 1 FIX: Check Redis cache before running full analysis pipeline.
+    // When two users request analysis for the same symbol at the same time,
+    // separate AI calls were made. Now we cache with key `scanner:analysis:{symbol}`
+    // and 3-minute TTL so repeated requests within the window reuse the result.
+    const cacheKey = `scanner:analysis:${symbol}`;
+    try {
+      const cached = await this.redis?.get(cacheKey);
+      if (cached) {
+        this.logger.debug(`🧠 Redis cache hit for scanner analysis: ${symbol}`);
+        return JSON.parse(cached);
+      }
+    } catch { /* cache miss — continue */ }
 
     // Step 1: Fetch aggregated market data
     let quote: AggregatedQuoteDto | null = null;
@@ -113,7 +131,7 @@ export class AnalyticalAIService {
       `🧠 Analysis complete for ${symbol}: sentiment=${sentiment}, confidence=${confidence}, risk=${riskLevel} (${elapsed}ms)`,
     );
 
-    return {
+    const result: AnalysisCardDto = {
       symbol,
       timestamp: new Date(),
       quote,
@@ -125,6 +143,15 @@ export class AnalyticalAIService {
       keyFactors,
       riskLevel,
     };
+
+    // BUG 1 FIX: Store analysis result in Redis with 3-minute TTL.
+    // This prevents duplicate AI calls when multiple users or services
+    // request analysis for the same symbol within a short window.
+    try {
+      await this.redis?.set(cacheKey, JSON.stringify(result), this.SCANNER_ANALYSIS_TTL_MS);
+    } catch { /* non-critical */ }
+
+    return result;
   }
 
   // ── Private: AI Analysis Generation ──

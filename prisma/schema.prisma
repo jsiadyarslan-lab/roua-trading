@@ -461,18 +461,27 @@ model Challenge {
 }
 
 // ── OAuth Account model (NextAuth) ──
+// TODO: [SECURITY] OAuth tokens (access_token, refresh_token, id_token) are stored as
+// plaintext String fields. These should be encrypted at rest using AES-256-GCM (same as
+// ExchangeCredential) via the CredentialsService encryption methods. Plan:
+//   1. Add encrypted_access_token, encrypted_refresh_token, encrypted_id_token fields
+//      along with corresponding iv and authTag fields (per CredentialsService pattern).
+//   2. In the NextAuth callback where tokens are persisted, encrypt before saving.
+//   3. When reading tokens, decrypt using CredentialsService._decrypt().
+//   4. Migrate existing plaintext tokens to encrypted form in a DB migration.
+// See: apps/api/src/modules/portfolio/credentials/credentials.service.ts for encryption pattern.
 model Account {
   id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?
-  access_token      String?
+  refresh_token     String?  // TODO: Encrypt at rest — see comment above
+  access_token      String?  // TODO: Encrypt at rest — see comment above
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String?
+  id_token          String?  // TODO: Encrypt at rest — see comment above
   session_state     String?
   updatedAt       DateTime  @updatedAt
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)

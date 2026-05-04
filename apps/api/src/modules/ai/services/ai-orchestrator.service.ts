@@ -51,18 +51,20 @@ export class AIOrchestratorService {
   private readonly logger = new Logger(AIOrchestratorService.name);
 
   /** Circuit breaker: track consecutive failures per model
-   *  FIX #4: Previous cooldown was too short (10s → 120s now).
-   *  However, the REAL problem was that after cooldown expires, the model
-   *  was immediately retried without checking if it's actually healthy.
-   *  New approach: Progressive cooldown — each consecutive cooldown period
-   *  doubles (120s → 240s → 480s) up to a max of 30 minutes.
-   *  On success, cooldown resets immediately.
+   *  BUG 6 FIX: Exponential backoff starting at 30s, doubling each time,
+   *  up to a max of 5 minutes. On success, cooldown resets immediately.
+   *  Previous: 120s base / 30min max — too aggressive for transient errors.
+   *  New: 30s → 60s → 120s → 240s → 300s (capped at 5min).
    */
   private readonly modelCooldowns = new Map<string, number>();
   private readonly modelConsecutiveFailures = new Map<string, number>();
   private readonly modelCooldownLevel = new Map<string, number>(); // FIX #4: Progressive level
-  private readonly BASE_COOLDOWN_MS = 120_000; // Base cooldown: 2 minutes
-  private readonly MAX_COOLDOWN_MS = 30 * 60 * 1000; // Max cooldown: 30 minutes
+  // BUG 6 FIX: Changed from fixed 120s base / 30min max to exponential backoff
+  // starting at 30s and doubling each time up to a max of 5 minutes.
+  // This allows faster recovery from transient rate-limits while still
+  // protecting against sustained abuse.
+  private readonly BASE_COOLDOWN_MS = 30_000; // Base cooldown: 30 seconds
+  private readonly MAX_COOLDOWN_MS = 5 * 60 * 1000; // Max cooldown: 5 minutes
   private readonly FAILURES_BEFORE_COOLDOWN = 3; // FIX: Increased from 2 to 3 — give models more chances before cooldown
 
   /** In-flight request deduplication — prevents duplicate AI calls for the same symbol+type */

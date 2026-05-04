@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { EmbeddingService } from './embedding.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { RedisService } from '../../../common/redis/redis.service';
 
 /**
  * RAG Service — Retrieval-Augmented Generation
@@ -22,11 +23,18 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 export class RagService {
   private readonly logger = new Logger(RagService.name);
 
+  /** BUG 10 FIX: Redis cache TTL for RAG results — 10 minutes.
+   *  Without caching, every RAG query triggers embedding generation + DB search.
+   *  With caching, repeated queries for similar content reuse cached results.
+   */
+  private readonly RAG_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
   constructor(
     private readonly embeddingService: EmbeddingService,
     private readonly prisma: PrismaService,
+    @Optional() private readonly redis?: RedisService,
   ) {
-    this.logger.log('📚 RAG Service initialized — context retrieval ready');
+    this.logger.log('📚 RAG Service initialized — context retrieval ready' + (this.redis ? ' (with Redis cache)' : ''));
   }
 
   /**
@@ -37,6 +45,35 @@ export class RagService {
    * @returns Formatted context string from relevant articles
    */
   async retrieveRelevantContext(query: string, limit: number = 5): Promise<string> {
+    // BUG 10 FIX: Check Redis cache before running expensive RAG pipeline.
+    // Key is a hash of the query so identical/near-identical queries hit cache.
+    const queryHash = this._hashQuery(query);
+    const cacheKey = `rag:${queryHash}`;
+
+    try {
+      const cached = await this.redis?.get(cacheKey);
+      if (cached) {
+        this.logger.debug(`📚 Redis cache hit for RAG query: "${query.slice(0, 50)}"`);
+        return cached;
+      }
+    } catch { /* cache miss */ }
+
+    const result = await this._retrieveWithoutCache(query, limit);
+
+    // Store in Redis with 10-minute TTL
+    if (result) {
+      try {
+        await this.redis?.set(cacheKey, result, this.RAG_CACHE_TTL_MS);
+      } catch { /* non-critical */ }
+    }
+
+    return result;
+  }
+
+  /**
+   * Internal method: actual RAG retrieval without caching
+   */
+  private async _retrieveWithoutCache(query: string, limit: number): Promise<string> {
     try {
       // Step 1: Generate embedding for the query
       const queryEmbedding = await this.embeddingService.embed(query);
@@ -89,6 +126,21 @@ export class RagService {
       this.logger.error(`RAG retrieval failed: ${error.message}`);
       return ''; // Non-blocking: return empty context on failure
     }
+  }
+
+  /**
+   * BUG 10 FIX: Generate a stable hash for a RAG query for cache key purposes.
+   * Uses a fast, non-crypto hash to avoid overhead on every query.
+   */
+  private _hashQuery(query: string): string {
+    let hash = 0;
+    const str = query.toLowerCase().trim();
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash |= 0; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(36);
   }
 
   /**

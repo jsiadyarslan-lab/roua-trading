@@ -616,6 +616,97 @@ EOSQL
           FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
       END IF;
     END $$;
+
+    -- ── Setting table (CRITICAL for Agent onModuleInit) ──
+    -- Without this table, the agent service's onModuleInit fails to seed
+    -- AUTO_TRADING_ENABLED, which can prevent the module from loading,
+    -- causing 404 on ALL agent routes.
+    CREATE TABLE IF NOT EXISTS "Setting" (
+      "id" TEXT NOT NULL,
+      "key" TEXT NOT NULL,
+      "value" TEXT NOT NULL DEFAULT '{}',
+      "updatedAt" TIMESTAMP(3) NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Setting_pkey" PRIMARY KEY ("id")
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "Setting_key_key" ON "Setting"("key");
+    CREATE INDEX IF NOT EXISTS "Setting_key_idx" ON "Setting"("key");
+
+    -- ── AgentSettings table (CRITICAL for agent start/settings) ──
+    -- Without this table, getSettings() and updateSettings() crash,
+    -- and the agent start flow fails when loading user settings.
+    CREATE TABLE IF NOT EXISTS "AgentSettings" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "autoTradingEnabled" BOOLEAN NOT NULL DEFAULT true,
+      "paperBalance" DECIMAL(19,4) NOT NULL DEFAULT 10000,
+      "maxPositionSizePercent" DECIMAL(5,2) NOT NULL DEFAULT 2,
+      "maxDailyLossPercent" DECIMAL(5,2) NOT NULL DEFAULT 5,
+      "maxOpenPositions" INTEGER NOT NULL DEFAULT 5,
+      "riskPerTradePercent" DECIMAL(5,2) NOT NULL DEFAULT 1.5,
+      "defaultStrategy" TEXT NOT NULL DEFAULT 'AUTO',
+      "scalpingTimeframe" TEXT NOT NULL DEFAULT '5m',
+      "scalpingTakeProfitPips" INTEGER NOT NULL DEFAULT 15,
+      "scalpingStopLossPips" INTEGER NOT NULL DEFAULT 10,
+      "scalpingMaxSpread" INTEGER NOT NULL DEFAULT 3,
+      "swingTimeframe" TEXT NOT NULL DEFAULT '1h',
+      "swingHoldingPeriodHours" INTEGER NOT NULL DEFAULT 48,
+      "swingTrendLookback" INTEGER NOT NULL DEFAULT 50,
+      "gridLevels" INTEGER NOT NULL DEFAULT 5,
+      "gridSpacingPercent" DECIMAL(5,2) NOT NULL DEFAULT 0.5,
+      "gridQuantityPerLevel" DECIMAL(19,8),
+      "defaultSymbols" TEXT NOT NULL DEFAULT 'BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT,XRP/USDT',
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL,
+      CONSTRAINT "AgentSettings_pkey" PRIMARY KEY ("id")
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "AgentSettings_userId_key" ON "AgentSettings"("userId");
+    CREATE INDEX IF NOT EXISTS "AgentSettings_userId_idx" ON "AgentSettings"("userId");
+
+    -- AgentSettings foreign key
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'AgentSettings_userId_fkey'
+      ) THEN
+        ALTER TABLE "AgentSettings" ADD CONSTRAINT "AgentSettings_userId_fkey"
+          FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+
+    -- ── ExchangeCredential table (needed for agent start) ──
+    CREATE TABLE IF NOT EXISTS "ExchangeCredential" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "exchange" TEXT NOT NULL,
+      "label" TEXT NOT NULL,
+      "encryptedApiKey" TEXT NOT NULL,
+      "encryptedSecret" TEXT NOT NULL,
+      "iv" TEXT NOT NULL,
+      "authTag" TEXT NOT NULL,
+      "secretIv" TEXT,
+      "secretAuthTag" TEXT,
+      "permissions" TEXT NOT NULL DEFAULT 'read',
+      "isValid" BOOLEAN NOT NULL DEFAULT true,
+      "lastValidatedAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "ExchangeCredential_pkey" PRIMARY KEY ("id")
+    );
+    CREATE INDEX IF NOT EXISTS "ExchangeCredential_userId_idx" ON "ExchangeCredential"("userId");
+    CREATE INDEX IF NOT EXISTS "ExchangeCredential_exchange_idx" ON "ExchangeCredential"("exchange");
+    CREATE INDEX IF NOT EXISTS "ExchangeCredential_userId_isValid_idx" ON "ExchangeCredential"("userId", "isValid");
+
+    -- ExchangeCredential foreign key
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'ExchangeCredential_userId_fkey'
+      ) THEN
+        ALTER TABLE "ExchangeCredential" ADD CONSTRAINT "ExchangeCredential_userId_fkey"
+          FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
 EOSQL
 
   echo "📦 Adding missing columns via ALTER TABLE..."

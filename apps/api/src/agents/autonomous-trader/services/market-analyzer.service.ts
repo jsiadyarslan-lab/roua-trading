@@ -2,7 +2,7 @@
 // Roua Trading (رؤى) — Market Analyzer Service
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ExchangeService } from '../../../modules/exchange/exchange.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { MarketAnalysis, MACDResult, BollingerBandsResult, EMAResult, StrategySignal } from '../types/agent.types';
@@ -30,9 +30,9 @@ export class MarketAnalyzerService {
 
   constructor(
     private readonly exchangeService: ExchangeService,
-    private readonly redis: RedisService,
+    @Optional() private readonly redis: RedisService,
   ) {
-    this.logger.log('🔍 Market Analyzer initialized');
+    this.logger.log(`🔍 Market Analyzer initialized (redis=${!!this.redis})`);
   }
 
   /**
@@ -40,11 +40,17 @@ export class MarketAnalyzerService {
    */
   async analyze(symbol: string): Promise<MarketAnalysis | null> {
     try {
-      // Check cache first
+      // Check cache first (skip if Redis is unavailable)
       const cacheKey = `agent:market:${symbol}`;
-      const cached = await this.redis.get(cacheKey);
-      if (cached) {
-        return JSON.parse(cached);
+      if (this.redis) {
+        try {
+          const cached = await this.redis.get(cacheKey);
+          if (cached) {
+            return JSON.parse(cached);
+          }
+        } catch (redisErr: any) {
+          this.logger.warn(`Redis cache read failed for ${symbol}: ${redisErr.message} — proceeding without cache`);
+        }
       }
 
       // Fetch current quote
@@ -111,8 +117,14 @@ export class MarketAnalyzerService {
         aiReasoning,
       };
 
-      // Cache the result
-      await this.redis.set(cacheKey, JSON.stringify(analysis), this.CACHE_TTL);
+      // Cache the result (best-effort — don't fail if Redis is unavailable)
+      if (this.redis) {
+        try {
+          await this.redis.set(cacheKey, JSON.stringify(analysis), this.CACHE_TTL);
+        } catch (redisErr: any) {
+          this.logger.warn(`Redis cache write failed for ${symbol}: ${redisErr.message} — analysis will not be cached`);
+        }
+      }
 
       return analysis;
     } catch (error: any) {

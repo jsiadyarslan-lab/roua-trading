@@ -263,6 +263,42 @@ interface AgentStore {
 const DEFAULT_SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT']
 
 let _refreshInterval: ReturnType<typeof setInterval> | null = null
+let _nestjsReady: boolean | null = null  // null = unknown, true = ready, false = offline
+
+/**
+ * Check if NestJS backend is ready by hitting the public health endpoint.
+ * Returns true if NestJS is up and agent routes are registered.
+ */
+async function checkNestJSReady(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/agent/trader/health', {
+      signal: AbortSignal.timeout(5000), // 5s timeout
+    })
+    if (res.ok) {
+      _nestjsReady = true
+      return true
+    }
+    _nestjsReady = false
+    return false
+  } catch {
+    _nestjsReady = false
+    return false
+  }
+}
+
+/**
+ * Wait for NestJS to become ready, with retries.
+ * Returns true if NestJS became ready within the timeout.
+ */
+async function waitForNestJS(maxRetries = 5, delayMs = 2000): Promise<boolean> {
+  for (let i = 0; i < maxRetries; i++) {
+    if (await checkNestJSReady()) return true
+    if (i < maxRetries - 1) {
+      await new Promise(r => setTimeout(r, delayMs))
+    }
+  }
+  return false
+}
 
 export const useAgentStore = create<AgentStore>()(
   persist(
@@ -371,6 +407,20 @@ export const useAgentStore = create<AgentStore>()(
         } else {
           get().addLog(`جارٍ تفعيل الوكيل باستراتيجية ${strategyLabel}...`, 'info')
         }
+
+        // Check if NestJS is ready before attempting to start the agent.
+        // If NestJS is offline (cold start or crash), wait for it with retries.
+        if (_nestjsReady !== true) {
+          get().addLog('⏳ جارٍ التحقق من جاهزية خدمة التداول...', 'info')
+          const isReady = await waitForNestJS(5, 2000)
+          if (!isReady) {
+            set({ error: 'خدمة التداول غير متاحة حالياً — يرجى إعادة تحميل الصفحة بعد بضع ثوان', loading: false })
+            get().addLog('❌ خدمة التداول غير متاحة بعد إعادة المحاولة', 'error')
+            return
+          }
+          get().addLog('✅ خدمة التداول جاهزة', 'info')
+        }
+
         try {
           const payload: Record<string, any> = {
             strategy: safeStrategy,
@@ -387,10 +437,30 @@ export const useAgentStore = create<AgentStore>()(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
           })
-          const data = await res.json()
 
-          if (!res.ok) {
-            // Silently log for debugging — not shown to user
+          // Handle non-JSON responses (NestJS offline / 502 / 404)
+          let data: any
+          try {
+            data = await res.json()
+          } catch {
+            // NestJS is offline — show clear message
+            set({ error: 'خدمة التداول غير متاحة حالياً — يرجى المحاولة بعد بضع ثوان', loading: false })
+            get().addLog('❌ خدمة التداول غير متاحة — يرجى المحاولة لاحقاً', 'error')
+            return
+          }
+
+          // Handle 502 Bad Gateway (NestJS offline/crashed)
+          if (res.status === 502 || data.offline) {
+            set({ error: 'خدمة التداول غير متاحة حالياً — يرجى المحاولة بعد بضع ثوان', loading: false })
+            get().addLog('❌ خدمة التداول غير متاحة — يرجى المحاولة لاحقاً', 'error')
+            return
+          }
+
+          // Handle 404 (route not found in NestJS — module failed to load)
+          if (res.status === 404) {
+            set({ error: 'خدمة وكيل التداول غير مسجلة — يرجى إعادة تحميل الصفحة أو المحاولة لاحقاً', loading: false })
+            get().addLog('❌ مسار الوكيل غير موجود — قد يكون NestJS لم يكتمل بعد', 'error')
+            return
           }
 
           if (data.success) {

@@ -82,10 +82,24 @@ const nextConfig: NextConfig = {
 
   async rewrites() {
     return [
+      // ── Health check ──
       {
         source: '/api/health',
         destination: `${apiTarget}/api/health`,
       },
+      // ── Auth endpoints (proxied to NestJS) ──
+      // FIX: /api/auth/session was returning 404 because it was only in NestJS
+      // but not proxied through Next.js. This caused the frontend to think
+      // the API was down when checking session status.
+      {
+        source: '/api/auth/session',
+        destination: `${apiTarget}/api/auth/session`,
+      },
+      {
+        source: '/api/auth/guest',
+        destination: `${apiTarget}/api/auth/guest`,
+      },
+      // ── News endpoints (proxied to NestJS) ──
       {
         source: '/api/news/nest/latest',
         destination: `${apiTarget}/api/news/latest`,
@@ -97,6 +111,16 @@ const nextConfig: NextConfig = {
       {
         source: '/api/news/nest/fetch',
         destination: `${apiTarget}/api/news/fetch`,
+      },
+      // ── Strategic Council endpoints (proxied to NestJS) ──
+      {
+        source: '/api/strategic-council/:path*',
+        destination: `${apiTarget}/api/strategic-council/:path*`,
+      },
+      // ── Smart Executor endpoints (proxied to NestJS) ──
+      {
+        source: '/api/smart-executor/:path*',
+        destination: `${apiTarget}/api/smart-executor/:path*`,
       },
     ];
   },

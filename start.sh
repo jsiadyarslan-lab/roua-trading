@@ -748,6 +748,213 @@ EOSQL
         ALTER TABLE "ExchangeCredential" ADD COLUMN "passphraseAuthTag" TEXT;
       END IF;
     END $$;
+    -- ── TradingBrief table (CRITICAL for Strategic Council + Smart Executor) ──
+    -- Without this table, /api/strategic-council/briefs/active returns 503
+    -- and SmartExecutor cannot read briefs to execute trades.
+
+    -- Create enum types first (required by TradingBrief)
+    DO $$ BEGIN
+      CREATE TYPE "BriefDirection" AS ENUM ('BUY', 'SELL');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "BriefTimeframe" AS ENUM ('H1', 'H4', 'D1', 'W1');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "BriefReviewStatus" AS ENUM ('ACTIVE', 'MODIFIED', 'CANCELLED', 'EXECUTED');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    CREATE TABLE IF NOT EXISTS "TradingBrief" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT,
+      "pair" TEXT NOT NULL,
+      "direction" "BriefDirection" NOT NULL,
+      "entryPrice" DECIMAL(19,8) NOT NULL,
+      "stopLoss" DECIMAL(19,8) NOT NULL,
+      "takeProfit" DECIMAL(19,8) NOT NULL,
+      "confidence" INTEGER NOT NULL DEFAULT 0,
+      "timeframe" "BriefTimeframe" NOT NULL,
+      "issuedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "expiresAt" TIMESTAMP(3) NOT NULL,
+      "isActive" BOOLEAN NOT NULL DEFAULT true,
+      "strictRules" TEXT NOT NULL DEFAULT '{}',
+      "lastReviewedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "reviewStatus" "BriefReviewStatus" NOT NULL DEFAULT 'ACTIVE',
+      "analysisSummary" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "TradingBrief_pkey" PRIMARY KEY ("id")
+    );
+    CREATE INDEX IF NOT EXISTS "TradingBrief_pair_idx" ON "TradingBrief"("pair");
+    CREATE INDEX IF NOT EXISTS "TradingBrief_isActive_idx" ON "TradingBrief"("isActive");
+    CREATE INDEX IF NOT EXISTS "TradingBrief_reviewStatus_idx" ON "TradingBrief"("reviewStatus");
+    CREATE INDEX IF NOT EXISTS "TradingBrief_expiresAt_idx" ON "TradingBrief"("expiresAt");
+    CREATE INDEX IF NOT EXISTS "TradingBrief_pair_isActive_reviewStatus_idx" ON "TradingBrief"("pair", "isActive", "reviewStatus");
+    CREATE INDEX IF NOT EXISTS "TradingBrief_isActive_reviewStatus_idx" ON "TradingBrief"("isActive", "reviewStatus");
+
+    -- ── Portfolio table (needed for portfolio features) ──
+    CREATE TABLE IF NOT EXISTS "Portfolio" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "name" TEXT NOT NULL DEFAULT 'Main Portfolio',
+      "description" TEXT,
+      "totalValue" DECIMAL(19,4) NOT NULL DEFAULT 0,
+      "currency" TEXT NOT NULL DEFAULT 'USD',
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Portfolio_pkey" PRIMARY KEY ("id")
+    );
+    CREATE INDEX IF NOT EXISTS "Portfolio_userId_idx" ON "Portfolio"("userId");
+
+    -- ── NewsArticle table (needed for news features) ──
+    CREATE TABLE IF NOT EXISTS "NewsArticle" (
+      "id" TEXT NOT NULL,
+      "title" TEXT NOT NULL,
+      "url" TEXT NOT NULL,
+      "source" TEXT NOT NULL DEFAULT 'unknown',
+      "publishedAt" TIMESTAMP(3),
+      "fetchedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "content" TEXT,
+      "summary" TEXT,
+      "translatedTitle" TEXT,
+      "translatedContent" TEXT,
+      "sentiment" TEXT DEFAULT 'neutral',
+      "sentimentScore" DOUBLE PRECISION DEFAULT 0,
+      "relatedAssets" TEXT DEFAULT '[]',
+      "categories" TEXT DEFAULT '[]',
+      "embedding" TEXT,
+      "language" TEXT DEFAULT 'en',
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "NewsArticle_pkey" PRIMARY KEY ("id")
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "NewsArticle_url_key" ON "NewsArticle"("url");
+    CREATE INDEX IF NOT EXISTS "NewsArticle_source_idx" ON "NewsArticle"("source");
+    CREATE INDEX IF NOT EXISTS "NewsArticle_sentiment_idx" ON "NewsArticle"("sentiment");
+    CREATE INDEX IF NOT EXISTS "NewsArticle_publishedAt_idx" ON "NewsArticle"("publishedAt");
+
+    -- ── CoachAdvice table (needed for AI Coach) ──
+    CREATE TABLE IF NOT EXISTS "CoachAdvice" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "category" TEXT NOT NULL,
+      "question" TEXT NOT NULL,
+      "advice" TEXT NOT NULL,
+      "model" TEXT DEFAULT 'unknown',
+      "confidence" DOUBLE PRECISION DEFAULT 0,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "CoachAdvice_pkey" PRIMARY KEY ("id")
+    );
+    CREATE INDEX IF NOT EXISTS "CoachAdvice_userId_idx" ON "CoachAdvice"("userId");
+
+    -- ── PriceAlert table (needed for price alert features) ──
+    CREATE TABLE IF NOT EXISTS "PriceAlert" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "symbol" TEXT NOT NULL,
+      "targetPrice" DECIMAL(19,8) NOT NULL,
+      "currentPrice" DECIMAL(19,8),
+      "direction" TEXT NOT NULL DEFAULT 'ABOVE',
+      "isActive" BOOLEAN NOT NULL DEFAULT true,
+      "triggeredAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "PriceAlert_pkey" PRIMARY KEY ("id")
+    );
+    CREATE INDEX IF NOT EXISTS "PriceAlert_userId_idx" ON "PriceAlert"("userId");
+    CREATE INDEX IF NOT EXISTS "PriceAlert_symbol_idx" ON "PriceAlert"("symbol");
+    CREATE INDEX IF NOT EXISTS "PriceAlert_isActive_idx" ON "PriceAlert"("isActive");
+
+    -- ── Signal table (needed for signal features) ──
+    DO $$ BEGIN
+      CREATE TYPE "SignalAction" AS ENUM ('BUY', 'SELL', 'WAIT');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "SignalStatus" AS ENUM ('ACTIVE', 'EXPIRED', 'EXECUTED', 'CANCELLED');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    CREATE TABLE IF NOT EXISTS "Signal" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "pair" TEXT NOT NULL,
+      "action" "SignalAction" NOT NULL DEFAULT 'WAIT',
+      "confidence" INTEGER NOT NULL DEFAULT 0,
+      "reason" TEXT,
+      "entryPrice" DECIMAL(19,8),
+      "stopLoss" DECIMAL(19,8),
+      "takeProfit" DECIMAL(19,8),
+      "status" "SignalStatus" NOT NULL DEFAULT 'ACTIVE',
+      "source" TEXT DEFAULT 'ai',
+      "expiresAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Signal_pkey" PRIMARY KEY ("id")
+    );
+    CREATE INDEX IF NOT EXISTS "Signal_userId_idx" ON "Signal"("userId");
+    CREATE INDEX IF NOT EXISTS "Signal_pair_idx" ON "Signal"("pair");
+    CREATE INDEX IF NOT EXISTS "Signal_status_idx" ON "Signal"("status");
+    CREATE INDEX IF NOT EXISTS "Signal_expiresAt_idx" ON "Signal"("expiresAt");
+
+    -- ── SignalUsage table (tracks signal usage per user) ──
+    CREATE TABLE IF NOT EXISTS "SignalUsage" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "signalId" TEXT NOT NULL,
+      "action" TEXT NOT NULL DEFAULT 'viewed',
+      "confidence" DOUBLE PRECISION DEFAULT 0,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "SignalUsage_pkey" PRIMARY KEY ("id")
+    );
+    CREATE INDEX IF NOT EXISTS "SignalUsage_userId_idx" ON "SignalUsage"("userId");
+    CREATE INDEX IF NOT EXISTS "SignalUsage_signalId_idx" ON "SignalUsage"("signalId");
+
+    -- ── Notification table (needed for notification center) ──
+    CREATE TABLE IF NOT EXISTS "Notification" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "type" TEXT NOT NULL DEFAULT 'info',
+      "title" TEXT NOT NULL,
+      "message" TEXT NOT NULL,
+      "isRead" BOOLEAN NOT NULL DEFAULT false,
+      "actionUrl" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
+    );
+    CREATE INDEX IF NOT EXISTS "Notification_userId_idx" ON "Notification"("userId");
+    CREATE INDEX IF NOT EXISTS "Notification_userId_isRead_idx" ON "Notification"("userId", "isRead");
+
+    -- ── Composite indexes for frequently queried patterns (audit report #24) ──
+    CREATE INDEX IF NOT EXISTS "Position_userId_status_idx" ON "Position"("userId", "status");
+    CREATE INDEX IF NOT EXISTS "Position_userId_symbol_status_idx" ON "Position"("userId", "symbol", "status");
+    CREATE INDEX IF NOT EXISTS "Trade_userId_type_executedAt_idx" ON "Trade"("userId", "type", "executedAt");
+
+    -- ── Account table (needed for Google OAuth) ──
+    CREATE TABLE IF NOT EXISTS "Account" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "type" TEXT NOT NULL,
+      "provider" TEXT NOT NULL,
+      "providerAccountId" TEXT NOT NULL,
+      "refresh_token" TEXT,
+      "access_token" TEXT,
+      "expires_at" BIGINT,
+      "token_type" TEXT,
+      "scope" TEXT,
+      "id_token" TEXT,
+      "session_state" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Account_pkey" PRIMARY KEY ("id")
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "Account_provider_providerAccountId_key" ON "Account"("provider", "providerAccountId");
+    CREATE INDEX IF NOT EXISTS "Account_userId_idx" ON "Account"("userId");
 EOSQL
 
   echo "📦 Adding missing columns via ALTER TABLE..."

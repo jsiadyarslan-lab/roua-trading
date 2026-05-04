@@ -425,15 +425,20 @@ export class AIOrchestratorService {
       // FIX: Each model has exactly ONE role — no duplicates, no role overlap
       // 8 models = 8 roles (1:1 mapping) — clean, predictable, no rate-limiting
       // + 1 Prediction Market role (9th model) — votes only when relevant events exist
+      //
+      // FIX: Added deepseek and ollama to more fallback chains to prevent
+      // all roles from collapsing to a single model (GLM-4) when primary
+      // models fail. This was causing 6+ roles to use GLM-4 simultaneously,
+      // which defeats the multi-model purpose and causes rate-limiting.
       const roles = [
-        { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',     fallbackModels: ['groq', 'glm', 'huggingface', 'openrouter'],  prompt: `${marketDataPrefix}حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.${decisionInstruction}` },
-        { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['gemini', 'glm', 'huggingface', 'openrouter'], prompt: `${marketDataPrefix}حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
-        { id: 'risk',   name: 'خبير المخاطر',     model: 'bedrock',    fallbackModels: ['glm', 'gemini', 'groq', 'openrouter'],        prompt: `${marketDataPrefix}حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة مع تقييم السيناريو الأسوأ.${decisionInstruction}` },
-        { id: 'macro',  name: 'خبير الماكرو',     model: 'glm',        fallbackModels: ['gemini', 'groq', 'huggingface', 'openrouter'], prompt: `${marketDataPrefix}حلل الوضع الاقتصادي العام وتأثيره على ${symbol} مع مراعاة السياق العربي.${decisionInstruction}` },
-        { id: 'pattern',name: 'خبير الأنماط',     model: 'huggingface',fallbackModels: ['groq', 'gemini', 'glm', 'openrouter'],        prompt: `${marketDataPrefix}هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟${decisionInstruction}` },
-        { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'ollama',     fallbackModels: ['groq', 'gemini', 'glm', 'openrouter'],        prompt: `${marketDataPrefix}ما هو أفضل توقيت للدخول في ${symbol} بناءً على السيولة والنماذج المتاحة؟${decisionInstruction}` },
-        { id: 'diverge',name: 'محلل التباين',     model: 'openrouter', fallbackModels: ['groq', 'gemini', 'glm', 'huggingface'],        prompt: `${marketDataPrefix}ابحث عن إشارات معاكسة أو تباينات في تحليل ${symbol} — هل هناك سبب لعدم اتباع الاتجاه السائد؟${decisionInstruction}` },
-        { id: 'scenario', name: 'محلل السيناريوهات', model: 'deepseek',    fallbackModels: ['gemini', 'groq', 'glm', 'openrouter'],        prompt: `${marketDataPrefix}حلل السيناريوهات المحتملة لـ ${symbol} مع تقدير احتمالات كل سيناريو.${decisionInstruction}` },
+        { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',     fallbackModels: ['groq', 'ollama', 'deepseek', 'glm', 'bedrock', 'huggingface', 'openrouter'],  prompt: `${marketDataPrefix}حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.${decisionInstruction}` },
+        { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['deepseek', 'ollama', 'gemini', 'bedrock', 'glm', 'huggingface', 'openrouter'], prompt: `${marketDataPrefix}حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
+        { id: 'risk',   name: 'خبير المخاطر',     model: 'bedrock',    fallbackModels: ['glm', 'deepseek', 'ollama', 'gemini', 'groq', 'openrouter'],        prompt: `${marketDataPrefix}حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة مع تقييم السيناريو الأسوأ.${decisionInstruction}` },
+        { id: 'macro',  name: 'خبير الماكرو',     model: 'glm',        fallbackModels: ['deepseek', 'ollama', 'bedrock', 'gemini', 'groq', 'huggingface', 'openrouter'], prompt: `${marketDataPrefix}حلل الوضع الاقتصادي العام وتأثيره على ${symbol} مع مراعاة السياق العربي.${decisionInstruction}` },
+        { id: 'pattern',name: 'خبير الأنماط',     model: 'huggingface',fallbackModels: ['ollama', 'deepseek', 'groq', 'gemini', 'bedrock', 'glm', 'openrouter'],        prompt: `${marketDataPrefix}هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟${decisionInstruction}` },
+        { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'ollama',     fallbackModels: ['deepseek', 'bedrock', 'glm', 'gemini', 'groq', 'huggingface', 'openrouter'],        prompt: `${marketDataPrefix}ما هو أفضل توقيت للدخول في ${symbol} بناءً على السيولة والنماذج المتاحة؟${decisionInstruction}` },
+        { id: 'diverge',name: 'محلل التباين',     model: 'openrouter', fallbackModels: ['deepseek', 'ollama', 'bedrock', 'groq', 'gemini', 'glm', 'huggingface'],        prompt: `${marketDataPrefix}ابحث عن إشارات معاكسة أو تباينات في تحليل ${symbol} — هل هناك سبب لعدم اتباع الاتجاه السائد؟${decisionInstruction}` },
+        { id: 'scenario', name: 'محلل السيناريوهات', model: 'deepseek',    fallbackModels: ['ollama', 'bedrock', 'gemini', 'groq', 'glm', 'huggingface', 'openrouter'],        prompt: `${marketDataPrefix}حلل السيناريوهات المحتملة لـ ${symbol} مع تقدير احتمالات كل سيناريو.${decisionInstruction}` },
       ];
 
       // ── 9th Model: Prediction Market Analyst ──
@@ -464,6 +469,13 @@ export class AIOrchestratorService {
       // Uses the new lenient cooldown: only skip if 3+ consecutive 429 failures
       // FIX: On cloud with localhost Ollama URL, skip it as primary for 'exec' role
       // FIX 2: If Ollama has a cloud URL (like ollama.com), keep it as primary — it works!
+      // FIX 3: Model diversification — prevent the same model from being used for
+      // more than 2 roles. When multiple roles fall back to the same model (e.g.,
+      // GLM-4), we try to distribute across available working models instead.
+      // This prevents rate-limiting and ensures genuine multi-model analysis.
+      const modelUsageCount = new Map<string, number>(); // Track how many roles each model is assigned to
+      const MAX_MODEL_REUSE = 2; // A model can be used for at most 2 roles
+
       const activeRoles = roles.map(role => {
         let roleModels = [role.model, ...(role.fallbackModels || [])];
         // If Ollama is the primary model but we're on cloud WITH localhost URL, move it to end of fallback list
@@ -484,6 +496,14 @@ export class AIOrchestratorService {
             if (Date.now() < cooldownUntil) continue; // In short cooldown
           }
           if (!this._isModelKeyAvailable(model)) continue; // Skip — no API key
+          // FIX 3: Check model diversification — skip if model is already used for MAX_MODEL_REUSE roles
+          const currentUsage = modelUsageCount.get(model) || 0;
+          if (currentUsage >= MAX_MODEL_REUSE) {
+            this.logger.debug(`🔀 Model ${model} already used for ${currentUsage} roles — trying next model for role ${role.name}`);
+            continue; // Try next model in fallback chain
+          }
+          // Assign this model to this role and increment usage count
+          modelUsageCount.set(model, currentUsage + 1);
           return { ...role, resolvedModel: model };
         }
         // All models for this role unavailable — keep primary (will return stub)

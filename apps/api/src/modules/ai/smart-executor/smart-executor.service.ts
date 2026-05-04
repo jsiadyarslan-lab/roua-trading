@@ -23,6 +23,7 @@ import { TradingBriefDTO, StrictRules } from '../strategic-council/strategic-cou
 import { ExecutorStatus, ExecutionResult, ExecutorConfig, UserExecutorState } from './smart-executor.types';
 import { PlaceOrderRequest, OrderSide, OrderType } from '../../trading/trading.types';
 import { RiskGatekeeperService } from '../../trading/services/risk-gatekeeper.service';
+import { OrderSideEnum, OrderTypeEnum } from '../../trading/events/order.events';
 
 @Injectable()
 export class SmartExecutorService implements OnModuleDestroy {
@@ -585,8 +586,8 @@ export class SmartExecutorService implements OnModuleDestroy {
         userId,
         exchangeCredentialId: credential.id,
         symbol: brief.pair,
-        side: brief.direction === 'BUY' ? 'BUY' : 'SELL',
-        type: 'MARKET',
+        side: brief.direction === 'BUY' ? OrderSideEnum.BUY : OrderSideEnum.SELL,
+        type: OrderTypeEnum.MARKET,
         quantity,
         stopLoss: brief.stopLoss,
         idempotencyKey: `smart-exec-${brief.id}-${userId}`,

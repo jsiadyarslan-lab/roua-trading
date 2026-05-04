@@ -72,14 +72,20 @@ export const useDashboardStore = create<DashboardState>((set) => ({
 
 /**
  * Hydrate the dashboard store from localStorage.
- * Call this once in a useEffect after mount to prevent SSR mismatch.
+ * MUST be called from a useEffect after mount to prevent SSR mismatch.
+ * Do NOT call this at module level — it breaks SSR.
  */
-if (typeof window !== 'undefined') {
-  // Defer hydration to next tick to ensure SSR has completed
+export function hydrateDashboardStore() {
+  if (typeof window === 'undefined') return
   const savedMode = localStorage.getItem('roua-mode')
   if (savedMode === 'investor' || savedMode === 'ai') {
     useDashboardStore.setState({ mode: savedMode as TradingMode, _hydrated: true })
   } else {
     useDashboardStore.setState({ _hydrated: true })
   }
+}
+
+// Auto-hydrate on client via queueMicrotask (deferred past SSR hydration)
+if (typeof window !== 'undefined') {
+  queueMicrotask(hydrateDashboardStore)
 }

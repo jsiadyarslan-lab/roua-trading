@@ -41,22 +41,30 @@ const nextConfig: NextConfig = {
   // where variables like `let X` in Next.js Router code conflict
   // with React component rendering. Terser with mangle:false prevents
   // ALL such variable name conflicts while still compressing code.
+  //
+  // CRITICAL: Must apply to BOTH client AND server bundles.
+  // The server bundle also needs Terser because Zustand's persist middleware
+  // references `window.localStorage` at module level, and SWC's minifier
+  // can reorder code in ways that break typeof window guards during SSR.
   webpack(config, { isServer }) {
-    if (!isServer && config.optimization) {
+    if (config.optimization) {
       config.optimization.concatenateModules = false;
 
-      // Force lucide-react into its own chunk
-      const existingSplitChunks = config.optimization.splitChunks as any;
-      if (existingSplitChunks && existingSplitChunks.cacheGroups) {
-        existingSplitChunks.cacheGroups.lucide = {
-          test: /[\\/]node_modules[\\/]lucide-react[\\/]/,
-          name: 'lucide-react',
-          chunks: 'all' as const,
-          enforce: true,
-        };
+      // Force lucide-react into its own chunk (client only — splits are client-only)
+      if (!isServer) {
+        const existingSplitChunks = config.optimization.splitChunks as any;
+        if (existingSplitChunks && existingSplitChunks.cacheGroups) {
+          existingSplitChunks.cacheGroups.lucide = {
+            test: /[\\/]node_modules[\\/]lucide-react[\\/]/,
+            name: 'lucide-react',
+            chunks: 'all' as const,
+            enforce: true,
+          };
+        }
       }
 
-      // Replace SWC minifier with Terser (compress but no mangle)
+      // Replace SWC minifier with Terser on BOTH client and server bundles
+      // This prevents TDZ errors and SSR crashes from code reordering
       config.optimization.minimizer = [
         new TerserPlugin({
           terserOptions: {

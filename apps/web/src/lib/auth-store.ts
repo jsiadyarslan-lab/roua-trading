@@ -134,22 +134,34 @@ function isGuestUser(user: AuthUser | null): boolean {
 
 // ── BroadcastChannel for real-time cross-tab auth sync ──
 let _authChannel: BroadcastChannel | null = null
-if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
-  _authChannel = new BroadcastChannel('roua_auth_sync')
-  _authChannel.onmessage = (e) => {
-    if (e.data?.type === 'auth_update') {
-      const { user, isAuthenticated, isGuest } = e.data
-      useAuthStore.setState({ user, isAuthenticated, isGuest, loading: false })
+let _authListenersInitialized = false
+
+function initAuthListeners() {
+  if (_authListenersInitialized || typeof window === 'undefined') return
+  _authListenersInitialized = true
+
+  if ('BroadcastChannel' in window) {
+    _authChannel = new BroadcastChannel('roua_auth_sync')
+    _authChannel.onmessage = (e) => {
+      if (e.data?.type === 'auth_update') {
+        const { user, isAuthenticated, isGuest } = e.data
+        useAuthStore.setState({ user, isAuthenticated, isGuest, loading: false })
+      }
+      if (e.data?.type === 'auth_logout') {
+        useAuthStore.setState({ user: null, isAuthenticated: false, isGuest: true, loading: false })
+      }
     }
-    if (e.data?.type === 'auth_logout') {
-      useAuthStore.setState({ user: null, isAuthenticated: false, isGuest: true, loading: false })
-    }
+    // Clean up BroadcastChannel on page unload to prevent memory leaks
+    window.addEventListener('beforeunload', () => {
+      _authChannel?.close()
+      _authChannel = null
+    })
   }
-  // Clean up BroadcastChannel on page unload to prevent memory leaks
-  window.addEventListener('beforeunload', () => {
-    _authChannel?.close()
-    _authChannel = null
-  })
+}
+
+// Defer auth listener initialization to client-side only (past SSR hydration)
+if (typeof window !== 'undefined') {
+  queueMicrotask(initAuthListeners)
 }
 
 // ── Store ──
@@ -352,20 +364,23 @@ export function initAuthFromCache(): AuthUser | null {
 }
 
 // ── Cross-tab sync: listen for localStorage changes from other tabs ──
+// Defer to client via queueMicrotask to prevent SSR issues
 if (typeof window !== 'undefined') {
-  window.addEventListener('storage', (e) => {
-    if (e.key === CACHE_KEY && e.newValue) {
-      try {
-        const user = JSON.parse(e.newValue) as AuthUser
-        const isGuest = isGuestUser(user)
-        useAuthStore.setState({ user, isAuthenticated: !isGuest, isGuest, loading: false })
-      } catch {
-        // Ignore invalid data
+  queueMicrotask(() => {
+    window.addEventListener('storage', (e) => {
+      if (e.key === CACHE_KEY && e.newValue) {
+        try {
+          const user = JSON.parse(e.newValue) as AuthUser
+          const isGuest = isGuestUser(user)
+          useAuthStore.setState({ user, isAuthenticated: !isGuest, isGuest, loading: false })
+        } catch {
+          // Ignore invalid data
+        }
       }
-    }
-    if (e.key === CACHE_KEY && !e.newValue) {
-      // Cache was cleared — user logged out in another tab
-      useAuthStore.setState({ user: null, isAuthenticated: false, isGuest: true, loading: false })
-    }
+      if (e.key === CACHE_KEY && !e.newValue) {
+        // Cache was cleared — user logged out in another tab
+        useAuthStore.setState({ user: null, isAuthenticated: false, isGuest: true, loading: false })
+      }
+    })
   })
 }

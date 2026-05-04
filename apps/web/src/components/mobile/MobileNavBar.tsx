@@ -102,7 +102,7 @@ export default function MobileNavBar() {
         className="fixed bottom-0 left-0 right-0 md:hidden"
         style={{
           zIndex: 50,
-          height: 'calc(48px + env(safe-area-inset-bottom))',
+          height: 'calc(24px + env(safe-area-inset-bottom))',
           paddingBottom: 'env(safe-area-inset-bottom)',
           background: 'rgba(11, 14, 20, 0.4)',
           backdropFilter: 'blur(50px) saturate(210%)',
@@ -112,34 +112,30 @@ export default function MobileNavBar() {
       >
         <div className="flex items-center justify-around h-full px-0.5" dir="rtl">
           {NAV_ITEMS.map((item, idx) => {
-            /* Center wallet button — elevated floating style */
+            /* Center wallet button — compact floating style */
             if ((item as any).isCenter) {
               const active = isActive(item.href)
               return (
-                <div key={item.href} style={{ position: 'relative', marginTop: -12, zIndex: 10 }}>
+                <div key={item.href} style={{ position: 'relative', marginTop: -8, zIndex: 10 }}>
                   <motion.button
                     whileTap={{ scale: 0.92 }}
                     onClick={() => handleNav(item.href)}
                     style={{
-                      width: 40, height: 40, borderRadius: '50%',
+                      width: 28, height: 28, borderRadius: '50%',
                       background: active
                         ? 'linear-gradient(135deg, #00D4FF, #0099CC)'
                         : 'linear-gradient(135deg, #1C1C1E, #0D0D0F)',
-                      border: active ? '1.5px solid rgba(0,212,255,0.5)' : '1px solid rgba(255,255,255,0.15)',
+                      border: active ? '1px solid rgba(0,212,255,0.5)' : '0.5px solid rgba(255,255,255,0.15)',
                       boxShadow: active
-                        ? '0 0 10px rgba(0,212,255,0.4), 0 0 0 2px rgba(0,212,255,0.1)'
-                        : '0 2px 8px rgba(0,0,0,0.4)',
+                        ? '0 0 8px rgba(0,212,255,0.4)'
+                        : '0 1px 4px rgba(0,0,0,0.4)',
                       display: 'flex', flexDirection: 'column',
                       alignItems: 'center', justifyContent: 'center',
                       gap: 0, cursor: 'pointer',
                     }}
                   >
-                    <Wallet size={18} color={active ? '#FFFFFF' : '#00D4FF'} strokeWidth={2.5} />
+                    <Wallet size={14} color={active ? '#FFFFFF' : '#00D4FF'} strokeWidth={2.5} />
                   </motion.button>
-                  <span style={{
-                    display: 'block', textAlign: 'center', marginTop: 1,
-                    fontSize: 9, color: active ? '#00D4FF' : 'rgba(255,255,255,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 700,
-                  }}>المحفظة</span>
                 </div>
               )
             }
@@ -151,29 +147,29 @@ export default function MobileNavBar() {
               <button
                 key={item.href}
                 onClick={() => handleNav(item.href)}
-                className="flex flex-col items-center justify-center h-full"
-                style={{ width: 44, flexShrink: 0, position: 'relative' }}
+                className="flex items-center justify-center h-full"
+                style={{ width: 32, flexShrink: 0, position: 'relative' }}
               >
                 <motion.div 
                   whileTap={{ scale: 0.9 }} 
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   className="relative"
                 >
-                  <Icon size={20} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} />
+                  <Icon size={14} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} />
                   {/* Notification badge on Home icon */}
                   {item.href === '/mobile' && unreadCount > 0 && (
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       style={{
-                        position: 'absolute', top: -4, right: -6,
-                        minWidth: 10, height: 10, borderRadius: 5,
+                        position: 'absolute', top: -3, right: -4,
+                        minWidth: 8, height: 8, borderRadius: 4,
                         background: '#FF453A',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 6, fontWeight: 800, color: '#FFF',
+                        fontSize: 5, fontWeight: 800, color: '#FFF',
                         fontFamily: "'JetBrains Mono', monospace",
-                        padding: '0 2px',
-                        boxShadow: '0 0 5px rgba(255,69,58,0.6)',
+                        padding: '0 1px',
+                        boxShadow: '0 0 4px rgba(255,69,58,0.6)',
                       }}
                     >
                       {unreadCount > 9 ? '9+' : unreadCount}
@@ -185,29 +181,18 @@ export default function MobileNavBar() {
                       transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                       style={{
                         position: 'absolute',
-                        bottom: -3,
+                        bottom: -2,
                         left: '50%',
                         transform: 'translateX(-50%)',
                         width: 2,
                         height: 2,
                         borderRadius: '50%',
                         background: '#00D4FF',
-                        boxShadow: '0 0 5px #00D4FF',
+                        boxShadow: '0 0 4px #00D4FF',
                       }}
                     />
                   )}
                 </motion.div>
-                <span
-                  style={{
-                    fontSize: 9,
-                    color: active ? '#00D4FF' : 'rgba(255,255,255,0.35)',
-                    fontFamily: "'Cairo', sans-serif",
-                    fontWeight: active ? 800 : 500,
-                    marginTop: 2,
-                  }}
-                >
-                  {item.label}
-                </span>
               </button>
             )
           })}

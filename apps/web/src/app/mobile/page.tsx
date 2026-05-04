@@ -6,6 +6,7 @@ import { useBotStore } from '@/hooks/useBotStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
+import { useNotificationStore } from '@/hooks/useNotificationStore'
 import {
   Brain, Bot, ScanSearch, ChevronRight, TrendingUp, TrendingDown,
   Bell, Activity, Plus, ShieldCheck, Link2, ChevronLeft, Zap, Loader2, Target,

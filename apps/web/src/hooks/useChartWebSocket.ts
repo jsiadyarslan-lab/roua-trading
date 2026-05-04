@@ -88,22 +88,10 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     }
   }, []);
 
-  // ── Start REST Polling Fallback ────────────────────────
-  const startPolling = useCallback(() => {
-    if (pollingRef.current) clearInterval(pollingRef.current);
-    setConnectionState('fallback');
-
-    // FIX: Also poll for non-crypto symbols (previously skipped entirely)
-    // Use a longer interval for non-crypto (30s) since they're less volatile
-    const interval = isCryptoPair(symbol) ? POLLING_INTERVAL : 30000;
-
-    // Initial fetch
-    fetchLatestCandle();
-
-    pollingRef.current = setInterval(fetchLatestCandle, interval);
-  }, [symbol, timeframe, fetchLatestCandle]);
-
   // ── Fetch latest candle via REST ───────────────────────
+  // FIX: Must be defined BEFORE startPolling which uses it.
+  // Previously, startPolling was defined first and referenced fetchLatestCandle
+  // causing "Cannot access 'fetchLatestCandle' before initialization" TDZ error.
   const fetchLatestCandle = useCallback(async () => {
     if (!symbol) return;
 
@@ -165,6 +153,21 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       // Silent fail — will retry
     }
   }, [symbol, timeframe, onCandleUpdate, onPriceUpdate]);
+
+  // ── Start REST Polling Fallback ────────────────────────
+  const startPolling = useCallback(() => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+    setConnectionState('fallback');
+
+    // FIX: Also poll for non-crypto symbols (previously skipped entirely)
+    // Use a longer interval for non-crypto (30s) since they're less volatile
+    const interval = isCryptoPair(symbol) ? POLLING_INTERVAL : 30000;
+
+    // Initial fetch
+    fetchLatestCandle();
+
+    pollingRef.current = setInterval(fetchLatestCandle, interval);
+  }, [symbol, fetchLatestCandle]);
 
   // ── Connect WebSocket ──────────────────────────────────
   const connect = useCallback(() => {

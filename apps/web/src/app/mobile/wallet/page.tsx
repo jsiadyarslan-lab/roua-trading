@@ -946,7 +946,7 @@ export default function MobileWalletPage() {
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 350 }}
               style={{
-                position: 'fixed', bottom: 'calc(60px + env(safe-area-inset-bottom))', left: 0, right: 0, zIndex: 201,
+                position: 'fixed', bottom: 'calc(35px + env(safe-area-inset-bottom))', left: 0, right: 0, zIndex: 201,
                 background: 'rgba(28,28,30,0.98)', backdropFilter: 'blur(50px)',
                 borderRadius: '24px 24px 0 0', borderTop: '0.5px solid rgba(255,255,255,0.15)',
                 direction: 'rtl', maxHeight: '60vh', display: 'flex', flexDirection: 'column',
@@ -1036,7 +1036,7 @@ export default function MobileWalletPage() {
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 350 }}
               style={{
-                position: 'fixed', bottom: 'calc(60px + env(safe-area-inset-bottom))', left: 0, right: 0, zIndex: 201,
+                position: 'fixed', bottom: 'calc(35px + env(safe-area-inset-bottom))', left: 0, right: 0, zIndex: 201,
                 background: 'rgba(28,28,30,0.98)', backdropFilter: 'blur(50px)',
                 borderRadius: '24px 24px 0 0', borderTop: '0.5px solid rgba(255,255,255,0.15)',
                 direction: 'rtl', maxHeight: '60vh', display: 'flex', flexDirection: 'column',

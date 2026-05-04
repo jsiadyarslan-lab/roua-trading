@@ -326,9 +326,9 @@ function ChartPageContent() {
 
   return (
     <div style={{
-      /* Direct calc: --app-height minus navbar padding (62px + safe-area).
+      /* Direct calc: --app-height minus navbar padding (35px + safe-area).
          This avoids relying on the template's height which is now minHeight-only. */
-      height: 'calc(var(--app-height, 100dvh) - 62px - env(safe-area-inset-bottom, 0px))',
+      height: 'calc(var(--app-height, 100dvh) - 35px - env(safe-area-inset-bottom, 0px))',
       background: '#000000',
       display: 'flex',
       flexDirection: 'column',
@@ -507,7 +507,7 @@ function ChartPageContent() {
       </div>
 
       {/* ═══ Bottom spacer for navbar ═══ */}
-      <div style={{ flexShrink: 0, height: 12 }} />
+      <div style={{ flexShrink: 0, height: 6 }} />
 
       {/* ═══ ORDER EXECUTION SHEET (Bottom Sheet) ═══ */}
       <AnimatePresence>
@@ -522,7 +522,7 @@ function ChartPageContent() {
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 350 }}
               style={{
-                position: 'fixed', bottom: 'calc(60px + env(safe-area-inset-bottom))', left: 0, right: 0, zIndex: 301,
+                position: 'fixed', bottom: 'calc(35px + env(safe-area-inset-bottom))', left: 0, right: 0, zIndex: 301,
                 background: C.bg,
                 backdropFilter: 'blur(50px) saturate(200%)',
                 borderRadius: '24px 24px 0 0',
@@ -831,7 +831,7 @@ function ChartPageContent() {
 export default function MobileChartPage() {
   return (
     <Suspense fallback={
-      <div style={{ height: 'calc(var(--app-height, 100dvh) - 62px - env(safe-area-inset-bottom, 0px))', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ height: 'calc(var(--app-height, 100dvh) - 35px - env(safe-area-inset-bottom, 0px))', background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div className="animate-spin" style={{ width: 24, height: 24, border: '2px solid rgba(0,212,255,0.1)', borderTopColor: '#00D4FF', borderRadius: '50%' }} />
       </div>
     }>

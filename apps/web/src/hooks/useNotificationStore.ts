@@ -258,7 +258,7 @@ export const useNotificationStore = create<NotificationState>()(
     }),
     {
       name: 'roua-notifications',
-      version: 2,
+      version: 3,
       migrate: (persistedState: any) => ({
         notifications: Array.isArray(persistedState?.notifications) ? persistedState.notifications.slice(0, 50) : [],
         settings: {

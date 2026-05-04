@@ -11,25 +11,21 @@ import { useNotificationStore } from '@/hooks/useNotificationStore'
  * يعمل على الجوال والدسكتوب
  */
 export default function NotificationPermissionBanner() {
-  const [permission, setPermission] = useState<NotificationPermission>('default')
+  const [permission, setPermission] = useState<string>('default')
   const [dismissed, setDismissed] = useState(false)
+  const [isSupported, setIsSupported] = useState(false)
   const settings = useNotificationStore(s => s.settings)
   const updateSettings = useNotificationStore(s => s.updateSettings)
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
+      setIsSupported(true)
       setPermission(Notification.permission)
     }
   }, [])
 
-  // Don't show if already granted, denied, dismissed, or browser notifications disabled
-  if (
-    permission !== 'default' ||
-    dismissed ||
-    !settings.browserNotifications ||
-    typeof window === 'undefined' ||
-    !('Notification' in window)
-  ) {
+  // Don't show if not supported, already granted, denied, dismissed, or browser notifications disabled
+  if (!isSupported || permission !== 'default' || dismissed || !settings.browserNotifications) {
     return null
   }
 

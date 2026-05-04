@@ -1,3 +1,5 @@
+'use client'
+
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
@@ -5,14 +7,16 @@ import { persist } from 'zustand/middleware'
    AudioContext Manager — Respects browser autoplay policy
    AudioContext is only created after user gesture (click/keydown)
    to prevent "AudioContext was not allowed to start" errors.
+   
+   NOTE: All browser APIs are lazily initialized to ensure
+   SSR compatibility — no module-level side effects.
 ══════════════════════════════════════════════════════ */
 let _audioCtx: AudioContext | null = null
 let _audioResumed = false
+let _audioListenersAttached = false
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null
-  // لا ننشئ AudioContext إلا بعد تفاعل المستخدم (click/keydown/touchstart)
-  // لتجنب خطأ "AudioContext was not allowed to start"
   if (!_audioCtx && _audioResumed) {
     try {
       _audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
@@ -23,10 +27,12 @@ function getAudioContext(): AudioContext | null {
   return _audioCtx
 }
 
-// Resume AudioContext on user interaction
-// Re-attach listeners after each resume to handle Chrome's
-// auto-suspend policy (AudioContext suspends after inactivity)
-if (typeof window !== 'undefined') {
+// Lazily attach AudioContext resume listeners on first user interaction.
+// This avoids module-level side effects that break SSR.
+function ensureAudioListeners() {
+  if (typeof window === 'undefined' || _audioListenersAttached) return
+  _audioListenersAttached = true
+
   const resumeAudio = () => {
     const ctx = getAudioContext()
     if (ctx && ctx.state === 'suspended') {
@@ -43,6 +49,12 @@ if (typeof window !== 'undefined') {
   window.addEventListener('click', resumeAudio, { once: true })
   window.addEventListener('keydown', resumeAudio, { once: true })
   window.addEventListener('touchstart', resumeAudio, { once: true })
+}
+
+// Attach listeners when module is loaded on the client
+if (typeof window !== 'undefined') {
+  // Use queueMicrotask to defer execution past SSR hydration
+  queueMicrotask(ensureAudioListeners)
 }
 
 function playNotifSound(action: string) {

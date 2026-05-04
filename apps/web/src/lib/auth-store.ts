@@ -273,7 +273,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     clearCache()
     set({ user: null, isAuthenticated: false, isGuest: true, loading: false })
     _authChannel?.postMessage({ type: 'auth_logout' })
-    window.location.href = '/login'
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    }
   },
 
   setUser: (user: AuthUser | null) => {
@@ -306,7 +308,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           get().stopAutoRefresh()
           clearCache()
           set({ user: null, isAuthenticated: false, isGuest: true })
-          window.location.href = '/login'
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login'
+          }
         }
       } catch {
         // Network error — don't disrupt the user, try again next interval

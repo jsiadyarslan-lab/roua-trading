@@ -273,7 +273,7 @@ export default function TradingPage() {
     <div style={{
       /* Direct calc: --app-height minus navbar padding.
          Template uses minHeight-only, so we must calculate our own height. */
-      height: 'calc(var(--app-height, 100dvh) - 68px - env(safe-area-inset-bottom, 0px))',
+      height: 'calc(var(--app-height, 100dvh) - 62px - env(safe-area-inset-bottom, 0px))',
       background: '#000000',
       display: 'flex',
       flexDirection: 'column',

@@ -407,7 +407,7 @@ export default function MobileHomePage() {
 
       {/* ── Header ── */}
       <div style={{ 
-        padding: 'calc(env(safe-area-inset-top) + 16px) 20px 12px', 
+        padding: 'calc(env(safe-area-inset-top, 20px) + 10px) 20px 10px', 
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         position: 'relative', zIndex: 1
       }}>

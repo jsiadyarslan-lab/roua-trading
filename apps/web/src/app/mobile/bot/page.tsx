@@ -344,7 +344,7 @@ export default function MobileBotPage() {
       {/* ══════════════ Sticky Header ══════════════ */}
       <div
         style={{
-          padding: '24px 20px 16px',
+          padding: 'calc(env(safe-area-inset-top, 20px) + 8px) 20px 16px',
           background: 'rgba(28, 28, 30, 0.85)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',

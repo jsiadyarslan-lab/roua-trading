@@ -54,7 +54,7 @@ export default function MobileMarketsPage() {
     <div style={{ minHeight: '100%', background: '#000000', direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
 
       {/* ── Header ── */}
-      <div style={{ padding: 'calc(env(safe-area-inset-top) + 16px) 16px 12px' }}>
+      <div style={{ padding: 'calc(env(safe-area-inset-top, 20px) + 10px) 16px 10px' }}>
         <h1 style={{ fontSize: 22, fontWeight: 900, color: '#F0F2F5', fontFamily: "'Cairo', sans-serif", marginBottom: 12 }}>
           الأسواق المباشرة
         </h1>

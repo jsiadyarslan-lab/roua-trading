@@ -59,7 +59,7 @@ const MORE_CATEGORIES: MoreCategory[] = [
     items: [
       { label: 'التحليلات', href: '/mobile/ai', icon: Brain, color: '#B388FF', sub: 'رؤى من 6 نماذج AI' },
       { label: 'سكانر السوق', href: '/mobile/scanner', icon: ScanSearch, color: '#00FFA3', sub: 'اكتشف الفرص لحظياً' },
-      { label: 'إشارات رؤى', href: '/mobile/signals', icon: Radio, color: '#FFB800', sub: 'توصيات تداول احترافية' },
+      { label: 'أحدث التوصيات', href: '/mobile/signals', icon: Radio, color: '#FFB800', sub: 'توصيات تداول احترافية' },
       { label: 'الأسواق التنبؤية', href: '/mobile/prediction-market', icon: Target, color: '#00D4FF', isNew: true, sub: 'تنبؤات AI مقابل السوق' },
       { label: 'AI Trading Lab', href: '/mobile/neural', icon: Brain, color: '#A259FF', isNew: true, sub: 'مختبر التداول الذكي' },
       { label: 'مصفوفة الارتباط', href: '/mobile/correlation', icon: GitMerge, color: '#00D4FF', isNew: true, sub: 'ارتباط بيرسون بين الأصول' },
@@ -113,7 +113,7 @@ export default function MobileNavBar() {
         className="fixed bottom-0 left-0 right-0 md:hidden"
         style={{
           zIndex: 50,
-          height: 'calc(56px + env(safe-area-inset-bottom))',
+          height: 'calc(68px + env(safe-area-inset-bottom))',
           paddingBottom: 'env(safe-area-inset-bottom)',
           background: 'rgba(11, 14, 20, 0.4)',
           backdropFilter: 'blur(50px) saturate(210%)',
@@ -132,7 +132,7 @@ export default function MobileNavBar() {
                     whileTap={{ scale: 0.92 }}
                     onClick={() => handleNav(item.href)}
                     style={{
-                      width: 66, height: 66, borderRadius: '50%',
+                      width: 80, height: 80, borderRadius: '50%',
                       background: active
                         ? 'linear-gradient(135deg, #00D4FF, #0099CC)'
                         : 'linear-gradient(135deg, #1C1C1E, #0D0D0F)',
@@ -145,7 +145,7 @@ export default function MobileNavBar() {
                       gap: 0, cursor: 'pointer',
                     }}
                   >
-                    <Wallet size={33} color={active ? '#FFFFFF' : '#00D4FF'} strokeWidth={2.5} />
+                    <Wallet size={50} color={active ? '#FFFFFF' : '#00D4FF'} strokeWidth={2.5} />
                   </motion.button>
                 </div>
               )
@@ -159,14 +159,14 @@ export default function MobileNavBar() {
                 key={item.href}
                 onClick={() => handleNav(item.href)}
                 className="flex items-center justify-center h-full"
-                style={{ width: 72, flexShrink: 0, position: 'relative' }}
+                style={{ width: 80, flexShrink: 0, position: 'relative' }}
               >
                 <motion.div 
                   whileTap={{ scale: 0.9 }} 
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   className="relative"
                 >
-                  <Icon size={32} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} />
+                  <Icon size={48} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} />
                   {/* Notification badge on Home icon */}
                   {item.href === '/mobile' && unreadCount > 0 && (
                     <motion.div

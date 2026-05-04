@@ -214,8 +214,8 @@ export const useNotificationStore = create<NotificationState>()(
 
             const browserNotif = new Notification(`${actionEmoji} ${n.title}`, {
               body: n.body + (n.pair ? ` — ${n.pair}` : ''),
-              icon: '/logo-192.png',
-              badge: '/logo-192.png',
+              icon: '/icon-192.png',
+              badge: '/icon-192.png',
               tag: notif.id,
               dir: 'rtl',
               lang: 'ar',
@@ -231,7 +231,7 @@ export const useNotificationStore = create<NotificationState>()(
                   ? (isMobile ? `/mobile/chart?symbol=${n.pair}` : `/trading?symbol=${n.pair}`)
                   : (isMobile ? '/mobile' : '/dashboard'),
               },
-            })
+            } as NotificationOptions)
 
             // Focus window and navigate on click
             browserNotif.onclick = () => {

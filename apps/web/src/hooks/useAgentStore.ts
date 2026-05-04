@@ -782,11 +782,11 @@ export const useAgentStore = create<AgentStore>()(
         }
 
         return {
-          getItem: (name: string) => {
+          getItem: (name: string): any => {
             return baseStorage.getItem(getDynamicKey(name))
           },
-          setItem: (name: string, value: string) => {
-            baseStorage.setItem(getDynamicKey(name), value)
+          setItem: (name: string, value: any) => {
+            baseStorage.setItem(getDynamicKey(name), value as string)
           },
           removeItem: (name: string) => {
             baseStorage.removeItem(getDynamicKey(name))

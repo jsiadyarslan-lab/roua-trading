@@ -75,7 +75,7 @@ export function rejectGuest(request: NextRequest): NextResponse | null {
 export function isGuestUser(user: { email?: string; id?: string; isGuest?: boolean } | null): boolean {
   if (!user) return true
   if (user.isGuest) return true
-  if (isGuestEmail(user.email)) return true
+  if (isGuestEmail(user.email || '')) return true
   if (user.id?.startsWith('guest')) return true
   return false
 }

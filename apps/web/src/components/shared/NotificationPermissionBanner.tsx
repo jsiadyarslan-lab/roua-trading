@@ -39,13 +39,13 @@ export default function NotificationPermissionBanner() {
         try {
           new Notification('رؤى للتداول', {
             body: 'تم تفعيل الإشعارات بنجاح! ستتلقى تنبيهات التداول الآن',
-            icon: '/logo-192.png',
-            badge: '/logo-192.png',
+            icon: '/icon-192.png',
+            badge: '/icon-192.png',
             dir: 'rtl',
             lang: 'ar',
             tag: 'roua-permission-test',
             vibrate: [100],
-          })
+          } as NotificationOptions)
         } catch {}
       } else if (result === 'denied') {
         updateSettings({ browserNotifications: false })

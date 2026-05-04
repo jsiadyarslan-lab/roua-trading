@@ -277,7 +277,7 @@ export default function AdminNotificationsPage() {
         // Send a test browser notification
         new Notification('🔔 تنبيه تجريبي', {
           body: 'إذا ظهرت هذه الإشعار، فتنبيهات المتصفح تعمل بشكل صحيح!',
-          icon: '/logo-192.png',
+          icon: '/icon-192.png',
           tag: 'roua-test',
           dir: 'rtl',
           lang: 'ar',

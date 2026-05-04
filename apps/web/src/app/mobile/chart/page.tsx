@@ -370,7 +370,7 @@ function ChartPageContent() {
             {/* Dropdown */}
             {showPairDropdown && (
               <div style={{
-                position: 'absolute', top: '100%', left: 0, zIndex: 200,
+                position: 'absolute', top: '100%', left: 0, zIndex: 500,
                 minWidth: 140, maxHeight: 200, overflowY: 'auto',
                 background: 'rgba(20,20,22,0.98)',
                 backdropFilter: 'blur(20px)',

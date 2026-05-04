@@ -707,7 +707,7 @@ export default function MobileWalletPage() {
                   { label: 'عدد المراكز المفتوحة', value: `${allPositions.length}`, color: T.accent },
                   { label: 'إجمالي قيمة المراكز', value: fmtCompact(totalPositionValue), color: T.text },
                   { label: 'أرباح غير محققة', value: totalPnl >= 0 ? `+$${fmt(totalPnl)}` : `-$${fmt(totalPnl)}`, color: totalPnl >= 0 ? T.success : T.danger },
-                  { label: 'صفقات البوت', value: `${stats.totalTrades}`, color: T.amber },
+                  { label: 'صفقات البوت', value: `${stats.trades}`, color: T.amber },
                   { label: 'نسبة الفوز', value: `${stats.winRate}%`, color: stats.winRate >= 50 ? T.success : T.danger },
                   { label: 'ربح البوت', value: `+$${fmt(stats.profit)}`, color: T.success },
                 ].map((item, i) => (

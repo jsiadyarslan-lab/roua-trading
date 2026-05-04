@@ -18,14 +18,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   icons: {
     icon: [
-      { url: "/logo.svg", type: "image/svg+xml", sizes: "any" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
       { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/logo-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/logo-512.png", type: "image/png", sizes: "512x512" },
     ],
     apple: [
-      { url: "/logo-192.png", sizes: "192x192" },
-      { url: "/logo-512.png", sizes: "512x512" },
+      { url: "/icon-192.png", sizes: "192x192" },
+      { url: "/icon-512.png", sizes: "512x512" },
     ],
   },
   alternates: {
@@ -41,7 +40,7 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
-        url: "/logo-512.png",
+        url: "/icon-512.png",
         width: 512,
         height: 512,
         alt: "رؤى — Roua Trading",
@@ -53,7 +52,7 @@ export const metadata: Metadata = {
     title: "رؤى | منصة ربط الحسابات الذكية",
     description:
       "منصة رؤى لربط ومتابعة الحسابات الذكية — تحليلات AI، إشارات تداول، ربط بورصات",
-    images: ["/logo-512.png"],
+    images: ["/icon-512.png"],
   },
   robots: {
     index: true,
@@ -81,8 +80,8 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" className="dark" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/logo.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/logo-192.png" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className="antialiased">
         {children}

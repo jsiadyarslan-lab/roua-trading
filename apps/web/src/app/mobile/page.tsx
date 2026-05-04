@@ -1,16 +1,19 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useBotStore } from '@/hooks/useBotStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
+import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
+import { useSymbolStore } from '@/hooks/useSymbolStore'
 import {
   Brain, Bot, ScanSearch, ChevronRight, TrendingUp, TrendingDown,
   Bell, Activity, Plus, ShieldCheck, Link2, ChevronLeft, Zap, Loader2, Target,
-  RefreshCw, Eye, EyeOff, Wallet, Cpu, Globe2
+  RefreshCw, Eye, EyeOff, Wallet, Cpu, Globe2, BarChart3, ArrowUpRight,
+  ArrowDownRight, Flame, History, X
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
@@ -49,6 +52,13 @@ function safeAction(val: unknown): 'BUY' | 'SELL' | 'WAIT' {
     if (inner === 'STRONG_SELL' || inner === 'SELL') return 'SELL'
   }
   return 'WAIT'
+}
+
+/* ─── Trading Mode Config ───────────────── */
+const MODE_CONFIG: Record<TradingMode, { accent: string; labelAr: string; icon: string }> = {
+  trader: { accent: '#00D4FF', labelAr: 'تاجر', icon: '⚡' },
+  investor: { accent: '#32D74B', labelAr: 'مستثمر', icon: '📈' },
+  ai: { accent: '#A78BFA', labelAr: 'ذكاء', icon: '🧠' },
 }
 
 /* ─── Live News Ticker ─────────────────────── */
@@ -118,7 +128,6 @@ function NewsTicker() {
 /* ─── Currency Ticker (Dynamic) ───────────── */
 function CurrencyTicker() {
   const quotes = useMarketStore(s => s.quotes)
-  const router = useRouter()
   const displayPairs = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'GOLD', 'EUR/USD', 'GBP/USD']
   
   return (
@@ -331,6 +340,619 @@ function LatestRecommendations() {
   )
 }
 
+/* ─── Mobile Watchlist Widget ────────────── */
+function MobileWatchlist() {
+  const quotes = useMarketStore(s => s.quotes)
+  const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
+  const router = useRouter()
+  const [activeTab, setActiveTab] = useState<'Crypto' | 'Forex' | 'Stocks'>('Crypto')
+
+  const SYMBOLS_BY_TAB = {
+    Crypto: ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'BNB/USD', 'ADA/USD'],
+    Forex:  ['EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD', 'AUD/USD', 'USD/CHF'],
+    Stocks: ['AAPL', 'MSFT', 'NVDA', 'TSLA', 'AMZN', 'META'],
+  }
+
+  const symbols = SYMBOLS_BY_TAB[activeTab]
+
+  // Find hot mover (biggest absolute change)
+  const hotMover = useMemo(() => {
+    return symbols
+      .map(sym => ({ sym, quote: quotes[sym] }))
+      .filter(item => item.quote)
+      .sort((a, b) => Math.abs((b.quote?.changePercent ?? 0)) - Math.abs((a.quote?.changePercent ?? 0)))[0]
+  }, [quotes, symbols])
+
+  return (
+    <IOSCard>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div style={{
+            width: 28, height: 28, borderRadius: 8,
+            background: 'linear-gradient(135deg, #00D4FF, #5B21B6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <BarChart3 size={14} color="#FFFFFF" />
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>قائمة المراقبة</span>
+        </div>
+        <button
+          onClick={() => router.push('/mobile/markets')}
+          style={{ fontSize: 11, color: '#00D4FF', fontWeight: 800, fontFamily: "'Cairo', sans-serif", background: 'none', border: 'none' }}
+        >
+          المزيد
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 0, marginBottom: 10, background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 2 }}>
+        {(['Crypto', 'Forex', 'Stocks'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              flex: 1, padding: '6px 0', borderRadius: 10,
+              background: activeTab === tab ? 'rgba(0,212,255,0.12)' : 'transparent',
+              border: 'none',
+              color: activeTab === tab ? '#00D4FF' : 'rgba(235,235,245,0.4)',
+              fontSize: 10, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
+              cursor: 'pointer', transition: '0.2s',
+            }}
+          >
+            {tab === 'Crypto' ? 'كريبتو' : tab === 'Forex' ? 'فوركس' : 'أسهم'}
+          </button>
+        ))}
+      </div>
+
+      {/* Hot Mover */}
+      {hotMover && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '8px 10px', borderRadius: 12,
+          background: 'rgba(255,183,0,0.05)', border: '0.5px solid rgba(255,183,0,0.12)',
+          marginBottom: 10,
+        }}>
+          <div className="flex items-center gap-2">
+            <Flame size={12} color="#FFB800" />
+            <span style={{ fontSize: 10, fontWeight: 800, color: '#FFB800', fontFamily: "'Cairo', sans-serif" }}>أكثر حركة</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span style={{ fontSize: 11, fontWeight: 900, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>{hotMover.sym}</span>
+            <span style={{
+              fontSize: 10, fontWeight: 800,
+              color: (hotMover.quote?.changePercent ?? 0) >= 0 ? '#32D74B' : '#FF453A',
+              fontFamily: "'JetBrains Mono', monospace"
+            }}>
+              {(hotMover.quote?.changePercent ?? 0) >= 0 ? '+' : ''}{(hotMover.quote?.changePercent ?? 0).toFixed(2)}%
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Pairs List */}
+      <div style={{ maxHeight: 280, overflowY: 'auto' }}>
+        {symbols.map(sym => {
+          const q = quotes[sym]
+          const changePct = q?.changePercent ?? 0
+          const price = q?.price ?? null
+          const isUp = changePct >= 0
+          const color = isUp ? '#32D74B' : '#FF453A'
+          const isSelected = sym === selectedSymbol
+
+          return (
+            <motion.div
+              key={sym}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                setSelectedSymbol(sym)
+                router.push(`/mobile/chart?symbol=${sym}`)
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '10px 8px',
+                borderRadius: 12,
+                background: isSelected ? 'rgba(0,212,255,0.06)' : 'transparent',
+                border: isSelected ? '0.5px solid rgba(0,212,255,0.15)' : '0.5px solid transparent',
+                marginBottom: 2,
+                cursor: 'pointer',
+                position: 'relative',
+              }}
+            >
+              {/* Left color indicator */}
+              {q && (
+                <div style={{
+                  position: 'absolute', right: 0, top: '20%', bottom: '20%', width: 2.5,
+                  background: color, borderRadius: '4px 0 0 4px'
+                }} />
+              )}
+
+              <div className="flex items-center gap-3" style={{ marginRight: 6 }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: 10,
+                  background: isSelected ? 'rgba(0,212,255,0.1)' : 'rgba(255,255,255,0.04)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 11, fontWeight: 900, color: isSelected ? '#00D4FF' : 'rgba(235,235,245,0.5)',
+                  fontFamily: "'JetBrains Mono', monospace",
+                  border: isSelected ? '0.5px solid rgba(0,212,255,0.2)' : '0.5px solid rgba(255,255,255,0.06)',
+                }}>
+                  {sym.split('/')[0].slice(0, 2)}
+                </div>
+                <div>
+                  <p style={{ fontSize: 12, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>{sym}</p>
+                  {q && (
+                    <p style={{ fontSize: 8, color: 'rgba(235,235,245,0.3)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>{q.source}</p>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ textAlign: 'left' }}>
+                {price !== null ? (
+                  <p style={{ fontSize: 12, fontWeight: 900, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>
+                    {price > 100 ? price.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : price.toFixed(price < 10 ? 4 : 2)}
+                  </p>
+                ) : (
+                  <p style={{ fontSize: 12, color: 'rgba(235,235,245,0.2)', fontFamily: "'JetBrains Mono', monospace" }}>—</p>
+                )}
+                {q && (
+                  <div style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 2,
+                    padding: '1px 5px', borderRadius: 8,
+                    background: isUp ? 'rgba(50,215,75,0.1)' : 'rgba(255,69,58,0.1)',
+                    border: `0.5px solid ${color}30`,
+                  }}>
+                    {isUp ? <TrendingUp size={8} color={color} /> : <TrendingDown size={8} color={color} />}
+                    <span style={{ fontSize: 9, fontWeight: 800, color, fontFamily: "'JetBrains Mono', monospace" }}>
+                      {isUp ? '+' : ''}{changePct.toFixed(2)}%
+                    </span>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )
+        })}
+      </div>
+    </IOSCard>
+  )
+}
+
+/* ─── Mobile Order Book Preview ──────────── */
+function MobileOrderBookPreview() {
+  const quotes = useMarketStore(s => s.quotes)
+  const selectedSymbol = useSymbolStore(s => s.selectedSymbol)
+  const router = useRouter()
+  const quote = quotes[selectedSymbol]
+  const midPrice = quote?.price ?? 0
+  const isPositive = quote ? quote.changePercent >= 0 : true
+
+  // Generate order book levels around the real mid-price
+  const { asks, bids, buyPressure } = useMemo(() => {
+    if (!midPrice || midPrice === 0) return { asks: [], bids: [], buyPressure: 50 }
+
+    let step: number
+    if (midPrice > 50000) step = midPrice * 0.0002
+    else if (midPrice > 1000) step = midPrice * 0.0003
+    else if (midPrice > 100) step = midPrice * 0.0005
+    else step = midPrice * 0.0005
+
+    const askList: { price: string; amount: string; percent: number }[] = []
+    const bidList: { price: string; amount: string; percent: number }[] = []
+
+    for (let i = 0; i < 5; i++) {
+      const askPrice = midPrice + step * (i + 1)
+      const bidPrice = midPrice - step * (i + 1)
+      const askVolume = (Math.random() * 3 + 0.5) * (1 - i * 0.08)
+      const bidVolume = (Math.random() * 3 + 0.5) * (1 - i * 0.08)
+
+      askList.push({
+        price: askPrice.toFixed(midPrice < 10 ? 5 : 2),
+        amount: `${askVolume.toFixed(1)}M`,
+        percent: Math.round(30 + Math.random() * 65),
+      })
+      bidList.push({
+        price: bidPrice.toFixed(midPrice < 10 ? 5 : 2),
+        amount: `${bidVolume.toFixed(1)}M`,
+        percent: Math.round(30 + Math.random() * 65),
+      })
+    }
+
+    const totalAsk = askList.reduce((s, a) => s + a.percent, 0)
+    const totalBid = bidList.reduce((s, b) => s + b.percent, 0)
+    const pressure = totalAsk + totalBid > 0 ? Math.round((totalBid / (totalAsk + totalBid)) * 100) : 50
+
+    return { asks: askList, bids: bidList, buyPressure: pressure }
+  }, [midPrice, isPositive])
+
+  const spread = useMemo(() => {
+    if (asks.length === 0 || bids.length === 0) return { value: '—', percent: '—' }
+    const diff = parseFloat(asks[0].price) - parseFloat(bids[0].price)
+    const pctVal = ((diff / midPrice) * 100).toFixed(4)
+    return { value: diff.toFixed(midPrice < 10 ? 5 : 2), percent: `${pctVal}%` }
+  }, [asks, bids, midPrice])
+
+  return (
+    <IOSCard>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div style={{
+            width: 28, height: 28, borderRadius: 8,
+            background: 'linear-gradient(135deg, #32D74B, #FF453A)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <BarChart3 size={14} color="#FFFFFF" />
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>دفتر الأوامر</span>
+          <span style={{ fontSize: 10, fontWeight: 800, color: 'rgba(235,235,245,0.4)', fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol}</span>
+        </div>
+        <button
+          onClick={() => router.push(`/mobile/chart?symbol=${selectedSymbol}`)}
+          style={{ fontSize: 11, color: '#00D4FF', fontWeight: 800, fontFamily: "'Cairo', sans-serif", background: 'none', border: 'none' }}
+        >
+          التداول
+        </button>
+      </div>
+
+      {/* Buy/Sell Pressure Bar */}
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+          <div className="flex items-center gap-1">
+            <ArrowUpRight size={9} color="#32D74B" />
+            <span style={{ fontSize: 9, fontWeight: 800, color: '#32D74B', fontFamily: "'JetBrains Mono', monospace" }} dir="ltr">{buyPressure}%</span>
+            <span style={{ fontSize: 8, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif" }}>شراء</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span style={{ fontSize: 8, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif" }}>بيع</span>
+            <span style={{ fontSize: 9, fontWeight: 800, color: '#FF453A', fontFamily: "'JetBrains Mono', monospace" }} dir="ltr">{100 - buyPressure}%</span>
+            <ArrowDownRight size={9} color="#FF453A" />
+          </div>
+        </div>
+        <div style={{
+          width: '100%', height: 3, borderRadius: 2, overflow: 'hidden',
+          display: 'flex', direction: 'ltr',
+        }}>
+          <div style={{ width: `${buyPressure}%`, height: '100%', background: '#32D74B', boxShadow: '0 0 6px rgba(50,215,75,0.3)' }} />
+          <div style={{ width: `${100 - buyPressure}%`, height: '100%', background: '#FF453A', boxShadow: '0 0 6px rgba(255,69,58,0.3)' }} />
+        </div>
+      </div>
+
+      {/* Column Headers */}
+      <div dir="ltr" style={{
+        display: 'grid', gridTemplateColumns: '1fr 1fr',
+        padding: '2px 0', borderBottom: '0.5px solid rgba(255,255,255,0.06)', marginBottom: 2,
+      }}>
+        <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(235,235,245,0.3)', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.05em' }}>PRICE</span>
+        <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(235,235,245,0.3)', fontFamily: "'JetBrains Mono', monospace", textAlign: 'right', letterSpacing: '0.05em' }}>AMOUNT</span>
+      </div>
+
+      {/* Asks (reversed - lowest ask at bottom) */}
+      {asks.slice().reverse().map((ask, i) => (
+        <div key={`ask-${i}`} dir="ltr" style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr',
+          padding: '2px 0', position: 'relative',
+        }}>
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'rgba(255,69,58,0.06)',
+            width: `${ask.percent}%`, borderRadius: 2, marginInlineStart: 'auto',
+          }} />
+          <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: '#FF453A', position: 'relative' }}>{ask.price}</span>
+          <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(235,235,245,0.4)', position: 'relative', textAlign: 'right' }}>{ask.amount}</span>
+        </div>
+      ))}
+
+      {/* Spread / Mid Price */}
+      <div style={{
+        textAlign: 'center', padding: '6px 0', margin: '3px 0',
+        background: 'rgba(0,212,255,0.05)', borderRadius: 8,
+        border: '0.5px solid rgba(0,212,255,0.1)',
+      }}>
+        <div dir="ltr" style={{
+          fontSize: 14, fontWeight: 900, fontFamily: "'JetBrains Mono', monospace",
+          color: '#00D4FF', textShadow: '0 0 8px rgba(0,212,255,0.3)',
+        }}>
+          {midPrice > 0 ? (midPrice < 10 ? midPrice.toFixed(5) : midPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : '—'}
+        </div>
+        <div style={{ fontSize: 8, color: 'rgba(235,235,245,0.3)', fontFamily: "'JetBrains Mono', monospace" }} dir="ltr">
+          Spread: {spread.value} ({spread.percent})
+        </div>
+      </div>
+
+      {/* Bids */}
+      {bids.map((bid, i) => (
+        <div key={`bid-${i}`} dir="ltr" style={{
+          display: 'grid', gridTemplateColumns: '1fr 1fr',
+          padding: '2px 0', position: 'relative',
+        }}>
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'rgba(50,215,75,0.06)',
+            width: `${bid.percent}%`, borderRadius: 2, marginInlineStart: 'auto',
+          }} />
+          <span style={{ fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: '#32D74B', position: 'relative' }}>{bid.price}</span>
+          <span style={{ fontSize: 10, fontFamily: "'JetBrains Mono', monospace", color: 'rgba(235,235,245,0.4)', position: 'relative', textAlign: 'right' }}>{bid.amount}</span>
+        </div>
+      ))}
+    </IOSCard>
+  )
+}
+
+/* ─── Mobile Positions / Recent Trades ───── */
+function MobilePositions() {
+  const positions = usePositionsStore(s => s.positions)
+  const { trades: paperTrades, closedTrades, closeTrade: closePaperTrade } = usePaperTradesStore()
+  const [closing, setClosing] = useState<string | null>(null)
+  const [confirmClose, setConfirmClose] = useState<string | null>(null)
+  const [showClosed, setShowClosed] = useState(false)
+  const fetchPositions = usePositionsStore(s => s.fetchPositions)
+  const fetchAccount = usePositionsStore(s => s.fetchAccount)
+  const router = useRouter()
+
+  // Merge real positions + paper trades
+  const allPositions = useMemo(() => {
+    const realPos = positions.map(p => ({
+      id: (p as any).rawSymbol ?? p.symbol,
+      symbol: p.symbol,
+      side: p.side,
+      qty: p.qty,
+      entryPrice: p.avgEntryPrice,
+      currentPrice: p.currentPrice,
+      unrealizedPnl: p.unrealizedPnl,
+      isPaper: false,
+      source: (p as any).source,
+    }))
+    const paperPos = paperTrades
+      .filter(trade =>
+        trade.source === 'bot' ||
+        !positions.some(p => ((p as any).rawSymbol ?? p.symbol).replace('/', '') === trade.symbol.replace('/', ''))
+      )
+      .map(trade => ({
+        id: trade.id,
+        symbol: trade.symbol,
+        side: trade.side,
+        qty: trade.qty,
+        entryPrice: trade.entryPrice,
+        currentPrice: trade.currentPrice,
+        unrealizedPnl: trade.unrealizedPnl,
+        isPaper: true,
+        source: trade.source,
+      }))
+    return [...realPos, ...paperPos]
+  }, [positions, paperTrades])
+
+  // Fetch positions on mount
+  useEffect(() => {
+    fetchPositions()
+    fetchAccount()
+  }, [fetchPositions, fetchAccount])
+
+  const closePosition = async (id: string, isPaper: boolean, symbol: string) => {
+    if (confirmClose !== id) {
+      setConfirmClose(id)
+      setTimeout(() => setConfirmClose(null), 3000)
+      return
+    }
+    setConfirmClose(null)
+    setClosing(id)
+    if (isPaper) {
+      closePaperTrade(id)
+      setClosing(null)
+      return
+    }
+    try {
+      const res = await fetch(`/api/alpaca/positions/${encodeURIComponent(symbol)}`, { method: 'DELETE' })
+      const json = await res.json()
+      if (json.success) {
+        await fetchPositions()
+        await fetchAccount()
+      }
+    } catch { /* silent */ } finally {
+      setClosing(null)
+    }
+  }
+
+  const fmtPnl = (v: number) => `${v >= 0 ? '+' : '-'}${Math.abs(v).toLocaleString('en', { maximumFractionDigits: 2 })}$`
+
+  return (
+    <IOSCard>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div style={{
+            width: 28, height: 28, borderRadius: 8,
+            background: 'rgba(0,212,255,0.1)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            border: '0.5px solid rgba(0,212,255,0.2)',
+          }}>
+            <Wallet size={14} color="#00D4FF" />
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>المراكز المفتوحة</span>
+          {allPositions.length > 0 && (
+            <span style={{
+              padding: '1px 6px', borderRadius: 8,
+              background: 'rgba(0,212,255,0.12)', color: '#00D4FF',
+              fontSize: 9, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
+              border: '0.5px solid rgba(0,212,255,0.2)',
+            }}>{allPositions.length}</span>
+          )}
+        </div>
+        <button
+          onClick={() => router.push('/mobile/portfolio')}
+          style={{ fontSize: 11, color: '#00D4FF', fontWeight: 800, fontFamily: "'Cairo', sans-serif", background: 'none', border: 'none' }}
+        >
+          المحفظة
+        </button>
+      </div>
+
+      {allPositions.length === 0 ? (
+        <div style={{
+          padding: '20px 0', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', gap: 6, textAlign: 'center',
+        }}>
+          <Activity size={24} color="rgba(255,255,255,0.08)" />
+          <p style={{ fontSize: 12, color: 'rgba(235,235,245,0.3)', fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>لا توجد مراكز مفتوحة حالياً</p>
+          <p style={{ fontSize: 10, color: 'rgba(235,235,245,0.2)', fontFamily: "'Cairo', sans-serif" }}>عند فتح صفقة ستظهر هنا</p>
+        </div>
+      ) : (
+        <div style={{ maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {allPositions.map(pos => {
+            const isLong = pos.side === 'long' || pos.side === 'LONG'
+            const pnlUp = pos.unrealizedPnl >= 0
+            const pnlColor = pnlUp ? '#32D74B' : '#FF453A'
+
+            return (
+              <motion.div
+                key={pos.id}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => router.push(`/mobile/chart?symbol=${pos.symbol}`)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '10px 10px', borderRadius: 14,
+                  background: `linear-gradient(180deg, rgba(26,29,41,0.8), rgba(31,35,53,0.6))`,
+                  border: `0.5px solid ${pnlUp ? 'rgba(50,215,75,0.12)' : 'rgba(255,69,58,0.12)'}`,
+                  cursor: 'pointer',
+                  position: 'relative',
+                }}
+              >
+                {/* Left side indicator */}
+                <div style={{
+                  position: 'absolute', right: 0, top: '15%', bottom: '15%', width: 2,
+                  background: isLong ? '#32D74B' : '#FF453A', borderRadius: '4px 0 0 4px',
+                }} />
+
+                <div className="flex items-center gap-3" style={{ marginRight: 4 }}>
+                  {/* Side icon */}
+                  <div style={{
+                    width: 30, height: 30, borderRadius: 8,
+                    background: isLong ? 'rgba(50,215,75,0.1)' : 'rgba(255,69,58,0.1)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: `0.5px solid ${isLong ? 'rgba(50,215,75,0.2)' : 'rgba(255,69,58,0.2)'}`,
+                  }}>
+                    {isLong ? <ArrowUpRight size={14} color="#32D74B" /> : <ArrowDownRight size={14} color="#FF453A" />}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span style={{ fontSize: 12, fontWeight: 900, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>{pos.symbol}</span>
+                      <span style={{
+                        padding: '1px 4px', borderRadius: 6,
+                        background: isLong ? 'rgba(50,215,75,0.12)' : 'rgba(255,69,58,0.12)',
+                        color: isLong ? '#32D74B' : '#FF453A',
+                        fontSize: 7, fontWeight: 900, fontFamily: "'Cairo', sans-serif",
+                        border: `0.5px solid ${isLong ? 'rgba(50,215,75,0.2)' : 'rgba(255,69,58,0.2)'}`,
+                      }}>{isLong ? 'شراء' : 'بيع'}</span>
+                      {pos.isPaper && (
+                        <span style={{
+                          padding: '1px 4px', borderRadius: 6,
+                          background: 'rgba(0,212,255,0.1)', color: '#00D4FF',
+                          fontSize: 6, fontWeight: 800,
+                          border: '0.5px solid rgba(0,212,255,0.2)',
+                        }}>PAPER</span>
+                      )}
+                      {pos.source === 'bot' && (
+                        <span style={{
+                          padding: '1px 4px', borderRadius: 6,
+                          background: 'rgba(255,183,0,0.1)', color: '#FFB800',
+                          fontSize: 6, fontWeight: 800,
+                          border: '0.5px solid rgba(255,183,0,0.2)',
+                        }}>BOT</span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 9, color: 'rgba(235,235,245,0.3)', fontFamily: "'JetBrains Mono', monospace" }}>
+                      {pos.qty} @ {pos.entryPrice > 100 ? pos.entryPrice.toLocaleString('en', { maximumFractionDigits: 2 }) : pos.entryPrice.toFixed(4)}
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                  <span style={{ fontSize: 12, fontWeight: 900, color: pnlColor, fontFamily: "'JetBrains Mono', monospace" }}>
+                    {fmtPnl(pos.unrealizedPnl)}
+                  </span>
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      closePosition(pos.id, pos.isPaper, pos.symbol)
+                    }}
+                    style={{
+                      padding: '3px 8px', borderRadius: 6,
+                      background: confirmClose === pos.id ? 'rgba(255,69,58,0.16)' : 'rgba(255,69,58,0.06)',
+                      border: `0.5px solid ${confirmClose === pos.id ? 'rgba(255,69,58,0.4)' : 'rgba(255,69,58,0.15)'}`,
+                      color: '#FF453A', fontSize: 8, fontWeight: 900,
+                      fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 2,
+                    }}
+                  >
+                    {closing === pos.id ? (
+                      <RefreshCw size={8} className="animate-spin" color="#FF453A" />
+                    ) : confirmClose === pos.id ? (
+                      'تأكيد'
+                    ) : (
+                      <>
+                        <X size={8} />
+                        إغلاق
+                      </>
+                    )}
+                  </motion.button>
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Closed Trades */}
+      {closedTrades.length > 0 && (
+        <div style={{ borderTop: '0.5px solid rgba(255,255,255,0.06)', marginTop: 8, paddingTop: 8 }}>
+          <button
+            onClick={() => setShowClosed(!showClosed)}
+            style={{
+              width: '100%', padding: '6px 0', background: 'transparent', border: 'none',
+              color: 'rgba(235,235,245,0.4)', cursor: 'pointer', display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between', fontFamily: "'Cairo', sans-serif", fontSize: 10, fontWeight: 700,
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <History size={12} />
+              الصفقات المغلقة ({closedTrades.length})
+            </div>
+            <span style={{ fontSize: 8, transform: showClosed ? 'rotate(180deg)' : 'rotate(0)', transition: '0.2s', display: 'inline-block' }}>▼</span>
+          </button>
+
+          {showClosed && (
+            <div style={{ maxHeight: 160, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4, marginTop: 6 }}>
+              {closedTrades.map((ct: any) => {
+                const isLong = ct.side === 'long'
+                const pnlUp = ct.realizedPnl >= 0
+                return (
+                  <div key={ct.id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '6px 8px', borderRadius: 8,
+                    border: `0.5px solid ${pnlUp ? 'rgba(50,215,75,0.1)' : 'rgba(255,69,58,0.1)'}`,
+                    background: 'rgba(31,35,53,0.5)',
+                  }}>
+                    <div className="flex items-center gap-2">
+                      <span style={{ fontSize: 10, fontWeight: 900, color: isLong ? '#32D74B' : '#FF453A' }}>
+                        {isLong ? '⬆' : '⬇'}
+                      </span>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>{ct.symbol}</span>
+                      {ct.source === 'bot' && (
+                        <span style={{ padding: '1px 3px', borderRadius: 4, background: 'rgba(255,183,0,0.1)', color: '#FFB800', fontSize: 6, fontWeight: 800 }}>BOT</span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 10, fontWeight: 900, color: pnlUp ? '#32D74B' : '#FF453A', fontFamily: "'JetBrains Mono', monospace" }}>
+                      {fmtPnl(ct.realizedPnl)}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </IOSCard>
+  )
+}
+
 /* ─── Main Page ─────────────────────────── */
 export default function MobileHomePage() {
   const router = useRouter()
@@ -340,6 +962,9 @@ export default function MobileHomePage() {
   const [consensus, setConsensus] = useState<any>(null)
   const [refreshing, setRefreshing] = useState(false)
   const unreadNotifCount = useNotificationStore(s => s.notifications.filter(n => !n.read).length)
+  const mode = useDashboardStore(s => s.mode)
+  const setMode = useDashboardStore(s => s.setMode)
+  const modeConfig = MODE_CONFIG[mode]
 
   // Real portfolio data from API / store
   const totalAssets = Number(account?.equity) || Number(account?.buyingPower) || 0
@@ -464,6 +1089,41 @@ export default function MobileHomePage() {
             </motion.div>
           )}
         </motion.button>
+      </div>
+
+      {/* ── Trading Mode Switcher ── */}
+      <div style={{ padding: '0 20px', marginBottom: 8, position: 'relative', zIndex: 1 }}>
+        <div style={{
+          display: 'flex', gap: 0,
+          background: 'rgba(255,255,255,0.03)',
+          borderRadius: 16, padding: 3,
+          border: '0.5px solid rgba(255,255,255,0.06)',
+        }}>
+          {(['trader', 'investor', 'ai'] as TradingMode[]).map(m => {
+            const cfg = MODE_CONFIG[m]
+            const isActive = mode === m
+            return (
+              <motion.button
+                key={m}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setMode(m)}
+                style={{
+                  flex: 1, padding: '8px 0', borderRadius: 13,
+                  background: isActive ? `${cfg.accent}18` : 'transparent',
+                  border: isActive ? `0.5px solid ${cfg.accent}40` : '0.5px solid transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                  cursor: 'pointer', transition: '0.2s',
+                }}
+              >
+                <span style={{ fontSize: 11 }}>{cfg.icon}</span>
+                <span style={{
+                  fontSize: 11, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
+                  color: isActive ? cfg.accent : 'rgba(235,235,245,0.4)',
+                }}>{cfg.labelAr}</span>
+              </motion.button>
+            )
+          })}
+        </div>
       </div>
 
       <NewsTicker />
@@ -594,7 +1254,28 @@ export default function MobileHomePage() {
         </div>
       </IOSCard>
 
+      {/* ── Watchlist Section ── */}
+      <h2 style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif", margin: '24px 24px 12px' }}>
+        قائمة المراقبة
+      </h2>
+      <MobileWatchlist />
+
+      {/* ── Order Book Preview ── */}
+      <h2 style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif", margin: '24px 24px 12px' }}>
+        دفتر الأوامر
+      </h2>
+      <MobileOrderBookPreview />
+
+      {/* ── Positions / Recent Trades ── */}
+      <h2 style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif", margin: '24px 24px 12px' }}>
+        المراكز والصفقات
+      </h2>
+      <MobilePositions />
+
       {/* ── Agent, Bot & Scanner Grid ── */}
+      <h2 style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif", margin: '24px 24px 12px' }}>
+        الأدوات الذكية
+      </h2>
       <div className="grid grid-cols-3 gap-3 px-5 mb-8">
         {/* Agent Card */}
         <motion.div

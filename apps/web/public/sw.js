@@ -1,13 +1,13 @@
-const CACHE_NAME = 'roua-v5';
+const CACHE_NAME = 'roua-v6';
 
 const APP_SHELL = [
   '/',
   '/dashboard',
   '/mobile',
   '/manifest.json',
-  '/logo.svg',
-  '/logo-192.png',
-  '/logo-512.png',
+  '/favicon.svg',
+  '/icon-192.png',
+  '/icon-512.png',
 ];
 
 // Install: cache app shell
@@ -46,8 +46,8 @@ self.addEventListener('push', (event) => {
   let data = {
     title: 'روعة التجارية',
     body: 'لديك إشعار جديد',
-    icon: '/logo-192.png',
-    badge: '/logo-192.png',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
     tag: 'roua-notification',
     data: {},
   };

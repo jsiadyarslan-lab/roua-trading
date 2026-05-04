@@ -262,8 +262,8 @@ export default function MobileBotPage() {
             useBotStore.getState().setEngineState(data.state as BotEngineState)
           }
           // Send notification
-          const { addNotification } = await import('@/hooks/useNotificationStore')
-          addNotification({
+          const { useNotificationStore } = await import('@/hooks/useNotificationStore')
+          useNotificationStore.getState().addNotification({
             source: 'bot',
             priority: 'high',
             action: 'INFO',

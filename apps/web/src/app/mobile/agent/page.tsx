@@ -8,7 +8,7 @@ import {
   Activity, TrendingUp, TrendingDown, Target, Shield, Clock,
   ChevronDown, RefreshCw, Loader2,
   DollarSign, BarChart3, Zap, Brain, RotateCcw, Layers,
-  PiggyBank, Rocket, Eye
+  PiggyBank, Rocket, Eye, XCircle
 } from 'lucide-react'
 import {
   useAgentStore, AgentStatus, StrategyType, MarketRegime,

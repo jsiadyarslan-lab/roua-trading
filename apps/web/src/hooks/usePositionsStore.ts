@@ -362,15 +362,16 @@ export const usePositionsStore = create<PositionsState>()(
        */
       name: 'roua-positions-store', // Base name — actual key is resolved dynamically
       storage: (() => {
-        const baseStorage = createJSONStorage(() => localStorage)
+        const bs = createJSONStorage(() => localStorage)
+        const baseStorage = bs as any
         return {
-          getItem: (name: string) => {
+          getItem: (name: string): any => {
             const dynamicKey = getStorageKey()
             return baseStorage.getItem(dynamicKey)
           },
-          setItem: (name: string, value: string) => {
+          setItem: (name: string, value: any) => {
             const dynamicKey = getStorageKey()
-            baseStorage.setItem(dynamicKey, value)
+            baseStorage.setItem(dynamicKey, value as string)
           },
           removeItem: (name: string) => {
             const dynamicKey = getStorageKey()

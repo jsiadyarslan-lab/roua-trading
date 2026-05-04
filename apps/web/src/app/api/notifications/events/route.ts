@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdminAuth } from '@/lib/admin-auth'
 import { dispatchNotification, NotificationEvent } from '@/lib/notification-dispatcher'
+import { db, ensureDbReady } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
@@ -73,18 +74,84 @@ export async function POST(req: NextRequest) {
 }
 
 /**
- * GET — يعرض الأحداث المفعّلة حالياً
+ * GET — يعرض الإشعارات المخزنة للمستخدم الحالي
+ *
+ * ?limit=50  — أقصى عدد إشعارات (افتراضي 50)
+ * ?since=ts  — فقط الإشعارات بعد هذا التimestamp
+ *
+ * يقرأ إشعارات المتصفح من جدول auditLog (action يبدأ بـ "notification:")
  */
 export async function GET(req: NextRequest) {
-  // لا يتطلب مصادقة — معلومات عامة
-  const validTypes = [
-    { key: 'new_user', label: 'مستخدم جديد' },
-    { key: 'subscription_upgrade', label: 'ترقية اشتراك' },
-    { key: 'system_error', label: 'خطأ في النظام' },
-    { key: 'performance_alert', label: 'تنبيه أداء' },
-    { key: 'large_trade', label: 'صفقة كبيرة' },
-    { key: 'system_update', label: 'تحديث النظام' },
-  ]
+  try {
+    const dbReady = await ensureDbReady()
+    if (!dbReady) {
+      // قاعدة البيانات غير متاحة — أرجع قائمة فارغة
+      return NextResponse.json({ success: true, data: [], events: [] })
+    }
 
-  return NextResponse.json({ events: validTypes })
+    const url = new URL(req.url)
+    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100)
+    const since = url.searchParams.get('since')
+
+    // جلب الإشعارات المخزنة من auditLog
+    const where: any = {
+      resource: 'notification',
+      action: { startsWith: 'notification:' },
+    }
+
+    if (since) {
+      try {
+        const sinceDate = new Date(parseInt(since))
+        if (!isNaN(sinceDate.getTime())) {
+          where.createdAt = { gte: sinceDate }
+        }
+      } catch {}
+    }
+
+    const logs = await db.auditLog.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    })
+
+    const notifications = logs
+      .map((log) => {
+        try {
+          const details = typeof log.details === 'string'
+            ? JSON.parse(log.details)
+            : log.details
+          return {
+            id: log.id,
+            source: details.source || log.action.replace('notification:', '') || 'system',
+            priority: details.severity === 'error' ? 'urgent' : details.severity === 'warning' ? 'high' : 'medium',
+            action: details.action || details.type || 'INFO',
+            title: details.title || '',
+            body: details.body || details.message || '',
+            pair: details.data?.pair || details.data?.symbol,
+            price: details.data?.price,
+            confidence: details.data?.confidence,
+            timestamp: new Date(log.createdAt).getTime(),
+            read: details.read ?? false,
+          }
+        } catch {
+          return null
+        }
+      })
+      .filter(Boolean)
+
+    // أيضاً أرجع أنواع الأحداث المفعّلة (للأ التوافقية)
+    const validTypes = [
+      { key: 'new_user', label: 'مستخدم جديد' },
+      { key: 'subscription_upgrade', label: 'ترقية اشتراك' },
+      { key: 'system_error', label: 'خطأ في النظام' },
+      { key: 'performance_alert', label: 'تنبيه أداء' },
+      { key: 'large_trade', label: 'صفقة كبيرة' },
+      { key: 'system_update', label: 'تحديث النظام' },
+    ]
+
+    return NextResponse.json({ success: true, data: notifications, events: validTypes })
+  } catch (error: any) {
+    console.error('[notifications/events GET] Error:', error?.message || error)
+    return NextResponse.json({ success: false, data: [], events: [] })
+  }
 }

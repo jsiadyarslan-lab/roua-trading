@@ -279,3 +279,30 @@ Stage Summary:
 - Mobile page crash ROOT CAUSE: missing import of useNotificationStore in page.tsx
 - Navbar height reduced by half: container height 48px → 24px
 - All changes pushed and deployed
+
+---
+Task ID: 2
+Agent: main
+Task: Remove all fake/mock data from mobile version, fix bot store, verify cross-session sync
+
+Work Log:
+- Searched all 23 mobile page files for fake data patterns (Math.random, mock, dummy, hardcoded values)
+- Found and removed fake chart data generation from wallet/page.tsx (lines 280-300)
+- Found and removed fake chart data generation from portfolio/page.tsx (lines 424-445)
+- Removed hardcoded mock payment history from billing/page.tsx (3 fake payment records)
+- Fixed billing page: currentPlan defaults to null instead of 'PRO', expiryDate defaults to null instead of '2025-06-15'
+- Fixed billing handleUpgrade: now calls real API instead of setTimeout fake
+- Fixed bot store: isOn defaults to false (was incorrectly true)
+- Fixed bot store migrate: respects persisted isOn value instead of forcing true
+- Bumped bot store persist version from 5 to 6 for clean migration
+- Verified positions store has proper user-scoped localStorage keys and cross-session sync
+- Verified auth store has BroadcastChannel + localStorage events for cross-tab sync
+- Verified paper trades store has user-scoped storage and server sync
+- All changes built successfully and pushed to GitHub
+
+Stage Summary:
+- All fake/mock data removed from mobile version
+- When no real API data available, pages show empty states instead of fake data
+- Bot store no longer starts with isOn: true by default
+- Cross-session sync is properly implemented via BroadcastChannel + localStorage events + user-scoped storage keys
+- Commit: 3ec5080

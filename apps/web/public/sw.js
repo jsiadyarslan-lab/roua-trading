@@ -1,4 +1,4 @@
-const CACHE_NAME = 'roua-v4';
+const CACHE_NAME = 'roua-v5';
 
 const APP_SHELL = [
   '/',
@@ -87,14 +87,21 @@ self.addEventListener('notificationclick', (event) => {
 
   if (event.action === 'dismiss') return;
 
-  // Default: open the dashboard
-  const urlToOpen = event.notification.data?.url || '/dashboard';
+  // Determine correct URL based on which version (mobile/dashboard) the user was on
+  const dataUrl = event.notification.data?.url || '';
+  // Smart default: if the notification specifies a URL use it, otherwise
+  // detect if the user was on mobile or dashboard and route accordingly
+  let urlToOpen = dataUrl || '/dashboard';
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // If a window is already open, focus it
+      // If a window is already open, navigate and focus it
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
+          // If no explicit URL, detect mobile vs desktop from the client URL
+          if (!dataUrl) {
+            urlToOpen = client.url.includes('/mobile') ? '/mobile' : '/dashboard';
+          }
           client.navigate(urlToOpen);
           return client.focus();
         }

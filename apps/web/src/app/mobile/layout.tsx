@@ -4,6 +4,7 @@ import MobileToastOverlay from '@/components/mobile/MobileToastOverlay'
 import MobileNotificationAdapter from '@/components/mobile/MobileNotificationAdapter'
 import NotificationPermissionBanner from '@/components/shared/NotificationPermissionBanner'
 import PushNotificationManager from '@/components/shared/PushNotificationManager'
+import ServiceWorkerRegistrar from '@/components/dashboard/ServiceWorkerRegistrar'
 import { AuthGuard } from '@/components/dashboard/AuthGuard'
 import { MarketProvider } from '@/components/dashboard/MarketProvider'
 import ViewportHeightSetter from '@/components/mobile/ViewportHeightSetter'
@@ -11,9 +12,21 @@ import ViewportHeightSetter from '@/components/mobile/ViewportHeightSetter'
 export const metadata: Metadata = {
   title: 'رؤى للتداول — تطبيق الجوال',
   description: 'منصة رؤى لربط الحسابات',
+  manifest: '/manifest.json',
+  applicationName: 'رؤى للتداول',
+  icons: {
+    icon: '/logo.svg',
+    apple: '/logo-192.png',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'رؤى للتداول',
+  },
 }
 
 export const viewport: Viewport = {
+  themeColor: '#000000',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -25,6 +38,7 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
     <MarketProvider>
       <AuthGuard>
         <ViewportHeightSetter />
+        <ServiceWorkerRegistrar />
         <MobileNotificationAdapter />
         <MobileToastOverlay />
         <NotificationPermissionBanner />

@@ -102,7 +102,7 @@ export default function MobileNavBar() {
         className="fixed bottom-0 left-0 right-0 md:hidden"
         style={{
           zIndex: 50,
-          height: 'calc(27px + env(safe-area-inset-bottom))',
+          height: 'calc(48px + env(safe-area-inset-bottom))',
           paddingBottom: 'env(safe-area-inset-bottom)',
           background: 'rgba(11, 14, 20, 0.4)',
           backdropFilter: 'blur(50px) saturate(210%)',
@@ -116,12 +116,12 @@ export default function MobileNavBar() {
             if ((item as any).isCenter) {
               const active = isActive(item.href)
               return (
-                <div key={item.href} style={{ position: 'relative', marginTop: -8, zIndex: 10 }}>
+                <div key={item.href} style={{ position: 'relative', marginTop: -12, zIndex: 10 }}>
                   <motion.button
                     whileTap={{ scale: 0.92 }}
                     onClick={() => handleNav(item.href)}
                     style={{
-                      width: 32, height: 32, borderRadius: '50%',
+                      width: 40, height: 40, borderRadius: '50%',
                       background: active
                         ? 'linear-gradient(135deg, #00D4FF, #0099CC)'
                         : 'linear-gradient(135deg, #1C1C1E, #0D0D0F)',
@@ -134,11 +134,11 @@ export default function MobileNavBar() {
                       gap: 0, cursor: 'pointer',
                     }}
                   >
-                    <Wallet size={12} color={active ? '#FFFFFF' : '#00D4FF'} strokeWidth={2.5} />
+                    <Wallet size={18} color={active ? '#FFFFFF' : '#00D4FF'} strokeWidth={2.5} />
                   </motion.button>
                   <span style={{
-                    display: 'block', textAlign: 'center', marginTop: 0,
-                    fontSize: 5, color: active ? '#00D4FF' : 'rgba(255,255,255,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+                    display: 'block', textAlign: 'center', marginTop: 1,
+                    fontSize: 9, color: active ? '#00D4FF' : 'rgba(255,255,255,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 700,
                   }}>المحفظة</span>
                 </div>
               )
@@ -152,14 +152,14 @@ export default function MobileNavBar() {
                 key={item.href}
                 onClick={() => handleNav(item.href)}
                 className="flex flex-col items-center justify-center h-full"
-                style={{ width: 28, flexShrink: 0, position: 'relative' }}
+                style={{ width: 44, flexShrink: 0, position: 'relative' }}
               >
                 <motion.div 
                   whileTap={{ scale: 0.9 }} 
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   className="relative"
                 >
-                  <Icon size={12} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} />
+                  <Icon size={20} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} />
                   {/* Notification badge on Home icon */}
                   {item.href === '/mobile' && unreadCount > 0 && (
                     <motion.div
@@ -199,10 +199,11 @@ export default function MobileNavBar() {
                 </motion.div>
                 <span
                   style={{
-                    fontSize: 5,
+                    fontSize: 9,
                     color: active ? '#00D4FF' : 'rgba(255,255,255,0.35)',
                     fontFamily: "'Cairo', sans-serif",
                     fontWeight: active ? 800 : 500,
+                    marginTop: 2,
                   }}
                 >
                   {item.label}

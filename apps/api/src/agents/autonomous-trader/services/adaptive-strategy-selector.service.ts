@@ -2,7 +2,7 @@
 // Roua Trading (رؤى) — Adaptive Strategy Selector Service
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import {
@@ -76,10 +76,10 @@ export class AdaptiveStrategySelectorService {
   private readonly REGIME_CONFIRMATION_BARS = 3;
 
   constructor(
-    private readonly prisma: PrismaService,
-    private readonly redis: RedisService,
+    @Optional() private readonly prisma: PrismaService,
+    @Optional() private readonly redis: RedisService,
   ) {
-    this.logger.log('🧠 Adaptive Strategy Selector initialized — auto-regime detection active');
+    this.logger.log(`🧠 Adaptive Strategy Selector initialized — auto-regime detection active (prisma=${!!this.prisma}, redis=${!!this.redis})`);
   }
 
   // ── Regime Detection ──
@@ -284,34 +284,38 @@ export class AdaptiveStrategySelectorService {
       if (timeSinceSwitch < this.COOLDOWN_MS) {
         // During cool-down, only switch if new strategy is significantly better (>20 points)
         const cachedStrategyKey = `agent:auto:last-strategy:${userId}`;
-        try {
-          const lastStrategy = await this.redis.get(cachedStrategyKey);
-          if (lastStrategy && bestScore.score - 20 < 70) {
-            // Keep previous strategy during cool-down unless new one is very strong
-            const previousStrategy = scores.find(s => s.strategy === lastStrategy);
-            if (previousStrategy && previousStrategy.score > 30) {
-              selectedStrategy = previousStrategy.strategy;
-              this.logger.debug(
-                `🧠 Cool-down active for ${userId} — keeping ${selectedStrategy} ` +
-                `(best was ${bestScore.strategy}=${bestScore.score})`,
-              );
+        if (this.redis) {
+          try {
+            const lastStrategy = await this.redis.get(cachedStrategyKey);
+            if (lastStrategy && bestScore.score - 20 < 70) {
+              // Keep previous strategy during cool-down unless new one is very strong
+              const previousStrategy = scores.find(s => s.strategy === lastStrategy);
+              if (previousStrategy && previousStrategy.score > 30) {
+                selectedStrategy = previousStrategy.strategy;
+                this.logger.debug(
+                  `🧠 Cool-down active for ${userId} — keeping ${selectedStrategy} ` +
+                  `(best was ${bestScore.strategy}=${bestScore.score})`,
+                );
+              }
             }
+          } catch {
+            // Redis error — proceed with best strategy
           }
-        } catch {
-          // Redis error — proceed with best strategy
         }
       }
     }
 
     // Step 4: Update cache and switch time
-    try {
-      await this.redis.set(
-        `agent:auto:last-strategy:${userId}`,
-        selectedStrategy,
-        this.COOLDOWN_MS,
-      );
-    } catch {
-      // Non-critical
+    if (this.redis) {
+      try {
+        await this.redis.set(
+          `agent:auto:last-strategy:${userId}`,
+          selectedStrategy,
+          this.COOLDOWN_MS,
+        );
+      } catch {
+        // Non-critical
+      }
     }
 
     this.lastSwitchTime.set(userId, new Date());
@@ -405,6 +409,8 @@ export class AdaptiveStrategySelectorService {
    */
   private async _getRecentPerformance(userId: string, strategy: StrategyType): Promise<number> {
     try {
+      if (!this.prisma) return 50; // No DB — neutral score
+
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
       const trades = await this.prisma.autonomousTrade.findMany({
@@ -448,6 +454,8 @@ export class AdaptiveStrategySelectorService {
    */
   private async _getDrawdownPenalty(userId: string, strategy: StrategyType): Promise<number> {
     try {
+      if (!this.prisma) return 70; // No DB — moderate score
+
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
       const trades = await this.prisma.autonomousTrade.findMany({
@@ -495,6 +503,8 @@ export class AdaptiveStrategySelectorService {
    */
   private async _getWinRateTrend(userId: string, strategy: StrategyType): Promise<number> {
     try {
+      if (!this.prisma) return 50; // No DB — neutral score
+
       const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 

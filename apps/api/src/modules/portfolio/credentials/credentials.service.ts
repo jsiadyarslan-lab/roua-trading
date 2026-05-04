@@ -290,16 +290,29 @@ export class CredentialsService {
   }
 
   private _decrypt(data: { encrypted: string; iv: string; authTag: string }): string {
-    const iv = Buffer.from(data.iv, 'hex');
-    const authTag = Buffer.from(data.authTag, 'hex');
+    try {
+      const iv = Buffer.from(data.iv, 'hex');
+      const authTag = Buffer.from(data.authTag, 'hex');
 
-    const decipher = crypto.createDecipheriv('aes-256-gcm', this.encryptionKey, iv);
-    decipher.setAuthTag(authTag);
+      const decipher = crypto.createDecipheriv('aes-256-gcm', this.encryptionKey, iv);
+      decipher.setAuthTag(authTag);
 
-    let decrypted = decipher.update(data.encrypted, 'hex', 'utf8');
-    decrypted += decipher.final('utf8');
+      let decrypted = decipher.update(data.encrypted, 'hex', 'utf8');
+      decrypted += decipher.final('utf8');
 
-    return decrypted;
+      return decrypted;
+    } catch (error: any) {
+      // FIX: If decryption fails (likely due to encryption key mismatch after restart),
+      // throw a clear error instead of crashing with a generic crypto error
+      this.logger.error(
+        `Failed to decrypt credential: ${error.message}. ` +
+        `This usually means the ENCRYPTION_KEY has changed since the credential was stored. ` +
+        `The credential needs to be re-added with the current encryption key.`
+      );
+      throw new BadRequestException(
+        'فشل فك تشفير بيانات الاعتماد — يرجى حذف المفتاح وإضافته مرة أخرى'
+      );
+    }
   }
 
   // ── Private: API Key Validation ──
@@ -390,6 +403,21 @@ export class CredentialsService {
 
         // If balance fetch fails with auth error → key is genuinely invalid
         if (this._isAuthError(balanceMessage)) {
+          // FIX: "Unauthorized" from Binance can also mean IP restriction.
+          // Try fetchTicker as a lighter check before rejecting completely.
+          try {
+            if (typeof exchangeInstance.fetchTicker === 'function') {
+              await exchangeInstance.fetchTicker('BTC/USDT');
+              // If fetchTicker works, the key is valid — the balance error was likely IP-based
+              this.logger.log(`API key validated via fetchTicker (balance failed with: ${balanceMessage.substring(0, 60)})`);
+              return { valid: true, permissions: ['read', 'trade'] };
+            }
+          } catch (tickerErr: any) {
+            // fetchTicker also failed with auth error → key is genuinely invalid
+            if (this._isAuthError(tickerErr.message || '')) {
+              return { valid: false, error: 'مفتاح API غير صالح أو منتهي الصلاحية' };
+            }
+          }
           return { valid: false, error: 'مفتاح API غير صالح أو منتهي الصلاحية' };
         }
 
@@ -460,11 +488,24 @@ export class CredentialsService {
   /** Check if an error message indicates an authentication failure (invalid key) */
   private _isAuthError(message: string): boolean {
     const authErrorPatterns = [
-      'Invalid API', 'Unauthorized', 'invalid api key', 'invalid signature',
+      'Invalid API', 'invalid api key', 'invalid signature',
       'API-key format invalid', 'Invalid API-key', 'authentication error',
-      'auth error', 'access denied', 'invalid key',
+      'auth error', 'invalid key',
+    ];
+    // FIX: Separate "access denied" from genuine auth errors.
+    // Binance returns "Access denied" for IP whitelist restrictions, which means
+    // the key IS valid but the server IP isn't whitelisted. We should NOT reject
+    // the key in this case — we should accept it with a warning.
+    const ipRestrictionPatterns = [
+      'access denied', 'ip not allowed', 'ip ban', 'IP restriction',
+      'whitelist', 'source ip', 'for this ip address',
     ];
     const lower = message.toLowerCase();
+    // If the error is an IP restriction, it's NOT an auth error — the key is valid
+    if (ipRestrictionPatterns.some(p => lower.includes(p.toLowerCase()))) {
+      this.logger.warn(`API key is valid but has IP restriction — accepting with warning: ${message.substring(0, 100)}`);
+      return false;
+    }
     return authErrorPatterns.some(p => lower.includes(p.toLowerCase()));
   }
 

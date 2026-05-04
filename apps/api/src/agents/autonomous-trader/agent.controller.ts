@@ -15,6 +15,7 @@ import {
   HttpStatus,
   Logger,
   ServiceUnavailableException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AuthGuard, Public } from '../../common/guards/auth.guard';
 import { AutonomousTraderAgentService } from './agent.service';
@@ -88,7 +89,6 @@ export class AutonomousTraderAgentController {
    * Start the autonomous trader with specified strategy and configuration
    */
   @Post('start')
-  @Public()
   @HttpCode(HttpStatus.OK)
   async startAgent(@Req() req: any, @Body() dto: StartAgentDto) {
     this.logger.log(`[startAgent] Request from user: ${req.user?.id || 'unknown'}`);
@@ -321,11 +321,10 @@ export class AutonomousTraderAgentController {
    */
   @Put('system-settings')
   async updateSystemSettings(@Req() req: any, @Body() body: { autoTradingEnabled?: boolean }) {
-    // Only allow admins to change system settings
+    // Only allow INSTITUTIONAL tier users to change system settings
     const user = req.user;
     if (!user || user.tier !== 'INSTITUTIONAL') {
-      // For now, allow any authenticated user to check; in production, restrict to admin
-      // We'll use the Setting model to store this
+      throw new ForbiddenException('فقط المستخدمون المؤسسيون يمكنهم تغيير إعدادات النظام');
     }
 
     if (body.autoTradingEnabled !== undefined) {

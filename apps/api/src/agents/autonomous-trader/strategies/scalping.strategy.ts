@@ -68,8 +68,12 @@ export class ScalpingStrategy extends BaseStrategy {
     const nearLowerBand = bollingerBands.percentB < 0.45;
     const nearUpperBand = bollingerBands.percentB > 0.55;
 
-    // Check spread (using ATR as proxy — if ATR is very low relative to price, spread may be too wide)
-    const spreadTooWide = atr > 0 && (atr / market.price) * 100 > 0.5;
+    // REMOVED: Old spread check used ATR/price > 0.5% as a spread proxy.
+    // This was WRONG because ATR is a volatility measure, not spread.
+    // For BTC at $94,500 with ATR $500 → 0.53% → falsely rejected as "spread too wide".
+    // Real spread on crypto exchanges is typically 0.01-0.1%, far below ATR.
+    // Now we only check for EXTREME volatility (already handled in hasOpportunity).
+    const spreadTooWide = false;
 
     // Determine direction
     let direction: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';

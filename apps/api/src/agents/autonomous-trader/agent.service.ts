@@ -1467,9 +1467,22 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             const entryPrice = Number(position.entryPrice);
             const lastPrice = Number(position.currentPrice || entryPrice);
 
-            // Small random walk: ±0.1% of entry price so positions can drift toward SL/TP
-            const maxDelta = entryPrice * 0.001;
-            const delta = (Math.random() - 0.5) * 2 * maxDelta;
+            // IMPROVED: Larger random walk using ATR-based SL/TP distance
+            // Old ±0.1% was too small — typical ATR-based SL is 1-2% away from entry,
+            // so ±0.1% per minute would take 10-20 minutes just to reach SL/TP by drift alone.
+            // New: ±0.5% gives realistic intraday movement and can reach SL/TP within a few cycles.
+            const maxDelta = entryPrice * 0.005; // ±0.5% (was ±0.1%)
+            // Add slight directional bias toward the position's SL or TP based on which is closer
+            const slDistance = Math.abs(lastPrice - stopLoss) / lastPrice;
+            const tpDistance = Math.abs(lastPrice - takeProfit) / lastPrice;
+            // If SL is closer, slightly bias downward; if TP is closer, bias upward (for BUY)
+            let bias = 0;
+            if (position.side === 'BUY') {
+              bias = slDistance < tpDistance ? -0.2 : 0.2; // slight drift toward nearer target
+            } else {
+              bias = slDistance < tpDistance ? 0.2 : -0.2;
+            }
+            const delta = (Math.random() - 0.5 + bias) * 2 * maxDelta;
             currentPrice = Math.max(lastPrice + delta, entryPrice * 0.5); // ensure price stays positive
 
             try {
@@ -1483,7 +1496,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                 },
               });
               this.logger.log(
-                `🧠 Simulated price for paper position ${position.symbol}: ${currentPrice.toFixed(2)} (last: ${lastPrice.toFixed(2)}, ±0.1% walk)`,
+                `🧠 Simulated price for paper position ${position.symbol}: ${currentPrice.toFixed(2)} (last: ${lastPrice.toFixed(2)}, ±0.5% walk with bias)`,
               );
             } catch (simErr: any) {
               this.logger.warn(`Failed to save simulated price for ${position.symbol}: ${simErr.message}`);
@@ -1494,13 +1507,14 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         let shouldClose = false;
         let reason = '';
 
-        // FIX: MAX_HOLDING_TIME — close paper positions open >24h at breakeven to prevent accumulation.
-        // When APIs are persistently down, even simulated drift may not hit SL/TP within a reasonable time.
+        // FIX: MAX_HOLDING_TIME — close paper positions open >4h at breakeven to prevent accumulation.
+        // Reduced from 24h to 4h: paper positions that haven't hit SL/TP in 4 hours are likely stuck
+        // due to API issues, and keeping them open blocks maxOpenPositions for new trades.
         const holdingDurationMs = Date.now() - new Date(position.openedAt).getTime();
-        const MAX_HOLDING_TIME_MS = 24 * 60 * 60 * 1000; // 24 hours
+        const MAX_HOLDING_TIME_MS = 4 * 60 * 60 * 1000; // 4 hours (was 24 hours)
         if (isPaperPosition && holdingDurationMs > MAX_HOLDING_TIME_MS) {
           this.logger.log(
-            `🧠 Paper position ${position.symbol} held for ${(holdingDurationMs / 3600000).toFixed(1)}h (>24h), closing at breakeven`,
+            `🧠 Paper position ${position.symbol} held for ${(holdingDurationMs / 3600000).toFixed(1)}h (>4h), closing at breakeven`,
           );
           currentPrice = Number(position.entryPrice); // breakeven exit
           shouldClose = true;

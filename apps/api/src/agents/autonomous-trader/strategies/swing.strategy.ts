@@ -54,9 +54,11 @@ export class SwingStrategy extends BaseStrategy {
     const mildUptrend = ema.ema9 > ema.ema21;
     const mildDowntrend = ema.ema9 < ema.ema21;
 
-    // RSI pullback zones (buying in pullback within uptrend)
-    const bullishPullback = rsi >= 35 && rsi <= 50;
-    const bearishPullback = rsi >= 50 && rsi <= 65;
+    // RSI pullback zones — WIDENED for more signal generation
+    // Old: 35-50 (BUY) / 50-65 (SELL) — too narrow, rarely triggered
+    // New: 30-55 (BUY) / 45-70 (SELL) — captures more pullback opportunities
+    const bullishPullback = rsi >= 30 && rsi <= 55;
+    const bearishPullback = rsi >= 45 && rsi <= 70;
 
     // MACD momentum
     const macdBullish = macd.histogram > 0 || macd.crossover === 'BULLISH';
@@ -66,13 +68,18 @@ export class SwingStrategy extends BaseStrategy {
     const priceAboveEMA21 = market.price > ema.ema21;
     const priceBelowEMA21 = market.price < ema.ema21;
 
+    // Bollinger Band position for additional confirmation
+    const nearLowerBand = bollingerBands.percentB < 0.4;
+    const nearUpperBand = bollingerBands.percentB > 0.6;
+
     // Determine direction and strength
     let direction: 'BUY' | 'SELL' | 'NEUTRAL' = 'NEUTRAL';
     let strength = 0;
     let trendAlignment = false;
 
-    // BUY: Uptrend + pullback + momentum
-    if ((strongUptrend || mildUptrend) && bullishPullback && macdBullish && priceAboveEMA21) {
+    // PATH 1 (Primary): Uptrend + pullback + momentum (original, but with wider RSI)
+    // Changed from 4-condition AND to 3-condition: relaxed priceAboveEMA21 requirement
+    if ((strongUptrend || mildUptrend) && bullishPullback && macdBullish) {
       direction = 'BUY';
       strength = this._calculateSwingStrength(
         strongUptrend, bullishPullback, macdBullish, priceAboveEMA21, market.aiSignal,
@@ -80,14 +87,14 @@ export class SwingStrategy extends BaseStrategy {
       trendAlignment = strongUptrend;
     }
     // SELL: Downtrend + pullback + momentum
-    else if ((strongDowntrend || mildDowntrend) && bearishPullback && macdBearish && priceBelowEMA21) {
+    else if ((strongDowntrend || mildDowntrend) && bearishPullback && macdBearish) {
       direction = 'SELL';
       strength = this._calculateSwingStrength(
         strongDowntrend, bearishPullback, macdBearish, priceBelowEMA21, market.aiSignal,
       );
       trendAlignment = strongDowntrend;
     }
-    // Alternative: Strong MACD crossover with trend
+    // PATH 2: Strong MACD crossover with mild trend (original alternative)
     else if (macd.crossover === 'BULLISH' && mildUptrend && rsi < 60) {
       direction = 'BUY';
       strength = 55;
@@ -97,18 +104,41 @@ export class SwingStrategy extends BaseStrategy {
       strength = 55;
       trendAlignment = mildDowntrend;
     }
+    // PATH 3 (NEW): Oversold/Overbought + Bollinger extreme + ANY trend hint
+    // Captures reversal opportunities that the primary path misses
+    else if (rsi < 35 && nearLowerBand && (mildUptrend || macdBullish)) {
+      direction = 'BUY';
+      strength = 45;
+      trendAlignment = mildUptrend;
+    } else if (rsi > 65 && nearUpperBand && (mildDowntrend || macdBearish)) {
+      direction = 'SELL';
+      strength = 45;
+      trendAlignment = mildDowntrend;
+    }
+    // PATH 4 (NEW): Strong EMA alignment alone (no pullback needed)
+    // Captures strong trending moves
+    else if (strongUptrend && rsi < 65 && macdBullish) {
+      direction = 'BUY';
+      strength = 50;
+      trendAlignment = true;
+    } else if (strongDowntrend && rsi > 35 && macdBearish) {
+      direction = 'SELL';
+      strength = 50;
+      trendAlignment = true;
+    }
 
     const hasOpportunity =
       direction !== 'NEUTRAL' &&
-      strength >= 20 && // Lowered from 30 — was too strict, rarely reached
-      market.volatility !== 'EXTREME'; // REMOVED SIDEWAYS check — swing can trade in mild sideways too
+      strength >= 20 &&
+      market.volatility !== 'EXTREME';
 
     return {
       hasOpportunity,
       direction,
       strength,
-      requiresTrend: true, // Swing REQUIRES a clear trend
-      spreadTooWide: false, // Spread not a concern for swing
+      requiresTrend: false, // FIX: Changed from true — swing can trade in mild sideways too
+                                // SIDEWAYS rejection was killing too many valid signals
+      spreadTooWide: false,
       indicators: {
         trendAlignment,
         indicatorStrength: strength,

@@ -1,13 +1,23 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Roua Trading (رؤى) — Engine Controller
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//
+// بنية جديدة: نقاط نهاية البوت والمجلس تم نقلها إلى:
+//   - /api/strategic-council/*  → StrategicCouncilController
+//   - /api/smart-executor/*    → SmartExecutorController
+//
+// هذا المتحكم يحتفظ فقط بنقاط نهاية البنية التحتية:
+//   - /api/engine/health
+//   - /api/engine/scanner/*
+//   - /api/engine/monitor/*
+//   - /api/engine/broadcaster/*
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import {
   Controller,
   Get,
   Post,
   Body,
-  Param,
   UseGuards,
   Request,
   Logger,
@@ -16,21 +26,19 @@ import {
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
 import { MarketScannerService } from './services/market-scanner.service';
-import { TradingBotService } from './services/trading-bot.service';
-import { CouncilSchedulerService } from './services/council-scheduler.service';
 import { PositionMonitorService } from './services/position-monitor.service';
 import { MarketBroadcasterService } from './services/market-broadcaster.service';
 
 /**
- * Engine Controller — Live Engine Management API
+ * Engine Controller — واجهة إدارة البنية التحتية الحية
  *
- * Provides endpoints to:
- * - View engine status and health
- * - Trigger manual scans and council sessions
- * - Manage bot configuration
- * - View alerts and broadcast data
+ * يوفر نقاط نهاية لـ:
+ * - فحص حالة المحركات
+ * - تشغيل مسح يدوي للسوق
+ * - عرض حالة مراقب المراكز
+ * - إدارة بث بيانات السوق
  *
- * All endpoints require authentication.
+ * جميع نقاط النهاية تتطلب مصادقة.
  */
 @Controller('engine')
 @UseGuards(AuthGuard)
@@ -39,12 +47,10 @@ export class EngineController {
 
   constructor(
     private readonly scanner: MarketScannerService,
-    private readonly bot: TradingBotService,
-    private readonly council: CouncilSchedulerService,
     private readonly monitor: PositionMonitorService,
     private readonly broadcaster: MarketBroadcasterService,
   ) {
-    this.logger.log('⚙️ Engine Controller initialized');
+    this.logger.log('⚙️ Engine Controller initialized (infrastructure-only)');
   }
 
   // ── Engine Health ──
@@ -52,21 +58,17 @@ export class EngineController {
   /**
    * GET /api/engine/health
    *
-   * Returns the health status of all live engines.
+   * Returns the health status of all infrastructure engines.
    */
   @Get('health')
   async getEngineHealth() {
     try {
       const [
         lastScan,
-        lastBotCycle,
-        lastCouncilSession,
         monitorStatus,
         trackedSymbols,
       ] = await Promise.all([
         this.scanner.getLastScan(),
-        this.bot.getLastCycle(),
-        this.council.getLastSession(),
         this.monitor.getMonitorStatus(),
         this.broadcaster.getTrackedSymbols(),
       ]);
@@ -79,14 +81,6 @@ export class EngineController {
               status: lastScan ? 'active' : 'idle',
               lastScan,
             },
-            bot: {
-              status: lastBotCycle ? 'active' : 'idle',
-              lastCycle: lastBotCycle,
-            },
-            council: {
-              status: lastCouncilSession ? 'active' : 'idle',
-              lastSession: lastCouncilSession,
-            },
             monitor: {
               status: monitorStatus.openPositions > 0 ? 'active' : 'idle',
               ...monitorStatus,
@@ -95,6 +89,11 @@ export class EngineController {
               status: trackedSymbols.length > 0 ? 'active' : 'idle',
               trackedSymbols: trackedSymbols.length,
             },
+          },
+          // Redirect info for migrated endpoints
+          _migration: {
+            bot: 'Moved to /api/smart-executor/*',
+            council: 'Moved to /api/strategic-council/*',
           },
           timestamp: new Date().toISOString(),
         },
@@ -127,141 +126,6 @@ export class EngineController {
   @Get('scanner/last')
   async getLastScan() {
     const result = await this.scanner.getLastScan();
-    return { success: true, data: result };
-  }
-
-  // ── Bot Controls ──
-
-  /**
-   * POST /api/engine/bot/enable
-   *
-   * Enable trading bot for the current user.
-   */
-  @Post('bot/enable')
-  async enableBot(@Request() req: any, @Body() body: any) {
-    await this.bot.enableBot(req.user.id, body);
-    return {
-      success: true,
-      message: 'تم تفعيل البوت بنجاح',
-    };
-  }
-
-  /**
-   * POST /api/engine/bot/disable
-   *
-   * Disable trading bot for the current user.
-   */
-  @Post('bot/disable')
-  async disableBot(@Request() req: any) {
-    await this.bot.disableBot(req.user.id);
-    return {
-      success: true,
-      message: 'تم إيقاف البوت',
-    };
-  }
-
-  /**
-   * GET /api/engine/bot/status
-   *
-   * Get bot status for the current user.
-   */
-  @Get('bot/status')
-  async getBotStatus(@Request() req: any) {
-    const status = await this.bot.getBotStatus(req.user.id);
-    return { success: true, data: status };
-  }
-
-  /**
-   * GET /api/engine/bot/strategies
-   *
-   * Get available bot strategies.
-   */
-  @Get('bot/strategies')
-  async getBotStrategies() {
-    const strategies = this.bot.getAvailableStrategies();
-    return {
-      success: true,
-      data: strategies,
-    };
-  }
-
-  /**
-   * POST /api/engine/bot/strategy
-   *
-   * Change the default bot strategy.
-   */
-  @Post('bot/strategy')
-  async setBotStrategy(@Body() body: { strategy: string }) {
-    if (!body.strategy) {
-      return { success: false, message: 'يرجى تحديد الاستراتيجية' };
-    }
-
-    try {
-      this.bot.setDefaultStrategy(body.strategy as any);
-      return {
-        success: true,
-        message: `تم تغيير استراتيجية البوت إلى: ${body.strategy}`,
-      };
-    } catch (error: any) {
-      return { success: false, message: error.message };
-    }
-  }
-
-  // ── Council Controls ──
-
-  /**
-   * POST /api/engine/council/run
-   *
-   * Trigger a manual council session.
-   */
-  @Post('council/run')
-  @Throttle({ default: { limit: 3, ttl: 60000 } })
-  async runCouncilSession(
-    @Request() req: any,
-    @Body() body: { symbols: string[] },
-  ) {
-    if (!body.symbols || body.symbols.length === 0) {
-      return {
-        success: false,
-        message: 'يرجى تحديد رموز التداول للتحليل',
-      };
-    }
-
-    const results = await this.council.forceSession(req.user.id, body.symbols);
-    return { success: true, data: results };
-  }
-
-  /**
-   * GET /api/engine/council/last
-   *
-   * Get the last council session results.
-   */
-  @Get('council/last')
-  async getLastCouncilSession() {
-    const result = await this.council.getLastSession();
-    return { success: true, data: result };
-  }
-
-  /**
-   * GET /api/engine/council/alerts
-   *
-   * Get active council alerts.
-   */
-  @Get('council/alerts')
-  async getCouncilAlerts() {
-    const alerts = await this.council.getActiveAlerts();
-    return { success: true, data: alerts };
-  }
-
-  /**
-   * GET /api/engine/council/:symbol
-   *
-   * Get council result for a specific symbol.
-   */
-  @Get('council/:symbol')
-  async getCouncilResult(@Param('symbol') symbol: string) {
-    const decoded = decodeURIComponent(symbol);
-    const result = await this.council.getSymbolResult(decoded);
     return { success: true, data: result };
   }
 

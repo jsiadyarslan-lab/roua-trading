@@ -245,16 +245,13 @@ export default function MobileBotPage() {
       // ── Enable bot via backend API ──
       addLog('🟢 جارٍ تشغيل البوت الآلي — إرسال طلب للخادم...', 'info')
       try {
-        const res = await fetch('/api/engine/bot/enable', {
+        const res = await fetch('/api/smart-executor/user/enable', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            strategy: settings.strategy || 'AUTO',
-            riskPct: settings.riskPct,
-            confLimit: settings.confLimit,
-            useAIConsensus: settings.useAIConsensus,
-            maxDailyLoss: settings.maxDailyLoss,
-            maxDrawdown: settings.maxDrawdown,
+            isPaperTrading: true,
+            riskPerTradePercent: settings.riskPct || 1,
+            maxOpenPositions: 5,
           }),
         })
         const data = await res.json()
@@ -284,7 +281,7 @@ export default function MobileBotPage() {
       // ── Disable bot via backend API ──
       addLog('🔴 جارٍ إيقاف البوت الآلي — إرسال طلب للخادم...', 'warn')
       try {
-        const res = await fetch('/api/engine/bot/disable', {
+        const res = await fetch('/api/smart-executor/user/disable', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         })

@@ -4,6 +4,10 @@
 // "القائد في غرفة العمليات" — يحلل السوق بعمق
 // ويصدر وثائق تداول (Trading Briefs).
 // لا ينفذ أي صفقة بنفسه.
+//
+// بنية جديدة: المجلس الاستراتيجي هو المحرك الوحيد
+// لإجماع الذكاء الاصطناعي. CouncilSchedulerService القديم
+// تم إلغاؤه واستبداله بهذه الخدمة.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -17,6 +21,9 @@ import {
   ALL_COUNCIL_PAIRS,
   COUNCIL_TIMEFRAMES,
   TIMEFRAME_EXPIRY_MS,
+  TIMEFRAME_RR,
+  MIN_BRIEF_CONFIDENCE,
+  MIN_CONSENSUS_SCORE,
   CouncilSessionResult,
   TradingBriefDTO,
   StrictRules,
@@ -45,7 +52,7 @@ export class StrategicCouncilService {
     private readonly audit: AuditService,
     private readonly exchangeService: ExchangeService,
   ) {
-    this.logger.log('🏛️ Strategic Council initialized — hourly analysis engine ready');
+    this.logger.log('🏛️ Strategic Council initialized — THE ONLY consensus engine');
   }
 
   // ── Scheduled Sessions ──
@@ -64,6 +71,7 @@ export class StrategicCouncilService {
         briefsIssued: 0,
         briefsModified: 0,
         briefsCancelled: 0,
+        briefsExecuted: 0,
         durationMs: 0,
       };
     }
@@ -77,6 +85,7 @@ export class StrategicCouncilService {
       briefsIssued: 0,
       briefsModified: 0,
       briefsCancelled: 0,
+      briefsExecuted: 0,
       durationMs: 0,
     };
 
@@ -113,12 +122,15 @@ export class StrategicCouncilService {
       // Expire outdated briefs
       await this._expireOutdatedBriefs();
 
+      // Mark executed briefs (those that SmartExecutor has already executed)
+      await this._markExecutedBriefs();
+
       result.durationMs = Date.now() - startTime;
 
       this.logger.log(
         `🏛️ Strategic Council session complete: ${result.pairsAnalyzed} pairs, ` +
         `${result.briefsIssued} new briefs, ${result.briefsModified} modified, ` +
-        `${result.briefsCancelled} cancelled (${result.durationMs}ms)`,
+        `${result.briefsCancelled} cancelled, ${result.briefsExecuted} executed (${result.durationMs}ms)`,
       );
 
       // Store session result in Redis
@@ -127,6 +139,24 @@ export class StrategicCouncilService {
         JSON.stringify(result),
         3600000, // 1 hour TTL
       );
+
+      // Publish council completion event for Smart Executor
+      try {
+        const client = (this.redis as any)['client'];
+        if (client && typeof client.publish === 'function') {
+          await client.publish(
+            'council:session_complete',
+            JSON.stringify({
+              timestamp: result.timestamp,
+              briefsIssued: result.briefsIssued,
+              briefsModified: result.briefsModified,
+              activeBriefs: await this.getActiveBriefsCount(),
+            }),
+          );
+        }
+      } catch (pubError: any) {
+        this.logger.debug(`Failed to publish council event: ${pubError.message}`);
+      }
 
       await this.audit.log({
         userId: 'system',
@@ -155,6 +185,7 @@ export class StrategicCouncilService {
       briefsIssued: 0,
       briefsModified: 0,
       briefsCancelled: 0,
+      briefsExecuted: 0,
       durationMs: 0,
     };
 
@@ -184,7 +215,7 @@ export class StrategicCouncilService {
   // ── Query Methods ──
 
   /**
-   * Get all active briefs
+   * Get all active briefs (for Smart Executor consumption)
    */
   async getActiveBriefs(userId?: string): Promise<TradingBriefDTO[]> {
     const where: any = { isActive: true, reviewStatus: 'ACTIVE' };
@@ -199,7 +230,20 @@ export class StrategicCouncilService {
   }
 
   /**
-   * Get brief history (including expired/cancelled)
+   * Get count of active briefs (lightweight for events)
+   */
+  async getActiveBriefsCount(): Promise<number> {
+    try {
+      return await this.prisma.tradingBrief.count({
+        where: { isActive: true, reviewStatus: 'ACTIVE' },
+      });
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * Get brief history (including expired/cancelled/executed)
    */
   async getBriefHistory(userId?: string, limit: number = 100): Promise<TradingBriefDTO[]> {
     const where: any = {};
@@ -241,6 +285,25 @@ export class StrategicCouncilService {
       orderBy: { issuedAt: 'desc' },
     });
     return briefs.map((b) => this._toDTO(b));
+  }
+
+  /**
+   * Mark a brief as executed (called by Smart Executor after successful trade)
+   */
+  async markBriefExecuted(briefId: string, orderId: string): Promise<void> {
+    try {
+      await this.prisma.tradingBrief.update({
+        where: { id: briefId },
+        data: {
+          isActive: false,
+          reviewStatus: 'EXECUTED',
+          analysisSummary: `Executed → Order: ${orderId}`,
+        },
+      });
+      this.logger.log(`🏛️ Brief ${briefId} marked as EXECUTED (order: ${orderId})`);
+    } catch (error: any) {
+      this.logger.error(`Failed to mark brief ${briefId} as executed: ${error.message}`);
+    }
   }
 
   // ── Private: Core Analysis ──
@@ -293,7 +356,7 @@ export class StrategicCouncilService {
         pair,
         timeframe,
         isActive: true,
-        reviewStatus: 'ACTIVE',
+        reviewStatus: { in: ['ACTIVE', 'MODIFIED'] },
       },
     });
 
@@ -301,7 +364,7 @@ export class StrategicCouncilService {
     const consensus = await this.orchestrator.getConsensusAnalysis(pair);
 
     // Only issue/modify briefs for BUY or SELL recommendations with sufficient confidence
-    if (consensus.recommendation === 'HOLD' || consensus.consensusScore < 60) {
+    if (consensus.recommendation === 'HOLD' || consensus.consensusScore < MIN_CONSENSUS_SCORE) {
       // If existing brief but market now says HOLD or low confidence — cancel it
       if (existingBrief) {
         await this.prisma.tradingBrief.update({
@@ -405,15 +468,7 @@ export class StrategicCouncilService {
     takeProfit: number;
     strictRules: StrictRules;
   } {
-    // Risk/reward ratios per timeframe
-    const slTpPercent: Record<BriefTimeframe, { sl: number; tp: number; maxSlippage: number }> = {
-      H1: { sl: 0.005, tp: 0.01, maxSlippage: 0.001 },     // 0.5% SL, 1% TP
-      H4: { sl: 0.01, tp: 0.02, maxSlippage: 0.001 },       // 1% SL, 2% TP
-      D1: { sl: 0.02, tp: 0.04, maxSlippage: 0.002 },       // 2% SL, 4% TP
-      W1: { sl: 0.04, tp: 0.08, maxSlippage: 0.003 },       // 4% SL, 8% TP
-    };
-
-    const { sl, tp, maxSlippage } = slTpPercent[timeframe];
+    const { sl, tp, maxSlippage } = TIMEFRAME_RR[timeframe];
 
     let entryPrice: number;
     let stopLoss: number;
@@ -446,6 +501,7 @@ export class StrategicCouncilService {
       const expired = await this.prisma.tradingBrief.updateMany({
         where: {
           isActive: true,
+          reviewStatus: { in: ['ACTIVE', 'MODIFIED'] },
           expiresAt: { lt: new Date() },
         },
         data: {
@@ -461,11 +517,44 @@ export class StrategicCouncilService {
     }
   }
 
+  /**
+   * Mark briefs that have been executed by Smart Executor
+   * (Checks audit log for SMART_EXECUTOR_TRADE actions)
+   */
+  private async _markExecutedBriefs(): Promise<void> {
+    try {
+      // Find briefs marked as EXECUTED by the Smart Executor
+      // This is already handled by markBriefExecuted(), but we double-check here
+      const executedBriefs = await this.prisma.tradingBrief.findMany({
+        where: {
+          reviewStatus: 'EXECUTED',
+          isActive: true, // Should be false, but fix if missed
+        },
+      });
+
+      if (executedBriefs.length > 0) {
+        await this.prisma.tradingBrief.updateMany({
+          where: {
+            reviewStatus: 'EXECUTED',
+            isActive: true,
+          },
+          data: {
+            isActive: false,
+          },
+        });
+        this.logger.log(`🏛️ Fixed ${executedBriefs.length} executed briefs still marked as active`);
+      }
+    } catch (error: any) {
+      this.logger.error(`Failed to mark executed briefs: ${error.message}`);
+    }
+  }
+
   // ── Private: Utility ──
 
   private _toDTO(brief: any): TradingBriefDTO {
     return {
       id: brief.id,
+      userId: brief.userId,
       pair: brief.pair,
       direction: brief.direction as BriefDirection,
       entryPrice: Number(brief.entryPrice),

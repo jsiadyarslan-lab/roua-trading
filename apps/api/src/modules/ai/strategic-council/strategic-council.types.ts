@@ -4,7 +4,7 @@
 
 export type BriefTimeframe = 'H1' | 'H4' | 'D1' | 'W1';
 export type BriefDirection = 'BUY' | 'SELL';
-export type BriefReviewStatus = 'ACTIVE' | 'MODIFIED' | 'CANCELLED';
+export type BriefReviewStatus = 'ACTIVE' | 'MODIFIED' | 'CANCELLED' | 'EXECUTED';
 
 export interface StrictRules {
   maxEntryPrice?: number;
@@ -14,6 +14,7 @@ export interface StrictRules {
 
 export interface TradingBriefDTO {
   id: string;
+  userId?: string | null;
   pair: string;
   direction: BriefDirection;
   entryPrice: number;
@@ -36,6 +37,7 @@ export interface CouncilSessionResult {
   briefsIssued: number;
   briefsModified: number;
   briefsCancelled: number;
+  briefsExecuted: number;
   durationMs: number;
 }
 
@@ -65,3 +67,17 @@ export const TIMEFRAME_EXPIRY_MS: Record<BriefTimeframe, number> = {
   D1: 24 * 60 * 60 * 1000,          // 1 day
   W1: 7 * 24 * 60 * 60 * 1000,      // 1 week
 };
+
+/** Risk/reward ratios per timeframe */
+export const TIMEFRAME_RR: Record<BriefTimeframe, { sl: number; tp: number; maxSlippage: number }> = {
+  H1: { sl: 0.005, tp: 0.01, maxSlippage: 0.001 },     // 0.5% SL, 1% TP
+  H4: { sl: 0.01, tp: 0.02, maxSlippage: 0.001 },       // 1% SL, 2% TP
+  D1: { sl: 0.02, tp: 0.04, maxSlippage: 0.002 },       // 2% SL, 4% TP
+  W1: { sl: 0.04, tp: 0.08, maxSlippage: 0.003 },       // 4% SL, 8% TP
+};
+
+/** Minimum confidence score to issue a brief */
+export const MIN_BRIEF_CONFIDENCE = 60;
+
+/** Minimum consensus score to issue a brief */
+export const MIN_CONSENSUS_SCORE = 60;

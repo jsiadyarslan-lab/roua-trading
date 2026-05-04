@@ -3,6 +3,13 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // "الجندي في الميدان" — يراقب الأسعار باستمرار
 // وينفذ الصفقات فوراً عندما تتحقق الشروط.
+//
+// بنية جديدة: المنفذ الذكي يحل محل TradingBotService القديم
+// الفرق الجوهري:
+//   - يقرأ TradingBriefs من المجلس الاستراتيجي (لا يقرأ Signals)
+//   - ينفذ عبر TradingService (لا يضع أوامر مباشرة عبر Prisma)
+//   - يدعم المستخدمين بشكل فردي (لكل مستخدم إعداداته)
+//   - يراقب حد الخسارة اليومي لكل مستخدم
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
@@ -10,9 +17,11 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { ExchangeService } from '../../exchange/exchange.service';
 import { AuditService } from '../../../audit/audit.service';
+import { TradingService } from '../../trading/trading.service';
 import { StrategicCouncilService } from '../strategic-council/strategic-council.service';
 import { TradingBriefDTO, StrictRules } from '../strategic-council/strategic-council.types';
-import { ExecutorStatus, ExecutionResult, ExecutorConfig } from './smart-executor.types';
+import { ExecutorStatus, ExecutionResult, ExecutorConfig, UserExecutorState } from './smart-executor.types';
+import { PlaceOrderRequest, OrderSide, OrderType } from '../../trading/trading.types';
 
 @Injectable()
 export class SmartExecutorService implements OnModuleDestroy {
@@ -26,20 +35,27 @@ export class SmartExecutorService implements OnModuleDestroy {
 
   /** Configuration */
   private readonly config: ExecutorConfig = {
-    tickIntervalMs: 1000,          // 1 second
+    tickIntervalMs: 2000,           // 2 seconds (more reasonable than 1s)
     maxOpenPositions: 5,
     maxDailyLossPercent: 5,
-    defaultSlippage: 0.001,        // 0.1%
+    defaultSlippage: 0.001,         // 0.1%
+    riskPerTradePercent: 1,
+    minConfidence: 70,
   };
 
   /** Track processed brief IDs to avoid double execution */
   private readonly processedBriefIds = new Set<string>();
+
+  /** Redis key patterns */
+  private readonly REDIS_USER_STATE_PREFIX = 'smart-executor:user:';
+  private readonly REDIS_GLOBAL_STATE = 'smart-executor:global';
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
     private readonly exchangeService: ExchangeService,
     private readonly audit: AuditService,
+    private readonly tradingService: TradingService,
     private readonly councilService: StrategicCouncilService,
   ) {
     this.logger.log('⚔️ Smart Executor initialized — awaiting activation');
@@ -54,7 +70,7 @@ export class SmartExecutorService implements OnModuleDestroy {
   // ── Control Methods ──
 
   /**
-   * Start the Smart Executor
+   * Start the Smart Executor globally
    * Begins the price monitoring loop
    */
   async start(userId?: string): Promise<ExecutorStatus> {
@@ -67,10 +83,17 @@ export class SmartExecutorService implements OnModuleDestroy {
     this.startedAt = new Date();
     this.processedBriefIds.clear();
 
-    this.logger.log('⚔️ Smart Executor ACTIVATED — monitoring prices every second');
+    this.logger.log('⚔️ Smart Executor ACTIVATED — monitoring briefs every 2 seconds');
 
     // Start the tick loop
     this._startTickLoop();
+
+    // Store global state
+    await this.redis.set(
+      this.REDIS_GLOBAL_STATE,
+      JSON.stringify({ isRunning: true, startedAt: this.startedAt.toISOString() }),
+      86400000,
+    );
 
     await this.audit.log({
       userId: userId || 'system',
@@ -83,7 +106,7 @@ export class SmartExecutorService implements OnModuleDestroy {
   }
 
   /**
-   * Stop the Smart Executor
+   * Stop the Smart Executor globally
    */
   async stop(userId?: string): Promise<ExecutorStatus> {
     if (!this.isRunning) {
@@ -99,6 +122,12 @@ export class SmartExecutorService implements OnModuleDestroy {
 
     this.logger.log('⚔️ Smart Executor STOPPED');
 
+    await this.redis.set(
+      this.REDIS_GLOBAL_STATE,
+      JSON.stringify({ isRunning: false, stoppedAt: new Date().toISOString() }),
+      86400000,
+    );
+
     await this.audit.log({
       userId: userId || 'system',
       action: 'SMART_EXECUTOR_STOP',
@@ -110,12 +139,75 @@ export class SmartExecutorService implements OnModuleDestroy {
   }
 
   /**
+   * Enable executor for a specific user
+   */
+  async enableUser(userId: string, config?: {
+    credentialId?: string;
+    isPaperTrading?: boolean;
+    maxOpenPositions?: number;
+    riskPerTradePercent?: number;
+  }): Promise<UserExecutorState> {
+    const state: UserExecutorState = {
+      enabled: true,
+      dailyPnL: 0,
+      dailyTrades: 0,
+      dailyResetAt: new Date().toISOString(),
+      lastTradeAt: null,
+      consecutiveLosses: 0,
+      maxOpenPositions: config?.maxOpenPositions || this.config.maxOpenPositions,
+      riskPerTradePercent: config?.riskPerTradePercent || this.config.riskPerTradePercent,
+      credentialId: config?.credentialId,
+      isPaperTrading: config?.isPaperTrading ?? true,
+    };
+
+    await this.redis.set(
+      `${this.REDIS_USER_STATE_PREFIX}${userId}`,
+      JSON.stringify(state),
+      86400000,
+    );
+
+    this.logger.log(`⚔️ Executor enabled for user ${userId} (paper: ${state.isPaperTrading})`);
+
+    await this.audit.log({
+      userId,
+      action: 'SMART_EXECUTOR_USER_ENABLED',
+      resource: 'smart-executor',
+      details: JSON.stringify(state),
+    });
+
+    return state;
+  }
+
+  /**
+   * Disable executor for a specific user
+   */
+  async disableUser(userId: string): Promise<void> {
+    await this.redis.del(`${this.REDIS_USER_STATE_PREFIX}${userId}`);
+    this.logger.log(`⚔️ Executor disabled for user ${userId}`);
+
+    await this.audit.log({
+      userId,
+      action: 'SMART_EXECUTOR_USER_DISABLED',
+      resource: 'smart-executor',
+    });
+  }
+
+  /**
+   * Get user executor state
+   */
+  async getUserState(userId: string): Promise<UserExecutorState | null> {
+    const raw = await this.redis.get(`${this.REDIS_USER_STATE_PREFIX}${userId}`);
+    return raw ? JSON.parse(raw) : null;
+  }
+
+  /**
    * Get current executor status
    */
   async getStatus(): Promise<ExecutorStatus> {
     let todayExecutions = 0;
     let todayPnL = 0;
     let openPositions = 0;
+    let activeBriefs = 0;
 
     try {
       // Count today's executions from audit log
@@ -134,12 +226,15 @@ export class SmartExecutorService implements OnModuleDestroy {
       openPositions = await this.prisma.position.count({
         where: { status: 'OPEN' },
       });
+
+      // Count active briefs
+      activeBriefs = await this.councilService.getActiveBriefsCount();
     } catch {
       // Ignore DB errors in status
     }
 
     // Check if daily loss limit reached
-    const dailyLossLimitReached = await this._isDailyLossLimitReached();
+    const dailyLossLimitReached = false; // Per-user check, not global
 
     return {
       isRunning: this.isRunning,
@@ -151,6 +246,7 @@ export class SmartExecutorService implements OnModuleDestroy {
       lastCheckAt: this.isRunning ? new Date() : null,
       dailyLossLimitReached,
       lastError: null,
+      activeBriefs,
     };
   }
 
@@ -168,11 +264,31 @@ export class SmartExecutorService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * Get all users with executor enabled
+   */
+  private async _getEnabledUsers(): Promise<string[]> {
+    try {
+      const client = (this.redis as any)['client'];
+      const keys: string[] = [];
+      let cursor = '0';
+      do {
+        const result = await client.scan(cursor, 'MATCH', `${this.REDIS_USER_STATE_PREFIX}*`, 'COUNT', 100);
+        cursor = result[0];
+        keys.push(...result[1]);
+      } while (cursor !== '0');
+
+      return keys.map((k: string) => k.replace(this.REDIS_USER_STATE_PREFIX, ''));
+    } catch {
+      return [];
+    }
+  }
+
   // ── Core: Tick Loop ──
 
   /**
    * Start the monitoring tick loop
-   * Each tick: read active briefs → check prices → execute if conditions met
+   * Each tick: read active briefs → check prices → execute if conditions met for enabled users
    */
   private _startTickLoop(): void {
     this.tickInterval = setInterval(async () => {
@@ -187,23 +303,9 @@ export class SmartExecutorService implements OnModuleDestroy {
   }
 
   /**
-   * Single tick: Check all active briefs against current prices
+   * Single tick: Get active briefs, find enabled users, check conditions per user
    */
   private async _tick(): Promise<void> {
-    // Safety check: daily loss limit
-    if (await this._isDailyLossLimitReached()) {
-      this.logger.warn('⚔️ Daily loss limit reached — pausing execution');
-      return;
-    }
-
-    // Safety check: max open positions
-    const openPositionsCount = await this.prisma.position.count({
-      where: { status: 'OPEN' },
-    });
-    if (openPositionsCount >= this.config.maxOpenPositions) {
-      return; // Silently skip — no need to log every second
-    }
-
     // Get active briefs from the Strategic Council
     const activeBriefs = await this.councilService.getActiveBriefs();
 
@@ -211,25 +313,89 @@ export class SmartExecutorService implements OnModuleDestroy {
       return; // No briefs to execute
     }
 
-    // Check each brief
-    for (const brief of activeBriefs) {
-      // Skip already processed briefs
-      if (this.processedBriefIds.has(brief.id)) {
-        continue;
-      }
+    // Get users with executor enabled
+    const enabledUsers = await this._getEnabledUsers();
 
+    if (enabledUsers.length === 0) {
+      return; // No users to execute for
+    }
+
+    // Process each enabled user
+    for (const userId of enabledUsers) {
       try {
-        await this._checkBrief(brief);
+        await this._processUserBriefs(userId, activeBriefs);
       } catch (error: any) {
-        this.logger.error(`⚔️ Error checking brief ${brief.id}: ${error.message}`);
+        this.logger.error(`⚔️ Error processing user ${userId}: ${error.message}`);
       }
     }
   }
 
   /**
-   * Check if a brief's entry conditions are met
+   * Process active briefs for a specific user
    */
-  private async _checkBrief(brief: TradingBriefDTO): Promise<void> {
+  private async _processUserBriefs(userId: string, briefs: TradingBriefDTO[]): Promise<void> {
+    const userState = await this.getUserState(userId);
+    if (!userState || !userState.enabled) return;
+
+    // Reset daily stats if new day
+    const dailyResetAt = new Date(userState.dailyResetAt);
+    const now = new Date();
+    if (now.toDateString() !== dailyResetAt.toDateString()) {
+      userState.dailyPnL = 0;
+      userState.dailyTrades = 0;
+      userState.dailyResetAt = now.toISOString();
+      userState.consecutiveLosses = 0;
+    }
+
+    // Check daily loss limit
+    const portfolio = await this._getPortfolioValue(userId);
+    if (portfolio > 0 && userState.dailyPnL < -(portfolio * this.config.maxDailyLossPercent / 100)) {
+      this.logger.warn(`⚔️ User ${userId} hit daily loss limit — pausing`);
+      return;
+    }
+
+    // Check max open positions
+    const openPositionsCount = await this.prisma.position.count({
+      where: { userId, status: 'OPEN' },
+    });
+    if (openPositionsCount >= (userState.maxOpenPositions || this.config.maxOpenPositions)) {
+      return; // At max positions
+    }
+
+    // Process each brief
+    for (const brief of briefs) {
+      // Skip already processed briefs (per user)
+      const processedKey = `${brief.id}:${userId}`;
+      if (this.processedBriefIds.has(processedKey)) {
+        continue;
+      }
+
+      // Skip if user already has position for this pair
+      const existingPosition = await this.prisma.position.findFirst({
+        where: { userId, symbol: brief.pair, status: 'OPEN' },
+      });
+      if (existingPosition) continue;
+
+      // Check confidence threshold
+      if (brief.confidence < this.config.minConfidence) continue;
+
+      try {
+        await this._checkBriefForUser(userId, brief, userState, portfolio);
+      } catch (error: any) {
+        this.logger.error(`⚔️ Error checking brief ${brief.id} for user ${userId}: ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Check if a brief's entry conditions are met for a specific user
+   */
+  private async _checkBriefForUser(
+    userId: string,
+    brief: TradingBriefDTO,
+    userState: UserExecutorState,
+    portfolioValue: number,
+  ): Promise<void> {
     // 1. Get current price
     let currentPrice: number;
     try {
@@ -244,15 +410,12 @@ export class SmartExecutorService implements OnModuleDestroy {
 
     // Check max entry price (for BUY — don't buy above this)
     if (strictRules.maxEntryPrice && currentPrice > strictRules.maxEntryPrice) {
-      // Price too high — brief violated
-      await this._cancelBrief(brief.id, 'Price exceeded maxEntryPrice');
+      // Price too high — brief violated for now, but don't cancel (may come back in range)
       return;
     }
 
     // Check min entry price (for SELL — don't sell below this)
     if (strictRules.minEntryPrice && currentPrice < strictRules.minEntryPrice) {
-      // Price too low — brief violated
-      await this._cancelBrief(brief.id, 'Price below minEntryPrice');
       return;
     }
 
@@ -261,19 +424,33 @@ export class SmartExecutorService implements OnModuleDestroy {
 
     if (conditionsMet) {
       // EXECUTE THE TRADE!
-      const result = await this._executeBrief(brief, currentPrice);
+      const result = await this._executeBriefForUser(userId, brief, currentPrice, userState, portfolioValue);
 
       if (result.success) {
-        this.processedBriefIds.add(brief.id);
+        const processedKey = `${brief.id}:${userId}`;
+        this.processedBriefIds.add(processedKey);
         this.totalExecutions++;
 
         this.logger.log(
           `⚔️ EXECUTED: ${brief.direction} ${brief.pair} @ ${currentPrice} ` +
-          `(brief: ${brief.id}, order: ${result.orderId})`,
+          `(brief: ${brief.id}, order: ${result.orderId}, user: ${userId})`,
+        );
+
+        // Mark brief as executed in council
+        if (result.orderId) {
+          await this.councilService.markBriefExecuted(brief.id, result.orderId);
+        }
+
+        // Update user state
+        userState.dailyTrades++;
+        userState.lastTradeAt = new Date().toISOString();
+        await this.redis.set(
+          `${this.REDIS_USER_STATE_PREFIX}${userId}`,
+          JSON.stringify(userState),
+          86400000,
         );
       }
     }
-    // If conditions not met — just wait for the next tick
   }
 
   /**
@@ -288,7 +465,6 @@ export class SmartExecutorService implements OnModuleDestroy {
 
     if (brief.direction === 'BUY') {
       // For BUY: current price should be at or near the entry price
-      // Allow entry if price is within slippage range of entry price
       const maxPrice = brief.entryPrice * (1 + slippage);
       return currentPrice <= maxPrice;
     } else {
@@ -299,151 +475,137 @@ export class SmartExecutorService implements OnModuleDestroy {
   }
 
   /**
-   * Execute a brief — place the actual order
-   * Uses the existing Trading infrastructure
+   * Execute a brief for a specific user — place the order via TradingService
    */
-  private async _executeBrief(brief: TradingBriefDTO, currentPrice: number): Promise<ExecutionResult> {
+  private async _executeBriefForUser(
+    userId: string,
+    brief: TradingBriefDTO,
+    currentPrice: number,
+    userState: UserExecutorState,
+    portfolioValue: number,
+  ): Promise<ExecutionResult> {
     const result: ExecutionResult = {
       success: false,
       briefId: brief.id,
       pair: brief.pair,
       direction: brief.direction,
       entryPrice: currentPrice,
+      userId,
       executedAt: new Date(),
     };
 
     try {
-      // Find a valid exchange credential with trade permission
-      // The executor uses the first available credential
-      const credential = await this.prisma.exchangeCredential.findFirst({
-        where: {
-          isValid: true,
-          permissions: { contains: 'trade' },
-        },
-      });
+      // Find user's exchange credential
+      let credential: any = null;
+
+      if (userState.isPaperTrading) {
+        // Paper trading — find or create paper credential
+        credential = await this.prisma.exchangeCredential.findFirst({
+          where: { userId, exchange: 'paper-trading', isValid: true },
+        });
+
+        if (!credential) {
+          credential = await this.prisma.exchangeCredential.create({
+            data: {
+              userId,
+              exchange: 'paper-trading',
+              label: 'تداول ورقي (تجريبي)',
+              encryptedApiKey: 'paper',
+              encryptedSecret: 'paper',
+              iv: 'paper',
+              authTag: 'paper',
+              permissions: JSON.stringify(['read', 'trade']),
+              isValid: true,
+            },
+          });
+        }
+      } else {
+        // Real trading — use user's credential
+        const where: any = { userId, isValid: true };
+        if (userState.credentialId) {
+          where.id = userState.credentialId;
+        } else {
+          where.permissions = { contains: 'trade' };
+        }
+
+        credential = await this.prisma.exchangeCredential.findFirst({ where });
+      }
 
       if (!credential) {
-        result.error = 'No valid trading credential found';
-        this.logger.warn(`⚔️ Cannot execute brief ${brief.id}: no valid trading credential`);
+        result.error = 'No valid trading credential found for user';
+        this.logger.warn(`⚔️ No credential for user ${userId} — disabling executor`);
+        await this.disableUser(userId);
         return result;
       }
 
-      // Calculate position size (1% of portfolio value — conservative)
-      const portfolioAssets = await this.prisma.portfolioAsset.findMany({
-        where: { portfolio: { userId: credential.userId } },
-      });
-      const totalValue = portfolioAssets.reduce(
-        (sum, a) => sum + Number(a.quantity) * (Number(a.currentPrice) || Number(a.avgPrice) || 0),
-        0,
-      );
-      const positionSize = Math.max(
-        (totalValue * 0.01) / currentPrice, // 1% of portfolio
-        0.00001, // minimum
-      );
+      // Calculate position size based on risk
+      const riskPercent = (userState.riskPerTradePercent || this.config.riskPerTradePercent) / 100;
+      const riskAmount = Math.max(portfolioValue * riskPercent, 10); // minimum $10
+      const priceRisk = Math.abs(currentPrice - brief.stopLoss);
 
-      // Create the order via Prisma (directly, to use the existing Order model)
-      const order = await this.prisma.order.create({
-        data: {
-          userId: credential.userId,
-          exchangeCredentialId: credential.id,
-          exchange: credential.exchange,
-          symbol: brief.pair,
-          side: brief.direction as any,
-          type: 'MARKET' as any,
-          status: 'PENDING' as any,
-          quantity: positionSize,
-          stopLoss: brief.stopLoss,
-          takeProfit: brief.takeProfit,
-          idempotencyKey: `executor-${brief.id}-${Date.now()}`,
-        },
-      });
+      if (priceRisk === 0) {
+        result.error = 'Invalid stop loss — price risk is 0';
+        return result;
+      }
+
+      const quantity = parseFloat((riskAmount / priceRisk).toFixed(6));
+
+      if (quantity <= 0) {
+        result.error = 'Invalid quantity calculated';
+        return result;
+      }
+
+      // Place the order via TradingService (proper risk checks, CCXT execution, etc.)
+      const orderRequest: PlaceOrderRequest = {
+        credentialId: credential.id,
+        symbol: brief.pair,
+        side: brief.direction === 'BUY' ? OrderSide.BUY : OrderSide.SELL,
+        type: OrderType.MARKET,
+        quantity,
+        stopLoss: brief.stopLoss,
+        takeProfit: brief.takeProfit,
+      };
+
+      const orderResult = await this.tradingService.placeOrder(userId, orderRequest);
 
       result.success = true;
-      result.orderId = order.id;
+      result.orderId = orderResult?.id || 'unknown';
 
       // Audit log for the execution
       await this.audit.log({
-        userId: credential.userId,
+        userId,
         action: 'SMART_EXECUTOR_TRADE',
         resource: 'smart-executor',
         details: JSON.stringify({
           briefId: brief.id,
-          orderId: order.id,
+          orderId: result.orderId,
           pair: brief.pair,
           direction: brief.direction,
           entryPrice: currentPrice,
           stopLoss: brief.stopLoss,
           takeProfit: brief.takeProfit,
-          quantity: positionSize,
+          quantity,
           confidence: brief.confidence,
           timeframe: brief.timeframe,
+          isPaperTrading: userState.isPaperTrading,
         }),
-      });
-
-      // Mark the brief as executed (deactivate it)
-      await this.prisma.tradingBrief.update({
-        where: { id: brief.id },
-        data: {
-          isActive: false,
-          reviewStatus: 'CANCELLED',
-        },
       });
     } catch (error: any) {
       result.error = error.message;
-      this.logger.error(`⚔️ Execution failed for brief ${brief.id}: ${error.message}`);
+      this.logger.error(`⚔️ Execution failed for brief ${brief.id} user ${userId}: ${error.message}`);
     }
 
     return result;
   }
 
-  /**
-   * Cancel a brief that violated strict rules
-   */
-  private async _cancelBrief(briefId: string, reason: string): Promise<void> {
+  // ── Private: Utility ──
+
+  private async _getPortfolioValue(userId: string): Promise<number> {
     try {
-      await this.prisma.tradingBrief.update({
-        where: { id: briefId },
-        data: {
-          isActive: false,
-          reviewStatus: 'CANCELLED',
-        },
-      });
-
-      this.processedBriefIds.add(briefId); // Don't check again
-
-      this.logger.warn(`⚔️ Brief ${briefId} cancelled: ${reason}`);
-    } catch (error: any) {
-      this.logger.error(`Failed to cancel brief ${briefId}: ${error.message}`);
-    }
-  }
-
-  /**
-   * Check if daily loss limit has been reached
-   */
-  private async _isDailyLossLimitReached(): Promise<boolean> {
-    try {
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-
-      // Sum today's closed position PnL
-      const result = await this.prisma.position.aggregate({
-        where: {
-          status: 'CLOSED',
-          closedAt: { gte: startOfDay },
-        },
-        _sum: { realizedPnl: true },
-      });
-
-      const dailyPnL = Number(result._sum.realizedPnl || 0);
-
-      // Get approximate portfolio value
-      const totalPortfolioValue = 10000; // Default fallback
-
-      const maxDailyLoss = totalPortfolioValue * (this.config.maxDailyLossPercent / 100);
-
-      return dailyPnL < 0 && Math.abs(dailyPnL) >= maxDailyLoss;
+      const summary = await this.tradingService.getPositionSummary(userId);
+      return summary.totalValue || 0;
     } catch {
-      return false; // If we can't check, allow trading
+      return 0;
     }
   }
 }

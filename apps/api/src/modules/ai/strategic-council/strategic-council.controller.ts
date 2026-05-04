@@ -1,6 +1,10 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Roua Trading — Strategic Council Controller
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//
+// واجهة المجلس الاستراتيجي — المحرك الوحيد لإجماع الذكاء الاصطناعي
+// يحل محل نقاط نهاية CouncilScheduler القديم في EngineController
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Controller, Get, Post, Body, UseGuards, Logger } from '@nestjs/common';
 import { StrategicCouncilService } from './strategic-council.service';
@@ -30,6 +34,15 @@ export class StrategicCouncilController {
   async getBriefHistory() {
     const briefs = await this.councilService.getBriefHistory();
     return { success: true, data: briefs };
+  }
+
+  /**
+   * GET /api/strategic-council/briefs/count — Get active briefs count
+   */
+  @Get('briefs/count')
+  async getActiveBriefsCount() {
+    const count = await this.councilService.getActiveBriefsCount();
+    return { success: true, data: { count } };
   }
 
   /**

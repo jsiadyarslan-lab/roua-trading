@@ -1042,6 +1042,7 @@ enum BriefReviewStatus {
   ACTIVE
   MODIFIED
   CANCELLED
+  EXECUTED
 }
 
 enum BriefDirection {

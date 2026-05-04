@@ -1,12 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { Bot, Brain, ScanSearch, Sparkles, Waves, Cpu } from 'lucide-react'
+import { Bot, Brain, ScanSearch, Sparkles, Waves, Cpu, Swords, Landmark } from 'lucide-react'
 import { BotMini } from '@/components/dashboard/BotMini'
 import { AgentControlMini } from '@/components/dashboard/AgentControlMini'
 import { ScannerMini } from '@/components/dashboard/ScannerMini'
 import { BotCommandCenter } from '@/components/dashboard/BotCommandCenter'
 import { AICouncilPanel } from '@/components/dashboard/AICouncilPanel'
+import { StrategicCouncilPanel } from '@/components/dashboard/StrategicCouncilPanel'
+import { SmartExecutorPanel } from '@/components/dashboard/SmartExecutorPanel'
 import { MultiTfScannerMini } from '@/components/dashboard/MultiTfScannerMini'
 import { useDecisionFlow } from '@/hooks/useDecisionFlow'
 import { useTabAlertStore, type TabId } from '@/hooks/useTabAlertStore'
@@ -34,7 +36,7 @@ const T = {
 }
 
 export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
-  const [active, setActive] = useState('bot')
+  const [active, setActive] = useState('executor')
   const { selectedSymbol, scanner, council, engineState } = useDecisionFlow()
   const { alerts, clearAlert } = useTabAlertStore()
 
@@ -49,24 +51,24 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
   const isAgentRunning = agentStatus === AgentStatus.RUNNING
 
   const TABS = [
-    { id: 'bot', label: 'البوت', accent: T.cyan, icon: Bot, subtitle: 'التنفيذ والإدارة' },
+    { id: 'executor', label: 'المنفذ', accent: T.cyan, icon: Swords, subtitle: 'المنفذ الذكي' },
+    { id: 'strategic', label: 'المجلس', accent: T.purple, icon: Landmark, subtitle: 'المجلس الاستراتيجي' },
     { id: 'trader', label: 'الوكيل', accent: isAgentRunning ? T.success : T.amber, icon: Cpu, subtitle: 'وكيل التداول الذاتي' },
-    { id: 'council', label: 'المجلس', accent: T.accent, icon: Brain, subtitle: 'الترجيح والحكم' },
+    { id: 'council', label: 'AI', accent: T.accent, icon: Brain, subtitle: 'إجماع الذكاء الاصطناعي' },
     { id: 'scanner', label: 'السكانر', accent: T.amber, icon: ScanSearch, subtitle: 'اكتشاف الفرص' },
-    { id: 'multi-tf', label: 'متعدد الأطر', accent: T.purple, icon: Waves, subtitle: 'النظام والانحياز' },
     { id: 'signals', label: 'إشارات', accent: T.green, icon: Sparkles, subtitle: 'التحويل للتنفيذ' },
   ]
   const activeTab = TABS.find((tab) => tab.id === active) || TABS[0]
   const headlineMap = {
-    bot: engineState === 'armed' ? 'المحرك جاهز' : engineState === 'scanning' ? 'المحرك يمسح السوق' : 'المحرك تحت السيطرة',
+    executor: 'المنفذ الذكي يراقب Briefs',
+    strategic: 'المجلس الاستراتيجي يوزن الأدلة',
     trader: isAgentRunning ? 'الوكيل ينفذ الصفقات' : 'الوكيل في الانتظار',
-    council: council?.recommendation ? `المجلس يميل إلى ${council.recommendation}` : 'المجلس يزن الأدلة',
+    council: council?.recommendation ? `إجماع AI يميل إلى ${council.recommendation}` : 'إجماع الذكاء الاصطناعي',
     scanner: scanner ? `${scanner.pair} تحت المجهر` : 'السكانر يفتش عن فرصة',
-    'multi-tf': 'انحياز متعدد الأطر',
     signals: 'الإشارات الجاهزة للتنفيذ',
   } as const
 
-  const headline = headlineMap[active as keyof typeof headlineMap] ?? headlineMap.bot
+  const headline = headlineMap[active as keyof typeof headlineMap] ?? 'مركز القرار التشغيلي'
 
   return (
     <div
@@ -279,12 +281,12 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           }}
           className="custom-scrollbar"
         >
-        {active === 'bot' && <BotMini />}
+        {active === 'executor' && <SmartExecutorPanel />}
+        {active === 'strategic' && <StrategicCouncilPanel />}
         {active === 'trader' && <AgentMini />}
         {active === 'council' && <AICouncilPanel />}
         {active === 'scanner' && <ScannerMini />}
         {active === 'signals' && <BotCommandCenter />}
-        {active === 'multi-tf' && <MultiTfScannerMini />}
         </div>
       </div>
     </div>

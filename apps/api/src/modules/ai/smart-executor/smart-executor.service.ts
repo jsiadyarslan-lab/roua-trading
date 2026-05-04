@@ -43,12 +43,10 @@ export class SmartExecutorService implements OnModuleDestroy {
     minConfidence: 70,
   };
 
-  /** Track processed brief IDs to avoid double execution */
-  private readonly processedBriefIds = new Set<string>();
-
   /** Redis key patterns */
   private readonly REDIS_USER_STATE_PREFIX = 'smart-executor:user:';
   private readonly REDIS_GLOBAL_STATE = 'smart-executor:global';
+  private readonly REDIS_PROCESSED_PREFIX = 'smart-executor:processed:'; // briefId:userId → persisted in Redis
 
   constructor(
     private readonly prisma: PrismaService,
@@ -81,7 +79,6 @@ export class SmartExecutorService implements OnModuleDestroy {
 
     this.isRunning = true;
     this.startedAt = new Date();
-    this.processedBriefIds.clear();
 
     this.logger.log('⚔️ Smart Executor ACTIVATED — monitoring briefs every 2 seconds');
 
@@ -364,9 +361,10 @@ export class SmartExecutorService implements OnModuleDestroy {
 
     // Process each brief
     for (const brief of briefs) {
-      // Skip already processed briefs (per user)
-      const processedKey = `${brief.id}:${userId}`;
-      if (this.processedBriefIds.has(processedKey)) {
+      // Skip already processed briefs (per user) — Redis-backed for crash safety
+      const processedKey = `${this.REDIS_PROCESSED_PREFIX}${brief.id}:${userId}`;
+      const alreadyProcessed = await this.redis.get(processedKey);
+      if (alreadyProcessed) {
         continue;
       }
 
@@ -427,8 +425,9 @@ export class SmartExecutorService implements OnModuleDestroy {
       const result = await this._executeBriefForUser(userId, brief, currentPrice, userState, portfolioValue);
 
       if (result.success) {
-        const processedKey = `${brief.id}:${userId}`;
-        this.processedBriefIds.add(processedKey);
+        // Mark as processed in Redis (survives restarts — 24h TTL matches brief lifecycle)
+        const processedKey = `${this.REDIS_PROCESSED_PREFIX}${brief.id}:${userId}`;
+        await this.redis.set(processedKey, JSON.stringify({ orderId: result.orderId, executedAt: new Date().toISOString() }), 86400000);
         this.totalExecutions++;
 
         this.logger.log(

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'roua-v3';
+const CACHE_NAME = 'roua-v4';
 
 const APP_SHELL = [
   '/',
@@ -146,7 +146,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first for static assets (JS, CSS, images)
+  // Stale-while-revalidate for static assets (JS, CSS, images)
+  // This ensures the browser always gets a fresh version eventually
+  // while still being fast if cached. Prevents stale JS/HTML mismatch.
   if (
     request.destination === 'script' ||
     request.destination === 'style' ||
@@ -155,8 +157,8 @@ self.addEventListener('fetch', (event) => {
   ) {
     event.respondWith(
       caches.match(request).then((cached) => {
-        if (cached) return cached;
-        return fetch(request).then((response) => {
+        // Always fetch fresh version in background, serve cached if available
+        const fetchPromise = fetch(request).then((response) => {
           if (response.ok && isCacheable(request)) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
@@ -164,7 +166,9 @@ self.addEventListener('fetch', (event) => {
             });
           }
           return response;
-        });
+        }).catch(() => cached);
+        // Return cached immediately if available, otherwise wait for network
+        return cached || fetchPromise;
       })
     );
     return;

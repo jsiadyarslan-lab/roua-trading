@@ -128,21 +128,8 @@ export function CrosshairOverlay({
           )}
         </div>
 
-        {/* Right: Candle countdown + Feed status */}
+        {/* Right: Feed status (candle timer is shown under price scale via PriceSyncedTimer) */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {showCandleTimer && candleCountdown && (
-            <span style={{
-              fontSize: 8,
-              color: COLORS.textMuted,
-              fontFamily: "'JetBrains Mono', monospace",
-              fontWeight: 600,
-              background: 'rgba(0,0,0,0.4)',
-              padding: '0px 5px',
-              borderRadius: 3,
-            }}>
-              {candleCountdown}
-            </span>
-          )}
           {feedState === 'fallback' && (
             <span style={{ fontSize: 7, color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>بيانات احتياطية</span>
           )}

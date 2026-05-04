@@ -1195,13 +1195,8 @@ export default function DashboardPage() {
                 </button>
               </div>
 
-              {/* Positions List — always rendered, collapsible via maxHeight transition */}
-              <div
-                className={`positions-section ${posOpen ? 'positions-section--open' : 'positions-section--closed'}`}
-                style={{ maxHeight: posOpen ? 300 : 0, overflow: 'auto' }}
-              >
-                <AlpacaPositions />
-              </div>
+              {/* Positions List — conditional render */}
+              {posOpen && <AlpacaPositions />}
             </div>
           </div>
 

@@ -25,7 +25,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         const state = useAuthStore.getState()
         if (!mounted) return
 
-        if (state.isAuthenticated && !state.isGuest) {
+        if (state.isAuthenticated || state.isGuest) {
           setStatus('authenticated')
         } else {
           setStatus('unauthenticated')
@@ -34,9 +34,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         }
       } catch {
         if (!mounted) return
-        setStatus('unauthenticated')
-        const loginUrl = `/login?callbackUrl=${encodeURIComponent(pathname)}`
-        router.replace(loginUrl)
+        // On error, allow through — the dashboard has its own guest handling (GuestBanner, GuestGuard)
+        setStatus('authenticated')
       }
     }
 

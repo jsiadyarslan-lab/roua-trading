@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { RedisService } from '../../../common/redis/redis.service';
 import { CredentialsService } from '../../portfolio/credentials/credentials.service';
 import { ExchangeService } from '../../exchange/exchange.service';
 import { RiskCheckResult, OrderCommand } from '../events/order.events';
@@ -26,7 +27,7 @@ import * as ccxt from 'ccxt';
  * This means admin settings changes are applied in real-time.
  */
 @Injectable()
-export class RiskGatekeeperService {
+export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RiskGatekeeperService.name);
 
   // ── Configurable Risk Parameters (loaded from DB with env fallback) ──
@@ -37,6 +38,7 @@ export class RiskGatekeeperService {
   private maxOrderSizeUSD: number;
   private stopLossDefault: number;
   private circuitBreakerThresholdPercent: number;
+  private maxLeverage: number;
 
   // ── Circuit Breaker State (in-memory, per symbol) ──
   // FIX: Added progressive cooldown with exponential backoff.
@@ -54,6 +56,9 @@ export class RiskGatekeeperService {
     consecutiveTriggers: number; // Number of consecutive triggers
   }> = new Map();
 
+  // ── Redis key prefix for circuit breaker persistence ──
+  private readonly CB_REDIS_PREFIX = 'circuit-breaker:';
+
   // ── Last DB sync timestamp ──
   private lastSettingsSync = 0;
   private readonly SETTINGS_SYNC_INTERVAL = 30000; // Re-sync every 30 seconds
@@ -63,6 +68,7 @@ export class RiskGatekeeperService {
     private readonly configService: ConfigService,
     private readonly credentialsService: CredentialsService,
     private readonly exchangeService: ExchangeService,
+    @Optional() private readonly redis?: RedisService,
   ) {
     // Initialize with env var defaults — will be overwritten by DB settings
     this.maxPositionSizePercent = parseFloat(
@@ -87,11 +93,24 @@ export class RiskGatekeeperService {
     this.circuitBreakerThresholdPercent = parseFloat(
       this.configService.get('RISK_CIRCUIT_BREAKER_THRESHOLD', '10'),
     );
+    this.maxLeverage = parseFloat(
+      this.configService.get('RISK_MAX_LEVERAGE', '10'),
+    );
 
     // Load settings from DB on startup
     this.syncSettingsFromDB();
 
     this.logger.log('🛡️ Risk Gatekeeper initialized — pre-trade validation active (with DB sync)');
+  }
+
+  async onModuleInit() {
+    // Load circuit breaker state from Redis on startup
+    await this._loadCircuitBreakerStateFromRedis();
+  }
+
+  async onModuleDestroy() {
+    // Persist circuit breaker state to Redis before shutdown
+    await this._saveCircuitBreakerStateToRedis();
   }
 
   /**
@@ -123,7 +142,8 @@ export class RiskGatekeeperService {
         if (riskConfig.maxDrawdown) this.maxDailyLossPercent = parseFloat(riskConfig.maxDrawdown);
         if (riskConfig.maxOpenPositions) this.maxOpenPositions = parseInt(riskConfig.maxOpenPositions, 10);
         if (riskConfig.stopLossDefault) this.stopLossDefault = parseFloat(riskConfig.stopLossDefault);
-        if (riskConfig.leverageLimit) this.circuitBreakerThresholdPercent = parseFloat(riskConfig.leverageLimit);
+        if (riskConfig.leverageLimit) this.maxLeverage = parseFloat(riskConfig.leverageLimit);
+        if (riskConfig.circuitBreakerThreshold) this.circuitBreakerThresholdPercent = parseFloat(riskConfig.circuitBreakerThreshold);
       }
 
       // Apply botConfig from admin DB
@@ -318,6 +338,19 @@ export class RiskGatekeeperService {
               failedCheck: 'BALANCE_CHECK',
             };
           }
+
+          // SELL-side balance check: verify user has enough base currency to sell
+          if (command.side === 'SELL') {
+            const baseCurrency = command.symbol.split('/')[0] || '';
+            const baseBalance = balance[baseCurrency]?.free || 0;
+            if (baseBalance < command.quantity) {
+              return {
+                allowed: false,
+                reason: `رصيد غير كافي من ${baseCurrency}. المتاح: ${baseBalance.toFixed(6)} ${baseCurrency}، المطلوب: ${command.quantity} ${baseCurrency}.`,
+                failedCheck: 'BALANCE_CHECK',
+              };
+            }
+          }
         } else {
           // FAIL-CLOSED: Exchange not supported in CCXT — cannot verify balance
           this.logger.error(`Exchange "${credential.exchange}" not found in CCXT — rejecting order to protect capital`);
@@ -482,6 +515,7 @@ export class RiskGatekeeperService {
         if (quote && Math.abs(quote.changePercent) <= this.circuitBreakerThresholdPercent) {
           // Market has calmed — reset the circuit breaker completely
           this.circuitBreakerState.delete(symbol);
+          this._persistCircuitBreakerToRedis(symbol);
           this.logger.log(`🟢 Circuit breaker RESET for ${symbol} — volatility subsided (${quote.changePercent.toFixed(1)}%)`);
         } else {
           // Still volatile — extend cooldown with next exponential level
@@ -499,6 +533,7 @@ export class RiskGatekeeperService {
             triggeredAt: state.triggeredAt,
             consecutiveTriggers: state.consecutiveTriggers + 1,
           });
+          this._persistCircuitBreakerToRedis(symbol);
 
           this.logger.warn(
             `🔴 Circuit breaker RE-TRIGGERED for ${symbol}: still volatile (${quote?.changePercent?.toFixed(1)}%) — level ${newLevel}, cooldown ${Math.round(cooldownMs / 1000)}s`,
@@ -513,6 +548,7 @@ export class RiskGatekeeperService {
       } catch {
         // Can't verify — reset cautiously (allow trading)
         this.circuitBreakerState.delete(symbol);
+        this._persistCircuitBreakerToRedis(symbol);
       }
     }
 
@@ -539,6 +575,7 @@ export class RiskGatekeeperService {
           triggeredAt: new Date(),
           consecutiveTriggers,
         });
+        this._persistCircuitBreakerToRedis(symbol);
 
         const cooldownSec = Math.round(cooldownMs / 1000);
         const cooldownMin = Math.round(cooldownMs / 60000);
@@ -564,6 +601,105 @@ export class RiskGatekeeperService {
   }
 
   /**
+   * Persist circuit breaker state to Redis.
+   * Called on module destroy and after each circuit breaker update.
+   */
+  private async _saveCircuitBreakerStateToRedis(): Promise<void> {
+    if (!this.redis) return;
+    try {
+      for (const [symbol, state] of this.circuitBreakerState.entries()) {
+        // Only persist active circuit breakers (not expired ones)
+        if (state.triggered && state.until > new Date()) {
+          const remainingMs = state.until.getTime() - Date.now();
+          const key = `${this.CB_REDIS_PREFIX}${symbol}`;
+          const value = JSON.stringify({
+            triggered: state.triggered,
+            until: state.until.toISOString(),
+            level: state.level,
+            triggeredAt: state.triggeredAt.toISOString(),
+            consecutiveTriggers: state.consecutiveTriggers,
+          });
+          // Set TTL matching the remaining cooldown + small buffer
+          const ttlMs = remainingMs + 60000;
+          await this.redis.set(key, value, ttlMs);
+        }
+      }
+    } catch (error: any) {
+      this.logger.warn(`🛡️ Failed to persist circuit breaker state to Redis: ${error.message}`);
+    }
+  }
+
+  /**
+   * Load circuit breaker state from Redis on startup.
+   * Restores any active circuit breakers that survived a restart.
+   */
+  private async _loadCircuitBreakerStateFromRedis(): Promise<void> {
+    if (!this.redis) return;
+    try {
+      const keys = await this.redis.scanKeys(`${this.CB_REDIS_PREFIX}*`);
+      for (const key of keys) {
+        const data = await this.redis.get(key);
+        if (!data) continue;
+        try {
+          const state = JSON.parse(data);
+          const symbol = key.replace(this.CB_REDIS_PREFIX, '');
+          const until = new Date(state.until);
+          // Only restore if the circuit breaker hasn't expired yet
+          if (until > new Date()) {
+            this.circuitBreakerState.set(symbol, {
+              triggered: state.triggered,
+              until,
+              level: state.level,
+              triggeredAt: new Date(state.triggeredAt),
+              consecutiveTriggers: state.consecutiveTriggers,
+            });
+            this.logger.log(`🛡️ Restored circuit breaker for ${symbol} from Redis (level ${state.level}, expires ${until.toISOString()})`);
+          } else {
+            // Expired — clean up from Redis
+            await this.redis.del(key).catch(() => {});
+          }
+        } catch {
+          // Malformed data — clean up
+          await this.redis.del(key).catch(() => {});
+        }
+      }
+    } catch (error: any) {
+      this.logger.warn(`🛡️ Failed to load circuit breaker state from Redis: ${error.message}`);
+    }
+  }
+
+  /**
+   * Persist a single circuit breaker state update to Redis.
+   */
+  private async _persistCircuitBreakerToRedis(symbol: string): Promise<void> {
+    if (!this.redis) return;
+    try {
+      const state = this.circuitBreakerState.get(symbol);
+      if (!state) return;
+
+      const key = `${this.CB_REDIS_PREFIX}${symbol}`;
+
+      if (state.triggered && state.until > new Date()) {
+        const remainingMs = state.until.getTime() - Date.now();
+        const value = JSON.stringify({
+          triggered: state.triggered,
+          until: state.until.toISOString(),
+          level: state.level,
+          triggeredAt: state.triggeredAt.toISOString(),
+          consecutiveTriggers: state.consecutiveTriggers,
+        });
+        const ttlMs = remainingMs + 60000;
+        await this.redis.set(key, value, ttlMs);
+      } else {
+        // Circuit breaker expired or reset — remove from Redis
+        await this.redis.del(key).catch(() => {});
+      }
+    } catch (error: any) {
+      this.logger.warn(`🛡️ Failed to persist circuit breaker state for ${symbol}: ${error.message}`);
+    }
+  }
+
+  /**
    * Get current risk parameters for display
    */
   getRiskParameters() {
@@ -575,6 +711,7 @@ export class RiskGatekeeperService {
       maxOrderSizeUSD: this.maxOrderSizeUSD,
       stopLossDefault: this.stopLossDefault,
       circuitBreakerThresholdPercent: this.circuitBreakerThresholdPercent,
+      maxLeverage: this.maxLeverage,
     };
   }
 

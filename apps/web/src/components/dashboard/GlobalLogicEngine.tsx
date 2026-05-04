@@ -26,7 +26,7 @@ export function GlobalLogicEngine() {
   // this listener re-hydrates the Zustand store from the persisted data.
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'roua-positions-store' && e.newValue) {
+      if (e.key?.startsWith('roua-positions-store') && e.newValue) {
         try {
           const parsed = JSON.parse(e.newValue)
           if (parsed?.state) {

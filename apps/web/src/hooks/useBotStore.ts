@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { useAuthStore } from '@/lib/auth-store'
 
 interface BotLog {
   time: string
@@ -51,6 +52,27 @@ interface BotState {
   updateSettings: (settings: Partial<BotState['settings']>) => void
   syncFromDB: () => Promise<void>
   resetAll: () => void
+}
+
+/**
+ * SECURITY: Get a user-scoped localStorage key to prevent data leakage.
+ * Without userId in the key, user B would see user A's bot settings.
+ */
+function getStorageKey(): string {
+  try {
+    const user = useAuthStore.getState().user
+    if (user?.id) return `roua-bot-storage:${user.id}`
+  } catch { /* Auth store not yet initialized */ }
+  try {
+    let sessionId = sessionStorage.getItem('roua-guest-session-id')
+    if (!sessionId) {
+      sessionId = `guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      sessionStorage.setItem('roua-guest-session-id', sessionId)
+    }
+    return `roua-bot-storage:${sessionId}`
+  } catch {
+    return 'roua-bot-storage:guest'
+  }
 }
 
 const DEFAULT_SETTINGS: BotState['settings'] = {
@@ -131,12 +153,31 @@ export const useBotStore = create<BotState>()(
       }),
     }),
     {
-      name: 'roua-bot-storage',
+      name: 'roua-bot-storage', // Base name — actual key is resolved dynamically
+      storage: (() => {
+        const bs = createJSONStorage(() => localStorage)
+        const baseStorage = bs as any
+        return {
+          getItem: (name: string): any => {
+            const dynamicKey = getStorageKey()
+            return baseStorage.getItem(dynamicKey)
+          },
+          setItem: (name: string, value: any) => {
+            const dynamicKey = getStorageKey()
+            baseStorage.setItem(dynamicKey, value as string)
+          },
+          removeItem: (name: string) => {
+            const dynamicKey = getStorageKey()
+            baseStorage.removeItem(dynamicKey)
+          },
+        }
+      })(),
       version: 6,
       migrate: (persistedState: any) => ({
         ...persistedState,
-        isOn: persistedState?.isOn === true,
-        engineState: persistedState?.isOn === true ? 'armed' : 'idle',
+        // Reset bot state on rehydration — the engine isn't running after page reload
+        isOn: false,
+        engineState: 'idle',
         settings: {
           ...DEFAULT_SETTINGS,
           ...(persistedState?.settings ?? {}),

@@ -263,10 +263,12 @@ export class AuthController {
     });
 
     // Guest sessions don't need long-lived refresh tokens
-    // FIX: Include sessionToken in response body so server-side fetch
-    // (createSessionViaNestJS) can extract it — httpOnly cookies are not
-    // readable from cross-origin fetch responses.
-    return { success: true, sessionToken: result.sessionToken, user: result.user };
+    // FIX: Return sessionToken ONLY via the x-roua-session custom header.
+    // Previously it was also in the response body — a security risk since
+    // response bodies are easier to log/leak than headers and may be cached.
+    // The frontend reads the header from the fetch response.
+    res.setHeader('x-roua-session', result.sessionToken);
+    return { success: true, user: result.user };
   }
 
   // ── Cleanup Expired Sessions (internal/admin) ──

@@ -12,10 +12,23 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   constructor() {
     const isDev = process.env.NODE_ENV !== 'production';
 
+    // FIX: Use URL API instead of string concatenation for connection pool params.
+    // String concatenation can produce malformed URLs if DATABASE_URL already has
+    // query params or fragments — URL.searchParams handles all edge cases.
+    let dbUrl = process.env.DATABASE_URL!;
+    try {
+      const url = new URL(dbUrl);
+      url.searchParams.set('connection_limit', '15');
+      url.searchParams.set('pool_timeout', '20');
+      dbUrl = url.toString();
+    } catch {
+      // Fallback: if URL parsing fails, use original URL as-is
+    }
+
     super({
       datasources: {
         db: {
-          url: process.env.DATABASE_URL + (process.env.DATABASE_URL?.includes('?') ? '&' : '?') + 'connection_limit=15&pool_timeout=20',
+          url: dbUrl,
         },
       },
       log: [

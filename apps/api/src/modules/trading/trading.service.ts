@@ -528,8 +528,8 @@ export class TradingService {
 
     // Execute closing order on exchange
     const credential =
-      await this.prisma.exchangeCredential.findUnique({
-        where: { id: position.credentialId },
+      await this.prisma.exchangeCredential.findFirst({
+        where: { id: position.credentialId, userId },
       });
 
     if (!credential) {

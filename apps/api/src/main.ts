@@ -60,15 +60,15 @@ async function bootstrap() {
     const redisService = app.get(RedisService, { strict: false });
     app.getHttpAdapter().getInstance().get('/api/health', async (req: any, res: any) => {
       const start = Date.now();
-      const checks: Record<string, { status: string; latencyMs?: number; detail?: string }> = {};
+      const checks: Record<string, { status: string; latencyMs?: number }> = {};
 
       // Database check
       try {
         const dbStart = Date.now();
         await prisma.$queryRaw`SELECT 1`;
         checks.database = { status: 'ok', latencyMs: Date.now() - dbStart };
-      } catch (error: any) {
-        checks.database = { status: 'error', detail: error.message?.substring(0, 100) };
+      } catch {
+        checks.database = { status: 'error' };
       }
 
       // Redis check
@@ -78,10 +78,10 @@ async function bootstrap() {
           await redisService.ping();
           checks.redis = { status: 'ok', latencyMs: Date.now() - redisStart };
         } else {
-          checks.redis = { status: 'degraded', detail: 'Redis service not available' };
+          checks.redis = { status: 'degraded' };
         }
-      } catch (error: any) {
-        checks.redis = { status: 'degraded', detail: error.message?.substring(0, 100) };
+      } catch {
+        checks.redis = { status: 'degraded' };
       }
 
       // Memory check
@@ -89,7 +89,6 @@ async function bootstrap() {
       const memMB = Math.round(mem.heapUsed / 1024 / 1024);
       checks.memory = {
         status: memMB > 512 ? 'warning' : 'ok',
-        detail: `${memMB}MB heap used`,
       };
 
       const allOk = Object.values(checks).every(c => c.status === 'ok');
@@ -98,8 +97,6 @@ async function bootstrap() {
       res.status(statusCode).json({
         status: allOk ? 'ok' : 'degraded',
         uptime: Math.round(process.uptime()),
-        timestamp: new Date().toISOString(),
-        version: process.env.npm_package_version || '0.1.0',
         checks,
         responseTimeMs: Date.now() - start,
       });

@@ -1,7 +1,30 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request, Logger, BadRequestException } from '@nestjs/common';
 import { CredentialsService } from './credentials.service';
 import { AuthGuard } from '../../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
+import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+
+class AddCredentialDto {
+  @IsString()
+  @IsNotEmpty()
+  exchange: string;
+
+  @IsString()
+  @IsNotEmpty()
+  label: string;
+
+  @IsString()
+  @IsNotEmpty()
+  apiKey: string;
+
+  @IsString()
+  @IsNotEmpty()
+  apiSecret: string;
+
+  @IsString()
+  @IsOptional()
+  passphrase?: string;
+}
 
 @Controller('portfolio/credentials')
 @UseGuards(AuthGuard)
@@ -27,10 +50,10 @@ export class CredentialsController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async addCredential(
     @Request() req: any,
-    @Body() body: { exchange: string; label: string; apiKey: string; apiSecret: string; passphrase?: string },
+    @Body() body: AddCredentialDto,
   ) {
     if (!body.exchange || !body.label || !body.apiKey || !body.apiSecret) {
-      return { success: false, error: 'جميع الحقول مطلوبة' };
+      throw new BadRequestException('جميع الحقول مطلوبة');
     }
 
     const credential = await this.credentialsService.addCredential(

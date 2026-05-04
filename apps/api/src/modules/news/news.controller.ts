@@ -36,7 +36,7 @@ export class NewsController {
     @Query('category') category?: string,
     @Query('limit') limitStr?: string,
   ) {
-    const limit = Math.min(parseInt(limitStr || '20', 10), 100);
+    const limit = Math.min(parseInt(limitStr || '20', 10) || 20, 100);
 
     try {
       const news = await this.newsService.getLatestNews({

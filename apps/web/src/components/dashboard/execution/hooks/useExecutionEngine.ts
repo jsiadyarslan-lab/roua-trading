@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
@@ -55,6 +55,12 @@ export function useExecutionEngine() {
 
   // Form state
   const [localSymbol, setLocalSymbol] = useState(selectedSymbol)
+
+  // Sync localSymbol when selectedSymbol changes externally
+  useEffect(() => {
+    setLocalSymbol(selectedSymbol)
+  }, [selectedSymbol])
+
   const [quantity, setQuantity] = useState('0.1')
   const [orderType, setOrderType] = useState<OrderType>('market')
   const [limitPrice, setLimitPrice] = useState('')
@@ -415,7 +421,7 @@ export function useExecutionEngine() {
 
       if (account && account.cash) {
         const risk = account.cash * (parseFloat(riskPct) / 100)
-        const pips = currentPrice - sl
+        const pips = Math.abs(currentPrice - sl)
         const calcQty = Math.max(1, Math.floor(risk / pips)).toString()
         if (parseFloat(calcQty) > 0) {
           setQuantity(calcQty)

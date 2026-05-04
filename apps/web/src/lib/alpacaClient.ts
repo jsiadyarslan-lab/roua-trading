@@ -39,7 +39,7 @@ const FOREX_PROXY_MAP: Record<string, string> = {
 
 /** نرمّز رمز الزوج لـ Alpaca: للعملات نستخدم ETFs كبديل */
 export function toAlpacaSymbol(symbol: string): string {
-  if (!symbol || symbol === 'undefined') return 'AAPL'
+  if (!symbol || symbol === 'undefined') throw new Error('Symbol is required')
   const s = decodeURIComponent(symbol)
 
   if (FOREX_PROXY_MAP[s]) return FOREX_PROXY_MAP[s]

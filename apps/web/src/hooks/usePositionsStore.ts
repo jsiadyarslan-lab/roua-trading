@@ -124,7 +124,7 @@ export const usePositionsStore = create<PositionsState>()(
       if (Math.abs(p.currentPrice - price) < 0.0001) return p
 
       const currentPrice = price
-      const isLong = p.side === 'long' || p.side === 'LONG'
+      const isLong = p.side === 'long' || p.side === 'LONG' || p.side === 'BUY'
 
       // حساب P&L غير المحقق
       let unrealizedPnl = 0

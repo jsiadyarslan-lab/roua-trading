@@ -6,6 +6,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AuditService } from '../../../audit/audit.service';
 import { ExecutionResult, OrderExecutionStatus } from '../adapters/base-adapter.interface';
+import { Prisma } from '@prisma/client';
 
 /**
  * OrderLifecycleService — Execution-Aware Order State Manager
@@ -269,77 +270,83 @@ export class OrderLifecycleService {
 
       if (!order) return;
 
-      // Check for existing position to add to
-      const existingPosition = await this.prisma.position.findFirst({
-        where: {
-          userId,
-          symbol: order.symbol,
-          status: 'OPEN',
-          side: order.side,
-        },
-      });
-
-      if (existingPosition) {
-        // Add to existing position (average price calculation)
-        const totalQuantity = Number(existingPosition.quantity) + result.filledQuantity;
-        const avgPrice =
-          (Number(existingPosition.entryPrice) * Number(existingPosition.quantity) +
-            result.averagePrice * result.filledQuantity) /
-          totalQuantity;
-
-        await this.prisma.position.update({
-          where: { id: existingPosition.id },
-          data: {
-            quantity: totalQuantity,
-            entryPrice: avgPrice,
-            currentPrice: result.averagePrice,
-            stopLoss: Number(order.stopLoss) || existingPosition.stopLoss,
-            takeProfit: Number(order.takeProfit) || existingPosition.takeProfit,
+      // Wrap findFirst + update/create in a serializable transaction
+      // to prevent race conditions when concurrent fills update the same position
+      await this.prisma.$transaction(async (tx) => {
+        // Check for existing position to add to
+        const existingPosition = await tx.position.findFirst({
+          where: {
+            userId,
+            symbol: order.symbol,
+            status: 'OPEN',
+            side: order.side,
           },
         });
-      } else {
-        // Open new position
-        const credential = await this.prisma.exchangeCredential.findUnique({
+
+        if (existingPosition) {
+          // Add to existing position (average price calculation)
+          const totalQuantity = Number(existingPosition.quantity) + (result.filledQuantity ?? 0);
+          const avgPrice =
+            (Number(existingPosition.entryPrice) * Number(existingPosition.quantity) +
+              (result.averagePrice ?? 0) * (result.filledQuantity ?? 0)) /
+            totalQuantity;
+
+          await tx.position.update({
+            where: { id: existingPosition.id },
+            data: {
+              quantity: totalQuantity,
+              entryPrice: avgPrice,
+              currentPrice: result.averagePrice ?? 0,
+              stopLoss: Number(order.stopLoss) || existingPosition.stopLoss,
+              takeProfit: Number(order.takeProfit) || existingPosition.takeProfit,
+            },
+          });
+        } else {
+          // Open new position
+          const credential = await tx.exchangeCredential.findUnique({
+            where: { id: order.exchangeCredentialId },
+          });
+
+          await tx.position.create({
+            data: {
+              userId,
+              credentialId: order.exchangeCredentialId,
+              exchange: credential?.exchange || order.exchange || 'unknown',
+              symbol: order.symbol,
+              side: order.side,
+              status: 'OPEN',
+              quantity: result.filledQuantity ?? 0,
+              entryPrice: result.averagePrice ?? 0,
+              currentPrice: result.averagePrice ?? 0,
+              highestPrice: result.averagePrice ?? 0,
+              lowestPrice: result.averagePrice ?? 0,
+              stopLoss: Number(order.stopLoss) || null,
+              takeProfit: Number(order.takeProfit) || null,
+            },
+          });
+        }
+
+        // Record trade
+        const credential = await tx.exchangeCredential.findUnique({
           where: { id: order.exchangeCredentialId },
         });
 
-        await this.prisma.position.create({
+        await tx.trade.create({
           data: {
             userId,
-            credentialId: order.exchangeCredentialId,
+            orderId,
             exchange: credential?.exchange || order.exchange || 'unknown',
             symbol: order.symbol,
             side: order.side,
-            status: 'OPEN',
+            type: 'ENTRY',
             quantity: result.filledQuantity,
-            entryPrice: result.averagePrice,
-            currentPrice: result.averagePrice,
-            highestPrice: result.averagePrice,
-            lowestPrice: result.averagePrice,
-            stopLoss: Number(order.stopLoss) || null,
-            takeProfit: Number(order.takeProfit) || null,
+            price: result.averagePrice,
+            fee: result.fee || 0,
+            feeCurrency: result.feeCurrency,
           },
         });
-      }
-
-      // Record trade
-      const credential = await this.prisma.exchangeCredential.findUnique({
-        where: { id: order.exchangeCredentialId },
-      });
-
-      await this.prisma.trade.create({
-        data: {
-          userId,
-          orderId,
-          exchange: credential?.exchange || order.exchange || 'unknown',
-          symbol: order.symbol,
-          side: order.side,
-          type: 'ENTRY',
-          quantity: result.filledQuantity,
-          price: result.averagePrice,
-          fee: result.fee || 0,
-          feeCurrency: result.feeCurrency,
-        },
+      }, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       });
 
       this.logger.log(

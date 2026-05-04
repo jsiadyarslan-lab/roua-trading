@@ -21,8 +21,20 @@ export function useChartPreference(symbol: string) {
       if (!res.ok) return
       const { data } = await res.json()
       if (data) {
-        if (data.settings) setSettings(JSON.parse(data.settings))
-        if (data.drawings) setDrawings(JSON.parse(data.drawings))
+        if (data.settings) {
+          try {
+            setSettings(JSON.parse(data.settings))
+          } catch {
+            setSettings({})
+          }
+        }
+        if (data.drawings) {
+          try {
+            setDrawings(JSON.parse(data.drawings))
+          } catch {
+            setDrawings([])
+          }
+        }
       }
     } catch {
       // Error handled silently

@@ -43,9 +43,19 @@ function getInitialCollapsed(): boolean {
 
 export function useSidebarState() {
   const [activeTab, setActiveTab] = useState<TabId>('portfolio')
-  const [collapsed, setCollapsedState] = useState<boolean>(getInitialCollapsed)
+  const [collapsed, setCollapsedState] = useState<boolean>(false)
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false)
   const [searchQuery, setSearchQuery] = useState<string>('')
+
+  // Hydrate from localStorage after mount to avoid SSR mismatch
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved !== null) setCollapsedState(saved === 'true')
+    } catch {
+      // ignore storage errors
+    }
+  }, [])
 
   const setCollapsed = useCallback((value: boolean | ((prev: boolean) => boolean)) => {
     setCollapsedState((prev) => {

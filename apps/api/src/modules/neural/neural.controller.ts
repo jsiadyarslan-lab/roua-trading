@@ -119,7 +119,7 @@ export class NeuralController {
 
   @Get('swarm/:id')
   async getSwarmStatus(@Request() req: any, @Param('id') swarmId: string) {
-    const result = this.swarmService.getSwarmStatus(swarmId);
+    const result = this.swarmService.getSwarmStatus(swarmId, req.user.id);
     return { success: true, data: result };
   }
 
@@ -131,7 +131,7 @@ export class NeuralController {
 
   @Get('swarm')
   async getAllSwarms(@Request() req: any) {
-    const result = this.swarmService.getAllSwarms();
+    const result = this.swarmService.getAllSwarms(req.user.id);
     return { success: true, data: result };
   }
 }

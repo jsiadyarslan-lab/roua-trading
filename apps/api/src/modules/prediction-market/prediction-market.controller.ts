@@ -95,7 +95,7 @@ export class PredictionMarketController {
   @Get('gaps/top')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async getTopGaps(@Query('limit') limit?: string) {
-    const parsedLimit = Math.min(parseInt(limit || '10', 10), 50);
+    const parsedLimit = Math.min(parseInt(limit || '10', 10) || 10, 50);
     const events = await this.predictionMarketService.getTopGapEvents(parsedLimit);
     return {
       success: true,

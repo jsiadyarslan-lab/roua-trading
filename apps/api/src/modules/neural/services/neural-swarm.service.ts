@@ -41,8 +41,11 @@ import {
 export class NeuralSwarmService {
   private readonly logger = new Logger(NeuralSwarmService.name);
 
-  /** Active swarms (in-memory) */
+  /** Active swarms (in-memory), keyed by swarmId */
   private readonly activeSwarms: Map<string, SwarmResult> = new Map();
+
+  /** Maps swarmId → userId for ownership tracking */
+  private readonly swarmOwners: Map<string, string> = new Map();
 
   /** Maximum number of agents per swarm */
   private readonly MAX_AGENTS = 10;
@@ -135,6 +138,7 @@ export class NeuralSwarmService {
     };
 
     this.activeSwarms.set(swarmId, swarm);
+    this.swarmOwners.set(swarmId, userId);
 
     // Audit
     await this.auditService.log({
@@ -156,10 +160,14 @@ export class NeuralSwarmService {
   }
 
   /**
-   * Get swarm status
+   * Get swarm status (with ownership check)
    */
-  getSwarmStatus(swarmId: string): SwarmResult | null {
-    return this.activeSwarms.get(swarmId) || null;
+  getSwarmStatus(swarmId: string, userId?: string): SwarmResult | null {
+    const swarm = this.activeSwarms.get(swarmId);
+    if (!swarm) return null;
+    // If userId provided, enforce ownership
+    if (userId && this.swarmOwners.get(swarmId) !== userId) return null;
+    return swarm;
   }
 
   /**
@@ -188,10 +196,14 @@ export class NeuralSwarmService {
   }
 
   /**
-   * Get all active swarms
+   * Get all active swarms (optionally filtered by userId)
    */
-  getAllSwarms(): SwarmResult[] {
-    return Array.from(this.activeSwarms.values());
+  getAllSwarms(userId?: string): SwarmResult[] {
+    if (!userId) return Array.from(this.activeSwarms.values());
+    // Filter by ownership
+    return Array.from(this.activeSwarms.entries())
+      .filter(([swarmId]) => this.swarmOwners.get(swarmId) === userId)
+      .map(([, swarm]) => swarm);
   }
 
   // ── Private Methods ──

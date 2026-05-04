@@ -245,9 +245,31 @@ export const usePaperTradesStore = create<PaperTradesState>()(
       /**
        * SECURITY: Use user-scoped storage key to prevent data leakage.
        * Each user gets their own localStorage key: roua-paper-trades:${userId}
+       *
+       * FIX: The old `name: getStorageKey()` was evaluated ONCE at module load time
+       * (before auth was initialized), so all users shared the same 'guest' key.
+       * Now we use a custom storage adapter that dynamically resolves the key
+       * on every getItem/setItem call based on the current auth state.
        */
-      name: getStorageKey(),
-      storage: createJSONStorage(() => localStorage),
+      name: 'roua-paper-trades', // Base name — actual key is resolved dynamically
+      storage: (() => {
+        const bs = createJSONStorage(() => localStorage)
+        const baseStorage = bs as any
+        return {
+          getItem: (name: string): any => {
+            const dynamicKey = getStorageKey()
+            return baseStorage.getItem(dynamicKey)
+          },
+          setItem: (name: string, value: any) => {
+            const dynamicKey = getStorageKey()
+            baseStorage.setItem(dynamicKey, value as string)
+          },
+          removeItem: (name: string) => {
+            const dynamicKey = getStorageKey()
+            baseStorage.removeItem(dynamicKey)
+          },
+        }
+      })(),
       partialize: (state) => ({
         trades: state.trades,
         closedTrades: state.closedTrades,

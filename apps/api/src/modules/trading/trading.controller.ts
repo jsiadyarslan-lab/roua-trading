@@ -167,7 +167,7 @@ export class TradingController {
     return this.tradingService.getOrders(req.user.id, {
       symbol,
       status,
-      limit: limit ? parseInt(limit, 10) : undefined,
+      limit: limit ? (parseInt(limit, 10) || 50) : undefined,
     });
   }
 
@@ -217,7 +217,7 @@ export class TradingController {
       this.logger.log(`📋 Fetching closed positions for user: ${userId}`);
       return await this.tradingService.getClosedPositions(
         userId,
-        limit ? parseInt(limit, 10) : 100,
+        limit ? (parseInt(limit, 10) || 100) : 100,
       );
     } catch (error: any) {
       this.logger.error(
@@ -242,7 +242,7 @@ export class TradingController {
       this.logger.log(`📋 Fetching all positions for user: ${userId}`);
       return await this.tradingService.getAllPositions(
         userId,
-        limit ? parseInt(limit, 10) : 100,
+        limit ? (parseInt(limit, 10) || 100) : 100,
       );
     } catch (error: any) {
       this.logger.error(
@@ -326,7 +326,7 @@ export class TradingController {
       const userId = req.user.id;
       return await this.tradingService.getTradeHistory(
         userId,
-        limit ? parseInt(limit, 10) : 50,
+        limit ? (parseInt(limit, 10) || 50) : 50,
       );
     } catch (error: any) {
       this.logger.error(

@@ -6,7 +6,7 @@
 // يحل محل نقاط نهاية CouncilScheduler القديم في EngineController
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Controller, Get, Post, Body, UseGuards, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Logger, Req } from '@nestjs/common';
 import { StrategicCouncilService } from './strategic-council.service';
 import { AuthGuard } from '../../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
@@ -51,14 +51,14 @@ export class StrategicCouncilController {
    */
   @Post('trigger')
   @Throttle({ default: { limit: 3, ttl: 60000 } })
-  async triggerSession(@Body() body: { pairs?: string[] }, @Body('userId') userId: string) {
+  async triggerSession(@Req() req: any, @Body() body: { pairs?: string[] }) {
     const pairs = body.pairs || [];
     if (pairs.length === 0) {
       return { success: false, message: 'حدد زوجاً واحداً على الأقل' };
     }
 
     this.logger.log(`🏛️ Manual council session triggered for: ${pairs.join(', ')}`);
-    const result = await this.councilService.forceSession(pairs, userId || 'manual');
+    const result = await this.councilService.forceSession(pairs, req.user?.id || 'manual');
     return { success: true, data: result };
   }
 

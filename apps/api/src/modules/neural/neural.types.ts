@@ -38,37 +38,120 @@ export enum PredictionHorizon {
 
 // ── Request DTOs ──
 
-export interface BacktestRequest {
+import { IsString, IsNumber, IsOptional, IsArray, IsEnum, Min, Max, IsBoolean } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class BacktestRequest {
+  @IsString()
   symbol: string;
+
+  @IsEnum(BacktestStrategy)
+  @IsOptional()
   strategy: BacktestStrategy;
-  periodStart: string; // ISO date
-  periodEnd: string;   // ISO date
+
+  @IsString()
+  periodStart: string;
+
+  @IsString()
+  periodEnd: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Type(() => Number)
   initialCapital?: number;
-  positionSize?: number; // percentage
-  stopLoss?: number;     // percentage
-  takeProfit?: number;   // percentage
+
+  @IsNumber()
+  @Min(0.01)
+  @Max(1)
+  @IsOptional()
+  @Type(() => Number)
+  positionSize?: number;
+
+  @IsNumber()
+  @Min(0.001)
+  @Max(0.5)
+  @IsOptional()
+  @Type(() => Number)
+  stopLoss?: number;
+
+  @IsNumber()
+  @Min(0.001)
+  @Max(1)
+  @IsOptional()
+  @Type(() => Number)
+  takeProfit?: number;
 }
 
-export interface NeuralTrainRequest {
+export class NeuralTrainRequest {
+  @IsString()
   symbol: string;
+
+  @IsEnum(NeuralArchitecture)
+  @IsOptional()
   architecture: NeuralArchitecture;
+
+  @IsEnum(PredictionHorizon)
+  @IsOptional()
   horizon: PredictionHorizon;
-  lookbackDays?: number;  // how many days of history to train on
+
+  @IsNumber()
+  @Min(1)
+  @Max(365)
+  @IsOptional()
+  @Type(() => Number)
+  lookbackDays?: number;
+
+  @IsNumber()
+  @Min(1)
+  @Max(1000)
+  @IsOptional()
+  @Type(() => Number)
   epochs?: number;
 }
 
-export interface NeuralPredictRequest {
+export class NeuralPredictRequest {
+  @IsString()
   symbol: string;
-  steps: number;          // number of future steps to predict
+
+  @IsNumber()
+  @Min(1)
+  @Max(100)
+  @IsOptional()
+  @Type(() => Number)
+  steps: number;
+
+  @IsEnum(PredictionHorizon)
+  @IsOptional()
   horizon: PredictionHorizon;
+
+  @IsBoolean()
+  @IsOptional()
   includeConfidence?: boolean;
 }
 
-export interface SwarmStartRequest {
-  agents: number;         // number of agents (1-10)
-  symbols: string[];      // symbols to monitor
+export class SwarmStartRequest {
+  @IsNumber()
+  @Min(1)
+  @Max(10)
+  @IsOptional()
+  @Type(() => Number)
+  agents: number;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  symbols: string[];
+
+  @IsEnum(BacktestStrategy)
+  @IsOptional()
   strategy: BacktestStrategy;
-  riskTolerance: number;  // 0-100
+
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  @IsOptional()
+  @Type(() => Number)
+  riskTolerance: number;
 }
 
 // ── Response DTOs ──

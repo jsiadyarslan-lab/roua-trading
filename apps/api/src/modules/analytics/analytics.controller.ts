@@ -50,7 +50,12 @@ export class AnalyticsController {
     this.logger.debug(`Analysis request: ${symbol} (user: ${req.user?.id})`);
 
     // Decode URL-encoded symbol (e.g., BTC%2FUSDT → BTC/USDT)
-    const decodedSymbol = decodeURIComponent(symbol);
+    let decodedSymbol: string;
+    try {
+      decodedSymbol = decodeURIComponent(symbol);
+    } catch {
+      decodedSymbol = symbol;
+    }
 
     const analysisCard = await this.analyticalAI.analyzeAsset(decodedSymbol);
 
@@ -72,8 +77,13 @@ export class AnalyticsController {
     @Param('symbol') symbol: string,
     @Query('limit') limit?: string,
   ) {
-    const decodedSymbol = decodeURIComponent(symbol);
-    const parsedLimit = limit ? parseInt(limit, 10) : 10;
+    let decodedSymbol: string;
+    try {
+      decodedSymbol = decodeURIComponent(symbol);
+    } catch {
+      decodedSymbol = symbol;
+    }
+    const parsedLimit = limit ? (parseInt(limit, 10) || 10) : 10;
 
     const signals = await this.signalGenerator.getSignalsForSymbol(
       req.user.id,

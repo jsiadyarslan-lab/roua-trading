@@ -1,7 +1,8 @@
 'use client'
 
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { useAuthStore } from '@/lib/auth-store'
 
 /* ══════════════════════════════════════════════════════
    AudioContext Manager — Respects browser autoplay policy
@@ -149,6 +150,27 @@ const DEFAULT_SETTINGS: NotifSettings = {
   minConfidence: 45,
 }
 
+/**
+ * SECURITY: Get a user-scoped localStorage key to prevent data leakage.
+ * Without userId in the key, user B would see user A's notifications.
+ */
+function getStorageKey(): string {
+  try {
+    const user = useAuthStore.getState().user
+    if (user?.id) return `roua-notifications:${user.id}`
+  } catch { /* Auth store not yet initialized */ }
+  try {
+    let sessionId = sessionStorage.getItem('roua-guest-session-id')
+    if (!sessionId) {
+      sessionId = `guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      sessionStorage.setItem('roua-guest-session-id', sessionId)
+    }
+    return `roua-notifications:${sessionId}`
+  } catch {
+    return 'roua-notifications:guest'
+  }
+}
+
 export const useNotificationStore = create<NotificationState>()(
   persist(
     (set, get) => ({
@@ -269,7 +291,25 @@ export const useNotificationStore = create<NotificationState>()(
       })),
     }),
     {
-      name: 'roua-notifications',
+      name: 'roua-notifications', // Base name — actual key is resolved dynamically
+      storage: (() => {
+        const bs = createJSONStorage(() => localStorage)
+        const baseStorage = bs as any
+        return {
+          getItem: (name: string): any => {
+            const dynamicKey = getStorageKey()
+            return baseStorage.getItem(dynamicKey)
+          },
+          setItem: (name: string, value: any) => {
+            const dynamicKey = getStorageKey()
+            baseStorage.setItem(dynamicKey, value as string)
+          },
+          removeItem: (name: string) => {
+            const dynamicKey = getStorageKey()
+            baseStorage.removeItem(dynamicKey)
+          },
+        }
+      })(),
       version: 3,
       migrate: (persistedState: any) => ({
         notifications: Array.isArray(persistedState?.notifications) ? persistedState.notifications.slice(0, 50) : [],

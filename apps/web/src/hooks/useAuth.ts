@@ -26,7 +26,8 @@ export function useAuth() {
 
     refreshUser().then(() => {
       const state = useAuthStore.getState()
-      if (mounted && !state.isAuthenticated) {
+      // Only redirect if not authenticated AND not a guest — guests are allowed on the dashboard
+      if (mounted && !state.isAuthenticated && !state.isGuest) {
         router.replace('/login')
       }
     })

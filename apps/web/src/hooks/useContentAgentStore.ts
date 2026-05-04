@@ -1,7 +1,8 @@
 'use client'
 
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { useAuthStore } from '@/lib/auth-store'
 
 // ── Types matching backend ──
 export enum ContentAgentStatus {
@@ -213,6 +214,27 @@ function _safeJsonParse(value: unknown): string[] {
 }
 
 let _refreshInterval: ReturnType<typeof setInterval> | null = null
+
+/**
+ * SECURITY: Get a user-scoped localStorage key to prevent data leakage.
+ * Without userId in the key, user B would see user A's content agent data.
+ */
+function getStorageKey(): string {
+  try {
+    const user = useAuthStore.getState().user
+    if (user?.id) return `roua-content-agent-storage:${user.id}`
+  } catch { /* Auth store not yet initialized */ }
+  try {
+    let sessionId = sessionStorage.getItem('roua-guest-session-id')
+    if (!sessionId) {
+      sessionId = `guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      sessionStorage.setItem('roua-guest-session-id', sessionId)
+    }
+    return `roua-content-agent-storage:${sessionId}`
+  } catch {
+    return 'roua-content-agent-storage:guest'
+  }
+}
 
 export const useContentAgentStore = create<ContentAgentStore>()(
   persist(
@@ -469,7 +491,25 @@ export const useContentAgentStore = create<ContentAgentStore>()(
       },
     }),
     {
-      name: 'roua-content-agent-storage',
+      name: 'roua-content-agent-storage', // Base name — actual key is resolved dynamically
+      storage: (() => {
+        const bs = createJSONStorage(() => localStorage)
+        const baseStorage = bs as any
+        return {
+          getItem: (name: string): any => {
+            const dynamicKey = getStorageKey()
+            return baseStorage.getItem(dynamicKey)
+          },
+          setItem: (name: string, value: any) => {
+            const dynamicKey = getStorageKey()
+            baseStorage.setItem(dynamicKey, value as string)
+          },
+          removeItem: (name: string) => {
+            const dynamicKey = getStorageKey()
+            baseStorage.removeItem(dynamicKey)
+          },
+        }
+      })(),
       version: 1,
       migrate: (persistedState: any) => ({
         ...persistedState,

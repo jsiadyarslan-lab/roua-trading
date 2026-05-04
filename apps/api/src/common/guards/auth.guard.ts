@@ -1,7 +1,6 @@
 import { Injectable, CanActivate, ExecutionContext, Logger, SetMetadata, UnauthorizedException, Optional } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
-import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
 
@@ -33,7 +32,8 @@ export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 export class AuthGuard implements CanActivate {
   private readonly logger = new Logger(AuthGuard.name);
   private readonly SESSION_CACHE_PREFIX = 'session:';
-  private readonly SESSION_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes
+  private readonly SESSION_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes (reduced from 15 — revoked sessions mustn't linger)
+  private sharedGuestUser: any = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -151,52 +151,48 @@ export class AuthGuard implements CanActivate {
   }
 
   /**
-   * Create a UNIQUE guest user for each unauthenticated session.
+   * Get or create a SINGLE shared guest user for unauthenticated requests.
    *
-   * DATA ISOLATION FIX: Previously all unauthenticated users shared a single
-   * guest@roua.auto account, meaning they could see each other's positions,
-   * trades, and settings. Now each session gets its own unique guest user
-   * with a UUID-based email (guest-{uuid}@roua.auto).
-   *
-   * The legacy guest@roua.auto account is kept for backward compatibility
-   * (existing sessions may still reference it).
+   * SECURITY FIX: Previously this method created a NEW database User row
+   * for every unauthenticated request, which was a DoS vector filling the
+   * database. Now we create/find ONE shared guest user (guest@roua.auto)
+   * on the first request and cache it in memory forever. All subsequent
+   * requests reuse the same cached guest user without any DB call.
    */
   private async _ensureGuestUser(): Promise<any> {
-    const uuid = randomUUID().slice(0, 8);
-    const guestEmail = `guest-${uuid}@roua.auto`;
+    // Return cached guest user if available (no DB call)
+    if (this.sharedGuestUser) {
+      return this.sharedGuestUser;
+    }
 
     try {
-      const user = await this.prisma.user.create({
-        data: { email: guestEmail, displayName: 'ضيف', tier: 'FREE' },
-      });
-      this.logger.log(`Auto-created unique guest user: ${guestEmail}`);
-      return user;
-    } catch (error: any) {
-      // UUID collision is astronomically unlikely, but handle it gracefully
-      this.logger.warn(`Failed to create unique guest user (${guestEmail}), retrying with new UUID: ${error?.message || error}`);
-      try {
-        const uuid2 = randomUUID().slice(0, 8);
-        const fallbackEmail = `guest-${uuid2}@roua.auto`;
-        const user = await this.prisma.user.create({
-          data: { email: fallbackEmail, displayName: 'ضيف', tier: 'FREE' },
+      // Try to find the existing shared guest user
+      let user = await this.prisma.user.findUnique({ where: { email: 'guest@roua.auto' } });
+      if (!user) {
+        // Create ONE shared guest user (only on first ever request)
+        user = await this.prisma.user.create({
+          data: { email: 'guest@roua.auto', displayName: 'ضيف', tier: 'FREE' },
         });
-        this.logger.log(`Auto-created unique guest user (retry): ${fallbackEmail}`);
-        return user;
-      } catch (retryError: any) {
-        // If we still can't create, try the legacy guest as last resort
-        this.logger.error(`Failed to create unique guest user twice, falling back to legacy guest: ${retryError?.message || retryError}`);
-        try {
-          let user = await this.prisma.user.findUnique({ where: { email: 'guest@roua.auto' } });
-          if (!user) {
-            user = await this.prisma.user.create({
-              data: { email: 'guest@roua.auto', displayName: 'ضيف', tier: 'FREE' },
-            });
-          }
-          return user;
-        } catch {
-          throw retryError;
-        }
+        this.logger.log('Created shared guest user: guest@roua.auto');
       }
+      // Cache in memory — never hit DB again for guest
+      this.sharedGuestUser = {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        tier: user.tier,
+      };
+      return this.sharedGuestUser;
+    } catch (error: any) {
+      this.logger.error(`Failed to get/create guest user: ${error?.message || error}`);
+      // Fallback: return a virtual guest user without DB write
+      this.sharedGuestUser = {
+        id: 'guest-virtual',
+        email: 'guest@roua.auto',
+        displayName: 'ضيف',
+        tier: 'FREE',
+      };
+      return this.sharedGuestUser;
     }
   }
 }

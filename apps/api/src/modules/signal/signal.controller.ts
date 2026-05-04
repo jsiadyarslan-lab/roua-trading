@@ -20,7 +20,12 @@ export class SignalController {
     this.logger.debug(`Signal generation request: ${pair} (user: ${req.user.id})`);
 
     // Decode URL-encoded pair (e.g., BTC%2FUSDT → BTC/USDT)
-    const decodedPair = decodeURIComponent(pair);
+    let decodedPair: string;
+    try {
+      decodedPair = decodeURIComponent(pair);
+    } catch {
+      decodedPair = pair;
+    }
 
     const signal = await this.signalService.generateSignal(req.user.id, decodedPair);
     return { success: true, data: signal };

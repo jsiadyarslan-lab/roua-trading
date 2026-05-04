@@ -15,7 +15,10 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   applicationName: 'رؤى للتداول',
   icons: {
-    icon: '/logo.svg',
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/logo.svg', type: 'image/svg+xml' },
+    ],
     apple: '/logo-192.png',
   },
   appleWebApp: {
@@ -71,7 +74,7 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
               /* Padding at the bottom so the fixed MobileNavBar doesn't cover content.
                  Pages with their own fixed bottom bar (chart, trading) add extra
                  padding via their own styles. */
-              paddingBottom: 'calc(32px + env(safe-area-inset-bottom))',
+              paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
               overflowY: 'auto',
               overflowX: 'hidden',
               WebkitOverflowScrolling: 'touch',

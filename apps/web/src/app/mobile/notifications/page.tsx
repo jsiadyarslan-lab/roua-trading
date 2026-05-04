@@ -40,7 +40,7 @@ const FILTER_TABS: { id: FilterTab; label: string; sources: NotifSource[] }[] = 
 /* ═══════════════════════════════════════════════════════════
    Source → Icon / Color Mapping
    ═══════════════════════════════════════════════════════════ */
-const SOURCE_CONFIG: Record<NotifSource, { icon: React.ReactNode; color: string; label: string }> = {
+const SOURCE_CONFIG: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
   bot: {
     icon: <Bot size={18} />,
     color: C.accent,
@@ -65,6 +65,47 @@ const SOURCE_CONFIG: Record<NotifSource, { icon: React.ReactNode; color: string;
     icon: <Settings2 size={18} />,
     color: '#8B92A8',
     label: 'النظام',
+  },
+  // Fallbacks for server-side notification sources
+  new_user: {
+    icon: <Bell size={18} />,
+    color: '#00D4FF',
+    label: 'مستخدم جديد',
+  },
+  subscription_upgrade: {
+    icon: <BellRing size={18} />,
+    color: '#32D74B',
+    label: 'اشتراك',
+  },
+  system_error: {
+    icon: <AlertTriangle size={18} />,
+    color: '#FF453A',
+    label: 'خطأ',
+  },
+  performance_alert: {
+    icon: <Activity size={18} />,
+    color: '#FFB800',
+    label: 'أداء',
+  },
+  large_trade: {
+    icon: <Zap size={18} />,
+    color: '#00D4FF',
+    label: 'صفقة كبيرة',
+  },
+  system_update: {
+    icon: <Info size={18} />,
+    color: '#8B92A8',
+    label: 'تحديث',
+  },
+  admin_test: {
+    icon: <BellRing size={18} />,
+    color: '#00D4FF',
+    label: 'تجريبي',
+  },
+  push: {
+    icon: <Bell size={18} />,
+    color: '#00D4FF',
+    label: 'إشعار',
   },
 }
 
@@ -146,8 +187,8 @@ function NotificationCard({
   onRead: (id: string) => void
   onDismiss: (id: string) => void
 }) {
-  const srcConfig = SOURCE_CONFIG[item.source]
-  const priorityColor = PRIORITY_COLORS[item.priority]
+  const srcConfig = SOURCE_CONFIG[item.source] || SOURCE_CONFIG.system
+  const priorityColor = PRIORITY_COLORS[item.priority] || C.accent
   const actionColor = getActionColor(item.action)
 
   return (

@@ -20,7 +20,10 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   applicationName: 'Roua Link',
   icons: {
-    icon: '/logo.svg',
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/logo.svg', type: 'image/svg+xml' },
+    ],
     apple: '/logo-192.png',
   },
   appleWebApp: {

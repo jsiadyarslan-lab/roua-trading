@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { QuoteData } from '@/hooks/useMarketStore'
 import { ChevronDown, PanelRight, Zap, X, Target } from 'lucide-react'
@@ -519,9 +519,44 @@ export default function DashboardPage() {
   const [sidebarPinned, setSidebarPinned] = useState(false)
   const [tradeDialogOpen, setTradeDialogOpen] = useState(false)
 
-  // Chart height is now handled purely by CSS flex — no JS calculation needed.
-  // The chart panel uses flex: 1 1 0% so it automatically fills remaining space
-  // and shrinks when the balance+positions panel grows.
+  // ── Chart Height: JS calculation with ResizeObserver on balance panel ──
+  // The chart panel uses explicit pixel height (flex: none) so the canvas resizes immediately.
+  // A ResizeObserver on the balance panel triggers recalculation whenever positions open/close.
+  const centerColRef = useRef<HTMLDivElement | null>(null)
+  const balancePanelRef = useRef<HTMLDivElement | null>(null)
+  const [chartHeight, setChartHeight] = useState<number>(400)
+
+  const recalcChartHeight = useCallback(() => {
+    const center = centerColRef.current
+    const balance = balancePanelRef.current
+    if (!center || !balance) return
+    // Banner is the first child, balance is the last child
+    const banner = center.firstElementChild as HTMLElement
+    const bannerH = banner ? banner.offsetHeight : 0
+    const available = center.clientHeight - bannerH - balance.offsetHeight
+    setChartHeight(Math.max(available, 200))
+  }, [])
+
+  // Immediate recalc when positions toggle
+  useLayoutEffect(() => {
+    recalcChartHeight()
+  }, [posOpen, recalcChartHeight])
+
+  // ResizeObserver on center column (window resize)
+  useEffect(() => {
+    if (!centerColRef.current) return
+    const ro = new ResizeObserver(() => recalcChartHeight())
+    ro.observe(centerColRef.current)
+    return () => ro.disconnect()
+  }, [recalcChartHeight])
+
+  // ResizeObserver on balance panel (positions open/close changes its height)
+  useEffect(() => {
+    if (!balancePanelRef.current) return
+    const ro = new ResizeObserver(() => recalcChartHeight())
+    ro.observe(balancePanelRef.current)
+    return () => ro.disconnect()
+  }, [recalcChartHeight])
 
   useEffect(() => {
     fetchAccount()
@@ -680,15 +715,16 @@ export default function DashboardPage() {
           overflow: hidden !important;
         }
 
-        /* Chart panel — ensure flex:1 works in fullscreen */
+        /* Chart panel — ensure flex:1 works in fullscreen (overrides inline flex:none + height) */
         .dash-grid.chart-fullscreen .dash-col-center > .panel:nth-child(2) {
           flex: 1 1 0% !important;
+          height: auto !important;
           min-height: 0 !important;
         }
 
-        /* Chart panel — smooth resize when positions open/close */
+        /* Chart panel — smooth height transition handled by inline style */
         .dash-col-center > .panel:nth-child(2) {
-          transition: none; /* flex height can't be transitioned — chart ResizeObserver handles visual smoothness */
+          /* transition is set inline: height 0.3s ease-out */
         }
 
         /* Positions section — smooth slide animation */
@@ -1098,7 +1134,7 @@ export default function DashboardPage() {
           )}
 
           {/* Center Column: Mode Banner + Chart + Balance + Positions */}
-          <div className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0, minHeight: 0, height: '100%', overflow: 'hidden' }}>
+          <div ref={centerColRef} className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0, minHeight: 0, height: '100%', overflow: 'hidden' }}>
             {/* Mode Banner */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
@@ -1138,8 +1174,8 @@ export default function DashboardPage() {
                 </span>
               )}
             </div>
-            {/* Chart Panel — flex:1 fills remaining space, shrinks when positions open */}
-            <div className="panel" style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none' }}>
+            {/* Chart Panel — explicit height from JS, smooth transition, shrinks when positions open */}
+            <div className="panel" style={{ height: chartHeight, flex: 'none', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none', transition: 'height 0.3s ease-out' }}>
               <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(26, 29, 41, 0.65)' }}>
                 <RouaChart
                   currentPrice={currentPrice}
@@ -1150,7 +1186,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Balance + Open Positions Panel — flexShrink:0, takes only the space it needs */}
-            <div className="panel hover-glow" style={{ flexShrink: 0, flexBasis: 'auto', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div ref={balancePanelRef} className="panel hover-glow" style={{ flexShrink: 0, flexBasis: 'auto', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {/* Balance Summary — always visible */}
               <div className="panel-header">
                 <div className="summary-row">

@@ -106,8 +106,12 @@ run_prisma generate --schema=./prisma/schema.prisma
 # Fall back to db push if no migration files exist (first deploy).
 echo "📦 Applying Prisma schema..."
 if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; then
-  run_prisma migrate deploy --schema=./prisma/schema.prisma 2>&1 || echo "⚠️ prisma migrate deploy had issues — trying db push as fallback"
-  run_prisma db push --schema=./prisma/schema.prisma 2>&1 || echo "⚠️ prisma db push also had issues — will verify tables below"
+  if run_prisma migrate deploy --schema=./prisma/schema.prisma 2>&1; then
+    echo "✅ Migrations applied successfully"
+  else
+    echo "⚠️ prisma migrate deploy had issues — trying db push as fallback"
+    run_prisma db push --schema=./prisma/schema.prisma 2>&1 || echo "⚠️ prisma db push also had issues — will verify tables below"
+  fi
 else
   run_prisma db push --schema=./prisma/schema.prisma 2>&1 || echo "⚠️ prisma db push had issues — will verify tables below"
 fi
@@ -248,6 +252,7 @@ if [ -n "${DATABASE_URL:-}" ]; then
       "avatar" TEXT,
       "passkeyId" TEXT,
       "passkeyPub" TEXT,
+      "passkeyCounter" INTEGER NOT NULL DEFAULT 0,
       "tier" TEXT NOT NULL DEFAULT 'FREE',
       "maxPositionSize" DECIMAL(19,4),
       "maxDailyLoss" DECIMAL(19,4),
@@ -413,6 +418,16 @@ EOSQL
         WHERE table_name = 'User' AND column_name = 'riskTolerance'
       ) THEN
         ALTER TABLE "User" ADD COLUMN "riskTolerance" TEXT DEFAULT 'moderate';
+      END IF;
+    END $$;
+
+    -- User table: add passkeyCounter if missing (required by Prisma schema)
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'User' AND column_name = 'passkeyCounter'
+      ) THEN
+        ALTER TABLE "User" ADD COLUMN "passkeyCounter" INTEGER NOT NULL DEFAULT 0;
       END IF;
     END $$;
 

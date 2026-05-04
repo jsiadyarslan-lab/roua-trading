@@ -38,7 +38,11 @@ interface RouaChartProps {
 }
 
 // ── Price-Synced Candle Timer Component ──
-function PriceSyncedTimer({ chart, currentPrice, countdown }: { chart: any, currentPrice: number, countdown: string }) {
+// Styled like a price-scale label: sits right below the last-price label
+// on the right edge and changes color with candle direction (green/red).
+function PriceSyncedTimer({ chart, currentPrice, countdown, isBull }: {
+  chart: any; currentPrice: number; countdown: string; isBull: boolean;
+}) {
   const [y, setY] = useState<number | null>(null);
 
   useEffect(() => {
@@ -48,35 +52,42 @@ function PriceSyncedTimer({ chart, currentPrice, countdown }: { chart: any, curr
     };
     update();
     const unsub = chart.onVisibleRangeChange(update);
-    const interval = setInterval(update, 100); // More frequent for price follow
+    const interval = setInterval(update, 100);
     return () => { unsub(); clearInterval(interval); };
   }, [chart, currentPrice]);
 
   if (y === null) return null;
 
+  // Colors match the price-scale last-price label
+  const bgColor = isBull ? '#3fb950' : '#f85149';
+
   return (
-    <div 
+    <div
       style={{
         position: 'absolute',
-        top: y + 10, // Just below the price line
+        top: y + 11,        // directly below the price label (~20px tall + 1px gap)
         right: 0,
         zIndex: 5,
         pointerEvents: 'none',
         display: 'flex',
-        alignItems: 'center',
-        paddingRight: 60, // Align with price scale
+        justifyContent: 'flex-end',
+        paddingRight: 2,    // flush with the price scale right edge
       }}
     >
       <div style={{
-        background: 'rgba(0,212,255,0.95)',
-        color: '#000',
+        background: bgColor,
+        color: '#fff',
         fontFamily: "'JetBrains Mono', monospace",
         fontSize: 10,
-        fontWeight: 900,
-        padding: '2px 6px',
-        borderRadius: 4,
-        boxShadow: '0 0 10px rgba(0,212,255,0.4)',
-        border: '1px solid rgba(255,255,255,0.2)',
+        fontWeight: 700,
+        padding: '2px 7px',
+        borderRadius: '0 0 3px 3px',   // rounded bottom only (top sits under price label)
+        minWidth: 44,
+        textAlign: 'center',
+        letterSpacing: 0.4,
+        lineHeight: '14px',
+        boxShadow: `0 2px 8px ${isBull ? 'rgba(63,185,80,0.35)' : 'rgba(248,81,73,0.35)'}`,
+        borderLeft: `3px solid ${bgColor}`,
       }}>
         {countdown}
       </div>
@@ -1075,10 +1086,14 @@ export default function RouaChart({
 
           {/* ── Price-Synced Candle Timer (Desktop Only) ── */}
           {!mobile && currentPrice && candleCountdown && (
-            <PriceSyncedTimer 
+            <PriceSyncedTimer
               chart={chart}
               currentPrice={currentPrice}
               countdown={candleCountdown}
+              isBull={(() => {
+                const lc = candlesRef.current[candlesRef.current.length - 1];
+                return lc ? currentPrice >= lc.open : true;
+              })()}
             />
           )}
 

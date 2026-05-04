@@ -6,6 +6,8 @@ import { GuestBanner } from '@/components/dashboard/GuestGuard'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import ServiceWorkerRegistrar from '@/components/dashboard/ServiceWorkerRegistrar'
 import { GlobalLogicEngine } from '@/components/dashboard/GlobalLogicEngine'
+import { NotificationToasts } from '@/components/dashboard/NotificationCenter'
+import DesktopNotificationAdapter from '@/components/dashboard/DesktopNotificationAdapter'
 import { Metadata, Viewport } from 'next'
 
 export const dynamic = 'force-dynamic'
@@ -57,6 +59,8 @@ export default function DashboardLayout({
               <AuthInitializer />
               <ServiceWorkerRegistrar />
               <GlobalLogicEngine />
+              <DesktopNotificationAdapter />
+              <NotificationToasts />
               {children}
             </ErrorBoundary>
           </main>

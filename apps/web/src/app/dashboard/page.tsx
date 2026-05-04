@@ -6,7 +6,6 @@ import type { QuoteData } from '@/hooks/useMarketStore'
 import { ChevronDown, PanelRight, Zap, X, Target } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
-import { NotificationToasts } from '@/components/dashboard/NotificationCenter'
 import { LeftSidebarLayout } from '@/components/dashboard/layouts/LeftSidebarLayout'
 import { SidebarDrawer } from '@/components/dashboard/layouts/SidebarDrawer'
 import { RightPanelLayout } from '@/components/dashboard/layouts/RightPanelLayout'
@@ -24,7 +23,6 @@ const DASHBOARD_SYMBOLS = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD'
 const RouaChart = dynamic(() => import('@/components/charts/RouaChart'), { ssr: false })
 const AlpacaPositions = dynamic(() => import('@/components/dashboard/AlpacaPositions').then(m => ({ default: m.AlpacaPositions })), { ssr: false })
 const BotEngine = dynamic(() => import('@/components/dashboard/BotEngine').then(m => ({ default: m.BotEngine })), { ssr: false })
-const NotificationEngine = dynamic(() => import('@/components/dashboard/NotificationEngine').then(m => ({ default: m.NotificationEngine })), { ssr: false })
 const GlobalLogicEngine = dynamic(() => import('@/components/dashboard/GlobalLogicEngine').then(m => ({ default: m.GlobalLogicEngine })), { ssr: false })
 const OrderBookPanel = dynamic(() => import('@/components/dashboard/OrderBookPanel'), { ssr: false })
 const ScannerMini = dynamic(() => import('@/components/dashboard/ScannerMini').then(m => ({ default: m.ScannerMini })), { ssr: false })
@@ -1118,9 +1116,7 @@ export default function DashboardPage() {
       `}</style>
 
       <BotEngine />
-      <NotificationEngine quotes={quotes} />
       <GlobalLogicEngine />
-      <NotificationToasts />
 
       {!isMobileViewport && (
         <div className={`dash-grid dashboard-shell${chartFullscreen ? ' chart-fullscreen' : ''}`}>

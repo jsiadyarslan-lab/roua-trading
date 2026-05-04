@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Bell, Bot, AlertTriangle, Settings2, TrendingUp, TrendingDown,
   ArrowRight, CheckCheck, Trash2, RefreshCw, Info, ShieldAlert,
-  X, Activity
+  X, Activity, Volume2, VolumeX, Brain, ScanSearch, Zap, Sliders
 } from 'lucide-react'
 import { useNotificationStore, type Notification, type NotifSource, type NotifPriority } from '@/hooks/useNotificationStore'
 
@@ -27,13 +27,14 @@ const C = {
 /* ═══════════════════════════════════════════════════════════
    Filter Tab Config
    ═══════════════════════════════════════════════════════════ */
-type FilterTab = 'all' | 'bot' | 'system' | 'trade'
+type FilterTab = 'all' | 'bot' | 'system' | 'trade' | 'settings'
 
 const FILTER_TABS: { id: FilterTab; label: string; sources: NotifSource[] }[] = [
   { id: 'all', label: 'الكل', sources: ['bot', 'ai', 'scanner', 'trade', 'system'] },
   { id: 'bot', label: 'البوت', sources: ['bot', 'ai', 'scanner'] },
   { id: 'system', label: 'النظام', sources: ['system'] },
   { id: 'trade', label: 'التداول', sources: ['trade'] },
+  { id: 'settings', label: 'الإعدادات', sources: [] },
 ]
 
 /* ═══════════════════════════════════════════════════════════
@@ -528,6 +529,199 @@ function ConfirmModal({
 }
 
 /* ═══════════════════════════════════════════════════════════
+   Notification Settings Panel (Mobile)
+   ═══════════════════════════════════════════════════════════ */
+function MobileNotifSettings() {
+  const { settings, updateSettings } = useNotificationStore()
+
+  const toggleRows: { key: keyof typeof settings; label: string; icon: React.ReactNode; color: string }[] = [
+    { key: 'enabled', label: 'تفعيل التنبيهات', icon: <Bell size={16} />, color: C.accent },
+    { key: 'soundEnabled', label: 'الأصوات', icon: settings.soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />, color: settings.soundEnabled ? C.success : C.danger },
+    { key: 'botAlerts', label: 'تنبيهات البوت', icon: <Bot size={16} />, color: '#00D4FF' },
+    { key: 'aiAlerts', label: 'تنبيهات الذكاء', icon: <Brain size={16} />, color: '#A78BFA' },
+    { key: 'scannerAlerts', label: 'تنبيهات السكانر', icon: <ScanSearch size={16} />, color: C.amber },
+    { key: 'tradeAlerts', label: 'تحركات السوق الحادة', icon: <Zap size={16} />, color: C.success },
+  ]
+
+  return (
+    <div style={{ padding: '8px 20px 24px' }}>
+      {/* Master Toggle */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        style={{
+          background: settings.enabled
+            ? 'linear-gradient(135deg, rgba(0,212,255,0.08) 0%, rgba(50,215,75,0.05) 100%)'
+            : 'rgba(255,255,255,0.03)',
+          borderRadius: 20,
+          padding: '16px',
+          border: `0.5px solid ${settings.enabled ? 'rgba(0,212,255,0.2)' : 'rgba(255,255,255,0.06)'}`,
+          marginBottom: 16,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 12,
+              background: settings.enabled ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.05)',
+              border: `0.5px solid ${settings.enabled ? 'rgba(0,212,255,0.25)' : 'rgba(255,255,255,0.08)'}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: settings.enabled ? C.accent : C.text2,
+            }}>
+              <Bell size={20} />
+            </div>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 800, color: C.text, fontFamily: "'Cairo', sans-serif" }}>
+                التنبيهات
+              </p>
+              <p style={{ fontSize: 11, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>
+                {settings.enabled ? 'مفعّلة — ستتلقى إشعارات فورية' : 'معطّلة — لن تصلك تنبيهات'}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => updateSettings({ enabled: !settings.enabled })}
+            style={{
+              width: 52, height: 28, borderRadius: 14,
+              background: settings.enabled ? C.success : 'rgba(255,255,255,0.12)',
+              border: 'none', cursor: 'pointer', position: 'relative',
+              transition: 'background 0.3s',
+            }}
+          >
+            <motion.div
+              animate={{ x: settings.enabled ? 22 : 2 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              style={{
+                position: 'absolute', top: 3, left: 0,
+                width: 22, height: 22, borderRadius: '50%',
+                background: '#FFF',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+              }}
+            />
+          </button>
+        </div>
+      </motion.div>
+
+      {/* Individual Toggle Rows */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {toggleRows.filter(r => r.key !== 'enabled').map((row, idx) => {
+          const isEnabled = (settings as any)[row.key] as boolean
+          return (
+            <motion.div
+              key={row.key}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.05 }}
+              style={{
+                background: isEnabled ? `${row.color}06` : 'rgba(255,255,255,0.02)',
+                borderRadius: 16,
+                padding: '12px 14px',
+                border: `0.5px solid ${isEnabled ? `${row.color}15` : 'rgba(255,255,255,0.04)'}`,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                opacity: settings.enabled ? 1 : 0.4,
+                pointerEvents: settings.enabled ? 'auto' : 'none',
+                transition: 'opacity 0.3s',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: 10,
+                  background: `${row.color}10`,
+                  border: `0.5px solid ${row.color}20`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: row.color,
+                }}>
+                  {row.icon}
+                </div>
+                <span style={{
+                  fontSize: 13, fontWeight: 700, color: C.text,
+                  fontFamily: "'Cairo', sans-serif",
+                }}>
+                  {row.label}
+                </span>
+              </div>
+              <button
+                onClick={() => updateSettings({ [row.key]: !isEnabled })}
+                style={{
+                  width: 44, height: 24, borderRadius: 12,
+                  background: isEnabled ? row.color : 'rgba(255,255,255,0.1)',
+                  border: 'none', cursor: 'pointer', position: 'relative',
+                  transition: 'background 0.2s',
+                }}
+              >
+                <motion.div
+                  animate={{ x: isEnabled ? 18 : 2 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  style={{
+                    position: 'absolute', top: 2, left: 0,
+                    width: 20, height: 20, borderRadius: '50%',
+                    background: '#FFF',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                  }}
+                />
+              </button>
+            </motion.div>
+          )
+        })}
+      </div>
+
+      {/* Min Confidence Slider */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        style={{
+          marginTop: 16,
+          background: 'rgba(255,255,255,0.03)',
+          borderRadius: 16,
+          padding: '14px 16px',
+          border: '0.5px solid rgba(255,255,255,0.06)',
+          opacity: settings.enabled ? 1 : 0.4,
+          pointerEvents: settings.enabled ? 'auto' : 'none',
+          transition: 'opacity 0.3s',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Sliders size={16} color={C.accent} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.text, fontFamily: "'Cairo', sans-serif" }}>
+              حد الثقة الأدنى
+            </span>
+          </div>
+          <span style={{
+            fontSize: 14, fontWeight: 900, color: C.accent,
+            fontFamily: "'JetBrains Mono', monospace",
+            padding: '2px 10px', borderRadius: 8,
+            background: 'rgba(0,212,255,0.08)',
+            border: '0.5px solid rgba(0,212,255,0.15)',
+          }}>
+            {settings.minConfidence}%
+          </span>
+        </div>
+        <input
+          type="range"
+          min={40}
+          max={95}
+          step={5}
+          value={settings.minConfidence}
+          onChange={(e) => updateSettings({ minConfidence: parseInt(e.target.value) })}
+          style={{
+            width: '100%', accentColor: C.accent,
+            height: 4, borderRadius: 2,
+          }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+          <span style={{ fontSize: 9, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>40% — عرض الكل</span>
+          <span style={{ fontSize: 9, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>95% — الأقوى فقط</span>
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
    Main Page Component
    ═══════════════════════════════════════════════════════════ */
 export default function MobileNotificationsPage() {
@@ -583,6 +777,7 @@ export default function MobileNotificationsPage() {
   )
 
   const filteredNotifications = useMemo(() => {
+    if (activeFilter === 'settings') return []
     const tab = FILTER_TABS.find((t) => t.id === activeFilter)
     if (!tab || tab.id === 'all') return notifications
     return notifications.filter((n) => tab.sources.includes(n.source))
@@ -640,7 +835,7 @@ export default function MobileNotificationsPage() {
 
   /* ── Unread count per filter ─── */
   const filterCounts = useMemo(() => {
-    const counts: Record<FilterTab, number> = { all: 0, bot: 0, system: 0, trade: 0 }
+    const counts: Record<FilterTab, number> = { all: 0, bot: 0, system: 0, trade: 0, settings: 0 }
     notifications.forEach((n) => {
       if (!n.read) {
         counts.all++
@@ -838,30 +1033,34 @@ export default function MobileNotificationsPage() {
       </AnimatePresence>
 
       {/* ════════════════════════════════════
-          Notification List
+          Notification List or Settings
           ════════════════════════════════════ */}
-      <div style={{ paddingTop: 12, position: 'relative', zIndex: 1 }}>
-        {filteredNotifications.length === 0 ? (
-          <EmptyState filterLabel={activeTabLabel} />
-        ) : (
-          <AnimatePresence mode="popLayout">
-            {filteredNotifications.map((notif, i) => (
-              <NotificationCard
-                key={notif.id}
-                item={notif}
-                index={i}
-                onRead={handleRead}
-                onDismiss={handleDismiss}
-              />
-            ))}
-          </AnimatePresence>
-        )}
-      </div>
+      {activeFilter === 'settings' ? (
+        <MobileNotifSettings />
+      ) : (
+        <div style={{ paddingTop: 12, position: 'relative', zIndex: 1 }}>
+          {filteredNotifications.length === 0 ? (
+            <EmptyState filterLabel={activeTabLabel} />
+          ) : (
+            <AnimatePresence mode="popLayout">
+              {filteredNotifications.map((notif, i) => (
+                <NotificationCard
+                  key={notif.id}
+                  item={notif}
+                  index={i}
+                  onRead={handleRead}
+                  onDismiss={handleDismiss}
+                />
+              ))}
+            </AnimatePresence>
+          )}
+        </div>
+      )}
 
       {/* ════════════════════════════════════
           Clear All Button (Fixed Bottom)
           ════════════════════════════════════ */}
-      {notifications.length > 0 && (
+      {notifications.length > 0 && activeFilter !== 'settings' && (
         <div style={{
           position: 'fixed', bottom: 'calc(80px + env(safe-area-inset-bottom))',
           left: 20, right: 20, zIndex: 40,

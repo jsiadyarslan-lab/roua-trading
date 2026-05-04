@@ -338,6 +338,7 @@ export default function MobileHomePage() {
   const account = usePositionsStore(s => s.account)
   const [consensus, setConsensus] = useState<any>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const unreadNotifCount = useNotificationStore(s => s.notifications.filter(n => !n.read).length)
 
   // Real portfolio data from API / store
   const totalAssets = Number(account?.equity) || Number(account?.buyingPower) || 0
@@ -442,7 +443,25 @@ export default function MobileHomePage() {
           }}
         >
           <Bell size={22} color="#FFFFFF" />
-          <div style={{ position: 'absolute', top: 11, right: 11, width: 9, height: 9, borderRadius: '50%', background: '#FF453A', border: '2.5px solid #1C1C1E' }} />
+          {unreadNotifCount > 0 && (
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              style={{
+                position: 'absolute', top: 8, right: 8,
+                minWidth: 18, height: 18, borderRadius: 9,
+                background: '#FF453A',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 9, fontWeight: 900, color: '#FFF',
+                fontFamily: "'JetBrains Mono', monospace",
+                padding: '0 4px',
+                border: '2px solid #1C1C1E',
+                boxShadow: '0 0 8px rgba(255,69,58,0.5)',
+              }}
+            >
+              {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
+            </motion.div>
+          )}
         </motion.button>
       </div>
 

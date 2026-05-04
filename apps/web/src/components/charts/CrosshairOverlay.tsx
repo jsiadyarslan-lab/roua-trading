@@ -6,6 +6,7 @@
 
 import { useMemo } from 'react';
 import type { CrosshairData, CandleData } from '@/lib/charts/types';
+import { priceDecimals } from '@/lib/price-format';
 
 interface CrosshairOverlayProps {
   symbol: string;
@@ -53,13 +54,7 @@ export function CrosshairOverlay({
   } : null);
 
   const price = crosshairData?.close || currentPrice || lastCandle?.close || 0;
-  const decimals = useMemo(() => {
-    if (symbol.includes('JPY')) return 3;
-    if (symbol.includes('BTC')) return 1;
-    if (price > 1000) return 2;
-    if (price > 1) return 5;
-    return 6;
-  }, [symbol, price]);
+  const decimals = useMemo(() => priceDecimals(price, symbol), [symbol, price]);
 
   const isBull = displayData ? displayData.close >= displayData.open : true;
   const changeColor = displayData && displayData.change >= 0 ? '#00FFA3' : '#FF4757';

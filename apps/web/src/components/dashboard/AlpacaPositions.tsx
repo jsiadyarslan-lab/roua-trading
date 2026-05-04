@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { RefreshCw, TrendingDown, TrendingUp, X as XIcon, History } from 'lucide-react'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { usePaperTradesStore, type ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
+import { fmtPriceLocale as fmtPrice, fmtPnl } from '@/lib/price-format'
 
 interface Position {
   symbol: string
@@ -29,14 +30,6 @@ const T = {
   card: '#1A1D29',
   cardAlt: '#1F2335',
 }
-
-const fmtPrice = (value: number) =>
-  Number.isFinite(value)
-    ? value.toLocaleString('en-US', { maximumFractionDigits: value > 100 ? 2 : 4 })
-    : '—'
-
-const fmtPnl = (value: number) =>
-  `${value >= 0 ? '+' : '-'}${Math.abs(value).toLocaleString('en-US', { maximumFractionDigits: 2 })}$`
 
 export function AlpacaPositions() {
   const { positions, fetchPositions, fetchAccount } = usePositionsStore()

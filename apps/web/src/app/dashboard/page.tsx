@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { QuoteData } from '@/hooks/useMarketStore'
 import { ChevronDown, PanelRight, Zap, X, Target } from 'lucide-react'
+import { fmtPriceLocale } from '@/lib/price-format'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { LeftSidebarLayout } from '@/components/dashboard/layouts/LeftSidebarLayout'
@@ -89,7 +90,7 @@ const formatMoney = (value: unknown): string => {
 const formatQuotePrice = (value: unknown) => {
   const num = Number(value)
   if (!Number.isFinite(num)) return '—'
-  return num.toLocaleString('en-US', { maximumFractionDigits: num > 100 ? 2 : 4 })
+  return fmtPriceLocale(num)
 }
 
 // ── Beautiful Order Panel Component ──

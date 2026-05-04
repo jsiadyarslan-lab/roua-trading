@@ -26,6 +26,7 @@ import { ChartTrading } from './ChartTrading';
 import { TemplateManager } from './TemplateManager';
 import { ChartSettingsPanel } from './ChartSettingsPanel';
 import { T } from '@/lib/unified-tokens';
+import { fmtPrice as unifiedFmtPrice } from '@/lib/price-format';
 
 interface RouaChartProps {
   currentPrice?: number | null;
@@ -747,7 +748,7 @@ export default function RouaChart({
 
             {/* ── Trade Line Labels (HTML overlays like TradingView) ── */}
             {tradeOverlays.map(ov => {
-              const fmt = (v: number) => v > 1000 ? v.toFixed(2) : v.toFixed(5);
+              const fmt = (v: number) => unifiedFmtPrice(v, selectedSymbol);
               const isEntry = ov.type === 'entry';
               const isSL = ov.type === 'sl';
               const isTP = ov.type === 'tp';

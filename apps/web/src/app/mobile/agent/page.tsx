@@ -446,8 +446,8 @@ export default function MobileAgentPage() {
         <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <StatCard
             label="ربح/خسارة اليوم"
-            value={`${(agentState?.dailyPnL ?? 0) >= 0 ? '+' : ''}$${Math.abs(agentState?.dailyPnL ?? 0).toFixed(2)}`}
-            color={(agentState?.dailyPnL ?? 0) >= 0 ? C.success : C.danger}
+            value={`${Number(agentState?.dailyPnL ?? 0) >= 0 ? '+' : ''}$${Math.abs(Number(agentState?.dailyPnL ?? 0)).toFixed(2)}`}
+            color={Number(agentState?.dailyPnL ?? 0) >= 0 ? C.success : C.danger}
             icon={DollarSign}
           />
           <StatCard
@@ -728,12 +728,12 @@ export default function MobileAgentPage() {
                         )}
                       </div>
                       <div style={{ fontSize: 10, color: C.text2, fontFamily: FONT_AR, marginTop: 2 }}>
-                        ثقة: {pos.confidence}% • SL: {pos.stopLoss ? `$${pos.stopLoss.toFixed(2)}` : '—'} • TP: {pos.takeProfit ? `$${pos.takeProfit.toFixed(2)}` : '—'}
+                        ثقة: {pos.confidence}% • SL: {pos.stopLoss ? `$${Number(pos.stopLoss).toFixed(2)}` : '—'} • TP: {pos.takeProfit ? `$${Number(pos.takeProfit).toFixed(2)}` : '—'}
                       </div>
                     </div>
                     <div style={{ textAlign: 'start' }}>
                       <span style={{ fontSize: 13, fontWeight: 800, color: pnlColor, fontFamily: FONT_MONO }}>
-                        {pos.unrealizedPnl >= 0 ? '+' : ''}{pos.unrealizedPnl.toFixed(2)}
+                        {Number(pos.unrealizedPnl) >= 0 ? '+' : ''}{Number(pos.unrealizedPnl).toFixed(2)}
                       </span>
                     </div>
                   </div>

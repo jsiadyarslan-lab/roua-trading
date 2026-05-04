@@ -386,8 +386,8 @@ function AgentMini() {
       }}>
         <div style={{ padding: 5, textAlign: 'center', minHeight: 30, background: 'rgba(255,255,255,0.02)', borderRadius: 6 }}>
           <div style={{ fontSize: 7, color: T.text3 }}>ر/خ اليوم</div>
-          <div style={{ fontSize: 10, fontWeight: 800, color: (agentState?.dailyPnL ?? 0) >= 0 ? T.success : T.danger }}>
-            ${(agentState?.dailyPnL ?? 0).toFixed(2)}
+          <div style={{ fontSize: 10, fontWeight: 800, color: Number(agentState?.dailyPnL ?? 0) >= 0 ? T.success : T.danger }}>
+            ${Number(agentState?.dailyPnL ?? 0).toFixed(2)}
           </div>
         </div>
         <div style={{ padding: 5, textAlign: 'center', minHeight: 30, background: 'rgba(255,255,255,0.02)', borderRadius: 6 }}>
@@ -434,8 +434,8 @@ function AgentMini() {
                 </span>
                 <span style={{ color: T.text, fontWeight: 700, fontFamily: 'monospace' }}>{pos.symbol}</span>
                 <div style={{ flex: 1 }} />
-                <span style={{ color: pos.unrealizedPnl >= 0 ? T.success : T.danger, fontWeight: 800, fontFamily: 'monospace' }}>
-                  ${pos.unrealizedPnl.toFixed(2)}
+                <span style={{ color: Number(pos.unrealizedPnl) >= 0 ? T.success : T.danger, fontWeight: 800, fontFamily: 'monospace' }}>
+                  ${Number(pos.unrealizedPnl).toFixed(2)}
                 </span>
               </div>
             ))}

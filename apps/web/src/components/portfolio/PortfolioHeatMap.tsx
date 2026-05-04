@@ -139,8 +139,8 @@ export function PortfolioHeatMap({ positions }: PortfolioHeatMapProps) {
                 strokeOpacity={0.3}
               >
                 <title>
-                  {item.symbol}: {pnlLabel} (${item.unrealizedPnl >= 0 ? '+' : ''}
-                  {item.unrealizedPnl.toFixed(2)})
+                  {item.symbol}: {pnlLabel} (${Number(item.unrealizedPnl) >= 0 ? '+' : ''}
+                  {Number(item.unrealizedPnl).toFixed(2)})
                 </title>
               </rect>
               {/* Symbol text */}

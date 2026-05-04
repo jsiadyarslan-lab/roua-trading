@@ -219,7 +219,7 @@ function TradingAgentMini() {
             fontFamily: "'JetBrains Mono', monospace",
             direction: 'ltr', textAlign: 'right',
           }}>
-            {dailyPnL >= 0 ? '+' : ''}{dailyPnL.toFixed(2)}
+            {Number(dailyPnL) >= 0 ? '+' : ''}{Number(dailyPnL).toFixed(2)}
           </div>
         </div>
         <div style={{
@@ -279,10 +279,10 @@ function TradingAgentMini() {
                 <span style={{ fontSize: 9, color: pos.side === 'BUY' ? '#00FFA3' : '#FF4757', fontWeight: 700 }}>{pos.side === 'BUY' ? 'شراء' : 'بيع'}</span>
                 <span style={{
                   fontSize: 10, fontWeight: 700, marginInlineStart: 'auto',
-                  color: pos.unrealizedPnl >= 0 ? '#00FFA3' : '#FF4757',
+                  color: Number(pos.unrealizedPnl) >= 0 ? '#00FFA3' : '#FF4757',
                   fontFamily: "'JetBrains Mono', monospace",
                 }}>
-                  {pos.unrealizedPnl >= 0 ? '+' : ''}{pos.unrealizedPnl.toFixed(2)}
+                  {Number(pos.unrealizedPnl) >= 0 ? '+' : ''}{Number(pos.unrealizedPnl).toFixed(2)}
                 </span>
               </div>
             ))}

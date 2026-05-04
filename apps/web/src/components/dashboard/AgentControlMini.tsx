@@ -335,7 +335,7 @@ export function AgentControlMini() {
             color: dailyPnL >= 0 ? T.green : T.red,
             fontFamily: FONT_MONO, direction: 'ltr', textAlign: 'center',
           }}>
-            {dailyPnL >= 0 ? '+' : ''}{dailyPnL.toFixed(2)}
+            {Number(dailyPnL) >= 0 ? '+' : ''}{Number(dailyPnL).toFixed(2)}
           </div>
         </div>
 
@@ -391,10 +391,10 @@ export function AgentControlMini() {
               </span>
               <div style={{ flex: 1 }} />
               <span style={{
-                color: pos.unrealizedPnl >= 0 ? T.green : T.red,
+                color: Number(pos.unrealizedPnl) >= 0 ? T.green : T.red,
                 fontWeight: 800, fontFamily: FONT_MONO,
               }}>
-                {pos.unrealizedPnl >= 0 ? '+' : ''}{pos.unrealizedPnl.toFixed(2)}
+                {Number(pos.unrealizedPnl) >= 0 ? '+' : ''}{Number(pos.unrealizedPnl).toFixed(2)}
               </span>
             </div>
           ))}

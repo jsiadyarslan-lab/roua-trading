@@ -224,7 +224,7 @@ export function PositionCard({
             }}
           >
             {isProfitable ? '+' : ''}
-            {unrealizedPnl.toFixed(2)}
+            {Number(unrealizedPnl).toFixed(2)}
           </div>
           <div
             style={{

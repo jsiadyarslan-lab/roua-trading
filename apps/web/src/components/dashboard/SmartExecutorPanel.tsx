@@ -225,7 +225,7 @@ export function SmartExecutorPanel() {
         <StatBox label="Briefs نشطة" value={activeBriefs.toString()} color={T.cyan} />
         <StatBox label="تنفيذات اليوم" value={todayExecs.toString()} color={T.green} />
         <StatBox label="مراكز مفتوحة" value={(status?.openPositions ?? 0).toString()} color={T.purple} />
-        <StatBox label="ر/خ اليوم" value={`$${(userState?.dailyPnL ?? 0).toFixed(2)}`} color={(userState?.dailyPnL ?? 0) >= 0 ? T.success : T.danger} />
+        <StatBox label="ر/خ اليوم" value={`$${Number(userState?.dailyPnL ?? 0).toFixed(2)}`} color={Number(userState?.dailyPnL ?? 0) >= 0 ? T.success : T.danger} />
         <StatBox label="صفقات اليوم" value={(userState?.dailyTrades ?? 0).toString()} color={T.amber} />
         <StatBox label="خسائر متتالية" value={(userState?.consecutiveLosses ?? 0).toString()} color={(userState?.consecutiveLosses ?? 0) >= 3 ? T.danger : T.text3} />
       </div>
@@ -279,10 +279,10 @@ export function SmartExecutorPanel() {
                 <span style={{ color: T.text, fontWeight: 700, fontFamily: 'monospace' }}>{pos.symbol}</span>
                 <div style={{ flex: 1 }} />
                 <span style={{
-                  color: (pos.unrealizedPnl ?? 0) >= 0 ? T.success : T.danger,
+                  color: Number(pos.unrealizedPnl ?? 0) >= 0 ? T.success : T.danger,
                   fontWeight: 800, fontFamily: 'monospace',
                 }}>
-                  ${(pos.unrealizedPnl ?? 0).toFixed(2)}
+                  ${Number(pos.unrealizedPnl ?? 0).toFixed(2)}
                 </span>
               </div>
             ))}

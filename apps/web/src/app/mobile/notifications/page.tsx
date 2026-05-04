@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Bell, Bot, AlertTriangle, Settings2, TrendingUp, TrendingDown,
+  Bell, BellRing, Bot, AlertTriangle, Settings2, TrendingUp, TrendingDown,
   ArrowRight, CheckCheck, Trash2, RefreshCw, Info, ShieldAlert,
   X, Activity, Volume2, VolumeX, Brain, ScanSearch, Zap, Sliders
 } from 'lucide-react'
@@ -537,6 +537,7 @@ function MobileNotifSettings() {
   const toggleRows: { key: keyof typeof settings; label: string; icon: React.ReactNode; color: string }[] = [
     { key: 'enabled', label: 'تفعيل التنبيهات', icon: <Bell size={16} />, color: C.accent },
     { key: 'soundEnabled', label: 'الأصوات', icon: settings.soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />, color: settings.soundEnabled ? C.success : C.danger },
+    { key: 'browserNotifications', label: 'إشعارات الجهاز', icon: <BellRing size={16} />, color: '#00D4FF' },
     { key: 'botAlerts', label: 'تنبيهات البوت', icon: <Bot size={16} />, color: '#00D4FF' },
     { key: 'aiAlerts', label: 'تنبيهات الذكاء', icon: <Brain size={16} />, color: '#A78BFA' },
     { key: 'scannerAlerts', label: 'تنبيهات السكانر', icon: <ScanSearch size={16} />, color: C.amber },

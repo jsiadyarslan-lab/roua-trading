@@ -429,6 +429,7 @@ function NotifSettingsPanel() {
   const rows: { key: keyof typeof settings; label: string }[] = [
     { key: 'enabled', label: 'تفعيل التنبيهات' },
     { key: 'soundEnabled', label: 'الصوت' },
+    { key: 'browserNotifications', label: 'إشعارات الجهاز' },
     { key: 'botAlerts', label: 'تنبيهات البوت' },
     { key: 'aiAlerts', label: 'تنبيهات الـ AI' },
     { key: 'scannerAlerts', label: 'تنبيهات السكانر' },

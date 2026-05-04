@@ -105,6 +105,7 @@ export interface Notification {
 interface NotifSettings {
   enabled: boolean
   soundEnabled: boolean
+  browserNotifications: boolean
   botAlerts: boolean
   aiAlerts: boolean
   scannerAlerts: boolean
@@ -128,6 +129,7 @@ interface NotificationState {
 const DEFAULT_SETTINGS: NotifSettings = {
   enabled: true,
   soundEnabled: true,
+  browserNotifications: true,
   botAlerts: true,
   aiAlerts: true,
   scannerAlerts: true,
@@ -186,6 +188,50 @@ export const useNotificationStore = create<NotificationState>()(
             // AudioContext not available — silent fallback
           }
         }
+
+        // ── Fire native browser notification (appears outside app on mobile + desktop) ──
+        if (
+          settings.browserNotifications &&
+          typeof window !== 'undefined' &&
+          'Notification' in window &&
+          Notification.permission === 'granted'
+        ) {
+          try {
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+            const actionEmoji = n.action === 'BUY' ? '📈' : n.action === 'SELL' ? '📉' : n.action === 'WARN' ? '⚠️' : 'ℹ️'
+
+            const browserNotif = new Notification(`${actionEmoji} ${n.title}`, {
+              body: n.body + (n.pair ? ` — ${n.pair}` : ''),
+              icon: '/logo-192.png',
+              badge: '/logo-192.png',
+              tag: notif.id,
+              dir: 'rtl',
+              lang: 'ar',
+              vibrate: n.priority === 'urgent' ? [200, 100, 200] : [100],
+              requireInteraction: n.priority === 'urgent' && !isMobile,
+              silent: false,
+              data: {
+                source: n.source,
+                action: n.action,
+                pair: n.pair,
+                price: n.price,
+                url: n.pair
+                  ? (isMobile ? `/mobile/chart?symbol=${n.pair}` : `/trading?symbol=${n.pair}`)
+                  : (isMobile ? '/mobile' : '/dashboard'),
+              },
+            })
+
+            // Focus window and navigate on click
+            browserNotif.onclick = () => {
+              window.focus()
+              const url = browserNotif.data?.url || '/dashboard'
+              window.location.href = url
+              browserNotif.close()
+            }
+          } catch {
+            // Notification API not available — fallback silently
+          }
+        }
       },
 
       markRead: (id) => set((state) => ({
@@ -221,6 +267,9 @@ export const useNotificationStore = create<NotificationState>()(
           minConfidence: typeof persistedState?.settings?.minConfidence === 'number'
               ? persistedState.settings.minConfidence
               : DEFAULT_SETTINGS.minConfidence,
+          browserNotifications: typeof persistedState?.settings?.browserNotifications === 'boolean'
+              ? persistedState.settings.browserNotifications
+              : DEFAULT_SETTINGS.browserNotifications,
         },
       }),
       partialize: (state) => ({

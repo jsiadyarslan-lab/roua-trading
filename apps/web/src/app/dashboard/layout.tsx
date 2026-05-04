@@ -8,6 +8,8 @@ import ServiceWorkerRegistrar from '@/components/dashboard/ServiceWorkerRegistra
 import { GlobalLogicEngine } from '@/components/dashboard/GlobalLogicEngine'
 import { NotificationToasts } from '@/components/dashboard/NotificationCenter'
 import DesktopNotificationAdapter from '@/components/dashboard/DesktopNotificationAdapter'
+import NotificationPermissionBanner from '@/components/shared/NotificationPermissionBanner'
+import PushNotificationManager from '@/components/shared/PushNotificationManager'
 import { Metadata, Viewport } from 'next'
 
 export const dynamic = 'force-dynamic'
@@ -61,6 +63,8 @@ export default function DashboardLayout({
               <GlobalLogicEngine />
               <DesktopNotificationAdapter />
               <NotificationToasts />
+              <NotificationPermissionBanner />
+              <PushNotificationManager />
               {children}
             </ErrorBoundary>
           </main>

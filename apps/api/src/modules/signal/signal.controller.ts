@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Delete, UseGuards, Request, Logger } from '@nestjs/common';
+import { Controller, Get, Post, Param, Body, Delete, UseGuards, Request, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
 import { SignalService } from './signal.service';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
@@ -8,7 +8,9 @@ import { Throttle } from '@nestjs/throttler';
 export class SignalController {
   private readonly logger = new Logger(SignalController.name);
 
-  constructor(private readonly signalService: SignalService) {}
+  constructor(
+    private readonly signalService: SignalService,
+  ) {}
 
   /**
    * POST /api/signals/generate/:pair — Generate a new trading signal
@@ -47,6 +49,32 @@ export class SignalController {
   async getSignalHistory(@Request() req: any) {
     const signals = await this.signalService.getSignalHistory(req.user.id);
     return { success: true, data: signals };
+  }
+
+  /**
+   * POST /api/signals/:id/execute — Execute a signal by placing a trade
+   *
+   * FIX: Previously, there was no bridge between signals and the trading engine.
+   * Users had to manually create orders based on signal data. This endpoint
+   * allows one-click signal execution, connecting the Analysis → Trading pipeline.
+   *
+   * Body: { credentialId: string, quantity?: number }
+   */
+  @Post(':id/execute')
+  @Throttle({ medium: { limit: 10, ttl: 60000 } })
+  async executeSignal(
+    @Request() req: any,
+    @Param('id') signalId: string,
+    @Body() body: { credentialId?: string; quantity?: number },
+  ) {
+    const userId = req.user.id;
+
+    if (!body.credentialId) {
+      throw new BadRequestException('معرف بيانات الاعتماد مطلوب لتنفيذ الإشارة');
+    }
+
+    const result = await this.signalService.executeSignal(userId, signalId, body.credentialId, body.quantity);
+    return { success: true, data: result };
   }
 
   /**

@@ -1,10 +1,12 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ExchangeService } from '../exchange/exchange.service';
 import { AIOrchestratorService } from '../ai/services/ai-orchestrator.service';
 import { RagService } from '../ai/services/rag.service';
 import { AuditService } from '../../audit/audit.service';
 import { PredictionMarketService } from '../prediction-market/prediction-market.service';
+import { TradingService } from '../trading/trading.service';
+import { OrderSide, OrderType } from '../trading/trading.types';
 
 /**
  * Signal Service — Roua Trading Signal Generation
@@ -39,8 +41,9 @@ export class SignalService {
     private readonly ragService: RagService,
     private readonly auditService: AuditService,
     @Optional() private readonly predictionMarketService?: PredictionMarketService,
+    @Optional() private readonly tradingService?: TradingService,
   ) {
-    this.logger.log('📡 Signal Service initialized — Roua signal generation ready' + (this.predictionMarketService ? ' (with prediction market boost)' : ''));
+    this.logger.log('📡 Signal Service initialized — Roua signal generation ready' + (this.predictionMarketService ? ' (with prediction market boost)' : '') + (this.tradingService ? ' (with trading bridge)' : ''));
   }
 
   /**
@@ -281,6 +284,117 @@ ${newsContext ? `📰 أخبار ذات صلة:\n${newsContext}` : ''}
       where: { id: signalId },
       data: { status: 'CANCELLED' },
     });
+  }
+
+  /**
+   * FIX: Execute a signal by placing a trade via the Trading Service
+   *
+   * This bridges the gap between the Analysis Engine and the Trading Engine.
+   * Previously, signals were generated but users had no way to directly
+   * execute them — they had to manually create orders based on signal data.
+   *
+   * Flow:
+   * 1. Fetch the signal by ID (with user ownership check)
+   * 2. Validate the signal is actionable (ACTIVE, not WAIT, has entry/SL/TP)
+   * 3. Place a market order via TradingService with signal's SL/TP
+   * 4. Update signal status to EXECUTED
+   * 5. Return both the signal and the resulting order
+   *
+   * @param userId The user executing the signal
+   * @param signalId The signal to execute
+   * @param credentialId The exchange credential to use for execution
+   * @param quantity Optional quantity override (defaults to a calculated size)
+   */
+  async executeSignal(userId: string, signalId: string, credentialId: string, quantity?: number) {
+    // Step 1: Fetch signal with user ownership check
+    const signal = await this.prisma.signal.findFirst({
+      where: { id: signalId, userId },
+    });
+
+    if (!signal) {
+      throw new NotFoundException('الإشارة غير موجودة');
+    }
+
+    // Step 2: Validate signal is actionable
+    if (signal.status !== 'ACTIVE') {
+      throw new BadRequestException(`لا يمكن تنفيذ إشارة بحالة "${signal.status}" — يجب أن تكون نشطة`);
+    }
+
+    if (signal.action === 'WAIT') {
+      throw new BadRequestException('لا يمكن تنفيذ إشارة انتظار — ليست توصية شراء أو بيع');
+    }
+
+    if (!signal.entryPrice || Number(signal.entryPrice) <= 0) {
+      throw new BadRequestException('الإشارة لا تحتوي على سعر دخول صالح');
+    }
+
+    if (!signal.stopLoss || Number(signal.stopLoss) <= 0) {
+      throw new BadRequestException('الإشارة لا تحتوي على وقف خسارة — لا يمكن التنفيذ بدون وقف خسارة');
+    }
+
+    // Step 3: Calculate quantity if not provided
+    const entryPrice = Number(signal.entryPrice);
+    const stopLoss = Number(signal.stopLoss);
+    const takeProfit = signal.takeProfit ? Number(signal.takeProfit) : undefined;
+
+    // Default quantity: risk 1% of a $10,000 portfolio
+    const riskPerTrade = 100; // 1% of $10,000
+    const riskPerUnit = Math.abs(entryPrice - stopLoss);
+    const calculatedQty = riskPerUnit > 0 ? riskPerTrade / riskPerUnit : 0.01;
+    const orderQuantity = quantity || Math.max(0.01, Math.round(calculatedQty * 100) / 100);
+
+    // Step 4: Place order via TradingService (if available)
+    if (!this.tradingService) {
+      throw new BadRequestException('خدمة التداول غير متاحة — لا يمكن تنفيذ الإشارة تلقائياً');
+    }
+
+    const order = await this.tradingService.placeOrder(userId, {
+      credentialId,
+      symbol: signal.pair,
+      side: signal.action === 'BUY' ? OrderSide.BUY : OrderSide.SELL,
+      type: OrderType.MARKET,
+      quantity: orderQuantity,
+      stopLoss,
+      takeProfit,
+      signalId: signal.id,
+    });
+
+    // Step 5: Update signal status to EXECUTED
+    await this.prisma.signal.update({
+      where: { id: signalId },
+      data: { status: 'EXECUTED' },
+    });
+
+    // Audit log
+    await this.auditService.log({
+      userId,
+      action: 'SIGNAL_EXECUTED',
+      resource: 'signal',
+      details: JSON.stringify({
+        signalId,
+        pair: signal.pair,
+        action: signal.action,
+        orderId: order.id,
+        quantity: orderQuantity,
+        entryPrice,
+        stopLoss,
+        takeProfit,
+      }),
+    });
+
+    this.logger.log(`📡 Signal ${signalId} executed: ${signal.action} ${signal.pair} → Order ${order.id}`);
+
+    return {
+      signal,
+      order,
+      executionDetails: {
+        quantity: orderQuantity,
+        entryPrice,
+        stopLoss,
+        takeProfit,
+        riskRewardRatio: takeProfit ? Math.abs(takeProfit - entryPrice) / riskPerUnit : null,
+      },
+    };
   }
 
   // ── Private: Parse AI Response ──

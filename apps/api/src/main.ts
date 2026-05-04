@@ -133,11 +133,28 @@ async function bootstrap() {
     if (process.env.RAILWAY_STATIC_URL) {
       corsOrigins.push(process.env.RAILWAY_STATIC_URL);
     }
-    // Allow any *.up.railway.app URL (the Railway deployment domain)
-    // This ensures CORS works regardless of which Railway environment is used
+    // FIX: Use origin function to dynamically allow any *.up.railway.app URL.
+    // Previously, only the specific RAILWAY_PUBLIC_DOMAIN was allowed, but
+    // Railway uses different subdomains for preview deploys and PR environments.
+    // This ensures CORS works regardless of which Railway environment is used.
+    const corsOriginHandler = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      // Allow requests with no origin (mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+      // Allow all explicitly listed origins
+      if (corsOrigins.includes(origin)) return callback(null, true);
+      // Allow any *.up.railway.app subdomain (Railway deployment domains)
+      if (origin.match(/^https:\/\/[a-z0-9-]+\.up\.railway\.app$/)) return callback(null, true);
+      // Allow any *.railway.app subdomain (covers all Railway environments)
+      if (origin.match(/^https:\/\/[a-z0-9-]+\.railway\.app$/)) return callback(null, true);
+      // Allow localhost on any port for local development
+      if (origin.match(/^http:\/\/localhost:\d+$/)) return callback(null, true);
+      if (origin.match(/^http:\/\/127\.0\.0\.1:\d+$/)) return callback(null, true);
+      // Reject all other origins
+      callback(null, false);
+    };
 
     app.enableCors({
-      origin: corsOrigins,
+      origin: corsOriginHandler,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'x-roua-session'],

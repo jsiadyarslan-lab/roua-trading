@@ -22,6 +22,8 @@ import { ScannerModule } from './modules/scanner/scanner.module';
 import { PredictionMarketModule } from './modules/prediction-market/prediction-market.module';
 import { AutonomousTraderAgentModule } from './agents/autonomous-trader/agent.module';
 import { ContentAgentModule } from './agents/content/content-agent.module';
+import { StrategicCouncilModule } from './modules/ai/strategic-council/strategic-council.module';
+import { SmartExecutorModule } from './modules/ai/smart-executor/smart-executor.module';
 
 @Module({
   imports: [
@@ -99,6 +101,8 @@ import { ContentAgentModule } from './agents/content/content-agent.module';
     PredictionMarketModule,
     AutonomousTraderAgentModule,
     ContentAgentModule,
+    StrategicCouncilModule,
+    SmartExecutorModule,
   ],
 })
 export class AppModule {}

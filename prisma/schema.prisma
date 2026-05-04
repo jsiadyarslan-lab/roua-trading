@@ -39,6 +39,7 @@ model User {
   agentSessions       AgentSession[]
   agentSettings       AgentSettings?
   contentArticles    ContentArticle[]
+  tradingBriefs      TradingBrief[]
   telegramChatId      String?              // معرّف محادثة Telegram للمستخدم
 }
 
@@ -1026,4 +1027,69 @@ model ContentSchedule {
   @@index([scheduledAt])
   @@index([status])
   @@index([status, scheduledAt])
+}
+
+// ── AI Council Restructuring: Strategic Council & Smart Executor (Phase 10) ──
+
+enum BriefTimeframe {
+  H1
+  H4
+  D1
+  W1
+}
+
+enum BriefReviewStatus {
+  ACTIVE
+  MODIFIED
+  CANCELLED
+}
+
+enum BriefDirection {
+  BUY
+  SELL
+}
+
+model TradingBrief {
+  id              String            @id @default(cuid())
+  userId          String?           // null = system-generated (global brief)
+
+  // Trading Details
+  pair            String            // e.g. "BTC/USDT", "EUR/USD", "AAPL"
+  direction       BriefDirection    // BUY or SELL
+  entryPrice      Decimal           @db.Decimal(19, 8)
+  stopLoss        Decimal           @db.Decimal(19, 8)  // MANDATORY
+  takeProfit      Decimal           @db.Decimal(19, 8)
+  confidence      Int               @default(0)  // 0-100
+  timeframe       BriefTimeframe
+
+  // Timing
+  issuedAt        DateTime          @default(now())
+  expiresAt       DateTime
+  isActive        Boolean           @default(true)
+
+  // Strict Rules (JSON)
+  strictRules     String            @default("{}")  // { maxEntryPrice, minEntryPrice, maxSlippage }
+
+  // Review Tracking
+  lastReviewedAt  DateTime          @default(now())
+  reviewStatus    BriefReviewStatus @default(ACTIVE)
+
+  // Analysis Context
+  analysisSummary String?           // AI reasoning / context for this brief
+
+  // Audit
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user            User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([pair])
+  @@index([timeframe])
+  @@index([isActive])
+  @@index([reviewStatus])
+  @@index([expiresAt])
+  @@index([isActive, expiresAt])
+  @@index([pair, timeframe, isActive])
+  @@index([userId, isActive, reviewStatus])
 }

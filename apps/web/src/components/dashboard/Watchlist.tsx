@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Star } from 'lucide-react'
 import { useDashboardStore } from '@/lib/dashboard-store'
+import { useMarketStore } from '@/hooks/useMarketStore'
 
 interface WatchlistItem {
   symbol: string
@@ -36,21 +37,23 @@ export default function Watchlist() {
     return new Set(['BTC/USD', 'XAU/USD'])
   })
 
-  // Simulated live price updates via useWebSocketTicker pattern
-  const [liveAssets, setLiveAssets] = useState(defaultAssets)
+  // Live prices from useMarketStore (real data, no simulation)
+  const quotes = useMarketStore(state => state.quotes)
 
-  useEffect(() => {
-    // Simulate WebSocket ticker updates every 2 seconds
-    const interval = setInterval(() => {
-      setLiveAssets((prev) =>
-        prev.map((asset) => ({
-          ...asset,
-          change: +(asset.change + (Math.random() - 0.5) * 0.1).toFixed(2),
-        })),
-      )
-    }, 2000)
-    return () => clearInterval(interval)
-  }, [])
+  // Merge real-time quotes into asset data
+  const liveAssets = useMemo(() => defaultAssets.map(asset => {
+    const q = quotes[asset.symbol]
+    if (q) {
+      return {
+        ...asset,
+        price: q.price > 1000
+          ? q.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+          : q.price.toFixed(q.price < 10 ? 5 : 2),
+        change: q.changePercent,
+      }
+    }
+    return asset
+  }), [quotes])
 
   // Persist favorites to localStorage
   useEffect(() => {

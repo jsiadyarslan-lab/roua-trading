@@ -76,7 +76,7 @@ export function OrderBookMini() {
     }
 
     setIsCrypto(true)
-    const wsUrl = `wss://stream.binance.com:9443/ws/${streamId}@depth20@100ms`
+    const wsUrl = `wss://stream.binance.com:9443/ws/${streamId}@depth20@1000ms`
 
     // Small delay to ensure old connection is fully closed before opening new one
     setTimeout(() => {

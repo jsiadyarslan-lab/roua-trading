@@ -26,11 +26,30 @@ interface MarketStore {
   setQuotes: (data: Record<string, QuoteData>) => void
 }
 
+// ── Batched quote updates: coalesce multiple setQuote calls within a single
+// animation frame into one store update, drastically reducing re-renders.
+let pendingQuotes: Record<string, QuoteData> = {}
+let flushTimer: ReturnType<typeof requestAnimationFrame> | null = null
+
+function flushPendingQuotes() {
+  if (Object.keys(pendingQuotes).length === 0) return
+  const batch = pendingQuotes
+  pendingQuotes = {}
+  flushTimer = null
+  useMarketStore.setState((state) => ({
+    quotes: { ...state.quotes, ...batch }
+  }))
+}
+
 export const useMarketStore = create<MarketStore>((set) => ({
   quotes: {},
-  setQuote: (symbol, data) => set((state) => ({ 
-    quotes: { ...state.quotes, [symbol]: data } 
-  })),
+  setQuote: (symbol, data) => {
+    // Batch: accumulate updates and flush once per animation frame
+    pendingQuotes[symbol] = data
+    if (!flushTimer) {
+      flushTimer = requestAnimationFrame(flushPendingQuotes)
+    }
+  },
   setQuotes: (data) => set((state) => ({
     quotes: { ...state.quotes, ...data }
   }))

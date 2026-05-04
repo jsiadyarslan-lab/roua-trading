@@ -88,10 +88,11 @@ export function AlpacaPositions() {
   useEffect(() => {
     fetchPositions()
     fetchAccount()
+    // Poll every 30s — GlobalLogicEngine also polls, no need for 10s here
     const interval = setInterval(() => {
       fetchPositions()
       fetchAccount()
-    }, 10000)
+    }, 30000)
     return () => clearInterval(interval)
   }, [fetchPositions, fetchAccount])
 

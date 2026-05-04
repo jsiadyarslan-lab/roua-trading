@@ -53,7 +53,7 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull }: {
     };
     update();
     const unsub = chart.onVisibleRangeChange(update);
-    const interval = setInterval(update, 100);
+    const interval = setInterval(update, 500); // 500ms — sufficient for visual tracking without CPU overload
     return () => { unsub(); clearInterval(interval); };
   }, [chart, currentPrice]);
 

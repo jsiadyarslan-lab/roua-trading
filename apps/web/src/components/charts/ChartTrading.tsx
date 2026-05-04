@@ -57,14 +57,40 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: Ch
   }, [quantity, tp, currentPrice, side]);
 
   const handleSubmit = async () => {
+    // FIX: Enforce mandatory stop-loss BEFORE sending to backend.
+    // The backend will reject orders without SL anyway (RiskGatekeeper #1),
+    // but we check here first for a better user experience with a clear
+    // Arabic error message instead of a generic 403.
+    const slVal = parseFloat(sl);
+    if (!slVal || slVal <= 0) {
+      alert('⛔ وقف الخسارة إجباري! لا يمكن تقديم أمر بدون وقف خسارة — هذا القانون الأول في منصة رؤى.');
+      return;
+    }
+
+    // Validate SL direction relative to entry price and side
+    if (side === 'buy' && slVal >= currentPrice) {
+      alert('⛔ وقف الخسارة للشراء يجب أن يكون أقل من سعر الدخول الحالي.');
+      return;
+    }
+    if (side === 'sell' && slVal <= currentPrice) {
+      alert('⛔ وقف الخسارة للبيع يجب أن يكون أعلى من سعر الدخول الحالي.');
+      return;
+    }
+
+    const qty = parseFloat(quantity);
+    if (!qty || qty <= 0) {
+      alert('⛔ الكمية يجب أن تكون أكبر من صفر.');
+      return;
+    }
+
     setSubmitting(true);
     try {
       onPlaceOrder({
         side,
         type: orderType,
-        quantity: parseFloat(quantity) || 0,
+        quantity: qty,
         entryPrice: currentPrice,
-        sl: sl ? parseFloat(sl) : undefined,
+        sl: slVal,
         tp: tp ? parseFloat(tp) : undefined,
       });
     } finally {

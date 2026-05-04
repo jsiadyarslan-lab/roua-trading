@@ -22,6 +22,7 @@ import { StrategicCouncilService } from '../strategic-council/strategic-council.
 import { TradingBriefDTO, StrictRules } from '../strategic-council/strategic-council.types';
 import { ExecutorStatus, ExecutionResult, ExecutorConfig, UserExecutorState } from './smart-executor.types';
 import { PlaceOrderRequest, OrderSide, OrderType } from '../../trading/trading.types';
+import { RiskGatekeeperService } from '../../trading/services/risk-gatekeeper.service';
 
 @Injectable()
 export class SmartExecutorService implements OnModuleDestroy {
@@ -55,8 +56,9 @@ export class SmartExecutorService implements OnModuleDestroy {
     private readonly audit: AuditService,
     private readonly tradingService: TradingService,
     private readonly councilService: StrategicCouncilService,
+    private readonly riskGatekeeper: RiskGatekeeperService,
   ) {
-    this.logger.log('⚔️ Smart Executor initialized — awaiting activation');
+    this.logger.log('⚔️ Smart Executor initialized — awaiting activation (with RiskGatekeeper)');
   }
 
   // ── Lifecycle ──
@@ -564,6 +566,37 @@ export class SmartExecutorService implements OnModuleDestroy {
         stopLoss: brief.stopLoss,
         takeProfit: brief.takeProfit,
       };
+
+      // FIX: Run RiskGatekeeper 5-point validation BEFORE placing the order.
+      // Previously, SmartExecutor bypassed all 5 safety checks:
+      //   1. Stop-loss enforcement
+      //   2. Sufficient balance
+      //   3. Position size limit
+      //   4. Daily drawdown limit
+      //   5. Circuit breakers
+      // This was a critical gap — automated trades had LESS protection than manual ones.
+      if (!brief.stopLoss || brief.stopLoss <= 0) {
+        result.error = 'Brief has no stop-loss — BLOCKED by safety rules';
+        this.logger.warn(`⚔️ Brief ${brief.id} has no stop-loss — execution BLOCKED for user ${userId}`);
+        return result;
+      }
+
+      const riskResult = await this.riskGatekeeper.validateOrder({
+        userId,
+        exchangeCredentialId: credential.id,
+        symbol: brief.pair,
+        side: brief.direction === 'BUY' ? 'BUY' : 'SELL',
+        type: 'MARKET',
+        quantity,
+        stopLoss: brief.stopLoss,
+        idempotencyKey: `smart-exec-${brief.id}-${userId}`,
+      });
+
+      if (!riskResult.allowed) {
+        result.error = `Risk gatekeeper blocked: ${riskResult.reason || 'Unknown risk'}`;
+        this.logger.warn(`⚔️ Risk gatekeeper BLOCKED execution of brief ${brief.id} for user ${userId}: ${riskResult.reason}`);
+        return result;
+      }
 
       const orderResult = await this.tradingService.placeOrder(userId, orderRequest);
 

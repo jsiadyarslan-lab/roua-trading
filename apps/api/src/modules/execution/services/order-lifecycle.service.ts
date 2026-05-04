@@ -270,6 +270,22 @@ export class OrderLifecycleService {
 
       if (!order) return;
 
+      // FIX: Check if a trade already exists for this order.
+      // When an order goes through the v1 pipeline (TradingService.placeOrder()),
+      // it already creates a Trade record and updates the position in a single
+      // transaction. If OrderLifecycleService also creates a position, we get
+      // a duplicate. This check prevents that by looking for existing trades.
+      const existingTrade = await this.prisma.trade.findFirst({
+        where: { orderId },
+      });
+
+      if (existingTrade) {
+        this.logger.debug(
+          `📊 Order ${orderId} already has a trade record (id: ${existingTrade.id}) — skipping position update to prevent duplicate`,
+        );
+        return;
+      }
+
       // Wrap findFirst + update/create in a serializable transaction
       // to prevent race conditions when concurrent fills update the same position
       await this.prisma.$transaction(async (tx) => {

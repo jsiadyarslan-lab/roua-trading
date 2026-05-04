@@ -93,37 +93,73 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     if (pollingRef.current) clearInterval(pollingRef.current);
     setConnectionState('fallback');
 
+    // FIX: Also poll for non-crypto symbols (previously skipped entirely)
+    // Use a longer interval for non-crypto (30s) since they're less volatile
+    const interval = isCryptoPair(symbol) ? POLLING_INTERVAL : 30000;
+
     // Initial fetch
     fetchLatestCandle();
 
-    pollingRef.current = setInterval(fetchLatestCandle, POLLING_INTERVAL);
-  }, [symbol, timeframe]);
+    pollingRef.current = setInterval(fetchLatestCandle, interval);
+  }, [symbol, timeframe, fetchLatestCandle]);
 
   // ── Fetch latest candle via REST ───────────────────────
   const fetchLatestCandle = useCallback(async () => {
-    if (!isCryptoPair(symbol)) return;
+    if (!symbol) return;
 
     try {
-      const binanceSymbol = normalizeBinanceSymbol(symbol);
-      const interval = BINANCE_INTERVALS[timeframe] || '1m';
-      const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol.toUpperCase()}&interval=${interval}&limit=2`;
+      // For crypto pairs: use Binance API directly
+      if (isCryptoPair(symbol)) {
+        const binanceSymbol = normalizeBinanceSymbol(symbol);
+        const interval = BINANCE_INTERVALS[timeframe] || '1m';
+        const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol.toUpperCase()}&interval=${interval}&limit=2`;
 
-      const res = await fetch(url);
-      if (!res.ok) return;
+        const res = await fetch(url);
+        if (!res.ok) return;
 
-      const data = await res.json();
-      if (data.length > 0) {
-        const k = data[data.length - 1];
-        const candle: CandleData = {
-          time: Math.floor(k[0] / 1000),
-          open: parseFloat(k[1]),
-          high: parseFloat(k[2]),
-          low: parseFloat(k[3]),
-          close: parseFloat(k[4]),
-          volume: parseFloat(k[5]),
-        };
-        onCandleUpdate(candle);
-        onPriceUpdate(candle.close);
+        const data = await res.json();
+        if (data.length > 0) {
+          const k = data[data.length - 1];
+          const candle: CandleData = {
+            time: Math.floor(k[0] / 1000),
+            open: parseFloat(k[1]),
+            high: parseFloat(k[2]),
+            low: parseFloat(k[3]),
+            close: parseFloat(k[4]),
+            volume: parseFloat(k[5]),
+          };
+          onCandleUpdate(candle);
+          onPriceUpdate(candle.close);
+        }
+      } else {
+        // FIX: For non-crypto assets (stocks, forex, commodities),
+        // use the backend API proxy which routes to TwelveData or FreeFallback.
+        // Previously, non-crypto symbols got NO updates at all — the user
+        // saw a completely static chart for stocks like AAPL or forex like EUR/USD.
+        const apiBase = window.location.origin;
+        const res = await fetch(`${apiBase}/api/analytics/analyze/${encodeURIComponent(symbol)}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (!res.ok) return;
+
+        const result = await res.json();
+        const quote = result?.data?.quote;
+        if (quote && quote.price > 0) {
+          onPriceUpdate(quote.price);
+          // Create a synthetic candle from the quote data
+          const now = Math.floor(Date.now() / 1000);
+          const candle: CandleData = {
+            time: now - (now % 60), // Round to current minute
+            open: quote.open || quote.price,
+            high: quote.high || quote.price,
+            low: quote.low || quote.price,
+            close: quote.price,
+            volume: quote.volume || 0,
+          };
+          onCandleUpdate(candle);
+        }
       }
     } catch {
       // Silent fail — will retry

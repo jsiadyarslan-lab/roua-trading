@@ -32,6 +32,7 @@ import {
 import { TrendingUp, TrendingDown, Award, Target, BarChart2, X as XIcon, Shield, Activity, RefreshCw, Loader2, AlertTriangle, ChevronRight, Clock, History, Brain } from 'lucide-react'
 import { usePaperTradesStore, ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
 import { fetchPositionsUnified, fetchSummaryUnified, closePositionUnified } from '@/lib/api-fetch'
+import { fmtPriceLocale } from '@/lib/price-format'
 
 /* ── Theme ── */
 import { T } from '@/lib/unified-tokens'
@@ -40,10 +41,9 @@ function fmt(n: number, decimals = 2) {
   return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 }
 
-const formatPrice = (value: number) => {
-  if (value >= 1000) return `$${fmt(value, 2)}`
-  if (value >= 1) return `$${fmt(value, 2)}`
-  return `$${fmt(value, 6)}`
+const formatPrice = (value: number, symbol?: string) => {
+  if (value === 0) return '—'
+  return fmtPriceLocale(value, symbol)
 }
 
 /* ── Types ── */
@@ -698,10 +698,10 @@ export default function PortfolioPage() {
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, fontSize: 10 }}>
                       <div><span style={{ color: T.text3 }}>الكمية: </span><span style={{ color: T.text2 }}>{pos.quantity}</span></div>
-                      <div><span style={{ color: T.text3 }}>دخول: </span><span style={{ color: T.text2 }}>{formatPrice(pos.entryPrice)}</span></div>
-                      <div><span style={{ color: T.text3 }}>حالي: </span><span style={{ color: T.text, fontWeight: 700 }}>{pos.currentPrice ? formatPrice(pos.currentPrice) : '—'}</span></div>
-                      <div><span style={{ color: T.text3 }}>SL: </span><span style={{ color: T.red }}>{pos.stopLoss ? formatPrice(pos.stopLoss) : '—'}</span></div>
-                      <div><span style={{ color: T.text3 }}>TP: </span><span style={{ color: T.green }}>{pos.takeProfit ? formatPrice(pos.takeProfit) : '—'}</span></div>
+                      <div><span style={{ color: T.text3 }}>دخول: </span><span style={{ color: T.text2 }}>{formatPrice(pos.entryPrice, pos.symbol)}</span></div>
+                      <div><span style={{ color: T.text3 }}>حالي: </span><span style={{ color: T.text, fontWeight: 700 }}>{pos.currentPrice ? formatPrice(pos.currentPrice, pos.symbol) : '—'}</span></div>
+                      <div><span style={{ color: T.text3 }}>SL: </span><span style={{ color: T.red }}>{pos.stopLoss ? formatPrice(pos.stopLoss, pos.symbol) : '—'}</span></div>
+                      <div><span style={{ color: T.text3 }}>TP: </span><span style={{ color: T.green }}>{pos.takeProfit ? formatPrice(pos.takeProfit, pos.symbol) : '—'}</span></div>
                     </div>
                   </div>
                 ))}
@@ -751,10 +751,10 @@ export default function PortfolioPage() {
                       }}>{pos.side === 'BUY' ? 'شراء ↑' : 'بيع ↓'}</span>
                     </div>
                     <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.quantity}</div>
-                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatPrice(pos.entryPrice)}</div>
-                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.currentPrice ? formatPrice(pos.currentPrice) : '—'}</div>
-                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.red, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.stopLoss ? formatPrice(pos.stopLoss) : '—'}</div>
-                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.green, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.takeProfit ? formatPrice(pos.takeProfit) : '—'}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatPrice(pos.entryPrice, pos.symbol)}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.currentPrice ? formatPrice(pos.currentPrice, pos.symbol) : '—'}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.red, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.stopLoss ? formatPrice(pos.stopLoss, pos.symbol) : '—'}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.green, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.takeProfit ? formatPrice(pos.takeProfit, pos.symbol) : '—'}</div>
                     <div style={{
                       textAlign: 'center', fontFamily: "'JetBrains Mono', monospace",
                       fontSize: 11, fontWeight: 700,
@@ -913,8 +913,8 @@ export default function PortfolioPage() {
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 10 }}>
                             <div><span style={{ color: T.text3 }}>حجم: </span><span style={{ color: T.text2 }}>{pt.quantity}</span></div>
-                            <div><span style={{ color: T.text3 }}>دخول: </span><span style={{ color: T.text2 }}>{formatPrice(pt.price)}</span></div>
-                            <div><span style={{ color: T.text3 }}>إغلاق: </span><span style={{ color: T.text2 }}>{pt.exitPrice ? formatPrice(pt.exitPrice) : '—'}</span></div>
+                            <div><span style={{ color: T.text3 }}>دخول: </span><span style={{ color: T.text2 }}>{formatPrice(pt.price, pt.symbol)}</span></div>
+                            <div><span style={{ color: T.text3 }}>إغلاق: </span><span style={{ color: T.text2 }}>{pt.exitPrice ? formatPrice(pt.exitPrice, pt.symbol) : '—'}</span></div>
                             <div><span style={{ color: T.text3 }}>مدة: </span><span style={{ color: T.text2 }}>{formatDuration(pt.openedAt, pt.executedAt)}</span></div>
                             <div><span style={{ color: T.text3 }}>وقت: </span><span style={{ color: T.text2 }}>{pt.executedAt ? new Date(pt.executedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span></div>
                           </div>
@@ -972,9 +972,9 @@ export default function PortfolioPage() {
                         }}>{pt.side === 'BUY' ? 'شراء' : 'بيع'}</span>
                       </div>
                       <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{pt.quantity}</div>
-                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{formatPrice(pt.price)}</div>
+                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{formatPrice(pt.price, pt.symbol)}</div>
                       <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>
-                        {pt.exitPrice ? formatPrice(pt.exitPrice) : '—'}
+                        {pt.exitPrice ? formatPrice(pt.exitPrice, pt.symbol) : '—'}
                       </div>
                       <div style={{
                         textAlign: 'center', fontFamily: "'JetBrains Mono', monospace",
@@ -1075,7 +1075,7 @@ export default function PortfolioPage() {
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 10 }}>
                       <div><span style={{ color: T.text3 }}>الكمية: </span><span style={{ color: T.text2 }}>{trade.quantity}</span></div>
-                      <div><span style={{ color: T.text3 }}>السعر: </span><span style={{ color: T.text2 }}>{formatPrice(trade.price)}</span></div>
+                      <div><span style={{ color: T.text3 }}>السعر: </span><span style={{ color: T.text2 }}>{formatPrice(trade.price, trade.symbol)}</span></div>
                       <div><span style={{ color: T.text3 }}>الوقت: </span><span style={{ color: T.text2 }}>{new Date(trade.executedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span></div>
                     </div>
                   </div>
@@ -1125,7 +1125,7 @@ export default function PortfolioPage() {
                       {trade.type === 'ENTRY' ? 'دخول' : trade.type === 'EXIT' ? 'خروج' : 'خروج جزئي'}
                     </div>
                     <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{trade.quantity}</div>
-                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{formatPrice(trade.price)}</div>
+                    <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{formatPrice(trade.price, trade.symbol)}</div>
                     <div style={{
                       textAlign: 'center', fontFamily: "'JetBrains Mono', monospace",
                       fontSize: 10, fontWeight: 700,

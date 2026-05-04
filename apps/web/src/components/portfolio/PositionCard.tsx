@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X as XIcon, TrendingUp, TrendingDown } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
+import { fmtPrice, fmtPriceLocale } from '@/lib/price-format'
 
 interface PositionCardProps {
   symbol: string
@@ -74,11 +75,9 @@ export function PositionCard({
   const effectiveSl = sl ?? stopLoss
   const effectiveTp = tp ?? takeProfit
 
-  const formatPrice = (price: number) => {
+  const formatPriceDisplay = (price: number) => {
     if (price === 0) return '—'
-    return price > 100
-      ? price.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-      : price.toFixed(4)
+    return fmtPriceLocale(price, symbol)
   }
 
   return (
@@ -179,7 +178,7 @@ export function PositionCard({
               fontFamily: "'JetBrains Mono', monospace",
             }}
           >
-            {formatPrice(avgEntryPrice)}
+            {formatPriceDisplay(avgEntryPrice)}
           </div>
         </div>
         <div style={{ minWidth: 0 }}>
@@ -200,7 +199,7 @@ export function PositionCard({
               fontFamily: "'JetBrains Mono', monospace",
             }}
           >
-            {formatPrice(currentPrice)}
+            {formatPriceDisplay(currentPrice)}
           </div>
         </div>
       </div>

@@ -51,6 +51,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
+import { fmtPriceLocale } from '@/lib/price-format'
 
 // ── Types ──
 interface Position {
@@ -426,9 +427,8 @@ export default function TradingPage() {
     new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(value)
 
   const formatPrice = (value: number) => {
-    if (value >= 1000) return formatCurrency(value)
-    if (value >= 1) return value.toFixed(2)
-    return value.toFixed(6)
+    // Use unified price formatting — respects JPY (3dp), BTC (2dp), forex (5dp)
+    return fmtPriceLocale(value, selectedSymbol)
   }
 
   const formatVolume = (value: number) => {

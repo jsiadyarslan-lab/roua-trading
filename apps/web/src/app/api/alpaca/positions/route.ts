@@ -37,12 +37,15 @@ export async function GET(request: NextRequest) {
       rawSymbol:     p.symbol,
       side:          p.side,
       qty:           parseFloat(p.qty)           || 0,
+      entryPrice:    parseFloat(p.avg_entry_price) || 0,
       avgEntryPrice: parseFloat(p.avg_entry_price) || 0,
       currentPrice:  parseFloat(p.current_price) || 0,
       marketValue:   parseFloat(p.market_value)  || 0,
       unrealizedPnl: parseFloat(p.unrealized_pl) || 0,
       unrealizedPct: parseFloat(p.unrealized_plpc) * 100 || 0,
       costBasis:     parseFloat(p.cost_basis)    || 0,
+      stopLoss:      parseFloat(p.stop_loss)     || undefined,
+      takeProfit:    parseFloat(p.take_profit)   || undefined,
     }))
 
     return NextResponse.json({ success: true, data: positions })

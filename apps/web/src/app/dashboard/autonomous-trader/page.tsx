@@ -10,6 +10,7 @@ import {
   RotateCcw, Rocket, PiggyBank, Brain, Eye, BarChart2
 } from 'lucide-react'
 import { useAgentStore, AgentStatus, StrategyType, MarketRegime, RegimeInfo } from '@/hooks/useAgentStore'
+import { fmtPriceLocale } from '@/lib/price-format'
 
 /* ═══════════════════════════════════════════════
    Design Tokens — matching Roua Trading theme
@@ -1203,10 +1204,10 @@ export default function AutonomousTraderPage() {
                 {/* Prices */}
                 <div style={{ textAlign: 'left', direction: 'ltr' }}>
                   <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: T.text }}>
-                    {Number(pos.entryPrice).toLocaleString('en', { maximumFractionDigits: 4 })}
+                    {fmtPriceLocale(Number(pos.entryPrice), pos.symbol)}
                   </div>
                   <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.text3 }}>
-                    → {pos.currentPrice ? Number(pos.currentPrice).toLocaleString('en', { maximumFractionDigits: 4 }) : '—'}
+                    → {pos.currentPrice ? fmtPriceLocale(Number(pos.currentPrice), pos.symbol) : '—'}
                   </div>
                 </div>
 
@@ -1215,11 +1216,11 @@ export default function AutonomousTraderPage() {
                   <div style={{ display: 'flex', gap: 8 }}>
                     <div>
                       <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>SL</div>
-                      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.red }}>{pos.stopLoss ? Number(pos.stopLoss).toFixed(2) : '—'}</div>
+                      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.red }}>{pos.stopLoss ? fmtPriceLocale(Number(pos.stopLoss), pos.symbol) : '—'}</div>
                     </div>
                     <div>
                       <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>TP</div>
-                      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.green }}>{pos.takeProfit ? Number(pos.takeProfit).toFixed(2) : '—'}</div>
+                      <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.green }}>{pos.takeProfit ? fmtPriceLocale(Number(pos.takeProfit), pos.symbol) : '—'}</div>
                     </div>
                   </div>
                 </div>

@@ -2,6 +2,7 @@
 
 import { useRef } from 'react'
 import { useMarketStore } from '@/hooks/useMarketStore'
+import { fmtPriceLocale } from '@/lib/price-format'
 
 const TICKER_SYMBOLS = ['EUR/USD', 'GBP/USD', 'BTC/USDT', 'XAU/USD', 'AAPL', 'TSLA', 'USD/JPY']
 
@@ -10,18 +11,6 @@ interface TickItem {
   price: string
   change: string
   isPositive: boolean
-}
-
-function formatTickerPrice(price: number, symbol: string): string {
-  if (price === 0) return '—'
-  // Forex pairs: 5 decimal places
-  if (symbol.includes('/') && ['USD', 'EUR', 'GBP', 'JPY'].some(c => symbol.includes(c)) && !symbol.includes('BTC') && !symbol.includes('ETH')) {
-    return price < 10 ? price.toFixed(5) : price.toFixed(2)
-  }
-  // Crypto: depends on magnitude
-  if (price > 1000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  if (price > 1) return price.toFixed(2)
-  return price.toFixed(6)
 }
 
 export default function TickerBar() {
@@ -37,7 +26,7 @@ export default function TickerBar() {
     }
     return {
       symbol,
-      price: formatTickerPrice(quote.price, symbol),
+      price: quote.price > 0 ? fmtPriceLocale(quote.price, symbol) : '—',
       change: `${quote.changePercent >= 0 ? '+' : ''}${quote.changePercent.toFixed(2)}%`,
       isPositive: quote.changePercent >= 0,
     }

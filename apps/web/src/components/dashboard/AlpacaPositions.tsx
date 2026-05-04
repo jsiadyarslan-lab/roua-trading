@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { RefreshCw, TrendingDown, TrendingUp, X as XIcon, History } from 'lucide-react'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { usePaperTradesStore, type ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
-import { fmtPriceLocale as fmtPrice, fmtPnl } from '@/lib/price-format'
+import { fmtPriceLocale as fmtPrice, fmtPrice as fmtPricePlain, fmtPnl } from '@/lib/price-format'
 
 interface Position {
   symbol: string
@@ -310,19 +310,19 @@ export function AlpacaPositions() {
               </div>
 
               <div style={{ fontSize: 8, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center', whiteSpace: 'nowrap' }}>
-                {fmtPrice(position.avgEntryPrice)}
+                {fmtPrice(position.avgEntryPrice, position.symbol)}
               </div>
 
               <div style={{ fontSize: 8, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center', whiteSpace: 'nowrap' }}>
-                {fmtPrice(position.currentPrice)}
+                {fmtPrice(position.currentPrice, position.symbol)}
               </div>
 
               <div style={{ fontSize: 7.5, fontWeight: 800, color: position.tp ? T.success : T.text3, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center', whiteSpace: 'nowrap' }}>
-                {position.tp ? fmtPrice(position.tp) : '—'}
+                {position.tp ? fmtPrice(position.tp, position.symbol) : '—'}
               </div>
 
               <div style={{ fontSize: 7.5, fontWeight: 800, color: position.sl ? T.danger : T.text3, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center', whiteSpace: 'nowrap' }}>
-                {position.sl ? fmtPrice(position.sl) : '—'}
+                {position.sl ? fmtPrice(position.sl, position.symbol) : '—'}
               </div>
 
               <div style={{ fontSize: 8.5, fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center', whiteSpace: 'nowrap' }}>
@@ -410,7 +410,7 @@ export function AlpacaPositions() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <span style={{ fontSize: 7, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
-                        {fmtPrice(ct.entryPrice)} → {fmtPrice(ct.exitPrice)}
+                        {fmtPricePlain(ct.entryPrice, ct.symbol)} → {fmtPricePlain(ct.exitPrice, ct.symbol)}
                       </span>
                       <span style={{ fontSize: 9, fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace" }}>
                         {fmtPnl(ct.realizedPnl)}

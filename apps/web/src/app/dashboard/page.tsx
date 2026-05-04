@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { QuoteData } from '@/hooks/useMarketStore'
 import { ChevronDown, PanelRight, Zap, X, Target } from 'lucide-react'
@@ -519,11 +519,23 @@ export default function DashboardPage() {
   const [sidebarPinned, setSidebarPinned] = useState(false)
   const [tradeDialogOpen, setTradeDialogOpen] = useState(false)
 
-  // ── Chart Height: Pure CSS flex ──
+  // ── Chart Height: Pure CSS flex + explicit resize trigger ──
   // Chart uses flex:1 so it fills remaining space after banner + balance panel.
-  // When positions open/close, the balance panel grows/shrinks naturally,
-  // and the chart auto-adjusts via flex. The ResizeObserver in useChart.ts
-  // detects the container size change and resizes the canvas.
+  // When positions open/close, we dispatch a window resize event so that
+  // the ResizeObserver in useChart.ts detects the container size change
+  // and resizes the TradingView canvas.
+  const chartPanelRef = useRef<HTMLDivElement | null>(null)
+
+  // Force chart canvas resize after positions toggle
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.dispatchEvent(new Event('resize'))
+    }, 50)
+    const timer2 = setTimeout(() => {
+      window.dispatchEvent(new Event('resize'))
+    }, 300)
+    return () => { clearTimeout(timer); clearTimeout(timer2) }
+  }, [posOpen])
 
   useEffect(() => {
     fetchAccount()
@@ -1132,7 +1144,7 @@ export default function DashboardPage() {
               )}
             </div>
             {/* Chart Panel — flex:1 fills remaining space after banner + balance panel */}
-            <div className="panel" style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none' }}>
+            <div ref={chartPanelRef} className="panel" style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none' }}>
               <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(26, 29, 41, 0.65)' }}>
                 <RouaChart
                   currentPrice={currentPrice}

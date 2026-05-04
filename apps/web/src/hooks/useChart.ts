@@ -81,6 +81,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const drawingRendererRef = useRef<DrawingRenderer | null>(null);
   const shortcutsRef = useRef<KeyboardShortcuts | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const windowResizeHandlerRef = useRef<(() => void) | null>(null);
   const mainSeriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
   const priceLinesRef = useRef<Map<string, any>>(new Map());
   const onCrosshairMoveRef = useRef(onCrosshairMove);
@@ -298,6 +299,24 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     ro.observe(container);
     resizeObserverRef.current = ro;
 
+    // ── Window Resize Listener (backup for flex layout changes) ──
+    // ResizeObserver on the canvas container may not fire when parent flex
+    // changes (especially with position:absolute + inset:0 children).
+    // Listening to window resize as a fallback ensures the chart resizes
+    // when the layout shifts (e.g. positions panel opens/closes).
+    // Also, page.tsx dispatches a synthetic 'resize' event when posOpen changes.
+    const handleWindowResize = () => {
+      if (chart && containerRef.current) {
+        const w = containerRef.current.clientWidth;
+        const h = containerRef.current.clientHeight;
+        if (w > 0 && h > 0) {
+          chart.applyOptions({ width: w, height: h });
+        }
+      }
+    };
+    window.addEventListener('resize', handleWindowResize);
+    windowResizeHandlerRef.current = handleWindowResize;
+
     // ── Subscribe to visible range change (if callback already registered) ──
     if (visibleRangeCallbackRef.current) {
       chart.timeScale().subscribeVisibleLogicalRangeChange(visibleRangeCallbackRef.current);
@@ -369,6 +388,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       }
       if (resizeObserverRef.current) {
         resizeObserverRef.current.disconnect();
+      }
+      if (windowResizeHandlerRef.current) {
+        window.removeEventListener('resize', windowResizeHandlerRef.current);
+        windowResizeHandlerRef.current = null;
       }
       if (shortcutsRef.current) {
         shortcutsRef.current.detach();

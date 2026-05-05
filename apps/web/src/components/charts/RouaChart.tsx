@@ -583,6 +583,9 @@ export default function RouaChart({
     setSettingsIndicator(null);
   }, [chart]);
 
+  // ── Fetch Active Trading Signals for Chart Markers ──
+  const [signalMarkers, setSignalMarkers] = useState<any[]>([]);
+
   // ── AI Pattern Handler ─────────────────────────────────
   const aiOverlaySeriesRef = useRef<any[]>([]);
   const aiPriceLinesRef = useRef<string[]>([]);
@@ -801,9 +804,7 @@ export default function RouaChart({
     console.log('Chart order placed:', order);
   }, [selectedSymbol]);
 
-  // ── Fetch Active Trading Signals for Chart Markers ──
-  const [signalMarkers, setSignalMarkers] = useState<any[]>([]);
-
+  // ── Fetch Active Trading Signals (signalMarkers declared above) ──
   useEffect(() => {
     let cancelled = false;
     const fetchSignals = async () => {

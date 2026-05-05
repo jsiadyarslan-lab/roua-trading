@@ -6,9 +6,9 @@
 // يحل محل نقاط نهاية CouncilScheduler القديم في EngineController
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Controller, Get, Post, Body, UseGuards, Logger, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Logger, Req, Query } from '@nestjs/common';
 import { StrategicCouncilService } from './strategic-council.service';
-import { AuthGuard } from '../../../common/guards/auth.guard';
+import { AuthGuard, Public } from '../../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
 
 @Controller('strategic-council')
@@ -22,7 +22,10 @@ export class StrategicCouncilController {
    * GET /api/strategic-council/briefs — Get all briefs (combined active + recent)
    * FIX: Added this route because the frontend and API callers sometimes use
    * /briefs without /active suffix, causing 404 errors.
+   * FIX: Marked @Public() so the frontend dashboard can display briefs without
+   * requiring authentication. These are read-only aggregated data, not user-specific.
    */
+  @Public()
   @Get('briefs')
   async getAllBriefs() {
     const [active, count] = await Promise.all([
@@ -34,16 +37,26 @@ export class StrategicCouncilController {
 
   /**
    * GET /api/strategic-council/briefs/active — Get active trading briefs
+   * FIX: Marked @Public() + added optional ?symbol= query parameter.
+   * The chart-signals.ts was passing ?symbol= but the backend was ignoring it.
+   * Now filters by pair when symbol is provided, otherwise returns all active briefs.
    */
+  @Public()
   @Get('briefs/active')
-  async getActiveBriefs() {
+  async getActiveBriefs(@Query('symbol') symbol?: string) {
+    if (symbol) {
+      const briefs = await this.councilService.getBriefsForPair(symbol);
+      return { success: true, data: briefs };
+    }
     const briefs = await this.councilService.getActiveBriefs();
     return { success: true, data: briefs };
   }
 
   /**
    * GET /api/strategic-council/briefs/history — Get brief history
+   * FIX: Marked @Public() so the dashboard can show history without auth.
    */
+  @Public()
   @Get('briefs/history')
   async getBriefHistory() {
     const briefs = await this.councilService.getBriefHistory();
@@ -52,7 +65,9 @@ export class StrategicCouncilController {
 
   /**
    * GET /api/strategic-council/briefs/count — Get active briefs count
+   * FIX: Marked @Public() so the dashboard can show counts without auth.
    */
+  @Public()
   @Get('briefs/count')
   async getActiveBriefsCount() {
     const count = await this.councilService.getActiveBriefsCount();
@@ -78,7 +93,9 @@ export class StrategicCouncilController {
 
   /**
    * GET /api/strategic-council/session/last — Get last session result
+   * FIX: Marked @Public() so the dashboard can show last session without auth.
    */
+  @Public()
   @Get('session/last')
   async getLastSession() {
     const result = await this.councilService.getLastSession();

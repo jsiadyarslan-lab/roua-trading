@@ -857,6 +857,21 @@ EOSQL
     CREATE INDEX IF NOT EXISTS "TradingBrief_pair_isActive_reviewStatus_idx" ON "TradingBrief"("pair", "isActive", "reviewStatus");
     CREATE INDEX IF NOT EXISTS "TradingBrief_isActive_reviewStatus_idx" ON "TradingBrief"("isActive", "reviewStatus");
 
+    -- FIX: TradingBrief foreign key constraint + missing indexes
+    -- Without this, queries with userId join fail silently or return incomplete data
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'TradingBrief_userId_fkey'
+      ) THEN
+        ALTER TABLE "TradingBrief" ADD CONSTRAINT "TradingBrief_userId_fkey"
+          FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+    CREATE INDEX IF NOT EXISTS "TradingBrief_userId_idx" ON "TradingBrief"("userId");
+    CREATE INDEX IF NOT EXISTS "TradingBrief_timeframe_idx" ON "TradingBrief"("timeframe");
+    CREATE INDEX IF NOT EXISTS "TradingBrief_userId_isActive_reviewStatus_idx" ON "TradingBrief"("userId", "isActive", "reviewStatus");
+
     -- ── Portfolio table (needed for portfolio features) ──
     CREATE TABLE IF NOT EXISTS "Portfolio" (
       "id" TEXT NOT NULL,

@@ -7,7 +7,7 @@
 
 import { Controller, Get, Post, Body, UseGuards, Logger, Request } from '@nestjs/common';
 import { SmartExecutorService } from './smart-executor.service';
-import { AuthGuard } from '../../../common/guards/auth.guard';
+import { AuthGuard, Public } from '../../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
 
 @Controller('smart-executor')
@@ -19,7 +19,11 @@ export class SmartExecutorController {
 
   /**
    * GET /api/smart-executor/status — Get global executor status
+   * FIX: Marked @Public() so the dashboard can show executor status without
+   * requiring authentication. Uses req.user?.id with optional chaining so
+   * it works for both authenticated and guest users.
    */
+  @Public()
   @Get('status')
   async getStatus(@Request() req: any) {
     const status = await this.executorService.getStatus(req.user?.id);

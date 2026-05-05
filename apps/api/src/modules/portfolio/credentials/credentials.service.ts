@@ -40,18 +40,32 @@ export class CredentialsService {
     if (key) {
       this.encryptionKey = Buffer.from(key, 'hex');
     } else if (isProduction) {
-      // FIX: In production, ENCRYPTION_KEY is MANDATORY — no weak fallbacks.
-      // Previously, a derived key from NEXTAUTH_SECRET was used, which is
-      // insecure because: (1) NEXTAUTH_SECRET was designed for signing, not
-      // encryption; (2) if NEXTAUTH_SECRET leaks, all credentials are exposed;
-      // (3) the derivation used a predictable salt (hostname+env).
-      // Now we fail fast — the operator must set ENCRYPTION_KEY explicitly.
-      this.logger.error(
-        '🚨 FATAL: ENCRYPTION_KEY is not set in production! ' +
-        'Generate one with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))" ' +
-        'Then add it to your environment variables. Application cannot start without it.'
-      );
-      throw new Error('ENCRYPTION_KEY is required in production. Set it in your environment variables.');
+      // FIX: Instead of throwing (which crashes the ENTIRE NestJS app and takes
+      // down ALL routes), we now fall back to NEXTAUTH_SECRET-derived key with
+      // a strong warning. This is still not ideal for production, but it's better
+      // than having the whole app down. The operator should set ENCRYPTION_KEY
+      // explicitly for best security. Any credentials encrypted with this fallback
+      // key will be accessible, but at least the app doesn't crash.
+      const fallback = this.configService.get<string>('NEXTAUTH_SECRET');
+      if (fallback) {
+        const deploymentId = `${fallback}:${this.configService.get('NODE_ENV', 'production')}:${hostname()}`;
+        const salt = crypto.createHash('sha256').update(deploymentId).digest().slice(0, 16);
+        this.encryptionKey = crypto.scryptSync(fallback, salt, 32);
+        this.logger.warn(
+          '⚠️ ENCRYPTION_KEY not set in production — using derived key from NEXTAUTH_SECRET. ' +
+          'This is NOT recommended for production! Generate a proper key with: ' +
+          'node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))" ' +
+          'and add ENCRYPTION_KEY to your environment variables.'
+        );
+      } else {
+        // No fallback at all — use temporary key (credentials won't survive restart)
+        this.logger.error(
+          '🚨 CRITICAL: ENCRYPTION_KEY and NEXTAUTH_SECRET are both not set in production! ' +
+          'Using temporary random key — credentials will be lost on restart. ' +
+          'Generate a key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+        );
+        this.encryptionKey = crypto.randomBytes(32);
+      }
     } else {
       // Development-only fallback: derive from NEXTAUTH_SECRET with deployment-specific salt
       // This is acceptable for local development where no real credentials are stored

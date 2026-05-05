@@ -50,7 +50,13 @@ export class AiController {
   /**
    * GET /api/ai/models — Get available AI models status
    * SECURITY: Only returns model names and availability, never key hints
+   *
+   * FIX: Marked @Public() so the frontend can check AI model status without
+   * authentication. Previously, this returned 401 for unauthenticated users,
+   * which broke the AI status panel on the dashboard. This endpoint only
+   * returns model availability — no sensitive data is exposed.
    */
+  @Public()
   @Get('models')
   async getModels() {
     const status = this.orchestrator.getModelsStatus();

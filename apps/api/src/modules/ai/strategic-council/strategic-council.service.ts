@@ -355,11 +355,17 @@ export class StrategicCouncilService {
    * Get active briefs for a specific pair
    */
   async getBriefsForPair(pair: string): Promise<TradingBriefDTO[]> {
-    const briefs = await this.prisma.tradingBrief.findMany({
-      where: { pair, isActive: true, reviewStatus: 'ACTIVE' },
-      orderBy: { issuedAt: 'desc' },
-    });
-    return briefs.map((b) => this._toDTO(b));
+    try {
+      const briefs = await this.prisma.tradingBrief.findMany({
+        where: { pair, isActive: true, reviewStatus: 'ACTIVE' },
+        orderBy: { issuedAt: 'desc' },
+      });
+      return briefs.map((b) => this._toDTO(b));
+    } catch (error: any) {
+      this.logger.error(`🏛️ getBriefsForPair failed: ${error.message}`);
+      // Return empty array instead of crashing — consistent with getActiveBriefs and getBriefHistory
+      return [];
+    }
   }
 
   /**

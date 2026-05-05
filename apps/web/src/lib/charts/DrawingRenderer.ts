@@ -198,7 +198,7 @@ export class DrawingRenderer {
     canvas.style.width = '100%';
     canvas.style.height = '100%';
     canvas.style.pointerEvents = 'none'; // Let chart handle pan/zoom by default
-    canvas.style.zIndex = '10';
+    canvas.style.zIndex = '9999'; // Above all chart overlays (trade panels, fill zones, etc.)
     canvas.dataset.rouaDrawingOverlay = 'true';
 
     this.sizeCanvas(canvas);

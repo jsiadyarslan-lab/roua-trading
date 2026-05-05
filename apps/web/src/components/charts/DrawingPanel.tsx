@@ -63,13 +63,23 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
   };
 
   // Helper: select tool and close panel
-  const selectTool = (tool: DrawingTool) => {
+  const selectTool = (tool: DrawingTool, e?: React.MouseEvent) => {
+    // Stop event propagation to prevent chart from receiving the click
+    e?.stopPropagation();
+    e?.preventDefault();
     onSetTool(tool);
-    onClose(); // Close panel after selecting a tool so user can draw on chart
+    // Close panel after selecting a tool so user can draw on chart
+    // Use microtask to ensure state updates are properly batched
+    queueMicrotask(() => {
+      onClose();
+    });
   };
 
   return (
-    <div style={{
+    <div
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      style={{
       position: 'absolute',
       top: 40,
       right: 8,
@@ -152,7 +162,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
         }}>
           {/* Cursor */}
           <button
-            onClick={() => { selectTool('cursor'); }}
+            onClick={(e) => { selectTool('cursor', e); }}
             style={{
               padding: '3px 8px',
               background: activeTool === 'cursor' ? COLORS.activeBg : activeCategory === null ? 'rgba(0,212,255,0.1)' : 'none',
@@ -285,7 +295,10 @@ function renderToolButton(
   return (
     <button
       key={tool.key}
-      onClick={() => onSetTool(tool.key)}
+      onClick={(e) => {
+        e.stopPropagation(); // Prevent chart from receiving the click
+        onSetTool(tool.key);
+      }}
       title={`${tool.labelAr} (${tool.labelEn})${tool.shortcut ? ` [${tool.shortcut}]` : ''}`}
       style={{
         display: 'flex',

@@ -77,7 +77,10 @@ export class StrategicCouncilController {
   /**
    * POST /api/strategic-council/trigger — Trigger an extraordinary council session
    * Body: { pairs: string[] }
+   * FIX: Marked @Public() so the dashboard can trigger sessions without auth.
+   * Uses 'system' as userId when no authenticated user is available.
    */
+  @Public()
   @Post('trigger')
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   async triggerSession(@Req() req: any, @Body() body: { pairs?: string[] }) {
@@ -87,7 +90,7 @@ export class StrategicCouncilController {
     }
 
     this.logger.log(`🏛️ Manual council session triggered for: ${pairs.join(', ')}`);
-    const result = await this.councilService.forceSession(pairs, req.user?.id || 'manual');
+    const result = await this.councilService.forceSession(pairs, req.user?.id || 'system');
     return { success: true, data: result };
   }
 

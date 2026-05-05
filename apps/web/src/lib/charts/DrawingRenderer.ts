@@ -129,6 +129,7 @@ export class DrawingRenderer {
     this.started = false;
 
     this.setChartInteractionEnabled(true);
+    this.container.style.cursor = ''; // Reset cursor
     this.detachEvents();
     this.removeOverlayCanvas();
     this.clickedPoints = [];
@@ -145,9 +146,11 @@ export class DrawingRenderer {
     if (tool === 'cursor') {
       this.setChartInteractionEnabled(true);
       this.setCanvasPointerEvents(false); // Let chart handle pan/zoom
+      this.container.style.cursor = '';
     } else {
       this.setChartInteractionEnabled(false);
       this.setCanvasPointerEvents(true);  // Capture mouse for drawing
+      this.container.style.cursor = 'crosshair'; // Visual feedback: user is in drawing mode
     }
     this.redraw();
   }
@@ -501,11 +504,9 @@ export class DrawingRenderer {
     this.isDrawing = false;
     this.mousePixel = null;
 
-    // Re-enable chart pan/zoom
-    this.setChartInteractionEnabled(true);
-
-    // Keep canvas pointerEvents as 'auto' since tool is still active
-    // (user might want to draw another line)
+    // Keep chart interaction disabled — tool is still active for next drawing.
+    // User can press Escape or switch to cursor to re-enable pan/zoom.
+    this.container.style.cursor = 'crosshair';
 
     this.redraw();
   }
@@ -2542,6 +2543,7 @@ export class DrawingRenderer {
     this.isDrawing = false;
     this.mousePixel = null;
     this.setChartInteractionEnabled(true);
+    this.container.style.cursor = ''; // Reset cursor
     if (this.currentTool === 'cursor') this.setCanvasPointerEvents(false);
     this.redraw();
   }

@@ -62,6 +62,12 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
     bg: '#0B0E14',
   };
 
+  // Helper: select tool and close panel
+  const selectTool = (tool: DrawingTool) => {
+    onSetTool(tool);
+    onClose(); // Close panel after selecting a tool so user can draw on chart
+  };
+
   return (
     <div style={{
       position: 'absolute',
@@ -146,7 +152,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
         }}>
           {/* Cursor */}
           <button
-            onClick={() => { onSetTool('cursor'); }}
+            onClick={() => { selectTool('cursor'); }}
             style={{
               padding: '3px 8px',
               background: activeTool === 'cursor' ? COLORS.activeBg : activeCategory === null ? 'rgba(0,212,255,0.1)' : 'none',
@@ -201,7 +207,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
             gridTemplateColumns: 'repeat(3, 1fr)',
             gap: 3,
           }}>
-            {filtered.map(tool => renderToolButton(tool, activeTool, onSetTool, COLORS))}
+            {filtered.map(tool => renderToolButton(tool, activeTool, selectTool, COLORS))}
           </div>
         ) : (
           // Category view: grouped by category
@@ -233,7 +239,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
                       labelAr: label.ar,
                       labelEn: label.en,
                     };
-                    return renderToolButton(tool, activeTool, onSetTool, COLORS);
+                    return renderToolButton(tool, activeTool, selectTool, COLORS);
                   })}
                 </div>
               </div>

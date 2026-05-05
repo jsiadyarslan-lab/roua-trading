@@ -942,9 +942,13 @@ export class AIOrchestratorService implements OnModuleDestroy {
       { id: 'groq', name: 'Groq/Llama 3.3 70B', keyEnv: 'GROQ_API_KEY' },
       { id: 'gemini', name: 'Gemini 2.0 Flash', keyEnv: 'GOOGLE_AI_STUDIO_API_KEY', altKeyEnv: 'GEMINI_API_KEY' },
       { id: 'glm', name: 'GLM-4 (Zhipu AI)', keyEnv: 'GLM_API_KEY' },
-      { id: 'huggingface', name: 'HuggingFace/Mistral-7B', keyEnv: 'HUGGINGFACE_API_KEY', altKeyEnv: 'HF_API_KEY' },  // Also checks OPENROUTER_API_KEY as fallback
+      { id: 'cerebras', name: 'Cerebras/Llama 3.1 8B', keyEnv: 'CEREBRAS_API_KEY', altKeyEnv: 'CEREBRAS_KEY' },  // 14,400 req/day FREE
       { id: 'ollama', name: 'Ollama/Qwen2.5', keyEnv: 'OLLAMA_API_KEY' },
       { id: 'bedrock', name: 'Bedrock/Claude 3.5', keyEnv: 'AWS_ACCESS_KEY_ID' },
+      { id: 'nvidia', name: 'NVIDIA NIM/Llama 3.3 70B', keyEnv: 'NVIDIA_API_KEY', altKeyEnv: 'NVIDIA_NIM_API_KEY' },  // 40 req/min FREE
+      { id: 'mistral', name: 'Mistral/Small', keyEnv: 'MISTRAL_API_KEY', altKeyEnv: 'MISTRAL_KEY' },  // 1B tokens/month FREE
+      // Legacy models (still available as fallback)
+      { id: 'huggingface', name: 'HuggingFace/Mistral-7B', keyEnv: 'HUGGINGFACE_API_KEY', altKeyEnv: 'HF_API_KEY' },
       { id: 'openrouter', name: 'OpenRouter/Llama 3.1', keyEnv: 'OPENROUTER_API_KEY' },
       { id: 'deepseek', name: 'DeepSeek V3', keyEnv: 'DEEPSEEK_API_KEY' },
     ];
@@ -995,6 +999,30 @@ export class AIOrchestratorService implements OnModuleDestroy {
           const orKey = this.configService.get<string>('OPENROUTER_API_KEY', '');
           if (orKey) {
             keyHint = `${orKey.substring(0, 4)}***${orKey.length > 8 ? orKey.substring(orKey.length - 4) : ''}`;
+          }
+        }
+
+        // For Cerebras, show alt key hint
+        if (m.id === 'cerebras') {
+          const altKey = process.env.CEREBRAS_KEY || '';
+          if (altKey && keyHint) {
+            keyHint += ` (checked: CEREBRAS_API_KEY or CEREBRAS_KEY)`;
+          }
+        }
+
+        // For NVIDIA, show alt key hint
+        if (m.id === 'nvidia') {
+          const nimKey = process.env.NVIDIA_NIM_API_KEY || process.env.NIM_API_KEY || '';
+          if (nimKey) {
+            keyHint += ` + NIM:${nimKey.substring(0, 4)}***`;
+          }
+        }
+
+        // For Mistral, show alt key hint
+        if (m.id === 'mistral') {
+          const altKey = process.env.MISTRAL_KEY || '';
+          if (altKey) {
+            keyHint += ` + MISTRAL_KEY:${altKey.substring(0, 4)}***`;
           }
         }
 
@@ -1066,7 +1094,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
     cooldownExpiresAt: string | null;
     cooldownRemainingMs: number;
   }> {
-    const models = ['groq', 'glm', 'gemini', 'huggingface', 'ollama', 'bedrock', 'openrouter', 'deepseek'];
+    const models = ['groq', 'glm', 'gemini', 'cerebras', 'ollama', 'bedrock', 'nvidia', 'mistral', 'huggingface', 'openrouter', 'deepseek'];
     const now = Date.now();
 
     return models.map(model => {
@@ -1099,9 +1127,13 @@ export class AIOrchestratorService implements OnModuleDestroy {
       this.groqService.analyze(enrichedRequest),
       this.glmService.analyze(enrichedRequest),
       this.geminiService.analyze(enrichedRequest),
-      this.huggingfaceService.analyze(enrichedRequest),
+      this.cerebrasService.analyze(enrichedRequest),
       this.ollamaService.analyze(enrichedRequest),
       this.bedrockService.analyze(enrichedRequest),
+      this.nvidiaService.analyze(enrichedRequest),
+      this.mistralService.analyze(enrichedRequest),
+      // Legacy models
+      this.huggingfaceService.analyze(enrichedRequest),
       this.openrouterService.analyze(enrichedRequest),
       this.deepseekService.analyze(enrichedRequest),
     ]);
@@ -1114,7 +1146,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
     }
 
     const consensus = analyses.length > 0
-      ? `تم الحصول على ${analyses.length} تحليل من ${analyses.length}/8 نماذج ذكاء اصطناعي`
+      ? `تم الحصول على ${analyses.length} تحليل من ${analyses.length}/11 نماذج ذكاء اصطناعي (8 أساسية + 3 تراثية)`
       : 'لا توجد نماذج متاحة حالياً';
 
     return { analyses, consensus };

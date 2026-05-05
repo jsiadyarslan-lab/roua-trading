@@ -42,6 +42,8 @@ model User {
   contentArticles    ContentArticle[]
   tradingBriefs      TradingBrief[]
   telegramChatId      String?              // معرّف محادثة Telegram للمستخدم
+  userNotifications   UserNotification[]
+  notificationPrefs   UserNotificationPreferences?
 }
 
 enum Tier {
@@ -657,6 +659,95 @@ model NotificationConfig {
   @@unique([type])
   @@index([type])
   @@index([enabled])
+}
+
+// ── User Notifications (Persisted + Real-time via Socket.IO) ──
+enum NotificationType {
+  SIGNAL_GENERATED
+  ORDER_FILLED
+  ORDER_REJECTED
+  ORDER_ACCEPTED
+  POSITION_OPENED
+  POSITION_CLOSED
+  RISK_WARNING
+  PRICE_ALERT
+  AI_INSIGHT
+  SYSTEM
+}
+
+enum NotificationPriority {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model UserNotification {
+  id            String               @id @default(cuid())
+  userId        String
+  type          NotificationType
+  priority      NotificationPriority @default(MEDIUM)
+  title         String
+  body          String
+  // Context data (JSON) — varies by type:
+  // SIGNAL_GENERATED: { signalId, pair, action, confidence, entryPrice, stopLoss, takeProfit }
+  // ORDER_FILLED: { orderId, symbol, side, quantity, averagePrice, source }
+  // RISK_WARNING: { reason, metric, threshold, currentValue }
+  // AI_INSIGHT: { symbol, sentiment, confidence, narrative }
+  data          String               @default("{}")
+  isRead        Boolean              @default(false)
+  // Which source triggered this notification
+  source        String               @default("system") // bot, ai, scanner, trade, system
+  // Action tag for UI (BUY, SELL, INFO, WARN, CLOSE, CANCEL)
+  action        String               @default("INFO")
+  // Related pair/symbol for quick navigation
+  pair          String?
+  createdAt     DateTime             @default(now())
+  readAt        DateTime?
+
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([priority])
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([userId, isRead, createdAt])
+}
+
+// ── Per-User Notification Preferences ──
+model UserNotificationPreferences {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+
+  // Master toggle
+  enabled               Boolean  @default(true)
+
+  // Channel toggles
+  pushEnabled           Boolean  @default(true)    // Socket.IO real-time push
+  soundEnabled          Boolean  @default(true)    // Audio feedback
+  browserEnabled        Boolean  @default(true)    // Native browser notifications
+  telegramEnabled       Boolean  @default(false)   // Telegram bot notifications
+
+  // Source toggles
+  signalAlerts          Boolean  @default(true)    // New signals
+  tradeAlerts           Boolean  @default(true)    // Order fills, position changes
+  aiAlerts              Boolean  @default(true)    // AI insights, narrator
+  scannerAlerts         Boolean  @default(true)    // Scanner discoveries
+  riskAlerts            Boolean  @default(true)    // Risk warnings
+  systemAlerts          Boolean  @default(true)    // System notifications
+
+  // Auto-execution settings
+  autoExecuteEnabled    Boolean  @default(false)   // Auto-execute qualifying signals
+  autoExecuteMinConfidence Int   @default(75)      // Minimum confidence to auto-execute
+  autoExecuteMaxPositionSize Decimal @default(0.02) @db.Decimal(5, 4) // Max position size as % of portfolio
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 // ── Price Alert (Alert Agent) ──

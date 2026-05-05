@@ -124,6 +124,7 @@ interface NotifSettings {
   scannerAlerts: boolean
   tradeAlerts: boolean
   minConfidence: number
+  autoExecute: boolean
 }
 
 interface NotificationState {
@@ -148,6 +149,7 @@ const DEFAULT_SETTINGS: NotifSettings = {
   scannerAlerts: true,
   tradeAlerts: true,
   minConfidence: 45,
+  autoExecute: false,
 }
 
 /**
@@ -322,6 +324,9 @@ export const useNotificationStore = create<NotificationState>()(
           browserNotifications: typeof persistedState?.settings?.browserNotifications === 'boolean'
               ? persistedState.settings.browserNotifications
               : DEFAULT_SETTINGS.browserNotifications,
+          autoExecute: typeof persistedState?.settings?.autoExecute === 'boolean'
+              ? persistedState.settings.autoExecute
+              : DEFAULT_SETTINGS.autoExecute,
         },
       }),
       partialize: (state) => ({

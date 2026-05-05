@@ -9,6 +9,7 @@ import { ExchangeModule } from '../exchange/exchange.module';
 import { PortfolioModule } from '../portfolio/portfolio.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { AuditModule } from '../../audit/audit.module';
+import { NotificationModule } from '../notification/notification.module';
 
 // New Trading Engine Services
 import { OrderController } from './controllers/order.controller';
@@ -48,6 +49,7 @@ import { PositionReconciliationService } from './services/position-reconciliatio
     PortfolioModule,
     AnalyticsModule,
     AuditModule,
+    NotificationModule,
 
     // BullMQ queue for order execution (shared with ExecutionModule)
     BullModule.registerQueue({

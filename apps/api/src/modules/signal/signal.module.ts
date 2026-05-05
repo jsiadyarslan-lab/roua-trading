@@ -6,6 +6,7 @@ import { AiModule } from '../ai/ai.module';
 import { AuditModule } from '../../audit/audit.module';
 import { PredictionMarketModule } from '../prediction-market/prediction-market.module';
 import { TradingModule } from '../trading/trading.module';
+import { NotificationModule } from '../notification/notification.module';
 
 /**
  * Signal Module — Trading Signal Generation with Prediction Market Integration
@@ -18,6 +19,10 @@ import { TradingModule } from '../trading/trading.module';
  * FIX: Also imports TradingModule (via forwardRef) to enable signal execution.
  * Previously, signals were generated but couldn't be directly executed.
  * Now, POST /api/signals/:id/execute bridges the Analysis → Trading pipeline.
+ *
+ * UX: Imports NotificationModule for real-time signal notifications.
+ * When a new signal is generated, users receive an instant push notification
+ * via Socket.IO with signal details, and can auto-execute if enabled.
  */
 @Module({
   imports: [
@@ -26,6 +31,7 @@ import { TradingModule } from '../trading/trading.module';
     AuditModule,
     forwardRef(() => PredictionMarketModule),
     forwardRef(() => TradingModule),
+    forwardRef(() => NotificationModule),
   ],
   controllers: [SignalController],
   providers: [SignalService],

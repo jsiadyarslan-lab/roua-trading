@@ -1,10 +1,11 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { CredentialsService } from '../../portfolio/credentials/credentials.service';
 import { OrderStateManagerService } from './order-state-manager.service';
 import { AuditService } from '../../../audit/audit.service';
 import { OrderQueueMessage } from '../events/order.events';
+import { NotificationService } from '../../notification/notification.service';
 import * as ccxt from 'ccxt';
 
 /**
@@ -51,6 +52,7 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
     private readonly credentialsService: CredentialsService,
     private readonly stateManager: OrderStateManagerService,
     private readonly auditService: AuditService,
+    @Optional() private readonly notificationService?: NotificationService,
   ) {}
 
   async onModuleInit() {
@@ -197,6 +199,28 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
           `✅ Order executed: ${message.orderId} — ${message.side} ${filledQuantity}/${message.quantity} ${message.symbol} @ ${averagePrice}`,
         );
 
+        // UX: Push real-time notification to user
+        if (this.notificationService) {
+          this.notificationService.sendNotification({
+            userId: message.userId,
+            type: 'ORDER_FILLED',
+            priority: 'HIGH',
+            title: `تم تنفيذ أمر ${message.side === 'BUY' ? 'شراء' : 'بيع'} ${message.symbol}`,
+            body: `تم تنفيذ ${filledQuantity} ${message.symbol} بسعر ${averagePrice}`,
+            data: {
+              orderId: message.orderId,
+              symbol: message.symbol,
+              side: message.side,
+              quantity: filledQuantity,
+              averagePrice,
+              exchangeOrderId: result?.id,
+            },
+            source: 'trade',
+            action: message.side === 'BUY' ? 'BUY' : 'SELL',
+            pair: message.symbol,
+          }).catch((e: any) => this.logger.warn(`Notification push failed: ${e.message}`));
+        }
+
         return {
           success: true,
           filledQuantity,
@@ -211,6 +235,26 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
           reason: errorMessage,
           rejectedAt: new Date().toISOString(),
         });
+
+        // UX: Push real-time rejection notification to user
+        if (this.notificationService) {
+          this.notificationService.sendNotification({
+            userId: message.userId,
+            type: 'ORDER_REJECTED',
+            priority: 'HIGH',
+            title: `تم رفض أمر ${message.side === 'BUY' ? 'شراء' : 'بيع'} ${message.symbol}`,
+            body: `السبب: ${errorMessage.substring(0, 150)}`,
+            data: {
+              orderId: message.orderId,
+              symbol: message.symbol,
+              side: message.side,
+              reason: errorMessage,
+            },
+            source: 'trade',
+            action: 'WARN',
+            pair: message.symbol,
+          }).catch((e: any) => this.logger.warn(`Notification push failed: ${e.message}`));
+        }
 
         this.logger.error(`❌ Order execution failed: ${message.orderId} — ${errorMessage}`);
 

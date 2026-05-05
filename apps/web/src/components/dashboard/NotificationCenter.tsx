@@ -54,6 +54,7 @@ function ToastCard({
 }) {
   const [visible, setVisible] = useState(false)
   const [executed, setExecuted] = useState(false)
+  const [executing, setExecuting] = useState(false)
   const { setSelectedSymbol } = useSymbolStore()
   const { addTrade } = usePaperTradesStore()
   const dismissTimerRef = useRef<number | null>(null)
@@ -86,12 +87,70 @@ function ToastCard({
     typeof notif.pair === 'string' &&
     typeof notif.price === 'number'
 
-  const handleExecute = (e: React.MouseEvent) => {
+  const handleExecute = async (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (executed || !canExecute) return
-
+    if (executed || executing || !canExecute) return
     const isBuy = notif.action === 'BUY'
 
+    // Try real execution first (v2 pipeline), fall back to paper trading
+    setExecuting(true)
+    try {
+      const { ensureAuth } = await import('@/lib/api-fetch')
+      await ensureAuth()
+
+      const credRes = await fetch('/api/portfolio/credentials')
+      const credData = await credRes.json()
+      const credentials = credData.data || credData.credentials || []
+      const credentialId = credentials[0]?.id || credentials[0]?.credentialId
+
+      if (credentialId) {
+        // Real execution via v2 pipeline
+        const idempotencyKey = crypto.randomUUID()
+        const res = await fetch('/api/trading/v2/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            credentialId,
+            symbol: notif.pair,
+            side: isBuy ? 'BUY' : 'SELL',
+            type: 'MARKET',
+            quantity: 0.01,
+            stopLoss: notif.price ? (isBuy ? notif.price * 0.98 : notif.price * 1.02) : undefined,
+            idempotencyKey,
+            clientOrderId: idempotencyKey,
+          }),
+        })
+
+        const j = await res.json()
+
+        if (res.ok && j.success) {
+          setExecuted(true)
+          // Also track in paper store for local P&L tracking
+          addTrade({
+            symbol: notif.pair as string,
+            side: isBuy ? 'long' : 'short',
+            qty: 0.01,
+            entryPrice: notif.price as number,
+            currentPrice: notif.price as number,
+            tp: (notif.price as number) * (isBuy ? 1.015 : 0.985),
+            sl: (notif.price as number) * (isBuy ? 0.99 : 1.01),
+            entryTime: Date.now(),
+            strategy: `تنفيذ سريع (${notif.source})`,
+            source: 'manual',
+          })
+          window.setTimeout(() => {
+            setVisible(false)
+            window.setTimeout(() => dismissCallbackRef.current(notif.id), 350)
+          }, 1500)
+          setExecuting(false)
+          return
+        }
+      }
+    } catch {
+      // Real execution failed — fall through to paper trading
+    }
+
+    // Fallback: Paper trading execution
     addTrade({
       symbol: notif.pair as string,
       side: isBuy ? 'long' : 'short',
@@ -110,6 +169,7 @@ function ToastCard({
       setVisible(false)
       window.setTimeout(() => dismissCallbackRef.current(notif.id), 350)
     }, 1500)
+    setExecuting(false)
   }
 
   return (
@@ -231,10 +291,12 @@ function ToastCard({
             {canExecute && (
               <button
                 onClick={handleExecute}
-                disabled={executed}
+                disabled={executed || executing}
                 style={{
                   background: executed
                     ? 'rgba(255,255,255,0.05)'
+                    : executing
+                    ? `${actionColor}08`
                     : `${actionColor}15`,
                   border: `1px solid ${
                     executed ? 'rgba(255,255,255,0.1)' : `${actionColor}40`
@@ -244,11 +306,13 @@ function ToastCard({
                   borderRadius: 4,
                   fontSize: 9,
                   fontWeight: 800,
-                  cursor: executed ? 'default' : 'pointer',
+                  cursor: executed || executing ? 'default' : 'pointer',
                   fontFamily: "'Cairo', sans-serif",
+                  opacity: executing ? 0.7 : 1,
+                  transition: 'all 0.2s',
                 }}
               >
-                {executed ? 'تم التنفيذ ✅' : 'تنفيذ ⚡'}
+                {executed ? 'تم التنفيذ ✅' : executing ? 'جارٍ التنفيذ...' : 'تنفيذ ⚡'}
               </button>
             )}
           </div>
@@ -471,6 +535,76 @@ function NotifSettingsPanel() {
           </button>
         </div>
       ))}
+
+      {/* ── Auto-Execute Settings ── */}
+      <div style={{
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        paddingTop: 14,
+        marginTop: 4,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div>
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#FFB800' }}>⚡ تنفيذ تلقائي للإشارات</span>
+            <p style={{ fontSize: 9, color: '#8B92A8', margin: '2px 0 0' }}>تنفيذ الإشارات المؤهلة تلقائياً</p>
+          </div>
+          <button
+            onClick={() => updateSettings({ autoExecute: !(settings as any).autoExecute })}
+            style={{
+              width: 40,
+              height: 20,
+              borderRadius: 10,
+              border: 'none',
+              cursor: 'pointer',
+              position: 'relative',
+              background: (settings as any).autoExecute ? '#FFB800' : 'rgba(255,255,255,0.1)',
+              transition: 'background 0.2s',
+            }}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: 3,
+                insetInlineEnd: (settings as any).autoExecute ? 3 : 'auto',
+                insetInlineStart: (settings as any).autoExecute ? 'auto' : 3,
+                width: 14,
+                height: 14,
+                borderRadius: '50%',
+                background: '#fff',
+                transition: 'all 0.2s',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.4)',
+              }}
+            />
+          </button>
+        </div>
+
+        {(settings as any).autoExecute && (
+          <div style={{
+            background: 'rgba(255,184,0,0.04)',
+            border: '1px solid rgba(255,184,0,0.15)',
+            borderRadius: 8,
+            padding: '8px 10px',
+            marginTop: 6,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span style={{ fontSize: 9, color: '#8B92A8' }}>حد الثقة للتنفيذ التلقائي</span>
+              <span style={{ fontSize: 9, color: '#FFB800', fontWeight: 800 }}>{settings.minConfidence}%</span>
+            </div>
+            <input
+              type="range"
+              min={50}
+              max={95}
+              step={5}
+              value={settings.minConfidence}
+              onChange={(e) => updateSettings({ minConfidence: parseInt(e.target.value) })}
+              style={{ width: '100%', accentColor: '#FFB800' }}
+            />
+            <p style={{ fontSize: 8, color: '#8B92A8', margin: '4px 0 0', lineHeight: 1.4 }}>
+              سيتم تنفيذ الإشارات تلقائياً فقط عندما تتجاوز نسبة الثقة هذا الحد، مع وقف خسارة إلزامي 2%
+            </p>
+          </div>
+        )}
+      </div>
+
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
           <span style={{ fontSize: 11, color: '#F0F2F5' }}>حد الثقة الأدنى</span>

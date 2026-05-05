@@ -6,6 +6,7 @@ import { RagService } from '../ai/services/rag.service';
 import { AuditService } from '../../audit/audit.service';
 import { PredictionMarketService } from '../prediction-market/prediction-market.service';
 import { TradingService } from '../trading/trading.service';
+import { NotificationService } from '../notification/notification.service';
 import { OrderSide, OrderType } from '../trading/trading.types';
 
 /**
@@ -42,8 +43,9 @@ export class SignalService {
     private readonly auditService: AuditService,
     @Optional() private readonly predictionMarketService?: PredictionMarketService,
     @Optional() private readonly tradingService?: TradingService,
+    @Optional() private readonly notificationService?: NotificationService,
   ) {
-    this.logger.log('📡 Signal Service initialized — Roua signal generation ready' + (this.predictionMarketService ? ' (with prediction market boost)' : '') + (this.tradingService ? ' (with trading bridge)' : ''));
+    this.logger.log('📡 Signal Service initialized — Roua signal generation ready' + (this.predictionMarketService ? ' (with prediction market boost)' : '') + (this.tradingService ? ' (with trading bridge)' : '') + (this.notificationService ? ' (with real-time notifications)' : ''));
   }
 
   /**
@@ -229,6 +231,30 @@ ${newsContext ? `📰 أخبار ذات صلة:\n${newsContext}` : ''}
     });
 
     this.logger.log(`📡 Signal generated: ${parsed.action} ${pair} (confidence: ${parsed.confidence}%)`);
+
+    // UX: Push real-time notification to user
+    if (this.notificationService) {
+      this.notificationService.sendNotification({
+        userId,
+        type: 'SIGNAL_GENERATED',
+        priority: parsed.confidence >= 80 ? 'HIGH' : parsed.confidence >= 60 ? 'MEDIUM' : 'LOW',
+        title: `إشارة ${parsed.action === 'BUY' ? 'شراء' : parsed.action === 'SELL' ? 'بيع' : 'انتظار'} ${pair}`,
+        body: `ثقة: ${parsed.confidence}% — ${parsed.reason.substring(0, 100)}`,
+        data: {
+          signalId: signal.id,
+          pair,
+          action: parsed.action,
+          confidence: parsed.confidence,
+          entryPrice: parsed.entryPrice,
+          stopLoss: parsed.stopLoss,
+          takeProfit: parsed.takeProfit,
+          signalBoost: Math.round(signalBoost * 100) / 100,
+        },
+        source: parsed.action === 'WAIT' ? 'ai' : 'scanner',
+        action: parsed.action === 'BUY' ? 'BUY' : parsed.action === 'SELL' ? 'SELL' : 'INFO',
+        pair,
+      }).catch((e: any) => this.logger.warn(`Signal notification push failed: ${e.message}`));
+    }
 
     return signal;
   }

@@ -1,38 +1,152 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useBotStore } from '@/hooks/useBotStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { useNotificationSocket } from '@/hooks/useNotificationSocket'
+import { ensureAuth } from '@/lib/api-fetch'
 
 /* ══════════════════════════════════════════════════════
    NotificationEngine — مكوّن خفي يعمل دائماً في الخلفية
    يراقب مصادر متعددة ويُطلق تنبيهات تلقائية
+
+   UX Improvements (v2):
+   - Real-time Socket.IO push (instant notifications)
+   - Auto-execute signals when enabled
+   - Real order execution from toast cards (not just paper trading)
 ══════════════════════════════════════════════════════ */
 
 export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string, any> }) {
   const { addNotification, settings } = useNotificationStore()
   const { isOn: botOn, logs: botLogs } = useBotStore()
   const { selectedSymbol } = useSymbolStore()
+  const { registerAutoExecuteHandler } = useNotificationSocket()
   const prevLogLengthRef = useRef(0)
   const lastAiCheckRef = useRef(0)
   const lastScanCheckRef = useRef(0)
   const quotesRef = useRef(quotes)
   const [hydrated, setHydrated] = useState(false)
+  const [autoExecuting, setAutoExecuting] = useState<Set<string>>(new Set())
 
   // On hydration, skip all existing logs — only process NEW ones after mount
-  // Also initialize ALL timestamp refs to now() to prevent phantom alerts on page load
   useEffect(() => {
     setHydrated(true)
-    // Initialize ref to current length so old persisted logs are NOT treated as new
     const currentLogs = useBotStore.getState().logs
     prevLogLengthRef.current = currentLogs.length
-    // CRITICAL: Initialize timestamp refs to now so the first interval check
-    // doesn't fire immediately (which was causing phantom alerts)
     lastAiCheckRef.current = Date.now()
     lastScanCheckRef.current = Date.now()
   }, [])
   useEffect(() => { quotesRef.current = quotes }, [quotes])
+
+  // ── Auto-Execute Handler ──────────────────────────────────
+  const handleAutoExecute = useCallback(async (data: {
+    notificationId: string
+    signalId: string
+    pair: string
+    action: string
+    confidence: number
+    entryPrice?: number
+    stopLoss?: number
+    takeProfit?: number
+    maxPositionSizePercent?: number
+  }) => {
+    // Prevent double-execution
+    if (autoExecuting.has(data.signalId)) return
+    setAutoExecuting(prev => new Set(prev).add(data.signalId))
+
+    try {
+      await ensureAuth()
+
+      // Get user's credentials
+      const credRes = await fetch('/api/portfolio/credentials')
+      const credData = await credRes.json()
+      const credentials = credData.data || credData.credentials || []
+      const credentialId = credentials[0]?.id || credentials[0]?.credentialId
+
+      if (!credentialId) {
+        addNotification({
+          source: 'system',
+          priority: 'high',
+          action: 'WARN',
+          title: 'تنفيذ تلقائي فشل',
+          body: `لا توجد بيانات اعتماد بورصة مرتبطة. يرجى ربط حسابك أولاً.`,
+          pair: data.pair,
+        })
+        return
+      }
+
+      // Execute signal via v2 pipeline
+      const idempotencyKey = crypto.randomUUID()
+      const side = data.action === 'BUY' ? 'BUY' : 'SELL'
+      const entryPrice = data.entryPrice || 0
+      const sl = data.stopLoss || (entryPrice > 0 ? (side === 'BUY' ? entryPrice * 0.98 : entryPrice * 1.02) : undefined)
+
+      const res = await fetch('/api/trading/v2/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          credentialId,
+          symbol: data.pair,
+          side,
+          type: 'MARKET',
+          quantity: 0.01, // Safe minimum for auto-execute
+          stopLoss: sl,
+          takeProfit: data.takeProfit,
+          idempotencyKey,
+          clientOrderId: idempotencyKey,
+          signalId: data.signalId,
+        }),
+      })
+
+      const j = await res.json()
+
+      if (res.ok && j.success) {
+        addNotification({
+          source: 'trade',
+          priority: 'urgent',
+          action: side === 'BUY' ? 'BUY' : 'SELL',
+          title: `⚡ تنفيذ تلقائي: ${side === 'BUY' ? 'شراء' : 'بيع'} ${data.pair}`,
+          body: `تم تنفيذ الإشارة تلقائياً (ثقة: ${data.confidence}%) — الأمر: ${j.data?.orderId?.slice(0, 8) || 'قيد المعالجة'}...`,
+          pair: data.pair,
+          price: entryPrice,
+          confidence: data.confidence,
+        })
+      } else {
+        addNotification({
+          source: 'system',
+          priority: 'high',
+          action: 'WARN',
+          title: 'تنفيذ تلقائي مرفوض',
+          body: `لم يتم التنفيذ التلقائي لـ ${data.pair}: ${j.message || 'تم الرفض من حارس المخاطر'}`,
+          pair: data.pair,
+        })
+      }
+    } catch (error: any) {
+      addNotification({
+        source: 'system',
+        priority: 'medium',
+        action: 'WARN',
+        title: 'خطأ في التنفيذ التلقائي',
+        body: `فشل الاتصال: ${error.message || 'خطأ في الشبكة'}`,
+        pair: data.pair,
+      })
+    } finally {
+      // Clean up after 30 seconds to prevent memory leak
+      setTimeout(() => {
+        setAutoExecuting(prev => {
+          const next = new Set(prev)
+          next.delete(data.signalId)
+          return next
+        })
+      }, 30000)
+    }
+  }, [addNotification, autoExecuting])
+
+  // Register auto-execute handler with socket hook
+  useEffect(() => {
+    registerAutoExecuteHandler(handleAutoExecute)
+  }, [handleAutoExecute, registerAutoExecuteHandler])
 
   // ── 1. مراقبة سجلات البوت وتحويلها لتنبيهات ──────────────
   useEffect(() => {
@@ -63,7 +177,7 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
   useEffect(() => {
     if (!hydrated || !settings.aiAlerts) return
 
-    const AI_ALERT_COOLDOWN = 600_000 // 10 minutes — was 90s which caused spam
+    const AI_ALERT_COOLDOWN = 600_000
 
     const fetchAiAlert = async () => {
       const now = Date.now()
@@ -89,18 +203,17 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
       } catch {}
     }
 
-    // Don't fire immediately on mount to avoid spamming on refresh
-    const iv = setInterval(fetchAiAlert, 60_000) // check every 60s, but only fires if 10min cooldown passed
+    const iv = setInterval(fetchAiAlert, 60_000)
     return () => clearInterval(iv)
   }, [hydrated, settings.aiAlerts, settings.minConfidence, addNotification, selectedSymbol])
 
-  // ── 3. مراقبة السكانر كل 2 دقيقة ──────────────────────────
+  // ── 3. مراقبة السكانر كل 5 دقائق ──────────────────────────
   useEffect(() => {
     if (!hydrated || !settings.scannerAlerts) return
 
     const fetchScanAlert = async () => {
       const now = Date.now()
-      if (now - lastScanCheckRef.current < 300_000) return // 5 min cooldown (was 2min)
+      if (now - lastScanCheckRef.current < 300_000) return
       lastScanCheckRef.current = now
 
       try {
@@ -124,8 +237,7 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
       } catch {}
     }
 
-    // Don't fire immediately on mount to avoid phantom alerts on page load
-    const iv = setInterval(fetchScanAlert, 60_000) // check every 60s, but skips if < 5min since last fire
+    const iv = setInterval(fetchScanAlert, 60_000)
     return () => clearInterval(iv)
   }, [hydrated, settings.scannerAlerts, settings.minConfidence, addNotification])
 
@@ -139,7 +251,6 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
       currentQuotes.forEach((q, symbol) => {
         const change = Math.abs(q.changePercent || 0)
         const now = Date.now()
-        // Only alert once per symbol per 5 minutes to avoid spam
         if (change > 4 && (!lastTradeAlerts[symbol] || now - lastTradeAlerts[symbol] > 300_000)) {
           lastTradeAlerts[symbol] = now
           addNotification({

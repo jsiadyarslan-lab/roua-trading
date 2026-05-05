@@ -28,6 +28,7 @@ import {
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
 import { T } from '@/lib/theme-tokens'
 import { toast } from '@/hooks/use-toast'
+import { useNotificationStore, Notification as StoreNotification } from '@/hooks/useNotificationStore'
 
 /* ═══════════════════════════════════════════════════════════
    Types
@@ -732,22 +733,49 @@ function EmptyState({ filterLabel }: { filterLabel: string }) {
    ═══════════════════════════════════════════════════════════ */
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<NotificationItem[]>(generateMockNotifications)
+  // Use REAL notification store data instead of mock
+  const { notifications: storeNotifications, markRead, markAllRead, dismiss, clearAll, settings, updateSettings } = useNotificationStore()
+
+  // Convert store notifications to page format
+  const notifications: NotificationItem[] = useMemo(() => storeNotifications.map(n => {
+    // Map store source to page category
+    const categoryMap: Record<string, NotificationCategory> = {
+      bot: 'trade',
+      ai: 'ai',
+      scanner: 'signal',
+      trade: 'trade',
+      system: 'system',
+    }
+    return {
+      id: n.id,
+      category: categoryMap[n.source] || 'system',
+      title: n.title,
+      description: n.body,
+      timestamp: new Date(n.timestamp),
+      read: n.read,
+      signalDirection: n.action === 'BUY' ? 'BUY' : n.action === 'SELL' ? 'SELL' : undefined,
+      signalSymbol: n.pair,
+      signalConfidence: n.confidence,
+      priceSymbol: n.pair,
+      priceCurrent: n.price,
+    }
+  }), [storeNotifications])
+
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [showPreferences, setShowPreferences] = useState(false)
 
-  // Preferences state
+  // Preferences state — synced with notification store
   const [preferences, setPreferences] = useState<PreferenceToggle[]>([
-    { key: 'signals', label: 'تنبيهات الإشارات', description: 'إشعارات إشارات الشراء والبيع', icon: <Zap size={13} />, enabled: true },
-    { key: 'trades', label: 'تنبيهات الحسابات المربوطة', description: 'رصد الأوامر وإغلاق الصفقات على الحسابات المربوطة', icon: <BarChart3 size={13} />, enabled: true },
+    { key: 'signals', label: 'تنبيهات الإشارات', description: 'إشعارات إشارات الشراء والبيع', icon: <Zap size={13} />, enabled: settings.scannerAlerts },
+    { key: 'trades', label: 'تنبيهات الحسابات المربوطة', description: 'رصد الأوامر وإغلاق الصفقات على الحسابات المربوطة', icon: <BarChart3 size={13} />, enabled: settings.tradeAlerts },
     { key: 'security', label: 'تنبيهات الأمان', description: 'تسجيل الدخول وتغييرات الحساب', icon: <ShieldCheck size={13} />, enabled: true },
     { key: 'system', label: 'إشعارات النظام', description: 'الصيانة والتحديثات والأخبار', icon: <Settings2 size={13} />, enabled: true },
     { key: 'prices', label: 'تنبيهات الأسعار', description: 'وصول الأسعار للأهداف المحددة', icon: <Target size={13} />, enabled: true },
-    { key: 'ai', label: 'رؤى الذكاء الاصطناعي', description: 'تحليلات وتنبؤات النماذج الذكية', icon: <Brain size={13} />, enabled: true },
-    { key: 'sound', label: 'الأصوات', description: 'تشغيل صوت عند وصول إشعار جديد', icon: <Volume2 size={13} />, enabled: false },
-    { key: 'desktop', label: 'إشعارات سطح المكتب', description: 'إرسال إشعارات المتصفح على سطح المكتب', icon: <BellRing size={13} />, enabled: true },
+    { key: 'ai', label: 'رؤى الذكاء الاصطناعي', description: 'تحليلات وتنبؤات النماذج الذكية', icon: <Brain size={13} />, enabled: settings.aiAlerts },
+    { key: 'sound', label: 'الأصوات', description: 'تشغيل صوت عند وصول إشعار جديد', icon: <Volume2 size={13} />, enabled: settings.soundEnabled },
+    { key: 'desktop', label: 'إشعارات سطح المكتب', description: 'إرسال إشعارات المتصفح على سطح المكتب', icon: <BellRing size={13} />, enabled: settings.browserNotifications },
   ])
 
   // Computed
@@ -761,26 +789,26 @@ export default function NotificationsPage() {
   const selectedCount = selectedIds.size
   const allSelected = filteredNotifications.length > 0 && selectedIds.size === filteredNotifications.length
 
-  // Handlers
-  const markAsRead = useCallback((id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n))
-  }, [])
+  // Handlers — use real notification store
+  const handleMarkAsRead = useCallback((id: string) => {
+    markRead(id)
+  }, [markRead])
 
-  const markAllAsRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+  const handleMarkAllAsRead = useCallback(() => {
+    markAllRead()
     toast({ title: 'تم التحديث', description: 'تم تحديد جميع الإشعارات كمقروءة' })
-  }, [])
+  }, [markAllRead])
 
   const deleteNotification = useCallback((id: string) => {
-    setNotifications(prev => prev.filter(n => n.id !== id))
+    dismiss(id)
     setSelectedIds(prev => { const next = new Set(prev); next.delete(id); return next })
-  }, [])
+  }, [dismiss])
 
   const deleteSelected = useCallback(() => {
-    setNotifications(prev => prev.filter(n => !selectedIds.has(n.id)))
+    selectedIds.forEach(id => dismiss(id))
     toast({ title: 'تم الحذف', description: `تم حذف ${selectedIds.size} إشعار` })
     setSelectedIds(new Set())
-  }, [selectedIds])
+  }, [selectedIds, dismiss])
 
   const toggleSelectAll = useCallback(() => {
     if (allSelected) {
@@ -800,19 +828,31 @@ export default function NotificationsPage() {
   }, [])
 
   const markSelectedAsRead = useCallback(() => {
-    setNotifications(prev => prev.map(n => selectedIds.has(n.id) ? { ...n, read: true } : n))
+    selectedIds.forEach(id => markRead(id))
     toast({ title: 'تم التحديث', description: `تم تحديد ${selectedIds.size} إشعار كمقروء` })
     setSelectedIds(new Set())
-  }, [selectedIds])
+  }, [selectedIds, markRead])
 
   const handleAction = useCallback((item: NotificationItem) => {
-    markAsRead(item.id)
+    markRead(item.id)
     toast({ title: item.title, description: item.actionLabel || 'تم فتح الإشعار' })
-  }, [markAsRead])
+  }, [markRead])
 
   const togglePreference = useCallback((key: string) => {
     setPreferences(prev => prev.map(p => p.key === key ? { ...p, enabled: !p.enabled } : p))
-  }, [])
+    // Sync with notification store
+    const storeKeyMap: Record<string, string> = {
+      signals: 'scannerAlerts',
+      trades: 'tradeAlerts',
+      ai: 'aiAlerts',
+      sound: 'soundEnabled',
+      desktop: 'browserNotifications',
+    }
+    const storeKey = storeKeyMap[key]
+    if (storeKey) {
+      updateSettings({ [storeKey]: !(settings as any)[storeKey] })
+    }
+  }, [settings, updateSettings])
 
   // Stats for header
   const categoryStats = useMemo(() => {
@@ -850,7 +890,7 @@ export default function NotificationsPage() {
           {/* Mark all read */}
           {unreadCount > 0 && (
             <button
-              onClick={markAllAsRead}
+              onClick={handleMarkAllAsRead}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -1128,7 +1168,7 @@ export default function NotificationsPage() {
                 isSelected={selectedIds.has(item.id)}
                 onHover={() => setHoveredId(item.id)}
                 onLeave={() => setHoveredId(null)}
-                onRead={markAsRead}
+                onRead={handleMarkAsRead}
                 onSelect={toggleSelect}
                 onAction={handleAction}
                 onDelete={deleteNotification}

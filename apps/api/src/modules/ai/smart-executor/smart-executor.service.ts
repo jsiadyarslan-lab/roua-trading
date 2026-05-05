@@ -375,6 +375,9 @@ export class SmartExecutorService implements OnModuleDestroy {
     const activeBriefs = await this.councilService.getActiveBriefs();
 
     if (activeBriefs.length === 0) {
+      // FIX: Log when no briefs are available instead of silently returning.
+      // This helps diagnose why the executor appears "static".
+      this.logger.debug('⚔️ No active briefs to execute — waiting for Strategic Council');
       return; // No briefs to execute
     }
 

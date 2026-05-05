@@ -112,16 +112,13 @@ const nextConfig: NextConfig = {
         source: '/api/news/nest/fetch',
         destination: `${apiTarget}/api/news/fetch`,
       },
-      // ── Strategic Council endpoints (proxied to NestJS) ──
-      {
-        source: '/api/strategic-council/:path*',
-        destination: `${apiTarget}/api/strategic-council/:path*`,
-      },
-      // ── Smart Executor endpoints (proxied to NestJS) ──
-      {
-        source: '/api/smart-executor/:path*',
-        destination: `${apiTarget}/api/smart-executor/:path*`,
-      },
+      // ── REMOVED: Strategic Council and Smart Executor rewrites ──
+      // These were bypassing the Next.js Route Handlers that inject auth tokens.
+      // The rewrites sent requests directly to NestJS without Authorization headers,
+      // causing 401 errors. The Route Handlers at:
+      //   /api/strategic-council/[...path]/route.ts
+      //   /api/smart-executor/[...path]/route.ts
+      // already proxy to NestJS with proper auth injection via createNestJSProxyHandlers().
     ];
   },
 };

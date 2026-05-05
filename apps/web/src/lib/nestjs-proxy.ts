@@ -35,7 +35,7 @@ function generateUniqueGuestEmail(): string {
 /** Track NestJS availability — if consecutive 502s exceed threshold, temporarily bypass NestJS */
 let nestjsConsecutiveFailures = 0;
 const NESTJS_BYPASS_THRESHOLD = 3; // After 3 consecutive 502s, bypass NestJS
-const NESTJS_RETRY_AFTER_MS = 60_000; // Try NestJS again after 60 seconds
+const NESTJS_RETRY_AFTER_MS = 10_000; // FIX: Reduced from 60s to 10s — 60s was too long and made components appear dead
 let nestjsBypassUntil = 0; // Timestamp when we'll try NestJS again
 
 /**

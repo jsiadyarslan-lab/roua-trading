@@ -87,25 +87,40 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     private readonly riskCalculator: RiskCalculatorService,
     private readonly orderExecutor: OrderExecutorService,
   ) {
-    // Check if critical dependencies were injected successfully
-    if (!this.prisma) {
-      this.logger.error('❌ PrismaService not available — service will operate in degraded mode');
-      this._notReadyReason = 'قاعدة البيانات غير متاحة — يرجى المحاولة لاحقاً';
-    } else if (!this.redis) {
-      this.logger.error('❌ RedisService not available — service will operate in degraded mode');
-      this._notReadyReason = 'خدمة التخزين المؤقت غير متاحة — يرجى المحاولة لاحقاً';
-    } else {
-      this._isReady = true;
-    }
+    // FIX: Lazy readiness check — try to connect to dependencies on first use
+    // instead of permanently blocking if they're unavailable at constructor time.
+    // Redis might take a moment to connect, and Prisma might need a warm-up.
+    this._tryMarkReady();
 
     this.logger.log(`🧠 Autonomous Trader Agent initialized (ready=${this._isReady})`);
   }
 
   /**
+   * FIX: Attempt to mark the service as ready. Called from constructor and
+   * also lazily from _ensureReady() to recover from transient failures.
+   */
+  private _tryMarkReady(): void {
+    if (!this.prisma) {
+      this._notReadyReason = 'قاعدة البيانات غير متاحة — يرجى المحاولة لاحقاً';
+      return;
+    }
+    if (!this.redis) {
+      this._notReadyReason = 'خدمة التخزين المؤقت غير متاحة — يرجى المحاولة لاحقاً';
+      return;
+    }
+    this._isReady = true;
+    this._notReadyReason = '';
+  }
+
+  /**
    * Check if the service is fully ready to handle DB-dependent operations.
-   * If not, throw ServiceUnavailableException with a clear Arabic message.
+   * FIX: Now attempts lazy recovery — if not ready, retries once before throwing.
    */
   private _ensureReady(): void {
+    if (!this._isReady) {
+      // FIX: Retry readiness check — dependencies might have become available
+      this._tryMarkReady();
+    }
     if (!this._isReady) {
       this.logger.warn(`Service not ready: ${this._notReadyReason}`);
       throw new ServiceUnavailableException(this._notReadyReason);

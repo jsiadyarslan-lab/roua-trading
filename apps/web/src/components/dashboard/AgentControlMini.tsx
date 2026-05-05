@@ -438,6 +438,19 @@ export function AgentControlMini() {
         </div>
       )}
 
+      {/* ── No Agent State Warning (backend offline) ── */}
+      {!agentState && !loading && !error && (
+        <div style={{
+          padding: '4px 8px', background: 'rgba(255,184,0,0.06)',
+          borderTop: '1px solid rgba(255,184,0,0.15)',
+          fontSize: 7, color: T.amber, fontFamily: FONT_AR,
+          display: 'flex', alignItems: 'center', gap: 4,
+        }}>
+          <AlertTriangle size={8} />
+          <span>الخادم غير متاح — يُعاد الاتصال تلقائياً</span>
+        </div>
+      )}
+
       {/* ── Animations ── */}
       <style>{`
         .agent-control-mini-shell,

@@ -395,8 +395,13 @@ export class StrategicCouncilService {
     // Get AI consensus analysis
     const consensus = await this.orchestrator.getConsensusAnalysis(pair);
 
+    // FIX: When AI models fail (isFallback=true, confidence=0), generate a technical-analysis
+    // based brief instead of cancelling everything. This prevents the entire pipeline from
+    // stalling when AI providers are down.
+    const isAIFallback = consensus.isFallback === true || consensus.consensusScore === 0;
+
     // Only issue/modify briefs for BUY or SELL recommendations with sufficient confidence
-    if (consensus.recommendation === 'HOLD' || consensus.consensusScore < MIN_CONSENSUS_SCORE) {
+    if (!isAIFallback && (consensus.recommendation === 'HOLD' || consensus.consensusScore < MIN_CONSENSUS_SCORE)) {
       // If existing brief but market now says HOLD or low confidence — cancel it
       if (existingBrief) {
         await this.prisma.tradingBrief.update({
@@ -413,7 +418,28 @@ export class StrategicCouncilService {
       return;
     }
 
-    const direction: BriefDirection = consensus.recommendation === 'BUY' ? 'BUY' : 'SELL';
+    // FIX: When AI is unavailable (fallback), try to generate a technical-analysis based brief
+    // using market data from ExchangeService instead of leaving the pipeline completely empty.
+    let effectiveConsensus = consensus;
+    if (isAIFallback) {
+      const technicalBrief = await this._generateTechnicalFallbackBrief(pair, timeframe, currentPrice);
+      if (technicalBrief) {
+        effectiveConsensus = technicalBrief;
+        this.logger.log(`🏛️ Using technical-analysis fallback for ${pair} ${timeframe} (AI unavailable)`);
+      } else {
+        // Technical analysis also failed — keep existing brief if any, don't cancel
+        if (existingBrief) {
+          await this.prisma.tradingBrief.update({
+            where: { id: existingBrief.id },
+            data: { lastReviewedAt: new Date() },
+          });
+          this.logger.debug(`🏛️ AI and technical analysis unavailable — keeping existing brief for ${pair} ${timeframe}`);
+        }
+        return;
+      }
+    }
+
+    const direction: BriefDirection = effectiveConsensus.recommendation === 'BUY' ? 'BUY' : 'SELL';
 
     // Calculate entry, SL, TP based on current price and direction
     const { entryPrice, stopLoss, takeProfit, strictRules } = this._calculateLevels(
@@ -433,8 +459,8 @@ export class StrategicCouncilService {
           where: { id: existingBrief.id },
           data: {
             lastReviewedAt: new Date(),
-            confidence: consensus.consensusScore,
-            analysisSummary: consensus.masterStrategy,
+            confidence: effectiveConsensus.consensusScore,
+            analysisSummary: effectiveConsensus.masterStrategy,
           },
         });
         this.logger.debug(`🏛️ Brief for ${pair} ${timeframe} reviewed — no change needed`);
@@ -447,12 +473,12 @@ export class StrategicCouncilService {
             entryPrice,
             stopLoss,
             takeProfit,
-            confidence: consensus.consensusScore,
+            confidence: effectiveConsensus.consensusScore,
             strictRules: JSON.stringify(strictRules),
             lastReviewedAt: new Date(),
             reviewStatus: 'MODIFIED',
             expiresAt: new Date(Date.now() + TIMEFRAME_EXPIRY_MS[timeframe]),
-            analysisSummary: consensus.masterStrategy,
+            analysisSummary: effectiveConsensus.masterStrategy,
           },
         });
         result.briefsModified++;
@@ -467,7 +493,7 @@ export class StrategicCouncilService {
           entryPrice,
           stopLoss,
           takeProfit,
-          confidence: consensus.consensusScore,
+          confidence: effectiveConsensus.consensusScore,
           timeframe,
           issuedAt: new Date(),
           expiresAt: new Date(Date.now() + TIMEFRAME_EXPIRY_MS[timeframe]),
@@ -475,15 +501,97 @@ export class StrategicCouncilService {
           strictRules: JSON.stringify(strictRules),
           lastReviewedAt: new Date(),
           reviewStatus: 'ACTIVE',
-          analysisSummary: consensus.masterStrategy,
+          analysisSummary: effectiveConsensus.masterStrategy,
         },
       });
       result.briefsIssued++;
-      this.logger.log(`🏛️ New brief for ${pair} ${timeframe}: ${direction} @ ${entryPrice} (confidence: ${consensus.consensusScore}%)`);
+      this.logger.log(`🏛️ New brief for ${pair} ${timeframe}: ${direction} @ ${entryPrice} (confidence: ${effectiveConsensus.consensusScore}%)`);
     }
 
     // Track cost
-    await this._addCost(consensus.analyses.length);
+    await this._addCost(effectiveConsensus.analyses?.length || 0);
+  }
+
+  /**
+   * FIX: Generate a technical-analysis based consensus when AI models are unavailable.
+   * Uses basic momentum and trend indicators from exchange data to produce a
+   * BUY/SELL recommendation with a conservative confidence score.
+   * This prevents the entire trading pipeline from stalling when AI providers are down.
+   */
+  private async _generateTechnicalFallbackBrief(
+    pair: string,
+    timeframe: BriefTimeframe,
+    currentPrice: number,
+  ): Promise<{
+    recommendation: 'BUY' | 'SELL' | 'HOLD';
+    consensusScore: number;
+    masterStrategy: string;
+    analyses: Array<{ role: string; model: string; vote: 'BUY' | 'SELL' | 'HOLD'; confidence: number; reason: string }>;
+  } | null> {
+    try {
+      // Try to get market data from ExchangeService for technical analysis
+      let momentum = 0; // -1 to 1 (bearish to bullish)
+      let confidence = 55; // Default moderate confidence for technical fallback
+
+      if (this.exchangeService) {
+        try {
+          // Fetch recent candles for simple momentum calculation
+          const candles = await this.exchangeService.fetchOHLCV(pair, '1h', undefined, 24);
+          if (candles && candles.length >= 10) {
+            const closes = candles.map((c: any) => c[4]); // Close prices
+            const recentAvg = closes.slice(-6).reduce((a: number, b: number) => a + b, 0) / 6;
+            const olderAvg = closes.slice(-12, -6).reduce((a: number, b: number) => a + b, 0) / 6;
+            momentum = (recentAvg - olderAvg) / olderAvg;
+
+            // Simple RSI-like calculation
+            let gains = 0, losses = 0;
+            for (let i = 1; i < closes.length; i++) {
+              const change = closes[i] - closes[i - 1];
+              if (change > 0) gains += change;
+              else losses += Math.abs(change);
+            }
+            const rs = losses === 0 ? 100 : gains / losses;
+            const rsi = 100 - (100 / (1 + rs));
+
+            // Determine direction from momentum and RSI
+            if (momentum > 0.005 && rsi < 70) {
+              // Bullish momentum, not overbought
+              confidence = Math.min(65, 55 + Math.abs(momentum) * 1000);
+              return {
+                recommendation: 'BUY',
+                consensusScore: Math.round(confidence),
+                masterStrategy: `تحليل تقني احتياطي — زخم إيجابي (${(momentum * 100).toFixed(2)}%)، RSI=${rsi.toFixed(0)}. نماذج AI غير متاحة.`,
+                analyses: [
+                  { role: 'محلل تقني', model: 'Technical/Momentum', vote: 'BUY', confidence: Math.round(confidence), reason: `زخم إيجابي ${(momentum * 100).toFixed(2)}% مع RSI ${rsi.toFixed(0)}` },
+                  { role: 'محلل اتجاه', model: 'Technical/Trend', vote: 'BUY', confidence: Math.round(confidence - 5), reason: `المتوسط المتحرك القصير أعلى من المتوسط المتحرك الطويل` },
+                ],
+              };
+            } else if (momentum < -0.005 && rsi > 30) {
+              // Bearish momentum, not oversold
+              confidence = Math.min(65, 55 + Math.abs(momentum) * 1000);
+              return {
+                recommendation: 'SELL',
+                consensusScore: Math.round(confidence),
+                masterStrategy: `تحليل تقني احتياطي — زخم سلبي (${(momentum * 100).toFixed(2)}%)، RSI=${rsi.toFixed(0)}. نماذج AI غير متاحة.`,
+                analyses: [
+                  { role: 'محلل تقني', model: 'Technical/Momentum', vote: 'SELL', confidence: Math.round(confidence), reason: `زخم سلبي ${(momentum * 100).toFixed(2)}% مع RSI ${rsi.toFixed(0)}` },
+                  { role: 'محلل اتجاه', model: 'Technical/Trend', vote: 'SELL', confidence: Math.round(confidence - 5), reason: `المتوسط المتحرك القصير أدنى من المتوسط المتحرك الطويل` },
+                ],
+              };
+            }
+          }
+        } catch (err: any) {
+          this.logger.warn(`🏛️ Technical fallback: could not fetch market data for ${pair}: ${err.message}`);
+        }
+      }
+
+      // No clear momentum or no exchange data — return HOLD with low confidence
+      // This is safer than generating a random direction
+      return null;
+    } catch (err: any) {
+      this.logger.warn(`🏛️ Technical fallback failed for ${pair}: ${err.message}`);
+      return null;
+    }
   }
 
   /**

@@ -71,12 +71,21 @@ export function SmartExecutorPanel() {
   const [error, setError] = useState<string | null>(null)
   const [purging, setPurging] = useState(false)
 
+  const [backendOffline, setBackendOffline] = useState(false)
+
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch('/api/smart-executor/status')
       const data = await res.json()
-      if (data.success) setStatus(data.data)
-    } catch {}
+      if (data.success) {
+        setStatus(data.data)
+        setBackendOffline(false)
+      } else if (data.offline || res.status === 502) {
+        setBackendOffline(true)
+      }
+    } catch {
+      setBackendOffline(true)
+    }
   }, [])
 
   const fetchUserState = useCallback(async () => {
@@ -86,8 +95,13 @@ export function SmartExecutorPanel() {
       if (data.success) {
         setUserState(data.data.user)
         if (data.data.global) setStatus(data.data.global)
+        setBackendOffline(false)
+      } else if (data.offline || res.status === 502) {
+        setBackendOffline(true)
       }
-    } catch {}
+    } catch {
+      setBackendOffline(true)
+    }
   }, [])
 
   const fetchPositions = useCallback(async () => {
@@ -102,8 +116,13 @@ export function SmartExecutorPanel() {
         // ═══════════════════════════════════════════════════
         const realPositions = (data.data || []).filter((pos: any) => !isPhantomTrade(pos))
         setPositions(realPositions)
+        setBackendOffline(false)
+      } else if (data.offline || res.status === 502) {
+        setBackendOffline(true)
       }
-    } catch {}
+    } catch {
+      setBackendOffline(true)
+    }
   }, [])
 
   // Poll every 10 seconds
@@ -321,6 +340,13 @@ export function SmartExecutorPanel() {
           </span>
           <span style={{ color: T.text3 }}>• خطر: {userState.riskPerTradePercent}%</span>
           <span style={{ color: T.text3 }}>• حد المراكز: {userState.maxOpenPositions}</span>
+        </div>
+      )}
+
+      {/* Backend Offline Banner */}
+      {backendOffline && (
+        <div style={{ padding: '4px 8px', background: 'rgba(255,184,0,0.1)', borderBottom: '1px solid rgba(255,184,0,0.2)' }}>
+          <span style={{ fontSize: 7, color: T.amber }}>⚠ الخادم غير متاح — يُعاد الاتصال تلقائياً</span>
         </div>
       )}
 

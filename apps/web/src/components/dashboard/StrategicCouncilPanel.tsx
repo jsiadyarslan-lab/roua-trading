@@ -52,29 +52,51 @@ export function StrategicCouncilPanel() {
   const [tab, setTab] = useState<'active' | 'history'>('active')
   const [loading, setLoading] = useState(false)
   const [triggerLoading, setTriggerLoading] = useState(false)
+  const [backendOffline, setBackendOffline] = useState(false)
 
   const fetchActiveBriefs = useCallback(async () => {
     try {
       const res = await fetch('/api/strategic-council/briefs/active')
       const data = await res.json()
-      if (data.success) setActiveBriefs(data.data || [])
-    } catch {}
+      if (data.success) {
+        setActiveBriefs(data.data || [])
+        setBackendOffline(false)
+      } else if (data.offline || res.status === 502) {
+        setBackendOffline(true)
+      }
+    } catch {
+      setBackendOffline(true)
+    }
   }, [])
 
   const fetchHistory = useCallback(async () => {
     try {
       const res = await fetch('/api/strategic-council/briefs/history')
       const data = await res.json()
-      if (data.success) setHistoryBriefs(data.data || [])
-    } catch {}
+      if (data.success) {
+        setHistoryBriefs(data.data || [])
+        setBackendOffline(false)
+      } else if (data.offline || res.status === 502) {
+        setBackendOffline(true)
+      }
+    } catch {
+      setBackendOffline(true)
+    }
   }, [])
 
   const fetchLastSession = useCallback(async () => {
     try {
       const res = await fetch('/api/strategic-council/session/last')
       const data = await res.json()
-      if (data.success) setLastSession(data.data)
-    } catch {}
+      if (data.success) {
+        setLastSession(data.data)
+        setBackendOffline(false)
+      } else if (data.offline || res.status === 502) {
+        setBackendOffline(true)
+      }
+    } catch {
+      setBackendOffline(true)
+    }
   }, [])
 
   useEffect(() => {
@@ -90,14 +112,22 @@ export function StrategicCouncilPanel() {
   const triggerSession = async () => {
     setTriggerLoading(true)
     try {
-      await fetch('/api/strategic-council/trigger', {
+      const res = await fetch('/api/strategic-council/trigger', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pairs: ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'] }),
       })
+      const data = await res.json()
+      if (data.offline || res.status === 502) {
+        setBackendOffline(true)
+      } else {
+        setBackendOffline(false)
+      }
       await fetchActiveBriefs()
       await fetchLastSession()
-    } catch {}
+    } catch {
+      setBackendOffline(true)
+    }
     setTriggerLoading(false)
   }
 
@@ -162,6 +192,13 @@ export function StrategicCouncilPanel() {
           {triggerLoading ? '...' : 'جلسة يدوية'}
         </button>
       </div>
+
+      {/* Backend Offline Banner */}
+      {backendOffline && (
+        <div style={{ padding: '4px 8px', background: 'rgba(255,184,0,0.1)', borderBottom: '1px solid rgba(255,184,0,0.2)' }}>
+          <span style={{ fontSize: 7, color: T.amber }}>⚠ الخادم غير متاح — يُعاد الاتصال تلقائياً</span>
+        </div>
+      )}
 
       {/* Last Session Summary */}
       {lastSession && (

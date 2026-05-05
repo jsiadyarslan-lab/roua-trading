@@ -1,0 +1,109 @@
+// ═══════════════════════════════════════════════════════════
+// ROUA Trading Chart — Smart Alert Manager
+// Manages alert state and detection logic
+// ═══════════════════════════════════════════════════════════
+
+export type AlertType = 'price' | 'indicator' | 'pattern' | 'whale' | 'prediction' | 'news';
+
+export interface Alert {
+  id: string;
+  type: AlertType;
+  symbol: string;
+  condition: string;
+  value: number;
+  current: number;
+  direction: 'above' | 'below' | 'cross';
+  active: boolean;
+  triggered: boolean;
+  createdAt: number;
+  triggeredAt?: number;
+  labelAr: string;
+  notifySound: boolean;
+  notifyBrowser: boolean;
+  notifyTelegram: boolean;
+  notifyEmail: boolean;
+}
+
+const ALERT_TYPE_LABELS: Record<AlertType, string> = {
+  price: 'سعر',
+  indicator: 'مؤشر',
+  pattern: 'نمط',
+  whale: 'حوت',
+  prediction: 'تنبؤ',
+  news: 'أخبار',
+};
+
+const ALERT_TYPE_ICONS: Record<AlertType, string> = {
+  price: '💰',
+  indicator: '📊',
+  pattern: '🕯',
+  whale: '🐋',
+  prediction: '🎯',
+  news: '📰',
+};
+
+let alertIdCounter = 0;
+
+export function createAlert(params: {
+  type: AlertType;
+  symbol: string;
+  condition: string;
+  value: number;
+  direction: 'above' | 'below' | 'cross';
+  labelAr?: string;
+}): Alert {
+  return {
+    id: `alert-${alertIdCounter++}-${Date.now()}`,
+    type: params.type,
+    symbol: params.symbol,
+    condition: params.condition,
+    value: params.value,
+    current: 0,
+    direction: params.direction,
+    active: true,
+    triggered: false,
+    createdAt: Date.now(),
+    labelAr: params.labelAr || `${ALERT_TYPE_LABELS[params.type]} ${params.direction === 'above' ? 'فوق' : params.direction === 'below' ? 'تحت' : 'تقاطع'} ${params.value}`,
+    notifySound: true,
+    notifyBrowser: true,
+    notifyTelegram: false,
+    notifyEmail: false,
+  };
+}
+
+export function checkAlert(alert: Alert, currentPrice: number): boolean {
+  if (!alert.active || alert.triggered) return false;
+  const triggered = alert.direction === 'above'
+    ? currentPrice >= alert.value
+    : alert.direction === 'below'
+    ? currentPrice <= alert.value
+    : Math.abs(currentPrice - alert.value) / alert.value < 0.001;
+
+  if (triggered) {
+    if (alert.notifyBrowser && typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        new Notification('تنبيه Roua Trading', {
+          body: `${alert.symbol}: ${alert.labelAr}`,
+          icon: '/favicon.ico',
+        });
+      } catch {}
+    }
+    if (alert.notifySound && typeof window !== 'undefined') {
+      try {
+        const ac = new AudioContext();
+        const osc = ac.createOscillator();
+        const gain = ac.createGain();
+        osc.connect(gain);
+        gain.connect(ac.destination);
+        osc.frequency.value = alert.type === 'whale' ? 220 : 880;
+        gain.gain.value = 0.1;
+        osc.start();
+        setTimeout(() => { osc.stop(); ac.close(); }, 200);
+      } catch {}
+    }
+  }
+
+  return triggered;
+}
+
+export { ALERT_TYPE_LABELS, ALERT_TYPE_ICONS };

@@ -28,6 +28,11 @@ import { ChartSettingsPanel } from './ChartSettingsPanel';
 import { CompareOverlay } from './CompareOverlay';
 import { MultiTimeframeChart } from './MultiTimeframeChart';
 import ShareChart from './ShareChart';
+import { FootprintChart } from './FootprintChart';
+import { AlertPanel } from './AlertPanel';
+import { SessionStats } from './SessionStats';
+import { PatternProgress } from './PatternProgress';
+import { QuickTradePanel } from './QuickTradePanel';
 import { fetchSignalsForChart, fetchStrategicBriefs, convertToChartMarkers } from '@/lib/charts/chart-signals';
 import type { AIAnalysisResult } from './AIPatternPanel';
 import { T } from '@/lib/unified-tokens';
@@ -132,6 +137,12 @@ export default function RouaChart({
   const [compareSymbol, setCompareSymbol] = useState('');
   const [showMTF, setShowMTF] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  // ── 5 New Feature States ──
+  const [showFootprint, setShowFootprint] = useState(false);
+  const [showAlerts, setShowAlerts] = useState(false);
+  const [showSessionStats, setShowSessionStats] = useState(false);
+  const [showPatternProgress, setShowPatternProgress] = useState(false);
+  const [showQuickTrade, setShowQuickTrade] = useState(false);
   const [councilSignal, setCouncilSignal] = useState<{ direction: 'bullish' | 'bearish' | 'neutral'; confidence: number } | null>(null);
   const [aiPatterns, setAiPatterns] = useState<AIPattern[]>([]);
   const [newsMarkers, setNewsMarkers] = useState<NewsMarker[]>([]);
@@ -930,6 +941,17 @@ export default function RouaChart({
         onToggleMTF={() => setShowMTF(!showMTF)}
         onToggleShare={() => setShowShare(!showShare)}
         showCompare={showCompare}
+        // ── 5 New Feature Toolbar Props ──
+        showFootprint={showFootprint}
+        onToggleFootprint={() => setShowFootprint(!showFootprint)}
+        showAlerts={showAlerts}
+        onToggleAlerts={() => setShowAlerts(!showAlerts)}
+        showSessionStats={showSessionStats}
+        onToggleSessionStats={() => setShowSessionStats(!showSessionStats)}
+        showPatternProgress={showPatternProgress}
+        onTogglePatternProgress={() => setShowPatternProgress(!showPatternProgress)}
+        showQuickTrade={showQuickTrade}
+        onToggleQuickTrade={() => setShowQuickTrade(!showQuickTrade)}
       />}
 
       {/* ── CHART AREA ── */}
@@ -1488,6 +1510,52 @@ export default function RouaChart({
             activeIndicators={chart.getActiveIndicators().map(i => i.key)}
             chartType={chart.settings.type}
             onClose={() => setShowShare(false)}
+          />
+        )}
+
+        {/* ── 5 New Feature Components ── */}
+
+        {/* Footprint Chart */}
+        {showFootprint && (
+          <FootprintChart
+            symbol={selectedSymbol}
+            onClose={() => setShowFootprint(false)}
+          />
+        )}
+
+        {/* Alert Panel */}
+        {showAlerts && (
+          <AlertPanel
+            symbol={selectedSymbol}
+            currentPrice={currentPrice || undefined}
+            onClose={() => setShowAlerts(false)}
+          />
+        )}
+
+        {/* Session Stats */}
+        {showSessionStats && (
+          <SessionStats
+            symbol={selectedSymbol}
+            onClose={() => setShowSessionStats(false)}
+          />
+        )}
+
+        {/* Pattern Progress */}
+        {showPatternProgress && (
+          <PatternProgress
+            symbol={selectedSymbol}
+            candles={candlesRef.current}
+            onClose={() => setShowPatternProgress(false)}
+          />
+        )}
+
+        {/* Quick Trade Panel */}
+        {showQuickTrade && (
+          <QuickTradePanel
+            symbol={selectedSymbol}
+            currentPrice={currentPrice}
+            onPlaceOrder={handlePlaceOrder}
+            onClose={() => setShowQuickTrade(false)}
           />
         )}
       </div>{/* ── Chart Area close ── */}

@@ -31,7 +31,7 @@ interface ChartToolbarProps {
   onTogglePause: () => void;
   mobile: boolean;
   height: number;
-  // ── New Feature Toggle Props ──
+  // ── Existing Feature Toggle Props ──
   onToggleVolumeProfile?: () => void;
   onToggleAIPanel?: () => void;
   onToggleChartTrading?: () => void;
@@ -46,6 +46,17 @@ interface ChartToolbarProps {
   onToggleMTF?: () => void;
   onToggleShare?: () => void;
   showCompare?: boolean;
+  // ── 5 New Feature Toggle Props ──
+  showFootprint?: boolean;
+  onToggleFootprint?: () => void;
+  showAlerts?: boolean;
+  onToggleAlerts?: () => void;
+  showSessionStats?: boolean;
+  onToggleSessionStats?: () => void;
+  showPatternProgress?: boolean;
+  onTogglePatternProgress?: () => void;
+  showQuickTrade?: boolean;
+  onToggleQuickTrade?: () => void;
 }
 
 const CHART_TYPES: { key: ChartType; label: string }[] = [
@@ -78,6 +89,11 @@ export function ChartToolbar(props: ChartToolbarProps) {
     onToggleTemplateManager, onToggleWatchlist, onToggleChartSettings,
     showVolumeProfile, showAIPanel, showChartTrading, showWatchlist,
     onToggleCompare, onToggleMTF, onToggleShare, showCompare,
+    showFootprint, onToggleFootprint,
+    showAlerts, onToggleAlerts,
+    showSessionStats, onToggleSessionStats,
+    showPatternProgress, onTogglePatternProgress,
+    showQuickTrade, onToggleQuickTrade,
     isFullscreen,
   } = props;
 
@@ -416,6 +432,12 @@ export function ChartToolbar(props: ChartToolbarProps) {
                 { label: '📐 أدوات الرسم', action: onToggleDrawings },
                 { label: '🗑️ مسح الرسومات', action: onClearDrawings },
                 { label: '📊 ملف الحجم', action: onToggleVolumeProfile || (() => {}) },
+                { label: '🧠 تحليل AI', action: onToggleAIPanel || (() => {}) },
+                { label: '📈 تقدم الأنماط', action: onTogglePatternProgress || (() => {}) },
+                { label: '👣 Footprint', action: onToggleFootprint || (() => {}) },
+                { label: '🔔 تنبيهات', action: onToggleAlerts || (() => {}) },
+                { label: '⏱️ إحصائيات الجلسة', action: onToggleSessionStats || (() => {}) },
+                { label: '⚡ تداول سريع', action: onToggleQuickTrade || (() => {}) },
                 { label: '⚖️ مقارنة', action: onToggleCompare || (() => {}) },
                 { label: '📊 تحليل MTF', action: onToggleMTF || (() => {}) },
                 { label: '🔗 مشاركة', action: onToggleShare || (() => {}) },
@@ -628,11 +650,62 @@ export function ChartToolbar(props: ChartToolbarProps) {
           onClick={onToggleAIPanel}
           title="تحليل الأنماط بالذكاء الاصطناعي"
         >
-          AI
+          🧠 AI
         </button>
       )}
 
-      {/* Chart Trading */}
+      {/* Pattern Progress */}
+      {onTogglePatternProgress && (
+        <button
+          style={toggleBtnStyle(!!showPatternProgress)}
+          onClick={onTogglePatternProgress}
+          title="تقدم الأنماط الحية"
+        >
+          📈
+        </button>
+      )}
+
+      <div style={sepStyle} />
+
+      {/* ── Group 4: Footprint ── */}
+      {onToggleFootprint && (
+        <button
+          style={toggleBtnStyle(!!showFootprint)}
+          onClick={onToggleFootprint}
+          title="Footprint Chart"
+        >
+          👣
+        </button>
+      )}
+
+      <div style={sepStyle} />
+
+      {/* ── Group 5: Monitoring ── */}
+      {onToggleAlerts && (
+        <button
+          style={toggleBtnStyle(!!showAlerts)}
+          onClick={onToggleAlerts}
+          title="التنبيهات"
+        >
+          🔔
+        </button>
+      )}
+
+      {onToggleSessionStats && (
+        <button
+          style={toggleBtnStyle(!!showSessionStats)}
+          onClick={onToggleSessionStats}
+          title="إحصائيات الجلسة"
+        >
+          ⏱️
+        </button>
+      )}
+
+      <div style={sepStyle} />
+
+      {/* ── Group 6: Trading ── */}
+
+      {/* Chart Trading (existing) */}
       {onToggleChartTrading && (
         <button
           style={toggleBtnStyle(!!showChartTrading)}
@@ -645,7 +718,20 @@ export function ChartToolbar(props: ChartToolbarProps) {
         </button>
       )}
 
-      {/* Compare */}
+      {/* Quick Trade Panel */}
+      {onToggleQuickTrade && (
+        <button
+          style={toggleBtnStyle(!!showQuickTrade)}
+          onClick={onToggleQuickTrade}
+          title="لوحة التداول السريع"
+        >
+          ⚡
+        </button>
+      )}
+
+      <div style={sepStyle} />
+
+      {/* ── Group 7: Display ── */}
       {onToggleCompare && (
         <button
           style={toggleBtnStyle(!!showCompare)}

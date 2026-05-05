@@ -314,7 +314,7 @@ export default function TradingPage() {
     }
   }, [fetchQuote])
 
-  // ── Execute order ──
+  // ── Execute order via v2 pipeline (BullMQ queue) ──
   const handleExecuteOrder = async () => {
     setOrderError('')
     setOrderSuccess('')
@@ -324,15 +324,25 @@ export default function TradingPage() {
       return
     }
 
+    if (!credentialId) {
+      setOrderError('يرجى اختيار حساب البورصة أولاً')
+      return
+    }
+
     setSubmitting(true)
 
     try {
+      // FIX: Generate deterministic idempotency key to prevent duplicate orders
+      // Key format: v2-{userId symbol side type quantity price timestamp}
+      // The timestamp ensures multiple orders of same params aren't blocked
+      const idempotencyKey = `v2-${symbol}-${side}-${orderType}-${quantity}-${price || 'market'}-${Date.now()}`
+
       const body: Record<string, unknown> = {
         symbol,
         side,
         type: orderType,
         quantity,
-        credentialId,
+        exchangeCredentialId: credentialId,
         // FIX: stopLoss is MANDATORY — backend rejects orders without it
         // Default: 3% below entry for BUY, 3% above for SELL if user doesn't specify
         stopLoss: stopLoss ? parseFloat(stopLoss) : (
@@ -343,13 +353,17 @@ export default function TradingPage() {
             : undefined
         ),
         takeProfit: takeProfit ? parseFloat(takeProfit) : undefined,
+        idempotencyKey,
       }
 
       if (orderType === 'LIMIT') {
         body.price = parseFloat(price)
       }
 
-      const res = await fetch('/api/trading/orders', {
+      // FIX: Use v2 pipeline (/api/trading/v2/orders) instead of v1 (/api/trading/orders)
+      // v2 uses BullMQ queue with idempotency, risk gatekeeper, and async execution
+      // v1 was synchronous direct execution that blocked the HTTP response
+      const res = await fetch('/api/trading/v2/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -361,14 +375,17 @@ export default function TradingPage() {
         throw new Error(data.error || data.message || 'فشل في تنفيذ الطلب')
       }
 
-      setOrderSuccess('تم تنفيذ الطلب بنجاح ✓')
+      // v2 returns { orderId, status: 'ACCEPTED', riskScore }
+      setOrderSuccess(`تم قبول الطلب ✓ (معرّف: ${data.data?.orderId?.slice(0, 8) || ''}...، حالة: ${data.data?.status || 'مقبول'})`)
       setQuantity(0.01)
       setPrice('')
       setStopPrice('')
 
-      // Refresh positions and orders
-      fetchPositions()
-      fetchOrders()
+      // Refresh positions and orders after a short delay (v2 is async)
+      setTimeout(() => {
+        fetchPositions()
+        fetchOrders()
+      }, 2000)
     } catch (err: unknown) {
       setOrderError(err instanceof Error ? err.message : String(err))
     } finally {

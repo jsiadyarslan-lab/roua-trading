@@ -619,7 +619,96 @@ export default function RouaChart({
     console.log('Chart order placed:', order);
   }, [selectedSymbol]);
 
-  // ── Apply Combined Markers (News + AI Patterns) to Chart ──
+  // ── Fetch Active Trading Signals for Chart Markers ──
+  const [signalMarkers, setSignalMarkers] = useState<any[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchSignals = async () => {
+      try {
+        const res = await fetch('/api/signals/active');
+        if (!res.ok) return;
+        const data = await res.json();
+        const signals = Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : [];
+        if (cancelled) return;
+
+        // Convert active signals to chart markers for the current symbol
+        const chartSymbol = normalizeSymbol(selectedSymbol);
+        const markers: any[] = [];
+
+        signals.forEach((signal: any) => {
+          const sigSymbol = normalizeSymbol(signal.pair || signal.symbol || '');
+          // Only show signals matching the current chart symbol
+          if (!sigSymbol.includes(chartSymbol) && !chartSymbol.includes(sigSymbol)) return;
+
+          // Determine marker properties based on signal action
+          const action = (signal.action || signal.type || '').toUpperCase();
+          const isBuy = action === 'BUY' || action === 'LONG';
+          const isSell = action === 'SELL' || action === 'SHORT';
+          const isWait = action === 'WAIT' || action === 'HOLD';
+
+          if (!isBuy && !isSell && !isWait) return;
+
+          // Use signal's timestamp (converted to unix seconds for lightweight-charts)
+          const signalTime = signal.createdAt
+            ? Math.floor(new Date(signal.createdAt).getTime() / 1000)
+            : signal.timestamp
+              ? Math.floor(new Date(signal.timestamp).getTime() / 1000)
+              : Math.floor(Date.now() / 1000);
+
+          // Use entryPrice if available, otherwise use signal price
+          const signalPrice = Number(signal.entryPrice || signal.price || 0);
+
+          // Build marker text with confidence if available
+          const confidence = signal.confidence ? ` (${signal.confidence}%)` : '';
+          const label = isBuy ? `شراء${confidence}` : isSell ? `بيع${confidence}` : `انتظار${confidence}`;
+
+          markers.push({
+            time: signalTime as any,
+            position: (isBuy ? 'belowBar' : 'aboveBar') as 'belowBar' | 'aboveBar',
+            color: isBuy ? '#00FFA3' : isSell ? '#FF4757' : '#fbbf24',
+            shape: (isBuy ? 'arrowUp' : isSell ? 'arrowDown' : 'circle') as 'arrowUp' | 'arrowDown' | 'circle',
+            text: label,
+            // Store original signal data for interactivity
+            _signalData: signal,
+          });
+
+          // Add SL/TP price lines for the signal if available
+          const sl = Number(signal.stopLoss || 0);
+          const tp = Number(signal.takeProfit || 0);
+          if (sl > 0) {
+            markers.push({
+              time: signalTime as any,
+              position: 'aboveBar' as const,
+              color: '#FF4757',
+              shape: 'circle' as const,
+              text: `SL ${sl.toFixed(sl > 100 ? 1 : 5)}`,
+            });
+          }
+          if (tp > 0) {
+            markers.push({
+              time: signalTime as any,
+              position: 'belowBar' as const,
+              color: '#00FFA3',
+              shape: 'circle' as const,
+              text: `TP ${tp.toFixed(tp > 100 ? 1 : 5)}`,
+            });
+          }
+        });
+
+        setSignalMarkers(markers);
+      } catch {
+        // Signals not available — don't block chart rendering
+      }
+    };
+
+    fetchSignals();
+    // Refresh signals every 60 seconds
+    const interval = setInterval(fetchSignals, 60000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [selectedSymbol]);
+
+  // ── Apply Combined Markers (News + AI Patterns + Trading Signals) to Chart ──
   useEffect(() => {
     const combinedMarkers: any[] = [];
 
@@ -642,10 +731,15 @@ export default function RouaChart({
       });
     }
 
+    // Add trading signal markers (BUY/SELL/WAIT)
+    if (signalMarkers.length) {
+      combinedMarkers.push(...signalMarkers);
+    }
+
     // Sort by time and apply
     combinedMarkers.sort((a, b) => (a.time as number) - (b.time as number));
     chart.setMarkers(combinedMarkers);
-  }, [newsMarkers, aiPatterns, chart]);
+  }, [newsMarkers, aiPatterns, signalMarkers, chart]);
 
   const toolbarHeight = hideToolbar ? 0 : mobile ? 32 : 38;
 

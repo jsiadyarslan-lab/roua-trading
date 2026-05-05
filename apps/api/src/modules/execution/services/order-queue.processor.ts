@@ -97,6 +97,26 @@ export class OrderQueueProcessor extends WorkerHost {
         return { success: false, error: `حالة الطلب "${order.status}" لا تسمح بالتنفيذ` };
       }
 
+      // FIX: SECURITY — Verify credential ownership before execution
+      // The OrderQueueProcessor trusted the queue message data without verifying
+      // that the exchangeCredentialId actually belongs to the userId.
+      // A compromised or malicious queue message could execute orders using
+      // another user's API keys.
+      const credential = await this.prisma.exchangeCredential.findUnique({
+        where: { id: exchangeCredentialId },
+      });
+
+      if (!credential) {
+        return { success: false, error: 'بيانات الاعتماد غير موجودة' };
+      }
+
+      if (credential.userId !== userId) {
+        this.logger.error(
+          `⚙️ SECURITY: User ${userId} attempted to execute order with credential ${exchangeCredentialId} owned by ${credential.userId}`,
+        );
+        return { success: false, error: 'بيانات الاعتماد لا تنتمي لحسابك' };
+      }
+
       // Step 2: Check rate limits
       const exchange = order.exchange || 'unknown';
       const withinLimits = await this.rateLimiter.checkRateLimit(exchange, userId);

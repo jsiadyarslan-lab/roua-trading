@@ -261,6 +261,21 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
         };
       }
 
+      // FIX: SECURITY — Verify credential ownership
+      // Without this check, a malicious user could pass another user's exchangeCredentialId
+      // and the system would use their API keys to check balance (and potentially trade).
+      // This is a critical authorization bypass vulnerability.
+      if (credential.userId !== command.userId) {
+        this.logger.error(
+          `🛡️ SECURITY: User ${command.userId} attempted to use credential ${command.exchangeCredentialId} owned by ${credential.userId}`,
+        );
+        return {
+          allowed: false,
+          reason: 'بيانات الاعتماد لا تنتمي لحسابك.',
+          failedCheck: 'CREDENTIAL_OWNERSHIP',
+        };
+      }
+
       if (!credential.isValid) {
         return {
           allowed: false,

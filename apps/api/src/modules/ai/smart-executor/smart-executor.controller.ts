@@ -81,6 +81,29 @@ export class SmartExecutorController {
   }
 
   /**
+   * POST /api/smart-executor/user/auto-enable — Auto-enable paper trading for any user
+   * FIX: Added this endpoint so the dashboard can auto-enable the executor for
+   * the current user in paper-trading mode without requiring complex setup.
+   * This removes the biggest blocker: users never enabling the executor.
+   */
+  @Public()
+  @Post('user/auto-enable')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async autoEnable(@Request() req: any) {
+    const userId = req.user?.id || 'system-auto-trader';
+    const state = await this.executorService.enableUser(userId, {
+      isPaperTrading: true,
+      maxOpenPositions: 3,
+      riskPerTradePercent: 1,
+    });
+    return {
+      success: true,
+      data: state,
+      message: 'تم تفعيل التداول الورقي التلقائي — سيتم تنفيذ الصفقات بناءً على إشارات المجلس',
+    };
+  }
+
+  /**
    * POST /api/smart-executor/user/disable — Disable executor for current user
    */
   @Post('user/disable')

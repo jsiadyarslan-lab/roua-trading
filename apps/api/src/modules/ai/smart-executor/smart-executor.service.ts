@@ -278,9 +278,9 @@ export class SmartExecutorService implements OnModuleDestroy {
       // created from degraded/fallback data before the fix.
       // A real position should have qty * entryPrice >= $1.
       // ═══════════════════════════════════════════════════
-      return positions.filter((pos: any) => {
-        const qty = Number(pos.quantity ?? pos.qty ?? 0);
-        const entryPrice = Number(pos.entryPrice ?? pos.openPrice ?? 0);
+      return positions.filter((pos) => {
+        const qty = Number(pos.quantity);
+        const entryPrice = Number(pos.entryPrice);
         const tradeValue = qty * entryPrice;
         // Reject positions with zero/invalid prices or dust values
         return entryPrice > 0 && tradeValue >= 1;
@@ -303,8 +303,8 @@ export class SmartExecutorService implements OnModuleDestroy {
 
       const phantomIds: string[] = [];
       for (const pos of allPositions) {
-        const qty = Number(pos.quantity ?? pos.qty ?? 0);
-        const entryPrice = Number(pos.entryPrice ?? pos.openPrice ?? 0);
+        const qty = Number(pos.quantity);
+        const entryPrice = Number(pos.entryPrice);
         const tradeValue = qty * entryPrice;
         // Phantom = trade value < $1 (dust trade from degraded data)
         if (entryPrice <= 0 || tradeValue < 1) {

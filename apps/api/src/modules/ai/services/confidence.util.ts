@@ -22,9 +22,13 @@ const MODEL_RELIABILITY: Record<string, number> = {
   groq: 0.02,
   gemini: 0.05,
   glm: 0.03,
-  huggingface: -0.02,
+  cerebras: 0.03,    // Fast, reliable — Llama 3.1 on wafer-scale engine
   ollama: 0.00,
   bedrock: 0.05,
+  nvidia: 0.02,      // Good quality — Llama 3.3 70B on NVIDIA infrastructure
+  mistral: 0.04,     // Excellent multilingual — Mistral Small/Nemo
+  // Legacy models (still supported for backward compatibility)
+  huggingface: -0.02,
   openrouter: 0.00,
   deepseek: 0.03,
 };

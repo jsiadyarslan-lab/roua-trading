@@ -8,6 +8,9 @@ import { OllamaService } from './ollama.service';
 import { BedrockService } from './bedrock.service';
 import { OpenRouterService } from './openrouter.service';
 import { DeepSeekService } from './deepseek.service';
+import { CerebrasService } from './cerebras.service';
+import { MistralService } from './mistral.service';
+import { NvidiaService } from './nvidia.service';
 import { RagService } from './rag.service';
 import { AiUsageLoggerService } from './ai-usage-logger.service';
 import { withExponentialBackoff } from './retry.util';
@@ -113,11 +116,15 @@ export class AIOrchestratorService implements OnModuleDestroy {
     groq:        ['GROQ_API_KEY'],
     glm:         ['GLM_API_KEY'],
     gemini:      ['GOOGLE_AI_STUDIO_API_KEY', 'GEMINI_API_KEY'],  // Either key works
-    huggingface: ['HUGGINGFACE_API_KEY', 'HF_API_KEY'],  // Either key works; OR fallback handled separately
+    cerebras:    ['CEREBRAS_API_KEY', 'CEREBRAS_KEY'],  // Replaced HuggingFace — 14,400 req/day FREE
     ollama:      ['OLLAMA_API_KEY', 'OLLAMA_BASE_URL'],  // Either API key or cloud base URL
     bedrock:     ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY'],  // Both required
-    openrouter:  ['OPENROUTER_API_KEY', 'OPEN_ROUTER_API_KEY'],  // FIX: Added alternate name
-    deepseek:    ['DEEPSEEK_API_KEY'],     // DeepSeek V3
+    nvidia:      ['NVIDIA_API_KEY', 'NVIDIA_NIM_API_KEY', 'NIM_API_KEY'],  // Replaced OpenRouter — 40 req/min FREE
+    mistral:     ['MISTRAL_API_KEY', 'MISTRAL_KEY'],  // Replaced DeepSeek — 1B tokens/month FREE
+    // Legacy keys (still checked for backward compatibility)
+    huggingface: ['HUGGINGFACE_API_KEY', 'HF_API_KEY'],
+    openrouter:  ['OPENROUTER_API_KEY', 'OPEN_ROUTER_API_KEY'],
+    deepseek:    ['DEEPSEEK_API_KEY'],
   };
 
   /**
@@ -143,13 +150,13 @@ export class AIOrchestratorService implements OnModuleDestroy {
 
   /** Model routing — 8 models with smart fallbacks */
   private readonly ROUTING: Record<string, { primary: string; fallback: string[] }> = {
-    sentiment:        { primary: 'groq',       fallback: ['glm', 'huggingface', 'ollama', 'gemini', 'bedrock', 'deepseek', 'openrouter'] },
-    market_analysis:  { primary: 'gemini',     fallback: ['bedrock', 'glm', 'huggingface', 'ollama', 'groq', 'deepseek', 'openrouter'] },
-    prediction:       { primary: 'glm',        fallback: ['ollama', 'gemini', 'bedrock', 'huggingface', 'groq', 'deepseek', 'openrouter'] },
-    signal_generation:{ primary: 'gemini',     fallback: ['bedrock', 'groq', 'glm', 'huggingface', 'ollama', 'deepseek', 'openrouter'] },
-    risk_analysis:    { primary: 'bedrock',    fallback: ['glm', 'ollama', 'gemini', 'huggingface', 'groq', 'deepseek', 'openrouter'] },
-    translation:      { primary: 'groq',       fallback: ['glm', 'ollama', 'huggingface', 'gemini', 'bedrock', 'deepseek', 'openrouter'] },
-    general:          { primary: 'gemini',     fallback: ['groq', 'glm', 'huggingface', 'ollama', 'bedrock', 'deepseek', 'openrouter'] },
+    sentiment:        { primary: 'groq',       fallback: ['glm', 'cerebras', 'ollama', 'gemini', 'bedrock', 'mistral', 'nvidia'] },
+    market_analysis:  { primary: 'gemini',     fallback: ['bedrock', 'glm', 'cerebras', 'ollama', 'groq', 'mistral', 'nvidia'] },
+    prediction:       { primary: 'glm',        fallback: ['ollama', 'gemini', 'bedrock', 'cerebras', 'groq', 'mistral', 'nvidia'] },
+    signal_generation:{ primary: 'gemini',     fallback: ['bedrock', 'groq', 'glm', 'cerebras', 'ollama', 'mistral', 'nvidia'] },
+    risk_analysis:    { primary: 'bedrock',    fallback: ['glm', 'ollama', 'gemini', 'cerebras', 'groq', 'mistral', 'nvidia'] },
+    translation:      { primary: 'groq',       fallback: ['glm', 'ollama', 'cerebras', 'gemini', 'bedrock', 'mistral', 'nvidia'] },
+    general:          { primary: 'gemini',     fallback: ['groq', 'glm', 'cerebras', 'ollama', 'bedrock', 'mistral', 'nvidia'] },
   };
 
   constructor(
@@ -162,12 +169,15 @@ export class AIOrchestratorService implements OnModuleDestroy {
     private readonly bedrockService: BedrockService,
     private readonly openrouterService: OpenRouterService,
     private readonly deepseekService: DeepSeekService,
+    private readonly cerebrasService: CerebrasService,
+    private readonly mistralService: MistralService,
+    private readonly nvidiaService: NvidiaService,
     private readonly usageLogger: AiUsageLoggerService,
     @Optional() private readonly ragService?: RagService,
     @Optional() @Inject(forwardRef(() => PredictionMarketService)) private readonly predictionMarket?: PredictionMarketService,
     @Optional() private readonly redis?: RedisService,
   ) {
-    this.logger.log('🎼 AI Orchestrator initialized — 8 models + Prediction Market (Groq, Gemini, GLM-4, HuggingFace, Ollama, Bedrock, OpenRouter, DeepSeek)');
+    this.logger.log('🎼 AI Orchestrator initialized — 8 models + Prediction Market (Groq, Gemini, GLM-4, Cerebras, Ollama, Bedrock, NVIDIA NIM, Mistral)');
     if (this.ragService) {
       this.logger.log('📚 RAG integration enabled — context retrieval active');
     }
@@ -455,10 +465,10 @@ export class AIOrchestratorService implements OnModuleDestroy {
         { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['deepseek', 'ollama', 'gemini', 'bedrock', 'glm', 'huggingface', 'openrouter'], prompt: `${marketDataPrefix}حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
         { id: 'risk',   name: 'خبير المخاطر',     model: 'bedrock',    fallbackModels: ['glm', 'deepseek', 'ollama', 'gemini', 'groq', 'openrouter'],        prompt: `${marketDataPrefix}حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة مع تقييم السيناريو الأسوأ.${decisionInstruction}` },
         { id: 'macro',  name: 'خبير الماكرو',     model: 'glm',        fallbackModels: ['deepseek', 'ollama', 'bedrock', 'gemini', 'groq', 'huggingface', 'openrouter'], prompt: `${marketDataPrefix}حلل الوضع الاقتصادي العام وتأثيره على ${symbol} مع مراعاة السياق العربي.${decisionInstruction}` },
-        { id: 'pattern',name: 'خبير الأنماط',     model: 'huggingface',fallbackModels: ['ollama', 'deepseek', 'groq', 'gemini', 'bedrock', 'glm', 'openrouter'],        prompt: `${marketDataPrefix}هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟${decisionInstruction}` },
+        { id: 'pattern',name: 'خبير الأنماط',     model: 'cerebras',   fallbackModels: ['ollama', 'mistral', 'groq', 'gemini', 'bedrock', 'glm', 'nvidia'],        prompt: `${marketDataPrefix}هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟${decisionInstruction}` },
         { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'ollama',     fallbackModels: ['deepseek', 'bedrock', 'glm', 'gemini', 'groq', 'huggingface', 'openrouter'],        prompt: `${marketDataPrefix}ما هو أفضل توقيت للدخول في ${symbol} بناءً على السيولة والنماذج المتاحة؟${decisionInstruction}` },
-        { id: 'diverge',name: 'محلل التباين',     model: 'openrouter', fallbackModels: ['deepseek', 'ollama', 'bedrock', 'groq', 'gemini', 'glm', 'huggingface'],        prompt: `${marketDataPrefix}ابحث عن إشارات معاكسة أو تباينات في تحليل ${symbol} — هل هناك سبب لعدم اتباع الاتجاه السائد؟${decisionInstruction}` },
-        { id: 'scenario', name: 'محلل السيناريوهات', model: 'deepseek',    fallbackModels: ['ollama', 'bedrock', 'gemini', 'groq', 'glm', 'huggingface', 'openrouter'],        prompt: `${marketDataPrefix}حلل السيناريوهات المحتملة لـ ${symbol} مع تقدير احتمالات كل سيناريو.${decisionInstruction}` },
+        { id: 'diverge',name: 'محلل التباين',     model: 'nvidia',     fallbackModels: ['mistral', 'ollama', 'bedrock', 'groq', 'gemini', 'glm', 'cerebras'],        prompt: `${marketDataPrefix}ابحث عن إشارات معاكسة أو تباينات في تحليل ${symbol} — هل هناك سبب لعدم اتباع الاتجاه السائد؟${decisionInstruction}` },
+        { id: 'scenario', name: 'محلل السيناريوهات', model: 'mistral',  fallbackModels: ['ollama', 'bedrock', 'gemini', 'groq', 'glm', 'cerebras', 'nvidia'],        prompt: `${marketDataPrefix}حلل السيناريوهات المحتملة لـ ${symbol} مع تقدير احتمالات كل سيناريو.${decisionInstruction}` },
       ];
 
       // ── 9th Model: Prediction Market Analyst ──
@@ -496,7 +506,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
       // FIX: Dynamic MAX_MODEL_REUSE — when few models are available, allow more reuse.
       // If only 3 models work, we NEED each to serve 3 roles to fill all 8 slots.
       // Previous fixed MAX_MODEL_REUSE=2 meant only 6/8 roles filled with 3 models.
-      const availableModelCount = ['groq', 'glm', 'gemini', 'huggingface', 'ollama', 'bedrock', 'openrouter', 'deepseek']
+      const availableModelCount = ['groq', 'glm', 'gemini', 'cerebras', 'ollama', 'bedrock', 'nvidia', 'mistral']
         .filter(m => this._isModelKeyAvailable(m)).length;
       const MAX_MODEL_REUSE = availableModelCount <= 3 ? 3 : 2; // Allow 3 reuse when models are scarce
       const modelUsageCount = new Map<string, number>(); // Track how many roles each model is assigned to
@@ -1117,13 +1127,13 @@ export class AIOrchestratorService implements OnModuleDestroy {
   getModelsStatus(): { model: string; available: boolean; specialty: string }[] {
     return [
       { model: 'Groq/Llama 3.3 70B',        available: this._isModelKeyAvailable('groq'),        specialty: '⚡ سرعة فائقة — تحليل المشاعر والترجمة الفورية' },
-      { model: 'GLM-4 (Zhipu AI)',           available: this._isModelKeyAvailable('glm'),         specialty: '🧠 تحليل عربي — سياق طويل 200k' },
       { model: 'Gemini 2.0 Flash',           available: this._isModelKeyAvailable('gemini'),      specialty: '💎 تحليل إبداعي — استراتيجية ومنطق مهيكل' },
-      { model: 'HuggingFace/Mistral-7B',     available: this._isModelKeyAvailable('huggingface'), specialty: '🤗 مجاني مفتوح المصدر — تحليل متنوع' },
+      { model: 'GLM-4 (Zhipu AI)',           available: this._isModelKeyAvailable('glm'),         specialty: '🧠 تحليل عربي — سياق طويل 200k' },
+      { model: 'Cerebras/Llama 3.1 8B',     available: this._isModelKeyAvailable('cerebras'),    specialty: '🧠 سرعة خارقة — أنماط وتحليل فني (14,400 طلب/يوم مجاناً)' },
       { model: 'Ollama/Qwen2.5',             available: this._isModelKeyAvailable('ollama'),      specialty: '🏠 محلي بدون تكلفة — دعم عربي ممتاز' },
       { model: 'Bedrock/Claude 3.5 Sonnet',  available: this._isModelKeyAvailable('bedrock'),     specialty: '☁️ مؤسسي AWS — مخاطر وامتثال' },
-      { model: 'OpenRouter/Llama 3.1',       available: this._isModelKeyAvailable('openrouter'),  specialty: '🔀 تباين ومعاكسة — نماذج مجانية متنوعة' },
-      { model: 'DeepSeek V3',                available: this._isModelKeyAvailable('deepseek'),    specialty: '🔬 سيناريوهات — تحليل عميق' },
+      { model: 'NVIDIA NIM/Llama 3.3 70B',   available: this._isModelKeyAvailable('nvidia'),      specialty: '🟢 تباين ومعاكسة — نماذج متنوعة (40 طلب/دقيقة مجاناً)' },
+      { model: 'Mistral/Small',              available: this._isModelKeyAvailable('mistral'),     specialty: '🔮 سيناريوهات — تحليل عميق (1 مليار token/شهر مجاناً)' },
     ];
   }
 
@@ -1401,6 +1411,9 @@ export class AIOrchestratorService implements OnModuleDestroy {
           case 'bedrock':     return this.bedrockService.analyze(request);
           case 'openrouter':  return this.openrouterService.analyze(request);
           case 'deepseek':    return this.deepseekService.analyze(request);
+          case 'cerebras':    return this.cerebrasService.analyze(request);
+          case 'mistral':     return this.mistralService.analyze(request);
+          case 'nvidia':      return this.nvidiaService.analyze(request);
           default:            return this.geminiService.analyze(request);
         }
       },

@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 // ROUA Trading Chart — Multi-Timeframe Chart Popup
 // Shows live mini candlestick charts with add/remove + pair change
+// Active chart selection with mini toolbar per chart
 // ═══════════════════════════════════════════════════════════
 
 'use client';
@@ -76,6 +77,14 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
     { id: `slot-${slotIdCounter++}`, symbol, timeframe: '1day', labelShort: '1D' },
   ]);
   const [chartStates, setChartStates] = useState<Map<string, MiniChartState>>(new Map());
+  const [activeSlotId, setActiveSlotId] = useState<string>('');
+
+  // Set initial active slot
+  useEffect(() => {
+    if (!activeSlotId && slots.length > 0) {
+      setActiveSlotId(slots[0].id);
+    }
+  }, [slots, activeSlotId]);
 
   const updateChartState = useCallback((slotId: string, update: Partial<MiniChartState>) => {
     setChartStates(prev => {
@@ -193,7 +202,15 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
     chartInstancesRef.current.delete(id);
     seriesRefs.current.delete(id);
     setSlots(prev => prev.filter(s => s.id !== id));
-  }, []);
+    setActiveSlotId(prev => {
+      if (prev === id) {
+        // Move active to another slot
+        const remaining = slots.filter(s => s.id !== id);
+        return remaining.length > 0 ? remaining[0].id : '';
+      }
+      return prev;
+    });
+  }, [slots]);
 
   const handleChangeSymbol = useCallback((id: string, newSymbol: string) => {
     // Remove existing chart so it gets recreated with new symbol
@@ -214,6 +231,52 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
     seriesRefs.current.delete(id);
     setSlots(prev => prev.map(s => s.id === id ? { ...s, timeframe: tfOption.value, labelShort: tfOption.labelShort } : s));
   }, []);
+
+  // Zoom handlers for active chart
+  const handleZoomIn = useCallback(() => {
+    const chart = chartInstancesRef.current.get(activeSlotId);
+    if (chart) {
+      try {
+        const ts = chart.timeScale();
+        const range = ts.getVisibleRange();
+        if (range) {
+          const from = range.from as number;
+          const to = range.to as number;
+          const span = to - from;
+          const center = from + span / 2;
+          const newSpan = span * 0.7;
+          ts.setVisibleRange({ from: center - newSpan / 2, to: center + newSpan / 2 });
+        }
+      } catch { /* ignore */ }
+    }
+  }, [activeSlotId]);
+
+  const handleZoomOut = useCallback(() => {
+    const chart = chartInstancesRef.current.get(activeSlotId);
+    if (chart) {
+      try {
+        const ts = chart.timeScale();
+        const range = ts.getVisibleRange();
+        if (range) {
+          const from = range.from as number;
+          const to = range.to as number;
+          const span = to - from;
+          const center = from + span / 2;
+          const newSpan = span * 1.4;
+          ts.setVisibleRange({ from: center - newSpan / 2, to: center + newSpan / 2 });
+        }
+      } catch { /* ignore */ }
+    }
+  }, [activeSlotId]);
+
+  const handleFitContent = useCallback(() => {
+    const chart = chartInstancesRef.current.get(activeSlotId);
+    if (chart) {
+      try {
+        chart.timeScale().fitContent();
+      } catch { /* ignore */ }
+    }
+  }, [activeSlotId]);
 
   // Load data for all slots
   useEffect(() => {
@@ -280,7 +343,10 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
   };
 
   // Dynamic grid columns
-  const colCount = slots.length <= 2 ? slots.length : 2;
+  const colCount = slots.length <= 2 ? slots.length : slots.length <= 6 ? 2 : 3;
+
+  // Calculate grid rows
+  const rowCount = Math.ceil(slots.length / colCount);
 
   return (
     <div
@@ -293,8 +359,8 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div style={{
-        width: '92vw', maxWidth: 1100,
-        height: '85vh', maxHeight: 750,
+        width: '92vw', maxWidth: 1200,
+        height: '88vh', maxHeight: 820,
         display: 'flex', flexDirection: 'column',
         background: C.card, borderRadius: 14,
         border: `1px solid ${C.cardBorder}`,
@@ -304,9 +370,10 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
         {/* Header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '14px 18px',
+          padding: '12px 18px',
           borderBottom: `1px solid ${C.cardBorder}`,
           background: 'linear-gradient(180deg, rgba(17,22,32,1) 0%, rgba(11,14,20,1) 100%)',
+          flexShrink: 0,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{
@@ -366,35 +433,57 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
           </div>
         </div>
 
-        {/* Grid */}
+        {/* Grid - fills all remaining space */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: `repeat(${colCount}, 1fr)`,
-          gap: 1, flex: 1, minHeight: 0,
-          background: C.cardBorder, overflow: 'auto',
+          gridTemplateRows: `repeat(${rowCount}, 1fr)`,
+          gap: 6,
+          flex: 1,
+          minHeight: 0,
+          padding: 6,
+          overflow: 'hidden',
+          background: C.bg,
         }}>
           {slots.map((slot) => {
             const state = chartStates.get(slot.id);
             const changePercent = calcChange(state?.currentPrice ?? null, state?.prevPrice ?? null);
             const isPositive = changePercent !== null && changePercent >= 0;
-            const isExtra = slots.length > 4;
+            const isActive = activeSlotId === slot.id;
 
             return (
-              <div key={slot.id} style={{
-                background: C.bg,
-                display: 'flex', flexDirection: 'column',
-                overflow: 'hidden', minHeight: 200,
-              }}>
-                {/* Mini chart header */}
+              <div
+                key={slot.id}
+                onClick={() => setActiveSlotId(slot.id)}
+                style={{
+                  background: C.card,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                  borderRadius: 8,
+                  border: isActive
+                    ? '1px solid rgba(0,212,255,0.4)'
+                    : `1px solid ${C.cardBorder}`,
+                  boxShadow: isActive
+                    ? '0 0 12px rgba(0,212,255,0.15), inset 0 0 8px rgba(0,212,255,0.03)'
+                    : 'none',
+                  cursor: 'pointer',
+                  transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+                  minHeight: 0,
+                }}
+              >
+                {/* Mini chart header with symbol/timeframe selectors */}
                 <div style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '8px 12px', background: C.card,
+                  padding: '6px 10px',
                   borderBottom: `1px solid ${C.cardBorder}`,
+                  flexShrink: 0,
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                     {/* Symbol selector */}
                     <select
                       value={slot.symbol}
+                      onClick={(e) => e.stopPropagation()}
                       onChange={(e) => handleChangeSymbol(slot.id, e.target.value)}
                       style={{
                         background: 'rgba(0,212,255,0.08)',
@@ -414,6 +503,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                     {/* Timeframe selector */}
                     <select
                       value={slot.timeframe}
+                      onClick={(e) => e.stopPropagation()}
                       onChange={(e) => handleChangeTimeframe(slot.id, e.target.value)}
                       style={{
                         background: 'rgba(255,255,255,0.04)',
@@ -430,7 +520,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                     </select>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                     {state?.loading && (
                       <div style={{ width: 10, height: 10, border: `2px solid ${C.cardBorder}`, borderTopColor: C.cyan, borderRadius: '50%', animation: 'mtfSpin 1s linear infinite' }} />
                     )}
@@ -460,26 +550,25 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                       </span>
                     )}
 
-                    {/* Remove button (always show when more than 4 charts) */}
-                    {isExtra && (
-                      <button
-                        onClick={() => handleRemoveChart(slot.id)}
-                        style={{
-                          background: 'rgba(255,71,87,0.1)',
-                          border: '1px solid rgba(255,71,87,0.2)',
-                          borderRadius: 4, color: C.danger,
-                          width: 18, height: 18, cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 10, padding: 0, transition: 'all 0.15s ease',
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.25)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; }}
-                      >
-                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                        </svg>
-                      </button>
-                    )}
+                    {/* Remove button */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleRemoveChart(slot.id); }}
+                      style={{
+                        background: 'rgba(255,71,87,0.1)',
+                        border: '1px solid rgba(255,71,87,0.2)',
+                        borderRadius: 4, color: C.danger,
+                        width: 18, height: 18, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 10, padding: 0, transition: 'all 0.15s ease',
+                        flexShrink: 0,
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.25)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; }}
+                    >
+                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
 
@@ -488,13 +577,153 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                   ref={setContainerRef(slot.id)}
                   style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative' }}
                 />
+
+                {/* Mini toolbar - visible on each chart, highlighted when active */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '3px 8px',
+                  borderTop: `1px solid ${C.cardBorder}`,
+                  background: isActive ? 'rgba(0,212,255,0.04)' : 'rgba(0,0,0,0.2)',
+                  flexShrink: 0,
+                  transition: 'background 0.2s ease',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                    {/* Candlestick chart type button */}
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        background: isActive ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.04)',
+                        border: isActive ? '1px solid rgba(0,212,255,0.25)' : '1px solid rgba(255,255,255,0.06)',
+                        borderRadius: 3,
+                        color: isActive ? C.cyan : C.textMuted,
+                        height: 18,
+                        padding: '0 5px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 8,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontWeight: 600,
+                        transition: 'all 0.15s ease',
+                        gap: 3,
+                      }}
+                    >
+                      {/* Candlestick icon */}
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <line x1="9" y1="4" x2="9" y2="20" /><rect x="6" y="8" width="6" height="8" rx="1" /><line x1="17" y1="2" x2="17" y2="10" /><rect x="14" y="6" width="6" height="8" rx="1" />
+                      </svg>
+                      شموع
+                    </button>
+
+                    {/* Indicators button (visual only) */}
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        background: isActive ? 'rgba(0,212,255,0.08)' : 'rgba(255,255,255,0.04)',
+                        border: isActive ? '1px solid rgba(0,212,255,0.15)' : '1px solid rgba(255,255,255,0.06)',
+                        borderRadius: 3,
+                        color: isActive ? 'rgba(0,212,255,0.7)' : C.textMuted,
+                        height: 18,
+                        padding: '0 5px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 8,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontWeight: 600,
+                        transition: 'all 0.15s ease',
+                        gap: 3,
+                      }}
+                    >
+                      {/* Indicator icon */}
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
+                      </svg>
+                      مؤشرات
+                    </button>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                    {/* Zoom out */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleZoomOut(); }}
+                      style={{
+                        background: isActive ? 'rgba(0,212,255,0.08)' : 'rgba(255,255,255,0.04)',
+                        border: isActive ? '1px solid rgba(0,212,255,0.15)' : '1px solid rgba(255,255,255,0.06)',
+                        borderRadius: 3,
+                        color: isActive ? 'rgba(0,212,255,0.8)' : C.textMuted,
+                        width: 18, height: 18,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0,
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                    </button>
+
+                    {/* Fit content / Reset zoom */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleFitContent(); }}
+                      style={{
+                        background: isActive ? 'rgba(0,212,255,0.08)' : 'rgba(255,255,255,0.04)',
+                        border: isActive ? '1px solid rgba(0,212,255,0.15)' : '1px solid rgba(255,255,255,0.06)',
+                        borderRadius: 3,
+                        color: isActive ? 'rgba(0,212,255,0.8)' : C.textMuted,
+                        width: 18, height: 18,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0,
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" />
+                      </svg>
+                    </button>
+
+                    {/* Zoom in */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleZoomIn(); }}
+                      style={{
+                        background: isActive ? 'rgba(0,212,255,0.08)' : 'rgba(255,255,255,0.04)',
+                        border: isActive ? '1px solid rgba(0,212,255,0.15)' : '1px solid rgba(255,255,255,0.06)',
+                        borderRadius: 3,
+                        color: isActive ? 'rgba(0,212,255,0.8)' : C.textMuted,
+                        width: 18, height: 18,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: 0,
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
             );
           })}
         </div>
       </div>
 
-      <style>{`@keyframes mtfSpin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes mtfSpin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }

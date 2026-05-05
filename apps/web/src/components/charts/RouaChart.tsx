@@ -33,6 +33,7 @@ import { AlertPanel } from './AlertPanel';
 import { SessionStats } from './SessionStats';
 import { PatternProgress } from './PatternProgress';
 import { QuickTradePanel } from './QuickTradePanel';
+import { DraggablePanel } from './DraggablePanel';
 import { fetchSignalsForChart, fetchStrategicBriefs, convertToChartMarkers } from '@/lib/charts/chart-signals';
 import type { AIAnalysisResult } from './AIPatternPanel';
 import { T } from '@/lib/unified-tokens';
@@ -1370,124 +1371,132 @@ export default function RouaChart({
           </div>{/* ── Overlay Layer close ── */}
         </div>{/* ── Chart Wrapper close ── */}
 
-        {/* Drawing Panel (floating) */}
+        {/* Drawing Panel (draggable) */}
         {showDrawingPanel && (
-          <DrawingPanel
-            activeTool={chart.activeTool}
-            onSetTool={chart.setTool}
-            onClose={() => setShowDrawingPanel(false)}
-            onClearAll={chart.clearDrawings}
-          />
+          <DraggablePanel defaultPosition={{ top: 40, right: 8 }} defaultWidth={280} minHeight={200}>
+            <DrawingPanel
+              activeTool={chart.activeTool}
+              onSetTool={chart.setTool}
+              onClose={() => setShowDrawingPanel(false)}
+              onClearAll={chart.clearDrawings}
+            />
+          </DraggablePanel>
         )}
 
-        {/* Indicator Panel (floating) */}
+        {/* Indicator Panel (draggable) */}
         {showIndicatorPanel && (
-          <IndicatorPanel
-            activeIndicators={chart.getActiveIndicators().map(i => i.key)}
-            onToggleIndicator={handleToggleIndicator}
-            onOpenSettings={handleOpenSettings}
-            onClose={() => setShowIndicatorPanel(false)}
-          />
+          <DraggablePanel defaultPosition={{ top: 40, right: 80 }} defaultWidth={230} minHeight={200}>
+            <IndicatorPanel
+              activeIndicators={chart.getActiveIndicators().map(i => i.key)}
+              onToggleIndicator={handleToggleIndicator}
+              onOpenSettings={handleOpenSettings}
+              onClose={() => setShowIndicatorPanel(false)}
+            />
+          </DraggablePanel>
         )}
 
-        {/* Indicator Settings Panel */}
+        {/* Indicator Settings Panel (draggable) */}
         {showSettingsPanel && settingsIndicator && (
-          <IndicatorSettings
-            indicator={settingsIndicator}
-            onSave={handleSaveSettings}
-            onClose={() => { setShowSettingsPanel(false); setSettingsIndicator(null); }}
-          />
+          <DraggablePanel defaultPosition={{ top: 40, right: 300 }} defaultWidth={220} minHeight={180} resizable={false}>
+            <IndicatorSettings
+              indicator={settingsIndicator}
+              onSave={handleSaveSettings}
+              onClose={() => { setShowSettingsPanel(false); setSettingsIndicator(null); }}
+            />
+          </DraggablePanel>
         )}
 
-        {/* AI Pattern Panel (floating) */}
+        {/* AI Pattern Panel (draggable) */}
         {showAIPanel && (
-          <AIPatternPanel
-            symbol={selectedSymbol}
-            candles={candlesRef.current || []}
-            onPatternsDetected={handlePatternsDetected}
-            onPatternClick={(p) => {
-              // Navigate chart to the pattern's time and price
-              try {
-                const chartApi = chart.chartRef?.current;
-                if (chartApi && p.time) {
-                  chartApi.timeScale().setVisibleRange({
-                    from: (p.time - 3600 * 6) as any,
-                    to: (p.time + 3600 * 6) as any,
-                  });
-                }
-              } catch { /* timeScale may not support setVisibleRange */ }
-            }}
-            onLevelClick={(level) => {
-              // Add a temporary highlighted price line for the clicked level
-              try {
-                const color = level.type === 'support' ? '#00FFA3' : '#FF4757';
-                const label = level.type === 'support' ? `دعم ${level.price.toFixed(level.price > 1000 ? 2 : 5)}` : `مقاومة ${level.price.toFixed(level.price > 1000 ? 2 : 5)}`;
-                chart.addPriceLine(`ai-click-${level.type}-${Date.now()}`, level.price, color, label, 2, 0, true);
-              } catch { /* ignore */ }
-            }}
-            onTrendLineClick={(line) => {
-              // Navigate chart to show the trend line
-              try {
-                const chartApi = chart.chartRef?.current;
-                if (chartApi) {
-                  const fromTime = Math.min(line.startPoint.time, line.endPoint.time);
-                  const toTime = Math.max(line.startPoint.time, line.endPoint.time);
-                  chartApi.timeScale().setVisibleRange({
-                    from: (fromTime - 3600 * 3) as any,
-                    to: (toTime + 3600 * 3) as any,
-                  });
-                }
-              } catch { /* ignore */ }
-            }}
-            onEntryExitClick={(entryExit) => {
-              // Draw entry/exit price lines on chart
-              try {
-                // Remove previous entry/exit lines
-                chart.removePriceLine('ai-entry-quick');
-                chart.removePriceLine('ai-sl-quick');
-                chart.removePriceLine('ai-tp-quick');
-
-                if (entryExit.entryPrice > 0) {
-                  chart.addPriceLine('ai-entry-quick', entryExit.entryPrice, '#00D4FF', `دخول ${entryExit.entryPrice.toFixed(entryExit.entryPrice > 1000 ? 2 : 5)}`, 2, 0, true);
-                }
-                if (entryExit.stopLoss > 0) {
-                  chart.addPriceLine('ai-sl-quick', entryExit.stopLoss, '#FF4757', `SL ${entryExit.stopLoss.toFixed(entryExit.stopLoss > 1000 ? 2 : 5)}`, 2, 2, true);
-                }
-                if (entryExit.takeProfit > 0) {
-                  chart.addPriceLine('ai-tp-quick', entryExit.takeProfit, '#00FFA3', `TP ${entryExit.takeProfit.toFixed(entryExit.takeProfit > 1000 ? 2 : 5)}`, 2, 2, true);
-                }
-              } catch { /* ignore */ }
-            }}
-            onClose={() => setShowAIPanel(false)}
-          />
+          <DraggablePanel defaultPosition={{ top: 40, left: 8 }} defaultWidth={320} minHeight={300}>
+            <AIPatternPanel
+              symbol={selectedSymbol}
+              candles={candlesRef.current || []}
+              onPatternsDetected={handlePatternsDetected}
+              onPatternClick={(p) => {
+                try {
+                  const chartApi = chart.chartRef?.current;
+                  if (chartApi && p.time) {
+                    chartApi.timeScale().setVisibleRange({
+                      from: (p.time - 3600 * 6) as any,
+                      to: (p.time + 3600 * 6) as any,
+                    });
+                  }
+                } catch { /* timeScale may not support setVisibleRange */ }
+              }}
+              onLevelClick={(level) => {
+                try {
+                  const color = level.type === 'support' ? '#00FFA3' : '#FF4757';
+                  const label = level.type === 'support' ? `دعم ${level.price.toFixed(level.price > 1000 ? 2 : 5)}` : `مقاومة ${level.price.toFixed(level.price > 1000 ? 2 : 5)}`;
+                  chart.addPriceLine(`ai-click-${level.type}-${Date.now()}`, level.price, color, label, 2, 0, true);
+                } catch { /* ignore */ }
+              }}
+              onTrendLineClick={(line) => {
+                try {
+                  const chartApi = chart.chartRef?.current;
+                  if (chartApi) {
+                    const fromTime = Math.min(line.startPoint.time, line.endPoint.time);
+                    const toTime = Math.max(line.startPoint.time, line.endPoint.time);
+                    chartApi.timeScale().setVisibleRange({
+                      from: (fromTime - 3600 * 3) as any,
+                      to: (toTime + 3600 * 3) as any,
+                    });
+                  }
+                } catch { /* ignore */ }
+              }}
+              onEntryExitClick={(entryExit) => {
+                try {
+                  chart.removePriceLine('ai-entry-quick');
+                  chart.removePriceLine('ai-sl-quick');
+                  chart.removePriceLine('ai-tp-quick');
+                  if (entryExit.entryPrice > 0) {
+                    chart.addPriceLine('ai-entry-quick', entryExit.entryPrice, '#00D4FF', `دخول ${entryExit.entryPrice.toFixed(entryExit.entryPrice > 1000 ? 2 : 5)}`, 2, 0, true);
+                  }
+                  if (entryExit.stopLoss > 0) {
+                    chart.addPriceLine('ai-sl-quick', entryExit.stopLoss, '#FF4757', `SL ${entryExit.stopLoss.toFixed(entryExit.stopLoss > 1000 ? 2 : 5)}`, 2, 2, true);
+                  }
+                  if (entryExit.takeProfit > 0) {
+                    chart.addPriceLine('ai-tp-quick', entryExit.takeProfit, '#00FFA3', `TP ${entryExit.takeProfit.toFixed(entryExit.takeProfit > 1000 ? 2 : 5)}`, 2, 2, true);
+                  }
+                } catch { /* ignore */ }
+              }}
+              onClose={() => setShowAIPanel(false)}
+            />
+          </DraggablePanel>
         )}
 
-        {/* Chart Trading Panel (floating) */}
+        {/* Chart Trading Panel (draggable) */}
         {showChartTrading && currentPrice && (
-          <ChartTrading
-            symbol={selectedSymbol}
-            currentPrice={typeof currentPrice === 'number' ? currentPrice : 0}
-            onClose={() => setShowChartTrading(false)}
-            onPlaceOrder={handlePlaceOrder}
-          />
+          <DraggablePanel defaultPosition={{ top: 50, right: 8 }} defaultWidth={240} minHeight={300}>
+            <ChartTrading
+              symbol={selectedSymbol}
+              currentPrice={typeof currentPrice === 'number' ? currentPrice : 0}
+              onClose={() => setShowChartTrading(false)}
+              onPlaceOrder={handlePlaceOrder}
+            />
+          </DraggablePanel>
         )}
 
-        {/* Template Manager (floating) */}
+        {/* Template Manager (draggable) */}
         {showTemplateManager && (
-          <TemplateManager
-            onLoadTemplate={chart.loadTemplate}
-            onSaveTemplate={chart.saveTemplate}
-            onClose={() => setShowTemplateManager(false)}
-          />
+          <DraggablePanel defaultPosition={{ top: 40, left: 100 }} defaultWidth={280} minHeight={250}>
+            <TemplateManager
+              onLoadTemplate={chart.loadTemplate}
+              onSaveTemplate={chart.saveTemplate}
+              onClose={() => setShowTemplateManager(false)}
+            />
+          </DraggablePanel>
         )}
 
-        {/* Chart Settings Panel (floating) */}
+        {/* Chart Settings Panel (draggable) */}
         {showChartSettings && (
-          <ChartSettingsPanel
-            settings={chart.settings}
-            onUpdateSettings={chart.updateSettings}
-            onClose={() => setShowChartSettings(false)}
-          />
+          <DraggablePanel defaultPosition={{ top: 40, right: 8 }} defaultWidth={260} minHeight={200}>
+            <ChartSettingsPanel
+              settings={chart.settings}
+              onUpdateSettings={chart.updateSettings}
+              onClose={() => setShowChartSettings(false)}
+            />
+          </DraggablePanel>
         )}
 
         {/* Compare Overlay */}
@@ -1520,48 +1529,58 @@ export default function RouaChart({
 
         {/* ── 5 New Feature Components ── */}
 
-        {/* Footprint Chart */}
+        {/* Footprint Chart (draggable) */}
         {showFootprint && (
-          <FootprintChart
-            symbol={selectedSymbol}
-            onClose={() => setShowFootprint(false)}
-          />
+          <DraggablePanel defaultPosition={{ top: 50, right: 8 }} defaultWidth={300} minHeight={250}>
+            <FootprintChart
+              symbol={selectedSymbol}
+              onClose={() => setShowFootprint(false)}
+            />
+          </DraggablePanel>
         )}
 
-        {/* Alert Panel */}
+        {/* Alert Panel (draggable) */}
         {showAlerts && (
-          <AlertPanel
-            symbol={selectedSymbol}
-            currentPrice={currentPrice || undefined}
-            onClose={() => setShowAlerts(false)}
-          />
+          <DraggablePanel defaultPosition={{ top: 0, right: 0 }} defaultWidth={280} minHeight={250}>
+            <AlertPanel
+              symbol={selectedSymbol}
+              currentPrice={currentPrice || undefined}
+              onClose={() => setShowAlerts(false)}
+            />
+          </DraggablePanel>
         )}
 
-        {/* Session Stats */}
+        {/* Session Stats (draggable) */}
         {showSessionStats && (
-          <SessionStats
-            symbol={selectedSymbol}
-            onClose={() => setShowSessionStats(false)}
-          />
+          <DraggablePanel defaultPosition={{ bottom: 12, left: 12 }} defaultWidth={260} minHeight={200}>
+            <SessionStats
+              symbol={selectedSymbol}
+              onClose={() => setShowSessionStats(false)}
+            />
+          </DraggablePanel>
         )}
 
-        {/* Pattern Progress */}
+        {/* Pattern Progress (draggable) */}
         {showPatternProgress && (
-          <PatternProgress
-            symbol={selectedSymbol}
-            candles={candlesRef.current}
-            onClose={() => setShowPatternProgress(false)}
-          />
+          <DraggablePanel defaultPosition={{ top: 120, left: 12 }} defaultWidth={280} minHeight={220}>
+            <PatternProgress
+              symbol={selectedSymbol}
+              candles={candlesRef.current}
+              onClose={() => setShowPatternProgress(false)}
+            />
+          </DraggablePanel>
         )}
 
-        {/* Quick Trade Panel */}
+        {/* Quick Trade Panel (draggable) */}
         {showQuickTrade && (
-          <QuickTradePanel
-            symbol={selectedSymbol}
-            currentPrice={currentPrice}
-            onPlaceOrder={handlePlaceOrder}
-            onClose={() => setShowQuickTrade(false)}
-          />
+          <DraggablePanel defaultPosition={{ bottom: 12, right: 12 }} defaultWidth={260} minHeight={300}>
+            <QuickTradePanel
+              symbol={selectedSymbol}
+              currentPrice={currentPrice}
+              onPlaceOrder={handlePlaceOrder}
+              onClose={() => setShowQuickTrade(false)}
+            />
+          </DraggablePanel>
         )}
       </div>{/* ── Chart Area close ── */}
 

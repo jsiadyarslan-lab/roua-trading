@@ -80,9 +80,6 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
       onMouseDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
       style={{
-      position: 'absolute',
-      top: 40,
-      right: 8,
       background: COLORS.card,
       border: `1px solid rgba(0,212,255,0.2)`,
       borderRadius: 10,
@@ -97,13 +94,14 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
       flexDirection: 'column',
     }}>
       {/* Header */}
-      <div style={{
+      <div data-drag-handle style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 8,
         paddingBottom: 6,
         borderBottom: '1px solid rgba(0,212,255,0.1)',
+        cursor: 'grab',
       }}>
         <span style={{
           fontSize: 10,

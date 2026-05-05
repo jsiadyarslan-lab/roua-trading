@@ -77,9 +77,6 @@ export function TemplateManager({ onLoadTemplate, onSaveTemplate, onClose }: Tem
 
   return (
     <div style={{
-      position: 'absolute',
-      top: 40,
-      left: 100,
       background: COLORS.card,
       border: '1px solid rgba(0,212,255,0.2)',
       borderRadius: 10,
@@ -90,7 +87,7 @@ export function TemplateManager({ onLoadTemplate, onSaveTemplate, onClose }: Tem
       width: 280,
     }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+      <div data-drag-handle style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, cursor: 'grab' }}>
         <span style={{ fontSize: 11, color: COLORS.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
           💾 إدارة القوالب
         </span>

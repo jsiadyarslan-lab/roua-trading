@@ -114,9 +114,6 @@ export function IndicatorPanel({
 
   return (
     <div style={{
-      position: 'absolute',
-      top: 40,
-      right: 80,
       background: COLORS.card,
       border: '1px solid rgba(0,212,255,0.2)',
       borderRadius: 10,
@@ -127,11 +124,12 @@ export function IndicatorPanel({
       width: 230,
     }}>
       {/* Header */}
-      <div style={{
+      <div data-drag-handle style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 8,
+        cursor: 'grab',
       }}>
         <span style={{
           fontSize: 10,

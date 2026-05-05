@@ -107,9 +107,6 @@ export function SessionStats({ symbol, onClose }: SessionStatsProps) {
 
   return (
     <div style={{
-      position: 'absolute',
-      bottom: 12,
-      left: 12,
       zIndex: 10,
       background: C.bg,
       backdropFilter: 'blur(12px)',
@@ -121,10 +118,11 @@ export function SessionStats({ symbol, onClose }: SessionStatsProps) {
       direction: 'rtl',
     }}>
       {/* Header */}
-      <div style={{
+      <div data-drag-handle style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         marginBottom: 6, paddingBottom: 5,
         borderBottom: `1px solid ${C.border}`,
+        cursor: 'grab',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <span style={{ fontSize: 10 }}>⏱️</span>

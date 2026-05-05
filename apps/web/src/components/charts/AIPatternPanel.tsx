@@ -323,9 +323,6 @@ export function AIPatternPanel({
 
   return (
     <div style={{
-      position: 'absolute',
-      top: 40,
-      left: 8,
       background: C.bg,
       backdropFilter: 'blur(24px)',
       WebkitBackdropFilter: 'blur(24px)',
@@ -340,13 +337,14 @@ export function AIPatternPanel({
       boxShadow: '0 20px 60px rgba(0,0,0,0.7), 0 0 20px rgba(0,212,255,0.04)',
     }}>
       {/* ── Header ── */}
-      <div style={{
+      <div data-drag-handle style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '12px 14px',
         borderBottom: `1px solid ${C.border}`,
         background: `linear-gradient(180deg, ${C.card} 0%, rgba(17,22,32,0.6) 100%)`,
+        cursor: 'grab',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{

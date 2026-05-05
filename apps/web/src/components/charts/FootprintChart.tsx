@@ -315,11 +315,12 @@ export function FootprintChart({ symbol, onClose }: FootprintChartProps) {
       borderTop: `1px solid ${C.border}`,
     }}>
       {/* Header bar */}
-      <div style={{
+      <div data-drag-handle style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '4px 10px', background: C.card,
         borderBottom: `1px solid ${C.border}`,
         direction: 'rtl',
+        cursor: 'grab',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 11, color: C.cyan, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>

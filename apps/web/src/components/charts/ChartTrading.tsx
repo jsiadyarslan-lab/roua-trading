@@ -116,9 +116,6 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: Ch
 
   return (
     <div style={{
-      position: 'absolute',
-      top: 50,
-      right: 8,
       background: COLORS.card,
       border: '1px solid rgba(0,212,255,0.2)',
       borderRadius: 10,
@@ -129,7 +126,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: Ch
       width: 240,
     }}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+      <div data-drag-handle style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, cursor: 'grab' }}>
         <span style={{ fontSize: 11, color: COLORS.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
           📊 أمر تداول
         </span>

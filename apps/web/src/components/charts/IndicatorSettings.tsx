@@ -83,9 +83,6 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
 
   return (
     <div style={{
-      position: 'absolute',
-      top: 40,
-      right: 300,
       background: COLORS.card,
       border: '1px solid rgba(0,212,255,0.2)',
       borderRadius: 10,
@@ -96,11 +93,12 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
       width: 220,
     }}>
       {/* Header */}
-      <div style={{
+      <div data-drag-handle style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 10,
+        cursor: 'grab',
       }}>
         <span style={{
           fontSize: 11,

@@ -222,9 +222,6 @@ export function PatternProgress({ symbol, candles, onClose }: PatternProgressPro
 
   return (
     <div style={{
-      position: 'absolute',
-      top: 120,
-      left: 12,
       zIndex: 10,
       background: C.bg,
       backdropFilter: 'blur(12px)',
@@ -236,10 +233,11 @@ export function PatternProgress({ symbol, candles, onClose }: PatternProgressPro
       direction: 'rtl',
     }}>
       {/* Header */}
-      <div style={{
+      <div data-drag-handle style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         marginBottom: 8, paddingBottom: 5,
         borderBottom: `1px solid ${C.border}`,
+        cursor: 'grab',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <span style={{ fontSize: 10 }}>📈</span>

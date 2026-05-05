@@ -87,9 +87,6 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
 
   return (
     <div style={{
-      position: 'absolute',
-      bottom: 12,
-      right: 12,
       zIndex: 10,
       background: C.bg,
       backdropFilter: 'blur(16px)',
@@ -101,10 +98,11 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
       direction: 'rtl',
     }}>
       {/* Header */}
-      <div style={{
+      <div data-drag-handle style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         marginBottom: 10, paddingBottom: 7,
         borderBottom: `1px solid ${C.border}`,
+        cursor: 'grab',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <span style={{ fontSize: 11 }}>⚡</span>

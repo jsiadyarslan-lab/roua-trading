@@ -452,7 +452,6 @@ export function ChartToolbar(props: ChartToolbarProps) {
                 { label: '👣 Footprint', action: onToggleFootprint || (() => {}) },
                 { label: '🔔 تنبيهات', action: onToggleAlerts || (() => {}) },
                 { label: '⏱️ إحصائيات الجلسة', action: onToggleSessionStats || (() => {}) },
-                { label: '⚡ تداول سريع', action: onToggleQuickTrade || (() => {}) },
                 { label: '⚖️ مقارنة', action: onToggleCompare || (() => {}) },
                 { label: '📊 تحليل MTF', action: onToggleMTF || (() => {}) },
                 { label: '🔗 مشاركة', action: onToggleShare || (() => {}) },
@@ -727,17 +726,6 @@ export function ChartToolbar(props: ChartToolbarProps) {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
           </svg>
-        </button>
-      )}
-
-      {/* Quick Trade Panel */}
-      {onToggleQuickTrade && (
-        <button
-          style={toggleBtnStyle(!!showQuickTrade)}
-          onClick={onToggleQuickTrade}
-          title="لوحة التداول السريع"
-        >
-          ⚡
         </button>
       )}
 

@@ -108,9 +108,6 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
 
   return (
     <div style={{
-      position: 'absolute',
-      top: 40,
-      right: 8,
       background: COLORS.card,
       border: '1px solid rgba(0,212,255,0.2)',
       borderRadius: 12,
@@ -121,13 +118,14 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
       overflow: 'hidden',
     }}>
       {/* Header */}
-      <div style={{
+      <div data-drag-handle style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '10px 14px',
         borderBottom: `1px solid ${COLORS.border}`,
         background: 'linear-gradient(90deg, rgba(0,212,255,0.08), transparent)',
+        cursor: 'grab',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={COLORS.cyan} strokeWidth="2">

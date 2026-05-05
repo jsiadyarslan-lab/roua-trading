@@ -77,10 +77,6 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
 
   return (
     <div style={{
-      position: 'absolute',
-      top: 0,
-      right: 0,
-      bottom: 0,
       width: 320,
       background: C.bg,
       backdropFilter: 'blur(24px)',
@@ -93,12 +89,13 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
       boxShadow: '-10px 0 40px rgba(0,0,0,0.5)',
     }}>
       {/* Header */}
-      <div style={{
+      <div data-drag-handle style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '12px 14px',
         borderBottom: `1px solid ${C.border}`,
         background: `linear-gradient(180deg, ${C.card} 0%, rgba(17,22,32,0.6) 100%)`,
         direction: 'rtl',
+        cursor: 'grab',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{

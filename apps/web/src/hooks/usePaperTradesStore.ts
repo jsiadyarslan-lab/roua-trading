@@ -310,18 +310,18 @@ export const usePaperTradesStore = create<PaperTradesState>()(
             }
 
             // ═══════════════════════════════════════════════════
-            // CLEANUP: Remove phantom trades with invalid prices.
-            // These are trades created by the BotEngine from
-            // degraded/fallback data that slipped through before
-            // the data quality gate fix. They show as $0.00 or
-            // $0.01 on the dashboard and are completely fake.
+            // CLEANUP: Remove ALL phantom trades with invalid
+            // prices or dust values. These are trades created
+            // by the BotEngine from degraded/fallback data.
+            // They show as $0.00-$0.04 on the dashboard.
+            // A real trade must have tradeValue >= $1.
             // ═══════════════════════════════════════════════════
             if (state.trades && state.trades.length > 0) {
               const validTrades = state.trades.filter((trade) => {
                 const entryPrice = trade.entryPrice || 0
-                const tradeValue = trade.qty * entryPrice
-                // Remove trades with zero/invalid entry price or tiny value
-                return entryPrice > 0 && tradeValue >= 0.01
+                const tradeValue = Math.abs(trade.qty * entryPrice)
+                // Remove trades with zero/invalid entry price or dust value < $1
+                return entryPrice > 0 && tradeValue >= 1
               })
 
               const removedCount = state.trades.length - validTrades.length

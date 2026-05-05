@@ -49,12 +49,27 @@ interface UserExecutorState {
   isPaperTrading: boolean
 }
 
+/**
+ * Is this position a phantom trade from degraded/fallback data?
+ * Phantom trades have tiny trade values (qty * entryPrice < $1)
+ * or near-zero entry prices that indicate fake data.
+ */
+function isPhantomTrade(pos: any): boolean {
+  const entryPrice = Number(pos.entryPrice ?? pos.price ?? pos.openPrice ?? 0)
+  const qty = Number(pos.quantity ?? pos.qty ?? pos.size ?? 0)
+  const tradeValue = Math.abs(qty * entryPrice)
+  // A real position should have trade value >= $1
+  // Phantom trades from degraded data show values like $0.00-$0.04
+  return entryPrice <= 0 || tradeValue < 1
+}
+
 export function SmartExecutorPanel() {
   const [status, setStatus] = useState<ExecutorStatus | null>(null)
   const [userState, setUserState] = useState<UserExecutorState | null>(null)
   const [positions, setPositions] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [purging, setPurging] = useState(false)
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -79,7 +94,15 @@ export function SmartExecutorPanel() {
     try {
       const res = await fetch('/api/smart-executor/positions')
       const data = await res.json()
-      if (data.success) setPositions(data.data || [])
+      if (data.success) {
+        // ═══════════════════════════════════════════════════
+        // CLIENT-SIDE PHANTOM FILTER: Double-check that no
+        // phantom trades slip through. The backend also filters,
+        // but this is a safety net.
+        // ═══════════════════════════════════════════════════
+        const realPositions = (data.data || []).filter((pos: any) => !isPhantomTrade(pos))
+        setPositions(realPositions)
+      }
     } catch {}
   }, [])
 
@@ -93,6 +116,56 @@ export function SmartExecutorPanel() {
     }, 10000)
     return () => clearInterval(interval)
   }, [fetchUserState, fetchPositions])
+
+  // ═══════════════════════════════════════════════════
+  // ONE-TIME PHANTOM PURGE: On first load, request the
+  // backend to delete all phantom positions from the
+  // database. This cleans up old phantom trades that
+  // were created before the data quality gate fix.
+  // ═══════════════════════════════════════════════════
+  useEffect(() => {
+    const purgePhantoms = async () => {
+      try {
+        await fetch('/api/smart-executor/purge-phantoms', { method: 'POST' })
+      } catch { /* Silent — best effort cleanup */ }
+    }
+    purgePhantoms()
+  }, [])
+
+  // ═══════════════════════════════════════════════════
+  // LOCALSTORAGE CLEANUP: Remove all paper trades from
+  // localStorage that were created from phantom data.
+  // ═══════════════════════════════════════════════════
+  useEffect(() => {
+    try {
+      const keysToRemove: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.startsWith('roua-paper-trades')) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(key => {
+        try {
+          const raw = localStorage.getItem(key)
+          if (!raw) return
+          const parsed = JSON.parse(raw)
+          const trades = parsed?.state?.trades || []
+          const validTrades = trades.filter((trade: any) => {
+            const entryPrice = Number(trade.entryPrice || 0)
+            const qty = Number(trade.qty || 0)
+            const tradeValue = Math.abs(qty * entryPrice)
+            return entryPrice > 0 && tradeValue >= 1
+          })
+          if (validTrades.length !== trades.length) {
+            parsed.state.trades = validTrades
+            localStorage.setItem(key, JSON.stringify(parsed))
+            console.warn(`[SmartExecutor] Cleaned ${trades.length - validTrades.length} phantom trades from localStorage`)
+          }
+        } catch { /* Invalid JSON — skip */ }
+      })
+    } catch { /* localStorage unavailable */ }
+  }, [])
 
   const startExecutor = async () => {
     setLoading(true)
@@ -258,7 +331,7 @@ export function SmartExecutorPanel() {
         </div>
       )}
 
-      {/* Positions List — filter out phantom trades with near-zero entry prices */}
+      {/* Positions List — only shows REAL positions, phantom trades filtered out */}
       <div style={{
         flex: 1, minHeight: 0, maxHeight: '50vh', overflowY: 'auto',
         padding: 4, background: 'rgba(11,14,20,0.45)',
@@ -270,13 +343,7 @@ export function SmartExecutorPanel() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {positions
-              .filter((pos: any) => {
-                // PHANTOM TRADE FILTER: Hide positions with unrealistic entry prices
-                // These are phantom trades created from degraded/fallback data
-                const entryPrice = Number(pos.entryPrice ?? pos.price ?? 0)
-                const unrealizedPnl = Number(pos.unrealizedPnl ?? 0)
-                return entryPrice > 0 && (Math.abs(unrealizedPnl) >= 0.01 || entryPrice >= 1)
-              })
+              .filter((pos: any) => !isPhantomTrade(pos))
               .slice(0, 15)
               .map((pos: any) => (
               <div key={pos.id} style={{

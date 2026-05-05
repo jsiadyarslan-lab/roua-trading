@@ -378,10 +378,18 @@ export function BotEngine() {
       return
     }
 
-    // BUG-006 FIX: Use actual account balance instead of hardcoded 50.
-    // Read imperatively (no subscription) to avoid unnecessary re-renders.
+    // ═══════════════════════════════════════════════════
+    // POSITION SIZE: Use actual account balance.
+    // FIX: Removed the `|| 500` fallback that produced
+    // tiny phantom trades. If we don't know the buying
+    // power, we DON'T trade — it's unsafe.
+    // ═══════════════════════════════════════════════════
     const account = usePositionsStore.getState().account
-    const buyingPower = Number(account?.buyingPower) || 500 // Fallback $500 paper
+    const buyingPower = Number(account?.buyingPower) || 0
+    if (buyingPower <= 0) {
+      addLog(`[حماية] لا يمكن تحديد القدرة الشرائية — تخطي ${signal.pair}`, 'warn')
+      return
+    }
     const tradeAmount = Math.max(10, buyingPower * (settings.riskPct / 100))
     const qty = parseFloat((tradeAmount / price).toFixed(6))
 

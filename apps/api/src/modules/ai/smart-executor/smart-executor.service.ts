@@ -206,7 +206,7 @@ export class SmartExecutorService implements OnModuleDestroy {
   /**
    * Get current executor status
    */
-  async getStatus(): Promise<ExecutorStatus> {
+  async getStatus(userId?: string): Promise<ExecutorStatus> {
     let todayExecutions = 0;
     let todayPnL = 0;
     let openPositions = 0;
@@ -217,17 +217,22 @@ export class SmartExecutorService implements OnModuleDestroy {
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
 
+      const auditWhere: any = {
+        action: 'SMART_EXECUTOR_TRADE',
+        createdAt: { gte: startOfDay },
+      };
+      if (userId) auditWhere.userId = userId;
+
       const todayLogs = await this.prisma.auditLog.findMany({
-        where: {
-          action: 'SMART_EXECUTOR_TRADE',
-          createdAt: { gte: startOfDay },
-        },
+        where: auditWhere,
       });
       todayExecutions = todayLogs.length;
 
-      // Count open positions (system-level)
+      // Count open positions — user-scoped if userId provided
+      const posWhere: any = { status: 'OPEN' };
+      if (userId) posWhere.userId = userId;
       openPositions = await this.prisma.position.count({
-        where: { status: 'OPEN' },
+        where: posWhere,
       });
 
       // Count active briefs
@@ -254,16 +259,70 @@ export class SmartExecutorService implements OnModuleDestroy {
   }
 
   /**
-   * Get open positions managed by the executor
+   * Get open positions managed by the executor for a specific user
+   * FIX: Previously returned ALL positions system-wide (security issue + phantom data from other users)
    */
-  async getOpenPositions(): Promise<any[]> {
+  async getOpenPositions(userId?: string): Promise<any[]> {
     try {
-      return await this.prisma.position.findMany({
-        where: { status: 'OPEN' },
+      const where: any = { status: 'OPEN' };
+      if (userId) where.userId = userId;
+
+      const positions = await this.prisma.position.findMany({
+        where,
         orderBy: { openedAt: 'desc' },
+      });
+
+      // ═══════════════════════════════════════════════════
+      // PHANTOM TRADE FILTER: Remove positions with
+      // unrealistic trade values. These are phantom trades
+      // created from degraded/fallback data before the fix.
+      // A real position should have qty * entryPrice >= $1.
+      // ═══════════════════════════════════════════════════
+      return positions.filter((pos: any) => {
+        const qty = Number(pos.quantity ?? pos.qty ?? 0);
+        const entryPrice = Number(pos.entryPrice ?? pos.openPrice ?? 0);
+        const tradeValue = qty * entryPrice;
+        // Reject positions with zero/invalid prices or dust values
+        return entryPrice > 0 && tradeValue >= 1;
       });
     } catch {
       return [];
+    }
+  }
+
+  /**
+   * PURGE PHANTOM POSITIONS: Delete all positions from the
+   * database that were created from degraded/fallback data.
+   * These show as $0.00-$0.04 trades on the dashboard.
+   */
+  async purgePhantomPositions(): Promise<{ deleted: number }> {
+    try {
+      const allPositions = await this.prisma.position.findMany({
+        where: { status: 'OPEN' },
+      });
+
+      const phantomIds: string[] = [];
+      for (const pos of allPositions) {
+        const qty = Number(pos.quantity ?? pos.qty ?? 0);
+        const entryPrice = Number(pos.entryPrice ?? pos.openPrice ?? 0);
+        const tradeValue = qty * entryPrice;
+        // Phantom = trade value < $1 (dust trade from degraded data)
+        if (entryPrice <= 0 || tradeValue < 1) {
+          phantomIds.push(pos.id);
+        }
+      }
+
+      if (phantomIds.length > 0) {
+        await this.prisma.position.deleteMany({
+          where: { id: { in: phantomIds } },
+        });
+        this.logger.log(`⚔️ Purged ${phantomIds.length} phantom position(s) from database`);
+      }
+
+      return { deleted: phantomIds.length };
+    } catch (error: any) {
+      this.logger.error(`⚔️ Failed to purge phantom positions: ${error.message}`);
+      return { deleted: 0 };
     }
   }
 

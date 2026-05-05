@@ -702,32 +702,19 @@ export async function GET(
         'GOOG':    { price: 165, exchange: 'STOCK', name: 'Alphabet Inc. (C)' },
       }
 
-      const fallback = staticFallbacks[symbol]
-      if (fallback) {
-        const staticQuote = {
-          symbol,
-          name: fallback.name,
-          exchange: fallback.exchange,
-          currency: 'USD',
-          price: fallback.price,
-          change: 0,
-          changePercent: 0,
-          open: fallback.price,
-          high: Math.round(fallback.price * 1.002 * 100) / 100,
-          low: Math.round(fallback.price * 0.998 * 100) / 100,
-          close: fallback.price,
-          volume: 0,
-          marketCap: null,
-          fiftyTwoWeekHigh: null,
-          fiftyTwoWeekLow: null,
-          timestamp: new Date().toISOString(),
-          source: 'Static Estimate',
-        }
-        return NextResponse.json({ success: true, data: staticQuote, static: true })
-      }
-
+      // ═══════════════════════════════════════════════════
+      // REMOVED: Static fallback prices that were served
+      // with success: true, causing the system to treat
+      // estimated/hardcoded prices as real market data.
+      // This was a PRIMARY source of phantom trades.
+      //
+      // Instead of returning fake prices with success: true,
+      // we now return an error so the frontend knows the
+      // data is unavailable and doesn't generate trading
+      // signals from it.
+      // ═══════════════════════════════════════════════════
       return NextResponse.json(
-        { success: false, error: `لا تتوفر بيانات حقيقية لـ ${symbol} — تحقق من اتصال الإنترنت أو مفاتيح API` },
+        { success: false, error: `لا تتوفر بيانات حقيقية لـ ${symbol} — جميع مصادر البيانات الحقيقية غير متاحة` },
         { status: 503 }
       )
     }

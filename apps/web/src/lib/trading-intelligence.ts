@@ -198,8 +198,23 @@ export async function fetchMarketContext(origin: string, symbol: string, timefra
     }
 
     const ageMs = quote?.timestamp ? Date.now() - new Date(quote.timestamp).getTime() : Number.POSITIVE_INFINITY
+    // ═══════════════════════════════════════════════════
+    // FRESHNESS CLASSIFICATION: Any data from fallback/
+    // static/degraded sources must be marked as 'degraded'
+    // to prevent phantom trades. Previously, 'Static Estimate'
+    // was not caught here, so fake prices from staticFallbacks
+    // leaked through as 'fresh' or 'stale' and produced
+    // phantom trades at $0.00-$0.04 on the dashboard.
+    // ═══════════════════════════════════════════════════
+    const isFallbackSource =
+      quote?.source === 'Live-Fallback' ||
+      quote?.source === 'Static Estimate' ||
+      quote?.source === 'Fallback' ||
+      quote?.source?.includes?.('مؤقت') ||
+      quote?.source?.includes?.('Fallback') ||
+      quote?.source?.includes?.('Static')
     const freshness: MarketContext['freshness'] =
-      quote?.source === 'Live-Fallback' ? 'degraded' : ageMs > 120000 ? 'stale' : 'fresh'
+      isFallbackSource ? 'degraded' : ageMs > 120000 ? 'stale' : 'fresh'
 
     return {
       symbol: normalized,
@@ -210,15 +225,19 @@ export async function fetchMarketContext(origin: string, symbol: string, timefra
       freshness,
     }
   } catch {
-    // Complete fallback — ensure something is always returned
-    const quote = generateFallbackQuote(normalized)
-    const closes = generateFallbackCloses(normalized, 80)
+    // ═══════════════════════════════════════════════════
+    // NO MORE FALLBACK DATA: When all real APIs fail,
+    // return a clearly degraded context that will be
+    // blocked by buildScannerResult(). Previously, this
+    // generated fake prices that leaked into the BotEngine
+    // and Smart Executor as phantom trades.
+    // ═══════════════════════════════════════════════════
     return {
       symbol: normalized,
       timeframe,
-      quote,
-      closes,
-      source: 'Live-Fallback',
+      quote: null,
+      closes: [],
+      source: 'No-Data',
       freshness: 'degraded',
     }
   }

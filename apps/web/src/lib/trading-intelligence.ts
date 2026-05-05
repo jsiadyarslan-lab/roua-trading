@@ -352,8 +352,9 @@ export function buildScannerResult(context: MarketContext): ScannerResult | null
     reasons.push('إشارة مبنية على الزخم السعري فقط')
   }
 
-  if (context.freshness === 'degraded') reasons.push('بيانات جزئية')
-  else if (isStaleNonCrypto) reasons.push('بيانات قديمة — السوق قد يكون مغلقاً')
+  // Note: 'degraded' freshness is already blocked above (returns null)
+  // so this only handles 'fresh' and 'stale'
+  if (isStaleNonCrypto) reasons.push('بيانات قديمة — السوق قد يكون مغلقاً')
   else reasons.push(`المصدر: ${context.source}`)
 
   const dir: ScannerDirection = score > 0.45 ? 'buy' : score < -0.45 ? 'sell' : 'neutral'

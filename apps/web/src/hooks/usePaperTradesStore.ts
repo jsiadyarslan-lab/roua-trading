@@ -122,19 +122,19 @@ export const usePaperTradesStore = create<PaperTradesState>()(
           }
 
           // FIX: Auto-close trade when SL or TP is hit
-          if (t.status !== 'closed') {
+          if (!(t as any).status || (t as any).status !== 'closed') {
             if (t.sl && t.sl > 0) {
               if ((t.side === 'long' && price <= t.sl) || (t.side === 'short' && price >= t.sl)) {
                 closedIds.push(t.id)
                 changed = true
-                return { ...t, currentPrice, unrealizedPnl: pnl, unrealizedPct: pct, status: 'closed' as const, closePrice: t.sl }
+                return { ...t, currentPrice, unrealizedPnl: pnl, unrealizedPct: pct, _status: 'closed', closePrice: t.sl }
               }
             }
             if (t.tp && t.tp > 0) {
               if ((t.side === 'long' && price >= t.tp) || (t.side === 'short' && price <= t.tp)) {
                 closedIds.push(t.id)
                 changed = true
-                return { ...t, currentPrice, unrealizedPnl: pnl, unrealizedPct: pct, status: 'closed' as const, closePrice: t.tp }
+                return { ...t, currentPrice, unrealizedPnl: pnl, unrealizedPct: pct, _status: 'closed', closePrice: t.tp }
               }
             }
           }

@@ -351,9 +351,15 @@ export async function GET(
 
     // Step 2: Yahoo Finance (free, covers stocks, forex, commodities)
     try {
-      const yahooSymbol = symbol.includes('/')
+      // For commodities, use futures symbols (more reliable on cloud servers)
+      const COMMODITY_FUTURES: Record<string, string> = {
+        'XAU/USD': 'GC=F',   // Gold Futures
+        'XAG/USD': 'SI=F',   // Silver Futures
+        'XPT/USD': 'PL=F',   // Platinum Futures
+      }
+      const yahooSymbol = COMMODITY_FUTURES[symbol] || (symbol.includes('/')
         ? `${symbol.split('/')[0]}${symbol.split('/')[1]}=X`
-        : symbol
+        : symbol)
 
       const rangeMap: Record<string, string> = {
         '1m': '1d', '5m': '5d', '15m': '10d', '15min': '10d', '30m': '1mo',

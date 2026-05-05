@@ -550,26 +550,30 @@ export class StrategicCouncilService {
       }
     } else {
       // No existing brief — issue a new one
-      await this.prisma.tradingBrief.create({
-        data: {
-          pair,
-          direction,
-          entryPrice,
-          stopLoss,
-          takeProfit,
-          confidence: effectiveConsensus.consensusScore,
-          timeframe,
-          issuedAt: new Date(),
-          expiresAt: new Date(Date.now() + TIMEFRAME_EXPIRY_MS[timeframe]),
-          isActive: true,
-          strictRules: JSON.stringify(strictRules),
-          lastReviewedAt: new Date(),
-          reviewStatus: 'ACTIVE',
-          analysisSummary: effectiveConsensus.masterStrategy,
-        },
-      });
-      result.briefsIssued++;
-      this.logger.log(`🏛️ New brief for ${pair} ${timeframe}: ${direction} @ ${entryPrice} (confidence: ${effectiveConsensus.consensusScore}%)`);
+      try {
+        await this.prisma.tradingBrief.create({
+          data: {
+            pair,
+            direction,
+            entryPrice,
+            stopLoss,
+            takeProfit,
+            confidence: effectiveConsensus.consensusScore,
+            timeframe,
+            issuedAt: new Date(),
+            expiresAt: new Date(Date.now() + TIMEFRAME_EXPIRY_MS[timeframe]),
+            isActive: true,
+            strictRules: JSON.stringify(strictRules),
+            lastReviewedAt: new Date(),
+            reviewStatus: 'ACTIVE',
+            analysisSummary: effectiveConsensus.masterStrategy || `إجماع المجلس: ${direction} بثقة ${effectiveConsensus.consensusScore}%`,
+          },
+        });
+        result.briefsIssued++;
+        this.logger.log(`🏛️ New brief for ${pair} ${timeframe}: ${direction} @ ${entryPrice} (confidence: ${effectiveConsensus.consensusScore}%)`);
+      } catch (dbError: any) {
+        this.logger.error(`🏛️ FAILED to create brief for ${pair} ${timeframe}: ${dbError.message} | data: direction=${direction} entryPrice=${entryPrice} stopLoss=${stopLoss} takeProfit=${takeProfit} confidence=${effectiveConsensus.consensusScore} timeframe=${timeframe}`);
+      }
     }
 
     // Track cost

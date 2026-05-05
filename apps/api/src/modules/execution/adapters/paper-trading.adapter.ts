@@ -431,10 +431,24 @@ export class PaperTradingAdapter implements IExchangeAdapter {
   private async _getCurrentPrice(symbol: string): Promise<number> {
     try {
       const quote = await this.aggregator.getAggregatedQuote(symbol);
-      return quote.price || 0;
+      const price = quote.price || 0;
+
+      // ═══════════════════════════════════════════════════
+      // FIX: Previously returned 0 when the aggregator failed,
+      // which could lead to paper orders being placed at $0.00
+      // if the caller didn't properly validate. Now we throw
+      // so the caller's price validation (currentPrice <= 0)
+      // in placeOrder() properly rejects the order.
+      // ═══════════════════════════════════════════════════
+      if (price <= 0) {
+        throw new Error(`لا يمكن الحصول على سعر صالح لـ ${symbol} — تم إلغاء الأمر الوهمي`);
+      }
+
+      return price;
     } catch (error: any) {
       this.logger.error(`Failed to get price for ${symbol}: ${error.message}`);
-      return 0;
+      // Throw instead of returning 0 — let the caller handle the failure
+      throw new Error(`فشل في جلب السعر لـ ${symbol}: ${error.message}`);
     }
   }
 

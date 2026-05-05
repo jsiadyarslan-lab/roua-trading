@@ -308,6 +308,44 @@ export const usePaperTradesStore = create<PaperTradesState>()(
               state.clearUserData()
               return
             }
+
+            // ═══════════════════════════════════════════════════
+            // CLEANUP: Remove phantom trades with invalid prices.
+            // These are trades created by the BotEngine from
+            // degraded/fallback data that slipped through before
+            // the data quality gate fix. They show as $0.00 or
+            // $0.01 on the dashboard and are completely fake.
+            // ═══════════════════════════════════════════════════
+            if (state.trades && state.trades.length > 0) {
+              const validTrades = state.trades.filter((trade) => {
+                const entryPrice = trade.entryPrice || 0
+                const tradeValue = trade.qty * entryPrice
+                // Remove trades with zero/invalid entry price or tiny value
+                return entryPrice > 0 && tradeValue >= 0.01
+              })
+
+              const removedCount = state.trades.length - validTrades.length
+              if (removedCount > 0) {
+                console.warn(
+                  `[PaperTradesStore] Cleaned up ${removedCount} phantom trade(s) with invalid prices`,
+                )
+                // Update the store with clean data
+                usePaperTradesStore.setState({ trades: validTrades })
+              }
+            }
+
+            // Also clean closed trades
+            if (state.closedTrades && state.closedTrades.length > 0) {
+              const validClosedTrades = state.closedTrades.filter((trade) => {
+                const entryPrice = trade.entryPrice || 0
+                return entryPrice > 0
+              })
+
+              const removedClosedCount = state.closedTrades.length - validClosedTrades.length
+              if (removedClosedCount > 0) {
+                usePaperTradesStore.setState({ closedTrades: validClosedTrades })
+              }
+            }
           }
         }
       },

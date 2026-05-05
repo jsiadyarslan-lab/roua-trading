@@ -214,20 +214,35 @@ export class TradingService {
       await this._updatePosition(userId, createdOrder, request, execution, tx);
 
       // Step 8: Record trade
-      await tx.trade.create({
-        data: {
-          userId,
-          orderId: createdOrder.id,
-          exchange: credential.exchange,
-          symbol: request.symbol,
-          side: request.side,
-          type: 'ENTRY',
-          quantity: execution.filledQuantity || 0,
-          price: execution.averagePrice || currentPrice,
-          fee: execution.fee,
-          feeCurrency: execution.feeCurrency,
-        },
-      });
+      // ═══════════════════════════════════════════════════
+      // FIX: Validate trade data before recording. Previously,
+      // execution.filledQuantity could be null/undefined → 0,
+      // and execution.averagePrice could be null → currentPrice
+      // which might also be 0, producing phantom $0.00 trades.
+      // ═══════════════════════════════════════════════════
+      const tradeQuantity = execution.filledQuantity || 0;
+      const tradePrice = execution.averagePrice || currentPrice;
+
+      if (tradeQuantity <= 0 || tradePrice <= 0) {
+        this.logger.warn(
+          `Trade record skipped — invalid quantity (${tradeQuantity}) or price (${tradePrice}) for ${request.symbol}`,
+        );
+      } else {
+        await tx.trade.create({
+          data: {
+            userId,
+            orderId: createdOrder.id,
+            exchange: credential.exchange,
+            symbol: request.symbol,
+            side: request.side,
+            type: 'ENTRY',
+            quantity: tradeQuantity,
+            price: tradePrice,
+            fee: execution.fee,
+            feeCurrency: execution.feeCurrency,
+          },
+        });
+      }
 
       // Step 9: If this was triggered by a signal, update signal status
       // DATA ISOLATION: Added userId filter to prevent updating other users' signals

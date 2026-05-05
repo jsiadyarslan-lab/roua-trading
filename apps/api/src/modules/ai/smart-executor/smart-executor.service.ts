@@ -640,9 +640,41 @@ export class SmartExecutorService implements OnModuleDestroy {
   private async _getPortfolioValue(userId: string): Promise<number> {
     try {
       const summary = await this.tradingService.getPositionSummary(userId);
-      return summary.totalValue || 0;
-    } catch {
-      return 0;
+      const totalValue = summary.totalValue || 0;
+
+      // ═══════════════════════════════════════════════════
+      // FIX: Previously, when the portfolio value was 0 (due
+      // to DB error, missing positions, or paper trading with
+      // no balance), the riskAmount would floor to $10 minimum,
+      // producing tiny quantities like 0.00014925 BTC ≈ $0.01.
+      // These phantom $0.01 trades cluttered the dashboard.
+      //
+      // Now: For paper trading, use the standard $100,000
+      // paper balance. For real trading, if we can't determine
+      // the portfolio value, we DON'T execute — it's unsafe.
+      // ═══════════════════════════════════════════════════
+      if (totalValue <= 0) {
+        // Check if user is paper trading — use default paper balance
+        const userState = await this.getUserState(userId);
+        if (userState?.isPaperTrading) {
+          return 100000; // Standard paper trading balance
+        }
+        // Real trading with unknown portfolio — don't execute
+        this.logger.warn(`⚔️ Cannot determine portfolio value for user ${userId} — skipping execution for safety`);
+        return 0;
+      }
+
+      return totalValue;
+    } catch (error: any) {
+      // On error, check if paper trading and use default balance
+      try {
+        const userState = await this.getUserState(userId);
+        if (userState?.isPaperTrading) {
+          return 100000; // Paper trading default
+        }
+      } catch {}
+      this.logger.warn(`⚔️ Failed to get portfolio value for user ${userId}: ${error.message}`);
+      return 0; // Don't execute with unknown portfolio
     }
   }
 }

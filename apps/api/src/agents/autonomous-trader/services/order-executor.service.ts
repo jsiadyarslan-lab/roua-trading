@@ -119,9 +119,18 @@ export class OrderExecutorService implements OnModuleDestroy {
       if (credential && credential.exchange === 'paper-trading') {
         this.logger.log(`⚡ Paper trading mode — simulating ${signal.action} ${signal.symbol}`);
 
-        // FIX: Get the actual current live price instead of using the stale signal.entryPrice.
-        // The signal price comes from the market analysis cache which may be outdated,
-        // causing trade markers on the chart to not match the current candle.
+        // ═══════════════════════════════════════════════════
+        // FIX: Get the actual current live price instead of
+        // using the stale signal.entryPrice. The signal price
+        // comes from the market analysis cache which may be
+        // outdated, causing trade markers on the chart to not
+        // match the current candle.
+        //
+        // ALSO: If we can't get a valid live price, we MUST
+        // NOT create a position with entryPrice = 0 or a
+        // stale signal price. Previously, falling back to
+        // signal.entryPrice could produce $0.00 positions.
+        // ═══════════════════════════════════════════════════
         let actualExecutionPrice = signal.entryPrice;
         let usedLivePrice = false;
         try {
@@ -141,6 +150,30 @@ export class OrderExecutorService implements OnModuleDestroy {
           this.logger.warn(
             `⚡ Could not get live quote for ${signal.symbol}: ${quoteErr.message} — falling back to signal price ${signal.entryPrice}`,
           );
+        }
+
+        // ═══════════════════════════════════════════════════
+        // PRICE VALIDATION: Reject if the execution price is
+        // invalid (0, negative, or unrealistically low).
+        // This prevents $0.00 / $0.01 phantom positions.
+        // ═══════════════════════════════════════════════════
+        if (!actualExecutionPrice || actualExecutionPrice <= 0) {
+          return {
+            success: false,
+            error: `سعر التنفيذ غير صالح (${actualExecutionPrice}) لـ ${signal.symbol} — تم إلغاء الأمر`,
+            executionTimeMs: Date.now() - startTime,
+          };
+        }
+
+        // Also validate minimum trade value
+        const tradeValue = risk.positionSize * actualExecutionPrice;
+        if (tradeValue < 1) {
+          this.logger.warn(`⚡ Trade value too small: $${tradeValue.toFixed(4)} — skipping`);
+          return {
+            success: false,
+            error: `قيمة الصفقة صغيرة جداً ($${tradeValue.toFixed(4)}) — تم الإلغاء`,
+            executionTimeMs: Date.now() - startTime,
+          };
         }
 
         const simulatedFee = actualExecutionPrice * risk.positionSize * 0.001; // 0.1% fee

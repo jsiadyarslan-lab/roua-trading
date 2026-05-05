@@ -238,9 +238,20 @@ export function buildScannerResult(context: MarketContext): ScannerResult | null
   const CRYPTO_BASES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
   const isCrypto = CRYPTO_BASES.includes(base)
 
-  if (!isCrypto && context.freshness === 'degraded') {
-    // Degraded data for non-crypto means fake/fallback data
-    // (e.g., weekend forex/stock prices). Don't generate signals.
+  // ═══════════════════════════════════════════════════
+  // DATA QUALITY GATE: For ALL markets (including crypto),
+  // return null when data is degraded (fake/fallback).
+  //
+  // Previously, crypto was allowed through with degraded
+  // data, causing phantom trades at $0.00 / $0.01 on the
+  // dashboard. Degraded data means the real API FAILED
+  // and generateFallbackQuote() was used — these are NOT
+  // real prices and should NEVER produce trading signals.
+  // ═══════════════════════════════════════════════════
+  if (context.freshness === 'degraded') {
+    // Block ALL degraded signals — including crypto.
+    // If the real price API failed, we have no business
+    // generating trading signals from fake prices.
     return null
   }
 

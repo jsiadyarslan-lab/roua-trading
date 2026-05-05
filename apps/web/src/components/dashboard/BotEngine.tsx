@@ -236,17 +236,18 @@ export function BotEngine() {
           }
 
           // ═══════════════════════════════════════════════════
-          // DATA QUALITY GATE: Block signals that rely on
-          // degraded/fallback data (fake prices generated when
-          // real APIs are unavailable, e.g. on weekends).
+          // DATA QUALITY GATE: Block ALL signals that rely on
+          // degraded/fallback data. These are fake prices
+          // generated when real APIs are unavailable.
+          // Previously, crypto was allowed through with degraded
+          // data, causing phantom trades at $0.00 / $0.01.
           // ═══════════════════════════════════════════════════
           if (signal.freshness === 'degraded') {
-            // Only allow degraded data for crypto (24/7 market — data should be fresh)
-            // For forex/stocks/commodities, degraded data means fake prices
-            const marketType = marketStatus.marketType
-            if (marketType !== 'crypto') {
-              continue
-            }
+            // Block ALL degraded signals — including crypto.
+            // Degraded means the API failed and fallback fake
+            // prices were used. No trades should be based on
+            // fake data, regardless of market type.
+            continue
           }
 
           if (!shouldExecuteSignal(signal)) continue
@@ -333,6 +334,16 @@ export function BotEngine() {
     const price = Number(signal.price || 0)
     if (!price || signal.dir === 'neutral') return false
 
+    // ═══════════════════════════════════════════════════
+    // PRICE VALIDATION: Reject unrealistic prices that
+    // would produce phantom trades ($0.00, $0.01).
+    // Any price below $1 is almost certainly from a
+    // fallback generator or a failed API call.
+    // ═══════════════════════════════════════════════════
+    if (price < 1) {
+      return false
+    }
+
     // Apply confidence penalty for non-fresh data instead of blocking entirely
     const freshnessPenalty = signal.freshness === 'degraded' ? 10 : signal.freshness === 'stale' ? 5 : 0
     const effectiveConfidence = confidence - freshnessPenalty
@@ -356,12 +367,34 @@ export function BotEngine() {
   const executeTrade = (signal: SmartSignalLike, strategySource: string = 'scanner') => {
     const price = Number(signal.price || 0)
     const confidence = Number(signal.strength || 0)
+
+    // ═══════════════════════════════════════════════════
+    // PRICE SANITY CHECK: Never execute a trade with an
+    // unrealistic price. This prevents phantom trades
+    // at $0.00 / $0.01 that appear when APIs fail.
+    // ═══════════════════════════════════════════════════
+    if (price < 1) {
+      addLog(`[حماية] تم رفض صفقة ${signal.pair} بسعر غير واقعي $${price.toFixed(2)}`, 'warn')
+      return
+    }
+
     // BUG-006 FIX: Use actual account balance instead of hardcoded 50.
     // Read imperatively (no subscription) to avoid unnecessary re-renders.
     const account = usePositionsStore.getState().account
     const buyingPower = Number(account?.buyingPower) || 500 // Fallback $500 paper
     const tradeAmount = Math.max(10, buyingPower * (settings.riskPct / 100))
     const qty = parseFloat((tradeAmount / price).toFixed(6))
+
+    // ═══════════════════════════════════════════════════
+    // MINIMUM TRADE VALUE CHECK: Reject trades where the
+    // total value (qty * price) is less than $1. These
+    // are dust trades that clutter the dashboard.
+    // ═══════════════════════════════════════════════════
+    const tradeValue = qty * price
+    if (tradeValue < 1) {
+      addLog(`[حماية] تم رفض صفقة ${signal.pair} بقيمة صغيرة جداً $${tradeValue.toFixed(2)}`, 'warn')
+      return
+    }
     const isBuy = signal.dir === 'buy'
     // Dynamic Risk:Reward Profiles based on Strategy (synced with backend BotStrategyType)
     let tpPct = 0.025 // Default 2.5%

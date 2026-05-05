@@ -24,7 +24,7 @@ CREATE TABLE "TradingBrief" (
 
 -- CreateEnum
 CREATE TYPE "BriefTimeframe" AS ENUM ('H1', 'H4', 'D1', 'W1');
-CREATE TYPE "BriefReviewStatus" AS ENUM ('ACTIVE', 'MODIFIED', 'CANCELLED');
+CREATE TYPE "BriefReviewStatus" AS ENUM ('ACTIVE', 'MODIFIED', 'CANCELLED', 'EXECUTED');
 CREATE TYPE "BriefDirection" AS ENUM ('BUY', 'SELL');
 
 -- CreateIndex

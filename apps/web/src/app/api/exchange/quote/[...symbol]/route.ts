@@ -61,11 +61,16 @@ function normalizeRouteSymbol(parts: string[] | string) {
   } catch {
     decoded = joined
   }
-  // Normalize dash-separated crypto pairs: BTC-USD → BTC/USD, ETH-USDT → ETH/USDT
+  // Normalize dash-separated pairs: BTC-USD → BTC/USD, EUR-USD → EUR/USD
   // This handles health monitors and external callers that use dash format
   if (!decoded.includes('/') && decoded.includes('-')) {
-    const knownBases = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI', 'XAU', 'XAG', 'XPT']
-    const knownQuotes = ['USD', 'USDT', 'BUSD', 'EUR', 'GBP', 'JPY']
+    const knownBases = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI', 'XAU', 'XAG', 'XPT',
+      // FIX: Add forex base currencies so EUR-USD, GBP-USD, USD-JPY etc. convert to EUR/USD format
+      'EUR', 'GBP', 'USD', 'JPY', 'CHF', 'AUD', 'CAD', 'NZD', 'SEK', 'NOK',
+      // Add stock tickers so they don't get incorrectly split
+      'AAPL', 'MSFT', 'GOOGL', 'TSLA', 'AMZN', 'META', 'NVDA',
+    ]
+    const knownQuotes = ['USD', 'USDT', 'BUSD', 'EUR', 'GBP', 'JPY', 'CHF', 'AUD', 'CAD', 'NZD']
     const parts = decoded.split('-')
     if (parts.length === 2 && knownBases.includes(parts[0]) && knownQuotes.includes(parts[1])) {
       decoded = `${parts[0]}/${parts[1]}`

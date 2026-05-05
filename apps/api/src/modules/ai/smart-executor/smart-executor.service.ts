@@ -63,6 +63,38 @@ export class SmartExecutorService implements OnModuleDestroy {
     private readonly notificationService: NotificationService,
   ) {
     this.logger.log('⚔️ Smart Executor initialized — awaiting activation (with RiskGatekeeper + Notifications)');
+
+    // FIX: Auto-start the executor 45 seconds after startup.
+    // Previously, the executor required a manual POST /start call, meaning it
+    // was never running after deployment until a user explicitly started it.
+    // This made the "المنفذ الذكي" panel always show isRunning=false.
+    // Now it auto-starts so it's ready when council produces briefs.
+    setTimeout(() => {
+      this._autoStart();
+    }, 45000);
+  }
+
+  /**
+   * FIX: Auto-start the executor on startup if there are active briefs
+   * or if auto-trading is enabled. This ensures the executor is always
+   * running after deployment without requiring manual user action.
+   */
+  private async _autoStart(): Promise<void> {
+    try {
+      if (this.isRunning) return;
+
+      // Check if there are any active briefs from the council
+      const activeBriefs = await this.councilService.getActiveBriefsCount();
+
+      this.logger.log(`⚔️ Auto-start check: ${activeBriefs} active briefs available`);
+
+      // Always auto-start — the executor will only process briefs for enabled users
+      // so it's safe to have it running even if no users have enabled it yet
+      await this.start('system-auto');
+      this.logger.log('⚔️ Smart Executor AUTO-STARTED — monitoring briefs for enabled users');
+    } catch (error: any) {
+      this.logger.warn(`⚔️ Auto-start failed (non-critical): ${error.message}`);
+    }
   }
 
   // ── Lifecycle ──

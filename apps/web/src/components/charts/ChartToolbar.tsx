@@ -68,11 +68,10 @@ const CHART_TYPES: { key: ChartType; label: string }[] = [
   { key: 'heikin-ashi',  label: 'HA' },
 ];
 
+// Only cursor in toolbar — all other drawing tools (trendline, horizontal, fibonacci, rectangle)
+// are available in the Drawing Panel (أدوات الرسم)
 const QUICK_DRAW_TOOLS: { key: DrawingTool; icon: string; title: string }[] = [
   { key: 'cursor',     icon: '↖', title: 'مؤشر' },
-  { key: 'trendline',  icon: '╱', title: 'خط اتجاه' },
-  { key: 'horizontal', icon: '━', title: 'خط أفقي' },
-  { key: 'fibonacci',  icon: '⬡', title: 'فيبوناتشي' },
 ];
 
 export function ChartToolbar(props: ChartToolbarProps) {
@@ -584,7 +583,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
       <div style={sepStyle} />
 
-      {/* Quick Drawing Tools */}
+      {/* Cursor + Drawing Panel (drawing tools are in the panel) */}
       {QUICK_DRAW_TOOLS.map(tool => (
         <button
           key={tool.key}
@@ -596,9 +595,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
         </button>
       ))}
 
-      <div style={sepStyle} />
-
-      {/* More Drawing Tools */}
+      {/* Drawing Panel */}
       <button style={btnStyle} onClick={onToggleDrawings} title="أدوات الرسم">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/>
@@ -832,6 +829,23 @@ export function ChartToolbar(props: ChartToolbarProps) {
         {isPaused ? '▶' : '⏸'}
       </button>
 
+      {/* ★ Fullscreen / Maximize — prominent, before spacer */}
+      <button
+        style={isFullscreen ? { ...btnStyle, color: COLORS.cyan, background: 'rgba(0,212,255,0.15)', border: '1px solid rgba(0,212,255,0.3)' } : { ...btnStyle, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
+        onClick={onToggleFullscreen}
+        title={isFullscreen ? 'خروج من ملء الشاشة' : 'تكبير الشارت'}
+      >
+        {isFullscreen ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/>
+          </svg>
+        ) : (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+          </svg>
+        )}
+      </button>
+
       <div style={{ flex: 1 }} />
 
       {/* Export */}
@@ -861,23 +875,6 @@ export function ChartToolbar(props: ChartToolbarProps) {
           </div>
         )}
       </div>
-
-      {/* Fullscreen */}
-      <button
-        style={isFullscreen ? { ...btnStyle, color: COLORS.cyan } : btnStyle}
-        onClick={onToggleFullscreen}
-        title={isFullscreen ? 'خروج من ملء الشاشة' : 'ملء الشاشة'}
-      >
-        {isFullscreen ? (
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/>
-          </svg>
-        ) : (
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
-          </svg>
-        )}
-      </button>
     </div>
   );
 }

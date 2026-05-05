@@ -536,53 +536,57 @@ export class StrategicCouncilService {
       if (this.exchangeService) {
         try {
           // Fetch recent candles for simple momentum calculation
-          const candles = await this.exchangeService.fetchOHLCV(pair, '1h', undefined, 24);
+          const candles = await this.exchangeService.getHistoricalData(pair, '1h');
           if (candles && candles.length >= 10) {
-            const closes = candles.map((c: any) => c[4]); // Close prices
-            const recentAvg = closes.slice(-6).reduce((a: number, b: number) => a + b, 0) / 6;
-            const olderAvg = closes.slice(-12, -6).reduce((a: number, b: number) => a + b, 0) / 6;
-            momentum = (recentAvg - olderAvg) / olderAvg;
+            const closes = candles.map((c: any) => Number(c.close ?? c[4] ?? 0)).filter((v: number) => v > 0);
+            if (closes.length >= 10) {
+              const recentAvg = closes.slice(-6).reduce((a: number, b: number) => a + b, 0) / 6;
+              const olderAvg = closes.slice(-12, -6).length > 0
+                ? closes.slice(-12, -6).reduce((a: number, b: number) => a + b, 0) / closes.slice(-12, -6).length
+                : recentAvg;
+              momentum = (recentAvg - olderAvg) / olderAvg;
 
-            // Simple RSI-like calculation
-            let gains = 0, losses = 0;
-            for (let i = 1; i < closes.length; i++) {
-              const change = closes[i] - closes[i - 1];
-              if (change > 0) gains += change;
-              else losses += Math.abs(change);
-            }
-            const rs = losses === 0 ? 100 : gains / losses;
-            const rsi = 100 - (100 / (1 + rs));
+              // Simple RSI-like calculation
+              let gains = 0, losses = 0;
+              for (let i = 1; i < closes.length; i++) {
+                const change = closes[i] - closes[i - 1];
+                if (change > 0) gains += change;
+                else losses += Math.abs(change);
+              }
+              const rs = losses === 0 ? 100 : gains / losses;
+              const rsi = 100 - (100 / (1 + rs));
 
-            // Determine direction from momentum and RSI
-            if (momentum > 0.005 && rsi < 70) {
-              // Bullish momentum, not overbought
-              confidence = Math.min(65, 55 + Math.abs(momentum) * 1000);
-              return {
-                recommendation: 'BUY',
-                consensusScore: Math.round(confidence),
-                masterStrategy: `تحليل تقني احتياطي — زخم إيجابي (${(momentum * 100).toFixed(2)}%)، RSI=${rsi.toFixed(0)}. نماذج AI غير متاحة.`,
-                analyses: [
-                  { role: 'محلل تقني', model: 'Technical/Momentum', vote: 'BUY', confidence: Math.round(confidence), reason: `زخم إيجابي ${(momentum * 100).toFixed(2)}% مع RSI ${rsi.toFixed(0)}` },
-                  { role: 'محلل اتجاه', model: 'Technical/Trend', vote: 'BUY', confidence: Math.round(confidence - 5), reason: `المتوسط المتحرك القصير أعلى من المتوسط المتحرك الطويل` },
-                ],
-              };
-            } else if (momentum < -0.005 && rsi > 30) {
-              // Bearish momentum, not oversold
-              confidence = Math.min(65, 55 + Math.abs(momentum) * 1000);
-              return {
-                recommendation: 'SELL',
-                consensusScore: Math.round(confidence),
-                masterStrategy: `تحليل تقني احتياطي — زخم سلبي (${(momentum * 100).toFixed(2)}%)، RSI=${rsi.toFixed(0)}. نماذج AI غير متاحة.`,
-                analyses: [
-                  { role: 'محلل تقني', model: 'Technical/Momentum', vote: 'SELL', confidence: Math.round(confidence), reason: `زخم سلبي ${(momentum * 100).toFixed(2)}% مع RSI ${rsi.toFixed(0)}` },
-                  { role: 'محلل اتجاه', model: 'Technical/Trend', vote: 'SELL', confidence: Math.round(confidence - 5), reason: `المتوسط المتحرك القصير أدنى من المتوسط المتحرك الطويل` },
-                ],
-              };
-            }
+              // Determine direction from momentum and RSI
+              if (momentum > 0.005 && rsi < 70) {
+                // Bullish momentum, not overbought
+                confidence = Math.min(65, 55 + Math.abs(momentum) * 1000);
+                return {
+                  recommendation: 'BUY',
+                  consensusScore: Math.round(confidence),
+                  masterStrategy: `تحليل تقني احتياطي — زخم إيجابي (${(momentum * 100).toFixed(2)}%)، RSI=${rsi.toFixed(0)}. نماذج AI غير متاحة.`,
+                  analyses: [
+                    { role: 'محلل تقني', model: 'Technical/Momentum', vote: 'BUY', confidence: Math.round(confidence), reason: `زخم إيجابي ${(momentum * 100).toFixed(2)}% مع RSI ${rsi.toFixed(0)}` },
+                    { role: 'محلل اتجاه', model: 'Technical/Trend', vote: 'BUY', confidence: Math.round(confidence - 5), reason: `المتوسط المتحرك القصير أعلى من المتوسط المتحرك الطويل` },
+                  ],
+                };
+              } else if (momentum < -0.005 && rsi > 30) {
+                // Bearish momentum, not oversold
+                confidence = Math.min(65, 55 + Math.abs(momentum) * 1000);
+                return {
+                  recommendation: 'SELL',
+                  consensusScore: Math.round(confidence),
+                  masterStrategy: `تحليل تقني احتياطي — زخم سلبي (${(momentum * 100).toFixed(2)}%)، RSI=${rsi.toFixed(0)}. نماذج AI غير متاحة.`,
+                  analyses: [
+                    { role: 'محلل تقني', model: 'Technical/Momentum', vote: 'SELL', confidence: Math.round(confidence), reason: `زخم سلبي ${(momentum * 100).toFixed(2)}% مع RSI ${rsi.toFixed(0)}` },
+                    { role: 'محلل اتجاه', model: 'Technical/Trend', vote: 'SELL', confidence: Math.round(confidence - 5), reason: `المتوسط المتحرك القصير أدنى من المتوسط المتحرك الطويل` },
+                  ],
+                };
+              }
+            } // end if closes.length >= 10
+          } // end if candles.length >= 10
+          } catch (err: any) {
+            this.logger.warn(`🏛️ Technical fallback: could not fetch market data for ${pair}: ${err.message}`);
           }
-        } catch (err: any) {
-          this.logger.warn(`🏛️ Technical fallback: could not fetch market data for ${pair}: ${err.message}`);
-        }
       }
 
       // No clear momentum or no exchange data — return HOLD with low confidence

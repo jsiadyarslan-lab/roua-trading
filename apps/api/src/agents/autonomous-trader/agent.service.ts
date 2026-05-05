@@ -191,20 +191,6 @@ export class AutonomousTraderAgentService implements OnModuleInit {
   }
 
   /**
-   * Attempt to transition the service to "ready" state.
-   * Called lazily when a method detects that dependencies may now be available.
-   */
-  private _tryMarkReady(): void {
-    if (this._isReady) return;
-
-    if (this.prisma && this.redis) {
-      this._isReady = true;
-      this._notReadyReason = '';
-      this.logger.log('🧠 Service marked as READY — dependencies now available');
-    }
-  }
-
-  /**
    * Initialize AUTO_TRADING_ENABLED setting in DB.
    * Extracted from onModuleInit for timeout wrapping.
    */

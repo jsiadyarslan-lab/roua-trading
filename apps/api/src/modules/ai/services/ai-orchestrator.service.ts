@@ -402,6 +402,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
     recommendation: 'BUY' | 'SELL' | 'HOLD';
     analyses: { role: string; model: string; vote: string; confidence: number; reason: string }[];
     masterStrategy: string;
+    isFallback?: boolean;
   }> {
     // Check Redis cache first — consensus valid for 10 minutes (increased from 5)
     // FIX: Cache key version bumped to v3 to invalidate stale pre-fix results
@@ -792,7 +793,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
     } catch (error: unknown) {
       const err = error instanceof Error ? error : new Error(String(error));
       this.logger.error(`❌ AI Council failed: ${err.message}`, err.stack);
-      return { consensusScore: 0, recommendation: 'HOLD', analyses: [], masterStrategy: 'خطأ في معالجة طلب إجماع النماذج.' };
+      return { consensusScore: 0, recommendation: 'HOLD', analyses: [], masterStrategy: 'خطأ في معالجة طلب إجماع النماذج.', isFallback: true };
     }
   }
 

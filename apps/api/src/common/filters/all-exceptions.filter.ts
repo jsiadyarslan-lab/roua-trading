@@ -51,15 +51,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
     } else if (exception instanceof Error) {
       details = exception.stack;
 
+      // FIX: Always show Prisma error messages for debugging database schema issues
+      const rawMessage = exception.message || '';
+      const isPrismaError = rawMessage.includes('Prisma') || rawMessage.includes('prisma') || rawMessage.includes('database');
+
       // In production, hide internal error details for non-HttpException errors
-      if (process.env.NODE_ENV === 'production') {
+      // EXCEPTION: Show Prisma error details to help debug schema mismatches
+      if (process.env.NODE_ENV === 'production' && !isPrismaError) {
         message = 'Internal server error';
       } else {
-        message = exception.message || 'Internal server error';
+        message = rawMessage || 'Internal server error';
       }
 
       // Classify common error types (applies user-friendly messages regardless of environment)
-      const rawMessage = exception.message || '';
       if (rawMessage.includes('ECONNREFUSED') || rawMessage.includes('ETIMEDOUT')) {
         status = HttpStatus.BAD_GATEWAY;
         message = 'خدمة خارجية غير متاحة — يرجى المحاولة لاحقاً';

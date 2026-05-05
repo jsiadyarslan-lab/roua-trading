@@ -65,6 +65,9 @@ RUN bun install --frozen-lockfile --production
 # ─────────────────────────────────────────────────────────────
 FROM oven/bun:1-slim AS runner
 
+# Install curl + bash for HEALTHCHECK (not in slim image by default)
+RUN apt-get update -y && apt-get install -y curl bash && rm -rf /var/lib/apt/lists/*
+
 # Security: run as non-root user
 RUN addgroup --system --gid 1001 roua \
     && adduser --system --uid 1001 --ingroup roua apiuser
@@ -103,8 +106,9 @@ ENV API_PORT=3001
 EXPOSE 3001
 
 # Health check — verify API is responding
+# FIX: Use API_PORT env var with fallback to 3001 (Railway may assign a different port)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-  CMD bun -e "fetch('http://localhost:3001/api').catch(() => process.exit(1))" || exit 1
+  CMD bash -c 'curl -fsS "http://localhost:${API_PORT:-3001}/api/health" > /dev/null 2>&1 || exit 1'
 
 # Start NestJS via the compiled JS entry point
 CMD ["bun", "run", "apps/api/dist/main.js"]

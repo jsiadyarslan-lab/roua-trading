@@ -96,6 +96,6 @@ export class AiController {
   async diagnoseModels() {
     this.logger.log('🔧 Running AI model diagnostics...');
     const result = await this.orchestrator.diagnoseModels();
-    return { success: true, data: result, version: 'v2025-05-03-all-8-providers' };
+    return { success: true, data: result, version: 'v2026-05-05-direction-first' };
   }
 }

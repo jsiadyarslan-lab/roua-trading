@@ -419,12 +419,16 @@ export class AIOrchestratorService implements OnModuleDestroy {
     } catch {}
 
     // Also check in-memory cache
-    const memKey = `consensus:${symbol}`;
-    const memCached = this._getCachedResult(memKey);
-    if (memCached) {
-      this.logger.debug(`🎯 Memory cache hit for consensus: ${symbol}`);
-      return memCached as any;
-    }
+    // FIX: Disabled in-memory cache for consensus to prevent stale HOLD results
+    // from blocking brief issuance. The Redis cache (v5 key) is sufficient.
+    // The in-memory cache was holding old HOLD results from before the fix,
+    // causing the council to never issue briefs even after code update.
+    // const memKey = `consensus:${symbol}`;
+    // const memCached = this._getCachedResult(memKey);
+    // if (memCached) {
+    //   this.logger.debug(`🎯 Memory cache hit for consensus: ${symbol}`);
+    //   return memCached as any;
+    // }
 
     this.logger.log(`🎼 Initiating AI Council Consensus for ${symbol} — 8 models + Prediction Market`);
 

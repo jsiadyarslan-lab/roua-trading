@@ -133,7 +133,7 @@ export class SmartExecutorService implements OnModuleDestroy {
 
       try {
         const anyUser = await this.prisma.user.findFirst({
-          where: { email: { not: null } },
+          where: { email: { not: '' } },
           orderBy: { createdAt: 'desc' },
         });
         if (anyUser) {

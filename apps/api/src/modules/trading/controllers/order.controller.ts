@@ -31,6 +31,7 @@ import {
   OrderSideEnum,
   OrderTypeEnum,
 } from '../events/order.events';
+import { PlaceOrderDto as V2PlaceOrderDto } from './dtos/place-order.dto';
 
 /**
  * Order Controller — Trading Order API
@@ -97,11 +98,12 @@ export class OrderController {
   @Post('orders')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   @HttpCode(HttpStatus.CREATED)
-  async placeOrder(@Req() req: any, @Body() body: any) {
+  async placeOrder(@Req() req: any, @Body() body: V2PlaceOrderDto) {
     const userId = req.user.id;
 
-    // ── Step 1: Validate required fields ──
-    this._validateOrderBody(body);
+    // ── Step 1: Validate required fields (DTO handles most validation via class-validator) ──
+    // Additional business-logic validation that DTOs can't express:
+    this._validateOrderBusinessLogic(body);
 
     // ── Step 2: Check idempotency ──
     const isUnique = await this.idempotencyService.checkAndLock(body.idempotencyKey);
@@ -333,43 +335,30 @@ export class OrderController {
 
   // ── Private: Validation ──
 
-  private _validateOrderBody(body: any): void {
-    const required = ['exchangeCredentialId', 'symbol', 'side', 'type', 'quantity', 'stopLoss', 'idempotencyKey'];
-    const missing = required.filter((field) => !body[field]);
-
-    if (missing.length > 0) {
-      throw new BadRequestException(
-        `حقول مطلوبة مفقودة: ${missing.join(', ')}`,
-      );
-    }
-
-    if (!['BUY', 'SELL'].includes(body.side)) {
-      throw new BadRequestException('جانب الطلب يجب أن يكون BUY أو SELL');
-    }
-
-    if (!['MARKET', 'LIMIT'].includes(body.type)) {
-      throw new BadRequestException('نوع الطلب يجب أن يكون MARKET أو LIMIT');
-    }
-
-    const quantity = parseFloat(body.quantity);
-    if (isNaN(quantity) || quantity <= 0) {
-      throw new BadRequestException('الكمية يجب أن تكون رقماً أكبر من صفر');
-    }
-
-    const stopLoss = parseFloat(body.stopLoss);
-    if (isNaN(stopLoss) || stopLoss <= 0) {
-      throw new BadRequestException('وقف الخسارة يجب أن يكون رقماً أكبر من صفر');
-    }
-
+  /**
+   * Business-logic validation beyond what class-validator DTOs can express.
+   * DTO handles: type checks, required fields, min/max values.
+   * This handles: cross-field rules, trading-specific constraints.
+   */
+  private _validateOrderBusinessLogic(body: V2PlaceOrderDto): void {
+    // LIMIT orders require a price
     if (body.type === 'LIMIT' && !body.price) {
       throw new BadRequestException('سعر الحد مطلوب للطلبات المحددة (LIMIT)');
     }
 
-    if (body.price) {
-      const price = parseFloat(body.price);
-      if (isNaN(price) || price <= 0) {
-        throw new BadRequestException('السعر يجب أن يكون رقماً أكبر من صفر');
-      }
+    // Stop-loss must be positive when provided
+    if (body.stopLoss !== undefined && body.stopLoss <= 0) {
+      throw new BadRequestException('وقف الخسارة يجب أن يكون رقماً أكبر من صفر');
+    }
+
+    // Take-profit must be positive when provided
+    if (body.takeProfit !== undefined && body.takeProfit <= 0) {
+      throw new BadRequestException('جني الأرباح يجب أن يكون رقماً أكبر من صفر');
+    }
+
+    // Symbol format validation (must contain / for pairs or be a stock ticker)
+    if (!/^[A-Za-z0-9/_.-]+$/.test(body.symbol)) {
+      throw new BadRequestException('رمز التداول يحتوي على أحرف غير صالحة');
     }
   }
 }

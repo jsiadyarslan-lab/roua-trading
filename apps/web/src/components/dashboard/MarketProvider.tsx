@@ -44,7 +44,15 @@ async function fetchAndStore(symbol: string) {
     if (!res.ok) return // Silently skip failed requests
     const data = await res.json()
     if (data.success && data.data && data.data.price > 0) {
-      useMarketStore.getState().setQuote(symbol, data.data)
+      // SECURITY: Mark stale data so consumers can distinguish live vs cached prices.
+      // Without this check, stale quotes flow into the market store as if they were fresh,
+      // causing misleading price displays and potentially incorrect trading decisions.
+      const isStale = data.stale === true
+      useMarketStore.getState().setQuote(symbol, {
+        ...data.data,
+        stale: isStale,
+        source: isStale ? `${data.data.source || 'unknown'} (مؤقت)` : data.data.source,
+      })
     }
   } catch { /* silent */ }
 }

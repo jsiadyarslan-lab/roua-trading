@@ -69,6 +69,67 @@ async function bootstrap() {
     // Cookie parser for session management
     app.use(cookieParser());
 
+    // ── CSRF Protection — Origin Validation ──
+    // For a trading platform, CSRF protection is CRITICAL to prevent
+    // unauthorized order placement from malicious sites.
+    //
+    // Strategy: Verify the Origin header on all state-changing requests
+    // (POST, PUT, DELETE, PATCH). If the Origin doesn't match our
+    // allowed origins, reject with 403.
+    //
+    // This is the "origin verification" approach recommended by OWASP
+    // (https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)
+    // It's simpler than token-based CSRF and works well for API-first
+    // applications that use SameSite cookies.
+    //
+    // SameSite=lax cookies already prevent cross-site GET attacks.
+    // Origin validation prevents cross-site POST/PUT/DELETE/PATCH attacks.
+    // Together, they provide robust CSRF protection without the complexity
+    // of synchronizer token pattern.
+    const STATE_CHANGING_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
+    const allowedOriginPatterns = [
+      /^https:\/\/[a-z0-9-]+\.up\.railway\.app$/,
+      /^https:\/\/[a-z0-9-]+\.railway\.app$/,
+      /^http:\/\/localhost:\d+$/,
+      /^http:\/\/127\.0\.0\.1:\d+$/,
+    ];
+    // Also allow explicitly configured CORS origins
+    const explicitOrigins = (process.env.CORS_ORIGIN || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+
+    app.use((req: any, res: any, next: any) => {
+      if (!STATE_CHANGING_METHODS.includes(req.method)) {
+        return next(); // Only check state-changing requests
+      }
+
+      const origin = req.headers.origin || req.headers.referer?.split('/').slice(0, 3).join('/');
+      if (!origin) {
+        // No origin header — allow for API clients (curl, mobile apps)
+        // These are typically not browser-based and not vulnerable to CSRF
+        return next();
+      }
+
+      // Check against explicit origins first
+      if (explicitOrigins.includes(origin)) {
+        return next();
+      }
+
+      // Check against patterns (Railway domains, localhost)
+      if (allowedOriginPatterns.some(pattern => pattern.test(origin))) {
+        return next();
+      }
+
+      // Origin doesn't match any allowed source — reject
+      res.status(403).json({
+        statusCode: 403,
+        message: 'طلب مرفوض — مصدر غير مصرح به (CSRF protection)',
+        timestamp: new Date().toISOString(),
+        path: req.url,
+      });
+    });
+
     // Global prefix for all routes
     app.setGlobalPrefix('api');
 

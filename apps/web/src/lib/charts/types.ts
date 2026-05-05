@@ -46,20 +46,110 @@ export interface CandleData {
 // ── Drawing Types ───────────────────────────────────────
 export type DrawingTool =
   | 'cursor'
-  | 'trendline'      // خط اتجاه
-  | 'horizontal'     // خط أفقي
-  | 'vertical'       // خط رأسي
-  | 'fibonacci'      // فيبوناتشي
-  | 'rectangle'      // مستطيل
-  | 'channel'        // قناة متوازية
-  | 'triangle'       // مثلث
-  | 'circle'         // دائرة
-  | 'arc'            // قوس
-  | 'x-marker'       // علامة X
-  | 'arrow'          // سهم
-  | 'extended-line'  // خط ممتد
-  | 'ray'            // شعاع
-  | 'price-range';   // نطاق سعري
+  // ── Lines ──
+  | 'trendline'         // خط اتجاه
+  | 'ray'               // شعاع
+  | 'info-line'         // خط معلوماتي
+  | 'extended-line'     // خط ممتد
+  | 'trend-angle'       // خط اتجاه بزاوية
+  | 'horizontal'        // خط أفقي
+  | 'horizontal-ray'    // شعاع أفقي
+  | 'vertical'          // خط رأسي
+  | 'cross-line'        // خط متقاطع
+  // ── Channels ──
+  | 'channel'           // قناة متوازية
+  | 'regression-trend'  // اتجاه انحدار
+  | 'flat-top-bottom'   // قمة/قاع مسطحة
+  | 'disjoint-channel'  // قناة منفصلة
+  // ── Forks ──
+  | 'andrews-pitchfork' // شوكة أندروز
+  | 'schiff-pitchfork'  // شوكة شيف
+  | 'modified-schiff'   // شوكة شيف معدلة
+  // ── Fibonacci ──
+  | 'fibonacci'         // فيبوناتشي ارتداد
+  | 'fib-extension'     // فيبوناتشي امتداد
+  | 'fib-fan'           // مروحة فيبوناتشي
+  | 'fib-spiral'        // حلزون فيبوناتشي
+  | 'fib-wedge'         // إسفين فيبوناتشي
+  | 'fib-time-zone'     // مناطق زمنية فيبوناتشي
+  // ── Gann ──
+  | 'gann-box'          // صندوق جان
+  | 'gann-square'       // مربع جان
+  | 'gann-fan'          // مروحة جان
+  // ── Shapes ──
+  | 'rectangle'         // مستطيل
+  | 'triangle'          // مثلث
+  | 'circle'            // دائرة
+  | 'ellipse'           // قطع ناقص
+  // ── Annotations ──
+  | 'text-annotation'   // تعليق نصي
+  | 'price-label'       // تسمية سعرية
+  | 'note'              // ملاحظة
+  // ── Markers ──
+  | 'x-marker'          // علامة X
+  | 'arrow'             // سهم
+  | 'price-range';      // نطاق سعري
+
+// ── Drawing Tool Categories ──
+export interface DrawingToolCategory {
+  key: string;
+  labelAr: string;
+  labelEn: string;
+  icon: string;
+  tools: DrawingTool[];
+}
+
+export const DRAWING_CATEGORIES: DrawingToolCategory[] = [
+  {
+    key: 'lines',
+    labelAr: 'الخطوط',
+    labelEn: 'Lines',
+    icon: '📐',
+    tools: ['trendline', 'ray', 'info-line', 'extended-line', 'trend-angle', 'horizontal', 'horizontal-ray', 'vertical', 'cross-line'],
+  },
+  {
+    key: 'channels',
+    labelAr: 'القنوات',
+    labelEn: 'Channels',
+    icon: '📊',
+    tools: ['channel', 'regression-trend', 'flat-top-bottom', 'disjoint-channel'],
+  },
+  {
+    key: 'forks',
+    labelAr: 'الشوك',
+    labelEn: 'Forks',
+    icon: '🔱',
+    tools: ['andrews-pitchfork', 'schiff-pitchfork', 'modified-schiff'],
+  },
+  {
+    key: 'fibonacci',
+    labelAr: 'فيبوناتشي',
+    labelEn: 'Fibonacci',
+    icon: '📏',
+    tools: ['fibonacci', 'fib-extension', 'fib-fan', 'fib-spiral', 'fib-wedge', 'fib-time-zone'],
+  },
+  {
+    key: 'gann',
+    labelAr: 'جان',
+    labelEn: 'Gann',
+    icon: '📐',
+    tools: ['gann-box', 'gann-square', 'gann-fan'],
+  },
+  {
+    key: 'shapes',
+    labelAr: 'الأشكال',
+    labelEn: 'Shapes',
+    icon: '⬜',
+    tools: ['rectangle', 'triangle', 'circle', 'ellipse'],
+  },
+  {
+    key: 'annotations',
+    labelAr: 'التعليقات',
+    labelEn: 'Annotations',
+    icon: '📝',
+    tools: ['text-annotation', 'price-label', 'note'],
+  },
+];
 
 export interface DrawingPoint {
   time: number;       // Unix seconds
@@ -79,7 +169,7 @@ export interface Drawing {
 
 // ── Indicator Types ─────────────────────────────────────
 export type OverlayIndicatorKey =
-  | 'sma' | 'ema' | 'bb' | 'vwap' | 'psar' | 'ichimoku' | 'supertrend' | 'pivot';
+  | 'sma' | 'ema' | 'bb' | 'vwap' | 'psar' | 'ichimoku' | 'supertrend' | 'pivot' | 'donchian';
 
 export type OscillatorIndicatorKey =
   | 'rsi' | 'macd' | 'stochastic' | 'atr' | 'adx' | 'cci';
@@ -114,6 +204,7 @@ export const INDICATOR_CONFIGS: IndicatorConfig[] = [
   { key: 'ichimoku',  label: 'إيشيموكو',                labelEn: 'Ichimoku',category: 'overlay',   defaultParams: { conversion: 9, base: 26, spanB: 52 }, defaultColor: '#58a6ff', defaultOpacity: 0.5 },
   { key: 'supertrend',label: 'سوبر ترند',               labelEn: 'SuperTrend', category: 'overlay',defaultParams: { period: 10, multiplier: 3 }, defaultColor: '#22d3ee', defaultOpacity: 0.7 },
   { key: 'pivot',     label: 'نقاط البايفوت',            labelEn: 'Pivot',   category: 'overlay',   defaultParams: {},                       defaultColor: '#a78bfa', defaultOpacity: 0.6 },
+  { key: 'donchian',  label: 'قناة دونشيان',             labelEn: 'Donchian', category: 'overlay',   defaultParams: { period: 20 },           defaultColor: '#f97316', defaultOpacity: 0.5 },
 
   // ── Oscillator Indicators ──
   { key: 'rsi',       label: 'RSI',                     labelEn: 'RSI',     category: 'oscillator', defaultParams: { period: 14 },           defaultColor: '#58a6ff', defaultOpacity: 0.8 },

@@ -1,0 +1,271 @@
+'use client';
+
+import React, { useState, useMemo } from 'react';
+
+interface ShareChartProps {
+  symbol: string;
+  timeframe: string;
+  activeIndicators: string[];
+  chartType: string;
+  onClose: () => void;
+}
+
+const ShareChart: React.FC<ShareChartProps> = ({
+  symbol,
+  timeframe,
+  activeIndicators,
+  chartType,
+  onClose,
+}) => {
+  const [copied, setCopied] = useState(false);
+
+  const shareUrl = useMemo(() => {
+    const base = typeof window !== 'undefined' ? window.location.origin : '';
+    const params = new URLSearchParams({
+      s: symbol,
+      tf: timeframe,
+      ind: activeIndicators.join(','),
+      type: chartType,
+    });
+    return `${base}/chart?${params.toString()}`;
+  }, [symbol, timeframe, activeIndicators, chartType]);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for older browsers
+      const textarea = document.createElement('textarea');
+      textarea.value = shareUrl;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleShare = async () => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: `${symbol} Chart`,
+          text: `Check out ${symbol} on ${timeframe} timeframe`,
+          url: shareUrl,
+        });
+      } catch (err) {
+        // User cancelled or share failed — do nothing
+      }
+    }
+  };
+
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: 40,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: 320,
+        background: 'rgba(8,10,18,0.92)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        border: '1px solid rgba(0,212,255,0.2)',
+        borderRadius: 10,
+        padding: 12,
+        zIndex: 500,
+        pointerEvents: 'auto',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.4), 0 0 16px rgba(0,212,255,0.08)',
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 10,
+        }}
+      >
+        <span
+          style={{
+            fontFamily: 'Cairo, sans-serif',
+            fontSize: 14,
+            fontWeight: 600,
+            color: '#e2e8f0',
+            letterSpacing: '0.02em',
+          }}
+        >
+          مشاركة الشارت
+        </span>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'rgba(255,255,255,0.5)',
+            fontSize: 16,
+            cursor: 'pointer',
+            padding: '2px 4px',
+            lineHeight: 1,
+            borderRadius: 4,
+            transition: 'color 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.9)';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.color = 'rgba(255,255,255,0.5)';
+          }}
+          aria-label="Close share panel"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Divider */}
+      <div
+        style={{
+          height: 1,
+          background: 'rgba(0,212,255,0.12)',
+          marginBottom: 10,
+        }}
+      />
+
+      {/* URL Input + Copy icon */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 12,
+        }}
+      >
+        <input
+          type="text"
+          readOnly
+          value={shareUrl}
+          style={{
+            flex: 1,
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(0,212,255,0.15)',
+            borderRadius: 6,
+            padding: '8px 10px',
+            color: '#94a3b8',
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 11,
+            outline: 'none',
+            width: '100%',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          onClick={(e) => (e.target as HTMLInputElement).select()}
+          aria-label="Shareable chart URL"
+        />
+        <button
+          onClick={handleCopy}
+          title="Copy URL"
+          style={{
+            background: 'none',
+            border: '1px solid rgba(0,212,255,0.25)',
+            borderRadius: 6,
+            color: copied ? '#10b981' : '#00D4FF',
+            padding: '7px 8px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 14,
+            transition: 'all 0.15s ease',
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => {
+            if (!copied) {
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,212,255,0.5)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!copied) {
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,212,255,0.25)';
+            }
+          }}
+          aria-label="Copy URL to clipboard"
+        >
+          {copied ? '✓' : '📋'}
+        </button>
+      </div>
+
+      {/* Action Buttons */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+        }}
+      >
+        {/* Share button (Web Share API) */}
+        {canShare && (
+          <button
+            onClick={handleShare}
+            style={{
+              flex: 1,
+              background: '#059669',
+              border: 'none',
+              borderRadius: 6,
+              color: '#ffffff',
+              fontFamily: 'Cairo, sans-serif',
+              fontSize: 13,
+              fontWeight: 600,
+              padding: '8px 0',
+              cursor: 'pointer',
+              transition: 'opacity 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.opacity = '0.85';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.opacity = '1';
+            }}
+          >
+            مشاركة
+          </button>
+        )}
+
+        {/* Copy Link button */}
+        <button
+          onClick={handleCopy}
+          style={{
+            flex: 1,
+            background: copied ? '#059669' : '#00D4FF',
+            border: 'none',
+            borderRadius: 6,
+            color: copied ? '#ffffff' : '#000000',
+            fontFamily: 'Cairo, sans-serif',
+            fontSize: 13,
+            fontWeight: 700,
+            padding: '8px 0',
+            cursor: 'pointer',
+            transition: 'opacity 0.15s ease, background 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.opacity = '0.85';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.opacity = '1';
+          }}
+        >
+          {copied ? '✓ تم النسخ' : 'نسخ الرابط'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default ShareChart;

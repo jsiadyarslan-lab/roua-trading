@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-// ROUA Trading Chart — Keyboard Shortcuts
+// ROUA Trading Chart — Keyboard Shortcuts (Enhanced)
 // ═══════════════════════════════════════════════════════════
 
 import type { DrawingTool } from './types';
@@ -13,6 +13,9 @@ export interface ShortcutActions {
   cancelDrawing: () => void;
   toggleFullscreen: () => void;
   resetView: () => void;
+  exportPNG?: () => void;
+  undoDrawing?: () => void;
+  setTimeframe?: (tf: string) => void;
 }
 
 export class KeyboardShortcuts {
@@ -52,11 +55,23 @@ export class KeyboardShortcuts {
 
     const key = e.key.toLowerCase();
 
-    // Ctrl+S — Save chart
-    if ((e.ctrlKey || e.metaKey) && key === 's') {
-      e.preventDefault();
-      this.actions.saveChart();
-      return;
+    // Ctrl/Cmd shortcuts
+    if (e.ctrlKey || e.metaKey) {
+      switch (key) {
+        case 's':
+          e.preventDefault();
+          this.actions.saveChart();
+          return;
+        case 'e':
+          e.preventDefault();
+          this.actions.exportPNG?.();
+          return;
+        case 'z':
+          e.preventDefault();
+          this.actions.undoDrawing?.();
+          return;
+      }
+      return; // Don't process further for Ctrl combos
     }
 
     // Single key shortcuts
@@ -75,11 +90,12 @@ export class KeyboardShortcuts {
         e.preventDefault();
         this.actions.zoomOut();
         break;
+      // ── Drawing Tools ──
       case 'r':
-        this.actions.resetView();
+        this.actions.setTool('rectangle');
         break;
       case 'f':
-        this.actions.toggleFullscreen();
+        this.actions.setTool('fibonacci');
         break;
       case 't':
         this.actions.setTool('trendline');
@@ -87,6 +103,26 @@ export class KeyboardShortcuts {
       case 'h':
         this.actions.setTool('horizontal');
         break;
+      case 'v':
+        this.actions.setTool('vertical');
+        break;
+      // ── Timeframe Shortcuts (1-5) ──
+      case '1':
+        this.actions.setTimeframe?.('1min');
+        break;
+      case '2':
+        this.actions.setTimeframe?.('5min');
+        break;
+      case '3':
+        this.actions.setTimeframe?.('15min');
+        break;
+      case '4':
+        this.actions.setTimeframe?.('1h');
+        break;
+      case '5':
+        this.actions.setTimeframe?.('4h');
+        break;
+      // ── Other ──
       case 'escape':
         this.actions.cancelDrawing();
         break;

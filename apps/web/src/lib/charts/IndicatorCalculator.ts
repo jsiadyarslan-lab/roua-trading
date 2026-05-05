@@ -383,6 +383,27 @@ export function calcPivot(candles: CandleData[]): PivotResult[] {
   });
 }
 
+// ── Donchian Channel ───────────────────────────────────
+export interface DonchianResult {
+  time: number;
+  upper: number | null;
+  middle: number | null;
+  lower: number | null;
+}
+
+export function calcDonchian(candles: CandleData[], period: number = 20): DonchianResult[] {
+  return candles.map((c, i) => {
+    if (i < period - 1) {
+      return { time: c.time, upper: null, middle: null, lower: null };
+    }
+    const slice = candles.slice(i - period + 1, i + 1);
+    const upper = Math.max(...slice.map(x => x.high));
+    const lower = Math.min(...slice.map(x => x.low));
+    const middle = (upper + lower) / 2;
+    return { time: c.time, upper, middle, lower };
+  });
+}
+
 // ── Master Calculation Function ─────────────────────────
 export async function calculateIndicator(
   indicator: ActiveIndicator,
@@ -398,6 +419,7 @@ export async function calculateIndicator(
     case 'ichimoku':   return Promise.resolve(calcIchimoku(candles, p.conversion as number, p.base as number, p.spanB as number));
     case 'supertrend': return Promise.resolve(calcSuperTrend(candles, p.period as number, p.multiplier as number));
     case 'pivot':      return Promise.resolve(calcPivot(candles));
+    case 'donchian':   return Promise.resolve(calcDonchian(candles, p.period as number));
     case 'rsi':        return calcRSI(candles, p.period as number);
     case 'macd':       return calcMACD(candles, p.fast as number, p.slow as number, p.signal as number);
     case 'stochastic': return calcStochastic(candles, p.kPeriod as number, p.dPeriod as number);

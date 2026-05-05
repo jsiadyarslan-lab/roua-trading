@@ -770,6 +770,46 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       });
     }
 
+    else if (indicator.key === 'donchian') {
+      // Donchian Channel: upper, middle, lower lines + fill
+      const upperData: { time: Time; value: number }[] = [];
+      const middleData: { time: Time; value: number }[] = [];
+      const lowerData: { time: Time; value: number }[] = [];
+      results.forEach((r: any) => {
+        if (r.upper !== null && r.upper !== undefined) upperData.push({ time: r.time as Time, value: r.upper });
+        if (r.middle !== null && r.middle !== undefined) middleData.push({ time: r.time as Time, value: r.middle });
+        if (r.lower !== null && r.lower !== undefined) lowerData.push({ time: r.time as Time, value: r.lower });
+      });
+      addOverlayLine('donchian-upper', upperData, 'rgba(249,115,22,0.6)');
+      addOverlayLine('donchian-middle', middleData, 'rgba(249,115,22,0.3)', 1);
+      addOverlayLine('donchian-lower', lowerData, 'rgba(249,115,22,0.6)');
+
+      // Fill area between upper and lower bands
+      const upperFill = chart.addSeries(AreaSeries, {
+        topColor: 'rgba(249,115,22,0.08)',
+        bottomColor: 'rgba(249,115,22,0.02)',
+        lineColor: 'transparent',
+        lineWidth: 0 as any,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      upperFill.setData(upperData as any);
+      overlaySeriesRef.current.set('donchian-fill-upper', upperFill);
+
+      const lowerFill = chart.addSeries(AreaSeries, {
+        topColor: 'rgba(249,115,22,0.02)',
+        bottomColor: 'rgba(249,115,22,0.06)',
+        lineColor: 'transparent',
+        lineWidth: 0 as any,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      lowerFill.setData(lowerData as any);
+      overlaySeriesRef.current.set('donchian-fill-lower', lowerFill);
+    }
+
     // ════════════════════════════════════════════════════════
     // OSCILLATOR INDICATORS (sub-panels)
     // ════════════════════════════════════════════════════════

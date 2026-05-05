@@ -42,6 +42,10 @@ interface ChartToolbarProps {
   showAIPanel?: boolean;
   showChartTrading?: boolean;
   showWatchlist?: boolean;
+  onToggleCompare?: () => void;
+  onToggleMTF?: () => void;
+  onToggleShare?: () => void;
+  showCompare?: boolean;
 }
 
 const CHART_TYPES: { key: ChartType; label: string }[] = [
@@ -73,6 +77,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
     onToggleVolumeProfile, onToggleAIPanel, onToggleChartTrading,
     onToggleTemplateManager, onToggleWatchlist, onToggleChartSettings,
     showVolumeProfile, showAIPanel, showChartTrading, showWatchlist,
+    onToggleCompare, onToggleMTF, onToggleShare, showCompare,
     isFullscreen,
   } = props;
 
@@ -345,6 +350,44 @@ export function ChartToolbar(props: ChartToolbarProps) {
           </button>
         )}
 
+        {/* Compare */}
+        {onToggleCompare && (
+          <button
+            style={toggleBtnStyle(!!showCompare)}
+            onClick={onToggleCompare}
+            title="مقارنة أصل آخر"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+          </button>
+        )}
+
+        {/* MTF */}
+        {onToggleMTF && (
+          <button
+            style={btnStyle}
+            onClick={onToggleMTF}
+            title="تحليل متعدد الأطر الزمنية"
+          >
+            MTF
+          </button>
+        )}
+
+        {/* Share */}
+        {onToggleShare && (
+          <button
+            style={btnStyle}
+            onClick={onToggleShare}
+            title="مشاركة الشارت"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+            </svg>
+          </button>
+        )}
+
         {/* Play/Pause */}
         <button
           style={{
@@ -373,6 +416,9 @@ export function ChartToolbar(props: ChartToolbarProps) {
                 { label: '📐 أدوات الرسم', action: onToggleDrawings },
                 { label: '🗑️ مسح الرسومات', action: onClearDrawings },
                 { label: '📊 ملف الحجم', action: onToggleVolumeProfile || (() => {}) },
+                { label: '⚖️ مقارنة', action: onToggleCompare || (() => {}) },
+                { label: '📊 تحليل MTF', action: onToggleMTF || (() => {}) },
+                { label: '🔗 مشاركة', action: onToggleShare || (() => {}) },
                 { label: '📋 قائمة المراقبة', action: onToggleWatchlist || (() => {}) },
                 { label: '💾 إدارة القوالب', action: onToggleTemplateManager || (() => {}) },
                 { label: '⚙️ إعدادات الشارت', action: onToggleChartSettings || (() => {}) },
@@ -595,6 +641,44 @@ export function ChartToolbar(props: ChartToolbarProps) {
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
+          </svg>
+        </button>
+      )}
+
+      {/* Compare */}
+      {onToggleCompare && (
+        <button
+          style={toggleBtnStyle(!!showCompare)}
+          onClick={onToggleCompare}
+          title="مقارنة أصل آخر"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+          </svg>
+        </button>
+      )}
+
+      {/* MTF (Multi-Timeframe) */}
+      {onToggleMTF && (
+        <button
+          style={btnStyle}
+          onClick={onToggleMTF}
+          title="تحليل متعدد الأطر الزمنية"
+        >
+          MTF
+        </button>
+      )}
+
+      {/* Share */}
+      {onToggleShare && (
+        <button
+          style={btnStyle}
+          onClick={onToggleShare}
+          title="مشاركة الشارت"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
           </svg>
         </button>
       )}

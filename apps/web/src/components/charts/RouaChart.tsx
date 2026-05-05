@@ -25,6 +25,12 @@ import { AIPatternPanel } from './AIPatternPanel';
 import { ChartTrading } from './ChartTrading';
 import { TemplateManager } from './TemplateManager';
 import { ChartSettingsPanel } from './ChartSettingsPanel';
+import { ChartHUD } from './ChartHUD';
+import { CompareOverlay } from './CompareOverlay';
+import { MultiTimeframeChart } from './MultiTimeframeChart';
+import ShareChart from './ShareChart';
+import { fetchSignalsForChart, fetchStrategicBriefs, convertToChartMarkers } from '@/lib/charts/chart-signals';
+import type { AIAnalysisResult } from './AIPatternPanel';
 import { T } from '@/lib/unified-tokens';
 import { fmtPrice as unifiedFmtPrice } from '@/lib/price-format';
 
@@ -123,6 +129,11 @@ export default function RouaChart({
   const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [showWatchlist, setShowWatchlist] = useState(false);
   const [showChartSettings, setShowChartSettings] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
+  const [compareSymbol, setCompareSymbol] = useState('');
+  const [showMTF, setShowMTF] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [councilSignal, setCouncilSignal] = useState<{ direction: 'bullish' | 'bearish' | 'neutral'; confidence: number } | null>(null);
   const [aiPatterns, setAiPatterns] = useState<AIPattern[]>([]);
   const [newsMarkers, setNewsMarkers] = useState<NewsMarker[]>([]);
   const positionLineIdsRef = useRef<string[]>([]);
@@ -563,9 +574,36 @@ export default function RouaChart({
   }, [chart]);
 
   // ── AI Pattern Handler ─────────────────────────────────
-  const handlePatternsDetected = useCallback((patterns: AIPattern[]) => {
-    setAiPatterns(patterns);
-  }, []);
+  const handlePatternsDetected = useCallback((result: AIAnalysisResult) => {
+    setAiPatterns(result.patterns);
+
+    // Add support/resistance levels as price lines
+    result.supportLevels.forEach((level, i) => {
+      const opacity = level.strength === 'strong' ? 0.7 : level.strength === 'medium' ? 0.5 : 0.3;
+      chart.addPriceLine(
+        `ai-support-${i}`,
+        level.price,
+        `rgba(0, 255, 163, ${opacity})`,
+        `S${i + 1} ${level.price.toFixed(level.price > 1000 ? 2 : 5)}`,
+        level.strength === 'strong' ? 2 : 1,
+        2, // dashed
+        true,
+      );
+    });
+
+    result.resistanceLevels.forEach((level, i) => {
+      const opacity = level.strength === 'strong' ? 0.7 : level.strength === 'medium' ? 0.5 : 0.3;
+      chart.addPriceLine(
+        `ai-resistance-${i}`,
+        level.price,
+        `rgba(255, 71, 87, ${opacity})`,
+        `R${i + 1} ${level.price.toFixed(level.price > 1000 ? 2 : 5)}`,
+        level.strength === 'strong' ? 2 : 1,
+        2, // dashed
+        true,
+      );
+    });
+  }, [chart]);
 
   // ── News Markers Handler ───────────────────────────────
   const handleNewsUpdate = useCallback((markers: NewsMarker[]) => {
@@ -626,94 +664,51 @@ export default function RouaChart({
     let cancelled = false;
     const fetchSignals = async () => {
       try {
-        const res = await fetch('/api/signals/active');
-        if (!res.ok) return;
-        const data = await res.json();
-        const signals = Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : [];
+        const [signals, briefs] = await Promise.all([
+          fetchSignalsForChart(selectedSymbol),
+          fetchStrategicBriefs(selectedSymbol),
+        ]);
         if (cancelled) return;
 
-        // Convert active signals to chart markers for the current symbol
-        const chartSymbol = normalizeSymbol(selectedSymbol);
-        const markers: any[] = [];
+        // Update council signal for HUD
+        if (briefs.length > 0) {
+          const latestBrief = briefs[briefs.length - 1];
+          setCouncilSignal({
+            direction: latestBrief.direction,
+            confidence: latestBrief.confidence,
+          });
+        } else {
+          setCouncilSignal(null);
+        }
 
+        // Convert to chart markers
+        const markers = convertToChartMarkers(signals, briefs, selectedSymbol);
+        setSignalMarkers(markers);
+
+        // Add SL/TP price lines for signals
         signals.forEach((signal: any) => {
-          const sigSymbol = normalizeSymbol(signal.pair || signal.symbol || '');
-          // Only show signals matching the current chart symbol
+          const normalizeSymbolLocal = (s: string) => s.toUpperCase().replace(/[/\-_]/g, '');
+          const chartSymbol = normalizeSymbolLocal(selectedSymbol);
+          const sigSymbol = normalizeSymbolLocal(signal.pair || signal.symbol || '');
           if (!sigSymbol.includes(chartSymbol) && !chartSymbol.includes(sigSymbol)) return;
 
-          // Determine marker properties based on signal action
-          const action = (signal.action || signal.type || '').toUpperCase();
-          const isBuy = action === 'BUY' || action === 'LONG';
-          const isSell = action === 'SELL' || action === 'SHORT';
-          const isWait = action === 'WAIT' || action === 'HOLD';
-
-          if (!isBuy && !isSell && !isWait) return;
-
-          // Use signal's timestamp (converted to unix seconds for lightweight-charts)
-          const signalTime = signal.createdAt
-            ? Math.floor(new Date(signal.createdAt).getTime() / 1000)
-            : signal.timestamp
-              ? Math.floor(new Date(signal.timestamp).getTime() / 1000)
-              : Math.floor(Date.now() / 1000);
-
-          // Use entryPrice if available, otherwise use signal price
-          const signalPrice = Number(signal.entryPrice || signal.price || 0);
-
-          // Build marker text with confidence if available
-          const confidence = signal.confidence ? ` (${signal.confidence}%)` : '';
-          const label = isBuy ? `شراء${confidence}` : isSell ? `بيع${confidence}` : `انتظار${confidence}`;
-
-          markers.push({
-            time: signalTime as any,
-            position: (isBuy ? 'belowBar' : 'aboveBar') as 'belowBar' | 'aboveBar',
-            color: isBuy ? '#00FFA3' : isSell ? '#FF4757' : '#fbbf24',
-            shape: (isBuy ? 'arrowUp' : isSell ? 'arrowDown' : 'circle') as 'arrowUp' | 'arrowDown' | 'circle',
-            text: label,
-            // Store original signal data for interactivity
-            _signalData: signal,
-          });
-
-          // FIX: Render SL/TP as persistent horizontal price lines instead of
-          // overlapping markers. Previously, SL/TP were added as circle markers
-          // at the same time position as the signal marker, causing visual clutter
-          // and overlapping. Price lines are always visible at the correct price
-          // level and don't overlap with the signal arrow marker.
           const sl = Number(signal.stopLoss || 0);
           const tp = Number(signal.takeProfit || 0);
-          const signalId = signal.id || `${signalTime}-${signal.action}`;
+          const signalId = signal.id || `${signal.createdAt}-${signal.action}`;
           if (sl > 0) {
-            chart.addPriceLine(
-              `sl-${signalId}`,
-              sl,
-              'rgba(255, 71, 87, 0.6)',
-              `SL ${sl.toFixed(sl > 100 ? 1 : 5)}`,
-              1,
-              2,   // dashed line style
-              true,
-            );
+            chart.addPriceLine(`sl-${signalId}`, sl, 'rgba(255, 71, 87, 0.6)', `SL ${sl.toFixed(sl > 100 ? 1 : 5)}`, 1, 2, true);
           }
           if (tp > 0) {
-            chart.addPriceLine(
-              `tp-${signalId}`,
-              tp,
-              'rgba(0, 255, 163, 0.6)',
-              `TP ${tp.toFixed(tp > 100 ? 1 : 5)}`,
-              1,
-              2,   // dashed line style
-              true,
-            );
+            chart.addPriceLine(`tp-${signalId}`, tp, 'rgba(0, 255, 163, 0.6)', `TP ${tp.toFixed(tp > 100 ? 1 : 5)}`, 1, 2, true);
           }
         });
-
-        setSignalMarkers(markers);
       } catch {
-        // Signals not available — don't block chart rendering
+        // Signals not available
       }
     };
 
     fetchSignals();
-    // Refresh signals every 60 seconds
-    const interval = setInterval(fetchSignals, 60000);
+    const interval = setInterval(fetchSignals, 30000);
     return () => { cancelled = true; clearInterval(interval); };
   }, [selectedSymbol]);
 
@@ -798,6 +793,10 @@ export default function RouaChart({
         showAIPanel={showAIPanel}
         showChartTrading={showChartTrading}
         showWatchlist={showWatchlist}
+        onToggleCompare={() => setShowCompare(!showCompare)}
+        onToggleMTF={() => setShowMTF(!showMTF)}
+        onToggleShare={() => setShowShare(!showShare)}
+        showCompare={showCompare}
       />}
 
       {/* ── CHART AREA ── */}
@@ -1275,6 +1274,47 @@ export default function RouaChart({
             settings={chart.settings}
             onUpdateSettings={chart.updateSettings}
             onClose={() => setShowChartSettings(false)}
+          />
+        )}
+
+        {/* Chart HUD */}
+        <ChartHUD
+          symbol={selectedSymbol}
+          currentPrice={currentPrice}
+          previousClose={candlesRef.current.length > 1 ? candlesRef.current[candlesRef.current.length - 2]?.close ?? null : null}
+          dailyVolume={candlesRef.current.length > 0 ? candlesRef.current[candlesRef.current.length - 1]?.volume ?? null : null}
+          dailyHigh={candlesRef.current.length > 0 ? candlesRef.current[candlesRef.current.length - 1]?.high ?? null : null}
+          dailyLow={candlesRef.current.length > 0 ? candlesRef.current[candlesRef.current.length - 1]?.low ?? null : null}
+          spread={null}
+          lastCouncilSignal={councilSignal}
+          compact={compact || mobile}
+        />
+
+        {/* Compare Overlay */}
+        {showCompare && chart.chartRef?.current && (
+          <CompareOverlay
+            chart={chart.chartRef.current}
+            symbol={compareSymbol || 'ETH/USDT'}
+            onClose={() => setShowCompare(false)}
+          />
+        )}
+
+        {/* Multi-Timeframe Chart */}
+        {showMTF && (
+          <MultiTimeframeChart
+            symbol={selectedSymbol}
+            onClose={() => setShowMTF(false)}
+          />
+        )}
+
+        {/* Share Chart */}
+        {showShare && (
+          <ShareChart
+            symbol={selectedSymbol}
+            timeframe={timeframe}
+            activeIndicators={chart.getActiveIndicators().map(i => i.key)}
+            chartType={chart.settings.type}
+            onClose={() => setShowShare(false)}
           />
         )}
       </div>{/* ── Chart Area close ── */}

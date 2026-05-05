@@ -24,6 +24,10 @@ const FIBONACCI_COLORS: Record<number, string> = {
 };
 const ARROW_HEAD_SIZE = 10;
 const X_MARKER_SIZE = 8;
+const FIB_EXTENSION_LEVELS = [0, 61.8, 100, 127.2, 161.8, 200, 261.8, 323.6, 423.6];
+const FIB_FAN_LEVELS = [38.2, 50, 61.8];
+const FIB_TIME_LEVELS = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89];
+const GANN_ANGLES = [82.5, 75, 71.25, 63.75, 45, 26.25, 18.75, 15, 7.5];
 
 // ── Pixel point for canvas drawing ───────────────────────
 interface PixelPoint {
@@ -528,7 +532,7 @@ export class DrawingRenderer {
     this.ctx.strokeStyle = DEFAULT_COLOR;
     this.ctx.lineWidth = this.s(DEFAULT_LINE_WIDTH);
 
-    switch (tool) {
+    switch (tool as string) {
       case 'horizontal':
         this.drawHorizontalLine(pixelPts[0], mouse, true);
         break;
@@ -573,6 +577,77 @@ export class DrawingRenderer {
       case 'price-range':
         if (pixelPts.length >= 1) this.drawPriceRange(pixelPts[0], mouse, true);
         break;
+      case 'horizontal-ray':
+        this.drawHorizontalRay(pixelPts[0], mouse, true);
+        break;
+      case 'cross-line':
+        if (pixelPts.length >= 1) this.drawCrossLine(pixelPts[0], mouse, true);
+        break;
+      case 'info-line':
+        if (pixelPts.length >= 1) this.drawInfoLine(pixelPts[0], mouse, true);
+        break;
+      case 'trend-angle':
+        if (pixelPts.length >= 1) this.drawTrendAngle(pixelPts[0], mouse, true);
+        break;
+      case 'regression-trend':
+        if (pixelPts.length === 1) this.drawTrendLine(pixelPts[0], mouse, true);
+        if (pixelPts.length === 2) this.drawChannel(pixelPts[0], pixelPts[1], mouse, true);
+        break;
+      case 'flat-top-bottom':
+        if (pixelPts.length >= 1) this.drawFlatTopBottom(pixelPts[0], mouse, true);
+        break;
+      case 'disjoint-channel':
+        if (pixelPts.length >= 1) this.drawDisjointChannel(pixelPts[0], mouse, true);
+        break;
+      case 'andrews-pitchfork':
+        if (pixelPts.length === 1) this.drawTrendLine(pixelPts[0], mouse, true);
+        if (pixelPts.length === 2) this.drawLine(pixelPts[0], mouse, true);
+        break;
+      case 'schiff-pitchfork':
+        if (pixelPts.length === 1) this.drawTrendLine(pixelPts[0], mouse, true);
+        if (pixelPts.length === 2) this.drawLine(pixelPts[0], mouse, true);
+        break;
+      case 'modified-schiff':
+        if (pixelPts.length === 1) this.drawTrendLine(pixelPts[0], mouse, true);
+        if (pixelPts.length === 2) this.drawLine(pixelPts[0], mouse, true);
+        break;
+      case 'fib-extension':
+        if (pixelPts.length >= 1) this.drawFibExtension(pixelPts[0], mouse, true);
+        break;
+      case 'fib-fan':
+        if (pixelPts.length >= 1) this.drawFibFan(pixelPts[0], mouse, true);
+        break;
+      case 'fib-spiral':
+        if (pixelPts.length >= 1) this.drawFibSpiral(pixelPts[0], mouse, true);
+        break;
+      case 'fib-wedge':
+        if (pixelPts.length >= 1) this.drawFibWedge(pixelPts[0], mouse, true);
+        break;
+      case 'fib-time-zone':
+        if (pixelPts.length >= 1) this.drawFibTimeZone(pixelPts[0], mouse, true);
+        break;
+      case 'gann-box':
+        if (pixelPts.length >= 1) this.drawGannBox(pixelPts[0], mouse, true);
+        break;
+      case 'gann-square':
+        if (pixelPts.length >= 1) this.drawGannSquare(pixelPts[0], mouse, true);
+        break;
+      case 'gann-fan':
+        if (pixelPts.length === 1) this.drawTrendLine(pixelPts[0], mouse, true);
+        if (pixelPts.length === 2) this.drawLine(pixelPts[0], mouse, true);
+        break;
+      case 'ellipse':
+        if (pixelPts.length >= 1) this.drawEllipse(pixelPts[0], mouse, true);
+        break;
+      case 'text-annotation':
+        if (pixelPts.length >= 1) this.drawTextAnnotation(pixelPts[0], mouse, true);
+        break;
+      case 'price-label':
+        this.drawPriceLabelMarker(pixelPts[0], DEFAULT_COLOR, true);
+        break;
+      case 'note':
+        this.drawNote(pixelPts[0], DEFAULT_COLOR, true);
+        break;
     }
 
     this.ctx.restore();
@@ -599,7 +674,7 @@ export class DrawingRenderer {
     this.ctx.fillStyle = drawing.color;
     this.ctx.lineWidth = this.s(drawing.lineWidth);
 
-    switch (drawing.type) {
+    switch (drawing.type as string) {
       case 'horizontal':
         this.drawHorizontalLine(pts[0], pts[0], false);
         break;
@@ -641,6 +716,72 @@ export class DrawingRenderer {
         break;
       case 'price-range':
         if (pts.length >= 2) this.drawPriceRange(pts[0], pts[1], false);
+        break;
+      case 'horizontal-ray':
+        this.drawHorizontalRay(pts[0], pts[0], false);
+        break;
+      case 'cross-line':
+        if (pts.length >= 2) this.drawCrossLine(pts[0], pts[1], false);
+        break;
+      case 'info-line':
+        if (pts.length >= 2) this.drawInfoLine(pts[0], pts[1], false);
+        break;
+      case 'trend-angle':
+        if (pts.length >= 2) this.drawTrendAngle(pts[0], pts[1], false);
+        break;
+      case 'regression-trend':
+        if (pts.length >= 3) this.drawRegressionTrend(pts[0], pts[1], pts[2], false);
+        break;
+      case 'flat-top-bottom':
+        if (pts.length >= 2) this.drawFlatTopBottom(pts[0], pts[1], false);
+        break;
+      case 'disjoint-channel':
+        if (pts.length >= 2) this.drawDisjointChannel(pts[0], pts[1], false);
+        break;
+      case 'andrews-pitchfork':
+        if (pts.length >= 3) this.drawAndrewsPitchfork(pts[0], pts[1], pts[2], false);
+        break;
+      case 'schiff-pitchfork':
+        if (pts.length >= 3) this.drawSchiffPitchfork(pts[0], pts[1], pts[2], false);
+        break;
+      case 'modified-schiff':
+        if (pts.length >= 3) this.drawModifiedSchiff(pts[0], pts[1], pts[2], false);
+        break;
+      case 'fib-extension':
+        if (pts.length >= 2) this.drawFibExtension(pts[0], pts[1], false);
+        break;
+      case 'fib-fan':
+        if (pts.length >= 2) this.drawFibFan(pts[0], pts[1], false);
+        break;
+      case 'fib-spiral':
+        if (pts.length >= 2) this.drawFibSpiral(pts[0], pts[1], false);
+        break;
+      case 'fib-wedge':
+        if (pts.length >= 2) this.drawFibWedge(pts[0], pts[1], false);
+        break;
+      case 'fib-time-zone':
+        if (pts.length >= 2) this.drawFibTimeZone(pts[0], pts[1], false);
+        break;
+      case 'gann-box':
+        if (pts.length >= 2) this.drawGannBox(pts[0], pts[1], false);
+        break;
+      case 'gann-square':
+        if (pts.length >= 2) this.drawGannSquare(pts[0], pts[1], false);
+        break;
+      case 'gann-fan':
+        if (pts.length >= 3) this.drawGannFan(pts[0], pts[1], pts[2], false);
+        break;
+      case 'ellipse':
+        if (pts.length >= 2) this.drawEllipse(pts[0], pts[1], false);
+        break;
+      case 'text-annotation':
+        if (pts.length >= 2) this.drawTextAnnotation(pts[0], pts[1], false);
+        break;
+      case 'price-label':
+        this.drawPriceLabelMarker(pts[0], drawing.color, false);
+        break;
+      case 'note':
+        this.drawNote(pts[0], drawing.color, false);
         break;
     }
 
@@ -1084,6 +1225,1187 @@ export class DrawingRenderer {
 
     this.drawDot(a);
     this.drawDot(b);
+  }
+
+  // ── Horizontal Ray ─────────────────────────────────────
+  private drawHorizontalRay(pt: PixelPoint, _mouse: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+    const y = pt.y;
+    const right = this.canvasWidth;
+
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(pt.x), this.s(y));
+    this.ctx.lineTo(this.s(right), this.s(y));
+    this.ctx.stroke();
+
+    // Price label on the right
+    if (!isPreview) {
+      this.drawPriceLabel(right - 2, y, this.getPointPrice(0) ?? 0);
+    }
+
+    this.drawDot(pt);
+  }
+
+  // ── Cross Line ─────────────────────────────────────────
+  private drawCrossLine(a: PixelPoint, _b: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    // Horizontal line through point A
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(0), this.s(a.y));
+    this.ctx.lineTo(this.s(this.canvasWidth), this.s(a.y));
+    this.ctx.stroke();
+
+    // Vertical line through point A
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(a.x), this.s(0));
+    this.ctx.lineTo(this.s(a.x), this.s(this.canvasHeight));
+    this.ctx.stroke();
+
+    // Labels
+    if (!isPreview) {
+      this.drawPriceLabel(this.canvasWidth - 2, a.y, this.getPointPrice(0) ?? 0);
+      this.drawTimeLabel(a.x, this.canvasHeight - 2);
+    }
+
+    this.drawDot(a);
+  }
+
+  // ── Info Line ──────────────────────────────────────────
+  private drawInfoLine(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    // Main trend line
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(a.x), this.s(a.y));
+    this.ctx.lineTo(this.s(b.x), this.s(b.y));
+    this.ctx.stroke();
+
+    // Info labels
+    if (!isPreview) {
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      const priceA = this.getPointPrice(0);
+      const priceB = this.getPointPrice(1);
+      const priceDist = priceA !== null && priceB !== null ? Math.abs(priceB - priceA) : 0;
+
+      // Angle in degrees
+      const angle = Math.atan2(-dy, dx) * (180 / Math.PI);
+
+      const midX = (a.x + b.x) / 2;
+      const midY = (a.y + b.y) / 2;
+
+      this.ctx.save();
+      this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
+      this.ctx.fillStyle = DEFAULT_COLOR;
+      this.ctx.globalAlpha = 0.85;
+
+      // Distance label
+      this.ctx.fillText(
+        `Δ ${priceDist.toFixed(2)}`,
+        this.s(midX + 6),
+        this.s(midY - 8),
+      );
+
+      // Angle label
+      this.ctx.fillText(
+        `${angle.toFixed(1)}°`,
+        this.s(midX + 6),
+        this.s(midY + 4),
+      );
+
+      // Pixel distance label
+      this.ctx.fillText(
+        `${dist.toFixed(0)}px`,
+        this.s(midX + 6),
+        this.s(midY + 16),
+      );
+
+      this.ctx.restore();
+    }
+
+    this.drawDot(a);
+    this.drawDot(b);
+  }
+
+  // ── Trend Angle ────────────────────────────────────────
+  private drawTrendAngle(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    // Main trend line
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(a.x), this.s(a.y));
+    this.ctx.lineTo(this.s(b.x), this.s(b.y));
+    this.ctx.stroke();
+
+    // Angle label
+    if (!isPreview) {
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const angle = Math.atan2(-dy, dx) * (180 / Math.PI);
+
+      // Draw a small arc showing the angle at point A
+      const arcRadius = 20;
+      const lineAngle = Math.atan2(dy, dx);
+
+      this.ctx.save();
+      this.ctx.globalAlpha = 0.4;
+      this.ctx.beginPath();
+      this.ctx.arc(this.s(a.x), this.s(a.y), this.s(arcRadius), 0, -lineAngle, lineAngle > 0);
+      this.ctx.stroke();
+
+      // Angle text
+      this.ctx.globalAlpha = 0.9;
+      this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
+      this.ctx.fillStyle = DEFAULT_COLOR;
+      this.ctx.fillText(
+        `${angle.toFixed(1)}°`,
+        this.s(a.x + arcRadius + 6),
+        this.s(a.y - 4),
+      );
+      this.ctx.restore();
+    }
+
+    this.drawDot(a);
+    this.drawDot(b);
+  }
+
+  // ── Regression Trend ───────────────────────────────────
+  private drawRegressionTrend(a: PixelPoint, b: PixelPoint, c: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    // Compute linear regression from the 3 points
+    const n = 3;
+    const xs = [a.x, b.x, c.x];
+    const ys = [a.y, b.y, c.y];
+
+    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    for (let i = 0; i < n; i++) {
+      sumX += xs[i];
+      sumY += ys[i];
+      sumXY += xs[i] * ys[i];
+      sumXX += xs[i] * xs[i];
+    }
+
+    const denom = n * sumXX - sumX * sumX;
+    if (denom === 0) return;
+
+    const slope = (n * sumXY - sumX * sumY) / denom;
+    const intercept = (sumY - slope * sumX) / n;
+
+    // Middle regression line
+    const minX = Math.min(a.x, b.x, c.x);
+    const maxX = Math.max(a.x, b.x, c.x);
+    const midY1 = slope * minX + intercept;
+    const midY2 = slope * maxX + intercept;
+
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(minX), this.s(midY1));
+    this.ctx.lineTo(this.s(maxX), this.s(midY2));
+    this.ctx.stroke();
+
+    // Compute max perpendicular distance from points to regression line
+    let maxDist = 0;
+    for (let i = 0; i < n; i++) {
+      const dist = Math.abs(slope * xs[i] - ys[i] + intercept) / Math.sqrt(slope * slope + 1);
+      if (dist > maxDist) maxDist = dist;
+    }
+
+    // Upper channel line
+    const perpLen = Math.sqrt(slope * slope + 1);
+    const px = -slope / perpLen;
+    const py = 1 / perpLen;
+
+    // Upper channel
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(minX + px * maxDist), this.s(midY1 + py * maxDist));
+    this.ctx.lineTo(this.s(maxX + px * maxDist), this.s(midY2 + py * maxDist));
+    this.ctx.stroke();
+
+    // Lower channel
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(minX - px * maxDist), this.s(midY1 - py * maxDist));
+    this.ctx.lineTo(this.s(maxX - px * maxDist), this.s(midY2 - py * maxDist));
+    this.ctx.stroke();
+
+    // Fill channel area
+    this.ctx.save();
+    this.ctx.globalAlpha = isPreview ? 0.04 : 0.06;
+    this.ctx.fillStyle = this.ctx.strokeStyle;
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(minX + px * maxDist), this.s(midY1 + py * maxDist));
+    this.ctx.lineTo(this.s(maxX + px * maxDist), this.s(midY2 + py * maxDist));
+    this.ctx.lineTo(this.s(maxX - px * maxDist), this.s(midY2 - py * maxDist));
+    this.ctx.lineTo(this.s(minX - px * maxDist), this.s(midY1 - py * maxDist));
+    this.ctx.closePath();
+    this.ctx.fill();
+    this.ctx.restore();
+
+    this.drawDot(a);
+    this.drawDot(b);
+    this.drawDot(c);
+  }
+
+  // ── Flat Top / Bottom ──────────────────────────────────
+  private drawFlatTopBottom(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    const x = Math.min(a.x, b.x);
+    const y = Math.min(a.y, b.y);
+    const w = Math.abs(b.x - a.x);
+    const h = Math.abs(b.y - a.y);
+
+    // Fill with stronger shading on top half
+    this.ctx.save();
+    this.ctx.globalAlpha = isPreview ? 0.05 : 0.08;
+    this.ctx.fillStyle = this.ctx.strokeStyle;
+    this.ctx.fillRect(this.s(x), this.s(y), this.s(w), this.s(h));
+
+    // Emphasized top border
+    this.ctx.globalAlpha = isPreview ? 0.3 : 0.5;
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(x), this.s(y));
+    this.ctx.lineTo(this.s(x + w), this.s(y));
+    this.ctx.stroke();
+
+    // Emphasized bottom border
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(x), this.s(y + h));
+    this.ctx.lineTo(this.s(x + w), this.s(y + h));
+    this.ctx.stroke();
+    this.ctx.restore();
+
+    // Stroke full rectangle
+    this.ctx.strokeRect(this.s(x), this.s(y), this.s(w), this.s(h));
+
+    this.drawDot(a);
+    this.drawDot(b);
+  }
+
+  // ── Disjoint Channel ───────────────────────────────────
+  private drawDisjointChannel(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    const offset = 15; // Fixed pixel offset for disjoint lines
+
+    // Line 1 through A
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0) return;
+
+    // Perpendicular unit vector
+    const px = -dy / len;
+    const py = dx / len;
+
+    // Line 1: through A, offset slightly
+    const a1x = a.x + px * offset;
+    const a1y = a.y + py * offset;
+    const b1x = b.x + px * offset;
+    const b1y = b.y + py * offset;
+
+    // Line 2: through B, offset slightly opposite
+    const a2x = a.x - px * offset;
+    const a2y = a.y - py * offset;
+    const b2x = b.x - px * offset;
+    const b2y = b.y - py * offset;
+
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(a1x), this.s(a1y));
+    this.ctx.lineTo(this.s(b1x), this.s(b1y));
+    this.ctx.stroke();
+
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(a2x), this.s(a2y));
+    this.ctx.lineTo(this.s(b2x), this.s(b2y));
+    this.ctx.stroke();
+
+    // Fill area between lines
+    this.ctx.save();
+    this.ctx.globalAlpha = isPreview ? 0.04 : 0.06;
+    this.ctx.fillStyle = this.ctx.strokeStyle;
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(a1x), this.s(a1y));
+    this.ctx.lineTo(this.s(b1x), this.s(b1y));
+    this.ctx.lineTo(this.s(b2x), this.s(b2y));
+    this.ctx.lineTo(this.s(a2x), this.s(a2y));
+    this.ctx.closePath();
+    this.ctx.fill();
+    this.ctx.restore();
+
+    this.drawDot(a);
+    this.drawDot(b);
+  }
+
+  // ── Andrews Pitchfork ──────────────────────────────────
+  private drawAndrewsPitchfork(a: PixelPoint, b: PixelPoint, c: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    // Midpoint of B and C
+    const midBCx = (b.x + c.x) / 2;
+    const midBCy = (b.y + c.y) / 2;
+
+    // Median line from A through midpoint of B-C
+    const dx = midBCx - a.x;
+    const dy = midBCy - a.y;
+
+    // Extend median line to canvas edge
+    let tMax = Infinity;
+    if (dx !== 0) {
+      const tRight = (this.canvasWidth - a.x) / dx;
+      const tLeft = (0 - a.x) / dx;
+      tMax = dx > 0 ? tRight : tLeft;
+    }
+    if (dy !== 0) {
+      const tBottom = (this.canvasHeight - a.y) / dy;
+      const tTop = (0 - a.y) / dy;
+      tMax = Math.min(tMax, dy > 0 ? tBottom : tTop);
+    }
+
+    const endX = a.x + dx * tMax;
+    const endY = a.y + dy * tMax;
+
+    // Median line
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(a.x), this.s(a.y));
+    this.ctx.lineTo(this.s(endX), this.s(endY));
+    this.ctx.stroke();
+
+    // Prong from A to B
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(a.x), this.s(a.y));
+    this.ctx.lineTo(this.s(b.x), this.s(b.y));
+    this.ctx.stroke();
+
+    // Prong from A to C
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(a.x), this.s(a.y));
+    this.ctx.lineTo(this.s(c.x), this.s(c.y));
+    this.ctx.stroke();
+
+    // Dashed lines from B and C to the median extension
+    this.ctx.save();
+    this.ctx.setLineDash(isPreview ? PREVIEW_DASH.map(d => this.s(d)) : [this.s(4), this.s(3)]);
+    this.ctx.globalAlpha = 0.4;
+
+    // Extend prong B
+    const dxB = b.x - a.x;
+    const dyB = b.y - a.y;
+    let tMaxB = Infinity;
+    if (dxB !== 0) {
+      const tRight = (this.canvasWidth - a.x) / dxB;
+      const tLeft = (0 - a.x) / dxB;
+      tMaxB = dxB > 0 ? tRight : tLeft;
+    }
+    if (dyB !== 0) {
+      const tBottom = (this.canvasHeight - a.y) / dyB;
+      const tTop = (0 - a.y) / dyB;
+      tMaxB = Math.min(tMaxB, dyB > 0 ? tBottom : tTop);
+    }
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(b.x), this.s(b.y));
+    this.ctx.lineTo(this.s(a.x + dxB * tMaxB), this.s(a.y + dyB * tMaxB));
+    this.ctx.stroke();
+
+    // Extend prong C
+    const dxC = c.x - a.x;
+    const dyC = c.y - a.y;
+    let tMaxC = Infinity;
+    if (dxC !== 0) {
+      const tRight = (this.canvasWidth - a.x) / dxC;
+      const tLeft = (0 - a.x) / dxC;
+      tMaxC = dxC > 0 ? tRight : tLeft;
+    }
+    if (dyC !== 0) {
+      const tBottom = (this.canvasHeight - a.y) / dyC;
+      const tTop = (0 - a.y) / dyC;
+      tMaxC = Math.min(tMaxC, dyC > 0 ? tBottom : tTop);
+    }
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(c.x), this.s(c.y));
+    this.ctx.lineTo(this.s(a.x + dxC * tMaxC), this.s(a.y + dyC * tMaxC));
+    this.ctx.stroke();
+
+    this.ctx.restore();
+
+    this.drawDot(a);
+    this.drawDot(b);
+    this.drawDot(c);
+  }
+
+  // ── Schiff Pitchfork ───────────────────────────────────
+  private drawSchiffPitchfork(a: PixelPoint, b: PixelPoint, c: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    // Midpoint of B and C
+    const midBCx = (b.x + c.x) / 2;
+    const midBCy = (b.y + c.y) / 2;
+
+    // Schiff: origin is midpoint of A and midpoint(B,C)
+    const originX = (a.x + midBCx) / 2;
+    const originY = (a.y + midBCy) / 2;
+
+    // Median line from origin through midpoint of B-C
+    const dx = midBCx - originX;
+    const dy = midBCy - originY;
+
+    let tMax = Infinity;
+    if (dx !== 0) {
+      const tRight = (this.canvasWidth - originX) / dx;
+      const tLeft = (0 - originX) / dx;
+      tMax = dx > 0 ? tRight : tLeft;
+    }
+    if (dy !== 0) {
+      const tBottom = (this.canvasHeight - originY) / dy;
+      const tTop = (0 - originY) / dy;
+      tMax = Math.min(tMax, dy > 0 ? tBottom : tTop);
+    }
+
+    const endX = originX + dx * tMax;
+    const endY = originY + dy * tMax;
+
+    // Median line
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(originX), this.s(originY));
+    this.ctx.lineTo(this.s(endX), this.s(endY));
+    this.ctx.stroke();
+
+    // Prong to B
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(originX), this.s(originY));
+    this.ctx.lineTo(this.s(b.x), this.s(b.y));
+    this.ctx.stroke();
+
+    // Prong to C
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(originX), this.s(originY));
+    this.ctx.lineTo(this.s(c.x), this.s(c.y));
+    this.ctx.stroke();
+
+    // Dashed extensions for prongs
+    this.ctx.save();
+    this.ctx.setLineDash(isPreview ? PREVIEW_DASH.map(d => this.s(d)) : [this.s(4), this.s(3)]);
+    this.ctx.globalAlpha = 0.4;
+
+    const dxB = b.x - originX;
+    const dyB = b.y - originY;
+    let tMaxB = Infinity;
+    if (dxB !== 0) {
+      const tRight = (this.canvasWidth - originX) / dxB;
+      const tLeft = (0 - originX) / dxB;
+      tMaxB = dxB > 0 ? tRight : tLeft;
+    }
+    if (dyB !== 0) {
+      const tBottom = (this.canvasHeight - originY) / dyB;
+      const tTop = (0 - originY) / dyB;
+      tMaxB = Math.min(tMaxB, dyB > 0 ? tBottom : tTop);
+    }
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(b.x), this.s(b.y));
+    this.ctx.lineTo(this.s(originX + dxB * tMaxB), this.s(originY + dyB * tMaxB));
+    this.ctx.stroke();
+
+    const dxC = c.x - originX;
+    const dyC = c.y - originY;
+    let tMaxC = Infinity;
+    if (dxC !== 0) {
+      const tRight = (this.canvasWidth - originX) / dxC;
+      const tLeft = (0 - originX) / dxC;
+      tMaxC = dxC > 0 ? tRight : tLeft;
+    }
+    if (dyC !== 0) {
+      const tBottom = (this.canvasHeight - originY) / dyC;
+      const tTop = (0 - originY) / dyC;
+      tMaxC = Math.min(tMaxC, dyC > 0 ? tBottom : tTop);
+    }
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(c.x), this.s(c.y));
+    this.ctx.lineTo(this.s(originX + dxC * tMaxC), this.s(originY + dyC * tMaxC));
+    this.ctx.stroke();
+
+    this.ctx.restore();
+
+    this.drawDot(a);
+    this.drawDot(b);
+    this.drawDot(c);
+  }
+
+  // ── Modified Schiff Pitchfork ──────────────────────────
+  private drawModifiedSchiff(a: PixelPoint, b: PixelPoint, c: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    // Midpoint of B and C
+    const midBCx = (b.x + c.x) / 2;
+    const midBCy = (b.y + c.y) / 2;
+
+    // Modified Schiff: origin at midpoint(A, midpoint(B,C)/2)
+    const halfMidBCx = (a.x + midBCx) / 2;
+    const halfMidBCy = (a.y + midBCy) / 2;
+    const originX = (a.x + halfMidBCx) / 2;
+    const originY = (a.y + halfMidBCy) / 2;
+
+    // Median line from origin through halfMidBC
+    const dx = halfMidBCx - originX;
+    const dy = halfMidBCy - originY;
+
+    let tMax = Infinity;
+    if (dx !== 0) {
+      const tRight = (this.canvasWidth - originX) / dx;
+      const tLeft = (0 - originX) / dx;
+      tMax = dx > 0 ? tRight : tLeft;
+    }
+    if (dy !== 0) {
+      const tBottom = (this.canvasHeight - originY) / dy;
+      const tTop = (0 - originY) / dy;
+      tMax = Math.min(tMax, dy > 0 ? tBottom : tTop);
+    }
+
+    const endX = originX + dx * tMax;
+    const endY = originY + dy * tMax;
+
+    // Median line
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(originX), this.s(originY));
+    this.ctx.lineTo(this.s(endX), this.s(endY));
+    this.ctx.stroke();
+
+    // Prongs adjusted: to B and C with adjusted origin
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(originX), this.s(originY));
+    this.ctx.lineTo(this.s(b.x), this.s(b.y));
+    this.ctx.stroke();
+
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(originX), this.s(originY));
+    this.ctx.lineTo(this.s(c.x), this.s(c.y));
+    this.ctx.stroke();
+
+    // Dashed extensions for prongs
+    this.ctx.save();
+    this.ctx.setLineDash(isPreview ? PREVIEW_DASH.map(d => this.s(d)) : [this.s(4), this.s(3)]);
+    this.ctx.globalAlpha = 0.4;
+
+    const dxB = b.x - originX;
+    const dyB = b.y - originY;
+    let tMaxB = Infinity;
+    if (dxB !== 0) {
+      const tRight = (this.canvasWidth - originX) / dxB;
+      const tLeft = (0 - originX) / dxB;
+      tMaxB = dxB > 0 ? tRight : tLeft;
+    }
+    if (dyB !== 0) {
+      const tBottom = (this.canvasHeight - originY) / dyB;
+      const tTop = (0 - originY) / dyB;
+      tMaxB = Math.min(tMaxB, dyB > 0 ? tBottom : tTop);
+    }
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(b.x), this.s(b.y));
+    this.ctx.lineTo(this.s(originX + dxB * tMaxB), this.s(originY + dyB * tMaxB));
+    this.ctx.stroke();
+
+    const dxC = c.x - originX;
+    const dyC = c.y - originY;
+    let tMaxC = Infinity;
+    if (dxC !== 0) {
+      const tRight = (this.canvasWidth - originX) / dxC;
+      const tLeft = (0 - originX) / dxC;
+      tMaxC = dxC > 0 ? tRight : tLeft;
+    }
+    if (dyC !== 0) {
+      const tBottom = (this.canvasHeight - originY) / dyC;
+      const tTop = (0 - originY) / dyC;
+      tMaxC = Math.min(tMaxC, dyC > 0 ? tBottom : tTop);
+    }
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(c.x), this.s(c.y));
+    this.ctx.lineTo(this.s(originX + dxC * tMaxC), this.s(originY + dyC * tMaxC));
+    this.ctx.stroke();
+
+    this.ctx.restore();
+
+    this.drawDot(a);
+    this.drawDot(b);
+    this.drawDot(c);
+  }
+
+  // ── Fibonacci Extension ────────────────────────────────
+  private drawFibExtension(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    const priceA = this.getPointPrice(0);
+    const priceB = this.getPointPrice(1);
+    if (priceA === null || priceB === null) return;
+
+    const priceRange = priceB - priceA;
+
+    for (const level of FIB_EXTENSION_LEVELS) {
+      const price = priceA + priceRange * (level / 100);
+      const y = this.candleSeries.priceToCoordinate(price);
+      if (y === null) continue;
+
+      const color = FIBONACCI_COLORS[level] || DEFAULT_COLOR;
+
+      this.ctx.save();
+      this.ctx.strokeStyle = color;
+      this.ctx.lineWidth = this.s(level === 0 || level === 100 ? 1.5 : 1);
+      this.ctx.globalAlpha = isPreview ? 0.35 : 0.6;
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.s(a.x), this.s(y));
+      this.ctx.lineTo(this.s(b.x), this.s(y));
+      this.ctx.stroke();
+
+      // Label on the right side
+      if (!isPreview) {
+        const labelText = `${level}% — ${price.toFixed(2)}`;
+        this.ctx.globalAlpha = 0.85;
+        this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
+        this.ctx.fillStyle = color;
+        this.ctx.fillText(labelText, this.s(b.x + 6), this.s(y + 3));
+      }
+
+      this.ctx.restore();
+    }
+
+    // Draw the main trend line connecting A and B
+    this.ctx.save();
+    this.ctx.strokeStyle = DEFAULT_COLOR;
+    this.ctx.lineWidth = this.s(DEFAULT_LINE_WIDTH);
+    this.ctx.globalAlpha = isPreview ? 0.5 : DEFAULT_OPACITY;
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(a.x), this.s(a.y));
+    this.ctx.lineTo(this.s(b.x), this.s(b.y));
+    this.ctx.stroke();
+    this.ctx.restore();
+
+    this.drawDot(a);
+    this.drawDot(b);
+  }
+
+  // ── Fibonacci Fan ──────────────────────────────────────
+  private drawFibFan(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    const priceA = this.getPointPrice(0);
+    const priceB = this.getPointPrice(1);
+    if (priceA === null || priceB === null) return;
+
+    const priceRange = priceB - priceA;
+
+    // Draw the main trend line
+    this.ctx.save();
+    this.ctx.strokeStyle = DEFAULT_COLOR;
+    this.ctx.lineWidth = this.s(DEFAULT_LINE_WIDTH);
+    this.ctx.globalAlpha = isPreview ? 0.5 : DEFAULT_OPACITY;
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(a.x), this.s(a.y));
+    this.ctx.lineTo(this.s(b.x), this.s(b.y));
+    this.ctx.stroke();
+    this.ctx.restore();
+
+    // Fan lines from A at Fibonacci levels reaching to B's time coordinate
+    for (const level of FIB_FAN_LEVELS) {
+      const price = priceA + priceRange * (level / 100);
+      const y = this.candleSeries.priceToCoordinate(price);
+      if (y === null) continue;
+
+      const color = FIBONACCI_COLORS[level] || DEFAULT_COLOR;
+
+      this.ctx.save();
+      this.ctx.strokeStyle = color;
+      this.ctx.lineWidth = this.s(1);
+      this.ctx.globalAlpha = isPreview ? 0.35 : 0.6;
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.s(a.x), this.s(a.y));
+      this.ctx.lineTo(this.s(b.x), this.s(y));
+      this.ctx.stroke();
+
+      // Label
+      if (!isPreview) {
+        const labelText = `${level}% — ${price.toFixed(2)}`;
+        this.ctx.globalAlpha = 0.85;
+        this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
+        this.ctx.fillStyle = color;
+        this.ctx.fillText(labelText, this.s(b.x + 6), this.s(y + 3));
+      }
+
+      this.ctx.restore();
+    }
+
+    this.drawDot(a);
+    this.drawDot(b);
+  }
+
+  // ── Fibonacci Spiral ───────────────────────────────────
+  private drawFibSpiral(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    const cx = a.x;
+    const cy = a.y;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const maxRadius = Math.sqrt(dx * dx + dy * dy);
+
+    // Logarithmic spiral using golden ratio
+    const phi = (1 + Math.sqrt(5)) / 2; // golden ratio
+    const growthFactor = Math.log(phi) / (Math.PI / 2);
+
+    this.ctx.beginPath();
+    const steps = 200;
+    for (let i = 0; i <= steps; i++) {
+      const t = (i / steps) * 4 * Math.PI; // 2 full rotations
+      const r = maxRadius * Math.exp(-growthFactor * t);
+      if (r < 2) break;
+      const px = cx + r * Math.cos(t);
+      const py = cy + r * Math.sin(t);
+
+      if (i === 0) {
+        this.ctx.moveTo(this.s(px), this.s(py));
+      } else {
+        this.ctx.lineTo(this.s(px), this.s(py));
+      }
+    }
+    this.ctx.stroke();
+
+    this.drawDot(a);
+    this.drawDot(b);
+  }
+
+  // ── Fibonacci Wedge ────────────────────────────────────
+  private drawFibWedge(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    const priceA = this.getPointPrice(0);
+    const priceB = this.getPointPrice(1);
+    if (priceA === null || priceB === null) return;
+
+    const priceRange = priceB - priceA;
+
+    // Main trend line
+    this.ctx.save();
+    this.ctx.strokeStyle = DEFAULT_COLOR;
+    this.ctx.lineWidth = this.s(DEFAULT_LINE_WIDTH);
+    this.ctx.globalAlpha = isPreview ? 0.5 : DEFAULT_OPACITY;
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(a.x), this.s(a.y));
+    this.ctx.lineTo(this.s(b.x), this.s(b.y));
+    this.ctx.stroke();
+    this.ctx.restore();
+
+    // Wedge lines from A forming Fibonacci-based width at B
+    for (const level of FIB_FAN_LEVELS) {
+      const priceUp = priceA + priceRange * (level / 100);
+      const priceDown = priceA - priceRange * (level / 100);
+
+      const yUp = this.candleSeries.priceToCoordinate(priceUp);
+      const yDown = this.candleSeries.priceToCoordinate(priceDown);
+
+      const color = FIBONACCI_COLORS[level] || DEFAULT_COLOR;
+
+      if (yUp !== null) {
+        this.ctx.save();
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = this.s(1);
+        this.ctx.globalAlpha = isPreview ? 0.35 : 0.6;
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.s(a.x), this.s(a.y));
+        this.ctx.lineTo(this.s(b.x), this.s(yUp));
+        this.ctx.stroke();
+
+        if (!isPreview) {
+          this.ctx.globalAlpha = 0.85;
+          this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
+          this.ctx.fillStyle = color;
+          this.ctx.fillText(`${level}%`, this.s(b.x + 6), this.s(yUp + 3));
+        }
+        this.ctx.restore();
+      }
+
+      if (yDown !== null) {
+        this.ctx.save();
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = this.s(1);
+        this.ctx.globalAlpha = isPreview ? 0.35 : 0.6;
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.s(a.x), this.s(a.y));
+        this.ctx.lineTo(this.s(b.x), this.s(yDown));
+        this.ctx.stroke();
+
+        if (!isPreview) {
+          this.ctx.globalAlpha = 0.85;
+          this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
+          this.ctx.fillStyle = color;
+          this.ctx.fillText(`-${level}%`, this.s(b.x + 6), this.s(yDown + 3));
+        }
+        this.ctx.restore();
+      }
+    }
+
+    this.drawDot(a);
+    this.drawDot(b);
+  }
+
+  // ── Fibonacci Time Zone ────────────────────────────────
+  private drawFibTimeZone(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    const timeDist = b.x - a.x;
+
+    for (const level of FIB_TIME_LEVELS) {
+      const x = a.x + timeDist * level;
+
+      // Only draw if within canvas
+      if (x < 0 || x > this.canvasWidth) continue;
+
+      const color = FIBONACCI_COLORS[61.8] || DEFAULT_COLOR;
+
+      this.ctx.save();
+      this.ctx.strokeStyle = color;
+      this.ctx.lineWidth = this.s(level === 1 ? 1.5 : 1);
+      this.ctx.globalAlpha = isPreview ? 0.35 : 0.5;
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.s(x), this.s(0));
+      this.ctx.lineTo(this.s(x), this.s(this.canvasHeight));
+      this.ctx.stroke();
+
+      // Label at the bottom
+      if (!isPreview) {
+        this.ctx.globalAlpha = 0.85;
+        this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
+        this.ctx.fillStyle = color;
+        this.ctx.fillText(`${level}`, this.s(x + 4), this.s(this.canvasHeight - 6));
+      }
+
+      this.ctx.restore();
+    }
+
+    this.drawDot(a);
+    this.drawDot(b);
+  }
+
+  // ── Gann Box ───────────────────────────────────────────
+  private drawGannBox(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    const x = Math.min(a.x, b.x);
+    const y = Math.min(a.y, b.y);
+    const w = Math.abs(b.x - a.x);
+    const h = Math.abs(b.y - a.y);
+
+    // Fill
+    this.ctx.save();
+    this.ctx.globalAlpha = isPreview ? 0.05 : 0.08;
+    this.ctx.fillStyle = this.ctx.strokeStyle;
+    this.ctx.fillRect(this.s(x), this.s(y), this.s(w), this.s(h));
+    this.ctx.restore();
+
+    // Stroke rectangle
+    this.ctx.strokeRect(this.s(x), this.s(y), this.s(w), this.s(h));
+
+    // Diagonal lines from corners at 45 degrees
+    this.ctx.save();
+    this.ctx.globalAlpha = isPreview ? 0.3 : 0.5;
+    this.ctx.setLineDash([this.s(4), this.s(3)]);
+
+    // Diagonal top-left to bottom-right
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(x), this.s(y));
+    this.ctx.lineTo(this.s(x + w), this.s(y + h));
+    this.ctx.stroke();
+
+    // Diagonal top-right to bottom-left
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(x + w), this.s(y));
+    this.ctx.lineTo(this.s(x), this.s(y + h));
+    this.ctx.stroke();
+
+    // Middle horizontal
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(x), this.s(y + h / 2));
+    this.ctx.lineTo(this.s(x + w), this.s(y + h / 2));
+    this.ctx.stroke();
+
+    // Middle vertical
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(x + w / 2), this.s(y));
+    this.ctx.lineTo(this.s(x + w / 2), this.s(y + h));
+    this.ctx.stroke();
+
+    this.ctx.restore();
+
+    this.drawDot(a);
+    this.drawDot(b);
+  }
+
+  // ── Gann Square ────────────────────────────────────────
+  private drawGannSquare(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    const cx = (a.x + b.x) / 2;
+    const cy = (a.y + b.y) / 2;
+    const maxW = Math.abs(b.x - a.x);
+    const maxH = Math.abs(b.y - a.y);
+
+    // Concentric squares from center
+    const rings = 4;
+    for (let i = 1; i <= rings; i++) {
+      const frac = i / rings;
+      const hw = maxW * frac / 2;
+      const hh = maxH * frac / 2;
+
+      this.ctx.save();
+      this.ctx.globalAlpha = isPreview ? 0.2 + frac * 0.3 : 0.3 + frac * 0.5;
+
+      this.ctx.strokeRect(
+        this.s(cx - hw),
+        this.s(cy - hh),
+        this.s(hw * 2),
+        this.s(hh * 2),
+      );
+
+      this.ctx.restore();
+    }
+
+    // Cross lines through center
+    this.ctx.save();
+    this.ctx.globalAlpha = isPreview ? 0.3 : 0.5;
+    this.ctx.setLineDash([this.s(4), this.s(3)]);
+
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(cx), this.s(cy - maxH / 2));
+    this.ctx.lineTo(this.s(cx), this.s(cy + maxH / 2));
+    this.ctx.stroke();
+
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(cx - maxW / 2), this.s(cy));
+    this.ctx.lineTo(this.s(cx + maxW / 2), this.s(cy));
+    this.ctx.stroke();
+
+    this.ctx.restore();
+
+    this.drawDot(a);
+    this.drawDot(b);
+  }
+
+  // ── Gann Fan ───────────────────────────────────────────
+  private drawGannFan(a: PixelPoint, _b: PixelPoint, _c: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    // Draw lines from point A at Gann angles
+    for (const angleDeg of GANN_ANGLES) {
+      const angleRad = (angleDeg * Math.PI) / 180;
+
+      // Compute direction: Gann angles measured from horizontal
+      const dx = Math.cos(angleRad);
+      const dy = -Math.sin(angleRad); // Canvas y is inverted
+
+      // Find intersection with canvas edge
+      let tMax = Infinity;
+      if (dx !== 0) {
+        const tRight = (this.canvasWidth - a.x) / dx;
+        const tLeft = (0 - a.x) / dx;
+        if (dx > 0) tMax = tRight;
+        else tMax = tLeft;
+      }
+      if (dy !== 0) {
+        const tBottom = (this.canvasHeight - a.y) / dy;
+        const tTop = (0 - a.y) / dy;
+        if (dy > 0) tMax = Math.min(tMax, tBottom);
+        else tMax = Math.min(tMax, tTop);
+      }
+
+      const endX = a.x + dx * tMax;
+      const endY = a.y + dy * tMax;
+
+      const isMainAngle = Math.abs(angleDeg - 45) < 0.1;
+
+      this.ctx.save();
+      this.ctx.strokeStyle = isMainAngle ? DEFAULT_COLOR : this.ctx.strokeStyle;
+      this.ctx.lineWidth = this.s(isMainAngle ? 1.5 : 1);
+      this.ctx.globalAlpha = isPreview
+        ? (isMainAngle ? 0.5 : 0.3)
+        : (isMainAngle ? DEFAULT_OPACITY : 0.5);
+
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.s(a.x), this.s(a.y));
+      this.ctx.lineTo(this.s(endX), this.s(endY));
+      this.ctx.stroke();
+
+      // Angle label
+      if (!isPreview) {
+        this.ctx.globalAlpha = 0.7;
+        this.ctx.font = `${this.s(9)}px 'JetBrains Mono', monospace`;
+        this.ctx.fillStyle = isMainAngle ? DEFAULT_COLOR : this.ctx.strokeStyle;
+        const labelX = a.x + dx * Math.min(tMax, 60);
+        const labelY = a.y + dy * Math.min(tMax, 60);
+        this.ctx.fillText(`${angleDeg}°`, this.s(labelX + 4), this.s(labelY - 4));
+      }
+
+      this.ctx.restore();
+    }
+
+    this.drawDot(a);
+  }
+
+  // ── Ellipse ────────────────────────────────────────────
+  private drawEllipse(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    const cx = (a.x + b.x) / 2;
+    const cy = (a.y + b.y) / 2;
+    const rx = Math.abs(b.x - a.x) / 2;
+    const ry = Math.abs(b.y - a.y) / 2;
+
+    if (rx === 0 || ry === 0) return;
+
+    // Fill
+    this.ctx.save();
+    this.ctx.globalAlpha = isPreview ? 0.05 : 0.08;
+    this.ctx.fillStyle = this.ctx.strokeStyle;
+    this.ctx.beginPath();
+    this.ctx.ellipse(this.s(cx), this.s(cy), this.s(rx), this.s(ry), 0, 0, Math.PI * 2);
+    this.ctx.fill();
+    this.ctx.restore();
+
+    // Stroke
+    this.ctx.beginPath();
+    this.ctx.ellipse(this.s(cx), this.s(cy), this.s(rx), this.s(ry), 0, 0, Math.PI * 2);
+    this.ctx.stroke();
+
+    this.drawDot(a);
+    this.drawDot(b);
+  }
+
+  // ── Text Annotation ────────────────────────────────────
+  private drawTextAnnotation(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    const x = Math.min(a.x, b.x);
+    const y = Math.min(a.y, b.y);
+    const w = Math.abs(b.x - a.x);
+    const h = Math.abs(b.y - a.y);
+
+    // Fill background
+    this.ctx.save();
+    this.ctx.globalAlpha = isPreview ? 0.05 : 0.08;
+    this.ctx.fillStyle = this.ctx.strokeStyle;
+    this.ctx.fillRect(this.s(x), this.s(y), this.s(w), this.s(h));
+    this.ctx.restore();
+
+    // Stroke border
+    this.ctx.strokeRect(this.s(x), this.s(y), this.s(w), this.s(h));
+
+    // TEXT label inside
+    if (!isPreview && w > 20 && h > 14) {
+      this.ctx.save();
+      this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
+      this.ctx.fillStyle = DEFAULT_COLOR;
+      this.ctx.globalAlpha = 0.8;
+      this.ctx.fillText('TEXT', this.s(x + 4), this.s(y + h / 2 + 3));
+      this.ctx.restore();
+    }
+
+    this.drawDot(a);
+    this.drawDot(b);
+  }
+
+  // ── Price Label Marker ─────────────────────────────────
+  private drawPriceLabelMarker(pt: PixelPoint, color: string, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    const price = this.getPointPrice(0) ?? 0;
+    const text = price.toFixed(2);
+
+    // Draw a tag/badge at the price level
+    this.ctx.save();
+    this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
+
+    const metrics = this.ctx.measureText(text);
+    const textW = metrics.width / this.dpr;
+    const textH = 12;
+    const padX = 6;
+    const padY = 3;
+
+    const rx = pt.x - textW / 2 - padX;
+    const ry = pt.y - textH / 2 - padY;
+    const rw = textW + padX * 2;
+    const rh = textH + padY * 2;
+
+    // Background pill
+    this.ctx.globalAlpha = 0.85;
+    this.ctx.fillStyle = '#151A22';
+    this.ctx.beginPath();
+    this.roundRect(rx, ry, rw, rh, 4);
+    this.ctx.fill();
+
+    // Border
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = this.s(isPreview ? 1 : 1.5);
+    this.ctx.globalAlpha = isPreview ? 0.5 : 0.7;
+    this.ctx.stroke();
+
+    // Text
+    this.ctx.globalAlpha = 0.95;
+    this.ctx.fillStyle = color;
+    this.ctx.fillText(text, this.s(rx + padX), this.s(ry + padY + textH - 2));
+
+    // Pointer arrow at bottom
+    this.ctx.globalAlpha = 0.85;
+    this.ctx.fillStyle = '#151A22';
+    const arrowSize = 4;
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(pt.x - arrowSize), this.s(ry + rh));
+    this.ctx.lineTo(this.s(pt.x), this.s(ry + rh + arrowSize));
+    this.ctx.lineTo(this.s(pt.x + arrowSize), this.s(ry + rh));
+    this.ctx.closePath();
+    this.ctx.fill();
+
+    this.ctx.restore();
+  }
+
+  // ── Note Pin ───────────────────────────────────────────
+  private drawNote(pt: PixelPoint, color: string, isPreview: boolean): void {
+    if (!this.ctx) return;
+
+    const pinSize = 6;
+
+    // Pin circle
+    this.ctx.save();
+    this.ctx.globalAlpha = isPreview ? 0.5 : 0.9;
+
+    // Outer circle
+    this.ctx.beginPath();
+    this.ctx.arc(this.s(pt.x), this.s(pt.y), this.s(pinSize + 2), 0, Math.PI * 2);
+    this.ctx.fillStyle = color;
+    this.ctx.fill();
+
+    // Inner circle
+    this.ctx.beginPath();
+    this.ctx.arc(this.s(pt.x), this.s(pt.y), this.s(pinSize - 1), 0, Math.PI * 2);
+    this.ctx.fillStyle = '#151A22';
+    this.ctx.fill();
+
+    // Pin stem
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = this.s(1.5);
+    this.ctx.beginPath();
+    this.ctx.moveTo(this.s(pt.x), this.s(pt.y + pinSize + 2));
+    this.ctx.lineTo(this.s(pt.x), this.s(pt.y + pinSize + 12));
+    this.ctx.stroke();
+
+    // "NOTE" label
+    if (!isPreview) {
+      this.ctx.font = `${this.s(9)}px 'JetBrains Mono', monospace`;
+      this.ctx.fillStyle = color;
+      this.ctx.globalAlpha = 0.8;
+      this.ctx.fillText('📌', this.s(pt.x + pinSize + 4), this.s(pt.y + 3));
+    }
+
+    this.ctx.restore();
   }
 
   // ══════════════════════════════════════════════════════════

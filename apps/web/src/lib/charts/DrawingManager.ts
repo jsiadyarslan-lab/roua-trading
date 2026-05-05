@@ -125,63 +125,144 @@ export class DrawingManager {
 
   static requiredPoints(tool: DrawingTool): number {
     switch (tool) {
-      case 'cursor':       return 0;
-      case 'horizontal':   return 1;
-      case 'vertical':     return 1;
-      case 'x-marker':     return 1;
-      case 'trendline':    return 2;
-      case 'fibonacci':    return 2;
-      case 'rectangle':    return 2;
-      case 'channel':      return 3;
-      case 'triangle':     return 3;
-      case 'circle':       return 2;
-      case 'arc':          return 2;
-      case 'arrow':        return 2;
-      case 'extended-line':return 2;
-      case 'ray':          return 2;
-      case 'price-range':  return 2;
-      default:             return 0;
+      case 'cursor':            return 0;
+      case 'horizontal':        return 1;
+      case 'horizontal-ray':    return 1;
+      case 'vertical':          return 1;
+      case 'x-marker':          return 1;
+      case 'price-label':       return 1;
+      case 'note':              return 1;
+      // ── 2-point tools ──
+      case 'trendline':         return 2;
+      case 'ray':               return 2;
+      case 'info-line':         return 2;
+      case 'extended-line':     return 2;
+      case 'trend-angle':       return 2;
+      case 'cross-line':        return 2;
+      case 'fibonacci':         return 2;
+      case 'fib-extension':     return 2;
+      case 'fib-fan':           return 2;
+      case 'fib-spiral':        return 2;
+      case 'fib-wedge':         return 2;
+      case 'fib-time-zone':     return 2;
+      case 'rectangle':         return 2;
+      case 'circle':            return 2;
+      case 'ellipse':           return 2;
+      case 'arrow':             return 2;
+      case 'price-range':       return 2;
+      case 'text-annotation':   return 2;
+      case 'disjoint-channel':  return 2;
+      case 'flat-top-bottom':   return 2;
+      case 'gann-box':          return 2;
+      case 'gann-square':       return 2;
+      // ── 3-point tools ──
+      case 'channel':           return 3;
+      case 'triangle':          return 3;
+      case 'regression-trend':  return 3;
+      case 'andrews-pitchfork': return 3;
+      case 'schiff-pitchfork':  return 3;
+      case 'modified-schiff':   return 3;
+      case 'gann-fan':          return 3;
+      default:                  return 0;
     }
   }
 
   static getToolLabel(tool: DrawingTool): { ar: string; en: string } {
     const labels: Record<DrawingTool, { ar: string; en: string }> = {
-      'cursor':        { ar: 'مؤشر',           en: 'Cursor' },
-      'trendline':     { ar: 'خط اتجاه',        en: 'Trend Line' },
-      'horizontal':    { ar: 'خط أفقي',         en: 'Horizontal Line' },
-      'vertical':      { ar: 'خط رأسي',         en: 'Vertical Line' },
-      'fibonacci':     { ar: 'فيبوناتشي',       en: 'Fibonacci' },
-      'rectangle':     { ar: 'مستطيل',          en: 'Rectangle' },
-      'channel':       { ar: 'قناة متوازية',     en: 'Parallel Channel' },
-      'triangle':      { ar: 'مثلث',            en: 'Triangle' },
-      'circle':        { ar: 'دائرة',           en: 'Circle' },
-      'arc':           { ar: 'قوس',             en: 'Arc' },
-      'x-marker':      { ar: 'علامة X',         en: 'X Mark' },
-      'arrow':         { ar: 'سهم',             en: 'Arrow' },
-      'extended-line': { ar: 'خط ممتد',         en: 'Extended Line' },
-      'ray':           { ar: 'شعاع',            en: 'Ray' },
-      'price-range':   { ar: 'نطاق سعري',       en: 'Price Range' },
+      'cursor':            { ar: 'مؤشر',                en: 'Cursor' },
+      // Lines
+      'trendline':         { ar: 'خط اتجاه',             en: 'Trend Line' },
+      'ray':               { ar: 'شعاع',                en: 'Ray' },
+      'info-line':         { ar: 'خط معلوماتي',          en: 'Info Line' },
+      'extended-line':     { ar: 'خط ممتد',             en: 'Extended Line' },
+      'trend-angle':       { ar: 'خط اتجاه بزاوية',      en: 'Trend Angle' },
+      'horizontal':        { ar: 'خط أفقي',             en: 'Horizontal Line' },
+      'horizontal-ray':    { ar: 'شعاع أفقي',            en: 'Horizontal Ray' },
+      'vertical':          { ar: 'خط رأسي',             en: 'Vertical Line' },
+      'cross-line':        { ar: 'خط متقاطع',            en: 'Cross Line' },
+      // Channels
+      'channel':           { ar: 'قناة متوازية',          en: 'Parallel Channel' },
+      'regression-trend':  { ar: 'اتجاه انحدار',          en: 'Regression Trend' },
+      'flat-top-bottom':   { ar: 'قمة/قاع مسطحة',         en: 'Flat Top/Bottom' },
+      'disjoint-channel':  { ar: 'قناة منفصلة',           en: 'Disjoint Channel' },
+      // Forks
+      'andrews-pitchfork': { ar: 'شوكة أندروز',           en: 'Andrews Pitchfork' },
+      'schiff-pitchfork':  { ar: 'شوكة شيف',             en: 'Schiff Pitchfork' },
+      'modified-schiff':   { ar: 'شوكة شيف معدلة',        en: 'Modified Schiff' },
+      // Fibonacci
+      'fibonacci':         { ar: 'فيبوناتشي ارتداد',      en: 'Fib Retracement' },
+      'fib-extension':     { ar: 'فيبوناتشي امتداد',      en: 'Fib Extension' },
+      'fib-fan':           { ar: 'مروحة فيبوناتشي',       en: 'Fib Fan' },
+      'fib-spiral':        { ar: 'حلزون فيبوناتشي',       en: 'Fib Spiral' },
+      'fib-wedge':         { ar: 'إسفين فيبوناتشي',       en: 'Fib Wedge' },
+      'fib-time-zone':     { ar: 'مناطق زمنية فيبوناتشي',   en: 'Fib Time Zone' },
+      // Gann
+      'gann-box':          { ar: 'صندوق جان',            en: 'Gann Box' },
+      'gann-square':       { ar: 'مربع جان',             en: 'Gann Square' },
+      'gann-fan':          { ar: 'مروحة جان',            en: 'Gann Fan' },
+      // Shapes
+      'rectangle':         { ar: 'مستطيل',              en: 'Rectangle' },
+      'triangle':          { ar: 'مثلث',                en: 'Triangle' },
+      'circle':            { ar: 'دائرة',               en: 'Circle' },
+      'ellipse':           { ar: 'قطع ناقص',             en: 'Ellipse' },
+      // Annotations
+      'text-annotation':   { ar: 'تعليق نصي',            en: 'Text Annotation' },
+      'price-label':       { ar: 'تسمية سعرية',           en: 'Price Label' },
+      'note':              { ar: 'ملاحظة',               en: 'Note' },
+      // Markers
+      'x-marker':          { ar: 'علامة X',              en: 'X Mark' },
+      'arrow':             { ar: 'سهم',                  en: 'Arrow' },
+      'price-range':       { ar: 'نطاق سعري',            en: 'Price Range' },
     };
     return labels[tool] || { ar: tool, en: tool };
   }
 
   static getToolIcon(tool: DrawingTool): string {
     const icons: Record<DrawingTool, string> = {
-      'cursor':        '↖',
-      'trendline':     '╱',
-      'horizontal':    '━',
-      'vertical':      '┃',
-      'fibonacci':     '⬡',
-      'rectangle':     '▭',
-      'channel':       '║',
-      'triangle':      '△',
-      'circle':        '○',
-      'arc':           '⌒',
-      'x-marker':      '✕',
-      'arrow':         '→',
-      'extended-line': '⟶',
-      'ray':           '⟋',
-      'price-range':   '⇳',
+      'cursor':            '↖',
+      // Lines
+      'trendline':         '╱',
+      'ray':               '⟋',
+      'info-line':         'ℹ',
+      'extended-line':     '⟶',
+      'trend-angle':       '∡',
+      'horizontal':        '━',
+      'horizontal-ray':    '⟶',
+      'vertical':          '┃',
+      'cross-line':        '╋',
+      // Channels
+      'channel':           '║',
+      'regression-trend':  '📈',
+      'flat-top-bottom':   '⬒',
+      'disjoint-channel':  '║',
+      // Forks
+      'andrews-pitchfork': '🔱',
+      'schiff-pitchfork':  '🔱',
+      'modified-schiff':   '🔱',
+      // Fibonacci
+      'fibonacci':         '⬡',
+      'fib-extension':     '⬡',
+      'fib-fan':           '🎷',
+      'fib-spiral':        '🌀',
+      'fib-wedge':         '◭',
+      'fib-time-zone':     '⏱',
+      // Gann
+      'gann-box':          '⬜',
+      'gann-square':       '🔲',
+      'gann-fan':          '🏮',
+      // Shapes
+      'rectangle':         '▭',
+      'triangle':          '△',
+      'circle':            '○',
+      'ellipse':           '⬭',
+      // Annotations
+      'text-annotation':   '💬',
+      'price-label':       '🏷',
+      'note':              '📌',
+      // Markers
+      'x-marker':          '✕',
+      'arrow':             '→',
+      'price-range':       '⇳',
     };
     return icons[tool] || '?';
   }

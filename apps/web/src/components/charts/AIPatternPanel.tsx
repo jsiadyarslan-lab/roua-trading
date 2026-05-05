@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 // ROUA Trading Chart — AI Pattern Recognition Panel
-// Uses z-ai-web-dev-sdk to detect 20+ candlestick patterns
+// Uses z-ai-web-dev-sdk to detect 25+ candlestick patterns
+// Plus support/resistance levels and trend line detection
 // ═══════════════════════════════════════════════════════════
 
 'use client';
@@ -8,10 +9,31 @@
 import { useState, useCallback } from 'react';
 import type { AIPattern, CandleData } from '@/lib/charts/types';
 
+interface SupportResistanceLevel {
+  price: number;
+  type: 'support' | 'resistance';
+  strength: 'weak' | 'medium' | 'strong';
+  touches: number;
+}
+
+interface TrendLine {
+  type: 'ascending' | 'descending';
+  startPoint: { time: number; price: number };
+  endPoint: { time: number; price: number };
+  strength: 'weak' | 'medium' | 'strong';
+}
+
+export interface AIAnalysisResult {
+  patterns: AIPattern[];
+  supportLevels: SupportResistanceLevel[];
+  resistanceLevels: SupportResistanceLevel[];
+  trendLines: TrendLine[];
+}
+
 interface AIPatternPanelProps {
   symbol: string;
   candles: CandleData[];
-  onPatternsDetected: (patterns: AIPattern[]) => void;
+  onPatternsDetected: (result: AIAnalysisResult) => void;
   onClose: () => void;
 }
 
@@ -46,7 +68,10 @@ const PATTERN_NAMES_AR: Record<string, string> = {
 export function AIPatternPanel({ symbol, candles, onPatternsDetected, onClose }: AIPatternPanelProps) {
   const [loading, setLoading] = useState(false);
   const [patterns, setPatterns] = useState<AIPattern[]>([]);
+  const [srLevels, setSrLevels] = useState<SupportResistanceLevel[]>([]);
+  const [trendLines, setTrendLines] = useState<TrendLine[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'patterns' | 'sr' | 'trend'>('patterns');
 
   const analyzePatterns = useCallback(async () => {
     if (!candles.length) return;
@@ -112,14 +137,37 @@ export function AIPatternPanel({ symbol, candles, onPatternsDetected, onClose }:
       }
 
       setPatterns(detectedPatterns);
-      onPatternsDetected(detectedPatterns);
+
+      // ── Detect Support/Resistance Levels ──
+      const levels = detectSupportResistance(candles);
+      setSrLevels(levels);
+
+      // ── Detect Trend Lines ──
+      const lines = detectTrendLines(candles);
+      setTrendLines(lines);
+
+      onPatternsDetected({
+        patterns: detectedPatterns,
+        supportLevels: levels.filter(l => l.type === 'support'),
+        resistanceLevels: levels.filter(l => l.type === 'resistance'),
+        trendLines: lines,
+      });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'حدث خطأ أثناء التحليل');
       // Fallback: local detection
       const last50 = candles.slice(-50);
       const localPatterns = detectLocalPatterns(last50);
+      const levels = detectSupportResistance(candles);
+      const lines = detectTrendLines(candles);
       setPatterns(localPatterns);
-      onPatternsDetected(localPatterns);
+      setSrLevels(levels);
+      setTrendLines(lines);
+      onPatternsDetected({
+        patterns: localPatterns,
+        supportLevels: levels.filter(l => l.type === 'support'),
+        resistanceLevels: levels.filter(l => l.type === 'resistance'),
+        trendLines: lines,
+      });
     } finally {
       setLoading(false);
     }
@@ -155,7 +203,7 @@ export function AIPatternPanel({ symbol, candles, onPatternsDetected, onClose }:
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
         <span style={{ fontSize: 11, color: COLORS.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-          🔍 تحليل الأنماط بالذكاء الاصطناعي
+          🔍 تحليل AI
         </span>
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 14 }}>✕</button>
       </div>
@@ -178,7 +226,7 @@ export function AIPatternPanel({ symbol, candles, onPatternsDetected, onClose }:
           marginBottom: 10,
         }}
       >
-        {loading ? '⏳ جاري التحليل...' : '🤖 تحليل الأنماط'}
+        {loading ? '⏳ جاري التحليل...' : '🤖 تحليل الأنماط والمستويات'}
       </button>
 
       {/* Error */}
@@ -197,8 +245,38 @@ export function AIPatternPanel({ symbol, candles, onPatternsDetected, onClose }:
         </div>
       )}
 
-      {/* Results */}
-      {patterns.length > 0 && (
+      {/* Tab Buttons */}
+      {(patterns.length > 0 || srLevels.length > 0 || trendLines.length > 0) && (
+        <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+          {[
+            { key: 'patterns' as const, label: 'أنماط', count: patterns.length },
+            { key: 'sr' as const, label: 'دعم/مقاومة', count: srLevels.length },
+            { key: 'trend' as const, label: 'اتجاهات', count: trendLines.length },
+          ].map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                flex: 1,
+                padding: '4px 0',
+                background: activeTab === tab.key ? 'rgba(0,212,255,0.15)' : 'none',
+                border: `1px solid ${activeTab === tab.key ? 'rgba(0,212,255,0.3)' : 'transparent'}`,
+                borderRadius: 4,
+                color: activeTab === tab.key ? COLORS.cyan : COLORS.textSecondary,
+                fontSize: 9,
+                fontWeight: activeTab === tab.key ? 700 : 400,
+                cursor: 'pointer',
+                fontFamily: "'Cairo', sans-serif",
+              }}
+            >
+              {tab.label} ({tab.count})
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Patterns Tab */}
+      {activeTab === 'patterns' && patterns.length > 0 && (
         <div style={{ maxHeight: 200, overflowY: 'auto' }}>
           {patterns.map((p, i) => (
             <div
@@ -223,6 +301,72 @@ export function AIPatternPanel({ symbol, candles, onPatternsDetected, onClose }:
                 </div>
                 <div style={{ fontSize: 8, color: COLORS.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
                   {p.type} • {Math.round(p.confidence * 100)}% • {new Date(p.time * 1000).toLocaleDateString('ar-EG')}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Support/Resistance Tab */}
+      {activeTab === 'sr' && srLevels.length > 0 && (
+        <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+          {srLevels.map((level, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '5px 4px',
+                borderBottom: '1px solid rgba(255,255,255,0.04)',
+              }}
+            >
+              <div style={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                background: level.type === 'support' ? '#00FFA3' : '#FF4757',
+              }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, color: COLORS.text, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>
+                  {level.type === 'support' ? 'دعم' : 'مقاومة'} {level.strength === 'strong' ? '(قوي)' : level.strength === 'medium' ? '(متوسط)' : '(ضعيف)'}
+                </div>
+                <div style={{ fontSize: 9, color: COLORS.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
+                  {level.price.toFixed(level.price > 1000 ? 2 : 5)} • {level.touches} touches
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Trend Lines Tab */}
+      {activeTab === 'trend' && trendLines.length > 0 && (
+        <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+          {trendLines.map((line, i) => (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '5px 4px',
+                borderBottom: '1px solid rgba(255,255,255,0.04)',
+              }}
+            >
+              <div style={{
+                fontSize: 12,
+                color: line.type === 'ascending' ? '#00FFA3' : '#FF4757',
+              }}>
+                {line.type === 'ascending' ? '📈' : '📉'}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, color: COLORS.text, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>
+                  {line.type === 'ascending' ? 'خط اتجاه صاعد' : 'خط اتجاه هابط'} ({line.strength === 'strong' ? 'قوي' : line.strength === 'medium' ? 'متوسط' : 'ضعيف'})
+                </div>
+                <div style={{ fontSize: 8, color: COLORS.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
+                  {line.startPoint.price.toFixed(2)} → {line.endPoint.price.toFixed(2)}
                 </div>
               </div>
             </div>
@@ -313,7 +457,151 @@ function detectLocalPatterns(candles: CandleData[]): AIPattern[] {
         direction: 'bearish',
       });
     }
+
+    // Spinning Top: small body, roughly equal wicks
+    if (range > 0 && body / range < 0.3 && Math.abs(upperWick - lowerWick) / range < 0.15) {
+      patterns.push({
+        type: 'Spinning Top',
+        labelAr: 'قمة دوارة',
+        time: c.time,
+        price: c.close,
+        confidence: 0.6,
+        direction: 'neutral',
+      });
+    }
+
+    // Marubozu: very small or no wicks
+    if (body > 0 && range > 0 && body / range > 0.85) {
+      patterns.push({
+        type: 'Marubozu',
+        labelAr: 'ماروبوزو',
+        time: c.time,
+        price: c.close,
+        confidence: 0.75,
+        direction: c.close > c.open ? 'bullish' : 'bearish',
+      });
+    }
   }
 
   return patterns.slice(-10); // Last 10 patterns max
+}
+
+// ── Support/Resistance Level Detection ──────────────────
+function detectSupportResistance(candles: CandleData[]): SupportResistanceLevel[] {
+  if (candles.length < 20) return [];
+  const levels: SupportResistanceLevel[] = [];
+  const windowSize = 10;
+
+  // Find pivot highs and lows
+  for (let i = windowSize; i < candles.length - windowSize; i++) {
+    const slice = candles.slice(i - windowSize, i + windowSize + 1);
+    const current = candles[i];
+
+    // Check if this is a local high (resistance)
+    const isLocalHigh = slice.every(c => current.high >= c.high);
+    if (isLocalHigh) {
+      const existingLevel = levels.find(l => l.type === 'resistance' && Math.abs(l.price - current.high) / current.high < 0.005);
+      if (existingLevel) {
+        existingLevel.touches++;
+        existingLevel.strength = existingLevel.touches >= 3 ? 'strong' : existingLevel.touches >= 2 ? 'medium' : 'weak';
+      } else {
+        levels.push({
+          price: current.high,
+          type: 'resistance',
+          strength: 'weak',
+          touches: 1,
+        });
+      }
+    }
+
+    // Check if this is a local low (support)
+    const isLocalLow = slice.every(c => current.low <= c.low);
+    if (isLocalLow) {
+      const existingLevel = levels.find(l => l.type === 'support' && Math.abs(l.price - current.low) / current.low < 0.005);
+      if (existingLevel) {
+        existingLevel.touches++;
+        existingLevel.strength = existingLevel.touches >= 3 ? 'strong' : existingLevel.touches >= 2 ? 'medium' : 'weak';
+      } else {
+        levels.push({
+          price: current.low,
+          type: 'support',
+          strength: 'weak',
+          touches: 1,
+        });
+      }
+    }
+  }
+
+  // Sort by strength and take top 3 of each type
+  const supportLevels = levels
+    .filter(l => l.type === 'support')
+    .sort((a, b) => b.touches - a.touches)
+    .slice(0, 3);
+
+  const resistanceLevels = levels
+    .filter(l => l.type === 'resistance')
+    .sort((a, b) => b.touches - a.touches)
+    .slice(0, 3);
+
+  return [...supportLevels, ...resistanceLevels];
+}
+
+// ── Trend Line Detection ───────────────────────────────
+function detectTrendLines(candles: CandleData[]): TrendLine[] {
+  if (candles.length < 30) return [];
+  const lines: TrendLine[] = [];
+  const lookback = Math.min(100, candles.length);
+
+  // Find ascending trend line (connecting higher lows)
+  const lows: { time: number; price: number }[] = [];
+  for (let i = candles.length - lookback; i < candles.length; i++) {
+    if (i < 2) continue;
+    const prev = candles[i - 1];
+    const curr = candles[i];
+    const next = candles[i + 1] || curr;
+    if (curr.low <= prev.low && curr.low <= next.low) {
+      lows.push({ time: curr.time, price: curr.low });
+    }
+  }
+
+  if (lows.length >= 2) {
+    // Take first and last pivot low
+    const first = lows[0];
+    const last = lows[lows.length - 1];
+    if (last.price > first.price) {
+      lines.push({
+        type: 'ascending',
+        startPoint: first,
+        endPoint: last,
+        strength: lows.length >= 4 ? 'strong' : lows.length >= 3 ? 'medium' : 'weak',
+      });
+    }
+  }
+
+  // Find descending trend line (connecting lower highs)
+  const highs: { time: number; price: number }[] = [];
+  for (let i = candles.length - lookback; i < candles.length; i++) {
+    if (i < 2) continue;
+    const prev = candles[i - 1];
+    const curr = candles[i];
+    const next = candles[i + 1] || curr;
+    if (curr.high >= prev.high && curr.high >= next.high) {
+      highs.push({ time: curr.time, price: curr.high });
+    }
+  }
+
+  if (highs.length >= 2) {
+    const first = highs[0];
+    const last = highs[highs.length - 1];
+    if (last.price < first.price) {
+      lines.push({
+        type: 'descending',
+        startPoint: first,
+        endPoint: last,
+        strength: highs.length >= 4 ? 'strong' : highs.length >= 3 ? 'medium' : 'weak',
+      });
+    }
+  }
+
+  return lines;
 }

@@ -418,6 +418,35 @@ model Trade {
   @@index([userId, type, executedAt])
 }
 
+// ── Position Reconciliation Queue ──
+// FIX: When a position update transaction fails after an order has been executed
+// on the exchange, the user has an open exchange position but no database record.
+// This table stores failed position updates for automatic retry by a background job.
+// Without this, positions are "lost" — the user has exposure on the exchange but
+// no way to see or manage it in the platform.
+model PositionReconciliation {
+  id                  String   @id @default(cuid())
+  orderId             String   @unique
+  userId              String
+  exchangeCredentialId String
+  symbol              String
+  side                String
+  filledQuantity      Decimal  @db.Decimal(18,8)
+  fillPrice           Decimal  @db.Decimal(18,8)
+  stopLoss            Decimal? @db.Decimal(18,8)
+  takeProfit          Decimal? @db.Decimal(18,8)
+  status              String   @default("PENDING") // PENDING | RETRYING | RESOLVED | FAILED
+  attempts            Int      @default(0)
+  lastAttemptAt       DateTime?
+  lastError           String?
+  createdAt           DateTime @default(now())
+  resolvedAt          DateTime?
+
+  @@index([status])
+  @@index([userId])
+  @@index([createdAt])
+}
+
 // ── Paper Trading Orders (Execution Engine) ──
 model PaperOrder {
   id              String      @id @default(cuid())

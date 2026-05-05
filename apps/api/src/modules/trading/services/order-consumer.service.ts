@@ -325,10 +325,49 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
       });
     } catch (error: any) {
       // Log the error but don't crash — the order was already executed on the exchange
-      // The position update failure can be reconciled later
+      // FIX: Write to PositionReconciliation table for automatic retry.
+      // Previously, the error was silently swallowed, meaning the user had an
+      // open exchange position but no database record. This is dangerous because:
+      // 1. User can't see their position in the platform
+      // 2. Risk checks won't account for this exposure
+      // 3. No way to track or resolve the discrepancy
       this.logger.error(
         `🐰 Position update transaction failed for order ${message.orderId}: ${error.message}`,
       );
+
+      // Write to reconciliation table for background job to retry
+      try {
+        await this.prisma.positionReconciliation.upsert({
+          where: { orderId: message.orderId },
+          create: {
+            orderId: message.orderId,
+            userId: message.userId,
+            exchangeCredentialId: message.exchangeCredentialId,
+            symbol: message.symbol,
+            side: message.side,
+            filledQuantity: filledQuantity,
+            fillPrice: fillPrice,
+            stopLoss: message.stopLoss,
+            takeProfit: message.takeProfit,
+            status: 'PENDING',
+            lastError: error.message?.substring(0, 500),
+          },
+          update: {
+            attempts: { increment: 1 },
+            lastAttemptAt: new Date(),
+            lastError: error.message?.substring(0, 500),
+            status: 'PENDING', // Reset to PENDING for retry
+          },
+        });
+        this.logger.log(
+          `🐰 Position reconciliation record created for order ${message.orderId} — will be retried by background job`,
+        );
+      } catch (reconError: any) {
+        // Even reconciliation writing failed — log critically
+        this.logger.error(
+          `🐰 CRITICAL: Failed to write reconciliation record for order ${message.orderId}: ${reconError.message}`,
+        );
+      }
     }
   }
 

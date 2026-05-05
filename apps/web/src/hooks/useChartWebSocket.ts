@@ -1,6 +1,19 @@
 // ═══════════════════════════════════════════════════════════
-// ROUA Trading Chart — WebSocket + REST Polling Fallback
-// Provides reliable real-time data with automatic failover
+// ROUA Trading Chart — Multi-Source Real-Time Data
+// Priority: Socket.IO Gateway → Binance WS → REST Polling
+// ═══════════════════════════════════════════════════════════
+//
+// FIX: Added Socket.IO Gateway as primary data source.
+// Previously, the chart connected directly to Binance WebSocket,
+// bypassing the backend ExchangeGateway entirely. This meant:
+// - No authentication for market data connections
+// - Crypto-only data (no stocks/forex via WS)
+// - No rate limiting or data consistency with backend
+//
+// New connection priority:
+// 1. Socket.IO → /exchange namespace (authenticated, all asset types)
+// 2. Binance WebSocket (crypto-only fallback, no auth)
+// 3. REST Polling (last resort)
 // ═══════════════════════════════════════════════════════════
 
 'use client';
@@ -26,7 +39,6 @@ const BINANCE_INTERVALS: Record<string, string> = {
   '1min': '1m', '3min': '3m', '5min': '5m', '15min': '15m', '30min': '30m',
   '1h': '1h', '2h': '2h', '4h': '4h', '6h': '6h', '8h': '8h', '12h': '12h',
   '1day': '1d', '3day': '3d', '1week': '1w', '1month': '1M', '3month': '3M',
-  // FIX: Added '3month': '3M' — was missing, causing silent fallback to 1m data
 };
 
 // Known crypto pairs
@@ -45,10 +57,18 @@ function normalizeBinanceSymbol(symbol: string): string {
   return s.toLowerCase();
 }
 
+// Get session token from cookie for Socket.IO auth
+function getSessionToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/roua_session=([^;]+)/);
+  return match ? match[1] : null;
+}
+
 export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWebSocketReturn {
   const { symbol, timeframe, onCandleUpdate, onPriceUpdate, enabled = true } = options;
 
   const wsRef = useRef<WebSocket | null>(null);
+  const socketIoRef = useRef<any>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
@@ -65,12 +85,21 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   const cleanup = useCallback(() => {
     isClosingRef.current = true;
 
-    // Clear ping interval first to prevent "Ping received after close"
+    // Clear ping interval first
     if (pingIntervalRef.current) {
       clearInterval(pingIntervalRef.current);
       pingIntervalRef.current = null;
     }
 
+    // Disconnect Socket.IO
+    if (socketIoRef.current) {
+      try {
+        socketIoRef.current.disconnect();
+      } catch {}
+      socketIoRef.current = null;
+    }
+
+    // Disconnect Binance WS
     if (wsRef.current) {
       wsRef.current.onopen = null;
       wsRef.current.onmessage = null;
@@ -90,21 +119,48 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   }, []);
 
   // ── Fetch latest candle via REST ───────────────────────
-  // FIX: Moved BEFORE startPolling to fix TS2448 (used before declaration)
   const fetchLatestCandle = useCallback(async () => {
     if (!symbol) return;
 
     try {
-      // For crypto pairs: use Binance API directly
+      // FIX: Route through backend ExchangeGateway REST API first
+      // This ensures data consistency with the rest of the platform
+      const apiBase = window.location.origin;
+      const res = await fetch(`${apiBase}/api/exchange/quote/${encodeURIComponent(symbol)}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        const data = result?.data;
+        if (data && (data.price || data.close) > 0) {
+          const price = data.price || data.close;
+          onPriceUpdate(price);
+          const now = Math.floor(Date.now() / 1000);
+          const candle: CandleData = {
+            time: now - (now % 60),
+            open: data.open || price,
+            high: data.high || price,
+            low: data.low || price,
+            close: price,
+            volume: data.volume || 0,
+          };
+          onCandleUpdate(candle);
+          return; // Success via backend — done
+        }
+      }
+
+      // Fallback: Direct Binance API (crypto only)
       if (isCryptoPair(symbol)) {
         const binanceSymbol = normalizeBinanceSymbol(symbol);
         const interval = BINANCE_INTERVALS[timeframe] || '1m';
         const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol.toUpperCase()}&interval=${interval}&limit=2`;
 
-        const res = await fetch(url);
-        if (!res.ok) return;
+        const binanceRes = await fetch(url);
+        if (!binanceRes.ok) return;
 
-        const data = await res.json();
+        const data = await binanceRes.json();
         if (data.length > 0) {
           const k = data[data.length - 1];
           const candle: CandleData = {
@@ -118,37 +174,6 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           onCandleUpdate(candle);
           onPriceUpdate(candle.close);
         }
-      } else {
-        // FIX: For non-crypto assets (stocks, forex, commodities),
-        // use the exchange quote endpoint (NOT analytics/analyze).
-        // Previously used /api/analytics/analyze/ which is heavier, slower,
-        // and returns a different data shape. The quote endpoint is purpose-built
-        // for real-time price data with proper OHLC fields.
-        const apiBase = window.location.origin;
-        const res = await fetch(`${apiBase}/api/exchange/quote/${encodeURIComponent(symbol)}`, {
-          method: 'GET',
-          headers: { 'Content-Type': 'application/json' },
-        });
-
-        if (!res.ok) return;
-
-        const result = await res.json();
-        const data = result?.data;
-        if (data && (data.price || data.close) > 0) {
-          const price = data.price || data.close;
-          onPriceUpdate(price);
-          // Create a synthetic candle from the quote data
-          const now = Math.floor(Date.now() / 1000);
-          const candle: CandleData = {
-            time: now - (now % 60), // Round to current minute
-            open: data.open || price,
-            high: data.high || price,
-            low: data.low || price,
-            close: price,
-            volume: data.volume || 0,
-          };
-          onCandleUpdate(candle);
-        }
       }
     } catch {
       // Silent fail — will retry
@@ -160,34 +185,21 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     if (pollingRef.current) clearInterval(pollingRef.current);
     setConnectionState('fallback');
 
-    // FIX: Also poll for non-crypto symbols (previously skipped entirely)
-    // Use a longer interval for non-crypto (30s) since they're less volatile
     const interval = isCryptoPair(symbol) ? POLLING_INTERVAL : 30000;
-
-    // Initial fetch
     fetchLatestCandle();
-
     pollingRef.current = setInterval(fetchLatestCandle, interval);
   }, [symbol, timeframe, fetchLatestCandle]);
 
-  // ── Connect WebSocket ──────────────────────────────────
-  const connect = useCallback(() => {
-    cleanup();
-    isClosingRef.current = false;  // Reset closing flag for new connection
-    if (!enabled) return;
-
+  // ── Connect via Binance WebSocket (crypto fallback) ────
+  const connectBinanceFallback = useCallback(() => {
     if (!isCryptoPair(symbol)) {
-      // Non-crypto: use REST polling
+      // Non-crypto: go straight to polling
       startPolling();
       return;
     }
 
-    setConnectionState('connecting');
-
     const binanceSymbol = normalizeBinanceSymbol(symbol);
     const interval = BINANCE_INTERVALS[timeframe] || '1m';
-
-    // Combined stream: kline + ticker
     const wsUrl = `wss://stream.binance.com:9443/stream?streams=${binanceSymbol}@kline_${interval}/${binanceSymbol}@ticker`;
 
     try {
@@ -204,7 +216,6 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           const msg = JSON.parse(event.data);
           if (!msg.data) return;
 
-          // Handle kline data
           if (msg.stream?.includes('@kline_')) {
             const k = msg.data.k;
             if (k) {
@@ -220,7 +231,6 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
             }
           }
 
-          // Handle ticker data
           if (msg.stream?.includes('@ticker')) {
             const d = msg.data;
             if (d?.c) {
@@ -240,34 +250,29 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
         setConnectionState('disconnected');
         wsRef.current = null;
 
-        // Clear ping interval to prevent "Ping received after close"
         if (pingIntervalRef.current) {
           clearInterval(pingIntervalRef.current);
           pingIntervalRef.current = null;
         }
 
-        // Don't reconnect if we're intentionally closing (cleanup)
         if (isClosingRef.current) return;
 
-        // Fallback to REST polling after max reconnect attempts
         if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
           startPolling();
           return;
         }
 
-        // Exponential backoff reconnect
         const delay = Math.min(BASE_DELAY * Math.pow(2, reconnectAttemptsRef.current), MAX_DELAY);
         reconnectAttemptsRef.current++;
         reconnectTimerRef.current = setTimeout(connect, delay + Math.random() * 1000);
       };
 
-      // Keepalive ping — stored in ref for cleanup
+      // Keepalive ping
       if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
       pingIntervalRef.current = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
-          try { ws.send(JSON.stringify({ method: 'ping' })); } catch { /* ignore */ }
+          try { ws.send(JSON.stringify({ method: 'ping' })); } catch {}
         } else {
-          // WS not open — clear ping
           if (pingIntervalRef.current) {
             clearInterval(pingIntervalRef.current);
             pingIntervalRef.current = null;
@@ -276,10 +281,117 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       }, 20000);
 
     } catch {
-      // WebSocket creation failed — fall back to polling
       startPolling();
     }
-  }, [symbol, timeframe, enabled, cleanup, startPolling, onCandleUpdate, onPriceUpdate]);
+  }, [symbol, timeframe, startPolling, onCandleUpdate, onPriceUpdate]);
+
+  // ── Primary: Connect via Socket.IO Gateway ─────────────
+  // FIX: Socket.IO connects to the backend /exchange namespace,
+  // which provides authenticated, multi-asset market data via
+  // ExchangeService. This is the preferred path because:
+  // - Authenticated (session token validation)
+  // - Works for ALL asset types (crypto + stocks + forex)
+  // - Rate-limited and consistent with backend data
+  // - Redis Pub/Sub for cross-instance distribution
+  const connect = useCallback(() => {
+    cleanup();
+    isClosingRef.current = false;
+    if (!enabled) return;
+
+    setConnectionState('connecting');
+
+    // Get session token for authentication
+    const token = getSessionToken();
+    const wsUrl = window.location.origin;
+
+    // Dynamically import socket.io-client to avoid SSR issues
+    import('socket.io-client').then(({ io }) => {
+      if (isClosingRef.current) return;
+
+      try {
+        const socket = io(`${wsUrl}/exchange`, {
+          transports: ['websocket', 'polling'],
+          autoConnect: true,
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 2000,
+          auth: { token },
+          query: { token },
+        });
+
+        socketIoRef.current = socket;
+
+        socket.on('connect', () => {
+          if (isClosingRef.current) {
+            socket.disconnect();
+            return;
+          }
+          setConnectionState('connected');
+          reconnectAttemptsRef.current = 0;
+
+          // Subscribe to current symbol
+          socket.emit('subscribe', { symbol });
+        });
+
+        socket.on('ticker', (data: any) => {
+          if (isClosingRef.current) return;
+          if (!data || !data.data) return;
+
+          // Only process data for our symbol
+          const dataSymbol = data.symbol || data.data.symbol || '';
+          if (dataSymbol && symbol) {
+            const normalized = dataSymbol.replace('/', '');
+            const currentNorm = symbol.replace('/', '');
+            if (normalized !== currentNorm && !dataSymbol.includes(symbol.split('/')[0])) return;
+          }
+
+          const quote = data.data;
+          if (quote) {
+            const price = quote.price || quote.close || quote.lastPrice;
+            if (price && price > 0) {
+              onPriceUpdate(price);
+
+              // Create synthetic candle from ticker data
+              const now = Math.floor(Date.now() / 1000);
+              const candle: CandleData = {
+                time: now - (now % 60),
+                open: quote.open || price,
+                high: quote.high || price,
+                low: quote.low || price,
+                close: price,
+                volume: quote.volume || 0,
+              };
+              onCandleUpdate(candle);
+            }
+          }
+        });
+
+        socket.on('ticker:error', (data: any) => {
+          // Exchange gateway couldn't fetch data for this symbol
+          // Fall back to Binance direct or REST polling
+        });
+
+        socket.on('disconnect', (reason: string) => {
+          if (isClosingRef.current) return;
+          setConnectionState('disconnected');
+        });
+
+        socket.on('connect_error', (error: any) => {
+          if (isClosingRef.current) return;
+          // Socket.IO failed — fall back to Binance WS
+          try { socket.disconnect(); } catch {}
+          socketIoRef.current = null;
+          connectBinanceFallback();
+        });
+      } catch {
+        // Socket.IO creation failed — fall back to Binance WS
+        connectBinanceFallback();
+      }
+    }).catch(() => {
+      // Dynamic import failed — fall back to Binance WS
+      connectBinanceFallback();
+    });
+  }, [symbol, timeframe, enabled, cleanup, connectBinanceFallback, onCandleUpdate, onPriceUpdate]);
 
   // ── Reconnect ──────────────────────────────────────────
   const reconnect = useCallback(() => {

@@ -673,26 +673,35 @@ export default function RouaChart({
             _signalData: signal,
           });
 
-          // Add SL/TP price lines for the signal if available
+          // FIX: Render SL/TP as persistent horizontal price lines instead of
+          // overlapping markers. Previously, SL/TP were added as circle markers
+          // at the same time position as the signal marker, causing visual clutter
+          // and overlapping. Price lines are always visible at the correct price
+          // level and don't overlap with the signal arrow marker.
           const sl = Number(signal.stopLoss || 0);
           const tp = Number(signal.takeProfit || 0);
+          const signalId = signal.id || `${signalTime}-${signal.action}`;
           if (sl > 0) {
-            markers.push({
-              time: signalTime as any,
-              position: 'aboveBar' as const,
-              color: '#FF4757',
-              shape: 'circle' as const,
-              text: `SL ${sl.toFixed(sl > 100 ? 1 : 5)}`,
-            });
+            chart.addPriceLine(
+              `sl-${signalId}`,
+              sl,
+              'rgba(255, 71, 87, 0.6)',
+              `SL ${sl.toFixed(sl > 100 ? 1 : 5)}`,
+              1,
+              2,   // dashed line style
+              true,
+            );
           }
           if (tp > 0) {
-            markers.push({
-              time: signalTime as any,
-              position: 'belowBar' as const,
-              color: '#00FFA3',
-              shape: 'circle' as const,
-              text: `TP ${tp.toFixed(tp > 100 ? 1 : 5)}`,
-            });
+            chart.addPriceLine(
+              `tp-${signalId}`,
+              tp,
+              'rgba(0, 255, 163, 0.6)',
+              `TP ${tp.toFixed(tp > 100 ? 1 : 5)}`,
+              1,
+              2,   // dashed line style
+              true,
+            );
           }
         });
 

@@ -84,6 +84,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const windowResizeHandlerRef = useRef<(() => void) | null>(null);
   const mainSeriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
   const priceLinesRef = useRef<Map<string, any>>(new Map());
+  // FIX: Persist markers across data updates — lightweight-charts v5 clears markers
+  // when setData() is called on the series. We store them in a ref and re-apply
+  // after every setData call so signal/news/AI markers don't disappear.
+  const markersRef = useRef<any[]>([]);
   const onCrosshairMoveRef = useRef(onCrosshairMove);
   // FIX: Moved visibleRangeCallbackRef and prevCallbackRef up from line ~1321 to here
   // to prevent TDZ (Temporal Dead Zone) error — initChart() at line ~136 references
@@ -933,6 +937,21 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       console.error('[useChart] setCandles setData error:', e);
     }
 
+    // FIX: Re-apply stored markers after setData — lightweight-charts v5 clears
+    // markers when setData() is called, so we must re-apply them to keep
+    // signal/news/AI pattern markers visible across data reloads.
+    const storedMarkers = markersRef.current;
+    if (storedMarkers.length > 0) {
+      const series = mainSeriesRef.current || candleSeriesRef.current;
+      if (series) {
+        try {
+          (series as any).setMarkers(storedMarkers);
+        } catch {
+          // Markers API may fail silently after setData
+        }
+      }
+    }
+
     // Re-apply indicators with fresh data using ref to avoid stale closure
     // FIX: Debounce indicator recalculation — only re-apply if indicators exist
     // to prevent re-creating ALL indicator series on every WebSocket tick
@@ -1279,7 +1298,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   }, []);
 
   // ── Set Markers on Main Series ──
+  // FIX: Persist markers in ref so they survive setData() calls.
+  // lightweight-charts v5 clears markers when setData() is called on the series,
+  // which happens on every new candle from WebSocket. Without this ref,
+  // signal/news/AI markers would disappear on every data update.
   const setMarkers = useCallback((markers: any[]) => {
+    markersRef.current = markers;
     const series = mainSeriesRef.current || candleSeriesRef.current;
     if (!series) return;
     try {

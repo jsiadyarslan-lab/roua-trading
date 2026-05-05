@@ -40,12 +40,12 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
   private circuitBreakerThresholdPercent: number;
   private maxLeverage: number;
 
-  // ── Circuit Breaker State (in-memory, per symbol) ──
-  // FIX: Added progressive cooldown with exponential backoff.
-  // - Base cooldown: 60 seconds (was 15 min fixed — too long for first trigger, too short conceptually)
-  // - Each consecutive trigger doubles the cooldown: 60s → 120s → 240s → 480s → 960s → 1800s
-  // - Max cooldown: 30 minutes (1,800,000ms)
-  // - On cooldown expiry without re-trigger, level resets to 0
+  // ── Circuit Breaker State (in-memory, per user+symbol) ──
+  // FIX: Changed key from symbol-only to userId:symbol to scope circuit breakers
+  // per-user. Previously, if user A triggered a circuit breaker on BTC/USDT,
+  // it blocked ALL users from trading that symbol — which is incorrect.
+  // Now each user has their own circuit breaker state per symbol.
+  // The key format is "userId:symbol" (e.g., "user123:BTC/USDT").
   private readonly CB_BASE_COOLDOWN_MS = 60_000; // 60 seconds base cooldown
   private readonly CB_MAX_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes max cooldown
   private readonly circuitBreakerState: Map<string, {
@@ -182,12 +182,12 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
     const sizeCheck = await this.checkPositionSizeLimit(command);
     if (!sizeCheck.allowed) return sizeCheck;
 
-    // Check 4: Daily drawdown limit
-    const drawdownCheck = await this.checkDailyDrawdownLimit(command.userId);
+    // Check 4: Daily drawdown limit (scoped per exchange)
+    const drawdownCheck = await this.checkDailyDrawdownLimit(command.userId, command.exchangeCredentialId);
     if (!drawdownCheck.allowed) return drawdownCheck;
 
-    // Check 5: Circuit breakers
-    const circuitCheck = await this.checkCircuitBreakers(command.symbol);
+    // Check 5: Circuit breakers (scoped per user+symbol)
+    const circuitCheck = await this.checkCircuitBreakers(command.userId, command.symbol);
     if (!circuitCheck.allowed) return circuitCheck;
 
     // All checks passed — calculate risk score
@@ -456,19 +456,39 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
    * Ensures that the cumulative daily losses don't exceed
    * the maximum allowed percentage of the portfolio.
    * This prevents revenge trading and catastrophic losses.
+   *
+   * FIX: Now scoped per exchange when exchangeCredentialId is available.
+   * Previously, daily losses on Binance counted against the user's Alpaca
+   * limit too. Now each exchange's drawdown is calculated independently.
+   * If no exchange is specified, falls back to total across all exchanges.
    */
-  async checkDailyDrawdownLimit(userId: string): Promise<RiskCheckResult> {
+  async checkDailyDrawdownLimit(userId: string, exchangeCredentialId?: string): Promise<RiskCheckResult> {
     try {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
 
+      // FIX: Scope daily drawdown per exchange if credential is provided
+      const tradeWhere: any = {
+        userId,
+        executedAt: { gte: todayStart },
+        type: { in: ['EXIT', 'PARTIAL_EXIT'] },
+      };
+
+      if (exchangeCredentialId) {
+        // Find the exchange name for this credential
+        const credential = await this.prisma.exchangeCredential.findUnique({
+          where: { id: exchangeCredentialId },
+          select: { exchange: true },
+        });
+        if (credential) {
+          // Only count trades on the same exchange
+          tradeWhere.exchange = credential.exchange;
+        }
+      }
+
       // Calculate today's realized losses from closed trades
       const todayTrades = await this.prisma.trade.findMany({
-        where: {
-          userId,
-          executedAt: { gte: todayStart },
-          type: { in: ['EXIT', 'PARTIAL_EXIT'] },
-        },
+        where: tradeWhere,
       });
 
       const dailyPnL = todayTrades.reduce((sum, t) => sum + Number(t.pnl || 0), 0);
@@ -497,13 +517,19 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
   /**
    * CHECK 5: Circuit Breakers
    *
-   * Checks if there's a trading halt on the asset due to extreme volatility.
-   * When an asset moves more than the threshold in a short period,
-   * trading is temporarily suspended for that symbol.
+   * Checks if there's a trading halt on the asset for THIS USER due to extreme volatility.
+   * FIX: Now scoped per-user — userId is part of the circuit breaker key.
+   * Previously, a circuit breaker triggered by user A on BTC/USDT would block
+   * ALL users from trading that symbol. Now each user has their own state.
+   *
+   * Key format: "userId:symbol" (e.g., "user123:BTC/USDT")
    */
-  async checkCircuitBreakers(symbol: string): Promise<RiskCheckResult> {
+  async checkCircuitBreakers(userId: string, symbol: string): Promise<RiskCheckResult> {
+    // FIX: Scope circuit breaker per user
+    const cbKey = `${userId}:${symbol}`;
+
     // Check in-memory circuit breaker state
-    const state = this.circuitBreakerState.get(symbol);
+    const state = this.circuitBreakerState.get(cbKey);
     if (state && state.triggered && state.until > new Date()) {
       const remainingMs = state.until.getTime() - Date.now();
       const remainingMin = Math.ceil(remainingMs / 60000);
@@ -516,21 +542,19 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
 
       return {
         allowed: false,
-        reason: `تداول ${symbol} متوقف مؤقتاً بسبب تقلب شديد (مستوى ${state.level}). يُستأنف بعد ${timeStr}.`,
+        reason: `تداول ${symbol} متوقف مؤقتاً لك بسبب تقلب شديد (مستوى ${state.level}). يُستأنف بعد ${timeStr}.`,
         failedCheck: 'CIRCUIT_BREAKER',
       };
     }
 
     // FIX: If cooldown has expired, check if we should reset the level
-    // If the market has calmed down (below threshold), reset the progressive level
     if (state && state.triggered && state.until <= new Date()) {
-      // Cooldown expired — check if the extreme volatility has subsided
       try {
         const quote = await this.exchangeService.getQuote(symbol);
         if (quote && Math.abs(quote.changePercent) <= this.circuitBreakerThresholdPercent) {
           // Market has calmed — reset the circuit breaker completely
-          this.circuitBreakerState.delete(symbol);
-          this._persistCircuitBreakerToRedis(symbol);
+          this.circuitBreakerState.delete(cbKey);
+          this._persistCircuitBreakerToRedis(cbKey);
           this.logger.log(`🟢 Circuit breaker RESET for ${symbol} — volatility subsided (${quote.changePercent.toFixed(1)}%)`);
         } else {
           // Still volatile — extend cooldown with next exponential level
@@ -541,14 +565,14 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
           );
           const newUntil = new Date(Date.now() + cooldownMs);
 
-          this.circuitBreakerState.set(symbol, {
+          this.circuitBreakerState.set(cbKey, {
             triggered: true,
             until: newUntil,
             level: newLevel,
             triggeredAt: state.triggeredAt,
             consecutiveTriggers: state.consecutiveTriggers + 1,
           });
-          this._persistCircuitBreakerToRedis(symbol);
+          this._persistCircuitBreakerToRedis(cbKey);
 
           this.logger.warn(
             `🔴 Circuit breaker RE-TRIGGERED for ${symbol}: still volatile (${quote?.changePercent?.toFixed(1)}%) — level ${newLevel}, cooldown ${Math.round(cooldownMs / 1000)}s`,
@@ -556,14 +580,14 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
 
           return {
             allowed: false,
-            reason: `تقلب شديد مستمر في ${symbol} (مستوى ${newLevel}). التداول متوقف لمدة ${Math.round(cooldownMs / 60000)} دقيقة حمايةً لك.`,
+            reason: `تقلب شديد مستمر في ${symbol} (مستوى ${newLevel}). التداول متوقف لك لمدة ${Math.round(cooldownMs / 60000)} دقيقة حمايةً لك.`,
             failedCheck: 'CIRCUIT_BREAKER',
           };
         }
       } catch {
         // Can't verify — reset cautiously (allow trading)
-        this.circuitBreakerState.delete(symbol);
-        this._persistCircuitBreakerToRedis(symbol);
+        this.circuitBreakerState.delete(cbKey);
+        this._persistCircuitBreakerToRedis(cbKey);
       }
     }
 
@@ -573,7 +597,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       if (quote && Math.abs(quote.changePercent) > this.circuitBreakerThresholdPercent) {
         // FIX: Progressive cooldown with exponential backoff
         // Determine level: check if there's a recent expired state to build upon
-        const previousState = this.circuitBreakerState.get(symbol);
+        const previousState = this.circuitBreakerState.get(cbKey);
         const level = previousState ? previousState.level + 1 : 1;
         const consecutiveTriggers = previousState ? previousState.consecutiveTriggers + 1 : 1;
 
@@ -583,14 +607,14 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
         );
         const until = new Date(Date.now() + cooldownMs);
 
-        this.circuitBreakerState.set(symbol, {
+        this.circuitBreakerState.set(cbKey, {
           triggered: true,
           until,
           level,
           triggeredAt: new Date(),
           consecutiveTriggers,
         });
-        this._persistCircuitBreakerToRedis(symbol);
+        this._persistCircuitBreakerToRedis(cbKey);
 
         const cooldownSec = Math.round(cooldownMs / 1000);
         const cooldownMin = Math.round(cooldownMs / 60000);

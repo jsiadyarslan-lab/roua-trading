@@ -18,6 +18,7 @@ import { OrderStateManagerService } from './services/order-state-manager.service
 import { PositionManagerService } from './services/position-manager.service';
 import { OrderProducerService } from './services/order-producer.service';
 import { OrderConsumerService } from './services/order-consumer.service';
+import { PositionReconciliationService } from './services/position-reconciliation.service';
 
 /**
  * Trading Module — Complete Trading Engine
@@ -37,6 +38,7 @@ import { OrderConsumerService } from './services/order-consumer.service';
  * - PositionManagerService: Portfolio tracking with live P&L
  * - OrderProducerService: RabbitMQ order publisher
  * - OrderConsumerService: RabbitMQ order processor
+ * - PositionReconciliationService: Background job to reconcile failed position updates
  */
 @Module({
   imports: [
@@ -65,6 +67,7 @@ import { OrderConsumerService } from './services/order-consumer.service';
     PositionManagerService,
     OrderProducerService,
     OrderConsumerService,
+    PositionReconciliationService,
   ],
   exports: [
     TradingService,
@@ -75,6 +78,7 @@ import { OrderConsumerService } from './services/order-consumer.service';
     PositionManagerService,
     OrderProducerService,
     OrderConsumerService,
+    PositionReconciliationService,
   ],
 })
 export class TradingModule {}

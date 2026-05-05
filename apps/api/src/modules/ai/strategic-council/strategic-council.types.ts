@@ -77,7 +77,11 @@ export const TIMEFRAME_RR: Record<BriefTimeframe, { sl: number; tp: number; maxS
 };
 
 /** Minimum confidence score to issue a brief */
-export const MIN_BRIEF_CONFIDENCE = 60;
+export const MIN_BRIEF_CONFIDENCE = 50;
 
-/** Minimum consensus score to issue a brief */
-export const MIN_CONSENSUS_SCORE = 60;
+/** Minimum consensus score to issue a brief — lowered from 60 to 50
+ *  With 8 AI models, votes are often split. 60% was too strict and
+ *  caused most consensus results to be rejected, producing zero Briefs.
+ *  50% = majority threshold (more than half agree).
+ */
+export const MIN_CONSENSUS_SCORE = 50;

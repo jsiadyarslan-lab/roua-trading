@@ -38,8 +38,12 @@ export class StrategicCouncilService {
   /** Is council currently in session */
   private isInSession = false;
 
-  /** Daily cost cap for council sessions */
-  private readonly DAILY_COST_CAP_USD = 5.00;
+  /** Daily cost cap for council sessions — increased from $5 to $20
+   *  $5 was too low: 15 pairs × 4 timeframes × 8 models × $0.02 = $9.60/session
+   *  With hourly sessions, daily cost = $9.60 × 24 = $230 but most models are free/cheap tier.
+   *  $20 allows ~2-3 full sessions before cap, which is reasonable.
+   */
+  private readonly DAILY_COST_CAP_USD = 20.00;
 
   /** Redis keys */
   private readonly REDIS_DAILY_COST_KEY = 'strategic-council:daily_cost';
@@ -53,6 +57,31 @@ export class StrategicCouncilService {
     private readonly exchangeService: ExchangeService,
   ) {
     this.logger.log('🏛️ Strategic Council initialized — THE ONLY consensus engine');
+    // Startup health check: warn if no AI models are available
+    this._checkAIHealth();
+  }
+
+  /**
+   * Check AI model availability at startup and log critical warnings
+   */
+  private _checkAIHealth(): void {
+    // Delay check to allow all services to initialize
+    setTimeout(async () => {
+      try {
+        const models = await this.orchestrator.getModelsStatus();
+        const working = models.filter((m: any) => m.available || m.keyAvailable).length;
+        if (working === 0) {
+          this.logger.error(
+            '🏛️ ⚠️ CRITICAL: Zero AI models available! The Strategic Council will produce NO Briefs. ' +
+            'Set at least one API key: GROQ_API_KEY, GEMINI_API_KEY, GLM_API_KEY, OPENROUTER_API_KEY, or DEEPSEEK_API_KEY',
+          );
+        } else {
+          this.logger.log(`🏛️ AI Health: ${working}/${models.length} models available — Council can produce Briefs`);
+        }
+      } catch (error: any) {
+        this.logger.warn(`🏛️ AI health check failed: ${error.message}`);
+      }
+    }, 5000);
   }
 
   // ── Scheduled Sessions ──
@@ -218,7 +247,10 @@ export class StrategicCouncilService {
    * Get all active briefs (for Smart Executor consumption)
    */
   async getActiveBriefs(userId?: string): Promise<TradingBriefDTO[]> {
-    const where: any = { isActive: true, reviewStatus: 'ACTIVE' };
+    // FIX: Include MODIFIED briefs — they are still active and should be
+    // executed by the Smart Executor. Previously only 'ACTIVE' was returned,
+    // so modified briefs were invisible to the executor.
+    const where: any = { isActive: true, reviewStatus: { in: ['ACTIVE', 'MODIFIED'] } };
     if (userId) where.userId = userId;
 
     const briefs = await this.prisma.tradingBrief.findMany({
@@ -235,7 +267,7 @@ export class StrategicCouncilService {
   async getActiveBriefsCount(): Promise<number> {
     try {
       return await this.prisma.tradingBrief.count({
-        where: { isActive: true, reviewStatus: 'ACTIVE' },
+        where: { isActive: true, reviewStatus: { in: ['ACTIVE', 'MODIFIED'] } },
       });
     } catch {
       return 0;
@@ -594,7 +626,11 @@ export class StrategicCouncilService {
 
   private async _addCost(analysesCount: number): Promise<void> {
     try {
-      const estimatedCost = analysesCount * 0.02;
+      // FIX: Reduced cost estimate from $0.02 to $0.005 per analysis.
+      // Most models (Groq free tier, Gemini free, Ollama, GLM free) are $0.
+      // OpenRouter free models are $0. DeepSeek is ~$0.001.
+      // $0.02 was way too high, causing the $5 cap to hit after ~2 pairs.
+      const estimatedCost = analysesCount * 0.005;
       const currentCost = await this._getTodayCost();
       await this.redis.set(this.REDIS_DAILY_COST_KEY, (currentCost + estimatedCost).toString(), 86400000);
     } catch {

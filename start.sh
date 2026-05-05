@@ -823,6 +823,12 @@ EOSQL
     EXCEPTION WHEN duplicate_object THEN NULL;
     END $$;
 
+    -- FIX: Add EXECUTED value if the enum already exists without it
+    DO $$ BEGIN
+      ALTER TYPE "BriefReviewStatus" ADD VALUE IF NOT EXISTS 'EXECUTED';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
     CREATE TABLE IF NOT EXISTS "TradingBrief" (
       "id" TEXT NOT NULL,
       "userId" TEXT,

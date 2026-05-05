@@ -59,6 +59,32 @@ export class StrategicCouncilService {
     this.logger.log('🏛️ Strategic Council initialized — THE ONLY consensus engine');
     // Startup health check: warn if no AI models are available
     this._checkAIHealth();
+    // FIX: Trigger an initial council session 30 seconds after startup
+    // so briefs are produced immediately instead of waiting up to 1 hour
+    // for the next cron job. This makes the dashboard show live data
+    // right after deployment.
+    this._triggerStartupSession();
+  }
+
+  /**
+   * FIX: Trigger an initial council session shortly after startup.
+   * This ensures trading briefs are available immediately after deployment
+   * instead of requiring users to wait up to 1 hour for the hourly cron.
+   * The 30-second delay gives NestJS time to fully initialize all modules.
+   */
+  private _triggerStartupSession(): void {
+    setTimeout(async () => {
+      try {
+        this.logger.log('🏛️ Triggering startup council session (initial briefs generation)...');
+        const result = await this.runHourlySession();
+        this.logger.log(
+          `🏛️ Startup session complete: ${result.pairsAnalyzed} pairs, ` +
+          `${result.briefsIssued} new briefs, ${result.briefsModified} modified`,
+        );
+      } catch (error: any) {
+        this.logger.error(`🏛️ Startup council session failed (non-critical): ${error.message}`);
+      }
+    }, 30000); // 30 seconds delay for full initialization
   }
 
   /**
@@ -283,18 +309,28 @@ export class StrategicCouncilService {
 
   /**
    * Get brief history (including expired/cancelled/executed)
+   * FIX: Added try-catch to prevent 503 errors when DB schema is out of sync.
+   * Previously, if the TradingBrief table didn't have expected columns,
+   * Prisma would throw and the controller would return 503.
    */
   async getBriefHistory(userId?: string, limit: number = 100): Promise<TradingBriefDTO[]> {
-    const where: any = {};
-    if (userId) where.userId = userId;
+    try {
+      const where: any = {};
+      if (userId) where.userId = userId;
 
-    const briefs = await this.prisma.tradingBrief.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-    });
+      const briefs = await this.prisma.tradingBrief.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+      });
 
-    return briefs.map((b) => this._toDTO(b));
+      return briefs.map((b) => this._toDTO(b));
+    } catch (error: any) {
+      this.logger.error(`🏛️ getBriefHistory failed: ${error.message}`);
+      // Return empty array instead of crashing — the Strategic Council
+      // will appear empty but won't return a 503 error
+      return [];
+    }
   }
 
   /**

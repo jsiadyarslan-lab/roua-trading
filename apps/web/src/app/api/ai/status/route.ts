@@ -12,13 +12,26 @@ import { getAvailableModelKeys } from '@/lib/ai-direct-calls'
 export async function GET(req: NextRequest) {
   let lastError: string | null = null
 
+  // FIX: Include the user's session token from cookies so NestJS AuthGuard
+  // doesn't reject with 401. Previously sent a fake 'status-check' token
+  // which AuthGuard couldn't validate → always returned 401.
+  const sessionToken = req.cookies.get('roua_session')?.value || ''
+
   // Try NestJS models endpoint
   try {
     const baseUrl = process.env.API_INTERNAL_URL || 'http://localhost:3001'
     const modelsUrl = `${baseUrl}/api/ai/models`
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    if (sessionToken) {
+      headers['Authorization'] = `Bearer ${sessionToken}`
+      headers['x-roua-session'] = sessionToken
+      headers['Cookie'] = `roua_session=${sessionToken}`
+    }
     const res = await fetch(modelsUrl, {
       signal: AbortSignal.timeout(15000),
-      headers: { 'x-roua-session': 'status-check' },
+      headers,
     })
 
     if (res.ok) {

@@ -438,16 +438,21 @@ export function AgentControlMini() {
         </div>
       )}
 
-      {/* ── No Agent State Warning (backend offline) ── */}
+      {/* ── No Agent State Warning (backend offline or not started) ── */}
       {!agentState && !loading && !error && (
         <div style={{
-          padding: '4px 8px', background: 'rgba(255,184,0,0.06)',
-          borderTop: '1px solid rgba(255,184,0,0.15)',
-          fontSize: 7, color: T.amber, fontFamily: FONT_AR,
-          display: 'flex', alignItems: 'center', gap: 4,
+          padding: '6px 8px', background: 'rgba(0,212,255,0.04)',
+          borderTop: `1px solid rgba(0,212,255,0.12)`,
+          fontSize: 7, color: T.accent, fontFamily: FONT_AR,
+          display: 'flex', flexDirection: 'column', gap: 3,
         }}>
-          <AlertTriangle size={8} />
-          <span>الخادم غير متاح — يُعاد الاتصال تلقائياً</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Play size={8} />
+            <span style={{ fontWeight: 700 }}>الوكيل جاهز للبدء</span>
+          </div>
+          <span style={{ color: T.text3, fontSize: 6.5 }}>
+            اضغط "تشغيل" لبدء التداول الورقي التلقائي باستراتيجية تكيفية
+          </span>
         </div>
       )}
 

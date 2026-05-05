@@ -19,6 +19,20 @@ export class StrategicCouncilController {
   constructor(private readonly councilService: StrategicCouncilService) {}
 
   /**
+   * GET /api/strategic-council/briefs — Get all briefs (combined active + recent)
+   * FIX: Added this route because the frontend and API callers sometimes use
+   * /briefs without /active suffix, causing 404 errors.
+   */
+  @Get('briefs')
+  async getAllBriefs() {
+    const [active, count] = await Promise.all([
+      this.councilService.getActiveBriefs(),
+      this.councilService.getActiveBriefsCount(),
+    ]);
+    return { success: true, data: { active, count } };
+  }
+
+  /**
    * GET /api/strategic-council/briefs/active — Get active trading briefs
    */
   @Get('briefs/active')

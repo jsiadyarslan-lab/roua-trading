@@ -428,7 +428,7 @@ export default function TradingPage() {
 
   const formatPrice = (value: number) => {
     // Use unified price formatting — respects JPY (3dp), BTC (2dp), forex (5dp)
-    return fmtPriceLocale(value, selectedSymbol)
+    return fmtPriceLocale(value, symbol)
   }
 
   const formatVolume = (value: number) => {
@@ -939,21 +939,21 @@ export default function TradingPage() {
                         >
                           <div className="flex items-center gap-3">
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
-                              pos.side === 'BUY'
+                              (pos.side === 'BUY' || pos.side === 'long')
                                 ? 'bg-emerald-500/10 text-emerald-400'
                                 : 'bg-red-500/10 text-red-400'
                             }`}>
-                              {pos.side === 'BUY' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+                              {(pos.side === 'BUY' || pos.side === 'long') ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
                             </div>
                             <div>
                               <p className="font-medium text-sm" dir="ltr">{pos.symbol}</p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <Badge className={`text-[10px] border-0 ${
-                                  pos.side === 'BUY'
+                                  (pos.side === 'BUY' || pos.side === 'long')
                                     ? 'bg-emerald-500/10 text-emerald-400'
                                     : 'bg-red-500/10 text-red-400'
                                 }`}>
-                                  {pos.side === 'BUY' ? 'شراء' : 'بيع'}
+                                  {(pos.side === 'BUY' || pos.side === 'long') ? 'شراء' : 'بيع'}
                                 </Badge>
                                 <span>{pos.quantity}</span>
                                 <span>@</span>

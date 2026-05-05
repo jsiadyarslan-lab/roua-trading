@@ -85,6 +85,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const mainSeriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
   const priceLinesRef = useRef<Map<string, any>>(new Map());
   const onCrosshairMoveRef = useRef(onCrosshairMove);
+  // FIX: Moved visibleRangeCallbackRef and prevCallbackRef up from line ~1321 to here
+  // to prevent TDZ (Temporal Dead Zone) error — initChart() at line ~136 references
+  // visibleRangeCallbackRef.current, and it must be declared before initChart is defined.
+  const visibleRangeCallbackRef = useRef<(() => void) | null>(null);
+  const prevCallbackRef = useRef<(() => void) | null>(null);
 
   // Keep the ref updated without triggering re-init
   useEffect(() => {
@@ -375,7 +380,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // ── Initialize on mount (once) ────────────────────────
   useEffect(() => {
     setIsChartReady(false);
-    initChart();
+    initChart().catch(e => console.error('[useChart] init failed:', e));  // FIX: Catch async errors instead of silently swallowing
     return () => {
       setIsChartReady(false);
       if (drawingRendererRef.current) {
@@ -816,8 +821,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const kData: { time: Time; value: number }[] = [];
       const dData: { time: Time; value: number }[] = [];
       results.forEach((r: any) => {
-        if (r.values?.k !== null) kData.push({ time: r.time as Time, value: r.values.k });
-        if (r.values?.d !== null) dData.push({ time: r.time as Time, value: r.values.d });
+        // FIX: Use != null (loose equality) to catch both null AND undefined
+        // Previously !== null let undefined values through, crashing lightweight-charts
+        if (r.values?.k != null) kData.push({ time: r.time as Time, value: r.values.k });
+        if (r.values?.d != null) dData.push({ time: r.time as Time, value: r.values.d });
       });
 
       addOscillatorLine('stoch-k', kData, '#a855f7', 'stoch-scale');
@@ -847,9 +854,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const pdiData: { time: Time; value: number }[] = [];
       const mdiData: { time: Time; value: number }[] = [];
       results.forEach((r: any) => {
-        if (r.values?.adx !== null) adxData.push({ time: r.time as Time, value: r.values.adx });
-        if (r.values?.pdi !== null) pdiData.push({ time: r.time as Time, value: r.values.pdi });
-        if (r.values?.mdi !== null) mdiData.push({ time: r.time as Time, value: r.values.mdi });
+        // FIX: Use != null (loose equality) to catch both null AND undefined
+        if (r.values?.adx != null) adxData.push({ time: r.time as Time, value: r.values.adx });
+        if (r.values?.pdi != null) pdiData.push({ time: r.time as Time, value: r.values.pdi });
+        if (r.values?.mdi != null) mdiData.push({ time: r.time as Time, value: r.values.mdi });
       });
 
       addOscillatorLine('adx-line', adxData, '#fbbf24', 'adx-scale', 2);
@@ -926,9 +934,18 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     }
 
     // Re-apply indicators with fresh data using ref to avoid stale closure
-    activeIndicatorsRef.current.forEach((ind) => {
-      addIndicator(ind);
-    });
+    // FIX: Debounce indicator recalculation — only re-apply if indicators exist
+    // to prevent re-creating ALL indicator series on every WebSocket tick
+    const activeIndicators = activeIndicatorsRef.current;
+    if (activeIndicators.size > 0) {
+      // Use requestAnimationFrame to batch indicator updates and avoid
+      // re-creating series multiple times per frame (e.g., on rapid ticks)
+      requestAnimationFrame(() => {
+        activeIndicators.forEach((ind) => {
+          addIndicator(ind);
+        });
+      });
+    }
   }, [settings.type, addIndicator]);
 
   // ── Apply pending candles when chart becomes ready ──
@@ -1317,9 +1334,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     return candleSeriesRef.current.priceToCoordinate(price);
   }, []);
 
-  // Store the visible range callback so we can subscribe when chart is created
-  const visibleRangeCallbackRef = useRef<(() => void) | null>(null);
-  const prevCallbackRef = useRef<(() => void) | null>(null);
+  // visibleRangeCallbackRef and prevCallbackRef are now declared at the top
+  // of the hook (near other refs) to prevent TDZ errors. See line ~91.
 
   const onVisibleRangeChange = useCallback((callback: () => void): (() => void) => {
     // Unsubscribe previous callback before subscribing new one

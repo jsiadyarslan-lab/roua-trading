@@ -410,6 +410,7 @@ export async function calculateIndicator(
 
 // ── Heikin-Ashi Transform ───────────────────────────────
 export function toHeikinAshi(candles: CandleData[]): CandleData[] {
+  if (!candles.length) return [];  // FIX: Prevent crash on empty array — accessing candles[0] would throw TypeError
   const results: CandleData[] = [];
   let prevHaOpen = (candles[0].open + candles[0].close) / 2;
 

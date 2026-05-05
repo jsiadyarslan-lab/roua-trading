@@ -109,7 +109,7 @@ export function CrosshairOverlay({
             transition: 'color 0.22s ease, text-shadow 0.22s ease',
             textShadow: pricePulse ? `0 0 12px ${isBull ? COLORS.success : COLORS.danger}` : 'none',
           }}>
-            {price ? price.toFixed(decimals) : '—'}
+            {price != null ? price.toFixed(decimals) : '—'}
           </span>
 
           {/* Change % */}
@@ -176,7 +176,7 @@ export function CrosshairOverlay({
           transition: 'color 0.22s ease, text-shadow 0.22s ease',
           textShadow: pricePulse ? `0 0 12px ${isBull ? COLORS.success : COLORS.danger}` : 'none',
         }}>
-          {price ? price.toFixed(decimals) : '—'}
+          {price != null ? price.toFixed(decimals) : '—'}
         </span>
 
         {/* OHLC */}

@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
-  ArrowRight, Trophy, Crown, Medal, TrendingUp, TrendingDown, Users, Shield,
-  Target, Clock, BarChart3, Eye, Lock, Unlock, Star, Zap, Award, AlertTriangle,
+  ArrowRight, Trophy, Crown, Medal, TrendingUp, Shield,
+  Target, BarChart3, Eye, Lock, Unlock, Star, Zap, Award,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
@@ -28,34 +28,24 @@ interface Trader {
   followAvailable: boolean; consistency: number; isCurrentUser?: boolean;
 }
 
-/* ─── Mock Data (same as desktop) ─── */
-const MOCK_TRADERS: Trader[] = [
-  { id: '1', name: 'خالد الراشدي', type: 'مضارب', avatar: 'خ', returnPct: 187.4, winRate: 89.2, maxDrawdown: -8.4, aum: '$4.2M', followers: 3240, followAvailable: true, consistency: 94 },
-  { id: '2', name: 'سارة المنصوري', type: 'مدير محفظة', avatar: 'س', returnPct: 142.8, winRate: 82.6, maxDrawdown: -6.1, aum: '$12.5M', followers: 2890, followAvailable: true, consistency: 91 },
-  { id: '3', name: 'عبدالله القحطاني', type: 'تحليل فني', avatar: 'ع', returnPct: 124.5, winRate: 78.4, maxDrawdown: -12.3, aum: '$2.8M', followers: 2150, followAvailable: true, consistency: 87 },
-  { id: '4', name: 'نورة العتيبي', type: 'استثمار طويل', avatar: 'ن', returnPct: 98.2, winRate: 91.5, maxDrawdown: -4.2, aum: '$18.7M', followers: 1960, followAvailable: false, consistency: 96 },
-  { id: '5', name: 'فهد الدوسري', type: 'خوارزمي', avatar: 'ف', returnPct: 87.6, winRate: 76.8, maxDrawdown: -9.7, aum: '$6.1M', followers: 1540, followAvailable: true, consistency: 83 },
-  { id: '6', name: 'ريم السبيعي', type: 'تداول يومي', avatar: 'ر', returnPct: 76.3, winRate: 73.2, maxDrawdown: -14.8, aum: '$1.4M', followers: 1280, followAvailable: true, consistency: 79 },
-  { id: '7', name: 'محمد الشمري', type: 'مضارب', avatar: 'م', returnPct: 68.9, winRate: 85.1, maxDrawdown: -7.5, aum: '$3.6M', followers: 1120, followAvailable: true, consistency: 88 },
-  { id: '8', name: 'لمى الحربي', type: 'مدير محفظة', avatar: 'ل', returnPct: 62.4, winRate: 80.3, maxDrawdown: -5.8, aum: '$9.3M', followers: 980, followAvailable: false, consistency: 92 },
-  { id: '9', name: 'تركي العنزي', type: 'تحليل فني', avatar: 'ت', returnPct: 55.7, winRate: 71.6, maxDrawdown: -11.2, aum: '$2.1M', followers: 870, followAvailable: true, consistency: 76 },
-  { id: '10', name: 'هند الزهراني', type: 'استثمار طويل', avatar: 'ه', returnPct: 48.3, winRate: 88.9, maxDrawdown: -3.9, aum: '$22.4M', followers: 760, followAvailable: true, consistency: 95 },
-  { id: '11', name: 'سلطان الغامدي', type: 'خوارزمي', avatar: 'س', returnPct: 42.1, winRate: 69.4, maxDrawdown: -16.5, aum: '$880K', followers: 640, followAvailable: true, consistency: 72 },
-  { id: '12', name: 'دانة المالكي', type: 'تداول يومي', avatar: 'د', returnPct: 38.6, winRate: 74.8, maxDrawdown: -10.1, aum: '$1.7M', followers: 520, followAvailable: false, consistency: 81 },
-  { id: '20', name: 'أحمد النفيعي', type: 'تحليل فني', avatar: 'أ', returnPct: 9.6, winRate: 60.4, maxDrawdown: -21.5, aum: '$210K', followers: 90, followAvailable: true, consistency: 61, isCurrentUser: true },
-]
+/* ─── API Response Types ─── */
+interface LeaderboardResponse {
+  traders: Trader[]
+  badges: Badge[]
+  currentUser: Trader | null
+  currentUserRank: number | null
+}
 
-const BADGES = [
-  { id: 'first-trade', name: 'أول ربط', icon: Zap, color: C.accent, unlocked: true, desc: 'أتممت أول ربط بنجاح' },
-  { id: '100-trades', name: '100 صفقة', icon: BarChart3, color: C.success, unlocked: true, desc: 'نفّذت 100 صفقة متبعة' },
-  { id: 'top-monthly', name: 'أعلى عائد', icon: Crown, color: C.gold, unlocked: true, desc: 'حققت أعلى عائد شهري' },
-  { id: 'consistent', name: 'حساب متسق', icon: Target, color: C.amber, unlocked: false, desc: 'حافظ على أداء متسق لمدة 6 أشهر' },
-  { id: 'ai-expert', name: 'خبير AI', icon: Shield, color: C.purple, unlocked: false, desc: 'استخدم الذكاء الاصطناعي في 50 تحليل' },
-  { id: 'risk-master', name: 'خبير المخاطر', icon: Shield, color: C.success, unlocked: false, desc: 'حافظ على سحب أقصى أقل من 5%' },
-]
+interface Badge {
+  id: string; name: string; icon: string; color: string; unlocked: boolean; desc: string
+}
 
 const returnTypeColor = (val: number) => val >= 0 ? C.success : C.danger
-const drawdownColor = (val: number) => { const a = Math.abs(val); if (a <= 5) return C.success; if (a <= 10) return C.amber; return C.danger }
+
+/* ─── Badge icon map ─── */
+const BADGE_ICONS: Record<string, typeof Zap> = {
+  Zap, BarChart3, Crown, Target, Shield, Star,
+}
 
 export default function MobileLeaderboardPage() {
   const router = useRouter()
@@ -63,13 +53,47 @@ export default function MobileLeaderboardPage() {
   const [followingTraders, setFollowingTraders] = useState<Set<string>>(new Set())
   const [showBadges, setShowBadges] = useState(false)
 
+  /* ─── API Data State ─── */
+  const [traders, setTraders] = useState<Trader[]>([])
+  const [badges, setBadges] = useState<Badge[]>([])
+  const [currentUser, setCurrentUser] = useState<Trader | null>(null)
+  const [currentUserRank, setCurrentUserRank] = useState<number | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  /* ─── Fetch leaderboard data ─── */
+  const fetchLeaderboard = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/leaderboard')
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data: LeaderboardResponse = await res.json()
+      setTraders(data.traders ?? [])
+      setBadges(data.badges ?? [])
+      setCurrentUser(data.currentUser ?? null)
+      setCurrentUserRank(data.currentUserRank ?? null)
+    } catch (err) {
+      // API not available or error — show empty state
+      setTraders([])
+      setBadges([])
+      setCurrentUser(null)
+      setCurrentUserRank(null)
+      setError(err instanceof Error ? err.message : 'Failed to load')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { fetchLeaderboard() }, [fetchLeaderboard])
+
   const categoryTabs: { key: CategoryFilter; icon: typeof TrendingUp }[] = [
     { key: 'العائد', icon: TrendingUp }, { key: 'نسبة الفوز', icon: Target },
     { key: 'الاتساق', icon: BarChart3 }, { key: 'متابعة الحسابات', icon: Shield },
   ]
 
   const sortedTraders = useMemo(() => {
-    return [...MOCK_TRADERS].sort((a, b) => {
+    return [...traders].sort((a, b) => {
       switch (categoryFilter) {
         case 'العائد': return b.returnPct - a.returnPct
         case 'نسبة الفوز': return b.winRate - a.winRate
@@ -78,12 +102,10 @@ export default function MobileLeaderboardPage() {
         default: return b.returnPct - a.returnPct
       }
     })
-  }, [categoryFilter])
+  }, [traders, categoryFilter])
 
   const top3 = sortedTraders.slice(0, 3)
   const restTraders = sortedTraders.slice(3)
-  const currentUser = MOCK_TRADERS.find(t => t.isCurrentUser)!
-  const currentUserRank = sortedTraders.findIndex(t => t.isCurrentUser) + 1
 
   const toggleFollow = (traderId: string, traderName: string) => {
     setFollowingTraders(prev => {
@@ -120,11 +142,6 @@ export default function MobileLeaderboardPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
             <div style={{ color: C.amber, display: 'flex' }}><Trophy size={20} /></div>
             <h1 style={{ fontSize: 20, fontWeight: 900, color: C.text, fontFamily: FONT_AR }}>لوحة الصدارة</h1>
-            <span style={{
-              fontSize: 9, padding: '2px 7px', borderRadius: 20,
-              background: `${C.amber}18`, color: '#FF9500',
-              fontFamily: FONT_MONO, fontWeight: 800,
-            }}>DEMO</span>
           </div>
         </div>
 
@@ -146,24 +163,41 @@ export default function MobileLeaderboardPage() {
       </div>
 
       <div style={{ padding: '16px 20px' }}>
-        {/* ──── Demo Disclaimer Banner ──── */}
-        <div style={{
-          background: `${C.amber}10`, border: `0.5px solid ${C.amber}30`,
-          borderRadius: 14, padding: '12px 14px', marginBottom: 16,
-          display: 'flex', alignItems: 'center', gap: 10,
-        }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 10,
-            background: `${C.amber}18`, display: 'flex',
-            alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          }}>
-            <AlertTriangle size={16} color={C.amber} />
+        {/* ──── Loading State ──── */}
+        {loading && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', gap: 16 }}>
+            <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: 'linear' }} style={{ width: 40, height: 40, borderRadius: '50%', border: `3px solid ${C.border}`, borderTopColor: C.accent }} />
+            <div style={{ fontSize: 13, color: C.text2, fontFamily: FONT_AR }}>جاري تحميل لوحة الصدارة…</div>
           </div>
-          <div style={{ fontSize: 11, color: C.text2, fontFamily: FONT_AR, lineHeight: 1.6 }}>
-            هذه بيانات تجريبية لأغراض العرض فقط. لا تمثل نتائج تداول حقيقية.
+        )}
+
+        {/* ──── Empty State ──── */}
+        {!loading && sortedTraders.length === 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', gap: 16 }}>
+            <div style={{ width: 64, height: 64, borderRadius: 20, background: `${C.accent}10`, border: `0.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Trophy size={28} color={C.text3} />
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 900, color: C.text, fontFamily: FONT_AR }}>لا توجد بيانات حالياً</div>
+            <div style={{ fontSize: 12, color: C.text2, fontFamily: FONT_AR, textAlign: 'center', lineHeight: 1.6 }}>
+              لم يتم العثور على بيانات لوحة الصدارة. حاول مرة أخرى لاحقاً.
+            </div>
+            {error && (
+              <div style={{ fontSize: 10, color: C.danger, fontFamily: FONT_MONO, padding: '4px 10px', borderRadius: 8, background: `${C.danger}10`, border: `0.5px solid ${C.danger}20` }}>
+                {error}
+              </div>
+            )}
+            <motion.button whileTap={{ scale: 0.95 }} onClick={fetchLeaderboard} style={{
+              padding: '10px 20px', borderRadius: 12, fontSize: 12, fontWeight: 800,
+              fontFamily: FONT_AR, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
+              background: `${C.accent}15`, border: `0.5px solid ${C.accent}30`, color: C.accent,
+            }}>
+              <TrendingUp size={14} /> إعادة المحاولة
+            </motion.button>
           </div>
-        </div>
-        {/* Top 3 Podium */}
+        )}
+
+        {/* ──── Top 3 Podium ──── */}
+        {!loading && sortedTraders.length > 0 && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'flex-end' }}>
           {/* 2nd */}
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} style={{
@@ -210,8 +244,10 @@ export default function MobileLeaderboardPage() {
             <div style={{ fontSize: 8, color: C.text3, fontFamily: FONT_AR }}>#{3}</div>
           </motion.div>
         </div>
+        )}
 
         {/* Rankings List */}
+        {!loading && sortedTraders.length > 3 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {restTraders.map((trader, idx) => {
             const rank = idx + 4
@@ -262,8 +298,10 @@ export default function MobileLeaderboardPage() {
             )
           })}
         </div>
+        )}
 
         {/* Your Ranking Card */}
+        {currentUser && currentUserRank != null && (
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{
           marginTop: 16, padding: '16px', borderRadius: 20,
           background: `linear-gradient(135deg, ${C.accent}08, rgba(28,28,30,0.6))`,
@@ -282,6 +320,7 @@ export default function MobileLeaderboardPage() {
             </div>
           </div>
         </motion.div>
+        )}
 
         {/* Badges Toggle */}
         <motion.button whileTap={{ scale: 0.97 }} onClick={() => setShowBadges(!showBadges)} style={{
@@ -290,28 +329,36 @@ export default function MobileLeaderboardPage() {
           color: C.text2, fontSize: 13, fontWeight: 800, fontFamily: FONT_AR, cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}>
-          <Award size={16} color={C.purple} /> شارات الإنجاز ({BADGES.filter(b => b.unlocked).length}/{BADGES.length})
+          <Award size={16} color={C.purple} /> شارات الإنجاز ({badges.filter(b => b.unlocked).length}/{badges.length})
         </motion.button>
 
         {/* Badges Grid */}
-        {showBadges && (
+        {showBadges && badges.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
-            {BADGES.map(badge => (
-              <motion.div key={badge.id} whileTap={{ scale: 0.95 }} onClick={() => toast({ title: badge.unlocked ? `${badge.name} ✅` : `${badge.name} 🔒`, description: badge.desc })} style={{
-                padding: '12px', borderRadius: 14, background: badge.unlocked ? `${badge.color}08` : 'rgba(28,28,30,0.4)',
-                border: `0.5px solid ${badge.unlocked ? `${badge.color}25` : C.border}`,
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center',
-                opacity: badge.unlocked ? 1 : 0.5, cursor: 'pointer',
-              }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: badge.unlocked ? `${badge.color}15` : 'rgba(28,28,30,0.5)', border: `0.5px solid ${badge.unlocked ? `${badge.color}30` : C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <badge.icon size={18} color={badge.unlocked ? badge.color : C.text3} />
-                </div>
-                <div style={{ fontSize: 10, fontWeight: 800, color: badge.unlocked ? C.text : C.text3, fontFamily: FONT_AR }}>{badge.name}</div>
-                <div style={{ fontSize: 8, color: badge.unlocked ? badge.color : C.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 2 }}>
-                  {badge.unlocked ? <><Unlock size={7} /> مفتوح</> : <><Lock size={7} /> مقفل</>}
-                </div>
-              </motion.div>
-            ))}
+            {badges.map(badge => {
+              const IconComp = BADGE_ICONS[badge.icon] ?? Shield
+              return (
+                <motion.div key={badge.id} whileTap={{ scale: 0.95 }} onClick={() => toast({ title: badge.unlocked ? `${badge.name} ✅` : `${badge.name} 🔒`, description: badge.desc })} style={{
+                  padding: '12px', borderRadius: 14, background: badge.unlocked ? `${badge.color}08` : 'rgba(28,28,30,0.4)',
+                  border: `0.5px solid ${badge.unlocked ? `${badge.color}25` : C.border}`,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, textAlign: 'center',
+                  opacity: badge.unlocked ? 1 : 0.5, cursor: 'pointer',
+                }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: badge.unlocked ? `${badge.color}15` : 'rgba(28,28,30,0.5)', border: `0.5px solid ${badge.unlocked ? `${badge.color}30` : C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <IconComp size={18} color={badge.unlocked ? badge.color : C.text3} />
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: badge.unlocked ? C.text : C.text3, fontFamily: FONT_AR }}>{badge.name}</div>
+                  <div style={{ fontSize: 8, color: badge.unlocked ? badge.color : C.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 2 }}>
+                    {badge.unlocked ? <><Unlock size={7} /> مفتوح</> : <><Lock size={7} /> مقفل</>}
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
+        )}
+        {showBadges && badges.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '24px 12px', color: C.text3, fontSize: 12, fontFamily: FONT_AR }}>
+            لا توجد شارات متاحة حالياً
           </div>
         )}
       </div>

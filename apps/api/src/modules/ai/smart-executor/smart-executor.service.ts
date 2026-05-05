@@ -24,6 +24,7 @@ import { ExecutorStatus, ExecutionResult, ExecutorConfig, UserExecutorState } fr
 import { PlaceOrderRequest, OrderSide, OrderType } from '../../trading/trading.types';
 import { RiskGatekeeperService } from '../../trading/services/risk-gatekeeper.service';
 import { OrderSideEnum, OrderTypeEnum } from '../../trading/events/order.events';
+import { NotificationService } from '../../notification/notification.service';
 
 @Injectable()
 export class SmartExecutorService implements OnModuleDestroy {
@@ -59,8 +60,9 @@ export class SmartExecutorService implements OnModuleDestroy {
     private readonly tradingService: TradingService,
     private readonly councilService: StrategicCouncilService,
     private readonly riskGatekeeper: RiskGatekeeperService,
+    private readonly notificationService: NotificationService,
   ) {
-    this.logger.log('⚔️ Smart Executor initialized — awaiting activation (with RiskGatekeeper)');
+    this.logger.log('⚔️ Smart Executor initialized — awaiting activation (with RiskGatekeeper + Notifications)');
   }
 
   // ── Lifecycle ──
@@ -455,6 +457,57 @@ export class SmartExecutorService implements OnModuleDestroy {
           JSON.stringify(userState),
           86400000,
         );
+
+        // ── INSTANT NOTIFICATION: Push real-time alert to user ──
+        try {
+          const directionAr = brief.direction === 'BUY' ? 'شراء' : 'بيع';
+          const modeLabel = userState.isPaperTrading ? 'ورقي' : 'حقيقي';
+          await this.notificationService.sendNotification({
+            userId,
+            type: 'POSITION_OPENED',
+            priority: 'HIGH',
+            title: `⚔️ المنفذ الذكي: ${directionAr} ${brief.pair}`,
+            body: `تم تنفيذ ${directionAr} ${brief.pair} @ $${currentPrice.toFixed(2)} | ثقة ${brief.confidence}% | وضع ${modeLabel} | وقف خسارة: $${brief.stopLoss?.toFixed(2) || 'غير محدد'} | هدف: $${brief.takeProfit?.toFixed(2) || 'غير محدد'}`,
+            data: {
+              briefId: brief.id,
+              orderId: result.orderId,
+              pair: brief.pair,
+              direction: brief.direction,
+              entryPrice: currentPrice,
+              stopLoss: brief.stopLoss,
+              takeProfit: brief.takeProfit,
+              confidence: brief.confidence,
+              isPaperTrading: userState.isPaperTrading,
+            },
+            source: 'bot',
+            action: brief.direction === 'BUY' ? 'BUY' : 'SELL',
+            pair: brief.pair,
+          });
+        } catch (notifError: any) {
+          this.logger.warn(`⚔️ Failed to send execution notification to user ${userId}: ${notifError.message}`);
+        }
+      } else {
+        // ── INSTANT NOTIFICATION: Alert on failed execution ──
+        try {
+          await this.notificationService.sendNotification({
+            userId,
+            type: 'ORDER_REJECTED',
+            priority: 'MEDIUM',
+            title: `⚠️ فشل تنفيذ ${brief.pair}`,
+            body: `لم يتم تنفيذ ${brief.direction === 'BUY' ? 'شراء' : 'بيع'} ${brief.pair}: ${result.error || 'سبب غير معروف'}`,
+            data: {
+              briefId: brief.id,
+              pair: brief.pair,
+              direction: brief.direction,
+              error: result.error,
+            },
+            source: 'bot',
+            action: 'WARN',
+            pair: brief.pair,
+          });
+        } catch (notifError: any) {
+          this.logger.warn(`⚔️ Failed to send rejection notification to user ${userId}: ${notifError.message}`);
+        }
       }
     }
   }

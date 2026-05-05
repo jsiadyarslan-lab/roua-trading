@@ -258,18 +258,27 @@ export function SmartExecutorPanel() {
         </div>
       )}
 
-      {/* Positions List */}
+      {/* Positions List — filter out phantom trades with near-zero entry prices */}
       <div style={{
         flex: 1, minHeight: 0, maxHeight: '50vh', overflowY: 'auto',
         padding: 4, background: 'rgba(11,14,20,0.45)',
       }} className="custom-scrollbar">
         {positions.length === 0 ? (
           <div style={{ padding: 20, textAlign: 'center', opacity: 0.3, fontSize: 9 }}>
-            {isEnabled ? 'لا توجد مراكز مفتوحة — ينتفر Briefs من المجلس' : 'فعّل المنفذ الذكي لبدء التداول التلقائي'}
+            {isEnabled ? 'لا توجد مراكز مفتوحة — ينتظر Briefs من المجلس' : 'فعّل المنفذ الذكي لبدء التداول التلقائي'}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            {positions.slice(0, 15).map((pos: any) => (
+            {positions
+              .filter((pos: any) => {
+                // PHANTOM TRADE FILTER: Hide positions with unrealistic entry prices
+                // These are phantom trades created from degraded/fallback data
+                const entryPrice = Number(pos.entryPrice ?? pos.price ?? 0)
+                const unrealizedPnl = Number(pos.unrealizedPnl ?? 0)
+                return entryPrice > 0 && (Math.abs(unrealizedPnl) >= 0.01 || entryPrice >= 1)
+              })
+              .slice(0, 15)
+              .map((pos: any) => (
               <div key={pos.id} style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 padding: '5px 6px', borderRadius: 4,

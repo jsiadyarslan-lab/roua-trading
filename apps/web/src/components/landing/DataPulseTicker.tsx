@@ -23,18 +23,13 @@ const TICKER_SYMBOLS = [
   'NVDA',
 ]
 
-const MOCK_TICKER: TickerItem[] = [
-  { symbol: 'BTC/USDT', price: 67234.5, change: 1234.56, changePercent: 1.87 },
-  { symbol: 'ETH/USD', price: 3521.8, change: 45.2, changePercent: 1.3 },
-  { symbol: 'SOL/USD', price: 178.45, change: -3.2, changePercent: -1.76 },
-  { symbol: 'AAPL', price: 189.84, change: 1.23, changePercent: 0.65 },
-  { symbol: 'TSLA', price: 248.42, change: 5.67, changePercent: 2.33 },
-  { symbol: 'EUR/USD', price: 1.0862, change: 0.0012, changePercent: 0.11 },
-  { symbol: 'XAU/USD', price: 2345.6, change: 12.4, changePercent: 0.53 },
-  { symbol: 'SPX', price: 5234.18, change: 28.5, changePercent: 0.55 },
-  { symbol: 'BNB/USD', price: 612.3, change: -8.4, changePercent: -1.35 },
-  { symbol: 'NVDA', price: 878.35, change: 15.7, changePercent: 1.82 },
-]
+// No mock data — start with empty array, populate from live API only
+const EMPTY_TICKER: TickerItem[] = TICKER_SYMBOLS.map(symbol => ({
+  symbol,
+  price: 0,
+  change: 0,
+  changePercent: 0,
+}))
 
 function formatPrice(price: number): string {
   if (price >= 1000) return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -43,7 +38,7 @@ function formatPrice(price: number): string {
 }
 
 export default function DataPulseTicker() {
-  const [tickerData, setTickerData] = useState<TickerItem[]>(MOCK_TICKER)
+  const [tickerData, setTickerData] = useState<TickerItem[]>(EMPTY_TICKER)
   const [isLive, setIsLive] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
   const animationRef = useRef<number>(0)
@@ -64,12 +59,13 @@ export default function DataPulseTicker() {
           const d = result.value
           return {
             symbol: TICKER_SYMBOLS[i],
-            price: d.price ?? MOCK_TICKER[i].price,
+            price: d.price ?? 0,
             change: d.change ?? 0,
             changePercent: d.changePercent ?? 0,
           }
         }
-        return MOCK_TICKER[i]
+        // No fallback to mock data — keep zero values for failed fetches
+        return EMPTY_TICKER[i]
       })
 
       setTickerData(items)

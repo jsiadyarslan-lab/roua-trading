@@ -24,6 +24,7 @@ import { AutonomousTraderAgentModule } from './agents/autonomous-trader/agent.mo
 import { ContentAgentModule } from './agents/content/content-agent.module';
 import { StrategicCouncilModule } from './modules/ai/strategic-council/strategic-council.module';
 import { SmartExecutorModule } from './modules/ai/smart-executor/smart-executor.module';
+import { NotificationModule } from './modules/notification/notification.module';
 
 @Module({
   imports: [
@@ -103,6 +104,7 @@ import { SmartExecutorModule } from './modules/ai/smart-executor/smart-executor.
     ContentAgentModule,
     StrategicCouncilModule,
     SmartExecutorModule,
+    NotificationModule,
   ],
 })
 export class AppModule {}

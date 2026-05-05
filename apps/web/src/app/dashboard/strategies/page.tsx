@@ -31,77 +31,7 @@ const Gauge = ({ value, max, label, color }: { value: number, max: number, label
   )
 }
 
-// Fallback Mock Database (Used until Prisma is synced)
-const DEMO_DATABASE = [
-  {
-    title: 'تأثير التضخم والسيولة على العملات', type: 'Forex Macro', date: 'اليوم، 08:30 ص', severity: 'High',
-    symbol: 'EUR/USD', name: 'Euro / US Dollar', price: '1.0850', change: '+0.12', isUp: true, tag: 'INFLATION WATCH',
-    decision: { title: 'انتظار (تحوط)', color: T.amber, desc: 'حالة ترقب لبيانات التضخم الأمريكية غداً. يُنصح بتقليص المراكز للانكشاف العالي للدولار.' },
-    matrix: [
-      { label: 'مؤسسات', val: 4, max: 10, color: T.red },
-      { label: 'سيولة', val: 6, max: 10, color: T.cyan },
-      { label: 'جيوسياسية', val: 8, max: 10, color: T.amber2 },
-    ],
-    risk: { var: '-$1.2M', beta: '1.14', sharpe: '2.1', pe: 'N/A', peAlert: false, fv: '1.0920', ratio: 65 },
-    flow: [
-      { time: '14:32', size: '2.5M Lts', type: 'Buy Block', heat: 90, color: T.green },
-      { time: '13:15', size: '1.1M Lts', type: 'Neutral', heat: 40, color: T.text3 },
-      { time: '11:05', size: '4.8M Lts', type: 'Accumulate', heat: 100, color: T.blue },
-    ],
-    consensus: 'شراء متراكم (Accumulation)',
-    hiddenSignature: 'تحركات سيولة استثنائية في أسواق الخيارات ترجح تحوط المؤسسات الكبرى.',
-    deepAnalysis: [
-      'التداولات محصورة في نطاق جانبي بين 1.0820 و 1.0880 بحسب السجلات.',
-      'دفاع شرس من المشترين عند الحد السفلي، لكن الزخم يفتقر للتدفقات الباطنية الصحيحة.',
-      'احتمالية كسر مستويات الدعم واردة إذا جاءت بيانات مؤشر أسعار المستهلكين (CPI) أعلى.'
-    ]
-  },
-  {
-    title: 'تخارج الحيتان من سلاسل الكتل', type: 'Crypto Quant', date: 'أمس، 14:15 م', severity: 'Medium',
-    symbol: 'BTC/USD', name: 'Bitcoin Network', price: '64,230.00', change: '-2.40', isUp: false, tag: 'CRYPTO / L1',
-    decision: { title: 'شراء تدريجي', color: T.green, desc: 'تشبع بيعي حاد على الأطر اليومية، فرصة ممتازة لبناء مراكز استثمارية.' },
-    matrix: [
-      { label: 'مؤسسات', val: 7, max: 10, color: T.green },
-      { label: 'سيولة', val: 3, max: 10, color: T.red },
-      { label: 'جيوسياسية', val: 5, max: 10, color: T.amber2 },
-    ],
-    risk: { var: '-$4.5M', beta: '2.80', sharpe: '1.4', pe: 'N/A', peAlert: false, fv: '72,000', ratio: 25 },
-    flow: [
-      { time: '16:00', size: '400 BTC', type: 'Sell Block', heat: 85, color: T.red },
-      { time: '14:20', size: '120 BTC', type: 'Distribution', heat: 60, color: T.amber },
-      { time: '09:05', size: '50 BTC', type: 'Neutral', heat: 20, color: T.text3 },
-    ],
-    consensus: 'توزيع بيعي (Distribution)',
-    hiddenSignature: 'محافظ مجهولة تقوم بتجميع كميات ضخمة (OTC) خارج السجلات.',
-    deepAnalysis: [
-      'تصفية عقود آجلة بقيمة تتجاوز 400 مليون دولار خففت الضغوط البيعية.',
-      'مستويات 62,000$ تمثل نقطة ارتكاز صلبة لطلبات الشراء المخفية.',
-      'الدخول بـ 30% من الكمية المستهدفة هنا، والانتظار لاختبار السيولة.'
-    ]
-  },
-  {
-    title: 'تقييم قطاع الطاقة والمكررات الربحية', type: 'Equity Macro', date: 'الأربعاء', severity: 'Low',
-    symbol: 'XOM', name: 'Exxon Mobil Corp.', price: '114.60', change: '+0.88', isUp: true, tag: 'ENERGY / NYSE',
-    decision: { title: 'الاحتفاظ (Hold)', color: T.blue, desc: 'تسعير عادل حالياً بانتظار وضوح الرؤية بشأن تخفيضات إنتاج أوبك+.' },
-    matrix: [
-      { label: 'مؤسسات', val: 5, max: 10, color: T.cyan },
-      { label: 'سيولة', val: 8, max: 10, color: T.green },
-      { label: 'جيوسياسية', val: 9, max: 10, color: T.red },
-    ],
-    risk: { var: '-$800K', beta: '0.85', sharpe: '1.8', pe: '12.4x', peAlert: false, fv: '135.00', ratio: 80 },
-    flow: [
-      { time: '15:45', size: '1.8M Shs', type: 'Accumulate', heat: 75, color: T.blue },
-      { time: '10:30', size: '500K Shs', type: 'Buy Block', heat: 50, color: T.green },
-    ],
-    consensus: 'تجميع هادئ (Silent Accumulation)',
-    hiddenSignature: 'تداول هادئ يعكس نظرة محايدة للمستثمرين الكبار. لا توجد بصمات خطرة.',
-    deepAnalysis: [
-      'مكرر ربحية مغري مقارنة بالمتوسط، لكن مخاوف الطلب تكبح الارتفاعات.',
-      'التوترات الجيوسياسية تشكل حاجز حماية لأسعار النفط، وتدعم السهم.',
-      'مراقبة اختراق مستوى 118$ بتأكيد أحجام تداول قبل اتخاذ قرار شرائي.'
-    ]
-  }
-]
+// Mock data removed — only real strategy reports from the API are displayed
 
 export default function StrategiesPage() {
   const [data, setData] = useState<any[]>([])
@@ -116,10 +46,8 @@ export default function StrategiesPage() {
         const j = await res.json()
         if (j.success && j.data && j.data.length > 0) {
           setData(j.data)
-        } else {
-          // Fallback to demo data when API returns empty
-          setData(DEMO_DATABASE)
         }
+        // No fallback to mock data — empty state is shown when no reports exist
       } catch {
         setError('تعذر تحميل تقارير الاستراتيجيات حالياً.')
       } finally {

@@ -18,6 +18,7 @@ import { AuditModule } from '../../../audit/audit.module';
 import { ExchangeModule } from '../../exchange/exchange.module';
 import { TradingModule } from '../../trading/trading.module';
 import { StrategicCouncilModule } from '../strategic-council/strategic-council.module';
+import { NotificationModule } from '../../notification/notification.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { StrategicCouncilModule } from '../strategic-council/strategic-council.m
     ExchangeModule,
     TradingModule,
     forwardRef(() => StrategicCouncilModule),
+    NotificationModule,
   ],
   controllers: [SmartExecutorController],
   providers: [SmartExecutorService],

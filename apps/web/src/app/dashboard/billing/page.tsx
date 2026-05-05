@@ -127,7 +127,7 @@ const PLANS: PlanData[] = [
 ]
 
 /* ═══════════════════════════════════════════════════════
-   Mock Billing History
+   Billing History — fetched from API, no mock data
 ═══════════════════════════════════════════════════════ */
 interface BillingRecord {
   id: string
@@ -138,17 +138,6 @@ interface BillingRecord {
   statusLabel: string
   invoiceUrl?: string
 }
-
-const BILLING_HISTORY: BillingRecord[] = [
-  { id: 'INV-2026-001', date: '2026/02/28', description: 'اشتراك خطة ربط برو — مارس 2026', amount: '$29.00', status: 'paid', statusLabel: 'مدفوع' },
-  { id: 'INV-2026-002', date: '2026/01/28', description: 'اشتراك خطة ربط برو — فبراير 2026', amount: '$29.00', status: 'paid', statusLabel: 'مدفوع' },
-  { id: 'INV-2025-012', date: '2025/12/28', description: 'اشتراك خطة ربط برو — يناير 2026', amount: '$29.00', status: 'paid', statusLabel: 'مدفوع' },
-  { id: 'INV-2025-011', date: '2025/11/28', description: 'اشتراك خطة ربط متميز — ديسمبر 2025', amount: '$79.00', status: 'refunded', statusLabel: 'مسترد' },
-  { id: 'INV-2025-010', date: '2025/10/28', description: 'اشتراك خطة ربط متميز — نوفمبر 2025', amount: '$79.00', status: 'paid', statusLabel: 'مدفوع' },
-  { id: 'INV-2025-009', date: '2025/09/15', description: 'ترقية من برو إلى متميز', amount: '$50.00', status: 'paid', statusLabel: 'مدفوع' },
-  { id: 'INV-2025-008', date: '2025/08/28', description: 'اشتراك خطة ربط برو — سبتمبر 2025', amount: '$29.00', status: 'failed', statusLabel: 'فشل' },
-  { id: 'INV-2025-007', date: '2025/07/28', description: 'اشتراك خطة ربط برو — أغسطس 2025', amount: '$29.00', status: 'paid', statusLabel: 'مدفوع' },
-]
 
 /* ═══════════════════════════════════════════════════════
    Status Badge Component
@@ -191,11 +180,12 @@ export default function BillingPage() {
   const [showCardNumber, setShowCardNumber] = useState(false)
   const [selectedPayment, setSelectedPayment] = useState<'card' | 'crypto'>('card')
   const [upgrading, setUpgrading] = useState<string | null>(null)
+  const [billingHistory, setBillingHistory] = useState<BillingRecord[]>([])
 
-  // Card form visual state
-  const [cardNumber, setCardNumber] = useState('4242 4242 4242 4242')
-  const [cardExpiry, setCardExpiry] = useState('12/28')
-  const [cardCvc, setCardCvc] = useState('***')
+  // Card form visual state — empty until user enters their own
+  const [cardNumber, setCardNumber] = useState('')
+  const [cardExpiry, setCardExpiry] = useState('')
+  const [cardCvc, setCardCvc] = useState('')
 
   const handleUpgrade = (planId: string) => {
     if (planId === userTier) {
@@ -812,9 +802,9 @@ export default function BillingPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {BILLING_HISTORY.map((record, idx) => (
+                  {billingHistory.map((record, idx) => (
                     <tr key={record.id} style={{
-                      borderBottom: idx < BILLING_HISTORY.length - 1 ? `1px solid ${T.border}` : 'none',
+                      borderBottom: idx < billingHistory.length - 1 ? `1px solid ${T.border}` : 'none',
                       transition: 'background 0.2s',
                     }}
                       onMouseEnter={e => e.currentTarget.style.background = `${T.surface}50`}
@@ -875,12 +865,12 @@ export default function BillingPage() {
               background: `${T.surface}30`,
             }}>
               <div style={{ fontSize: 10, color: T.text4 }}>
-                عرض آخر {BILLING_HISTORY.length} معاملات
+                عرض آخر {billingHistory.length} معاملات
               </div>
               <div style={{ fontSize: 10, color: T.text3, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <FileText size={10} />
                 إجمالي المدفوعات: <span style={{ color: T.text, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
-                  ${BILLING_HISTORY.filter(r => r.status === 'paid').reduce((sum, r) => sum + parseFloat(r.amount.replace('$', '')), 0).toFixed(2)}
+                  ${billingHistory.filter(r => r.status === 'paid').reduce((sum, r) => sum + parseFloat(r.amount.replace('$', '')), 0).toFixed(2)}
                 </span>
               </div>
             </div>

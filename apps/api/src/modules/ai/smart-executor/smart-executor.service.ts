@@ -31,6 +31,7 @@ export class SmartExecutorService implements OnModuleDestroy {
 
   /** Executor state */
   private isRunning = false;
+  private isTicking = false;  // FIX: Guard against concurrent tick executions (race condition)
   private startedAt: Date | null = null;
   private tickInterval: NodeJS.Timeout | null = null;
   private totalExecutions = 0;
@@ -292,12 +293,15 @@ export class SmartExecutorService implements OnModuleDestroy {
    */
   private _startTickLoop(): void {
     this.tickInterval = setInterval(async () => {
-      if (!this.isRunning) return;
+      if (!this.isRunning || this.isTicking) return;  // FIX: Prevent concurrent ticks
 
+      this.isTicking = true;
       try {
         await this._tick();
       } catch (error: any) {
         this.logger.error(`⚔️ Tick error: ${error.message}`);
+      } finally {
+        this.isTicking = false;
       }
     }, this.config.tickIntervalMs);
   }

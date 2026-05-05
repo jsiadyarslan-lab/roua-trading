@@ -120,7 +120,9 @@ export class SignalGeneratorService {
     const reason = this._buildSignalReason(action, analysisCard);
 
     // Step 9: Determine confidence
-    const confidence = this._calculateSignalConfidence(analysisCard, action);
+    // FIX: Math.round() prevents float truncation when writing to Prisma Int column
+    // Previously, fractional confidence (e.g., 50.75) was silently truncated to 50
+    const confidence = Math.round(this._calculateSignalConfidence(analysisCard, action));
 
     // Step 10: Persist signal to database
     const expiresAt = new Date(Date.now() + this.SIGNAL_EXPIRY_MS);

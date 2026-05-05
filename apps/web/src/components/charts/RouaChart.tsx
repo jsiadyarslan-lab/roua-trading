@@ -161,6 +161,12 @@ export default function RouaChart({
         const { updatePrice } = usePaperTradesStore.getState();
         updatePrice(selectedSymbol, price);
       } catch { /* store may not be ready */ }
+      // FIX: Also update exchange positions with live price from WebSocket
+      // Previously only paper trades were updated — exchange positions showed stale prices
+      try {
+        const { updatePositionPrice } = usePositionsStore.getState();
+        updatePositionPrice(selectedSymbol, price);
+      } catch { /* store may not be ready */ }
       // Schedule overlay recalculation so trade markers stay aligned
       scheduleOverlayUpdateRef.current();
     },

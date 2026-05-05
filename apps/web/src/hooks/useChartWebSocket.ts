@@ -25,7 +25,8 @@ interface UseChartWebSocketReturn {
 const BINANCE_INTERVALS: Record<string, string> = {
   '1min': '1m', '3min': '3m', '5min': '5m', '15min': '15m', '30min': '30m',
   '1h': '1h', '2h': '2h', '4h': '4h', '6h': '6h', '8h': '8h', '12h': '12h',
-  '1day': '1d', '3day': '3d', '1week': '1w', '1month': '1M',
+  '1day': '1d', '3day': '3d', '1week': '1w', '1month': '1M', '3month': '3M',
+  // FIX: Added '3month': '3M' — was missing, causing silent fallback to 1m data
 };
 
 // Known crypto pairs
@@ -119,11 +120,12 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
         }
       } else {
         // FIX: For non-crypto assets (stocks, forex, commodities),
-        // use the backend API proxy which routes to TwelveData or FreeFallback.
-        // Previously, non-crypto symbols got NO updates at all — the user
-        // saw a completely static chart for stocks like AAPL or forex like EUR/USD.
+        // use the exchange quote endpoint (NOT analytics/analyze).
+        // Previously used /api/analytics/analyze/ which is heavier, slower,
+        // and returns a different data shape. The quote endpoint is purpose-built
+        // for real-time price data with proper OHLC fields.
         const apiBase = window.location.origin;
-        const res = await fetch(`${apiBase}/api/analytics/analyze/${encodeURIComponent(symbol)}`, {
+        const res = await fetch(`${apiBase}/api/exchange/quote/${encodeURIComponent(symbol)}`, {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -131,18 +133,19 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
         if (!res.ok) return;
 
         const result = await res.json();
-        const quote = result?.data?.quote;
-        if (quote && quote.price > 0) {
-          onPriceUpdate(quote.price);
+        const data = result?.data;
+        if (data && (data.price || data.close) > 0) {
+          const price = data.price || data.close;
+          onPriceUpdate(price);
           // Create a synthetic candle from the quote data
           const now = Math.floor(Date.now() / 1000);
           const candle: CandleData = {
             time: now - (now % 60), // Round to current minute
-            open: quote.open || quote.price,
-            high: quote.high || quote.price,
-            low: quote.low || quote.price,
-            close: quote.price,
-            volume: quote.volume || 0,
+            open: data.open || price,
+            high: data.high || price,
+            low: data.low || price,
+            close: price,
+            volume: data.volume || 0,
           };
           onCandleUpdate(candle);
         }

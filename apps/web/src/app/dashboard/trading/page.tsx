@@ -126,7 +126,8 @@ const TRADING_PAIRS = [
 const ORDER_TYPES = [
   { value: 'MARKET', label: 'سوقي' },
   { value: 'LIMIT', label: 'محدد' },
-  { value: 'STOP_LIMIT', label: 'وقف محدد' },
+  // FIX: STOP_LIMIT removed — backend only supports MARKET and LIMIT.
+  // Was causing 100% rejection for STOP_LIMIT orders.
 ]
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
@@ -149,6 +150,8 @@ export default function TradingPage() {
   const [quantity, setQuantity] = useState(0.01)
   const [price, setPrice] = useState('')
   const [stopPrice, setStopPrice] = useState('')
+  const [stopLoss, setStopLoss] = useState('')  // FIX: Added stopLoss — backend requires it (100% orders rejected without it)
+  const [takeProfit, setTakeProfit] = useState('')  // FIX: Added takeProfit for order management
   const [credentialId, setCredentialId] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [orderError, setOrderError] = useState('')
@@ -330,13 +333,20 @@ export default function TradingPage() {
         type: orderType,
         quantity,
         credentialId,
+        // FIX: stopLoss is MANDATORY — backend rejects orders without it
+        // Default: 3% below entry for BUY, 3% above for SELL if user doesn't specify
+        stopLoss: stopLoss ? parseFloat(stopLoss) : (
+          quote?.price
+            ? (side === 'BUY'
+              ? parseFloat((quote.price * 0.97).toFixed(quote.price > 1000 ? 1 : 5))
+              : parseFloat((quote.price * 1.03).toFixed(quote.price > 1000 ? 1 : 5)))
+            : undefined
+        ),
+        takeProfit: takeProfit ? parseFloat(takeProfit) : undefined,
       }
 
-      if (orderType === 'LIMIT' || orderType === 'STOP_LIMIT') {
+      if (orderType === 'LIMIT') {
         body.price = parseFloat(price)
-      }
-      if (orderType === 'STOP_LIMIT') {
-        body.stopPrice = parseFloat(stopPrice)
       }
 
       const res = await fetch('/api/trading/orders', {

@@ -87,7 +87,7 @@ function getCachedAIResult(symbol: string): { data: any; source: string } | null
   if (!entry) return null
   const age = Date.now() - entry.cachedAt
   if (age > AI_CACHE_TTL) {
-    aiResultCache.delete(symbol)
+    aiResultCache.delete(`v4:${symbol}`)  // FIX: Was deleting wrong key (symbol without v4: prefix) → memory leak
     return null
   }
   return { data: entry.data, source: entry.source }
@@ -475,7 +475,7 @@ export async function POST(req: NextRequest) {
     // ═══════════════════════════════════════════════════════════
     const cachedAI = getCachedAIResult(symbol)
     if (cachedAI) {
-      const ageSeconds = Math.round((Date.now() - (aiResultCache.get(symbol)?.cachedAt || 0)) / 1000)
+      const ageSeconds = Math.round((Date.now() - (aiResultCache.get(`v4:${symbol}`)?.cachedAt || 0)) / 1000)
       console.log(`[consensus] Layer 2.5 — Serving cached AI result (${ageSeconds}s old)`)
 
       return NextResponse.json({

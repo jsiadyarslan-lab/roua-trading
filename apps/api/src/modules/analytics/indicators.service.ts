@@ -188,9 +188,14 @@ export class TechnicalIndicatorService {
     avgGain /= period;
     avgLoss /= period;
 
-    // First RSI value
-    const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-    values.push(100 - 100 / (1 + rs));
+    // FIX: When avgLoss === 0, RSI should be exactly 100, not 99.01
+    // Previously: rs = 100 → 100 - 100/(1+100) = 99.01 (mathematically wrong)
+    if (avgLoss === 0) {
+      values.push(100);
+    } else {
+      const rs = avgGain / avgLoss;
+      values.push(100 - 100 / (1 + rs));
+    }
 
     // Subsequent values using Wilder's smoothing
     for (let i = period + 1; i < data.length; i++) {
@@ -201,8 +206,13 @@ export class TechnicalIndicatorService {
       avgGain = (avgGain * (period - 1) + gain) / period;
       avgLoss = (avgLoss * (period - 1) + loss) / period;
 
-      const rs = avgLoss === 0 ? 100 : avgGain / avgLoss;
-      values.push(100 - 100 / (1 + rs));
+      // FIX: Same correction for subsequent RSI values
+      if (avgLoss === 0) {
+        values.push(100);
+      } else {
+        const rs = avgGain / avgLoss;
+        values.push(100 - 100 / (1 + rs));
+      }
     }
 
     // Interpretation based on latest RSI

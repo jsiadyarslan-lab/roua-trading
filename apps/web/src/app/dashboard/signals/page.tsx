@@ -75,7 +75,9 @@ const QUICK_PAIRS = [
   { symbol: 'SOL/USDT', name: 'سولانا', icon: '◎', color: '#0A84FF', gradient: 'linear-gradient(135deg, #0A84FF, #6366F1)' },
   { symbol: 'AAPL', name: 'آبل', icon: '', color: '#00FFC6', gradient: 'linear-gradient(135deg, #00FFC6, #10B981)' },
   { symbol: 'TSLA', name: 'تسلا', icon: '', color: '#FF4D4D', gradient: 'linear-gradient(135deg, #FF4D4D, #EF4444)' },
-  { symbol: 'GOLD', name: 'الذهب', icon: '', color: '#FFB800', gradient: 'linear-gradient(135deg, #FFB800, #F59E0B)' },
+  // FIX: Changed 'GOLD' → 'XAU/USD' — backend cannot resolve 'GOLD' as a symbol.
+  // Exchange adapters require BASE/QUOTE format. 'GOLD' returned zero-price data.
+  { symbol: 'XAU/USD', name: 'الذهب', icon: '', color: '#FFB800', gradient: 'linear-gradient(135deg, #FFB800, #F59E0B)' },
 ]
 
 // ── Signal type config ──

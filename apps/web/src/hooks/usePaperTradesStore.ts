@@ -101,6 +101,7 @@ export const usePaperTradesStore = create<PaperTradesState>()(
         const normalizedSymbol = symbol.toUpperCase().replace(/\//g, '')
         const currentTrades = get().trades
         let changed = false
+        const closedIds: string[] = []  // FIX: Track trades that hit SL/TP for auto-close
 
         const trades = currentTrades.map((t) => {
           const tradeSymbol = t.symbol.toUpperCase().replace(/\//g, '')
@@ -118,6 +119,24 @@ export const usePaperTradesStore = create<PaperTradesState>()(
               : t.entryPrice - price
             pnl = diff * t.qty
             pct = (diff / t.entryPrice) * 100
+          }
+
+          // FIX: Auto-close trade when SL or TP is hit
+          if (t.status !== 'closed') {
+            if (t.sl && t.sl > 0) {
+              if ((t.side === 'long' && price <= t.sl) || (t.side === 'short' && price >= t.sl)) {
+                closedIds.push(t.id)
+                changed = true
+                return { ...t, currentPrice, unrealizedPnl: pnl, unrealizedPct: pct, status: 'closed' as const, closePrice: t.sl }
+              }
+            }
+            if (t.tp && t.tp > 0) {
+              if ((t.side === 'long' && price >= t.tp) || (t.side === 'short' && price <= t.tp)) {
+                closedIds.push(t.id)
+                changed = true
+                return { ...t, currentPrice, unrealizedPnl: pnl, unrealizedPct: pct, status: 'closed' as const, closePrice: t.tp }
+              }
+            }
           }
 
           changed = true

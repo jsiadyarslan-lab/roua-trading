@@ -1,7 +1,6 @@
 // ═══════════════════════════════════════════════════════════
 // ROUA Trading Chart — AI Pattern Recognition Panel
-// Uses z-ai-web-dev-sdk to detect 25+ candlestick patterns
-// Plus support/resistance levels and trend line detection
+// Professional design — click any pattern to navigate chart
 // ═══════════════════════════════════════════════════════════
 
 'use client';
@@ -34,6 +33,8 @@ interface AIPatternPanelProps {
   symbol: string;
   candles: CandleData[];
   onPatternsDetected: (result: AIAnalysisResult) => void;
+  onPatternClick?: (pattern: AIPattern) => void;
+  onLevelClick?: (level: SupportResistanceLevel) => void;
   onClose: () => void;
 }
 
@@ -65,13 +66,47 @@ const PATTERN_NAMES_AR: Record<string, string> = {
   'Belt Hold Bearish': 'حزام هبوطي',
 };
 
-export function AIPatternPanel({ symbol, candles, onPatternsDetected, onClose }: AIPatternPanelProps) {
+const PATTERN_ICONS: Record<string, string> = {
+  'bullish': '▲',
+  'bearish': '▼',
+  'neutral': '◆',
+};
+
+const C = {
+  bg: 'rgba(11,14,20,0.96)',
+  card: '#111620',
+  cardHover: '#151D2B',
+  border: '#1E2530',
+  borderActive: 'rgba(0,212,255,0.35)',
+  cyan: '#00D4FF',
+  text: '#F0F2F5',
+  textDim: '#8B92A8',
+  textMuted: '#4B5563',
+  success: '#00FFA3',
+  danger: '#FF4757',
+  warning: '#fbbf24',
+  gold: '#d4af37',
+  upBg: 'rgba(0,255,163,0.06)',
+  downBg: 'rgba(255,71,87,0.06)',
+};
+
+type TabKey = 'patterns' | 'sr' | 'trend';
+
+export function AIPatternPanel({
+  symbol,
+  candles,
+  onPatternsDetected,
+  onPatternClick,
+  onLevelClick,
+  onClose,
+}: AIPatternPanelProps) {
   const [loading, setLoading] = useState(false);
   const [patterns, setPatterns] = useState<AIPattern[]>([]);
   const [srLevels, setSrLevels] = useState<SupportResistanceLevel[]>([]);
-  const [trendLines, setTrendLines] = useState<TrendLine[]>([]);
+  const [ [trendLines] ] = useState<TrendLine[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'patterns' | 'sr' | 'trend'>('patterns');
+  const [activeTab, setActiveTab] = useState<TabKey>('patterns');
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const analyzePatterns = useCallback(async () => {
     if (!candles.length) return;
@@ -80,7 +115,6 @@ export function AIPatternPanel({ symbol, candles, onPatternsDetected, onClose }:
     setError(null);
 
     try {
-      // Send OHLC data to AI for pattern recognition
       const last50 = candles.slice(-50);
       const ohlcSummary = last50.map(c =>
         `t=${new Date(c.time * 1000).toISOString().slice(0, 16)} O=${c.open} H=${c.high} L=${c.low} C=${c.close} V=${c.volume}`
@@ -101,11 +135,9 @@ export function AIPatternPanel({ symbol, candles, onPatternsDetected, onClose }:
       const result = await response.json();
       const detectedPatterns: AIPattern[] = [];
 
-      // Parse AI response
       try {
         let parsed = result.patterns || result.data || result;
         if (typeof parsed === 'string') {
-          // Try to extract JSON from the string
           const jsonMatch = parsed.match(/\[[\s\S]*\]/);
           if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
         }
@@ -115,7 +147,6 @@ export function AIPatternPanel({ symbol, candles, onPatternsDetected, onClose }:
             const idx = p.timeIndex ?? p.index ?? 0;
             const candle = last50[idx];
             if (!candle) return;
-
             detectedPatterns.push({
               type: p.type || 'Unknown',
               labelAr: PATTERN_NAMES_AR[p.type] || p.type,
@@ -125,26 +156,21 @@ export function AIPatternPanel({ symbol, candles, onPatternsDetected, onClose }:
               direction: p.direction || 'neutral',
             });
           });
-        } else if (Array.isArray(parsed) && parsed.length === 0) {
-          // Server returned empty patterns — try local detection
+        } else {
           const localPatterns = detectLocalPatterns(last50);
           detectedPatterns.push(...localPatterns);
         }
-      } catch (parseErr) {
-        // If AI response parsing fails, try local basic pattern detection
+      } catch {
         const localPatterns = detectLocalPatterns(last50);
         detectedPatterns.push(...localPatterns);
       }
 
       setPatterns(detectedPatterns);
 
-      // ── Detect Support/Resistance Levels ──
       const levels = detectSupportResistance(candles);
       setSrLevels(levels);
 
-      // ── Detect Trend Lines ──
       const lines = detectTrendLines(candles);
-      setTrendLines(lines);
 
       onPatternsDetected({
         patterns: detectedPatterns,
@@ -154,14 +180,12 @@ export function AIPatternPanel({ symbol, candles, onPatternsDetected, onClose }:
       });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'حدث خطأ أثناء التحليل');
-      // Fallback: local detection
       const last50 = candles.slice(-50);
       const localPatterns = detectLocalPatterns(last50);
       const levels = detectSupportResistance(candles);
       const lines = detectTrendLines(candles);
       setPatterns(localPatterns);
       setSrLevels(levels);
-      setTrendLines(lines);
       onPatternsDetected({
         patterns: localPatterns,
         supportLevels: levels.filter(l => l.type === 'support'),
@@ -173,212 +197,480 @@ export function AIPatternPanel({ symbol, candles, onPatternsDetected, onClose }:
     }
   }, [candles, symbol, onPatternsDetected]);
 
-  const COLORS = {
-    card: '#151A22',
-    border: 'rgba(42,49,60,0.9)',
-    cyan: '#00D4FF',
-    text: '#F0F2F5',
-    textSecondary: '#8B92A8',
-    textMuted: '#8B92A8',
-    success: '#00FFA3',
-    danger: '#FF4757',
-    warning: '#fbbf24',
-    bg: '#0B0E14',
-  };
+  const handlePatternClick = useCallback((p: AIPattern, index: number) => {
+    const id = `pattern-${index}-${p.time}`;
+    setSelectedId(id);
+    onPatternClick?.(p);
+  }, [onPatternClick]);
+
+  const handleLevelClick = useCallback((level: SupportResistanceLevel, index: number) => {
+    const id = `level-${index}-${level.type}`;
+    setSelectedId(id);
+    onLevelClick?.(level);
+  }, [onLevelClick]);
+
+  const tabs: { key: TabKey; label: string; icon: string; count: number }[] = [
+    { key: 'patterns', label: 'الأنماط', icon: '🕯', count: patterns.length },
+    { key: 'sr', label: 'الدعم/المقاومة', icon: '⚡', count: srLevels.length },
+    { key: 'trend', label: 'الاتجاهات', icon: '📉', count: trendLines.length },
+  ];
 
   return (
     <div style={{
       position: 'absolute',
       top: 40,
       left: 8,
-      background: COLORS.card,
-      border: '1px solid rgba(0,212,255,0.2)',
-      borderRadius: 10,
-      padding: 12,
+      background: C.bg,
+      backdropFilter: 'blur(24px)',
+      WebkitBackdropFilter: 'blur(24px)',
+      border: `1px solid ${C.border}`,
+      borderRadius: 12,
       zIndex: 500,
-      boxShadow: '0 15px 45px rgba(0,0,0,0.85)',
-      backdropFilter: 'blur(10px)',
-      width: 260,
+      width: 300,
+      maxHeight: 480,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      boxShadow: '0 20px 60px rgba(0,0,0,0.7), 0 0 20px rgba(0,212,255,0.04)',
     }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <span style={{ fontSize: 11, color: COLORS.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-          🔍 تحليل AI
-        </span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 14 }}>✕</button>
+      {/* ── Header ── */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '12px 14px',
+        borderBottom: `1px solid ${C.border}`,
+        background: `linear-gradient(180deg, ${C.card} 0%, rgba(17,22,32,0.6) 100%)`,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{
+            width: 24, height: 24, borderRadius: 6,
+            background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11,
+          }}>
+            🤖
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: C.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif", lineHeight: 1.2 }}>
+              تحليل AI
+            </div>
+            <div style={{ fontSize: 9, color: C.cyan, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, letterSpacing: 0.4 }}>
+              {symbol}
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 5,
+            color: C.textMuted, width: 22, height: 22, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, padding: 0,
+            transition: 'all 0.15s ease',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.15)'; e.currentTarget.style.color = C.danger; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = C.textMuted; }}
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
       </div>
 
-      {/* Analyze Button */}
-      <button
-        onClick={analyzePatterns}
-        disabled={loading}
-        style={{
-          width: '100%',
-          padding: '8px 0',
-          background: loading ? COLORS.textMuted : COLORS.cyan,
-          border: 'none',
-          borderRadius: 6,
-          color: '#000',
-          fontSize: 11,
-          fontWeight: 700,
-          cursor: loading ? 'wait' : 'pointer',
-          fontFamily: "'Cairo', sans-serif",
-          marginBottom: 10,
-        }}
-      >
-        {loading ? '⏳ جاري التحليل...' : '🤖 تحليل الأنماط والمستويات'}
-      </button>
+      {/* ── Analyze Button ── */}
+      <div style={{ padding: '10px 14px' }}>
+        <button
+          onClick={analyzePatterns}
+          disabled={loading}
+          style={{
+            width: '100%',
+            padding: '9px 0',
+            background: loading
+              ? 'rgba(0,212,255,0.15)'
+              : 'linear-gradient(135deg, rgba(0,212,255,0.2) 0%, rgba(0,212,255,0.08) 100%)',
+            border: `1px solid ${loading ? 'rgba(0,212,255,0.2)' : 'rgba(0,212,255,0.3)'}`,
+            borderRadius: 8,
+            color: loading ? C.textDim : C.cyan,
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: loading ? 'wait' : 'pointer',
+            fontFamily: "'Cairo', sans-serif",
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+          }}
+          onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0,212,255,0.3) 0%, rgba(0,212,255,0.12) 100%)'; }}
+          onMouseLeave={e => { if (!loading) e.currentTarget.style.background = 'linear-gradient(135deg, rgba(0,212,255,0.2) 0%, rgba(0,212,255,0.08) 100%)'; }}
+        >
+          {loading ? (
+            <>
+              <div style={{ width: 12, height: 12, border: `2px solid rgba(0,212,255,0.2)`, borderTopColor: C.cyan, borderRadius: '50%', animation: 'aiSpin 0.8s linear infinite' }} />
+              جاري التحليل...
+            </>
+          ) : (
+            <>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
+              تحليل الأنماط والمستويات
+            </>
+          )}
+        </button>
+      </div>
 
-      {/* Error */}
+      {/* ── Error ── */}
       {error && (
         <div style={{
-          padding: '6px 8px',
-          background: 'rgba(248,81,73,0.1)',
-          border: '1px solid rgba(248,81,73,0.2)',
-          borderRadius: 6,
-          color: COLORS.danger,
-          fontSize: 9,
-          marginBottom: 8,
+          margin: '0 14px 8px',
+          padding: '7px 10px',
+          background: 'rgba(248,81,73,0.08)',
+          border: '1px solid rgba(248,81,73,0.15)',
+          borderRadius: 7,
+          color: C.danger,
+          fontSize: 10,
           fontFamily: "'Cairo', sans-serif",
         }}>
           {error}
         </div>
       )}
 
-      {/* Tab Buttons */}
+      {/* ── Tabs ── */}
       {(patterns.length > 0 || srLevels.length > 0 || trendLines.length > 0) && (
-        <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-          {[
-            { key: 'patterns' as const, label: 'أنماط', count: patterns.length },
-            { key: 'sr' as const, label: 'دعم/مقاومة', count: srLevels.length },
-            { key: 'trend' as const, label: 'اتجاهات', count: trendLines.length },
-          ].map(tab => (
+        <div style={{
+          display: 'flex',
+          gap: 2,
+          padding: '0 14px 8px',
+        }}>
+          {tabs.map(tab => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
+              onClick={() => { setActiveTab(tab.key); setSelectedId(null); }}
               style={{
                 flex: 1,
-                padding: '4px 0',
-                background: activeTab === tab.key ? 'rgba(0,212,255,0.15)' : 'none',
-                border: `1px solid ${activeTab === tab.key ? 'rgba(0,212,255,0.3)' : 'transparent'}`,
-                borderRadius: 4,
-                color: activeTab === tab.key ? COLORS.cyan : COLORS.textSecondary,
+                padding: '6px 0',
+                background: activeTab === tab.key ? 'rgba(0,212,255,0.08)' : 'transparent',
+                border: `1px solid ${activeTab === tab.key ? 'rgba(0,212,255,0.2)' : 'transparent'}`,
+                borderRadius: 6,
+                color: activeTab === tab.key ? C.cyan : C.textDim,
                 fontSize: 9,
                 fontWeight: activeTab === tab.key ? 700 : 400,
                 cursor: 'pointer',
                 fontFamily: "'Cairo', sans-serif",
+                transition: 'all 0.15s ease',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 3,
               }}
             >
-              {tab.label} ({tab.count})
+              <span style={{ fontSize: 10 }}>{tab.icon}</span>
+              {tab.label}
+              {tab.count > 0 && (
+                <span style={{
+                  fontSize: 8, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
+                  color: activeTab === tab.key ? C.cyan : C.textMuted,
+                  background: activeTab === tab.key ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.04)',
+                  padding: '1px 4px', borderRadius: 3, minWidth: 14, textAlign: 'center',
+                }}>
+                  {tab.count}
+                </span>
+              )}
             </button>
           ))}
         </div>
       )}
 
-      {/* Patterns Tab */}
-      {activeTab === 'patterns' && patterns.length > 0 && (
-        <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-          {patterns.map((p, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '5px 4px',
-                borderBottom: '1px solid rgba(255,255,255,0.04)',
-              }}
-            >
-              <div style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: p.direction === 'bullish' ? COLORS.success : p.direction === 'bearish' ? COLORS.danger : COLORS.warning,
-              }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 10, color: COLORS.text, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>
-                  {p.labelAr}
-                </div>
-                <div style={{ fontSize: 8, color: COLORS.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
-                  {p.type} • {Math.round(p.confidence * 100)}% • {new Date(p.time * 1000).toLocaleDateString('ar-EG')}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* ── Content ── */}
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, padding: '0 8px 8px' }}>
 
-      {/* Support/Resistance Tab */}
-      {activeTab === 'sr' && srLevels.length > 0 && (
-        <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-          {srLevels.map((level, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '5px 4px',
-                borderBottom: '1px solid rgba(255,255,255,0.04)',
-              }}
-            >
-              <div style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: level.type === 'support' ? '#00FFA3' : '#FF4757',
-              }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 10, color: COLORS.text, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>
-                  {level.type === 'support' ? 'دعم' : 'مقاومة'} {level.strength === 'strong' ? '(قوي)' : level.strength === 'medium' ? '(متوسط)' : '(ضعيف)'}
-                </div>
-                <div style={{ fontSize: 9, color: COLORS.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
-                  {level.price.toFixed(level.price > 1000 ? 2 : 5)} • {level.touches} touches
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+        {/* Patterns Tab */}
+        {activeTab === 'patterns' && (
+          <>
+            {patterns.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {patterns.map((p, i) => {
+                  const id = `pattern-${i}-${p.time}`;
+                  const isSelected = selectedId === id;
+                  const isBull = p.direction === 'bullish';
+                  const isBear = p.direction === 'bearish';
+                  const dirColor = isBull ? C.success : isBear ? C.danger : C.warning;
+                  const dirBg = isBull ? C.upBg : isBear ? C.downBg : 'rgba(251,191,36,0.06)';
 
-      {/* Trend Lines Tab */}
-      {activeTab === 'trend' && trendLines.length > 0 && (
-        <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-          {trendLines.map((line, i) => (
-            <div
-              key={i}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '5px 4px',
-                borderBottom: '1px solid rgba(255,255,255,0.04)',
-              }}
-            >
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => handlePatternClick(p, i)}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '8px 10px',
+                        background: isSelected ? `rgba(0,212,255,0.08)` : dirBg,
+                        border: `1px solid ${isSelected ? C.borderActive : 'transparent'}`,
+                        borderRadius: 7,
+                        cursor: 'pointer',
+                        textAlign: 'right',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={e => {
+                        if (!isSelected) e.currentTarget.style.background = C.cardHover;
+                        e.currentTarget.style.borderColor = C.borderActive;
+                      }}
+                      onMouseLeave={e => {
+                        if (!isSelected) e.currentTarget.style.background = dirBg;
+                        if (!isSelected) e.currentTarget.style.borderColor = 'transparent';
+                      }}
+                    >
+                      {/* Direction badge */}
+                      <div style={{
+                        width: 26, height: 26, borderRadius: 6,
+                        background: `${dirColor}12`,
+                        border: `1px solid ${dirColor}25`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, fontWeight: 900, color: dirColor,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        flexShrink: 0,
+                      }}>
+                        {PATTERN_ICONS[p.direction] || '◆'}
+                      </div>
+
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: 11, color: C.text, fontWeight: 600,
+                          fontFamily: "'Cairo', sans-serif", lineHeight: 1.3,
+                          display: 'flex', alignItems: 'center', gap: 4,
+                        }}>
+                          {p.labelAr}
+                          <span style={{
+                            fontSize: 8, color: C.textMuted, fontWeight: 400,
+                            fontFamily: "'JetBrains Mono', monospace",
+                          }}>
+                            {p.type}
+                          </span>
+                        </div>
+                        <div style={{
+                          fontSize: 9, color: C.textDim, fontWeight: 400,
+                          fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.4,
+                          display: 'flex', alignItems: 'center', gap: 6, marginTop: 1,
+                        }}>
+                          <span>{new Date(p.time * 1000).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })}</span>
+                          <span style={{ color: C.textMuted }}>•</span>
+                          <span style={{ color: dirColor, fontWeight: 700 }}>
+                            {Math.round(p.confidence * 100)}%
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Confidence bar */}
+                      <div style={{
+                        width: 3, height: 24, borderRadius: 2,
+                        background: C.border, overflow: 'hidden', flexShrink: 0,
+                      }}>
+                        <div style={{
+                          width: '100%', borderRadius: 2,
+                          height: `${p.confidence * 100}%`,
+                          background: dirColor,
+                          transition: 'height 0.3s ease',
+                        }} />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
               <div style={{
-                fontSize: 12,
-                color: line.type === 'ascending' ? '#00FFA3' : '#FF4757',
+                textAlign: 'center', color: C.textMuted, fontSize: 10,
+                padding: '20px 0', fontFamily: "'Cairo', sans-serif",
               }}>
-                {line.type === 'ascending' ? '📈' : '📉'}
+                اضغط على زر التحليل للبدء
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 10, color: COLORS.text, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>
-                  {line.type === 'ascending' ? 'خط اتجاه صاعد' : 'خط اتجاه هابط'} ({line.strength === 'strong' ? 'قوي' : line.strength === 'medium' ? 'متوسط' : 'ضعيف'})
-                </div>
-                <div style={{ fontSize: 8, color: COLORS.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
-                  {line.startPoint.price.toFixed(2)} → {line.endPoint.price.toFixed(2)}
-                </div>
+            )}
+          </>
+        )}
+
+        {/* Support/Resistance Tab */}
+        {activeTab === 'sr' && (
+          <>
+            {srLevels.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {srLevels.map((level, i) => {
+                  const id = `level-${i}-${level.type}`;
+                  const isSelected = selectedId === id;
+                  const isSupport = level.type === 'support';
+                  const color = isSupport ? C.success : C.danger;
+                  const strengthLabel = level.strength === 'strong' ? 'قوي' : level.strength === 'medium' ? 'متوسط' : 'ضعيف';
+                  const strengthBars = level.strength === 'strong' ? 3 : level.strength === 'medium' ? 2 : 1;
+
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => handleLevelClick(level, i)}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '8px 10px',
+                        background: isSelected ? 'rgba(0,212,255,0.08)' : isSupport ? C.upBg : C.downBg,
+                        border: `1px solid ${isSelected ? C.borderActive : 'transparent'}`,
+                        borderRadius: 7,
+                        cursor: 'pointer',
+                        textAlign: 'right',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={e => {
+                        if (!isSelected) e.currentTarget.style.background = C.cardHover;
+                        e.currentTarget.style.borderColor = C.borderActive;
+                      }}
+                      onMouseLeave={e => {
+                        if (!isSelected) e.currentTarget.style.background = isSupport ? C.upBg : C.downBg;
+                        if (!isSelected) e.currentTarget.style.borderColor = 'transparent';
+                      }}
+                    >
+                      {/* Icon */}
+                      <div style={{
+                        width: 26, height: 26, borderRadius: 6,
+                        background: `${color}12`,
+                        border: `1px solid ${color}25`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 10, fontWeight: 900, color,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        flexShrink: 0,
+                      }}>
+                        {isSupport ? 'S' : 'R'}
+                      </div>
+
+                      {/* Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: 11, color: C.text, fontWeight: 600,
+                          fontFamily: "'Cairo', sans-serif", lineHeight: 1.3,
+                        }}>
+                          {isSupport ? 'دعم' : 'مقاومة'}
+                          <span style={{
+                            fontSize: 8, color: C.textMuted, fontWeight: 400,
+                            fontFamily: "'JetBrains Mono', monospace", marginRight: 4,
+                          }}>
+                            ({strengthLabel})
+                          </span>
+                        </div>
+                        <div style={{
+                          fontSize: 10, color: C.textDim, fontWeight: 600,
+                          fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.4, marginTop: 1,
+                        }}>
+                          {level.price.toFixed(level.price > 1000 ? 2 : 5)}
+                        </div>
+                      </div>
+
+                      {/* Strength dots */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
+                        {[1, 2, 3].map(bar => (
+                          <div key={bar} style={{
+                            width: 8, height: 3, borderRadius: 1,
+                            background: bar <= strengthBars ? color : C.border,
+                          }} />
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-            </div>
-          ))}
+            ) : (
+              <div style={{
+                textAlign: 'center', color: C.textMuted, fontSize: 10,
+                padding: '20px 0', fontFamily: "'Cairo', sans-serif",
+              }}>
+                اضغط على زر التحليل للبدء
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Trend Tab */}
+        {activeTab === 'trend' && (
+          <>
+            {trendLines.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {trendLines.map((line, i) => {
+                  const isAsc = line.type === 'ascending';
+                  const color = isAsc ? C.success : C.danger;
+                  const strengthLabel = line.strength === 'strong' ? 'قوي' : line.strength === 'medium' ? 'متوسط' : 'ضعيف';
+
+                  return (
+                    <button
+                      key={i}
+                      style={{
+                        width: '100%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        padding: '8px 10px',
+                        background: isAsc ? C.upBg : C.downBg,
+                        border: '1px solid transparent',
+                        borderRadius: 7,
+                        cursor: 'pointer',
+                        textAlign: 'right',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = C.borderActive; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'transparent'; }}
+                    >
+                      <div style={{
+                        width: 26, height: 26, borderRadius: 6,
+                        background: `${color}12`,
+                        border: `1px solid ${color}25`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 12, color,
+                        flexShrink: 0,
+                      }}>
+                        {isAsc ? '↗' : '↘'}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 11, color: C.text, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>
+                          {isAsc ? 'اتجاه صاعد' : 'اتجاه هابط'}
+                          <span style={{ fontSize: 8, color: C.textMuted, fontWeight: 400, fontFamily: "'JetBrains Mono', monospace", marginRight: 4 }}>
+                            ({strengthLabel})
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 9, color: C.textDim, fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
+                          {line.startPoint.price.toFixed(2)} → {line.endPoint.price.toFixed(2)}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{
+                textAlign: 'center', color: C.textMuted, fontSize: 10,
+                padding: '20px 0', fontFamily: "'Cairo', sans-serif",
+              }}>
+                اضغط على زر التحليل للبدء
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ── Footer hint ── */}
+      {(patterns.length > 0 || srLevels.length > 0) && (
+        <div style={{
+          padding: '6px 14px',
+          borderTop: `1px solid ${C.border}`,
+          fontSize: 8,
+          color: C.textMuted,
+          fontFamily: "'Cairo', sans-serif",
+          textAlign: 'center',
+        }}>
+          انقر على أي عنصر للانتقال إليه على الشارت
         </div>
       )}
 
-      {patterns.length === 0 && !loading && !error && (
-        <div style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 9, padding: '10px 0', fontFamily: "'Cairo', sans-serif" }}>
-          اضغط على زر التحليل للبدء
-        </div>
-      )}
+      {/* Spinner animation */}
+      <style>{`@keyframes aiSpin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
@@ -396,94 +688,36 @@ function detectLocalPatterns(candles: CandleData[]): AIPattern[] {
     const upperWick = c.high - Math.max(c.open, c.close);
     const lowerWick = Math.min(c.open, c.close) - c.low;
 
-    // Doji: very small body relative to range
     if (range > 0 && body / range < 0.1) {
-      patterns.push({
-        type: 'Doji',
-        labelAr: 'دوجي',
-        time: c.time,
-        price: c.close,
-        confidence: 0.7,
-        direction: 'neutral',
-      });
+      patterns.push({ type: 'Doji', labelAr: 'دوجي', time: c.time, price: c.close, confidence: 0.7, direction: 'neutral' });
     }
 
-    // Hammer: small body at top, long lower wick
     if (lowerWick > body * 2 && upperWick < body * 0.5) {
-      patterns.push({
-        type: 'Hammer',
-        labelAr: 'مطرقة',
-        time: c.time,
-        price: c.close,
-        confidence: 0.75,
-        direction: 'bullish',
-      });
+      patterns.push({ type: 'Hammer', labelAr: 'مطرقة', time: c.time, price: c.close, confidence: 0.75, direction: 'bullish' });
     }
 
-    // Shooting Star: small body at bottom, long upper wick
     if (upperWick > body * 2 && lowerWick < body * 0.5) {
-      patterns.push({
-        type: 'Shooting Star',
-        labelAr: 'نجم ساقط',
-        time: c.time,
-        price: c.close,
-        confidence: 0.7,
-        direction: 'bearish',
-      });
+      patterns.push({ type: 'Shooting Star', labelAr: 'نجم ساقط', time: c.time, price: c.close, confidence: 0.7, direction: 'bearish' });
     }
 
-    // Bullish Engulfing
-    if (prev.close < prev.open && c.close > c.open &&
-        c.open <= prev.close && c.close >= prev.open) {
-      patterns.push({
-        type: 'Engulfing Bullish',
-        labelAr: 'ابتلاع صعودي',
-        time: c.time,
-        price: c.close,
-        confidence: 0.8,
-        direction: 'bullish',
-      });
+    if (prev.close < prev.open && c.close > c.open && c.open <= prev.close && c.close >= prev.open) {
+      patterns.push({ type: 'Engulfing Bullish', labelAr: 'ابتلاع صعودي', time: c.time, price: c.close, confidence: 0.8, direction: 'bullish' });
     }
 
-    // Bearish Engulfing
-    if (prev.close > prev.open && c.close < c.open &&
-        c.open >= prev.close && c.close <= prev.open) {
-      patterns.push({
-        type: 'Engulfing Bearish',
-        labelAr: 'ابتلاع هبوطي',
-        time: c.time,
-        price: c.close,
-        confidence: 0.8,
-        direction: 'bearish',
-      });
+    if (prev.close > prev.open && c.close < c.open && c.open >= prev.close && c.close <= prev.open) {
+      patterns.push({ type: 'Engulfing Bearish', labelAr: 'ابتلاع هبوطي', time: c.time, price: c.close, confidence: 0.8, direction: 'bearish' });
     }
 
-    // Spinning Top: small body, roughly equal wicks
     if (range > 0 && body / range < 0.3 && Math.abs(upperWick - lowerWick) / range < 0.15) {
-      patterns.push({
-        type: 'Spinning Top',
-        labelAr: 'قمة دوارة',
-        time: c.time,
-        price: c.close,
-        confidence: 0.6,
-        direction: 'neutral',
-      });
+      patterns.push({ type: 'Spinning Top', labelAr: 'قمة دوارة', time: c.time, price: c.close, confidence: 0.6, direction: 'neutral' });
     }
 
-    // Marubozu: very small or no wicks
     if (body > 0 && range > 0 && body / range > 0.85) {
-      patterns.push({
-        type: 'Marubozu',
-        labelAr: 'ماروبوزو',
-        time: c.time,
-        price: c.close,
-        confidence: 0.75,
-        direction: c.close > c.open ? 'bullish' : 'bearish',
-      });
+      patterns.push({ type: 'Marubozu', labelAr: 'ماروبوزو', time: c.time, price: c.close, confidence: 0.75, direction: c.close > c.open ? 'bullish' : 'bearish' });
     }
   }
 
-  return patterns.slice(-10); // Last 10 patterns max
+  return patterns.slice(-10);
 }
 
 // ── Support/Resistance Level Detection ──────────────────
@@ -492,56 +726,35 @@ function detectSupportResistance(candles: CandleData[]): SupportResistanceLevel[
   const levels: SupportResistanceLevel[] = [];
   const windowSize = 10;
 
-  // Find pivot highs and lows
   for (let i = windowSize; i < candles.length - windowSize; i++) {
     const slice = candles.slice(i - windowSize, i + windowSize + 1);
     const current = candles[i];
 
-    // Check if this is a local high (resistance)
     const isLocalHigh = slice.every(c => current.high >= c.high);
     if (isLocalHigh) {
-      const existingLevel = levels.find(l => l.type === 'resistance' && Math.abs(l.price - current.high) / current.high < 0.005);
-      if (existingLevel) {
-        existingLevel.touches++;
-        existingLevel.strength = existingLevel.touches >= 3 ? 'strong' : existingLevel.touches >= 2 ? 'medium' : 'weak';
+      const existing = levels.find(l => l.type === 'resistance' && Math.abs(l.price - current.high) / current.high < 0.005);
+      if (existing) {
+        existing.touches++;
+        existing.strength = existing.touches >= 3 ? 'strong' : existing.touches >= 2 ? 'medium' : 'weak';
       } else {
-        levels.push({
-          price: current.high,
-          type: 'resistance',
-          strength: 'weak',
-          touches: 1,
-        });
+        levels.push({ price: current.high, type: 'resistance', strength: 'weak', touches: 1 });
       }
     }
 
-    // Check if this is a local low (support)
     const isLocalLow = slice.every(c => current.low <= c.low);
     if (isLocalLow) {
-      const existingLevel = levels.find(l => l.type === 'support' && Math.abs(l.price - current.low) / current.low < 0.005);
-      if (existingLevel) {
-        existingLevel.touches++;
-        existingLevel.strength = existingLevel.touches >= 3 ? 'strong' : existingLevel.touches >= 2 ? 'medium' : 'weak';
+      const existing = levels.find(l => l.type === 'support' && Math.abs(l.price - current.low) / current.low < 0.005);
+      if (existing) {
+        existing.touches++;
+        existing.strength = existing.touches >= 3 ? 'strong' : existing.touches >= 2 ? 'medium' : 'weak';
       } else {
-        levels.push({
-          price: current.low,
-          type: 'support',
-          strength: 'weak',
-          touches: 1,
-        });
+        levels.push({ price: current.low, type: 'support', strength: 'weak', touches: 1 });
       }
     }
   }
 
-  // Sort by strength and take top 3 of each type
-  const supportLevels = levels
-    .filter(l => l.type === 'support')
-    .sort((a, b) => b.touches - a.touches)
-    .slice(0, 3);
-
-  const resistanceLevels = levels
-    .filter(l => l.type === 'resistance')
-    .sort((a, b) => b.touches - a.touches)
-    .slice(0, 3);
+  const supportLevels = levels.filter(l => l.type === 'support').sort((a, b) => b.touches - a.touches).slice(0, 3);
+  const resistanceLevels = levels.filter(l => l.type === 'resistance').sort((a, b) => b.touches - a.touches).slice(0, 3);
 
   return [...supportLevels, ...resistanceLevels];
 }
@@ -552,7 +765,6 @@ function detectTrendLines(candles: CandleData[]): TrendLine[] {
   const lines: TrendLine[] = [];
   const lookback = Math.min(100, candles.length);
 
-  // Find ascending trend line (connecting higher lows)
   const lows: { time: number; price: number }[] = [];
   for (let i = candles.length - lookback; i < candles.length; i++) {
     if (i < 2) continue;
@@ -565,7 +777,6 @@ function detectTrendLines(candles: CandleData[]): TrendLine[] {
   }
 
   if (lows.length >= 2) {
-    // Take first and last pivot low
     const first = lows[0];
     const last = lows[lows.length - 1];
     if (last.price > first.price) {
@@ -578,7 +789,6 @@ function detectTrendLines(candles: CandleData[]): TrendLine[] {
     }
   }
 
-  // Find descending trend line (connecting lower highs)
   const highs: { time: number; price: number }[] = [];
   for (let i = candles.length - lookback; i < candles.length; i++) {
     if (i < 2) continue;

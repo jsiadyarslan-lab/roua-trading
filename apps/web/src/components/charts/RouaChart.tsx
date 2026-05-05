@@ -25,7 +25,6 @@ import { AIPatternPanel } from './AIPatternPanel';
 import { ChartTrading } from './ChartTrading';
 import { TemplateManager } from './TemplateManager';
 import { ChartSettingsPanel } from './ChartSettingsPanel';
-import { ChartHUD } from './ChartHUD';
 import { CompareOverlay } from './CompareOverlay';
 import { MultiTimeframeChart } from './MultiTimeframeChart';
 import ShareChart from './ShareChart';
@@ -1245,6 +1244,26 @@ export default function RouaChart({
             symbol={selectedSymbol}
             candles={candlesRef.current}
             onPatternsDetected={handlePatternsDetected}
+            onPatternClick={(p) => {
+              // Navigate chart to the pattern's time and price
+              try {
+                const chartApi = chart.chartRef?.current;
+                if (chartApi && p.time) {
+                  chartApi.timeScale().setVisibleRange({
+                    from: (p.time - 3600 * 6) as any,
+                    to: (p.time + 3600 * 6) as any,
+                  });
+                }
+              } catch { /* timeScale may not support setVisibleRange */ }
+            }}
+            onLevelClick={(level) => {
+              // Add a temporary highlighted price line for the clicked level
+              try {
+                const color = level.type === 'support' ? '#00FFA3' : '#FF4757';
+                const label = level.type === 'support' ? `دعم ${level.price.toFixed(level.price > 1000 ? 2 : 5)}` : `مقاومة ${level.price.toFixed(level.price > 1000 ? 2 : 5)}`;
+                chart.addPriceLine(`ai-click-${level.type}-${Date.now()}`, level.price, color, label, 2, 0, true);
+              } catch { /* ignore */ }
+            }}
             onClose={() => setShowAIPanel(false)}
           />
         )}
@@ -1276,19 +1295,6 @@ export default function RouaChart({
             onClose={() => setShowChartSettings(false)}
           />
         )}
-
-        {/* Chart HUD */}
-        <ChartHUD
-          symbol={selectedSymbol}
-          currentPrice={currentPrice}
-          previousClose={candlesRef.current.length > 1 ? candlesRef.current[candlesRef.current.length - 2]?.close ?? null : null}
-          dailyVolume={candlesRef.current.length > 0 ? candlesRef.current[candlesRef.current.length - 1]?.volume ?? null : null}
-          dailyHigh={candlesRef.current.length > 0 ? candlesRef.current[candlesRef.current.length - 1]?.high ?? null : null}
-          dailyLow={candlesRef.current.length > 0 ? candlesRef.current[candlesRef.current.length - 1]?.low ?? null : null}
-          spread={null}
-          lastCouncilSignal={councilSignal}
-          compact={compact || mobile}
-        />
 
         {/* Compare Overlay */}
         {showCompare && chart.chartRef?.current && (

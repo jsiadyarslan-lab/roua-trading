@@ -247,18 +247,25 @@ export class StrategicCouncilService {
    * Get all active briefs (for Smart Executor consumption)
    */
   async getActiveBriefs(userId?: string): Promise<TradingBriefDTO[]> {
-    // FIX: Include MODIFIED briefs — they are still active and should be
-    // executed by the Smart Executor. Previously only 'ACTIVE' was returned,
-    // so modified briefs were invisible to the executor.
-    const where: any = { isActive: true, reviewStatus: { in: ['ACTIVE', 'MODIFIED'] } };
-    if (userId) where.userId = userId;
+    try {
+      // FIX: Include MODIFIED briefs — they are still active and should be
+      // executed by the Smart Executor. Previously only 'ACTIVE' was returned,
+      // so modified briefs were invisible to the executor.
+      const where: any = { isActive: true, reviewStatus: { in: ['ACTIVE', 'MODIFIED'] } };
+      if (userId) where.userId = userId;
 
-    const briefs = await this.prisma.tradingBrief.findMany({
-      where,
-      orderBy: { issuedAt: 'desc' },
-    });
+      const briefs = await this.prisma.tradingBrief.findMany({
+        where,
+        orderBy: { issuedAt: 'desc' },
+      });
 
-    return briefs.map((b) => this._toDTO(b));
+      return briefs.map((b) => this._toDTO(b));
+    } catch (error: any) {
+      this.logger.error(`🏛️ getActiveBriefs failed: ${error.message}`);
+      // Return empty array instead of crashing — the Strategic Council
+      // will appear empty but won't return a 503 error
+      return [];
+    }
   }
 
   /**

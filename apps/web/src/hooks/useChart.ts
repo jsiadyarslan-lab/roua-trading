@@ -280,13 +280,20 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         hour: '2-digit', minute: '2-digit',
       });
 
+      // FIX: Guard all OHLCV values against null/undefined — lightweight-charts
+      // may return null values when hovering over oscillator series or during
+      // data transitions, which caused "Value is null" errors downstream.
+      const safeNum = (v: any, fallback: number = 0): number => {
+        return (v !== null && v !== undefined && !isNaN(v)) ? Number(v) : fallback;
+      };
+
       onCrosshairMoveRef.current?.({
         time: param.time as number,
-        open: candleData.open ?? candleData.value,
-        high: candleData.high ?? candleData.value,
-        low: candleData.low ?? candleData.value,
-        close: candleData.close ?? candleData.value,
-        volume: candleData.volume || 0,
+        open: safeNum(candleData.open, candleData.value ?? 0),
+        high: safeNum(candleData.high, candleData.value ?? 0),
+        low: safeNum(candleData.low, candleData.value ?? 0),
+        close: safeNum(candleData.close, candleData.value ?? 0),
+        volume: safeNum(candleData.volume, 0),
         change,
         changePercent,
         dateStr,
@@ -441,6 +448,40 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     });
     priceLinesRef.current.clear();
   }, [symbol]);
+
+  // ── Handle timeframe change: clear indicators and data to prevent "Value is null" ──
+  // When timeframe changes, old indicator series have timestamps from the previous
+  // timeframe (e.g. 15min) that don't exist in the new candle data (e.g. 1h).
+  // lightweight-charts throws "Value is null" when rendering indicator data at
+  // timestamps that don't exist in the candle series.
+  useEffect(() => {
+    // Clear overlay series when timeframe changes
+    overlaySeriesRef.current.forEach((series) => {
+      chartInstanceRef.current?.removeSeries(series);
+    });
+    overlaySeriesRef.current.clear();
+    // Clear oscillator series when timeframe changes
+    oscillatorSeriesRef.current.forEach((series) => {
+      chartInstanceRef.current?.removeSeries(series);
+    });
+    oscillatorSeriesRef.current.clear();
+    // Clear candle + volume data so chart is blank while new data loads
+    candlesRef.current = [];
+    pendingCandlesRef.current = null;
+    try {
+      candleSeriesRef.current?.setData([] as any);
+      volumeSeriesRef.current?.setData([] as any);
+    } catch { /* series might not exist yet on first render */ }
+    // Clear active indicators state (they'll be re-added by setCandles after data loads)
+    setActiveIndicators(new Map());
+    // Clear price lines (they are timeframe-dependent)
+    priceLinesRef.current.forEach((line) => {
+      try { line.remove(); } catch {}
+    });
+    priceLinesRef.current.clear();
+    // Clear markers (they are timeframe-dependent)
+    markersRef.current = [];
+  }, [timeframe]);
 
   // ── Apply pending candles when chart becomes ready ──
   // NOTE: This useEffect MUST come after setCandles is defined to avoid TDZ error
@@ -993,10 +1034,23 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     }
 
     // Re-apply indicators with fresh data using ref to avoid stale closure
-    // FIX: Debounce indicator recalculation — only re-apply if indicators exist
-    // to prevent re-creating ALL indicator series on every WebSocket tick
+    // FIX: Clear all indicator series BEFORE re-applying to prevent
+    // lightweight-charts "Value is null" error when old indicator timestamps
+    // don't exist in the new candle data (e.g., after timeframe change).
     const activeIndicators = activeIndicatorsRef.current;
     if (activeIndicators.size > 0) {
+      // Clear existing indicator series first to avoid timestamp mismatch
+      const chart = chartInstanceRef.current;
+      if (chart) {
+        overlaySeriesRef.current.forEach((series) => {
+          try { chart.removeSeries(series); } catch {}
+        });
+        overlaySeriesRef.current.clear();
+        oscillatorSeriesRef.current.forEach((series) => {
+          try { chart.removeSeries(series); } catch {}
+        });
+        oscillatorSeriesRef.current.clear();
+      }
       // Use requestAnimationFrame to batch indicator updates and avoid
       // re-creating series multiple times per frame (e.g., on rapid ticks)
       requestAnimationFrame(() => {

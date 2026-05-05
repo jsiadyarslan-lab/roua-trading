@@ -490,11 +490,16 @@ export class AIOrchestratorService implements OnModuleDestroy {
       // FIX: On cloud with localhost Ollama URL, skip it as primary for 'exec' role
       // FIX 2: If Ollama has a cloud URL (like ollama.com), keep it as primary — it works!
       // FIX 3: Model diversification — prevent the same model from being used for
-      // more than 2 roles. When multiple roles fall back to the same model (e.g.,
+      // too many roles. When multiple roles fall back to the same model (e.g.,
       // GLM-4), we try to distribute across available working models instead.
       // This prevents rate-limiting and ensures genuine multi-model analysis.
+      // FIX: Dynamic MAX_MODEL_REUSE — when few models are available, allow more reuse.
+      // If only 3 models work, we NEED each to serve 3 roles to fill all 8 slots.
+      // Previous fixed MAX_MODEL_REUSE=2 meant only 6/8 roles filled with 3 models.
+      const availableModelCount = ['groq', 'glm', 'gemini', 'huggingface', 'ollama', 'bedrock', 'openrouter', 'deepseek']
+        .filter(m => this._isModelKeyAvailable(m)).length;
+      const MAX_MODEL_REUSE = availableModelCount <= 3 ? 3 : 2; // Allow 3 reuse when models are scarce
       const modelUsageCount = new Map<string, number>(); // Track how many roles each model is assigned to
-      const MAX_MODEL_REUSE = 2; // A model can be used for at most 2 roles
 
       const activeRoles = roles.map(role => {
         let roleModels = [role.model, ...(role.fallbackModels || [])];
@@ -508,6 +513,10 @@ export class AIOrchestratorService implements OnModuleDestroy {
           // If Ollama has a cloud URL, keep it as primary — no deprioritization needed
         }
         const models = roleModels;
+
+        // FIX: Two-pass resolution — first pass respects diversification,
+        // second pass relaxes it to ensure NO role goes unfilled.
+        // A role with a reused model is better than a role with a stub (confidence=0).
         for (const model of models) {
           // Check cooldown: only active after 3+ consecutive 429 failures
           const consecutiveFails = this.modelConsecutiveFailures.get(model) || 0;
@@ -516,7 +525,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
             if (Date.now() < cooldownUntil) continue; // In short cooldown
           }
           if (!this._isModelKeyAvailable(model)) continue; // Skip — no API key
-          // FIX 3: Check model diversification — skip if model is already used for MAX_MODEL_REUSE roles
+          // Check model diversification — skip if model is already used for MAX_MODEL_REUSE roles
           const currentUsage = modelUsageCount.get(model) || 0;
           if (currentUsage >= MAX_MODEL_REUSE) {
             this.logger.debug(`🔀 Model ${model} already used for ${currentUsage} roles — trying next model for role ${role.name}`);
@@ -526,6 +535,24 @@ export class AIOrchestratorService implements OnModuleDestroy {
           modelUsageCount.set(model, currentUsage + 1);
           return { ...role, resolvedModel: model };
         }
+
+        // FIX: Second pass — relax diversification. Better to reuse a model
+        // than to have a role with no working model (stub = confidence=0 = wasted role).
+        for (const model of models) {
+          const consecutiveFails = this.modelConsecutiveFailures.get(model) || 0;
+          if (consecutiveFails >= this.FAILURES_BEFORE_COOLDOWN) {
+            const cooldownUntil = this.modelCooldowns.get(model) || 0;
+            if (Date.now() < cooldownUntil) continue;
+          }
+          if (!this._isModelKeyAvailable(model)) continue;
+          // Skip models already at a very high reuse count (5+) to avoid rate limits
+          const currentUsage = modelUsageCount.get(model) || 0;
+          if (currentUsage >= 5) continue;
+          modelUsageCount.set(model, currentUsage + 1);
+          this.logger.warn(`⚠️ Relaxed diversification for role ${role.name}: using model ${model} (${currentUsage + 1} roles now)`);
+          return { ...role, resolvedModel: model };
+        }
+
         // All models for this role unavailable — keep primary (will return stub)
         this.logger.warn(`⚠️ All models for role ${role.name} are unavailable`);
         return { ...role, resolvedModel: role.model };
@@ -804,7 +831,10 @@ export class AIOrchestratorService implements OnModuleDestroy {
       try {
         await this.redis?.set(cacheKey, JSON.stringify(result), consensusCacheTTL);
       } catch {}
-      this._setCachedResult(memKey, result as any, isPartial ? 'consensus_partial' : 'consensus');
+      // NOTE: In-memory cache for consensus was disabled to prevent stale HOLD results.
+      // Redis cache (v5 key) is the only cache for consensus now.
+      // const memKey = `consensus:${symbol}`;
+      // this._setCachedResult(memKey, result as any, isPartial ? 'consensus_partial' : 'consensus');
 
       return result;
     } catch (error: unknown) {

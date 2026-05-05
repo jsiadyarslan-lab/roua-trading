@@ -449,13 +449,67 @@ export class StrategicCouncilService {
     // stalling when AI providers are down.
     const isAIFallback = consensus.isFallback === true || consensus.consensusScore === 0;
 
-    // FIX: With the new direction-first consensus algorithm, HOLD should be extremely rare.
-    // The consensus engine now prefers directional signals over HOLD.
-    // If we still get HOLD, it means NO model gave any directional signal at all,
-    // which is unlikely with the new prompts that forbid HOLD.
-    // In that rare case, we keep the existing brief and don't issue a new one.
+    // FIX: Even when AI gives HOLD, try technical analysis as fallback.
+    // In active Forex markets, there's ALWAYS a direction. The AI saying HOLD
+    // doesn't mean the market is flat — it means the AI is being cautious.
+    // We use technical momentum to override AI caution and generate actionable signals.
     if (!isAIFallback && consensus.recommendation === 'HOLD') {
-      // Pure HOLD — no directional signal from any model
+      // AI said HOLD — try technical analysis override before giving up
+      const technicalOverride = await this._generateTechnicalFallbackBrief(pair, timeframe, currentPrice);
+      if (technicalOverride && technicalOverride.recommendation !== 'HOLD') {
+        // Technical analysis found a direction — use it instead of HOLD
+        this.logger.log(`🏛️ Technical override: AI said HOLD for ${pair} ${timeframe}, but momentum shows ${technicalOverride.recommendation}`);
+        // Create brief using technical analysis
+        const direction: BriefDirection = technicalOverride.recommendation === 'BUY' ? 'BUY' : 'SELL';
+        const { entryPrice, stopLoss, takeProfit, strictRules } = this._calculateLevels(currentPrice, direction, timeframe);
+
+        if (existingBrief) {
+          const sameDirection = existingBrief.direction === direction;
+          const priceDiff = Math.abs(Number(existingBrief.entryPrice) - entryPrice) / entryPrice;
+          if (sameDirection && priceDiff < 0.005) {
+            await this.prisma.tradingBrief.update({
+              where: { id: existingBrief.id },
+              data: { lastReviewedAt: new Date(), confidence: technicalOverride.consensusScore, analysisSummary: technicalOverride.masterStrategy },
+            });
+          } else {
+            await this.prisma.tradingBrief.update({
+              where: { id: existingBrief.id },
+              data: {
+                direction, entryPrice, stopLoss, takeProfit,
+                confidence: technicalOverride.consensusScore,
+                strictRules: JSON.stringify(strictRules),
+                lastReviewedAt: new Date(), reviewStatus: 'MODIFIED',
+                expiresAt: new Date(Date.now() + TIMEFRAME_EXPIRY_MS[timeframe]),
+                analysisSummary: technicalOverride.masterStrategy,
+              },
+            });
+            result.briefsModified++;
+            this.logger.log(`🏛️ Technical override modified brief for ${pair} ${timeframe}: ${direction}`);
+          }
+        } else {
+          try {
+            await this.prisma.tradingBrief.create({
+              data: {
+                pair, direction, entryPrice, stopLoss, takeProfit,
+                confidence: technicalOverride.consensusScore, timeframe,
+                issuedAt: new Date(),
+                expiresAt: new Date(Date.now() + TIMEFRAME_EXPIRY_MS[timeframe]),
+                isActive: true, strictRules: JSON.stringify(strictRules),
+                lastReviewedAt: new Date(), reviewStatus: 'ACTIVE',
+                analysisSummary: technicalOverride.masterStrategy || `تحليل تقني: ${direction} بثقة ${technicalOverride.consensusScore}%`,
+              },
+            });
+            result.briefsIssued++;
+            this.logger.log(`🏛️ Technical override new brief for ${pair} ${timeframe}: ${direction} @ ${entryPrice}`);
+          } catch (dbError: any) {
+            this.logger.error(`🏛️ FAILED technical override brief for ${pair} ${timeframe}: ${dbError.message}`);
+          }
+        }
+        await this._addCost(technicalOverride.analyses?.length || 1);
+        return;
+      }
+
+      // Pure HOLD — technical analysis also shows no clear direction
       // Keep existing brief if any, don't cancel it
       if (existingBrief) {
         await this.prisma.tradingBrief.update({
@@ -585,6 +639,10 @@ export class StrategicCouncilService {
    * Uses basic momentum and trend indicators from exchange data to produce a
    * BUY/SELL recommendation with a conservative confidence score.
    * This prevents the entire trading pipeline from stalling when AI providers are down.
+   *
+   * IMPROVEMENT: Lowered momentum threshold to 0.0003 (0.03%) — in Forex, even
+   * tiny movements are tradeable with proper SL/TP. Also added simple moving
+   * average crossover detection for more reliable signals.
    */
   private async _generateTechnicalFallbackBrief(
     pair: string,
@@ -625,32 +683,63 @@ export class StrategicCouncilService {
               const rsi = 100 - (100 / (1 + rs));
 
               // Determine direction from momentum and RSI
-              // FIX: Lowered momentum threshold from 0.005 (0.5%) to 0.001 (0.1%)
-              // In active markets, even small momentum is actionable with proper SL/TP.
-              if (momentum > 0.001 && rsi < 70) {
+              // FIX: Lowered momentum threshold from 0.001 to 0.0003 (0.03%)
+              // In active Forex/Crypto markets, even tiny momentum is actionable
+              // with proper risk management (SL/TP).
+              if (momentum > 0.0003 && rsi < 70) {
                 // Bullish momentum, not overbought
-                confidence = Math.min(65, 55 + Math.abs(momentum) * 1000);
+                confidence = Math.min(70, 55 + Math.abs(momentum) * 2000);
                 return {
                   recommendation: 'BUY',
                   consensusScore: Math.round(confidence),
-                  masterStrategy: `تحليل تقني احتياطي — زخم إيجابي (${(momentum * 100).toFixed(2)}%)، RSI=${rsi.toFixed(0)}. نماذج AI غير متاحة.`,
+                  masterStrategy: `تحليل تقني — زخم إيجابي (${(momentum * 100).toFixed(3)}%)، RSI=${rsi.toFixed(0)}. وقف خسارة وتقييد ربح محددان.`,
                   analyses: [
-                    { role: 'محلل تقني', model: 'Technical/Momentum', vote: 'BUY', confidence: Math.round(confidence), reason: `زخم إيجابي ${(momentum * 100).toFixed(2)}% مع RSI ${rsi.toFixed(0)}` },
+                    { role: 'محلل تقني', model: 'Technical/Momentum', vote: 'BUY', confidence: Math.round(confidence), reason: `زخم إيجابي ${(momentum * 100).toFixed(3)}% مع RSI ${rsi.toFixed(0)}` },
                     { role: 'محلل اتجاه', model: 'Technical/Trend', vote: 'BUY', confidence: Math.round(confidence - 5), reason: `المتوسط المتحرك القصير أعلى من المتوسط المتحرك الطويل` },
                   ],
                 };
-              } else if (momentum < -0.001 && rsi > 30) {
+              } else if (momentum < -0.0003 && rsi > 30) {
                 // Bearish momentum, not oversold
-                confidence = Math.min(65, 55 + Math.abs(momentum) * 1000);
+                confidence = Math.min(70, 55 + Math.abs(momentum) * 2000);
                 return {
                   recommendation: 'SELL',
                   consensusScore: Math.round(confidence),
-                  masterStrategy: `تحليل تقني احتياطي — زخم سلبي (${(momentum * 100).toFixed(2)}%)، RSI=${rsi.toFixed(0)}. نماذج AI غير متاحة.`,
+                  masterStrategy: `تحليل تقني — زخم سلبي (${(momentum * 100).toFixed(3)}%)، RSI=${rsi.toFixed(0)}. وقف خسارة وتقييد ربح محددان.`,
                   analyses: [
-                    { role: 'محلل تقني', model: 'Technical/Momentum', vote: 'SELL', confidence: Math.round(confidence), reason: `زخم سلبي ${(momentum * 100).toFixed(2)}% مع RSI ${rsi.toFixed(0)}` },
+                    { role: 'محلل تقني', model: 'Technical/Momentum', vote: 'SELL', confidence: Math.round(confidence), reason: `زخم سلبي ${(momentum * 100).toFixed(3)}% مع RSI ${rsi.toFixed(0)}` },
                     { role: 'محلل اتجاه', model: 'Technical/Trend', vote: 'SELL', confidence: Math.round(confidence - 5), reason: `المتوسط المتحرك القصير أدنى من المتوسط المتحرك الطويل` },
                   ],
                 };
+              }
+
+              // FIX: Even with very low momentum, determine direction from price vs MA
+              // If recent average > older average = slight bullish, vice versa
+              // This ensures we almost always get a directional signal
+              if (Math.abs(momentum) <= 0.0003) {
+                const shortMA = closes.slice(-3).reduce((a: number, b: number) => a + b, 0) / 3;
+                const longMA = closes.slice(-10).reduce((a: number, b: number) => a + b, 0) / 10;
+
+                if (shortMA > longMA) {
+                  confidence = 52; // Very low confidence but still directional
+                  return {
+                    recommendation: 'BUY',
+                    consensusScore: confidence,
+                    masterStrategy: `تحليل تقني — اتجاه صاعد ضعيف (MA crossover). وقف خسارة قريب مطلوب.`,
+                    analyses: [
+                      { role: 'محلل تقني', model: 'Technical/MA-Cross', vote: 'BUY', confidence: confidence, reason: `المتوسط القصير (${shortMA.toFixed(2)}) أعلى من الطويل (${longMA.toFixed(2)})` },
+                    ],
+                  };
+                } else if (shortMA < longMA) {
+                  confidence = 52;
+                  return {
+                    recommendation: 'SELL',
+                    consensusScore: confidence,
+                    masterStrategy: `تحليل تقني — اتجاه هابط ضعيف (MA crossover). وقف خسارة قريب مطلوب.`,
+                    analyses: [
+                      { role: 'محلل تقني', model: 'Technical/MA-Cross', vote: 'SELL', confidence: confidence, reason: `المتوسط القصير (${shortMA.toFixed(2)}) أدنى من الطويل (${longMA.toFixed(2)})` },
+                    ],
+                  };
+                }
               }
             } // end if closes.length >= 10
           } // end if candles.length >= 10

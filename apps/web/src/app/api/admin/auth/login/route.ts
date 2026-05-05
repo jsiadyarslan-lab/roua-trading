@@ -11,9 +11,11 @@ const LOCKOUT_MS = 30 * 60 * 1000 // 30 minutes after max attempts
 const loginAttemptStore = new Map<string, { count: number; firstAttemptAt: number }>()
 const loginLockoutStore = new Map<string, { until: number }>()
 
-// Clean up stale entries every 10 minutes
+// FIX (C3): Clean up stale entries with a tracked interval that can be cleared on process exit.
+// Previously, the setInterval was never cleared, causing memory leaks in serverless environments.
+let _cleanupInterval: ReturnType<typeof setInterval> | null = null
 if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
+  _cleanupInterval = setInterval(() => {
     const now = Date.now()
     for (const [key, value] of loginAttemptStore) {
       if (now - value.firstAttemptAt > WINDOW_MS) loginAttemptStore.delete(key)
@@ -22,6 +24,10 @@ if (typeof setInterval !== 'undefined') {
       if (value.until < now) loginLockoutStore.delete(key)
     }
   }, 10 * 60 * 1000)
+  // Ensure the interval doesn't prevent the process from exiting
+  if (_cleanupInterval && typeof _cleanupInterval === 'object' && 'unref' in _cleanupInterval) {
+    _cleanupInterval.unref()
+  }
 }
 
 /**

@@ -45,6 +45,10 @@ export class OrderProducerService implements OnModuleInit, OnModuleDestroy {
   private readonly exchangeName = 'order_exchange';
   private readonly routingKey = 'order.submit';
   private rabbitAvailable = false;
+  // FIX (H8): Track reconnect attempts to prevent infinite recursion
+  private reconnectAttempts = 0;
+  private readonly MAX_RECONNECT_ATTEMPTS = 20; // Cap at 20 attempts (100 seconds)
+  private readonly BASE_RECONNECT_DELAY_MS = 5000; // Start at 5s
 
   constructor(private readonly configService: ConfigService) {}
 
@@ -161,16 +165,34 @@ export class OrderProducerService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async _reconnect(url: string): Promise<void> {
+    // FIX (H8): Add exponential backoff with max retry count to prevent
+    // infinite recursion that floods logs and consumes CPU when RabbitMQ is down.
+    if (this.reconnectAttempts >= this.MAX_RECONNECT_ATTEMPTS) {
+      this.logger.error(
+        `🐰 Max reconnect attempts (${this.MAX_RECONNECT_ATTEMPTS}) reached — ` +
+        `giving up on RabbitMQ. Orders will execute synchronously (fallback mode).`
+      );
+      return;
+    }
+
+    this.reconnectAttempts++;
+    // Exponential backoff: 5s → 10s → 20s → 40s → 60s (capped)
+    const delay = Math.min(
+      this.BASE_RECONNECT_DELAY_MS * Math.pow(2, this.reconnectAttempts - 1),
+      60000 // Cap at 60 seconds
+    );
+
+    this.logger.log(`🐰 Attempting RabbitMQ reconnection (attempt ${this.reconnectAttempts}/${this.MAX_RECONNECT_ATTEMPTS}, next in ${Math.round(delay / 1000)}s)...`);
     setTimeout(async () => {
-      this.logger.log('🐰 Attempting RabbitMQ reconnection...');
       try {
         await this._connect(url);
         this.rabbitAvailable = true;
+        this.reconnectAttempts = 0; // Reset on success
         this.logger.log('🐰 Reconnected to RabbitMQ');
       } catch (error: any) {
         this.logger.error(`🐰 Reconnection failed: ${error.message}`);
         this._reconnect(url);
       }
-    }, 5000);
+    }, delay);
   }
 }

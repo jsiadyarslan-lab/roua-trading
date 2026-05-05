@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger, Optional, Inject, forwardRef, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GroqService, AIAnalysisRequest, AIAnalysisResponse } from './groq.service';
 import { GlmService } from './glm.service';
@@ -47,8 +47,11 @@ import axios from 'axios';
  * └──────────────────────┴──────────────────────────────────────────────────────┘
  */
 @Injectable()
-export class AIOrchestratorService {
+export class AIOrchestratorService implements OnModuleDestroy {
   private readonly logger = new Logger(AIOrchestratorService.name);
+
+  /** FIX (C4): Reference to cache cleanup interval so it can be cleared on shutdown */
+  private _cacheCleanupInterval: NodeJS.Timeout | null = null;
 
   /** Circuit breaker: track consecutive failures per model
    *  BUG 6 FIX: Exponential backoff starting at 30s, doubling each time,
@@ -69,6 +72,15 @@ export class AIOrchestratorService {
 
   /** In-flight request deduplication — prevents duplicate AI calls for the same symbol+type */
   private readonly inFlightRequests = new Map<string, Promise<AIAnalysisResponse>>();
+
+  /** Cleanup on module destroy — prevents orphaned intervals on hot-reload */
+  onModuleDestroy() {
+    if (this._cacheCleanupInterval) {
+      clearInterval(this._cacheCleanupInterval);
+      this._cacheCleanupInterval = null;
+      this.logger.log('🧹 Cache cleanup interval cleared on module destroy');
+    }
+  }
 
   /** In-memory cache for AI responses with TTL */
   private readonly responseCache = new Map<string, { result: AIAnalysisResponse; expiresAt: number }>();
@@ -169,9 +181,10 @@ export class AIOrchestratorService {
     const available = this.getModelsStatus().filter(m => m.available);
     this.logger.log(`🔑 Models with API keys: ${available.map(m => m.model).join(', ') || 'NONE'}`);
 
-    // FIX: Periodic cleanup of expired in-memory cache entries (every 5 minutes)
+    // FIX (C4): Periodic cleanup of expired in-memory cache entries (every 5 minutes)
     // Prevents memory leak where expired entries persist indefinitely when the service is idle.
-    setInterval(() => {
+    // Store the interval reference so it can be cleared in onModuleDestroy().
+    this._cacheCleanupInterval = setInterval(() => {
       const now = Date.now();
       let expired = 0;
       for (const [key, entry] of this.responseCache) {

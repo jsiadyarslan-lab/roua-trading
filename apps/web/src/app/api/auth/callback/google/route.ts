@@ -93,8 +93,9 @@ export async function GET(request: NextRequest) {
     })
 
     if (!tokenResponse.ok) {
-      const errBody = await tokenResponse.text().catch(() => '')
-      console.error(`[auth/callback/google] Token exchange failed: ${tokenResponse.status} ${errBody.substring(0, 200)}`)
+      // FIX (H5): Don't log the raw response body — it may contain access_token/id_token.
+      // Only log the status code for debugging.
+      console.error(`[auth/callback/google] Token exchange failed: ${tokenResponse.status}`)
       return NextResponse.redirect(new URL('/login?error=token_exchange_failed', getPublicOrigin(request)))
     }
 

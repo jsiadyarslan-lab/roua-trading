@@ -10,12 +10,13 @@ import { db, ensureDbReady, getDbInitError } from '@/lib/db'
  * ⚠️ Only available in development or with a secret key in production.
  */
 export async function GET(request: NextRequest) {
-  // Security: require a secret in production
-  const secret = request.nextUrl.searchParams.get('secret')
+  // FIX (C2): Security — disable this endpoint entirely in production.
+  // Previously used ADMIN_PASSWORD as query param which leaked through access logs/referrers.
+  // Now only available in development mode. For production debugging, use the admin dashboard.
   const isDev = process.env.NODE_ENV !== 'production'
 
-  if (!isDev && secret !== process.env.ADMIN_PASSWORD) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isDev) {
+    return NextResponse.json({ error: 'هذه النقطة متاحة فقط في وضع التطوير' }, { status: 403 })
   }
 
   const dbReady = await ensureDbReady()

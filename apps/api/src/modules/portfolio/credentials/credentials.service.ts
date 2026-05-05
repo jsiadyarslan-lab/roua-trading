@@ -370,14 +370,18 @@ export class CredentialsService {
 
     const validationPromise = this._doValidateApiKey(exchange, apiKey, apiSecret, passphrase);
 
-    // Race the validation against a timeout
+    // FIX (C5): Race the validation against a timeout.
+    // CRITICAL: On timeout, REJECT the key (not accept it) to prevent
+    // unverified API keys from being used for trading. Previously, the timeout
+    // resolved with { valid: true, permissions: ['read', 'trade'] }, which
+    // auto-granted trade permissions to keys that couldn't be verified.
     const timeoutPromise = new Promise<{ valid: boolean; permissions?: string[]; error?: string }>((resolve) => {
       setTimeout(() => {
         this.logger.warn(
           `⏱ API key validation for ${exchange} timed out after ${TIMEOUT_MS / 1000}s — ` +
-          `accepting with trade permissions. Key will be validated on first use.`
+          `REJECTING the key for safety. User should try again later.`
         );
-        resolve({ valid: true, permissions: ['read', 'trade'] });
+        resolve({ valid: false, error: `انتهت مهلة التحقق من مفتاح API (${TIMEOUT_MS / 1000}s). يرجى المحاولة مرة أخرى.` });
       }, TIMEOUT_MS);
     });
 

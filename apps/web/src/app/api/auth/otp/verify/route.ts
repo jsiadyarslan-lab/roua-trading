@@ -63,8 +63,10 @@ function parseUserAgent(userAgent?: string | null) {
   return { browser, os, type, device: type }
 }
 
+// FIX (C3): Clean up stale entries with a tracked interval + unref for serverless.
+let _otpCleanupInterval: ReturnType<typeof setInterval> | null = null
 if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
+  _otpCleanupInterval = setInterval(() => {
     const now = Date.now()
     for (const [key, value] of otpAttemptStore) {
       if (now - value.firstAttemptAt > OTP_ATTEMPT_WINDOW_MS) {
@@ -77,6 +79,9 @@ if (typeof setInterval !== 'undefined') {
       }
     }
   }, 10 * 60 * 1000)
+  if (_otpCleanupInterval && typeof _otpCleanupInterval === 'object' && 'unref' in _otpCleanupInterval) {
+    _otpCleanupInterval.unref()
+  }
 }
 
 export async function POST(request: NextRequest) {

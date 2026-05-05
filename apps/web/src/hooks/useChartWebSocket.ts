@@ -89,9 +89,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   }, []);
 
   // ── Fetch latest candle via REST ───────────────────────
-  // FIX: Must be defined BEFORE startPolling which uses it.
-  // Previously, startPolling was defined first and referenced fetchLatestCandle
-  // causing "Cannot access 'fetchLatestCandle' before initialization" TDZ error.
+  // FIX: Moved BEFORE startPolling to fix TS2448 (used before declaration)
   const fetchLatestCandle = useCallback(async () => {
     if (!symbol) return;
 
@@ -167,7 +165,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     fetchLatestCandle();
 
     pollingRef.current = setInterval(fetchLatestCandle, interval);
-  }, [symbol, fetchLatestCandle]);
+  }, [symbol, timeframe, fetchLatestCandle]);
 
   // ── Connect WebSocket ──────────────────────────────────
   const connect = useCallback(() => {

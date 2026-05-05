@@ -218,8 +218,8 @@ async function bootstrap() {
       }
     }
 
-    await app.listen(port);
-    console.log(`🚀 Roua API running on http://localhost:${port}/api`);
+    await app.listen(port, '0.0.0.0');
+    console.log(`🚀 Roua API running on http://0.0.0.0:${port}/api`);
     console.log(`📊 Environment: ${configService.get('NODE_ENV', 'development')}`);
 
     // FIX #2: Graceful shutdown — handle SIGTERM from Railway

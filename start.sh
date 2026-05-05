@@ -93,7 +93,11 @@ echo "ORIGIN: ${ORIGIN:-not set}"
 echo "NODE_ENV: ${NODE_ENV:-development}"
 echo "PORT: ${PORT:-3000}"
 echo "API_PORT: ${API_PORT:-3001}"
+echo "RAILWAY_PUBLIC_DOMAIN: ${RAILWAY_PUBLIC_DOMAIN:-not set}"
 echo "RUNNER: $([ "$USE_BUN" -eq 1 ] && echo bun || echo npm)"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "⚠️ NOTE: The PORT/API_PORT values above are ENV VARS, not proof the services are running."
+echo "   Real verification happens below after services start."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # ── Step 1: Generate Prisma client (must be done before db push) ──
@@ -105,15 +109,29 @@ run_prisma generate --schema=./prisma/schema.prisma
 # migrate deploy only applies pending migrations and never drops data.
 # Fall back to db push if no migration files exist (first deploy).
 echo "📦 Applying Prisma schema..."
+DB_MIGRATE_OK=0
 if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; then
   if run_prisma migrate deploy --schema=./prisma/schema.prisma 2>&1; then
     echo "✅ Migrations applied successfully"
+    DB_MIGRATE_OK=1
   else
     echo "⚠️ prisma migrate deploy had issues — trying db push as fallback"
-    run_prisma db push --schema=./prisma/schema.prisma 2>&1 || echo "⚠️ prisma db push also had issues — will verify tables below"
+    if run_prisma db push --schema=./prisma/schema.prisma 2>&1; then
+      echo "✅ db push succeeded as fallback"
+      DB_MIGRATE_OK=1
+    else
+      echo "❌ CRITICAL: prisma db push ALSO failed — database may be unreachable or schema is broken"
+      echo "❌ The app will start but most API calls will return 500 errors"
+    fi
   fi
 else
-  run_prisma db push --schema=./prisma/schema.prisma 2>&1 || echo "⚠️ prisma db push had issues — will verify tables below"
+  if run_prisma db push --schema=./prisma/schema.prisma 2>&1; then
+    echo "✅ db push succeeded"
+    DB_MIGRATE_OK=1
+  else
+    echo "❌ CRITICAL: prisma db push failed — database may be unreachable or schema is broken"
+    echo "❌ The app will start but most API calls will return 500 errors"
+  fi
 fi
 
 # ── Step 3: Verify critical tables exist ──
@@ -319,7 +337,17 @@ if [ -n "${DATABASE_URL:-}" ]; then
 EOSQL
 
   echo "📦 Executing safety-net SQL via prisma db execute..."
-  run_prisma db execute --schema=./prisma/schema.prisma --file /tmp/ensure_tables.sql 2>&1 && echo "📦 Safety-net SQL executed successfully" || echo "⚠️ Safety-net SQL had issues (non-fatal — tables may already exist with different schema)"
+  if run_prisma db execute --schema=./prisma/schema.prisma --file /tmp/ensure_tables.sql 2>&1; then
+    echo "📦 Safety-net SQL executed successfully"
+  else
+    if [ "$DB_MIGRATE_OK" -eq 0 ]; then
+      echo "❌ CRITICAL: Safety-net SQL ALSO failed — database is likely unreachable"
+      echo "❌ Cannot continue without database — exiting"
+      exit 1
+    else
+      echo "⚠️ Safety-net SQL had issues (non-fatal — tables likely already exist)"
+    fi
+  fi
 
   # ── Step 3b: Add missing columns to existing tables ──
   # The CREATE TABLE IF NOT EXISTS above only creates NEW tables.
@@ -958,7 +986,11 @@ EOSQL
 EOSQL
 
   echo "📦 Adding missing columns via ALTER TABLE..."
-  run_prisma db execute --schema=./prisma/schema.prisma --file /tmp/add_missing_columns.sql 2>&1 && echo "📦 Missing columns SQL executed successfully" || echo "⚠️ Missing columns SQL had issues (non-fatal — columns may already exist)"
+  if run_prisma db execute --schema=./prisma/schema.prisma --file /tmp/add_missing_columns.sql 2>&1; then
+    echo "📦 Missing columns SQL executed successfully"
+  else
+    echo "⚠️ Missing columns SQL had issues (columns may already exist)"
+  fi
 
   rm -f /tmp/ensure_tables.sql /tmp/add_missing_columns.sql
 else
@@ -995,16 +1027,19 @@ fi
 # Wait for API to be ready
 echo "⏳ Waiting for API to be ready..."
 # Use a public endpoint for readiness; /api/auth/session is public and returns authenticated=false when no session exists.
-API_HEALTH_URL="http://127.0.0.1:3001/api/auth/session"
+API_HEALTH_URL="http://127.0.0.1:${API_PORT:-3001}/api/health"
 # FIX: Increased from 45s to 60s for cold starts (Railway cold starts take 45-60s)
+API_READY=0
 for i in $(seq 1 60); do
   if curl -fsS "$API_HEALTH_URL" > /dev/null 2>&1; then
-    echo "✅ API is ready! (attempt $i)"
+    echo "✅ API is ready on port ${API_PORT:-3001}! (attempt $i)"
+    API_READY=1
     break
   fi
   if [ $i -eq 60 ]; then
-    echo "⚠️ API did not start in 60s — critical routes will fail!"
-    echo "⚠️ Check logs above for NestJS startup errors."
+    echo "❌ API did not start in 60s — critical routes will fail!"
+    echo "❌ Check logs above for NestJS startup errors."
+    echo "❌ This usually means: database unreachable, TypeScript build missing, or port conflict."
   fi
   sleep 1
 done
@@ -1050,7 +1085,7 @@ monitor_nestjs() {
 
       # Wait for it to be ready
       for i in $(seq 1 30); do
-        if curl -fsS "http://127.0.0.1:3001/api/auth/session" > /dev/null 2>&1; then
+        if curl -fsS "http://127.0.0.1:${API_PORT:-3001}/api/health" > /dev/null 2>&1; then
           echo "✅ NestJS is ready after restart! (attempt $i)"
           # FIX: Reset backoff on successful start
           NESTJS_BACKOFF_SECONDS=1
@@ -1079,7 +1114,36 @@ monitor_nestjs &
 MONITOR_PID=$!
 
 # Start the Next.js web application
-echo "🌐 Starting Next.js server (port 3000)..."
+# Verify actual port binding — this is REAL verification, not just env vars
+ACTUAL_WEB_PORT=${PORT:-3000}
+echo "🌐 Starting Next.js server (port $ACTUAL_WEB_PORT)..."
 cd apps/web
 trap "kill $API_PID $MONITOR_PID 2>/dev/null || true" EXIT
-run_web_start
+run_web_start &
+WEB_PID=$!
+
+# Wait briefly and verify Next.js is actually listening
+WEB_READY=0
+for i in $(seq 1 30); do
+  if curl -fsS "http://127.0.0.1:${ACTUAL_WEB_PORT}/" > /dev/null 2>&1; then
+    echo "✅ Next.js VERIFIED listening on port $ACTUAL_WEB_PORT (attempt $i)"
+    WEB_READY=1
+    break
+  fi
+  if [ $i -eq 30 ]; then
+    echo "❌ Next.js did not respond on port $ACTUAL_WEB_PORT after 30s"
+    echo "❌ Railway assigns PORT dynamically — if PORT was overridden, Next.js should be on that port."
+    echo "❌ Check: PORT=$ACTUAL_WEB_PORT, HOSTNAME=$HOSTNAME"
+  fi
+  sleep 1
+done
+
+# Summary of REAL port status
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "📊 PORT VERIFICATION RESULTS:"
+echo "   API (NestJS):  port ${API_PORT:-3001} — $([ "$API_READY" -eq 1 ] && echo '✅ VERIFIED' || echo '❌ NOT RESPONDING')"
+echo "   Web (Next.js): port $ACTUAL_WEB_PORT — $([ "$WEB_READY" -eq 1 ] && echo '✅ VERIFIED' || echo '❌ NOT RESPONDING')"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# Keep Next.js in foreground (this is the main process)
+wait $WEB_PID

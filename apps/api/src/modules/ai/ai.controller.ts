@@ -96,6 +96,6 @@ export class AiController {
   async diagnoseModels() {
     this.logger.log('🔧 Running AI model diagnostics...');
     const result = await this.orchestrator.diagnoseModels();
-    return { success: true, data: result, version: 'v2026-05-05-direction-first' };
+    return { success: true, data: result, version: 'v2026-05-05-fix-memkey-diversification-override' };
   }
 }

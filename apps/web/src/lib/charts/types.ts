@@ -275,6 +275,21 @@ export interface AIPattern {
   price: number;
   confidence: number; // 0-1
   direction: 'bullish' | 'bearish' | 'neutral';
+  // ── Pattern shape data for visual drawing on chart ──
+  shapePoints?: { time: number; price: number }[];  // Polygon vertices to draw
+  shapeType?: 'polygon' | 'line' | 'zone';         // How to render the shape
+  shapeColor?: string;                               // Fill/border color
+}
+
+// ── AI Entry/Exit Analysis ──────────────────────────────
+export interface AIEntryExit {
+  direction: 'long' | 'short';
+  entryPrice: number;
+  stopLoss: number;
+  takeProfit: number;
+  confidence: number;   // 0-1
+  reasonAr: string;     // Arabic explanation
+  keyLevels: { price: number; label: string }[];
 }
 
 // ── Chart Trading ───────────────────────────────────────

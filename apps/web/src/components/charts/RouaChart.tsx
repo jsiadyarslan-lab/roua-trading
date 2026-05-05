@@ -573,8 +573,19 @@ export default function RouaChart({
   }, [chart]);
 
   // ── AI Pattern Handler ─────────────────────────────────
-  const handlePatternsDetected = useCallback((result: AIAnalysisResult) => {
+  const aiOverlaySeriesRef = useRef<any[]>([]);
+  const aiPriceLinesRef = useRef<string[]>([]);
+
+  const handlePatternsDetected = useCallback(async (result: AIAnalysisResult) => {
     setAiPatterns(result.patterns);
+
+    // Clean up previous AI overlays
+    aiOverlaySeriesRef.current.forEach(s => {
+      try { chart.chartRef?.current?.removeSeries(s); } catch {}
+    });
+    aiOverlaySeriesRef.current = [];
+    aiPriceLinesRef.current.forEach(id => chart.removePriceLine(id));
+    aiPriceLinesRef.current = [];
 
     // Add support/resistance levels as price lines
     result.supportLevels.forEach((level, i) => {
@@ -588,6 +599,7 @@ export default function RouaChart({
         2, // dashed
         true,
       );
+      aiPriceLinesRef.current.push(`ai-support-${i}`);
     });
 
     result.resistanceLevels.forEach((level, i) => {
@@ -601,8 +613,130 @@ export default function RouaChart({
         2, // dashed
         true,
       );
+      aiPriceLinesRef.current.push(`ai-resistance-${i}`);
     });
-  }, [chart]);
+
+    // ── Draw Trend Lines on chart ──
+    try {
+      const chartApi = chart.chartRef?.current;
+      if (chartApi && result.trendLines.length > 0) {
+        const { LineSeries } = await import('lightweight-charts');
+        result.trendLines.forEach((line, i) => {
+          const color = line.type === 'ascending' ? 'rgba(0,255,163,0.6)' : 'rgba(255,71,87,0.6)';
+          const lineWidth = line.strength === 'strong' ? 2 : 1;
+          const trendSeries = chartApi.addSeries(LineSeries, {
+            color,
+            lineWidth: lineWidth as any,
+            lineStyle: 0,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: false,
+          });
+          trendSeries.setData([
+            { time: line.startPoint.time as any, value: line.startPoint.price },
+            { time: line.endPoint.time as any, value: line.endPoint.price },
+          ]);
+          aiOverlaySeriesRef.current.push(trendSeries);
+        });
+      }
+    } catch { /* lightweight-charts not loaded */ }
+
+    // ── Draw Pattern Shapes on chart ──
+    try {
+      const chartApi = chart.chartRef?.current;
+      if (chartApi && result.patterns.length > 0) {
+        const { AreaSeries, LineSeries } = await import('lightweight-charts');
+
+        result.patterns.forEach((p, i) => {
+          if (!p.shapePoints || p.shapePoints.length < 2) return;
+
+          const color = p.shapeColor || (p.direction === 'bullish' ? 'rgba(0,255,163,0.15)' : p.direction === 'bearish' ? 'rgba(255,71,87,0.15)' : 'rgba(251,191,36,0.15)');
+          const lineColor = p.direction === 'bullish' ? 'rgba(0,255,163,0.5)' : p.direction === 'bearish' ? 'rgba(255,71,87,0.5)' : 'rgba(251,191,36,0.5)';
+
+          if (p.shapeType === 'polygon' && p.shapePoints.length >= 3) {
+            // Draw polygon using AreaSeries (fill the pattern zone)
+            // For engulfing: connect the 4 corners
+            const areaData = p.shapePoints.map(pt => ({ time: pt.time as any, value: pt.price }));
+            const areaSeries = chartApi.addSeries(AreaSeries, {
+              topColor: color,
+              bottomColor: color.replace(/[\d.]+\)$/, '0.05)'),
+              lineColor: lineColor,
+              lineWidth: 1 as any,
+              priceLineVisible: false,
+              lastValueVisible: false,
+              crosshairMarkerVisible: false,
+            });
+            areaSeries.setData(areaData as any);
+            aiOverlaySeriesRef.current.push(areaSeries);
+          } else if (p.shapePoints.length >= 2) {
+            // Draw line (wick highlight for Hammer, Shooting Star, Doji, etc.)
+            const lineData = p.shapePoints.map(pt => ({ time: pt.time as any, value: pt.price }));
+            const shapeLine = chartApi.addSeries(LineSeries, {
+              color: lineColor,
+              lineWidth: 2 as any,
+              lineStyle: 0,
+              priceLineVisible: false,
+              lastValueVisible: false,
+              crosshairMarkerVisible: false,
+            });
+            shapeLine.setData(lineData as any);
+            aiOverlaySeriesRef.current.push(shapeLine);
+          }
+        });
+      }
+    } catch { /* lightweight-charts not loaded */ }
+
+    // ── Draw Entry/Exit lines on chart ──
+    if (result.entryExit) {
+      const ee = result.entryExit;
+      if (ee.entryPrice > 0) {
+        chart.addPriceLine('ai-entry', ee.entryPrice, ee.direction === 'long' ? '#00D4FF' : '#00D4FF', `دخول ${ee.entryPrice.toFixed(ee.entryPrice > 1000 ? 2 : 5)}`, 2, 0, true);
+        aiPriceLinesRef.current.push('ai-entry');
+      }
+      if (ee.stopLoss > 0) {
+        chart.addPriceLine('ai-sl', ee.stopLoss, '#FF4757', `SL ${ee.stopLoss.toFixed(ee.stopLoss > 1000 ? 2 : 5)}`, 2, 2, true);
+        aiPriceLinesRef.current.push('ai-sl');
+      }
+      if (ee.takeProfit > 0) {
+        chart.addPriceLine('ai-tp', ee.takeProfit, '#00FFA3', `TP ${ee.takeProfit.toFixed(ee.takeProfit > 1000 ? 2 : 5)}`, 2, 2, true);
+        aiPriceLinesRef.current.push('ai-tp');
+      }
+
+      // Add entry/exit markers on chart
+      try {
+        const lastCandle = candlesRef.current[candlesRef.current.length - 1];
+        if (lastCandle) {
+          const combinedMarkers: any[] = [];
+          // Keep existing markers
+          if (newsMarkers.length) combinedMarkers.push(...createNewsChartMarkers(newsMarkers));
+          if (aiPatterns.length) {
+            aiPatterns.forEach(p => {
+              combinedMarkers.push({
+                time: p.time as any,
+                position: (p.direction === 'bullish' ? 'belowBar' : 'aboveBar') as 'belowBar' | 'aboveBar',
+                color: p.direction === 'bullish' ? '#00FFA3' : p.direction === 'bearish' ? '#FF4757' : '#fbbf24',
+                shape: (p.direction === 'bullish' ? 'arrowUp' : 'arrowDown') as 'arrowUp' | 'arrowDown',
+                text: p.labelAr || p.type,
+              });
+            });
+          }
+          if (signalMarkers.length) combinedMarkers.push(...signalMarkers);
+
+          // Add entry/exit marker
+          combinedMarkers.push({
+            time: lastCandle.time as any,
+            position: (ee.direction === 'long' ? 'belowBar' : 'aboveBar') as 'belowBar' | 'aboveBar',
+            color: ee.direction === 'long' ? '#00D4FF' : '#00D4FF',
+            shape: (ee.direction === 'long' ? 'arrowUp' : 'arrowDown') as 'arrowUp' | 'arrowDown',
+            text: ee.direction === 'long' ? 'شراء' : 'بيع',
+          });
+
+          combinedMarkers.sort((a, b) => (a.time as number) - (b.time as number));
+          chart.setMarkers(combinedMarkers);
+        }
+      } catch { /* ignore */ }
+    }
+  }, [chart, aiPatterns, newsMarkers, signalMarkers]);
 
   // ── News Markers Handler ───────────────────────────────
   const handleNewsUpdate = useCallback((markers: NewsMarker[]) => {
@@ -1242,7 +1376,7 @@ export default function RouaChart({
         {showAIPanel && (
           <AIPatternPanel
             symbol={selectedSymbol}
-            candles={candlesRef.current}
+            candles={candlesRef.current || []}
             onPatternsDetected={handlePatternsDetected}
             onPatternClick={(p) => {
               // Navigate chart to the pattern's time and price
@@ -1262,6 +1396,39 @@ export default function RouaChart({
                 const color = level.type === 'support' ? '#00FFA3' : '#FF4757';
                 const label = level.type === 'support' ? `دعم ${level.price.toFixed(level.price > 1000 ? 2 : 5)}` : `مقاومة ${level.price.toFixed(level.price > 1000 ? 2 : 5)}`;
                 chart.addPriceLine(`ai-click-${level.type}-${Date.now()}`, level.price, color, label, 2, 0, true);
+              } catch { /* ignore */ }
+            }}
+            onTrendLineClick={(line) => {
+              // Navigate chart to show the trend line
+              try {
+                const chartApi = chart.chartRef?.current;
+                if (chartApi) {
+                  const fromTime = Math.min(line.startPoint.time, line.endPoint.time);
+                  const toTime = Math.max(line.startPoint.time, line.endPoint.time);
+                  chartApi.timeScale().setVisibleRange({
+                    from: (fromTime - 3600 * 3) as any,
+                    to: (toTime + 3600 * 3) as any,
+                  });
+                }
+              } catch { /* ignore */ }
+            }}
+            onEntryExitClick={(entryExit) => {
+              // Draw entry/exit price lines on chart
+              try {
+                // Remove previous entry/exit lines
+                chart.removePriceLine('ai-entry-quick');
+                chart.removePriceLine('ai-sl-quick');
+                chart.removePriceLine('ai-tp-quick');
+
+                if (entryExit.entryPrice > 0) {
+                  chart.addPriceLine('ai-entry-quick', entryExit.entryPrice, '#00D4FF', `دخول ${entryExit.entryPrice.toFixed(entryExit.entryPrice > 1000 ? 2 : 5)}`, 2, 0, true);
+                }
+                if (entryExit.stopLoss > 0) {
+                  chart.addPriceLine('ai-sl-quick', entryExit.stopLoss, '#FF4757', `SL ${entryExit.stopLoss.toFixed(entryExit.stopLoss > 1000 ? 2 : 5)}`, 2, 2, true);
+                }
+                if (entryExit.takeProfit > 0) {
+                  chart.addPriceLine('ai-tp-quick', entryExit.takeProfit, '#00FFA3', `TP ${entryExit.takeProfit.toFixed(entryExit.takeProfit > 1000 ? 2 : 5)}`, 2, 2, true);
+                }
               } catch { /* ignore */ }
             }}
             onClose={() => setShowAIPanel(false)}

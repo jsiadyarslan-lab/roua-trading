@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════
 // ROUA Trading Chart — Multi-Timeframe Chart Popup
-// Shows 4 live mini candlestick charts for the same symbol
+// Shows live mini candlestick charts with add/remove + pair change
 // ═══════════════════════════════════════════════════════════
 
 'use client';
@@ -12,6 +12,13 @@ interface MultiTimeframeChartProps {
   onClose: () => void;
 }
 
+interface ChartSlot {
+  id: string;
+  symbol: string;
+  timeframe: string;
+  labelShort: string;
+}
+
 interface MiniChartState {
   loading: boolean;
   error: string | null;
@@ -20,12 +27,24 @@ interface MiniChartState {
   candleCount: number;
 }
 
-const TIMEFRAMES = [
-  { value: '15min', apiValue: '15min', label: '15 دقيقة', labelShort: '15m' },
-  { value: '1h', apiValue: '1h', label: '1 ساعة', labelShort: '1H' },
-  { value: '4h', apiValue: '4h', label: '4 ساعات', labelShort: '4H' },
-  { value: '1day', apiValue: '1day', label: 'يومي', labelShort: '1D' },
-] as const;
+const TIMEFRAME_OPTIONS = [
+  { value: '1min', labelShort: '1m' },
+  { value: '5min', labelShort: '5m' },
+  { value: '15min', labelShort: '15m' },
+  { value: '30min', labelShort: '30m' },
+  { value: '1h', labelShort: '1H' },
+  { value: '2h', labelShort: '2H' },
+  { value: '4h', labelShort: '4H' },
+  { value: '1day', labelShort: '1D' },
+  { value: '1week', labelShort: '1W' },
+];
+
+const POPULAR_PAIRS = [
+  'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'XRP/USDT', 'SOL/USDT',
+  'ADA/USDT', 'DOGE/USDT', 'DOT/USDT', 'AVAX/USDT', 'LINK/USDT',
+  'EUR/USD', 'GBP/USD', 'USD/JPY', 'AUD/USD', 'USD/CAD',
+  'XAU/USD', 'XAG/USD', 'US30', 'NAS100', 'SPX500',
+];
 
 const C = {
   bg: '#0B0E14',
@@ -38,50 +57,53 @@ const C = {
   cyan: '#00D4FF',
   success: '#00FFA3',
   danger: '#FF4757',
-  gold: '#d4af37',
   upColor: '#3fb950',
   downColor: '#f85149',
 };
 
+let slotIdCounter = 0;
+
 export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProps) {
-  const containerRefs = useRef<(HTMLDivElement | null)[]>([null, null, null, null]);
-  const chartInstancesRef = useRef<any[]>([null, null, null, null]);
-  const seriesRefs = useRef<any[]>([null, null, null, null]);
+  const containerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const chartInstancesRef = useRef<Map<string, any>>(new Map());
+  const seriesRefs = useRef<Map<string, any>>(new Map());
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const [chartStates, setChartStates] = useState<MiniChartState[]>(
-    TIMEFRAMES.map(() => ({ loading: true, error: null, currentPrice: null, prevPrice: null, candleCount: 0 }))
-  );
+  const [slots, setSlots] = useState<ChartSlot[]>([
+    { id: `slot-${slotIdCounter++}`, symbol, timeframe: '15min', labelShort: '15m' },
+    { id: `slot-${slotIdCounter++}`, symbol, timeframe: '1h', labelShort: '1H' },
+    { id: `slot-${slotIdCounter++}`, symbol, timeframe: '4h', labelShort: '4H' },
+    { id: `slot-${slotIdCounter++}`, symbol, timeframe: '1day', labelShort: '1D' },
+  ]);
+  const [chartStates, setChartStates] = useState<Map<string, MiniChartState>>(new Map());
 
-  const updateChartState = useCallback((index: number, update: Partial<MiniChartState>) => {
+  const updateChartState = useCallback((slotId: string, update: Partial<MiniChartState>) => {
     setChartStates(prev => {
-      const next = [...prev];
-      next[index] = { ...next[index], ...update };
+      const next = new Map(prev);
+      const existing = next.get(slotId) || { loading: true, error: null, currentPrice: null, prevPrice: null, candleCount: 0 };
+      next.set(slotId, { ...existing, ...update });
       return next;
     });
   }, []);
 
-  const loadDataForTimeframe = useCallback(async (index: number) => {
-    const tf = TIMEFRAMES[index];
-    const container = containerRefs.current[index];
-
+  const loadDataForSlot = useCallback(async (slot: ChartSlot) => {
+    const container = containerRefs.current.get(slot.id);
     if (!container) return;
 
-    try {
-      updateChartState(index, { loading: true, error: null });
+    updateChartState(slot.id, { loading: true, error: null });
 
+    try {
       const res = await fetch(
-        `/api/exchange/history/${encodeURIComponent(symbol)}?interval=${tf.apiValue}`
+        `/api/exchange/history/${encodeURIComponent(slot.symbol)}?interval=${slot.timeframe}`
       );
       const j = await res.json();
 
       if (!j.success || !j.data || j.data.length === 0) {
-        updateChartState(index, { loading: false, error: 'لا توجد بيانات', candleCount: 0 });
+        updateChartState(slot.id, { loading: false, error: 'لا توجد بيانات', candleCount: 0 });
         return;
       }
 
-      // Format candle data
-      const candleData: { time: number; open: number; high: number; low: number; close: number; volume: number }[] = j.data
+      const candleData = j.data
         .map((c: any) => ({
           time: Math.floor(new Date(c.timestamp).getTime() / 1000),
           open: Number(c.open) || 0,
@@ -92,121 +114,124 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
         }))
         .filter((d: any) => !isNaN(d.time) && d.time > 0 && !isNaN(d.close));
 
-      // Deduplicate + sort
       const seen = new Set<number>();
-      const unique = candleData.filter(d => {
+      const unique = candleData.filter((d: any) => {
         if (seen.has(d.time)) return false;
         seen.add(d.time);
         return true;
       });
-      unique.sort((a, b) => a.time - b.time);
+      unique.sort((a: any, b: any) => a.time - b.time);
 
       if (unique.length === 0) {
-        updateChartState(index, { loading: false, error: 'لا توجد بيانات صالحة', candleCount: 0 });
+        updateChartState(slot.id, { loading: false, error: 'لا توجد بيانات صالحة', candleCount: 0 });
         return;
       }
 
       const currentPrice = unique[unique.length - 1].close;
       const prevPrice = unique.length > 1 ? unique[unique.length - 2].close : null;
 
-      // Dynamic import lightweight-charts
-      const { createChart, CandlestickSeries, AreaSeries } = await import('lightweight-charts');
+      const { createChart, CandlestickSeries } = await import('lightweight-charts');
 
-      const existingChart = chartInstancesRef.current[index];
-      const existingSeries = seriesRefs.current[index];
+      const existingChart = chartInstancesRef.current.get(slot.id);
+      const existingSeries = seriesRefs.current.get(slot.id);
 
-      // If chart exists, just update data
       if (existingChart && existingSeries) {
         try {
-          existingSeries.setData(unique as any);
+          existingSeries.setData(unique);
           existingChart.timeScale().fitContent();
         } catch { /* ignore */ }
-        updateChartState(index, { loading: false, error: null, currentPrice, prevPrice, candleCount: unique.length });
+        updateChartState(slot.id, { loading: false, error: null, currentPrice, prevPrice, candleCount: unique.length });
         return;
       }
 
-      // Create new chart
       const rect = container.getBoundingClientRect();
       const width = rect.width || container.clientWidth || 400;
       const height = rect.height || container.clientHeight || 180;
 
       const chart = createChart(container, {
-        width,
-        height,
-        layout: {
-          background: { color: C.bg },
-          textColor: C.textDim,
-          fontSize: 9,
-          fontFamily: "'JetBrains Mono', monospace",
-          attributionLogo: false,
-        },
-        grid: {
-          vertLines: { color: C.grid },
-          horzLines: { color: C.grid },
-        },
-        rightPriceScale: {
-          borderVisible: false,
-          scaleMargins: { top: 0.15, bottom: 0.05 },
-        },
-        timeScale: {
-          borderVisible: false,
-          timeVisible: true,
-          secondsVisible: false,
-          rightOffset: 3,
-          barSpacing: 5,
-          minBarSpacing: 2,
-        },
-        crosshair: {
-          mode: 0,
-          vertLine: { visible: true, labelVisible: false, color: 'rgba(0,212,255,0.2)' },
-          horzLine: { visible: true, labelVisible: true, color: 'rgba(0,212,255,0.2)', labelBackgroundColor: C.card },
-        },
+        width, height,
+        layout: { background: { color: C.bg }, textColor: C.textDim, fontSize: 9, fontFamily: "'JetBrains Mono', monospace", attributionLogo: false },
+        grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
+        rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.15, bottom: 0.05 } },
+        timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, rightOffset: 3, barSpacing: 5, minBarSpacing: 2 },
+        crosshair: { mode: 0, vertLine: { visible: true, labelVisible: false, color: 'rgba(0,212,255,0.2)' }, horzLine: { visible: true, labelVisible: true, color: 'rgba(0,212,255,0.2)', labelBackgroundColor: C.card } },
         handleScroll: true,
         handleScale: true,
       });
 
-      // Use candlestick series for mini charts — they show real price action
       const candleSeries = chart.addSeries(CandlestickSeries, {
-        upColor: C.upColor,
-        downColor: C.downColor,
-        borderUpColor: C.upColor,
-        borderDownColor: C.downColor,
-        wickUpColor: C.upColor,
-        wickDownColor: C.downColor,
+        upColor: C.upColor, downColor: C.downColor,
+        borderUpColor: C.upColor, borderDownColor: C.downColor,
+        wickUpColor: C.upColor, wickDownColor: C.downColor,
       });
 
-      candleSeries.setData(unique as any);
+      candleSeries.setData(unique);
       chart.timeScale().fitContent();
 
-      chartInstancesRef.current[index] = chart;
-      seriesRefs.current[index] = candleSeries;
+      chartInstancesRef.current.set(slot.id, chart);
+      seriesRefs.current.set(slot.id, candleSeries);
 
-      updateChartState(index, { loading: false, error: null, currentPrice, prevPrice, candleCount: unique.length });
+      updateChartState(slot.id, { loading: false, error: null, currentPrice, prevPrice, candleCount: unique.length });
     } catch {
-      updateChartState(index, { loading: false, error: 'فشل التحميل', candleCount: 0 });
+      updateChartState(slot.id, { loading: false, error: 'فشل التحميل', candleCount: 0 });
     }
-  }, [symbol, updateChartState]);
+  }, [updateChartState]);
 
-  // Initialize
+  const handleAddChart = useCallback(() => {
+    const newSlot: ChartSlot = {
+      id: `slot-${slotIdCounter++}`,
+      symbol,
+      timeframe: '1h',
+      labelShort: '1H',
+    };
+    setSlots(prev => [...prev, newSlot]);
+  }, [symbol]);
+
+  const handleRemoveChart = useCallback((id: string) => {
+    const chart = chartInstancesRef.current.get(id);
+    if (chart) { try { chart.remove(); } catch {} }
+    chartInstancesRef.current.delete(id);
+    seriesRefs.current.delete(id);
+    setSlots(prev => prev.filter(s => s.id !== id));
+  }, []);
+
+  const handleChangeSymbol = useCallback((id: string, newSymbol: string) => {
+    // Remove existing chart so it gets recreated with new symbol
+    const chart = chartInstancesRef.current.get(id);
+    if (chart) { try { chart.remove(); } catch {} }
+    chartInstancesRef.current.delete(id);
+    seriesRefs.current.delete(id);
+    setSlots(prev => prev.map(s => s.id === id ? { ...s, symbol: newSymbol } : s));
+  }, []);
+
+  const handleChangeTimeframe = useCallback((id: string, tf: string) => {
+    const tfOption = TIMEFRAME_OPTIONS.find(t => t.value === tf);
+    if (!tfOption) return;
+    // Remove existing chart so it gets recreated with new timeframe
+    const chart = chartInstancesRef.current.get(id);
+    if (chart) { try { chart.remove(); } catch {} }
+    chartInstancesRef.current.delete(id);
+    seriesRefs.current.delete(id);
+    setSlots(prev => prev.map(s => s.id === id ? { ...s, timeframe: tfOption.value, labelShort: tfOption.labelShort } : s));
+  }, []);
+
+  // Load data for all slots
   useEffect(() => {
     const initTimer = setTimeout(() => {
-      TIMEFRAMES.forEach((_, i) => loadDataForTimeframe(i));
-    }, 100);
+      slots.forEach(slot => { if (slot.symbol) loadDataForSlot(slot); });
+    }, 150);
     return () => clearTimeout(initTimer);
-  }, [loadDataForTimeframe]);
+  }, [slots, loadDataForSlot]);
 
   // Auto-refresh every 30s
   useEffect(() => {
     refreshIntervalRef.current = setInterval(() => {
-      TIMEFRAMES.forEach((_, i) => loadDataForTimeframe(i));
+      slots.forEach(slot => { if (slot.symbol) loadDataForSlot(slot); });
     }, 30000);
+    return () => { if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current); };
+  }, [slots, loadDataForSlot]);
 
-    return () => {
-      if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
-    };
-  }, [loadDataForTimeframe]);
-
-  // Cleanup
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       chartInstancesRef.current.forEach(c => { if (c) try { c.remove(); } catch {} });
@@ -216,14 +241,12 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
   // Resize handler
   useEffect(() => {
     const handleResize = () => {
-      chartInstancesRef.current.forEach((chart, i) => {
-        const container = containerRefs.current[i];
+      chartInstancesRef.current.forEach((chart, id) => {
+        const container = containerRefs.current.get(id);
         if (chart && container) {
           const w = container.clientWidth;
           const h = container.clientHeight;
-          if (w > 0 && h > 0) {
-            chart.applyOptions({ width: w, height: h });
-          }
+          if (w > 0 && h > 0) chart.applyOptions({ width: w, height: h });
         }
       });
     };
@@ -231,8 +254,9 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const setContainerRef = useCallback((index: number) => (el: HTMLDivElement | null) => {
-    containerRefs.current[index] = el;
+  const setContainerRef = useCallback((id: string) => (el: HTMLDivElement | null) => {
+    if (el) containerRefs.current.set(id, el);
+    else containerRefs.current.delete(id);
   }, []);
 
   // ESC to close
@@ -255,40 +279,31 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
     return ((current - prev) / prev) * 100;
   };
 
+  // Dynamic grid columns
+  const colCount = slots.length <= 2 ? slots.length : 2;
+
   return (
     <div
       style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1000,
+        position: 'fixed', inset: 0, zIndex: 1000,
         background: 'rgba(0,0,0,0.85)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div style={{
-        width: '92vw',
-        maxWidth: 960,
-        height: '80vh',
-        maxHeight: 640,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 0,
-        background: C.card,
-        borderRadius: 14,
+        width: '92vw', maxWidth: 1100,
+        height: '85vh', maxHeight: 750,
+        display: 'flex', flexDirection: 'column',
+        background: C.card, borderRadius: 14,
         border: `1px solid ${C.cardBorder}`,
         overflow: 'hidden',
         boxShadow: '0 25px 60px rgba(0,0,0,0.7), 0 0 40px rgba(0,212,255,0.05)',
       }}>
         {/* Header */}
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '14px 18px',
           borderBottom: `1px solid ${C.cardBorder}`,
           background: 'linear-gradient(180deg, rgba(17,22,32,1) 0%, rgba(11,14,20,1) 100%)',
@@ -313,87 +328,124 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
             </div>
           </div>
 
-          <button onClick={onClose} style={{
-            background: 'rgba(255,255,255,0.05)', border: `1px solid ${C.cardBorder}`,
-            borderRadius: 8, color: C.textDim, width: 32, height: 32, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, padding: 0,
-            transition: 'all 0.15s ease',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.15)'; e.currentTarget.style.color = C.danger; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = C.textDim; }}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Add Chart Button */}
+            <button
+              onClick={handleAddChart}
+              style={{
+                background: 'rgba(0,212,255,0.1)',
+                border: '1px solid rgba(0,212,255,0.25)',
+                borderRadius: 8, color: C.cyan,
+                padding: '6px 12px', fontSize: 11, fontWeight: 700,
+                cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
+                display: 'flex', alignItems: 'center', gap: 4,
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.2)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.1)'; }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              إضافة شارت
+            </button>
+
+            <button onClick={onClose} style={{
+              background: 'rgba(255,255,255,0.05)', border: `1px solid ${C.cardBorder}`,
+              borderRadius: 8, color: C.textDim, width: 32, height: 32, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, padding: 0,
+              transition: 'all 0.15s ease',
+            }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.15)'; e.currentTarget.style.color = C.danger; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = C.textDim; }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
         </div>
 
-        {/* 2x2 Grid */}
+        {/* Grid */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gridTemplateRows: '1fr 1fr',
-          gap: 1,
-          flex: 1,
-          minHeight: 0,
-          background: C.cardBorder,
+          gridTemplateColumns: `repeat(${colCount}, 1fr)`,
+          gap: 1, flex: 1, minHeight: 0,
+          background: C.cardBorder, overflow: 'auto',
         }}>
-          {TIMEFRAMES.map((tf, i) => {
-            const state = chartStates[i];
-            const changePercent = calcChange(state.currentPrice, state.prevPrice);
+          {slots.map((slot) => {
+            const state = chartStates.get(slot.id);
+            const changePercent = calcChange(state?.currentPrice ?? null, state?.prevPrice ?? null);
             const isPositive = changePercent !== null && changePercent >= 0;
+            const isExtra = slots.length > 4;
 
             return (
-              <div key={tf.value} style={{
+              <div key={slot.id} style={{
                 background: C.bg,
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-                minHeight: 0,
+                display: 'flex', flexDirection: 'column',
+                overflow: 'hidden', minHeight: 200,
               }}>
                 {/* Mini chart header */}
                 <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '8px 12px',
-                  background: C.card,
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '8px 12px', background: C.card,
                   borderBottom: `1px solid ${C.cardBorder}`,
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{
-                      color: C.cyan, fontFamily: "'JetBrains Mono', monospace",
-                      fontSize: 11, fontWeight: 800, letterSpacing: 0.8,
-                    }}>
-                      {tf.labelShort}
-                    </span>
-                    <span style={{
-                      color: C.textMuted, fontFamily: "'Cairo', sans-serif",
-                      fontSize: 9, fontWeight: 400,
-                    }}>
-                      {tf.label}
-                    </span>
+                    {/* Symbol selector */}
+                    <select
+                      value={slot.symbol}
+                      onChange={(e) => handleChangeSymbol(slot.id, e.target.value)}
+                      style={{
+                        background: 'rgba(0,212,255,0.08)',
+                        border: '1px solid rgba(0,212,255,0.2)',
+                        borderRadius: 4, color: C.cyan,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: 10, fontWeight: 700,
+                        padding: '2px 6px', cursor: 'pointer',
+                        outline: 'none', maxWidth: 90,
+                      }}
+                    >
+                      {POPULAR_PAIRS.map(p => (
+                        <option key={p} value={p} style={{ background: C.card, color: C.text }}>{p}</option>
+                      ))}
+                    </select>
+
+                    {/* Timeframe selector */}
+                    <select
+                      value={slot.timeframe}
+                      onChange={(e) => handleChangeTimeframe(slot.id, e.target.value)}
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: 4, color: C.textDim,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: 9, padding: '2px 4px',
+                        cursor: 'pointer', outline: 'none',
+                      }}
+                    >
+                      {TIMEFRAME_OPTIONS.map(tf => (
+                        <option key={tf.value} value={tf.value} style={{ background: C.card, color: C.text }}>{tf.labelShort}</option>
+                      ))}
+                    </select>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {state.loading && (
-                      <div style={{ width: 12, height: 12, border: `2px solid ${C.cardBorder}`, borderTopColor: C.cyan, borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {state?.loading && (
+                      <div style={{ width: 10, height: 10, border: `2px solid ${C.cardBorder}`, borderTopColor: C.cyan, borderRadius: '50%', animation: 'mtfSpin 1s linear infinite' }} />
                     )}
 
-                    {state.currentPrice !== null && !state.loading && (
+                    {state?.currentPrice != null && !state?.loading && (
                       <>
-                        <span style={{
-                          color: C.text, fontSize: 11, fontWeight: 600,
-                          fontFamily: "'JetBrains Mono', monospace",
-                        }}>
+                        <span style={{ color: C.text, fontSize: 10, fontWeight: 600, fontFamily: "'JetBrains Mono', monospace" }}>
                           {formatPrice(state.currentPrice)}
                         </span>
                         {changePercent !== null && (
                           <span style={{
                             color: isPositive ? C.success : C.danger,
-                            fontSize: 10, fontWeight: 700,
+                            fontSize: 9, fontWeight: 700,
                             fontFamily: "'JetBrains Mono', monospace",
-                            padding: '1px 5px', borderRadius: 3,
+                            padding: '1px 4px', borderRadius: 3,
                             background: isPositive ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)',
                           }}>
                             {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
@@ -402,17 +454,38 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                       </>
                     )}
 
-                    {state.error && (
+                    {state?.error && (
                       <span style={{ color: C.danger, fontSize: 9, fontFamily: "'Cairo', sans-serif" }}>
                         {state.error}
                       </span>
+                    )}
+
+                    {/* Remove button (always show when more than 4 charts) */}
+                    {isExtra && (
+                      <button
+                        onClick={() => handleRemoveChart(slot.id)}
+                        style={{
+                          background: 'rgba(255,71,87,0.1)',
+                          border: '1px solid rgba(255,71,87,0.2)',
+                          borderRadius: 4, color: C.danger,
+                          width: 18, height: 18, cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 10, padding: 0, transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.25)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,71,87,0.1)'; }}
+                      >
+                        <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                      </button>
                     )}
                   </div>
                 </div>
 
                 {/* Chart container */}
                 <div
-                  ref={setContainerRef(i)}
+                  ref={setContainerRef(slot.id)}
                   style={{ flex: 1, minHeight: 0, width: '100%', position: 'relative' }}
                 />
               </div>
@@ -421,8 +494,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
         </div>
       </div>
 
-      {/* Spinner keyframe */}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`@keyframes mtfSpin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }

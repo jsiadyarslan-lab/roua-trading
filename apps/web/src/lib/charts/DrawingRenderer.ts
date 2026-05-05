@@ -67,7 +67,10 @@ export class DrawingRenderer {
   // ── Drag state ──────────────────────────────────────────
   private isDragging = false;
   private dragDrawingId: string | null = null;
+  private dragStartX: number = 0;
   private dragStartY: number = 0;
+  private dragOriginalPoints: DrawingPoint[] = []; // Deep copy of points at drag start
+  private dragStartChartPoint: DrawingPoint | null = null; // Chart coord at drag start
 
   // ── Event handler refs (for cleanup) ───────────────────
   private boundMouseDown: (e: MouseEvent) => void;
@@ -143,6 +146,11 @@ export class DrawingRenderer {
     this.clickedPoints = [];
     this.isDrawing = false;
     this.mousePixel = null;
+    // Reset drag state too in case tool changes mid-drag
+    this.isDragging = false;
+    this.dragDrawingId = null;
+    this.dragOriginalPoints = [];
+    this.dragStartChartPoint = null;
     if (tool === 'cursor') {
       this.setChartInteractionEnabled(true);
       this.setCanvasPointerEvents(false); // Let chart handle pan/zoom
@@ -301,6 +309,51 @@ export class DrawingRenderer {
     return { x, y };
   }
 
+  // ══════════════════════════════════════════════════════════
+  //  DRAG HELPERS
+  // ══════════════════════════════════════════════════════════
+
+  /** Start dragging a drawing — saves original state for correct delta calculation. */
+  private startDrag(drawing: Drawing, pixelX: number, pixelY: number, e: MouseEvent): void {
+    this.isDragging = true;
+    this.dragDrawingId = drawing.id;
+    this.dragStartX = pixelX;
+    this.dragStartY = pixelY;
+    // Deep copy the original points so we always apply delta from the start position
+    this.dragOriginalPoints = drawing.points.map(p => ({ ...p }));
+    // Save the chart coordinate at the drag start for delta calculation
+    this.dragStartChartPoint = this.pixelToChartPoint(e);
+    this.setChartInteractionEnabled(false);
+
+    e.stopImmediatePropagation();
+    e.preventDefault();
+  }
+
+  /** Check if a pixel point is near a line segment (within PROXIMITY_THRESHOLD pixels). */
+  private isPointNearSegment(px: number, py: number, a: PixelPoint, b: PixelPoint): boolean {
+    const threshold = DrawingRenderer.PROXIMITY_THRESHOLD;
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const lenSq = dx * dx + dy * dy;
+
+    if (lenSq === 0) {
+      // Degenerate segment (both points are the same)
+      return Math.abs(px - a.x) < threshold && Math.abs(py - a.y) < threshold;
+    }
+
+    // Project point onto line segment, clamped to [0, 1]
+    let t = ((px - a.x) * dx + (py - a.y) * dy) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+
+    // Closest point on the segment
+    const closestX = a.x + t * dx;
+    const closestY = a.y + t * dy;
+
+    // Distance from point to closest point on segment
+    const distSq = (px - closestX) * (px - closestX) + (py - closestY) * (py - closestY);
+    return distSq < threshold * threshold;
+  }
+
   /** Scale pixel coordinate for DPI-aware canvas drawing. */
   private s(v: number): number {
     return v * this.dpr;
@@ -320,6 +373,9 @@ export class DrawingRenderer {
   //  MOUSE HANDLERS
   // ══════════════════════════════════════════════════════════
 
+  // ── Proximity threshold in pixels ──
+  private static readonly PROXIMITY_THRESHOLD = 12;
+
   private onMouseDown(e: MouseEvent): void {
     // Only react to left click
     if (e.button !== 0) return;
@@ -330,40 +386,57 @@ export class DrawingRenderer {
       const y = e.clientY - rect.top;
       const x = e.clientX - rect.left;
 
-      // Check ALL drawing types for proximity (not just horizontal)
+      // Check ALL drawing types for proximity
       const drawings = this.drawingManager.getAll();
       for (const drawing of drawings) {
         if (drawing.type === 'horizontal') {
+          // Horizontal lines: check proximity along the entire line (full width)
           const pixelPt = this.chartPointToPixel(drawing.points[0]);
-          if (pixelPt && Math.abs(y - pixelPt.y) < 8) {
-            // Start dragging this horizontal line
-            this.isDragging = true;
-            this.dragDrawingId = drawing.id;
-            this.dragStartY = y;
-            this.setChartInteractionEnabled(false);
-            // Set cursor to indicate dragging
+          if (pixelPt && Math.abs(y - pixelPt.y) < DrawingRenderer.PROXIMITY_THRESHOLD) {
+            this.startDrag(drawing, x, y, e);
             this.container.style.cursor = 'ns-resize';
-
-            e.stopImmediatePropagation();
-            e.preventDefault();
             return;
           }
-        }
-        // For other drawing types, check proximity to any point
-        if (drawing.type !== 'horizontal') {
-          for (const pt of drawing.points) {
-            const pixelPt = this.chartPointToPixel(pt);
-            if (pixelPt && Math.abs(x - pixelPt.x) < 8 && Math.abs(y - pixelPt.y) < 8) {
-              this.isDragging = true;
-              this.dragDrawingId = drawing.id;
-              this.dragStartY = y;
-              this.setChartInteractionEnabled(false);
-              this.container.style.cursor = 'move';
+        } else if (drawing.type === 'vertical') {
+          // Vertical lines: check proximity along the entire line (full height)
+          const pixelPt = this.chartPointToPixel(drawing.points[0]);
+          if (pixelPt && Math.abs(x - pixelPt.x) < DrawingRenderer.PROXIMITY_THRESHOLD) {
+            this.startDrag(drawing, x, y, e);
+            this.container.style.cursor = 'ew-resize';
+            return;
+          }
+        } else {
+          // For other drawing types:
+          // 1. Check proximity to any endpoint (primary grab points)
+          // 2. Check proximity to line segments between points
+          const pixelPts = drawing.points
+            .map(p => this.chartPointToPixel(p))
+            .filter((p): p is PixelPoint => p !== null);
 
-              e.stopImmediatePropagation();
-              e.preventDefault();
-              return;
+          // Check endpoints first
+          let nearPoint = false;
+          for (const pp of pixelPts) {
+            if (Math.abs(x - pp.x) < DrawingRenderer.PROXIMITY_THRESHOLD &&
+                Math.abs(y - pp.y) < DrawingRenderer.PROXIMITY_THRESHOLD) {
+              nearPoint = true;
+              break;
             }
+          }
+
+          // If not near an endpoint, check proximity to line segments
+          if (!nearPoint && pixelPts.length >= 2) {
+            for (let i = 0; i < pixelPts.length - 1; i++) {
+              if (this.isPointNearSegment(x, y, pixelPts[i], pixelPts[i + 1])) {
+                nearPoint = true;
+                break;
+              }
+            }
+          }
+
+          if (nearPoint) {
+            this.startDrag(drawing, x, y, e);
+            this.container.style.cursor = 'move';
+            return;
           }
         }
       }
@@ -398,33 +471,34 @@ export class DrawingRenderer {
     // Handle dragging existing drawings
     if (this.isDragging && this.dragDrawingId) {
       e.preventDefault();
-      const point = this.pixelToChartPoint(e);
-      if (!point) return;
+      const currentChartPoint = this.pixelToChartPoint(e);
+      if (!currentChartPoint || !this.dragStartChartPoint) return;
+
+      // Calculate the total delta from the drag start to the current mouse position
+      const deltaPrice = currentChartPoint.price - this.dragStartChartPoint.price;
+      const deltaTime = currentChartPoint.time - this.dragStartChartPoint.time;
 
       const drawing = this.drawingManager.get(this.dragDrawingId);
       if (drawing) {
         if (drawing.type === 'horizontal') {
           // For horizontal lines, only update the price (keep time)
           this.drawingManager.update(this.dragDrawingId, {
-            points: [{ ...drawing.points[0], price: point.price }],
+            points: [{ ...this.dragOriginalPoints[0], price: this.dragOriginalPoints[0].price + deltaPrice }],
+          });
+        } else if (drawing.type === 'vertical') {
+          // For vertical lines, only update the time (keep price)
+          this.drawingManager.update(this.dragDrawingId, {
+            points: [{ ...this.dragOriginalPoints[0], time: this.dragOriginalPoints[0].time + deltaTime }],
           });
         } else {
-          // For other drawings, calculate the price delta and move all points
-          const rect = this.container.getBoundingClientRect();
-          const y = e.clientY - rect.top;
-          const deltaY = y - this.dragStartY;
-          const deltaPrice = this.candleSeries.coordinateToPrice(this.dragStartY)! - this.candleSeries.coordinateToPrice(y)!;
-          const deltaTime = this.chart.timeScale().coordinateToTime(e.clientX - rect.left) as number;
-
-          if (drawing.points.length > 0 && deltaTime !== null) {
-            const timeDelta = deltaTime - drawing.points[0].time;
-            const newPoints = drawing.points.map(pt => ({
-              ...pt,
-              price: pt.price + deltaPrice,
-              time: pt.time + timeDelta,
-            }));
-            this.drawingManager.update(this.dragDrawingId, { points: newPoints });
-          }
+          // For all other drawings, move all points by the same delta
+          // Always apply delta to the ORIGINAL points (saved at drag start) to prevent drift
+          const newPoints = this.dragOriginalPoints.map(pt => ({
+            ...pt,
+            price: pt.price + deltaPrice,
+            time: pt.time + deltaTime,
+          }));
+          this.drawingManager.update(this.dragDrawingId, { points: newPoints });
         }
         this.redraw();
       }
@@ -442,18 +516,40 @@ export class DrawingRenderer {
       for (const drawing of drawings) {
         if (drawing.type === 'horizontal') {
           const pixelPt = this.chartPointToPixel(drawing.points[0]);
-          if (pixelPt && Math.abs(y - pixelPt.y) < 8) {
+          if (pixelPt && Math.abs(y - pixelPt.y) < DrawingRenderer.PROXIMITY_THRESHOLD) {
+            nearDrawing = true;
+            break;
+          }
+        } else if (drawing.type === 'vertical') {
+          const pixelPt = this.chartPointToPixel(drawing.points[0]);
+          if (pixelPt && Math.abs(x - pixelPt.x) < DrawingRenderer.PROXIMITY_THRESHOLD) {
             nearDrawing = true;
             break;
           }
         } else {
-          for (const pt of drawing.points) {
-            const pixelPt = this.chartPointToPixel(pt);
-            if (pixelPt && Math.abs(x - pixelPt.x) < 8 && Math.abs(y - pixelPt.y) < 8) {
+          // Check endpoints
+          const pixelPts = drawing.points
+            .map(p => this.chartPointToPixel(p))
+            .filter((p): p is PixelPoint => p !== null);
+
+          for (const pp of pixelPts) {
+            if (Math.abs(x - pp.x) < DrawingRenderer.PROXIMITY_THRESHOLD &&
+                Math.abs(y - pp.y) < DrawingRenderer.PROXIMITY_THRESHOLD) {
               nearDrawing = true;
               break;
             }
           }
+
+          // Check line segments
+          if (!nearDrawing && pixelPts.length >= 2) {
+            for (let i = 0; i < pixelPts.length - 1; i++) {
+              if (this.isPointNearSegment(x, y, pixelPts[i], pixelPts[i + 1])) {
+                nearDrawing = true;
+                break;
+              }
+            }
+          }
+
           if (nearDrawing) break;
         }
       }
@@ -476,6 +572,8 @@ export class DrawingRenderer {
     if (this.isDragging) {
       this.isDragging = false;
       this.dragDrawingId = null;
+      this.dragOriginalPoints = [];
+      this.dragStartChartPoint = null;
       this.setChartInteractionEnabled(true);
       this.container.style.cursor = '';
       if (this.currentTool === 'cursor') this.setCanvasPointerEvents(false);

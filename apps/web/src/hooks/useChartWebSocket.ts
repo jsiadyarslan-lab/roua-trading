@@ -57,7 +57,13 @@ function normalizeBinanceSymbol(symbol: string): string {
   return s.toLowerCase();
 }
 
-// Get session token from cookie for Socket.IO auth
+// FIX: Get session token for Socket.IO authentication.
+// Note: The roua_session cookie is httpOnly (set by auth controller), so
+// document.cookie CANNOT read it. However, browsers automatically send
+// httpOnly cookies in the WebSocket handshake headers (Cookie header),
+// and the server-side _extractSessionFromCookie() parses it from there.
+// We still try to read it here as a bonus for non-httpOnly scenarios,
+// but the primary authentication path is via the Cookie header.
 function getSessionToken(): string | null {
   if (typeof document === 'undefined') return null;
   const match = document.cookie.match(/roua_session=([^;]+)/);

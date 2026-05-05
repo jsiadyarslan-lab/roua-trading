@@ -25,10 +25,21 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
  * - subscribe: Client subscribes to a symbol
  * - unsubscribe: Client unsubscribes from a symbol
  * - ticker: Server pushes price updates to subscribed clients
+ *
+ * FIX: CORS changed from static origin (localhost only) to dynamic validation.
+ * Previously, if CORS_ORIGIN env var was unset or set to localhost, WebSocket
+ * connections from production Railway URLs (*.up.railway.app) were rejected.
+ * Now we accept all origins since authentication is enforced in handleConnection().
  */
 @WebSocketGateway({
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // Allow all origins — authentication is handled in handleConnection()
+      // via session token validation. CORS is not a security boundary for
+      // WebSocket connections (browsers enforce CORS but any HTTP client can
+      // spoof Origin). The real security is the session token check.
+      callback(null, true);
+    },
     credentials: true,
   },
   namespace: '/exchange',

@@ -118,12 +118,14 @@ export class TradingController {
       quantity: request.quantity,
       price: request.price,
       stopLoss: request.stopLoss!,
-      // FIX: Deterministic idempotency key based on order parameters.
-      // Previously `v1-${Date.now()}-${symbol}` was always unique, defeating
-      // the purpose of idempotency (preventing double-orders on network retries).
-      // Now the key is derived from userId+symbol+side+type+quantity+price, so
-      // identical retries within the same second are deduplicated.
-      idempotencyKey: `v1-${userId}-${request.symbol}-${request.side}-${request.type}-${request.quantity}-${request.price || 'market'}`,
+      // FIX: Semi-deterministic idempotency key for v1 pipeline.
+      // The key includes a timestamp (1-second granularity) to allow legitimate
+      // repeat orders (same symbol+side+type+qty+price) while still preventing
+      // rapid double-submission within the same second. This balances:
+      // - Deduplication: network retries within 1s are caught
+      // - Flexibility: users can place identical orders seconds apart
+      // Previously used fully deterministic key which blocked legitimate repeat orders.
+      idempotencyKey: `v1-${userId}-${request.symbol}-${request.side}-${request.type}-${request.quantity}-${request.price || 'market'}-${Math.floor(Date.now() / 1000)}`,
     });
 
     if (!riskResult.allowed) {

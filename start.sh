@@ -872,6 +872,38 @@ EOSQL
     CREATE INDEX IF NOT EXISTS "TradingBrief_timeframe_idx" ON "TradingBrief"("timeframe");
     CREATE INDEX IF NOT EXISTS "TradingBrief_userId_isActive_reviewStatus_idx" ON "TradingBrief"("userId", "isActive", "reviewStatus");
 
+    -- FIX: Add missing columns to TradingBrief if they don't exist.
+    -- CREATE TABLE IF NOT EXISTS skips existing tables entirely, so columns
+    -- added in later deploys (like analysisSummary) never get created.
+    -- This is the #1 cause of brief creation failing silently:
+    -- Prisma tries to INSERT into analysisSummary but the column doesn't exist.
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'TradingBrief' AND column_name = 'analysisSummary'
+      ) THEN
+        ALTER TABLE "TradingBrief" ADD COLUMN "analysisSummary" TEXT;
+      END IF;
+    END $$;
+
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'TradingBrief' AND column_name = 'createdAt'
+      ) THEN
+        ALTER TABLE "TradingBrief" ADD COLUMN "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      END IF;
+    END $$;
+
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'TradingBrief' AND column_name = 'updatedAt'
+      ) THEN
+        ALTER TABLE "TradingBrief" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      END IF;
+    END $$;
+
     -- ── Portfolio table (needed for portfolio features) ──
     CREATE TABLE IF NOT EXISTS "Portfolio" (
       "id" TEXT NOT NULL,

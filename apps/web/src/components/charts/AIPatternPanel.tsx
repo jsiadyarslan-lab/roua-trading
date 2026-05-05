@@ -103,7 +103,7 @@ export function AIPatternPanel({
   const [loading, setLoading] = useState(false);
   const [patterns, setPatterns] = useState<AIPattern[]>([]);
   const [srLevels, setSrLevels] = useState<SupportResistanceLevel[]>([]);
-  const [ [trendLines] ] = useState<TrendLine[]>([]);
+  const [trendLines, setTrendLines] = useState<TrendLine[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('patterns');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -171,6 +171,7 @@ export function AIPatternPanel({
       setSrLevels(levels);
 
       const lines = detectTrendLines(candles);
+      setTrendLines(lines);
 
       onPatternsDetected({
         patterns: detectedPatterns,
@@ -186,6 +187,7 @@ export function AIPatternPanel({
       const lines = detectTrendLines(candles);
       setPatterns(localPatterns);
       setSrLevels(levels);
+      setTrendLines(lines);
       onPatternsDetected({
         patterns: localPatterns,
         supportLevels: levels.filter(l => l.type === 'support'),

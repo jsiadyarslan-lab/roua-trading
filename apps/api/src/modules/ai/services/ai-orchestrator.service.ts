@@ -429,7 +429,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
     this.logger.log(`🎼 Initiating AI Council Consensus for ${symbol} — 8 models + Prediction Market`);
 
     try {
-      const decisionInstruction = '\n\nIMPORTANT: End your response with a single line in exactly this format: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD". This line must be the last line of your response.';
+      const decisionInstruction = '\n\n⛔⛔⛔ تعليمات حاسمة حول القرار:\n- يجب أن تنهي ردك بسطر واحد بالضبط بهذا الشكل: "DECISION: BUY" أو "DECISION: SELL"\n- ممنوع تماماً كتابة "DECISION: HOLD" — لا يوجد انتظار في التداول النشط!\n- إذا لم تكن متأكداً بنسبة 100%، اختر الاتجاه الأكثر احتمالاً بناءً على التحليل\n- حتى لو كانت الإشارات متضاربة، اختر الاتجاه الأقوى (BUY أو SELL)\n- السوق دائماً يتحرك — ليس هناك "انتظار" — اختر اتجاهاً!\nهذا السطر يجب أن يكون آخر سطر في ردك.';
 
       // FIX: Fetch live market data before building prompts to prevent hallucinations
       // (e.g., Groq saying BTC is $28,500 when it's actually much higher)
@@ -667,6 +667,14 @@ export class AIOrchestratorService implements OnModuleDestroy {
       }
 
       // ── Build analyses from all successful role responses ──
+      // FIX: HOLD votes are weighted at 0.3x to prevent HOLD-dominance.
+      // In active trading, staying out (HOLD) is not a productive signal.
+      // A directional vote (BUY/SELL) should carry more weight because it
+      // represents conviction and actionable analysis. HOLD is often the
+      // lazy/default answer from small models. Reducing its weight ensures
+      // that even 2-3 directional votes out of 8 can produce a consensus.
+      const HOLD_WEIGHT_MULTIPLIER = 0.3;
+
       for (const [roleId, { name, response }] of roleResponses) {
         const content = response.content || '';
         const vote = this._parseVote(content);
@@ -674,8 +682,8 @@ export class AIOrchestratorService implements OnModuleDestroy {
         const conf = response.confidence || 0.5;
         if (vote === 'BUY') { buyWeight += conf; buyConfidences.push(conf); }
         else if (vote === 'SELL') { sellWeight += conf; sellConfidences.push(conf); }
-        else { holdWeight += conf; holdConfidences.push(conf); }
-        totalConfidence += conf;
+        else { holdWeight += conf * HOLD_WEIGHT_MULTIPLIER; holdConfidences.push(conf); }
+        totalConfidence += vote === 'HOLD' ? conf * HOLD_WEIGHT_MULTIPLIER : conf;
 
         analyses.push({
           role: name,
@@ -700,32 +708,37 @@ export class AIOrchestratorService implements OnModuleDestroy {
       let recommendation: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';
       let consensusScore = 0;
 
-      // FIX: Consensus score = average confidence of models that agreed on the final recommendation
-      // Previously, the 0.6 threshold was too strict — 59% BUY would be labeled HOLD!
-      // Now: Majority wins (threshold 0.5). BUY if buyPct > sellPct AND buyPct > 0.5,
-      // SELL if sellPct > buyPct AND sellPct > 0.5, otherwise HOLD.
-      // This ensures the label ALWAYS matches the majority vote direction.
+      // FIX: Active trading consensus — directional votes beat HOLD.
+      // Previous logic: Majority wins, which meant 7 HOLD + 1 SELL = HOLD (useless!)
+      // New logic: If ANY directional signal (BUY or SELL) exists, prefer it over HOLD.
+      // Trading requires action — HOLD is only valid when there's genuine uncertainty
+      // (equal BUY and SELL votes). With the 0.3x HOLD weight reduction above,
+      // even 2-3 BUY/SELL votes out of 8 will dominate the weighted calculation.
       if (totalConfidence > 0) {
         const buyPct = buyWeight / totalConfidence;
         const sellPct = sellWeight / totalConfidence;
         const holdPct = holdWeight / totalConfidence;
 
-        // Majority vote: whichever side has the highest weighted percentage
-        if (buyPct > sellPct && buyPct > holdPct) {
-          recommendation = 'BUY';
-          consensusScore = buyConfidences.length > 0
-            ? Math.round(buyConfidences.reduce((a, b) => a + b, 0) / buyConfidences.length * 100)
-            : Math.round(buyPct * 100);
-        } else if (sellPct > buyPct && sellPct > holdPct) {
-          recommendation = 'SELL';
-          consensusScore = sellConfidences.length > 0
-            ? Math.round(sellConfidences.reduce((a, b) => a + b, 0) / sellConfidences.length * 100)
-            : Math.round(sellPct * 100);
+        // Direction-first logic: if there are ANY directional votes,
+        // choose the stronger direction. Only HOLD if no direction exists.
+        if (buyWeight > 0 || sellWeight > 0) {
+          if (buyWeight >= sellWeight) {
+            recommendation = 'BUY';
+            consensusScore = buyConfidences.length > 0
+              ? Math.round(buyConfidences.reduce((a, b) => a + b, 0) / buyConfidences.length * 100)
+              : Math.round(buyPct * 100);
+          } else {
+            recommendation = 'SELL';
+            consensusScore = sellConfidences.length > 0
+              ? Math.round(sellConfidences.reduce((a, b) => a + b, 0) / sellConfidences.length * 100)
+              : Math.round(sellPct * 100);
+          }
         } else {
+          // Pure HOLD — no directional signal at all
           recommendation = 'HOLD';
           consensusScore = holdConfidences.length > 0
             ? Math.round(holdConfidences.reduce((a, b) => a + b, 0) / holdConfidences.length * 100)
-            : Math.round((1 - Math.abs(buyPct - sellPct)) * 50);
+            : 50;
         }
 
         // Ensure minimum consensus score of 50% when majority direction is clear

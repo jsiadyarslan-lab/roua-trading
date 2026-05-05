@@ -449,70 +449,29 @@ export class StrategicCouncilService {
     // stalling when AI providers are down.
     const isAIFallback = consensus.isFallback === true || consensus.consensusScore === 0;
 
-    // FIX #2: Issue briefs with directional bias even when overall recommendation is HOLD.
-    // Previously, if the AI council said HOLD, NO brief was issued — ever.
-    // This made the entire pipeline appear dead because HOLD is the default when models disagree.
-    //
-    // NEW LOGIC:
-    // 1. If BUY or SELL with sufficient confidence → issue brief (unchanged)
-    // 2. If HOLD but there's a directional bias (e.g., 4 BUY vs 3 HOLD vs 1 SELL)
-    //    → issue a brief with the bias direction and lower confidence
-    // 3. If pure HOLD with no directional bias → keep existing brief, don't cancel
-    // 4. If AI is completely unavailable → try technical fallback
-    //
-    // This ensures the dashboard always has live data and the Smart Executor has work to do.
-    const hasDirectionalBias = consensus.analyses && consensus.analyses.length > 0 &&
-      consensus.analyses.some((a: any) => a.vote === 'BUY' || a.vote === 'SELL');
-
+    // FIX: With the new direction-first consensus algorithm, HOLD should be extremely rare.
+    // The consensus engine now prefers directional signals over HOLD.
+    // If we still get HOLD, it means NO model gave any directional signal at all,
+    // which is unlikely with the new prompts that forbid HOLD.
+    // In that rare case, we keep the existing brief and don't issue a new one.
     if (!isAIFallback && consensus.recommendation === 'HOLD') {
-      // HOLD recommendation — check if there's a directional minority we can use
-      if (hasDirectionalBias && consensus.consensusScore >= 30) {
-        // There IS directional analysis — extract the minority direction
-        const buyVotes = (consensus.analyses || []).filter((a: any) => a.vote === 'BUY');
-        const sellVotes = (consensus.analyses || []).filter((a: any) => a.vote === 'SELL');
-
-        if (buyVotes.length > sellVotes.length) {
-          // BUY minority — issue BUY brief with reduced confidence
-          (consensus as any).recommendation = 'BUY';
-          (consensus as any).consensusScore = Math.max(
-            Math.round(buyVotes.reduce((s: number, a: any) => s + a.confidence, 0) / buyVotes.length),
-            40
-          );
-          this.logger.log(`🏛️ HOLD with BUY bias → issuing BUY brief for ${pair} ${timeframe} (minority confidence: ${(consensus as any).consensusScore}%)`);
-        } else if (sellVotes.length > buyVotes.length) {
-          // SELL minority — issue SELL brief with reduced confidence
-          (consensus as any).recommendation = 'SELL';
-          (consensus as any).consensusScore = Math.max(
-            Math.round(sellVotes.reduce((s: number, a: any) => s + a.confidence, 0) / sellVotes.length),
-            40
-          );
-          this.logger.log(`🏛️ HOLD with SELL bias → issuing SELL brief for ${pair} ${timeframe} (minority confidence: ${(consensus as any).consensusScore}%)`);
-        } else {
-          // Equal BUY/SELL — no clear bias, keep existing brief if any
-          if (existingBrief) {
-            await this.prisma.tradingBrief.update({
-              where: { id: existingBrief.id },
-              data: { lastReviewedAt: new Date() },
-            });
-          }
-          return;
-        }
-      } else {
-        // Pure HOLD with no directional bias or very low confidence
-        // DON'T cancel existing brief — just keep it and update review timestamp
-        if (existingBrief) {
-          await this.prisma.tradingBrief.update({
-            where: { id: existingBrief.id },
-            data: { lastReviewedAt: new Date() },
-          });
-          this.logger.debug(`🏛️ HOLD recommendation — keeping existing brief for ${pair} ${timeframe}`);
-        }
-        return;
+      // Pure HOLD — no directional signal from any model
+      // Keep existing brief if any, don't cancel it
+      if (existingBrief) {
+        await this.prisma.tradingBrief.update({
+          where: { id: existingBrief.id },
+          data: { lastReviewedAt: new Date() },
+        });
+        this.logger.debug(`🏛️ Pure HOLD (no directional signal) — keeping existing brief for ${pair} ${timeframe}`);
       }
+      return;
     }
 
     // Still check minimum consensus score for non-HOLD recommendations
-    if (!isAIFallback && consensus.recommendation !== 'HOLD' && consensus.consensusScore < 30) {
+    // FIX: Lowered from 30 to 15 — in active trading, even weak directional
+    // signals are actionable. The risk management (stop loss, take profit)
+    // handles downside protection. Skipping weak signals means no briefs ever.
+    if (!isAIFallback && consensus.recommendation !== 'HOLD' && consensus.consensusScore < 15) {
       this.logger.debug(`🏛️ Consensus too low (${consensus.consensusScore}%) for ${pair} ${timeframe} — skipping`);
       if (existingBrief) {
         await this.prisma.tradingBrief.update({
@@ -662,7 +621,9 @@ export class StrategicCouncilService {
               const rsi = 100 - (100 / (1 + rs));
 
               // Determine direction from momentum and RSI
-              if (momentum > 0.005 && rsi < 70) {
+              // FIX: Lowered momentum threshold from 0.005 (0.5%) to 0.001 (0.1%)
+              // In active markets, even small momentum is actionable with proper SL/TP.
+              if (momentum > 0.001 && rsi < 70) {
                 // Bullish momentum, not overbought
                 confidence = Math.min(65, 55 + Math.abs(momentum) * 1000);
                 return {
@@ -674,7 +635,7 @@ export class StrategicCouncilService {
                     { role: 'محلل اتجاه', model: 'Technical/Trend', vote: 'BUY', confidence: Math.round(confidence - 5), reason: `المتوسط المتحرك القصير أعلى من المتوسط المتحرك الطويل` },
                   ],
                 };
-              } else if (momentum < -0.005 && rsi > 30) {
+              } else if (momentum < -0.001 && rsi > 30) {
                 // Bearish momentum, not oversold
                 confidence = Math.min(65, 55 + Math.abs(momentum) * 1000);
                 return {

@@ -21,16 +21,10 @@ import {
   MaxLength,
   IsUUID,
 } from 'class-validator';
+import { OrderSide, OrderType } from '@prisma/client';
 
-export enum V2OrderSide {
-  BUY = 'BUY',
-  SELL = 'SELL',
-}
-
-export enum V2OrderType {
-  MARKET = 'MARKET',
-  LIMIT = 'LIMIT',
-}
+// Re-export Prisma enums for DTO use — single source of truth
+export { OrderSide as V2OrderSide, OrderType as V2OrderType } from '@prisma/client';
 
 export class PlaceOrderDto {
   @IsUUID()
@@ -40,11 +34,11 @@ export class PlaceOrderDto {
   @MaxLength(30)
   symbol!: string;
 
-  @IsEnum(V2OrderSide)
-  side!: V2OrderSide;
+  @IsEnum(OrderSide)
+  side!: OrderSide;
 
-  @IsEnum(V2OrderType)
-  type!: V2OrderType;
+  @IsEnum(OrderType)
+  type!: OrderType;
 
   @IsNumber()
   @Min(0.00001)

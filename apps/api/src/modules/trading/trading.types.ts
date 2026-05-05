@@ -3,6 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { IsString, IsNumber, IsEnum, IsOptional, IsBoolean, Min, IsUUID } from 'class-validator';
+import { OrderSide as PrismaOrderSide, OrderType as PrismaOrderType } from '@prisma/client';
 
 export enum OrderSide {
   BUY = 'BUY',
@@ -84,8 +85,8 @@ export class ClosePositionDto {
 export interface PlaceOrderRequest {
   credentialId: string;
   symbol: string;
-  side: OrderSide;
-  type: OrderType;
+  side: OrderSide | PrismaOrderSide;
+  type: OrderType | PrismaOrderType;
   quantity: number;
   price?: number;
   stopLoss?: number;

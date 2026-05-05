@@ -286,7 +286,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
 function renderToolButton(
   tool: { key: DrawingTool; icon: string; labelAr: string; labelEn: string; shortcut?: string },
   activeTool: DrawingTool,
-  onSetTool: (tool: DrawingTool) => void,
+  selectTool: (tool: DrawingTool, e?: React.MouseEvent) => void,
   COLORS: Record<string, string>,
 ) {
   const isActive = activeTool === tool.key;
@@ -294,8 +294,7 @@ function renderToolButton(
     <button
       key={tool.key}
       onClick={(e) => {
-        e.stopPropagation(); // Prevent chart from receiving the click
-        onSetTool(tool.key);
+        selectTool(tool.key, e);
       }}
       title={`${tool.labelAr} (${tool.labelEn})${tool.shortcut ? ` [${tool.shortcut}]` : ''}`}
       style={{

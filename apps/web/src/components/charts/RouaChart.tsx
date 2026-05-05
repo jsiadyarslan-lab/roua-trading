@@ -27,13 +27,16 @@ import { TemplateManager } from './TemplateManager';
 import { ChartSettingsPanel } from './ChartSettingsPanel';
 import { CompareOverlay } from './CompareOverlay';
 import { MultiTimeframeChart } from './MultiTimeframeChart';
+import { ChartGrid } from './ChartGrid';
 import ShareChart from './ShareChart';
 import { FootprintChart } from './FootprintChart';
 import { AlertPanel } from './AlertPanel';
 import { SessionStats } from './SessionStats';
 import { PatternProgress } from './PatternProgress';
-import { QuickTradePanel } from './QuickTradePanel';
 import { DraggablePanel } from './DraggablePanel';
+import { PriceAlertLine } from './PriceAlertLine';
+import { ChartReplay } from './ChartReplay';
+import { MiniHeatmap } from './MiniHeatmap';
 import { fetchSignalsForChart, fetchStrategicBriefs, convertToChartMarkers } from '@/lib/charts/chart-signals';
 import type { AIAnalysisResult } from './AIPatternPanel';
 import { T } from '@/lib/unified-tokens';
@@ -137,13 +140,17 @@ export default function RouaChart({
   const [showCompare, setShowCompare] = useState(false);
   const [compareSymbol, setCompareSymbol] = useState('');
   const [showMTF, setShowMTF] = useState(false);
+  const [showChartGrid, setShowChartGrid] = useState(false);
   const [showShare, setShowShare] = useState(false);
   // ── 5 New Feature States ──
   const [showFootprint, setShowFootprint] = useState(false);
   const [showAlerts, setShowAlerts] = useState(false);
   const [showSessionStats, setShowSessionStats] = useState(false);
   const [showPatternProgress, setShowPatternProgress] = useState(false);
-  const [showQuickTrade, setShowQuickTrade] = useState(false);
+  // ── 3 Revolutionary Feature States ──
+  const [showReplay, setShowReplay] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
+  const [priceAlertsCount, setPriceAlertsCount] = useState(0);
   const [councilSignal, setCouncilSignal] = useState<{ direction: 'bullish' | 'bearish' | 'neutral'; confidence: number } | null>(null);
   const [aiPatterns, setAiPatterns] = useState<AIPattern[]>([]);
   const [newsMarkers, setNewsMarkers] = useState<NewsMarker[]>([]);
@@ -941,6 +948,7 @@ export default function RouaChart({
         showWatchlist={showWatchlist}
         onToggleCompare={() => setShowCompare(!showCompare)}
         onToggleMTF={() => setShowMTF(!showMTF)}
+        onToggleChartGrid={() => setShowChartGrid(!showChartGrid)}
         onToggleShare={() => setShowShare(!showShare)}
         showCompare={showCompare}
         // ── 5 New Feature Toolbar Props ──
@@ -952,8 +960,12 @@ export default function RouaChart({
         onToggleSessionStats={() => setShowSessionStats(!showSessionStats)}
         showPatternProgress={showPatternProgress}
         onTogglePatternProgress={() => setShowPatternProgress(!showPatternProgress)}
-        showQuickTrade={showQuickTrade}
-        onToggleQuickTrade={() => setShowQuickTrade(!showQuickTrade)}
+        // ── 3 Revolutionary Feature Toolbar Props ──
+        showReplay={showReplay}
+        onToggleReplay={() => setShowReplay(!showReplay)}
+        showHeatmap={showHeatmap}
+        onToggleHeatmap={() => setShowHeatmap(!showHeatmap)}
+        priceAlertsCount={priceAlertsCount}
       />}
 
       {/* ── CHART AREA ── */}
@@ -1080,15 +1092,7 @@ export default function RouaChart({
               );
             })}
 
-            {/* Volume Profile (overlaid on chart) */}
-            {showVolumeProfile && (
-              <VolumeProfile
-                candles={candlesRef.current}
-                width={80}
-                rows={24}
-                visible={showVolumeProfile}
-              />
-            )}
+            {/* Volume Profile moved to draggable panel below */}
 
           {/* ── Quick Trade Controls — Left Side ── */}
           {!mobile && currentPrice && (
@@ -1406,6 +1410,18 @@ export default function RouaChart({
           </DraggablePanel>
         )}
 
+        {/* Volume Profile (draggable) */}
+        {showVolumeProfile && (
+          <DraggablePanel defaultPosition={{ top: 50, right: 10 }} minWidth={260} minHeight={200}>
+            <VolumeProfile
+              candles={candlesRef.current}
+              width={240}
+              rows={24}
+              visible={showVolumeProfile}
+            />
+          </DraggablePanel>
+        )}
+
         {/* AI Pattern Panel (draggable) */}
         {showAIPanel && (
           <DraggablePanel defaultPosition={{ top: 40, left: 8 }} defaultWidth={320} minHeight={300}>
@@ -1499,13 +1515,15 @@ export default function RouaChart({
           </DraggablePanel>
         )}
 
-        {/* Compare Overlay */}
+        {/* Compare Overlay (draggable) */}
         {showCompare && chart.chartRef?.current && (
-          <CompareOverlay
-            chart={chart.chartRef.current}
-            symbol={compareSymbol || 'ETH/USDT'}
-            onClose={() => setShowCompare(false)}
-          />
+          <DraggablePanel defaultPosition={{ top: 50, right: 10 }} minWidth={260} minHeight={200}>
+            <CompareOverlay
+              chart={chart.chartRef.current}
+              symbol={compareSymbol || 'ETH/USDT'}
+              onClose={() => setShowCompare(false)}
+            />
+          </DraggablePanel>
         )}
 
         {/* Multi-Timeframe Chart */}
@@ -1516,15 +1534,26 @@ export default function RouaChart({
           />
         )}
 
-        {/* Share Chart */}
-        {showShare && (
-          <ShareChart
-            symbol={selectedSymbol}
-            timeframe={timeframe}
-            activeIndicators={chart.getActiveIndicators().map(i => i.key)}
-            chartType={chart.settings.type}
-            onClose={() => setShowShare(false)}
+        {/* Multi-Chart Grid (TradingView/MT5 style) */}
+        {showChartGrid && (
+          <ChartGrid
+            onClose={() => setShowChartGrid(false)}
+            defaultSymbol={selectedSymbol}
+            defaultTimeframe={timeframe}
           />
+        )}
+
+        {/* Share Chart (draggable) */}
+        {showShare && (
+          <DraggablePanel defaultPosition={{ top: 50, right: 10 }} minWidth={260} minHeight={200}>
+            <ShareChart
+              symbol={selectedSymbol}
+              timeframe={timeframe}
+              activeIndicators={chart.getActiveIndicators().map(i => i.key)}
+              chartType={chart.settings.type}
+              onClose={() => setShowShare(false)}
+            />
+          </DraggablePanel>
         )}
 
         {/* ── 5 New Feature Components ── */}
@@ -1539,16 +1568,7 @@ export default function RouaChart({
           </DraggablePanel>
         )}
 
-        {/* Alert Panel (draggable) */}
-        {showAlerts && (
-          <DraggablePanel defaultPosition={{ top: 0, right: 0 }} defaultWidth={280} minHeight={250}>
-            <AlertPanel
-              symbol={selectedSymbol}
-              currentPrice={currentPrice || undefined}
-              onClose={() => setShowAlerts(false)}
-            />
-          </DraggablePanel>
-        )}
+        {/* Alert Panel replaced by PriceAlertLine below */}
 
         {/* Session Stats (draggable) */}
         {showSessionStats && (
@@ -1571,30 +1591,63 @@ export default function RouaChart({
           </DraggablePanel>
         )}
 
-        {/* Quick Trade Panel (draggable) */}
-        {showQuickTrade && (
-          <DraggablePanel defaultPosition={{ bottom: 12, right: 12 }} defaultWidth={260} minHeight={300}>
-            <QuickTradePanel
+        {/* ── 3 Revolutionary Feature Components ── */}
+
+        {/* Price Alert Line (draggable) */}
+        {showAlerts && (
+          <DraggablePanel defaultPosition={{ top: 0, right: 0 }} defaultWidth={300} minHeight={250}>
+            <PriceAlertLine
               symbol={selectedSymbol}
               currentPrice={currentPrice}
-              onPlaceOrder={handlePlaceOrder}
-              onClose={() => setShowQuickTrade(false)}
+              chart={chart}
+              onClose={() => setShowAlerts(false)}
+              onAlertsCountChange={setPriceAlertsCount}
             />
           </DraggablePanel>
         )}
+
+        {/* Chart Replay (floating at bottom) */}
+        {showReplay && (
+          <ChartReplay
+            candles={candlesRef.current}
+            setCandles={chart.setCandles}
+            onClose={() => {
+              setShowReplay(false);
+              // Restore full candle data when closing replay
+              chart.setCandles(candlesRef.current);
+            }}
+          />
+        )}
+
+        {/* Mini Heatmap (draggable) */}
+        {showHeatmap && (
+          <DraggablePanel defaultPosition={{ top: 50, right: 8 }} defaultWidth={340} minHeight={300}>
+            <MiniHeatmap
+              selectedSymbol={selectedSymbol}
+              onSelectSymbol={(symbol) => {
+                const { setSelectedSymbol } = useSymbolStore.getState();
+                setSelectedSymbol(symbol);
+              }}
+              onClose={() => setShowHeatmap(false)}
+            />
+          </DraggablePanel>
+        )}
+
       </div>{/* ── Chart Area close ── */}
 
-      {/* ── Watchlist Overlay (bottom bar) ── */}
+      {/* ── Watchlist Overlay (draggable) ── */}
       {showWatchlist && (
-        <WatchlistOverlay
-          selectedSymbol={selectedSymbol}
-          onSelectSymbol={(symbol) => {
-            // Use the symbol store to change symbol
-            const { setSelectedSymbol } = useSymbolStore.getState();
-            setSelectedSymbol(symbol);
-          }}
-          visible={showWatchlist}
-        />
+        <DraggablePanel defaultPosition={{ top: 50, right: 10 }} minWidth={260} minHeight={200}>
+          <WatchlistOverlay
+            selectedSymbol={selectedSymbol}
+            onSelectSymbol={(symbol) => {
+              // Use the symbol store to change symbol
+              const { setSelectedSymbol } = useSymbolStore.getState();
+              setSelectedSymbol(symbol);
+            }}
+            visible={showWatchlist}
+          />
+        </DraggablePanel>
       )}
 
       {/* ── News Markers (data provider — invisible) ── */}

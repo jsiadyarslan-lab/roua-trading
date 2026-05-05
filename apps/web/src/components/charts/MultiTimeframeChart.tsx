@@ -440,6 +440,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
           gridTemplateRows: `repeat(${rowCount}, 1fr)`,
           gap: 6,
           flex: 1,
+          height: '100%',
           minHeight: 0,
           padding: 6,
           overflow: 'hidden',

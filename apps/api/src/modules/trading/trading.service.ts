@@ -15,9 +15,8 @@ import * as crypto from 'crypto';
 import {
   PlaceOrderRequest,
   ClosePositionRequest,
-  OrderSide,
-  OrderType,
 } from './trading.types';
+import { OrderSide as PrismaOrderSide, OrderType as PrismaOrderType, OrderStatus as PrismaOrderStatus } from '@prisma/client';
 
 /**
  * Trading Engine Service — Roua Trading (رؤى)
@@ -154,9 +153,9 @@ export class TradingService {
           exchangeCredentialId: request.credentialId,
           exchange: credential.exchange,
           symbol: request.symbol,
-          side: request.side as any,
-          type: request.type as any,
-          status: 'REJECTED' as any,
+          side: request.side,
+          type: request.type,
+          status: 'REJECTED' as PrismaOrderStatus,
           quantity: request.quantity,
           price: request.price ?? null,
           stopLoss: request.stopLoss ?? null,
@@ -192,12 +191,12 @@ export class TradingService {
           exchangeCredentialId: request.credentialId,
           exchange: credential.exchange,
           symbol: request.symbol,
-          side: request.side as any,
-          type: request.type as any,
+          side: request.side,
+          type: request.type,
           status:
             (execution.filledQuantity || 0) >= request.quantity
-              ? 'FILLED' as any
-              : 'PARTIALLY_FILLED' as any,
+              ? ('FILLED' as PrismaOrderStatus)
+              : ('PARTIALLY_FILLED' as PrismaOrderStatus),
           quantity: request.quantity,
           price: request.price ?? null,
           stopLoss: request.stopLoss ?? null,
@@ -557,8 +556,8 @@ export class TradingService {
       {
         credentialId: credential.id,
         symbol: position.symbol,
-        side: closeSide as OrderSide,
-        type: OrderType.MARKET,
+        side: closeSide as PrismaOrderSide,
+        type: PrismaOrderType.MARKET,
         quantity: closeQuantity,
       },
       userId,
@@ -594,9 +593,9 @@ export class TradingService {
           exchangeCredentialId: position.credentialId,
           exchange: position.exchange,
           symbol: position.symbol,
-          side: closeSide as any,
-          type: 'MARKET' as any,
-          status: 'FILLED' as any,
+          side: closeSide,
+          type: 'MARKET' as PrismaOrderType,
+          status: 'FILLED' as PrismaOrderStatus,
           quantity: closeQuantity,
           stopLoss: posStopLoss,
           filledQuantity: execution.filledQuantity || closeQuantity,
@@ -616,7 +615,7 @@ export class TradingService {
           positionId: position.id,
           exchange: position.exchange,
           symbol: position.symbol,
-          side: closeSide as OrderSide,
+          side: closeSide as PrismaOrderSide,
           type: closeQuantity >= posQuantity ? 'EXIT' : 'PARTIAL_EXIT',
           quantity: closeQuantity,
           price: exitPrice,

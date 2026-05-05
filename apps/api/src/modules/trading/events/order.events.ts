@@ -2,6 +2,8 @@
 // Roua Trading (رؤى) — Order Events & Commands
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+import { OrderSide, OrderType, OrderStatus, OrderEventType } from '@prisma/client';
+
 /**
  * Order Command — The input object for creating a new order
  * Flows through: OrderController → IdempotencyCheck → RiskGatekeeper → OrderStateManager → ExecutionGateway
@@ -10,8 +12,8 @@ export class OrderCommand {
   userId: string;
   exchangeCredentialId: string;
   symbol: string;
-  side: OrderSideEnum;
-  type: OrderTypeEnum;
+  side: OrderSide;
+  type: OrderType;
   quantity: number;
   price?: number;
   stopLoss: number;        // إجباري — Mandatory
@@ -63,35 +65,9 @@ export class PositionInfo {
   openedAt: Date;
 }
 
-// ── Enums (must match Prisma schema exactly) ──
-
-export enum OrderSideEnum {
-  BUY = 'BUY',
-  SELL = 'SELL',
-}
-
-export enum OrderTypeEnum {
-  MARKET = 'MARKET',
-  LIMIT = 'LIMIT',
-}
-
-export enum OrderStatusEnum {
-  PENDING = 'PENDING',
-  ACCEPTED = 'ACCEPTED',
-  PARTIALLY_FILLED = 'PARTIALLY_FILLED',
-  FILLED = 'FILLED',
-  CANCELLED = 'CANCELLED',
-  REJECTED = 'REJECTED',
-}
-
-export enum OrderEventTypeEnum {
-  CREATED = 'CREATED',
-  ACCEPTED = 'ACCEPTED',
-  RISK_REJECTED = 'RISK_REJECTED',
-  SENT_TO_EXCHANGE = 'SENT_TO_EXCHANGE',
-  FILLED = 'FILLED',
-  CANCELLED = 'CANCELLED',
-}
+// ── Enums — use Prisma-generated enums as single source of truth ──
+// Re-export from @prisma/client so all consumers import from one place.
+export { OrderSide as OrderSideEnum, OrderType as OrderTypeEnum, OrderStatus as OrderStatusEnum, OrderEventType as OrderEventTypeEnum } from '@prisma/client';
 
 // ── Queue Messages ──
 
@@ -103,8 +79,8 @@ export class OrderQueueMessage {
   userId: string;
   exchangeCredentialId: string;
   symbol: string;
-  side: string;
-  type: string;
+  side: OrderSide;
+  type: OrderType;
   quantity: number;
   price?: number;
   stopLoss: number;

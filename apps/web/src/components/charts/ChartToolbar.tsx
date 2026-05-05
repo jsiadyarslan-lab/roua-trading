@@ -45,6 +45,7 @@ interface ChartToolbarProps {
   onToggleCompare?: () => void;
   onToggleMTF?: () => void;
   onToggleShare?: () => void;
+  onToggleChartGrid?: () => void;
   showCompare?: boolean;
   // ── 5 New Feature Toggle Props ──
   showFootprint?: boolean;
@@ -55,8 +56,12 @@ interface ChartToolbarProps {
   onToggleSessionStats?: () => void;
   showPatternProgress?: boolean;
   onTogglePatternProgress?: () => void;
-  showQuickTrade?: boolean;
-  onToggleQuickTrade?: () => void;
+  // ── 3 Revolutionary Feature Toggle Props ──
+  showReplay?: boolean;
+  onToggleReplay?: () => void;
+  showHeatmap?: boolean;
+  onToggleHeatmap?: () => void;
+  priceAlertsCount?: number;
 }
 
 const CHART_TYPES: { key: ChartType; label: string }[] = [
@@ -86,12 +91,14 @@ export function ChartToolbar(props: ChartToolbarProps) {
     onToggleVolumeProfile, onToggleAIPanel, onToggleChartTrading,
     onToggleTemplateManager, onToggleWatchlist, onToggleChartSettings,
     showVolumeProfile, showAIPanel, showChartTrading, showWatchlist,
-    onToggleCompare, onToggleMTF, onToggleShare, showCompare,
+    onToggleCompare, onToggleMTF, onToggleShare, onToggleChartGrid, showCompare,
     showFootprint, onToggleFootprint,
     showAlerts, onToggleAlerts,
     showSessionStats, onToggleSessionStats,
     showPatternProgress, onTogglePatternProgress,
-    showQuickTrade, onToggleQuickTrade,
+    showReplay, onToggleReplay,
+    showHeatmap, onToggleHeatmap,
+    priceAlertsCount,
     isFullscreen,
   } = props;
 
@@ -214,7 +221,9 @@ export function ChartToolbar(props: ChartToolbarProps) {
   // ── Mobile: show only essential tools ──
   if (mobile) {
     return (
-      <div style={{
+      <div
+        className="toolbar-scrollable"
+        style={{
         display: 'flex',
         alignItems: 'center',
         padding: '0 4px',
@@ -224,6 +233,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
         flexShrink: 0,
         gap: 1,
         direction: 'rtl',
+        overflowX: 'auto',
+        overflowY: 'hidden',
       }}>
         {/* Chart Type */}
         <div ref={chartTypeRef} style={{ position: 'relative' }}>
@@ -388,6 +399,19 @@ export function ChartToolbar(props: ChartToolbarProps) {
           </button>
         )}
 
+        {/* Chart Grid */}
+        {onToggleChartGrid && (
+          <button
+            style={btnStyle}
+            onClick={onToggleChartGrid}
+            title="Multi-Chart Grid"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+            </svg>
+          </button>
+        )}
+
         {/* Share */}
         {onToggleShare && (
           <button
@@ -401,6 +425,30 @@ export function ChartToolbar(props: ChartToolbarProps) {
             </svg>
           </button>
         )}
+
+        {/* Replay Mode */}
+        {onToggleReplay && (
+          <button
+            style={toggleBtnStyle(!!showReplay)}
+            onClick={onToggleReplay}
+            title="Chart Replay Mode"
+          >
+            ⏪
+          </button>
+        )}
+
+        {/* Heatmap */}
+        {onToggleHeatmap && (
+          <button
+            style={toggleBtnStyle(!!showHeatmap)}
+            onClick={onToggleHeatmap}
+            title="Mini Heatmap"
+          >
+            🔲
+          </button>
+        )}
+
+        <div style={sepStyle} />
 
         {/* Play/Pause */}
         <button
@@ -451,9 +499,12 @@ export function ChartToolbar(props: ChartToolbarProps) {
                 { label: '📈 تقدم الأنماط', action: onTogglePatternProgress || (() => {}) },
                 { label: '👣 Footprint', action: onToggleFootprint || (() => {}) },
                 { label: '🔔 تنبيهات', action: onToggleAlerts || (() => {}) },
+                { label: '⏪ Replay Mode', action: onToggleReplay || (() => {}) },
+                { label: '🔲 Heatmap', action: onToggleHeatmap || (() => {}) },
                 { label: '⏱️ إحصائيات الجلسة', action: onToggleSessionStats || (() => {}) },
                 { label: '⚖️ مقارنة', action: onToggleCompare || (() => {}) },
                 { label: '📊 تحليل MTF', action: onToggleMTF || (() => {}) },
+                { label: '▦ شبكة الشارتات', action: onToggleChartGrid || (() => {}) },
                 { label: '🔗 مشاركة', action: onToggleShare || (() => {}) },
                 { label: '📋 قائمة المراقبة', action: onToggleWatchlist || (() => {}) },
                 { label: '💾 إدارة القوالب', action: onToggleTemplateManager || (() => {}) },
@@ -478,7 +529,9 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
   // ── Desktop Toolbar (unchanged) ──
   return (
-    <div style={{
+    <div
+      className="toolbar-scrollable"
+      style={{
       display: 'flex',
       alignItems: 'center',
       padding: '0 6px',
@@ -488,6 +541,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
       flexShrink: 0,
       gap: 2,
       direction: 'rtl',
+      overflowX: 'auto',
+      overflowY: 'hidden',
     }}>
       {/* Chart Type */}
       <div ref={chartTypeRef} style={{ position: 'relative' }}>
@@ -755,6 +810,19 @@ export function ChartToolbar(props: ChartToolbarProps) {
         </button>
       )}
 
+      {/* Chart Grid (Multi-Chart Layout) */}
+      {onToggleChartGrid && (
+        <button
+          style={btnStyle}
+          onClick={onToggleChartGrid}
+          title="Multi-Chart Grid Layout"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+          </svg>
+        </button>
+      )}
+
       {/* Share */}
       {onToggleShare && (
         <button
@@ -803,6 +871,65 @@ export function ChartToolbar(props: ChartToolbarProps) {
           </svg>
         </button>
       )}
+
+      <div style={sepStyle} />
+
+      {/* ── 3 Revolutionary Features ── */}
+
+      {/* Replay Mode */}
+      {onToggleReplay && (
+        <button
+          style={toggleBtnStyle(!!showReplay)}
+          onClick={onToggleReplay}
+          title="Chart Replay Mode (Bar-by-Bar)"
+        >
+          ⏪
+        </button>
+      )}
+
+      {/* Heatmap */}
+      {onToggleHeatmap && (
+        <button
+          style={toggleBtnStyle(!!showHeatmap)}
+          onClick={onToggleHeatmap}
+          title="Mini Heatmap"
+        >
+          🔲
+        </button>
+      )}
+
+      {/* Price Alerts count badge */}
+      {priceAlertsCount !== undefined && priceAlertsCount > 0 && (
+        <div style={{
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+        }}>
+          <span style={{
+            position: 'absolute',
+            top: -4,
+            right: -4,
+            background: COLORS.danger,
+            color: '#fff',
+            fontSize: 7,
+            fontWeight: 900,
+            width: 14,
+            height: 14,
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: "'JetBrains Mono', monospace",
+            zIndex: 1,
+            boxShadow: '0 0 4px rgba(255,71,87,0.5)',
+          }}>
+            {priceAlertsCount}
+          </span>
+          <span style={{ fontSize: 13 }}>🔔</span>
+        </div>
+      )}
+
+      <div style={sepStyle} />
 
       {/* Play/Pause */}
       <button
@@ -863,6 +990,22 @@ export function ChartToolbar(props: ChartToolbarProps) {
           </div>
         )}
       </div>
+
+      <style>{`
+        .toolbar-scrollable::-webkit-scrollbar {
+          height: 3px;
+        }
+        .toolbar-scrollable::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .toolbar-scrollable::-webkit-scrollbar-thumb {
+          background: rgba(42,49,60,0.6);
+          border-radius: 3px;
+        }
+        .toolbar-scrollable::-webkit-scrollbar-thumb:hover {
+          background: rgba(42,49,60,0.9);
+        }
+      `}</style>
     </div>
   );
 }

@@ -25,6 +25,7 @@ import {
   OrderSide,
   OrderType,
 } from './trading.types';
+import { OrderSide as PrismaOrderSide, OrderType as PrismaOrderType } from '@prisma/client';
 
 /**
  * Trading Controller — REST API for Trading Engine
@@ -113,8 +114,8 @@ export class TradingController {
       userId,
       exchangeCredentialId: request.credentialId,
       symbol: request.symbol,
-      side: request.side as any,
-      type: request.type as any,
+      side: request.side as PrismaOrderSide,
+      type: request.type as PrismaOrderType,
       quantity: request.quantity,
       price: request.price,
       stopLoss: request.stopLoss!,

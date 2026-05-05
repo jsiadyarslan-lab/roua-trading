@@ -138,13 +138,10 @@ export function VolumeProfile({ candles, width = 80, rows = 24, visible = true }
 
   return (
     <div style={{
-      position: 'absolute',
-      top: 0,
-      right: 80, // Offset to avoid overlapping with lightweight-charts price scale
-      width: width,
+      position: 'relative',
+      width: '100%',
       height: '100%',
-      pointerEvents: 'none',
-      zIndex: 2,
+      pointerEvents: 'auto',
     }}>
       <canvas ref={canvasRef} style={{ display: 'block' }} />
 

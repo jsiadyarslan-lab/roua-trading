@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AuditService } from '../../../audit/audit.service';
 import { OrderCommand, OrderEventTypeEnum, OrderStatusEnum } from '../events/order.events';
+import { OrderSide, OrderType, OrderEventType, OrderStatus } from '@prisma/client';
 
 /**
  * Order State Manager Service — Order Lifecycle Management
@@ -64,19 +65,19 @@ export class OrderStateManagerService {
         exchangeCredentialId: command.exchangeCredentialId,
         exchange: exchangeName,
         symbol: command.symbol,
-        side: command.side as any,
-        type: command.type as any,
+        side: command.side,
+        type: command.type,
         quantity: command.quantity,
         price: command.price ?? null,
         stopLoss: command.stopLoss,
         takeProfit: command.takeProfit ?? null,
-        status: 'PENDING' as any,
+        status: 'PENDING',
         filledQuantity: 0,
         idempotencyKey: command.idempotencyKey,
         clientOrderId: command.clientOrderId ?? null,
         events: {
           create: {
-            eventType: 'CREATED' as any,
+            eventType: 'CREATED',
             payload: JSON.stringify({
               command: {
                 symbol: command.symbol,
@@ -146,7 +147,7 @@ export class OrderStateManagerService {
       this.prisma.order.update({
         where: { id: orderId },
         data: {
-          status: status as any,
+          status: status as OrderStatus,
           ...(payload?.filledQuantity !== undefined && { filledQuantity: payload.filledQuantity }),
           ...(payload?.averagePrice !== undefined && { averagePrice: payload.averagePrice }),
           ...(payload?.fee !== undefined && { fee: payload.fee }),
@@ -157,7 +158,7 @@ export class OrderStateManagerService {
       this.prisma.orderEvent.create({
         data: {
           orderId,
-          eventType: eventType as any,
+          eventType: eventType as OrderEventType,
           payload: payload ? JSON.stringify(payload) : null,
         },
       }),
@@ -174,12 +175,12 @@ export class OrderStateManagerService {
     await this.prisma.$transaction([
       this.prisma.order.update({
         where: { id: orderId },
-        data: { status: 'REJECTED' as any },
+        data: { status: 'REJECTED' as OrderStatus },
       }),
       this.prisma.orderEvent.create({
         data: {
           orderId,
-          eventType: 'RISK_REJECTED' as any,
+          eventType: 'RISK_REJECTED' as OrderEventType,
           payload: JSON.stringify({ reason, failedCheck }),
         },
       }),

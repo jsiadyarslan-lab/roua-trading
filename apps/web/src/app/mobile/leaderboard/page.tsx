@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
   ArrowRight, Trophy, Crown, Medal, TrendingUp, TrendingDown, Users, Shield,
-  Target, Clock, BarChart3, Eye, Lock, Unlock, Star, Zap, Award,
+  Target, Clock, BarChart3, Eye, Lock, Unlock, Star, Zap, Award, AlertTriangle,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 
@@ -120,6 +120,11 @@ export default function MobileLeaderboardPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
             <div style={{ color: C.amber, display: 'flex' }}><Trophy size={20} /></div>
             <h1 style={{ fontSize: 20, fontWeight: 900, color: C.text, fontFamily: FONT_AR }}>لوحة الصدارة</h1>
+            <span style={{
+              fontSize: 9, padding: '2px 7px', borderRadius: 20,
+              background: `${C.amber}18`, color: '#FF9500',
+              fontFamily: FONT_MONO, fontWeight: 800,
+            }}>DEMO</span>
           </div>
         </div>
 
@@ -141,6 +146,23 @@ export default function MobileLeaderboardPage() {
       </div>
 
       <div style={{ padding: '16px 20px' }}>
+        {/* ──── Demo Disclaimer Banner ──── */}
+        <div style={{
+          background: `${C.amber}10`, border: `0.5px solid ${C.amber}30`,
+          borderRadius: 14, padding: '12px 14px', marginBottom: 16,
+          display: 'flex', alignItems: 'center', gap: 10,
+        }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 10,
+            background: `${C.amber}18`, display: 'flex',
+            alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <AlertTriangle size={16} color={C.amber} />
+          </div>
+          <div style={{ fontSize: 11, color: C.text2, fontFamily: FONT_AR, lineHeight: 1.6 }}>
+            هذه بيانات تجريبية لأغراض العرض فقط. لا تمثل نتائج تداول حقيقية.
+          </div>
+        </div>
         {/* Top 3 Podium */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'flex-end' }}>
           {/* 2nd */}

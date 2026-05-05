@@ -81,12 +81,12 @@ export default function HeroSection() {
       </div>
       <div className="hero-stats" ref={statsRef}>
         <div className="stat-item">
-          <div className="stat-number" data-target="87">0</div>
-          <div className="stat-label">نسبة دقة الإشارات %</div>
+          <div className="stat-number" data-target="8">0</div>
+          <div className="stat-label">نماذج ذكاء اصطناعي</div>
         </div>
         <div className="stat-item">
           <div className="stat-number" data-target="6">0</div>
-          <div className="stat-label">نماذج ذكاء اصطناعي</div>
+          <div className="stat-label">فئات أصول مدعومة</div>
         </div>
         <div className="stat-item">
           <div className="stat-number" data-target="30">0</div>

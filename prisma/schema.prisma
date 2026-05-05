@@ -551,8 +551,8 @@ model StrategyReport {
 model TradingBot {
   id              String   @id @default(cuid())
   userId          String
-  name            String   @default("HFT-Alpha")
-  strategy        String   @default("Scalp AI")
+  name            String   @default("New Bot")
+  strategy        String   @default("Auto")
   isActive        Boolean  @default(false)
   winRate         Decimal  @default(0) @db.Decimal(5, 4)
   totalTrades     Int      @default(0)
@@ -891,8 +891,8 @@ model AgentSession {
   agentRunId      String   @unique  // Unique session identifier
 
   // Status
-  status          String   @default("RUNNING")  // RUNNING, STOPPED, PAUSED, EMERGENCY_STOP, DAILY_LIMIT_REACHED
-  strategy        String   @default("SCALPING") // SCALPING, SWING, GRID
+  status          String   @default("PENDING")  // RUNNING, STOPPED, PAUSED, EMERGENCY_STOP, DAILY_LIMIT_REACHED
+  strategy        String   @default("AUTO") // SCALPING, SWING, GRID
 
   // Configuration (JSON)
   config          String   @default("{}")       // JSON: AgentConfig

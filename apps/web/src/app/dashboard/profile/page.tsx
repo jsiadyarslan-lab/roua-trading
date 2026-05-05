@@ -18,22 +18,15 @@ const T = { ...SharedT, pink: '#f472b6', text4: '#475569' }
 
 /* ── Mock Data ── */
 const MOCK_STATS = {
-  totalTrades: 847,
-  winRate: 68.4,
-  bestTrade: '+23.7%',
-  totalPnL: '+$12,483',
+  totalTrades: 0,
+  winRate: 0,
+  bestTrade: '--',
+  totalPnL: '$0',
   memberSince: 'يناير 2025',
-  activeDays: 142,
+  activeDays: 0,
 }
 
-const MOCK_ACTIVITY = [
-  { id: '1', type: 'login', icon: <Shield size={14} />, label: 'تسجيل دخول ناجح', detail: 'Chrome — الرياض، السعودية', time: 'منذ 5 دقائق', color: T.green },
-  { id: '2', type: 'trade', icon: <TrendingUp size={14} />, label: 'رصد صفقة شراء', detail: 'BTC/USDT — 0.015 BTC @ $67,432', time: 'منذ 23 دقيقة', color: T.cyan },
-  { id: '3', type: 'trade', icon: <TrendingDown size={14} />, label: 'رصد إغلاق صفقة بيع', detail: 'ETH/USDT — ربح +4.2%', time: 'منذ ساعة', color: T.green },
-  { id: '4', type: 'settings', icon: <Activity size={14} />, label: 'تحديث إعدادات الإشعارات', detail: 'تفعيل إشعارات الإشارات الذكية', time: 'منذ 3 ساعات', color: T.amber },
-  { id: '5', type: 'login', icon: <Shield size={14} />, label: 'تسجيل دخول من جهاز جديد', detail: 'Safari — جدة، السعودية', time: 'أمس 11:42 م', color: T.purple },
-  { id: '6', type: 'ai', icon: <Bot size={14} />, label: 'تفعيل استراتيجية AI', detail: 'استراتيجية الزخم — ثقة 78%', time: 'أمس 3:15 م', color: T.purple },
-]
+const MOCK_ACTIVITY: any[] = []
 
 const TIMEZONES = [
   { value: 'Asia/Riyadh', label: 'الرياض (GMT+3)' },
@@ -580,7 +573,7 @@ export default function ProfilePage() {
             iconBg={`${T.green}14`}
             title="إحصائيات المتابعة"
             subtitle="أداء حساباتك المربوطة على منصة رؤى منذ الانضمام"
-            badge="مباشر"
+            badge="تجريبي"
           >
             <div className="profile-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, padding: '12px 0' }}>
               <StatCard
@@ -621,6 +614,9 @@ export default function ProfilePage() {
                 color={T.cyan}
                 subtext="من آخر 180 يوماً"
               />
+            </div>
+            <div style={{ fontSize: 11, color: T.text4, fontFamily: "'Cairo', sans-serif", textAlign: 'center', padding: '6px 0 0' }}>
+              ستظهر إحصائياتك الحقيقية بعد ربط حساباتك وبدء المتابعة
             </div>
           </SectionCard>
         </div>

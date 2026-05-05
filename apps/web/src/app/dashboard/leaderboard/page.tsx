@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import {
   Trophy, Crown, Medal, TrendingUp, TrendingDown, Users, Shield,
   Target, Clock, BarChart3, Eye, Lock, Unlock, Star, Zap,
-  ChevronUp, Flame, Award, CheckCircle, ChevronDown,
+  ChevronUp, Flame, Award, CheckCircle, ChevronDown, AlertTriangle,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { T as SharedT, getPnlColor } from '@/lib/unified-tokens'
@@ -290,9 +290,9 @@ export default function LeaderboardPage() {
   }
 
   /* Stats summary */
-  const totalActiveTraders = 1847
-  const totalReturns = '+32.4%'
-  const avgWinRate = '76.8%'
+  const totalActiveTraders = 0
+  const totalReturns = '--'
+  const avgWinRate = '--'
 
   return (
     <div className="custom-scrollbar" style={{
@@ -314,13 +314,34 @@ export default function LeaderboardPage() {
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>لوحة الصدارة</h1>
             <span style={{
               fontSize: 10, padding: '2px 8px', borderRadius: 20,
-              background: `${T.amber}18`, color: T.amber,
+              background: `${T.amber}18`, color: '#FF9500',
               fontFamily: "'JetBrains Mono', monospace",
-            }}>LIVE</span>
+              fontWeight: 800,
+            }}>DEMO</span>
           </div>
           <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
             تابع أفضل الحسابات المربوطة على منصة رؤى حسب الأداء والاتساق وجودة المتابعة
           </p>
+        </div>
+      </div>
+
+      {/* ──── Demo Disclaimer Banner ──── */}
+      <div style={{
+        background: `${T.amber}10`, border: `1px solid ${T.amber}30`,
+        borderRadius: 14, padding: '14px 18px', marginBottom: 24,
+        display: 'flex', alignItems: 'center', gap: 12,
+        direction: 'rtl',
+      }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: 10,
+          background: `${T.amber}18`, display: 'flex',
+          alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
+          <AlertTriangle size={18} color={T.amber} />
+        </div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 900, color: T.amber, fontFamily: "'Cairo', sans-serif", marginBottom: 2 }}>بيانات تجريبية</div>
+          <div style={{ fontSize: 12, color: T.text2, fontFamily: "'Cairo', sans-serif", lineHeight: 1.6 }}>هذه بيانات تجريبية لأغراض العرض فقط. لا تمثل نتائج تداول حقيقية.</div>
         </div>
       </div>
 

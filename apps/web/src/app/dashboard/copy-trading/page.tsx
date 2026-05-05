@@ -59,6 +59,19 @@ export default function AccountMonitoringPage() {
 
   return (
     <div className="custom-scrollbar" style={{ padding: '32px 24px', direction: 'rtl', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto' }}>
+      {/* Demo Disclaimer Banner */}
+      <div style={{
+        background: `${T.amber}12`, border: `1px solid ${T.amber}35`,
+        borderRadius: 12, padding: '12px 18px', marginBottom: 12,
+        display: 'flex', alignItems: 'center', gap: 10,
+      }}>
+        <AlertTriangle size={18} color={T.amber} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: T.amber }}>بيانات تجريبية</span>
+        <span style={{ fontSize: 12, color: T.text2 }}>
+          — هذه بيانات تجريبية لأغراض العرض فقط. لا تمثل نتائج تداول حقيقية.
+        </span>
+      </div>
+
       {/* Info Banner */}
       <div style={{
         background: `${T.cyan}10`, border: `1px solid ${T.cyan}30`,
@@ -80,9 +93,9 @@ export default function AccountMonitoringPage() {
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>متابعة الحسابات</h1>
             <span style={{
               fontSize: 10, padding: '2px 8px', borderRadius: 20,
-              background: `${T.green}18`, color: T.green,
+              background: `${T.amber}18`, color: T.amber,
               fontFamily: "'JetBrains Mono', monospace",
-            }}>LIVE</span>
+            }}>DEMO</span>
           </div>
           <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
             تابع أداء أفضل الحسابات المربوطة واحصل على رؤى تحليلية متقدمة لمساعدتك في اتخاذ قراراتك.
@@ -106,9 +119,9 @@ export default function AccountMonitoringPage() {
       {/* Stats Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
-          { icon: Star, label: 'أفضل حساب هذا الأسبوع', val: 'Quantum Alpha', color: T.amber },
-          { icon: Shield, label: 'إجمالي الأصول المراقبة (AUM)', val: '$18.4M', color: T.blue },
-          { icon: TrendingUp, label: 'متوسط العائد الشهري', val: '+12.4%', color: T.green },
+          { icon: Star, label: 'أفضل حساب هذا الأسبوع (تجريبي)', val: 'Quantum Alpha', color: T.amber },
+          { icon: Shield, label: 'إجمالي الأصول المراقبة (AUM)', val: '--', color: T.blue },
+          { icon: TrendingUp, label: 'متوسط العائد الشهري', val: '--', color: T.text2 },
         ].map((f, i) => (
           <div key={i} style={{
             background: T.card, border: `0.5px solid ${T.border}`,

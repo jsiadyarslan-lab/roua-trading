@@ -136,8 +136,8 @@ export default function DataPulseTicker() {
         {/* Live indicator */}
         <div className="flex items-center gap-1.5 px-4 shrink-0 border-l" style={{ borderColor: 'rgba(59, 130, 246, 0.15)' }}>
           <Activity className="w-3 h-3" style={{ color: '#3B82F6' }} />
-          <span className="text-[10px] font-semibold tracking-wider" style={{ color: '#3B82F6', fontFamily: 'var(--font-brand)' }}>
-            LIVE
+          <span className="text-[10px] font-semibold tracking-wider" style={{ color: isLive ? '#3B82F6' : '#F59E0B', fontFamily: 'var(--font-brand)' }}>
+            {isLive ? 'LIVE' : 'DEMO'}
           </span>
           <span
             className="w-1.5 h-1.5 rounded-full animate-pulse"

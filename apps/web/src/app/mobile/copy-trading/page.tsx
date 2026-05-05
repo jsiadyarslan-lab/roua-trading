@@ -75,6 +75,11 @@ export default function MobileCopyTradingPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
             <div style={{ color: C.success, display: 'flex' }}><Eye size={20} /></div>
             <h1 style={{ fontSize: 20, fontWeight: 900, color: C.text, fontFamily: FONT_AR }}>متابعة الحسابات</h1>
+            <span style={{
+              fontSize: 9, padding: '2px 7px', borderRadius: 20,
+              background: `${C.amber}18`, color: C.amber,
+              fontFamily: FONT_MONO, fontWeight: 800,
+            }}>DEMO</span>
           </div>
         </div>
         {/* Filter */}
@@ -94,6 +99,19 @@ export default function MobileCopyTradingPage() {
       </div>
 
       <div style={{ padding: '16px 20px' }}>
+        {/* Demo Disclaimer Banner */}
+        <div style={{
+          background: `${C.amber}12`, border: `0.5px solid ${C.amber}30`,
+          borderRadius: 14, padding: '10px 14px', marginBottom: 10,
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <AlertTriangle size={16} color={C.amber} />
+          <span style={{ fontSize: 11, fontWeight: 700, color: C.amber, fontFamily: FONT_AR }}>بيانات تجريبية</span>
+          <span style={{ fontSize: 11, color: C.text2, fontFamily: FONT_AR }}>
+            — هذه بيانات تجريبية لأغراض العرض فقط. لا تمثل نتائج تداول حقيقية.
+          </span>
+        </div>
+
         {/* Info Banner */}
         <div style={{
           background: `${C.accent}10`, border: `0.5px solid ${C.accent}25`,
@@ -109,8 +127,8 @@ export default function MobileCopyTradingPage() {
         {/* Stats */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
           {[
-            { icon: Star, label: 'أفضل حساب هذا الأسبوع', val: 'Quantum Alpha', color: C.amber },
-            { icon: TrendingUp, label: 'متوسط العائد الشهري', val: '+12.4%', color: C.success },
+            { icon: Star, label: 'أفضل حساب هذا الأسبوع (تجريبي)', val: 'Quantum Alpha', color: C.amber },
+            { icon: TrendingUp, label: 'متوسط العائد الشهري', val: '--', color: C.text2 },
           ].map((s, i) => (
             <div key={i} style={{ padding: '14px', borderRadius: 14, background: 'rgba(28,28,30,0.6)', backdropFilter: 'blur(20px)', border: `0.5px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ padding: 8, borderRadius: 10, background: `${s.color}12` }}><s.icon size={18} color={s.color} /></div>

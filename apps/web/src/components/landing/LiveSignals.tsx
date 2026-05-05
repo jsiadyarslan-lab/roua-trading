@@ -16,6 +16,15 @@ export default function LiveSignals() {
 
   return (
     <div className="live-signals">
+      <div style={{
+        textAlign: 'center',
+        padding: '8px 16px',
+        fontSize: '11px',
+        color: 'rgba(148, 163, 184, 0.7)',
+        fontFamily: 'var(--font-ar, sans-serif)',
+      }}>
+        أمثلة توضيحية فقط — لا تمثل إشارات حقيقية
+      </div>
       <div className="live-signals-track">
         {items.map((sig, i) => (
           <div className="signal-item" key={i}>

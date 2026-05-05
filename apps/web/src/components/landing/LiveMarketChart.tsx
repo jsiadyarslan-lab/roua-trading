@@ -216,7 +216,7 @@ export default function LiveMarketChart() {
               fontFamily: 'var(--font-en)',
             }}
           >
-            LIVE MARKET
+            DEMO MARKET
           </div>
           <h2
             className="text-xl sm:text-2xl font-bold text-white"
@@ -242,16 +242,16 @@ export default function LiveMarketChart() {
             <div className="flex items-center gap-2.5">
               <div
                 className="flex items-center gap-1.5 px-2 py-0.5 rounded-md"
-                style={{ background: 'rgba(16, 185, 129, 0.06)' }}
+                style={{ background: 'rgba(245, 158, 11, 0.06)' }}
               >
-                <Activity className="w-2.5 h-2.5" style={{ color: '#10B981' }} />
+                <Activity className="w-2.5 h-2.5" style={{ color: '#F59E0B' }} />
                 <span
                   className="text-[9px] font-bold tracking-wider"
-                  style={{ color: '#10B981', fontFamily: 'var(--font-brand)' }}
+                  style={{ color: '#F59E0B', fontFamily: 'var(--font-brand)' }}
                 >
-                  LIVE
+                  DEMO
                 </span>
-                <span className="w-1 h-1 rounded-full animate-pulse" style={{ background: '#10B981' }} />
+                <span className="w-1 h-1 rounded-full animate-pulse" style={{ background: '#F59E0B' }} />
               </div>
 
               <span
@@ -288,6 +288,19 @@ export default function LiveMarketChart() {
 
           {/* Chart */}
           <ChartInner />
+
+          {/* Demo Disclaimer */}
+          <div
+            className="text-center py-2 border-t"
+            style={{
+              borderColor: 'rgba(148, 163, 184, 0.06)',
+              color: 'rgba(148, 163, 184, 0.5)',
+              fontSize: '11px',
+              fontFamily: 'var(--font-ar, sans-serif)',
+            }}
+          >
+            بيانات تجريبية — لا تمثل أسعاراً حقيقية
+          </div>
         </div>
       </div>
     </section>

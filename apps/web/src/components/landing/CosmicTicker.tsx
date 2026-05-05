@@ -14,14 +14,14 @@ interface TickerItem {
 
 // ── Static fallback data ──
 const PLACEHOLDER_DATA: TickerItem[] = [
-  { symbol: 'BTC/USDT', name: 'BTC/USDT', price: 95000, change: 1200, changePercent: 1.28 },
-  { symbol: 'ETH/USDT', name: 'ETH/USDT', price: 1800, change: -15.4, changePercent: -0.85 },
-  { symbol: 'XAU/USD', name: 'XAU/USD', price: 3350, change: 22.5, changePercent: 0.68 },
-  { symbol: 'EUR/USD', name: 'EUR/USD', price: 1.085, change: 0.002, changePercent: 0.18 },
-  { symbol: 'AAPL', name: 'AAPL', price: 205, change: 3.2, changePercent: 1.59 },
-  { symbol: 'SOL/USDT', name: 'SOL/USDT', price: 150, change: -2.8, changePercent: -1.83 },
-  { symbol: 'GBP/USD', name: 'GBP/USD', price: 1.272, change: 0.001, changePercent: 0.08 },
-  { symbol: 'NVDA', name: 'NVDA', price: 110, change: 4.5, changePercent: 4.27 },
+  { symbol: 'BTC/USDT', name: 'BTC/USDT', price: 0, change: 0, changePercent: 0 },
+  { symbol: 'ETH/USDT', name: 'ETH/USDT', price: 0, change: 0, changePercent: 0 },
+  { symbol: 'XAU/USD', name: 'XAU/USD', price: 0, change: 0, changePercent: 0 },
+  { symbol: 'EUR/USD', name: 'EUR/USD', price: 0, change: 0, changePercent: 0 },
+  { symbol: 'AAPL', name: 'AAPL', price: 0, change: 0, changePercent: 0 },
+  { symbol: 'SOL/USDT', name: 'SOL/USDT', price: 0, change: 0, changePercent: 0 },
+  { symbol: 'GBP/USD', name: 'GBP/USD', price: 0, change: 0, changePercent: 0 },
+  { symbol: 'NVDA', name: 'NVDA', price: 0, change: 0, changePercent: 0 },
 ]
 
 const SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'XAU/USD', 'EUR/USD', 'AAPL', 'SOL/USDT', 'GBP/USD', 'NVDA']

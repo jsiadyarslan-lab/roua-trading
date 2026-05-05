@@ -385,6 +385,43 @@ export class FreeFallbackAdapter implements IExchangeAdapter {
     base: string,
     quote: string,
   ): Promise<UnifiedQuoteDto> {
+    // Source 1: ExchangeRate-API (open.er-api.com) — most reliable on cloud servers
+    try {
+      const response = await axios.get(`https://open.er-api.com/v6/latest/${base}`, {
+        timeout: 10000,
+      });
+
+      if (response.data && response.data.result === 'success' && response.data.rates) {
+        const price = parseFloat(response.data.rates[quote]);
+        if (price > 0) {
+          const result: UnifiedQuoteDto = {
+            symbol,
+            name: `${base}/${quote}`,
+            exchange: 'ExchangeRate-API',
+            currency: quote,
+            price,
+            change: 0,
+            changePercent: 0,
+            open: price,
+            high: price,
+            low: price,
+            close: price,
+            volume: 0,
+            marketCap: null,
+            fiftyTwoWeekHigh: null,
+            fiftyTwoWeekLow: null,
+            timestamp: new Date(response.data.time_last_update_unix * 1000 || Date.now()),
+            source: 'ExchangeRate-API',
+          };
+          await this._saveLastKnownPrice(symbol, result);
+          return result;
+        }
+      }
+    } catch (error: any) {
+      this.logger.warn(`ExchangeRate-API failed for ${symbol}: ${error.message}`);
+    }
+
+    // Source 2: Frankfurter API (ECB official rates)
     try {
       const response = await axios.get(`https://api.frankfurter.dev/v1/latest`, {
         params: {

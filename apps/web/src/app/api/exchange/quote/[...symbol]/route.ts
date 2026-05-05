@@ -403,7 +403,7 @@ async function fetchGoldPriceFallback(symbol: string): Promise<any | null> {
 // ── FREE Forex Fallback: Frankfurter (ECB rates, no key needed) ──
 // Covers major fiat pairs: EUR/USD, GBP/USD, USD/JPY, GBP/JPY, etc.
 // IMPORTANT: Frankfurter API moved from api.frankfurter.app to api.frankfurter.dev/v1
-const FRANKFURTER_BASES = ['EUR','GBP','CHF','JPY','AUD','CAD','NZD','SEK','NOK','DKK']
+const FRANKFURTER_BASES = ['EUR','GBP','CHF','JPY','AUD','CAD','NZD','SEK','NOK','DKK','USD']
 
 async function fetchFrankfurter(symbol: string): Promise<any | null> {
   const [base, quote] = symbol.split('/')
@@ -442,6 +442,45 @@ async function fetchFrankfurter(symbol: string): Promise<any | null> {
       fiftyTwoWeekLow: null,
       timestamp: new Date().toISOString(),
       source: 'ECB/Frankfurter',
+    }
+  } catch { return null }
+}
+
+// ── FREE Forex Fallback: ExchangeRate-API (open.er-api.com, no key needed) ──
+// Covers 150+ fiat currencies. Works reliably on cloud servers (Railway, etc.)
+// Free tier: 1500 requests/month, no API key required.
+async function fetchExchangeRateApi(symbol: string): Promise<any | null> {
+  const [base, quote] = symbol.split('/')
+  if (!base || !quote) return null
+
+  try {
+    const url = `https://open.er-api.com/v6/latest/${base}`
+    const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(10000) })
+    if (!res.ok) return null
+    const data = await res.json()
+    if (data.result !== 'success' || !data.rates) return null
+
+    const rate = data.rates[quote]
+    if (!rate || rate <= 0) return null
+
+    return {
+      symbol,
+      name: `${base} / ${quote}`,
+      exchange: 'FOREX',
+      currency: quote,
+      price: parseFloat(rate.toFixed(6)),
+      change: 0,
+      changePercent: 0,
+      open: parseFloat(rate.toFixed(6)),
+      high: parseFloat((rate * 1.002).toFixed(6)),
+      low:  parseFloat((rate * 0.998).toFixed(6)),
+      close: parseFloat(rate.toFixed(6)),
+      volume: 0,
+      marketCap: null,
+      fiftyTwoWeekHigh: null,
+      fiftyTwoWeekLow: null,
+      timestamp: new Date(data.time_last_update_unix * 1000 || Date.now()).toISOString(),
+      source: 'ExchangeRate-API',
     }
   } catch { return null }
 }
@@ -619,25 +658,38 @@ export async function GET(
           return null
         }
       } else {
-        // Forex/Stocks/Commodities — use Promise.any for parallel fallback (much faster than sequential)
-        // Wrap each source so it returns null on failure (Promise.any needs at least one resolution)
-        const sources = [
-          // TwelveData (if API key is configured)
-          fetchTwelveData(symbol).catch(() => null),
-          // Yahoo Finance (free, no key needed)
-          fetchYahooFinance(symbol).catch(() => null),
+        // Forex/Stocks/Commodities — try all sources in parallel and pick first NON-NULL result
+        // FIX: Previously used Promise.any() which returns the FIRST resolved value even if null.
+        // This meant TwelveData returning null immediately (no key) would win over
+        // Frankfurter returning actual data a moment later. Now we use Promise.allSettled()
+        // and pick the first non-null result, which ensures real data is preferred over null.
+        const sourceFetchers = [
+          // TwelveData (if API key is configured — fastest when working)
+          () => fetchTwelveData(symbol),
+          // Yahoo Finance (free, no key needed — works on most servers)
+          () => fetchYahooFinance(symbol),
           // GoldPrice.org for gold/silver
-          fetchGoldPriceFallback(symbol).catch(() => null),
+          () => fetchGoldPriceFallback(symbol),
           // ECB/Frankfurter for fiat forex pairs
-          fetchFrankfurter(symbol).catch(() => null),
+          () => fetchFrankfurter(symbol),
+          // ExchangeRate-API (free, no key, works reliably on cloud servers)
+          () => fetchExchangeRateApi(symbol),
         ]
 
         try {
-          // Race: first non-null result wins
-          const result = await Promise.any(sources)
-          return result || null
-        } catch {
+          // Start all fetches concurrently
+          const results = await Promise.allSettled(
+            sourceFetchers.map(fn => fn().then(r => r))
+          )
+          // Pick the first non-null fulfilled result
+          for (const result of results) {
+            if (result.status === 'fulfilled' && result.value !== null && result.value !== undefined) {
+              return result.value
+            }
+          }
           // All sources returned null
+          return null
+        } catch {
           return null
         }
       }

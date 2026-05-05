@@ -417,7 +417,7 @@ export async function GET(
     // Step 3: Frankfurter for forex (ECB official rates, free, no key)
     try {
       const [base, quote] = symbol.includes('/') ? symbol.split('/') : [symbol, 'USD']
-      const fiatCurrencies = new Set(['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'AUD', 'CAD', 'NZD', 'SEK', 'NOK'])
+      const fiatCurrencies = new Set(['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'AUD', 'CAD', 'NZD', 'SEK', 'NOK', 'DKK'])
       if (fiatCurrencies.has(base) && fiatCurrencies.has(quote)) {
         const endDate = new Date()
         const startDate = new Date(endDate.getTime() - 60 * 24 * 60 * 60 * 1000)
@@ -449,6 +449,38 @@ export async function GET(
       }
     } catch (e: any) {
       console.warn(`[exchange/history] Frankfurter failed for ${symbol}: ${e.message}`)
+    }
+
+    // Step 4: ExchangeRate-API for forex (free, no key, works on cloud servers)
+    try {
+      const [base, quote] = symbol.includes('/') ? symbol.split('/') : [symbol, 'USD']
+      const fiatCurrencies = new Set(['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'AUD', 'CAD', 'NZD', 'SEK', 'NOK', 'DKK', 'ZAR', 'HKD', 'SGD', 'MXN', 'PLN', 'CZK', 'HUF', 'TRY', 'KRW', 'BRL', 'CNY', 'INR', 'RUB', 'SEK', 'NOK'])
+      if (fiatCurrencies.has(base) && fiatCurrencies.has(quote)) {
+        const erUrl = `https://open.er-api.com/v6/latest/${base}`
+        const erRes = await fetch(erUrl, { signal: AbortSignal.timeout(10000) })
+        if (erRes.ok) {
+          const erData = await erRes.json()
+          if (erData.result === 'success' && erData.rates && erData.rates[quote]) {
+            const rate = erData.rates[quote]
+            if (rate > 0) {
+              // ExchangeRate-API only provides current rate, not historical
+              // Create a single-candle response with the current rate
+              const candles: any[] = [{
+                symbol,
+                timestamp: new Date(erData.time_last_update_unix * 1000).toISOString(),
+                datetime: new Date(erData.time_last_update_unix * 1000).toISOString().split('T')[0],
+                open: rate, high: rate, low: rate, close: rate, volume: 0,
+                source: 'ExchangeRate-API',
+              }]
+              setCachedHistory(cacheKey, candles, 3_600_000)
+              console.info(`[exchange/history] Using ExchangeRate-API for ${symbol} (current rate only)`)  
+              return NextResponse.json({ success: true, data: candles })
+            }
+          }
+        }
+      }
+    } catch (e: any) {
+      console.warn(`[exchange/history] ExchangeRate-API failed for ${symbol}: ${e.message}`)
     }
 
     // All sources failed — return empty array instead of 500 error

@@ -25,6 +25,7 @@ import { ContentAgentModule } from './agents/content/content-agent.module';
 import { StrategicCouncilModule } from './modules/ai/strategic-council/strategic-council.module';
 import { SmartExecutorModule } from './modules/ai/smart-executor/smart-executor.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { IntegrationModule } from './modules/integration/integration.module';
 
 @Module({
   imports: [
@@ -105,6 +106,8 @@ import { NotificationModule } from './modules/notification/notification.module';
     StrategicCouncilModule,
     SmartExecutorModule,
     NotificationModule,
+    // ── Cross-Platform Integration (V75) ──
+    IntegrationModule,
   ],
 })
 export class AppModule {}

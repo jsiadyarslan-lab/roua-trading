@@ -212,6 +212,10 @@ async function bootstrap() {
     if (process.env.RAILWAY_STATIC_URL) {
       corsOrigins.push(process.env.RAILWAY_STATIC_URL);
     }
+    // V75: Allow news site integration origin
+    if (process.env.INTEGRATION_PARTNER_URL) {
+      corsOrigins.push(process.env.INTEGRATION_PARTNER_URL);
+    }
     // FIX: Use origin function to dynamically allow any *.up.railway.app URL.
     // Previously, only the specific RAILWAY_PUBLIC_DOMAIN was allowed, but
     // Railway uses different subdomains for preview deploys and PR environments.
@@ -236,7 +240,7 @@ async function bootstrap() {
       origin: corsOriginHandler,
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'x-roua-session'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'x-roua-session', 'X-Integration-Key'],
     });
 
     // Global validation pipe

@@ -1571,6 +1571,117 @@ export class AIOrchestratorService implements OnModuleDestroy {
         if (price <= 0) throw new Error('TwelveData price=0');
         return { price, source: 'twelvedata' };
       })(),
+      // Source 6: Yahoo Finance (FREE, no API key, works for Forex/Stocks/Commodities on cloud)
+      // FIX: This is the PRIMARY fix for Forex/Stock pairs that have no price source on Railway.
+      // Binance, CoinGecko, CoinCap, Bybit only support crypto. Yahoo Finance supports ALL asset classes.
+      // Yahoo Finance v8 API returns real-time quotes for stocks, forex pairs, and commodities.
+      (async () => {
+        // Convert symbol to Yahoo Finance format: EUR/USD → EURUSD=X, AAPL → AAPL, XAU/USD → XAUUSD=X
+        let yahooSymbol: string;
+        const base = symbol.split('/')[0].toUpperCase();
+        const quote = symbol.split('/')[1]?.toUpperCase();
+
+        if (quote && ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'].includes(base) &&
+            ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'].includes(quote)) {
+          // Forex pair: EUR/USD → EURUSD=X
+          yahooSymbol = `${base}${quote}=X`;
+        } else if (base === 'XAU' || base === 'XAG' || base === 'XPT') {
+          // Commodity: XAU/USD → XAUUSD=X
+          yahooSymbol = `${base}${quote}=X`;
+        } else if (!quote || quote === 'USD' || quote === 'USDT') {
+          // Stock or single asset: AAPL, MSFT, etc.
+          yahooSymbol = base;
+        } else {
+          // Crypto: BTC/USDT → BTC-USDT
+          yahooSymbol = `${base}-${quote}`;
+        }
+
+        const res = await axios.get(
+          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=2d`,
+          {
+            timeout: 6000,
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            },
+          },
+        );
+        const result = res.data?.chart?.result?.[0];
+        const meta = result?.meta;
+        const price = meta?.regularMarketPrice;
+        if (!price || price <= 0) throw new Error('Yahoo Finance price=0');
+        // Calculate 24h change from chart data
+        const closes: number[] = result?.indicators?.quote?.[0]?.close?.filter((v: number) => v != null) || [];
+        if (closes.length >= 2) {
+          const prevClose = closes[closes.length - 2];
+          const latestClose = closes[closes.length - 1];
+          if (prevClose > 0) {
+            change24h = ((latestClose - prevClose) / prevClose) * 100;
+          }
+        }
+        return { price, source: 'yahoo-finance' };
+      })(),
+      // Source 7: ExchangeRate API (FREE, no API key, Forex-only)
+      // FIX: Dedicated forex source — works reliably for all major currency pairs.
+      // Returns mid-market rates from global forex market makers.
+      (async () => {
+        const base = symbol.split('/')[0].toUpperCase();
+        const quote = symbol.split('/')[1]?.toUpperCase();
+        // Only works for fiat currency pairs
+        const fiatCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD', 'CNY', 'SGD', 'HKD'];
+        if (!fiatCurrencies.includes(base) || !fiatCurrencies.includes(quote)) {
+          throw new Error('Not a fiat pair');
+        }
+        const res = await axios.get(`https://api.exchangerate-api.com/v4/latest/${base}`, { timeout: 5000 });
+        const rate = res.data?.rates?.[quote];
+        if (!rate || rate <= 0) throw new Error('ExchangeRate no rate');
+        // No 24h change from this source
+        return { price: rate, source: 'exchangerate-api' };
+      })(),
+      // Source 8: Alpha Vantage (FREE tier: 25 req/day, Forex + Stocks + Commodities)
+      // FIX: Added as last-resort for Forex/Stock pairs. Free tier allows
+      // 25 requests/day which is enough for the Council's hourly sessions
+      // (15 pairs × ~4-6 non-crypto = ~6 requests per session, ~144/day → exceeds free tier
+      // so we only use it as fallback, not primary).
+      (async () => {
+        const avApiKey = this.configService.get<string>('ALPHA_VANTAGE_API_KEY', 'demo');
+        if (!avApiKey || avApiKey === 'disabled') throw new Error('No Alpha Vantage key');
+        const base = symbol.split('/')[0].toUpperCase();
+        const quote = symbol.split('/')[1]?.toUpperCase();
+        const fiatCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'];
+
+        if (fiatCurrencies.includes(base) && fiatCurrencies.includes(quote)) {
+          // Forex: use FX_INTRADAY
+          const res = await axios.get(
+            `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=${base}&to_currency=${quote}&apikey=${avApiKey}`,
+            { timeout: 6000 },
+          );
+          const rate = parseFloat(res.data?.['Realtime Currency Exchange Rate']?.['5. Exchange Rate'] || '0');
+          if (rate <= 0) throw new Error('Alpha Vantage forex rate=0');
+          return { price: rate, source: 'alpha-vantage-forex' };
+        } else if (base === 'XAU' || base === 'XAG') {
+          // Commodity: use from_currency as commodity code
+          const res = await axios.get(
+            `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=${base}&to_currency=${quote || 'USD'}&apikey=${avApiKey}`,
+            { timeout: 6000 },
+          );
+          const rate = parseFloat(res.data?.['Realtime Currency Exchange Rate']?.['5. Exchange Rate'] || '0');
+          if (rate <= 0) throw new Error('Alpha Vantage commodity rate=0');
+          return { price: rate, source: 'alpha-vantage-commodity' };
+        } else {
+          // Stock: use GLOBAL_QUOTE
+          const res = await axios.get(
+            `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${base}&apikey=${avApiKey}`,
+            { timeout: 6000 },
+          );
+          const price = parseFloat(res.data?.['Global Quote']?.['05. price'] || '0');
+          if (price <= 0) throw new Error('Alpha Vantage stock price=0');
+          const prevClose = parseFloat(res.data?.['Global Quote']?.['08. previous close'] || '0');
+          if (prevClose > 0) {
+            change24h = ((price - prevClose) / prevClose) * 100;
+          }
+          return { price, source: 'alpha-vantage-stock' };
+        }
+      })(),
     ]).catch(() => null);
 
     // Also try to get klines for RSI/MACD (Binance only)
@@ -1605,6 +1716,44 @@ export class AIOrchestratorService implements OnModuleDestroy {
         }
       } catch {
         // Bybit klines also unavailable
+      }
+    }
+
+    // FIX: Try Yahoo Finance klines as fallback for Forex/Stock/Commodity RSI/MACD
+    // This is the ONLY reliable source for non-crypto klines on Railway.
+    if (rsi === 50) {
+      try {
+        let yahooKlineSymbol: string;
+        const base = symbol.split('/')[0].toUpperCase();
+        const quote = symbol.split('/')[1]?.toUpperCase();
+        const fiatCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'];
+
+        if (fiatCurrencies.includes(base) && fiatCurrencies.includes(quote)) {
+          yahooKlineSymbol = `${base}${quote}=X`;
+        } else if (base === 'XAU' || base === 'XAG' || base === 'XPT') {
+          yahooKlineSymbol = `${base}${quote}=X`;
+        } else if (!quote || quote === 'USD' || quote === 'USDT') {
+          yahooKlineSymbol = base;
+        } else {
+          yahooKlineSymbol = `${base}-${quote}`;
+        }
+
+        const yfKlineRes = await axios.get(
+          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooKlineSymbol)}?interval=1h&range=5d`,
+          {
+            timeout: 6000,
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+          },
+        );
+        const yfCloses: number[] = (yfKlineRes.data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [])
+          .filter((v: number) => v != null && v > 0);
+        if (yfCloses.length > 14) {
+          rsi = this._calculateRSI(yfCloses);
+          macd = this._calculateMACD(yfCloses);
+          this.logger.debug(`📊 Yahoo Finance klines for ${symbol}: ${yfCloses.length} candles, RSI=${rsi}, MACD=${macd}`);
+        }
+      } catch (err: any) {
+        this.logger.debug(`📊 Yahoo Finance klines unavailable for ${symbol}: ${err.message}`);
       }
     }
 

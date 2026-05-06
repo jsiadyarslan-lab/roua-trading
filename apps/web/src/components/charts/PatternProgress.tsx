@@ -165,7 +165,7 @@ function detectDoubleTopBottom(candles: CandleData[]): number {
   const nearMax = highs.filter(h => Math.abs(h - maxH) / maxH < 0.01).length;
   const nearMin = lows.filter(l => Math.abs(l - minL) / minL < 0.01).length;
   if (nearMax >= 2 || nearMin >= 2) return 80;
-  if (nearMax >= 1.5 || nearMin >= 1.5) return 40;
+  if (nearMax >= 1 || nearMin >= 1) return 40;
   return 10;
 }
 
@@ -197,6 +197,7 @@ function getDefaultPatterns(): PatternStatus[] {
 export function PatternProgress({ symbol, candles, onClose }: PatternProgressProps) {
   const [patterns, setPatterns] = useState<PatternStatus[]>(getDefaultPatterns);
 
+  // FIX: Only re-analyze when candles change, not on a fixed interval
   const updatePatterns = useCallback(() => {
     const updated = analyzePatternProgress(candles);
     setPatterns(updated);
@@ -204,8 +205,6 @@ export function PatternProgress({ symbol, candles, onClose }: PatternProgressPro
 
   useEffect(() => {
     updatePatterns();
-    const interval = setInterval(updatePatterns, 15000);
-    return () => clearInterval(interval);
   }, [updatePatterns]);
 
   const getProgressColor = (progress: number): string => {

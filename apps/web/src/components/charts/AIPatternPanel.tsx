@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import type { AIPattern, CandleData, AIEntryExit } from '@/lib/charts/types';
 
 interface SupportResistanceLevel {
@@ -115,9 +115,31 @@ export function AIPatternPanel({
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('patterns');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [dataSource, setDataSource] = useState<'ai' | 'local' | null>(null);
+
+  // FIX: AbortController for request cancellation + Rate limiting
+  const abortRef = useRef<AbortController | null>(null);
+  const entryAbortRef = useRef<AbortController | null>(null);
+  const lastAnalysisAt = useRef<number>(0);
+  const COOLDOWN_MS = 5000; // 5-second cooldown between analyses
 
   const analyzePatterns = useCallback(async () => {
     if (!candles || !candles.length) return;
+
+    // FIX: Rate limiting — prevent spamming the AI endpoint
+    const now = Date.now();
+    if (now - lastAnalysisAt.current < COOLDOWN_MS) {
+      setError(`انتظر ${Math.ceil((COOLDOWN_MS - (now - lastAnalysisAt.current)) / 1000)} ثوانٍ قبل التحليل مجدداً`);
+      return;
+    }
+    lastAnalysisAt.current = now;
+
+    // FIX: Cancel any previous in-flight request
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     setLoading(true);
     setError(null);
@@ -136,21 +158,46 @@ export function AIPatternPanel({
           candles: ohlcSummary,
           instruction: `Analyze the following OHLC candlestick data for ${symbol}. Identify any candlestick patterns from this list: Doji, Hammer, Inverted Hammer, Engulfing (Bullish/Bearish), Morning Star, Evening Star, Three White Soldiers, Three Black Crows, Harami, Piercing Line, Dark Cloud Cover, Spinning Top, Marubozu, Shooting Star, Dragonfly Doji, Gravestone Doji. Return ONLY a JSON array of detected patterns. Each pattern object must have: "type" (English name), "timeIndex" (0-based index in the data), "confidence" (0-1), "direction" ("bullish"|"bearish"|"neutral"). Example: [{"type":"Hammer","timeIndex":45,"confidence":0.85,"direction":"bullish"}]`,
         }),
+        signal: controller.signal,
       });
+
+      // FIX: Check if request was aborted
+      if (controller.signal.aborted) return;
 
       if (!response.ok) throw new Error('فشل في تحليل الأنماط');
 
       const result = await response.json();
       const detectedPatterns: AIPattern[] = [];
+      let usedSource: 'ai' | 'local' = 'local';
 
       try {
+        // FIX: More robust JSON parsing — try multiple strategies before regex
         let parsed = result.patterns || result.data || result;
         if (typeof parsed === 'string') {
-          const jsonMatch = parsed.match(/\[[\s\S]*\]/);
-          if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+          // Strategy 1: Direct JSON.parse
+          try {
+            parsed = JSON.parse(parsed);
+          } catch {
+            // Strategy 2: Extract JSON array using regex
+            const jsonMatch = parsed.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+              try {
+                parsed = JSON.parse(jsonMatch[0]);
+              } catch {
+                // Strategy 3: Try to fix common AI JSON issues (trailing commas, comments)
+                const cleaned = jsonMatch[0]
+                  .replace(/,\s*\]/g, ']')
+                  .replace(/,\s*\}/g, '}')
+                  .replace(/\/\/.*$/gm, '')
+                  .replace(/\/\*[\s\S]*?\*\//g, '');
+                try { parsed = JSON.parse(cleaned); } catch { parsed = null; }
+              }
+            }
+          }
         }
 
         if (Array.isArray(parsed) && parsed.length > 0) {
+          usedSource = result.source === 'ai' ? 'ai' : 'local';
           parsed.forEach((p: any) => {
             const idx = p.timeIndex ?? p.index ?? 0;
             const candle = last50[idx];
@@ -171,12 +218,15 @@ export function AIPatternPanel({
         } else {
           const localPatterns = detectLocalPatterns(last50);
           detectedPatterns.push(...localPatterns);
+          usedSource = 'local';
         }
       } catch {
         const localPatterns = detectLocalPatterns(last50);
         detectedPatterns.push(...localPatterns);
+        usedSource = 'local';
       }
 
+      setDataSource(usedSource);
       setPatterns(detectedPatterns);
 
       const levels = detectSupportResistance(candles);
@@ -193,11 +243,14 @@ export function AIPatternPanel({
         entryExit: null,
       });
     } catch (err: unknown) {
+      // FIX: Don't show error for aborted requests
+      if (err instanceof Error && err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'حدث خطأ أثناء التحليل');
       const last50 = (candles || []).slice(-50);
       const localPatterns = detectLocalPatterns(last50);
       const levels = detectSupportResistance(candles || []);
       const lines = detectTrendLines(candles || []);
+      setDataSource('local');
       setPatterns(localPatterns);
       setSrLevels(levels);
       setTrendLines(lines);
@@ -216,6 +269,13 @@ export function AIPatternPanel({
   // ── Analyze Entry/Exit Points ──
   const analyzeEntryExit = useCallback(async () => {
     if (!candles || !candles.length) return;
+
+    // FIX: Cancel any previous in-flight entry request
+    if (entryAbortRef.current) {
+      entryAbortRef.current.abort();
+    }
+    const controller = new AbortController();
+    entryAbortRef.current = controller;
 
     setEntryLoading(true);
     setError(null);
@@ -243,16 +303,35 @@ export function AIPatternPanel({
           candles: ohlcSummary,
           instruction: `You are an expert forex/crypto analyst. Based on the following OHLC data for ${symbol}, determine the best entry and exit points RIGHT NOW. The current price is ${lastCandle.close}. Support levels: ${supportPrices || 'N/A'}. Resistance levels: ${resistancePrices || 'N/A'}. Trend: ${trendInfo || 'N/A'}. Return ONLY a JSON object with: "direction" ("long" or "short"), "entryPrice" (number), "stopLoss" (number), "takeProfit" (number), "confidence" (0-1), "reasonAr" (Arabic explanation, 2-3 sentences), "keyLevels" (array of {price: number, label: string} with key support/resistance). Example: {"direction":"long","entryPrice":65000,"stopLoss":64500,"takeProfit":66000,"confidence":0.75,"reasonAr":"السعر فوق مستوى الدعم مع نمط ابتلاع صعودي","keyLevels":[{"price":64500,"label":"دعم قوي"},{"price":66000,"label":"مقاومة"}]}`,
         }),
+        signal: controller.signal,
       });
+
+      // FIX: Check if request was aborted
+      if (controller.signal.aborted) return;
 
       if (!response.ok) throw new Error('فشل في تحليل نقاط الدخول');
 
       const result = await response.json();
       let parsed = result.patterns || result.data || result;
 
+      // FIX: More robust JSON parsing for entry/exit
       if (typeof parsed === 'string') {
-        const jsonMatch = parsed.match(/\{[\s\S]*\}/);
-        if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+        try {
+          parsed = JSON.parse(parsed);
+        } catch {
+          const jsonMatch = parsed.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              parsed = JSON.parse(jsonMatch[0]);
+            } catch {
+              const cleaned = jsonMatch[0]
+                .replace(/,\s*\}/g, '}')
+                .replace(/,\s*\]/g, ']')
+                .replace(/\/\/.*$/gm, '');
+              try { parsed = JSON.parse(cleaned); } catch { parsed = null; }
+            }
+          }
+        }
       }
 
       if (parsed && parsed.direction && parsed.entryPrice) {
@@ -283,7 +362,9 @@ export function AIPatternPanel({
         setEntryExit(localEE);
         setActiveTab('entry');
       }
-    } catch {
+    } catch (err: unknown) {
+      // FIX: Don't show error for aborted requests
+      if (err instanceof Error && err.name === 'AbortError') return;
       // Fallback to local analysis
       const lastCandle = candles[candles.length - 1];
       const levels = detectSupportResistance(candles);
@@ -329,8 +410,8 @@ export function AIPatternPanel({
       border: `1px solid ${C.border}`,
       borderRadius: 12,
       zIndex: 500,
-      width: 320,
-      maxHeight: 520,
+      width: 'min(320px, 90vw)',
+      maxHeight: 'min(520px, 70vh)',
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
@@ -358,8 +439,22 @@ export function AIPatternPanel({
             <div style={{ fontSize: 12, color: C.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif", lineHeight: 1.2 }}>
               تحليل AI
             </div>
-            <div style={{ fontSize: 9, color: C.cyan, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, letterSpacing: 0.4 }}>
-              {symbol}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 9, color: C.cyan, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, letterSpacing: 0.4 }}>
+                {symbol}
+              </span>
+              {/* FIX: Source badge — shows whether results are from AI or local detection */}
+              {dataSource && (
+                <span style={{
+                  fontSize: 7, fontWeight: 800,
+                  padding: '1px 5px', borderRadius: 3,
+                  background: dataSource === 'ai' ? 'rgba(0,212,255,0.15)' : 'rgba(251,191,36,0.12)',
+                  color: dataSource === 'ai' ? C.cyan : C.warning,
+                  border: `1px solid ${dataSource === 'ai' ? 'rgba(0,212,255,0.25)' : 'rgba(251,191,36,0.2)'}`,
+                }}>
+                  {dataSource === 'ai' ? '🤖 AI' : '📊 محلي'}
+                </span>
+              )}
             </div>
           </div>
         </div>

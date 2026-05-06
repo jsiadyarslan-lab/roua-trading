@@ -652,17 +652,31 @@ export default function RouaChart({
   // ── AI Pattern Handler ─────────────────────────────────
   const aiOverlaySeriesRef = useRef<any[]>([]);
   const aiPriceLinesRef = useRef<string[]>([]);
+  // FIX: Cache lightweight-charts module to avoid repeated dynamic imports
+  const lightweightChartsRef = useRef<any>(null);
 
   const handlePatternsDetected = useCallback(async (result: AIAnalysisResult) => {
     setAiPatterns(result.patterns);
 
-    // Clean up previous AI overlays
+    // FIX: Improved cleanup — log errors instead of silently swallowing
+    const chartApi = chart.chartRef?.current;
     aiOverlaySeriesRef.current.forEach(s => {
-      try { chart.chartRef?.current?.removeSeries(s); } catch {}
+      try { chartApi?.removeSeries(s); } catch (e) { console.warn('[AI Overlay] Failed to remove series:', e); }
     });
     aiOverlaySeriesRef.current = [];
     aiPriceLinesRef.current.forEach(id => chart.removePriceLine(id));
     aiPriceLinesRef.current = [];
+
+    // FIX: Cache lightweight-charts module to avoid repeated dynamic imports
+    if (!lightweightChartsRef.current) {
+      try {
+        lightweightChartsRef.current = await import('lightweight-charts');
+      } catch (e) {
+        console.warn('[AI Overlay] lightweight-charts not loaded:', e);
+        return;
+      }
+    }
+    const lc = lightweightChartsRef.current;
 
     // Add support/resistance levels as price lines
     result.supportLevels.forEach((level, i) => {
@@ -693,11 +707,21 @@ export default function RouaChart({
       aiPriceLinesRef.current.push(`ai-resistance-${i}`);
     });
 
+    // FIX: Helper to filter out null/NaN values from data points
+    // Prevents "Value is null" crashes from lightweight-charts
+    const filterValidData = (data: Array<{ time: any; value: number }>): Array<{ time: any; value: number }> => {
+      return data.filter(d =>
+        d.time != null &&
+        d.value != null &&
+        !isNaN(d.value) &&
+        isFinite(d.value)
+      );
+    };
+
     // ── Draw Trend Lines on chart ──
     try {
-      const chartApi = chart.chartRef?.current;
       if (chartApi && result.trendLines.length > 0) {
-        const { LineSeries } = await import('lightweight-charts');
+        const { LineSeries } = lc;
         result.trendLines.forEach((line, i) => {
           const color = line.type === 'ascending' ? 'rgba(0,255,163,0.6)' : 'rgba(255,71,87,0.6)';
           const lineWidth = line.strength === 'strong' ? 2 : 1;
@@ -709,20 +733,26 @@ export default function RouaChart({
             lastValueVisible: false,
             crosshairMarkerVisible: false,
           });
-          trendSeries.setData([
+          // FIX: Filter null/NaN from trend line data
+          const trendData = filterValidData([
             { time: line.startPoint.time as any, value: line.startPoint.price },
             { time: line.endPoint.time as any, value: line.endPoint.price },
           ]);
-          aiOverlaySeriesRef.current.push(trendSeries);
+          if (trendData.length >= 2) {
+            trendSeries.setData(trendData as any);
+            aiOverlaySeriesRef.current.push(trendSeries);
+          } else {
+            // Not enough valid points — remove the empty series
+            try { chartApi.removeSeries(trendSeries); } catch {}
+          }
         });
       }
-    } catch { /* lightweight-charts not loaded */ }
+    } catch (e) { console.warn('[AI Overlay] Trend lines error:', e); }
 
     // ── Draw Pattern Shapes on chart ──
     try {
-      const chartApi = chart.chartRef?.current;
       if (chartApi && result.patterns.length > 0) {
-        const { AreaSeries, LineSeries } = await import('lightweight-charts');
+        const { AreaSeries, LineSeries } = lc;
 
         result.patterns.forEach((p, i) => {
           if (!p.shapePoints || p.shapePoints.length < 2) return;
@@ -731,37 +761,54 @@ export default function RouaChart({
           const lineColor = p.direction === 'bullish' ? 'rgba(0,255,163,0.5)' : p.direction === 'bearish' ? 'rgba(255,71,87,0.5)' : 'rgba(251,191,36,0.5)';
 
           if (p.shapeType === 'polygon' && p.shapePoints.length >= 3) {
-            // Draw polygon using AreaSeries (fill the pattern zone)
-            // For engulfing: connect the 4 corners
-            const areaData = p.shapePoints.map(pt => ({ time: pt.time as any, value: pt.price }));
-            const areaSeries = chartApi.addSeries(AreaSeries, {
-              topColor: color,
-              bottomColor: color.replace(/[\d.]+\)$/, '0.05)'),
-              lineColor: lineColor,
-              lineWidth: 1 as any,
-              priceLineVisible: false,
-              lastValueVisible: false,
-              crosshairMarkerVisible: false,
-            });
-            areaSeries.setData(areaData as any);
-            aiOverlaySeriesRef.current.push(areaSeries);
+            // FIX: Filter null/NaN from area data to prevent "Value is null" crash
+            const areaData = filterValidData(
+              p.shapePoints.map(pt => ({ time: pt.time as any, value: pt.price }))
+            );
+            if (areaData.length >= 2) {
+              const areaSeries = chartApi.addSeries(AreaSeries, {
+                topColor: color,
+                bottomColor: color.replace(/[\d.]+\)$/, '0.05)'),
+                lineColor: lineColor,
+                lineWidth: 1 as any,
+                priceLineVisible: false,
+                lastValueVisible: false,
+                crosshairMarkerVisible: false,
+              });
+              try {
+                areaSeries.setData(areaData as any);
+                aiOverlaySeriesRef.current.push(areaSeries);
+              } catch (e) {
+                console.warn('[AI Overlay] AreaSeries setData error:', e);
+                try { chartApi.removeSeries(areaSeries); } catch {}
+              }
+            }
           } else if (p.shapePoints.length >= 2) {
-            // Draw line (wick highlight for Hammer, Shooting Star, Doji, etc.)
-            const lineData = p.shapePoints.map(pt => ({ time: pt.time as any, value: pt.price }));
-            const shapeLine = chartApi.addSeries(LineSeries, {
-              color: lineColor,
-              lineWidth: 2 as any,
-              lineStyle: 0,
-              priceLineVisible: false,
-              lastValueVisible: false,
-              crosshairMarkerVisible: false,
-            });
-            shapeLine.setData(lineData as any);
-            aiOverlaySeriesRef.current.push(shapeLine);
+            // FIX: Filter null/NaN from line data
+            const lineData = filterValidData(
+              p.shapePoints.map(pt => ({ time: pt.time as any, value: pt.price }))
+            );
+            if (lineData.length >= 2) {
+              const shapeLine = chartApi.addSeries(LineSeries, {
+                color: lineColor,
+                lineWidth: 2 as any,
+                lineStyle: 0,
+                priceLineVisible: false,
+                lastValueVisible: false,
+                crosshairMarkerVisible: false,
+              });
+              try {
+                shapeLine.setData(lineData as any);
+                aiOverlaySeriesRef.current.push(shapeLine);
+              } catch (e) {
+                console.warn('[AI Overlay] LineSeries setData error:', e);
+                try { chartApi.removeSeries(shapeLine); } catch {}
+              }
+            }
           }
         });
       }
-    } catch { /* lightweight-charts not loaded */ }
+    } catch (e) { console.warn('[AI Overlay] Pattern shapes error:', e); }
 
     // ── Draw Entry/Exit lines on chart ──
     if (result.entryExit) {

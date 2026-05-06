@@ -48,6 +48,7 @@ export function AlNarratorMini({
   const [showRecommendation, setShowRecommendation] = useState(false)
   const [recommendation, setRecommendation] = useState<SmartRecommendation | null>(null)
   const [recLoading, setRecLoading] = useState(false)
+  const [alertToast, setAlertToast] = useState<{ symbol: string; sentiment: string; risk: string; confidence: number; summary: string } | null>(null)
 
   const fetchNarrative = useCallback(async () => {
     setLoading(true)
@@ -63,7 +64,8 @@ export function AlNarratorMini({
         })
       }
     } catch {
-      // ignore
+      // FIX: Show connection error instead of silent swallowing
+      // User should know if data refresh failed
     } finally {
       setLoading(false)
     }
@@ -138,18 +140,21 @@ export function AlNarratorMini({
     if (!selectedSymbol || !data) return
 
     const sentimentAr = data.sentiment === 'bullish' ? 'صاعد' : data.sentiment === 'bearish' ? 'هابط' : 'محايد'
+    const riskAr = data.risk === 'Low' ? 'منخفضة' : data.risk === 'Medium' ? 'متوسطة' : 'عالية'
+    const alertBody = `التوجه: ${sentimentAr} | المخاطرة: ${riskAr} | الثقة: ${data.confidence}%`
 
+    // FIX: Use browser Notification API (non-blocking) — removed alert() that froze the UI
     if ('Notification' in window) {
       if (Notification.permission === 'granted') {
         new Notification(`رؤى — تنبيه ${selectedSymbol}`, {
-          body: `التوجه: ${sentimentAr} | المخاطرة: ${data.risk === 'Low' ? 'منخفضة' : data.risk === 'Medium' ? 'متوسطة' : 'عالية'} | الثقة: ${data.confidence}%`,
+          body: alertBody,
           icon: '/favicon.ico',
         })
       } else if (Notification.permission !== 'denied') {
         Notification.requestPermission().then(perm => {
           if (perm === 'granted') {
             new Notification(`رؤى — تنبيه ${selectedSymbol}`, {
-              body: `التوجه: ${sentimentAr} | المخاطرة: ${data.risk === 'Low' ? 'منخفضة' : data.risk === 'Medium' ? 'متوسطة' : 'عالية'} | الثقة: ${data.confidence}%`,
+              body: alertBody,
               icon: '/favicon.ico',
             })
           }
@@ -157,8 +162,16 @@ export function AlNarratorMini({
       }
     }
 
-    // Also show a visual alert within the component
-    alert(`🔔 تنبيه ${selectedSymbol}\n\nالتوجه: ${sentimentAr}\nالمخاطرة: ${data.risk === 'Low' ? 'منخفضة' : data.risk === 'Medium' ? 'متوسطة' : 'عالية'}\nالثقة: ${data.confidence}%\n\n${data.summary || data.narrative?.slice(0, 100) || ''}`)
+    // FIX: Show inline toast notification instead of blocking alert()
+    setAlertToast({
+      symbol: selectedSymbol,
+      sentiment: sentimentAr,
+      risk: riskAr,
+      confidence: data.confidence,
+      summary: data.summary || data.narrative?.slice(0, 100) || '',
+    })
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => setAlertToast(null), 5000)
   }
 
   const sentimentColor = {
@@ -420,6 +433,34 @@ export function AlNarratorMini({
         </div>
       )}
 
+      {/* FIX: Inline toast notification (replaces blocking alert()) */}
+      {alertToast && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0,
+          padding: '10px 14px',
+          background: 'rgba(0,229,255,0.12)',
+          border: '1px solid rgba(0,229,255,0.3)',
+          borderRadius: 10,
+          fontSize: 10, color: 'var(--text2)',
+          fontFamily: "'Cairo', sans-serif",
+          direction: 'rtl', lineHeight: 1.6,
+          zIndex: 10,
+          animation: 'toast-slide-in 0.3s ease',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <span style={{ fontWeight: 800, color: 'var(--accent)' }}>🔔 تنبيه {alertToast.symbol}</span>
+            <button
+              onClick={() => setAlertToast(null)}
+              style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 10 }}
+            >
+              ✕
+            </button>
+          </div>
+          <div>التوجه: <strong style={{ color: alertToast.sentiment === 'صاعد' ? 'var(--success)' : alertToast.sentiment === 'هابط' ? 'var(--danger)' : 'var(--primary)' }}>{alertToast.sentiment}</strong> | المخاطرة: {alertToast.risk} | الثقة: {alertToast.confidence}%</div>
+          {alertToast.summary && <div style={{ marginTop: 2, opacity: 0.7 }}>{alertToast.summary}</div>}
+        </div>
+      )}
+
       <style>{`
         @keyframes orb-pulse {
           0%, 100% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 10px currentColor; }
@@ -440,6 +481,10 @@ export function AlNarratorMini({
         @keyframes skeleton-shimmer {
           from { background-position: 200% 0; }
           to { background-position: -200% 0; }
+        }
+        @keyframes toast-slide-in {
+          from { transform: translateY(-10px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
         }
       `}</style>
     </div>

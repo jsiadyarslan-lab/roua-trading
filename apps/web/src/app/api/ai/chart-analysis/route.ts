@@ -7,6 +7,37 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+// ── Rate Limiting ──
+// In-memory rate limiter: max 10 requests per IP per 60-second window
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string): { allowed: boolean; retryAfterSec: number } {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+
+  // Clean up expired entries periodically (every 100 checks)
+  if (rateLimitMap.size > 1000) {
+    for (const [key, val] of rateLimitMap) {
+      if (now > val.resetAt) rateLimitMap.delete(key);
+    }
+  }
+
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return { allowed: true, retryAfterSec: 0 };
+  }
+
+  if (entry.count >= RATE_LIMIT_MAX) {
+    const retryAfterSec = Math.ceil((entry.resetAt - now) / 1000);
+    return { allowed: false, retryAfterSec };
+  }
+
+  entry.count++;
+  return { allowed: true, retryAfterSec: 0 };
+}
+
 // ── Local Pattern Detection (server-side fallback) ──
 function detectLocalPatternsServer(candlesData: string): Array<{
   type: string;
@@ -87,6 +118,18 @@ function detectLocalPatternsServer(candlesData: string): Array<{
 
 export async function POST(request: NextRequest) {
   try {
+    // ── Rate Limiting Check ──
+    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || request.headers.get('x-real-ip')
+      || 'unknown';
+    const { allowed, retryAfterSec } = checkRateLimit(clientIp);
+    if (!allowed) {
+      return NextResponse.json(
+        { success: false, error: `طلبات كثيرة جداً. حاول مجدداً بعد ${retryAfterSec} ثانية` },
+        { status: 429, headers: { 'Retry-After': String(retryAfterSec) } }
+      );
+    }
+
     const body = await request.json();
     const { symbol, candles, instruction } = body;
 

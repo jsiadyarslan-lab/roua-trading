@@ -57,6 +57,11 @@ export class StrategicCouncilService {
     private readonly exchangeService: ExchangeService,
   ) {
     this.logger.log('🏛️ Strategic Council initialized — THE ONLY consensus engine');
+    // FIX: Ensure TradingBrief table exists before any operations.
+    // The Prisma migration for this table failed in production because
+    // it tried to CREATE TABLE before creating the enum types.
+    // This method creates the table directly if missing.
+    this._ensureTradingBriefTable();
     // Startup health check: warn if no AI models are available
     this._checkAIHealth();
     // FIX: Trigger an initial council session 30 seconds after startup
@@ -64,6 +69,116 @@ export class StrategicCouncilService {
     // for the next cron job. This makes the dashboard show live data
     // right after deployment.
     this._triggerStartupSession();
+  }
+
+  /**
+   * FIX: Ensure the TradingBrief table exists in the database.
+   * This is a safety-net that creates the table and its enum types
+   * directly via raw SQL if they don't exist. The Prisma migration
+   * for this table failed because it tried to CREATE TABLE before
+   * creating the enum types, which PostgreSQL doesn't allow.
+   */
+  private async _ensureTradingBriefTable(): Promise<void> {
+    try {
+      // Check if table exists
+      const result = await this.prisma.$queryRaw<Array<{ exists: boolean }>>`
+        SELECT EXISTS (
+          SELECT 1 FROM information_schema.tables
+          WHERE table_schema = 'public' AND table_name = 'TradingBrief'
+        ) as exists
+      `;
+
+      if (result[0]?.exists) {
+        this.logger.log('🏛️ TradingBrief table exists — skipping creation');
+        return;
+      }
+
+      this.logger.warn('🏛️ TradingBrief table MISSING — creating it now...');
+
+      // Create enum types first (PostgreSQL requires them before table creation)
+      await this.prisma.$executeRawUnsafe(`
+        DO $$ BEGIN
+          CREATE TYPE "BriefDirection" AS ENUM ('BUY', 'SELL');
+        EXCEPTION WHEN duplicate_object THEN NULL;
+        END $$;
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        DO $$ BEGIN
+          CREATE TYPE "BriefTimeframe" AS ENUM ('H1', 'H4', 'D1', 'W1');
+        EXCEPTION WHEN duplicate_object THEN NULL;
+        END $$;
+      `);
+
+      await this.prisma.$executeRawUnsafe(`
+        DO $$ BEGIN
+          CREATE TYPE "BriefReviewStatus" AS ENUM ('ACTIVE', 'MODIFIED', 'CANCELLED', 'EXECUTED');
+        EXCEPTION WHEN duplicate_object THEN NULL;
+        END $$;
+      `);
+
+      // Create the table
+      await this.prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "TradingBrief" (
+          "id" TEXT NOT NULL,
+          "userId" TEXT,
+          "pair" TEXT NOT NULL,
+          "direction" "BriefDirection" NOT NULL,
+          "entryPrice" DECIMAL(19,8) NOT NULL,
+          "stopLoss" DECIMAL(19,8) NOT NULL,
+          "takeProfit" DECIMAL(19,8) NOT NULL,
+          "confidence" INTEGER NOT NULL DEFAULT 0,
+          "timeframe" "BriefTimeframe" NOT NULL,
+          "issuedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "expiresAt" TIMESTAMP(3) NOT NULL,
+          "isActive" BOOLEAN NOT NULL DEFAULT true,
+          "strictRules" TEXT NOT NULL DEFAULT '{}',
+          "lastReviewedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "reviewStatus" "BriefReviewStatus" NOT NULL DEFAULT 'ACTIVE',
+          "analysisSummary" TEXT,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "TradingBrief_pkey" PRIMARY KEY ("id")
+        );
+      `);
+
+      // Create indexes
+      const indexes = [
+        `CREATE INDEX IF NOT EXISTS "TradingBrief_pair_idx" ON "TradingBrief"("pair")`,
+        `CREATE INDEX IF NOT EXISTS "TradingBrief_isActive_idx" ON "TradingBrief"("isActive")`,
+        `CREATE INDEX IF NOT EXISTS "TradingBrief_reviewStatus_idx" ON "TradingBrief"("reviewStatus")`,
+        `CREATE INDEX IF NOT EXISTS "TradingBrief_expiresAt_idx" ON "TradingBrief"("expiresAt")`,
+        `CREATE INDEX IF NOT EXISTS "TradingBrief_pair_isActive_reviewStatus_idx" ON "TradingBrief"("pair", "isActive", "reviewStatus")`,
+        `CREATE INDEX IF NOT EXISTS "TradingBrief_isActive_reviewStatus_idx" ON "TradingBrief"("isActive", "reviewStatus")`,
+        `CREATE INDEX IF NOT EXISTS "TradingBrief_userId_idx" ON "TradingBrief"("userId")`,
+        `CREATE INDEX IF NOT EXISTS "TradingBrief_timeframe_idx" ON "TradingBrief"("timeframe")`,
+        `CREATE INDEX IF NOT EXISTS "TradingBrief_userId_isActive_reviewStatus_idx" ON "TradingBrief"("userId", "isActive", "reviewStatus")`,
+        `CREATE INDEX IF NOT EXISTS "TradingBrief_isActive_expiresAt_idx" ON "TradingBrief"("isActive", "expiresAt")`,
+        `CREATE INDEX IF NOT EXISTS "TradingBrief_pair_timeframe_isActive_idx" ON "TradingBrief"("pair", "timeframe", "isActive")`,
+      ];
+
+      for (const sql of indexes) {
+        await this.prisma.$executeRawUnsafe(sql);
+      }
+
+      // Add foreign key constraint (if User table exists)
+      await this.prisma.$executeRawUnsafe(`
+        DO $$ BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.table_constraints
+            WHERE constraint_name = 'TradingBrief_userId_fkey'
+          ) THEN
+            ALTER TABLE "TradingBrief" ADD CONSTRAINT "TradingBrief_userId_fkey"
+              FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+          END IF;
+        END $$;
+      `);
+
+      this.logger.log('🏛️ TradingBrief table created successfully with all indexes and foreign key');
+    } catch (error: any) {
+      this.logger.error(`🏛️ Failed to create TradingBrief table: ${error.message}`);
+      this.logger.error(`🏛️ The Strategic Council will NOT be able to create briefs until this is fixed`);
+    }
   }
 
   /**

@@ -94,6 +94,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // visibleRangeCallbackRef.current, and it must be declared before initChart is defined.
   const visibleRangeCallbackRef = useRef<(() => void) | null>(null);
   const prevCallbackRef = useRef<(() => void) | null>(null);
+  // FIX: Track pending requestAnimationFrame for indicator re-apply.
+  // When setCandles is called rapidly (e.g., timeframe change + WebSocket),
+  // we must cancel the previous scheduled indicator re-apply to avoid
+  // "Value is null" errors from stale indicator data.
+  const pendingIndicatorRafRef = useRef<number>(0);
 
   // Keep the ref updated without triggering re-init
   useEffect(() => {
@@ -455,6 +460,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // lightweight-charts throws "Value is null" when rendering indicator data at
   // timestamps that don't exist in the candle series.
   useEffect(() => {
+    // Cancel any pending indicator re-apply from a previous setCandles call
+    cancelAnimationFrame(pendingIndicatorRafRef.current);
+    pendingIndicatorRafRef.current = 0;
+
     // Clear overlay series when timeframe changes
     overlaySeriesRef.current.forEach((series) => {
       chartInstanceRef.current?.removeSeries(series);
@@ -472,8 +481,14 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       candleSeriesRef.current?.setData([] as any);
       volumeSeriesRef.current?.setData([] as any);
     } catch { /* series might not exist yet on first render */ }
-    // Clear active indicators state (they'll be re-added by setCandles after data loads)
+    // FIX: Clear active indicators BOTH via React state AND directly via ref.
+    // Previously only setState was called, but the ref (activeIndicatorsRef)
+    // is updated in a separate useEffect that may not have run yet when
+    // setCandles is called from the new timeframe's fetch. This caused
+    // stale indicators to be re-applied with mismatched timestamps,
+    // triggering "Value is null" in lightweight-charts.
     setActiveIndicators(new Map());
+    activeIndicatorsRef.current = new Map();
     // Clear price lines (they are timeframe-dependent)
     priceLinesRef.current.forEach((line) => {
       try { line.remove(); } catch {}
@@ -996,20 +1011,52 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // Apply Heikin-Ashi if needed
     const displayCandles = settings.type === 'heikin-ashi' ? toHeikinAshi(sorted) : sorted;
 
-    // Format for lightweight-charts (time must be Time)
-    const chartData = displayCandles.map(c => ({
-      time: c.time as Time,
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
-    }));
+    // FIX: Remove ALL overlay/oscillator series BEFORE calling setData.
+    // Previously, setData was called first, which triggered a chart re-render
+    // that tried to render existing Area/Line overlay series with timestamps
+    // from the previous timeframe. Since those timestamps didn't exist in the
+    // new candle data, lightweight-charts threw "Value is null" and the
+    // candle data was never actually set — making timeframe switching appear
+    // broken even though the data was fetched correctly.
+    const chart = chartInstanceRef.current;
+    if (chart) {
+      overlaySeriesRef.current.forEach((series) => {
+        try { chart.removeSeries(series); } catch {}
+      });
+      overlaySeriesRef.current.clear();
+      oscillatorSeriesRef.current.forEach((series) => {
+        try { chart.removeSeries(series); } catch {}
+      });
+      oscillatorSeriesRef.current.clear();
+    }
 
-    const volumeData = sorted.map(c => ({
-      time: c.time as Time,
-      value: c.volume,
-      color: c.close >= c.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
-    }));
+    // Cancel any previously scheduled indicator re-apply
+    cancelAnimationFrame(pendingIndicatorRafRef.current);
+    pendingIndicatorRafRef.current = 0;
+
+    // Format for lightweight-charts with null/NaN filtering
+    // FIX: Filter out any data points with invalid values that would
+    // crash lightweight-charts (null, undefined, NaN, Infinity)
+    const isValidNum = (v: any): v is number =>
+      v !== null && v !== undefined && typeof v === 'number' && isFinite(v);
+
+    const chartData = displayCandles
+      .filter(c => isValidNum(c.open) && isValidNum(c.high) && isValidNum(c.low) && isValidNum(c.close) && isValidNum(c.time))
+      .map(c => ({
+        time: c.time as Time,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+      }));
+
+    const volumeData = sorted
+      .filter(c => isValidNum(c.volume) && isValidNum(c.time))
+      .map(c => ({
+        time: c.time as Time,
+        value: c.volume,
+        color: c.close >= c.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
+      }));
 
     try {
       candleSeriesRef.current.setData(chartData as any);
@@ -1033,30 +1080,18 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       }
     }
 
-    // Re-apply indicators with fresh data using ref to avoid stale closure
-    // FIX: Clear all indicator series BEFORE re-applying to prevent
-    // lightweight-charts "Value is null" error when old indicator timestamps
-    // don't exist in the new candle data (e.g., after timeframe change).
+    // Re-apply indicators with fresh data using ref to avoid stale closure.
+    // Since we already removed all overlay/oscillator series above, we just
+    // need to re-create them with the new candle data.
     const activeIndicators = activeIndicatorsRef.current;
     if (activeIndicators.size > 0) {
-      // Clear existing indicator series first to avoid timestamp mismatch
-      const chart = chartInstanceRef.current;
-      if (chart) {
-        overlaySeriesRef.current.forEach((series) => {
-          try { chart.removeSeries(series); } catch {}
-        });
-        overlaySeriesRef.current.clear();
-        oscillatorSeriesRef.current.forEach((series) => {
-          try { chart.removeSeries(series); } catch {}
-        });
-        oscillatorSeriesRef.current.clear();
-      }
       // Use requestAnimationFrame to batch indicator updates and avoid
       // re-creating series multiple times per frame (e.g., on rapid ticks)
-      requestAnimationFrame(() => {
+      pendingIndicatorRafRef.current = requestAnimationFrame(() => {
         activeIndicators.forEach((ind) => {
           addIndicator(ind);
         });
+        pendingIndicatorRafRef.current = 0;
       });
     }
   }, [settings.type, addIndicator]);

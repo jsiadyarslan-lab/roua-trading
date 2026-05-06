@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useBotStore, type BotEngineState } from '@/hooks/useBotStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 /* ─── Design Tokens ─── */
 const C = {
@@ -921,7 +922,7 @@ export default function MobileBotPage() {
       </div>
 
       {/* ══════════════ CSS for iOS-style range slider ══════════════ */}
-      <style jsx global>{`
+      <ScopedStyle>{`
         .ios-slider::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
@@ -968,7 +969,7 @@ export default function MobileBotPage() {
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: rgba(255,255,255,0.2);
         }
-      `}</style>
+      `}</ScopedStyle>
     </div>
   )
 }

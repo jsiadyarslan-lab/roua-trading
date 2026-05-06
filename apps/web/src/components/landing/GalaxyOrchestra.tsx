@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Zap, ChartBar, Key, Cpu, Globe } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import { ScopedStyle } from '@/components/ScopedStyle';
 
 interface Planet {
   name: string;
@@ -115,7 +116,7 @@ export default function GalaxyOrchestra() {
 
   return (
     <section className="relative py-24 px-4 sm:px-6 lg:px-8 overflow-hidden">
-      <style dangerouslySetInnerHTML={{ __html: generateKeyframes() }} />
+      <ScopedStyle dangerouslySetInnerHTML={{ __html: generateKeyframes() }} />
 
       {/* Section Header */}
       <motion.div

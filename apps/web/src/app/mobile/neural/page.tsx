@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowRight, FlaskConical, ChevronDown } from 'lucide-react'
 import dynamic from 'next/dynamic'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 /* ─── Design Tokens ─── */
 const C = {
@@ -18,7 +19,7 @@ function PanelLoader() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200 }}>
       <div style={{ width: 28, height: 28, border: `2px solid ${C.purple}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <ScopedStyle>{`@keyframes spin { to { transform: rotate(360deg); } }`}</ScopedStyle>
     </div>
   )
 }

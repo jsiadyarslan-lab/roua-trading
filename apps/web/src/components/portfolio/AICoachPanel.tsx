@@ -11,6 +11,7 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 
 /* ── Theme ── */
 import { T } from '@/lib/unified-tokens'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 /* ── Types ── */
 interface AdviceItem {
@@ -294,7 +295,7 @@ export default function AICoachPanel() {
     <div style={{
       width: '100%', direction: 'rtl', fontFamily: "'Cairo', sans-serif",
     }}>
-      <style>{`
+      <ScopedStyle>{`
         .coach-advice-card:hover {
           border-color: rgba(10,132,255,0.3) !important;
           transform: translateY(-1px);
@@ -313,7 +314,7 @@ export default function AICoachPanel() {
         .coach-pulse {
           animation: coachPulse 1.5s ease-in-out infinite;
         }
-      `}</style>
+      `}</ScopedStyle>
 
       {/* ── Performance Rating Card ── */}
       <div style={{

@@ -12,6 +12,7 @@ import type { LucideIcon } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore, type AuthUser } from '@/lib/auth-store'
 import { useBotStore } from '@/hooks/useBotStore'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 // ── Design Tokens (as specified) ──
 const T = {
@@ -375,12 +376,12 @@ export default function MobileSettingsPage() {
   return (
     <div style={{ minHeight: '100%', background: T.bgApp, direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
       {/* ── Global Keyframe ── */}
-      <style>{`
+      <ScopedStyle>{`
         @keyframes shimmer {
           0% { background-position: 200% 0; }
           100% { background-position: -200% 0; }
         }
-      `}</style>
+      `}</ScopedStyle>
 
       {/* ── Header ── */}
       <div style={{
@@ -897,12 +898,12 @@ export default function MobileSettingsPage() {
       </AnimatePresence>
 
       {/* ── Spin animation ── */}
-      <style>{`
+      <ScopedStyle>{`
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-      `}</style>
+      `}</ScopedStyle>
     </div>
   )
 }

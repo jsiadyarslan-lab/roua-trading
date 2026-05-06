@@ -5,6 +5,7 @@ import { Clock } from 'lucide-react'
 import { useScannerContext } from '../ScannerProvider'
 import { DirectionTag } from '../shared/DirectionTag'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 const T = {
   bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', cardHover: '#1F2335',
@@ -141,12 +142,12 @@ export function MultiTfPanel() {
 
   return (
     <div style={{ flex: 1, overflow: 'auto', direction: 'rtl', background: T.card, padding: 16 }}>
-      <style>{`
+      <ScopedStyle>{`
         @keyframes fadeInMT { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .mt-scroll::-webkit-scrollbar { width: 5px; }
         .mt-scroll::-webkit-scrollbar-track { background: ${T.bg2}; }
         .mt-scroll::-webkit-scrollbar-thumb { background: ${T.surface}; border-radius: 3px; }
-      `}</style>
+      `}</ScopedStyle>
       <div style={{ animation: 'fadeInMT 0.4s ease' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>

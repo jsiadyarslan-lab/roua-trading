@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 interface PortfolioSparklineProps {
   data: number[]
@@ -138,7 +139,7 @@ export function PortfolioSparkline({
         )}
       </svg>
 
-      <style>{`
+      <ScopedStyle>{`
         @keyframes sparklineFadeIn {
           from {
             opacity: 0;
@@ -149,7 +150,7 @@ export function PortfolioSparkline({
             transform: translateY(0);
           }
         }
-      `}</style>
+      `}</ScopedStyle>
     </div>
   )
 }

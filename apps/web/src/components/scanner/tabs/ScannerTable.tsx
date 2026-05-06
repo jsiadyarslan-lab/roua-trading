@@ -4,6 +4,7 @@ import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { useScannerContext } from '../ScannerProvider'
 import { ScannerTableRow } from './ScannerTableRow'
 import type { SortKey } from '../hooks/useScannerFilters'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 const T = {
   bg2: '#1A1D29', card: '#1A1D29', surface: '#1A1D29',
@@ -40,13 +41,13 @@ export function ScannerTable() {
       flex: 1, overflow: 'auto', direction: 'rtl',
       background: T.card,
     }}>
-      <style>{`
+      <ScopedStyle>{`
         @keyframes fadeInRow { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
         .scanner-scroll::-webkit-scrollbar { width: 5px; }
         .scanner-scroll::-webkit-scrollbar-track { background: ${T.bg2}; }
         .scanner-scroll::-webkit-scrollbar-thumb { background: ${T.surface}; border-radius: 3px; }
         .scanner-scroll::-webkit-scrollbar-thumb:hover { background: ${T.text3}40; }
-      `}</style>
+      `}</ScopedStyle>
 
       {ctx.loading && ctx.filteredData.length === 0 ? (
         <div style={{

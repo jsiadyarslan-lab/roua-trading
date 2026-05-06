@@ -8,6 +8,7 @@ import {
   Lock, Eye, EyeOff, Trash2, Plus, Send, FileJson, Info,
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 /* ─── Design Tokens ─── */
 const C = {
@@ -239,7 +240,7 @@ export default function MobileApiDocsPage() {
             }}>
               {generating ? <div style={{ width: 14, height: 14, border: '2px solid #000', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> : <Plus size={16} />}
               إنشاء مفتاح جديد
-              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+              <ScopedStyle>{`@keyframes spin { to { transform: rotate(360deg); } }`}</ScopedStyle>
             </motion.button>
 
             {apiKeys.map(key => (

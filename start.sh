@@ -1158,7 +1158,120 @@ EOSQL
     echo "⚠️ Missing columns SQL had issues (columns may already exist)"
   fi
 
-  rm -f /tmp/ensure_tables.sql /tmp/add_missing_columns.sql
+  # ── Step 3c: Fix AgentStrategy enum — add missing values ──
+  # prisma db push may have created a native PostgreSQL enum for AgentStrategy
+  # but only with the original values. The app uses MOMENTUM_BREAKOUT, MEAN_REVERSION,
+  # DCA, VWAP_RSI, GRID which are missing from the enum, causing query failures.
+  cat > /tmp/fix_agent_strategy_enum.sql <<'EOSQL'
+    DO $$ BEGIN
+      ALTER TYPE "AgentStrategy" ADD VALUE 'MOMENTUM_BREAKOUT';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentStrategy" ADD VALUE 'MEAN_REVERSION';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentStrategy" ADD VALUE 'DCA';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentStrategy" ADD VALUE 'VWAP_RSI';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentStrategy" ADD VALUE 'GRID';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentStrategy" ADD VALUE 'AUTO';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentStrategy" ADD VALUE 'SCALPING';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentStrategy" ADD VALUE 'SWING';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentTradeStatus" ADD VALUE 'PENDING';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentTradeStatus" ADD VALUE 'FILLED';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentTradeStatus" ADD VALUE 'PARTIALLY_FILLED';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentTradeStatus" ADD VALUE 'CANCELLED';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentTradeStatus" ADD VALUE 'REJECTED';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentTradeStatus" ADD VALUE 'CLOSED';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentTradeStatus" ADD VALUE 'EXPIRED';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentExitReason" ADD VALUE 'TAKE_PROFIT';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentExitReason" ADD VALUE 'STOP_LOSS';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentExitReason" ADD VALUE 'MANUAL';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentExitReason" ADD VALUE 'TIMEOUT';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      ALTER TYPE "AgentExitReason" ADD VALUE 'SIGNAL_REVERSAL';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+EOSQL
+
+  echo "📦 Fixing AgentStrategy enum values..."
+  if run_prisma db execute --schema=./prisma/schema.prisma --file /tmp/fix_agent_strategy_enum.sql 2>&1; then
+    echo "✅ AgentStrategy enum fix applied successfully"
+  else
+    echo "⚠️ AgentStrategy enum fix had issues (values may already exist or enum is TEXT)"
+  fi
+
+  rm -f /tmp/ensure_tables.sql /tmp/add_missing_columns.sql /tmp/fix_agent_strategy_enum.sql
 else
   echo "⚠️ No DATABASE_URL — skipping table verification"
 fi

@@ -8,6 +8,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import type { ChartType, DrawingTool } from '@/lib/charts/types';
 import { TIMEFRAMES } from '@/lib/charts/types';
+import { ScopedStyle } from '@/components/ScopedStyle';
 
 interface ChartToolbarProps {
   symbol: string;
@@ -998,7 +999,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           </button>
         </div>
 
-        <style>{`
+        <ScopedStyle>{`
           .toolbar-scrollable::-webkit-scrollbar {
             height: 3px;
           }
@@ -1012,7 +1013,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           .toolbar-scrollable::-webkit-scrollbar-thumb:hover {
             background: rgba(42,49,60,0.9);
           }
-        `}</style>
+        `}</ScopedStyle>
       </div>
 
       {/* Portal dropdowns */}

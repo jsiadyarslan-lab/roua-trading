@@ -5,6 +5,7 @@ import { BarChart3 } from 'lucide-react'
 import { useScannerContext } from '../ScannerProvider'
 import { DirectionTag } from '../shared/DirectionTag'
 import { ScoreGauge } from '../shared/ScoreGauge'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 const T = {
   bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', cardHover: '#1F2335',
@@ -72,9 +73,9 @@ export function MarketOverview() {
 
   return (
     <div style={{ flex: 1, overflow: 'auto', direction: 'rtl', background: T.card, padding: 16 }}>
-      <style>{`
+      <ScopedStyle>{`
         @keyframes fadeInMO { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
+      `}</ScopedStyle>
       <div style={{ animation: 'fadeInMO 0.4s ease' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>

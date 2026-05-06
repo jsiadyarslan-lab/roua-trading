@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { ScopedStyle } from '@/components/ScopedStyle';
 
 // ── Types ─────────────────────────────────────────────────
 export type PriceAlertDirection = 'above' | 'below';
@@ -557,12 +558,12 @@ export function PriceAlertLine({ symbol, currentPrice, chart, onClose, onAlertsC
       </div>
 
       {/* Flash animation */}
-      <style>{`
+      <ScopedStyle>{`
         @keyframes pulse-alert {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
         }
-      `}</style>
+      `}</ScopedStyle>
     </div>
   );
 }

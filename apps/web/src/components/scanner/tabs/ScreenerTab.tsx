@@ -6,6 +6,7 @@ import { useScannerContext } from '../ScannerProvider'
 import { DirectionTag } from '../shared/DirectionTag'
 import { ScoreGauge } from '../shared/ScoreGauge'
 import type { SmartScore } from '../hooks/useScannerData'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 const T = {
   bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', surface: '#1A1D29',
@@ -132,9 +133,9 @@ export function ScreenerTab() {
 
   return (
     <div style={{ flex: 1, overflow: 'auto', direction: 'rtl', background: T.card, display: 'flex', flexDirection: 'column' }}>
-      <style>{`
+      <ScopedStyle>{`
         @keyframes fadeInRow { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-      `}</style>
+      `}</ScopedStyle>
 
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

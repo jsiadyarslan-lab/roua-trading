@@ -40,6 +40,7 @@ import { fetchSignalsForChart, fetchStrategicBriefs, convertToChartMarkers } fro
 import type { AIAnalysisResult } from './AIPatternPanel';
 import { T } from '@/lib/unified-tokens';
 import { fmtPrice as unifiedFmtPrice } from '@/lib/price-format';
+import { ScopedStyle } from '@/components/ScopedStyle';
 
 interface RouaChartProps {
   currentPrice?: number | null;
@@ -1818,7 +1819,7 @@ export default function RouaChart({
       />
 
       {/* ── Global Styles ── */}
-      <style jsx global>{`
+      <ScopedStyle>{`
         .roua-chart-root [class*="lightweight-charts"] {
           border-radius: 0 !important;
         }
@@ -1895,7 +1896,7 @@ export default function RouaChart({
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
-      `}</style>
+      `}</ScopedStyle>
 
       {/* ── Order Error Toast ── */}
       {orderError && (

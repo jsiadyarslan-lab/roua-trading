@@ -7,6 +7,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { ScopedStyle } from '@/components/ScopedStyle';
 
 interface MultiTimeframeChartProps {
   symbol: string;
@@ -722,9 +723,9 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
         </div>
       </div>
 
-      <style>{`
+      <ScopedStyle>{`
         @keyframes mtfSpin { to { transform: rotate(360deg); } }
-      `}</style>
+      `}</ScopedStyle>
     </div>
   );
 }

@@ -16,6 +16,7 @@ import {
   ArrowDownRight, Flame, History, X
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 /* ─── helpers ─────────────────────────────── */
 const fmt2 = (n: number) => Math.abs(n).toFixed(2)
@@ -115,12 +116,12 @@ function NewsTicker() {
           ))}
         </div>
       </div>
-      <style>{`
+      <ScopedStyle>{`
         @keyframes marquee {
           0% { transform: translateX(0); }
           100% { transform: translateX(-50%); }
         }
-      `}</style>
+      `}</ScopedStyle>
     </div>
   )
 }
@@ -186,12 +187,12 @@ function CurrencyTicker() {
           )
         })}
       </div>
-      <style>{`
+      <ScopedStyle>{`
         @keyframes tickerScroll {
           0% { transform: translateX(0); }
           100% { transform: translateX(-50%); }
         }
-      `}</style>
+      `}</ScopedStyle>
     </div>
   )
 }

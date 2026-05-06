@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowRight, Play, TrendingUp, TrendingDown, BarChart2, Activity, Target } from 'lucide-react'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 /* ─── Design Tokens ─── */
 const C = {
@@ -77,7 +78,7 @@ export default function MobileBacktestPage() {
         </div>
       </div>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <ScopedStyle>{`@keyframes spin { to { transform: rotate(360deg); } }`}</ScopedStyle>
 
       <div style={{ padding: '16px 20px' }}>
         {/* Strategy picker */}

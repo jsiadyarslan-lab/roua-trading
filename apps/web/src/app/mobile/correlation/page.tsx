@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowRight, GitMerge, RefreshCw, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 /* ─── Design Tokens ─── */
 const C = {
@@ -95,7 +96,7 @@ export default function MobileCorrelationPage() {
         </motion.button>
       </div>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <ScopedStyle>{`@keyframes spin { to { transform: rotate(360deg); } }`}</ScopedStyle>
 
       <div style={{ padding: '16px 20px' }}>
         {/* Description */}

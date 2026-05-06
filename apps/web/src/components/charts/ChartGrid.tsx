@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { ChartType } from '@/lib/charts/types';
+import { ScopedStyle } from '@/components/ScopedStyle';
 
 // ── Types ────────────────────────────────────────────────
 interface ChartGridProps {
@@ -1026,11 +1027,11 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
         </span>
       </div>
 
-      <style>{`
+      <ScopedStyle>{`
         @keyframes cgSpin {
           to { transform: rotate(360deg); }
         }
-      `}</style>
+      `}</ScopedStyle>
     </div>
   );
 }

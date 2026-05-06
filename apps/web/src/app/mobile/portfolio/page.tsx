@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation'
 import { usePaperTradesStore, type PaperTrade, type ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 // ── Design Tokens ──
 const T = {
@@ -578,7 +579,7 @@ export default function MobilePortfolioPage() {
   return (
     <div style={{ minHeight: '100%', background: T.bgApp, direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
       {/* ── Global Keyframe ── */}
-      <style>{`
+      <ScopedStyle>{`
         @keyframes shimmer {
           0% { background-position: 200% 0; }
           100% { background-position: -200% 0; }
@@ -587,7 +588,7 @@ export default function MobilePortfolioPage() {
           0%, 100% { opacity: 0.6; }
           50% { opacity: 1; }
         }
-      `}</style>
+      `}</ScopedStyle>
 
       {/* ── Header ── */}
       <div style={{

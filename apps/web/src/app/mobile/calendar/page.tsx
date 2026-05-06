@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { ArrowRight, CalendarDays, Clock, TrendingUp, TrendingDown, Minus, Filter, RefreshCw, Brain } from 'lucide-react'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 /* ─── Design Tokens ─── */
 const C = {
@@ -99,7 +100,7 @@ export default function MobileCalendarPage() {
             <RefreshCw size={16} color={C.accent} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
           </motion.button>
         </div>
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <ScopedStyle>{`@keyframes spin { to { transform: rotate(360deg); } }`}</ScopedStyle>
 
         {/* Stats */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>

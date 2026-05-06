@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Activity, ShieldCheck, Zap, Bell, CheckCircle2, TrendingUp, TrendingDown, Brain, Crosshair } from 'lucide-react'
 import { formatFreshness, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 interface Keyword {
   word: string
@@ -461,7 +462,7 @@ export function AlNarratorMini({
         </div>
       )}
 
-      <style>{`
+      <ScopedStyle>{`
         @keyframes orb-pulse {
           0%, 100% { transform: scale(1); opacity: 0.8; box-shadow: 0 0 10px currentColor; }
           50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 25px currentColor; }
@@ -486,7 +487,7 @@ export function AlNarratorMini({
           from { transform: translateY(-10px); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
         }
-      `}</style>
+      `}</ScopedStyle>
     </div>
   )
 }

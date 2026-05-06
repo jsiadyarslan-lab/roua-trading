@@ -8,6 +8,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import type { AIPattern, CandleData, AIEntryExit } from '@/lib/charts/types';
+import { ScopedStyle } from '@/components/ScopedStyle';
 
 interface SupportResistanceLevel {
   price: number;
@@ -1149,7 +1150,7 @@ export function AIPatternPanel({
       )}
 
       {/* Spinner animation */}
-      <style>{`@keyframes aiSpin { to { transform: rotate(360deg); } }`}</style>
+      <ScopedStyle>{`@keyframes aiSpin { to { transform: rotate(360deg); } }`}</ScopedStyle>
     </div>
   );
 }

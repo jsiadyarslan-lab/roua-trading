@@ -14,6 +14,7 @@ import {
   useAgentStore, AgentStatus, StrategyType, MarketRegime,
   type RegimeInfo,
 } from '@/hooks/useAgentStore'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 /* ─── Design Tokens ─── */
 const C = {
@@ -895,12 +896,12 @@ export default function MobileAgentPage() {
       </div>
 
       {/* ═══ CSS ═══ */}
-      <style jsx global>{`
+      <ScopedStyle>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
-      `}</style>
+      `}</ScopedStyle>
     </div>
   )
 }

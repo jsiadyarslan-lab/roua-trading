@@ -5,6 +5,7 @@ import { Brain, Sparkles, Filter, ChevronDown, ChevronUp, AlertTriangle } from '
 import { useScannerContext } from '../ScannerProvider'
 import { DirectionTag } from '../shared/DirectionTag'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 const T = {
   bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', cardHover: '#1F2335',
@@ -341,12 +342,12 @@ export function PatternsView() {
 
   return (
     <div style={{ flex: 1, overflow: 'auto', direction: 'rtl', background: T.card, display: 'flex', flexDirection: 'column' }}>
-      <style>{`
+      <ScopedStyle>{`
         @keyframes fadeInPV { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .pv-scroll::-webkit-scrollbar { width: 5px; }
         .pv-scroll::-webkit-scrollbar-track { background: ${T.bg2}; }
         .pv-scroll::-webkit-scrollbar-thumb { background: ${T.surface}; border-radius: 3px; }
-      `}</style>
+      `}</ScopedStyle>
 
       {/* Header + Stats */}
       <div style={{ padding: '12px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

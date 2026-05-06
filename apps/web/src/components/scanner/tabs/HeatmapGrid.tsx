@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useScannerContext } from '../ScannerProvider'
 import type { HeatmapItem } from '../hooks/useScannerData'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 const T = {
   bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', surface: '#1A1D29',
@@ -71,10 +72,10 @@ export function HeatmapGrid() {
 
   return (
     <div style={{ flex: 1, overflow: 'auto', direction: 'rtl', background: T.card, padding: 12 }}>
-      <style>{`
+      <ScopedStyle>{`
         @keyframes fadeCell { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
         .heat-cell:hover { transform: scale(1.03); box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 2; }
-      `}</style>
+      `}</ScopedStyle>
 
       {/* Filter bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>

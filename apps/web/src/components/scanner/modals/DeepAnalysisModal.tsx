@@ -7,6 +7,7 @@ import { DirectionTag } from '../shared/DirectionTag'
 import { SmartScoreBar } from '../shared/SmartScoreBar'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
 import type { ScannerItem } from '../hooks/useScannerData'
+import { ScopedStyle } from '@/components/ScopedStyle'
 
 const T = {
   bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', surface: '#1A1D29',
@@ -102,12 +103,12 @@ export function DeepAnalysisModal() {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: 16, overflow: 'auto', direction: 'rtl' }}
       onClick={() => ctx.setSelectedSymbol(null)}>
-      <style>{`
+      <ScopedStyle>{`
         @keyframes slideInDA { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
         .da-scroll::-webkit-scrollbar { width:5px; }
         .da-scroll::-webkit-scrollbar-track { background:${T.bg2}; }
         .da-scroll::-webkit-scrollbar-thumb { background:${T.surface}; border-radius:3px; }
-      `}</style>
+      `}</ScopedStyle>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 800, background: T.bg2, borderRadius: 12, border: `0.5px solid ${T.border}`, overflow: 'hidden', animation: 'slideInDA 0.35s ease' }}>
         {/* Close */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '10px 14px 0' }}>

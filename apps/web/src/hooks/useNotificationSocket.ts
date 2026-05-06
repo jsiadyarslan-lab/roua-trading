@@ -57,7 +57,7 @@ export function useNotificationSocket() {
     try {
       const socket = io(`${wsUrl}/notifications`, {
         auth: { token },
-        transports: ['websocket', 'polling'],
+        transports: ['polling', 'websocket'],  // polling first — Next.js rewrites can't proxy WS upgrade requests
         reconnection: true,
         reconnectionAttempts: 10,
         reconnectionDelay: 1000,

@@ -48,9 +48,12 @@ interface UseWebSocketTickerReturn {
   unsubscribe: (symbol: string) => void
 }
 
-// Check if WebSocket is explicitly enabled via env var
-const WS_ENABLED = !!process.env.NEXT_PUBLIC_WS_URL
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || ''
+// WebSocket URL — use env var if set, otherwise fall back to same origin
+// (Next.js rewrites proxy /socket.io/* to NestJS API on localhost:3001)
+// Polling transport works through rewrites; WebSocket upgrade requires
+// a separate API service or custom server proxy.
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || (typeof window !== 'undefined' ? window.location.origin : '')
+const WS_ENABLED = !!WS_URL
 
 export function useWebSocketTicker({
   symbols,
@@ -104,7 +107,7 @@ export function useWebSocketTicker({
       }
 
       socket = io(`${WS_URL}/exchange`, {
-        transports: ['websocket', 'polling'],
+        transports: ['polling', 'websocket'],  // polling first — Next.js rewrites can't proxy WS upgrade requests
         autoConnect: true,
         reconnection: true,
         reconnectionAttempts: 10,

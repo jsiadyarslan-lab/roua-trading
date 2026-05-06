@@ -323,7 +323,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
 
       try {
         const socketOptions: any = {
-          transports: ['websocket', 'polling'],
+          transports: ['polling', 'websocket'],  // polling first — Next.js rewrites can't proxy WS upgrade requests
           autoConnect: true,
           reconnection: true,
           reconnectionAttempts: 5,

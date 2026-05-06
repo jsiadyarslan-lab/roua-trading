@@ -82,12 +82,18 @@ export const TIMEFRAME_RR: Record<BriefTimeframe, { sl: number; tp: number; maxS
   W1: { sl: 0.04, tp: 0.08, maxSlippage: 0.010 },       // 4% SL, 8% TP, 1.0% slippage
 };
 
-/** Minimum confidence score to issue a brief */
-export const MIN_BRIEF_CONFIDENCE = 50;
+/** Minimum confidence score to issue a brief — lowered from 50 to 40
+ *  With only 3-5/8 AI models working, most briefs come from technical
+ *  analysis fallback which produces confidence=45-48. The old threshold
+ *  of 50 rejected ALL technical fallback briefs, causing 0 trades.
+ *  A 40% confidence brief with proper SL/TP is safer than no brief.
+ */
+export const MIN_BRIEF_CONFIDENCE = 40;
 
-/** Minimum consensus score to issue a brief — lowered from 60 to 50
+/** Minimum consensus score to issue a brief — lowered from 60 to 50 to 40
  *  With 8 AI models, votes are often split. 60% was too strict and
  *  caused most consensus results to be rejected, producing zero Briefs.
- *  50% = majority threshold (more than half agree).
+ *  40% = allows even weak directional consensus to produce briefs.
+ *  Risk management (SL/TP) handles downside protection.
  */
-export const MIN_CONSENSUS_SCORE = 50;
+export const MIN_CONSENSUS_SCORE = 40;

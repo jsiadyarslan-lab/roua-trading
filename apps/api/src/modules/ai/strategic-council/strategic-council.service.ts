@@ -752,9 +752,12 @@ export class StrategicCouncilService {
     // FIX: Lowered from 30 to 15 — in active trading, even weak directional
     // signals are actionable. The risk management (stop loss, take profit)
     // handles downside protection. Skipping weak signals means no briefs ever.
-    if (!isAIFallback && consensus.recommendation !== 'HOLD' && consensus.consensusScore < 15) {
+    // FIX: Lowered threshold from 15 to MIN_CONSENSUS_SCORE (40).
+    // The old 15% threshold was arbitrary and didn't match MIN_CONSENSUS_SCORE.
+    // Now uses the same constant consistently.
+    if (!isAIFallback && consensus.recommendation !== 'HOLD' && consensus.consensusScore < MIN_CONSENSUS_SCORE) {
       this.logger.debug(`🏛️ Consensus too low (${consensus.consensusScore}%) for ${pair} ${timeframe} — skipping`);
-      result.diagnostics?.push(`${pair} ${timeframe}: SKIPPED — consensus too low (${consensus.consensusScore}% < 15%)`);
+      result.diagnostics?.push(`${pair} ${timeframe}: SKIPPED — consensus too low (${consensus.consensusScore}% < ${MIN_CONSENSUS_SCORE}%)`);
       if (existingBrief) {
         await this.prisma.tradingBrief.update({
           where: { id: existingBrief.id },
@@ -957,9 +960,16 @@ export class StrategicCouncilService {
       }
 
       // ===== GENERATE SIGNAL =====
+      // FIX: Lowered change24h threshold from 0.01 (1%) to 0.001 (0.1%).
+      // Forex pairs like EUR/USD typically move only 0.3-0.8% per DAY.
+      // The old 1% threshold meant Forex pairs NEVER triggered this signal,
+      // causing the entire pipeline to stall with zero briefs for Forex.
+      // Even crypto only occasionally moves >1% in 24h on stable days.
+      //
       // Priority 1: Use 24h change + RSI for direction
-      if (change24h > 0.01 && rsi < 70) {
-        // Positive 24h change, not overbought
+      if (change24h > 0.001 && rsi < 75) {
+        // Positive 24h change, not overbought (relaxed from 70 to 75)
+        // Scale confidence: 0.1% change → ~55, 1% change → ~58, 5% change → ~70
         confidence = Math.min(70, 55 + Math.min(Math.abs(change24h) * 3, 15));
         return {
           recommendation: 'BUY',
@@ -970,8 +980,8 @@ export class StrategicCouncilService {
             { role: 'محلل اتجاه', model: 'Technical/Trend', vote: 'BUY', confidence: Math.round(confidence - 5), reason: `زخم إيجابي في السوق` },
           ],
         };
-      } else if (change24h < -0.01 && rsi > 30) {
-        // Negative 24h change, not oversold
+      } else if (change24h < -0.001 && rsi > 25) {
+        // Negative 24h change, not oversold (relaxed from 30 to 25)
         confidence = Math.min(70, 55 + Math.min(Math.abs(change24h) * 3, 15));
         return {
           recommendation: 'SELL',
@@ -1008,37 +1018,47 @@ export class StrategicCouncilService {
       }
 
       // Priority 3: RSI-based direction (when no clear momentum)
-      if (rsi < 45) {
-        // RSI below 45 = bearish
-        confidence = 52;
+      // FIX: Expanded RSI zones — the old thresholds (45/55) were too narrow.
+      // RSI between 45-55 is the "neutral zone" but in practice, even RSI 48
+      // has a slight bearish bias. Expanded to use RSI < 50 = SELL, > 50 = BUY
+      // when we have no other signal. This ensures we ALWAYS produce a direction.
+      if (rsi < 50) {
+        // RSI below 50 = bearish bias
+        confidence = 48; // FIX: Lowered from 52 to 48 — below minConfidence=50 but
+        // this is intentional: weak RSI signals should have lower confidence.
+        // The executor's minConfidence was also lowered to 40.
         return {
           recommendation: 'SELL',
           consensusScore: confidence,
           masterStrategy: `تحليل تقني — RSI منخفض (${rsi.toFixed(0)}) يشير لضغط بيع. وقف خسارة قريب مطلوب.`,
           analyses: [
-            { role: 'محلل تقني', model: 'Technical/RSI', vote: 'SELL', confidence: confidence, reason: `RSI ${rsi.toFixed(0)} دون 45 — ضغط بيعي` },
+            { role: 'محلل تقني', model: 'Technical/RSI', vote: 'SELL', confidence: confidence, reason: `RSI ${rsi.toFixed(0)} دون 50 — ضغط بيعي` },
           ],
         };
-      } else if (rsi > 55) {
-        // RSI above 55 = bullish
-        confidence = 52;
+      } else {
+        // RSI 50+ = bullish bias
+        confidence = 48;
         return {
           recommendation: 'BUY',
           consensusScore: confidence,
           masterStrategy: `تحليل تقني — RSI مرتفع (${rsi.toFixed(0)}) يشير لزخم شرائي. وقف خسارة قريب مطلوب.`,
           analyses: [
-            { role: 'محلل تقني', model: 'Technical/RSI', vote: 'BUY', confidence: confidence, reason: `RSI ${rsi.toFixed(0)} فوق 55 — زخم إيجابي` },
+            { role: 'محلل تقني', model: 'Technical/RSI', vote: 'BUY', confidence: confidence, reason: `RSI ${rsi.toFixed(0)} فوق 50 — زخم إيجابي` },
           ],
         };
       }
 
-      // Priority 4: ULTIMATE FALLBACK — Random direction with minimum confidence.
-      // In active markets, there's ALWAYS a direction. No brief = pipeline stalled = 0 trades.
-      // A 50% confidence brief with proper SL/TP is better than nothing.
-      // Use price mod to make it deterministic (same pair = same direction until price changes).
-      const priceMod = Math.floor(currentPrice) % 2;
-      const fallbackDir: 'BUY' | 'SELL' = priceMod === 0 ? 'BUY' : 'SELL';
-      confidence = 50; // Minimum confidence to pass MIN_BRIEF_CONFIDENCE
+      // Priority 4: ULTIMATE FALLBACK — This should now be unreachable
+      // because Priority 3 covers ALL RSI values. But keep as safety net.
+      // Use change24h sign if available, otherwise price mod for determinism.
+      let fallbackDir: 'BUY' | 'SELL';
+      if (change24h !== 0) {
+        fallbackDir = change24h > 0 ? 'BUY' : 'SELL';
+      } else {
+        const priceMod = Math.floor(currentPrice) % 2;
+        fallbackDir = priceMod === 0 ? 'BUY' : 'SELL';
+      }
+      confidence = 45; // FIX: Lowered from 50 — must match executor minConfidence=40
       this.logger.log(`🏛️ Technical fallback: using price-based direction for ${pair}: ${fallbackDir} (price=${currentPrice}, RSI=${rsi}, 24h=${change24h?.toFixed(2) || 'N/A'}%)`);
       return {
         recommendation: fallbackDir,

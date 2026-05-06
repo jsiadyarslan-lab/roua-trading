@@ -50,10 +50,13 @@ export class SmartExecutorService implements OnModuleDestroy {
                                     // when the council set the entry price and when the
                                     // executor checked it (often just seconds later).
     riskPerTradePercent: 1,
-    minConfidence: 50,              // FIX: Lowered from 55 → 50. Technical fallback (MA crossover)
-                                    // gives confidence=52, and with only 3/8 AI models working, 55 was
-                                    // still too high and rejected most briefs. 50 matches MIN_BRIEF_CONFIDENCE
-                                    // and MIN_CONSENSUS_SCORE in the Strategic Council types.
+    minConfidence: 40,              // FIX: Lowered from 50 → 40. Technical fallback
+                                    // produces confidence=45-48, which was being rejected
+                                    // by the old minConfidence=50. With only 3/8 AI models
+                                    // working, most briefs come from technical analysis
+                                    // and need to pass the confidence check.
+                                    // A 40% confidence brief with proper SL/TP is better
+                                    // than no brief at all (pipeline stalled = 0 trades).
   };
 
   /** Redis key patterns */
@@ -753,16 +756,32 @@ export class SmartExecutorService implements OnModuleDestroy {
     currentPrice: number,
     strictRules: StrictRules,
   ): boolean {
+    // FIX: Relaxed entry conditions — the old strict slippage check meant
+    // that briefs were rejected if the price moved even slightly between
+    // when the council created the brief and when the executor checked it.
+    // On volatile crypto pairs, this can happen in seconds.
+    //
+    // NEW LOGIC: For BUY, just check that current price is below take profit
+    // (the trade still has room to profit). For SELL, check that current price
+    // is above take profit. This is much more forgiving and allows trades
+    // even when prices have moved slightly since the brief was issued.
+    //
+    // The stop loss and take profit levels are still enforced by RiskGatekeeper.
     const slippage = strictRules.maxSlippage || this.config.defaultSlippage;
 
     if (brief.direction === 'BUY') {
-      // For BUY: current price should be at or near the entry price
-      const maxPrice = brief.entryPrice * (1 + slippage);
-      return currentPrice <= maxPrice;
+      // BUY: Check that price is still within a reasonable range of the entry.
+      // Allow up to 2x the normal slippage as a grace margin.
+      const maxPrice = brief.entryPrice * (1 + slippage * 2);
+      // Also check that the trade still has profit potential
+      const hasProfitPotential = currentPrice < brief.takeProfit;
+      return currentPrice <= maxPrice && hasProfitPotential;
     } else {
-      // For SELL: current price should be at or near the entry price
-      const minPrice = brief.entryPrice * (1 - slippage);
-      return currentPrice >= minPrice;
+      // SELL: Check that price is still within a reasonable range of the entry.
+      const minPrice = brief.entryPrice * (1 - slippage * 2);
+      // Also check that the trade still has profit potential
+      const hasProfitPotential = currentPrice > brief.takeProfit;
+      return currentPrice >= minPrice && hasProfitPotential;
     }
   }
 

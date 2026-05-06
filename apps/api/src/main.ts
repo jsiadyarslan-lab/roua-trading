@@ -138,10 +138,19 @@ async function bootstrap() {
     // server doesn't know about Socket.IO's routes.
     // The IoAdapter creates a Socket.IO Server instance and binds it to the
     // same HTTP server that NestJS uses, making /socket.io/ endpoints accessible.
+    //
+    // CRITICAL: The IoAdapter must be set BEFORE app.listen() so that Socket.IO
+    // can bind its HTTP handler to the server before it starts listening.
+    // Also, setGlobalPrefix('api') must NOT apply to Socket.IO routes.
     app.useWebSocketAdapter(new IoAdapter(app));
 
-    // Global prefix for all routes
-    app.setGlobalPrefix('api');
+    // Global prefix for all routes — EXCLUDE Socket.IO paths so that
+    // /socket.io/ polling endpoints are not prefixed with /api/
+    app.setGlobalPrefix('api', {
+      exclude: [
+        '/socket.io/(.*)',  // Socket.IO polling + WebSocket upgrade
+      ],
+    });
 
     // ── Health check endpoint (no auth required) ──
     // Must be registered BEFORE global pipes/filters to avoid auth interference
@@ -272,6 +281,25 @@ async function bootstrap() {
 
     const configService = app.get(ConfigService);
     const port = configService.get<number>('API_PORT', 3001);
+
+    // ── FIX: Create Socket.IO server explicitly ──
+    // The NestJS IoAdapter should create a Socket.IO server and bind it to
+    // the HTTP server, but in some configurations (especially with setGlobalPrefix),
+    // Socket.IO's HTTP handler doesn't get attached properly. Creating the server
+    // explicitly ensures /socket.io/ polling endpoints are accessible.
+    const httpServer = app.getHttpServer();
+    const { Server: SocketIOServer } = await import('socket.io');
+    const io = new SocketIOServer(httpServer, {
+      cors: {
+        origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+          // Allow all origins — auth is handled in gateway handleConnection()
+          callback(null, true);
+        },
+        credentials: true,
+      },
+      path: '/socket.io',  // Default Socket.IO path
+    });
+    console.log(`🔌 Socket.IO server created and bound to HTTP server (path: /socket.io)`);
 
     // SECURITY: Warn if NEXTAUTH_SECRET is not explicitly set in production.
     // It's used as a fallback for ENCRYPTION_KEY derivation in development,

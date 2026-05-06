@@ -13,7 +13,58 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category') || '';
     const limit = searchParams.get('limit') || '20';
 
-    // Try NestJS first
+    // ── Priority 1: Roua News Site (AI-analyzed Arabic financial news) ──
+    const newsSiteUrl = process.env.NEWS_SITE_URL || 'https://rouatradingnews-production.up.railway.app';
+    const integrationKey = process.env.INTEGRATION_API_KEY;
+
+    if (integrationKey) {
+      try {
+        const newsRes = await fetch(`${newsSiteUrl}/api/integration/news?limit=${limit}${symbol ? `&symbol=${encodeURIComponent(symbol)}` : ''}${category ? `&category=${encodeURIComponent(category)}` : ''}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Integration-Key': integrationKey,
+          },
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (newsRes.ok) {
+          const newsData = await newsRes.json();
+          if (newsData.articles && Array.isArray(newsData.articles) && newsData.articles.length > 0) {
+            // Transform news site data to the format expected by the trading platform
+            const articles = newsData.articles.map((article: any) => ({
+              id: article.id,
+              source: article.source || 'رؤى للأخبار',
+              title: article.title || '',
+              translatedTitle: /[\u0600-\u06FF]/.test(article.title) ? article.title : '',
+              content: article.summary || '',
+              translatedContent: '',
+              summary: article.summary || '',
+              url: article.url || (article.slug ? `${newsSiteUrl}/news/${article.slug}` : null),
+              sentiment: typeof article.sentimentScore === 'number' ? article.sentimentScore : 0,
+              sentimentLabel: article.sentiment || 'neutral',
+              impactLevel: article.impactLevel || 'medium',
+              affectedAssets: typeof article.affectedAssets === 'string'
+                ? (() => { try { return JSON.parse(article.affectedAssets); } catch { return []; } })()
+                : Array.isArray(article.affectedAssets) ? article.affectedAssets : [],
+              category: article.category || 'أسواق',
+              categoryAr: article.category || 'أسواق',
+              publishedAt: article.publishedAt || new Date().toISOString(),
+            }));
+
+            return NextResponse.json({
+              success: true,
+              data: articles,
+              count: articles.length,
+              source: 'roua-news',
+            });
+          }
+        }
+      } catch (error: any) {
+        console.warn('[news/latest] Roua News site unavailable:', error?.message || error);
+      }
+    }
+
+    // ── Priority 2: NestJS internal news ──
     const apiTarget = process.env.API_INTERNAL_URL || 'http://localhost:3001';
     const sessionToken = request.cookies.get('roua_session')?.value;
 

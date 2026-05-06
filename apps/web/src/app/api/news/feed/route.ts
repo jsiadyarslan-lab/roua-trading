@@ -56,7 +56,58 @@ function tryTranslateToArabic(text: string): string {
 
 export async function GET() {
   try {
-    // Try NestJS first for AI-translated news
+    // ── Priority 1: Roua News Site (AI-analyzed Arabic financial news) ──
+    const newsSiteUrl = process.env.NEWS_SITE_URL || 'https://rouatradingnews-production.up.railway.app';
+    const integrationKey = process.env.INTEGRATION_API_KEY;
+
+    if (integrationKey) {
+      try {
+        const newsRes = await fetch(`${newsSiteUrl}/api/integration/news?limit=15`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Integration-Key': integrationKey,
+          },
+          signal: AbortSignal.timeout(8000),
+        });
+
+        if (newsRes.ok) {
+          const newsData = await newsRes.json();
+          if (newsData.articles && Array.isArray(newsData.articles) && newsData.articles.length > 0) {
+            const items = newsData.articles.map((article: any) => {
+              const cat = article.category || 'أسواق';
+              const title = article.title || '';
+              const summary = article.summary || '';
+
+              // News site already has Arabic content
+              const textAr = /[\u0600-\u06FF]/.test(title) ? title : tryTranslateToArabic(title) || title;
+
+              return {
+                category: cat,
+                categoryAr: /[\u0600-\u06FF]/.test(cat) ? cat : mapCategoryToArabic(cat),
+                color: mapCategoryColor(cat),
+                bgColor: `${mapCategoryColor(cat)}12`,
+                text: title,
+                textAr,
+                summary: summary || '',
+                link: article.url || (article.slug ? `${newsSiteUrl}/news/${article.slug}` : null),
+                publishedAt: article.publishedAt || null,
+                impact: article.impactLevel || article.sentimentScore > 0.3 ? 'high' : 'medium',
+                source: article.source || 'رؤى للأخبار',
+              };
+            });
+
+            const hasArabic = items.some((item: any) => /[\u0600-\u06FF]/.test(item.textAr));
+            if (hasArabic) {
+              return NextResponse.json(items);
+            }
+          }
+        }
+      } catch {
+        // News site unavailable, fall through
+      }
+    }
+
+    // ── Priority 2: NestJS internal news ──
     const apiTarget = process.env.API_INTERNAL_URL || 'http://localhost:3001';
     try {
       const nestRes = await fetch(`${apiTarget}/api/news/latest?limit=15`, {
@@ -68,18 +119,15 @@ export async function GET() {
       if (nestRes.ok) {
         const nestData = await nestRes.json();
         if (nestData.success && Array.isArray(nestData.data) && nestData.data.length > 0) {
-          // Transform NestJS data to feed format, ensuring Arabic for every item
           const items = nestData.data.map((article: any) => {
             const cat = article.category || 'Crypto'
             const title = article.title || ''
             const translatedTitle = article.translatedTitle || ''
 
-            // Determine best Arabic text
             let textAr = ''
             if (translatedTitle && /[\u0600-\u06FF]/.test(translatedTitle) && translatedTitle !== title) {
               textAr = translatedTitle
             } else {
-              // Try our own translation
               textAr = tryTranslateToArabic(title)
             }
 
@@ -97,15 +145,11 @@ export async function GET() {
             }
           })
 
-          // If at least some items have Arabic, return them
-          // Items without Arabic will fall back to English text in the ticker
           const hasArabic = items.some((item: any) => /[\u0600-\u06FF]/.test(item.textAr))
           if (hasArabic) {
-            // For items that still don't have Arabic, mix in fallback items
             const fallbackItems = getFallbackNews()
             const finalItems = items.map((item: any, idx: number) => {
               if (!/[\u0600-\u06FF]/.test(item.textAr) && fallbackItems[idx]) {
-                // Use fallback Arabic text for this item
                 return { ...item, textAr: fallbackItems[idx].textAr, categoryAr: fallbackItems[idx].categoryAr }
               }
               return item
@@ -118,7 +162,7 @@ export async function GET() {
       // NestJS unavailable, fall through
     }
 
-    // Fallback: Return fully Arabic news items
+    // ── Priority 3: Fallback static news ──
     return NextResponse.json(getFallbackNews())
   } catch (error) {
     return NextResponse.json(getFallbackNews())

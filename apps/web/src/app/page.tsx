@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import './landing.css';
 import CosmicCanvas from '@/components/landing/CosmicCanvas';
 import MarketPulse from '@/components/landing/MarketPulse';
@@ -17,6 +18,13 @@ import BlackholeCTA from '@/components/landing/BlackholeCTA';
 import CosmicFooter from '@/components/landing/CosmicFooter';
 
 export default function Home() {
+  // SKIP_LANDING: Set env var NEXT_PUBLIC_SKIP_LANDING=true to bypass landing page
+  const router = useRouter();
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_SKIP_LANDING === 'true') {
+      router.replace('/dashboard');
+    }
+  }, [router]);
   // Intersection Observer for fade-in animations (matching original HTML)
   useEffect(() => {
     const observer = new IntersectionObserver(

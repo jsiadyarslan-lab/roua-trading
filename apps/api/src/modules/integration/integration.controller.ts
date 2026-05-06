@@ -159,7 +159,7 @@ export class IntegrationController {
     try {
       const where: any = { status: 'ACTIVE' };
       if (symbol) {
-        where.symbol = symbol;
+        where.pair = { contains: symbol.replace(/-/g, '/'), mode: 'insensitive' };
       }
 
       const signals = await this.prisma.signal.findMany({
@@ -177,6 +177,90 @@ export class IntegrationController {
       this.logger.error(`Signals fetch failed: ${error?.message}`);
       return {
         error: error?.message || 'Failed to fetch signals',
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * GET /api/integration/signals/history?limit=20
+   * Get recent signal history (all statuses, for display on news site).
+   */
+  @Get('signals/history')
+  async getSignalHistory(
+    @Query('limit') limit: string = '20',
+  ) {
+    try {
+      const signals = await this.prisma.signal.findMany({
+        where: {
+          status: { in: ['ACTIVE', 'EXPIRED', 'EXECUTED', 'CANCELLED'] },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: Math.min(parseInt(limit, 10) || 20, 50),
+        select: {
+          id: true,
+          pair: true,
+          action: true,
+          confidence: true,
+          reason: true,
+          entryPrice: true,
+          stopLoss: true,
+          takeProfit: true,
+          status: true,
+          createdAt: true,
+          expiresAt: true,
+        },
+      });
+
+      return {
+        signals,
+        count: signals.length,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error: any) {
+      this.logger.error(`Signal history fetch failed: ${error?.message}`);
+      return {
+        error: error?.message || 'Failed to fetch signal history',
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * GET /api/integration/signals/stats
+   * Get signal statistics for the news site.
+   */
+  @Get('signals/stats')
+  async getSignalStats() {
+    try {
+      const [active, expired, executed, cancelled] = await Promise.all([
+        this.prisma.signal.count({ where: { status: 'ACTIVE' } }),
+        this.prisma.signal.count({ where: { status: 'EXPIRED' } }),
+        this.prisma.signal.count({ where: { status: 'EXECUTED' } }),
+        this.prisma.signal.count({ where: { status: 'CANCELLED' } }),
+      ]);
+
+      // Get recent accuracy: how many executed signals were profitable
+      const recentExecuted = await this.prisma.signal.findMany({
+        where: { status: 'EXECUTED' },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        select: { action: true, pair: true, entryPrice: true, takeProfit: true, stopLoss: true },
+      });
+
+      return {
+        total: active + expired + executed + cancelled,
+        active,
+        expired,
+        executed,
+        cancelled,
+        recentSignals: recentExecuted.length,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error: any) {
+      this.logger.error(`Signal stats fetch failed: ${error?.message}`);
+      return {
+        error: error?.message || 'Failed to fetch signal stats',
         timestamp: new Date().toISOString(),
       };
     }

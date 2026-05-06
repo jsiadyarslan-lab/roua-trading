@@ -409,10 +409,11 @@ model Trade {
   pnl             Decimal?  @db.Decimal(18,4)
   exchangeTradeId String?
   executedAt      DateTime  @default(now())
-  /// Source of the trade: 'user_manual' = real user-initiated, 'smart_executor' = executor on user's behalf,
-  /// 'auto_paper' = automatically generated paper trade (legacy phantom trades)
-  /// Optional to avoid breaking queries if the column hasn't been added to the DB yet.
-  source          String?   @default("user_manual")
+  // source column is added via ALTER TABLE in start.sh (safety-net SQL).
+  // It's removed from the Prisma schema temporarily to avoid 503 errors
+  // when the column doesn't exist yet in the database.
+  // Once confirmed present in production, add it back:
+  // source String? @default("user_manual")
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   order           Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
   position        Position? @relation(fields: [positionId], references: [id], onDelete: SetNull)
@@ -422,7 +423,6 @@ model Trade {
   @@index([positionId])
   @@index([executedAt])
   @@index([userId, type, executedAt])
-  @@index([source])
 }
 
 // ── Position Reconciliation Queue ──

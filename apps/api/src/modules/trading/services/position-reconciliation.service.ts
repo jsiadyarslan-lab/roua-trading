@@ -171,7 +171,7 @@ export class PositionReconciliationService implements OnModuleInit, OnModuleDest
             type: 'ENTRY',
             quantity: filledQuantity,
             price: fillPrice,
-            source: 'reconciliation',
+            
           },
         });
       }, {

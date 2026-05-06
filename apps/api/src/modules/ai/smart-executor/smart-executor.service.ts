@@ -895,7 +895,7 @@ export class SmartExecutorService implements OnModuleDestroy {
         price: currentPrice,
         stopLoss: brief.stopLoss,
         takeProfit: brief.takeProfit,
-        source: userState.isPaperTrading ? 'smart_executor' : 'smart_executor',
+        
       };
 
       // FIX: Run RiskGatekeeper 5-point validation BEFORE placing the order.

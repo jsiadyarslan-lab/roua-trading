@@ -54,22 +54,16 @@ export async function GET(req: NextRequest) {
       where: { status: 'PENDING' },
     })
 
-    // Daily trades count — REAL user-initiated trades only (exclude auto-paper phantom trades)
+    // Daily trades count
     const dailyTrades = await db.trade.count({
-      where: { executedAt: { gte: today }, source: { not: 'auto_paper' } },
+      where: { executedAt: { gte: today } },
     })
 
-    // Auto-paper phantom trades count (separate from real trades)
-    const autoPaperTrades = await db.trade.count({
-      where: { executedAt: { gte: today }, source: 'auto_paper' },
-    })
-
-    // Win rate from REAL trades only (last 30 days)
+    // Win rate from trades with PnL (last 30 days)
     const tradesWithPnl = await db.trade.findMany({
       where: {
         pnl: { not: null },
         executedAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-        source: { not: 'auto_paper' },
       },
       select: { pnl: true },
     })
@@ -123,7 +117,6 @@ export async function GET(req: NextRequest) {
         activePositions: positions.length,
         pendingOrders,
         dailyTrades,
-        autoPaperTrades,
         winRate,
       },
       bots: serializedBots,

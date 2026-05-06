@@ -2,8 +2,6 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IoAdapter } from '@nestjs/platform-socket.io';
-import * as http from 'http';
-import * as express from 'express';
 import * as cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -13,37 +11,10 @@ import { RedisService } from './common/redis/redis.service';
 
 async function bootstrap() {
   try {
-    // ── FIX: Create HTTP server manually and attach Socket.IO FIRST ──
-    // NestJS creates an HTTP server internally, but when Socket.IO is attached
-    // AFTER Express, Express handles /socket.io/ requests first (returning 404)
-    // before Socket.IO can process them. By creating the HTTP server manually
-    // and attaching Socket.IO before NestJS, we ensure Socket.IO's handler
-    // runs first in the request chain.
-    const expressApp = express();
-    const httpServer = http.createServer(expressApp);
-
-    // Attach Socket.IO to the HTTP server BEFORE NestJS uses it
-    // This ensures Socket.IO's request handler runs before Express's handler
-    const { Server: SocketIOServer } = await import('socket.io');
-    const io = new SocketIOServer(httpServer, {
-      cors: {
-        origin: (_origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-          callback(null, true); // Auth handled in gateway handleConnection()
-        },
-        credentials: true,
-      },
-      path: '/socket.io',
-    });
-    console.log('🔌 Socket.IO server created and bound to HTTP server (path: /socket.io)');
-
     // FIX #2: Enable graceful shutdown — ensures in-flight requests complete
     // before the process exits, preventing 502 errors during Railway deploys.
     // Without this, SIGTERM kills the process immediately, causing connection drops.
-    //
-    // Pass the pre-created Express app to NestJS so both Express and Socket.IO
-    // share the same HTTP server instance. NestJS will wrap expressApp in an
-    // ExpressAdapter internally.
-    const app = await NestFactory.create(AppModule, expressApp, {
+    const app = await NestFactory.create(AppModule, {
       logger: ['error', 'warn', 'log'],
     });
     app.enableShutdownHooks();
@@ -70,19 +41,14 @@ async function bootstrap() {
     }));
 
     // BUG 11 FIX: Add Cache-Control headers based on response type.
-    // - Static-ish data (exchange rates, quotes): public, max-age=5
-    // - User-specific data: private, no-cache
     app.use((req: any, res: any, next: any) => {
       const originalEnd = res.end;
       res.end = function (...args: any[]) {
-        // Only set Cache-Control if not already set by a specific endpoint
         if (!res.getHeader('Cache-Control')) {
           const path = req.url || req.originalUrl || '';
           if (path.includes('/api/exchange/') || path.includes('/api/health') || path.includes('/api/scanner/overview') || path.includes('/api/scanner/heatmap')) {
-            // Public data that changes infrequently — cache for 5 seconds
             res.setHeader('Cache-Control', 'public, max-age=5');
           } else {
-            // User-specific or dynamic data — no cache
             res.setHeader('Cache-Control', 'private, no-cache');
           }
         }
@@ -90,8 +56,6 @@ async function bootstrap() {
       };
 
       res.setHeader('X-Content-Type-Options', 'nosniff');
-      // X-XSS-Protection disabled — modern CSP is the preferred defense
-      // Setting '1; mode=block' is deprecated and can introduce vulnerabilities
       res.setHeader('X-XSS-Protection', '0');
       next();
     });
@@ -100,22 +64,6 @@ async function bootstrap() {
     app.use(cookieParser());
 
     // ── CSRF Protection — Origin Validation ──
-    // For a trading platform, CSRF protection is CRITICAL to prevent
-    // unauthorized order placement from malicious sites.
-    //
-    // Strategy: Verify the Origin header on all state-changing requests
-    // (POST, PUT, DELETE, PATCH). If the Origin doesn't match our
-    // allowed origins, reject with 403.
-    //
-    // This is the "origin verification" approach recommended by OWASP
-    // (https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)
-    // It's simpler than token-based CSRF and works well for API-first
-    // applications that use SameSite cookies.
-    //
-    // SameSite=lax cookies already prevent cross-site GET attacks.
-    // Origin validation prevents cross-site POST/PUT/DELETE/PATCH attacks.
-    // Together, they provide robust CSRF protection without the complexity
-    // of synchronizer token pattern.
     const STATE_CHANGING_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
     const allowedOriginPatterns = [
       /^https:\/\/[a-z0-9-]+\.up\.railway\.app$/,
@@ -123,7 +71,6 @@ async function bootstrap() {
       /^http:\/\/localhost:\d+$/,
       /^http:\/\/127\.0\.0\.1:\d+$/,
     ];
-    // Also allow explicitly configured CORS origins
     const explicitOrigins = (process.env.CORS_ORIGIN || '')
       .split(',')
       .map(s => s.trim())
@@ -131,27 +78,22 @@ async function bootstrap() {
 
     app.use((req: any, res: any, next: any) => {
       if (!STATE_CHANGING_METHODS.includes(req.method)) {
-        return next(); // Only check state-changing requests
+        return next();
       }
 
       const origin = req.headers.origin || req.headers.referer?.split('/').slice(0, 3).join('/');
       if (!origin) {
-        // No origin header — allow for API clients (curl, mobile apps)
-        // These are typically not browser-based and not vulnerable to CSRF
         return next();
       }
 
-      // Check against explicit origins first
       if (explicitOrigins.includes(origin)) {
         return next();
       }
 
-      // Check against patterns (Railway domains, localhost)
       if (allowedOriginPatterns.some(pattern => pattern.test(origin))) {
         return next();
       }
 
-      // Origin doesn't match any allowed source — reject
       res.status(403).json({
         statusCode: 403,
         message: 'طلب مرفوض — مصدر غير مصرح به (CSRF protection)',
@@ -160,30 +102,24 @@ async function bootstrap() {
       });
     });
 
-    // ── Socket.IO Adapter ──
-    // Bind the IoAdapter so NestJS's @WebSocketGateway decorators work with
-    // the Socket.IO server we created above. The IoAdapter will discover
-    // and use the existing Socket.IO server on the HTTP server.
+    // ── Socket.IO Setup ──
+    // FIX: Attach Socket.IO to NestJS's HTTP server and ensure its request handler
+    // runs BEFORE Express's handler. Socket.IO's init() method reorders the HTTP
+    // server's 'request' listeners so that Socket.IO checks the path first.
+    // If the path matches /socket.io/, Socket.IO handles it; otherwise, Express
+    // processes the request normally.
     app.useWebSocketAdapter(new IoAdapter(app));
 
     // Global prefix for all routes
     app.setGlobalPrefix('api');
 
     // ── Health check endpoint (no auth required) ──
-    // Must be registered BEFORE global pipes/filters to avoid auth interference
-    //
-    // SECURITY: This endpoint intentionally does NOT expose database schema info,
-    // table names, column definitions, or any other sensitive internals.
-    // It only returns basic status checks (ok/error) with latency metrics.
-    // For schema diagnostics, use the separate /api/debug/db-schema endpoint
-    // which requires authentication and is restricted to admin/dev use.
     const prisma = app.get(PrismaService);
     const redisService = app.get(RedisService, { strict: false });
     app.getHttpAdapter().getInstance().get('/api/health', async (req: any, res: any) => {
       const start = Date.now();
       const checks: Record<string, { status: string; latencyMs?: number }> = {};
 
-      // Database check
       try {
         const dbStart = Date.now();
         await prisma.$queryRaw`SELECT 1`;
@@ -192,7 +128,6 @@ async function bootstrap() {
         checks.database = { status: 'error' };
       }
 
-      // Redis check
       try {
         const redisStart = Date.now();
         if (redisService && typeof redisService.ping === 'function') {
@@ -205,7 +140,6 @@ async function bootstrap() {
         checks.redis = { status: 'degraded' };
       }
 
-      // Memory check
       const mem = process.memoryUsage();
       const memMB = Math.round(mem.heapUsed / 1024 / 1024);
       checks.memory = {
@@ -223,52 +157,29 @@ async function bootstrap() {
       });
     });
 
-    // Global exception filter — standardizes ALL error responses to:
-    // { statusCode: number, message: string, timestamp: string, path: string }
-    //
-    // NOTE on inconsistency: Some controllers return { success, data } while
-    // the exception filter returns { statusCode, message, timestamp, path }.
-    // This is a known inconsistency — successful responses use a wrapper format
-    // while error responses use the filter format. Both formats are stable and
-    // documented; a future refactor should unify them, but changing now would
-    // break frontend error handling.
+    // Global exception filter
     app.useGlobalFilters(new AllExceptionsFilter());
 
     // Enable CORS for Next.js frontend
-    // FIX: In production on Railway, the frontend and API run in the same
-    // container, so CORS origin should allow both localhost and the public URL.
     const corsOrigins = process.env.CORS_ORIGIN
       ? process.env.CORS_ORIGIN.split(',').map(s => s.trim())
       : ['http://localhost:3000', 'http://127.0.0.1:3000'];
-    // Also allow the Railway public URL if set
     if (process.env.RAILWAY_PUBLIC_DOMAIN) {
       corsOrigins.push(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
     }
-    // FIX: Also allow RAILWAY_STATIC_URL (another Railway env var for the domain)
     if (process.env.RAILWAY_STATIC_URL) {
       corsOrigins.push(process.env.RAILWAY_STATIC_URL);
     }
-    // V75: Allow news site integration origin
     if (process.env.INTEGRATION_PARTNER_URL) {
       corsOrigins.push(process.env.INTEGRATION_PARTNER_URL);
     }
-    // FIX: Use origin function to dynamically allow any *.up.railway.app URL.
-    // Previously, only the specific RAILWAY_PUBLIC_DOMAIN was allowed, but
-    // Railway uses different subdomains for preview deploys and PR environments.
-    // This ensures CORS works regardless of which Railway environment is used.
     const corsOriginHandler = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-      // Allow requests with no origin (mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
-      // Allow all explicitly listed origins
       if (corsOrigins.includes(origin)) return callback(null, true);
-      // Allow any *.up.railway.app subdomain (Railway deployment domains)
       if (origin.match(/^https:\/\/[a-z0-9-]+\.up\.railway\.app$/)) return callback(null, true);
-      // Allow any *.railway.app subdomain (covers all Railway environments)
       if (origin.match(/^https:\/\/[a-z0-9-]+\.railway\.app$/)) return callback(null, true);
-      // Allow localhost on any port for local development
       if (origin.match(/^http:\/\/localhost:\d+$/)) return callback(null, true);
       if (origin.match(/^http:\/\/127\.0\.0\.1:\d+$/)) return callback(null, true);
-      // Reject all other origins
       callback(null, false);
     };
 
@@ -280,11 +191,6 @@ async function bootstrap() {
     });
 
     // Global validation pipe
-    // NOTE: `forbidNonWhitelisted` is set to `false` because `whitelist: true`
-    // already strips unknown properties. Setting `forbidNonWhitelisted: true`
-    // caused confusing 400 errors when frontend DTOs evolved independently
-    // from backend DTOs — the whitelist still ensures security by removing
-    // any unexpected fields silently.
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -300,10 +206,6 @@ async function bootstrap() {
     const port = configService.get<number>('API_PORT', 3001);
 
     // SECURITY: Warn if NEXTAUTH_SECRET is not explicitly set in production.
-    // It's used as a fallback for ENCRYPTION_KEY derivation in development,
-    // and in production, ENCRYPTION_KEY must be set explicitly instead.
-    // If NEXTAUTH_SECRET is auto-derived from other env vars, it creates a
-    // false sense of security — the secret should be explicitly random.
     if (process.env.NODE_ENV === 'production') {
       if (!process.env.NEXTAUTH_SECRET && !process.env.ENCRYPTION_KEY) {
         console.error(
@@ -319,8 +221,28 @@ async function bootstrap() {
       }
     }
 
-    // Start listening on the pre-created HTTP server
-    // (not app.listen() which would create a new HTTP server)
+    // ── FIX: Start HTTP server manually with Socket.IO listener reordering ──
+    // Get NestJS's HTTP server and create Socket.IO on it BEFORE calling listen().
+    // Socket.IO's Server constructor calls init() which reorders the HTTP server's
+    // 'request' event listeners, putting Socket.IO's handler first. This ensures
+    // /socket.io/ requests are handled by Socket.IO before Express returns 404.
+    //
+    // IMPORTANT: We call httpServer.listen() directly instead of app.listen()
+    // because app.listen() may create a new HTTP server internally, which would
+    // bypass our Socket.IO attachment.
+    const httpServer = app.getHttpServer();
+    const { Server: SocketIOServer } = await import('socket.io');
+    const io = new SocketIOServer(httpServer, {
+      cors: {
+        origin: (_origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+          callback(null, true);
+        },
+        credentials: true,
+      },
+      path: '/socket.io',
+    });
+    console.log('🔌 Socket.IO server attached to HTTP server (listeners reordered)');
+
     await new Promise<void>((resolve) => {
       httpServer.listen(port, '0.0.0.0', () => resolve());
     });
@@ -328,16 +250,14 @@ async function bootstrap() {
     console.log(`🔌 Socket.IO available on http://0.0.0.0:${port}/socket.io/`);
     console.log(`📊 Environment: ${configService.get('NODE_ENV', 'development')}`);
 
+    // Log request listener order for debugging
+    const listeners = httpServer.listeners('request');
+    console.log(`📋 HTTP request listeners: ${listeners.length} (Socket.IO should be first)`);
+
     // FIX #2: Graceful shutdown — handle SIGTERM from Railway
-    // Railway sends SIGTERM before killing the container. We need to:
-    // 1. Stop accepting new connections
-    // 2. Complete in-flight requests
-    // 3. Close DB/Redis connections gracefully
-    // This prevents 502 errors during deployments.
     const shutdown = async (signal: string) => {
       console.log(`📡 Received ${signal} — shutting down gracefully...`);
       try {
-        // Give in-flight requests 10 seconds to complete
         const shutdownTimeout = setTimeout(() => {
           console.warn('⚠️ Graceful shutdown timeout — forcing exit');
           process.exit(1);
@@ -357,8 +277,6 @@ async function bootstrap() {
     process.on('SIGINT', () => shutdown('SIGINT'));
   } catch (error) {
     console.error('❌ NestJS bootstrap failed:', error);
-    // FIX #2: Auto-restart on bootstrap failure — Railway will restart the container
-    // but adding a small delay prevents rapid restart loops
     console.log('🔄 Restarting in 5 seconds...');
     setTimeout(() => process.exit(1), 5000);
   }

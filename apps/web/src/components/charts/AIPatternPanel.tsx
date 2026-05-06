@@ -150,12 +150,16 @@ export function AIPatternPanel({
         `t=${new Date(c.time * 1000).toISOString().slice(0, 16)} O=${c.open} H=${c.high} L=${c.low} C=${c.close} V=${c.volume}`
       ).join('\n');
 
+      // FIX: Add technical indicator context for more accurate AI analysis
+      const indicatorContext = buildIndicatorContext(candles);
+
       const response = await fetch('/api/ai/chart-analysis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           symbol,
           candles: ohlcSummary,
+          indicators: indicatorContext,
           instruction: `Analyze the following OHLC candlestick data for ${symbol}. Identify any candlestick patterns from this list: Doji, Hammer, Inverted Hammer, Engulfing (Bullish/Bearish), Morning Star, Evening Star, Three White Soldiers, Three Black Crows, Harami, Piercing Line, Dark Cloud Cover, Spinning Top, Marubozu, Shooting Star, Dragonfly Doji, Gravestone Doji. Return ONLY a JSON array of detected patterns. Each pattern object must have: "type" (English name), "timeIndex" (0-based index in the data), "confidence" (0-1), "direction" ("bullish"|"bearish"|"neutral"). Example: [{"type":"Hammer","timeIndex":45,"confidence":0.85,"direction":"bullish"}]`,
         }),
         signal: controller.signal,
@@ -335,20 +339,42 @@ export function AIPatternPanel({
       }
 
       if (parsed && parsed.direction && parsed.entryPrice) {
+        // FIX: Validate SL/TP are reasonable numbers and logically correct
+        const rawEntry = Number(parsed.entryPrice);
+        const rawSL = Number(parsed.stopLoss);
+        const rawTP = Number(parsed.takeProfit);
+        const isLong = parsed.direction === 'long';
+        
+        // FIX: Filter out NaN, 0, Infinity, and logically invalid SL/TP
+        let stopLoss = (isFinite(rawSL) && rawSL > 0) ? rawSL : 0;
+        let takeProfit = (isFinite(rawTP) && rawTP > 0) ? rawTP : 0;
+        
+        // FIX: Validate SL/TP logic — SL must be against direction, TP with direction
+        if (stopLoss > 0) {
+          if (isLong && stopLoss >= rawEntry) stopLoss = 0; // SL above entry in long = invalid
+          if (!isLong && stopLoss <= rawEntry) stopLoss = 0; // SL below entry in short = invalid
+        }
+        if (takeProfit > 0) {
+          if (isLong && takeProfit <= rawEntry) takeProfit = 0; // TP below entry in long = invalid
+          if (!isLong && takeProfit >= rawEntry) takeProfit = 0; // TP above entry in short = invalid
+        }
+
         const aiEntryExit: AIEntryExit = {
-          direction: parsed.direction === 'long' ? 'long' : 'short',
-          entryPrice: Number(parsed.entryPrice) || lastCandle.close,
-          stopLoss: Number(parsed.stopLoss) || 0,
-          takeProfit: Number(parsed.takeProfit) || 0,
-          confidence: Number(parsed.confidence) || 0.5,
+          direction: isLong ? 'long' : 'short',
+          entryPrice: (isFinite(rawEntry) && rawEntry > 0) ? rawEntry : lastCandle.close,
+          stopLoss,
+          takeProfit,
+          confidence: (isFinite(Number(parsed.confidence)) && Number(parsed.confidence) > 0) 
+            ? Math.min(1, Math.max(0, Number(parsed.confidence))) : 0.5,
           reasonAr: parsed.reasonAr || 'تحليل AI',
           keyLevels: Array.isArray(parsed.keyLevels) ? parsed.keyLevels.map((k: any) => ({
-            price: Number(k.price) || 0,
+            price: (isFinite(Number(k.price)) && Number(k.price) > 0) ? Number(k.price) : 0,
             label: String(k.label || ''),
-          })) : [],
+          })).filter((k: any) => k.price > 0) : [],
         };
         setEntryExit(aiEntryExit);
         setActiveTab('entry');
+        setDataSource('ai'); // FIX: Update dataSource for entry/exit too
         onPatternsDetected({
           patterns: patterns,
           supportLevels: srLevels.filter(l => l.type === 'support'),
@@ -361,6 +387,15 @@ export function AIPatternPanel({
         const localEE = generateLocalEntryExit(lastCandle, levels, lines);
         setEntryExit(localEE);
         setActiveTab('entry');
+        setDataSource('local'); // FIX: Update dataSource for fallback entry/exit
+        // FIX: Also call onPatternsDetected so entry/exit lines are drawn on chart
+        onPatternsDetected({
+          patterns: patterns,
+          supportLevels: srLevels.filter(l => l.type === 'support'),
+          resistanceLevels: srLevels.filter(l => l.type === 'resistance'),
+          trendLines: trendLines,
+          entryExit: localEE,
+        });
       }
     } catch (err: unknown) {
       // FIX: Don't show error for aborted requests
@@ -372,6 +407,15 @@ export function AIPatternPanel({
       const localEE = generateLocalEntryExit(lastCandle, levels, lines);
       setEntryExit(localEE);
       setActiveTab('entry');
+      setDataSource('local'); // FIX: Update dataSource for error fallback
+      // FIX: Also call onPatternsDetected so entry/exit lines are drawn on chart
+      onPatternsDetected({
+        patterns: patterns,
+        supportLevels: srLevels.filter(l => l.type === 'support'),
+        resistanceLevels: srLevels.filter(l => l.type === 'resistance'),
+        trendLines: trendLines,
+        entryExit: localEE,
+      });
     } finally {
       setEntryLoading(false);
     }
@@ -890,7 +934,7 @@ export function AIPatternPanel({
                           </span>
                         </div>
                         <div style={{ fontSize: 9, color: C.textDim, fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
-                          {line.startPoint.price.toFixed(2)} → {line.endPoint.price.toFixed(2)}
+                          {line.startPoint.price.toFixed(line.startPoint.price > 1000 ? 2 : 5)} → {line.endPoint.price.toFixed(line.endPoint.price > 1000 ? 2 : 5)}
                         </div>
                       </div>
                     </button>
@@ -973,9 +1017,8 @@ export function AIPatternPanel({
 
                 {/* Risk/Reward */}
                 {entryExit.stopLoss > 0 && entryExit.takeProfit > 0 && entryExit.entryPrice > 0 && (() => {
-                  const risk = Math.abs(entryExit.entryPrice - entryExit.stopLoss);
-                  const reward = Math.abs(entryExit.takeProfit - entryExit.entryPrice);
-                  const rr = risk > 0 ? (reward / risk).toFixed(1) : '—';
+                  const rrCalc = calculateRiskReward(entryExit);
+                  const rr = rrCalc.ratio > 0 ? rrCalc.ratio.toFixed(1) : '—';
                   return (
                     <div style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -983,11 +1026,16 @@ export function AIPatternPanel({
                     }}>
                       <span style={{ fontSize: 9, color: C.textMuted, fontFamily: "'Cairo', sans-serif" }}>نسبة المخاطرة/المكافأة</span>
                       <span style={{
-                        fontSize: 13, color: Number(rr) >= 2 ? C.success : Number(rr) >= 1 ? C.warning : C.danger,
+                        fontSize: 13, color: rrCalc.ratio >= 2 ? C.success : rrCalc.ratio >= 1 ? C.warning : C.danger,
                         fontWeight: 900, fontFamily: "'JetBrains Mono', monospace",
                       }}>
                         1:{rr}
                       </span>
+                      {rrCalc.riskPct > 0 && (
+                        <span style={{ fontSize: 8, color: C.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
+                          ({rrCalc.riskPct.toFixed(1)}% / +{rrCalc.rewardPct.toFixed(1)}%)
+                        </span>
+                      )}
                     </div>
                   );
                 })()}
@@ -1317,4 +1365,104 @@ function detectTrendLines(candles: CandleData[]): TrendLine[] {
   }
 
   return lines;
+}
+
+// ── Technical Indicator Context Builder ──────────────────
+// Builds a summary of key technical indicators to enrich AI analysis requests
+function buildIndicatorContext(candles: CandleData[]): string {
+  if (!candles || candles.length < 20) return '';
+
+  const closes = candles.map(c => c.close);
+  const last = closes[closes.length - 1];
+  const prev = closes[closes.length - 2];
+
+  // RSI (14-period)
+  const rsi = calculateRSI(closes, 14);
+
+  // EMA 20 and 50
+  const ema20 = calculateEMA(closes, 20);
+  const ema50 = calculateEMA(closes, 50);
+
+  // Bollinger Bands (20, 2)
+  const bb = calculateBollingerBands(closes, 20, 2);
+
+  // Simple trend detection
+  const trend = last > ema20 && ema20 > ema50 ? 'UPTREND'
+    : last < ema20 && ema20 < ema50 ? 'DOWNTREND'
+    : 'SIDEWAYS';
+
+  // MACD signal
+  const macdSignal = last > ema20 ? 'BULLISH' : 'BEARISH';
+
+  const parts = [
+    `Current Price: ${last.toFixed(last > 1000 ? 2 : 5)}`,
+    `Previous Close: ${prev.toFixed(prev > 1000 ? 2 : 5)}`,
+    `RSI(14): ${rsi.toFixed(1)} (${rsi > 70 ? 'OVERBOUGHT' : rsi < 30 ? 'OVERSOLD' : 'NEUTRAL'})`,
+    `EMA20: ${ema20.toFixed(ema20 > 1000 ? 2 : 5)}`,
+    `EMA50: ${ema50.toFixed(ema50 > 1000 ? 2 : 5)}`,
+    `Trend: ${trend}`,
+    `MACD Signal: ${macdSignal}`,
+  ];
+
+  if (bb) {
+    parts.push(`BB Upper: ${bb.upper.toFixed(bb.upper > 1000 ? 2 : 5)}`);
+    parts.push(`BB Middle: ${bb.middle.toFixed(bb.middle > 1000 ? 2 : 5)}`);
+    parts.push(`BB Lower: ${bb.lower.toFixed(bb.lower > 1000 ? 2 : 5)}`);
+    const bbPosition = last > bb.upper ? 'ABOVE_UPPER' : last < bb.lower ? 'BELOW_LOWER' : 'WITHIN_BANDS';
+    parts.push(`BB Position: ${bbPosition}`);
+  }
+
+  return parts.join(' | ');
+}
+
+function calculateRSI(closes: number[], period: number): number {
+  if (closes.length < period + 1) return 50;
+  let gains = 0;
+  let losses = 0;
+  for (let i = closes.length - period; i < closes.length; i++) {
+    const change = closes[i] - closes[i - 1];
+    if (change > 0) gains += change;
+    else losses -= change;
+  }
+  const avgGain = gains / period;
+  const avgLoss = losses / period;
+  if (avgLoss === 0) return 100;
+  const rs = avgGain / avgLoss;
+  return 100 - (100 / (1 + rs));
+}
+
+function calculateEMA(data: number[], period: number): number {
+  if (data.length < period) return data[data.length - 1] || 0;
+  const k = 2 / (period + 1);
+  let ema = data.slice(0, period).reduce((s, v) => s + v, 0) / period;
+  for (let i = period; i < data.length; i++) {
+    ema = data[i] * k + ema * (1 - k);
+  }
+  return ema;
+}
+
+function calculateBollingerBands(data: number[], period: number, multiplier: number): { upper: number; middle: number; lower: number } | null {
+  if (data.length < period) return null;
+  const slice = data.slice(-period);
+  const mean = slice.reduce((s, v) => s + v, 0) / period;
+  const stdDev = Math.sqrt(slice.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / period);
+  return {
+    upper: mean + multiplier * stdDev,
+    middle: mean,
+    lower: mean - multiplier * stdDev,
+  };
+}
+
+// ── Risk/Reward Calculator ──────────────────────────────
+export function calculateRiskReward(entryExit: AIEntryExit): { ratio: number; riskPct: number; rewardPct: number } {
+  const { entryPrice, stopLoss, takeProfit } = entryExit;
+  if (!entryPrice || entryPrice <= 0) return { ratio: 0, riskPct: 0, rewardPct: 0 };
+
+  const risk = stopLoss > 0 ? Math.abs(entryPrice - stopLoss) : 0;
+  const reward = takeProfit > 0 ? Math.abs(takeProfit - entryPrice) : 0;
+  const riskPct = risk > 0 ? (risk / entryPrice) * 100 : 0;
+  const rewardPct = reward > 0 ? (reward / entryPrice) * 100 : 0;
+  const ratio = risk > 0 ? reward / risk : 0;
+
+  return { ratio, riskPct, rewardPct };
 }

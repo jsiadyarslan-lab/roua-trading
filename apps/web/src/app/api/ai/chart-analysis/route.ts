@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { symbol, candles, instruction } = body;
+    const { symbol, candles, indicators, instruction } = body;
 
     if (!candles) {
       return NextResponse.json(
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
           },
           {
             role: 'user',
-            content: `حلل بيانات الشارت التالية لـ ${symbol}:\n\n${candles}`,
+            content: `حلل بيانات الشارت التالية لـ ${symbol}:\n\n${candles}${indicators ? `\n\nمؤشرات فنية: ${indicators}` : ''}`,
           },
         ],
         temperature: 0.3,

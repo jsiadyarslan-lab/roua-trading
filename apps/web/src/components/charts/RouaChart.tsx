@@ -201,24 +201,17 @@ export default function RouaChart({
   // occurred specifically when AI analysis was open and the user changed
   // the timeframe.
   // ═══════════════════════════════════════════════════════════════════
+  // FIX: Clean up AI overlays when timeframe changes
   useEffect(() => {
-    const chartApi = chart.chartRef?.current;
-    if (chartApi) {
-      aiOverlaySeriesRef.current.forEach(s => {
-        try { chartApi.removeSeries(s); } catch {}
-      });
-      aiOverlaySeriesRef.current = [];
+    cleanupAIOverlays();
+  }, [timeframe, cleanupAIOverlays]);
+
+  // FIX: Clean up AI overlays when AI panel is closed
+  useEffect(() => {
+    if (!showAIPanel) {
+      cleanupAIOverlays();
     }
-    // Also clear via useChart's external series tracking (belt & suspenders)
-    chart.clearExternalSeries();
-    // Remove AI price lines (support/resistance/entry/exit)
-    aiPriceLinesRef.current.forEach(id => {
-      try { chart.removePriceLine(id); } catch {}
-    });
-    aiPriceLinesRef.current = [];
-    // Clear AI patterns state — they'll be re-detected for the new timeframe
-    setAiPatterns([]);
-  }, [timeframe, chart]);
+  }, [showAIPanel, cleanupAIOverlays]);
 
   // ── Compute the timeframe's interval in seconds ──
   const tfSeconds = useMemo(() => {
@@ -689,6 +682,23 @@ export default function RouaChart({
   // FIX: Cache lightweight-charts module to avoid repeated dynamic imports
   const lightweightChartsRef = useRef<any>(null);
 
+  // FIX: Cleanup function for AI overlays — reusable across multiple call sites
+  const cleanupAIOverlays = useCallback(() => {
+    const chartApi = chart.chartRef?.current;
+    if (chartApi) {
+      aiOverlaySeriesRef.current.forEach(s => {
+        try { chartApi.removeSeries(s); } catch {}
+      });
+      aiOverlaySeriesRef.current = [];
+    }
+    chart.clearExternalSeries();
+    aiPriceLinesRef.current.forEach(id => {
+      try { chart.removePriceLine(id); } catch {}
+    });
+    aiPriceLinesRef.current = [];
+    setAiPatterns([]);
+  }, [chart]);
+
   const handlePatternsDetected = useCallback(async (result: AIAnalysisResult) => {
     setAiPatterns(result.patterns);
 
@@ -865,39 +875,23 @@ export default function RouaChart({
         aiPriceLinesRef.current.push('ai-tp');
       }
 
-      // Add entry/exit markers on chart
-      try {
-        const lastCandle = candlesRef.current[candlesRef.current.length - 1];
-        if (lastCandle) {
-          const combinedMarkers: any[] = [];
-          // Keep existing markers
-          if (newsMarkers.length) combinedMarkers.push(...createNewsChartMarkers(newsMarkers));
-          if (aiPatterns.length) {
-            aiPatterns.forEach(p => {
-              combinedMarkers.push({
-                time: p.time as any,
-                position: (p.direction === 'bullish' ? 'belowBar' : 'aboveBar') as 'belowBar' | 'aboveBar',
-                color: p.direction === 'bullish' ? '#00FFA3' : p.direction === 'bearish' ? '#FF4757' : '#fbbf24',
-                shape: (p.direction === 'bullish' ? 'arrowUp' : 'arrowDown') as 'arrowUp' | 'arrowDown',
-                text: p.labelAr || p.type,
-              });
-            });
-          }
-          if (signalMarkers.length) combinedMarkers.push(...signalMarkers);
-
-          // Add entry/exit marker
-          combinedMarkers.push({
-            time: lastCandle.time as any,
-            position: (ee.direction === 'long' ? 'belowBar' : 'aboveBar') as 'belowBar' | 'aboveBar',
-            color: ee.direction === 'long' ? '#00D4FF' : '#00D4FF',
-            shape: (ee.direction === 'long' ? 'arrowUp' : 'arrowDown') as 'arrowUp' | 'arrowDown',
-            text: ee.direction === 'long' ? 'شراء' : 'بيع',
-          });
-
-          combinedMarkers.sort((a, b) => (a.time as number) - (b.time as number));
-          chart.setMarkers(combinedMarkers);
-        }
-      } catch { /* ignore */ }
+      // FIX: Store entry/exit marker in ref for the single source-of-truth marker useEffect
+      const lastCandle = candlesRef.current[candlesRef.current.length - 1];
+      if (lastCandle) {
+        aiEntryExitMarkerRef.current = {
+          time: lastCandle.time as any,
+          position: (ee.direction === 'long' ? 'belowBar' : 'aboveBar') as 'belowBar' | 'aboveBar',
+          color: '#00D4FF',
+          shape: (ee.direction === 'long' ? 'arrowUp' : 'arrowDown') as 'arrowUp' | 'arrowDown',
+          text: ee.direction === 'long' ? 'شراء' : 'بيع',
+        };
+      }
+      // FIX: Update aiPatterns in state so the useEffect marker combiner picks them up
+      // This ensures entry/exit markers are included via the single source-of-truth marker system
+      setAiPatterns(prev => [...prev]); // trigger re-render so useEffect combines markers correctly
+    } else {
+      // No entry/exit — clear the marker ref
+      aiEntryExitMarkerRef.current = null;
     }
   }, [chart, aiPatterns, newsMarkers, signalMarkers]);
 
@@ -1006,7 +1000,10 @@ export default function RouaChart({
     return () => { cancelled = true; clearInterval(interval); };
   }, [selectedSymbol]);
 
-  // ── Apply Combined Markers (News + AI Patterns + Trading Signals) to Chart ──
+  // ── Apply Combined Markers (News + AI Patterns + Trading Signals + AI Entry/Exit) to Chart ──
+  // FIX: Single source of truth for ALL markers — no more conflicts between handlePatternsDetected and this useEffect
+  const aiEntryExitMarkerRef = useRef<any>(null);
+
   useEffect(() => {
     const combinedMarkers: any[] = [];
 
@@ -1032,6 +1029,11 @@ export default function RouaChart({
     // Add trading signal markers (BUY/SELL/WAIT)
     if (signalMarkers.length) {
       combinedMarkers.push(...signalMarkers);
+    }
+
+    // Add AI entry/exit marker (from last handlePatternsDetected call)
+    if (aiEntryExitMarkerRef.current) {
+      combinedMarkers.push(aiEntryExitMarkerRef.current);
     }
 
     // Sort by time and apply

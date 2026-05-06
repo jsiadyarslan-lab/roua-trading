@@ -106,6 +106,10 @@ export function ChartToolbar(props: ChartToolbarProps) {
   const chartTypeRef = useRef<HTMLDivElement>(null);
   const tfRef = useRef<HTMLDivElement>(null);
   const exportRef = useRef<HTMLDivElement>(null);
+  // Refs for portal dropdown panels (rendered in document.body via createPortal)
+  const tfPanelRef = useRef<HTMLDivElement>(null);
+  const ctPanelRef = useRef<HTMLDivElement>(null);
+  const exportPanelRef = useRef<HTMLDivElement>(null);
 
   // ── Fixed-position dropdown placement (avoids overflow clipping) ──
   const [tfPanelPos, setTfPanelPos] = useState<{ top: number; right: number } | null>(null);
@@ -150,11 +154,25 @@ export function ChartToolbar(props: ChartToolbarProps) {
   }, [showExportPanel, updateExportPos]);
 
   // Close panels on outside click
+  // FIX: Also check portal panel refs — panels are rendered via createPortal into
+  // document.body, so clicks inside them are NOT inside the trigger button refs.
+  // Without this check, mousedown on a portal button closes the panel BEFORE the
+  // click event fires, making the buttons unresponsive.
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (chartTypeRef.current && !chartTypeRef.current.contains(e.target as Node)) setShowChartTypePanel(false);
-      if (tfRef.current && !tfRef.current.contains(e.target as Node)) setShowTimeframePanel(false);
-      if (exportRef.current && !exportRef.current.contains(e.target as Node)) setShowExportPanel(false);
+      const target = e.target as Node;
+      // Chart type panel
+      const ctInside = (chartTypeRef.current && chartTypeRef.current.contains(target))
+        || (ctPanelRef.current && ctPanelRef.current.contains(target));
+      if (!ctInside) setShowChartTypePanel(false);
+      // Timeframe panel
+      const tfInside = (tfRef.current && tfRef.current.contains(target))
+        || (tfPanelRef.current && tfPanelRef.current.contains(target));
+      if (!tfInside) setShowTimeframePanel(false);
+      // Export panel
+      const exportInside = (exportRef.current && exportRef.current.contains(target))
+        || (exportPanelRef.current && exportPanelRef.current.contains(target));
+      if (!exportInside) setShowExportPanel(false);
     };
     const scrollHandler = () => {
       setShowChartTypePanel(false);
@@ -274,7 +292,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
   // ── Portal dropdown panels ──
   const tfPanelPortal = showTimeframePanel && tfPanelPos ? createPortal(
-    <div style={{ ...panelBaseStyle, top: tfPanelPos.top, right: tfPanelPos.right, minWidth: mobile ? 200 : 240 }}>
+    <div ref={tfPanelRef} style={{ ...panelBaseStyle, top: tfPanelPos.top, right: tfPanelPos.right, minWidth: mobile ? 200 : 240 }}>
       <div style={{ fontSize: 9, color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>الإطار الزمني</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 3 }}>
         {TIMEFRAMES.map(tf => {
@@ -309,7 +327,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
   ) : null;
 
   const ctPanelPortal = showChartTypePanel && ctPanelPos ? createPortal(
-    <div style={{ ...panelBaseStyle, top: ctPanelPos.top, left: ctPanelPos.left, minWidth: mobile ? 130 : 150 }}>
+    <div ref={ctPanelRef} style={{ ...panelBaseStyle, top: ctPanelPos.top, left: ctPanelPos.left, minWidth: mobile ? 130 : 150 }}>
       <div style={{ fontSize: 9, color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>نوع الشارت</div>
       {CHART_TYPES.map(ct => (
         <button
@@ -332,7 +350,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
   ) : null;
 
   const exportPanelPortal = showExportPanel && exportPanelPos ? createPortal(
-    <div style={{ ...panelBaseStyle, top: exportPanelPos.top, right: exportPanelPos.right, minWidth: mobile ? 160 : 120 }}>
+    <div ref={exportPanelRef} style={{ ...panelBaseStyle, top: exportPanelPos.top, right: exportPanelPos.right, minWidth: mobile ? 160 : 120 }}>
       {mobile ? [
         { label: '📐 أدوات الرسم', action: onToggleDrawings },
         { label: '🗑️ مسح الرسومات', action: onClearDrawings },

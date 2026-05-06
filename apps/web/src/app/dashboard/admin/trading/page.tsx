@@ -187,7 +187,7 @@ export default function AdminTradingPage() {
           { label: 'إجمالي P&L', value: `$${totalPnl.toLocaleString()}`, color: totalPnl > 0 ? COLORS.success : totalPnl < 0 ? COLORS.danger : COLORS.muted, icon: DollarSign, trend: totalPnl > 0 ? '+' : '' },
           { label: 'المراكز النشطة', value: `${stats.activePositions}`, color: COLORS.accent, icon: Package, trend: '' },
           { label: 'أوامر معلقة', value: `${stats.pendingOrders}`, color: COLORS.amber, icon: Clock, trend: '' },
-          { label: 'صفقات اليوم', value: `${stats.dailyTrades}`, color: COLORS.success, icon: BarChart3, trend: stats.winRate > 0 ? `${stats.winRate}%` : '' },
+          { label: 'صفقات اليوم (حقيقية)', value: `${stats.dailyTrades}`, color: COLORS.success, icon: BarChart3, trend: stats.autoPaperTrades ? `+${stats.autoPaperTrades} ورقية` : '' },
         ].map((card, i) => {
           const CardIcon = card.icon
           return (

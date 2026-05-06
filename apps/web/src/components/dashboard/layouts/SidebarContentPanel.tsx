@@ -227,7 +227,7 @@ function TradingAgentMini() {
           border: '1px solid rgba(255,255,255,0.06)',
           borderRadius: 8, padding: '8px 10px',
         }}>
-          <div style={{ fontSize: 9, color: '#5A6178', fontWeight: 700 }}>صفقات اليوم</div>
+          <div style={{ fontSize: 9, color: '#5A6178', fontWeight: 700 }}>صفقاتك اليوم</div>
           <div style={{
             fontSize: 14, fontWeight: 800, color: '#00D4FF',
             fontFamily: "'JetBrains Mono', monospace",

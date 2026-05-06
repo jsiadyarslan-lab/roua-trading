@@ -317,10 +317,10 @@ export function SmartExecutorPanel() {
         borderBottom: '1px solid rgba(0,212,255,0.08)',
       }}>
         <StatBox label="Briefs نشطة" value={activeBriefs.toString()} color={T.cyan} />
-        <StatBox label="تنفيذات اليوم" value={todayExecs.toString()} color={T.green} />
+        <StatBox label="تنفيذات المنفذ" value={todayExecs.toString()} color={T.green} />
         <StatBox label="مراكز مفتوحة" value={(status?.openPositions ?? 0).toString()} color={T.purple} />
         <StatBox label="ر/خ اليوم" value={`$${Number(userState?.dailyPnL ?? 0).toFixed(2)}`} color={getPnlColor(Number(userState?.dailyPnL ?? 0))} />
-        <StatBox label="صفقات اليوم" value={(userState?.dailyTrades ?? 0).toString()} color={T.amber} />
+        <StatBox label="صفقاتك اليوم" value={(userState?.dailyTrades ?? 0).toString()} color={T.amber} />
         <StatBox label="خسائر متتالية" value={(userState?.consecutiveLosses ?? 0).toString()} color={(userState?.consecutiveLosses ?? 0) >= 3 ? T.danger : T.text3} />
       </div>
 
@@ -340,6 +340,15 @@ export function SmartExecutorPanel() {
           </span>
           <span style={{ color: T.text3 }}>• خطر: {userState.riskPerTradePercent}%</span>
           <span style={{ color: T.text3 }}>• حد المراكز: {userState.maxOpenPositions}</span>
+        </div>
+      )}
+
+      {/* Paper Trading Warning */}
+      {isEnabled && userState?.isPaperTrading && (
+        <div style={{
+          padding: '4px 8px', background: 'rgba(0,212,255,0.06)', borderBottom: '1px solid rgba(0,212,255,0.12)',
+        }}>
+          <span style={{ fontSize: 7, color: T.cyan, fontWeight: 600 }}>⚠ تداول ورقي تجريبي — هذه ليست صفقات حقيقية بأموال حقيقية</span>
         </div>
       )}
 

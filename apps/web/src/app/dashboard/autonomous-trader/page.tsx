@@ -574,7 +574,7 @@ export default function AutonomousTraderPage() {
           />
           <StatCard
             icon={<Activity size={13} />}
-            label="صفقات اليوم"
+            label="صفقاتك اليوم"
             value={String(agentState?.dailyTradesCount ?? 0)}
             color={T.accent}
           />

@@ -296,6 +296,7 @@ export class TradingService {
             price: tradePrice,
             fee: execution.fee,
             feeCurrency: execution.feeCurrency,
+            source: request.source || 'user_manual',
           },
         });
       }
@@ -679,6 +680,7 @@ export class TradingService {
           fee: execution.fee,
           feeCurrency: execution.feeCurrency,
           pnl,
+          source: 'user_manual',
         },
       });
 

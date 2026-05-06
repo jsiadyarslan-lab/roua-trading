@@ -87,13 +87,15 @@ export class SmartExecutorService implements OnModuleDestroy {
   }
 
   /**
-   * FIX: Auto-start the executor on startup AND auto-enable a system user
-   * in paper trading mode. This ensures trades are actually executed, not just
-   * monitored. Previously, the executor auto-started but had zero enabled users,
-   * so it would tick forever without ever executing a single trade.
+   * Auto-start the executor on startup.
+   * CRITICAL FIX: Do NOT auto-enable any users. Previously, the executor
+   * would auto-create a "system-auto-trader" paper trading user and execute
+   * trades on their behalf without any real user consent. This created phantom
+   * trades that inflated statistics and misled users about platform activity.
    *
-   * The system user ("auto-paper-trader") uses paper trading mode ($100,000 balance)
-   * and is completely safe — no real money is at risk.
+   * Now: The executor starts in MONITORING mode only. It watches briefs but
+   * will NOT execute any trades until a real user explicitly enables the
+   * executor for their account via the dashboard "تشغيل" button.
    */
   private async _autoStart(): Promise<void> {
     try {
@@ -115,94 +117,29 @@ export class SmartExecutorService implements OnModuleDestroy {
 
       this.logger.log(`⚔️ Auto-start check: ${activeBriefs} active briefs available`);
 
-      // Always auto-start — the executor will only process briefs for enabled users
-      // so it's safe to have it running even if no users have enabled it yet
+      // Start the executor in monitoring mode — NO auto-enable of any user.
+      // Trades will only execute when a real user explicitly enables the executor.
       await this.start('system-auto');
-      this.logger.log('⚔️ Smart Executor AUTO-STARTED — monitoring briefs for enabled users');
+      this.logger.log('⚔️ Smart Executor AUTO-STARTED in monitoring mode — waiting for users to enable');
 
-      // FIX: Auto-enable system paper-trading user
-      // Without at least one enabled user, the executor runs but NEVER executes trades.
-      // The system user trades in paper mode ($100K balance) — zero risk.
+      // REMOVED: Auto-enable system paper-trading user.
+      // This was creating phantom trades that inflated statistics.
+      // Users must now explicitly enable the executor via the dashboard.
       const enabledUsers = await this._getEnabledUsers();
       if (enabledUsers.length === 0) {
-        this.logger.log('⚔️ No enabled users found — auto-enabling system paper-trading user');
-        await this._autoEnableSystemUser();
+        this.logger.log('⚔️ No enabled users — executor is monitoring only. Users must click "تشغيل" to enable trading.');
       } else {
-        this.logger.log(`⚔️ ${enabledUsers.length} enabled user(s) found — no auto-enable needed`);
+        this.logger.log(`⚔️ ${enabledUsers.length} user(s) have explicitly enabled the executor`);
       }
     } catch (error: any) {
       this.logger.warn(`⚔️ Auto-start failed (non-critical): ${error.message}`);
     }
   }
 
-  /**
-   * FIX: Auto-enable a system user for paper trading.
-   * This ensures the executor can actually execute trades without requiring
-   * a user to manually click "Enable" in the dashboard.
-   *
-   * Two strategies:
-   * 1. Find an existing user in the DB and enable them in paper-trading mode
-   * 2. If no users exist, create a "system-auto-trader" user
-   *
-   * Paper trading is safe — no real money is used.
-   */
-  private async _autoEnableSystemUser(): Promise<void> {
-    try {
-      // Strategy 1: Find any existing user in the database
-      let userId: string | null = null;
-
-      try {
-        const anyUser = await this.prisma.user.findFirst({
-          where: { email: { not: '' } },
-          orderBy: { createdAt: 'desc' },
-        });
-        if (anyUser) {
-          userId = anyUser.id;
-          this.logger.log(`⚔️ Found existing user ${anyUser.email || anyUser.id} — enabling paper trading`);
-        }
-      } catch (dbErr: any) {
-        this.logger.warn(`⚔️ Could not query users from DB: ${dbErr.message}`);
-      }
-
-      // Strategy 2: If no user found, check Redis for any cached user data
-      if (!userId) {
-        try {
-          const userKeys = await this.redis.scanKeys('user:*');
-          for (const key of userKeys) {
-            const data = await this.redis.get(key);
-            if (data) {
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.id) {
-                  userId = parsed.id;
-                  break;
-                }
-              } catch {}
-            }
-          }
-        } catch (redisErr: any) {
-          this.logger.debug(`⚔️ Could not find user in Redis: ${redisErr.message}`);
-        }
-      }
-
-      // Strategy 3: Use a system user ID — the executor will create a paper credential
-      if (!userId) {
-        userId = 'system-auto-trader';
-        this.logger.log('⚔️ No existing user found — using system-auto-trader for paper trading');
-      }
-
-      // Enable the user in paper-trading mode
-      await this.enableUser(userId, {
-        isPaperTrading: true,
-        maxOpenPositions: 3,     // Conservative for auto-trading
-        riskPerTradePercent: 1,  // 1% risk per trade
-      });
-
-      this.logger.log(`⚔️ System paper-trading user ENABLED: ${userId}`);
-    } catch (error: any) {
-      this.logger.error(`⚔️ Failed to auto-enable system user: ${error.message}`);
-    }
-  }
+  // REMOVED: _autoEnableSystemUser() — This function auto-created a paper-trading
+  // user and enabled the executor for them without consent. This caused phantom
+  // trades to be created and counted as real trades in statistics.
+  // Users must now explicitly enable the executor via the dashboard.
 
   // ── Lifecycle ──
 
@@ -933,6 +870,7 @@ export class SmartExecutorService implements OnModuleDestroy {
         price: currentPrice,
         stopLoss: brief.stopLoss,
         takeProfit: brief.takeProfit,
+        source: userState.isPaperTrading ? 'smart_executor' : 'smart_executor',
       };
 
       // FIX: Run RiskGatekeeper 5-point validation BEFORE placing the order.

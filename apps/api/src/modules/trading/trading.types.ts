@@ -92,6 +92,8 @@ export interface PlaceOrderRequest {
   stopLoss?: number;
   takeProfit?: number;
   signalId?: string;
+  /** Source of the trade: 'user_manual' (default), 'smart_executor', 'auto_paper' */
+  source?: string;
 }
 
 export interface ClosePositionRequest {

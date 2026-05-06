@@ -359,6 +359,7 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
             type: 'ENTRY',
             quantity: filledQuantity,
             price: fillPrice,
+            source: (message as any).source || 'user_manual',
           },
         });
       }, {

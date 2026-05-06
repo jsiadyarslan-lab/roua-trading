@@ -1,12 +1,16 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 export default function CosmicCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const infoPanelRef = useRef<HTMLDivElement>(null);
-  const infoTitleRef = useRef<HTMLHeadingElement>(null);
-  const infoDescRef = useRef<HTMLParagraphElement>(null);
+  // FIX: Use React state instead of direct DOM mutations for info panel.
+  // Direct textContent/classList mutations in requestAnimationFrame bypass
+  // React's reconciliation and cause "Node cannot be found in the current page"
+  // errors when React tries to update nodes that were modified outside its control.
+  const [activeSatellite, setActiveSatellite] = useState<{ name: string; desc: string; color: string } | null>(null);
+  // Track last active satellite name to avoid unnecessary re-renders
+  const lastSatNameRef = useRef<string | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -375,22 +379,16 @@ export default function CosmicCanvas() {
         if (Math.sqrt(dx*dx + dy*dy) < 28) hoveredSat = sat;
       });
 
-      const panel = infoPanelRef.current;
-      const titleEl = infoTitleRef.current;
-      const descEl = infoDescRef.current;
       const activeSat = hoveredSat as Satellite | null;
-      if (activeSat) {
-        if (panel) panel.classList.add('active');
-        if (titleEl) {
-          titleEl.textContent = activeSat.name;
-          titleEl.style.color = activeSat.color;
-        }
-        if (descEl) descEl.textContent = activeSat.desc;
-        canvas!.style.cursor = 'pointer';
-      } else {
-        if (panel) panel.classList.remove('active');
-        canvas!.style.cursor = 'default';
+      // FIX: Use React state setter instead of direct DOM mutations.
+      // Only update state when satellite actually changes to avoid
+      // excessive re-renders from requestAnimationFrame (60fps).
+      const newName = activeSat?.name ?? null;
+      if (newName !== lastSatNameRef.current) {
+        lastSatNameRef.current = newName;
+        setActiveSatellite(activeSat ? { name: activeSat.name, desc: activeSat.desc, color: activeSat.color } : null);
       }
+      canvas!.style.cursor = activeSat ? 'pointer' : 'default';
     }
 
     function drawParticles() {
@@ -457,9 +455,12 @@ export default function CosmicCanvas() {
       <div id="canvas-container">
         <canvas id="universe" ref={canvasRef} />
       </div>
-      <div className="satellites-info" id="infoPanel" ref={infoPanelRef}>
-        <h3 id="infoTitle" ref={infoTitleRef}>نموذج الذكاء الاصطناعي</h3>
-        <p id="infoDesc" ref={infoDescRef}>وصف النموذج</p>
+      {/* FIX: Use React state + conditional className instead of direct DOM mutations */}
+      <div className={`satellites-info${activeSatellite ? ' active' : ''}`} id="infoPanel">
+        <h3 id="infoTitle" style={activeSatellite ? { color: activeSatellite.color } : undefined}>
+          {activeSatellite?.name ?? 'نموذج الذكاء الاصطناعي'}
+        </h3>
+        <p id="infoDesc">{activeSatellite?.desc ?? 'وصف النموذج'}</p>
       </div>
     </>
   );

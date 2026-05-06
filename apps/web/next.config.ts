@@ -82,6 +82,18 @@ const nextConfig: NextConfig = {
 
   async rewrites() {
     return [
+      // ── Socket.IO proxy to NestJS ──
+      // FIX: Socket.IO runs on NestJS (port 3001), but all traffic hits
+      // Next.js (port 3000). Without this rewrite, /socket.io requests
+      // return 404 because Next.js doesn't serve Socket.IO.
+      // This rewrite proxies the initial HTTP polling request to NestJS.
+      // The WebSocket upgrade is handled by the client connecting directly
+      // to port 3001 via the Socket.IO transports config, or falls back
+      // to long-polling through this rewrite.
+      {
+        source: '/socket.io/:path*',
+        destination: `${apiTarget}/socket.io/:path*`,
+      },
       // ── Health check ──
       {
         source: '/api/health',

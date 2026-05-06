@@ -97,6 +97,17 @@ export class SmartExecutorService implements OnModuleDestroy {
    */
   private async _autoStart(): Promise<void> {
     try {
+      // Check if executor was running before restart (stored in Redis)
+      const savedState = await this.redis.get(this.REDIS_GLOBAL_STATE);
+      if (savedState) {
+        try {
+          const parsed = JSON.parse(savedState);
+          if (parsed.isRunning) {
+            this.logger.log('⚔️ Restoring executor running state from Redis (previous instance)');
+          }
+        } catch {}
+      }
+
       if (this.isRunning) return;
 
       // Check if there are any active briefs from the council

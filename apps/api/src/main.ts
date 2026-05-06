@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import * as cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -129,6 +130,15 @@ async function bootstrap() {
         path: req.url,
       });
     });
+
+    // ── Socket.IO Adapter ──
+    // FIX: Explicitly bind the Socket.IO adapter to ensure Socket.IO's HTTP
+    // handler is attached to the NestJS HTTP server. Without this, Socket.IO
+    // polling requests to /socket.io/ return 404 because NestJS's Express
+    // server doesn't know about Socket.IO's routes.
+    // The IoAdapter creates a Socket.IO Server instance and binds it to the
+    // same HTTP server that NestJS uses, making /socket.io/ endpoints accessible.
+    app.useWebSocketAdapter(new IoAdapter(app));
 
     // Global prefix for all routes
     app.setGlobalPrefix('api');

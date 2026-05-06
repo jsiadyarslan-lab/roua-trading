@@ -179,7 +179,17 @@ export function AIPatternPanel({
       // FIX: Check if request was aborted
       if (controller.signal.aborted) return;
 
-      if (!response.ok) throw new Error('فشل في تحليل الأنماط');
+      if (!response.ok) {
+        // Try to extract error message from API response
+        let apiError = 'فشل في تحليل الأنماط';
+        try {
+          const errData = await response.json();
+          if (errData.error) apiError = errData.error;
+          else if (errData.note) apiError = errData.note;
+        } catch {}
+        console.error('[AIPatternPanel] API error:', response.status, apiError);
+        throw new Error(apiError);
+      }
 
       const result = await response.json();
       const detectedPatterns: AIPattern[] = [];
@@ -337,7 +347,15 @@ export function AIPatternPanel({
       // FIX: Check if request was aborted
       if (controller.signal.aborted) return;
 
-      if (!response.ok) throw new Error('فشل في تحليل نقاط الدخول');
+      if (!response.ok) {
+        let apiError = 'فشل في تحليل نقاط الدخول';
+        try {
+          const errData = await response.json();
+          if (errData.error) apiError = errData.error;
+        } catch {}
+        console.error('[AIPatternPanel] Entry/Exit API error:', response.status, apiError);
+        throw new Error(apiError);
+      }
 
       const result = await response.json();
       let parsed = result.patterns || result.data || result;

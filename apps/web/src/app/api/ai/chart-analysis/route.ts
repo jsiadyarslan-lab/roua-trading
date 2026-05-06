@@ -225,16 +225,27 @@ export async function POST(request: NextRequest) {
       || 'unknown';
     const { allowed, retryAfterSec } = checkRateLimit(clientIp);
     if (!allowed) {
+      console.warn('[ai/chart-analysis] Rate limited:', clientIp);
       return NextResponse.json(
         { success: false, error: `طلبات كثيرة جداً. حاول مجدداً بعد ${retryAfterSec} ثانية` },
         { status: 429, headers: { 'Retry-After': String(retryAfterSec) } }
       );
     }
 
-    const body = await request.json();
+    let body: any;
+    try {
+      body = await request.json();
+    } catch (parseErr: any) {
+      console.error('[ai/chart-analysis] JSON parse error:', parseErr?.message);
+      return NextResponse.json(
+        { success: false, error: 'طلب غير صالح — فشل في تحليل JSON' },
+        { status: 400 }
+      );
+    }
     const { symbol, candles, indicators, instruction } = body;
 
     if (!candles) {
+      console.warn('[ai/chart-analysis] No candles data provided, symbol:', symbol);
       return NextResponse.json(
         { success: false, error: 'بيانات الشارت مطلوبة' },
         { status: 400 }

@@ -220,6 +220,21 @@ export async function GET(request: NextRequest) {
       return response
     }
 
+    // ── SKIP_LANDING mode: return virtual guest for debugging ──
+    if (process.env.SKIP_LANDING === 'true') {
+      return NextResponse.json({
+        authenticated: false,
+        isGuest: true,
+        user: {
+          id: 'guest-debug-skip-landing',
+          email: 'guest-debug@roua.auto',
+          displayName: 'Debug Guest',
+          tier: 'free',
+          isGuest: true,
+        },
+      })
+    }
+
     // ── No session, no email → not authenticated ──
     return NextResponse.json({
       authenticated: false,

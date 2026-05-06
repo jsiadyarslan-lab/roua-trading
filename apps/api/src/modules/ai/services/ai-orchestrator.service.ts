@@ -1513,8 +1513,12 @@ export class AIOrchestratorService implements OnModuleDestroy {
   }
 
   private async _fetchQuickMarketData(symbol: string): Promise<{ price: number; rsi: number; macd: string; change24h?: number }> {
-    // Normalize symbol for Binance: BTC/USD → BTCUSDT, ETH/USD → ETHUSDT
-    const binanceSymbol = symbol.replace(/[\/\-]/g, '').replace('USD', 'USDT').toUpperCase();
+    // FIX: Normalize symbol for Binance — handle both /USD and /USDT pairs correctly.
+    // Bug: The old code `symbol.replace('USD', 'USDT')` would transform "BTCUSDT" → "BTCUSDTT"
+    // because it replaces the "USD" inside "USDT", adding an extra T.
+    // Fix: First strip slashes, then check if it already ends with "USDT" before replacing.
+    const stripped = symbol.replace(/[\/\-]/g, '').toUpperCase();
+    const binanceSymbol = stripped.endsWith('USDT') ? stripped : stripped.replace('USD', 'USDT');
 
     // FIX: Try ALL price sources in parallel — first valid price wins!
     // Previous code only tried Binance → CoinGecko sequentially, which fails on

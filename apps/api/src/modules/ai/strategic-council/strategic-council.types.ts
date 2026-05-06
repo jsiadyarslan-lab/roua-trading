@@ -39,6 +39,8 @@ export interface CouncilSessionResult {
   briefsCancelled: number;
   briefsExecuted: number;
   durationMs: number;
+  /** Diagnostic log entries for debugging why briefs aren't created */
+  diagnostics?: string[];
 }
 
 /** Pairs that the Strategic Council MUST review in every session */

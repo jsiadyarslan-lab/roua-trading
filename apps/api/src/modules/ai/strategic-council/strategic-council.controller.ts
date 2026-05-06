@@ -151,46 +151,117 @@ export class StrategicCouncilController {
   @Get('debug')
   async debugConsensus(@Query('pair') pair?: string) {
     const testPair = pair || 'BTC/USDT';
+    const diagnostic: any = { pair: testPair, steps: {} };
+
     try {
-      // 1. Get consensus (forceFresh to bypass cache)
-      const consensus = await this.orchestrator.getConsensusAnalysis(testPair, { forceFresh: true });
+      // Step 1: Test market data fetch
+      try {
+        const marketData = await this.orchestrator.fetchQuickMarketData(testPair);
+        diagnostic.steps.marketData = {
+          success: marketData.price > 0,
+          price: marketData.price,
+          rsi: marketData.rsi,
+          macd: marketData.macd,
+          change24h: marketData.change24h,
+        };
+      } catch (err: any) {
+        diagnostic.steps.marketData = { success: false, error: err.message };
+      }
 
-      // 2. Test brief creation data (without actually creating)
-      const isAIFallback = consensus.isFallback === true || consensus.consensusScore === 0;
-      const wouldCreateBrief = !isAIFallback && consensus.recommendation !== 'HOLD' && consensus.consensusScore >= 15;
-      const direction = consensus.recommendation === 'BUY' ? 'BUY' : consensus.recommendation === 'SELL' ? 'SELL' : 'HOLD';
+      // Step 2: Test consensus analysis (with forceFresh)
+      try {
+        const consensus = await this.orchestrator.getConsensusAnalysis(testPair, { forceFresh: true });
+        const isAIFallback = consensus.isFallback === true || consensus.consensusScore === 0;
+        const wouldCreateBrief = !isAIFallback && consensus.recommendation !== 'HOLD' && consensus.consensusScore >= 15;
+        const direction = consensus.recommendation === 'BUY' ? 'BUY' : consensus.recommendation === 'SELL' ? 'SELL' : 'HOLD';
 
-      return {
-        success: true,
-        data: {
-          pair: testPair,
-          consensus: {
-            recommendation: consensus.recommendation,
-            consensusScore: consensus.consensusScore,
-            isFallback: consensus.isFallback,
-            analysesCount: consensus.analyses?.length || 0,
-            models: consensus.analyses?.map((a: any) => `${a.role}→${a.vote}(${a.confidence}%)`) || [],
-          },
-          decision: {
-            isAIFallback,
-            wouldCreateBrief,
-            direction,
-            reason: isAIFallback
-              ? 'AI fallback - would try technical analysis'
-              : consensus.recommendation === 'HOLD'
-                ? 'AI says HOLD - would try technical override'
-                : consensus.consensusScore < 15
-                  ? `Score too low (${consensus.consensusScore}% < 15%)`
-                  : `Would create ${direction} brief`,
-          },
-        },
-      };
+        diagnostic.steps.consensus = {
+          success: true,
+          recommendation: consensus.recommendation,
+          consensusScore: consensus.consensusScore,
+          isFallback: consensus.isFallback,
+          analysesCount: consensus.analyses?.length || 0,
+          models: consensus.analyses?.map((a: any) => `${a.role}→${a.vote}(${a.confidence}%)`) || [],
+          isAIFallback,
+          wouldCreateBrief,
+          direction,
+          reason: isAIFallback
+            ? 'AI fallback - would try technical analysis'
+            : consensus.recommendation === 'HOLD'
+              ? 'AI says HOLD - would try technical override'
+              : consensus.consensusScore < 15
+                ? `Score too low (${consensus.consensusScore}% < 15%)`
+                : `Would create ${direction} brief`,
+        };
+      } catch (err: any) {
+        diagnostic.steps.consensus = { success: false, error: err.message };
+      }
+
+      // Step 3: Test DB brief creation (create and immediately delete)
+      try {
+        const marketData = diagnostic.steps.marketData?.price > 0
+          ? { price: diagnostic.steps.marketData.price }
+          : await this.orchestrator.fetchQuickMarketData(testPair);
+
+        if (marketData.price > 0) {
+          const testBrief = await (this.councilService as any).prisma.tradingBrief.create({
+            data: {
+              pair: testPair,
+              direction: 'BUY' as any,
+              entryPrice: marketData.price,
+              stopLoss: marketData.price * 0.995,
+              takeProfit: marketData.price * 1.01,
+              confidence: 99,
+              timeframe: 'H1' as any,
+              expiresAt: new Date(Date.now() + 60000), // 1 min
+              isActive: true,
+              strictRules: '{}',
+              lastReviewedAt: new Date(),
+              reviewStatus: 'ACTIVE' as any,
+              analysisSummary: 'DIAGNOSTIC TEST — will be deleted',
+            },
+          });
+
+          // Delete the test brief immediately
+          await (this.councilService as any).prisma.tradingBrief.delete({
+            where: { id: testBrief.id },
+          });
+
+          diagnostic.steps.dbCreate = {
+            success: true,
+            createdId: testBrief.id,
+            deleted: true,
+            message: 'Brief created and deleted successfully — DB is working',
+          };
+        } else {
+          diagnostic.steps.dbCreate = { success: false, error: 'No price available for test brief' };
+        }
+      } catch (err: any) {
+        diagnostic.steps.dbCreate = { success: false, error: err.message, stack: err.stack?.slice(0, 500) };
+      }
+
+      // Step 4: Check if TradingBrief table has correct schema
+      try {
+        const columns = await (this.councilService as any).prisma.$queryRaw`
+          SELECT column_name, data_type, is_nullable
+          FROM information_schema.columns
+          WHERE table_name = 'TradingBrief'
+          ORDER BY ordinal_position
+        `;
+        diagnostic.steps.tableSchema = { success: true, columns };
+      } catch (err: any) {
+        diagnostic.steps.tableSchema = { success: false, error: err.message };
+      }
+
+      diagnostic.success = true;
+      diagnostic.canCreateBriefs =
+        diagnostic.steps.marketData?.success &&
+        diagnostic.steps.consensus?.wouldCreateBrief &&
+        diagnostic.steps.dbCreate?.success;
+
+      return { success: true, data: diagnostic };
     } catch (error: any) {
-      return {
-        success: false,
-        error: error.message,
-        pair: testPair,
-      };
+      return { success: false, error: error.message, data: diagnostic };
     }
   }
 }

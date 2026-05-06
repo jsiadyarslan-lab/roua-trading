@@ -142,6 +142,7 @@ export class StrategicCouncilService {
       briefsCancelled: 0,
       briefsExecuted: 0,
       durationMs: 0,
+      diagnostics: [],
     };
 
     try {
@@ -267,6 +268,7 @@ export class StrategicCouncilService {
       briefsCancelled: 0,
       briefsExecuted: 0,
       durationMs: 0,
+      diagnostics: [],
     };
 
     const startTime = Date.now();
@@ -472,11 +474,14 @@ export class StrategicCouncilService {
     // The orchestrator's fetcher uses multiple parallel sources (Binance, CoinGecko, CoinCap, Bybit)
     // and works reliably on cloud platforms.
     let currentPrice = 0;
+    let priceSource = 'none';
     try {
       const marketData = await this.orchestrator.fetchQuickMarketData(pair);
       currentPrice = marketData.price;
-    } catch {
-      this.logger.warn(`🏛️ Orchestrator market data failed for ${pair} — trying ExchangeService`);
+      priceSource = 'orchestrator';
+    } catch (e: any) {
+      this.logger.warn(`🏛️ Orchestrator market data failed for ${pair}: ${e.message} — trying ExchangeService`);
+      result.diagnostics?.push(`${pair}: orchestrator price failed: ${e.message}`);
     }
 
     // Fallback: try ExchangeService if orchestrator failed
@@ -484,16 +489,21 @@ export class StrategicCouncilService {
       try {
         const quote = await this.exchangeService.getQuote(pair);
         currentPrice = quote.price;
-      } catch {
+        priceSource = 'exchange';
+      } catch (e: any) {
         this.logger.warn(`🏛️ Could not fetch price for ${pair} from any source — skipping`);
+        result.diagnostics?.push(`${pair}: NO PRICE from any source — skipped`);
         return;
       }
     }
 
     if (currentPrice <= 0) {
       this.logger.warn(`🏛️ Invalid price for ${pair}: ${currentPrice} — skipping`);
+      result.diagnostics?.push(`${pair}: invalid price ${currentPrice} — skipped`);
       return;
     }
+
+    result.diagnostics?.push(`${pair}: price=${currentPrice} from ${priceSource}`);
 
     // Analyze each timeframe
     for (const timeframe of COUNCIL_TIMEFRAMES) {
@@ -501,6 +511,7 @@ export class StrategicCouncilService {
         await this._analyzePairTimeframe(pair, timeframe, currentPrice, result);
       } catch (error: any) {
         this.logger.error(`🏛️ Analysis failed for ${pair} ${timeframe}: ${error.message}`);
+        result.diagnostics?.push(`${pair} ${timeframe}: ANALYSIS ERROR: ${error.message}`);
       }
     }
   }
@@ -547,6 +558,7 @@ export class StrategicCouncilService {
       `isFallback=${isAIFallback}, analyses=${consensus.analyses?.length || 0}, ` +
       `existingBrief=${existingBrief ? existingBrief.id : 'none'}`,
     );
+    result.diagnostics?.push(`${pair} ${timeframe}: rec=${consensus.recommendation} score=${consensus.consensusScore}% fallback=${isAIFallback} models=${consensus.analyses?.length || 0}`);
 
     // FIX: Even when AI gives HOLD, try technical analysis as fallback.
     // In active Forex markets, there's ALWAYS a direction. The AI saying HOLD
@@ -610,6 +622,7 @@ export class StrategicCouncilService {
 
       // Pure HOLD — technical analysis also shows no clear direction
       // Keep existing brief if any, don't cancel it
+      result.diagnostics?.push(`${pair} ${timeframe}: Pure HOLD — no directional signal`);
       if (existingBrief) {
         await this.prisma.tradingBrief.update({
           where: { id: existingBrief.id },
@@ -626,6 +639,7 @@ export class StrategicCouncilService {
     // handles downside protection. Skipping weak signals means no briefs ever.
     if (!isAIFallback && consensus.recommendation !== 'HOLD' && consensus.consensusScore < 15) {
       this.logger.debug(`🏛️ Consensus too low (${consensus.consensusScore}%) for ${pair} ${timeframe} — skipping`);
+      result.diagnostics?.push(`${pair} ${timeframe}: SKIPPED — consensus too low (${consensus.consensusScore}% < 15%)`);
       if (existingBrief) {
         await this.prisma.tradingBrief.update({
           where: { id: existingBrief.id },
@@ -724,8 +738,10 @@ export class StrategicCouncilService {
         });
         result.briefsIssued++;
         this.logger.log(`🏛️ New brief for ${pair} ${timeframe}: ${direction} @ ${entryPrice} (confidence: ${effectiveConsensus.consensusScore}%)`);
+        result.diagnostics?.push(`${pair} ${timeframe}: BRIEF CREATED ${direction} @ ${entryPrice} conf=${effectiveConsensus.consensusScore}%`);
       } catch (dbError: any) {
         this.logger.error(`🏛️ FAILED to create brief for ${pair} ${timeframe}: ${dbError.message} | data: direction=${direction} entryPrice=${entryPrice} stopLoss=${stopLoss} takeProfit=${takeProfit} confidence=${effectiveConsensus.consensusScore} timeframe=${timeframe}`);
+        result.diagnostics?.push(`${pair} ${timeframe}: DB CREATE FAILED: ${dbError.message}`);
       }
     }
 

@@ -88,6 +88,13 @@ export function proxy(request: NextRequest) {
     return addSecurityHeaders(NextResponse.next(), request)
   }
 
+  // ── Socket.IO: pass through without interference ──
+  // In production, Caddy proxies /socket.io/* directly to NestJS (port 3001).
+  // In dev, Next.js rewrites handle it. Either way, we must NOT block it here.
+  if (pathname.startsWith('/socket.io/')) {
+    return addSecurityHeaders(NextResponse.next(), request)
+  }
+
   // ── API routes: pass through with security headers ──
   // NestJS Helmet adds its own headers for /api/* routes
   if (pathname.startsWith('/api/')) {

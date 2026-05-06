@@ -2,42 +2,56 @@
 # FIX: Removed SSRF-vulnerable XTransformPort, added rate limiting, security headers, and TLS
 
 {$CADDY_SITE:localhost} {
-	# Security headers
-	header {
-		# Prevent clickjacking
-		X-Frame-Options "SAMEORIGIN"
-		# Prevent MIME-type sniffing
-		X-Content-Type-Options "nosniff"
-		# Referrer policy
-		Referrer-Policy "strict-origin-when-cross-origin"
-		# Content Security Policy
-		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com; connect-src 'self' wss: https:; frame-ancestors 'self';"
-		# Permissions policy
-		Permissions-Policy "camera=(), microphone=(), geolocation=()"
-		# HSTS (only in production with TLS)
-		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" env=PRODUCTION
-		# Remove server identification
-		-Server
-	}
+        # Security headers
+        header {
+                # Prevent clickjacking
+                X-Frame-Options "SAMEORIGIN"
+                # Prevent MIME-type sniffing
+                X-Content-Type-Options "nosniff"
+                # Referrer policy
+                Referrer-Policy "strict-origin-when-cross-origin"
+                # Content Security Policy
+                Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com https://fonts.googleapis.com; connect-src 'self' wss: https:; frame-ancestors 'self';"
+                # Permissions policy
+                Permissions-Policy "camera=(), microphone=(), geolocation=()"
+                # HSTS (only in production with TLS)
+                Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" env=PRODUCTION
+                # Remove server identification
+                -Server
+        }
 
-	# Rate limiting
-	rate_limit {
-		zone static_zone 10r/s
-		zone api_zone 5r/s
-		key {remote_host}
-	}
+        # Rate limiting
+        rate_limit {
+                zone static_zone 10r/s
+                zone api_zone 5r/s
+                key {remote_host}
+        }
 
-	# Reverse proxy to Next.js app
-	reverse_proxy localhost:3000 {
-		header_up Host {host}
-		header_up X-Forwarded-For {remote_host}
-		header_up X-Forwarded-Proto {scheme}
-		header_up X-Real-IP {remote_host}
-	}
+        # Socket.IO — proxy directly to NestJS (bypasses Next.js rewrites which can't
+        # reliably forward Socket.IO long-polling HTTP requests). This fixes the 404 on
+        # /socket.io/?EIO=4&transport=polling that causes WebSocket connection failures.
+        handle /socket.io/* {
+                reverse_proxy localhost:3001 {
+                        header_up Host {host}
+                        header_up X-Forwarded-For {remote_host}
+                        header_up X-Forwarded-Proto {scheme}
+                        header_up X-Real-IP {remote_host}
+                }
+        }
 
-	# Block access to debug/internal paths
-	@blocked_paths path /api/auth/debug* /api/auth/internal* /.env* /_next/server*
-	respond @blocked_paths 404 {
-		close
-	}
+        # Reverse proxy to Next.js app
+        handle {
+                reverse_proxy localhost:3000 {
+                        header_up Host {host}
+                        header_up X-Forwarded-For {remote_host}
+                        header_up X-Forwarded-Proto {scheme}
+                        header_up X-Real-IP {remote_host}
+                }
+        }
+
+        # Block access to debug/internal paths
+        @blocked_paths path /api/auth/debug* /api/auth/internal* /.env* /_next/server*
+        respond @blocked_paths 404 {
+                close
+        }
 }

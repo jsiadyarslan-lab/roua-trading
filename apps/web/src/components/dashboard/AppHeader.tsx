@@ -494,15 +494,7 @@ const NAV_LINKS: NavLink[] = [
   { href: '/dashboard/api-docs',               label: 'توثيق API',          icon: Code },
   { href: '/dashboard/security/2fa',           label: 'المصادقة الثنائية',  icon: Shield },
   { href: '/dashboard/help',                   label: 'مركز المساعدة',      icon: HelpCircle },
-  // Settings now has sub-items
-  { href: '/dashboard/settings',               label: 'الإعدادات',          icon: Settings,
-    children: [
-      { href: '/dashboard/settings/notifications', label: 'الإشعارات',     icon: Bell },
-      { href: '/dashboard/settings/profile',       label: 'الملف الشخصي', icon: UserCircle },
-      { href: '/dashboard/settings/payments',      label: 'المدفوعات',    icon: CreditCard },
-      { href: '/dashboard/settings/linking',       label: 'ربط الحسابات', icon: Link2 },
-    ]
-  },
+  { href: '/dashboard/settings',               label: 'الإعدادات',          icon: Settings },
 ]
 
 /* ─── Helper: strip query params from href for pathname comparison ─── */

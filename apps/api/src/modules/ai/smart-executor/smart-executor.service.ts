@@ -348,33 +348,36 @@ export class SmartExecutorService implements OnModuleDestroy {
     let openPositions = 0;
     let activeBriefs = 0;
 
+    // FIX: Separate try-catch blocks so one failing query doesn't prevent others
+    // The previous single try-catch meant that if Position table didn't exist,
+    // the activeBriefs count would never be reached, always showing 0.
+
     try {
-      // Count today's executions from audit log
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
-
       const auditWhere: any = {
         action: 'SMART_EXECUTOR_TRADE',
         createdAt: { gte: startOfDay },
       };
       if (userId) auditWhere.userId = userId;
-
-      const todayLogs = await this.prisma.auditLog.findMany({
-        where: auditWhere,
-      });
+      const todayLogs = await this.prisma.auditLog.findMany({ where: auditWhere });
       todayExecutions = todayLogs.length;
+    } catch (e: any) {
+      this.logger.debug(`getStatus: auditLog query failed: ${e.message}`);
+    }
 
-      // Count open positions — user-scoped if userId provided
+    try {
       const posWhere: any = { status: 'OPEN' };
       if (userId) posWhere.userId = userId;
-      openPositions = await this.prisma.position.count({
-        where: posWhere,
-      });
+      openPositions = await this.prisma.position.count({ where: posWhere });
+    } catch (e: any) {
+      this.logger.debug(`getStatus: position count failed: ${e.message}`);
+    }
 
-      // Count active briefs
+    try {
       activeBriefs = await this.councilService.getActiveBriefsCount();
-    } catch {
-      // Ignore DB errors in status
+    } catch (e: any) {
+      this.logger.debug(`getStatus: activeBriefs count failed: ${e.message}`);
     }
 
     // Check if daily loss limit reached
@@ -508,21 +511,28 @@ export class SmartExecutorService implements OnModuleDestroy {
    */
   private async _tick(): Promise<void> {
     // Get active briefs from the Strategic Council
-    const activeBriefs = await this.councilService.getActiveBriefs();
+    let activeBriefs: any[] = [];
+    try {
+      activeBriefs = await this.councilService.getActiveBriefs();
+    } catch (e: any) {
+      this.logger.error(`⚔️ Failed to get active briefs: ${e.message}`);
+      return;
+    }
 
     if (activeBriefs.length === 0) {
-      // FIX: Log when no briefs are available instead of silently returning.
-      // This helps diagnose why the executor appears "static".
       this.logger.debug('⚔️ No active briefs to execute — waiting for Strategic Council');
-      return; // No briefs to execute
+      return;
     }
 
     // Get users with executor enabled
     const enabledUsers = await this._getEnabledUsers();
 
     if (enabledUsers.length === 0) {
-      return; // No users to execute for
+      this.logger.debug(`⚔️ ${activeBriefs.length} briefs available but no enabled users — skipping`);
+      return;
     }
+
+    this.logger.debug(`⚔️ Tick: ${activeBriefs.length} briefs, ${enabledUsers.length} users`);
 
     // Process each enabled user
     for (const userId of enabledUsers) {

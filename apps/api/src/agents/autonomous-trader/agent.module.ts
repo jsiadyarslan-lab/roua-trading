@@ -62,8 +62,9 @@ import { AutonomousTraderAgentController, AutonomousTraderPublicController } fro
  */
 @Module({
   imports: [
-    forwardRef(() => PrismaModule),
-    forwardRef(() => RedisModule),
+    // FIX: PrismaModule and RedisModule are @Global() — no import or forwardRef needed.
+    // Using forwardRef on global modules can delay DI resolution, causing @Optional()
+    // decorated parameters to receive null even when the services ARE available.
     forwardRef(() => AuditModule),
     forwardRef(() => TradingModule),
     forwardRef(() => ExchangeModule),

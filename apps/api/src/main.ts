@@ -254,6 +254,39 @@ async function bootstrap() {
     const listeners = httpServer.listeners('request');
     console.log(`📋 HTTP request listeners: ${listeners.length} (Socket.IO should be first)`);
 
+    // FIX: Log registered NestJS routes to diagnose missing controllers.
+    // If SmartExecutor/StrategicCouncil routes are missing, it means the module
+    // failed to initialize (duplicate ScheduleModule.forRoot(), circular deps, etc.)
+    try {
+      const expressApp = app.getHttpAdapter().getInstance();
+      const routes: string[] = [];
+      function collectRoutes(stack: any[], prefix = '') {
+        for (const layer of stack) {
+          if (layer.route) {
+            const methods = Object.keys(layer.route.methods).map((m: string) => m.toUpperCase());
+            routes.push(`${methods.join(',')} ${prefix}${layer.route.path}`);
+          } else if (layer.handle && layer.handle.stack) {
+            const regex = layer.regexp?.toString() || '';
+            const match = regex.match(/\/api\/([^/]+)/);
+            const subPrefix = match ? `/api/${match[1]}` : prefix;
+            collectRoutes(layer.handle.stack, subPrefix);
+          }
+        }
+      }
+      collectRoutes(expressApp._router?.stack || []);
+      const smartExecutorRoutes = routes.filter(r => r.includes('smart-executor'));
+      const strategicCouncilRoutes = routes.filter(r => r.includes('strategic-council'));
+      const agentRoutes = routes.filter(r => r.includes('agent/trader'));
+      const engineRoutes = routes.filter(r => r.includes('engine'));
+      console.log(`📋 Total routes: ${routes.length}`);
+      console.log(`📋 SmartExecutor routes: ${smartExecutorRoutes.length} ${smartExecutorRoutes.length > 0 ? '✅' : '❌ MISSING'}`);
+      console.log(`📋 StrategicCouncil routes: ${strategicCouncilRoutes.length} ${strategicCouncilRoutes.length > 0 ? '✅' : '❌ MISSING'}`);
+      console.log(`📋 AgentTrader routes: ${agentRoutes.length} ${agentRoutes.length > 0 ? '✅' : '❌ MISSING'}`);
+      console.log(`📋 Engine routes: ${engineRoutes.length} ${engineRoutes.length > 0 ? '✅' : '❌ MISSING'}`);
+    } catch (diagError: any) {
+      console.warn(`📋 Route diagnostic failed: ${diagError.message}`);
+    }
+
     // FIX #2: Graceful shutdown — handle SIGTERM from Railway
     const shutdown = async (signal: string) => {
       console.log(`📡 Received ${signal} — shutting down gracefully...`);

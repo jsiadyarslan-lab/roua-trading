@@ -12,7 +12,7 @@
 //   - يراقب حد الخسارة اليومي لكل مستخدم
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger, OnModuleDestroy, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { ExchangeService } from '../../exchange/exchange.service';
@@ -76,7 +76,11 @@ export class SmartExecutorService implements OnModuleDestroy {
     private readonly councilService: StrategicCouncilService,
     private readonly riskGatekeeper: RiskGatekeeperService,
     private readonly notificationService: NotificationService,
-    @Inject(forwardRef(() => AIOrchestratorService)) private readonly orchestrator: AIOrchestratorService,
+    // FIX: Removed @Inject(forwardRef(...)) — SmartExecutorModule already imports
+    // AiModule via forwardRef, so AIOrchestratorService is available without
+    // a second forwardRef on the injection site. Double forwardRef can cause
+    // the DI container to resolve undefined in production builds.
+    private readonly orchestrator: AIOrchestratorService,
   ) {
     this.logger.log('⚔️ Smart Executor initialized — will auto-start in monitoring mode (with RiskGatekeeper + Notifications)');
 

@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { IoAdapter } from '@nestjs/platform-socket.io';
+import * as http from 'http';
+import * as express from 'express';
 import * as cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -11,10 +13,37 @@ import { RedisService } from './common/redis/redis.service';
 
 async function bootstrap() {
   try {
+    // ── FIX: Create HTTP server manually and attach Socket.IO FIRST ──
+    // NestJS creates an HTTP server internally, but when Socket.IO is attached
+    // AFTER Express, Express handles /socket.io/ requests first (returning 404)
+    // before Socket.IO can process them. By creating the HTTP server manually
+    // and attaching Socket.IO before NestJS, we ensure Socket.IO's handler
+    // runs first in the request chain.
+    const expressApp = express();
+    const httpServer = http.createServer(expressApp);
+
+    // Attach Socket.IO to the HTTP server BEFORE NestJS uses it
+    // This ensures Socket.IO's request handler runs before Express's handler
+    const { Server: SocketIOServer } = await import('socket.io');
+    const io = new SocketIOServer(httpServer, {
+      cors: {
+        origin: (_origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+          callback(null, true); // Auth handled in gateway handleConnection()
+        },
+        credentials: true,
+      },
+      path: '/socket.io',
+    });
+    console.log('🔌 Socket.IO server created and bound to HTTP server (path: /socket.io)');
+
     // FIX #2: Enable graceful shutdown — ensures in-flight requests complete
     // before the process exits, preventing 502 errors during Railway deploys.
     // Without this, SIGTERM kills the process immediately, causing connection drops.
-    const app = await NestFactory.create(AppModule, {
+    //
+    // Pass the pre-created Express app to NestJS so both Express and Socket.IO
+    // share the same HTTP server instance.
+    const { ExpressAdapter } = await import('@nestjs/platform-express');
+    const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
       logger: ['error', 'warn', 'log'],
     });
     app.enableShutdownHooks();
@@ -132,25 +161,13 @@ async function bootstrap() {
     });
 
     // ── Socket.IO Adapter ──
-    // FIX: Explicitly bind the Socket.IO adapter to ensure Socket.IO's HTTP
-    // handler is attached to the NestJS HTTP server. Without this, Socket.IO
-    // polling requests to /socket.io/ return 404 because NestJS's Express
-    // server doesn't know about Socket.IO's routes.
-    // The IoAdapter creates a Socket.IO Server instance and binds it to the
-    // same HTTP server that NestJS uses, making /socket.io/ endpoints accessible.
-    //
-    // CRITICAL: The IoAdapter must be set BEFORE app.listen() so that Socket.IO
-    // can bind its HTTP handler to the server before it starts listening.
-    // Also, setGlobalPrefix('api') must NOT apply to Socket.IO routes.
+    // Bind the IoAdapter so NestJS's @WebSocketGateway decorators work with
+    // the Socket.IO server we created above. The IoAdapter will discover
+    // and use the existing Socket.IO server on the HTTP server.
     app.useWebSocketAdapter(new IoAdapter(app));
 
-    // Global prefix for all routes — EXCLUDE Socket.IO paths so that
-    // /socket.io/ polling endpoints are not prefixed with /api/
-    app.setGlobalPrefix('api', {
-      exclude: [
-        '/socket.io/(.*)',  // Socket.IO polling + WebSocket upgrade
-      ],
-    });
+    // Global prefix for all routes
+    app.setGlobalPrefix('api');
 
     // ── Health check endpoint (no auth required) ──
     // Must be registered BEFORE global pipes/filters to avoid auth interference
@@ -282,25 +299,6 @@ async function bootstrap() {
     const configService = app.get(ConfigService);
     const port = configService.get<number>('API_PORT', 3001);
 
-    // ── FIX: Create Socket.IO server explicitly ──
-    // The NestJS IoAdapter should create a Socket.IO server and bind it to
-    // the HTTP server, but in some configurations (especially with setGlobalPrefix),
-    // Socket.IO's HTTP handler doesn't get attached properly. Creating the server
-    // explicitly ensures /socket.io/ polling endpoints are accessible.
-    const httpServer = app.getHttpServer();
-    const { Server: SocketIOServer } = await import('socket.io');
-    const io = new SocketIOServer(httpServer, {
-      cors: {
-        origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-          // Allow all origins — auth is handled in gateway handleConnection()
-          callback(null, true);
-        },
-        credentials: true,
-      },
-      path: '/socket.io',  // Default Socket.IO path
-    });
-    console.log(`🔌 Socket.IO server created and bound to HTTP server (path: /socket.io)`);
-
     // SECURITY: Warn if NEXTAUTH_SECRET is not explicitly set in production.
     // It's used as a fallback for ENCRYPTION_KEY derivation in development,
     // and in production, ENCRYPTION_KEY must be set explicitly instead.
@@ -321,8 +319,13 @@ async function bootstrap() {
       }
     }
 
-    await app.listen(port, '0.0.0.0');
+    // Start listening on the pre-created HTTP server
+    // (not app.listen() which would create a new HTTP server)
+    await new Promise<void>((resolve) => {
+      httpServer.listen(port, '0.0.0.0', () => resolve());
+    });
     console.log(`🚀 Roua API running on http://0.0.0.0:${port}/api`);
+    console.log(`🔌 Socket.IO available on http://0.0.0.0:${port}/socket.io/`);
     console.log(`📊 Environment: ${configService.get('NODE_ENV', 'development')}`);
 
     // FIX #2: Graceful shutdown — handle SIGTERM from Railway

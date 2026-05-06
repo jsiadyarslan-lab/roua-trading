@@ -96,8 +96,12 @@ export class TradingService {
     }
 
     // Step 3: Get current market price for risk check
+    // FIX: For MARKET orders, use the provided price if available (e.g., from SmartExecutor
+    // which already fetched it). Only fetch from ExchangeService as fallback.
+    // Previously, MARKET orders always re-fetched the price, which could fail on Railway
+    // for some pairs, causing paper trades to be rejected.
     let currentPrice = request.price;
-    if (!currentPrice || request.type === 'MARKET') {
+    if (!currentPrice) {
       try {
         const quote = await this.exchangeService.getQuote(request.symbol);
         currentPrice = quote.price;
@@ -137,12 +141,22 @@ export class TradingService {
     }
 
     // Step 5: Execute order on the exchange
-    const execution = await this._executeOnExchange(
-      credential.exchange,
-      credential.id,
-      request,
-      userId,
-    );
+    // FIX: Handle paper-trading separately — CCXT doesn't have a 'paper-trading' exchange,
+    // so calling _executeOnExchange with 'paper-trading' would always fail with
+    // "exchange not supported". This was the ROOT CAUSE of zero trade executions:
+    // RiskGatekeeper correctly bypasses paper-trading, but TradingService always
+    // tried to execute via CCXT, which fails for paper-trading credentials.
+    let execution: any;
+    if (credential.exchange === 'paper-trading') {
+      execution = this._executePaperTrade(request, currentPrice);
+    } else {
+      execution = await this._executeOnExchange(
+        credential.exchange,
+        credential.id,
+        request,
+        userId,
+      );
+    }
 
     if (!execution.success) {
       // Record the failed order
@@ -865,6 +879,54 @@ export class TradingService {
     }
 
     return exchange;
+  }
+
+  /**
+   * FIX: Simulate a paper trade (no real exchange connection).
+   * When the credential exchange is 'paper-trading', CCXT can't execute the order
+   * because there's no 'paper-trading' exchange class in CCXT. This method simulates
+   * the execution by creating a mock order result with the current market price.
+   *
+   * Paper trading is safe — no real money is at risk. The simulation uses:
+   * - Current market price as the fill price
+   * - 0.1% simulated slippage
+   * - 0.1% simulated fee
+   * - Instant full fill (no partial fills)
+   */
+  private _executePaperTrade(
+    request: PlaceOrderRequest,
+    currentPrice: number,
+  ): {
+    success: boolean;
+    exchangeOrderId: string;
+    filledQuantity: number;
+    averagePrice: number;
+    fee: number;
+    feeCurrency: string;
+  } {
+    // Simulate slippage: 0.1% in the direction of the trade
+    const slippagePercent = 0.001;
+    const fillPrice = request.side === 'BUY'
+      ? currentPrice * (1 + slippagePercent)  // Buy slightly higher
+      : currentPrice * (1 - slippagePercent); // Sell slightly lower
+
+    // Simulate fee: 0.1%
+    const fee = request.quantity * fillPrice * 0.001;
+    const feeCurrency = request.symbol.split('/').pop() || 'USDT';
+
+    this.logger.log(
+      `📜 Paper trade executed: ${request.side} ${request.quantity} ${request.symbol} @ ${fillPrice.toFixed(2)} ` +
+      `(fee: ${fee.toFixed(4)} ${feeCurrency})`,
+    );
+
+    return {
+      success: true,
+      exchangeOrderId: `paper-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`,
+      filledQuantity: request.quantity,
+      averagePrice: fillPrice,
+      fee,
+      feeCurrency,
+    };
   }
 
   /**

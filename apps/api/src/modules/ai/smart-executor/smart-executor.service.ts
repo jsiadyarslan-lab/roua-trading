@@ -857,12 +857,16 @@ export class SmartExecutorService implements OnModuleDestroy {
       }
 
       // Place the order via TradingService (proper risk checks, CCXT execution, etc.)
+      // FIX: Pass currentPrice so TradingService doesn't need to re-fetch from ExchangeService
+      // (which can fail on Railway for some pairs). The SmartExecutor already has the price
+      // from _checkBriefForUser's price fetch.
       const orderRequest: PlaceOrderRequest = {
         credentialId: credential.id,
         symbol: brief.pair,
         side: brief.direction === 'BUY' ? OrderSide.BUY : OrderSide.SELL,
         type: OrderType.MARKET,
         quantity,
+        price: currentPrice,
         stopLoss: brief.stopLoss,
         takeProfit: brief.takeProfit,
       };

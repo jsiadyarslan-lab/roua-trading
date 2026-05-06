@@ -120,3 +120,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Previously only ran `next start`, leaving the API dead.
 CMD ["bash", "start.sh"]
 
+# Build v44 - Wed May  6 16:16:49 UTC 2026

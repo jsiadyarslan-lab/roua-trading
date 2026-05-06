@@ -17,7 +17,7 @@ function checkRateLimit(ip: string): { allowed: boolean; retryAfterSec: number }
   const now = Date.now();
   const entry = rateLimitMap.get(ip);
 
-  // Clean up expired entries periodically (every 100 checks)
+  // Clean up expired entries periodically
   if (rateLimitMap.size > 1000) {
     for (const [key, val] of rateLimitMap) {
       if (now > val.resetAt) rateLimitMap.delete(key);
@@ -66,9 +66,9 @@ function detectLocalPatternsServer(candlesData: string): Array<{
     }
   }
 
-  if (candles.length < 5) return patterns;
+  if (candles.length < 3) return patterns;
 
-  for (let i = 4; i < candles.length; i++) {
+  for (let i = 1; i < candles.length; i++) {
     const c = candles[i];
     const prev = candles[i - 1];
     const body = Math.abs(c.c - c.o);
@@ -76,44 +76,145 @@ function detectLocalPatternsServer(candlesData: string): Array<{
     const upperWick = c.h - Math.max(c.o, c.c);
     const lowerWick = Math.min(c.o, c.c) - c.l;
 
-    // Doji
-    if (range > 0 && body / range < 0.1) {
+    // Skip if range is zero (no movement)
+    if (range <= 0) continue;
+
+    // Doji — very small body relative to range
+    if (body / range < 0.1) {
       patterns.push({ type: 'Doji', timeIndex: i, confidence: 0.7, direction: 'neutral' });
     }
 
-    // Hammer
-    if (lowerWick > body * 2 && upperWick < body * 0.5 && body > 0) {
+    // Hammer — small body at top, long lower wick
+    if (body > 0 && lowerWick > body * 2 && upperWick < body * 0.5) {
       patterns.push({ type: 'Hammer', timeIndex: i, confidence: 0.75, direction: 'bullish' });
     }
 
-    // Shooting Star
-    if (upperWick > body * 2 && lowerWick < body * 0.5 && body > 0) {
-      patterns.push({ type: 'Shooting Star', timeIndex: i, confidence: 0.7, direction: 'bearish' });
+    // Inverted Hammer / Shooting Star — small body at bottom, long upper wick
+    if (body > 0 && upperWick > body * 2 && lowerWick < body * 0.5) {
+      // Determine if it's a shooting star (after uptrend) or inverted hammer (after downtrend)
+      const isUptrend = prev.c > prev.o;
+      if (isUptrend) {
+        patterns.push({ type: 'Shooting Star', timeIndex: i, confidence: 0.7, direction: 'bearish' });
+      } else {
+        patterns.push({ type: 'Inverted Hammer', timeIndex: i, confidence: 0.65, direction: 'bullish' });
+      }
     }
 
-    // Bullish Engulfing
+    // Bullish Engulfing — previous red candle, current green candle engulfs it
     if (prev.c < prev.o && c.c > c.o && c.o <= prev.c && c.c >= prev.o) {
       patterns.push({ type: 'Engulfing Bullish', timeIndex: i, confidence: 0.8, direction: 'bullish' });
     }
 
-    // Bearish Engulfing
+    // Bearish Engulfing — previous green candle, current red candle engulfs it
     if (prev.c > prev.o && c.c < c.o && c.o >= prev.c && c.c <= prev.o) {
       patterns.push({ type: 'Engulfing Bearish', timeIndex: i, confidence: 0.8, direction: 'bearish' });
     }
 
-    // Spinning Top
-    if (body > 0 && range > 0 && body / range < 0.3 && body / range >= 0.1 && upperWick > body * 0.5 && lowerWick > body * 0.5) {
+    // Spinning Top — small body with wicks on both sides
+    if (body > 0 && body / range < 0.3 && body / range >= 0.1 && upperWick > body * 0.5 && lowerWick > body * 0.5) {
       patterns.push({ type: 'Spinning Top', timeIndex: i, confidence: 0.6, direction: 'neutral' });
     }
 
     // Marubozu (very large body, tiny wicks)
-    if (body > 0 && range > 0 && body / range > 0.85) {
+    if (body > 0 && body / range > 0.85) {
       const dir = c.c > c.o ? 'bullish' : 'bearish';
       patterns.push({ type: 'Marubozu', timeIndex: i, confidence: 0.75, direction: dir });
     }
+
+    // Harami Bullish — prev big red, current small green inside prev range
+    if (prev.c < prev.o && c.c > c.o) {
+      const prevBody = Math.abs(prev.o - prev.c);
+      if (c.o > prev.c && c.c < prev.o && body < prevBody * 0.6) {
+        patterns.push({ type: 'Harami Bullish', timeIndex: i, confidence: 0.65, direction: 'bullish' });
+      }
+    }
+
+    // Harami Bearish — prev big green, current small red inside prev range
+    if (prev.c > prev.o && c.c < c.o) {
+      const prevBody = Math.abs(prev.c - prev.o);
+      if (c.o < prev.c && c.c > prev.o && body < prevBody * 0.6) {
+        patterns.push({ type: 'Harami Bearish', timeIndex: i, confidence: 0.65, direction: 'bearish' });
+      }
+    }
+
+    // Dragonfly Doji — open=close=high, long lower wick
+    if (body / range < 0.1 && upperWick < range * 0.1 && lowerWick > range * 0.6) {
+      patterns.push({ type: 'Dragonfly Doji', timeIndex: i, confidence: 0.7, direction: 'bullish' });
+    }
+
+    // Gravestone Doji — open=close=low, long upper wick
+    if (body / range < 0.1 && lowerWick < range * 0.1 && upperWick > range * 0.6) {
+      patterns.push({ type: 'Gravestone Doji', timeIndex: i, confidence: 0.7, direction: 'bearish' });
+    }
   }
 
-  return patterns.slice(-12);
+  // Three-candle patterns (need at least 3 candles)
+  for (let i = 2; i < candles.length; i++) {
+    const c = candles[i];
+    const prev = candles[i - 1];
+    const prev2 = candles[i - 2];
+
+    // Morning Star — bearish, indecision, bullish
+    if (prev2.c < prev2.o && c.c > c.o) {
+      const prev2Body = Math.abs(prev2.o - prev2.c);
+      const prevBody = Math.abs(prev.o - prev.c);
+      const currBody = Math.abs(c.c - c.o);
+      if (prevBody < prev2Body * 0.3 && currBody > prev2Body * 0.5) {
+        patterns.push({ type: 'Morning Star', timeIndex: i, confidence: 0.8, direction: 'bullish' });
+      }
+    }
+
+    // Evening Star — bullish, indecision, bearish
+    if (prev2.c > prev2.o && c.c < c.o) {
+      const prev2Body = Math.abs(prev2.c - prev2.o);
+      const prevBody = Math.abs(prev.o - prev.c);
+      const currBody = Math.abs(c.o - c.c);
+      if (prevBody < prev2Body * 0.3 && currBody > prev2Body * 0.5) {
+        patterns.push({ type: 'Evening Star', timeIndex: i, confidence: 0.8, direction: 'bearish' });
+      }
+    }
+
+    // Three White Soldiers — three consecutive bullish candles, each opening within prev body and closing higher
+    if (prev2.c > prev2.o && prev.c > prev.o && c.c > c.o) {
+      if (prev.c > prev2.c && c.c > prev.c && prev.o >= prev2.o && c.o >= prev.o) {
+        patterns.push({ type: 'Three White Soldiers', timeIndex: i, confidence: 0.8, direction: 'bullish' });
+      }
+    }
+
+    // Three Black Crows — three consecutive bearish candles
+    if (prev2.c < prev2.o && prev.c < prev.o && c.c < c.o) {
+      if (prev.c < prev2.c && c.c < prev.c && prev.o <= prev2.o && c.o <= prev.o) {
+        patterns.push({ type: 'Three Black Crows', timeIndex: i, confidence: 0.8, direction: 'bearish' });
+      }
+    }
+
+    // Piercing Line — bearish prev, bullish current opens below prev low, closes above prev midpoint
+    if (prev.c < prev.o && c.c > c.o) {
+      const prevMid = (prev.o + prev.c) / 2;
+      if (c.o < prev.c && c.c > prevMid) {
+        patterns.push({ type: 'Piercing Line', timeIndex: i, confidence: 0.7, direction: 'bullish' });
+      }
+    }
+
+    // Dark Cloud Cover — bullish prev, bearish current opens above prev high, closes below prev midpoint
+    if (prev.c > prev.o && c.c < c.o) {
+      const prevMid = (prev.o + prev.c) / 2;
+      if (c.o > prev.c && c.c < prevMid) {
+        patterns.push({ type: 'Dark Cloud Cover', timeIndex: i, confidence: 0.7, direction: 'bearish' });
+      }
+    }
+  }
+
+  // Deduplicate: keep only the highest-confidence pattern per candle index
+  const bestByIndex = new Map<number, { type: string; timeIndex: number; confidence: number; direction: string }>();
+  for (const p of patterns) {
+    const existing = bestByIndex.get(p.timeIndex);
+    if (!existing || p.confidence > existing.confidence) {
+      bestByIndex.set(p.timeIndex, p);
+    }
+  }
+
+  return Array.from(bestByIndex.values()).slice(-12);
 }
 
 export async function POST(request: NextRequest) {
@@ -140,7 +241,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // FIX: Determine if this is an entry/exit analysis request based on the instruction field
+    // Determine if this is an entry/exit analysis request
     const isEntryExitRequest = instruction && (
       instruction.includes('entry') || instruction.includes('entryPrice') ||
       instruction.includes('نقاط الدخول') || instruction.includes('entry and exit')
@@ -151,12 +252,12 @@ export async function POST(request: NextRequest) {
       const ZAI = (await import('z-ai-web-dev-sdk')).default;
       const zai = await ZAI.create();
 
-      // FIX: Build system prompt based on request type
+      // Build system prompt based on request type
       const systemPrompt = isEntryExitRequest
         ? `أنت محلل فني خبير في تداول العملات والعملات الرقمية. حلل بيانات الشارت المقدمة وحدد أفضل نقاط الدخول والخروج. أعد النتيجة ككائن JSON فقط يحتوي على: "direction" ("long" أو "short")، "entryPrice" (رقم)، "stopLoss" (رقم)، "takeProfit" (رقم)، "confidence" (0-1)، "reasonAr" (شرح بالعربية، 2-3 جمل)، "keyLevels" (مصفوفة من {price: number, label: string} مع مستويات الدعم/المقاومة الرئيسية).`
         : `أنت محلل فني خبير في أنماط الشموع اليابانية. حلل بيانات الشارت المقدمة واكتشف أي أنماط شموع. أعد النتائج كمصفوفة JSON فقط. كل عنصر يجب أن يحتوي على: "type" (اسم النمط بالإنجليزية)، "timeIndex" (فهرس base-0 في البيانات)، "confidence" (0-1)، "direction" ("bullish"|"bearish"|"neutral"). الأنماط المطلوبة: Doji, Hammer, Inverted Hammer, Engulfing Bullish, Engulfing Bearish, Morning Star, Evening Star, Three White Soldiers, Three Black Crows, Harami Bullish, Harami Bearish, Piercing Line, Dark Cloud Cover, Spinning Top, Marubozu, Shooting Star, Dragonfly Doji, Gravestone Doji, Belt Hold, Abandoned Baby, Tweezer Top, Tweezer Bottom.`;
 
-      // FIX: Use the client's instruction as the user message if provided (for entry/exit requests)
+      // Use the client's instruction as the user message if provided
       const userMessage = instruction
         ? instruction
         : `حلل بيانات الشارت التالية لـ ${symbol}:\n\n${candles}${indicators ? `\n\nمؤشرات فنية: ${indicators}` : ''}`;
@@ -172,9 +273,8 @@ export async function POST(request: NextRequest) {
 
       const responseText = completion.choices?.[0]?.message?.content || '';
 
-      // FIX: Handle entry/exit response differently from pattern response
+      // Handle entry/exit response differently from pattern response
       if (isEntryExitRequest) {
-        // For entry/exit, try to parse a JSON object (not array)
         const jsonObjectMatch = responseText.match(/\{[\s\S]*\}/);
         if (jsonObjectMatch) {
           try {
@@ -210,6 +310,8 @@ export async function POST(request: NextRequest) {
         note: 'AI لم يُعد أنماطاً صالحة، يتم استخدام الكشف المحلي',
       });
     } catch (aiError: any) {
+      // FIX: Log the actual AI error instead of silently swallowing it
+      console.error('[ai/chart-analysis] AI SDK error:', aiError?.message || aiError);
       // AI SDK not available — use local detection as fallback
       const localPatterns = detectLocalPatternsServer(candles);
       return NextResponse.json({
@@ -217,6 +319,7 @@ export async function POST(request: NextRequest) {
         patterns: localPatterns,
         source: 'local',
         note: 'خدمة الذكاء الاصطناعي غير متاحة، يتم استخدام الكشف المحلي',
+        _debug: process.env.NODE_ENV === 'development' ? String(aiError?.message || aiError) : undefined,
       });
     }
   } catch (error: any) {

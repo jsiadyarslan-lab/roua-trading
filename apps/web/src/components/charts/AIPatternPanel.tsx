@@ -244,6 +244,11 @@ export function AIPatternPanel({
       setDataSource(usedSource);
       setPatterns(detectedPatterns);
 
+      // FIX: Show informative message when no patterns detected
+      if (detectedPatterns.length === 0) {
+        setError('لم يتم اكتشاف أنماط شموع واضحة في البيانات الحالية. حاول تغيير الإطار الزمني أو انتظر تشكيل أنماط جديدة.');
+      }
+
       const levels = detectSupportResistance(candles);
       setSrLevels(levels);
 
@@ -1248,9 +1253,9 @@ function generateLocalEntryExit(lastCandle: CandleData, levels: SupportResistanc
 // ── Basic Local Pattern Detection (fallback) ─────────────
 function detectLocalPatterns(candles: CandleData[]): AIPattern[] {
   const patterns: AIPattern[] = [];
-  if (!candles || candles.length < 5) return patterns;
+  if (!candles || candles.length < 2) return patterns;
 
-  for (let i = 4; i < candles.length; i++) {
+  for (let i = 1; i < candles.length; i++) {
     const c = candles[i];
     const prev = candles[i - 1];
     const body = Math.abs(c.close - c.open);
@@ -1258,42 +1263,153 @@ function detectLocalPatterns(candles: CandleData[]): AIPattern[] {
     const upperWick = c.high - Math.max(c.open, c.close);
     const lowerWick = Math.min(c.open, c.close) - c.low;
 
-    if (range > 0 && body / range < 0.1) {
-      const shapePoints = buildPatternShape('Doji', c, prev);
-      patterns.push({ type: 'Doji', labelAr: 'دوجي', time: c.time, price: c.close, confidence: 0.7, direction: 'neutral', shapePoints, shapeType: 'line', shapeColor: 'rgba(251,191,36,0.3)' });
+    // Skip if no movement
+    if (range <= 0) continue;
+
+    // Doji — very small body relative to range
+    if (body / range < 0.1) {
+      // Dragonfly Doji — open=close=high, long lower wick
+      if (upperWick < range * 0.1 && lowerWick > range * 0.6) {
+        const shapePoints = buildPatternShape('Dragonfly Doji', c, prev);
+        patterns.push({ type: 'Dragonfly Doji', labelAr: 'دوجي يعسوب', time: c.time, price: c.close, confidence: 0.7, direction: 'bullish', shapePoints, shapeType: 'line', shapeColor: 'rgba(0,255,163,0.4)' });
+      }
+      // Gravestone Doji — open=close=low, long upper wick
+      else if (lowerWick < range * 0.1 && upperWick > range * 0.6) {
+        const shapePoints = buildPatternShape('Gravestone Doji', c, prev);
+        patterns.push({ type: 'Gravestone Doji', labelAr: 'دوجي شاهد قبر', time: c.time, price: c.close, confidence: 0.7, direction: 'bearish', shapePoints, shapeType: 'line', shapeColor: 'rgba(255,71,87,0.4)' });
+      }
+      // Regular Doji
+      else {
+        const shapePoints = buildPatternShape('Doji', c, prev);
+        patterns.push({ type: 'Doji', labelAr: 'دوجي', time: c.time, price: c.close, confidence: 0.7, direction: 'neutral', shapePoints, shapeType: 'line', shapeColor: 'rgba(251,191,36,0.3)' });
+      }
     }
 
-    if (lowerWick > body * 2 && upperWick < body * 0.5) {
+    // Hammer — small body at top, long lower wick
+    if (body > 0 && lowerWick > body * 2 && upperWick < body * 0.5) {
       const shapePoints = buildPatternShape('Hammer', c, prev);
       patterns.push({ type: 'Hammer', labelAr: 'مطرقة', time: c.time, price: c.close, confidence: 0.75, direction: 'bullish', shapePoints, shapeType: 'line', shapeColor: 'rgba(0,255,163,0.4)' });
     }
 
-    if (upperWick > body * 2 && lowerWick < body * 0.5) {
-      const shapePoints = buildPatternShape('Shooting Star', c, prev);
-      patterns.push({ type: 'Shooting Star', labelAr: 'نجم ساقط', time: c.time, price: c.close, confidence: 0.7, direction: 'bearish', shapePoints, shapeType: 'line', shapeColor: 'rgba(255,71,87,0.4)' });
+    // Shooting Star / Inverted Hammer
+    if (body > 0 && upperWick > body * 2 && lowerWick < body * 0.5) {
+      const isUptrend = prev.close > prev.open;
+      if (isUptrend) {
+        const shapePoints = buildPatternShape('Shooting Star', c, prev);
+        patterns.push({ type: 'Shooting Star', labelAr: 'نجم ساقط', time: c.time, price: c.close, confidence: 0.7, direction: 'bearish', shapePoints, shapeType: 'line', shapeColor: 'rgba(255,71,87,0.4)' });
+      } else {
+        const shapePoints = buildPatternShape('Inverted Hammer', c, prev);
+        patterns.push({ type: 'Inverted Hammer', labelAr: 'مطرقة مقلوبة', time: c.time, price: c.close, confidence: 0.65, direction: 'bullish', shapePoints, shapeType: 'line', shapeColor: 'rgba(0,255,163,0.3)' });
+      }
     }
 
+    // Engulfing Bullish — prev red, current green engulfs prev body
     if (prev.close < prev.open && c.close > c.open && c.open <= prev.close && c.close >= prev.open) {
       const shapePoints = buildPatternShape('Engulfing Bullish', c, prev);
       patterns.push({ type: 'Engulfing Bullish', labelAr: 'ابتلاع صعودي', time: c.time, price: c.close, confidence: 0.8, direction: 'bullish', shapePoints, shapeType: 'polygon', shapeColor: 'rgba(0,255,163,0.15)' });
     }
 
+    // Engulfing Bearish — prev green, current red engulfs prev body
     if (prev.close > prev.open && c.close < c.open && c.open >= prev.close && c.close <= prev.open) {
       const shapePoints = buildPatternShape('Engulfing Bearish', c, prev);
       patterns.push({ type: 'Engulfing Bearish', labelAr: 'ابتلاع هبوطي', time: c.time, price: c.close, confidence: 0.8, direction: 'bearish', shapePoints, shapeType: 'polygon', shapeColor: 'rgba(255,71,87,0.15)' });
     }
 
-    if (range > 0 && body / range < 0.3 && Math.abs(upperWick - lowerWick) / range < 0.15) {
+    // Harami Bullish — prev big red, current small green inside
+    if (prev.close < prev.open && c.close > c.open) {
+      const prevBody = Math.abs(prev.open - prev.close);
+      if (c.open > prev.close && c.close < prev.open && body < prevBody * 0.6) {
+        patterns.push({ type: 'Harami Bullish', labelAr: 'هارامي صعودي', time: c.time, price: c.close, confidence: 0.65, direction: 'bullish', shapeColor: 'rgba(0,255,163,0.15)' });
+      }
+    }
+
+    // Harami Bearish — prev big green, current small red inside
+    if (prev.close > prev.open && c.close < c.open) {
+      const prevBody = Math.abs(prev.close - prev.open);
+      if (c.open < prev.close && c.close > prev.open && body < prevBody * 0.6) {
+        patterns.push({ type: 'Harami Bearish', labelAr: 'هارامي هبوطي', time: c.time, price: c.close, confidence: 0.65, direction: 'bearish', shapeColor: 'rgba(255,71,87,0.15)' });
+      }
+    }
+
+    // Spinning Top — small body, wicks on both sides
+    if (body > 0 && range > 0 && body / range < 0.3 && body / range >= 0.1 && upperWick > body * 0.5 && lowerWick > body * 0.5) {
       patterns.push({ type: 'Spinning Top', labelAr: 'قمة دوارة', time: c.time, price: c.close, confidence: 0.6, direction: 'neutral' });
     }
 
+    // Marubozu — very large body, tiny wicks
     if (body > 0 && range > 0 && body / range > 0.85) {
       const shapePoints = buildPatternShape('Marubozu', c, prev);
       patterns.push({ type: 'Marubozu', labelAr: 'ماروبوزو', time: c.time, price: c.close, confidence: 0.75, direction: c.close > c.open ? 'bullish' : 'bearish', shapePoints, shapeType: 'line', shapeColor: c.close > c.open ? 'rgba(0,255,163,0.4)' : 'rgba(255,71,87,0.4)' });
     }
   }
 
-  return patterns.slice(-10);
+  // Three-candle patterns
+  for (let i = 2; i < candles.length; i++) {
+    const c = candles[i];
+    const prev = candles[i - 1];
+    const prev2 = candles[i - 2];
+
+    // Morning Star — bearish, small body, bullish
+    if (prev2.close < prev2.open && c.close > c.open) {
+      const prev2Body = Math.abs(prev2.open - prev2.close);
+      const prevBody = Math.abs(prev.open - prev.close);
+      const currBody = Math.abs(c.close - c.open);
+      if (prevBody < prev2Body * 0.35 && currBody > prev2Body * 0.5) {
+        patterns.push({ type: 'Morning Star', labelAr: 'نجمة صباحية', time: c.time, price: c.close, confidence: 0.8, direction: 'bullish', shapeColor: 'rgba(0,255,163,0.15)' });
+      }
+    }
+
+    // Evening Star — bullish, small body, bearish
+    if (prev2.close > prev2.open && c.close < c.open) {
+      const prev2Body = Math.abs(prev2.close - prev2.open);
+      const prevBody = Math.abs(prev.open - prev.close);
+      const currBody = Math.abs(c.open - c.close);
+      if (prevBody < prev2Body * 0.35 && currBody > prev2Body * 0.5) {
+        patterns.push({ type: 'Evening Star', labelAr: 'نجمة مسائية', time: c.time, price: c.close, confidence: 0.8, direction: 'bearish', shapeColor: 'rgba(255,71,87,0.15)' });
+      }
+    }
+
+    // Three White Soldiers
+    if (prev2.close > prev2.open && prev.close > prev.open && c.close > c.open) {
+      if (prev.close > prev2.close && c.close > prev.close) {
+        patterns.push({ type: 'Three White Soldiers', labelAr: 'ثلاثة جنود بيض', time: c.time, price: c.close, confidence: 0.8, direction: 'bullish', shapeColor: 'rgba(0,255,163,0.15)' });
+      }
+    }
+
+    // Three Black Crows
+    if (prev2.close < prev2.open && prev.close < prev.open && c.close < c.open) {
+      if (prev.close < prev2.close && c.close < prev.close) {
+        patterns.push({ type: 'Three Black Crows', labelAr: 'ثلاثة غربان سود', time: c.time, price: c.close, confidence: 0.8, direction: 'bearish', shapeColor: 'rgba(255,71,87,0.15)' });
+      }
+    }
+
+    // Piercing Line
+    if (prev.close < prev.open && c.close > c.open) {
+      const prevMid = (prev.open + prev.close) / 2;
+      if (c.open < prev.close && c.close > prevMid) {
+        patterns.push({ type: 'Piercing Line', labelAr: 'خط اختراق', time: c.time, price: c.close, confidence: 0.7, direction: 'bullish', shapeColor: 'rgba(0,255,163,0.15)' });
+      }
+    }
+
+    // Dark Cloud Cover
+    if (prev.close > prev.open && c.close < c.open) {
+      const prevMid = (prev.open + prev.close) / 2;
+      if (c.open > prev.close && c.close < prevMid) {
+        patterns.push({ type: 'Dark Cloud Cover', labelAr: 'غطاء سحابة مظلمة', time: c.time, price: c.close, confidence: 0.7, direction: 'bearish', shapeColor: 'rgba(255,71,87,0.15)' });
+      }
+    }
+  }
+
+  // Deduplicate: keep only highest-confidence pattern per candle
+  const bestByTime = new Map<number, AIPattern>();
+  for (const p of patterns) {
+    const existing = bestByTime.get(p.time);
+    if (!existing || p.confidence > existing.confidence) {
+      bestByTime.set(p.time, p);
+    }
+  }
+
+  return Array.from(bestByTime.values()).slice(-10);
 }
 
 // ── Support/Resistance Level Detection ──────────────────

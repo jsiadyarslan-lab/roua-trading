@@ -626,6 +626,21 @@ export class SmartExecutorService implements OnModuleDestroy {
       }
     }
 
+    // FIX: Validate fetched price against brief's entry price.
+    // Sometimes fetchQuickMarketData returns wrong prices (e.g., 0.99 for USD/JPY
+    // instead of ~157). This happens because some data sources return inverse rates
+    // or use different quote conventions. If the fetched price is more than 20%
+    // away from the brief's entry price, it's likely wrong — use the entry price.
+    if (currentPrice > 0 && brief.entryPrice > 0) {
+      const priceDeviation = Math.abs(currentPrice - brief.entryPrice) / brief.entryPrice;
+      if (priceDeviation > 0.2) {
+        this.logger.warn(
+          `⚔️ Fetched price ${currentPrice} for ${brief.pair} deviates ${(priceDeviation * 100).toFixed(1)}% from brief entry ${brief.entryPrice} — using entry price instead`,
+        );
+        currentPrice = brief.entryPrice;
+      }
+    }
+
     // 2. Check strict rules
     const strictRules: StrictRules = brief.strictRules || { maxSlippage: this.config.defaultSlippage };
 

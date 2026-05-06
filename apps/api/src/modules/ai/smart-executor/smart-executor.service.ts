@@ -154,31 +154,21 @@ export class SmartExecutorService implements OnModuleDestroy {
         this.logger.warn(`⚔️ Could not query users from DB: ${dbErr.message}`);
       }
 
-      // Strategy 2: If no user found, check if there's a user in Redis from previous sessions
+      // Strategy 2: If no user found, check Redis for any cached user data
       if (!userId) {
         try {
-          // Check for any user state in Redis from previous sessions
-          const client = (this.redis as any)['client'];
-          if (client && typeof client.scan === 'function') {
-            let cursor = '0';
-            do {
-              const result = await client.scan(cursor, 'MATCH', 'user:*', 'COUNT', 10);
-              cursor = result[0];
-              // Try to find a user ID from any cached user data
-              for (const key of result[1]) {
-                const data = await this.redis.get(key);
-                if (data) {
-                  try {
-                    const parsed = JSON.parse(data);
-                    if (parsed.id) {
-                      userId = parsed.id;
-                      break;
-                    }
-                  } catch {}
+          const userKeys = await this.redis.scanKeys('user:*');
+          for (const key of userKeys) {
+            const data = await this.redis.get(key);
+            if (data) {
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.id) {
+                  userId = parsed.id;
+                  break;
                 }
-              }
-              if (userId) break;
-            } while (cursor !== '0');
+              } catch {}
+            }
           }
         } catch (redisErr: any) {
           this.logger.debug(`⚔️ Could not find user in Redis: ${redisErr.message}`);
@@ -470,18 +460,14 @@ export class SmartExecutorService implements OnModuleDestroy {
 
   /**
    * Get all users with executor enabled
+   * FIX: Use RedisService.scanKeys() instead of (this.redis as any)['client'].scan().
+   * The Redis client is private in RedisService, so accessing it via `as any`
+   * is fragile and breaks in production builds. The scanKeys() method is
+   * the official API for this pattern.
    */
   private async _getEnabledUsers(): Promise<string[]> {
     try {
-      const client = (this.redis as any)['client'];
-      const keys: string[] = [];
-      let cursor = '0';
-      do {
-        const result = await client.scan(cursor, 'MATCH', `${this.REDIS_USER_STATE_PREFIX}*`, 'COUNT', 100);
-        cursor = result[0];
-        keys.push(...result[1]);
-      } while (cursor !== '0');
-
+      const keys = await this.redis.scanKeys(`${this.REDIS_USER_STATE_PREFIX}*`);
       return keys.map((k: string) => k.replace(this.REDIS_USER_STATE_PREFIX, ''));
     } catch {
       return [];
@@ -990,5 +976,175 @@ export class SmartExecutorService implements OnModuleDestroy {
       this.logger.warn(`⚔️ Failed to get portfolio value for user ${userId}: ${error.message}`);
       return 0; // Don't execute with unknown portfolio
     }
+  }
+
+  /**
+   * FIX: Diagnose why trades aren't executing.
+   * Runs through the full execution pipeline and returns detailed
+   * diagnostic information about each step — what passes and what fails.
+   */
+  async diagnoseExecution(): Promise<Record<string, any>> {
+    const diagnostic: Record<string, any> = {
+      timestamp: new Date().toISOString(),
+      isRunning: this.isRunning,
+      totalExecutions: this.totalExecutions,
+      config: this.config,
+    };
+
+    // Step 1: Check active briefs
+    try {
+      const briefs = await this.councilService.getActiveBriefs();
+      diagnostic.activeBriefs = {
+        count: briefs.length,
+        pairs: [...new Set(briefs.map((b: any) => b.pair))],
+        directions: briefs.reduce((acc: any, b: any) => {
+          acc[b.direction] = (acc[b.direction] || 0) + 1;
+          return acc;
+        }, {}),
+        confidenceRange: briefs.length > 0
+          ? `${Math.min(...briefs.map((b: any) => b.confidence))}-${Math.max(...briefs.map((b: any) => b.confidence))}`
+          : 'N/A',
+        sample: briefs.slice(0, 3).map((b: any) => ({
+          pair: b.pair,
+          direction: b.direction,
+          confidence: b.confidence,
+          entryPrice: b.entryPrice,
+          stopLoss: b.stopLoss,
+          takeProfit: b.takeProfit,
+          timeframe: b.timeframe,
+          strictRules: b.strictRules,
+        })),
+      };
+    } catch (e: any) {
+      diagnostic.activeBriefs = { error: e.message };
+    }
+
+    // Step 2: Check enabled users
+    try {
+      const enabledUsers = await this._getEnabledUsers();
+      diagnostic.enabledUsers = {
+        count: enabledUsers.length,
+        users: enabledUsers,
+      };
+
+      // Get state for each enabled user
+      diagnostic.userStates = {};
+      for (const userId of enabledUsers) {
+        const state = await this.getUserState(userId);
+        diagnostic.userStates[userId] = state;
+      }
+    } catch (e: any) {
+      diagnostic.enabledUsers = { error: e.message };
+    }
+
+    // Step 3: For the first brief + first user, check entry conditions
+    try {
+      const briefs = await this.councilService.getActiveBriefs();
+      const enabledUsers = await this._getEnabledUsers();
+
+      if (briefs.length > 0 && enabledUsers.length > 0) {
+        const testBrief = briefs[0];
+        const testUserId = enabledUsers[0];
+
+        // Get current price
+        let currentPrice = 0;
+        try {
+          const marketData = await this.orchestrator.fetchQuickMarketData(testBrief.pair);
+          currentPrice = marketData.price;
+        } catch {}
+        if (!currentPrice || currentPrice <= 0) {
+          try {
+            const quote = await this.exchangeService.getQuote(testBrief.pair);
+            currentPrice = quote.price;
+          } catch {}
+        }
+
+        const strictRules = testBrief.strictRules || { maxSlippage: this.config.defaultSlippage };
+        const conditionsMet = currentPrice > 0 ? this._areEntryConditionsMet(testBrief, currentPrice, strictRules) : false;
+
+        // Check each condition individually
+        const slippage = strictRules.maxSlippage || this.config.defaultSlippage;
+
+        diagnostic.sampleExecution = {
+          brief: {
+            id: testBrief.id,
+            pair: testBrief.pair,
+            direction: testBrief.direction,
+            entryPrice: testBrief.entryPrice,
+            takeProfit: testBrief.takeProfit,
+            stopLoss: testBrief.stopLoss,
+            confidence: testBrief.confidence,
+          },
+          currentPrice,
+          strictRules,
+          conditionsMet,
+          conditionDetails: currentPrice > 0 ? {
+            slippage,
+            maxEntryPrice: strictRules.maxEntryPrice,
+            minEntryPrice: strictRules.minEntryPrice,
+            maxEntryPriceCheck: strictRules.maxEntryPrice
+              ? `currentPrice(${currentPrice}) <= maxEntry(${strictRules.maxEntryPrice}) = ${currentPrice <= strictRules.maxEntryPrice}`
+              : 'N/A (no maxEntryPrice)',
+            minEntryPriceCheck: strictRules.minEntryPrice
+              ? `currentPrice(${currentPrice}) >= minEntry(${strictRules.minEntryPrice}) = ${currentPrice >= strictRules.minEntryPrice}`
+              : 'N/A (no minEntryPrice)',
+            buyCheck: testBrief.direction === 'BUY'
+              ? `price(${currentPrice}) <= maxPrice(${testBrief.entryPrice * (1 + slippage * 2)}) AND price(${currentPrice}) < takeProfit(${testBrief.takeProfit}) = ${currentPrice <= testBrief.entryPrice * (1 + slippage * 2) && currentPrice < testBrief.takeProfit}`
+              : 'N/A (not BUY)',
+            sellCheck: testBrief.direction === 'SELL'
+              ? `price(${currentPrice}) >= minPrice(${testBrief.entryPrice * (1 - slippage * 2)}) AND price(${currentPrice}) > takeProfit(${testBrief.takeProfit}) = ${currentPrice >= testBrief.entryPrice * (1 - slippage * 2) && currentPrice > testBrief.takeProfit}`
+              : 'N/A (not SELL)',
+          } : { error: 'Cannot get current price' },
+        };
+
+        // Check for already-processed briefs
+        const processedKey = `${this.REDIS_PROCESSED_PREFIX}${testBrief.id}:${testUserId}`;
+        const alreadyProcessed = await this.redis.get(processedKey);
+        diagnostic.sampleExecution.alreadyProcessed = alreadyProcessed ? JSON.parse(alreadyProcessed) : null;
+
+        // Check for existing position
+        try {
+          const existingPos = await this.prisma.position.findFirst({
+            where: { userId: testUserId, symbol: testBrief.pair, status: 'OPEN' },
+          });
+          diagnostic.sampleExecution.existingPosition = existingPos ? { id: existingPos.id, symbol: existingPos.symbol } : null;
+        } catch (e: any) {
+          diagnostic.sampleExecution.existingPosition = { error: e.message };
+        }
+      } else {
+        diagnostic.sampleExecution = {
+          reason: briefs.length === 0 ? 'No active briefs' : 'No enabled users',
+        };
+      }
+    } catch (e: any) {
+      diagnostic.sampleExecution = { error: e.message };
+    }
+
+    // Step 4: Redis connectivity check
+    try {
+      const pong = await this.redis.ping();
+      diagnostic.redis = { connected: pong === 'PONG' };
+    } catch (e: any) {
+      diagnostic.redis = { connected: false, error: e.message };
+    }
+
+    // Step 5: Overall diagnosis
+    const issues: string[] = [];
+    if (!this.isRunning) issues.push('Executor is NOT running — start it with POST /smart-executor/start');
+    if (diagnostic.activeBriefs?.count === 0) issues.push('No active briefs from Strategic Council');
+    if (diagnostic.enabledUsers?.count === 0) issues.push('No enabled users — call POST /smart-executor/user/auto-enable');
+    if (diagnostic.activeBriefs?.count > 0 && diagnostic.enabledUsers?.count > 0 && diagnostic.sampleExecution?.conditionsMet === false) {
+      issues.push('Entry conditions NOT met — prices may have moved since briefs were issued');
+    }
+    if (diagnostic.sampleExecution?.alreadyProcessed) {
+      issues.push('Briefs are already processed (marked in Redis) — no new trades will happen');
+    }
+
+    diagnostic.diagnosis = {
+      issues,
+      canExecute: this.isRunning && (diagnostic.activeBriefs?.count > 0) && (diagnostic.enabledUsers?.count > 0),
+    };
+
+    return diagnostic;
   }
 }

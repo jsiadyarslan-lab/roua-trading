@@ -313,18 +313,15 @@ export class StrategicCouncilService {
 
       // Publish council completion event for Smart Executor
       try {
-        const client = (this.redis as any)['client'];
-        if (client && typeof client.publish === 'function') {
-          await client.publish(
-            'council:session_complete',
-            JSON.stringify({
-              timestamp: result.timestamp,
-              briefsIssued: result.briefsIssued,
-              briefsModified: result.briefsModified,
-              activeBriefs: await this.getActiveBriefsCount(),
-            }),
-          );
-        }
+        await this.redis.publish(
+          'council:session_complete',
+          JSON.stringify({
+            timestamp: result.timestamp,
+            briefsIssued: result.briefsIssued,
+            briefsModified: result.briefsModified,
+            activeBriefs: await this.getActiveBriefsCount(),
+          }),
+        );
       } catch (pubError: any) {
         this.logger.debug(`Failed to publish council event: ${pubError.message}`);
       }
@@ -418,19 +415,16 @@ export class StrategicCouncilService {
 
       // Publish council completion event for Smart Executor
       try {
-        const client = (this.redis as any)['client'];
-        if (client && typeof client.publish === 'function') {
-          await client.publish(
-            'council:session_complete',
-            JSON.stringify({
-              sessionId,
-              timestamp: result.timestamp,
-              briefsIssued: result.briefsIssued,
-              briefsModified: result.briefsModified,
-              activeBriefs: await this.getActiveBriefsCount(),
-            }),
-          );
-        }
+        await this.redis.publish(
+          'council:session_complete',
+          JSON.stringify({
+            sessionId,
+            timestamp: result.timestamp,
+            briefsIssued: result.briefsIssued,
+            briefsModified: result.briefsModified,
+            activeBriefs: await this.getActiveBriefsCount(),
+          }),
+        );
       } catch (pubError: any) {
         this.logger.debug(`Failed to publish council event: ${pubError.message}`);
       }

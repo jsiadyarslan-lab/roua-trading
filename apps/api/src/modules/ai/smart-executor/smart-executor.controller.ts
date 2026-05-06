@@ -142,4 +142,16 @@ export class SmartExecutorController {
       message: `تم حذف ${result.deleted} مركز وهمي من قاعدة البيانات`,
     };
   }
+
+  /**
+   * GET /api/smart-executor/debug — Diagnose why trades aren't executing
+   * Returns detailed information about the execution pipeline state.
+   * FIX: Added to help diagnose the "0 trades" problem.
+   */
+  @Public()
+  @Get('debug')
+  async debugExecution() {
+    const diagnostic = await this.executorService.diagnoseExecution();
+    return { success: true, data: diagnostic };
+  }
 }

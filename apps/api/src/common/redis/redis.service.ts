@@ -193,6 +193,14 @@ export class RedisService implements OnModuleDestroy {
     return cleaned;
   }
 
+  /**
+   * Publish a message to a Redis channel (Pub/Sub).
+   * Used by Strategic Council and other services to broadcast events.
+   */
+  async publish(channel: string, message: string): Promise<number> {
+    return this.client.publish(channel, message);
+  }
+
   async onModuleDestroy() {
     await this.client.quit();
     this.logger.log('🔴 Redis disconnected');

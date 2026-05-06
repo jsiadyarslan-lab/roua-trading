@@ -9,11 +9,12 @@
 
 import { Controller, Get, Logger, Query, UseGuards } from '@nestjs/common';
 import { Public } from '../../common/guards/auth.guard';
-import { IntegrationGuard } from '../../common/guards/integration.guard';
+import { IntegrationGuard, IntegrationRoute } from '../../common/guards/integration.guard';
 import { ExchangeService } from '../exchange/exchange.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 @Public() // Bypass AuthGuard — integration uses its own auth
+@IntegrationRoute() // Mark all routes in this controller for IntegrationGuard auth
 @UseGuards(IntegrationGuard) // Enforce X-Integration-Key authentication
 @Controller('integration')
 export class IntegrationController {

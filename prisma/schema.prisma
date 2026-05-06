@@ -409,6 +409,9 @@ model Trade {
   pnl             Decimal?  @db.Decimal(18,4)
   exchangeTradeId String?
   executedAt      DateTime  @default(now())
+  /// Source of the trade: 'user_manual' = real user-initiated, 'smart_executor' = executor on user's behalf,
+  /// 'auto_paper' = automatically generated paper trade (legacy phantom trades)
+  source          String    @default("user_manual")
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   order           Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
   position        Position? @relation(fields: [positionId], references: [id], onDelete: SetNull)
@@ -418,6 +421,7 @@ model Trade {
   @@index([positionId])
   @@index([executedAt])
   @@index([userId, type, executedAt])
+  @@index([source])
 }
 
 // ── Position Reconciliation Queue ──

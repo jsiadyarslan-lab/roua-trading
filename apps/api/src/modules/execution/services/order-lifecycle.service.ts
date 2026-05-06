@@ -359,6 +359,7 @@ export class OrderLifecycleService {
             price: result.averagePrice,
             fee: result.fee || 0,
             feeCurrency: result.feeCurrency,
+            source: (order as any).source || 'user_manual',
           },
         });
       }, {

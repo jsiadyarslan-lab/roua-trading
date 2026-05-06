@@ -451,7 +451,7 @@ export default function MobileAgentPage() {
             icon={DollarSign}
           />
           <StatCard
-            label="صفقات اليوم"
+            label="صفقاتك اليوم"
             value={String(agentState?.dailyTradesCount ?? 0)}
             color={C.accent}
             icon={Activity}

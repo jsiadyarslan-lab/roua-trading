@@ -331,7 +331,20 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
         };
       }
 
-      // Try to verify actual balance via CCXT
+      // ── Paper Trading Bypass ──
+      // Paper trading is simulated — no real exchange connection needed.
+      // Previously, ccxt['paper-trading'] was undefined, causing ALL paper-trading
+      // orders to be REJECTED by the FAIL-CLOSED path below. This was the #1 root
+      // cause of zero trade executions — the Smart Executor creates paper-trading
+      // credentials by default, but the Risk Gatekeeper always rejected them.
+      // Now: Paper-trading orders skip the CCXT balance check entirely and are
+      // always allowed (balance is virtual/unlimited in paper mode).
+      if (credential.exchange === 'paper-trading') {
+        this.logger.debug(`🛡️ Paper-trading balance check: BYPASSED (virtual balance) — allowing order`);
+        return { allowed: true };
+      }
+
+      // Try to verify actual balance via CCXT (real exchanges only)
       try {
         const { apiKey, apiSecret } = await this.credentialsService.decryptCredential(credential.id, command.userId);
         const ExchangeClass = (ccxt as any)[credential.exchange];
@@ -367,7 +380,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
             }
           }
         } else {
-          // FAIL-CLOSED: Exchange not supported in CCXT — cannot verify balance
+          // FAIL-CLOSED: Real exchange not supported in CCXT — cannot verify balance
           this.logger.error(`Exchange "${credential.exchange}" not found in CCXT — rejecting order to protect capital`);
           return {
             allowed: false,

@@ -44,10 +44,10 @@ export class SmartExecutorService implements OnModuleDestroy {
     maxDailyLossPercent: 5,
     defaultSlippage: 0.001,         // 0.1%
     riskPerTradePercent: 1,
-    minConfidence: 55,              // FIX: Lowered from 70 — technical fallback gives 52-70 confidence,
-                                    // and with only 3/8 AI models working, 70 was too high and rejected
-                                    // nearly all briefs. 55 allows actionable signals while still
-                                    // filtering out very low confidence ones.
+    minConfidence: 50,              // FIX: Lowered from 55 → 50. Technical fallback (MA crossover)
+                                    // gives confidence=52, and with only 3/8 AI models working, 55 was
+                                    // still too high and rejected most briefs. 50 matches MIN_BRIEF_CONFIDENCE
+                                    // and MIN_CONSENSUS_SCORE in the Strategic Council types.
   };
 
   /** Redis key patterns */
@@ -565,6 +565,7 @@ export class SmartExecutorService implements OnModuleDestroy {
       const processedKey = `${this.REDIS_PROCESSED_PREFIX}${brief.id}:${userId}`;
       const alreadyProcessed = await this.redis.get(processedKey);
       if (alreadyProcessed) {
+        this.logger.debug(`⚔️ Skipping already-processed brief ${brief.id} for user ${userId}`);
         continue;
       }
 
@@ -572,10 +573,16 @@ export class SmartExecutorService implements OnModuleDestroy {
       const existingPosition = await this.prisma.position.findFirst({
         where: { userId, symbol: brief.pair, status: 'OPEN' },
       });
-      if (existingPosition) continue;
+      if (existingPosition) {
+        this.logger.debug(`⚔️ Skipping brief ${brief.id} — existing open position for ${brief.pair}`);
+        continue;
+      }
 
       // Check confidence threshold
-      if (brief.confidence < this.config.minConfidence) continue;
+      if (brief.confidence < this.config.minConfidence) {
+        this.logger.debug(`⚔️ Skipping brief ${brief.id} — confidence ${brief.confidence}% < min ${this.config.minConfidence}%`);
+        continue;
+      }
 
       try {
         await this._checkBriefForUser(userId, brief, userState, portfolio);
@@ -594,12 +601,13 @@ export class SmartExecutorService implements OnModuleDestroy {
     userState: UserExecutorState,
     portfolioValue: number,
   ): Promise<void> {
-    // 1. Get current price
+    // 2. Get current price
     let currentPrice: number;
     try {
       const quote = await this.exchangeService.getQuote(brief.pair);
       currentPrice = quote.price;
-    } catch {
+    } catch (priceErr: any) {
+      this.logger.debug(`⚔️ Cannot get price for ${brief.pair}: ${priceErr.message} — skipping brief ${brief.id}`);
       return; // Can't get price — skip
     }
 
@@ -609,11 +617,13 @@ export class SmartExecutorService implements OnModuleDestroy {
     // Check max entry price (for BUY — don't buy above this)
     if (strictRules.maxEntryPrice && currentPrice > strictRules.maxEntryPrice) {
       // Price too high — brief violated for now, but don't cancel (may come back in range)
+      this.logger.debug(`⚔️ Brief ${brief.id} price ${currentPrice} > maxEntry ${strictRules.maxEntryPrice} — waiting`);
       return;
     }
 
     // Check min entry price (for SELL — don't sell below this)
     if (strictRules.minEntryPrice && currentPrice < strictRules.minEntryPrice) {
+      this.logger.debug(`⚔️ Brief ${brief.id} price ${currentPrice} < minEntry ${strictRules.minEntryPrice} — waiting`);
       return;
     }
 
@@ -678,6 +688,12 @@ export class SmartExecutorService implements OnModuleDestroy {
           this.logger.warn(`⚔️ Failed to send execution notification to user ${userId}: ${notifError.message}`);
         }
       } else {
+        // FIX: Do NOT mark as processed on failure — brief can be retried
+        // on the next tick if conditions change (e.g., price re-enters range)
+        this.logger.warn(
+          `⚔️ Brief ${brief.id} execution FAILED for user ${userId}: ${result.error} — will retry on next tick`,
+        );
+
         // ── INSTANT NOTIFICATION: Alert on failed execution ──
         try {
           await this.notificationService.sendNotification({
@@ -785,6 +801,7 @@ export class SmartExecutorService implements OnModuleDestroy {
         result.error = 'No valid trading credential found for user';
         this.logger.warn(`⚔️ No credential for user ${userId} — disabling executor`);
         await this.disableUser(userId);
+        // Don't mark as processed — this is a user config issue, not a brief issue
         return result;
       }
 
@@ -795,6 +812,8 @@ export class SmartExecutorService implements OnModuleDestroy {
 
       if (priceRisk === 0) {
         result.error = 'Invalid stop loss — price risk is 0';
+        this.logger.warn(`⚔️ Brief ${brief.id} has stopLoss=${brief.stopLoss} same as currentPrice=${currentPrice} — skipping`);
+        // Don't mark as processed — a future council session may fix the SL
         return result;
       }
 
@@ -802,6 +821,7 @@ export class SmartExecutorService implements OnModuleDestroy {
 
       if (quantity <= 0) {
         result.error = 'Invalid quantity calculated';
+        // Don't mark as processed — transient calculation issue
         return result;
       }
 
@@ -844,6 +864,11 @@ export class SmartExecutorService implements OnModuleDestroy {
       if (!riskResult.allowed) {
         result.error = `Risk gatekeeper blocked: ${riskResult.reason || 'Unknown risk'}`;
         this.logger.warn(`⚔️ Risk gatekeeper BLOCKED execution of brief ${brief.id} for user ${userId}: ${riskResult.reason}`);
+
+        // FIX: Do NOT mark brief as processed when Risk Gatekeeper blocks it.
+        // Previously, a blocked brief was still marked as "processed" in Redis with 24h TTL,
+        // which meant it would NEVER be retried even if conditions changed.
+        // Now: Only mark as processed on SUCCESS. Failed attempts are retryable.
         return result;
       }
 

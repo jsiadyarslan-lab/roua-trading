@@ -361,6 +361,78 @@ if [ -n "${DATABASE_URL:-}" ]; then
     CREATE INDEX IF NOT EXISTS "PositionReconciliation_status_idx" ON "PositionReconciliation"("status");
     CREATE INDEX IF NOT EXISTS "PositionReconciliation_userId_idx" ON "PositionReconciliation"("userId");
     CREATE INDEX IF NOT EXISTS "PositionReconciliation_createdAt_idx" ON "PositionReconciliation"("createdAt");
+
+    -- ── TradingBrief table (CRITICAL for Strategic Council + Smart Executor) ──
+    -- This table was missing from the initial ensure_tables.sql, causing
+    -- 0 briefs and 0 trades. The Prisma migration for this table failed
+    -- because it created the table BEFORE the enum types, so the enums
+    -- didn't exist yet. This safety-net SQL creates them in the correct order.
+
+    -- Create enum types FIRST (required by TradingBrief columns)
+    DO $$ BEGIN
+      CREATE TYPE "BriefDirection" AS ENUM ('BUY', 'SELL');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "BriefTimeframe" AS ENUM ('H1', 'H4', 'D1', 'W1');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "BriefReviewStatus" AS ENUM ('ACTIVE', 'MODIFIED', 'CANCELLED', 'EXECUTED');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    -- FIX: Add EXECUTED value if the enum already exists without it
+    DO $$ BEGIN
+      ALTER TYPE "BriefReviewStatus" ADD VALUE IF NOT EXISTS 'EXECUTED';
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    CREATE TABLE IF NOT EXISTS "TradingBrief" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT,
+      "pair" TEXT NOT NULL,
+      "direction" "BriefDirection" NOT NULL,
+      "entryPrice" DECIMAL(19,8) NOT NULL,
+      "stopLoss" DECIMAL(19,8) NOT NULL,
+      "takeProfit" DECIMAL(19,8) NOT NULL,
+      "confidence" INTEGER NOT NULL DEFAULT 0,
+      "timeframe" "BriefTimeframe" NOT NULL,
+      "issuedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "expiresAt" TIMESTAMP(3) NOT NULL,
+      "isActive" BOOLEAN NOT NULL DEFAULT true,
+      "strictRules" TEXT NOT NULL DEFAULT '{}',
+      "lastReviewedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "reviewStatus" "BriefReviewStatus" NOT NULL DEFAULT 'ACTIVE',
+      "analysisSummary" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "TradingBrief_pkey" PRIMARY KEY ("id")
+    );
+    CREATE INDEX IF NOT EXISTS "TradingBrief_pair_idx" ON "TradingBrief"("pair");
+    CREATE INDEX IF NOT EXISTS "TradingBrief_isActive_idx" ON "TradingBrief"("isActive");
+    CREATE INDEX IF NOT EXISTS "TradingBrief_reviewStatus_idx" ON "TradingBrief"("reviewStatus");
+    CREATE INDEX IF NOT EXISTS "TradingBrief_expiresAt_idx" ON "TradingBrief"("expiresAt");
+    CREATE INDEX IF NOT EXISTS "TradingBrief_pair_isActive_reviewStatus_idx" ON "TradingBrief"("pair", "isActive", "reviewStatus");
+    CREATE INDEX IF NOT EXISTS "TradingBrief_isActive_reviewStatus_idx" ON "TradingBrief"("isActive", "reviewStatus");
+    CREATE INDEX IF NOT EXISTS "TradingBrief_userId_idx" ON "TradingBrief"("userId");
+    CREATE INDEX IF NOT EXISTS "TradingBrief_timeframe_idx" ON "TradingBrief"("timeframe");
+    CREATE INDEX IF NOT EXISTS "TradingBrief_userId_isActive_reviewStatus_idx" ON "TradingBrief"("userId", "isActive", "reviewStatus");
+    CREATE INDEX IF NOT EXISTS "TradingBrief_isActive_expiresAt_idx" ON "TradingBrief"("isActive", "expiresAt");
+    CREATE INDEX IF NOT EXISTS "TradingBrief_pair_timeframe_isActive_idx" ON "TradingBrief"("pair", "timeframe", "isActive");
+
+    -- Foreign key constraint (only if User table exists)
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'TradingBrief_userId_fkey'
+      ) THEN
+        ALTER TABLE "TradingBrief" ADD CONSTRAINT "TradingBrief_userId_fkey"
+          FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
 EOSQL
 
   echo "📦 Executing safety-net SQL via prisma db execute..."

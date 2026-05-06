@@ -1,3 +1,8 @@
+-- CreateEnum (MUST come before CreateTable that references them)
+CREATE TYPE "BriefDirection" AS ENUM ('BUY', 'SELL');
+CREATE TYPE "BriefTimeframe" AS ENUM ('H1', 'H4', 'D1', 'W1');
+CREATE TYPE "BriefReviewStatus" AS ENUM ('ACTIVE', 'MODIFIED', 'CANCELLED', 'EXECUTED');
+
 -- CreateTable
 CREATE TABLE "TradingBrief" (
     "id" TEXT NOT NULL,
@@ -21,11 +26,6 @@ CREATE TABLE "TradingBrief" (
 
     CONSTRAINT "TradingBrief_pkey" PRIMARY KEY ("id")
 );
-
--- CreateEnum
-CREATE TYPE "BriefTimeframe" AS ENUM ('H1', 'H4', 'D1', 'W1');
-CREATE TYPE "BriefReviewStatus" AS ENUM ('ACTIVE', 'MODIFIED', 'CANCELLED', 'EXECUTED');
-CREATE TYPE "BriefDirection" AS ENUM ('BUY', 'SELL');
 
 -- CreateIndex
 CREATE INDEX "TradingBrief_userId_idx" ON "TradingBrief"("userId");

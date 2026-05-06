@@ -442,12 +442,25 @@ export class StrategicCouncilService {
     });
 
     // Get AI consensus analysis
-    const consensus = await this.orchestrator.getConsensusAnalysis(pair);
+    // FIX: Pass forceFresh=true to bypass stale Redis cache from startup session.
+    // The startup session (30s after boot) produces fallback/HOLD results that
+    // get cached for 10 minutes, blocking all subsequent sessions from issuing briefs.
+    // By forcing fresh AI calls, each Council session gets the CURRENT model state.
+    const consensus = await this.orchestrator.getConsensusAnalysis(pair, { forceFresh: true });
 
     // FIX: When AI models fail (isFallback=true, confidence=0), generate a technical-analysis
     // based brief instead of cancelling everything. This prevents the entire pipeline from
     // stalling when AI providers are down.
     const isAIFallback = consensus.isFallback === true || consensus.consensusScore === 0;
+
+    // FIX: Detailed decision logging — helps diagnose why briefs aren't being created.
+    // Previously, the Council silently produced 0 briefs with no explanation.
+    this.logger.log(
+      `🏛️ Decision point for ${pair} ${timeframe}: ` +
+      `recommendation=${consensus.recommendation}, score=${consensus.consensusScore}%, ` +
+      `isFallback=${isAIFallback}, analyses=${consensus.analyses?.length || 0}, ` +
+      `existingBrief=${existingBrief ? existingBrief.id : 'none'}`,
+    );
 
     // FIX: Even when AI gives HOLD, try technical analysis as fallback.
     // In active Forex markets, there's ALWAYS a direction. The AI saying HOLD

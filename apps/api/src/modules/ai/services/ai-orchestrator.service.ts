@@ -407,26 +407,43 @@ export class AIOrchestratorService implements OnModuleDestroy {
    * dashboard generates 72 API calls/minute (6 models × 12 polls/min).
    * With caching, it's at most 6 calls per 5 minutes per symbol.
    */
-  async getConsensusAnalysis(symbol: string): Promise<{
+  async getConsensusAnalysis(symbol: string, options?: { forceFresh?: boolean }): Promise<{
     consensusScore: number;
     recommendation: 'BUY' | 'SELL' | 'HOLD';
     analyses: { role: string; model: string; vote: string; confidence: number; reason: string }[];
     masterStrategy: string;
     isFallback?: boolean;
   }> {
+    // FIX: Added `forceFresh` option — when the Strategic Council calls this method,
+    // it passes forceFresh=true to bypass the Redis cache. This is CRITICAL because:
+    // 1. The startup council session (30s after boot) runs before AI models are ready
+    // 2. It produces fallback/HOLD results that get cached for 10 minutes
+    // 3. All subsequent council sessions read the stale HOLD cache → 0 briefs issued
+    // 4. Even manual consensus triggers don't help because the Council reads the OLD cache
+    // By forcing fresh results during Council sessions, we guarantee that each session
+    // gets the CURRENT state of all AI models, not stale startup data.
+    const forceFresh = options?.forceFresh ?? false;
+
     // Check Redis cache first — consensus valid for 10 minutes (increased from 5)
-    // FIX: Cache key version bumped to v3 to invalidate stale pre-fix results
-    // that had contradictory labels (e.g., 89% HOLD). Old v1/v2 cache entries
-    // will not be found, forcing fresh computation with the fixed parseVote().
-    const cacheKey = `ai:consensus:v7:${symbol}`;
-    try {
-      const cached = await this.redis?.get(cacheKey);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        this.logger.debug(`🎼 Redis cache hit for consensus: ${symbol}`);
-        return parsed;
-      }
-    } catch {}
+    // FIX: Cache key version bumped to v8 to invalidate stale v7 results
+    // that were produced during startup when models weren't ready.
+    const cacheKey = `ai:consensus:v8:${symbol}`;
+    if (!forceFresh) {
+      try {
+        const cached = await this.redis?.get(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          this.logger.debug(`🎼 Redis cache hit for consensus: ${symbol}`);
+          return parsed;
+        }
+      } catch {}
+    } else {
+      this.logger.log(`🎼 ForceFresh=true: bypassing cache for consensus: ${symbol}`);
+      // Also delete the old cache entry to prevent stale data
+      try {
+        await this.redis?.del(cacheKey);
+      } catch {}
+    }
 
     // Also check in-memory cache
     // FIX: Disabled in-memory cache for consensus to prevent stale HOLD results

@@ -112,6 +112,14 @@ const nextConfig: NextConfig = {
         source: '/api/news/nest/fetch',
         destination: `${apiTarget}/api/news/fetch`,
       },
+      // ── Integration endpoints (proxied to NestJS for cross-platform communication) ──
+      // These endpoints use X-Integration-Key auth (not session-based), so rewrites
+      // are safe here — no Authorization header injection needed.
+      // NestJS IntegrationGuard + CORS handle auth and cross-origin requests.
+      {
+        source: '/api/integration/:path*',
+        destination: `${apiTarget}/api/integration/:path*`,
+      },
       // ── REMOVED: Strategic Council and Smart Executor rewrites ──
       // These were bypassing the Next.js Route Handlers that inject auth tokens.
       // The rewrites sent requests directly to NestJS without Authorization headers,

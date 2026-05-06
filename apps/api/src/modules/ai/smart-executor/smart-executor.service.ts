@@ -862,6 +862,15 @@ export class SmartExecutorService implements OnModuleDestroy {
       }
 
       // Calculate position size based on risk
+      // FIX: The old formula `riskAmount / priceRisk` produces astronomical quantities
+      // for Forex pairs where priceRisk is tiny (e.g., EUR/USD: |1.1754 - 1.1695| = 0.006).
+      // Example: $1000 risk / $0.006 priceRisk = 170,154 units × $1.1754 = $200,000 order.
+      // This ALWAYS gets rejected by RiskGatekeeper (max order size $10K-$50K).
+      //
+      // NEW APPROACH: Calculate the maximum quantity that keeps the order value
+      // within a safe range, THEN apply the risk-based constraint.
+      // This ensures Forex pairs trade with reasonable lot sizes while still
+      // respecting the risk percentage.
       const riskPercent = (userState.riskPerTradePercent || this.config.riskPerTradePercent) / 100;
       const riskAmount = Math.max(portfolioValue * riskPercent, 10); // minimum $10
       const priceRisk = Math.abs(currentPrice - brief.stopLoss);
@@ -873,13 +882,43 @@ export class SmartExecutorService implements OnModuleDestroy {
         return result;
       }
 
-      const quantity = parseFloat((riskAmount / priceRisk).toFixed(6));
+      // Step 1: Risk-based quantity (how many units can we hold given our risk budget)
+      const riskBasedQty = riskAmount / priceRisk;
+
+      // Step 2: Cap by max order value. For paper trading, use $5,000 max per trade
+      // (5% of $100K paper balance). For real trading, use 2% of portfolio.
+      // This prevents the $200K order problem while still allowing meaningful trades.
+      const maxOrderValue = userState.isPaperTrading
+        ? Math.min(5000, portfolioValue * 0.05)   // Paper: max $5K or 5% of portfolio
+        : Math.min(10000, portfolioValue * 0.02);  // Real: max $10K or 2% of portfolio
+      const valueCappedQty = maxOrderValue / currentPrice;
+
+      // Step 3: Use the SMALLER of risk-based and value-capped quantity
+      // This ensures we never exceed either the risk budget OR the order value limit
+      let quantity = Math.min(riskBasedQty, valueCappedQty);
+
+      // Step 4: Ensure minimum order value ($10) — skip if too small
+      const orderValue = quantity * currentPrice;
+      if (orderValue < 10) {
+        result.error = `Order value too small: $${orderValue.toFixed(2)} < $10 minimum`;
+        this.logger.debug(`⚔️ Brief ${brief.id} order value $${orderValue.toFixed(2)} too small — skipping`);
+        return result;
+      }
+
+      quantity = parseFloat(quantity.toFixed(6));
 
       if (quantity <= 0) {
         result.error = 'Invalid quantity calculated';
         // Don't mark as processed — transient calculation issue
         return result;
       }
+
+      this.logger.debug(
+        `⚔️ Position sizing for ${brief.pair}: riskQty=${riskBasedQty.toFixed(2)}, ` +
+        `valueCapQty=${valueCappedQty.toFixed(2)} (maxVal=$${maxOrderValue}), ` +
+        `finalQty=${quantity}, orderValue=$${(quantity * currentPrice).toFixed(2)}, ` +
+        `risk=$${(quantity * priceRisk).toFixed(2)} (${((quantity * priceRisk / portfolioValue) * 100).toFixed(2)}% of portfolio)`,
+      );
 
       // Place the order via TradingService (proper risk checks, CCXT execution, etc.)
       // FIX: Pass currentPrice so TradingService doesn't need to re-fetch from ExchangeService

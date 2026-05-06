@@ -12,7 +12,7 @@
 //   - يراقب حد الخسارة اليومي لكل مستخدم
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { ExchangeService } from '../../exchange/exchange.service';
@@ -23,6 +23,7 @@ import { TradingBriefDTO, StrictRules } from '../strategic-council/strategic-cou
 import { ExecutorStatus, ExecutionResult, ExecutorConfig, UserExecutorState } from './smart-executor.types';
 import { PlaceOrderRequest, OrderSide, OrderType } from '../../trading/trading.types';
 import { RiskGatekeeperService } from '../../trading/services/risk-gatekeeper.service';
+import { AIOrchestratorService } from '../services/ai-orchestrator.service';
 import { OrderSideEnum, OrderTypeEnum } from '../../trading/events/order.events';
 import { NotificationService } from '../../notification/notification.service';
 
@@ -69,6 +70,7 @@ export class SmartExecutorService implements OnModuleDestroy {
     private readonly councilService: StrategicCouncilService,
     private readonly riskGatekeeper: RiskGatekeeperService,
     private readonly notificationService: NotificationService,
+    @Inject(forwardRef(() => AIOrchestratorService)) private readonly orchestrator: AIOrchestratorService,
   ) {
     this.logger.log('⚔️ Smart Executor initialized — awaiting activation (with RiskGatekeeper + Notifications)');
 
@@ -607,13 +609,22 @@ export class SmartExecutorService implements OnModuleDestroy {
     portfolioValue: number,
   ): Promise<void> {
     // 2. Get current price
+    // FIX: Use orchestrator's fetchQuickMarketData first (multiple parallel sources,
+    // works on Railway), then fall back to ExchangeService.
     let currentPrice: number;
     try {
-      const quote = await this.exchangeService.getQuote(brief.pair);
-      currentPrice = quote.price;
-    } catch (priceErr: any) {
-      this.logger.debug(`⚔️ Cannot get price for ${brief.pair}: ${priceErr.message} — skipping brief ${brief.id}`);
-      return; // Can't get price — skip
+      const marketData = await this.orchestrator.fetchQuickMarketData(brief.pair);
+      currentPrice = marketData.price;
+    } catch {}
+
+    if (!currentPrice || currentPrice <= 0) {
+      try {
+        const quote = await this.exchangeService.getQuote(brief.pair);
+        currentPrice = quote.price;
+      } catch (priceErr: any) {
+        this.logger.debug(`⚔️ Cannot get price for ${brief.pair}: ${priceErr.message} — skipping brief ${brief.id}`);
+        return; // Can't get price — skip
+      }
     }
 
     // 2. Check strict rules

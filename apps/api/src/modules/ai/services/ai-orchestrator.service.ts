@@ -1502,7 +1502,17 @@ export class AIOrchestratorService implements OnModuleDestroy {
    * Uses Binance public API for crypto — no auth required.
    * Falls back to CoinGecko if Binance is unreachable (common on Railway).
    */
-  private async _fetchQuickMarketData(symbol: string): Promise<{ price: number; rsi: number; macd: string }> {
+  /**
+   * Public method: Fetch quick market data (price, RSI, MACD) for a symbol.
+   * Used by Strategic Council for technical fallback analysis.
+   * This method uses multiple parallel price sources (Binance, CoinGecko, CoinCap, Bybit, TwelveData)
+   * and works reliably on Railway/cloud platforms where individual sources may be blocked.
+   */
+  async fetchQuickMarketData(symbol: string): Promise<{ price: number; rsi: number; macd: string; change24h?: number }> {
+    return this._fetchQuickMarketData(symbol);
+  }
+
+  private async _fetchQuickMarketData(symbol: string): Promise<{ price: number; rsi: number; macd: string; change24h?: number }> {
     // Normalize symbol for Binance: BTC/USD → BTCUSDT, ETH/USD → ETHUSDT
     const binanceSymbol = symbol.replace(/[\/\-]/g, '').replace('USD', 'USDT').toUpperCase();
 
@@ -1510,12 +1520,14 @@ export class AIOrchestratorService implements OnModuleDestroy {
     // Previous code only tried Binance → CoinGecko sequentially, which fails on
     // Railway because Binance blocks cloud IPs and CoinGecko has strict rate limits.
     // Now: Binance + CoinGecko + CoinCap + Bybit all in parallel.
+    let change24h: number | undefined;
     const pricePromise = Promise.any([
       // Source 1: Binance (most accurate, but often blocked on Railway)
       (async () => {
         const res = await axios.get(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`, { timeout: 4000 });
         const price = parseFloat(res.data?.lastPrice || '0');
         if (price <= 0) throw new Error('Binance price=0');
+        change24h = parseFloat(res.data?.priceChangePercent || '0');
         return { price, source: 'binance' };
       })(),
       // Source 2: CoinGecko (reliable, free, no auth)
@@ -1524,6 +1536,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
         const res = await axios.get(`https://api.coingecko.com/api/v3/simple/price?ids=${coingeckoId}&vs_currencies=usd&include_24hr_change=true`, { timeout: 5000 });
         const price = res.data?.[coingeckoId]?.usd;
         if (!price || price <= 0) throw new Error('CoinGecko no price');
+        change24h = res.data?.[coingeckoId]?.usd_24h_change;
         return { price, source: 'coingecko' };
       })(),
       // Source 3: CoinCap (free, no auth, works on cloud platforms)
@@ -1532,6 +1545,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
         const res = await axios.get(`https://api.coincap.io/v2/assets/${base}`, { timeout: 5000 });
         const price = parseFloat(res.data?.data?.priceUsd || '0');
         if (price <= 0) throw new Error('CoinCap price=0');
+        change24h = parseFloat(res.data?.data?.changePercent24Hr || '0');
         return { price, source: 'coincap' };
       })(),
       // Source 4: Bybit (alternative exchange, works on cloud)
@@ -1540,6 +1554,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
         const res = await axios.get(`https://api.bybit.com/v5/market/tickers?category=spot&symbol=${bybitSymbol}`, { timeout: 4000 });
         const price = parseFloat(res.data?.result?.list?.[0]?.lastPrice || '0');
         if (price <= 0) throw new Error('Bybit price=0');
+        change24h = parseFloat(res.data?.result?.list?.[0]?.price24hPcnt || '0') * 100;
         return { price, source: 'bybit' };
       })(),
       // Source 5: TwelveData (API key available, reliable on cloud)
@@ -1600,19 +1615,19 @@ export class AIOrchestratorService implements OnModuleDestroy {
           if (now - entry.timestamp > this.PRICE_CACHE_MAX_AGE) this.lastKnownPriceCache.delete(key);
         }
       }
-      this.logger.debug(`📊 Market data for ${symbol}: price=${priceResult.price} from ${priceResult.source}, RSI=${rsi}, MACD=${macd}`);
-      return { price: priceResult.price, rsi, macd };
+      this.logger.debug(`📊 Market data for ${symbol}: price=${priceResult.price} from ${priceResult.source}, RSI=${rsi}, MACD=${macd}, 24h=${change24h?.toFixed(2) || 'N/A'}%`);
+      return { price: priceResult.price, rsi, macd, change24h };
     }
 
     // All sources failed — try last-known-good price cache
     const cachedPrice = this.lastKnownPriceCache.get(symbol);
     if (cachedPrice && (Date.now() - cachedPrice.timestamp) < this.PRICE_CACHE_MAX_AGE) {
       this.logger.debug(`📊 Using cached price for ${symbol}: $${cachedPrice.price} (${Math.round((Date.now() - cachedPrice.timestamp) / 1000)}s old)`);
-      return { price: cachedPrice.price, rsi: cachedPrice.rsi, macd: cachedPrice.macd };
+      return { price: cachedPrice.price, rsi: cachedPrice.rsi, macd: cachedPrice.macd, change24h: 0 };
     }
 
     this.logger.warn(`📊 ALL price sources failed for ${symbol} — AI may hallucinate prices`);
-    return { price: 0, rsi: 50, macd: 'غير متوفر' };
+    return { price: 0, rsi: 50, macd: 'غير متوفر', change24h: 0 };
   }
 
   /**

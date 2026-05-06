@@ -19,6 +19,7 @@ import { ExchangeModule } from '../../exchange/exchange.module';
 import { TradingModule } from '../../trading/trading.module';
 import { StrategicCouncilModule } from '../strategic-council/strategic-council.module';
 import { NotificationModule } from '../../notification/notification.module';
+import { AiModule } from '../ai.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { NotificationModule } from '../../notification/notification.module';
     ExchangeModule,
     TradingModule,
     forwardRef(() => StrategicCouncilModule),
+    forwardRef(() => AiModule),
     NotificationModule,
   ],
   controllers: [SmartExecutorController],

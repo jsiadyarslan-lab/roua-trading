@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
-import { useScopedStyle } from '@/hooks/useScopedStyle'
   LayoutDashboard,
   Users,
   Activity,
@@ -21,6 +20,7 @@ import { useScopedStyle } from '@/hooks/useScopedStyle'
   LogOut,
   Loader2,
 } from 'lucide-react'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 const NAV_ITEMS = [
   { id: 'overview', label: 'نظرة عامة', icon: LayoutDashboard, path: '/dashboard/admin' },

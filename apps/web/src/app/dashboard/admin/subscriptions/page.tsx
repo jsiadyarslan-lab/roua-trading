@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import {
-import { useScopedStyle } from '@/hooks/useScopedStyle'
   CreditCard,
   RefreshCw,
   Users,
@@ -10,6 +9,7 @@ import { useScopedStyle } from '@/hooks/useScopedStyle'
   Clock,
   AlertCircle,
 } from 'lucide-react'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 /* ── design tokens ── */
 const COLORS = {

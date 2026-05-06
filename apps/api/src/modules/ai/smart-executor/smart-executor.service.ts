@@ -1144,6 +1144,103 @@ export class SmartExecutorService implements OnModuleDestroy {
       issues.push('Briefs are already processed (marked in Redis) — no new trades will happen');
     }
 
+    // Step 6: TRY to actually execute one trade and capture the result
+    // This is the only way to find out why trades aren't happening —
+    // the debug checks above can all pass but execution can still fail.
+    try {
+      const briefs = await this.councilService.getActiveBriefs();
+      const enabledUsers = await this._getEnabledUsers();
+      if (briefs.length > 0 && enabledUsers.length > 0) {
+        const testBrief = briefs[0];
+        const testUserId = enabledUsers[0];
+        const userState = await this.getUserState(testUserId);
+
+        if (userState?.enabled) {
+          // Get price
+          let testPrice = 0;
+          try {
+            const md = await this.orchestrator.fetchQuickMarketData(testBrief.pair);
+            testPrice = md.price;
+          } catch {}
+          if (!testPrice || testPrice <= 0) {
+            try {
+              const q = await this.exchangeService.getQuote(testBrief.pair);
+              testPrice = q.price;
+            } catch {}
+          }
+
+          if (testPrice > 0) {
+            // Find or create paper credential
+            let cred: any = null;
+            try {
+              cred = await this.prisma.exchangeCredential.findFirst({
+                where: { userId: testUserId, exchange: 'paper-trading', isValid: true },
+              });
+              if (!cred) {
+                cred = await this.prisma.exchangeCredential.create({
+                  data: {
+                    userId: testUserId,
+                    exchange: 'paper-trading',
+                    label: 'تداول ورقي (تجريبي)',
+                    encryptedApiKey: 'paper',
+                    encryptedSecret: 'paper',
+                    iv: 'paper',
+                    authTag: 'paper',
+                    permissions: JSON.stringify(['read', 'trade']),
+                    isValid: true,
+                  },
+                });
+              }
+            } catch (e: any) {
+              diagnostic.executionTest = { step: 'credential', error: e.message, stack: e.stack?.slice(0, 300) };
+            }
+
+            if (cred) {
+              // Calculate quantity
+              const portfolioValue = userState.isPaperTrading ? 100000 : 0;
+              const riskPercent = (userState.riskPerTradePercent || 1) / 100;
+              const riskAmount = Math.max(portfolioValue * riskPercent, 10);
+              const priceRisk = Math.abs(testPrice - testBrief.stopLoss);
+
+              // Run RiskGatekeeper
+              try {
+                const riskResult = await this.riskGatekeeper.validateOrder({
+                  userId: testUserId,
+                  exchangeCredentialId: cred.id,
+                  symbol: testBrief.pair,
+                  side: testBrief.direction === 'BUY' ? OrderSideEnum.BUY : OrderSideEnum.SELL,
+                  type: OrderTypeEnum.MARKET,
+                  quantity: priceRisk > 0 ? parseFloat((riskAmount / priceRisk).toFixed(6)) : 0,
+                  stopLoss: testBrief.stopLoss,
+                  idempotencyKey: `debug-${Date.now()}`,
+                });
+                diagnostic.executionTest = {
+                  step: 'riskGatekeeper',
+                  riskResult: {
+                    allowed: riskResult.allowed,
+                    reason: riskResult.reason || null,
+                    riskScore: riskResult.riskScore || null,
+                    failedCheck: riskResult.failedCheck || null,
+                  },
+                  credential: { id: cred.id, exchange: cred.exchange },
+                  testPrice,
+                  quantity: priceRisk > 0 ? parseFloat((riskAmount / priceRisk).toFixed(6)) : 0,
+                  priceRisk,
+                  portfolioValue,
+                };
+              } catch (e: any) {
+                diagnostic.executionTest = { step: 'riskGatekeeper', error: e.message, stack: e.stack?.slice(0, 500) };
+              }
+            }
+          } else {
+            diagnostic.executionTest = { step: 'price', error: 'Cannot get price for any pair' };
+          }
+        }
+      }
+    } catch (e: any) {
+      diagnostic.executionTest = { step: 'unknown', error: e.message };
+    }
+
     diagnostic.diagnosis = {
       issues,
       canExecute: this.isRunning && (diagnostic.activeBriefs?.count > 0) && (diagnostic.enabledUsers?.count > 0),

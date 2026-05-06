@@ -186,6 +186,40 @@ export default function RouaChart({
   const resetViewRef = useRef(chart.resetView);
   useEffect(() => { resetViewRef.current = chart.resetView; }, [chart.resetView]);
 
+  // ═══════════════════════════════════════════════════════════════════
+  // CRITICAL FIX: Remove AI overlay series when timeframe changes.
+  //
+  // AI overlay series (Area/Line from handlePatternsDetected) are stored
+  // in aiOverlaySeriesRef — they are NOT tracked by useChart.ts's
+  // overlaySeriesRef/oscillatorSeriesRef. When the timeframe changes,
+  // these series still hold timestamps from the OLD timeframe. When
+  // setCandles() triggers a chart re-render, lightweight-charts tries to
+  // render these series at timestamps that no longer exist in the candle
+  // data → "Value is null" crash.
+  //
+  // This was THE root cause of the persistent "Value is null" error that
+  // occurred specifically when AI analysis was open and the user changed
+  // the timeframe.
+  // ═══════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    const chartApi = chart.chartRef?.current;
+    if (chartApi) {
+      aiOverlaySeriesRef.current.forEach(s => {
+        try { chartApi.removeSeries(s); } catch {}
+      });
+      aiOverlaySeriesRef.current = [];
+    }
+    // Also clear via useChart's external series tracking (belt & suspenders)
+    chart.clearExternalSeries();
+    // Remove AI price lines (support/resistance/entry/exit)
+    aiPriceLinesRef.current.forEach(id => {
+      try { chart.removePriceLine(id); } catch {}
+    });
+    aiPriceLinesRef.current = [];
+    // Clear AI patterns state — they'll be re-detected for the new timeframe
+    setAiPatterns([]);
+  }, [timeframe, chart]);
+
   // ── Compute the timeframe's interval in seconds ──
   const tfSeconds = useMemo(() => {
     const tf = TIMEFRAMES.find(t => t.value === timeframe);
@@ -658,10 +692,12 @@ export default function RouaChart({
   const handlePatternsDetected = useCallback(async (result: AIAnalysisResult) => {
     setAiPatterns(result.patterns);
 
-    // FIX: Improved cleanup — log errors instead of silently swallowing
+    // FIX: Improved cleanup — also unregister from useChart's external series tracking
     const chartApi = chart.chartRef?.current;
     aiOverlaySeriesRef.current.forEach(s => {
       try { chartApi?.removeSeries(s); } catch (e) { console.warn('[AI Overlay] Failed to remove series:', e); }
+      // Unregister from useChart's external tracking
+      chart.unregisterExternalSeries(s);
     });
     aiOverlaySeriesRef.current = [];
     aiPriceLinesRef.current.forEach(id => chart.removePriceLine(id));
@@ -741,6 +777,7 @@ export default function RouaChart({
           if (trendData.length >= 2) {
             trendSeries.setData(trendData as any);
             aiOverlaySeriesRef.current.push(trendSeries);
+            chart.registerExternalSeries(trendSeries); // Track in useChart for cleanup
           } else {
             // Not enough valid points — remove the empty series
             try { chartApi.removeSeries(trendSeries); } catch {}
@@ -778,6 +815,7 @@ export default function RouaChart({
               try {
                 areaSeries.setData(areaData as any);
                 aiOverlaySeriesRef.current.push(areaSeries);
+                chart.registerExternalSeries(areaSeries); // Track in useChart for cleanup
               } catch (e) {
                 console.warn('[AI Overlay] AreaSeries setData error:', e);
                 try { chartApi.removeSeries(areaSeries); } catch {}
@@ -800,6 +838,7 @@ export default function RouaChart({
               try {
                 shapeLine.setData(lineData as any);
                 aiOverlaySeriesRef.current.push(shapeLine);
+                chart.registerExternalSeries(shapeLine); // Track in useChart for cleanup
               } catch (e) {
                 console.warn('[AI Overlay] LineSeries setData error:', e);
                 try { chartApi.removeSeries(shapeLine); } catch {}

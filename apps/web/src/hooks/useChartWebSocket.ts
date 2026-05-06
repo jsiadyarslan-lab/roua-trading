@@ -307,6 +307,13 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     setConnectionState('connecting');
 
     // Get session token for authentication
+    // FIX: Only include token if it's actually available.
+    // When roua_session is httpOnly, document.cookie can't read it,
+    // so getSessionToken() returns null. Passing token=null in the
+    // query string creates "?token=null" which is misleading and may
+    // cause server-side auth failures. The browser automatically sends
+    // httpOnly cookies in the WebSocket handshake Cookie header, so
+    // the server can still authenticate via _extractSessionFromCookie().
     const token = getSessionToken();
     const wsUrl = window.location.origin;
 
@@ -315,15 +322,20 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       if (isClosingRef.current) return;
 
       try {
-        const socket = io(`${wsUrl}/exchange`, {
+        const socketOptions: any = {
           transports: ['websocket', 'polling'],
           autoConnect: true,
           reconnection: true,
           reconnectionAttempts: 5,
           reconnectionDelay: 2000,
-          auth: { token },
-          query: { token },
-        });
+        };
+        // Only include token in auth/query if it's actually available
+        if (token) {
+          socketOptions.auth = { token };
+          socketOptions.query = { token };
+        }
+
+        const socket = io(`${wsUrl}/exchange`, socketOptions);
 
         socketIoRef.current = socket;
 

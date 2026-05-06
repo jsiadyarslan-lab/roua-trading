@@ -64,6 +64,9 @@ interface UseChartReturn {
   removePriceLine: (id: string) => void;
   getPriceCoordinate: (price: number) => number | null;
   onVisibleRangeChange: (callback: () => void) => () => void;
+  registerExternalSeries: (series: ISeriesApi<SeriesType>) => void;
+  unregisterExternalSeries: (series: ISeriesApi<SeriesType>) => void;
+  clearExternalSeries: () => void;
 }
 
 export function useChart(options: UseChartOptions): UseChartReturn {
@@ -76,6 +79,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
   const overlaySeriesRef = useRef<Map<string, ISeriesApi<SeriesType>>>(new Map());
   const oscillatorSeriesRef = useRef<Map<string, ISeriesApi<SeriesType>>>(new Map());
+  // FIX: Track external series created outside useChart (e.g., AI overlay from RouaChart.tsx).
+  // These series must be cleaned up before setData() to prevent "Value is null" crashes.
+  const externalSeriesRef = useRef<Set<ISeriesApi<SeriesType>>>(new Set());
   const candlesRef = useRef<CandleData[]>([]);
   const drawingManagerRef = useRef<DrawingManager | null>(null);
   const drawingRendererRef = useRef<DrawingRenderer | null>(null);
@@ -1074,6 +1080,15 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         try { chart.removeSeries(series); } catch {}
       });
       oscillatorSeriesRef.current.clear();
+
+      // CRITICAL FIX: Also remove external series registered by
+      // RouaChart.tsx (AI overlay Area/Line series, etc.).
+      // These are NOT in overlaySeriesRef/oscillatorSeriesRef and
+      // contain timestamps from the old timeframe → "Value is null" crash.
+      externalSeriesRef.current.forEach((series) => {
+        try { chart.removeSeries(series); } catch {}
+      });
+      externalSeriesRef.current.clear();
     }
 
     // Cancel any previously scheduled indicator re-apply
@@ -1533,6 +1548,33 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     return candleSeriesRef.current.priceToCoordinate(price);
   }, []);
 
+  // ── External Series Management ─────────────────────────
+  // FIX: Allow RouaChart.tsx to register series created outside useChart
+  // (e.g., AI overlay Area/Line series). These are tracked separately so
+  // setCandles can remove them before calling setData(), preventing
+  // "Value is null" crashes when timeframe changes.
+  const registerExternalSeries = useCallback((series: ISeriesApi<SeriesType>) => {
+    externalSeriesRef.current.add(series);
+  }, []);
+
+  const unregisterExternalSeries = useCallback((series: ISeriesApi<SeriesType>) => {
+    externalSeriesRef.current.delete(series);
+    // Also try to remove from chart if still attached
+    if (chartInstanceRef.current) {
+      try { chartInstanceRef.current.removeSeries(series); } catch {}
+    }
+  }, []);
+
+  const clearExternalSeries = useCallback(() => {
+    const chart = chartInstanceRef.current;
+    externalSeriesRef.current.forEach((series) => {
+      if (chart) {
+        try { chart.removeSeries(series); } catch {}
+      }
+    });
+    externalSeriesRef.current.clear();
+  }, []);
+
   // visibleRangeCallbackRef and prevCallbackRef are now declared at the top
   // of the hook (near other refs) to prevent TDZ errors. See line ~91.
 
@@ -1683,5 +1725,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     removePriceLine,
     getPriceCoordinate,
     onVisibleRangeChange,
+    registerExternalSeries,
+    unregisterExternalSeries,
+    clearExternalSeries,
   };
 }

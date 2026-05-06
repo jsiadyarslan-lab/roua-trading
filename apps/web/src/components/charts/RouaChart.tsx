@@ -176,6 +176,22 @@ export default function RouaChart({
     onCrosshairMove: setCrosshairData,
   });
 
+  // ── Ref to always have the latest setCandles without stale closures ──
+  // The fetch effect uses this ref instead of chart.setCandles directly,
+  // ensuring it always calls the latest version even across re-renders.
+  const setCandlesRef = useRef(chart.setCandles);
+  useEffect(() => { setCandlesRef.current = chart.setCandles; }, [chart.setCandles]);
+
+  // ── Ref to always have the latest resetView ──
+  const resetViewRef = useRef(chart.resetView);
+  useEffect(() => { resetViewRef.current = chart.resetView; }, [chart.resetView]);
+
+  // ── Compute the timeframe's interval in seconds ──
+  const tfSeconds = useMemo(() => {
+    const tf = TIMEFRAMES.find(t => t.value === timeframe);
+    return (tf?.minutes || 15) * 60;
+  }, [timeframe]);
+
   // ── WebSocket ──────────────────────────────────────────
   const ws = useChartWebSocket({
     symbol: selectedSymbol,
@@ -186,14 +202,29 @@ export default function RouaChart({
       // This prevents stale data from the old timeframe being pushed back.
       if (candlesRef.current.length === 0) return;
 
+      // FIX: Align candle timestamp to the current timeframe's interval.
+      // WebSocket (especially Socket.IO ticker) may send candles at 1-minute
+      // granularity regardless of the selected timeframe. We snap the time
+      // to the nearest timeframe boundary so it matches the historical candles.
+      const alignedTime = Math.floor(candle.time / tfSeconds) * tfSeconds;
+      const alignedCandle = { ...candle, time: alignedTime };
+
       // Update or add candle
-      const idx = candlesRef.current.findIndex(c => c.time === candle.time);
+      const idx = candlesRef.current.findIndex(c => c.time === alignedTime);
       if (idx >= 0) {
-        candlesRef.current[idx] = candle;
+        // Merge: keep the widest high/low, latest close
+        const existing = candlesRef.current[idx];
+        candlesRef.current[idx] = {
+          ...existing,
+          high: Math.max(existing.high, alignedCandle.high),
+          low: Math.min(existing.low, alignedCandle.low),
+          close: alignedCandle.close,
+          volume: existing.volume + alignedCandle.volume,
+        };
       } else {
-        candlesRef.current.push(candle);
+        candlesRef.current.push(alignedCandle);
       }
-      chart.setCandles(candlesRef.current);
+      setCandlesRef.current(candlesRef.current);
     },
     onPriceUpdate: (price) => {
       chart.updateLastCandle(price);
@@ -224,7 +255,7 @@ export default function RouaChart({
         const res = await fetch(`/api/exchange/history/${encodeURIComponent(selectedSymbol)}?interval=${timeframe}`);
         const j = await res.json();
 
-        if (cancelled) return; // Symbol changed while fetching — discard
+        if (cancelled) return; // Symbol/timeframe changed while fetching — discard
 
         if (j.success && j.data && j.data.length > 0) {
           setFeedState('live');
@@ -248,7 +279,14 @@ export default function RouaChart({
           // Sort by time (lightweight-charts v5 requires strictly ascending time)
           unique.sort((a, b) => a.time - b.time);
           candlesRef.current = unique;
-          chart.setCandles(unique);
+          // FIX: Use ref to avoid stale closure over chart.setCandles
+          setCandlesRef.current(unique);
+          // FIX: Auto-fit chart to show new timeframe data range.
+          // Without this, the chart may keep the old scroll position and the
+          // user sees blank or unchanged data even though new data was loaded.
+          requestAnimationFrame(() => {
+            if (!cancelled) resetViewRef.current();
+          });
         } else {
           if (cancelled) return;
           setFeedState('fallback');
@@ -296,7 +334,12 @@ export default function RouaChart({
 
       // Data is already sorted by construction (oldest → newest)
       candlesRef.current = candles;
-      chart.setCandles(candles);
+      // FIX: Use ref to avoid stale closure
+      setCandlesRef.current(candles);
+      // FIX: Auto-fit after simulated data too
+      requestAnimationFrame(() => {
+        if (!cancelled) resetViewRef.current();
+      });
     };
 
     fetchCandles();

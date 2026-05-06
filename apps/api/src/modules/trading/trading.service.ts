@@ -49,6 +49,49 @@ export class TradingService {
     this.logger.log(
       '⚡ Trading Engine initialized — ready for execution',
     );
+    // FIX: Ensure ExchangeCredential table has all columns from Prisma schema.
+    // Prisma migration sometimes fails silently, leaving the DB schema out of sync.
+    // This causes ALL queries on ExchangeCredential to fail with:
+    // "The column ExchangeCredential.encryptedPassphrase does not exist"
+    // which blocks ALL trade execution (paper and real).
+    this._ensureExchangeCredentialColumns();
+  }
+
+  /**
+   * FIX: Ensure the ExchangeCredential table has all columns from the Prisma schema.
+   * Prisma migration failed in production, leaving the DB schema out of sync with
+   * the Prisma schema. This caused every query on ExchangeCredential to fail because
+   * Prisma generates SELECT * including columns that don't exist in the DB.
+   *
+   * This method adds missing columns via raw SQL (safe, idempotent).
+   */
+  private async _ensureExchangeCredentialColumns(): Promise<void> {
+    try {
+      const missingColumns = [
+        { name: 'secretIv', type: 'TEXT' },
+        { name: 'secretAuthTag', type: 'TEXT' },
+        { name: 'encryptedPassphrase', type: 'TEXT' },
+        { name: 'passphraseIv', type: 'TEXT' },
+        { name: 'passphraseAuthTag', type: 'TEXT' },
+      ];
+
+      for (const col of missingColumns) {
+        try {
+          await this.prisma.$executeRawUnsafe(`
+            ALTER TABLE "ExchangeCredential"
+            ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type};
+          `);
+        } catch (e: any) {
+          if (!e.message?.includes('already exists')) {
+            this.logger.warn(`⚡ Could not add column ${col.name}: ${e.message}`);
+          }
+        }
+      }
+
+      this.logger.log('⚡ ExchangeCredential schema verified — all columns present');
+    } catch (error: any) {
+      this.logger.error(`⚡ Failed to verify ExchangeCredential schema: ${error.message}`);
+    }
   }
 
   // ── Order Management ──

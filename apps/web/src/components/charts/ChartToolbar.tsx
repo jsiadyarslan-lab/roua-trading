@@ -52,8 +52,6 @@ interface ChartToolbarProps {
   onToggleFootprint?: () => void;
   showAlerts?: boolean;
   onToggleAlerts?: () => void;
-  showSessionStats?: boolean;
-  onToggleSessionStats?: () => void;
   showPatternProgress?: boolean;
   onTogglePatternProgress?: () => void;
   // ── 3 Revolutionary Feature Toggle Props ──
@@ -94,7 +92,6 @@ export function ChartToolbar(props: ChartToolbarProps) {
     onToggleCompare, onToggleMTF, onToggleShare, onToggleChartGrid, showCompare,
     showFootprint, onToggleFootprint,
     showAlerts, onToggleAlerts,
-    showSessionStats, onToggleSessionStats,
     showPatternProgress, onTogglePatternProgress,
     showReplay, onToggleReplay,
     showHeatmap, onToggleHeatmap,
@@ -234,7 +231,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
         gap: 1,
         direction: 'rtl',
         overflowX: 'auto',
-        overflowY: 'hidden',
+        overflowY: 'visible',
       }}>
         {/* Chart Type */}
         <div ref={chartTypeRef} style={{ position: 'relative' }}>
@@ -501,7 +498,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
                 { label: '🔔 تنبيهات', action: onToggleAlerts || (() => {}) },
                 { label: '⏪ Replay Mode', action: onToggleReplay || (() => {}) },
                 { label: '🔲 Heatmap', action: onToggleHeatmap || (() => {}) },
-                { label: '⏱️ إحصائيات الجلسة', action: onToggleSessionStats || (() => {}) },
+
                 { label: '⚖️ مقارنة', action: onToggleCompare || (() => {}) },
                 { label: '📊 تحليل MTF', action: onToggleMTF || (() => {}) },
                 { label: '▦ شبكة الشارتات', action: onToggleChartGrid || (() => {}) },
@@ -542,7 +539,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
       gap: 2,
       direction: 'rtl',
       overflowX: 'auto',
-      overflowY: 'hidden',
+      overflowY: 'visible',
     }}>
       {/* Chart Type */}
       <div ref={chartTypeRef} style={{ position: 'relative' }}>
@@ -756,18 +753,6 @@ export function ChartToolbar(props: ChartToolbarProps) {
           🔔
         </button>
       )}
-
-      {onToggleSessionStats && (
-        <button
-          style={toggleBtnStyle(!!showSessionStats)}
-          onClick={onToggleSessionStats}
-          title="إحصائيات الجلسة"
-        >
-          ⏱️
-        </button>
-      )}
-
-      <div style={sepStyle} />
 
       {/* ── Group 6: Trading ── */}
 

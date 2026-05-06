@@ -31,7 +31,6 @@ import { ChartGrid } from './ChartGrid';
 import ShareChart from './ShareChart';
 import { FootprintChart } from './FootprintChart';
 import { AlertPanel } from './AlertPanel';
-import { SessionStats } from './SessionStats';
 import { PatternProgress } from './PatternProgress';
 import { DraggablePanel } from './DraggablePanel';
 import { PriceAlertLine } from './PriceAlertLine';
@@ -145,7 +144,6 @@ export default function RouaChart({
   // ── 5 New Feature States ──
   const [showFootprint, setShowFootprint] = useState(false);
   const [showAlerts, setShowAlerts] = useState(false);
-  const [showSessionStats, setShowSessionStats] = useState(false);
   const [showPatternProgress, setShowPatternProgress] = useState(false);
   // ── 3 Revolutionary Feature States ──
   const [showReplay, setShowReplay] = useState(false);
@@ -956,8 +954,6 @@ export default function RouaChart({
         onToggleFootprint={() => setShowFootprint(!showFootprint)}
         showAlerts={showAlerts}
         onToggleAlerts={() => setShowAlerts(!showAlerts)}
-        showSessionStats={showSessionStats}
-        onToggleSessionStats={() => setShowSessionStats(!showSessionStats)}
         showPatternProgress={showPatternProgress}
         onTogglePatternProgress={() => setShowPatternProgress(!showPatternProgress)}
         // ── 3 Revolutionary Feature Toolbar Props ──
@@ -1569,16 +1565,6 @@ export default function RouaChart({
         )}
 
         {/* Alert Panel replaced by PriceAlertLine below */}
-
-        {/* Session Stats (draggable) */}
-        {showSessionStats && (
-          <DraggablePanel defaultPosition={{ bottom: 12, left: 12 }} defaultWidth={260} minHeight={200}>
-            <SessionStats
-              symbol={selectedSymbol}
-              onClose={() => setShowSessionStats(false)}
-            />
-          </DraggablePanel>
-        )}
 
         {/* Pattern Progress (draggable) */}
         {showPatternProgress && (

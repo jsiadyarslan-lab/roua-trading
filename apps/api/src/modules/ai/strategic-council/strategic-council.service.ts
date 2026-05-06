@@ -66,11 +66,11 @@ export class StrategicCouncilService {
     this._ensureTradingBriefTable();
     // Startup health check: warn if no AI models are available
     this._checkAIHealth();
-    // FIX: Trigger an initial council session 30 seconds after startup
-    // so briefs are produced immediately instead of waiting up to 1 hour
-    // for the next cron job. This makes the dashboard show live data
-    // right after deployment.
-    this._triggerStartupSession();
+    // DISABLED: Startup session removed to prevent auto-generating Briefs
+    // that get picked up by the Smart Executor and executed as paper trades.
+    // The hourly cron job (@Cron('0 * * * *')) still runs every hour, so
+    // Briefs will be produced on the regular schedule.
+    // this._triggerStartupSession();
   }
 
   /**

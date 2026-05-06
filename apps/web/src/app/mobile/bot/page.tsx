@@ -242,6 +242,17 @@ export default function MobileBotPage() {
     setIsOn(newState)
 
     if (newState) {
+      // FIX: Require explicit confirmation before enabling paper trading
+      const confirmed = window.confirm(
+        '⚠️ تداول ورقي تجريبي\n\n' +
+        'هذا سيُفعّل التداول الورقي (محاكاة بأموال وهمية).\n' +
+        'الصفقات المنفّذة ستكون ورقية فقط وليست حقيقية.\n' +
+        'هل تريد المتابعة؟'
+      );
+      if (!confirmed) {
+        setIsOn(false);
+        return;
+      }
       // ── Enable bot via backend API ──
       addLog('🟢 جارٍ تشغيل البوت الآلي — إرسال طلب للخادم...', 'info')
       try {

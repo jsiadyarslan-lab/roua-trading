@@ -213,6 +213,18 @@ export function SmartExecutorPanel() {
   }
 
   const enableUser = async (isPaper: boolean = true) => {
+    // FIX: Require explicit confirmation before enabling paper trading
+    // Previously, clicking "تفعيل" would silently enable paper trading
+    // which creates fake trades that pollute the dashboard.
+    if (isPaper) {
+      const confirmed = window.confirm(
+        '⚠️ تداول ورقي تجريبي\n\n' +
+        'هذا سيُفعّل التداول الورقي (محاكاة بأموال وهمية).\n' +
+        'الصفقات المنفّذة ستكون ورقية فقط وليست حقيقية.\n' +
+        'هل تريد المتابعة؟'
+      );
+      if (!confirmed) return;
+    }
     setLoading(true)
     setError(null)
     try {

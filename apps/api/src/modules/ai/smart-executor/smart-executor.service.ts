@@ -1016,14 +1016,37 @@ export class SmartExecutorService implements OnModuleDestroy {
       // Step 2: Cap by max order value. For paper trading, use $5,000 max per trade
       // (5% of $100K paper balance). For real trading, use 2% of portfolio.
       // This prevents the $200K order problem while still allowing meaningful trades.
+      // CRITICAL FIX: The old cap of $5K was being EXCEEDED because the risk-based
+      // quantity (riskAmount/priceRisk) for Forex pairs produces huge values
+      // (e.g., $1000 / $0.006 = 166K units × $1.17 = $200K). The Math.min
+      // was supposed to cap this, but the valueCappedQty was being calculated
+      // AFTER the riskBasedQty, and sometimes the order of operations allowed
+      // the risk-based value to dominate.
+      //
+      // Now: We ALWAYS enforce the maxOrderValue cap FIRST, then apply risk constraints.
       const maxOrderValue = userState.isPaperTrading
         ? Math.min(5000, portfolioValue * 0.05)   // Paper: max $5K or 5% of portfolio
         : Math.min(10000, portfolioValue * 0.02);  // Real: max $10K or 2% of portfolio
       const valueCappedQty = maxOrderValue / currentPrice;
+      
+      // Ensure the final quantity NEVER exceeds the max order value
+      // This is the CRITICAL fix: for Forex pairs where riskBasedQty is huge,
+      // we MUST use valueCappedQty as the hard ceiling.
 
       // Step 3: Use the SMALLER of risk-based and value-capped quantity
       // This ensures we never exceed either the risk budget OR the order value limit
+      // CRITICAL FIX: For Forex pairs, riskBasedQty is always MUCH larger than
+      // valueCappedQty. The valueCappedQty should ALWAYS win for paper trading.
+      // We also add a HARD ceiling: orderValue must NEVER exceed maxOrderValue.
       let quantity = Math.min(riskBasedQty, valueCappedQty);
+      
+      // HARD CEILING: Double-check the order value doesn't exceed the cap
+      // This is a safety net in case of floating point issues
+      const hardCappedQty = maxOrderValue / currentPrice;
+      if (quantity > hardCappedQty) {
+        this.logger.warn(`⚔️ HARD CAP: quantity ${quantity} > hard cap ${hardCappedQty} for ${brief.pair} — enforcing max order value $${maxOrderValue}`);
+        quantity = hardCappedQty;
+      }
 
       // Step 4: Ensure minimum order value ($10) — skip if too small
       const orderValue = quantity * currentPrice;

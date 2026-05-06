@@ -14,6 +14,7 @@ import {
   BarChart3, Globe2
 } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { useAuthStore } from '@/lib/auth-store'
@@ -1308,6 +1309,7 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
 
 /* ══ Root export ══ */
 export function AppHeader() {
+  useScopedStyle(KF)
   const [menuOpen, setMenuOpen] = useState(false)
   const mode = useDashboardStore(state => state.mode)
   const setMode = useDashboardStore(state => state.setMode)
@@ -1336,8 +1338,6 @@ export function AppHeader() {
 
   return (
     <>
-      <style>{KF}</style>
-      
       {/* Mobile Sidebar */}
       {menuOpen && (
         <div style={{

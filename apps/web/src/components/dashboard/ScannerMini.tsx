@@ -5,6 +5,7 @@ import { useSymbolStore } from '@/hooks/useSymbolStore';
 import { useTabAlertStore } from '@/hooks/useTabAlertStore';
 import { formatFreshness } from '@/lib/dashboard-live';
 import { RefreshCw, Activity } from 'lucide-react';
+import { useScopedStyle } from '@/hooks/useScopedStyle';
 
 // Signal explanations map
 const SIGNAL_EXPLANATIONS: Record<string, string> = {
@@ -18,6 +19,21 @@ const SIGNAL_EXPLANATIONS: Record<string, string> = {
 };
 
 export function ScannerMini({ mobile = false, compact = false, selectedSymbol }: { mobile?: boolean; compact?: boolean; selectedSymbol?: string }) {
+  useScopedStyle(`
+          @keyframes dash-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+          }
+          .skeleton {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            animation: dash-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+          }
+          @keyframes sig-glow {
+            0%, 100% { box-shadow: 0 0 0 rgba(0,229,255,0); }
+            50% { box-shadow: 0 0 6px rgba(0,229,255,0.08); }
+          }
+        `)
   const [signals, setSignals] = useState<any[]>([]);
   const [scanning, setScanning] = useState(false);
   const [lastScan, setLastScan] = useState<string | null>(null);
@@ -179,21 +195,6 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
 
       {/* Results */}
       <div className="custom-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: compact ? '5px' : '6px' }}>
-        <style>{`
-          @keyframes dash-pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-          }
-          .skeleton {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 4px;
-            animation: dash-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-          }
-          @keyframes sig-glow {
-            0%, 100% { box-shadow: 0 0 0 rgba(0,229,255,0); }
-            50% { box-shadow: 0 0 6px rgba(0,229,255,0.08); }
-          }
-        `}</style>
         {spotlight && (
           <div style={{
             marginBottom: 6,

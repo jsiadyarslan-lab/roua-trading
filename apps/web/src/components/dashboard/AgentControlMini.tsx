@@ -7,6 +7,7 @@ import {
   Activity, Zap, TrendingUp, Clock, Settings2,
 } from 'lucide-react'
 import { useAgentStore, AgentStatus, StrategyType } from '@/hooks/useAgentStore'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { getPnlColor, getPnlSign } from '@/lib/unified-tokens'
 
 /* ═══════════════════════════════════════════════
@@ -109,6 +110,30 @@ function formatTimeAgo(isoString?: string): string {
    AgentControlMini — Compact always-visible widget
    ═══════════════════════════════════════════════ */
 export function AgentControlMini() {
+  useScopedStyle(`
+        .agent-control-mini-shell,
+        .agent-control-mini-shell * {
+          box-sizing: border-box;
+        }
+        .agent-control-mini-shell button,
+        .agent-control-mini-shell select,
+        .agent-control-mini-shell input,
+        .agent-control-mini-shell [role="button"] {
+          -webkit-tap-highlight-color: transparent;
+        }
+        @keyframes agentCtrlPulse {
+          0%, 100% { opacity: 0.7; }
+          50% { opacity: 1; }
+        }
+        @keyframes agentCtrlSpin {
+          to { transform: rotate(360deg); }
+        }
+        @media (max-width: 767px) {
+          .agent-control-mini-shell {
+            border-radius: 0;
+          }
+        }
+      `)
   const {
     agentState, loading, error,
     fetchStatus, fetchCredentials, startAgent, stopAgent,
@@ -456,31 +481,7 @@ export function AgentControlMini() {
         </div>
       )}
 
-      {/* ── Animations ── */}
-      <style>{`
-        .agent-control-mini-shell,
-        .agent-control-mini-shell * {
-          box-sizing: border-box;
-        }
-        .agent-control-mini-shell button,
-        .agent-control-mini-shell select,
-        .agent-control-mini-shell input,
-        .agent-control-mini-shell [role="button"] {
-          -webkit-tap-highlight-color: transparent;
-        }
-        @keyframes agentCtrlPulse {
-          0%, 100% { opacity: 0.7; }
-          50% { opacity: 1; }
-        }
-        @keyframes agentCtrlSpin {
-          to { transform: rotate(360deg); }
-        }
-        @media (max-width: 767px) {
-          .agent-control-mini-shell {
-            border-radius: 0;
-          }
-        }
-      `}</style>
+      {/* ── End ── */}
     </div>
   )
 }

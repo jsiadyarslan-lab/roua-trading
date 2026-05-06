@@ -5,6 +5,7 @@ import { useMarketStore } from '@/hooks/useMarketStore'
 import { Flame, TrendingUp, TrendingDown } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { formatFreshness, getDataStatus, getStatusLabel, getStatusTone } from '@/lib/dashboard-live'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 // Helper component to handle price pulse animation
 function PriceDisplay({ price, isUp }: { price: number | null, isUp: boolean }) {
@@ -50,6 +51,17 @@ const ALL_SYMBOLS = [
 ]
 
 export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selectedSymbol?: string }) {
+  useScopedStyle(`
+        @keyframes dash-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+        .skeleton {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 4px;
+          animation: dash-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+      `)
   const [activeTab, setActiveTab] = useState<'Crypto' | 'Forex' | 'Stocks'>('Crypto')
   const globalQuotes = useMarketStore(state => state.quotes)
   const quotes = new Map(ALL_SYMBOLS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
@@ -97,17 +109,6 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selected
       width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
       background: 'var(--bg)', overflow: 'hidden', fontFamily: "'Cairo', sans-serif"
     }}>
-      <style>{`
-        @keyframes dash-pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
-        }
-        .skeleton {
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 4px;
-          animation: dash-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-      `}</style>
 
       {/* Tabs */}
       <div style={{

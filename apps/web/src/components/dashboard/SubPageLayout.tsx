@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, Menu, X as XIcon } from 'lucide-react'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 interface SubPageLayoutProps {
   children: React.ReactNode
@@ -27,6 +28,31 @@ export default function SubPageLayout({
   activeTab,
   onTabChange,
 }: SubPageLayoutProps) {
+  useScopedStyle(`
+        @media (max-width: 767px) {
+          .subpage-tabs-desktop {
+            display: none !important;
+          }
+          .subpage-tabs-mobile-btn {
+            display: flex !important;
+          }
+          .subpage-tabs-mobile-dropdown {
+            display: flex !important;
+          }
+          .subpage-content {
+            padding: 12px 8px !important;
+            padding-bottom: calc(12px + env(safe-area-inset-bottom)) !important;
+            height: calc(100dvh - 52px - env(safe-area-inset-top)) !important;
+            overflow-y: auto !important;
+          }
+        }
+        @media (max-width: 380px) {
+          .subpage-content {
+            padding: 10px 6px !important;
+            padding-bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+          }
+        }
+      `)
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -152,32 +178,6 @@ export default function SubPageLayout({
       <div className="subpage-content" style={{ maxWidth: '1400px', margin: '0 auto', padding: '20px', flex: 1, minHeight: 0, overflow: 'auto', paddingBottom: 'calc(20px + env(safe-area-inset-bottom))' }}>
         {children}
       </div>
-
-      <style>{`
-        @media (max-width: 767px) {
-          .subpage-tabs-desktop {
-            display: none !important;
-          }
-          .subpage-tabs-mobile-btn {
-            display: flex !important;
-          }
-          .subpage-tabs-mobile-dropdown {
-            display: flex !important;
-          }
-          .subpage-content {
-            padding: 12px 8px !important;
-            padding-bottom: calc(12px + env(safe-area-inset-bottom)) !important;
-            height: calc(100dvh - 52px - env(safe-area-inset-top)) !important;
-            overflow-y: auto !important;
-          }
-        }
-        @media (max-width: 380px) {
-          .subpage-content {
-            padding: 10px 6px !important;
-            padding-bottom: calc(10px + env(safe-area-inset-bottom)) !important;
-          }
-        }
-      `}</style>
     </div>
   )
 }

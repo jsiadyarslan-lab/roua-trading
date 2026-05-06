@@ -2,10 +2,67 @@
 
 import React, { useState } from 'react';
 import { useBotStore } from '@/hooks/useBotStore';
+import { useScopedStyle } from '@/hooks/useScopedStyle';
 
 type BotTab = 'log' | 'config';
 
 export function BotMini() {
+  useScopedStyle(`
+        .bot-mini-shell,
+        .bot-mini-shell * {
+          box-sizing: border-box;
+        }
+
+        .bot-mini-shell button,
+        .bot-mini-shell select,
+        .bot-mini-shell input,
+        .bot-mini-shell [role="button"] {
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        @media (max-width: 767px) {
+          .bot-mini-shell {
+            border-radius: 0;
+          }
+
+          .bot-mini-header {
+            align-items: center;
+            flex-wrap: wrap;
+          }
+
+          .bot-mini-header__actions {
+            width: 100%;
+            justify-content: flex-end;
+          }
+
+          .bot-mini-tabs button {
+            min-height: 48px;
+            padding-top: 14px;
+            padding-bottom: 14px;
+          }
+
+          .bot-mini-stats {
+            grid-template-columns: 1fr !important;
+          }
+
+          .bot-mini-config {
+            padding: 12px;
+            gap: 14px;
+          }
+
+          .bot-mini-shell select,
+          .bot-mini-shell input[type="range"],
+          .bot-mini-shell [role="button"] {
+            min-height: 48px;
+          }
+        }
+
+        @keyframes spin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `)
   const { isOn, engineState, setIsOn, logs, stats, settings, updateSettings } = useBotStore();
   const [activeTab, setActiveTab] = useState<BotTab>('log');
 
@@ -366,68 +423,6 @@ export function BotMini() {
         </div>
       )}
 
-      <style>{`
-        .bot-mini-shell,
-        .bot-mini-shell * {
-          box-sizing: border-box;
-        }
-
-        .bot-mini-shell button,
-        .bot-mini-shell select,
-        .bot-mini-shell input,
-        .bot-mini-shell [role="button"] {
-          -webkit-tap-highlight-color: transparent;
-        }
-
-        @media (max-width: 767px) {
-          .bot-mini-shell {
-            border-radius: 0;
-          }
-
-          .bot-mini-header {
-            align-items: center;
-            flex-wrap: wrap;
-          }
-
-          @media (max-width: 767px) {
-            .bot-mini-header {
-              align-items: flex-start;
-            }
-          }
-
-          .bot-mini-header__actions {
-            width: 100%;
-            justify-content: flex-end;
-          }
-
-          .bot-mini-tabs button {
-            min-height: 48px;
-            padding-top: 14px;
-            padding-bottom: 14px;
-          }
-
-          .bot-mini-stats {
-            grid-template-columns: 1fr !important;
-          }
-
-          .bot-mini-config {
-            padding: 12px;
-            gap: 14px;
-          }
-
-          .bot-mini-shell select,
-          .bot-mini-shell input[type="range"],
-          .bot-mini-shell [role="button"] {
-            min-height: 48px;
-          }
-        }
-
-        @keyframes spin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
     </div>
   );
 }

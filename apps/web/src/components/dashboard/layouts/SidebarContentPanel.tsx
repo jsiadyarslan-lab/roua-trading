@@ -19,6 +19,7 @@ import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useAgentStore, AgentStatus, StrategyType } from '@/hooks/useAgentStore'
 import { getDataStatus, getSourceLabel } from '@/lib/dashboard-live'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 export interface ActiveTabInfo {
   label: string
@@ -40,6 +41,16 @@ export function SidebarContentPanel({
   searchQuery,
   setSearchQuery,
 }: SidebarContentPanelProps) {
+  useScopedStyle(`
+        @keyframes sidebarContentFadeIn {
+          from { opacity: 0; transform: translateY(3px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes agentPulse {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.2); }
+        }
+      `)
   const selectedSymbol = useSymbolStore((s) => s.selectedSymbol)
   const quotes = useMarketStore((s) => s.quotes)
   const activeQuote = selectedSymbol ? quotes[selectedSymbol] : null
@@ -112,17 +123,6 @@ export function SidebarContentPanel({
           </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes sidebarContentFadeIn {
-          from { opacity: 0; transform: translateY(3px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes agentPulse {
-          0%, 100% { opacity: 0.6; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.2); }
-        }
-      `}</style>
     </section>
   )
 }

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { ArrowUp, ArrowDown } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 interface OrderRow {
   price: number
@@ -42,6 +43,7 @@ function buildRowsFromDepth(
 }
 
 export function OrderBookMini() {
+  useScopedStyle(`@keyframes spin { to { transform: rotate(360deg); } }`)
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
   const globalQuotes = useMarketStore(state => state.quotes)
 
@@ -231,7 +233,7 @@ export function OrderBookMini() {
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
             <div style={{ width: 24, height: 24, border: '2px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
             <span style={{ color: 'var(--muted)', fontSize: 11 }}>جارٍ الاتصال بالسوق...</span>
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
           </div>
         ) : (
           <>

@@ -13,6 +13,7 @@ import { MultiTfScannerMini } from '@/components/dashboard/MultiTfScannerMini'
 import { useDecisionFlow } from '@/hooks/useDecisionFlow'
 import { useTabAlertStore, type TabId } from '@/hooks/useTabAlertStore'
 import { useAgentStore, AgentStatus, StrategyType } from '@/hooks/useAgentStore'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 const T = {
   bg: '#0B0E14',
@@ -36,6 +37,21 @@ const T = {
 }
 
 export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
+  useScopedStyle(`
+        @keyframes tab-alert-pulse {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.15); opacity: 0.8; }
+        }
+        .decision-center-tab:hover:not(:disabled) {
+          transform: translateY(-2px) scale(1.02);
+          box-shadow: 0 4px 16px rgba(0,212,255,0.15), 0 0 0 1px rgba(0,212,255,0.12) inset !important;
+          border-color: rgba(0,212,255,0.35) !important;
+          background-image: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,212,255,0.04)) !important;
+        }
+        .decision-center-tab:active:not(:disabled) {
+          transform: translateY(0) scale(0.98);
+        }
+      `)
   const [active, setActive] = useState('executor')
   const { selectedSymbol, scanner, council, engineState } = useDecisionFlow()
   const { alerts, clearAlert } = useTabAlertStore()
@@ -231,22 +247,6 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           )
         })}
       </div>
-
-      <style>{`
-        @keyframes tab-alert-pulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.15); opacity: 0.8; }
-        }
-        .decision-center-tab:hover:not(:disabled) {
-          transform: translateY(-2px) scale(1.02);
-          box-shadow: 0 4px 16px rgba(0,212,255,0.15), 0 0 0 1px rgba(0,212,255,0.12) inset !important;
-          border-color: rgba(0,212,255,0.35) !important;
-          background-image: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,212,255,0.04)) !important;
-        }
-        .decision-center-tab:active:not(:disabled) {
-          transform: translateY(0) scale(0.98);
-        }
-      `}</style>
 
       {/* Agent Control Widget — only visible in the Agent tab */}
       {active === 'trader' && (

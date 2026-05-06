@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { X as XIcon, Bot, Brain, ScanSearch, Zap } from 'lucide-react'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 import {
   useNotificationStore,
   Notification,
@@ -343,16 +344,16 @@ function ToastCard({
 
 /* ══ Toast Container (bottom-right) ══════════════════════ */
 export function NotificationToasts() {
-  const { toasts, dismissToast } = useNotificationStore()
-
-  return (
-    <>
-      <style>{`
+  useScopedStyle(`
         @keyframes toast-progress {
           from { transform: scaleX(1); transform-origin: left; }
           to   { transform: scaleX(0); transform-origin: left; }
         }
-      `}</style>
+      `)
+  const { toasts, dismissToast } = useNotificationStore()
+
+  return (
+    <>
       <div
         style={{
           position: 'fixed',

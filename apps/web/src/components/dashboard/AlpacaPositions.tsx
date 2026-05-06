@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { RefreshCw, TrendingDown, TrendingUp, X as XIcon, History } from 'lucide-react'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { usePaperTradesStore, type ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
 import { fmtPriceLocale as fmtPrice, fmtPrice as fmtPricePlain, fmtPnl } from '@/lib/price-format'
 
@@ -32,6 +33,12 @@ const T = {
 }
 
 export function AlpacaPositions() {
+  useScopedStyle(`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `)
   const { positions, fetchPositions, fetchAccount } = usePositionsStore()
   const { trades: paperTrades, closeTrade: closePaperTrade, closedTrades, clearClosedTrades } = usePaperTradesStore()
   const [closing, setClosing] = useState<string | null>(null)
@@ -435,12 +442,7 @@ export function AlpacaPositions() {
         </div>
       )}
 
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+      {/* end */}
     </div>
   )
 }

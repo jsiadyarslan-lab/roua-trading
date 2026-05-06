@@ -1323,8 +1323,55 @@ export class AutonomousTraderAgentService implements OnModuleInit {
           seenUserIds.add(session.userId);
           this.logger.warn(
             `🧠 Agent for user ${session.userId} found in DB but NOT in Redis — ` +
-            `likely lost after Redis restart. Will recover on next cycle.`
+            `likely lost after Redis restart. Recovering state to Redis now.`,
           );
+
+          // ── FIX: Recover the agent's state from DB to Redis ──
+          // Without this, the agent's _getAgentState() would try Redis first,
+          // miss, then recover from DB on the NEXT call. But the cycle
+          // needs the state IMMEDIATELY — otherwise it processes the agent
+          // but can't find its config, strategy, or daily stats.
+          try {
+            let config: AgentConfig;
+            try {
+              config = JSON.parse(session.config);
+            } catch {
+              config = {
+                userId: session.userId,
+                strategy: session.strategy as StrategyType,
+                enabled: true,
+                maxPositionSizePercent: 2,
+                maxDailyLossPercent: 5,
+                maxOpenPositions: 5,
+                riskPerTradePercent: 1.5,
+                strategyParams: this._getDefaultStrategyParams(session.strategy as StrategyType),
+                symbols: this.DEFAULT_SYMBOLS,
+                credentialId: session.credentialId,
+                createdAt: session.startedAt,
+                updatedAt: session.updatedAt,
+              };
+            }
+
+            const recoveredState: AgentState = {
+              status: session.status as AgentStatus,
+              config,
+              startedAt: session.startedAt,
+              dailyPnL: Number(session.dailyPnL),
+              dailyTradesCount: session.dailyTradesCount,
+              dailyResetAt: session.dailyResetAt ?? undefined,
+              consecutiveLosses: session.consecutiveLosses,
+              totalCycles: session.totalCycles,
+              lastError: session.lastError ?? undefined,
+              lastCycleAt: session.lastCycleAt ?? undefined,
+              lastSignalAt: session.lastSignalAt ?? undefined,
+            };
+
+            // Re-populate Redis from DB so _getAgentState() finds it next time
+            await this._saveAgentState(session.userId, recoveredState);
+            this.logger.log(`🧠 Successfully recovered agent state for user ${session.userId} from DB to Redis`);
+          } catch (recoveryError: any) {
+            this.logger.error(`🧠 Failed to recover agent state for user ${session.userId}: ${recoveryError.message}`);
+          }
         }
       }
     } catch (dbError: any) {

@@ -78,15 +78,17 @@ export class SmartExecutorService implements OnModuleDestroy {
     private readonly notificationService: NotificationService,
     @Inject(forwardRef(() => AIOrchestratorService)) private readonly orchestrator: AIOrchestratorService,
   ) {
-    this.logger.log('⚔️ Smart Executor initialized — awaiting activation (with RiskGatekeeper + Notifications)');
+    this.logger.log('⚔️ Smart Executor initialized — will auto-start in monitoring mode (with RiskGatekeeper + Notifications)');
 
-    // DISABLED: Auto-start removed to prevent phantom trades.
-    // The executor must be started MANUALLY by an authenticated admin.
-    // Previously, auto-start would enable paper-trading users without consent,
-    // creating fake trades that inflated statistics.
-    // setTimeout(() => {
-    //   this._autoStart();
-    // }, 10000);
+    // RE-ENABLED: Auto-start in MONITORING mode only (safe).
+    // The old auto-start was disabled because _autoEnableSystemUser() would
+    // auto-create paper-trading users without consent, creating phantom trades.
+    // That function has been PERMANENTLY REMOVED. Now auto-start ONLY begins
+    // the tick loop — no users are auto-enabled. Trades only execute when a
+    // real user explicitly clicks "تفعيل" in the dashboard.
+    setTimeout(() => {
+      this._autoStart();
+    }, 10000);
   }
 
   /**
@@ -229,6 +231,20 @@ export class SmartExecutorService implements OnModuleDestroy {
     maxOpenPositions?: number;
     riskPerTradePercent?: number;
   }): Promise<UserExecutorState> {
+    // ── FIX: Auto-start the executor if it's not running ──
+    // Previously, the user had to click TWO buttons: "تشغيل" (start executor)
+    // AND "تفعيل" (enable user). This was confusing — the user would enable
+    // their account but nothing would happen because the tick loop wasn't running.
+    // Now: clicking "تفعيل" also starts the executor automatically if needed.
+    if (!this.isRunning) {
+      this.logger.log(`⚔️ Executor not running — auto-starting on behalf of user ${userId}`);
+      try {
+        await this.start(userId);
+      } catch (error: any) {
+        this.logger.warn(`⚔️ Failed to auto-start executor for user ${userId}: ${error.message}`);
+      }
+    }
+
     const state: UserExecutorState = {
       enabled: true,
       dailyPnL: 0,

@@ -66,11 +66,14 @@ export class StrategicCouncilService {
     this._ensureTradingBriefTable();
     // Startup health check: warn if no AI models are available
     this._checkAIHealth();
-    // DISABLED: Startup session removed to prevent auto-generating Briefs
-    // that get picked up by the Smart Executor and executed as paper trades.
-    // The hourly cron job (@Cron('0 * * * *')) still runs every hour, so
-    // Briefs will be produced on the regular schedule.
-    // this._triggerStartupSession();
+    // RE-ENABLED: Startup session to produce Briefs immediately on server start.
+    // Previously disabled to prevent auto-generating Briefs that get executed
+    // as paper trades. However, Briefs are safe — they only contain trading
+    // recommendations. They are NOT executed until a real user explicitly
+    // enables the executor via "تفعيل". Without startup Briefs, the Smart
+    // Executor has nothing to monitor until the hourly cron runs (up to 1 hour wait).
+    // The startup session waits for AI models to be ready before triggering.
+    this._triggerStartupSession();
   }
 
   /**

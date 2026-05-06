@@ -147,6 +147,11 @@ export function proxy(request: NextRequest) {
     return addSecurityHeaders(NextResponse.next(), request)
   }
 
+  // ── Skip landing page: redirect to dashboard when SKIP_LANDING=true ──
+  if (pathname === '/' && process.env.SKIP_LANDING === 'true') {
+    return addSecurityHeaders(NextResponse.redirect(new URL('/dashboard', request.url)), request)
+  }
+
   // ── All other routes: pass through with security headers ──
   return addSecurityHeaders(NextResponse.next(), request)
 }

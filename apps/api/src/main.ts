@@ -247,6 +247,12 @@ async function bootstrap() {
         uptime: Math.round(process.uptime()),
         checks,
         responseTimeMs: Date.now() - start,
+        // DIAGNOSTIC: Check critical module loading
+        _modules: {
+          smartExecutor: (() => { try { app.get(require('./modules/ai/smart-executor/smart-executor.service').SmartExecutorService); return 'LOADED'; } catch { return 'MISSING'; } })(),
+          strategicCouncil: (() => { try { app.get(require('./modules/ai/strategic-council/strategic-council.service').StrategicCouncilService); return 'LOADED'; } catch { return 'MISSING'; } })(),
+          agentTrader: (() => { try { app.get(require('./agents/autonomous-trader/agent.service').AutonomousTraderAgentService); return 'LOADED'; } catch { return 'MISSING'; } })(),
+        },
       });
     });
 

@@ -42,7 +42,12 @@ export class SmartExecutorService implements OnModuleDestroy {
     tickIntervalMs: 2000,           // 2 seconds (more reasonable than 1s)
     maxOpenPositions: 5,
     maxDailyLossPercent: 5,
-    defaultSlippage: 0.001,         // 0.1%
+    defaultSlippage: 0.005,         // 0.5% — FIX: Increased from 0.1% to 0.5%
+                                    // Crypto prices can move 0.1-0.3% in seconds.
+                                    // The old 0.1% slippage was too tight — briefs would
+                                    // be skipped because the price moved slightly between
+                                    // when the council set the entry price and when the
+                                    // executor checked it (often just seconds later).
     riskPerTradePercent: 1,
     minConfidence: 50,              // FIX: Lowered from 55 → 50. Technical fallback (MA crossover)
                                     // gives confidence=52, and with only 3/8 AI models working, 55 was

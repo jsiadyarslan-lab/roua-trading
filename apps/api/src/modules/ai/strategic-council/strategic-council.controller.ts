@@ -83,6 +83,12 @@ export class StrategicCouncilController {
    * Body: { pairs: string[] }
    * FIX: Marked @Public() so the dashboard can trigger sessions without auth.
    * Uses 'system' as userId when no authenticated user is available.
+   *
+   * FIX: Returns IMMEDIATELY (fire-and-forget) instead of waiting for the full
+   * session to complete. A full session for 3 pairs × 4 timeframes × 8 AI models
+   * takes 6-12 minutes, which exceeds the Next.js proxy's 30-second timeout,
+   * causing the frontend to receive a 502 error and show "الخادم غير متاح".
+   * Now the frontend polls GET /session/last every 15 seconds to see results.
    */
   @Public()
   @Post('trigger')
@@ -93,9 +99,35 @@ export class StrategicCouncilController {
       return { success: false, message: 'حدد زوجاً واحداً على الأقل' };
     }
 
-    this.logger.log(`🏛️ Manual council session triggered for: ${pairs.join(', ')}`);
-    const result = await this.councilService.forceSession(pairs, req.user?.id || 'system');
-    return { success: true, data: result };
+    const userId = req.user?.id || 'system';
+    this.logger.log(`🏛️ Manual council session triggered by ${userId} for: ${pairs.join(', ')}`);
+
+    // Check if already in session — return immediately if so
+    if (this.councilService.isInSessionNow()) {
+      return {
+        success: false,
+        message: 'جلسة أخرى قيد التشغيل حالياً — يرجى الانتظار حتى تنتهي',
+        status: 'already_running',
+      };
+    }
+
+    // Fire-and-forget: Start the session in the background
+    // The frontend will poll /session/last to get results
+    const sessionId = `manual-${Date.now()}`;
+    this.councilService.forceSessionAsync(sessionId, pairs, userId).catch((err: any) => {
+      this.logger.error(`🏛️ Background manual session failed: ${err.message}`);
+    });
+
+    // Return immediately so the proxy doesn't time out
+    return {
+      success: true,
+      data: {
+        sessionId,
+        status: 'processing',
+        pairs,
+        message: 'تم بدء الجلسة — راقب النتائج خلال دقيقة واحدة',
+      },
+    };
   }
 
   /**

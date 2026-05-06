@@ -68,12 +68,16 @@ export const TIMEFRAME_EXPIRY_MS: Record<BriefTimeframe, number> = {
   W1: 7 * 24 * 60 * 60 * 1000,      // 1 week
 };
 
-/** Risk/reward ratios per timeframe */
+/** Risk/reward ratios per timeframe — FIX: Increased maxSlippage for crypto
+ *  The old 0.1% slippage was too tight for crypto. BTC can move 0.1-0.3% in
+ *  seconds, so briefs were constantly being skipped by the executor because
+ *  the price had already moved past the entry price + 0.1% tolerance.
+ */
 export const TIMEFRAME_RR: Record<BriefTimeframe, { sl: number; tp: number; maxSlippage: number }> = {
-  H1: { sl: 0.005, tp: 0.01, maxSlippage: 0.001 },     // 0.5% SL, 1% TP
-  H4: { sl: 0.01, tp: 0.02, maxSlippage: 0.001 },       // 1% SL, 2% TP
-  D1: { sl: 0.02, tp: 0.04, maxSlippage: 0.002 },       // 2% SL, 4% TP
-  W1: { sl: 0.04, tp: 0.08, maxSlippage: 0.003 },       // 4% SL, 8% TP
+  H1: { sl: 0.005, tp: 0.01, maxSlippage: 0.005 },     // 0.5% SL, 1% TP, 0.5% slippage
+  H4: { sl: 0.01, tp: 0.02, maxSlippage: 0.005 },       // 1% SL, 2% TP, 0.5% slippage
+  D1: { sl: 0.02, tp: 0.04, maxSlippage: 0.008 },       // 2% SL, 4% TP, 0.8% slippage
+  W1: { sl: 0.04, tp: 0.08, maxSlippage: 0.010 },       // 4% SL, 8% TP, 1.0% slippage
 };
 
 /** Minimum confidence score to issue a brief */

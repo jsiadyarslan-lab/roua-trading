@@ -52,6 +52,7 @@ export function StrategicCouncilPanel() {
   const [tab, setTab] = useState<'active' | 'history'>('active')
   const [loading, setLoading] = useState(false)
   const [triggerLoading, setTriggerLoading] = useState(false)
+  const [triggerStatus, setTriggerStatus] = useState<string | null>(null) // 'processing' | 'already_running' | null
   const [backendOffline, setBackendOffline] = useState(false)
 
   const fetchActiveBriefs = useCallback(async () => {
@@ -111,6 +112,7 @@ export function StrategicCouncilPanel() {
 
   const triggerSession = async () => {
     setTriggerLoading(true)
+    setTriggerStatus(null)
     try {
       const res = await fetch('/api/strategic-council/trigger', {
         method: 'POST',
@@ -122,6 +124,42 @@ export function StrategicCouncilPanel() {
         setBackendOffline(true)
       } else {
         setBackendOffline(false)
+        // FIX: Handle fire-and-forget response
+        if (data.success && data.data?.status === 'processing') {
+          setTriggerStatus('processing')
+          // Poll for results — the session runs in the background
+          const pollInterval = setInterval(async () => {
+            try {
+              const sessionRes = await fetch('/api/strategic-council/session/last')
+              const sessionData = await sessionRes.json()
+              if (sessionData.success && sessionData.data) {
+                const session = sessionData.data as CouncilSession
+                // If session has results (briefsIssued > 0 or pairsAnalyzed > 0), it's done
+                if (session.pairsAnalyzed > 0 || session.briefsIssued > 0 || session.briefsModified > 0) {
+                  setLastSession(session)
+                  setTriggerStatus('completed')
+                  clearInterval(pollInterval)
+                  // Refresh briefs list
+                  await fetchActiveBriefs()
+                  // Clear status after 5 seconds
+                  setTimeout(() => setTriggerStatus(null), 5000)
+                }
+              }
+            } catch {
+              // Continue polling
+            }
+          }, 5000) // Poll every 5 seconds
+          // Stop polling after 10 minutes max
+          setTimeout(() => {
+            clearInterval(pollInterval)
+            if (triggerStatus === 'processing') {
+              setTriggerStatus(null)
+            }
+          }, 600000)
+        } else if (data.status === 'already_running') {
+          setTriggerStatus('already_running')
+          setTimeout(() => setTriggerStatus(null), 5000)
+        }
       }
       await fetchActiveBriefs()
       await fetchLastSession()
@@ -184,12 +222,13 @@ export function StrategicCouncilPanel() {
           disabled={triggerLoading}
           style={{
             fontSize: 7, minHeight: 22, padding: '3px 8px',
-            borderRadius: 5, border: '1px solid rgba(179,136,255,0.3)',
+            borderRadius: 5, border: `1px solid ${triggerStatus === 'processing' ? 'rgba(0,212,255,0.3)' : triggerStatus === 'already_running' ? 'rgba(255,184,0,0.3)' : 'rgba(179,136,255,0.3)'}`,
             cursor: triggerLoading ? 'not-allowed' : 'pointer',
-            background: 'rgba(179,136,255,0.15)', color: T.purple, fontWeight: 700,
+            background: triggerStatus === 'processing' ? 'rgba(0,212,255,0.15)' : triggerStatus === 'already_running' ? 'rgba(255,184,0,0.15)' : 'rgba(179,136,255,0.15)',
+            color: triggerStatus === 'processing' ? T.cyan : triggerStatus === 'already_running' ? T.amber : T.purple, fontWeight: 700,
           }}
         >
-          {triggerLoading ? '...' : 'جلسة يدوية'}
+          {triggerLoading ? '...' : triggerStatus === 'processing' ? '⏳ جاري التحليل...' : triggerStatus === 'already_running' ? '⏳ جلسة نشطة' : triggerStatus === 'completed' ? '✅ تم!' : 'جلسة يدوية'}
         </button>
       </div>
 

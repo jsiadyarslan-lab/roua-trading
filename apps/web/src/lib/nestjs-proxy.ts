@@ -311,10 +311,20 @@ async function proxyWithToken(
       if (val) headers[h] = val
     }
 
+    // FIX: Use longer timeout for known long-running endpoints.
+    // The Strategic Council trigger endpoint runs 8 AI models × multiple pairs,
+    // which takes 6-12 minutes. The trigger now returns immediately (fire-and-forget),
+    // but we still increase the timeout for safety to prevent proxy-level timeouts
+    // on any other slow endpoints.
+    const isLongRunningEndpoint = pathname.includes('/strategic-council/trigger') ||
+      pathname.includes('/strategic-council/session') ||
+      pathname.includes('/smart-executor/');
+    const timeoutMs = isLongRunningEndpoint ? 120000 : 30000; // 2 min for long-running, 30s for normal
+
     const fetchOptions: RequestInit = {
       method,
       headers,
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(timeoutMs),
     }
 
     // Add body for POST/PUT/PATCH

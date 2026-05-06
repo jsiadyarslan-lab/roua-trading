@@ -229,10 +229,35 @@ export class StrategicCouncilService {
   }
 
   /**
-   * Force a council session for specific pairs (manual trigger)
+   * Check if council is currently in session (for controller to query)
    */
-  async forceSession(pairs: string[], userId: string): Promise<CouncilSessionResult> {
-    this.logger.log(`🏛️ Manual strategic council session triggered by ${userId} for: ${pairs.join(', ')}`);
+  isInSessionNow(): boolean {
+    return this.isInSession;
+  }
+
+  /**
+   * Force a council session for specific pairs (manual trigger) — ASYNC/FIRE-AND-FORGET
+   * FIX: This method runs in the background so the HTTP response returns immediately.
+   * Previously, the controller awaited forceSession() which took 6-12 minutes,
+   * exceeding the 30-second proxy timeout and causing 502 errors on the frontend.
+   */
+  async forceSessionAsync(sessionId: string, pairs: string[], userId: string): Promise<CouncilSessionResult> {
+    // Guard against concurrent sessions
+    if (this.isInSession) {
+      this.logger.warn('🏛️ Cannot start manual session — previous session still running');
+      return {
+        timestamp: new Date().toISOString(),
+        pairsAnalyzed: 0,
+        briefsIssued: 0,
+        briefsModified: 0,
+        briefsCancelled: 0,
+        briefsExecuted: 0,
+        durationMs: 0,
+      };
+    }
+
+    this.isInSession = true;
+    this.logger.log(`🏛️ Manual strategic council session [${sessionId}] started by ${userId} for: ${pairs.join(', ')}`);
 
     const result: CouncilSessionResult = {
       timestamp: new Date().toISOString(),
@@ -246,25 +271,73 @@ export class StrategicCouncilService {
 
     const startTime = Date.now();
 
-    for (const pair of pairs) {
-      try {
-        await this._analyzePair(pair, result);
-        result.pairsAnalyzed++;
-      } catch (error: any) {
-        this.logger.error(`🏛️ Manual council failed for ${pair}: ${error.message}`);
+    try {
+      for (const pair of pairs) {
+        try {
+          await this._analyzePair(pair, result);
+          result.pairsAnalyzed++;
+        } catch (error: any) {
+          this.logger.error(`🏛️ Manual council [${sessionId}] failed for ${pair}: ${error.message}`);
+        }
       }
+
+      // Expire outdated briefs after manual session too
+      await this._expireOutdatedBriefs();
+      await this._markExecutedBriefs();
+
+      result.durationMs = Date.now() - startTime;
+
+      this.logger.log(
+        `🏛️ Manual session [${sessionId}] complete: ${result.pairsAnalyzed} pairs, ` +
+        `${result.briefsIssued} new briefs, ${result.briefsModified} modified (${result.durationMs}ms)`,
+      );
+
+      // Store session result in Redis so the frontend can poll /session/last
+      await this.redis.set(
+        'strategic-council:last_session',
+        JSON.stringify(result),
+        3600000, // 1 hour TTL
+      );
+
+      // Publish council completion event for Smart Executor
+      try {
+        const client = (this.redis as any)['client'];
+        if (client && typeof client.publish === 'function') {
+          await client.publish(
+            'council:session_complete',
+            JSON.stringify({
+              sessionId,
+              timestamp: result.timestamp,
+              briefsIssued: result.briefsIssued,
+              briefsModified: result.briefsModified,
+              activeBriefs: await this.getActiveBriefsCount(),
+            }),
+          );
+        }
+      } catch (pubError: any) {
+        this.logger.debug(`Failed to publish council event: ${pubError.message}`);
+      }
+
+      await this.audit.log({
+        userId,
+        action: 'STRATEGIC_COUNCIL_MANUAL',
+        resource: 'strategic-council',
+        details: JSON.stringify({ sessionId, pairs, result }),
+      });
+    } catch (error: any) {
+      this.logger.error(`🏛️ Manual session [${sessionId}] failed: ${error.message}`);
+    } finally {
+      this.isInSession = false;
     }
 
-    result.durationMs = Date.now() - startTime;
-
-    await this.audit.log({
-      userId,
-      action: 'STRATEGIC_COUNCIL_MANUAL',
-      resource: 'strategic-council',
-      details: JSON.stringify({ pairs, result }),
-    });
-
     return result;
+  }
+
+  /**
+   * Force a council session for specific pairs (synchronous version — kept for backward compat)
+   */
+  async forceSession(pairs: string[], userId: string): Promise<CouncilSessionResult> {
+    return this.forceSessionAsync(`sync-${Date.now()}`, pairs, userId);
   }
 
   // ── Query Methods ──

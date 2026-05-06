@@ -201,18 +201,6 @@ export default function RouaChart({
   // occurred specifically when AI analysis was open and the user changed
   // the timeframe.
   // ═══════════════════════════════════════════════════════════════════
-  // FIX: Clean up AI overlays when timeframe changes
-  useEffect(() => {
-    cleanupAIOverlays();
-  }, [timeframe, cleanupAIOverlays]);
-
-  // FIX: Clean up AI overlays when AI panel is closed
-  useEffect(() => {
-    if (!showAIPanel) {
-      cleanupAIOverlays();
-    }
-  }, [showAIPanel, cleanupAIOverlays]);
-
   // ── Compute the timeframe's interval in seconds ──
   const tfSeconds = useMemo(() => {
     const tf = TIMEFRAMES.find(t => t.value === timeframe);
@@ -681,6 +669,9 @@ export default function RouaChart({
   const aiPriceLinesRef = useRef<string[]>([]);
   // FIX: Cache lightweight-charts module to avoid repeated dynamic imports
   const lightweightChartsRef = useRef<any>(null);
+  // FIX: Move aiEntryExitMarkerRef here (before handlePatternsDetected) to avoid TDZ error
+  // Previously this was declared at line ~1007, after handlePatternsDetected already used it
+  const aiEntryExitMarkerRef = useRef<any>(null);
 
   // FIX: Cleanup function for AI overlays — reusable across multiple call sites
   const cleanupAIOverlays = useCallback(() => {
@@ -698,6 +689,20 @@ export default function RouaChart({
     aiPriceLinesRef.current = [];
     setAiPatterns([]);
   }, [chart]);
+
+  // FIX: Clean up AI overlays when timeframe changes
+  // NOTE: These useEffects MUST be after cleanupAIOverlays is defined to avoid
+  // TDZ (Temporal Dead Zone) ReferenceError: "Cannot access 'cleanupAIOverlays' before initialization"
+  useEffect(() => {
+    cleanupAIOverlays();
+  }, [timeframe, cleanupAIOverlays]);
+
+  // FIX: Clean up AI overlays when AI panel is closed
+  useEffect(() => {
+    if (!showAIPanel) {
+      cleanupAIOverlays();
+    }
+  }, [showAIPanel, cleanupAIOverlays]);
 
   const handlePatternsDetected = useCallback(async (result: AIAnalysisResult) => {
     setAiPatterns(result.patterns);
@@ -1002,7 +1007,7 @@ export default function RouaChart({
 
   // ── Apply Combined Markers (News + AI Patterns + Trading Signals + AI Entry/Exit) to Chart ──
   // FIX: Single source of truth for ALL markers — no more conflicts between handlePatternsDetected and this useEffect
-  const aiEntryExitMarkerRef = useRef<any>(null);
+  // (aiEntryExitMarkerRef moved above, near other AI refs, to avoid TDZ)
 
   useEffect(() => {
     const combinedMarkers: any[] = [];

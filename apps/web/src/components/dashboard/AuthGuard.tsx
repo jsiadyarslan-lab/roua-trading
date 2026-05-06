@@ -28,9 +28,14 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
         if (state.isAuthenticated || state.isGuest) {
           setStatus('authenticated')
         } else {
-          setStatus('unauthenticated')
-          const loginUrl = `/login?callbackUrl=${encodeURIComponent(pathname)}`
-          router.replace(loginUrl)
+          // SKIP_LANDING mode: allow guest access for debugging
+          if (process.env.NEXT_PUBLIC_SKIP_LANDING === 'true') {
+            setStatus('authenticated')
+          } else {
+            setStatus('unauthenticated')
+            const loginUrl = `/login?callbackUrl=${encodeURIComponent(pathname)}`
+            router.replace(loginUrl)
+          }
         }
       } catch {
         if (!mounted) return

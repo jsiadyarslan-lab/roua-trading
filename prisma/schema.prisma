@@ -411,7 +411,8 @@ model Trade {
   executedAt      DateTime  @default(now())
   /// Source of the trade: 'user_manual' = real user-initiated, 'smart_executor' = executor on user's behalf,
   /// 'auto_paper' = automatically generated paper trade (legacy phantom trades)
-  source          String    @default("user_manual")
+  /// Optional to avoid breaking queries if the column hasn't been added to the DB yet.
+  source          String?   @default("user_manual")
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   order           Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
   position        Position? @relation(fields: [positionId], references: [id], onDelete: SetNull)

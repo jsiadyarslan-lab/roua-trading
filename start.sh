@@ -658,6 +658,20 @@ EOSQL
       END IF;
     END $$;
 
+    -- Trade table: add source column if missing (distinguishes real vs auto-paper phantom trades)
+    -- Values: 'user_manual' (default), 'smart_executor', 'auto_paper', 'reconciliation'
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Trade' AND column_name = 'source'
+      ) THEN
+        ALTER TABLE "Trade" ADD COLUMN "source" TEXT NOT NULL DEFAULT 'user_manual';
+        CREATE INDEX IF NOT EXISTS "Trade_source_idx" ON "Trade"("source");
+        -- Mark existing paper-trading exchange trades as auto_paper (legacy phantom trades)
+        UPDATE "Trade" SET source = 'auto_paper' WHERE "exchange" = 'paper-trading' AND source = 'user_manual';
+      END IF;
+    END $$;
+
     -- ── Agent Tables (Critical for Autonomous Trader) ──
 
     -- AgentSession table (persists agent state across Redis restarts)

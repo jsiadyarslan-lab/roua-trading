@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Play, Plus, Settings2, Shield, Activity, GitBranch, Save, Trash2, X as XIcon, ArrowDown } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { T } from '@/lib/unified-tokens'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 interface StrategyNode {
   id: string
@@ -54,6 +55,10 @@ const AVAILABLE_COMPONENTS: { category: string; items: Omit<StrategyNode, 'id'>[
 ]
 
 export default function StrategyBuilderPage() {
+  useScopedStyle(`@media (max-width: 767px) {
+          .strategy-builder-main { height: 100% !important; }
+        }`)
+
   const [nodes, setNodes] = useState<StrategyNode[]>([])
   const [strategyName, setStrategyName] = useState('استراتيجية جديدة')
   const [showPanel, setShowPanel] = useState(true)
@@ -98,18 +103,15 @@ export default function StrategyBuilderPage() {
   }
 
   const handleClearAll = () => {
+  
+
     setNodes([])
     toast({ title: 'تم مسح الاستراتيجية' })
   }
 
   return (
     <div className="custom-scrollbar" style={{ padding: '32px 24px', direction: 'rtl', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto' }}>
-      <style>{`
-        @media (max-width: 767px) {
-          .strategy-builder-main { height: 100% !important; }
-        }
-      `}</style>
-      {/* Header */}
+      {/* Scoped styles via useScopedStyle */}{/* Header */}
       <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>

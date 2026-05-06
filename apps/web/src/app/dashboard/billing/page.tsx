@@ -12,6 +12,7 @@ import { useAuthStore } from '@/lib/auth-store'
 import { ROLE_INFO, type Role } from '@/lib/permissions'
 import { toast } from '@/hooks/use-toast'
 import { T as SharedT } from '@/lib/unified-tokens'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 /* ═══════════════════════════════════════════════════════
    Design Tokens (canonical + local extensions)
@@ -171,6 +172,17 @@ function StatusBadge({ status, label }: { status: BillingRecord['status']; label
    Main Billing Page
 ═══════════════════════════════════════════════════════ */
 export default function BillingPage() {
+  useScopedStyle(`@media (max-width: 767px) {
+          .billing-pricing-grid { grid-template-columns: 1fr !important; }
+          .billing-header-row { flex-direction: column !important; align-items: flex-start !important; }
+          .billing-payment-grid { grid-template-columns: 1fr !important; }
+          .billing-table-wrap { overflow-x: auto; }
+          .billing-promo-row { flex-direction: column !important; }
+        }
+        @media (min-width: 768px) and (max-width: 1023px) {
+          .billing-pricing-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }`)
+
   const user = useAuthStore(state => state.user)
   const userTier = (user?.tier || 'FREE') as Role
   const roleInfo = ROLE_INFO[userTier] || ROLE_INFO.FREE
@@ -200,6 +212,8 @@ export default function BillingPage() {
   }
 
   const handlePromoApply = () => {
+  
+
     if (!promoCode.trim()) {
       toast({ title: 'أدخل رمز الخصم', description: 'يرجى إدخال رمز الخصم قبل التطبيق.' })
       return
@@ -222,20 +236,7 @@ export default function BillingPage() {
       direction: 'rtl', fontFamily: "'Cairo', sans-serif",
       height: '100%', overflowY: 'auto', background: T.bg,
     }}>
-      <style>{`
-        @media (max-width: 767px) {
-          .billing-pricing-grid { grid-template-columns: 1fr !important; }
-          .billing-header-row { flex-direction: column !important; align-items: flex-start !important; }
-          .billing-payment-grid { grid-template-columns: 1fr !important; }
-          .billing-table-wrap { overflow-x: auto; }
-          .billing-promo-row { flex-direction: column !important; }
-        }
-        @media (min-width: 768px) and (max-width: 1023px) {
-          .billing-pricing-grid { grid-template-columns: repeat(2, 1fr) !important; }
-        }
-      `}</style>
-
-      {/* ═══════════════════════════════════════════════════
+      {/* Scoped styles via useScopedStyle */}{/* ═══════════════════════════════════════════════════
           Header
       ═══════════════════════════════════════════════════ */}
       <div style={{

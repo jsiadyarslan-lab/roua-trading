@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { T as SharedT } from '@/lib/unified-tokens'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 /* ── Design Tokens (canonical + local extensions) ── */
 const T = { ...SharedT, pink: '#f472b6', text4: '#475569' }
@@ -326,6 +327,33 @@ function FAQCategorySection({
    Main Help Center Page
 ══════════════════════════════════════════════════════ */
 export default function HelpCenterPage() {
+  useScopedStyle(`@media (max-width: 767px) {
+          .help-quick-grid { grid-template-columns: 1fr !important; }
+          .help-contact-grid { grid-template-columns: 1fr !important; }
+          .help-content { padding: 12px !important; }
+          .help-header-inner { flex-direction: column !important; align-items: flex-start !important; }
+          .help-search-box { width: 100% !important; }
+        }
+        @media (min-width: 768px) and (max-width: 1024px) {
+          .help-quick-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        @keyframes help-fade-in {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .help-fade-in { animation: help-fade-in 0.4s ease-out; }
+        @keyframes help-pulse-glow {
+          0%, 100% { box-shadow: 0 0 8px ${T.cyan}20; }
+          50% { box-shadow: 0 0 20px ${T.cyan}40; }
+        }
+@keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }`)
+
   const [searchQuery, setSearchQuery] = useState('')
   const [openItems, setOpenItems] = useState<Set<string>>(new Set())
   const [activeContactTab, setActiveContactTab] = useState<'email' | 'chat' | 'docs'>('email')
@@ -401,32 +429,7 @@ export default function HelpCenterPage() {
         background: T.bg,
       }}
     >
-      <style>{`
-        @media (max-width: 767px) {
-          .help-quick-grid { grid-template-columns: 1fr !important; }
-          .help-contact-grid { grid-template-columns: 1fr !important; }
-          .help-content { padding: 12px !important; }
-          .help-header-inner { flex-direction: column !important; align-items: flex-start !important; }
-          .help-search-box { width: 100% !important; }
-        }
-        @media (min-width: 768px) and (max-width: 1024px) {
-          .help-quick-grid { grid-template-columns: repeat(2, 1fr) !important; }
-        }
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        @keyframes help-fade-in {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .help-fade-in { animation: help-fade-in 0.4s ease-out; }
-        @keyframes help-pulse-glow {
-          0%, 100% { box-shadow: 0 0 8px ${T.cyan}20; }
-          50% { box-shadow: 0 0 20px ${T.cyan}40; }
-        }
-      `}</style>
-
-      {/* ═══ Header ═══ */}
+      {/* Scoped styles via useScopedStyle */}{/* ═══ Header ═══ */}
       <div style={{
         padding: '28px 24px 20px',
         borderBottom: `1px solid ${T.border}`,
@@ -986,12 +989,6 @@ export default function HelpCenterPage() {
       </div>
 
       {/* Spinning animation for submit button */}
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-    </div>
+      {/* Scoped styles via useScopedStyle */}</div>
   )
 }

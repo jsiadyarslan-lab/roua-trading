@@ -17,6 +17,7 @@ import {
   Brain,
 } from 'lucide-react'
 import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 interface AdminStats {
   users: { total: number; free: number; pro: number; plus: number; premium: number; institutional: number }
@@ -61,6 +62,17 @@ function timeAgo(iso: string) {
 }
 
 export default function AdminOverviewPage() {
+  useScopedStyle(`@keyframes fadeInSlideUp {
+          from { opacity: 0; transform: translateY(14px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.15); border-radius: 2px; }
+        @media (max-width: 900px) {
+          .admin-grid-2 { grid-template-columns: 1fr !important; }
+        }`)
+
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [activities, setActivities] = useState<ActivityItem[]>([])
   const [endpoints, setEndpoints] = useState<EndpointHealth[]>([])
@@ -424,18 +436,6 @@ export default function AdminOverviewPage() {
         </div>
       </div>
 
-      <style>{`
-        @keyframes fadeInSlideUp {
-          from { opacity: 0; transform: translateY(14px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.15); border-radius: 2px; }
-        @media (max-width: 900px) {
-          .admin-grid-2 { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-    </div>
+      {/* Scoped styles via useScopedStyle */}</div>
   )
 }

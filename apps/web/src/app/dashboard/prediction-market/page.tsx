@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 // ── Data Types ──
 interface PredictionEvent {
@@ -697,6 +698,28 @@ function ConfidenceGauge({ confidence }: { confidence: number }) {
 
 // ── Main Page ──
 export default function PredictionMarketPage() {
+  useScopedStyle(`@media (max-width: 767px) {
+          .pm-stats-row { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+          .pm-category-pills { overflow-x: auto; flex-wrap: nowrap !important; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
+          .pm-category-pills::-webkit-scrollbar { display: none; }
+          .pm-event-card { padding: 12px !important; }
+          .pm-event-card .pm-analyze-btn { min-height: 44px; min-width: 44px; padding: 8px 14px !important; }
+          .pm-gap-card { padding: 12px !important; }
+          .pm-vote-section { padding: 12px !important; }
+          .pm-confidence-gauge { width: 80px !important; height: 80px !important; }
+          .pm-confidence-gauge svg { width: 80px !important; height: 80px !important; }
+          .pm-vote-symbol-input { font-size: 16px !important; min-height: 48px !important; }
+          .pm-event-card > div:first-child { flex-direction: column; gap: 8px; }
+          .pm-event-card .pm-analyze-btn { align-self: flex-start; }
+          .pm-legal-disclaimer { padding: 12px !important; }
+        }
+        @media (max-width: 480px) {
+          .pm-stats-row { grid-template-columns: 1fr !important; }
+          .pm-stats-row .pm-stat-value { font-size: 15px !important; }
+          .pm-footer-row { flex-direction: column; gap: 6px !important; align-items: flex-start !important; }
+          .pm-market-ai-mini { flex-direction: column; gap: 6px !important; }
+        }`)
+
   const { loading: authLoading } = useAuth()
   const [activeTab, setActiveTab] = useState('events')
   const [events, setEvents] = useState<PredictionEvent[]>([])
@@ -868,31 +891,7 @@ export default function PredictionMarketPage() {
         </button>
       }
     >
-      <style>{`
-        @media (max-width: 767px) {
-          .pm-stats-row { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
-          .pm-category-pills { overflow-x: auto; flex-wrap: nowrap !important; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
-          .pm-category-pills::-webkit-scrollbar { display: none; }
-          .pm-event-card { padding: 12px !important; }
-          .pm-event-card .pm-analyze-btn { min-height: 44px; min-width: 44px; padding: 8px 14px !important; }
-          .pm-gap-card { padding: 12px !important; }
-          .pm-vote-section { padding: 12px !important; }
-          .pm-confidence-gauge { width: 80px !important; height: 80px !important; }
-          .pm-confidence-gauge svg { width: 80px !important; height: 80px !important; }
-          .pm-vote-symbol-input { font-size: 16px !important; min-height: 48px !important; }
-          .pm-event-card > div:first-child { flex-direction: column; gap: 8px; }
-          .pm-event-card .pm-analyze-btn { align-self: flex-start; }
-          .pm-legal-disclaimer { padding: 12px !important; }
-        }
-        @media (max-width: 480px) {
-          .pm-stats-row { grid-template-columns: 1fr !important; }
-          .pm-stats-row .pm-stat-value { font-size: 15px !important; }
-          .pm-footer-row { flex-direction: column; gap: 6px !important; align-items: flex-start !important; }
-          .pm-market-ai-mini { flex-direction: column; gap: 6px !important; }
-        }
-      `}</style>
-
-      {/* ── Error Banner ── */}
+      {/* Scoped styles via useScopedStyle */}{/* ── Error Banner ── */}
       <AnimatePresence>
         {error && (
           <motion.div

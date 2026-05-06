@@ -13,6 +13,7 @@ import type { LucideIcon } from 'lucide-react'
 
 // ── Design Tokens (canonical from unified-tokens) ──
 import { TExtended as T } from '@/lib/unified-tokens'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 // Local extensions not in canonical set
 const TLocal = {
@@ -107,6 +108,17 @@ function getSentimentDisplay(score: number): { label: string; color: string } {
 
 // ── Main Page Component (wrapped in Suspense) ──
 function ReportsPageContent() {
+  useScopedStyle(`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes live-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .report-card { transition: background 0.2s, border-color 0.2s, box-shadow 0.2s; }
+        .report-card:hover { background: ${T.cardHover} !important; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 10px; }
+        .tab-btn { transition: all 0.2s ease; }
+        .tab-btn:hover { filter: brightness(1.15); }`)
+
   const searchParams = useSearchParams()
   const router = useRouter()
 
@@ -227,20 +239,7 @@ function ReportsPageContent() {
 
   return (
     <div style={{ direction: 'rtl', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text }}>
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes live-pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
-        @keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        .report-card { transition: background 0.2s, border-color 0.2s, box-shadow 0.2s; }
-        .report-card:hover { background: ${T.cardHover} !important; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 10px; }
-        .tab-btn { transition: all 0.2s ease; }
-        .tab-btn:hover { filter: brightness(1.15); }
-      `}</style>
-
-      <div style={{ maxWidth: 920, margin: '0 auto', padding: '24px 16px' }}>
+      {/* Scoped styles via useScopedStyle */}<div style={{ maxWidth: 920, margin: '0 auto', padding: '24px 16px' }}>
 
         {/* ══════════════════════════════════════════
             HEADER

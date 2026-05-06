@@ -11,6 +11,7 @@ import DesktopNotificationAdapter from '@/components/dashboard/DesktopNotificati
 import NotificationPermissionBanner from '@/components/shared/NotificationPermissionBanner'
 import PushNotificationManager from '@/components/shared/PushNotificationManager'
 import { Metadata, Viewport } from 'next'
+import { DashboardLayoutStyles } from '@/components/dashboard/DashboardLayoutStyles'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,13 +58,7 @@ export default function DashboardLayout({
           <GuestBanner />
           <AppHeader />
           <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-            <style>{`
-              @media (max-width: 767px) {
-                main { height: 100dvh !important; min-height: 0 !important; padding-bottom: 0 !important; overflow: hidden !important; }
-                /* Ensure sub-pages fill the viewport on mobile */
-                main > div { height: 100% !important; min-height: 0 !important; }
-              }
-            `}</style>
+            <DashboardLayoutStyles />
             <ErrorBoundary>
               <AuthInitializer />
               <ServiceWorkerRegistrar />

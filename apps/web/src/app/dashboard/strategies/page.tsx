@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 
 import { T as SharedT } from '@/lib/unified-tokens'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 // Unified Theme matching Portfolio and Scanner exactly (canonical + local extensions)
 const T = { ...SharedT, amber2: '#E6A23C' }
@@ -34,6 +35,23 @@ const Gauge = ({ value, max, label, color }: { value: number, max: number, label
 // Mock data removed — only real strategy reports from the API are displayed
 
 export default function StrategiesPage() {
+  useScopedStyle(`@media (max-width: 767px) {
+          .strategies-page-root { height: 100% !important; }
+        }
+        .strategies-row-2col { display: flex; gap: 12px; }
+        .strategies-quant-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        @media (max-width: 767px) {
+          .strategies-top-bar { display: none !important; }
+          .strategies-sidebar { display: none !important; }
+          .strategies-sidebar.strategies-sidebar-open { display: flex !important; position: fixed; top: 0; inset-inline-end: 0; bottom: 0; z-index: 50; width: 280px !important; box-shadow: -4px 0 20px rgba(0,0,0,0.5); }
+          .strategies-main { flex: 1 !important; }
+          .strategies-row-2col { flex-direction: column !important; }
+          .strategies-quant-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+::-webkit-scrollbar { width: 3px; }
+               ::-webkit-scrollbar-thumb { background: rgba(10,132,255,0.15); border-radius: 10px; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }`)
+
   const [data, setData] = useState<any[]>([])
   const [activeIdx, setActiveIdx] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -41,6 +59,8 @@ export default function StrategiesPage() {
 
   useEffect(() => {
     async function load() {
+  
+
       try {
         const res = await fetch('/api/strategies')
         const j = await res.json()
@@ -104,22 +124,7 @@ export default function StrategiesPage() {
       direction: 'rtl', fontFamily: "'Cairo', sans-serif",
       display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden'
     }}>
-      <style>{`
-        @media (max-width: 767px) {
-          .strategies-page-root { height: 100% !important; }
-        }
-        .strategies-row-2col { display: flex; gap: 12px; }
-        .strategies-quant-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-        @media (max-width: 767px) {
-          .strategies-top-bar { display: none !important; }
-          .strategies-sidebar { display: none !important; }
-          .strategies-sidebar.strategies-sidebar-open { display: flex !important; position: fixed; top: 0; inset-inline-end: 0; bottom: 0; z-index: 50; width: 280px !important; box-shadow: -4px 0 20px rgba(0,0,0,0.5); }
-          .strategies-main { flex: 1 !important; }
-          .strategies-row-2col { flex-direction: column !important; }
-          .strategies-quant-grid { grid-template-columns: repeat(2, 1fr) !important; }
-        }
-      `}</style>
-      {/* ── 1. Top Bar: Macroeconomic Radar (Ultra-Micro) ── */}
+      {/* Scoped styles via useScopedStyle */}{/* ── 1. Top Bar: Macroeconomic Radar (Ultra-Micro) ── */}
       <div className="strategies-top-bar" style={{ 
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', 
         background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: '6px 12px',
@@ -208,12 +213,7 @@ export default function StrategiesPage() {
           </div>
           
           <div style={{ flex: 1, overflowY: 'auto', padding: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <style>{`
-               ::-webkit-scrollbar { width: 3px; }
-               ::-webkit-scrollbar-thumb { background: rgba(10,132,255,0.15); border-radius: 10px; }
-            `}</style>
-            
-            {data.map((rep, idx) => (
+            {/* Scoped styles via useScopedStyle */}{data.map((rep, idx) => (
               <div 
                 key={idx} 
                 onClick={() => setActiveIdx(idx)}
@@ -281,9 +281,7 @@ export default function StrategiesPage() {
 
           {/* 3.2 Main Scrolling Content Block (combines Image + Quant + Flows) */}
           <div key={`body-${activeIdx}`} style={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'auto', animation: 'fadeIn 0.4s ease', paddingRight: 4, gap: 12 }}>
-            <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }`}</style>
-            
-            {/* ROW 1: Risk Matrix (Left) & Decision (Right) From Image */}
+            {/* Scoped styles via useScopedStyle */}{/* ROW 1: Risk Matrix (Left) & Decision (Right) From Image */}
             <div className="strategies-row-2col">
                {/* Right side: Direct Decision */}
                <div style={{ flex: 1.2, background: T.cardHover, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>

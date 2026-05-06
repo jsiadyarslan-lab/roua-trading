@@ -10,6 +10,7 @@ import {
   RotateCcw, Rocket, PiggyBank, Brain, Eye, BarChart2
 } from 'lucide-react'
 import { useAgentStore, AgentStatus, StrategyType, MarketRegime, RegimeInfo } from '@/hooks/useAgentStore'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { fmtPriceLocale } from '@/lib/price-format'
 
 /* ═══════════════════════════════════════════════
@@ -232,6 +233,7 @@ function StatCard({ icon, label, value, subValue, color, mono }: {
    Main Page Component
    ═══════════════════════════════════════════════ */
 export default function AutonomousTraderPage() {
+  useScopedStyle(AGENT_CSS)
   const {
     agentState, performance, positions, logs, loading, error,
     fetchStatus, fetchCredentials, startAgent, stopAgent, changeStrategy, updateRiskParams,
@@ -285,7 +287,7 @@ export default function AutonomousTraderPage() {
 
   return (
     <>
-      <style>{AGENT_CSS}</style>
+      {/* Scoped styles via useScopedStyle */}
       <div dir="rtl" style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: FONT_AR }}>
         {/* ── Header ── */}
         <div style={{

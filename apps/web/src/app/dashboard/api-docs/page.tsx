@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { T as SharedT } from '@/lib/unified-tokens'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 /* ═══════════════════════════════════════════════════════
    Design Tokens (canonical + local extensions)
@@ -826,6 +827,36 @@ function CategorySection({
    Main API Docs Page
 ═══════════════════════════════════════════════════════ */
 export default function ApiDocsPage() {
+  useScopedStyle(`@media (max-width: 767px) {
+          .apidocs-grid-2 { grid-template-columns: 1fr !important; }
+          .apidocs-grid-3 { grid-template-columns: 1fr !important; }
+          .apidocs-content { padding: 12px !important; }
+          .apidocs-header-inner { flex-direction: column !important; align-items: flex-start !important; }
+          .apidocs-endpoint-row { flex-direction: column !important; gap: 4px !important; }
+          .apidocs-endpoint-row span { white-space: normal !important; }
+          .apidocs-key-row { flex-direction: column !important; align-items: flex-start !important; }
+          .apidocs-quick-grid { grid-template-columns: 1fr !important; }
+          .apidocs-sdk-tabs { flex-direction: column !important; }
+        }
+        @media (min-width: 768px) and (max-width: 1023px) {
+          .apidocs-quick-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        pre::-webkit-scrollbar { height: 4px; }
+        pre::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.15); border-radius: 4px; }
+        pre::-webkit-scrollbar-track { background: transparent; }
+        @keyframes apidocs-fade-in {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .apidocs-fade-in { animation: apidocs-fade-in 0.4s ease-out; }
+@keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }`)
+
   const [openEndpoints, setOpenEndpoints] = useState<Set<string>>(new Set())
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set(['auth']))
   const [apiKeys, setApiKeys] = useState<ApiKey[]>(INITIAL_API_KEYS)
@@ -970,35 +1001,7 @@ for signal in client.signals.stream():
         background: T.bg,
       }}
     >
-      <style>{`
-        @media (max-width: 767px) {
-          .apidocs-grid-2 { grid-template-columns: 1fr !important; }
-          .apidocs-grid-3 { grid-template-columns: 1fr !important; }
-          .apidocs-content { padding: 12px !important; }
-          .apidocs-header-inner { flex-direction: column !important; align-items: flex-start !important; }
-          .apidocs-endpoint-row { flex-direction: column !important; gap: 4px !important; }
-          .apidocs-endpoint-row span { white-space: normal !important; }
-          .apidocs-key-row { flex-direction: column !important; align-items: flex-start !important; }
-          .apidocs-quick-grid { grid-template-columns: 1fr !important; }
-          .apidocs-sdk-tabs { flex-direction: column !important; }
-        }
-        @media (min-width: 768px) and (max-width: 1023px) {
-          .apidocs-quick-grid { grid-template-columns: repeat(2, 1fr) !important; }
-        }
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        pre::-webkit-scrollbar { height: 4px; }
-        pre::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.15); border-radius: 4px; }
-        pre::-webkit-scrollbar-track { background: transparent; }
-        @keyframes apidocs-fade-in {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .apidocs-fade-in { animation: apidocs-fade-in 0.4s ease-out; }
-      `}</style>
-
-      {/* ═══ Header ═══ */}
+      {/* Scoped styles via useScopedStyle */}{/* ═══ Header ═══ */}
       <div style={{
         padding: '28px 24px 20px',
         borderBottom: `1px solid ${T.border}`,
@@ -1685,12 +1688,6 @@ for signal in client.signals.stream():
       </div>
 
       {/* Spin animation for loading */}
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-    </div>
+      {/* Scoped styles via useScopedStyle */}</div>
   )
 }

@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import dynamic from 'next/dynamic'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 // Lazy-load AICoachPanel to avoid blocking initial render
 // Uses error-safe dynamic import to prevent ReferenceError
@@ -225,6 +226,29 @@ export default function PortfolioPage() {
   const [showPanicConfirm, setShowPanicConfirm] = useState(false)
   const [closingAll, setClosingAll] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+
+  // FIX: Inject scoped CSS via useEffect instead of <style> tag
+  // <style> tags in client components cause "Node cannot be found" in Next.js 16
+  useScopedStyle(`
+    @media (max-width: 767px) {
+      .portfolio-page-root { min-height: 100% !important; height: 100% !important; }
+    }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #0B0E14; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+    .portfolio-charts-row { display: flex; gap: 10px; margin-bottom: 12px; }
+    .portfolio-distribution { flex: 0 0 300px; }
+    .portfolio-tabs-row { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    @media (max-width: 767px) {
+      .portfolio-charts-row { flex-direction: column !important; }
+      .portfolio-distribution { flex: 0 0 auto !important; width: 100% !important; }
+      .portfolio-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+      .portfolio-table-wrap > div { min-width: 700px; }
+      .portfolio-table-wrap > div.mobile-cards-enabled { min-width: 0 !important; }
+      .portfolio-stats-row { flex-wrap: wrap !important; }
+      .portfolio-stats-row > * { flex: 1 1 calc(50% - 4px) !important; min-width: 140px; }
+    }
+  `)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -452,26 +476,7 @@ export default function PortfolioPage() {
       direction: 'rtl',
       fontFamily: "'Cairo', sans-serif",
     }}>
-      <style>{`
-        @media (max-width: 767px) {
-          .portfolio-page-root { min-height: 100% !important; height: 100% !important; }
-        }
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: #0B0E14; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
-        .portfolio-charts-row { display: flex; gap: 10px; margin-bottom: 12px; }
-        .portfolio-distribution { flex: 0 0 300px; }
-        .portfolio-tabs-row { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        @media (max-width: 767px) {
-          .portfolio-charts-row { flex-direction: column !important; }
-          .portfolio-distribution { flex: 0 0 auto !important; width: 100% !important; }
-          .portfolio-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-          .portfolio-table-wrap > div { min-width: 700px; }
-          .portfolio-table-wrap > div.mobile-cards-enabled { min-width: 0 !important; }
-          .portfolio-stats-row { flex-wrap: wrap !important; }
-          .portfolio-stats-row > * { flex: 1 1 calc(50% - 4px) !important; min-width: 140px; }
-        }
-      `}</style>
+      {/* Scoped styles injected via useScopedStyle to avoid Next.js 16 "Node cannot be found" error */}
 
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>

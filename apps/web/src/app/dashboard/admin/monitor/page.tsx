@@ -20,6 +20,7 @@ import {
   Save,
 } from 'lucide-react'
 import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 /* ── toast notification ── */
 interface Toast {
@@ -78,6 +79,20 @@ function getStatusColor(status: string) {
 }
 
 export default function AdminMonitorPage() {
+  useScopedStyle(`@keyframes pulse {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @media (max-width: 900px) {
+          [style*="grid-template-columns: 1fr 1fr"] {
+            grid-template-columns: 1fr !important;
+          }
+        }`)
+
   const [status, setStatus] = useState<MonitorStatus | null>(null)
   const [health, setHealth] = useState<HealthResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -226,6 +241,8 @@ export default function AdminMonitorPage() {
   }
 
   const formatDate = (iso: string | null) => {
+  
+
     if (!iso) return 'لم يتم بعد'
     const d = new Date(iso)
     const diff = Date.now() - d.getTime()
@@ -715,21 +732,6 @@ export default function AdminMonitorPage() {
         </div>
       </div>
 
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 0.5; }
-          50% { opacity: 1; }
-        }
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @media (max-width: 900px) {
-          [style*="grid-template-columns: 1fr 1fr"] {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
-    </div>
+      {/* Scoped styles via useScopedStyle */}</div>
   )
 }

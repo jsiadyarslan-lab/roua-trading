@@ -12,6 +12,7 @@ import { toast } from '@/hooks/use-toast'
 import { useAuthStore } from '@/lib/auth-store'
 import { ROLE_INFO, type Role } from '@/lib/permissions'
 import { T as SharedT } from '@/lib/unified-tokens'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 /* ── Design Tokens (canonical + local extensions) ── */
 const T = { ...SharedT, pink: '#f472b6', text4: '#475569' }
@@ -208,6 +209,25 @@ function FormSelect({ label, value, onChange, options, icon }: {
    Main Profile Page
 ══════════════════════════════════════════════════════ */
 export default function ProfilePage() {
+  useScopedStyle(`@media (max-width: 767px) {
+          .profile-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .profile-form-grid { grid-template-columns: 1fr !important; }
+          .profile-content { padding: 12px !important; }
+          .profile-hero-inner { flex-direction: column !important; text-align: center !important; }
+          .profile-hero-actions { margin-top: 12px !important; }
+        }
+        @media (min-width: 768px) and (max-width: 1024px) {
+          .profile-stats-grid { grid-template-columns: repeat(3, 1fr) !important; }
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        @keyframes profile-fade-in {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .profile-section { animation: profile-fade-in 0.4s ease-out; }`)
+
   const user = useAuthStore(state => state.user)
   const authLogout = useAuthStore(state => state.logout)
 
@@ -281,28 +301,7 @@ export default function ProfilePage() {
 
   return (
     <div className="custom-scrollbar" style={{ direction: 'rtl', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto', background: T.bg }}>
-      <style>{`
-        @media (max-width: 767px) {
-          .profile-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
-          .profile-form-grid { grid-template-columns: 1fr !important; }
-          .profile-content { padding: 12px !important; }
-          .profile-hero-inner { flex-direction: column !important; text-align: center !important; }
-          .profile-hero-actions { margin-top: 12px !important; }
-        }
-        @media (min-width: 768px) and (max-width: 1024px) {
-          .profile-stats-grid { grid-template-columns: repeat(3, 1fr) !important; }
-        }
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        @keyframes profile-fade-in {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .profile-section { animation: profile-fade-in 0.4s ease-out; }
-      `}</style>
-
-      {/* ═══ Header ═══ */}
+      {/* Scoped styles via useScopedStyle */}{/* ═══ Header ═══ */}
       <div style={{
         padding: '24px 24px 0', borderBottom: `1px solid ${T.border}`,
         background: `linear-gradient(180deg, ${T.bg2}, ${T.bg})`,

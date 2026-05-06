@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { T as SharedT } from '@/lib/unified-tokens'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 /* ═══════════════════════════════════════════════════════
    Design Tokens (canonical + local extensions)
@@ -279,6 +280,22 @@ function OTPInput({ value, onChange, length = 6 }: {
    Main 2FA Page Component
 ═══════════════════════════════════════════════════════ */
 export default function TwoFactorAuthPage() {
+  useScopedStyle(`@keyframes spin { to { transform: rotate(360deg) } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulseGlow { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+        .twofa-content { animation: fadeIn 0.3s ease-out; }
+        .twofa-scroll::-webkit-scrollbar { width: 4px; }
+        .twofa-scroll::-webkit-scrollbar-track { background: transparent; }
+        .twofa-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+        @media (max-width: 767px) {
+          .twofa-page-content { padding: 16px !important; }
+          .twofa-status-grid { flex-direction: column !important; align-items: center !important; }
+          .twofa-methods-list { grid-template-columns: 1fr !important; }
+          .twofa-codes-grid { grid-template-columns: 1fr !important; }
+          .twofa-best-grid { grid-template-columns: 1fr !important; }
+          .twofa-session-row { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
+        }`)
+
   const { toast } = useToast()
 
   /* ─── Auth Methods State ─── */
@@ -323,6 +340,8 @@ export default function TwoFactorAuthPage() {
   const securityScore = Math.min(100, Math.round((enabledCount / methods.length) * 70) + (recoveryCodes.length > 0 ? 15 : 0) + (enabledCount >= 2 ? 15 : 0))
 
   const updateMethod = (id: string, enabled: boolean) => {
+  
+
     setMethods(prev => prev.map(m => m.id === id ? { ...m, enabled } : m))
   }
 
@@ -435,25 +454,7 @@ export default function TwoFactorAuthPage() {
       direction: 'rtl', fontFamily: "'Cairo', sans-serif",
       height: '100%', overflowY: 'auto', background: T.bg,
     }}>
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg) } }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulseGlow { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
-        .twofa-content { animation: fadeIn 0.3s ease-out; }
-        .twofa-scroll::-webkit-scrollbar { width: 4px; }
-        .twofa-scroll::-webkit-scrollbar-track { background: transparent; }
-        .twofa-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
-        @media (max-width: 767px) {
-          .twofa-page-content { padding: 16px !important; }
-          .twofa-status-grid { flex-direction: column !important; align-items: center !important; }
-          .twofa-methods-list { grid-template-columns: 1fr !important; }
-          .twofa-codes-grid { grid-template-columns: 1fr !important; }
-          .twofa-best-grid { grid-template-columns: 1fr !important; }
-          .twofa-session-row { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
-        }
-      `}</style>
-
-      {/* ═══ Header ═══ */}
+      {/* Scoped styles via useScopedStyle */}{/* ═══ Header ═══ */}
       <div style={{
         padding: '28px 24px 0',
         background: `linear-gradient(180deg, ${T.bg2}, ${T.bg})`,

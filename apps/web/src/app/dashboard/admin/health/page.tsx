@@ -12,6 +12,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 interface EndpointHealth {
   path: string
@@ -53,6 +54,11 @@ function getStatusColor(status: string) {
 }
 
 export default function AdminHealthPage() {
+  useScopedStyle(`@keyframes pulse {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
+        }`)
+
   const [endpoints, setEndpoints] = useState<EndpointHealth[]>([])
   const [loading, setLoading] = useState(true)
   const [lastRefresh, setLastRefresh] = useState('')
@@ -298,12 +304,6 @@ export default function AdminHealthPage() {
         </div>
       </div>
 
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 0.5; }
-          50% { opacity: 1; }
-        }
-      `}</style>
-    </div>
+      {/* Scoped styles via useScopedStyle */}</div>
   )
 }

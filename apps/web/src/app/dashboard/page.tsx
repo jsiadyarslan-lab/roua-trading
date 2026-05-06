@@ -17,6 +17,7 @@ import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
 import { T as SharedT } from '@/lib/unified-tokens'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 const DASHBOARD_SYMBOLS = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA']
 
@@ -486,179 +487,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
 }
 
 export default function DashboardPage() {
-  const globalQuotes = useMarketStore(state => state.quotes) as Record<string, QuoteData | undefined>
-  const selectedSymbol = useSymbolStore(state => state.selectedSymbol)
-  const setSelectedSymbol = useSymbolStore(state => state.setSelectedSymbol)
-  const currentPrice = globalQuotes[selectedSymbol]?.price ?? null
-  const activeQuote = globalQuotes[selectedSymbol] ?? null
-  const account = usePositionsStore(state => state.account)
-  const positions = usePositionsStore(state => state.positions)
-  const lastUpdate = usePositionsStore(state => state.lastUpdate)
-  const positionsError = usePositionsStore(state => state.error)
-  const fetchAccount = usePositionsStore(state => state.fetchAccount)
-  const fetchPositions = usePositionsStore(state => state.fetchPositions)
-  const chartFullscreen = useDashboardStore(state => state.chartFullscreen)
-  const toggleChartFullscreen = useDashboardStore(state => state.toggleChartFullscreen)
-  const mode = useDashboardStore(state => state.mode)
-  const paperTrades = usePaperTradesStore(state => state.trades)
-  const [posOpen, setPosOpen] = useState(false)
-  const modeConfig = MODE_CONFIG[mode]
-
-  const hasPositions = positions.length > 0 || paperTrades.length > 0
-
-  // Auto-expand positions panel when positions appear
-  useEffect(() => {
-    if (hasPositions) {
-      setPosOpen(true)
-    }
-  }, [hasPositions])
-
-  const [chartExpanded, setChartExpanded] = useState(false)
-  const [isMobileViewport, setIsMobileViewport] = useState(false)
-  const [isCompactDesktopViewport, setIsCompactDesktopViewport] = useState(false)
-  const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false)
-  const [sidebarPinned, setSidebarPinned] = useState(false)
-  const [tradeDialogOpen, setTradeDialogOpen] = useState(false)
-
-  // ── Chart Height: Pure CSS flex + explicit resize trigger ──
-  // Chart uses flex:1 so it fills remaining space after banner + balance panel.
-  // When positions open/close, we dispatch a window resize event so that
-  // the ResizeObserver in useChart.ts detects the container size change
-  // and resizes the TradingView canvas.
-  const chartPanelRef = useRef<HTMLDivElement | null>(null)
-
-  // Force chart canvas resize after positions toggle
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      window.dispatchEvent(new Event('resize'))
-    }, 50)
-    const timer2 = setTimeout(() => {
-      window.dispatchEvent(new Event('resize'))
-    }, 300)
-    return () => { clearTimeout(timer); clearTimeout(timer2) }
-  }, [posOpen])
-
-  useEffect(() => {
-    fetchAccount()
-    fetchPositions()
-    const intervalId = window.setInterval(() => {
-      fetchAccount()
-      fetchPositions()
-    }, 60000)
-
-    return () => window.clearInterval(intervalId)
-  }, [fetchAccount, fetchPositions])
-
-  // Cross-device sync: refresh data when the page becomes visible
-  // (user switches back from another tab/device or returns to the app)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchAccount()
-        fetchPositions()
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-  }, [fetchAccount, fetchPositions])
-
-  // Cross-tab sync: listen for account data changes from other tabs
-  useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key?.startsWith('roua_') || e.key === null) {
-        fetchAccount()
-        fetchPositions()
-      }
-    }
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
-  }, [fetchAccount, fetchPositions])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return
-
-    const mobileMedia = window.matchMedia('(max-width: 767px)')
-    const compactDesktopMedia = window.matchMedia('(max-width: 1280px)')
-
-    const syncViewport = () => {
-      setIsMobileViewport(mobileMedia.matches)
-      setIsCompactDesktopViewport(compactDesktopMedia.matches && !mobileMedia.matches)
-    }
-
-    syncViewport()
-    mobileMedia.addEventListener('change', syncViewport)
-    compactDesktopMedia.addEventListener('change', syncViewport)
-
-    return () => {
-      mobileMedia.removeEventListener('change', syncViewport)
-      compactDesktopMedia.removeEventListener('change', syncViewport)
-    }
-  }, [])
-
-  const quotes = useMemo(() => {
-    const entries = DASHBOARD_SYMBOLS.flatMap(symbol => {
-      const quote = globalQuotes[symbol]
-      return quote ? [[symbol, quote] as const] : []
-    })
-    return new Map<string, QuoteData>(entries)
-  }, [globalQuotes])
-
-  const mobileSymbols = useMemo(() => {
-    const defaults = ['BTC/USD', 'ETH/USD', 'SOL/USD']
-    const ordered = [selectedSymbol, ...defaults.filter(sym => sym !== selectedSymbol)]
-    return ordered.slice(0, 3).map(symbol => ({
-      symbol,
-      quote: globalQuotes[symbol] ?? null,
-    }))
-  }, [globalQuotes, selectedSymbol])
-
-  const mobileSummaryCards = [
-    { label: 'الرصيد', value: formatMoney(account?.equity), tone: T.text },
-    { label: 'قوة الشراء', value: formatMoney(account?.buyingPower), tone: T.success },
-    { label: 'المراكز', value: `${positions.length}`, tone: T.cyan },
-  ]
-
-  const quoteStatus = getDataStatus(activeQuote)
-  const sourceLabel = getSourceLabel(activeQuote?.source)
-
-  // Derive account data status
-  const dataSource = usePositionsStore(state => state.dataSource)
-  const accountDataStatus: DataStatus = (() => {
-    if (positionsError) return 'disconnected'
-    if (!account) return 'disconnected'
-    // إذا كان الحساب موجود لكن بدون بيانات حقيقية (equity=0 ولا مراكز)، اعتبره "تجريبي"
-    const hasRealData = Number(account.equity) > 0 || Number(account.longMarketValue) > 0 || Number(account.shortMarketValue) > 0 || positions.length > 0
-    if (!lastUpdate && !hasRealData) return 'demo'
-    if (!lastUpdate) return 'fallback'
-    // إذا كانت البيانات من NestJS، اعتبرها مباشرة/احتياطية حسب حالة الأسعار
-    if (dataSource === 'nestjs') {
-      return quoteStatus === 'live' ? 'live' : quoteStatus === 'delayed' ? 'delayed' : 'fallback'
-    }
-    if (dataSource === 'alpaca') {
-      return quoteStatus === 'live' ? 'live' : 'fallback'
-    }
-    return quoteStatus === 'live' ? 'live' : quoteStatus === 'delayed' ? 'delayed' : 'fallback'
-  })()
-
-  // Calculate P&L for balance card — use live-calculated P&L from positions
-  // (positions now update in real-time via GlobalLogicEngine + useMarketStore)
-  // Fallback to account's unrealizedPnl if positions aren't loaded yet
-  const equityValue = Number(account?.equity) || 0
-  const cashValue = Number(account?.cash) || 0
-  const longMarketValue = Number(account?.longMarketValue) || 0
-  const shortMarketValue = Number(account?.shortMarketValue) || 0
-  const positionsValue = longMarketValue + shortMarketValue
-  const initialMargin = Number(account?.initialMargin) || 0
-  const freeMargin = Math.max(0, equityValue - initialMargin) // الهامش الحر = الرصيد - الهامش المستخدم
-  // P&L لحظي من المراكز (محسوب من الأسعار المباشرة) بدلاً من account.unrealizedPnl المتجمد
-  const livePositionsPnl = positions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)
-  const unrealizedPnl = positions.length > 0 ? livePositionsPnl : (Number(account?.unrealizedPnl) || 0)
-  const isProfitable = unrealizedPnl > 0
-
-  return (
-    <>
-      <style>{`
-        .dashboard-shell {
+  useScopedStyle(`.dashboard-shell {
           min-height: calc(100dvh - ${HEADER_H}px);
           background: ${T.bg};
           background-image:
@@ -1088,10 +917,182 @@ export default function DashboardPage() {
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
-        }
-      `}</style>
+        }`)
 
-      <BotEngine />
+  const globalQuotes = useMarketStore(state => state.quotes) as Record<string, QuoteData | undefined>
+  const selectedSymbol = useSymbolStore(state => state.selectedSymbol)
+  const setSelectedSymbol = useSymbolStore(state => state.setSelectedSymbol)
+  const currentPrice = globalQuotes[selectedSymbol]?.price ?? null
+  const activeQuote = globalQuotes[selectedSymbol] ?? null
+  const account = usePositionsStore(state => state.account)
+  const positions = usePositionsStore(state => state.positions)
+  const lastUpdate = usePositionsStore(state => state.lastUpdate)
+  const positionsError = usePositionsStore(state => state.error)
+  const fetchAccount = usePositionsStore(state => state.fetchAccount)
+  const fetchPositions = usePositionsStore(state => state.fetchPositions)
+  const chartFullscreen = useDashboardStore(state => state.chartFullscreen)
+  const toggleChartFullscreen = useDashboardStore(state => state.toggleChartFullscreen)
+  const mode = useDashboardStore(state => state.mode)
+  const paperTrades = usePaperTradesStore(state => state.trades)
+  const [posOpen, setPosOpen] = useState(false)
+  const modeConfig = MODE_CONFIG[mode]
+
+  const hasPositions = positions.length > 0 || paperTrades.length > 0
+
+  // Auto-expand positions panel when positions appear
+  useEffect(() => {
+    if (hasPositions) {
+      setPosOpen(true)
+    }
+  }, [hasPositions])
+
+  const [chartExpanded, setChartExpanded] = useState(false)
+  const [isMobileViewport, setIsMobileViewport] = useState(false)
+  const [isCompactDesktopViewport, setIsCompactDesktopViewport] = useState(false)
+  const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false)
+  const [sidebarPinned, setSidebarPinned] = useState(false)
+  const [tradeDialogOpen, setTradeDialogOpen] = useState(false)
+
+  // ── Chart Height: Pure CSS flex + explicit resize trigger ──
+  // Chart uses flex:1 so it fills remaining space after banner + balance panel.
+  // When positions open/close, we dispatch a window resize event so that
+  // the ResizeObserver in useChart.ts detects the container size change
+  // and resizes the TradingView canvas.
+  const chartPanelRef = useRef<HTMLDivElement | null>(null)
+
+  // Force chart canvas resize after positions toggle
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      window.dispatchEvent(new Event('resize'))
+    }, 50)
+    const timer2 = setTimeout(() => {
+      window.dispatchEvent(new Event('resize'))
+    }, 300)
+    return () => { clearTimeout(timer); clearTimeout(timer2) }
+  }, [posOpen])
+
+  useEffect(() => {
+    fetchAccount()
+    fetchPositions()
+    const intervalId = window.setInterval(() => {
+      fetchAccount()
+      fetchPositions()
+    }, 60000)
+
+    return () => window.clearInterval(intervalId)
+  }, [fetchAccount, fetchPositions])
+
+  // Cross-device sync: refresh data when the page becomes visible
+  // (user switches back from another tab/device or returns to the app)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchAccount()
+        fetchPositions()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [fetchAccount, fetchPositions])
+
+  // Cross-tab sync: listen for account data changes from other tabs
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key?.startsWith('roua_') || e.key === null) {
+        fetchAccount()
+        fetchPositions()
+      }
+    }
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
+  }, [fetchAccount, fetchPositions])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const mobileMedia = window.matchMedia('(max-width: 767px)')
+    const compactDesktopMedia = window.matchMedia('(max-width: 1280px)')
+
+    const syncViewport = () => {
+  
+
+      setIsMobileViewport(mobileMedia.matches)
+      setIsCompactDesktopViewport(compactDesktopMedia.matches && !mobileMedia.matches)
+    }
+
+    syncViewport()
+    mobileMedia.addEventListener('change', syncViewport)
+    compactDesktopMedia.addEventListener('change', syncViewport)
+
+    return () => {
+      mobileMedia.removeEventListener('change', syncViewport)
+      compactDesktopMedia.removeEventListener('change', syncViewport)
+    }
+  }, [])
+
+  const quotes = useMemo(() => {
+    const entries = DASHBOARD_SYMBOLS.flatMap(symbol => {
+      const quote = globalQuotes[symbol]
+      return quote ? [[symbol, quote] as const] : []
+    })
+    return new Map<string, QuoteData>(entries)
+  }, [globalQuotes])
+
+  const mobileSymbols = useMemo(() => {
+    const defaults = ['BTC/USD', 'ETH/USD', 'SOL/USD']
+    const ordered = [selectedSymbol, ...defaults.filter(sym => sym !== selectedSymbol)]
+    return ordered.slice(0, 3).map(symbol => ({
+      symbol,
+      quote: globalQuotes[symbol] ?? null,
+    }))
+  }, [globalQuotes, selectedSymbol])
+
+  const mobileSummaryCards = [
+    { label: 'الرصيد', value: formatMoney(account?.equity), tone: T.text },
+    { label: 'قوة الشراء', value: formatMoney(account?.buyingPower), tone: T.success },
+    { label: 'المراكز', value: `${positions.length}`, tone: T.cyan },
+  ]
+
+  const quoteStatus = getDataStatus(activeQuote)
+  const sourceLabel = getSourceLabel(activeQuote?.source)
+
+  // Derive account data status
+  const dataSource = usePositionsStore(state => state.dataSource)
+  const accountDataStatus: DataStatus = (() => {
+    if (positionsError) return 'disconnected'
+    if (!account) return 'disconnected'
+    // إذا كان الحساب موجود لكن بدون بيانات حقيقية (equity=0 ولا مراكز)، اعتبره "تجريبي"
+    const hasRealData = Number(account.equity) > 0 || Number(account.longMarketValue) > 0 || Number(account.shortMarketValue) > 0 || positions.length > 0
+    if (!lastUpdate && !hasRealData) return 'demo'
+    if (!lastUpdate) return 'fallback'
+    // إذا كانت البيانات من NestJS، اعتبرها مباشرة/احتياطية حسب حالة الأسعار
+    if (dataSource === 'nestjs') {
+      return quoteStatus === 'live' ? 'live' : quoteStatus === 'delayed' ? 'delayed' : 'fallback'
+    }
+    if (dataSource === 'alpaca') {
+      return quoteStatus === 'live' ? 'live' : 'fallback'
+    }
+    return quoteStatus === 'live' ? 'live' : quoteStatus === 'delayed' ? 'delayed' : 'fallback'
+  })()
+
+  // Calculate P&L for balance card — use live-calculated P&L from positions
+  // (positions now update in real-time via GlobalLogicEngine + useMarketStore)
+  // Fallback to account's unrealizedPnl if positions aren't loaded yet
+  const equityValue = Number(account?.equity) || 0
+  const cashValue = Number(account?.cash) || 0
+  const longMarketValue = Number(account?.longMarketValue) || 0
+  const shortMarketValue = Number(account?.shortMarketValue) || 0
+  const positionsValue = longMarketValue + shortMarketValue
+  const initialMargin = Number(account?.initialMargin) || 0
+  const freeMargin = Math.max(0, equityValue - initialMargin) // الهامش الحر = الرصيد - الهامش المستخدم
+  // P&L لحظي من المراكز (محسوب من الأسعار المباشرة) بدلاً من account.unrealizedPnl المتجمد
+  const livePositionsPnl = positions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)
+  const unrealizedPnl = positions.length > 0 ? livePositionsPnl : (Number(account?.unrealizedPnl) || 0)
+  const isProfitable = unrealizedPnl > 0
+
+  return (
+    <>
+      {/* Scoped styles via useScopedStyle */}<BotEngine />
       <GlobalLogicEngine />
 
       {!isMobileViewport && (

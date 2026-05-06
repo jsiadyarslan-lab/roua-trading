@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Play, TrendingUp, TrendingDown, BarChart2, Activity, Target, Award } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
 import { getPnlColor } from '@/lib/unified-tokens'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 const STRATEGIES = [
   { id: 'EMA_CROSSOVER', label: 'تقاطع EMA', desc: 'شراء عند تقاطع EMA سريع فوق بطيء والعكس', color: T.cyan },
@@ -14,6 +15,8 @@ const STRATEGIES = [
 const SYMBOLS = ['BTC/USD','ETH/USD','SOL/USD','EUR/USD','GBP/USD','XAU/USD','AAPL','TSLA']
 
 export default function BacktestPage() {
+  useScopedStyle(`@keyframes spin { to { transform: rotate(360deg); } }`)
+
   const [symbol, setSymbol] = useState('BTC/USD')
   const [strategy, setStrategy] = useState('EMA_CROSSOVER')
   const [fastPeriod, setFastPeriod] = useState(9)
@@ -50,9 +53,7 @@ export default function BacktestPage() {
 
   return (
     <div style={{ padding: '24px 28px', direction: 'rtl', fontFamily: "'Cairo', sans-serif", background: T.bg, minHeight: '100vh' }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-
-      <div style={{ marginBottom: 24 }}>
+      {/* Scoped styles via useScopedStyle */}<div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <Activity size={22} color={T.purple} />
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: T.text }}>محرك الاختبار الاسترجاعي</h1>

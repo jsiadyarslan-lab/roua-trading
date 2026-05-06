@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { CalendarDays, Clock, TrendingUp, TrendingDown, Minus, Filter, RefreshCw, Brain } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 const IMPACT_STYLE = {
   high:   { color: T.red,   label: 'عالي',    bullets: 3 },
@@ -34,6 +35,8 @@ function BiasIcon({ bias }: { bias: 'bullish' | 'bearish' | 'neutral' }) {
 }
 
 export default function CalendarPage() {
+  useScopedStyle(`@keyframes spin { to { transform: rotate(360deg); } }`)
+
   const [events, setEvents] = useState<any[]>([])
   const [grouped, setGrouped] = useState<Record<string, any[]>>({})
   const [loading, setLoading] = useState(true)
@@ -157,9 +160,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-
-      {/* Events */}
+      {/* Scoped styles via useScopedStyle */}{/* Events */}
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {[1,2,3,4,5].map(i => (

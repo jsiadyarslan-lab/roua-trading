@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 // ── Defensive helpers: ensure primitive types for React rendering ──
 // Prevents React Error #31 when API returns objects (e.g., SmartScore) instead of primitives
@@ -296,6 +297,14 @@ function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal:
 
 // ── Main Page ──
 export default function SignalsPage() {
+  useScopedStyle(`@media (max-width: 767px) {
+          .signals-quick-pairs { grid-template-columns: repeat(3, 1fr) !important; }
+        }
+        @media (max-width: 480px) {
+          .signals-quick-pairs { grid-template-columns: repeat(2, 1fr) !important; }
+          .signal-price-grid { grid-template-columns: 1fr !important; }
+        }`)
+
   const router = useRouter()
   const { loading: authLoading } = useAuth()
   const [signals, setSignals] = useState<Signal[]>([])
@@ -351,6 +360,8 @@ export default function SignalsPage() {
   }
 
   const handleExecute = (signal: Signal) => {
+  
+
     // Navigate to trading page with signal context via query params
     const params = new URLSearchParams({
       symbol: signal.pair,
@@ -394,16 +405,7 @@ export default function SignalsPage() {
         </button>
       }
     >
-      <style>{`
-        @media (max-width: 767px) {
-          .signals-quick-pairs { grid-template-columns: repeat(3, 1fr) !important; }
-        }
-        @media (max-width: 480px) {
-          .signals-quick-pairs { grid-template-columns: repeat(2, 1fr) !important; }
-          .signal-price-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-      {/* ── Quick Generate Section ── */}
+      {/* Scoped styles via useScopedStyle */}{/* ── Quick Generate Section ── */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}

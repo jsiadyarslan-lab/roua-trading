@@ -14,6 +14,7 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 // ── Defensive helpers: ensure primitive types for React rendering ──
 function safeConfidence(val: unknown): number {
@@ -76,6 +77,13 @@ interface SignalStats {
 }
 
 export default function AdminSignalsPage() {
+  useScopedStyle(`.custom-scrollbar::-webkit-scrollbar { width: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.15); border-radius: 2px; }
+        @media (max-width: 900px) {
+          .admin-grid-2 { grid-template-columns: 1fr !important; }
+        }`)
+
   const [signals, setSignals] = useState<Signal[]>([])
   const [scannerResults, setScannerResults] = useState<ScannerResult[]>([])
   const [loading, setLoading] = useState(true)
@@ -180,6 +188,8 @@ export default function AdminSignalsPage() {
   const avgConfidence = signals.length ? Math.round(signals.reduce((sum, s) => sum + s.confidence, 0) / signals.length) : 0
 
   function getActionConfig(action: string) {
+  
+
     if (action === 'BUY') return { label: 'شراء', Icon: TrendingUp, color: COLORS.success, bg: `${COLORS.success}10`, border: `${COLORS.success}25` }
     if (action === 'SELL') return { label: 'بيع', Icon: TrendingDown, color: COLORS.danger, bg: `${COLORS.danger}10`, border: `${COLORS.danger}25` }
     return { label: 'انتظار', Icon: Minus, color: COLORS.amber, bg: `${COLORS.amber}10`, border: `${COLORS.amber}25` }
@@ -451,14 +461,6 @@ export default function AdminSignalsPage() {
         </div>
       </div>
 
-      <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 3px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.15); border-radius: 2px; }
-        @media (max-width: 900px) {
-          .admin-grid-2 { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-    </div>
+      {/* Scoped styles via useScopedStyle */}</div>
   )
 }

@@ -29,6 +29,7 @@ import SubPageLayout from '@/components/dashboard/SubPageLayout'
 import { T } from '@/lib/theme-tokens'
 import { toast } from '@/hooks/use-toast'
 import { useNotificationStore, Notification as StoreNotification } from '@/hooks/useNotificationStore'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 /* ═══════════════════════════════════════════════════════════
    Types
@@ -585,6 +586,18 @@ function EmptyState({ filterLabel }: { filterLabel: string }) {
    ═══════════════════════════════════════════════════════════ */
 
 export default function NotificationsPage() {
+  useScopedStyle(`@media (max-width: 767px) {
+          .notif-stats-grid { grid-template-columns: repeat(3, 1fr) !important; }
+          .notif-prefs-grid { grid-template-columns: 1fr !important; }
+        }
+        @media (max-width: 480px) {
+          .notif-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        .notif-scroll::-webkit-scrollbar { width: 4px; }
+        .notif-scroll::-webkit-scrollbar-track { background: transparent; }
+        .notif-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+        .notif-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }`)
+
   // Use REAL notification store data instead of mock
   const { notifications: storeNotifications, markRead, markAllRead, dismiss, clearAll, settings, updateSettings } = useNotificationStore()
 
@@ -790,21 +803,7 @@ export default function NotificationsPage() {
         </div>
       }
     >
-      <style>{`
-        @media (max-width: 767px) {
-          .notif-stats-grid { grid-template-columns: repeat(3, 1fr) !important; }
-          .notif-prefs-grid { grid-template-columns: 1fr !important; }
-        }
-        @media (max-width: 480px) {
-          .notif-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
-        }
-        .notif-scroll::-webkit-scrollbar { width: 4px; }
-        .notif-scroll::-webkit-scrollbar-track { background: transparent; }
-        .notif-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
-        .notif-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
-      `}</style>
-
-      {/* ── Quick Stats Row ── */}
+      {/* Scoped styles via useScopedStyle */}{/* ── Quick Stats Row ── */}
       <div
         className="notif-stats-grid"
         style={{

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { T as SharedT } from '@/lib/unified-tokens'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 /* ──────────────── Design Tokens (canonical + local extensions) ──────────────── */
 const T = { ...SharedT, silver: '#8B92A8', bronze: '#CD7F32' }
@@ -224,6 +225,8 @@ function BadgeCard({ badge }: { badge: Badge }) {
 
 /* ──────────────── Main Page Component ──────────────── */
 export default function LeaderboardPage() {
+  useScopedStyle(`@keyframes spin { to { transform: rotate(360deg); } }`)
+
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('شهري')
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('العائد')
   const [followingTraders, setCopyingTraders] = useState<Set<string>>(new Set())
@@ -283,6 +286,8 @@ export default function LeaderboardPage() {
   const restTraders = sortedTraders.slice(3)
 
   const toggleFollow = (traderId: string, traderName: string) => {
+  
+
     setCopyingTraders(prev => {
       const next = new Set(prev)
       if (next.has(traderId)) {
@@ -316,8 +321,7 @@ export default function LeaderboardPage() {
             borderRadius: '50%', animation: 'spin 0.8s linear infinite',
             margin: '0 auto 12px',
           }} />
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          <div style={{ fontSize: 13 }}>جارٍ تحميل لوحة الصدارة...</div>
+          {/* Scoped styles via useScopedStyle */}<div style={{ fontSize: 13 }}>جارٍ تحميل لوحة الصدارة...</div>
         </div>
       </div>
     )

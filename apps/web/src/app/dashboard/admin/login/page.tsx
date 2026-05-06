@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Shield, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 const COLORS = {
   bg: '#0B0E14',
@@ -15,6 +16,8 @@ const COLORS = {
 }
 
 export default function AdminLoginPage() {
+  useScopedStyle(`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`)
+
   const router = useRouter()
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -220,9 +223,6 @@ export default function AdminLoginPage() {
         </div>
       </div>
 
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
-    </div>
+      {/* Scoped styles via useScopedStyle */}</div>
   )
 }

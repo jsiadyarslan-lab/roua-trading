@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import {
+import { useScopedStyle } from '@/hooks/useScopedStyle'
   CreditCard,
   RefreshCw,
   Users,
@@ -102,6 +103,16 @@ interface SubsApiResponse {
 type RegPeriod = 'يومي' | 'أسبوعي' | 'شهري' | 'سنوي'
 
 export default function AdminSubscriptionsPage() {
+  useScopedStyle(`@keyframes fadeInSlideUp {
+          from { opacity: 0; transform: translateY(14px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 900px) {
+          [style*="grid-template-columns: 1fr 1fr"] {
+            grid-template-columns: 1fr !important;
+          }
+        }`)
+
   const [data, setData] = useState<SubsApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -146,6 +157,8 @@ export default function AdminSubscriptionsPage() {
   }
 
   const formatDate = (iso: string) => {
+  
+
     const d = new Date(iso)
     return d.toLocaleDateString('ar-SA', { year: 'numeric', month: 'short', day: 'numeric' })
   }
@@ -481,17 +494,6 @@ export default function AdminSubscriptionsPage() {
         </div>
       )}
 
-      <style>{`
-        @keyframes fadeInSlideUp {
-          from { opacity: 0; transform: translateY(14px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @media (max-width: 900px) {
-          [style*="grid-template-columns: 1fr 1fr"] {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
-    </div>
+      {/* Scoped styles via useScopedStyle */}</div>
   )
 }

@@ -22,6 +22,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 /* ── notification events config ── */
 const NOTIFICATION_EVENTS = [
@@ -45,6 +46,16 @@ interface NotifConfig {
 }
 
 export default function AdminNotificationsPage() {
+  useScopedStyle(`@keyframes fadeInSlideUp {
+          from { opacity: 0; transform: translateY(14px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 900px) {
+          [style*="grid-template-columns: 1fr 1fr"] {
+            grid-template-columns: 1fr !important;
+          }
+        }`)
+
   const [configs, setConfigs] = useState<NotifConfig[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -357,6 +368,8 @@ export default function AdminNotificationsPage() {
 
   /* ── format time ago ── */
   const timeAgo = (dateStr: string | null) => {
+  
+
     if (!dateStr) return 'أبداً'
     const diff = Date.now() - new Date(dateStr).getTime()
     const mins = Math.floor(diff / 60000)
@@ -773,17 +786,6 @@ export default function AdminNotificationsPage() {
         )}
       </div>
 
-      <style>{`
-        @keyframes fadeInSlideUp {
-          from { opacity: 0; transform: translateY(14px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @media (max-width: 900px) {
-          [style*="grid-template-columns: 1fr 1fr"] {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
-    </div>
+      {/* Scoped styles via useScopedStyle */}</div>
   )
 }

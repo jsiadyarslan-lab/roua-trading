@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { ScrollText, Filter, RefreshCw, Info, AlertTriangle, XCircle, AlertCircle } from 'lucide-react'
 import { COLORS } from '@/lib/admin-ui'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 type LogLevel = 'info' | 'warning' | 'error'
 
@@ -43,6 +44,12 @@ async function fetchSystemLogs(level: string, search: string): Promise<LogsRespo
 }
 
 export default function AdminSystemLogsPage() {
+  useScopedStyle(`@keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.15); border-radius: 2px; }`)
+
   const [logs, setLogs] = useState<LogEntry[]>([])
   const [counts, setCounts] = useState({ all: 0, info: 0, warning: 0, error: 0 })
   const [filter, setFilter] = useState<LogLevel | 'all'>('all')
@@ -117,8 +124,7 @@ export default function AdminSystemLogsPage() {
         <div style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${COLORS.border}`, borderRadius: 10, height: 480 }}>
           <div style={{ background: 'rgba(0,229,255,0.04)', borderRadius: 6, height: '100%', animation: 'pulse 1.5s infinite' }} />
         </div>
-        <style>{`@keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 0.8; } }`}</style>
-      </div>
+        {/* Scoped styles via useScopedStyle */}</div>
     )
   }
 
@@ -206,12 +212,6 @@ export default function AdminSystemLogsPage() {
         </div>
       </div>
 
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.15); border-radius: 2px; }
-      `}</style>
-    </div>
+      {/* Scoped styles via useScopedStyle */}</div>
   )
 }

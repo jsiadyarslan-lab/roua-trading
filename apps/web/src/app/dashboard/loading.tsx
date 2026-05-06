@@ -1,10 +1,13 @@
-import { Metadata } from 'next'
+'use client'
 
-export const metadata: Metadata = {
-  title: 'جارٍ التحميل... | رؤى',
-}
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 export default function Loading() {
+  useScopedStyle(`@keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }`)
+
   return (
     <div
       className="min-h-screen flex items-center justify-center"
@@ -51,12 +54,6 @@ export default function Loading() {
         </p>
       </div>
 
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-    </div>
+      {/* Scoped styles via useScopedStyle */}</div>
   )
 }

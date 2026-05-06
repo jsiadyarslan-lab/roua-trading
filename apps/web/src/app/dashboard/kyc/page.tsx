@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import { T as SharedT } from '@/lib/unified-tokens'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 /* ═══════════════════════════════════════════════════════
    Design Tokens (canonical + local extensions)
@@ -275,6 +276,23 @@ function BenefitCard({ icon, title, description, color }: {
    Main Account Linking Page Component
 ═══════════════════════════════════════════════════════ */
 export default function AccountLinkingPage() {
+  useScopedStyle(`@keyframes spin { to { transform: rotate(360deg) } }
+        @keyframes pulseGlow { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes successPulse { 0% { transform: scale(0.8); opacity: 0; } 50% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
+        .kyc-step-content { animation: fadeIn 0.3s ease-out; }
+        .success-pulse { animation: successPulse 0.5s ease-out; }
+        @media (max-width: 767px) {
+          .kyc-stepper-desktop { display: none !important; }
+          .kyc-stepper-mobile { display: flex !important; }
+          .kyc-content { padding: 16px !important; }
+          .kyc-benefits-grid { grid-template-columns: 1fr !important; }
+          .kyc-form-grid { grid-template-columns: 1fr !important; }
+          .kyc-review-grid { grid-template-columns: 1fr !important; }
+          .exchange-grid { grid-template-columns: 1fr 1fr !important; }
+          .permission-grid { grid-template-columns: 1fr !important; }
+        }`)
+
   const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState<StepId>(1)
   const [linkingStatus, setLinkingStatus] = useState<LinkingStatus>('not_started')
@@ -379,6 +397,8 @@ export default function AccountLinkingPage() {
   }
 
   const maskApiSecret = (secret: string) => {
+  
+
     if (!secret) return '—'
     return '••••••••••••••••'
   }
@@ -391,26 +411,7 @@ export default function AccountLinkingPage() {
       direction: 'rtl', fontFamily: "'Cairo', sans-serif",
       height: '100%', overflowY: 'auto', background: T.bg,
     }}>
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg) } }
-        @keyframes pulseGlow { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes successPulse { 0% { transform: scale(0.8); opacity: 0; } 50% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
-        .kyc-step-content { animation: fadeIn 0.3s ease-out; }
-        .success-pulse { animation: successPulse 0.5s ease-out; }
-        @media (max-width: 767px) {
-          .kyc-stepper-desktop { display: none !important; }
-          .kyc-stepper-mobile { display: flex !important; }
-          .kyc-content { padding: 16px !important; }
-          .kyc-benefits-grid { grid-template-columns: 1fr !important; }
-          .kyc-form-grid { grid-template-columns: 1fr !important; }
-          .kyc-review-grid { grid-template-columns: 1fr !important; }
-          .exchange-grid { grid-template-columns: 1fr 1fr !important; }
-          .permission-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-
-      {/* ═══ Header ═══ */}
+      {/* Scoped styles via useScopedStyle */}{/* ═══ Header ═══ */}
       <div style={{
         padding: '28px 24px 0',
         background: `linear-gradient(180deg, ${T.bg2}, ${T.bg})`,

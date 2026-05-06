@@ -17,6 +17,7 @@ const ScreenerTab = dynamic(() => import('@/components/scanner/tabs/ScreenerTab'
 const DeepAnalysisModal = dynamic(() => import('@/components/scanner/modals/DeepAnalysisModal').then(m => ({ default: m.DeepAnalysisModal })), { ssr: false })
 
 import { T as SharedT } from '@/lib/unified-tokens'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 // ── Design Tokens (canonical + local extensions) ──
 const T = { ...SharedT, card2: '#0B0E14' }
@@ -34,6 +35,8 @@ function ScannerContent() {
   }, [isMobile])
 
   const renderTab = () => {
+  
+
     switch (activeTab) {
       case 'scanner':
         return (
@@ -70,25 +73,7 @@ function ScannerContent() {
       display: 'flex', gap: 12, overflow: 'hidden',
       paddingTop: isMobile ? '48px' : '8px',
     }}>
-      <style>{`
-        @media (max-width: 767px) {
-          .scanner-page-root { height: 100% !important; }
-        }
-        ::-webkit-scrollbar { width: 4px; height: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #0A84FF22; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #0A84FF44; }
-        @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:0.5; } }
-        .scanner-sidebar-wrapper { display: flex; }
-        .scanner-table-scroll { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
-        @media (max-width: 767px) {
-          .scanner-sidebar-wrapper { display: none !important; }
-          .scanner-sidebar-wrapper.scanner-sidebar-visible { display: flex !important; position: fixed; top: 0; inset-inline-end: 0; bottom: 0; z-index: 50; box-shadow: -4px 0 20px rgba(0,0,0,0.5); }
-        }
-      `}</style>
-
-      {/* Mobile sidebar toggle */}
+      {/* Scoped styles via useScopedStyle */}{/* Mobile sidebar toggle */}
       {isMobile && (
         <button
           onClick={() => setSidebarVisible(!sidebarVisible)}
@@ -133,6 +118,22 @@ function ScannerContent() {
 
 // ── Page Export ──
 export default function AdvancedScannerPage() {
+  useScopedStyle(`@media (max-width: 767px) {
+          .scanner-page-root { height: 100% !important; }
+        }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #0A84FF22; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #0A84FF44; }
+        @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:0.5; } }
+        .scanner-sidebar-wrapper { display: flex; }
+        .scanner-table-scroll { -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+        @media (max-width: 767px) {
+          .scanner-sidebar-wrapper { display: none !important; }
+          .scanner-sidebar-wrapper.scanner-sidebar-visible { display: flex !important; position: fixed; top: 0; inset-inline-end: 0; bottom: 0; z-index: 50; box-shadow: -4px 0 20px rgba(0,0,0,0.5); }
+        }`)
+
   return (
     <ScannerProvider>
       <ScannerContent />

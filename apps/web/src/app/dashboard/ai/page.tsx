@@ -12,6 +12,7 @@ import { PRIMARY_SYMBOLS } from '@/lib/trading-intelligence'
 
 // ── Theme ──
 import { T } from '@/lib/unified-tokens'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 // ── Types ──
 interface Message {
@@ -105,6 +106,115 @@ function saveMessages(messages: Message[]) {
 
 // ── Main Component ──
 export default function AIPage() {
+  useScopedStyle(`@media (max-width: 767px) {
+          .ai-page-root { height: 100% !important; }
+        }
+::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(10,132,255,0.3); border-radius: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        .ai-select {
+          appearance: none;
+          background: ${T.bg2};
+          border: 1px solid ${T.border};
+          color: ${T.text};
+          padding: 8px 14px;
+          border-radius: 8px;
+          font-family: 'Cairo', sans-serif;
+          font-size: 12px;
+          outline: none;
+          cursor: pointer;
+          width: 100%;
+        }
+        .ai-select:focus { border-color: ${T.cyan}; }
+        @keyframes dot-pulse {
+          0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+          40% { opacity: 1; transform: scale(1.1); }
+        }
+        @keyframes glow-pulse {
+          0%, 100% { box-shadow: 0 0 8px currentColor; }
+          50% { box-shadow: 0 0 20px currentColor, 0 0 40px currentColor; }
+        }
+        .glow-dot {
+          animation: glow-pulse 2s ease-in-out infinite;
+        }
+        .chat-msg-ai {
+          animation: fadeSlideIn 0.3s ease-out;
+        }
+        @keyframes fadeSlideIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .ai-right-col {
+          flex: 0 0 300px;
+          border-inline-start: 1px solid ${T.border};
+          display: flex; flex-direction: column;
+          overflow-y: auto;
+        }
+        .ai-left-col {
+          flex: 0 0 320px;
+          border-inline-end: 1px solid ${T.border};
+          display: flex; flex-direction: column;
+          overflow-y: auto;
+        }
+        .ai-top-bar {
+          flex-wrap: wrap;
+        }
+        .ai-model-status {
+          display: flex; gap: 6px;
+        }
+        /* Tablet breakpoint */
+        @media (max-width: 1024px) and (min-width: 768px) {
+          .ai-left-col {
+            flex: 0 0 260px !important;
+          }
+          .ai-right-col {
+            flex: 0 0 240px !important;
+          }
+        }
+        @media (max-width: 767px) {
+          .ai-main-content {
+            flex-direction: column !important;
+            overflow-y: auto !important;
+          }
+          .ai-right-col {
+            flex: 0 0 auto !important;
+            border-inline-start: none !important;
+            border-bottom: 1px solid ${T.border};
+            max-height: 300px;
+          }
+          .ai-left-col {
+            flex: 0 0 auto !important;
+            border-inline-end: none !important;
+            border-top: 1px solid ${T.border};
+          }
+          .ai-top-bar {
+            flex-wrap: wrap;
+            gap: 8px !important;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+          .ai-model-status {
+            display: none !important;
+          }
+          .ai-quick-actions {
+            display: none !important;
+          }
+          .ai-chat-msg {
+            min-width: auto !important;
+          }
+          .ai-main-content > :nth-child(1) { order: 2; }
+          .ai-main-content > :nth-child(2) { order: 1; }
+          .ai-main-content > :nth-child(3) { order: 3; }
+          .ai-quick-prompts-row {
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 4px;
+          }
+        }
+.spinning { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`)
+
   // Chat State
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState('')
@@ -319,6 +429,8 @@ export default function AIPage() {
 
   // ── Clear Chat ──
   const handleClearChat = () => {
+  
+
     const initialMsg: Message = {
       id: '1',
       role: 'ai',
@@ -360,118 +472,7 @@ export default function AIPage() {
       fontFamily: "'Cairo', sans-serif",
       background: T.bg,
     }}>
-      <style>{`
-        @media (max-width: 767px) {
-          .ai-page-root { height: 100% !important; }
-        }
-      `}</style>
-      <style>{`
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: rgba(10,132,255,0.3); border-radius: 4px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        .ai-select {
-          appearance: none;
-          background: ${T.bg2};
-          border: 1px solid ${T.border};
-          color: ${T.text};
-          padding: 8px 14px;
-          border-radius: 8px;
-          font-family: 'Cairo', sans-serif;
-          font-size: 12px;
-          outline: none;
-          cursor: pointer;
-          width: 100%;
-        }
-        .ai-select:focus { border-color: ${T.cyan}; }
-        @keyframes dot-pulse {
-          0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
-          40% { opacity: 1; transform: scale(1.1); }
-        }
-        @keyframes glow-pulse {
-          0%, 100% { box-shadow: 0 0 8px currentColor; }
-          50% { box-shadow: 0 0 20px currentColor, 0 0 40px currentColor; }
-        }
-        .glow-dot {
-          animation: glow-pulse 2s ease-in-out infinite;
-        }
-        .chat-msg-ai {
-          animation: fadeSlideIn 0.3s ease-out;
-        }
-        @keyframes fadeSlideIn {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .ai-right-col {
-          flex: 0 0 300px;
-          border-inline-start: 1px solid ${T.border};
-          display: flex; flex-direction: column;
-          overflow-y: auto;
-        }
-        .ai-left-col {
-          flex: 0 0 320px;
-          border-inline-end: 1px solid ${T.border};
-          display: flex; flex-direction: column;
-          overflow-y: auto;
-        }
-        .ai-top-bar {
-          flex-wrap: wrap;
-        }
-        .ai-model-status {
-          display: flex; gap: 6px;
-        }
-        /* Tablet breakpoint */
-        @media (max-width: 1024px) and (min-width: 768px) {
-          .ai-left-col {
-            flex: 0 0 260px !important;
-          }
-          .ai-right-col {
-            flex: 0 0 240px !important;
-          }
-        }
-        @media (max-width: 767px) {
-          .ai-main-content {
-            flex-direction: column !important;
-            overflow-y: auto !important;
-          }
-          .ai-right-col {
-            flex: 0 0 auto !important;
-            border-inline-start: none !important;
-            border-bottom: 1px solid ${T.border};
-            max-height: 300px;
-          }
-          .ai-left-col {
-            flex: 0 0 auto !important;
-            border-inline-end: none !important;
-            border-top: 1px solid ${T.border};
-          }
-          .ai-top-bar {
-            flex-wrap: wrap;
-            gap: 8px !important;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-          }
-          .ai-model-status {
-            display: none !important;
-          }
-          .ai-quick-actions {
-            display: none !important;
-          }
-          .ai-chat-msg {
-            min-width: auto !important;
-          }
-          .ai-main-content > :nth-child(1) { order: 2; }
-          .ai-main-content > :nth-child(2) { order: 1; }
-          .ai-main-content > :nth-child(3) { order: 3; }
-          .ai-quick-prompts-row {
-            flex-wrap: nowrap !important;
-            overflow-x: auto !important;
-            -webkit-overflow-scrolling: touch;
-            padding-bottom: 4px;
-          }
-        }
-      `}</style>
-
-      {/* ── Top Bar: Asset Selector + AI Status + Quick Actions ── */}
+      {/* Scoped styles via useScopedStyle */}{/* ── Top Bar: Asset Selector + AI Status + Quick Actions ── */}
       <div className="ai-top-bar" style={{
         flexShrink: 0,
         padding: '12px 20px',
@@ -1234,11 +1235,7 @@ export default function AIPage() {
       </div>
 
       {/* Spinning animation for RefreshCw */}
-      <style>{`
-        .spinning { animation: spin 1s linear infinite; }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
-    </div>
+      {/* Scoped styles via useScopedStyle */}</div>
   )
 }
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import {
+import { useScopedStyle } from '@/hooks/useScopedStyle'
   LayoutDashboard,
   Users,
   Activity,
@@ -36,6 +37,19 @@ const NAV_ITEMS = [
 ]
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  useScopedStyle(`.admin-sidebar::-webkit-scrollbar { width: 2px; }
+        .admin-sidebar::-webkit-scrollbar-track { background: transparent; }
+        .admin-sidebar::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.15); border-radius: 2px; }
+        .admin-nav-item { transition: all 0.18s ease; cursor: pointer; }
+        .admin-nav-item:hover { background: rgba(0,229,255,0.06); }
+        .admin-nav-item--active { background: rgba(0,229,255,0.10); }
+        @media (max-width: 767px) {
+          .admin-mobile-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 49; }
+          .admin-sidebar-mobile { position: fixed; top: 0; inset-inline-end: 0; bottom: 0; z-index: 50; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+          .admin-sidebar-mobile--open { transform: translateX(0); }
+        }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`)
+
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
@@ -162,6 +176,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   const isActive = (path: string) => {
+  
+
     if (path === '/dashboard/admin') return pathname === '/dashboard/admin'
     return pathname.startsWith(path)
   }
@@ -176,22 +192,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div style={{ display: 'flex', minHeight: '100%', direction: 'rtl', background: BG }}>
-      <style>{`
-        .admin-sidebar::-webkit-scrollbar { width: 2px; }
-        .admin-sidebar::-webkit-scrollbar-track { background: transparent; }
-        .admin-sidebar::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.15); border-radius: 2px; }
-        .admin-nav-item { transition: all 0.18s ease; cursor: pointer; }
-        .admin-nav-item:hover { background: rgba(0,229,255,0.06); }
-        .admin-nav-item--active { background: rgba(0,229,255,0.10); }
-        @media (max-width: 767px) {
-          .admin-mobile-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 49; }
-          .admin-sidebar-mobile { position: fixed; top: 0; inset-inline-end: 0; bottom: 0; z-index: 50; transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); }
-          .admin-sidebar-mobile--open { transform: translateX(0); }
-        }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
-
-      {/* Mobile overlay */}
+      {/* Scoped styles via useScopedStyle */}{/* Mobile overlay */}
       {isMobile && mobileOpen && (
         <div className="admin-mobile-overlay" onClick={() => setMobileOpen(false)} />
       )}

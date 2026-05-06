@@ -21,6 +21,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 interface ApiKeyEntry {
   id: string
@@ -86,6 +87,14 @@ const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
 }
 
 export default function AdminSettingsPage() {
+  useScopedStyle(`@keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @media (max-width: 767px) {
+          .admin-settings-grid { grid-template-columns: 1fr !important; }
+        }`)
+
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -231,6 +240,8 @@ export default function AdminSettingsPage() {
   }
 
   const formatLastValidated = (dateStr: string | null) => {
+  
+
     if (!dateStr) return 'لم يتم التحقق'
     try {
       const diff = Date.now() - new Date(dateStr).getTime()
@@ -734,15 +745,6 @@ export default function AdminSettingsPage() {
         </div>
       )}
 
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @media (max-width: 767px) {
-          .admin-settings-grid { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-    </div>
+      {/* Scoped styles via useScopedStyle */}</div>
   )
 }

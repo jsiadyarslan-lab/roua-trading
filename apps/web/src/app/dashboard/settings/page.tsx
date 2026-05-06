@@ -17,6 +17,7 @@ import { useAuthStore } from '@/lib/auth-store'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { hasPermission, getPermissions, ROLE_INFO, type Role, type Permission } from '@/lib/permissions'
 import { T as SharedT } from '@/lib/unified-tokens'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 const T = { ...SharedT, pink: '#f472b6', text4: '#475569' }
 
@@ -164,6 +165,14 @@ function PermissionTag({ label, active, color }: { label: string; active: boolea
    Main Settings Page
 ══════════════════════════════════════════════════════ */
 export default function SettingsPage() {
+  useScopedStyle(`@media (max-width: 767px) {
+          .settings-tabs { flex-wrap: wrap !important; gap: 4px !important; }
+          .settings-tabs button { padding: 6px 10px !important; font-size: 10px !important; }
+          .settings-content { padding: 12px !important; }
+          .settings-profile-row { flex-direction: column !important; text-align: center !important; }
+          .perm-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }`)
+
   const router = useRouter()
   const user = useAuthStore(state => state.user)
   const authLogout = useAuthStore(state => state.logout)
@@ -347,17 +356,7 @@ export default function SettingsPage() {
 
   return (
     <div className="custom-scrollbar" style={{ direction: 'rtl', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto', background: T.bg }}>
-      <style>{`
-        @media (max-width: 767px) {
-          .settings-tabs { flex-wrap: wrap !important; gap: 4px !important; }
-          .settings-tabs button { padding: 6px 10px !important; font-size: 10px !important; }
-          .settings-content { padding: 12px !important; }
-          .settings-profile-row { flex-direction: column !important; text-align: center !important; }
-          .perm-grid { grid-template-columns: repeat(2, 1fr) !important; }
-        }
-      `}</style>
-
-      {/* Header */}
+      {/* Scoped styles via useScopedStyle */}{/* Header */}
       <div style={{
         padding: '24px 24px 0', borderBottom: `1px solid ${T.border}`,
         background: `linear-gradient(180deg, ${T.bg2}, ${T.bg})`,

@@ -15,6 +15,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 interface PositionData {
   id: string
@@ -77,6 +78,15 @@ async function fetchTradingData(): Promise<TradingData> {
 }
 
 export default function AdminTradingPage() {
+  useScopedStyle(`@keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 0.8; } }
+@media (max-width: 900px) {
+          .admin-grid-2 { grid-template-columns: 1fr !important; }
+        }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.15); border-radius: 2px; }`)
+
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -138,8 +148,7 @@ export default function AdminTradingPage() {
             </div>
           ))}
         </div>
-        <style>{`@keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 0.8; } }`}</style>
-      </div>
+        {/* Scoped styles via useScopedStyle */}</div>
     )
   }
 
@@ -375,15 +384,6 @@ export default function AdminTradingPage() {
         </div>
       </div>
 
-      <style>{`
-        @media (max-width: 900px) {
-          .admin-grid-2 { grid-template-columns: 1fr !important; }
-        }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.15); border-radius: 2px; }
-      `}</style>
-    </div>
+      {/* Scoped styles via useScopedStyle */}</div>
   )
 }

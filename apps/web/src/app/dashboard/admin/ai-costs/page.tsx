@@ -21,6 +21,7 @@ import {
   FileText,
 } from 'lucide-react'
 import { COLORS as BASE_COLORS, CARD_STYLE } from '@/lib/admin-ui'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 /* ── design tokens (extends shared palette with AI-specific colors) ── */
 const COLORS = {
@@ -160,6 +161,16 @@ interface AiApiResponse {
 }
 
 export default function AdminAiCostsPage() {
+  useScopedStyle(`@keyframes fadeInSlideUp {
+          from { opacity: 0; transform: translateY(14px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 900px) {
+          [style*="grid-template-columns: 1fr 1fr"] {
+            grid-template-columns: 1fr !important;
+          }
+        }`)
+
   const [data, setData] = useState<AiApiResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -233,6 +244,8 @@ export default function AdminAiCostsPage() {
   }
 
   const SortIcon = ({ field }: { field: typeof sortField }) => {
+  
+
     if (sortField !== field) return null
     return sortDir === 'desc'
       ? <ArrowDownRight size={10} style={{ display: 'inline', marginRight: 2 }} />
@@ -935,17 +948,6 @@ export default function AdminAiCostsPage() {
         </div>
       </div>
 
-      <style>{`
-        @keyframes fadeInSlideUp {
-          from { opacity: 0; transform: translateY(14px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @media (max-width: 900px) {
-          [style*="grid-template-columns: 1fr 1fr"] {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
-    </div>
+      {/* Scoped styles via useScopedStyle */}</div>
   )
 }

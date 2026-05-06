@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { GitMerge, RefreshCw, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
+import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 function corrColor(v: number): string {
   if (isNaN(v)) return '#1A1D29' // default for NaN
@@ -16,6 +17,8 @@ function corrColor(v: number): string {
 }
 
 export default function CorrelationPage() {
+  useScopedStyle(`@keyframes spin { to { transform: rotate(360deg); } }`)
+
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -37,9 +40,7 @@ export default function CorrelationPage() {
 
   return (
     <div style={{ padding: '24px 28px', direction: 'rtl', fontFamily: "'Cairo', sans-serif", background: T.bg, minHeight: '100vh' }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+      {/* Scoped styles via useScopedStyle */}<div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <GitMerge size={22} color={T.cyan} />

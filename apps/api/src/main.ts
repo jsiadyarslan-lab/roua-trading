@@ -41,9 +41,9 @@ async function bootstrap() {
     // Without this, SIGTERM kills the process immediately, causing connection drops.
     //
     // Pass the pre-created Express app to NestJS so both Express and Socket.IO
-    // share the same HTTP server instance.
-    const { ExpressAdapter } = await import('@nestjs/platform-express');
-    const app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
+    // share the same HTTP server instance. NestJS will wrap expressApp in an
+    // ExpressAdapter internally.
+    const app = await NestFactory.create(AppModule, expressApp, {
       logger: ['error', 'warn', 'log'],
     });
     app.enableShutdownHooks();

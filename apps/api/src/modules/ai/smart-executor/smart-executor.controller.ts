@@ -80,28 +80,11 @@ export class SmartExecutorController {
     return { success: true, data: state, message: 'تم تفعيل المنفذ الذكي' };
   }
 
-  /**
-   * POST /api/smart-executor/user/auto-enable — Auto-enable paper trading for any user
-   * FIX: Added this endpoint so the dashboard can auto-enable the executor for
-   * the current user in paper-trading mode without requiring complex setup.
-   * This removes the biggest blocker: users never enabling the executor.
-   */
-  @Public()
-  @Post('user/auto-enable')
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
-  async autoEnable(@Request() req: any) {
-    const userId = req.user?.id || 'system-auto-trader';
-    const state = await this.executorService.enableUser(userId, {
-      isPaperTrading: true,
-      maxOpenPositions: 3,
-      riskPerTradePercent: 1,
-    });
-    return {
-      success: true,
-      data: state,
-      message: 'تم تفعيل التداول الورقي التلقائي — سيتم تنفيذ الصفقات بناءً على إشارات المجلس',
-    };
-  }
+  // REMOVED: POST /api/smart-executor/user/auto-enable — This was a BACKDOOR
+  // that allowed anyone (even unauthenticated users via @Public()) to
+  // auto-enable paper trading for the "system-auto-trader" user, creating
+  // phantom trades that inflated statistics. This endpoint has been removed
+  // permanently. Users must use the authenticated POST /user/enable endpoint.
 
   /**
    * POST /api/smart-executor/user/disable — Disable executor for current user
@@ -169,5 +152,23 @@ export class SmartExecutorController {
   async debugExecution() {
     const diagnostic = await this.executorService.diagnoseExecution();
     return { success: true, data: diagnostic };
+  }
+
+  /**
+   * POST /api/smart-executor/nuclear-cleanup — Delete ALL fake/paper trading data
+   * Removes all TradingBriefs, paper-trading Positions/Trades/Orders/Credentials,
+   * and clears all Redis executor states. Also stops the executor.
+   * This is a ONE-TIME operation to clean up phantom data.
+   */
+  @Post('nuclear-cleanup')
+  @Throttle({ default: { limit: 2, ttl: 300000 } })
+  async nuclearCleanup() {
+    this.logger.warn('⚔️ NUCLEAR CLEANUP requested — deleting ALL fake/paper data');
+    const result = await this.executorService.nuclearCleanup();
+    return {
+      success: true,
+      data: result,
+      message: `تم حذف جميع البيانات الوهمية: ${result.briefs} وثيقة، ${result.positions} مركز، ${result.trades} صفقة، ${result.paperOrders} أمر ورقي، ${result.paperCredentials} بيانات ورقية`,
+    };
   }
 }

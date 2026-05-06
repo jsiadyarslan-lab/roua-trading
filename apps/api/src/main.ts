@@ -113,9 +113,102 @@ async function bootstrap() {
     // Global prefix for all routes
     app.setGlobalPrefix('api');
 
+    // ── DIAGNOSTIC: Check module loading ──
+    // Log which modules successfully initialized by checking if their services exist
+    try {
+      const { SmartExecutorService } = await import('./modules/ai/smart-executor/smart-executor.service');
+      const { StrategicCouncilService } = await import('./modules/ai/strategic-council/strategic-council.service');
+      const { AutonomousTraderAgentService } = await import('./agents/autonomous-trader/agent.service');
+
+      let smartExecutorLoaded = false;
+      let strategicCouncilLoaded = false;
+      let agentLoaded = false;
+
+      try { app.get(SmartExecutorService); smartExecutorLoaded = true; } catch { smartExecutorLoaded = false; }
+      try { app.get(StrategicCouncilService); strategicCouncilLoaded = true; } catch { strategicCouncilLoaded = false; }
+      try { app.get(AutonomousTraderAgentService); agentLoaded = true; } catch { agentLoaded = false; }
+
+      console.log(`📋 SmartExecutorService: ${smartExecutorLoaded ? '✅ LOADED' : '❌ NOT LOADED'}`);
+      console.log(`📋 StrategicCouncilService: ${strategicCouncilLoaded ? '✅ LOADED' : '❌ NOT LOADED'}`);
+      console.log(`📋 AutonomousTraderAgentService: ${agentLoaded ? '✅ LOADED' : '❌ NOT LOADED'}`);
+    } catch (diagErr: any) {
+      console.error(`📋 Module diagnostic import failed: ${diagErr.message}`);
+    }
+
     // ── Health check endpoint (no auth required) ──
     const prisma = app.get(PrismaService);
     const redisService = app.get(RedisService, { strict: false });
+
+    // ── DIAGNOSTIC: Direct Express route to check module loading (bypasses NestJS router) ──
+    app.getHttpAdapter().getInstance().get('/api/diagnostic/modules', async (req: any, res: any) => {
+      const modules: Record<string, any> = {};
+      const servicesToCheck = [
+        { name: 'SmartExecutorService', token: 'SmartExecutorService' },
+        { name: 'StrategicCouncilService', token: 'StrategicCouncilService' },
+        { name: 'AutonomousTraderAgentService', token: 'AutonomousTraderAgentService' },
+        { name: 'EngineController', token: 'EngineController' },
+        { name: 'ExchangeService', token: 'ExchangeService' },
+        { name: 'AIOrchestratorService', token: 'AIOrchestratorService' },
+        { name: 'NotificationService', token: 'NotificationService' },
+        { name: 'TradingService', token: 'TradingService' },
+      ];
+      for (const svc of servicesToCheck) {
+        try {
+          const container = app.getHttpAdapter().getInstance();
+          // Try to get the service from NestJS container
+          const { [svc.token]: ServiceClass } = await import(
+            svc.name.includes('Smart') ? './modules/ai/smart-executor/smart-executor.service' :
+            svc.name.includes('Strategic') ? './modules/ai/strategic-council/strategic-council.service' :
+            svc.name.includes('Agent') ? './agents/autonomous-trader/agent.service' :
+            svc.name.includes('Engine') ? './modules/engine/engine.controller' :
+            svc.name.includes('Exchange') ? './modules/exchange/exchange.service' :
+            svc.name.includes('Orchestrator') ? './modules/ai/services/ai-orchestrator.service' :
+            svc.name.includes('Notification') ? './modules/notification/notification.service' :
+            './modules/trading/trading.service'
+          );
+          try {
+            app.get(ServiceClass);
+            modules[svc.name] = { loaded: true };
+          } catch {
+            modules[svc.name] = { loaded: false, error: 'Service not in DI container' };
+          }
+        } catch (importErr: any) {
+          modules[svc.name] = { loaded: false, error: `Import failed: ${importErr.message}` };
+        }
+      }
+
+      // Also check registered Express routes
+      const expressApp = app.getHttpAdapter().getInstance();
+      const routePaths: string[] = [];
+      function collectRoutes(stack: any[]) {
+        for (const layer of stack) {
+          if (layer.route) {
+            const methods = Object.keys(layer.route.methods).map((m: string) => m.toUpperCase());
+            routePaths.push(`${methods.join(',')} ${layer.route.path}`);
+          } else if (layer.handle?.stack) {
+            collectRoutes(layer.handle.stack);
+          }
+        }
+      }
+      if (expressApp._router?.stack) collectRoutes(expressApp._router.stack);
+
+      const smartExecutorRoutes = routePaths.filter(r => r.includes('smart-executor'));
+      const strategicCouncilRoutes = routePaths.filter(r => r.includes('strategic-council'));
+      const agentRoutes = routePaths.filter(r => r.includes('agent/trader'));
+      const engineRoutes = routePaths.filter(r => r.includes('engine'));
+
+      res.json({
+        modules,
+        routes: {
+          total: routePaths.length,
+          smartExecutor: smartExecutorRoutes,
+          strategicCouncil: strategicCouncilRoutes,
+          agent: agentRoutes,
+          engine: engineRoutes,
+        },
+      });
+    });
+
     app.getHttpAdapter().getInstance().get('/api/health', async (req: any, res: any) => {
       const start = Date.now();
       const checks: Record<string, { status: string; latencyMs?: number }> = {};

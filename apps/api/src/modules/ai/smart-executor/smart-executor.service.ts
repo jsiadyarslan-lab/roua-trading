@@ -892,6 +892,7 @@ export class SmartExecutorService implements OnModuleDestroy {
         side: brief.direction === 'BUY' ? OrderSideEnum.BUY : OrderSideEnum.SELL,
         type: OrderTypeEnum.MARKET,
         quantity,
+        price: currentPrice,
         stopLoss: brief.stopLoss,
         idempotencyKey: `smart-exec-${brief.id}-${userId}`,
       });

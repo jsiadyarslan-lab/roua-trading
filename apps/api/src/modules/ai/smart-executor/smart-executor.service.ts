@@ -1212,6 +1212,7 @@ export class SmartExecutorService implements OnModuleDestroy {
                   side: testBrief.direction === 'BUY' ? OrderSideEnum.BUY : OrderSideEnum.SELL,
                   type: OrderTypeEnum.MARKET,
                   quantity: priceRisk > 0 ? parseFloat((riskAmount / priceRisk).toFixed(6)) : 0,
+                  price: testPrice,
                   stopLoss: testBrief.stopLoss,
                   idempotencyKey: `debug-${Date.now()}`,
                 });

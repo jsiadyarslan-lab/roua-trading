@@ -406,6 +406,31 @@ export class SmartExecutorService implements OnModuleDestroy {
   }
 
   /**
+   * Reset all auto-enabled users — disables users who were auto-enabled
+   * by the old _autoEnableSystemUser() code. After this, users must
+   * manually click "تشغيل" to re-enable the executor.
+   */
+  async resetAutoEnabledUsers(): Promise<{ disabled: number }> {
+    try {
+      const enabledUsers = await this._getEnabledUsers();
+      let disabled = 0;
+
+      for (const userId of enabledUsers) {
+        // Disable each user — they'll need to manually re-enable
+        await this.redis.del(`${this.REDIS_USER_STATE_PREFIX}${userId}`);
+        disabled++;
+        this.logger.log(`⚔️ Reset auto-enabled user: ${userId}`);
+      }
+
+      this.logger.log(`⚔️ Reset ${disabled} auto-enabled user(s) — they must re-enable manually`);
+      return { disabled };
+    } catch (error: any) {
+      this.logger.error(`⚔️ Failed to reset auto-enabled users: ${error.message}`);
+      return { disabled: 0 };
+    }
+  }
+
+  /**
    * Get all users with executor enabled
    * FIX: Use RedisService.scanKeys() instead of (this.redis as any)['client'].scan().
    * The Redis client is private in RedisService, so accessing it via `as any`

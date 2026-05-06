@@ -144,6 +144,22 @@ export class SmartExecutorController {
   }
 
   /**
+   * POST /api/smart-executor/reset-auto-users — Disable all auto-enabled users
+   * Clears Redis state for users who were auto-enabled by the old _autoEnableSystemUser().
+   * After this, users must manually click "تشغيل" to enable the executor.
+   */
+  @Post('reset-auto-users')
+  @Throttle({ default: { limit: 2, ttl: 60000 } })
+  async resetAutoUsers() {
+    const result = await this.executorService.resetAutoEnabledUsers();
+    return {
+      success: true,
+      data: result,
+      message: `تم تعطيل ${result.disabled} مستخدم تم تفعيلهم تلقائياً`,
+    };
+  }
+
+  /**
    * GET /api/smart-executor/debug — Diagnose why trades aren't executing
    * Returns detailed information about the execution pipeline state.
    * FIX: Added to help diagnose the "0 trades" problem.

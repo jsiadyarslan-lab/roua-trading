@@ -131,6 +131,26 @@ export class StrategicCouncilController {
   }
 
   /**
+   * GET /api/strategic-council/session/status — Check if a session is currently running
+   * FIX: Added so the frontend can detect an active session after page refresh or
+   * tab switch. Without this, the frontend loses track of "processing" state and
+   * shows the session as disconnected.
+   */
+  @Public()
+  @Get('session/status')
+  async getSessionStatus() {
+    const isRunning = this.councilService.isInSessionNow();
+    const lastSession = await this.councilService.getLastSession();
+    return {
+      success: true,
+      data: {
+        isRunning,
+        lastSession,
+      },
+    };
+  }
+
+  /**
    * GET /api/strategic-council/session/last — Get last session result
    * FIX: Marked @Public() so the dashboard can show last session without auth.
    */

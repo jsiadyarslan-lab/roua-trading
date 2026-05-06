@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 const T = {
   bg: '#0B0E14',
@@ -54,6 +54,16 @@ export function StrategicCouncilPanel() {
   const [triggerLoading, setTriggerLoading] = useState(false)
   const [triggerStatus, setTriggerStatus] = useState<string | null>(null) // 'processing' | 'already_running' | null
   const [backendOffline, setBackendOffline] = useState(false)
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current)
+    }
+  }, [])
 
   const fetchActiveBriefs = useCallback(async () => {
     try {
@@ -103,6 +113,45 @@ export function StrategicCouncilPanel() {
   useEffect(() => {
     setLoading(true)
     Promise.all([fetchActiveBriefs(), fetchLastSession()]).finally(() => setLoading(false))
+
+    // FIX: On mount, check if a session is currently running on the backend.
+    // This recovers the "processing" state after page refresh or tab switch.
+    fetch('/api/strategic-council/session/status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data?.isRunning) {
+          setTriggerStatus('processing')
+          // Resume polling for session completion
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+          if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current)
+          pollIntervalRef.current = setInterval(async () => {
+            try {
+              const sessionRes = await fetch('/api/strategic-council/session/last')
+              const sessionData = await sessionRes.json()
+              if (sessionData.success && sessionData.data) {
+                const session = sessionData.data as CouncilSession
+                if (session.pairsAnalyzed > 0 || session.briefsIssued > 0 || session.briefsModified > 0) {
+                  setLastSession(session)
+                  setTriggerStatus('completed')
+                  if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+                  pollIntervalRef.current = null
+                  await fetchActiveBriefs()
+                  setTimeout(() => setTriggerStatus(null), 5000)
+                }
+              }
+            } catch {
+              // Continue polling
+            }
+          }, 5000)
+          pollTimeoutRef.current = setTimeout(() => {
+            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+            pollIntervalRef.current = null
+            setTriggerStatus(prev => prev === 'processing' ? null : prev)
+          }, 600000)
+        }
+      })
+      .catch(() => { /* ignore — will retry on next poll */ })
+
     const interval = setInterval(() => {
       fetchActiveBriefs()
       fetchLastSession()
@@ -127,8 +176,11 @@ export function StrategicCouncilPanel() {
         // FIX: Handle fire-and-forget response
         if (data.success && data.data?.status === 'processing') {
           setTriggerStatus('processing')
+          // Clear any existing polling first
+          if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+          if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current)
           // Poll for results — the session runs in the background
-          const pollInterval = setInterval(async () => {
+          pollIntervalRef.current = setInterval(async () => {
             try {
               const sessionRes = await fetch('/api/strategic-council/session/last')
               const sessionData = await sessionRes.json()
@@ -138,7 +190,8 @@ export function StrategicCouncilPanel() {
                 if (session.pairsAnalyzed > 0 || session.briefsIssued > 0 || session.briefsModified > 0) {
                   setLastSession(session)
                   setTriggerStatus('completed')
-                  clearInterval(pollInterval)
+                  if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+                  pollIntervalRef.current = null
                   // Refresh briefs list
                   await fetchActiveBriefs()
                   // Clear status after 5 seconds
@@ -150,11 +203,10 @@ export function StrategicCouncilPanel() {
             }
           }, 5000) // Poll every 5 seconds
           // Stop polling after 10 minutes max
-          setTimeout(() => {
-            clearInterval(pollInterval)
-            if (triggerStatus === 'processing') {
-              setTriggerStatus(null)
-            }
+          pollTimeoutRef.current = setTimeout(() => {
+            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
+            pollIntervalRef.current = null
+            setTriggerStatus(prev => prev === 'processing' ? null : prev)
           }, 600000)
         } else if (data.status === 'already_running') {
           setTriggerStatus('already_running')

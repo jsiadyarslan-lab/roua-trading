@@ -281,12 +281,12 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           }}
           className="custom-scrollbar"
         >
-        {active === 'executor' && <SmartExecutorPanel />}
-        {active === 'strategic' && <StrategicCouncilPanel />}
-        {active === 'trader' && <AgentMini />}
-        {active === 'council' && <AICouncilPanel />}
-        {active === 'scanner' && <ScannerMini />}
-        {active === 'signals' && <BotCommandCenter />}
+        <div style={{ display: active === 'executor' ? 'contents' : 'none' }}><SmartExecutorPanel /></div>
+        <div style={{ display: active === 'strategic' ? 'contents' : 'none' }}><StrategicCouncilPanel /></div>
+        <div style={{ display: active === 'trader' ? 'contents' : 'none' }}><AgentMini /></div>
+        <div style={{ display: active === 'council' ? 'contents' : 'none' }}><AICouncilPanel /></div>
+        <div style={{ display: active === 'scanner' ? 'contents' : 'none' }}><ScannerMini /></div>
+        <div style={{ display: active === 'signals' ? 'contents' : 'none' }}><BotCommandCenter /></div>
         </div>
       </div>
     </div>

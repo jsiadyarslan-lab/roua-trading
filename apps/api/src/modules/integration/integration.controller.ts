@@ -12,6 +12,7 @@ import { Public } from '../../common/guards/auth.guard';
 import { IntegrationGuard, IntegrationRoute } from '../../common/guards/integration.guard';
 import { ExchangeService } from '../exchange/exchange.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { ConfigService } from '@nestjs/config';
 
 @Public() // Bypass AuthGuard — integration uses its own auth
 @IntegrationRoute() // Mark all routes in this controller for IntegrationGuard auth
@@ -23,6 +24,7 @@ export class IntegrationController {
   constructor(
     private readonly exchangeService: ExchangeService,
     private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -261,6 +263,65 @@ export class IntegrationController {
       this.logger.error(`Signal stats fetch failed: ${error?.message}`);
       return {
         error: error?.message || 'Failed to fetch signal stats',
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * GET /api/integration/news?limit=20&category=كريبتو
+   * Fetch latest Arabic financial news from the Roua News website.
+   * This provides the trading platform with AI-analyzed news from the news site.
+   */
+  @Get('news')
+  async getNewsFromNewsSite(
+    @Query('limit') limit: string = '20',
+    @Query('category') category?: string,
+    @Query('symbol') symbol?: string,
+  ) {
+    const newsSiteUrl = this.configService.get<string>('INTEGRATION_PARTNER_URL');
+    const apiKey = this.configService.get<string>('INTEGRATION_API_KEY');
+
+    if (!newsSiteUrl || !apiKey) {
+      return {
+        articles: [],
+        count: 0,
+        error: 'News site integration not configured',
+        timestamp: new Date().toISOString(),
+      };
+    }
+
+    try {
+      let url = `${newsSiteUrl}/api/integration/news?limit=${Math.min(parseInt(limit, 10) || 20, 50)}`;
+      if (category) url += `&category=${encodeURIComponent(category)}`;
+      if (symbol) url += `&symbol=${encodeURIComponent(symbol)}`;
+
+      const response = await fetch(url, {
+        headers: {
+          'X-Integration-Key': apiKey,
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (!response.ok) {
+        this.logger.warn(`News site fetch failed: HTTP ${response.status}`);
+        return {
+          articles: [],
+          count: 0,
+          error: `News site returned HTTP ${response.status}`,
+          timestamp: new Date().toISOString(),
+        };
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error: any) {
+      this.logger.error(`News site fetch failed: ${error?.message}`);
+      return {
+        articles: [],
+        count: 0,
+        error: error?.message || 'Failed to fetch news from news site',
         timestamp: new Date().toISOString(),
       };
     }

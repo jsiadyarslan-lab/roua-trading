@@ -444,6 +444,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       chartInstanceRef.current?.removeSeries(series);
     });
     oscillatorSeriesRef.current.clear();
+    // FIX: Also clear external series (e.g., AI overlay from RouaChart.tsx) when symbol changes.
+    // Without this, stale AI series from the old symbol remain in externalSeriesRef,
+    // and when setCandles is called later, it tries removeSeries() on already-removed series.
+    externalSeriesRef.current.forEach((series) => {
+      try { chartInstanceRef.current?.removeSeries(series); } catch {}
+    });
+    externalSeriesRef.current.clear();
     // Clear candle + volume data so chart is blank while new data loads
     candlesRef.current = [];
     pendingCandlesRef.current = null;

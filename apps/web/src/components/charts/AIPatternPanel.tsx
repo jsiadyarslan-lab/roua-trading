@@ -121,7 +121,18 @@ export function AIPatternPanel({
   const abortRef = useRef<AbortController | null>(null);
   const entryAbortRef = useRef<AbortController | null>(null);
   const lastAnalysisAt = useRef<number>(0);
+  const lastEntryAnalysisAt = useRef<number>(0); // FIX: Separate cooldown for entry/exit
   const COOLDOWN_MS = 5000; // 5-second cooldown between analyses
+
+  // FIX: Refs for state values that are used in closures (prevent stale closure bug)
+  // patterns, srLevels, trendLines are captured by analyzeEntryExit's useCallback,
+  // but may be stale if the user runs pattern analysis first, then immediately clicks entry/exit.
+  const patternsRef = useRef<AIPattern[]>(patterns);
+  patternsRef.current = patterns;
+  const srLevelsRef = useRef<SupportResistanceLevel[]>(srLevels);
+  srLevelsRef.current = srLevels;
+  const trendLinesRef = useRef<TrendLine[]>(trendLines);
+  trendLinesRef.current = trendLines;
 
   const analyzePatterns = useCallback(async () => {
     if (!candles || !candles.length) return;
@@ -274,6 +285,14 @@ export function AIPatternPanel({
   const analyzeEntryExit = useCallback(async () => {
     if (!candles || !candles.length) return;
 
+    // FIX: Apply same cooldown as analyzePatterns to prevent API spam
+    const now = Date.now();
+    if (now - lastEntryAnalysisAt.current < COOLDOWN_MS) {
+      setError(`انتظر ${Math.ceil((COOLDOWN_MS - (now - lastEntryAnalysisAt.current)) / 1000)} ثوانٍ قبل تحليل الدخول مجدداً`);
+      return;
+    }
+    lastEntryAnalysisAt.current = now;
+
     // FIX: Cancel any previous in-flight entry request
     if (entryAbortRef.current) {
       entryAbortRef.current.abort();
@@ -375,11 +394,12 @@ export function AIPatternPanel({
         setEntryExit(aiEntryExit);
         setActiveTab('entry');
         setDataSource('ai'); // FIX: Update dataSource for entry/exit too
+        // FIX: Use refs instead of stale closure state for patterns/srLevels/trendLines
         onPatternsDetected({
-          patterns: patterns,
-          supportLevels: srLevels.filter(l => l.type === 'support'),
-          resistanceLevels: srLevels.filter(l => l.type === 'resistance'),
-          trendLines: trendLines,
+          patterns: patternsRef.current,
+          supportLevels: srLevelsRef.current.filter(l => l.type === 'support'),
+          resistanceLevels: srLevelsRef.current.filter(l => l.type === 'resistance'),
+          trendLines: trendLinesRef.current,
           entryExit: aiEntryExit,
         });
       } else {
@@ -390,10 +410,10 @@ export function AIPatternPanel({
         setDataSource('local'); // FIX: Update dataSource for fallback entry/exit
         // FIX: Also call onPatternsDetected so entry/exit lines are drawn on chart
         onPatternsDetected({
-          patterns: patterns,
-          supportLevels: srLevels.filter(l => l.type === 'support'),
-          resistanceLevels: srLevels.filter(l => l.type === 'resistance'),
-          trendLines: trendLines,
+          patterns: patternsRef.current,
+          supportLevels: srLevelsRef.current.filter(l => l.type === 'support'),
+          resistanceLevels: srLevelsRef.current.filter(l => l.type === 'resistance'),
+          trendLines: trendLinesRef.current,
           entryExit: localEE,
         });
       }
@@ -410,16 +430,16 @@ export function AIPatternPanel({
       setDataSource('local'); // FIX: Update dataSource for error fallback
       // FIX: Also call onPatternsDetected so entry/exit lines are drawn on chart
       onPatternsDetected({
-        patterns: patterns,
-        supportLevels: srLevels.filter(l => l.type === 'support'),
-        resistanceLevels: srLevels.filter(l => l.type === 'resistance'),
-        trendLines: trendLines,
+        patterns: patternsRef.current,
+        supportLevels: srLevelsRef.current.filter(l => l.type === 'support'),
+        resistanceLevels: srLevelsRef.current.filter(l => l.type === 'resistance'),
+        trendLines: trendLinesRef.current,
         entryExit: localEE,
       });
     } finally {
       setEntryLoading(false);
     }
-  }, [candles, symbol, patterns, srLevels, trendLines, onPatternsDetected]);
+  }, [candles, symbol, onPatternsDetected]);
 
   const handlePatternClick = useCallback((p: AIPattern, index: number) => {
     const id = `pattern-${index}-${p.time}`;
@@ -1120,6 +1140,11 @@ function buildPatternShape(patternType: string, candle: CandleData, prevCandle?:
   const l = candle.low;
   const bodyTop = Math.max(o, c);
   const bodyBot = Math.min(o, c);
+  // FIX: lightweight-charts LineSeries requires strictly time-ascending data.
+  // Single-candle patterns (Doji, Hammer, etc.) with multiple points at the same
+  // `time` render nothing or cause errors. We offset by ±1 second to create
+  // valid ascending time series while keeping the visual shape on the same candle.
+  const tBefore = t - 1;
 
   // Engulfing patterns — highlight the engulfing zone
   if (patternType === 'Engulfing Bullish' || patternType === 'Engulfing Bearish') {
@@ -1128,13 +1153,13 @@ function buildPatternShape(patternType: string, candle: CandleData, prevCandle?:
       const prevBodyBot = Math.min(prevCandle.open, prevCandle.close);
       return [
         { time: prevCandle.time, price: prevBodyTop },
-        { time: t, price: bodyTop },
+        { time: tBefore, price: bodyTop },
         { time: t, price: bodyBot },
-        { time: prevCandle.time, price: prevBodyBot },
+        { time: prevCandle.time + 1, price: prevBodyBot },
       ];
     }
     return [
-      { time: t, price: bodyTop },
+      { time: tBefore, price: bodyTop },
       { time: t, price: bodyBot },
     ];
   }
@@ -1142,7 +1167,7 @@ function buildPatternShape(patternType: string, candle: CandleData, prevCandle?:
   // Hammer — highlight the long lower wick
   if (patternType === 'Hammer') {
     return [
-      { time: t, price: bodyTop },
+      { time: tBefore, price: bodyTop },
       { time: t, price: l },
     ];
   }
@@ -1150,7 +1175,7 @@ function buildPatternShape(patternType: string, candle: CandleData, prevCandle?:
   // Shooting Star — highlight the long upper wick
   if (patternType === 'Shooting Star' || patternType === 'Inverted Hammer') {
     return [
-      { time: t, price: bodyBot },
+      { time: tBefore, price: bodyBot },
       { time: t, price: h },
     ];
   }
@@ -1158,7 +1183,7 @@ function buildPatternShape(patternType: string, candle: CandleData, prevCandle?:
   // Doji — highlight the cross shape
   if (patternType.includes('Doji')) {
     return [
-      { time: t, price: h },
+      { time: tBefore, price: h },
       { time: t, price: l },
     ];
   }
@@ -1166,7 +1191,7 @@ function buildPatternShape(patternType: string, candle: CandleData, prevCandle?:
   // Marubozu — highlight the large body
   if (patternType === 'Marubozu') {
     return [
-      { time: t, price: bodyTop },
+      { time: tBefore, price: bodyTop },
       { time: t, price: bodyBot },
     ];
   }

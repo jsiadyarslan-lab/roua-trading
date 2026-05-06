@@ -140,21 +140,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // FIX: Determine if this is an entry/exit analysis request based on the instruction field
+    const isEntryExitRequest = instruction && (
+      instruction.includes('entry') || instruction.includes('entryPrice') ||
+      instruction.includes('نقاط الدخول') || instruction.includes('entry and exit')
+    );
+
     // Try to use z-ai-web-dev-sdk
     try {
       const ZAI = (await import('z-ai-web-dev-sdk')).default;
       const zai = await ZAI.create();
 
+      // FIX: Build system prompt based on request type
+      const systemPrompt = isEntryExitRequest
+        ? `أنت محلل فني خبير في تداول العملات والعملات الرقمية. حلل بيانات الشارت المقدمة وحدد أفضل نقاط الدخول والخروج. أعد النتيجة ككائن JSON فقط يحتوي على: "direction" ("long" أو "short")، "entryPrice" (رقم)، "stopLoss" (رقم)، "takeProfit" (رقم)، "confidence" (0-1)، "reasonAr" (شرح بالعربية، 2-3 جمل)، "keyLevels" (مصفوفة من {price: number, label: string} مع مستويات الدعم/المقاومة الرئيسية).`
+        : `أنت محلل فني خبير في أنماط الشموع اليابانية. حلل بيانات الشارت المقدمة واكتشف أي أنماط شموع. أعد النتائج كمصفوفة JSON فقط. كل عنصر يجب أن يحتوي على: "type" (اسم النمط بالإنجليزية)، "timeIndex" (فهرس base-0 في البيانات)، "confidence" (0-1)، "direction" ("bullish"|"bearish"|"neutral"). الأنماط المطلوبة: Doji, Hammer, Inverted Hammer, Engulfing Bullish, Engulfing Bearish, Morning Star, Evening Star, Three White Soldiers, Three Black Crows, Harami Bullish, Harami Bearish, Piercing Line, Dark Cloud Cover, Spinning Top, Marubozu, Shooting Star, Dragonfly Doji, Gravestone Doji, Belt Hold, Abandoned Baby, Tweezer Top, Tweezer Bottom.`;
+
+      // FIX: Use the client's instruction as the user message if provided (for entry/exit requests)
+      const userMessage = instruction
+        ? instruction
+        : `حلل بيانات الشارت التالية لـ ${symbol}:\n\n${candles}${indicators ? `\n\nمؤشرات فنية: ${indicators}` : ''}`;
+
       const completion = await zai.chat.completions.create({
         messages: [
-          {
-            role: 'system',
-            content: `أنت محلل فني خبير في أنماط الشموع اليابانية. حلل بيانات الشارت المقدمة واكتشف أي أنماط شموع. أعد النتائج كمصفوفة JSON فقط. كل عنصر يجب أن يحتوي على: "type" (اسم النمط بالإنجليزية)، "timeIndex" (فهرس base-0 في البيانات)، "confidence" (0-1)، "direction" ("bullish"|"bearish"|"neutral"). الأنماط المطلوبة: Doji, Hammer, Inverted Hammer, Engulfing Bullish, Engulfing Bearish, Morning Star, Evening Star, Three White Soldiers, Three Black Crows, Harami Bullish, Harami Bearish, Piercing Line, Dark Cloud Cover, Spinning Top, Marubozu, Shooting Star, Dragonfly Doji, Gravestone Doji, Belt Hold, Abandoned Baby, Tweezer Top, Tweezer Bottom.`,
-          },
-          {
-            role: 'user',
-            content: `حلل بيانات الشارت التالية لـ ${symbol}:\n\n${candles}${indicators ? `\n\nمؤشرات فنية: ${indicators}` : ''}`,
-          },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
         ],
         temperature: 0.3,
         max_tokens: 2000,
@@ -162,16 +172,32 @@ export async function POST(request: NextRequest) {
 
       const responseText = completion.choices?.[0]?.message?.content || '';
 
-      // Try to extract JSON from the response
-      const jsonMatch = responseText.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        try {
-          const patterns = JSON.parse(jsonMatch[0]);
-          if (Array.isArray(patterns) && patterns.length > 0) {
-            return NextResponse.json({ success: true, patterns, source: 'ai' });
+      // FIX: Handle entry/exit response differently from pattern response
+      if (isEntryExitRequest) {
+        // For entry/exit, try to parse a JSON object (not array)
+        const jsonObjectMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonObjectMatch) {
+          try {
+            const entryExitResult = JSON.parse(jsonObjectMatch[0]);
+            if (entryExitResult.direction && entryExitResult.entryPrice) {
+              return NextResponse.json({ success: true, data: entryExitResult, source: 'ai' });
+            }
+          } catch {
+            // JSON parse failed, fall through to local
           }
-        } catch {
-          // JSON parse failed, fall through to local
+        }
+      } else {
+        // Pattern detection — try to extract JSON array from the response
+        const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          try {
+            const patterns = JSON.parse(jsonMatch[0]);
+            if (Array.isArray(patterns) && patterns.length > 0) {
+              return NextResponse.json({ success: true, patterns, source: 'ai' });
+            }
+          } catch {
+            // JSON parse failed, fall through to local
+          }
         }
       }
 

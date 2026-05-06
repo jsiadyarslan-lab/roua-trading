@@ -682,11 +682,15 @@ export default function RouaChart({
       });
       aiOverlaySeriesRef.current = [];
     }
+    // FIX: clearExternalSeries removes series from chart AND clears externalSeriesRef.
+    // We must also clear aiOverlaySeriesRef since those are the same series.
     chart.clearExternalSeries();
     aiPriceLinesRef.current.forEach(id => {
       try { chart.removePriceLine(id); } catch {}
     });
     aiPriceLinesRef.current = [];
+    // FIX: Also clear the entry/exit marker ref when cleaning up overlays
+    aiEntryExitMarkerRef.current = null;
     setAiPatterns([]);
   }, [chart]);
 
@@ -704,7 +708,21 @@ export default function RouaChart({
     }
   }, [showAIPanel, cleanupAIOverlays]);
 
+  // FIX: Guard against concurrent execution of handlePatternsDetected.
+  // Since this is async (awaits dynamic import), calling it twice rapidly can cause
+  // the first call's series additions to overlap with the second call's cleanup,
+  // leaving orphaned series on the chart.
+  const aiProcessingRef = useRef(false);
+
   const handlePatternsDetected = useCallback(async (result: AIAnalysisResult) => {
+    // FIX: Prevent concurrent execution — if already processing, skip this call
+    if (aiProcessingRef.current) {
+      console.warn('[AI Overlay] Skipping — previous analysis still processing');
+      return;
+    }
+    aiProcessingRef.current = true;
+
+    try {
     setAiPatterns(result.patterns);
 
     // FIX: Improved cleanup — also unregister from useChart's external series tracking
@@ -898,7 +916,14 @@ export default function RouaChart({
       // No entry/exit — clear the marker ref
       aiEntryExitMarkerRef.current = null;
     }
-  }, [chart, aiPatterns, newsMarkers, signalMarkers]);
+    } finally {
+      // FIX: Always release the processing lock, even if an error occurred
+      aiProcessingRef.current = false;
+    }
+  // FIX: Removed aiPatterns, newsMarkers, signalMarkers from deps — they were causing
+  // unnecessary re-creation of this callback and potential stale closure issues.
+  // The function doesn't actually read these values; only uses chart and refs.
+  }, [chart]);
 
   // ── News Markers Handler ───────────────────────────────
   const handleNewsUpdate = useCallback((markers: NewsMarker[]) => {

@@ -158,7 +158,16 @@ export default function RouaChart({
   const prevPriceRef = useRef(currentPrice);
   const [pricePulse, setPricePulse] = useState(false);
 
-
+  // ── Track current timeframe to ignore stale WebSocket updates ──
+  // When timeframe changes, WebSocket may still deliver candles from the
+  // old timeframe before reconnecting. This ref lets us filter those out.
+  const timeframeRef = useRef(timeframe);
+  useEffect(() => {
+    timeframeRef.current = timeframe;
+    // Clear RouaChart's candlesRef immediately on timeframe change
+    // to prevent stale WebSocket onCandleUpdate from pushing old data
+    candlesRef.current = [];
+  }, [timeframe]);
 
   // ── Chart Hook ─────────────────────────────────────────
   const chart = useChart({
@@ -172,6 +181,11 @@ export default function RouaChart({
     symbol: selectedSymbol,
     timeframe,
     onCandleUpdate: (candle) => {
+      // If candlesRef was just cleared (timeframe change in progress),
+      // don't accept WebSocket candles until the fetch fills it again.
+      // This prevents stale data from the old timeframe being pushed back.
+      if (candlesRef.current.length === 0) return;
+
       // Update or add candle
       const idx = candlesRef.current.findIndex(c => c.time === candle.time);
       if (idx >= 0) {

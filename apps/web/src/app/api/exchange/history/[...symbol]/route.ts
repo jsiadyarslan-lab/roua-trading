@@ -63,10 +63,11 @@ async function fetchCoinGeckoHistory(symbol: string, interval: string): Promise<
   // CoinGecko OHLCV chart endpoint: /coins/{id}/ohlc
   // days: 1, 7, 14, 30, 90, 180, 365
   const daysMap: Record<string, string> = {
+    '1s': '1', '5s': '1', '15s': '1', '30s': '1', // seconds → 1 day
     '1m': '1', '5m': '1', '15m': '1', '15min': '1',
     '30m': '1', '1h': '7', '2h': '14', '4h': '30',
     '1day': '90', '1d': '90', '1week': '180', '1w': '180',
-    '1month': '365', '1M': '365',
+    '1month': '365', '1M': '365', '3month': '365', '3M': '365',
   }
   const days = daysMap[interval] || '90'
 
@@ -122,16 +123,18 @@ async function fetchYahooCryptoHistory(symbol: string, interval: string): Promis
   if (!yahooSymbol) return null
 
   const rangeMap: Record<string, string> = {
+    '1s': '1d', '5s': '1d', '15s': '1d', '30s': '1d', // seconds → 1 day
     '1m': '1d', '5m': '5d', '15m': '10d', '15min': '10d', '30m': '1mo',
     '1h': '1mo', '2h': '3mo', '4h': '3mo', '1day': '6mo', '1d': '6mo',
-    '1week': '1y', '1w': '1y', '1month': '2y', '1M': '2y',
+    '1week': '1y', '1w': '1y', '1month': '2y', '1M': '2y', '3month': '2y', '3M': '2y',
   }
   const yahooRange = rangeMap[interval] || '6mo'
 
   const yIntervalMap: Record<string, string> = {
+    '1s': '1m', '5s': '1m', '15s': '1m', '30s': '1m', // seconds → 1m
     '1m': '1m', '5m': '5m', '15m': '15m', '15min': '15m', '30m': '30m',
     '1h': '1h', '2h': '1h', '4h': '1d', '1day': '1d', '1d': '1d',
-    '1week': '1wk', '1w': '1wk', '1month': '1mo', '1M': '1mo',
+    '1week': '1wk', '1w': '1wk', '1month': '1mo', '1M': '1mo', '3month': '1mo', '3M': '1mo',
   }
   const yInterval = yIntervalMap[interval] || '1d'
 
@@ -205,8 +208,9 @@ export async function GET(
     const isCryptoPair = (symbol.includes('/') && CRYPTO_QUOTE_CURRENCIES.includes(quoteCurrency) && CRYPTO_BASE_CURRENCIES.includes(baseCurrency)) || (!symbol.includes('/') && CRYPTO_BASE_CURRENCIES.includes(symbol))
 
     const intervalMap: Record<string, string> = {
+      '1s': '1m', '5s': '1m', '15s': '1m', '30s': '1m', // seconds → 1m (Binance min)
       '1min': '1m', '5min': '5m', '15min': '15m', '30min': '30m',
-      '1h': '1h', '2h': '2h', '4h': '4h', '1day': '1d', '1week': '1w', '1month': '1M',
+      '1h': '1h', '2h': '2h', '4h': '4h', '1day': '1d', '1week': '1w', '1month': '1M', '3month': '3M',
       '15m': '15m', '1d': '1d'
     }
 
@@ -323,8 +327,12 @@ export async function GET(
     if (apiKey) {
       try {
         const tdIntervalMap: Record<string, string> = {
+          '1s': '1min', '5s': '1min', '15s': '1min', '30s': '1min', // seconds → 1min (min)
           '1m': '1min', '5m': '5min', '15m': '15min', '15min': '15min',
-          '1h': '1h', '4h': '4h', '1d': '1day', '1day': '1day'
+          '30min': '30min', '30m': '30min', '2h': '2h', '4h': '4h',
+          '1h': '1h', '1d': '1day', '1day': '1day',
+          '1week': '1week', '1w': '1week', '1month': '1month', '1M': '1month',
+          '3month': '3month', '3M': '3month',
         }
         const tdInterval = tdIntervalMap[interval] || interval
 
@@ -362,16 +370,18 @@ export async function GET(
         : symbol)
 
       const rangeMap: Record<string, string> = {
+        '1s': '1d', '5s': '1d', '15s': '1d', '30s': '1d', // seconds → 1 day
         '1m': '1d', '5m': '5d', '15m': '10d', '15min': '10d', '30m': '1mo',
         '1h': '1mo', '2h': '3mo', '4h': '3mo', '1day': '6mo', '1d': '6mo',
-        '1week': '1y', '1w': '1y', '1month': '2y', '1M': '2y',
+        '1week': '1y', '1w': '1y', '1month': '2y', '1M': '2y', '3month': '2y', '3M': '2y',
       }
       const yahooRange = rangeMap[interval] || '6mo'
 
       const yIntervalMap: Record<string, string> = {
+        '1s': '1m', '5s': '1m', '15s': '1m', '30s': '1m', // seconds → 1m
         '1m': '1m', '5m': '5m', '15m': '15m', '15min': '15m', '30m': '30m',
         '1h': '1h', '2h': '1h', '4h': '1d', '1day': '1d', '1d': '1d',
-        '1week': '1wk', '1w': '1wk', '1month': '1mo', '1M': '1mo',
+        '1week': '1wk', '1w': '1wk', '1month': '1mo', '1M': '1mo', '3month': '1mo', '3M': '1mo',
       }
       const yInterval = yIntervalMap[interval] || '1d'
 

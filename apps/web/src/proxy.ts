@@ -134,16 +134,13 @@ export function proxy(request: NextRequest) {
     return addSecurityHeaders(NextResponse.next(), request)
   }
 
-  // ── Skip landing page: redirect to dashboard when SKIP_LANDING=true ──
-  if (pathname === '/' && process.env.SKIP_LANDING === 'true') {
-    return addSecurityHeaders(NextResponse.redirect(new URL('/dashboard', request.url)), request)
-  }
-
-  // ── Dashboard routes: require roua_session (skip when SKIP_LANDING=true for debugging) ──
+  // ── Dashboard routes: require roua_session cookie ──
+  // Guest access is now handled via /api/auth/guest which creates a proper
+  // session + cookie. No more SKIP_LANDING env var dependency.
   if (pathname.startsWith('/dashboard') || pathname.startsWith('/mobile')) {
     const sessionToken = request.cookies.get('roua_session')?.value
 
-    if (!sessionToken && process.env.SKIP_LANDING !== 'true') {
+    if (!sessionToken) {
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('callbackUrl', pathname)
       return addSecurityHeaders(NextResponse.redirect(loginUrl), request)

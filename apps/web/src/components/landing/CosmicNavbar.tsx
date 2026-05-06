@@ -24,7 +24,7 @@ export default function CosmicNavbar() {
       </div>
       <div className="nav-buttons">
         <a href="/login" className="btn btn-outline">تسجيل الدخول</a>
-        <a href="#join" className="btn btn-primary">انضم الآن</a>
+        <a href="/api/auth/guest" className="btn btn-primary">جرّب مجاناً</a>
       </div>
     </nav>
   );

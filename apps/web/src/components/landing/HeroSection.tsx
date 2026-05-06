@@ -72,11 +72,25 @@ export default function HeroSection() {
         <span className="cursor-blink" />
       </p>
       <div className="hero-cta-group">
-        <a href="#join" className="btn btn-glow" style={{ fontSize: '1.05rem', padding: '1rem 2.8rem' }}>
+        <a href="/api/auth/guest" className="btn btn-glow" style={{ fontSize: '1.05rem', padding: '1rem 2.8rem' }}>
           🚀 ابدأ ربط حساباتك
         </a>
         <a href="#features" className="btn btn-outline" style={{ fontSize: '1.05rem', padding: '1rem 2.8rem' }}>
           استكشف المنصة
+        </a>
+      </div>
+      <div style={{ marginTop: '0.8rem', textAlign: 'center' }}>
+        <a href="/api/auth/guest" style={{
+          color: 'rgba(0, 212, 255, 0.6)',
+          fontSize: '0.85rem',
+          textDecoration: 'none',
+          transition: 'color 0.2s',
+          cursor: 'pointer',
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(0, 212, 255, 0.9)')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(0, 212, 255, 0.6)')}
+        >
+          أو جرّب كضيف ←
         </a>
       </div>
       <div className="hero-stats" ref={statsRef}>

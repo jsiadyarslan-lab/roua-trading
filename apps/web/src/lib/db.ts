@@ -52,6 +52,41 @@ async function runSchemaMigrations(): Promise<void> {
   if (globalForPrisma.schemaMigrated) return
 
   const migrations = [
+    // ── AgentStrategy enum (CRITICAL for Autonomous Trader) ──
+    // The PostgreSQL enum must exist and have all 8 values.
+    // If the enum doesn't exist (prisma db push skipped it), queries using
+    // AgentStrategy will throw "invalid input value for enum" errors.
+    // CREATE TYPE IF NOT EXISTS is NOT supported in PostgreSQL, so we use
+    // DO $$ BEGIN ... EXCEPTION WHEN duplicate_object pattern.
+    `DO $$ BEGIN CREATE TYPE "AgentStrategy" AS ENUM ('AUTO', 'SCALPING', 'SWING', 'GRID', 'MEAN_REVERSION', 'MOMENTUM_BREAKOUT', 'DCA', 'VWAP_RSI'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+    // Add any missing values to existing AgentStrategy enum
+    `ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'AUTO'`,
+    `ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'SCALPING'`,
+    `ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'SWING'`,
+    `ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'GRID'`,
+    `ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'MEAN_REVERSION'`,
+    `ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'MOMENTUM_BREAKOUT'`,
+    `ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'DCA'`,
+    `ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'VWAP_RSI'`,
+    // ── AgentTradeStatus enum ──
+    `DO $$ BEGIN CREATE TYPE "AgentTradeStatus" AS ENUM ('PENDING', 'FILLED', 'PARTIALLY_FILLED', 'CANCELLED', 'FAILED', 'REJECTED', 'CLOSED', 'EXPIRED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+    `ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'PENDING'`,
+    `ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'FILLED'`,
+    `ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'PARTIALLY_FILLED'`,
+    `ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'CANCELLED'`,
+    `ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'FAILED'`,
+    `ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'REJECTED'`,
+    `ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'CLOSED'`,
+    `ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'EXPIRED'`,
+    // ── AgentExitReason enum ──
+    `DO $$ BEGIN CREATE TYPE "AgentExitReason" AS ENUM ('TAKE_PROFIT', 'STOP_LOSS', 'MANUAL', 'TRAILING_STOP', 'STRATEGY_EXIT', 'TIMEOUT', 'SIGNAL_REVERSAL'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+    `ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'TAKE_PROFIT'`,
+    `ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'STOP_LOSS'`,
+    `ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'MANUAL'`,
+    `ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'TRAILING_STOP'`,
+    `ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'STRATEGY_EXIT'`,
+    `ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'TIMEOUT'`,
+    `ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'SIGNAL_REVERSAL'`,
     // ── Session table: cross-device sync columns (CRITICAL for Google OAuth + refresh tokens) ──
     // These MUST be added before any session.create() call, because Prisma's
     // RETURNING clause references ALL model columns. If any column is missing,

@@ -674,6 +674,47 @@ EOSQL
 
     -- ── Agent Tables (Critical for Autonomous Trader) ──
 
+    -- Create AgentStrategy enum (needed by AutonomousTrade table)
+    DO $$ BEGIN
+      CREATE TYPE "AgentStrategy" AS ENUM ('AUTO', 'SCALPING', 'SWING', 'GRID', 'MEAN_REVERSION', 'MOMENTUM_BREAKOUT', 'DCA', 'VWAP_RSI');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+    ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'AUTO';
+    ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'SCALPING';
+    ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'SWING';
+    ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'GRID';
+    ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'MEAN_REVERSION';
+    ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'MOMENTUM_BREAKOUT';
+    ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'DCA';
+    ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'VWAP_RSI';
+
+    -- Create AgentTradeStatus enum
+    DO $$ BEGIN
+      CREATE TYPE "AgentTradeStatus" AS ENUM ('PENDING', 'FILLED', 'PARTIALLY_FILLED', 'CANCELLED', 'FAILED', 'REJECTED', 'CLOSED', 'EXPIRED');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'PENDING';
+    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'FILLED';
+    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'PARTIALLY_FILLED';
+    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'CANCELLED';
+    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'FAILED';
+    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'REJECTED';
+    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'CLOSED';
+    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'EXPIRED';
+
+    -- Create AgentExitReason enum
+    DO $$ BEGIN
+      CREATE TYPE "AgentExitReason" AS ENUM ('TAKE_PROFIT', 'STOP_LOSS', 'MANUAL', 'TRAILING_STOP', 'STRATEGY_EXIT', 'TIMEOUT', 'SIGNAL_REVERSAL');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+    ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'TAKE_PROFIT';
+    ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'STOP_LOSS';
+    ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'MANUAL';
+    ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'TRAILING_STOP';
+    ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'STRATEGY_EXIT';
+    ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'TIMEOUT';
+    ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'SIGNAL_REVERSAL';
+
     -- AgentSession table (persists agent state across Redis restarts)
     CREATE TABLE IF NOT EXISTS "AgentSession" (
       "id" TEXT NOT NULL,

@@ -611,7 +611,7 @@ export class SmartExecutorService implements OnModuleDestroy {
     // 2. Get current price
     // FIX: Use orchestrator's fetchQuickMarketData first (multiple parallel sources,
     // works on Railway), then fall back to ExchangeService.
-    let currentPrice: number;
+    let currentPrice: number = 0;
     try {
       const marketData = await this.orchestrator.fetchQuickMarketData(brief.pair);
       currentPrice = marketData.price;

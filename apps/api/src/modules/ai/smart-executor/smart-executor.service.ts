@@ -77,14 +77,13 @@ export class SmartExecutorService implements OnModuleDestroy {
   ) {
     this.logger.log('⚔️ Smart Executor initialized — awaiting activation (with RiskGatekeeper + Notifications)');
 
-    // FIX: Auto-start the executor 45 seconds after startup.
-    // Previously, the executor required a manual POST /start call, meaning it
-    // was never running after deployment until a user explicitly started it.
-    // This made the "المنفذ الذكي" panel always show isRunning=false.
-    // Now it auto-starts so it's ready when council produces briefs.
+    // FIX: Auto-start the executor 10 seconds after startup (reduced from 45s).
+    // Previously used 45s delay which left a long window where no trades could execute
+    // after Railway restarts. 10s is enough for NestJS to initialize all modules.
+    // Also: restore running state from Redis if it was running before restart.
     setTimeout(() => {
       this._autoStart();
-    }, 45000);
+    }, 10000);
   }
 
   /**

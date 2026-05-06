@@ -64,6 +64,9 @@ export class SmartExecutorService implements OnModuleDestroy {
   private readonly REDIS_GLOBAL_STATE = 'smart-executor:global';
   private readonly REDIS_PROCESSED_PREFIX = 'smart-executor:processed:'; // briefId:userId → persisted in Redis
 
+  /** DB key for persisting Smart Executor user state (survives Redis restart) */
+  private readonly DB_USER_STATE_KEY = 'SMART_EXECUTOR_USER_STATE';
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
@@ -239,13 +242,25 @@ export class SmartExecutorService implements OnModuleDestroy {
       isPaperTrading: config?.isPaperTrading ?? true,
     };
 
+    // ── CRITICAL FIX: Persist to BOTH Redis AND Database ──
+    // Previously, user state was ONLY in Redis with 24h TTL.
+    // If Redis restarted (common on Railway), the user's "تفعيل" was lost,
+    // and the executor showed 0 enabled users even though the user
+    // had explicitly enabled it.
+    //
+    // Now: Redis (fast access) + DB (survives restarts) dual persistence.
+
+    // 1. Save to Redis (fast access for tick loop)
     await this.redis.set(
       `${this.REDIS_USER_STATE_PREFIX}${userId}`,
       JSON.stringify(state),
-      86400000,
+      86400000 * 7, // 7 days (was 1 day — too short, users lose activation daily)
     );
 
-    this.logger.log(`⚔️ Executor enabled for user ${userId} (paper: ${state.isPaperTrading})`);
+    // 2. Save to DB (survives Redis restart)
+    await this._persistUserStateToDB(userId, state);
+
+    this.logger.log(`⚔️ Executor enabled for user ${userId} (paper: ${state.isPaperTrading}) — saved to Redis + DB`);
 
     await this.audit.log({
       userId,
@@ -261,8 +276,13 @@ export class SmartExecutorService implements OnModuleDestroy {
    * Disable executor for a specific user
    */
   async disableUser(userId: string): Promise<void> {
+    // Remove from Redis
     await this.redis.del(`${this.REDIS_USER_STATE_PREFIX}${userId}`);
-    this.logger.log(`⚔️ Executor disabled for user ${userId}`);
+
+    // Remove from DB too
+    await this._removeUserStateFromDB(userId);
+
+    this.logger.log(`⚔️ Executor disabled for user ${userId} — removed from Redis + DB`);
 
     await this.audit.log({
       userId,
@@ -275,8 +295,41 @@ export class SmartExecutorService implements OnModuleDestroy {
    * Get user executor state
    */
   async getUserState(userId: string): Promise<UserExecutorState | null> {
+    // Step 1: Try Redis first (fast)
     const raw = await this.redis.get(`${this.REDIS_USER_STATE_PREFIX}${userId}`);
-    return raw ? JSON.parse(raw) : null;
+    if (raw) {
+      return JSON.parse(raw);
+    }
+
+    // Step 2: Redis miss — try DB fallback (user may have been enabled before Redis restart)
+    const dbState = await this._loadUserStateFromDB(userId);
+    if (dbState) {
+      this.logger.log(`⚔️ Recovered user ${userId} state from DB (Redis lost it — likely restart)`);
+      // Re-populate Redis from DB so next read is fast
+      await this.redis.set(
+        `${this.REDIS_USER_STATE_PREFIX}${userId}`,
+        JSON.stringify(dbState),
+        86400000 * 7,
+      );
+      return dbState;
+    }
+
+    // Step 3: Check if user has an active AgentSession (Autonomous Trader Agent)
+    // Users who activated the Agent should also be considered "enabled" for the Smart Executor
+    const agentSessionState = await this._loadUserStateFromAgentSession(userId);
+    if (agentSessionState) {
+      this.logger.log(`⚔️ Recovered user ${userId} state from AgentSession (cross-system sync)`);
+      // Save to both Redis and DB
+      await this.redis.set(
+        `${this.REDIS_USER_STATE_PREFIX}${userId}`,
+        JSON.stringify(agentSessionState),
+        86400000 * 7,
+      );
+      await this._persistUserStateToDB(userId, agentSessionState);
+      return agentSessionState;
+    }
+
+    return null;
   }
 
   /**
@@ -604,12 +657,68 @@ export class SmartExecutorService implements OnModuleDestroy {
    * the official API for this pattern.
    */
   private async _getEnabledUsers(): Promise<string[]> {
+    const userIds = new Set<string>();
+
+    // Step 1: Check Redis for enabled users (fast path)
     try {
       const keys = await this.redis.scanKeys(`${this.REDIS_USER_STATE_PREFIX}*`);
-      return keys.map((k: string) => k.replace(this.REDIS_USER_STATE_PREFIX, ''));
+      for (const k of keys) {
+        userIds.add(k.replace(this.REDIS_USER_STATE_PREFIX, ''));
+      }
     } catch {
-      return [];
+      // Redis unavailable — fall through to DB check
     }
+
+    // Step 2: Check DB for persisted user states (survives Redis restart)
+    try {
+      const dbUserIds = await this._getAllEnabledUsersFromDB();
+      for (const id of dbUserIds) {
+        if (!userIds.has(id)) {
+          this.logger.log(`⚔️ Found user ${id} in DB but NOT in Redis — recovering from DB`);
+          userIds.add(id);
+          // Re-populate Redis from DB
+          const dbState = await this._loadUserStateFromDB(id);
+          if (dbState) {
+            await this.redis.set(
+              `${this.REDIS_USER_STATE_PREFIX}${id}`,
+              JSON.stringify(dbState),
+              86400000 * 7,
+            );
+          }
+        }
+      }
+    } catch (e: any) {
+      this.logger.warn(`⚔️ Failed to check DB for enabled users: ${e.message}`);
+    }
+
+    // Step 3: Check AgentSession for users who activated the Autonomous Trader Agent
+    try {
+      const agentUserIds = await this._getAgentSessionUsers();
+      for (const id of agentUserIds) {
+        if (!userIds.has(id)) {
+          this.logger.log(`⚔️ Found user ${id} in AgentSession but NOT in Smart Executor — cross-system sync`);
+          userIds.add(id);
+          // Create Smart Executor state from Agent session
+          const agentState = await this._loadUserStateFromAgentSession(id);
+          if (agentState) {
+            await this.redis.set(
+              `${this.REDIS_USER_STATE_PREFIX}${id}`,
+              JSON.stringify(agentState),
+              86400000 * 7,
+            );
+            await this._persistUserStateToDB(id, agentState);
+          }
+        }
+      }
+    } catch (e: any) {
+      this.logger.warn(`⚔️ Failed to check AgentSession for users: ${e.message}`);
+    }
+
+    if (userIds.size > 0) {
+      this.logger.debug(`⚔️ Enabled users total: ${userIds.size}`);
+    }
+
+    return Array.from(userIds);
   }
 
   // ── Core: Tick Loop ──
@@ -818,14 +927,16 @@ export class SmartExecutorService implements OnModuleDestroy {
           await this.councilService.markBriefExecuted(brief.id, result.orderId);
         }
 
-        // Update user state
+        // Update user state (persist to both Redis and DB)
         userState.dailyTrades++;
         userState.lastTradeAt = new Date().toISOString();
         await this.redis.set(
           `${this.REDIS_USER_STATE_PREFIX}${userId}`,
           JSON.stringify(userState),
-          86400000,
+          86400000 * 7,
         );
+        // Sync to DB (fire-and-forget for performance)
+        this._persistUserStateToDB(userId, userState).catch(() => {});
 
         // ── INSTANT NOTIFICATION: Push real-time alert to user ──
         try {
@@ -1465,5 +1576,162 @@ export class SmartExecutorService implements OnModuleDestroy {
     };
 
     return diagnostic;
+  }
+
+  // ── DB Persistence Helpers ──
+  // These methods persist Smart Executor user state to the Setting table
+  // so that user activations survive Redis restarts and deployments.
+  //
+  // Storage format: Key = 'SMART_EXECUTOR_USER_STATE:{userId}'
+  // Value = JSON(UserExecutorState)
+  //
+  // This uses the existing Setting table (key/value) to avoid needing
+  // a new migration for a dedicated SmartExecutorUserState table.
+
+  /**
+   * Persist user executor state to DB (Setting table)
+   */
+  private async _persistUserStateToDB(userId: string, state: UserExecutorState): Promise<void> {
+    try {
+      const key = `${this.DB_USER_STATE_KEY}:${userId}`;
+      await this.prisma.setting.upsert({
+        where: { key },
+        update: { value: JSON.stringify(state) },
+        create: { key, value: JSON.stringify(state) },
+      });
+    } catch (e: any) {
+      this.logger.warn(`⚔️ Failed to persist user state to DB for ${userId}: ${e.message}`);
+    }
+  }
+
+  /**
+   * Remove user executor state from DB
+   */
+  private async _removeUserStateFromDB(userId: string): Promise<void> {
+    try {
+      const key = `${this.DB_USER_STATE_KEY}:${userId}`;
+      await this.prisma.setting.deleteMany({ where: { key } });
+    } catch (e: any) {
+      this.logger.warn(`⚔️ Failed to remove user state from DB for ${userId}: ${e.message}`);
+    }
+  }
+
+  /**
+   * Load user executor state from DB (for Redis recovery)
+   */
+  private async _loadUserStateFromDB(userId: string): Promise<UserExecutorState | null> {
+    try {
+      const key = `${this.DB_USER_STATE_KEY}:${userId}`;
+      const setting = await this.prisma.setting.findUnique({ where: { key } });
+      if (setting) {
+        const state = JSON.parse(setting.value);
+        // Only return if still enabled
+        if (state && state.enabled) {
+          return state as UserExecutorState;
+        }
+      }
+    } catch (e: any) {
+      this.logger.debug(`⚔️ Failed to load user state from DB for ${userId}: ${e.message}`);
+    }
+    return null;
+  }
+
+  /**
+   * Get all user IDs that have persisted executor states in DB
+   */
+  private async _getAllEnabledUsersFromDB(): Promise<string[]> {
+    try {
+      const settings = await this.prisma.setting.findMany({
+        where: {
+          key: { startsWith: this.DB_USER_STATE_KEY },
+        },
+        select: { key: true, value: true },
+      });
+
+      const enabledUserIds: string[] = [];
+      for (const setting of settings) {
+        try {
+          const state = JSON.parse(setting.value);
+          if (state && state.enabled) {
+            const userId = setting.key.replace(`${this.DB_USER_STATE_KEY}:`, '');
+            enabledUserIds.push(userId);
+          }
+        } catch {
+          // Invalid JSON — skip
+        }
+      }
+      return enabledUserIds;
+    } catch (e: any) {
+      this.logger.debug(`⚔️ Failed to get all enabled users from DB: ${e.message}`);
+      return [];
+    }
+  }
+
+  /**
+   * Load user state from AgentSession (cross-system sync)
+   * If the user activated the Autonomous Trader Agent, we treat them
+   * as enabled for the Smart Executor too, with matching settings.
+   */
+  private async _loadUserStateFromAgentSession(userId: string): Promise<UserExecutorState | null> {
+    try {
+      const session = await this.prisma.agentSession.findFirst({
+        where: {
+          userId,
+          status: { in: ['RUNNING', 'PAUSED', 'DAILY_LIMIT_REACHED'] },
+        },
+        orderBy: { startedAt: 'desc' },
+      });
+
+      if (!session) return null;
+
+      // Build UserExecutorState from AgentSession config
+      let isPaperTrading = true;
+      let credentialId: string | undefined;
+      let maxOpenPositions = this.config.maxOpenPositions;
+      let riskPerTradePercent = this.config.riskPerTradePercent;
+
+      try {
+        const config = JSON.parse(session.config);
+        isPaperTrading = config.isPaperTrading ?? true;
+        credentialId = config.credentialId;
+        maxOpenPositions = config.maxOpenPositions ?? this.config.maxOpenPositions;
+        riskPerTradePercent = config.riskPerTradePercent ?? this.config.riskPerTradePercent;
+      } catch {
+        // Use defaults
+      }
+
+      return {
+        enabled: true,
+        dailyPnL: Number(session.dailyPnL) || 0,
+        dailyTrades: session.dailyTradesCount || 0,
+        dailyResetAt: session.dailyResetAt?.toISOString() || new Date().toISOString(),
+        lastTradeAt: session.lastSignalAt?.toISOString() || null,
+        consecutiveLosses: session.consecutiveLosses || 0,
+        maxOpenPositions,
+        riskPerTradePercent,
+        credentialId: credentialId || session.credentialId,
+        isPaperTrading,
+      };
+    } catch (e: any) {
+      this.logger.debug(`⚔️ Failed to load user state from AgentSession for ${userId}: ${e.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Get all user IDs that have active AgentSessions
+   */
+  private async _getAgentSessionUsers(): Promise<string[]> {
+    try {
+      const sessions = await this.prisma.agentSession.findMany({
+        where: { status: { in: ['RUNNING', 'PAUSED', 'DAILY_LIMIT_REACHED'] } },
+        select: { userId: true },
+        distinct: ['userId'],
+      });
+      return sessions.map(s => s.userId);
+    } catch (e: any) {
+      this.logger.debug(`⚔️ Failed to get AgentSession users: ${e.message}`);
+      return [];
+    }
   }
 }

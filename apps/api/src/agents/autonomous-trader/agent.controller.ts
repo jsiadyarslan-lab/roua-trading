@@ -317,14 +317,20 @@ export class AutonomousTraderAgentController {
 
   /**
    * PUT /api/agent/trader/system-settings
-   * Admin-only: Update system-level auto trading settings
+   * Update system-level auto trading settings.
+   * Any authenticated user can enable auto-trading.
+   * Only INSTITUTIONAL users can disable it globally.
    */
   @Put('system-settings')
   async updateSystemSettings(@Req() req: any, @Body() body: { autoTradingEnabled?: boolean }) {
-    // Only allow INSTITUTIONAL tier users to change system settings
     const user = req.user;
-    if (!user || user.tier !== 'INSTITUTIONAL') {
-      throw new ForbiddenException('فقط المستخدمون المؤسسيون يمكنهم تغيير إعدادات النظام');
+
+    // Allow any user to ENABLE auto-trading (they're enabling it for themselves).
+    // Only INSTITUTIONAL users can DISABLE auto-trading globally (affects all users).
+    if (body.autoTradingEnabled === false) {
+      if (!user || user.tier !== 'INSTITUTIONAL') {
+        throw new ForbiddenException('فقط المستخدمون المؤسسيون يمكنهم تعطيل التداول الذاتي على مستوى النظام');
+      }
     }
 
     if (body.autoTradingEnabled !== undefined) {
@@ -333,7 +339,10 @@ export class AutonomousTraderAgentController {
 
     return {
       success: true,
-      message: 'تم تحديث إعدادات النظام',
+      message: body.autoTradingEnabled
+        ? 'تم تفعيل التداول الذاتي على مستوى النظام'
+        : 'تم تحديث إعدادات النظام',
     };
   }
 }
+

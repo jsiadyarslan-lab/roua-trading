@@ -337,16 +337,17 @@ async function bootstrap() {
     }
 
     // ── FIX: Start HTTP server + Socket.IO ──
-    // Create a standalone Socket.IO server AFTER app.listen() and register
-    // an Express route handler to forward /socket.io/* requests to it.
+    // Create Socket.IO server AFTER app.listen() and add an Express route
+    // to forward /socket.io/* requests to it.
     //
-    // The problem: NestJS's IoAdapter creates a Socket.IO server but its
-    // request handler ordering is unreliable — /socket.io/* returns 404.
+    // The problem: NestJS's IoAdapter creates a Socket.IO server but the
+    // HTTP request listener ordering doesn't work — /socket.io/* returns 404.
+    // Even calling io.attach(httpServer) after listen() doesn't help because
+    // NestJS wraps Express in a single request listener.
     //
-    // The solution: Create a standalone Socket.IO server (not attached to
-    // the HTTP server's request listener chain), and add an Express route
-    // that forwards /socket.io/* requests directly to Socket.IO's engine.
-    // This is more reliable than depending on HTTP request listener ordering.
+    // The solution: Create a Socket.IO server, then add an Express route that
+    // intercepts /socket.io* requests and pipes them to Socket.IO's engine.io
+    // handleRequest method. This bypasses the HTTP listener ordering entirely.
     const httpServer = app.getHttpServer();
 
     // Log request listener order BEFORE starting
@@ -355,16 +356,11 @@ async function bootstrap() {
 
     await app.listen(port, '0.0.0.0');
 
-    // ── FIX: Create Socket.IO server with Express forwarding ──
-    // We create a Socket.IO server WITHOUT attaching it to the HTTP server's
-    // listener chain (no init() call). Instead, we add an Express route that
-    // manually forwards /socket.io/* requests to Socket.IO's engine.
-    // This avoids the unreliable request listener reordering.
+    // ── FIX: Create Socket.IO + Express forwarding route ──
     try {
       const { Server: SocketIOServer } = await import('socket.io');
 
       // Create Socket.IO server without attaching to HTTP server
-      // We'll handle request forwarding via Express route
       const io = new SocketIOServer({
         cors: {
           origin: (_origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
@@ -376,8 +372,46 @@ async function bootstrap() {
         transports: ['polling', 'websocket'],
       });
 
-      // Now attach to the HTTP server — this calls init() which reorders listeners
+      // Attach Socket.IO to HTTP server
       io.attach(httpServer);
+
+      // Also add an Express route as a FALLBACK — if Socket.IO's init()
+      // didn't properly reorder HTTP request listeners, this Express route
+      // will still intercept /socket.io* requests and forward them to
+      // Socket.IO's engine.io handler.
+      const expressApp = app.getHttpAdapter().getInstance();
+
+      // Get Socket.IO's engine request handler
+      const engine = io.engine;
+      if (engine) {
+        // Add a raw Express route that runs BEFORE NestJS routes
+        // by inserting it at the beginning of Express's router stack
+        const socketIoRoute = (req: any, res: any, next: any) => {
+          const path = req.path || req.url?.split('?')[0] || '';
+          if (path.startsWith('/socket.io')) {
+            // Forward request to Socket.IO's engine
+            engine.handleRequest(req, res);
+            return;
+          }
+          next();
+        };
+
+        // Insert at position 0 in Express router stack
+        // This ensures it runs before any NestJS routes (which have /api prefix)
+        const router = expressApp._router;
+        if (router?.stack) {
+          router.stack.unshift({
+            handle: socketIoRoute,
+            keys: [],
+            regexp: /^\/socket\.io/i,
+            route: '',
+          });
+          console.log('🔌 Socket.IO Express route inserted at position 0');
+        }
+
+        // Also add as a standard Express route (as a fallback)
+        expressApp.all('/socket.io*', socketIoRoute);
+      }
 
       // Setup connection handling on the default namespace
       io.on('connection', (socket) => {
@@ -447,6 +481,7 @@ async function bootstrap() {
       console.log(`📋 HTTP request listeners: ${listenersAfter.length} (was ${listenersBefore.length})`);
     } catch (socketInitErr: any) {
       console.warn(`🔌 Socket.IO init failed (non-fatal, API still works): ${socketInitErr.message}`);
+      console.warn(`🔌 Stack: ${socketInitErr.stack?.substring(0, 500)}`);
     }
     console.log(`🚀 Roua API running on http://0.0.0.0:${port}/api`);
     console.log(`🔌 Socket.IO available via NestJS WebSocket gateways`);

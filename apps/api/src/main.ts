@@ -9,6 +9,13 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaService } from './common/prisma/prisma.service';
 import { RedisService } from './common/redis/redis.service';
 
+/** Extract session token from cookie header string */
+function extractSessionFromCookie(cookieHeader: string | undefined): string | null {
+  if (!cookieHeader) return null;
+  const match = cookieHeader.match(/roua_session=([^;]+)/);
+  return match ? match[1] : null;
+}
+
 async function bootstrap() {
   try {
     // FIX #2: Enable graceful shutdown — ensures in-flight requests complete
@@ -344,77 +351,86 @@ async function bootstrap() {
     // to Socket.IO's engine.io handler. This MUST be added to the Express
     // stack at the beginning (before NestJS routes with /api prefix).
     try {
-      const expressApp = app.getHttpAdapter().getInstance();
+      // Create a standalone Socket.IO server attached to the existing HTTP server.
+      // This bypasses the NestJS IoAdapter's unreliable request listener ordering.
+      // The IoAdapter's gateways still work — they just use a different server instance.
+      const { Server: SocketIOServer } = await import('socket.io');
+      const io = new SocketIOServer(httpServer, {
+        cors: {
+          origin: (_origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+            callback(null, true);
+          },
+          credentials: true,
+        },
+        path: '/socket.io',
+        // Allow both polling and websocket transports
+        transports: ['polling', 'websocket'],
+      });
 
-      // Find the Socket.IO server instance by inspecting the IoAdapter
-      let ioServer: any = null;
-      const wsAdapter = app.getWebSocketAdapter() as any;
-      const adapterKeys = wsAdapter ? Object.getOwnPropertyNames(wsAdapter) : [];
-      console.log(`🔌 IoAdapter properties: ${adapterKeys.join(', ')}`);
-
-      // Search for the Socket.IO server in the adapter
-      for (const key of adapterKeys) {
-        try {
-          const val = (wsAdapter as any)[key];
-          if (val && typeof val === 'object' && typeof val.serveClient === 'boolean') {
-            ioServer = val;
-            console.log(`🔌 Found Socket.IO server at adapter.${key}`);
-            break;
-          }
-          if (val instanceof Map) {
-            for (const [mapKey, mapVal] of val) {
-              if (mapVal && typeof mapVal === 'object' && typeof mapVal.serveClient === 'boolean') {
-                ioServer = mapVal;
-                console.log(`🔌 Found Socket.IO server at adapter.${key}[${String(mapKey)}]`);
-                break;
-              }
-            }
-            if (ioServer) break;
-          }
-        } catch { /* skip */ }
-      }
-
-      if (ioServer?.engine) {
-        const engine = ioServer.engine;
-
-        // Insert Socket.IO handler at the BEGINNING of Express's route stack
-        // so it runs before any NestJS routes (which have /api prefix)
-        const socketIoHandler = (req: any, res: any, next: any) => {
-          if (req.path && req.path.startsWith('/socket.io')) {
-            engine.handleRequest(req, res);
-          } else {
-            next();
-          }
-        };
-
-        // Express stores routes in the router's stack. We insert at position 0
-        // to ensure Socket.IO requests are handled before any other routes.
-        const router = expressApp._router;
-        if (router && router.stack) {
-          // Create a route layer for /socket.io* that handles all HTTP methods
-          const layer = {
-            handle: socketIoHandler,
-            keys: [],
-            regexp: /^\/socket\.io(?:\/|$|\?)/i,
-            route: { path: '/socket.io*', methods: { get: true, post: true, put: true, delete: true, patch: true, options: true, head: true } },
-          };
-          router.stack.unshift(layer);
-          console.log('🔌 Socket.IO handler inserted at position 0 in Express router');
-        } else {
-          // Fallback: use Express all() method (less reliable for ordering)
-          expressApp.all('/socket.io*', socketIoHandler);
-          console.log('🔌 Socket.IO handler added via Express all() (may not be first in stack)');
-        }
-      } else {
-        // No IoAdapter server found — create standalone Socket.IO
-        console.warn('🔌 Socket.IO server not found in IoAdapter — creating standalone server');
-        const { Server: SocketIOServer } = await import('socket.io');
-        new SocketIOServer(httpServer, {
-          cors: { origin: (_: any, cb: any) => cb(null, true), credentials: true },
-          path: '/socket.io',
+      // Setup connection handling on the default namespace
+      io.on('connection', (socket) => {
+        console.log(`🔌 Socket.IO client connected: ${socket.id}`);
+        socket.on('disconnect', (reason) => {
+          console.log(`🔌 Socket.IO client disconnected: ${socket.id} (${reason})`);
         });
-        console.log('🔌 Standalone Socket.IO server created');
-      }
+      });
+
+      // Setup /notifications namespace (for real-time notification push)
+      const notificationsNs = io.of('/notifications');
+      notificationsNs.on('connection', (socket) => {
+        console.log(`🔔 Notification namespace: client ${socket.id} connected`);
+
+        // Authenticate via session token
+        const token =
+          socket.handshake.auth?.token ||
+          socket.handshake.query?.token ||
+          socket.handshake.headers?.['x-roua-session'] as string ||
+          extractSessionFromCookie(socket.handshake.headers?.cookie as string);
+
+        if (!token) {
+          socket.emit('error', { message: 'Authentication required.' });
+          socket.disconnect(true);
+          return;
+        }
+
+        // Validate session asynchronously
+        prisma.session.findUnique({ where: { token }, include: { user: true } })
+          .then((session: any) => {
+            if (!session || session.expiresAt < new Date()) {
+              socket.emit('error', { message: 'Session expired or invalid.' });
+              socket.disconnect(true);
+              return;
+            }
+            (socket as any).userId = session.user.id;
+            (socket as any).user = session.user;
+            console.log(`🔔 User ${session.user.id} connected to /notifications (${socket.id})`);
+
+            // Send unread count on connect
+            prisma.userNotification.count({ where: { userId: session.user.id, isRead: false } })
+              .then((count: number) => socket.emit('unread_count', { count }))
+              .catch(() => {});
+          })
+          .catch(() => {
+            socket.emit('error', { message: 'Authentication service unavailable.' });
+            socket.disconnect(true);
+          });
+
+        socket.on('disconnect', () => {
+          console.log(`🔔 Notification namespace: client ${socket.id} disconnected`);
+        });
+      });
+
+      // Setup /exchange namespace (for real-time price ticker)
+      const exchangeNs = io.of('/exchange');
+      exchangeNs.on('connection', (socket) => {
+        console.log(`📡 Exchange namespace: client ${socket.id} connected`);
+        socket.on('disconnect', () => {
+          console.log(`📡 Exchange namespace: client ${socket.id} disconnected`);
+        });
+      });
+
+      console.log('🔌 Socket.IO server created and attached to HTTP server');
+      console.log('🔌 Namespaces: / (default), /notifications, /exchange');
 
       const listenersAfter = httpServer.listeners('request');
       console.log(`📋 HTTP request listeners: ${listenersAfter.length} (was ${listenersBefore.length})`);

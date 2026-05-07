@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v48
+ARG BUILD_CACHE=v49
 
 # ─────────────────────────────────────────────────────────────
 # Stage 1: Install dependencies
@@ -120,4 +120,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Previously only ran `next start`, leaving the API dead.
 CMD ["bash", "start.sh"]
 
-# Build v48 - Wed May  7 00:45:00 UTC 2026
+# Build v49 - Wed May  7 01:00:00 UTC 2026

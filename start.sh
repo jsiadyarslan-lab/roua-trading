@@ -154,8 +154,8 @@ if [ -n "${DATABASE_URL:-}" ]; then
       "quantity" DECIMAL(18,8) NOT NULL,
       "entryPrice" DECIMAL(18,8) NOT NULL,
       "currentPrice" DECIMAL(18,8),
-      "unrealizedPnl" DECIMAL(18,8),
-      "realizedPnl" DECIMAL(18,8),
+      "unrealizedPnl" DECIMAL(18,4) NOT NULL DEFAULT 0,
+      "realizedPnl" DECIMAL(18,4) NOT NULL DEFAULT 0,
       "stopLoss" DECIMAL(18,8),
       "takeProfit" DECIMAL(18,8),
       "highestPrice" DECIMAL(18,8),
@@ -194,9 +194,9 @@ if [ -n "${DATABASE_URL:-}" ]; then
       "type" TEXT NOT NULL,
       "quantity" DECIMAL(18,8) NOT NULL,
       "price" DECIMAL(18,8) NOT NULL,
-      "fee" DECIMAL(18,8),
+      "fee" DECIMAL(18,4),
       "feeCurrency" TEXT,
-      "pnl" DECIMAL(18,8),
+      "pnl" DECIMAL(18,4),
       "exchangeTradeId" TEXT,
       "executedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "Trade_pkey" PRIMARY KEY ("id")
@@ -705,7 +705,7 @@ EOSQL
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'Trade' AND column_name = 'source'
       ) THEN
-        ALTER TABLE "Trade" ADD COLUMN "source" TEXT NOT NULL DEFAULT 'user_manual';
+        ALTER TABLE "Trade" ADD COLUMN "source" TEXT DEFAULT 'user_manual';
         CREATE INDEX IF NOT EXISTS "Trade_source_idx" ON "Trade"("source");
         -- Mark existing paper-trading exchange trades as auto_paper (legacy phantom trades)
         UPDATE "Trade" SET source = 'auto_paper' WHERE "exchange" = 'paper-trading' AND source = 'user_manual';
@@ -719,7 +719,7 @@ EOSQL
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'Position' AND column_name = 'source'
       ) THEN
-        ALTER TABLE "Position" ADD COLUMN "source" TEXT NOT NULL DEFAULT 'user_manual';
+        ALTER TABLE "Position" ADD COLUMN "source" TEXT DEFAULT 'user_manual';
         CREATE INDEX IF NOT EXISTS "Position_source_idx" ON "Position"("source");
         -- Mark existing paper-trading exchange positions as auto_paper
         UPDATE "Position" SET source = 'auto_paper' WHERE "exchange" = 'paper-trading' AND source = 'user_manual';
@@ -1394,6 +1394,66 @@ EOSQL
     echo "📦 Missing columns SQL executed successfully"
   else
     echo "⚠️ Missing columns SQL had issues (columns may already exist)"
+  fi
+
+  # ── Step 3b-2: Fix DECIMAL precision and nullable mismatches ──
+  # The safety-net SQL previously created some columns with wrong DECIMAL precision
+  # (18,8 instead of 18,4) and wrong NOT NULL constraints. This causes prisma db push
+  # to fail silently, leaving the schema out of sync and causing 503 errors.
+  cat > /tmp/fix_precision_and_constraints.sql <<'EOSQL'
+    -- Fix Position table: unrealizedPnl and realizedPnl precision (18,8 → 18,4)
+    DO $$ BEGIN
+      ALTER TABLE "Position" ALTER COLUMN "unrealizedPnl" TYPE DECIMAL(18,4);
+    EXCEPTION WHEN others THEN NULL;
+    END $$;
+    DO $$ BEGIN
+      ALTER TABLE "Position" ALTER COLUMN "realizedPnl" TYPE DECIMAL(18,4);
+    EXCEPTION WHEN others THEN NULL;
+    END $$;
+
+    -- Fix Position table: source column should be nullable (String? in Prisma)
+    DO $$ BEGIN
+      ALTER TABLE "Position" ALTER COLUMN "source" DROP NOT NULL;
+    EXCEPTION WHEN others THEN NULL;
+    END $$;
+
+    -- Fix Trade table: fee and pnl precision (18,8 → 18,4)
+    DO $$ BEGIN
+      ALTER TABLE "Trade" ALTER COLUMN "fee" TYPE DECIMAL(18,4);
+    EXCEPTION WHEN others THEN NULL;
+    END $$;
+    DO $$ BEGIN
+      ALTER TABLE "Trade" ALTER COLUMN "pnl" TYPE DECIMAL(18,4);
+    EXCEPTION WHEN others THEN NULL;
+    END $$;
+
+    -- Fix Trade table: source column should be nullable (String? in Prisma)
+    DO $$ BEGIN
+      ALTER TABLE "Trade" ALTER COLUMN "source" DROP NOT NULL;
+    EXCEPTION WHEN others THEN NULL;
+    END $$;
+
+    -- Add missing unique constraint on Position (@@unique([userId, symbol, side, status]))
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'Position_userId_symbol_side_status_key'
+      ) THEN
+        ALTER TABLE "Position" ADD CONSTRAINT "Position_userId_symbol_side_status_key"
+          UNIQUE ("userId", "symbol", "side", "status");
+      END IF;
+    END $$;
+
+    -- Add missing compound indexes on Position
+    CREATE INDEX IF NOT EXISTS "Position_userId_status_idx" ON "Position"("userId", "status");
+    CREATE INDEX IF NOT EXISTS "Position_userId_symbol_status_idx" ON "Position"("userId", "symbol", "status");
+EOSQL
+
+  echo "📦 Fixing DECIMAL precision and constraint mismatches..."
+  if run_prisma db execute --schema=./prisma/schema.prisma --file /tmp/fix_precision_and_constraints.sql 2>&1; then
+    echo "📦 Precision and constraint fixes applied successfully"
+  else
+    echo "⚠️ Precision fix SQL had issues (non-fatal — may already be correct)"
   fi
 
   # ── Step 3c: Fix AgentStrategy enum — add missing values ──

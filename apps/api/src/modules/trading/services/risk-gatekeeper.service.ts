@@ -416,6 +416,36 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
    */
   async checkPositionSizeLimit(command: OrderCommand): Promise<RiskCheckResult> {
     try {
+      // ── Paper Trading Bypass ──
+      // FIX: For paper-trading credentials, skip the position size % check since
+      // paper trading has virtual unlimited balance. Only enforce the max open
+      // positions count. Previously, checkPositionSizeLimit would fail for
+      // paper-trading because it tried to fetch the price via getQuote() when
+      // command.price was not set, and paper-trading credentials can't fetch
+      // real exchange quotes. This caused ALL paper-trading orders to be rejected
+      // at this check, resulting in 0 executions despite active briefs.
+      const credential = await this.prisma.exchangeCredential.findUnique({
+        where: { id: command.exchangeCredentialId },
+      });
+
+      if (credential && credential.exchange === 'paper-trading') {
+        // Only check open positions count for paper trading
+        const openPositions = await this.prisma.position.count({
+          where: { userId: command.userId, status: 'OPEN' },
+        });
+
+        if (openPositions >= this.maxOpenPositions) {
+          return {
+            allowed: false,
+            reason: `لديك ${openPositions} مركز مفتوح بالفعل (الحد الأقصى: ${this.maxOpenPositions}). أغلق بعض المراكز أولاً.`,
+            failedCheck: 'POSITION_SIZE_LIMIT',
+          };
+        }
+
+        this.logger.debug(`🛡️ Paper-trading position size check: BYPASSED (virtual balance) — only position count enforced`);
+        return { allowed: true };
+      }
+
       // Count open positions
       const openPositions = await this.prisma.position.count({
         where: { userId: command.userId, status: 'OPEN' },

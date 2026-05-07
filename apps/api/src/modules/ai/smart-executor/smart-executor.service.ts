@@ -41,7 +41,7 @@ export class SmartExecutorService implements OnModuleDestroy {
   /** Configuration */
   private readonly config: ExecutorConfig = {
     tickIntervalMs: 2000,           // 2 seconds (more reasonable than 1s)
-    maxOpenPositions: 5,
+    maxOpenPositions: 10,
     maxDailyLossPercent: 5,
     defaultSlippage: 0.005,         // 0.5% — FIX: Increased from 0.1% to 0.5%
                                     // Crypto prices can move 0.1-0.3% in seconds.
@@ -825,10 +825,74 @@ export class SmartExecutorService implements OnModuleDestroy {
     }
 
     // Check max open positions
-    const openPositionsCount = await this.prisma.position.count({
+    const maxPositions = userState.maxOpenPositions || this.config.maxOpenPositions;
+    let openPositionsCount = await this.prisma.position.count({
       where: { userId, status: 'OPEN' },
     });
-    if (openPositionsCount >= (userState.maxOpenPositions || this.config.maxOpenPositions)) {
+
+    // ── FIX: Auto-close stale positions for paper trading ──
+    // When the user is at max open positions AND is paper trading, automatically
+    // close the oldest position to make room for new briefs. This prevents the
+    // executor from being permanently stuck at max positions with stale trades
+    // that have been open for too long. Paper trading is simulated, so closing
+    // stale positions doesn't risk real capital.
+    if (openPositionsCount >= maxPositions && userState.isPaperTrading) {
+      try {
+        const oldestPosition = await this.prisma.position.findFirst({
+          where: { userId, status: 'OPEN' },
+          orderBy: { openedAt: 'asc' },
+        });
+
+        if (oldestPosition) {
+          // Close the oldest position at its current price (or entry price as fallback)
+          const closePrice = Number(oldestPosition.currentPrice) || Number(oldestPosition.entryPrice);
+          const pnl = (closePrice - Number(oldestPosition.entryPrice)) * Number(oldestPosition.quantity) * (oldestPosition.side === 'SELL' ? -1 : 1);
+
+          await this.prisma.position.update({
+            where: { id: oldestPosition.id },
+            data: {
+              status: 'CLOSED',
+              closedAt: new Date(),
+              currentPrice: closePrice,
+              pnl,
+            },
+          });
+
+          // Record the closing trade
+          try {
+            await this.prisma.trade.create({
+              data: {
+                userId,
+                positionId: oldestPosition.id,
+                symbol: oldestPosition.symbol,
+                side: oldestPosition.side === 'BUY' ? 'SELL' : 'BUY',
+                type: 'EXIT',
+                quantity: Number(oldestPosition.quantity),
+                price: closePrice,
+                pnl,
+                exchange: 'paper-trading',
+                executedAt: new Date(),
+              },
+            });
+          } catch (tradeErr: any) {
+            this.logger.warn(`⚔️ Failed to record closing trade for stale position ${oldestPosition.id}: ${tradeErr.message}`);
+          }
+
+          // Update user daily PnL
+          userState.dailyPnL += pnl;
+
+          openPositionsCount--;
+          this.logger.log(
+            `⚔️ Paper trading: auto-closed stale position ${oldestPosition.symbol} ` +
+            `(id: ${oldestPosition.id}, PnL: $${pnl.toFixed(2)}) to make room for new brief`,
+          );
+        }
+      } catch (closeErr: any) {
+        this.logger.warn(`⚔️ Failed to auto-close stale position for paper user ${userId}: ${closeErr.message}`);
+      }
+    }
+
+    if (openPositionsCount >= maxPositions) {
       return; // At max positions
     }
 
@@ -874,58 +938,73 @@ export class SmartExecutorService implements OnModuleDestroy {
     userState: UserExecutorState,
     portfolioValue: number,
   ): Promise<void> {
-    // 2. Get current price
-    // FIX: Use orchestrator's fetchQuickMarketData first (multiple parallel sources,
-    // works on Railway), then fall back to ExchangeService.
-    let currentPrice: number = 0;
-    try {
-      const marketData = await this.orchestrator.fetchQuickMarketData(brief.pair);
-      currentPrice = marketData.price;
-    } catch {}
+    // ── Paper Trading: Skip live price verification ──
+    // FIX: For paper trading, the brief's entry price IS the execution price.
+    // Paper trading doesn't need live price verification because:
+    // 1. Paper orders are simulated — no real exchange connection needed
+    // 2. Price fetch failures (common on Railway) were blocking ALL paper trades
+    // 3. The brief itself is the signal — paper trading should just execute it
+    let currentPrice: number = brief.entryPrice;
 
-    if (!currentPrice || currentPrice <= 0) {
+    if (!userState.isPaperTrading) {
+      // Real trading: Must verify live price before execution
+      // FIX: Use orchestrator's fetchQuickMarketData first (multiple parallel sources,
+      // works on Railway), then fall back to ExchangeService.
       try {
-        const quote = await this.exchangeService.getQuote(brief.pair);
-        currentPrice = quote.price;
-      } catch (priceErr: any) {
-        this.logger.debug(`⚔️ Cannot get price for ${brief.pair}: ${priceErr.message} — skipping brief ${brief.id}`);
-        return; // Can't get price — skip
-      }
-    }
+        const marketData = await this.orchestrator.fetchQuickMarketData(brief.pair);
+        currentPrice = marketData.price;
+      } catch {}
 
-    // FIX: Validate fetched price against brief's entry price.
-    // Sometimes fetchQuickMarketData returns wrong prices (e.g., 0.99 for USD/JPY
-    // instead of ~157). This happens because some data sources return inverse rates
-    // or use different quote conventions. If the fetched price is more than 20%
-    // away from the brief's entry price, it's likely wrong — use the entry price.
-    if (currentPrice > 0 && brief.entryPrice > 0) {
-      const priceDeviation = Math.abs(currentPrice - brief.entryPrice) / brief.entryPrice;
-      if (priceDeviation > 0.2) {
-        this.logger.warn(
-          `⚔️ Fetched price ${currentPrice} for ${brief.pair} deviates ${(priceDeviation * 100).toFixed(1)}% from brief entry ${brief.entryPrice} — using entry price instead`,
-        );
-        currentPrice = brief.entryPrice;
+      if (!currentPrice || currentPrice <= 0) {
+        try {
+          const quote = await this.exchangeService.getQuote(brief.pair);
+          currentPrice = quote.price;
+        } catch (priceErr: any) {
+          this.logger.debug(`⚔️ Cannot get price for ${brief.pair}: ${priceErr.message} — skipping brief ${brief.id}`);
+          return; // Can't get price — skip
+        }
       }
+
+      // FIX: Validate fetched price against brief's entry price.
+      // Sometimes fetchQuickMarketData returns wrong prices (e.g., 0.99 for USD/JPY
+      // instead of ~157). This happens because some data sources return inverse rates
+      // or use different quote conventions. If the fetched price is more than 20%
+      // away from the brief's entry price, it's likely wrong — use the entry price.
+      if (currentPrice > 0 && brief.entryPrice > 0) {
+        const priceDeviation = Math.abs(currentPrice - brief.entryPrice) / brief.entryPrice;
+        if (priceDeviation > 0.2) {
+          this.logger.warn(
+            `⚔️ Fetched price ${currentPrice} for ${brief.pair} deviates ${(priceDeviation * 100).toFixed(1)}% from brief entry ${brief.entryPrice} — using entry price instead`,
+          );
+          currentPrice = brief.entryPrice;
+        }
+      }
+    } else {
+      this.logger.debug(`⚔️ Paper trading: using brief entry price ${brief.entryPrice} for ${brief.pair} (no live price check)`);
     }
 
     // 2. Check strict rules
     const strictRules: StrictRules = brief.strictRules || { maxSlippage: this.config.defaultSlippage };
 
-    // Check max entry price (for BUY — don't buy above this)
-    if (strictRules.maxEntryPrice && currentPrice > strictRules.maxEntryPrice) {
-      // Price too high — brief violated for now, but don't cancel (may come back in range)
-      this.logger.debug(`⚔️ Brief ${brief.id} price ${currentPrice} > maxEntry ${strictRules.maxEntryPrice} — waiting`);
-      return;
-    }
+    // Paper trading: Skip strict entry price rules (brief IS the signal)
+    if (!userState.isPaperTrading) {
+      // Check max entry price (for BUY — don't buy above this)
+      if (strictRules.maxEntryPrice && currentPrice > strictRules.maxEntryPrice) {
+        // Price too high — brief violated for now, but don't cancel (may come back in range)
+        this.logger.debug(`⚔️ Brief ${brief.id} price ${currentPrice} > maxEntry ${strictRules.maxEntryPrice} — waiting`);
+        return;
+      }
 
-    // Check min entry price (for SELL — don't sell below this)
-    if (strictRules.minEntryPrice && currentPrice < strictRules.minEntryPrice) {
-      this.logger.debug(`⚔️ Brief ${brief.id} price ${currentPrice} < minEntry ${strictRules.minEntryPrice} — waiting`);
-      return;
+      // Check min entry price (for SELL — don't sell below this)
+      if (strictRules.minEntryPrice && currentPrice < strictRules.minEntryPrice) {
+        this.logger.debug(`⚔️ Brief ${brief.id} price ${currentPrice} < minEntry ${strictRules.minEntryPrice} — waiting`);
+        return;
+      }
     }
 
     // 3. Check if entry conditions are met
-    const conditionsMet = this._areEntryConditionsMet(brief, currentPrice, strictRules);
+    // FIX: Paper trading always meets entry conditions — the brief itself is the signal
+    const conditionsMet = userState.isPaperTrading || this._areEntryConditionsMet(brief, currentPrice, strictRules);
 
     if (conditionsMet) {
       // EXECUTE THE TRADE!

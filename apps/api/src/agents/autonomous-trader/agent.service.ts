@@ -1019,10 +1019,15 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    */
   private async _processAgentCycle(userId: string): Promise<void> {
     const state = await this._getAgentState(userId);
-    if (!state || state.status !== AgentStatus.RUNNING) return;
+    if (!state) return;
 
-    // Reset daily stats if new day
+    // FIX: Reset daily stats BEFORE the status check so that agents with
+    // DAILY_LIMIT_REACHED status from a previous day can recover. Previously,
+    // the daily reset happened AFTER the status check, so DAILY_LIMIT_REACHED
+    // agents would always be skipped and could never recover on a new day.
     this._resetDailyStatsIfNeeded(state);
+
+    if (state.status !== AgentStatus.RUNNING) return;
 
     // Check if daily loss limit reached
     const dailyLimitReached = await this.riskCalculator.isDailyLimitReached(

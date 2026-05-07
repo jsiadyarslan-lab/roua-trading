@@ -785,6 +785,24 @@ EOSQL
     EXCEPTION WHEN duplicate_object THEN NULL;
     END $$;
 
+    -- FIX: PredictionDirection enum (was missing — required by PredictionEvent model)
+    DO $$ BEGIN
+      CREATE TYPE "PredictionDirection" AS ENUM ('UP', 'DOWN', 'VOLATILE', 'NEUTRAL');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    -- FIX: HedgeComplexity enum (was missing — required by PredictionEvent model)
+    DO $$ BEGIN
+      CREATE TYPE "HedgeComplexity" AS ENUM ('LOW', 'MEDIUM', 'HIGH');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    -- FIX: TimeHorizon enum (was missing — required by PredictionEvent model)
+    DO $$ BEGIN
+      CREATE TYPE "TimeHorizon" AS ENUM ('IMMEDIATE', 'SHORT', 'MEDIUM', 'LONG');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
     DO $$ BEGIN
       CREATE TYPE "ContentArticleStatus" AS ENUM ('DRAFT', 'IN_REVIEW', 'APPROVED', 'PUBLISHED', 'SCHEDULED', 'ARCHIVED', 'REJECTED');
     EXCEPTION WHEN duplicate_object THEN NULL;
@@ -1566,106 +1584,38 @@ EOSQL
   # prisma db push may have created a native PostgreSQL enum for AgentStrategy
   # but only with the original values. The app uses MOMENTUM_BREAKOUT, MEAN_REVERSION,
   # DCA, VWAP_RSI, GRID which are missing from the enum, causing query failures.
+  # FIX: Only add values that match the Prisma schema exactly.
+  # Previously, bogus values (REJECTED, CLOSED, EXPIRED for AgentTradeStatus;
+  # TIMEOUT, SIGNAL_REVERSAL for AgentExitReason) were being added, which
+  # caused enum drift between the DB and Prisma schema.
   cat > /tmp/fix_agent_strategy_enum.sql <<'EOSQL'
-    DO $$ BEGIN
-      ALTER TYPE "AgentStrategy" ADD VALUE 'MOMENTUM_BREAKOUT';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
+    -- AgentStrategy: matches Prisma enum exactly
+    ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'AUTO';
+    ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'SCALPING';
+    ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'SWING';
+    ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'GRID';
+    ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'MEAN_REVERSION';
+    ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'MOMENTUM_BREAKOUT';
+    ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'DCA';
+    ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'VWAP_RSI';
 
-    DO $$ BEGIN
-      ALTER TYPE "AgentStrategy" ADD VALUE 'MEAN_REVERSION';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
+    -- AgentTradeStatus: matches Prisma enum exactly
+    -- (PENDING, FILLED, PARTIALLY_FILLED, CANCELLED, FAILED only)
+    -- NOTE: REJECTED, CLOSED, EXPIRED were previously added erroneously — removed.
+    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'PENDING';
+    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'FILLED';
+    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'PARTIALLY_FILLED';
+    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'CANCELLED';
+    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'FAILED';
 
-    DO $$ BEGIN
-      ALTER TYPE "AgentStrategy" ADD VALUE 'DCA';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-
-    DO $$ BEGIN
-      ALTER TYPE "AgentStrategy" ADD VALUE 'VWAP_RSI';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-
-    DO $$ BEGIN
-      ALTER TYPE "AgentStrategy" ADD VALUE 'GRID';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-
-    DO $$ BEGIN
-      ALTER TYPE "AgentStrategy" ADD VALUE 'AUTO';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-
-    DO $$ BEGIN
-      ALTER TYPE "AgentStrategy" ADD VALUE 'SCALPING';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-
-    DO $$ BEGIN
-      ALTER TYPE "AgentStrategy" ADD VALUE 'SWING';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-
-    DO $$ BEGIN
-      ALTER TYPE "AgentTradeStatus" ADD VALUE 'PENDING';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-
-    DO $$ BEGIN
-      ALTER TYPE "AgentTradeStatus" ADD VALUE 'FILLED';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-
-    DO $$ BEGIN
-      ALTER TYPE "AgentTradeStatus" ADD VALUE 'PARTIALLY_FILLED';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-
-    DO $$ BEGIN
-      ALTER TYPE "AgentTradeStatus" ADD VALUE 'CANCELLED';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-
-    DO $$ BEGIN
-      ALTER TYPE "AgentTradeStatus" ADD VALUE 'REJECTED';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-
-    DO $$ BEGIN
-      ALTER TYPE "AgentTradeStatus" ADD VALUE 'CLOSED';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-
-    DO $$ BEGIN
-      ALTER TYPE "AgentTradeStatus" ADD VALUE 'EXPIRED';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-
-    DO $$ BEGIN
-      ALTER TYPE "AgentExitReason" ADD VALUE 'TAKE_PROFIT';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-
-    DO $$ BEGIN
-      ALTER TYPE "AgentExitReason" ADD VALUE 'STOP_LOSS';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-
-    DO $$ BEGIN
-      ALTER TYPE "AgentExitReason" ADD VALUE 'MANUAL';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-
-    DO $$ BEGIN
-      ALTER TYPE "AgentExitReason" ADD VALUE 'TIMEOUT';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
-
-    DO $$ BEGIN
-      ALTER TYPE "AgentExitReason" ADD VALUE 'SIGNAL_REVERSAL';
-    EXCEPTION WHEN duplicate_object THEN NULL;
-    END $$;
+    -- AgentExitReason: matches Prisma enum exactly
+    -- (TAKE_PROFIT, STOP_LOSS, MANUAL, TRAILING_STOP, STRATEGY_EXIT only)
+    -- NOTE: TIMEOUT, SIGNAL_REVERSAL were previously added erroneously — removed.
+    ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'TAKE_PROFIT';
+    ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'STOP_LOSS';
+    ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'MANUAL';
+    ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'TRAILING_STOP';
+    ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'STRATEGY_EXIT';
 EOSQL
 
   echo "📦 Fixing AgentStrategy enum values..."

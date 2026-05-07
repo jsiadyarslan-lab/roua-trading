@@ -83,6 +83,22 @@ function addSecurityHeaders(response: NextResponse, request: NextRequest): NextR
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // ── CRITICAL: RSC payload requests MUST pass through immediately ──
+  // These are the fetch requests Next.js App Router makes when navigating
+  // between pages (client-side routing). They carry the RSC header or
+  // _rsc= query param. ANY interception — redirects, auth checks, header
+  // injection — breaks the navigation and causes "Node cannot be found"
+  // errors and page freeze. This bypass MUST be the very first check.
+  const isRSC =
+    request.headers.get('rsc') === '1' ||
+    request.nextUrl.searchParams.has('_rsc') ||
+    request.headers.get('next-router-prefetch') === '1' ||
+    request.headers.get('next-router-state-tree') !== null
+
+  if (isRSC) {
+    return NextResponse.next()
+  }
+
   // ── Static assets: pass through with security headers ──
   if (pathname.startsWith('/_next/')) {
     return addSecurityHeaders(NextResponse.next(), request)

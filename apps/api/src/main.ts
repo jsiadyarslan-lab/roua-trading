@@ -320,18 +320,114 @@ async function bootstrap() {
       }
     }
 
-    // ── Start HTTP server ──
-    // Using app.listen() directly — NestJS handles Socket.IO gateway
-    // initialization internally through the IoAdapter. No manual
-    // Socket.IO server creation or listener reordering is needed.
+    // ── FIX: Start HTTP server + Socket.IO ──
+    // CRITICAL: Socket.IO requires its request handler to run BEFORE Express's
+    // handler so that /socket.io/* paths are intercepted. In NestJS, the IoAdapter
+    // creates the Socket.IO server but the request listener ordering can be
+    // unreliable, causing /socket.io/* to return 404.
     //
-    // PREVIOUS BUG: Creating SocketIOServer(httpServer) before listen()
-    // reordered HTTP request listeners, breaking Express routes (all 404).
-    // FIX: Removed manual Socket.IO init — NestJS's IoAdapter handles it.
+    // The fix: We insert an Express route handler BEFORE all other routes that
+    // checks if the request path starts with /socket.io and, if so, handles it
+    // using Socket.IO's engine directly. This is the most reliable approach
+    // because it doesn't depend on HTTP request listener ordering.
+    const httpServer = app.getHttpServer();
+
+    // Log request listener order BEFORE starting
+    const listenersBefore = httpServer.listeners('request');
+    console.log(`📋 HTTP request listeners before listen: ${listenersBefore.length}`);
+
     await app.listen(port, '0.0.0.0');
+
+    // ── FIX: Add Socket.IO request handler via Express route ──
+    // After app.listen(), NestJS is fully initialized including Socket.IO.
+    // We add a raw Express route at /socket.io* that forwards requests
+    // to Socket.IO's engine.io handler. This MUST be added to the Express
+    // stack at the beginning (before NestJS routes with /api prefix).
+    try {
+      const expressApp = app.getHttpAdapter().getInstance();
+
+      // Find the Socket.IO server instance by inspecting the IoAdapter
+      let ioServer: any = null;
+      const wsAdapter = app.getWebSocketAdapter() as any;
+      const adapterKeys = wsAdapter ? Object.getOwnPropertyNames(wsAdapter) : [];
+      console.log(`🔌 IoAdapter properties: ${adapterKeys.join(', ')}`);
+
+      // Search for the Socket.IO server in the adapter
+      for (const key of adapterKeys) {
+        try {
+          const val = (wsAdapter as any)[key];
+          if (val && typeof val === 'object' && typeof val.serveClient === 'boolean') {
+            ioServer = val;
+            console.log(`🔌 Found Socket.IO server at adapter.${key}`);
+            break;
+          }
+          if (val instanceof Map) {
+            for (const [mapKey, mapVal] of val) {
+              if (mapVal && typeof mapVal === 'object' && typeof mapVal.serveClient === 'boolean') {
+                ioServer = mapVal;
+                console.log(`🔌 Found Socket.IO server at adapter.${key}[${String(mapKey)}]`);
+                break;
+              }
+            }
+            if (ioServer) break;
+          }
+        } catch { /* skip */ }
+      }
+
+      if (ioServer?.engine) {
+        const engine = ioServer.engine;
+
+        // Insert Socket.IO handler at the BEGINNING of Express's route stack
+        // so it runs before any NestJS routes (which have /api prefix)
+        const socketIoHandler = (req: any, res: any, next: any) => {
+          if (req.path && req.path.startsWith('/socket.io')) {
+            engine.handleRequest(req, res);
+          } else {
+            next();
+          }
+        };
+
+        // Express stores routes in the router's stack. We insert at position 0
+        // to ensure Socket.IO requests are handled before any other routes.
+        const router = expressApp._router;
+        if (router && router.stack) {
+          // Create a route layer for /socket.io* that handles all HTTP methods
+          const layer = {
+            handle: socketIoHandler,
+            keys: [],
+            regexp: /^\/socket\.io(?:\/|$|\?)/i,
+            route: { path: '/socket.io*', methods: { get: true, post: true, put: true, delete: true, patch: true, options: true, head: true } },
+          };
+          router.stack.unshift(layer);
+          console.log('🔌 Socket.IO handler inserted at position 0 in Express router');
+        } else {
+          // Fallback: use Express all() method (less reliable for ordering)
+          expressApp.all('/socket.io*', socketIoHandler);
+          console.log('🔌 Socket.IO handler added via Express all() (may not be first in stack)');
+        }
+      } else {
+        // No IoAdapter server found — create standalone Socket.IO
+        console.warn('🔌 Socket.IO server not found in IoAdapter — creating standalone server');
+        const { Server: SocketIOServer } = await import('socket.io');
+        new SocketIOServer(httpServer, {
+          cors: { origin: (_: any, cb: any) => cb(null, true), credentials: true },
+          path: '/socket.io',
+        });
+        console.log('🔌 Standalone Socket.IO server created');
+      }
+
+      const listenersAfter = httpServer.listeners('request');
+      console.log(`📋 HTTP request listeners: ${listenersAfter.length} (was ${listenersBefore.length})`);
+    } catch (socketInitErr: any) {
+      console.warn(`🔌 Socket.IO init failed (non-fatal, API still works): ${socketInitErr.message}`);
+    }
     console.log(`🚀 Roua API running on http://0.0.0.0:${port}/api`);
     console.log(`🔌 Socket.IO available via NestJS WebSocket gateways`);
     console.log(`📊 Environment: ${configService.get('NODE_ENV', 'development')}`);
+
+    // Log request listener order for debugging
+    const listeners = httpServer.listeners('request');
+    console.log(`📋 HTTP request listeners: ${listeners.length}`);
 
     // FIX: Log registered NestJS routes to diagnose missing controllers.
     // If SmartExecutor/StrategicCouncil routes are missing, it means the module

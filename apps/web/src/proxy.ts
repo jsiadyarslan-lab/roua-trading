@@ -142,25 +142,11 @@ export function proxy(request: NextRequest) {
     return addSecurityHeaders(NextResponse.next(), request)
   }
 
-  // ── Detect mobile device using user agent ──
-  const userAgent = request.headers.get('user-agent') || ''
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent)
-
-  // ── Mobile auto-redirects ──
-  if (isMobile && pathname === '/dashboard') {
-    return addSecurityHeaders(NextResponse.redirect(new URL('/mobile', request.url)), request)
-  }
-  if (isMobile && pathname.startsWith('/dashboard/')) {
-    // Only redirect main pages, ignore admin
-    if (!pathname.startsWith('/dashboard/admin')) {
-      const mobilePath = pathname.replace('/dashboard', '/mobile')
-      return addSecurityHeaders(NextResponse.redirect(new URL(mobilePath, request.url)), request)
-    }
-  }
-  if (!isMobile && pathname.startsWith('/mobile')) {
-    const desktopPath = pathname.replace('/mobile', '/dashboard')
-    return addSecurityHeaders(NextResponse.redirect(new URL(desktopPath, request.url)), request)
-  }
+  // NOTE: Mobile/desktop auto-redirect is intentionally removed.
+  // User-agent-based redirects in the proxy intercept RSC navigation fetch
+  // requests and send 308 redirects instead of RSC payloads, breaking
+  // client-side navigation completely. Both /mobile and /dashboard routes
+  // work independently without this redirect.
 
   // ── Admin API routes: pass through (auth handled by route handlers) ──
   if (pathname.startsWith('/dashboard/admin/api/')) {

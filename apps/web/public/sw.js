@@ -1,16 +1,13 @@
-const CACHE_NAME = 'roua-v8';
+const CACHE_NAME = 'roua-v9';
 
 const APP_SHELL = [
-  '/',
-  '/dashboard',
-  '/mobile',
   '/manifest.json',
   '/favicon.svg',
   '/icon-192.png',
   '/icon-512.png',
 ];
 
-// Install: cache app shell
+// Install: cache only static assets (NOT HTML pages)
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -34,17 +31,11 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Helper: only GET requests can be cached
-function isCacheable(request) {
-  return request.method === 'GET';
-}
-
 // ── Push Notification Support ──
 
-// Receive push messages from the server
 self.addEventListener('push', (event) => {
   let data = {
-    title: 'روعة التجارية',
+    title: 'رؤى للتداول',
     body: 'لديك إشعار جديد',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
@@ -87,18 +78,13 @@ self.addEventListener('notificationclick', (event) => {
 
   if (event.action === 'dismiss') return;
 
-  // Determine correct URL based on which version (mobile/dashboard) the user was on
   const dataUrl = event.notification.data?.url || '';
-  // Smart default: if the notification specifies a URL use it, otherwise
-  // detect if the user was on mobile or dashboard and route accordingly
   let urlToOpen = dataUrl || '/dashboard';
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // If a window is already open, navigate and focus it
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
-          // If no explicit URL, detect mobile vs desktop from the client URL
           if (!dataUrl) {
             urlToOpen = client.url.includes('/mobile') ? '/mobile' : '/dashboard';
           }
@@ -106,111 +92,86 @@ self.addEventListener('notificationclick', (event) => {
           return client.focus();
         }
       }
-      // Otherwise open a new window
       return self.clients.openWindow(urlToOpen);
     })
   );
 });
 
-// ── Fetch: network-first for API, cache-first for static assets ──
-
+// ── Fetch: MINIMAL caching to never break Next.js navigation ──
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // ── FIX: Bypass Next.js RSC (React Server Components) routing requests ──
-  // Next.js App Router performs client-side navigation by fetching RSC payloads.
-  // If the SW intercepts these and serves cached HTML, the Next.js router crashes
-  // and the navigation silently fails (AbortError).
-  const isRSC = 
-    url.searchParams.has('_rsc') || 
-    request.headers.get('RSC') === '1' ||
-    request.headers.get('Next-Router-State-Tree') !== null ||
-    (request.headers.get('accept') || '').includes('text/x-component');
+  // ══════════════════════════════════════════════════════════════
+  // CRITICAL: Let the browser handle ALL navigation and HTML fetches
+  // DO NOT intercept:
+  //   - Any GET request for a page (text/html)
+  //   - RSC payload requests (Next.js client-side routing)
+  //   - Anything with _rsc query param
+  //   - Anything from the same origin that is a document navigation
+  // ══════════════════════════════════════════════════════════════
 
-  if (isRSC) {
-    return; // Bypass Service Worker completely for Next.js router fetches
+  // Pass through all navigation requests (clicking links, back/forward)
+  if (request.mode === 'navigate') {
+    return; // browser handles it natively
   }
 
-  // Non-GET requests: network only, no caching
-  if (!isCacheable(request)) {
+  // Pass through all RSC requests (Next.js App Router client-side navigation)
+  if (
+    url.searchParams.has('_rsc') ||
+    request.headers.get('RSC') === '1' ||
+    request.headers.get('rsc') === '1' ||
+    (request.headers.get('accept') || '').includes('text/x-component')
+  ) {
+    return; // bypass SW completely
+  }
+
+  // Pass through all API calls - never cache, always network
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/socket.io')) {
+    return; // browser handles it natively
+  }
+
+  // Only cache static assets (_next/static/) with cache-first strategy
+  if (url.pathname.startsWith('/_next/static/')) {
     event.respondWith(
-      fetch(request).catch(() => {
-        return new Response(JSON.stringify({ error: 'Network error' }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' },
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
         });
       })
     );
     return;
   }
 
-  // Network-first for API calls (GET only)
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Cache successful GET API responses briefly
-          if (response.ok && isCacheable(request)) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, clone);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          // Fallback to cache when offline
-          return caches.match(request);
-        })
-    );
-    return;
-  }
-
-  // Stale-while-revalidate for static assets (JS, CSS, images)
-  // This ensures the browser always gets a fresh version eventually
-  // while still being fast if cached. Prevents stale JS/HTML mismatch.
+  // Cache small static files (icons, manifest) with cache-first
   if (
-    request.destination === 'script' ||
-    request.destination === 'style' ||
     request.destination === 'image' ||
-    url.pathname.startsWith('/_next/static/')
+    url.pathname === '/manifest.json' ||
+    url.pathname === '/favicon.svg' ||
+    url.pathname.endsWith('.png') ||
+    url.pathname.endsWith('.ico')
   ) {
     event.respondWith(
       caches.match(request).then((cached) => {
-        // Always fetch fresh version in background, serve cached if available
-        const fetchPromise = fetch(request).then((response) => {
-          if (response.ok && isCacheable(request)) {
+        if (cached) return cached;
+        return fetch(request).then((response) => {
+          if (response.ok) {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, clone);
-            });
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           }
           return response;
-        }).catch(() => cached);
-        // Return cached immediately if available, otherwise wait for network
-        return cached || fetchPromise;
+        });
       })
     );
     return;
   }
 
-  // Network-first for everything else (HTML pages)
-  event.respondWith(
-    fetch(request)
-      .then((response) => {
-        if (response.ok && isCacheable(request)) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, clone);
-          });
-        }
-        return response;
-      })
-      .catch(() => {
-        return caches.match(request).then((cached) => {
-          return cached || caches.match('/dashboard');
-        });
-      })
-  );
+  // Everything else: network only, no caching, no fallback
+  // This prevents the SW from ever returning a stale/wrong response
+  // that breaks Next.js routing.
 });

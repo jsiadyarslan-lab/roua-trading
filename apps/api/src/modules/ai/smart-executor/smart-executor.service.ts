@@ -1376,11 +1376,46 @@ export class SmartExecutorService implements OnModuleDestroy {
       }
 
       if (!credential) {
-        result.error = 'No valid trading credential found for user';
-        this.logger.warn(`⚔️ No credential for user ${userId} — disabling executor`);
-        await this.disableUser(userId);
-        // Don't mark as processed — this is a user config issue, not a brief issue
-        return result;
+        // FIX: Instead of disabling the user entirely when no real credential is found,
+        // automatically fall back to paper trading. This handles the common case where
+        // ENCRYPTION_KEY changed and real credentials can't be decrypted — the user
+        // shouldn't lose all trading functionality just because of a key rotation.
+        this.logger.warn(
+          `⚔️ No real credential for user ${userId} — auto-falling back to paper trading`,
+        );
+
+        // Switch user to paper trading mode
+        userState.isPaperTrading = true;
+        userState.credentialId = undefined;
+
+        // Find or create paper-trading credential
+        credential = await this.prisma.exchangeCredential.findFirst({
+          where: { userId, exchange: 'paper-trading', isValid: true },
+        });
+
+        if (!credential) {
+          credential = await this.prisma.exchangeCredential.create({
+            data: {
+              userId,
+              exchange: 'paper-trading',
+              label: 'تداول ورقي (تجريبي)',
+              encryptedApiKey: 'paper',
+              encryptedSecret: 'paper',
+              iv: 'paper',
+              authTag: 'paper',
+              permissions: JSON.stringify(['read', 'trade']),
+              isValid: true,
+            },
+          });
+        }
+
+        // Persist the paper trading state so it survives restarts
+        await this.redis.set(
+          `${this.REDIS_USER_STATE_PREFIX}${userId}`,
+          JSON.stringify(userState),
+          86400000 * 7,
+        );
+        this._persistUserStateToDB(userId, userState).catch(() => {});
       }
 
       // Calculate position size based on risk

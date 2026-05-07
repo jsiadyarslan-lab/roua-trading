@@ -89,19 +89,20 @@ export function proxy(request: NextRequest) {
   }
 
   // ── Socket.IO: rewrite to NestJS backend ──
-  // FIX: Previously used NextResponse.next() which just passed the request to
-  // Next.js's internal router — but Next.js has no /socket.io route, so it
-  // returned 404. Socket.IO runs on NestJS (port 3001), so we must rewrite
-  // the request to the NestJS backend.
+  // FIX: Socket.IO runs on NestJS (port 3001). Next.js has no /socket.io route,
+  // so we must forward all /socket.io requests to NestJS.
   //
-  // The Next.js rewrites in next.config.ts also proxy /socket.io, but they
-  // sometimes fail to match URLs with trailing slashes (e.g., /socket.io/?EIO=4).
-  // Using NextResponse.rewrite() here is more reliable because it runs for
-  // every matching request regardless of URL pattern quirks.
+  // PROBLEM: Next.js applies a trailing-slash redirect (308) BEFORE proxy.ts
+  // rewrites take effect. So /socket.io/ (with slash) gets redirected to
+  // /socket.io (without slash). After the redirect, the client makes a new
+  // request to /socket.io which goes through proxy.ts again, but by then
+  // the Socket.IO handshake may fail because the path changed.
   //
-  // Socket.IO will use HTTP long-polling (works through NextResponse.rewrite).
-  // WebSocket upgrades are NOT supported through middleware rewrites, but
-  // Socket.IO automatically falls back to long-polling when WS fails.
+  // SOLUTION: We use NextResponse.rewrite() which transparently forwards the
+  // request to NestJS WITHOUT a client-side redirect. This works for both
+  // /socket.io and /socket.io/ paths. Socket.IO will use HTTP long-polling
+  // through the rewrite, and automatically falls back from WebSocket if
+  // WS upgrade fails (WebSocket upgrades can't go through middleware rewrites).
   if (pathname.startsWith('/socket.io')) {
     const apiInternalUrl = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001'
     const targetUrl = new URL(request.url)

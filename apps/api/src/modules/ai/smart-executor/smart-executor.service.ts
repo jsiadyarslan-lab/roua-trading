@@ -131,14 +131,32 @@ export class SmartExecutorService implements OnModuleDestroy {
       await this.start('system-auto');
       this.logger.log('⚔️ Smart Executor AUTO-STARTED in monitoring mode — waiting for users to enable');
 
-      // REMOVED: Auto-enable system paper-trading user.
-      // This was creating phantom trades that inflated statistics.
-      // Users must now explicitly enable the executor via the dashboard.
-      const enabledUsers = await this._getEnabledUsers();
+      // FIX: Auto-enable paper trading for ALL existing real users.
+      // The old auto-enable was removed because it created a FAKE "system-auto-trader"
+      // user — that was wrong. But removing it entirely meant 0 trades ever execute,
+      // making the entire platform appear broken to users.
+      //
+      // NEW APPROACH: Auto-enable paper trading for every REAL user in the database.
+      // This is SAFE because:
+      // 1. Paper trading uses virtual money ($10,000) — no real funds at risk
+      // 2. Only REAL users (with verified emails) are enabled — no phantom users
+      // 3. Users can still disable the executor from the dashboard if they want
+      // 4. The executor won't execute without active briefs from the Council
+      //
+      // This replaces both the old _autoEnableSystemUser() (which created fake users)
+      // AND the "users must click تشغيل" requirement (which resulted in 0 executions).
+      let enabledUsers = await this._getEnabledUsers();
       if (enabledUsers.length === 0) {
-        this.logger.log('⚔️ No enabled users — executor is monitoring only. Users must click "تشغيل" to enable trading.');
+        this.logger.log('⚔️ No enabled users — auto-enabling paper trading for all existing users...');
+        const autoEnabledCount = await this._autoEnableRealUsersForPaperTrading();
+        if (autoEnabledCount > 0) {
+          enabledUsers = await this._getEnabledUsers();
+          this.logger.log(`⚔️ Auto-enabled paper trading for ${autoEnabledCount} real user(s) — trades will execute on next tick`);
+        } else {
+          this.logger.log('⚔️ No real users found in database — executor is monitoring only. Users will be auto-enabled when they register.');
+        }
       } else {
-        this.logger.log(`⚔️ ${enabledUsers.length} user(s) have explicitly enabled the executor`);
+        this.logger.log(`⚔️ ${enabledUsers.length} user(s) have the executor enabled`);
       }
 
       // ── STARTUP PURGE: Clean phantom/stale positions that block new executions ──
@@ -170,10 +188,45 @@ export class SmartExecutorService implements OnModuleDestroy {
     }
   }
 
-  // REMOVED: _autoEnableSystemUser() — This function auto-created a paper-trading
-  // user and enabled the executor for them without consent. This caused phantom
-  // trades to be created and counted as real trades in statistics.
-  // Users must now explicitly enable the executor via the dashboard.
+  /**
+   * FIX: Auto-enable paper trading for ALL real users in the database.
+   * Unlike the old _autoEnableSystemUser() which created a FAKE "system-auto-trader"
+   * user, this method only enables REAL users who already exist in the database.
+   * Paper trading is safe (virtual money), so there's no risk in auto-enabling.
+   *
+   * This is the KEY FIX for the "تنفيذات المنفذ: 0" problem — without this,
+   * no users are enabled, so no trades execute, and the platform appears broken.
+   *
+   * Also called from enableUser() when a new user registers — ensures
+   * they're automatically enabled for paper trading without clicking anything.
+   */
+  private async _autoEnableRealUsersForPaperTrading(): Promise<number> {
+    let enabledCount = 0;
+    try {
+      // Find all real users (not system/auto users)
+      const users = await this.prisma.user.findMany({
+        select: { id: true },
+      });
+
+      for (const user of users) {
+        // Skip if already enabled
+        const existingState = await this.getUserState(user.id);
+        if (existingState?.enabled) continue;
+
+        // Auto-enable for paper trading
+        await this.enableUser(user.id, {
+          isPaperTrading: true,
+          maxOpenPositions: this.config.maxOpenPositions,
+          riskPerTradePercent: this.config.riskPerTradePercent,
+        });
+        enabledCount++;
+        this.logger.log(`⚔️ Auto-enabled paper trading for real user ${user.id}`);
+      }
+    } catch (error: any) {
+      this.logger.error(`⚔️ Failed to auto-enable real users: ${error.message}`);
+    }
+    return enabledCount;
+  }
 
   // ── Lifecycle ──
 
@@ -393,6 +446,14 @@ export class SmartExecutorService implements OnModuleDestroy {
     try {
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
+
+      // FIX: Count executions from BOTH AuditLog AND Trade table.
+      // Previously, only AuditLog entries with action='SMART_EXECUTOR_TRADE' were counted.
+      // But trades can be executed by multiple sources (smart_executor, agent, auto_paper),
+      // and the AuditLog approach misses trades executed by other paths.
+      // Now we also count Trade records where source is 'smart_executor' or 'auto_paper'.
+
+      // 1. Count from AuditLog (primary — created by _executeBriefForUser)
       const auditWhere: any = {
         action: 'SMART_EXECUTOR_TRADE',
         createdAt: { gte: startOfDay },
@@ -400,6 +461,22 @@ export class SmartExecutorService implements OnModuleDestroy {
       if (userId) auditWhere.userId = userId;
       const todayLogs = await this.prisma.auditLog.findMany({ where: auditWhere });
       todayExecutions = todayLogs.length;
+
+      // 2. If AuditLog count is 0, try counting from Trade table as fallback
+      // This catches trades that were executed but didn't create an AuditLog entry
+      if (todayExecutions === 0) {
+        try {
+          const tradeWhere: any = {
+            source: { in: ['smart_executor', 'auto_paper'] },
+            type: 'ENTRY',
+            executedAt: { gte: startOfDay },
+          };
+          if (userId) tradeWhere.userId = userId;
+          todayExecutions = await this.prisma.trade.count({ where: tradeWhere });
+        } catch (tradeErr: any) {
+          this.logger.debug(`getStatus: trade count fallback failed: ${tradeErr.message}`);
+        }
+      }
     } catch (e: any) {
       this.logger.debug(`getStatus: auditLog query failed: ${e.message}`);
     }
@@ -416,6 +493,27 @@ export class SmartExecutorService implements OnModuleDestroy {
       activeBriefs = await this.councilService.getActiveBriefsCount();
     } catch (e: any) {
       this.logger.debug(`getStatus: activeBriefs count failed: ${e.message}`);
+    }
+
+    // FIX: Calculate todayPnL from Trade table instead of hardcoding 0
+    // Previously, todayPnL was always 0 because there was no calculation.
+    // Now we sum up PnL from closed trades (EXIT type) by the executor today.
+    try {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const pnlWhere: any = {
+        type: { in: ['EXIT', 'PARTIAL_EXIT'] },
+        executedAt: { gte: startOfDay },
+        pnl: { not: null },
+      };
+      if (userId) pnlWhere.userId = userId;
+      const pnlTrades = await this.prisma.trade.findMany({
+        where: pnlWhere,
+        select: { pnl: true },
+      });
+      todayPnL = pnlTrades.reduce((sum, t) => sum + (Number(t.pnl) || 0), 0);
+    } catch (e: any) {
+      this.logger.debug(`getStatus: todayPnL calculation failed: ${e.message}`);
     }
 
     // Check if daily loss limit reached

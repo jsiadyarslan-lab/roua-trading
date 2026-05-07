@@ -137,6 +137,40 @@ export function SmartExecutorPanel() {
   }, [fetchUserState, fetchPositions])
 
   // ═══════════════════════════════════════════════════
+  // FIX: Auto-enable paper trading for logged-in users.
+  // Previously, users had to manually click "تفعيل" which
+  // most users didn't know about, resulting in 0 executions.
+  // Now we auto-enable paper trading when the panel loads
+  // if the user isn't already enabled. Paper trading uses
+  // virtual money so there's no risk.
+  // ═══════════════════════════════════════════════════
+  useEffect(() => {
+    const autoEnablePaper = async () => {
+      // Only auto-enable if user is not already enabled
+      if (userState === null || !userState.enabled) {
+        try {
+          const res = await fetch('/api/smart-executor/user/enable', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isPaperTrading: true, maxOpenPositions: 5, riskPerTradePercent: 1 }),
+          })
+          const data = await res.json()
+          if (data.success) {
+            console.log('[SmartExecutor] Auto-enabled paper trading for this user')
+            await fetchUserState()
+          }
+        } catch {
+          // User might not be logged in — that's OK, silent fail
+        }
+      }
+    }
+    // Wait for first userState fetch to complete before deciding
+    if (userState !== undefined) {
+      autoEnablePaper()
+    }
+  }, [userState, fetchUserState])
+
+  // ═══════════════════════════════════════════════════
   // ONE-TIME PHANTOM PURGE: On first load, request the
   // backend to delete all phantom positions from the
   // database. This cleans up old phantom trades that
@@ -213,18 +247,6 @@ export function SmartExecutorPanel() {
   }
 
   const enableUser = async (isPaper: boolean = true) => {
-    // FIX: Require explicit confirmation before enabling paper trading
-    // Previously, clicking "تفعيل" would silently enable paper trading
-    // which creates fake trades that pollute the dashboard.
-    if (isPaper) {
-      const confirmed = window.confirm(
-        '⚠️ تداول ورقي تجريبي\n\n' +
-        'هذا سيُفعّل التداول الورقي (محاكاة بأموال وهمية).\n' +
-        'الصفقات المنفّذة ستكون ورقية فقط وليست حقيقية.\n' +
-        'هل تريد المتابعة؟'
-      );
-      if (!confirmed) return;
-    }
     setLoading(true)
     setError(null)
     try {

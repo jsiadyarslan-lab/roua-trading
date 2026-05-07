@@ -87,6 +87,14 @@ async function runSchemaMigrations(): Promise<void> {
     `ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'STRATEGY_EXIT'`,
     `ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'TIMEOUT'`,
     `ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'SIGNAL_REVERSAL'`,
+    // ── AutonomousTrade: Convert TEXT columns to native enum types ──
+    // The original migration created strategy/status/exitReason as TEXT,
+    // but the Prisma schema defines them as native PostgreSQL enums.
+    // Without this ALTER, Prisma reads/writes using typed enums but
+    // the database stores TEXT, causing "invalid input value for enum" errors.
+    `ALTER TABLE "AutonomousTrade" ALTER COLUMN "strategy" TYPE "AgentStrategy" USING "strategy"::"AgentStrategy"`,
+    `ALTER TABLE "AutonomousTrade" ALTER COLUMN "status" TYPE "AgentTradeStatus" USING "status"::"AgentTradeStatus"`,
+    `ALTER TABLE "AutonomousTrade" ALTER COLUMN "exitReason" TYPE "AgentExitReason" USING "exitReason"::"AgentExitReason"`,
     // ── Session table: cross-device sync columns (CRITICAL for Google OAuth + refresh tokens) ──
     // These MUST be added before any session.create() call, because Prisma's
     // RETURNING clause references ALL model columns. If any column is missing,

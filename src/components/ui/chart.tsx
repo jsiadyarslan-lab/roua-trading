@@ -4,6 +4,7 @@ import * as React from "react"
 import * as RechartsPrimitive from "recharts"
 
 import { cn } from "@/lib/utils"
+import { useScopedStyle } from "@/hooks/useScopedStyle"
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const
@@ -74,16 +75,10 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     ([, config]) => config.theme || config.color
   )
 
-  if (!colorConfig.length) {
-    return null
-  }
-
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
+  const css = colorConfig.length
+    ? Object.entries(THEMES)
+        .map(
+          ([theme, prefix]) => `
 ${prefix} [data-chart=${id}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
@@ -95,11 +90,16 @@ ${colorConfig
   .join("\n")}
 }
 `
-          )
-          .join("\n"),
-      }}
-    />
-  )
+        )
+        .join("\n")
+    : ""
+
+  // FIX: Use useScopedStyle() instead of <style> JSX tag.
+  // In Next.js 16, <style> tags in client components cause
+  // "Node cannot be found in the current page" errors during soft navigation.
+  useScopedStyle(css)
+
+  return null
 }
 
 const ChartTooltip = RechartsPrimitive.Tooltip

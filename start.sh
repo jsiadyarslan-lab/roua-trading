@@ -1312,7 +1312,61 @@ EOSQL
     echo "⚠️ AgentStrategy enum fix had issues (values may already exist or enum is TEXT)"
   fi
 
-  rm -f /tmp/ensure_tables.sql /tmp/add_missing_columns.sql /tmp/fix_agent_strategy_enum.sql
+  # ── Step 3d: Alter AutonomousTrade columns from TEXT to native enum types ──
+  # The original migration created strategy/status/exitReason as TEXT columns,
+  # but the Prisma schema now defines them as native PostgreSQL enums.
+  # prisma db push often fails to alter column types, leaving them as TEXT.
+  # This causes "invalid input value for enum" errors when Prisma tries to
+  # read/write using the typed enum. We must ALTER the column types.
+  cat > /tmp/fix_enum_columns.sql <<'EOSQL'
+    -- Alter AutonomousTrade.strategy from TEXT to AgentStrategy enum
+    DO $$ BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'AutonomousTrade' AND column_name = 'strategy'
+        AND data_type = 'text'
+      ) THEN
+        ALTER TABLE "AutonomousTrade" ALTER COLUMN "strategy" TYPE "AgentStrategy" USING "strategy"::"AgentStrategy";
+      END IF;
+    EXCEPTION WHEN others THEN
+      RAISE NOTICE 'AutonomousTrade.strategy alter failed: %', SQLERRM;
+    END $$;
+
+    -- Alter AutonomousTrade.status from TEXT to AgentTradeStatus enum
+    DO $$ BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'AutonomousTrade' AND column_name = 'status'
+        AND data_type = 'text'
+      ) THEN
+        ALTER TABLE "AutonomousTrade" ALTER COLUMN "status" TYPE "AgentTradeStatus" USING "status"::"AgentTradeStatus";
+      END IF;
+    EXCEPTION WHEN others THEN
+      RAISE NOTICE 'AutonomousTrade.status alter failed: %', SQLERRM;
+    END $$;
+
+    -- Alter AutonomousTrade.exitReason from TEXT to AgentExitReason enum
+    DO $$ BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'AutonomousTrade' AND column_name = 'exitReason'
+        AND data_type = 'text'
+      ) THEN
+        ALTER TABLE "AutonomousTrade" ALTER COLUMN "exitReason" TYPE "AgentExitReason" USING "exitReason"::"AgentExitReason";
+      END IF;
+    EXCEPTION WHEN others THEN
+      RAISE NOTICE 'AutonomousTrade.exitReason alter failed: %', SQLERRM;
+    END $$;
+EOSQL
+
+  echo "📦 Fixing AutonomousTrade enum columns (TEXT → native enum)..."
+  if run_prisma db execute --schema=./prisma/schema.prisma --file /tmp/fix_enum_columns.sql 2>&1; then
+    echo "✅ AutonomousTrade enum columns fixed successfully"
+  else
+    echo "⚠️ AutonomousTrade enum column fix had issues (columns may already be enum type)"
+  fi
+
+  rm -f /tmp/ensure_tables.sql /tmp/add_missing_columns.sql /tmp/fix_agent_strategy_enum.sql /tmp/fix_enum_columns.sql
 else
   echo "⚠️ No DATABASE_URL — skipping table verification"
 fi

@@ -91,7 +91,10 @@ export function proxy(request: NextRequest) {
   // ── Socket.IO: pass through without interference ──
   // In production, Caddy proxies /socket.io/* directly to NestJS (port 3001).
   // In dev, Next.js rewrites handle it. Either way, we must NOT block it here.
-  if (pathname.startsWith('/socket.io/')) {
+  // FIX: Match both /socket.io/ (with trailing slash) and /socket.io (without)
+  // because Socket.IO clients initially connect to /socket.io?EIO=4&transport=polling
+  // (no trailing slash before the query string).
+  if (pathname.startsWith('/socket.io')) {
     return addSecurityHeaders(NextResponse.next(), request)
   }
 

@@ -30,7 +30,9 @@
         # Socket.IO — proxy directly to NestJS (bypasses Next.js rewrites which can't
         # reliably forward Socket.IO long-polling HTTP requests). This fixes the 404 on
         # /socket.io/?EIO=4&transport=polling that causes WebSocket connection failures.
-        handle /socket.io/* {
+        # FIX: Handle both /socket.io (no trailing slash) and /socket.io/* (with sub-path)
+        # because Socket.IO clients initially connect to /socket.io?EIO=4&transport=polling
+        handle /socket.io* {
                 reverse_proxy localhost:3001 {
                         header_up Host {host}
                         header_up X-Forwarded-For {remote_host}

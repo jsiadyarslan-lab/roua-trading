@@ -854,7 +854,8 @@ export class SmartExecutorService implements OnModuleDestroy {
               status: 'CLOSED',
               closedAt: new Date(),
               currentPrice: closePrice,
-              pnl,
+              realizedPnl: pnl,
+              unrealizedPnl: 0,
             },
           });
 

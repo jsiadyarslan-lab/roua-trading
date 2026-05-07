@@ -1,4 +1,4 @@
-const CACHE_NAME = 'roua-v6';
+const CACHE_NAME = 'roua-v7';
 
 const APP_SHELL = [
   '/',
@@ -117,6 +117,14 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+
+  // ── FIX: Bypass Next.js RSC (React Server Components) routing requests ──
+  // Next.js App Router performs client-side navigation by fetching RSC payloads.
+  // If the SW intercepts these and serves cached HTML, the Next.js router crashes
+  // and the navigation silently fails (AbortError).
+  if (url.searchParams.has('_rsc') || request.headers.get('RSC') === '1') {
+    return; // Bypass Service Worker completely for Next.js router fetches
+  }
 
   // Non-GET requests: network only, no caching
   if (!isCacheable(request)) {

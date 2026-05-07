@@ -64,8 +64,10 @@ export function AlpacaPositions() {
         id: position.rawSymbol ?? position.symbol,
         isPaper: false,
         entryTime: manualPaper?.entryTime || null,
-        tp: manualPaper?.tp || null,
-        sl: manualPaper?.sl || null,
+        // CRITICAL FIX: Read SL/TP from position data returned by backend API first.
+        // Previously only read from local paperTrades, so executor trades always showed "—".
+        tp: (position as any).takeProfit || (position as any).tp || manualPaper?.tp || null,
+        sl: (position as any).stopLoss || (position as any).sl || manualPaper?.sl || null,
       }
     }),
     ...paperTrades

@@ -18,9 +18,6 @@ function extractSessionFromCookie(cookieHeader: string | undefined): string | nu
 
 async function bootstrap() {
   try {
-    // FIX #2: Enable graceful shutdown — ensures in-flight requests complete
-    // before the process exits, preventing 502 errors during Railway deploys.
-    // Without this, SIGTERM kills the process immediately, causing connection drops.
     const app = await NestFactory.create(AppModule, {
       logger: ['error', 'warn', 'log'],
     });
@@ -31,7 +28,7 @@ async function bootstrap() {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // Needed for Next.js
+          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
           styleSrc: ["'self'", "'unsafe-inline'"],
           imgSrc: ["'self'", "data:", "https:"],
           connectSrc: ["'self'", "wss:", "https:"],
@@ -40,14 +37,14 @@ async function bootstrap() {
           objectSrc: ["'none'"],
         },
       },
-      crossOriginEmbedderPolicy: false, // Allow cross-origin resources
+      crossOriginEmbedderPolicy: false,
       crossOriginOpenerPolicy: { policy: 'same-origin' },
       crossOriginResourcePolicy: { policy: 'same-origin' },
       hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
       referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     }));
 
-    // BUG 11 FIX: Add Cache-Control headers based on response type.
+    // Cache-Control headers based on response type
     app.use((req: any, res: any, next: any) => {
       const originalEnd = res.end;
       res.end = function (...args: any[]) {
@@ -110,111 +107,17 @@ async function bootstrap() {
     });
 
     // ── Socket.IO Setup ──
-    // FIX: Attach Socket.IO to NestJS's HTTP server and ensure its request handler
-    // runs BEFORE Express's handler. Socket.IO's init() method reorders the HTTP
-    // server's 'request' listeners so that Socket.IO checks the path first.
-    // If the path matches /socket.io/, Socket.IO handles it; otherwise, Express
-    // processes the request normally.
+    // NestJS IoAdapter handles Socket.IO initialization and request listener
+    // ordering internally. No manual Socket.IO server creation or Express
+    // stack manipulation is needed — just register the adapter.
     app.useWebSocketAdapter(new IoAdapter(app));
 
     // Global prefix for all routes
     app.setGlobalPrefix('api');
 
-    // ── DIAGNOSTIC: Check module loading ──
-    // Log which modules successfully initialized by checking if their services exist
-    try {
-      const { SmartExecutorService } = await import('./modules/ai/smart-executor/smart-executor.service');
-      const { StrategicCouncilService } = await import('./modules/ai/strategic-council/strategic-council.service');
-      const { AutonomousTraderAgentService } = await import('./agents/autonomous-trader/agent.service');
-
-      let smartExecutorLoaded = false;
-      let strategicCouncilLoaded = false;
-      let agentLoaded = false;
-
-      try { app.get(SmartExecutorService); smartExecutorLoaded = true; } catch { smartExecutorLoaded = false; }
-      try { app.get(StrategicCouncilService); strategicCouncilLoaded = true; } catch { strategicCouncilLoaded = false; }
-      try { app.get(AutonomousTraderAgentService); agentLoaded = true; } catch { agentLoaded = false; }
-
-      console.log(`📋 SmartExecutorService: ${smartExecutorLoaded ? '✅ LOADED' : '❌ NOT LOADED'}`);
-      console.log(`📋 StrategicCouncilService: ${strategicCouncilLoaded ? '✅ LOADED' : '❌ NOT LOADED'}`);
-      console.log(`📋 AutonomousTraderAgentService: ${agentLoaded ? '✅ LOADED' : '❌ NOT LOADED'}`);
-    } catch (diagErr: any) {
-      console.error(`📋 Module diagnostic import failed: ${diagErr.message}`);
-    }
-
     // ── Health check endpoint (no auth required) ──
     const prisma = app.get(PrismaService);
     const redisService = app.get(RedisService, { strict: false });
-
-    // ── DIAGNOSTIC: Direct Express route to check module loading (bypasses NestJS router) ──
-    app.getHttpAdapter().getInstance().get('/api/diagnostic/modules', async (req: any, res: any) => {
-      const modules: Record<string, any> = {};
-      const servicesToCheck = [
-        { name: 'SmartExecutorService', token: 'SmartExecutorService' },
-        { name: 'StrategicCouncilService', token: 'StrategicCouncilService' },
-        { name: 'AutonomousTraderAgentService', token: 'AutonomousTraderAgentService' },
-        { name: 'EngineController', token: 'EngineController' },
-        { name: 'ExchangeService', token: 'ExchangeService' },
-        { name: 'AIOrchestratorService', token: 'AIOrchestratorService' },
-        { name: 'NotificationService', token: 'NotificationService' },
-        { name: 'TradingService', token: 'TradingService' },
-      ];
-      for (const svc of servicesToCheck) {
-        try {
-          const container = app.getHttpAdapter().getInstance();
-          // Try to get the service from NestJS container
-          const { [svc.token]: ServiceClass } = await import(
-            svc.name.includes('Smart') ? './modules/ai/smart-executor/smart-executor.service' :
-            svc.name.includes('Strategic') ? './modules/ai/strategic-council/strategic-council.service' :
-            svc.name.includes('Agent') ? './agents/autonomous-trader/agent.service' :
-            svc.name.includes('Engine') ? './modules/engine/engine.controller' :
-            svc.name.includes('Exchange') ? './modules/exchange/exchange.service' :
-            svc.name.includes('Orchestrator') ? './modules/ai/services/ai-orchestrator.service' :
-            svc.name.includes('Notification') ? './modules/notification/notification.service' :
-            './modules/trading/trading.service'
-          );
-          try {
-            app.get(ServiceClass);
-            modules[svc.name] = { loaded: true };
-          } catch {
-            modules[svc.name] = { loaded: false, error: 'Service not in DI container' };
-          }
-        } catch (importErr: any) {
-          modules[svc.name] = { loaded: false, error: `Import failed: ${importErr.message}` };
-        }
-      }
-
-      // Also check registered Express routes
-      const expressApp = app.getHttpAdapter().getInstance();
-      const routePaths: string[] = [];
-      function collectRoutes(stack: any[]) {
-        for (const layer of stack) {
-          if (layer.route) {
-            const methods = Object.keys(layer.route.methods).map((m: string) => m.toUpperCase());
-            routePaths.push(`${methods.join(',')} ${layer.route.path}`);
-          } else if (layer.handle?.stack) {
-            collectRoutes(layer.handle.stack);
-          }
-        }
-      }
-      if (expressApp._router?.stack) collectRoutes(expressApp._router.stack);
-
-      const smartExecutorRoutes = routePaths.filter(r => r.includes('smart-executor'));
-      const strategicCouncilRoutes = routePaths.filter(r => r.includes('strategic-council'));
-      const agentRoutes = routePaths.filter(r => r.includes('agent/trader'));
-      const engineRoutes = routePaths.filter(r => r.includes('engine'));
-
-      res.json({
-        modules,
-        routes: {
-          total: routePaths.length,
-          smartExecutor: smartExecutorRoutes,
-          strategicCouncil: strategicCouncilRoutes,
-          agent: agentRoutes,
-          engine: engineRoutes,
-        },
-      });
-    });
 
     app.getHttpAdapter().getInstance().get('/api/health', async (req: any, res: any) => {
       const start = Date.now();
@@ -254,14 +157,72 @@ async function bootstrap() {
         uptime: Math.round(process.uptime()),
         checks,
         responseTimeMs: Date.now() - start,
-        // DIAGNOSTIC: Check critical module loading
-        _modules: {
-          smartExecutor: (() => { try { app.get(require('./modules/ai/smart-executor/smart-executor.service').SmartExecutorService); return 'LOADED'; } catch { return 'MISSING'; } })(),
-          strategicCouncil: (() => { try { app.get(require('./modules/ai/strategic-council/strategic-council.service').StrategicCouncilService); return 'LOADED'; } catch { return 'MISSING'; } })(),
-          agentTrader: (() => { try { app.get(require('./agents/autonomous-trader/agent.service').AutonomousTraderAgentService); return 'LOADED'; } catch { return 'MISSING'; } })(),
-        },
       });
     });
+
+    // ── Diagnostic endpoint (dev/staging only — blocked in production) ──
+    if (process.env.NODE_ENV !== 'production') {
+      app.getHttpAdapter().getInstance().get('/api/diagnostic/modules', async (req: any, res: any) => {
+        const modules: Record<string, any> = {};
+        const servicesToCheck = [
+          { name: 'SmartExecutorService', token: 'SmartExecutorService' },
+          { name: 'StrategicCouncilService', token: 'StrategicCouncilService' },
+          { name: 'AutonomousTraderAgentService', token: 'AutonomousTraderAgentService' },
+          { name: 'EngineController', token: 'EngineController' },
+          { name: 'ExchangeService', token: 'ExchangeService' },
+          { name: 'AIOrchestratorService', token: 'AIOrchestratorService' },
+          { name: 'NotificationService', token: 'NotificationService' },
+          { name: 'TradingService', token: 'TradingService' },
+        ];
+        for (const svc of servicesToCheck) {
+          try {
+            const { [svc.token]: ServiceClass } = await import(
+              svc.name.includes('Smart') ? './modules/ai/smart-executor/smart-executor.service' :
+              svc.name.includes('Strategic') ? './modules/ai/strategic-council/strategic-council.service' :
+              svc.name.includes('Agent') ? './agents/autonomous-trader/agent.service' :
+              svc.name.includes('Engine') ? './modules/engine/engine.controller' :
+              svc.name.includes('Exchange') ? './modules/exchange/exchange.service' :
+              svc.name.includes('Orchestrator') ? './modules/ai/services/ai-orchestrator.service' :
+              svc.name.includes('Notification') ? './modules/notification/notification.service' :
+              './modules/trading/trading.service'
+            );
+            try {
+              app.get(ServiceClass);
+              modules[svc.name] = { loaded: true };
+            } catch {
+              modules[svc.name] = { loaded: false, error: 'Service not in DI container' };
+            }
+          } catch (importErr: any) {
+            modules[svc.name] = { loaded: false, error: `Import failed: ${importErr.message}` };
+          }
+        }
+
+        const expressApp = app.getHttpAdapter().getInstance();
+        const routePaths: string[] = [];
+        function collectRoutes(stack: any[]) {
+          for (const layer of stack) {
+            if (layer.route) {
+              const methods = Object.keys(layer.route.methods).map((m: string) => m.toUpperCase());
+              routePaths.push(`${methods.join(',')} ${layer.route.path}`);
+            } else if (layer.handle?.stack) {
+              collectRoutes(layer.handle.stack);
+            }
+          }
+        }
+        if (expressApp._router?.stack) collectRoutes(expressApp._router.stack);
+
+        res.json({
+          modules,
+          routes: {
+            total: routePaths.length,
+            smartExecutor: routePaths.filter(r => r.includes('smart-executor')),
+            strategicCouncil: routePaths.filter(r => r.includes('strategic-council')),
+            agent: routePaths.filter(r => r.includes('agent/trader')),
+            engine: routePaths.filter(r => r.includes('engine')),
+          },
+        });
+      });
+    }
 
     // Global exception filter
     app.useGlobalFilters(new AllExceptionsFilter());
@@ -315,139 +276,48 @@ async function bootstrap() {
     if (process.env.NODE_ENV === 'production') {
       if (!process.env.NEXTAUTH_SECRET && !process.env.ENCRYPTION_KEY) {
         console.error(
-          '⚠️ CRITICAL: Neither NEXTAUTH_SECRET nor ENCRYPTION_KEY is set in production! ' +
+          'CRITICAL: Neither NEXTAUTH_SECRET nor ENCRYPTION_KEY is set in production! ' +
           'Credentials cannot be securely encrypted. Set ENCRYPTION_KEY (preferred) or NEXTAUTH_SECRET immediately.',
         );
       } else if (!process.env.ENCRYPTION_KEY && process.env.NEXTAUTH_SECRET) {
         console.warn(
-          '⚠️ WARNING: ENCRYPTION_KEY not set — using NEXTAUTH_SECRET as fallback for credential encryption. ' +
+          'WARNING: ENCRYPTION_KEY not set — using NEXTAUTH_SECRET as fallback for credential encryption. ' +
           'This is insecure because NEXTAUTH_SECRET was designed for signing, not encryption. ' +
           'Set ENCRYPTION_KEY explicitly for production use.',
         );
       }
     }
 
-    // ── FIX: Start HTTP server + Socket.IO ──
-    // CRITICAL: Socket.IO requires its request handler to run BEFORE Express's
-    // handler so that /socket.io/* paths are intercepted. In NestJS, the IoAdapter
-    // creates the Socket.IO server but the request listener ordering can be
-    // unreliable, causing /socket.io/* to return 404.
-    //
-    // The fix: We insert an Express route handler BEFORE all other routes that
-    // checks if the request path starts with /socket.io and, if so, handles it
-    // using Socket.IO's engine directly. This is the most reliable approach
-    // because it doesn't depend on HTTP request listener ordering.
-    const httpServer = app.getHttpServer();
-
-    // Log request listener order BEFORE starting
-    const listenersBefore = httpServer.listeners('request');
-    console.log(`📋 HTTP request listeners before listen: ${listenersBefore.length}`);
-
+    // ── Start HTTP server ──
+    // IoAdapter handles Socket.IO gateway initialization internally.
+    // No manual Socket.IO server creation or listener reordering is needed.
     await app.listen(port, '0.0.0.0');
+    console.log(`Roua API running on http://0.0.0.0:${port}/api`);
+    console.log(`Socket.IO available via NestJS WebSocket gateways`);
+    console.log(`Environment: ${configService.get('NODE_ENV', 'development')}`);
 
-    // ── FIX: Add Socket.IO request handler via Express route ──
-    // After app.listen(), NestJS is fully initialized including Socket.IO.
-    // We add a raw Express route at /socket.io* that forwards requests
-    // to Socket.IO's engine.io handler. This MUST be added to the Express
-    // stack at the beginning (before NestJS routes with /api prefix).
+    // ── Startup diagnostics: log module loading and route registration ──
     try {
-      // Create a standalone Socket.IO server attached to the existing HTTP server.
-      // This bypasses the NestJS IoAdapter's unreliable request listener ordering.
-      // The IoAdapter's gateways still work — they just use a different server instance.
-      const { Server: SocketIOServer } = await import('socket.io');
-      const io = new SocketIOServer(httpServer, {
-        cors: {
-          origin: (_origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-            callback(null, true);
-          },
-          credentials: true,
-        },
-        path: '/socket.io',
-        // Allow both polling and websocket transports
-        transports: ['polling', 'websocket'],
-      });
+      const { SmartExecutorService } = await import('./modules/ai/smart-executor/smart-executor.service');
+      const { StrategicCouncilService } = await import('./modules/ai/strategic-council/strategic-council.service');
+      const { AutonomousTraderAgentService } = await import('./agents/autonomous-trader/agent.service');
 
-      // Setup connection handling on the default namespace
-      io.on('connection', (socket) => {
-        console.log(`🔌 Socket.IO client connected: ${socket.id}`);
-        socket.on('disconnect', (reason) => {
-          console.log(`🔌 Socket.IO client disconnected: ${socket.id} (${reason})`);
-        });
-      });
+      let smartExecutorLoaded = false;
+      let strategicCouncilLoaded = false;
+      let agentLoaded = false;
 
-      // Setup /notifications namespace (for real-time notification push)
-      const notificationsNs = io.of('/notifications');
-      notificationsNs.on('connection', (socket) => {
-        console.log(`🔔 Notification namespace: client ${socket.id} connected`);
+      try { app.get(SmartExecutorService); smartExecutorLoaded = true; } catch { smartExecutorLoaded = false; }
+      try { app.get(StrategicCouncilService); strategicCouncilLoaded = true; } catch { strategicCouncilLoaded = false; }
+      try { app.get(AutonomousTraderAgentService); agentLoaded = true; } catch { agentLoaded = false; }
 
-        // Authenticate via session token
-        const token =
-          socket.handshake.auth?.token ||
-          socket.handshake.query?.token ||
-          socket.handshake.headers?.['x-roua-session'] as string ||
-          extractSessionFromCookie(socket.handshake.headers?.cookie as string);
-
-        if (!token) {
-          socket.emit('error', { message: 'Authentication required.' });
-          socket.disconnect(true);
-          return;
-        }
-
-        // Validate session asynchronously
-        prisma.session.findUnique({ where: { token }, include: { user: true } })
-          .then((session: any) => {
-            if (!session || session.expiresAt < new Date()) {
-              socket.emit('error', { message: 'Session expired or invalid.' });
-              socket.disconnect(true);
-              return;
-            }
-            (socket as any).userId = session.user.id;
-            (socket as any).user = session.user;
-            console.log(`🔔 User ${session.user.id} connected to /notifications (${socket.id})`);
-
-            // Send unread count on connect
-            prisma.userNotification.count({ where: { userId: session.user.id, isRead: false } })
-              .then((count: number) => socket.emit('unread_count', { count }))
-              .catch(() => {});
-          })
-          .catch(() => {
-            socket.emit('error', { message: 'Authentication service unavailable.' });
-            socket.disconnect(true);
-          });
-
-        socket.on('disconnect', () => {
-          console.log(`🔔 Notification namespace: client ${socket.id} disconnected`);
-        });
-      });
-
-      // Setup /exchange namespace (for real-time price ticker)
-      const exchangeNs = io.of('/exchange');
-      exchangeNs.on('connection', (socket) => {
-        console.log(`📡 Exchange namespace: client ${socket.id} connected`);
-        socket.on('disconnect', () => {
-          console.log(`📡 Exchange namespace: client ${socket.id} disconnected`);
-        });
-      });
-
-      console.log('🔌 Socket.IO server created and attached to HTTP server');
-      console.log('🔌 Namespaces: / (default), /notifications, /exchange');
-
-      const listenersAfter = httpServer.listeners('request');
-      console.log(`📋 HTTP request listeners: ${listenersAfter.length} (was ${listenersBefore.length})`);
-    } catch (socketInitErr: any) {
-      console.warn(`🔌 Socket.IO init failed (non-fatal, API still works): ${socketInitErr.message}`);
+      console.log(`SmartExecutorService: ${smartExecutorLoaded ? 'LOADED' : 'NOT LOADED'}`);
+      console.log(`StrategicCouncilService: ${strategicCouncilLoaded ? 'LOADED' : 'NOT LOADED'}`);
+      console.log(`AutonomousTraderAgentService: ${agentLoaded ? 'LOADED' : 'NOT LOADED'}`);
+    } catch (diagErr: any) {
+      console.error(`Module diagnostic import failed: ${diagErr.message}`);
     }
-    console.log(`🚀 Roua API running on http://0.0.0.0:${port}/api`);
-    console.log(`🔌 Socket.IO available via NestJS WebSocket gateways`);
-    console.log(`📊 Environment: ${configService.get('NODE_ENV', 'development')}`);
 
-    // Log request listener order for debugging
-    const listeners = httpServer.listeners('request');
-    console.log(`📋 HTTP request listeners: ${listeners.length}`);
-
-    // FIX: Log registered NestJS routes to diagnose missing controllers.
-    // If SmartExecutor/StrategicCouncil routes are missing, it means the module
-    // failed to initialize (duplicate ScheduleModule.forRoot(), circular deps, etc.)
+    // Log registered NestJS routes to diagnose missing controllers
     try {
       const expressApp = app.getHttpAdapter().getInstance();
       const routes: string[] = [];
@@ -469,30 +339,30 @@ async function bootstrap() {
       const strategicCouncilRoutes = routes.filter(r => r.includes('strategic-council'));
       const agentRoutes = routes.filter(r => r.includes('agent/trader'));
       const engineRoutes = routes.filter(r => r.includes('engine'));
-      console.log(`📋 Total routes: ${routes.length}`);
-      console.log(`📋 SmartExecutor routes: ${smartExecutorRoutes.length} ${smartExecutorRoutes.length > 0 ? '✅' : '❌ MISSING'}`);
-      console.log(`📋 StrategicCouncil routes: ${strategicCouncilRoutes.length} ${strategicCouncilRoutes.length > 0 ? '✅' : '❌ MISSING'}`);
-      console.log(`📋 AgentTrader routes: ${agentRoutes.length} ${agentRoutes.length > 0 ? '✅' : '❌ MISSING'}`);
-      console.log(`📋 Engine routes: ${engineRoutes.length} ${engineRoutes.length > 0 ? '✅' : '❌ MISSING'}`);
+      console.log(`Total routes: ${routes.length}`);
+      console.log(`SmartExecutor routes: ${smartExecutorRoutes.length} ${smartExecutorRoutes.length > 0 ? 'OK' : 'MISSING'}`);
+      console.log(`StrategicCouncil routes: ${strategicCouncilRoutes.length} ${strategicCouncilRoutes.length > 0 ? 'OK' : 'MISSING'}`);
+      console.log(`AgentTrader routes: ${agentRoutes.length} ${agentRoutes.length > 0 ? 'OK' : 'MISSING'}`);
+      console.log(`Engine routes: ${engineRoutes.length} ${engineRoutes.length > 0 ? 'OK' : 'MISSING'}`);
     } catch (diagError: any) {
-      console.warn(`📋 Route diagnostic failed: ${diagError.message}`);
+      console.warn(`Route diagnostic failed: ${diagError.message}`);
     }
 
-    // FIX #2: Graceful shutdown — handle SIGTERM from Railway
+    // Graceful shutdown — handle SIGTERM from Railway
     const shutdown = async (signal: string) => {
-      console.log(`📡 Received ${signal} — shutting down gracefully...`);
+      console.log(`Received ${signal} — shutting down gracefully...`);
       try {
         const shutdownTimeout = setTimeout(() => {
-          console.warn('⚠️ Graceful shutdown timeout — forcing exit');
+          console.warn('Graceful shutdown timeout — forcing exit');
           process.exit(1);
         }, 10000);
 
         await app.close();
         clearTimeout(shutdownTimeout);
-        console.log('✅ Graceful shutdown complete');
+        console.log('Graceful shutdown complete');
         process.exit(0);
       } catch (err) {
-        console.error('❌ Error during graceful shutdown:', err);
+        console.error('Error during graceful shutdown:', err);
         process.exit(1);
       }
     };
@@ -500,8 +370,8 @@ async function bootstrap() {
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
   } catch (error) {
-    console.error('❌ NestJS bootstrap failed:', error);
-    console.log('🔄 Restarting in 5 seconds...');
+    console.error('NestJS bootstrap failed:', error);
+    console.log('Restarting in 5 seconds...');
     setTimeout(() => process.exit(1), 5000);
   }
 }

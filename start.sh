@@ -151,15 +151,15 @@ if [ -n "${DATABASE_URL:-}" ]; then
       "symbol" TEXT NOT NULL,
       "side" TEXT NOT NULL,
       "status" TEXT NOT NULL DEFAULT 'OPEN',
-      "quantity" DOUBLE PRECISION NOT NULL,
-      "entryPrice" DOUBLE PRECISION NOT NULL,
-      "currentPrice" DOUBLE PRECISION,
-      "unrealizedPnl" DOUBLE PRECISION,
-      "realizedPnl" DOUBLE PRECISION,
-      "stopLoss" DOUBLE PRECISION,
-      "takeProfit" DOUBLE PRECISION,
-      "highestPrice" DOUBLE PRECISION,
-      "lowestPrice" DOUBLE PRECISION,
+      "quantity" DECIMAL(18,8) NOT NULL,
+      "entryPrice" DECIMAL(18,8) NOT NULL,
+      "currentPrice" DECIMAL(18,8),
+      "unrealizedPnl" DECIMAL(18,8),
+      "realizedPnl" DECIMAL(18,8),
+      "stopLoss" DECIMAL(18,8),
+      "takeProfit" DECIMAL(18,8),
+      "highestPrice" DECIMAL(18,8),
+      "lowestPrice" DECIMAL(18,8),
       "openedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "closedAt" TIMESTAMP(3),
       "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -192,11 +192,11 @@ if [ -n "${DATABASE_URL:-}" ]; then
       "symbol" TEXT NOT NULL,
       "side" TEXT NOT NULL,
       "type" TEXT NOT NULL,
-      "quantity" DOUBLE PRECISION NOT NULL,
-      "price" DOUBLE PRECISION NOT NULL,
-      "fee" DOUBLE PRECISION,
+      "quantity" DECIMAL(18,8) NOT NULL,
+      "price" DECIMAL(18,8) NOT NULL,
+      "fee" DECIMAL(18,8),
       "feeCurrency" TEXT,
-      "pnl" DOUBLE PRECISION,
+      "pnl" DECIMAL(18,8),
       "exchangeTradeId" TEXT,
       "executedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "Trade_pkey" PRIMARY KEY ("id")
@@ -235,8 +235,8 @@ if [ -n "${DATABASE_URL:-}" ]; then
     CREATE TABLE IF NOT EXISTS "TradingBot" (
       "id" TEXT NOT NULL,
       "userId" TEXT NOT NULL,
-      "name" TEXT NOT NULL DEFAULT 'HFT-Alpha',
-      "strategy" TEXT NOT NULL DEFAULT 'Scalp AI',
+      "name" TEXT NOT NULL DEFAULT 'New Bot',
+      "strategy" TEXT NOT NULL DEFAULT 'Auto',
       "isActive" BOOLEAN NOT NULL DEFAULT false,
       "winRate" DOUBLE PRECISION NOT NULL DEFAULT 0,
       "totalTrades" INTEGER NOT NULL DEFAULT 0,
@@ -328,6 +328,7 @@ if [ -n "${DATABASE_URL:-}" ]; then
       "ipAddress" TEXT,
       "userAgent" TEXT,
       "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
     );
     CREATE INDEX IF NOT EXISTS "AuditLog_userId_idx" ON "AuditLog"("userId");
@@ -575,6 +576,16 @@ EOSQL
         WHERE table_name = 'AuditLog' AND column_name = 'userId'
       ) THEN
         ALTER TABLE "AuditLog" ADD COLUMN "userId" TEXT;
+      END IF;
+    END $$;
+
+    -- AuditLog table: add updatedAt if missing (Prisma @updatedAt requires it)
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'AuditLog' AND column_name = 'updatedAt'
+      ) THEN
+        ALTER TABLE "AuditLog" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
       END IF;
     END $$;
 

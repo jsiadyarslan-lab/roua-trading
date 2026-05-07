@@ -337,17 +337,19 @@ async function bootstrap() {
     }
 
     // ── FIX: Start HTTP server + Socket.IO ──
-    // Create Socket.IO server AFTER app.listen() and add an Express route
-    // to forward /socket.io/* requests to it.
+    // Create Socket.IO server AFTER app.listen() and ensure /socket.io/*
+    // requests are handled by Socket.IO instead of Express returning 404.
     //
     // The problem: NestJS's IoAdapter creates a Socket.IO server but the
     // HTTP request listener ordering doesn't work — /socket.io/* returns 404.
-    // Even calling io.attach(httpServer) after listen() doesn't help because
-    // NestJS wraps Express in a single request listener.
+    // The io.attach(httpServer) should reorder listeners but doesn't seem to
+    // work when called after app.listen().
     //
-    // The solution: Create a Socket.IO server, then add an Express route that
-    // intercepts /socket.io* requests and pipes them to Socket.IO's engine.io
-    // handleRequest method. This bypasses the HTTP listener ordering entirely.
+    // The solution: Override the HTTP server's request listener entirely.
+    // We save all existing listeners, remove them, and add a single wrapper
+    // that checks the URL path first. For /socket.io/* requests, we call
+    // Socket.IO's engine.handleRequest directly. For all other requests,
+    // we call the original listeners (Express/NestJS).
     const httpServer = app.getHttpServer();
 
     // Log request listener order BEFORE starting
@@ -356,11 +358,11 @@ async function bootstrap() {
 
     await app.listen(port, '0.0.0.0');
 
-    // ── FIX: Create Socket.IO + Express forwarding route ──
+    // ── FIX: Create Socket.IO + override HTTP request handler ──
     try {
       const { Server: SocketIOServer } = await import('socket.io');
 
-      // Create Socket.IO server without attaching to HTTP server
+      // Create Socket.IO server (NOT attached to HTTP server yet)
       const io = new SocketIOServer({
         cors: {
           origin: (_origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
@@ -372,46 +374,43 @@ async function bootstrap() {
         transports: ['polling', 'websocket'],
       });
 
-      // Attach Socket.IO to HTTP server
+      // Get the engine reference before attaching
+      const engine = io.engine;
+
+      // Save and remove all existing HTTP request listeners (Express, etc.)
+      const savedListeners = httpServer.listeners('request').slice();
+      httpServer.removeAllListeners('request');
+
+      // Add a single wrapper handler
+      httpServer.on('request', (req: any, res: any) => {
+        const url: string = req.url || '/';
+        // Check if this is a Socket.IO request
+        if (url.startsWith('/socket.io') || url.startsWith('/socket.io/')) {
+          // Forward to Socket.IO's engine directly
+          if (engine && typeof engine.handleRequest === 'function') {
+            engine.handleRequest(req, res);
+          } else {
+            // Fallback: call saved listeners
+            for (const listener of savedListeners) {
+              (listener as any).call(httpServer, req, res);
+            }
+          }
+        } else {
+          // Normal request — call original Express/NestJS handlers
+          for (const listener of savedListeners) {
+            (listener as any).call(httpServer, req, res);
+          }
+        }
+      });
+
+      // Now attach Socket.IO for WebSocket upgrade handling
+      // This sets up the WebSocket server but our custom request handler
+      // above takes care of HTTP polling requests
       io.attach(httpServer);
 
-      // Also add an Express route as a FALLBACK — if Socket.IO's init()
-      // didn't properly reorder HTTP request listeners, this Express route
-      // will still intercept /socket.io* requests and forward them to
-      // Socket.IO's engine.io handler.
-      const expressApp = app.getHttpAdapter().getInstance();
-
-      // Get Socket.IO's engine request handler
-      const engine = io.engine;
-      if (engine) {
-        // Add a raw Express route that runs BEFORE NestJS routes
-        // by inserting it at the beginning of Express's router stack
-        const socketIoRoute = (req: any, res: any, next: any) => {
-          const path = req.path || req.url?.split('?')[0] || '';
-          if (path.startsWith('/socket.io')) {
-            // Forward request to Socket.IO's engine
-            engine.handleRequest(req, res);
-            return;
-          }
-          next();
-        };
-
-        // Insert at position 0 in Express router stack
-        // This ensures it runs before any NestJS routes (which have /api prefix)
-        const router = expressApp._router;
-        if (router?.stack) {
-          router.stack.unshift({
-            handle: socketIoRoute,
-            keys: [],
-            regexp: /^\/socket\.io/i,
-            route: '',
-          });
-          console.log('🔌 Socket.IO Express route inserted at position 0');
-        }
-
-        // Also add as a standard Express route (as a fallback)
-        expressApp.all('/socket.io*', socketIoRoute);
-      }
+      console.log(`🔌 Socket.IO server created with custom HTTP handler`);
+      console.log(`📋 Saved ${savedListeners.length} original HTTP request listeners`);
+      console.log(`📋 Current HTTP request listeners: ${httpServer.listeners('request').length}`);
 
       // Setup connection handling on the default namespace
       io.on('connection', (socket) => {

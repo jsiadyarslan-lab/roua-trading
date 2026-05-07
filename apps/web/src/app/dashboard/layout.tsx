@@ -13,8 +13,6 @@ import PushNotificationManager from '@/components/shared/PushNotificationManager
 import { Metadata, Viewport } from 'next'
 import { DashboardLayoutStyles } from '@/components/dashboard/DashboardLayoutStyles'
 
-export const dynamic = 'force-dynamic'
-
 export const metadata: Metadata = {
   title: 'رؤى | منصة ربط الحسابات الاحترافية',
   description: 'منصة رؤى لربط ومتابعة الحسابات الذكية - Roua Account Linking Platform',

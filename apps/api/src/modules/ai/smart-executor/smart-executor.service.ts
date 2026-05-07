@@ -478,7 +478,15 @@ export class SmartExecutorService implements OnModuleDestroy {
 
     try {
       const posWhere: any = { status: 'OPEN' };
-      if (userId) posWhere.userId = userId;
+      if (userId) {
+        posWhere.userId = userId;
+      } else {
+        // If no userId provided (global status), only count positions with valid trade value
+        // to avoid phantom positions inflating the count
+        posWhere.AND = [
+          { entryPrice: { gt: 0 } },
+        ];
+      }
       openPositions = await this.prisma.position.count({ where: posWhere });
     } catch (e: any) {
       this.logger.debug(`getStatus: position count failed: ${e.message}`);

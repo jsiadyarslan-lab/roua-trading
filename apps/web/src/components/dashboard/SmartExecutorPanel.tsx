@@ -136,39 +136,9 @@ export function SmartExecutorPanel() {
     return () => clearInterval(interval)
   }, [fetchUserState, fetchPositions])
 
-  // ═══════════════════════════════════════════════════
-  // FIX: Auto-enable paper trading for logged-in users.
-  // Previously, users had to manually click "تفعيل" which
-  // most users didn't know about, resulting in 0 executions.
-  // Now we auto-enable paper trading when the panel loads
-  // if the user isn't already enabled. Paper trading uses
-  // virtual money so there's no risk.
-  // ═══════════════════════════════════════════════════
-  useEffect(() => {
-    const autoEnablePaper = async () => {
-      // Only auto-enable if user is not already enabled
-      if (userState === null || !userState.enabled) {
-        try {
-          const res = await fetch('/api/smart-executor/user/enable', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ isPaperTrading: true, maxOpenPositions: 5, riskPerTradePercent: 1 }),
-          })
-          const data = await res.json()
-          if (data.success) {
-            console.log('[SmartExecutor] Auto-enabled paper trading for this user')
-            await fetchUserState()
-          }
-        } catch {
-          // User might not be logged in — that's OK, silent fail
-        }
-      }
-    }
-    // Wait for first userState fetch to complete before deciding
-    if (userState !== undefined) {
-      autoEnablePaper()
-    }
-  }, [userState, fetchUserState])
+  // NOTE: Auto-enable removed intentionally.
+  // Every user MUST manually click "تفعيل" to enable paper trading.
+  // Auto-enabling caused phantom trades across all user sessions.
 
   // ═══════════════════════════════════════════════════
   // ONE-TIME PHANTOM PURGE: On first load, request the

@@ -88,17 +88,7 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 DO $$ BEGIN
-  ALTER TYPE "AgentTradeStatus" ADD VALUE 'REJECTED';
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
-
-DO $$ BEGIN
-  ALTER TYPE "AgentTradeStatus" ADD VALUE 'CLOSED';
-EXCEPTION WHEN duplicate_object THEN NULL;
-END $$;
-
-DO $$ BEGIN
-  ALTER TYPE "AgentTradeStatus" ADD VALUE 'EXPIRED';
+  ALTER TYPE "AgentTradeStatus" ADD VALUE 'FAILED';
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
@@ -118,11 +108,11 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 DO $$ BEGIN
-  ALTER TYPE "AgentExitReason" ADD VALUE 'TIMEOUT';
+  ALTER TYPE "AgentExitReason" ADD VALUE 'TRAILING_STOP';
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 DO $$ BEGIN
-  ALTER TYPE "AgentExitReason" ADD VALUE 'SIGNAL_REVERSAL';
+  ALTER TYPE "AgentExitReason" ADD VALUE 'STRATEGY_EXIT';
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;

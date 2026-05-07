@@ -363,6 +363,35 @@ if [ -n "${DATABASE_URL:-}" ]; then
     CREATE INDEX IF NOT EXISTS "PositionReconciliation_userId_idx" ON "PositionReconciliation"("userId");
     CREATE INDEX IF NOT EXISTS "PositionReconciliation_createdAt_idx" ON "PositionReconciliation"("createdAt");
 
+    -- ── Alert table (Price alerts for users) ──
+    CREATE TABLE IF NOT EXISTS "Alert" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "symbol" TEXT NOT NULL,
+      "condition" TEXT NOT NULL DEFAULT 'ABOVE',
+      "targetPrice" DECIMAL(19,4) NOT NULL,
+      "isActive" BOOLEAN NOT NULL DEFAULT true,
+      "isTriggered" BOOLEAN NOT NULL DEFAULT false,
+      "triggeredAt" TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Alert_pkey" PRIMARY KEY ("id")
+    );
+    CREATE INDEX IF NOT EXISTS "Alert_userId_idx" ON "Alert"("userId");
+    CREATE INDEX IF NOT EXISTS "Alert_symbol_idx" ON "Alert"("symbol");
+    CREATE INDEX IF NOT EXISTS "Alert_isActive_isTriggered_idx" ON "Alert"("isActive", "isTriggered");
+    CREATE INDEX IF NOT EXISTS "Alert_userId_isActive_isTriggered_idx" ON "Alert"("userId", "isActive", "isTriggered");
+
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'Alert_userId_fkey'
+      ) THEN
+        ALTER TABLE "Alert" ADD CONSTRAINT "Alert_userId_fkey"
+          FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+
     -- ── TradingBrief table (CRITICAL for Strategic Council + Smart Executor) ──
     -- This table was missing from the initial ensure_tables.sql, causing
     -- 0 briefs and 0 trades. The Prisma migration for this table failed
@@ -697,6 +726,85 @@ EOSQL
       END IF;
     END $$;
 
+    -- ── Prisma-Compatible Enum Types ──
+    -- These must exist so that prisma db push / migrate can work without errors.
+    -- Each enum exactly matches the Prisma schema definition.
+
+    DO $$ BEGIN
+      CREATE TYPE "Tier" AS ENUM ('FREE', 'PRO', 'PLUS', 'PREMIUM', 'INSTITUTIONAL');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "AssetType" AS ENUM ('STOCK', 'FOREX', 'CRYPTO', 'COMMODITY', 'INDEX');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "SignalAction" AS ENUM ('BUY', 'SELL', 'WAIT');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "SignalStatus" AS ENUM ('ACTIVE', 'EXPIRED', 'EXECUTED', 'CANCELLED');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "OrderSide" AS ENUM ('BUY', 'SELL');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "OrderType" AS ENUM ('MARKET', 'LIMIT');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'ACCEPTED', 'PARTIALLY_FILLED', 'FILLED', 'CANCELLED', 'REJECTED');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "OrderEventType" AS ENUM ('CREATED', 'ACCEPTED', 'RISK_REJECTED', 'SENT_TO_EXCHANGE', 'FILLED', 'CANCELLED');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "PositionStatus" AS ENUM ('OPEN', 'CLOSED', 'LIQUIDATED');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "TradeType" AS ENUM ('ENTRY', 'EXIT', 'PARTIAL_EXIT');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "PredictionEventStatus" AS ENUM ('ACTIVE', 'RESOLVED', 'EXPIRED', 'CANCELLED');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "ContentArticleStatus" AS ENUM ('DRAFT', 'IN_REVIEW', 'APPROVED', 'PUBLISHED', 'SCHEDULED', 'ARCHIVED', 'REJECTED');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "AlertCondition" AS ENUM ('ABOVE', 'BELOW', 'CROSSES_UP', 'CROSSES_DOWN');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "NotificationType" AS ENUM ('SIGNAL_GENERATED', 'ORDER_FILLED', 'ORDER_REJECTED', 'ORDER_ACCEPTED', 'POSITION_OPENED', 'POSITION_CLOSED', 'RISK_WARNING', 'PRICE_ALERT', 'AI_INSIGHT', 'SYSTEM');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
+    DO $$ BEGIN
+      CREATE TYPE "NotificationPriority" AS ENUM ('URGENT', 'HIGH', 'MEDIUM', 'LOW');
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END $$;
+
     -- ── Agent Tables (Critical for Autonomous Trader) ──
 
     -- Create AgentStrategy enum (needed by AutonomousTrade table)
@@ -715,7 +823,7 @@ EOSQL
 
     -- Create AgentTradeStatus enum
     DO $$ BEGIN
-      CREATE TYPE "AgentTradeStatus" AS ENUM ('PENDING', 'FILLED', 'PARTIALLY_FILLED', 'CANCELLED', 'FAILED', 'REJECTED', 'CLOSED', 'EXPIRED');
+      CREATE TYPE "AgentTradeStatus" AS ENUM ('PENDING', 'FILLED', 'PARTIALLY_FILLED', 'CANCELLED', 'FAILED');
     EXCEPTION WHEN duplicate_object THEN NULL;
     END $$;
     ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'PENDING';
@@ -723,13 +831,10 @@ EOSQL
     ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'PARTIALLY_FILLED';
     ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'CANCELLED';
     ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'FAILED';
-    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'REJECTED';
-    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'CLOSED';
-    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'EXPIRED';
 
     -- Create AgentExitReason enum
     DO $$ BEGIN
-      CREATE TYPE "AgentExitReason" AS ENUM ('TAKE_PROFIT', 'STOP_LOSS', 'MANUAL', 'TRAILING_STOP', 'STRATEGY_EXIT', 'TIMEOUT', 'SIGNAL_REVERSAL');
+      CREATE TYPE "AgentExitReason" AS ENUM ('TAKE_PROFIT', 'STOP_LOSS', 'MANUAL', 'TRAILING_STOP', 'STRATEGY_EXIT');
     EXCEPTION WHEN duplicate_object THEN NULL;
     END $$;
     ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'TAKE_PROFIT';
@@ -737,16 +842,14 @@ EOSQL
     ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'MANUAL';
     ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'TRAILING_STOP';
     ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'STRATEGY_EXIT';
-    ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'TIMEOUT';
-    ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'SIGNAL_REVERSAL';
 
     -- AgentSession table (persists agent state across Redis restarts)
     CREATE TABLE IF NOT EXISTS "AgentSession" (
       "id" TEXT NOT NULL,
       "userId" TEXT NOT NULL,
       "agentRunId" TEXT NOT NULL,
-      "status" TEXT NOT NULL DEFAULT 'RUNNING',
-      "strategy" TEXT NOT NULL DEFAULT 'SCALPING',
+      "status" TEXT NOT NULL DEFAULT 'PENDING',
+      "strategy" TEXT NOT NULL DEFAULT 'AUTO',
       "config" TEXT NOT NULL DEFAULT '{}',
       "dailyPnL" DECIMAL(19,4) NOT NULL DEFAULT 0,
       "dailyTradesCount" INTEGER NOT NULL DEFAULT 0,
@@ -788,7 +891,7 @@ EOSQL
       "symbol" TEXT NOT NULL,
       "side" TEXT NOT NULL,
       "orderType" TEXT NOT NULL,
-      "strategy" TEXT NOT NULL DEFAULT 'SCALPING',
+      "strategy" TEXT NOT NULL DEFAULT 'AUTO',
       "status" TEXT NOT NULL DEFAULT 'PENDING',
       "entryPrice" DECIMAL(19,8) NOT NULL,
       "currentPrice" DECIMAL(19,8),
@@ -892,6 +995,75 @@ EOSQL
         WHERE constraint_name = 'AgentSettings_userId_fkey'
       ) THEN
         ALTER TABLE "AgentSettings" ADD CONSTRAINT "AgentSettings_userId_fkey"
+          FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+
+    -- ── UserNotification table (Persisted notifications) ──
+    CREATE TABLE IF NOT EXISTS "UserNotification" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "type" TEXT NOT NULL DEFAULT 'SYSTEM',
+      "priority" TEXT NOT NULL DEFAULT 'MEDIUM',
+      "title" TEXT NOT NULL,
+      "body" TEXT NOT NULL,
+      "data" TEXT NOT NULL DEFAULT '{}',
+      "isRead" BOOLEAN NOT NULL DEFAULT false,
+      "source" TEXT NOT NULL DEFAULT 'system',
+      "action" TEXT NOT NULL DEFAULT 'INFO',
+      "pair" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "readAt" TIMESTAMP(3),
+      CONSTRAINT "UserNotification_pkey" PRIMARY KEY ("id")
+    );
+    CREATE INDEX IF NOT EXISTS "UserNotification_userId_idx" ON "UserNotification"("userId");
+    CREATE INDEX IF NOT EXISTS "UserNotification_type_idx" ON "UserNotification"("type");
+    CREATE INDEX IF NOT EXISTS "UserNotification_priority_idx" ON "UserNotification"("priority");
+    CREATE INDEX IF NOT EXISTS "UserNotification_isRead_idx" ON "UserNotification"("isRead");
+    CREATE INDEX IF NOT EXISTS "UserNotification_createdAt_idx" ON "UserNotification"("createdAt");
+    CREATE INDEX IF NOT EXISTS "UserNotification_userId_isRead_createdAt_idx" ON "UserNotification"("userId", "isRead", "createdAt");
+
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'UserNotification_userId_fkey'
+      ) THEN
+        ALTER TABLE "UserNotification" ADD CONSTRAINT "UserNotification_userId_fkey"
+          FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+
+    -- ── UserNotificationPreferences table ──
+    CREATE TABLE IF NOT EXISTS "UserNotificationPreferences" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "enabled" BOOLEAN NOT NULL DEFAULT true,
+      "pushEnabled" BOOLEAN NOT NULL DEFAULT true,
+      "soundEnabled" BOOLEAN NOT NULL DEFAULT true,
+      "browserEnabled" BOOLEAN NOT NULL DEFAULT true,
+      "telegramEnabled" BOOLEAN NOT NULL DEFAULT false,
+      "signalAlerts" BOOLEAN NOT NULL DEFAULT true,
+      "tradeAlerts" BOOLEAN NOT NULL DEFAULT true,
+      "aiAlerts" BOOLEAN NOT NULL DEFAULT true,
+      "scannerAlerts" BOOLEAN NOT NULL DEFAULT true,
+      "riskAlerts" BOOLEAN NOT NULL DEFAULT true,
+      "systemAlerts" BOOLEAN NOT NULL DEFAULT true,
+      "autoExecuteEnabled" BOOLEAN NOT NULL DEFAULT false,
+      "autoExecuteMinConfidence" INTEGER NOT NULL DEFAULT 75,
+      "autoExecuteMaxPositionSize" DECIMAL(5,4) NOT NULL DEFAULT 0.02,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "UserNotificationPreferences_pkey" PRIMARY KEY ("id")
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "UserNotificationPreferences_userId_key" ON "UserNotificationPreferences"("userId");
+    CREATE INDEX IF NOT EXISTS "UserNotificationPreferences_userId_idx" ON "UserNotificationPreferences"("userId");
+
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'UserNotificationPreferences_userId_fkey'
+      ) THEN
+        ALTER TABLE "UserNotificationPreferences" ADD CONSTRAINT "UserNotificationPreferences_userId_fkey"
           FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
       END IF;
     END $$;

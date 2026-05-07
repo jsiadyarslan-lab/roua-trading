@@ -8,6 +8,7 @@
     "start": "nest start",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
+    "test": "jest",
     "lint": "eslint .",
     "db:generate": "prisma generate --schema=../../prisma/schema.prisma",
     "db:push": "prisma db push --schema=../../prisma/schema.prisma",

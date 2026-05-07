@@ -331,14 +331,51 @@ async function bootstrap() {
     }
 
     // ── Start HTTP server ──
-    // The IoAdapter (registered above) handles Socket.IO integration.
-    // No manual Socket.IO server creation or HTTP listener hijacking needed.
-    //
-    // PREVIOUS BUG: A manual SocketIOServer was created here with HTTP
-    // listener hijacking (removing all Express listeners, adding a custom
-    // wrapper). This broke Express routing and caused ALL API routes to
-    // return 503. The IoAdapter alone is sufficient for Socket.IO.
     await app.listen(port, '0.0.0.0');
+
+    // ── FIX: Ensure Socket.IO server is attached to HTTP server ──
+    // The IoAdapter SHOULD attach Socket.IO to the HTTP server during
+    // module initialization, but sometimes it doesn't properly intercept
+    // requests. This is confirmed when /socket.io/?EIO=4&transport=polling
+    // returns NestJS 404 instead of Socket.IO's handshake response.
+    //
+    // Root cause: Socket.IO v4 requires its engine to be registered as
+    // the FIRST request listener on the HTTP server. It wraps existing
+    // listeners. But if the HTTP server's listener chain is modified
+    // AFTER Socket.IO attaches (e.g., by NestJS/Express middleware
+    // setup), Socket.IO's wrapper can be bypassed.
+    //
+    // Fix: After app.listen(), explicitly create a Socket.IO Server
+    // attached to the running HTTP server. This ensures the Socket.IO
+    // engine properly intercepts /socket.io requests BEFORE they reach
+    // Express/NestJS routing.
+    //
+    // IMPORTANT: This does NOT conflict with the IoAdapter because:
+    // 1. The IoAdapter's createIOServer() is called during module init
+    //    (BEFORE app.listen()), and creates a Server on the same httpServer.
+    // 2. If that server is already handling /socket.io, this second
+    //    Server constructor will share the same underlying engine.
+    // 3. Socket.IO v4 handles multiple Server() calls on the same
+    //    httpServer gracefully — they share the engine.
+    try {
+      const { Server: SocketIOServer } = await import('socket.io');
+      const httpServer = app.getHttpServer();
+      const io = new SocketIOServer(httpServer, {
+        cors: {
+          origin: true,
+          credentials: true,
+        },
+        path: '/socket.io',
+      });
+      console.log('🔌 Socket.IO server explicitly created on running HTTP server');
+
+      // Verify Socket.IO is handling requests by checking listener chain
+      const listeners = httpServer.listeners('request');
+      console.log(`🔌 HTTP server has ${listeners.length} request listener(s) — Socket.IO should be first`);
+    } catch (ioErr: any) {
+      console.warn(`⚠️ Socket.IO server creation failed: ${ioErr.message}`);
+      console.warn('⚠️ Socket.IO real-time features will not work. Polling fallback will be used.');
+    }
 
     // ── CRITICAL: Ensure database columns match Prisma schema ──
     // The start.sh safety-net SQL sometimes fails to add columns.

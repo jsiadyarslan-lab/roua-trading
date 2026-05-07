@@ -10,13 +10,12 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   // SECURITY: Remove X-Powered-By header to prevent information disclosure
   poweredByHeader: false,
-  // FIX: Skip trailing slash redirect for Socket.IO paths.
+  // FIX: Skip trailing slash redirect globally.
   // Without this, /socket.io/ (with trailing slash) gets 308 redirected to
   // /socket.io (without slash), which breaks Socket.IO polling handshake.
-  // Socket.IO clients connect to /socket.io/?EIO=4&transport=polling which
-  // has pathname /socket.io/ — the 308 redirect drops the trailing slash
-  // and breaks the handshake.
-  skipTrailingSlashRedirect: ['/socket.io/'],
+  // NOTE: skipTrailingSlashRedirect only accepts boolean (not string[]).
+  // Socket.IO path specifics are handled by the rewrites() config below.
+  skipTrailingSlashRedirect: true,
   // Skip TypeScript errors during build (pre-existing type issues in API routes)
   typescript: {
     ignoreBuildErrors: true,

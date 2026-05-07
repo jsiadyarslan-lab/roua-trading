@@ -88,14 +88,35 @@ export function proxy(request: NextRequest) {
     return addSecurityHeaders(NextResponse.next(), request)
   }
 
-  // ── Socket.IO: pass through without interference ──
-  // In production, Caddy proxies /socket.io/* directly to NestJS (port 3001).
-  // In dev, Next.js rewrites handle it. Either way, we must NOT block it here.
-  // FIX: Match both /socket.io/ (with trailing slash) and /socket.io (without)
-  // because Socket.IO clients initially connect to /socket.io?EIO=4&transport=polling
-  // (no trailing slash before the query string).
+  // ── Socket.IO: rewrite to NestJS backend ──
+  // FIX: Previously used NextResponse.next() which just passed the request to
+  // Next.js's internal router — but Next.js has no /socket.io route, so it
+  // returned 404. Socket.IO runs on NestJS (port 3001), so we must rewrite
+  // the request to the NestJS backend.
+  //
+  // The Next.js rewrites in next.config.ts also proxy /socket.io, but they
+  // sometimes fail to match URLs with trailing slashes (e.g., /socket.io/?EIO=4).
+  // Using NextResponse.rewrite() here is more reliable because it runs for
+  // every matching request regardless of URL pattern quirks.
+  //
+  // Socket.IO will use HTTP long-polling (works through NextResponse.rewrite).
+  // WebSocket upgrades are NOT supported through middleware rewrites, but
+  // Socket.IO automatically falls back to long-polling when WS fails.
   if (pathname.startsWith('/socket.io')) {
-    return addSecurityHeaders(NextResponse.next(), request)
+    const apiInternalUrl = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001'
+    const targetUrl = new URL(request.url)
+    try {
+      const apiParsed = new URL(apiInternalUrl)
+      targetUrl.protocol = apiParsed.protocol || 'http:'
+      targetUrl.hostname = apiParsed.hostname
+      targetUrl.port = apiParsed.port || '3001'
+    } catch {
+      // Fallback: construct URL manually
+      targetUrl.protocol = 'http:'
+      targetUrl.hostname = '127.0.0.1'
+      targetUrl.port = '3001'
+    }
+    return addSecurityHeaders(NextResponse.rewrite(targetUrl), request)
   }
 
   // ── API routes: pass through with security headers ──

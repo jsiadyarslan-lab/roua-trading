@@ -86,12 +86,21 @@ const nextConfig: NextConfig = {
       // FIX: Socket.IO runs on NestJS (port 3001), but all traffic hits
       // Next.js (port 3000). Without this rewrite, /socket.io requests
       // return 404 because Next.js doesn't serve Socket.IO.
-      // Two patterns needed:
-      //   1. /socket.io (no trailing slash) — matches initial polling GET
-      //   2. /socket.io/:path* (with trailing slash) — matches all sub-paths
+      // Three patterns needed:
+      //   1. /socket.io (no trailing slash) — matches /socket.io?EIO=4
+      //   2. /socket.io/ (trailing slash, no sub-path) — matches /socket.io/?EIO=4
+      //   3. /socket.io/:path* — matches all sub-paths like /socket.io/1/
+      // Pattern #2 is critical: Socket.IO clients initially connect to
+      // /socket.io/?EIO=4&transport=polling which has pathname /socket.io/
+      // (with trailing slash). Without this explicit pattern, the rewrite
+      // may not match, causing 404 errors.
       {
         source: '/socket.io',
         destination: `${apiTarget}/socket.io`,
+      },
+      {
+        source: '/socket.io/',
+        destination: `${apiTarget}/socket.io/`,
       },
       {
         source: '/socket.io/:path*',

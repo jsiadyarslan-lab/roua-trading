@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
  * GET /api/health
  * Health check endpoint — no auth required.
  * Proxies to the NestJS backend health check.
+ * Also checks if Socket.IO polling is working on the NestJS backend.
  */
 export async function GET() {
   const start = Date.now();
@@ -26,6 +27,22 @@ export async function GET() {
     }
   } catch (error: any) {
     checks.api = { status: 'error', detail: error.message?.substring(0, 100) || 'API unreachable' };
+  }
+
+  // Check Socket.IO polling on NestJS backend (directly, bypassing proxy)
+  try {
+    const socketStart = Date.now();
+    const socketResponse = await fetch(`${apiTarget}/socket.io/?EIO=4&transport=polling`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    const socketBody = await socketResponse.text();
+    checks.socketio = {
+      status: socketResponse.ok || socketBody.includes('sid') ? 'ok' : 'error',
+      latencyMs: Date.now() - socketStart,
+      detail: `HTTP ${socketResponse.status}: ${socketBody.substring(0, 100)}`,
+    };
+  } catch (error: any) {
+    checks.socketio = { status: 'error', detail: error.message?.substring(0, 100) || 'Socket.IO unreachable' };
   }
 
   // Memory check

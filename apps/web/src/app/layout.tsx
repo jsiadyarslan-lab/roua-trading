@@ -72,6 +72,8 @@ export const viewport: Viewport = {
   themeColor: "#0B0E14",
 };
 
+import { GlobalStyleRegistry } from "@/components/GlobalStyleRegistry";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -79,11 +81,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" className="dark" suppressHydrationWarning>
-      <head>
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/icon-192.png" />
-      </head>
       <body className="antialiased">
+        <GlobalStyleRegistry />
         {children}
         <Toaster />
       </body>

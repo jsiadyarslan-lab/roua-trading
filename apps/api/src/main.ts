@@ -320,38 +320,33 @@ async function bootstrap() {
       }
     }
 
-    // ── FIX: Start HTTP server manually with Socket.IO listener reordering ──
-    // Get NestJS's HTTP server and create Socket.IO on it BEFORE calling listen().
-    // Socket.IO's Server constructor calls init() which reorders the HTTP server's
-    // 'request' event listeners, putting Socket.IO's handler first. This ensures
-    // /socket.io/ requests are handled by Socket.IO before Express returns 404.
+    // ── FIX: Start HTTP server — DO NOT create manual Socket.IO server ──
+    // CRITICAL: Previously, we created a new SocketIOServer(httpServer) which
+    // called init() and REORDERED the HTTP server's 'request' event listeners.
+    // This put Socket.IO's handler first, but CORRUPTED NestJS's Express handler
+    // ordering, causing ALL NestJS routes to return 404 "Cannot GET".
     //
-    // IMPORTANT: We call httpServer.listen() directly instead of app.listen()
-    // because app.listen() may create a new HTTP server internally, which would
-    // bypass our Socket.IO attachment.
+    // The correct approach: Use NestJS's IoAdapter (already set up above with
+    // app.useWebSocketAdapter(new IoAdapter(app))) which handles Socket.IO
+    // properly without reordering request handlers. Socket.IO paths are handled
+    // by NestJS's WebSocket gateway system.
+    //
+    // For raw Socket.IO access, use NestJS's @WebSocketGateway() decorators
+    // in gateway files (see execution-gateway.service.ts, exchange.gateway.ts).
     const httpServer = app.getHttpServer();
-    const { Server: SocketIOServer } = await import('socket.io');
-    const io = new SocketIOServer(httpServer, {
-      cors: {
-        origin: (_origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-          callback(null, true);
-        },
-        credentials: true,
-      },
-      path: '/socket.io',
-    });
-    console.log('🔌 Socket.IO server attached to HTTP server (listeners reordered)');
 
-    await new Promise<void>((resolve) => {
-      httpServer.listen(port, '0.0.0.0', () => resolve());
-    });
+    // Log request listener order BEFORE starting
+    const listenersBefore = httpServer.listeners('request');
+    console.log(`📋 HTTP request listeners before listen: ${listenersBefore.length}`);
+
+    await app.listen(port, '0.0.0.0');
     console.log(`🚀 Roua API running on http://0.0.0.0:${port}/api`);
-    console.log(`🔌 Socket.IO available on http://0.0.0.0:${port}/socket.io/`);
+    console.log(`🔌 Socket.IO available via NestJS WebSocket gateways`);
     console.log(`📊 Environment: ${configService.get('NODE_ENV', 'development')}`);
 
     // Log request listener order for debugging
     const listeners = httpServer.listeners('request');
-    console.log(`📋 HTTP request listeners: ${listeners.length} (Socket.IO should be first)`);
+    console.log(`📋 HTTP request listeners: ${listeners.length}`);
 
     // FIX: Log registered NestJS routes to diagnose missing controllers.
     // If SmartExecutor/StrategicCouncil routes are missing, it means the module

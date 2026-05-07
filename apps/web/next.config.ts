@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import TerserPlugin from "terser-webpack-plugin";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 

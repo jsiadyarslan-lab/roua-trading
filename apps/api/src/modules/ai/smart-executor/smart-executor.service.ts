@@ -126,44 +126,16 @@ export class SmartExecutorService implements OnModuleDestroy {
 
       this.logger.log(`⚔️ Auto-start check: ${activeBriefs} active briefs available`);
 
-      // Start the executor in monitoring mode — NO auto-enable of any user.
-      // Trades will only execute when a real user explicitly enables the executor.
+      // Start the executor in MONITORING MODE ONLY.
+      // CRITICAL: Do NOT auto-enable any users here.
+      // Previously this code called _autoEnableRealUsersForPaperTrading() which
+      // enabled paper trading for ALL users in the database, causing phantom trades
+      // to be created for every user on every server restart. Users must explicitly
+      // click "تشغيل" from their dashboard to enable trading for their account.
       await this.start('system-auto');
-      this.logger.log('⚔️ Smart Executor AUTO-STARTED in monitoring mode — waiting for users to enable');
-
-      // FIX: Auto-enable paper trading for ALL existing real users.
-      // The old auto-enable was removed because it created a FAKE "system-auto-trader"
-      // user — that was wrong. But removing it entirely meant 0 trades ever execute,
-      // making the entire platform appear broken to users.
-      //
-      // NEW APPROACH: Auto-enable paper trading for every REAL user in the database.
-      // This is SAFE because:
-      // 1. Paper trading uses virtual money ($10,000) — no real funds at risk
-      // 2. Only REAL users (with verified emails) are enabled — no phantom users
-      // 3. Users can still disable the executor from the dashboard if they want
-      // 4. The executor won't execute without active briefs from the Council
-      //
-      // This replaces both the old _autoEnableSystemUser() (which created fake users)
-      // AND the "users must click تشغيل" requirement (which resulted in 0 executions).
-      let enabledUsers = await this._getEnabledUsers();
-      if (enabledUsers.length === 0) {
-        this.logger.log('⚔️ No enabled users — auto-enabling paper trading for all existing users...');
-        const autoEnabledCount = await this._autoEnableRealUsersForPaperTrading();
-        if (autoEnabledCount > 0) {
-          enabledUsers = await this._getEnabledUsers();
-          this.logger.log(`⚔️ Auto-enabled paper trading for ${autoEnabledCount} real user(s) — trades will execute on next tick`);
-        } else {
-          this.logger.log('⚔️ No real users found in database — executor is monitoring only. Users will be auto-enabled when they register.');
-        }
-      } else {
-        this.logger.log(`⚔️ ${enabledUsers.length} user(s) have the executor enabled`);
-      }
+      this.logger.log('⚔️ Smart Executor AUTO-STARTED in pure monitoring mode — waiting for users to explicitly enable');
 
       // ── STARTUP PURGE: Clean phantom/stale positions that block new executions ──
-      // Old phantom positions from the removed auto-enable system have trade values
-      // under $1 (e.g., $0.01-$0.04). They block the executor from opening new
-      // positions because they count toward the maxOpenPositions limit.
-      // On every startup, we auto-purge these phantom positions.
       try {
         const purgeResult = await this.purgePhantomPositions();
         if (purgeResult.deleted > 0) {
@@ -174,7 +146,6 @@ export class SmartExecutorService implements OnModuleDestroy {
       }
 
       // Also auto-close stale paper-trading positions that have been open too long (>24h)
-      // Paper trading positions should NOT stay open indefinitely — they block new briefs.
       try {
         const staleClosed = await this._autoCloseStalePaperPositions();
         if (staleClosed > 0) {
@@ -183,6 +154,30 @@ export class SmartExecutorService implements OnModuleDestroy {
       } catch (staleErr: any) {
         this.logger.warn(`⚔️ Startup stale cleanup failed (non-critical): ${staleErr.message}`);
       }
+
+      // Restore previously-enabled users from DB (they explicitly enabled before restart)
+      // This is different from auto-enabling ALL users — we only restore users who
+      // previously clicked "تشغيل" themselves.
+      try {
+        const dbStates = await this._loadAllUserStatesFromDB();
+        let restored = 0;
+        for (const { userId, state } of dbStates) {
+          if (state.enabled) {
+            await this.redis.set(
+              `${this.REDIS_USER_STATE_PREFIX}${userId}`,
+              JSON.stringify(state),
+              86400000 * 7,
+            );
+            restored++;
+          }
+        }
+        if (restored > 0) {
+          this.logger.log(`⚔️ Restored ${restored} user(s) executor state from DB (they explicitly enabled before restart)`);
+        }
+      } catch (restoreErr: any) {
+        this.logger.warn(`⚔️ Failed to restore user states from DB: ${restoreErr.message}`);
+      }
+
     } catch (error: any) {
       this.logger.warn(`⚔️ Auto-start failed (non-critical): ${error.message}`);
     }
@@ -2022,6 +2017,36 @@ export class SmartExecutorService implements OnModuleDestroy {
       this.logger.debug(`⚔️ Failed to load user state from DB for ${userId}: ${e.message}`);
     }
     return null;
+  }
+
+  /**
+   * Load ALL user states from DB — returns userId + state pairs
+   * Used at startup to restore explicitly-enabled users.
+   */
+  private async _loadAllUserStatesFromDB(): Promise<Array<{ userId: string; state: UserExecutorState }>> {
+    try {
+      const settings = await this.prisma.setting.findMany({
+        where: { key: { startsWith: this.DB_USER_STATE_KEY } },
+        select: { key: true, value: true },
+      });
+
+      const results: Array<{ userId: string; state: UserExecutorState }> = [];
+      for (const setting of settings) {
+        try {
+          const state = JSON.parse(setting.value) as UserExecutorState;
+          if (state && state.enabled) {
+            const userId = setting.key.replace(`${this.DB_USER_STATE_KEY}:`, '');
+            results.push({ userId, state });
+          }
+        } catch {
+          // Invalid JSON — skip
+        }
+      }
+      return results;
+    } catch (e: any) {
+      this.logger.debug(`⚔️ Failed to load all user states from DB: ${e.message}`);
+      return [];
+    }
   }
 
   /**

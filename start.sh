@@ -1510,16 +1510,20 @@ EOSQL
     EXCEPTION WHEN others THEN NULL;
     END $$;
 
-    -- Add missing unique constraint on Position (@@unique([userId, symbol, side, status]))
+    -- REMOVED: Position unique constraint on (userId, symbol, side, status)
+    -- FIX: This constraint blocked the Smart Executor from opening new positions
+    -- when old/stale positions were stuck OPEN. Now replaced with a regular index.
+    -- Drop the unique constraint if it exists from a previous deploy.
     DO $$ BEGIN
-      IF NOT EXISTS (
+      IF EXISTS (
         SELECT 1 FROM information_schema.table_constraints
         WHERE constraint_name = 'Position_userId_symbol_side_status_key'
       ) THEN
-        ALTER TABLE "Position" ADD CONSTRAINT "Position_userId_symbol_side_status_key"
-          UNIQUE ("userId", "symbol", "side", "status");
+        ALTER TABLE "Position" DROP CONSTRAINT "Position_userId_symbol_side_status_key";
       END IF;
     END $$;
+    -- Add a regular index instead (allows multiple open positions per pair)
+    CREATE INDEX IF NOT EXISTS "Position_userId_symbol_side_status_idx" ON "Position"("userId", "symbol", "side", "status");
 
     -- Add missing compound indexes on Position
     CREATE INDEX IF NOT EXISTS "Position_userId_status_idx" ON "Position"("userId", "status");
@@ -1579,16 +1583,17 @@ EOSQL
     EXCEPTION WHEN others THEN NULL;
     END $$;
 
-    -- Fix Position unique constraint
+    -- REMOVED: Position unique constraint — replaced with regular index
+    -- FIX: Drop the unique constraint if it exists from a previous deploy.
     DO $$ BEGIN
-      IF NOT EXISTS (
+      IF EXISTS (
         SELECT 1 FROM information_schema.table_constraints
         WHERE constraint_name = 'Position_userId_symbol_side_status_key'
       ) THEN
-        ALTER TABLE "Position" ADD CONSTRAINT "Position_userId_symbol_side_status_key"
-          UNIQUE ("userId", "symbol", "side", "status");
+        ALTER TABLE "Position" DROP CONSTRAINT "Position_userId_symbol_side_status_key";
       END IF;
     END $$;
+    CREATE INDEX IF NOT EXISTS "Position_userId_symbol_side_status_idx" ON "Position"("userId", "symbol", "side", "status");
 
     -- Trade.updatedAt (required by Prisma @updatedAt)
     DO $$ BEGIN

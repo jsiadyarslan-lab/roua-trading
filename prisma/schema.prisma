@@ -391,7 +391,7 @@ model Position {
   @@index([exchange])
   @@index([userId, status])
   @@index([userId, symbol, status])
-  @@unique([userId, symbol, side, status])
+  @@index([userId, symbol, side, status])
 }
 
 model Trade {

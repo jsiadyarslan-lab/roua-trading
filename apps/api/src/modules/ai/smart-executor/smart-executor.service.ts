@@ -1032,19 +1032,70 @@ export class SmartExecutorService implements OnModuleDestroy {
         continue;
       }
 
-      // Skip if user already has position for this pair
+      // Check confidence threshold FIRST (cheap check, skip early)
+      if (brief.confidence < this.config.minConfidence) {
+        this.logger.debug(`⚔️ Skipping brief ${brief.id} — confidence ${brief.confidence}% < min ${this.config.minConfidence}%`);
+        continue;
+      }
+
+      // Check if user already has position for this pair
       const existingPosition = await this.prisma.position.findFirst({
         where: { userId, symbol: brief.pair, status: 'OPEN' },
       });
       if (existingPosition) {
-        this.logger.debug(`⚔️ Skipping brief ${brief.id} — existing open position for ${brief.pair}`);
-        continue;
-      }
+        // FIX: Instead of silently skipping, close the stale position for paper trading
+        // and execute the new brief. Old positions block ALL new trades for that pair,
+        // causing 0 executions when the dashboard shows "5 open positions".
+        if (userState.isPaperTrading) {
+          try {
+            const closePrice = Number(existingPosition.currentPrice) || Number(existingPosition.entryPrice);
+            const pnl = (closePrice - Number(existingPosition.entryPrice)) * Number(existingPosition.quantity) * (existingPosition.side === 'SELL' ? -1 : 1);
 
-      // Check confidence threshold
-      if (brief.confidence < this.config.minConfidence) {
-        this.logger.debug(`⚔️ Skipping brief ${brief.id} — confidence ${brief.confidence}% < min ${this.config.minConfidence}%`);
-        continue;
+            await this.prisma.position.update({
+              where: { id: existingPosition.id },
+              data: {
+                status: 'CLOSED',
+                closedAt: new Date(),
+                currentPrice: closePrice,
+                unrealizedPnl: 0,
+                realizedPnl: pnl,
+                source: 'smart_executor',
+              },
+            });
+
+            // Record the closing trade
+            try {
+              await this.prisma.trade.create({
+                data: {
+                  userId,
+                  positionId: existingPosition.id,
+                  symbol: existingPosition.symbol,
+                  side: existingPosition.side === 'BUY' ? 'SELL' : 'BUY',
+                  type: 'EXIT',
+                  quantity: Number(existingPosition.quantity),
+                  price: closePrice,
+                  pnl,
+                  exchange: 'paper-trading',
+                  source: 'smart_executor',
+                  executedAt: new Date(),
+                },
+              });
+            } catch (tradeErr: any) {
+              this.logger.warn(`⚔️ Failed to record closing trade: ${tradeErr.message}`);
+            }
+
+            this.logger.log(
+              `⚔️ Closed stale paper position ${existingPosition.symbol} ` +
+              `(PnL: $${pnl.toFixed(2)}) to execute new brief ${brief.id}`,
+            );
+          } catch (closeErr: any) {
+            this.logger.warn(`⚔️ Failed to close stale position for ${brief.pair}: ${closeErr.message} — skipping brief`);
+            continue;
+          }
+        } else {
+          this.logger.debug(`⚔️ Skipping brief ${brief.id} — existing open position for ${brief.pair}`);
+          continue;
+        }
       }
 
       try {

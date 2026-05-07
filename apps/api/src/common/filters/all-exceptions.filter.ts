@@ -110,15 +110,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
       path: request.url,
     };
 
-    // TEMPORARY DEBUG: Include raw error details for Prisma/database errors
-    // to diagnose 503 schema mismatch issues. Remove after fixing.
-    if (exception instanceof Error) {
-      const rawMsg = exception.message || '';
-      if (rawMsg.includes('Prisma') || rawMsg.includes('prisma') || rawMsg.includes('column') || rawMsg.includes('does not exist')) {
-        responseBody._debug = rawMsg.substring(0, 500);
-      }
-    }
-
     // In development, include error details for debugging
     if (
       process.env.NODE_ENV !== 'production' &&

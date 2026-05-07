@@ -362,8 +362,13 @@ async function bootstrap() {
     try {
       const { Server: SocketIOServer } = await import('socket.io');
 
-      // Create Socket.IO server (NOT attached to HTTP server yet)
-      const io = new SocketIOServer({
+      // Step 1: Save and remove all existing HTTP request listeners (Express, etc.)
+      const savedListeners = httpServer.listeners('request').slice();
+      httpServer.removeAllListeners('request');
+
+      // Step 2: Create Socket.IO server and attach to HTTP server
+      // This creates the engine and WebSocket server
+      const io = new SocketIOServer(httpServer, {
         cors: {
           origin: (_origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
             callback(null, true);
@@ -374,25 +379,33 @@ async function bootstrap() {
         transports: ['polling', 'websocket'],
       });
 
-      // Get the engine reference before attaching
+      // Step 3: Now get the engine (it's created by the attach call in constructor)
       const engine = io.engine;
 
-      // Save and remove all existing HTTP request listeners (Express, etc.)
-      const savedListeners = httpServer.listeners('request').slice();
+      // Step 4: Remove ALL listeners added by Socket.IO's init()
+      // (init() adds its own request handler that conflicts with Express)
+      const socketIoListeners = httpServer.listeners('request').slice();
       httpServer.removeAllListeners('request');
 
-      // Add a single wrapper handler
+      // Step 5: Add our custom wrapper handler that routes requests correctly
       httpServer.on('request', (req: any, res: any) => {
         const url: string = req.url || '/';
-        // Check if this is a Socket.IO request
-        if (url.startsWith('/socket.io') || url.startsWith('/socket.io/')) {
-          // Forward to Socket.IO's engine directly
+        if (url.startsWith('/socket.io')) {
+          // Socket.IO request — forward to engine.handleRequest()
           if (engine && typeof engine.handleRequest === 'function') {
-            engine.handleRequest(req, res);
+            try {
+              engine.handleRequest(req, res);
+            } catch (e) {
+              console.error(`🔌 Socket.IO engine error: ${(e as Error).message}`);
+              // Fallback: try Socket.IO's own listeners
+              for (const listener of socketIoListeners) {
+                try { (listener as any).call(httpServer, req, res); } catch {}
+              }
+            }
           } else {
-            // Fallback: call saved listeners
-            for (const listener of savedListeners) {
-              (listener as any).call(httpServer, req, res);
+            // No engine — use Socket.IO's listeners as fallback
+            for (const listener of socketIoListeners) {
+              try { (listener as any).call(httpServer, req, res); } catch {}
             }
           }
         } else {
@@ -403,14 +416,9 @@ async function bootstrap() {
         }
       });
 
-      // Now attach Socket.IO for WebSocket upgrade handling
-      // This sets up the WebSocket server but our custom request handler
-      // above takes care of HTTP polling requests
-      io.attach(httpServer);
-
       console.log(`🔌 Socket.IO server created with custom HTTP handler`);
-      console.log(`📋 Saved ${savedListeners.length} original HTTP request listeners`);
-      console.log(`📋 Current HTTP request listeners: ${httpServer.listeners('request').length}`);
+      console.log(`🔌 Engine available: ${!!engine}, handleRequest: ${typeof engine?.handleRequest}`);
+      console.log(`📋 Saved ${savedListeners.length} Express + ${socketIoListeners.length} Socket.IO listeners`);
 
       // Setup connection handling on the default namespace
       io.on('connection', (socket) => {

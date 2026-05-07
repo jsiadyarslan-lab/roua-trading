@@ -939,12 +939,30 @@ export default function DashboardPage() {
 
   const hasPositions = positions.length > 0 || paperTrades.length > 0
 
-  // Auto-expand positions panel when positions appear
+  // Notify user when SmartExecutor opens a new position
+  const prevPositionsCount = useRef(positions.length)
+  const addNotificationFn = useNotificationStore(state => state.addNotification)
   useEffect(() => {
-    if (hasPositions) {
-      setPosOpen(true)
+    const prev = prevPositionsCount.current
+    const curr = positions.length
+    if (curr > prev) {
+      // New position(s) detected — notify
+      const newest = positions[0]
+      if (newest) {
+        const dir = newest.side === 'BUY' ? '🟢 شراء' : '🔴 بيع'
+        addNotificationFn({
+          type: 'trade',
+          title: `${dir} — ${newest.symbol}`,
+          body: `فتح المنفذ الذكي مركزاً جديداً @ $${Number(newest.entryPrice ?? newest.currentPrice).toFixed(2)}`,
+          sound: true,
+        })
+        setPosOpen(true)
+      }
     }
-  }, [hasPositions])
+    prevPositionsCount.current = curr
+  }, [positions.length, positions, addNotificationFn])
+
+
 
   const [chartExpanded, setChartExpanded] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
@@ -974,12 +992,18 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchAccount()
     fetchPositions()
+
+    // CRITICAL FIX: Poll every 10s (was 60s) so new SmartExecutor trades
+    // appear in the open positions card within 10 seconds of execution.
     const intervalId = window.setInterval(() => {
       fetchAccount()
       fetchPositions()
-    }, 60000)
+    }, 10000)
 
-    return () => window.clearInterval(intervalId)
+    // Extra immediate fetch after 3s to catch trades that just fired
+    const quickFetch = setTimeout(() => fetchPositions(), 3000)
+
+    return () => { window.clearInterval(intervalId); clearTimeout(quickFetch) }
   }, [fetchAccount, fetchPositions])
 
   // Cross-device sync: refresh data when the page becomes visible

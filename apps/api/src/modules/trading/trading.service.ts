@@ -1145,6 +1145,13 @@ export class TradingService {
           this.riskManager.getDefaultLevels(fillPrice, side);
 
         try {
+          // CRITICAL FIX: Use SL/TP from the request (brief) if provided.
+          // Previously, takeProfit was always overwritten with the default level,
+          // ignoring the brief's calculated TP. Only fall back to defaults if not set.
+          const defaultLevels = this.riskManager.getDefaultLevels(fillPrice, side);
+          const finalStopLoss = request.stopLoss ?? defaultLevels.stopLoss;
+          const finalTakeProfit = request.takeProfit ?? defaultLevels.takeProfit;
+
           await db.position.create({
             data: {
               userId,
@@ -1158,8 +1165,8 @@ export class TradingService {
               currentPrice: fillPrice,
               highestPrice: fillPrice,
               lowestPrice: fillPrice,
-              stopLoss: request.stopLoss ?? stopLoss,
-              takeProfit,
+              stopLoss: finalStopLoss,
+              takeProfit: finalTakeProfit,
               source: request.source || (exchangeName === 'paper-trading' ? 'auto_paper' : 'user_manual'),
             },
           });

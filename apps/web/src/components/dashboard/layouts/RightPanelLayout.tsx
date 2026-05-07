@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { Brain, ScanSearch, Sparkles, Waves, Swords, Landmark } from 'lucide-react'
+import { Brain, ScanSearch, Sparkles, Waves, Swords, Landmark, Bot } from 'lucide-react'
+import { AgentControlMini } from '@/components/dashboard/AgentControlMini'
 import { ScannerMini } from '@/components/dashboard/ScannerMini'
 import { BotCommandCenter } from '@/components/dashboard/BotCommandCenter'
 import { AICouncilPanel } from '@/components/dashboard/AICouncilPanel'
@@ -65,6 +66,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
     { id: 'council', label: 'AI', accent: T.accent, icon: Brain, subtitle: 'إجماع الذكاء الاصطناعي' },
     { id: 'scanner', label: 'السكانر', accent: T.amber, icon: ScanSearch, subtitle: 'اكتشاف الفرص' },
     { id: 'signals', label: 'إشارات', accent: T.green, icon: Sparkles, subtitle: 'التحويل للتنفيذ' },
+    { id: 'trader', label: 'الوكيل', accent: '#FF8C42', icon: Bot, subtitle: 'وكيل التداول الذاتي' },
   ]
   const activeTab = TABS.find((tab) => tab.id === active) || TABS[0]
   const headlineMap = {
@@ -73,6 +75,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
     council: council?.recommendation ? `إجماع AI يميل إلى ${council.recommendation}` : 'إجماع الذكاء الاصطناعي',
     scanner: scanner ? `${scanner.pair} تحت المجهر` : 'السكانر يفتش عن فرصة',
     signals: 'الإشارات الجاهزة للتنفيذ',
+    trader: 'وكيل التداول الذاتي',
   } as const
 
   const headline = headlineMap[active as keyof typeof headlineMap] ?? 'مركز القرار التشغيلي'
@@ -270,6 +273,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
         <div style={{ display: active === 'council' ? 'contents' : 'none' }}><AICouncilPanel /></div>
         <div style={{ display: active === 'scanner' ? 'contents' : 'none' }}><ScannerMini /></div>
         <div style={{ display: active === 'signals' ? 'contents' : 'none' }}><BotCommandCenter /></div>
+        <div style={{ display: active === 'trader' ? 'contents' : 'none' }}><AgentControlMini /></div>
         </div>
       </div>
     </div>

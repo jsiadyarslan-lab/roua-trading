@@ -84,12 +84,21 @@ export function ScopedStyle(props: {
     style.setAttribute('data-scoped-style', '')
     style.setAttribute('data-scoped-id', idRef.current)
     style.textContent = css
-    document.head.appendChild(style)
+    
+    // FIX: Never append directly to document.head in Next.js App Router!
+    let container = document.getElementById('scoped-style-container')
+    if (!container) {
+      container = document.createElement('div')
+      container.id = 'scoped-style-container'
+      container.style.display = 'none'
+      document.body.appendChild(container)
+    }
+    container.appendChild(style)
     styleRef.current = style
 
     return () => {
-      if (styleRef.current) {
-        styleRef.current.remove()
+      if (styleRef.current && styleRef.current.parentNode) {
+        styleRef.current.parentNode.removeChild(styleRef.current)
         styleRef.current = null
       }
     }

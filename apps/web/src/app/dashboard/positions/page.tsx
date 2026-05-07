@@ -34,6 +34,7 @@ interface Position {
   stopLoss?: number
   takeProfit?: number
   openedAt: string
+  source?: string
 }
 
 interface PositionSummary {
@@ -45,6 +46,42 @@ interface PositionSummary {
 
 const EXCHANGES = ['الكل', 'binance', 'kucoin', 'bybit', 'okx', 'gate']
 const SYMBOLS = ['الكل', 'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT']
+
+// ── Source Label Mapping ──
+function getSourceBadge(source?: string | null) {
+  if (!source || source === 'user_manual') return null
+  const map: Record<string, { label: string; bg: string; color: string; border: string; icon: string }> = {
+    smart_executor: {
+      label: 'المنفذ',
+      bg: 'rgba(0,212,255,0.12)',
+      color: '#00D4FF',
+      border: 'rgba(0,212,255,0.25)',
+      icon: '\u2694\uFE0F',
+    },
+    agent: {
+      label: 'الوكيل',
+      bg: 'rgba(162,89,255,0.12)',
+      color: '#A259FF',
+      border: 'rgba(162,89,255,0.25)',
+      icon: '\uD83E\uDD16',
+    },
+    auto_paper: {
+      label: 'ورقي',
+      bg: 'rgba(255,184,0,0.12)',
+      color: '#FFB800',
+      border: 'rgba(255,184,0,0.25)',
+      icon: '\uD83D\uDCDD',
+    },
+    reconciliation: {
+      label: 'تسوية',
+      bg: 'rgba(48,209,88,0.12)',
+      color: '#30D158',
+      border: 'rgba(48,209,88,0.25)',
+      icon: '\uD83D\uDD04',
+    },
+  }
+  return map[source] || null
+}
 
 // ── Stat Card Component ──
 function StatCard({ icon, label, value, subValue, color, gradientFrom, gradientTo }: {
@@ -406,6 +443,7 @@ export default function PositionsPage() {
                         </div>
                         <span dir="ltr" style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{pos.symbol}</span>
                         <span style={{ fontSize: 8, fontWeight: 600, background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', padding: '1px 5px', borderRadius: '4px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{pos.exchange}</span>
+                        {(() => { const badge = getSourceBadge(pos.source); return badge ? <span style={{ fontSize: 8, fontWeight: 700, background: badge.bg, border: `1px solid ${badge.border}`, padding: '1px 5px', borderRadius: '4px', color: badge.color, fontFamily: 'var(--font-ar)' }}>{badge.icon} {badge.label}</span> : null })()}
                       </div>
                       <span dir="ltr" style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: (pos.unrealizedPnl || 0) > 0 ? 'var(--profit)' : (pos.unrealizedPnl || 0) < 0 ? 'var(--loss)' : 'var(--text-secondary)' }}>
                         {(pos.unrealizedPnl || 0) > 0 ? '+' : ''}{formatCurrency(pos.unrealizedPnl || 0)}
@@ -439,7 +477,7 @@ export default function PositionsPage() {
                   <caption className="sr-only">جدول المراكز المفتوحة</caption>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                      {['الزوج', 'البورصة', 'الاتجاه', 'الكمية', 'سعر الدخول', 'السعر الحالي', 'ر/خ', 'وقف الخسارة', 'جني الأرباح', 'إجراءات'].map(h => (
+                      {['الزوج', 'البورصة', 'الاتجاه', 'المصدر', 'الكمية', 'سعر الدخول', 'السعر الحالي', 'ر/خ', 'وقف الخسارة', 'جني الأرباح', 'إجراءات'].map(h => (
                         <th key={h} style={{ padding: '8px 10px', fontSize: '9px', fontWeight: 700, color: 'var(--text-faint)', fontFamily: 'var(--font-ar)', textAlign: 'right', background: 'rgba(0,0,0,0.06)' }}>{h}</th>
                       ))}
                     </tr>
@@ -469,6 +507,14 @@ export default function PositionsPage() {
                           <span style={{ fontSize: '9px', fontWeight: 800, padding: '2px 8px', borderRadius: '5px', fontFamily: 'var(--font-ar)', background: pos.side === 'BUY' ? 'var(--profit-bg)' : 'var(--loss-bg)', color: pos.side === 'BUY' ? 'var(--profit)' : 'var(--loss)', border: `1px solid ${pos.side === 'BUY' ? 'var(--border-profit)' : 'var(--border-loss)'}` }}>
                             {pos.side === 'BUY' ? 'شراء' : 'بيع'}
                           </span>
+                        </td>
+                        <td style={{ padding: '8px 10px' }}>
+                          {(() => {
+                            const badge = getSourceBadge(pos.source)
+                            return badge
+                              ? <span style={{ fontSize: '8px', fontWeight: 700, padding: '2px 6px', borderRadius: '5px', fontFamily: 'var(--font-ar)', background: badge.bg, color: badge.color, border: `1px solid ${badge.border}`, whiteSpace: 'nowrap' }}>{badge.icon} {badge.label}</span>
+                              : <span style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar)' }}>يدوي</span>
+                          })()}
                         </td>
                         <td dir="ltr" style={{ padding: '8px 10px', fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{pos.quantity}</td>
                         <td dir="ltr" style={{ padding: '8px 10px', fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{formatPrice(pos.entryPrice)}</td>

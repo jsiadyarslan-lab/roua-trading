@@ -156,6 +156,7 @@ export class PositionReconciliationService implements OnModuleInit, OnModuleDest
               lowestPrice: fillPrice,
               stopLoss: record.stopLoss ? Number(record.stopLoss) : undefined,
               takeProfit: record.takeProfit ? Number(record.takeProfit) : undefined,
+              source: 'reconciliation',
             },
           });
         }
@@ -171,7 +172,7 @@ export class PositionReconciliationService implements OnModuleInit, OnModuleDest
             type: 'ENTRY',
             quantity: filledQuantity,
             price: fillPrice,
-            
+            source: 'reconciliation',
           },
         });
       }, {

@@ -25,7 +25,9 @@ function NotifIcon({ source, action }: { source: string; action: NotifAction }) 
 /* ─── Source label ─── */
 function sourceLabel(source: string): string {
   switch (source) {
-    case 'bot': return 'البوت'
+    case 'bot': return 'المنفذ'
+    case 'smart_executor': return 'المنفذ'
+    case 'agent': return 'الوكيل'
     case 'ai': return 'AI'
     case 'scanner': return 'السكانر'
     case 'trade': return 'التداول'

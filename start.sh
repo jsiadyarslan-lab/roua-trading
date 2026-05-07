@@ -672,6 +672,20 @@ EOSQL
       END IF;
     END $$;
 
+    -- Position table: add source column if missing (who opened this position)
+    -- Values: 'user_manual' (default), 'smart_executor', 'agent', 'auto_paper', 'reconciliation'
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Position' AND column_name = 'source'
+      ) THEN
+        ALTER TABLE "Position" ADD COLUMN "source" TEXT NOT NULL DEFAULT 'user_manual';
+        CREATE INDEX IF NOT EXISTS "Position_source_idx" ON "Position"("source");
+        -- Mark existing paper-trading exchange positions as auto_paper
+        UPDATE "Position" SET source = 'auto_paper' WHERE "exchange" = 'paper-trading' AND source = 'user_manual';
+      END IF;
+    END $$;
+
     -- ── Agent Tables (Critical for Autonomous Trader) ──
 
     -- Create AgentStrategy enum (needed by AutonomousTrade table)

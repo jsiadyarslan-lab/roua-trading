@@ -24,6 +24,18 @@ const C = {
 const FONT_AR   = "'Cairo', sans-serif"
 const FONT_MONO = "'JetBrains Mono', monospace"
 
+/* ─── Source Label Mapping ─── */
+function getSourceBadge(source?: string | null) {
+  if (!source || source === 'manual') return null
+  const map: Record<string, { label: string; bg: string; color: string }> = {
+    bot:       { label: 'المنفذ', bg: 'rgba(0,212,255,0.15)', color: '#00D4FF' },
+    smart_executor: { label: 'المنفذ', bg: 'rgba(0,212,255,0.15)', color: '#00D4FF' },
+    agent:     { label: 'الوكيل', bg: 'rgba(162,89,255,0.15)', color: '#A259FF' },
+    auto_paper: { label: 'ورقي', bg: 'rgba(255,184,0,0.15)', color: '#FFB800' },
+  }
+  return map[source] || null
+}
+
 /* ─── Helpers ─── */
 const fmt  = (n: number, d = 2) => Math.abs(n).toFixed(d)
 const sign = (n: number) => (n > 0 ? '+' : n < 0 ? '-' : '')
@@ -247,17 +259,7 @@ function PositionCard({
           >
             {trade.side === 'long' ? 'شراء' : 'بيع'}
           </span>
-          {trade.source === 'bot' && (
-            <span
-              style={{
-                fontSize: 9, padding: '2px 6px', borderRadius: 6, fontWeight: 700,
-                background: 'rgba(0,212,255,0.12)', color: C.accent,
-                fontFamily: FONT_AR,
-              }}
-            >
-              بوت
-            </span>
-          )}
+          {(() => { const badge = getSourceBadge(trade.source); return badge ? <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 6, fontWeight: 700, background: badge.bg, color: badge.color, fontFamily: FONT_AR }}>{badge.label}</span> : null })()}
         </div>
         <motion.button
           whileTap={{ scale: 0.85 }}

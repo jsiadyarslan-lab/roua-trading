@@ -296,7 +296,7 @@ export class TradingService {
             price: tradePrice,
             fee: execution.fee,
             feeCurrency: execution.feeCurrency,
-            
+            source: request.source || (credential.exchange === 'paper-trading' ? 'auto_paper' : 'user_manual'),
           },
         });
       }
@@ -1160,6 +1160,7 @@ export class TradingService {
               lowestPrice: fillPrice,
               stopLoss: request.stopLoss ?? stopLoss,
               takeProfit,
+              source: request.source || (exchangeName === 'paper-trading' ? 'auto_paper' : 'user_manual'),
             },
           });
         } catch (createError: any) {

@@ -847,15 +847,15 @@ function MobilePositions() {
                           background: 'rgba(0,212,255,0.1)', color: '#00D4FF',
                           fontSize: 6, fontWeight: 800,
                           border: '0.5px solid rgba(0,212,255,0.2)',
-                        }}>PAPER</span>
+                        }}>ورقي</span>
                       )}
                       {pos.source === 'bot' && (
                         <span style={{
                           padding: '1px 4px', borderRadius: 6,
-                          background: 'rgba(255,183,0,0.1)', color: '#FFB800',
+                          background: 'rgba(0,212,255,0.1)', color: '#00D4FF',
                           fontSize: 6, fontWeight: 800,
-                          border: '0.5px solid rgba(255,183,0,0.2)',
-                        }}>BOT</span>
+                          border: '0.5px solid rgba(0,212,255,0.2)',
+                        }}>المنفذ</span>
                       )}
                     </div>
                     <span style={{ fontSize: 9, color: 'rgba(235,235,245,0.3)', fontFamily: "'JetBrains Mono', monospace" }}>
@@ -937,7 +937,7 @@ function MobilePositions() {
                       </span>
                       <span style={{ fontSize: 10, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>{ct.symbol}</span>
                       {ct.source === 'bot' && (
-                        <span style={{ padding: '1px 3px', borderRadius: 4, background: 'rgba(255,183,0,0.1)', color: '#FFB800', fontSize: 6, fontWeight: 800 }}>BOT</span>
+                        <span style={{ padding: '1px 3px', borderRadius: 4, background: 'rgba(0,212,255,0.1)', color: '#00D4FF', fontSize: 6, fontWeight: 800 }}>المنفذ</span>
                       )}
                     </div>
                     <span style={{ fontSize: 10, fontWeight: 900, color: pnlUp ? '#32D74B' : '#FF453A', fontFamily: "'JetBrains Mono', monospace" }}>

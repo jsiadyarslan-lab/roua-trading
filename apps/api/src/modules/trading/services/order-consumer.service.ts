@@ -345,6 +345,7 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
               lowestPrice: fillPrice,
               stopLoss: message.stopLoss,
               takeProfit: message.takeProfit,
+              source: (message as any).source || (credential.exchange === 'paper-trading' ? 'auto_paper' : 'user_manual'),
             },
           });
         }
@@ -359,7 +360,7 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
             type: 'ENTRY',
             quantity: filledQuantity,
             price: fillPrice,
-            
+            source: (message as any).source || (credential.exchange === 'paper-trading' ? 'auto_paper' : 'user_manual'),
           },
         });
       }, {

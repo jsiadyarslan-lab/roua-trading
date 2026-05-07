@@ -247,6 +247,7 @@ export class OrderExecutorService implements OnModuleDestroy {
               unrealizedPnl: 0,
               stopLoss: signal.stopLoss,
               takeProfit: signal.takeProfit,
+              source: 'agent',
             },
           });
         } catch (posErr: any) {

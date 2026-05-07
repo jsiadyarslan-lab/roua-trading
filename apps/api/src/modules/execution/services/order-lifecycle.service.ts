@@ -338,6 +338,7 @@ export class OrderLifecycleService {
               lowestPrice: result.averagePrice ?? 0,
               stopLoss: Number(order.stopLoss) || null,
               takeProfit: Number(order.takeProfit) || null,
+              source: (order as any).source || 'user_manual',
             },
           });
         }

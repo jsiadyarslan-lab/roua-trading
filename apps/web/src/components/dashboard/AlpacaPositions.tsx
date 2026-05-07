@@ -269,15 +269,15 @@ export function AlpacaPositions() {
                     style={{
                       padding: '1px 4px',
                       borderRadius: 999,
-                      background: 'rgba(0,212,255,0.10)',
-                      border: '1px solid rgba(0,212,255,0.20)',
-                      color: T.cyan,
+                      background: 'rgba(255,184,0,0.12)',
+                      border: '1px solid rgba(255,184,0,0.20)',
+                      color: T.amber,
                       fontSize: 5.5,
                       fontWeight: 800,
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    PAPER
+                    ورقي
                   </span>
                 )}
                 {position.source === 'bot' && (
@@ -285,15 +285,15 @@ export function AlpacaPositions() {
                     style={{
                       padding: '1px 4px',
                       borderRadius: 999,
-                      background: 'rgba(245,185,66,0.12)',
-                      border: '1px solid rgba(245,185,66,0.20)',
-                      color: T.amber,
+                      background: 'rgba(0,212,255,0.12)',
+                      border: '1px solid rgba(0,212,255,0.20)',
+                      color: T.cyan,
                       fontSize: 5.5,
                       fontWeight: 800,
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    BOT
+                    المنفذ
                   </span>
                 )}
               </div>
@@ -413,7 +413,7 @@ export function AlpacaPositions() {
                       </span>
                       <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{ct.symbol}</span>
                       {ct.source === 'bot' && (
-                        <span style={{ padding: '1px 4px', borderRadius: 999, background: 'rgba(245,185,66,0.12)', border: '1px solid rgba(245,185,66,0.20)', color: T.amber, fontSize: 5.5, fontWeight: 800 }}>BOT</span>
+                        <span style={{ padding: '1px 4px', borderRadius: 999, background: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.20)', color: T.cyan, fontSize: 5.5, fontWeight: 800 }}>المنفذ</span>
                       )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

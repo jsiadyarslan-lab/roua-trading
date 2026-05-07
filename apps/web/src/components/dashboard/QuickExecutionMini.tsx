@@ -73,7 +73,7 @@ export function QuickExecutionMini({
   const inputPadding = mobile ? '10px' : '12px'
   const actionHeight = mobile ? 52 : 42
   const statusTone = getStatusTone(dataStatus)
-  const environmentLabel = 'PAPER'
+  const environmentLabel = 'ورقي'
   const inferredOrderType = pendingAction === 'sell' ? 'بيع' : 'شراء'
 
 

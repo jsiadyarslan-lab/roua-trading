@@ -14,7 +14,7 @@
 2. **إعداد بيئة التطوير**
    - تهيئة مشروع Next.js 16 مع TypeScript و Tailwind CSS 4
    - تثبيت الحزم: `@simplewebauthn/browser`, `@simplewebauthn/server`, `framer-motion`, `lucide-react`
-   - إعداد قاعدة البيانات SQLite مع Prisma ORM
+   - إعداد قاعدة البيانات PostgreSQL مع Prisma ORM (تم التحويل من SQLite سابقاً)
 
 3. **مخطط قاعدة البيانات (Prisma Schema)**
    - `User` — المستخدمون مع WebAuthn Passkeys وأصناف الاشتراك
@@ -353,7 +353,7 @@ turbo.json                               # إعدادات Turborepo ★
 - [ ] إضافة مفتاح `TWELVE_DATA_API_KEY` في .env
 - [ ] اختبار مسار `GET /api/exchange/quote/AAPL` مع بيانات حقيقية
 - [ ] نظام RAG مع pgvector
-- [ ] تحويل Prisma من SQLite إلى PostgreSQL
+- [x] تحويل Prisma من SQLite إلى PostgreSQL ✅ (تم الإنجاز)
 - [ ] بناء صفحة المحفظة (Portfolio)
 - [ ] بناء صفحة الأخبار (News Radar)
 
@@ -611,7 +611,7 @@ prisma/schema.prisma                    # + ExchangeCredential model ★
 - [x] توليد إشارات تداول ذكية (Signal Generation)
 - [x] تحليل مخاطر المحفظة (Portfolio Sanctuary)
 - [x] صفحة الإشارات + صفحة الملاذ
-- [ ] تحويل Prisma من SQLite إلى PostgreSQL + pgvector
+- [x] تحويل Prisma من SQLite إلى PostgreSQL + pgvector ✅ (تم الإنجاز)
 - [ ] بناء صفحة الأخبار (News Radar)
 - [ ] إضافة محولات أخرى (KuCoin, Bybit, OKX)
 - [ ] تنفيذ الصفقات (Trade Execution)
@@ -801,14 +801,14 @@ apps/web/src/app/dashboard/
 | `signal_generation` / `risk_analysis` غير معرّف في AIAnalysisRequest | إضافة النوعين الجديدين إلى union type |
 | `totalValue` غير معرّف في `_generateRecommendations` | حساب محلي من `positions.reduce()` |
 | HuggingFace API قد لا يكون متاحاً | تضمينات hash-based كـ fallback للتطوير |
-| البحث المتجهي في SQLite | بحث بكلمات مفتاحية + تشابه دلالي في الذاكرة (حتى الانتقال لـ pgvector) |
+| البحث المتجهي في PostgreSQL | بحث بكلمات مفتاحية + تشابه دلالي في الذاكرة (حتى تفعيل pgvector) |
 | RAG قد يفشل | `@Optional()` injection + non-blocking: إرجاع سياق فارغ عند الفشل |
 
 #### 📋 الخطوات التالية
 
 - [ ] تشغيل Docker Compose (PostgreSQL + Redis + RabbitMQ)
 - [ ] إضافة مفاتيح API الفعلية في .env
-- [ ] تحويل Prisma من SQLite إلى PostgreSQL + pgvector
+- [x] تحويل Prisma من SQLite إلى PostgreSQL + pgvector ✅ (تم الإنجاز)
 - [ ] تنفيذ الصفقات (Trade Execution)
 - [ ] بناء صفحة الأخبار (News Radar)
 - [ ] إضافة محولات أخرى (KuCoin, Bybit, OKX)

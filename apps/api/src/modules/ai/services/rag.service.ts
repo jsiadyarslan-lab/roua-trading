@@ -15,8 +15,8 @@ import { RedisService } from '../../../common/redis/redis.service';
  * 3. Top-k relevant articles → Formatted context
  * 4. Context injected into AI prompt
  *
- * Currently uses SQLite with in-memory cosine similarity.
- * When migrating to PostgreSQL + pgvector, replace with
+ * Currently uses PostgreSQL with in-memory cosine similarity.
+ * When upgrading to pgvector, replace with
  * prisma.$queryRaw`SELECT ... <=> $1` for native vector search.
  */
 @Injectable()
@@ -215,8 +215,8 @@ export class RagService {
     const keywords = this._extractKeywords(query);
 
     // Fetch recent articles, prioritizing those with keyword matches
-    // In SQLite, we do a broad fetch and score in memory
-    // In PostgreSQL+pgvector, this would be a vector similarity query
+    // Without pgvector, we do a broad fetch and score in memory
+    // With pgvector enabled, this could be a native vector similarity query
     const articles = await this.prisma.newsArticle.findMany({
       where: {
         OR: [

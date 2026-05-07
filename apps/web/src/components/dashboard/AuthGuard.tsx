@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { T } from '@/lib/unified-tokens'
@@ -8,13 +8,23 @@ import { T } from '@/lib/unified-tokens'
 /**
  * AuthGuard — Enforces authentication for the dashboard.
  *
- * Uses the Zustand auth store for global state management.
- * Middleware provides first-line protection; this is the client-side safety net.
+ * CRITICAL FIX: The useEffect dependency array previously included `pathname`
+ * which caused auth to re-check on EVERY navigation click:
+ *   pathname changes → useEffect fires → status = 'loading' → full-screen
+ *   spinner appears → router thinks navigation failed → page appears frozen.
+ *
+ * The fix: run auth check ONCE on mount only (empty dependency array).
+ * Use a ref for pathname so the redirect URL is always current without
+ * triggering a re-check.
  */
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
+  const pathnameRef = useRef(pathname)
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading')
+
+  // Keep pathnameRef current without triggering re-auth
+  pathnameRef.current = pathname
 
   useEffect(() => {
     let mounted = true
@@ -29,12 +39,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
           setStatus('authenticated')
         } else {
           setStatus('unauthenticated')
-          const loginUrl = `/login?callbackUrl=${encodeURIComponent(pathname)}`
+          const loginUrl = `/login?callbackUrl=${encodeURIComponent(pathnameRef.current)}`
           router.replace(loginUrl)
         }
       } catch {
         if (!mounted) return
-        // On error, allow through — the dashboard has its own guest handling (GuestBanner, GuestGuard)
+        // On error, allow through — the dashboard has its own guest handling
         setStatus('authenticated')
       }
     }
@@ -43,10 +53,10 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     return () => {
       mounted = false
-      // Stop auto-refresh when AuthGuard unmounts
       useAuthStore.getState().stopAutoRefresh()
     }
-  }, [router, pathname])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // ← Run ONCE on mount only. Do NOT add pathname or router here.
 
   if (status === 'loading') {
     return (

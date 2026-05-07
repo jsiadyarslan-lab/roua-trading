@@ -56,25 +56,37 @@ import { IntegrationModule } from './modules/integration/integration.module';
 
     // ── BullMQ (order execution queue) ──
     // Uses REDIS_URL env var; falls back to localhost:6379 for local dev.
-    // If REDIS_URL is not set, BullMQ workers will gracefully degrade
+    // If REDIS_URL is not set or malformed, BullMQ workers will gracefully degrade
     // (queues won't process but the app still starts).
+    // FIX: new URL("") throws TypeError when REDIS_URL is empty string —
+    // this was the #1 cause of NestJS crashing on Railway. The env var
+    // can be set to "" by Railway if the Redis service is not linked,
+    // and config.get() returns "" (not undefined) because the var IS defined.
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const redisUrl = config.get<string>('REDIS_URL', 'redis://localhost:6379');
-        // Parse REDIS_URL into host/port/username/password for BullMQ
-        const url = new URL(redisUrl);
-        return {
-          connection: {
-            host: url.hostname,
-            port: parseInt(url.port) || 6379,
-            username: url.username || undefined,
-            password: url.password || undefined,
-            // BullMQ uses ioredis under the hood — reconnect on failure
-            maxRetriesPerRequest: null,
-          },
-        };
+        const redisUrl = config.get<string>('REDIS_URL') || 'redis://localhost:6379';
+        if (!redisUrl) {
+          return { connection: { host: 'localhost', port: 6379, maxRetriesPerRequest: null } };
+        }
+        try {
+          const url = new URL(redisUrl);
+          return {
+            connection: {
+              host: url.hostname,
+              port: parseInt(url.port) || 6379,
+              username: url.username || undefined,
+              password: url.password || undefined,
+              // BullMQ uses ioredis under the hood — reconnect on failure
+              maxRetriesPerRequest: null,
+            },
+          };
+        } catch {
+          // Malformed REDIS_URL — fall back to localhost so the app can start
+          console.warn(`⚠️ BullModule: Invalid REDIS_URL "${redisUrl}" — falling back to localhost:6379`);
+          return { connection: { host: 'localhost', port: 6379, maxRetriesPerRequest: null } };
+        }
       },
     }),
 

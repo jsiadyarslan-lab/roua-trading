@@ -9,8 +9,25 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaService } from './common/prisma/prisma.service';
 import { RedisService } from './common/redis/redis.service';
 
+// FIX: Prevent unhandled promise rejections from crashing the process.
+// In Node.js 18+, unhandled rejections terminate the process by default.
+// StrategicCouncilService._triggerStartupSession() and SmartExecutorService._autoStart()
+// fire async operations from constructors that can produce unhandled rejections
+// when AI services are unavailable or timeout.
+process.on('unhandledRejection', (reason: any) => {
+  console.error('⚠️ Unhandled Promise Rejection (non-fatal):', reason?.message || reason);
+});
+
 async function bootstrap() {
   try {
+    // DIAGNOSTIC: Log critical env vars before any module loads
+    console.log('🔧 NestJS bootstrap starting...');
+    console.log(`🔧 NODE_ENV=${process.env.NODE_ENV || 'not set'}`);
+    console.log(`🔧 API_PORT=${process.env.API_PORT || '3001 (default)'}`);
+    console.log(`🔧 DATABASE_URL=${process.env.DATABASE_URL ? `[SET (${process.env.DATABASE_URL.length} chars)]` : '[NOT SET]'}`);
+    console.log(`🔧 REDIS_URL=${process.env.REDIS_URL ? `[SET: "${process.env.REDIS_URL.substring(0, 30)}..."]` : '[NOT SET]'}`);
+    console.log(`🔧 CORS_ORIGIN=${process.env.CORS_ORIGIN || 'not set'}`);
+
     // FIX #2: Enable graceful shutdown — ensures in-flight requests complete
     // before the process exits, preventing 502 errors during Railway deploys.
     // Without this, SIGTERM kills the process immediately, causing connection drops.

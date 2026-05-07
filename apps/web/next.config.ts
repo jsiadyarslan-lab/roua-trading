@@ -39,47 +39,8 @@ const nextConfig: NextConfig = {
   // The webpack config below is still used when building with --webpack flag.
   turbopack: {},
 
-  // ── Fix: "Cannot access 'X' before initialization" ──
-  // Next.js 16 default SWC minifier creates TDZ errors in production
-  // where variables like `let X` in Next.js Router code conflict
-  // with React component rendering. Terser with mangle:false prevents
-  // ALL such variable name conflicts while still compressing code.
-  //
-  // CRITICAL: Must apply to BOTH client AND server bundles.
-  // The server bundle also needs Terser because Zustand's persist middleware
-  // references `window.localStorage` at module level, and SWC's minifier
-  // can reorder code in ways that break typeof window guards during SSR.
-  webpack(config, { isServer }) {
-    if (config.optimization) {
-      config.optimization.concatenateModules = false;
-
-      // Force lucide-react into its own chunk (client only — splits are client-only)
-      if (!isServer) {
-        const existingSplitChunks = config.optimization.splitChunks as any;
-        if (existingSplitChunks && existingSplitChunks.cacheGroups) {
-          existingSplitChunks.cacheGroups.lucide = {
-            test: /[\\/]node_modules[\\/]lucide-react[\\/]/,
-            name: 'lucide-react',
-            chunks: 'all' as const,
-            enforce: true,
-          };
-        }
-      }
-
-      // Replace SWC minifier with Terser on BOTH client and server bundles
-      // This prevents TDZ errors and SSR crashes from code reordering
-      config.optimization.minimizer = [
-        new TerserPlugin({
-          terserOptions: {
-            compress: true,
-            mangle: false,
-          },
-          extractComments: false,
-        }),
-      ];
-    }
-    return config;
-  },
+  // Removed destructive Webpack minimizer overrides that broke Next.js App Router client-side routing.
+  // Next.js relies on its internal SWC minifier and chunking to correctly resolve RSC payloads.
 
   async rewrites() {
     return [

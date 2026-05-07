@@ -3,7 +3,62 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
+
+/**
+ * SafeLink — Navigation wrapper that guarantees page transitions work.
+ *
+ * Problem: Next.js App Router's client-side navigation (RSC) silently fails
+ * when the server is slow or the RSC payload fetch times out. The URL never
+ * changes and the user is stuck on the same page.
+ *
+ * Solution: Try router.push() first (soft navigation, fast). If it doesn't
+ * navigate within 2 seconds (detected by pathname not changing), fall back to
+ * window.location.href (full page reload, always works).
+ *
+ * Also sets prefetch={false} to prevent failed prefetch requests from
+ * poisoning Next.js's navigation cache.
+ */
+function SafeLink({
+  href,
+  children,
+  style,
+  onClick,
+}: {
+  href: string
+  children: React.ReactNode
+  style?: React.CSSProperties
+  onClick?: () => void
+}) {
+  const router = useRouter()
+  const pathname = usePathname()
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    onClick?.()
+
+    // If already on this page, do nothing
+    if (pathname === href || (href !== '/dashboard' && pathname.startsWith(href))) return
+
+    // Try soft navigation first
+    router.push(href)
+
+    // Fallback: if URL hasn't changed after 1.5s, do a hard navigation
+    const target = href
+    const before = window.location.pathname
+    setTimeout(() => {
+      if (window.location.pathname === before) {
+        window.location.href = target
+      }
+    }, 1500)
+  }
+
+  return (
+    <Link href={href} prefetch={false} style={style} onClick={handleClick}>
+      {children}
+    </Link>
+  )
+}
 import {
   Home, Wallet, Brain, ScanSearch, BarChart2,
   Copy, Users, Newspaper, CalendarDays, Settings,
@@ -609,7 +664,7 @@ function MoreDropdown({
         const active = isLinkActive(link, pathname)
         return (
           <div key={href + '-' + label}>
-            <Link href={href} style={{ textDecoration: 'none' }} onClick={onClose}>
+            <SafeLink href={href} style={{ textDecoration: 'none' }} onClick={onClose}>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
@@ -632,13 +687,13 @@ function MoreDropdown({
                 {label}
                 {children && <ChevronDown size={11} style={{ marginInlineEnd: 'auto', opacity: 0.5 }} />}
               </div>
-            </Link>
+            </SafeLink>
             {children && (
               <div style={{ paddingInlineEnd: 12, direction: 'rtl' }}>
                 {children.map((child) => {
                   const childActive = isChildActive(child.href, pathname)
                   return (
-                    <Link key={child.href + '-' + child.label} href={child.href} style={{ textDecoration: 'none' }} onClick={onClose}>
+                    <SafeLink key={child.href + '-' + child.label} href={child.href} style={{ textDecoration: "none" }} onClick={onClose} >
                       <div style={{
                         display: 'flex', alignItems: 'center', gap: 8,
                         padding: '8px 14px 8px 10px', borderRadius: 6, cursor: 'pointer',
@@ -660,7 +715,7 @@ function MoreDropdown({
                         <child.icon size={13} strokeWidth={childActive ? 2.5 : 1.5} />
                         {child.label}
                       </div>
-                    </Link>
+                    </SafeLink>
                   )
                 })}
               </div>
@@ -807,7 +862,7 @@ function AccountDropdown({
       </div>
 
       {/* Menu Items */}
-      <Link href="/dashboard/settings" style={{ textDecoration: 'none' }} onClick={onClose}>
+      <SafeLink href="/dashboard/settings" style={{ textDecoration: "none" }} onClick={onClose} >
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
@@ -820,9 +875,9 @@ function AccountDropdown({
           <Settings size={15} strokeWidth={2} />
           الإعدادات
         </div>
-      </Link>
+      </SafeLink>
 
-      <Link href="/dashboard/portfolio" style={{ textDecoration: 'none' }} onClick={onClose}>
+      <SafeLink href="/dashboard/portfolio" style={{ textDecoration: "none" }} onClick={onClose} >
         <div style={{
           display: 'flex', alignItems: 'center', gap: 10,
           padding: '10px 14px', borderRadius: 8, cursor: 'pointer',
@@ -835,7 +890,7 @@ function AccountDropdown({
           <UserCircle size={15} strokeWidth={2} />
           معلومات الحساب
         </div>
-      </Link>
+      </SafeLink>
 
       {/* Logout */}
       <div
@@ -944,7 +999,7 @@ function SubNavDropdown({
         const childActive = isChildActive(child.href, pathname)
         const ChildIcon = child.icon
         return (
-          <Link key={child.href + '-' + child.label} href={child.href} style={{ textDecoration: 'none' }} onClick={onClose}>
+          <SafeLink key={child.href + '-' + child.label} href={child.href} style={{ textDecoration: "none" }} onClick={onClose} >
             <div style={{
               display: 'flex', alignItems: 'center', gap: 10,
               padding: '9px 14px', borderRadius: 8, cursor: 'pointer',
@@ -966,7 +1021,7 @@ function SubNavDropdown({
               <ChildIcon size={14} strokeWidth={childActive ? 2.5 : 2} />
               {child.label}
             </div>
-          </Link>
+          </SafeLink>
         )
       })}
     </div>,
@@ -1031,7 +1086,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
             onMouseEnter={(e) => { if (hasChildren) handleSubNavEnter(href, e.currentTarget) }}
             onMouseLeave={() => { if (hasChildren) handleSubNavLeave() }}
           >
-            <Link href={href} style={{ textDecoration: 'none' }}>
+            <SafeLink href={href} style={{ textDecoration: 'none' }}>
               <div style={{
                 display: 'flex', alignItems: 'center', gap: hasChildren ? 4 : 6,
                 padding: '0 12px', borderRadius: 8, cursor: 'pointer',
@@ -1052,7 +1107,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
                   }} />
                 )}
               </div>
-            </Link>
+            </SafeLink>
           </div>
         )
       })}
@@ -1240,7 +1295,7 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center' }}>
-        <Link href={href} style={{ textDecoration: 'none', flex: 1 }} onClick={onClose}>
+        <SafeLink href={href} style={{ textDecoration: "none" }} onClick={onClose} >
           <div style={{
             display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', minHeight: 44,
             borderRadius: 10, background: active ? 'rgba(0,212,255,0.10)' : 'transparent',
@@ -1252,7 +1307,7 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
             <Icon size={18} />
             {label}
           </div>
-        </Link>
+        </SafeLink>
         {hasChildren && (
           <button
             onClick={() => setMobileExpanded(!mobileExpanded)}
@@ -1277,7 +1332,7 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
             const childActive = isChildActive(child.href, pathname)
             const ChildIcon = child.icon
             return (
-              <Link key={child.href + '-' + child.label} href={child.href} style={{ textDecoration: 'none' }} onClick={onClose}>
+              <SafeLink key={child.href + '-' + child.label} href={child.href} style={{ textDecoration: "none" }} onClick={onClose} >
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 10,
                   padding: '10px 14px', minHeight: 40,
@@ -1290,7 +1345,7 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
                   <ChildIcon size={15} strokeWidth={childActive ? 2.5 : 1.5} />
                   {child.label}
                 </div>
-              </Link>
+              </SafeLink>
             )
           })}
         </div>
@@ -1376,7 +1431,7 @@ export function AppHeader() {
                     )
                   })}
                 </div>
-                <Link href="/dashboard/settings" style={{ textDecoration: 'none' }} onClick={() => setMenuOpen(false)}>
+                <SafeLink href="/dashboard/settings" style={{ textDecoration: "none" }} onClick={() => setMenuOpen(false)} >
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
                     borderRadius: 10, background: 'rgba(255,255,255,0.05)',
@@ -1385,7 +1440,7 @@ export function AppHeader() {
                     <User size={18} color="var(--accent)" />
                     <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, color: T.text, fontWeight: 700 }}>حسابي</span>
                   </div>
-                </Link>
+                </SafeLink>
                 <div
                   onClick={authLogout}
                   style={{
@@ -1439,13 +1494,13 @@ export function AppHeader() {
              <Menu size={22} />
           </button>
 
-          <Link href="/dashboard" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, flex: 0, minWidth: 0, flexShrink: 0 }}>
+          <SafeLink href="/dashboard" style={{ textDecoration: "none" }} >
              <LogoCircle state={marketState} size="mobile" />
              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 900, fontSize: 15, color: T.text, whiteSpace: 'nowrap', lineHeight: 1.1 }}>رؤى</span>
                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7, color: '#00C8FF', letterSpacing: '0.12em', opacity: 0.85, lineHeight: 1 }}>ROUA</span>
              </div>
-          </Link>
+          </SafeLink>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
              <CurrencyTicker isMobile />
           </div>

@@ -364,25 +364,50 @@ export class RiskCalculatorService {
 
       const totalValue = manualValue + positionsValue;
 
-      // CRITICAL FIX: If portfolio value is 0 (no portfolio records or no positions),
-      // use a default paper trading balance so the agent can actually trade.
-      // This handles new users who haven't set up a portfolio yet.
+      // FIX: Align default with Smart Executor's $100,000 paper balance.
+      // The old default of $10,000 was too small — with maxPositionSizePercent=2%,
+      // each trade would only be ~$200, producing tiny quantities on crypto pairs.
+      // Also: Check if user is paper-trading (AgentSettings.autoTradingEnabled)
+      // before using default balance. For real-trading users with $0 portfolio,
+      // we don't execute — it's unsafe.
       if (totalValue <= 0) {
-        const defaultBalance = parseFloat(
-          this.configService.get('DEFAULT_PAPER_BALANCE', '10000'),
-        ) || 10000;
-        this.logger.warn(
-          `🛡️ Portfolio value is 0 for user ${userId} — using default paper balance: $${defaultBalance}`,
-        );
-        return defaultBalance;
+        // Check if user is paper trading
+        let isPaperTrading = true; // Default to paper for safety
+        try {
+          const agentSession = await this.prisma.agentSession.findFirst({
+            where: { userId, status: 'RUNNING' },
+            orderBy: { startedAt: 'desc' },
+          });
+          if (agentSession) {
+            try {
+              const config = JSON.parse(agentSession.config || '{}');
+              isPaperTrading = config.isPaperTrading !== false;
+            } catch {}
+          }
+        } catch {}
+
+        if (isPaperTrading) {
+          const defaultBalance = parseFloat(
+            this.configService.get('DEFAULT_PAPER_BALANCE', '100000'),
+          ) || 100000;
+          this.logger.warn(
+            `🛡️ Portfolio value is 0 for paper-trading user ${userId} — using default balance: $${defaultBalance}`,
+          );
+          return defaultBalance;
+        } else {
+          this.logger.warn(
+            `🛡️ Portfolio value is 0 for real-trading user ${userId} — NOT executing for safety`,
+          );
+          return 0;
+        }
       }
 
       return totalValue;
     } catch (error: any) {
-      // Even on DB error, return default so agent doesn't get stuck
+      // Even on DB error, return default for paper trading so agent doesn't get stuck
       const defaultBalance = parseFloat(
-        this.configService.get('DEFAULT_PAPER_BALANCE', '10000'),
-      ) || 10000;
+        this.configService.get('DEFAULT_PAPER_BALANCE', '100000'),
+      ) || 100000;
       this.logger.warn(
         `🛡️ Failed to calculate portfolio value for ${userId}: ${error.message} — using default: $${defaultBalance}`,
       );

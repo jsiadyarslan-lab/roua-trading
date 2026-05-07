@@ -1039,18 +1039,25 @@ export class SmartExecutorService implements OnModuleDestroy {
     // The stop loss and take profit levels are still enforced by RiskGatekeeper.
     const slippage = strictRules.maxSlippage || this.config.defaultSlippage;
 
+    // FIX: Check if takeProfit is valid before using it in the profit potential check.
+    // When takeProfit is 0, null, or undefined (can happen from DB null → DTO conversion),
+    // `currentPrice < 0` or `currentPrice < NaN` is ALWAYS false, silently blocking
+    // ALL BUY briefs. This was the ROOT CAUSE of zero Smart Executor trades.
+    const hasValidTP = brief.takeProfit && brief.takeProfit > 0;
+
     if (brief.direction === 'BUY') {
       // BUY: Check that price is still within a reasonable range of the entry.
       // Allow up to 2x the normal slippage as a grace margin.
       const maxPrice = brief.entryPrice * (1 + slippage * 2);
-      // Also check that the trade still has profit potential
-      const hasProfitPotential = currentPrice < brief.takeProfit;
+      // Check that the trade still has profit potential (only if TP is valid)
+      // If TP is invalid/missing, skip this check — RiskGatekeeper still enforces SL/TP
+      const hasProfitPotential = !hasValidTP || currentPrice < brief.takeProfit;
       return currentPrice <= maxPrice && hasProfitPotential;
     } else {
       // SELL: Check that price is still within a reasonable range of the entry.
       const minPrice = brief.entryPrice * (1 - slippage * 2);
-      // Also check that the trade still has profit potential
-      const hasProfitPotential = currentPrice > brief.takeProfit;
+      // Check that the trade still has profit potential (only if TP is valid)
+      const hasProfitPotential = !hasValidTP || currentPrice > brief.takeProfit;
       return currentPrice >= minPrice && hasProfitPotential;
     }
   }

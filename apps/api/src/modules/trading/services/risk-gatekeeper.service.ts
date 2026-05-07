@@ -294,6 +294,17 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
         };
       }
 
+      // ── Paper Trading Bypass (MOVED BEFORE PRICE FETCH) ──
+      // FIX: Previously, the paper-trading bypass was AFTER the price fetch and
+      // minimum order size checks. If the price couldn't be fetched (common on
+      // Railway for Forex/stock pairs), the order was REJECTED before reaching
+      // this bypass. Now: Paper-trading orders skip ALL balance/price checks
+      // since balance is virtual/unlimited in paper mode.
+      if (credential.exchange === 'paper-trading') {
+        this.logger.debug(`🛡️ Paper-trading balance check: BYPASSED (virtual balance) — allowing order`);
+        return { allowed: true };
+      }
+
       // Try to get current price for order value estimation
       let currentPrice = command.price;
       if (!currentPrice) {
@@ -329,19 +340,6 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
           reason: `قيمة الطلب (${orderValue.toFixed(2)} USD) تتجاوز الحد الأقصى (${this.maxOrderSizeUSD} USD).`,
           failedCheck: 'BALANCE_CHECK',
         };
-      }
-
-      // ── Paper Trading Bypass ──
-      // Paper trading is simulated — no real exchange connection needed.
-      // Previously, ccxt['paper-trading'] was undefined, causing ALL paper-trading
-      // orders to be REJECTED by the FAIL-CLOSED path below. This was the #1 root
-      // cause of zero trade executions — the Smart Executor creates paper-trading
-      // credentials by default, but the Risk Gatekeeper always rejected them.
-      // Now: Paper-trading orders skip the CCXT balance check entirely and are
-      // always allowed (balance is virtual/unlimited in paper mode).
-      if (credential.exchange === 'paper-trading') {
-        this.logger.debug(`🛡️ Paper-trading balance check: BYPASSED (virtual balance) — allowing order`);
-        return { allowed: true };
       }
 
       // Try to verify actual balance via CCXT (real exchanges only)

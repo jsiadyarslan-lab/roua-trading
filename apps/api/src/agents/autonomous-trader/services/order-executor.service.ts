@@ -115,60 +115,47 @@ export class OrderExecutorService implements OnModuleDestroy {
         where: { id: credentialId, userId },
       });
 
-      // Paper trading mode — simulate execution without real exchange
+      // Paper trading mode — route through TradingService for proper record creation
+      // FIX: Previously, the Agent bypassed TradingService and created Position + AutonomousTrade
+      // directly. This caused THREE critical issues:
+      //   1. Position.create fails with P2002 unique constraint (userId+symbol+side+status)
+      //      when a previous position is stuck OPEN — every subsequent trade for that pair fails
+      //   2. Returns success:true even when Position creation fails — inconsistent state
+      //   3. No Order or Trade records created — breaks daily loss tracking and trade history
+      // Now: Route through TradingService.placeOrder() which handles paper-trading via
+      // _executePaperTrade(), creates all 4 records (Order+Position+Trade+Signal) in a
+      // single transaction, and handles P2002 with upsert logic.
       if (credential && credential.exchange === 'paper-trading') {
-        this.logger.log(`⚡ Paper trading mode — simulating ${signal.action} ${signal.symbol}`);
+        this.logger.log(`⚡ Paper trading mode — routing through TradingService for ${signal.action} ${signal.symbol}`);
 
-        // ═══════════════════════════════════════════════════
-        // FIX: Get the actual current live price instead of
-        // using the stale signal.entryPrice. The signal price
-        // comes from the market analysis cache which may be
-        // outdated, causing trade markers on the chart to not
-        // match the current candle.
-        //
-        // ALSO: If we can't get a valid live price, we MUST
-        // NOT create a position with entryPrice = 0 or a
-        // stale signal price. Previously, falling back to
-        // signal.entryPrice could produce $0.00 positions.
-        // ═══════════════════════════════════════════════════
-        let actualExecutionPrice = signal.entryPrice;
-        let usedLivePrice = false;
+        // Get live price for realistic execution
+        let executionPrice = signal.entryPrice;
         try {
           const liveQuote = await this.exchangeService.getQuote(signal.symbol);
           if (liveQuote && liveQuote.price && liveQuote.price > 0) {
-            // Apply realistic slippage for crypto: 0.01–0.05% random
-            const slippagePercent = 0.01 + Math.random() * 0.04; // 0.01% to 0.05%
-            const slippageDirection = signal.action === 'BUY' ? 1 : -1; // BUY: price goes up, SELL: price goes down
-            actualExecutionPrice = liveQuote.price * (1 + slippageDirection * slippagePercent / 100);
-            usedLivePrice = true;
+            const slippagePercent = 0.01 + Math.random() * 0.04;
+            const slippageDirection = signal.action === 'BUY' ? 1 : -1;
+            executionPrice = liveQuote.price * (1 + slippageDirection * slippagePercent / 100);
             this.logger.log(
-              `⚡ Paper trade using live price: ${liveQuote.price.toFixed(2)} → execution: ${actualExecutionPrice.toFixed(2)} ` +
-              `(slippage: ${slippagePercent.toFixed(4)}%, signal price was: ${signal.entryPrice})`,
+              `⚡ Paper trade using live price: ${liveQuote.price.toFixed(2)} → execution: ${executionPrice.toFixed(2)}`,
             );
           }
         } catch (quoteErr: any) {
-          this.logger.warn(
-            `⚡ Could not get live quote for ${signal.symbol}: ${quoteErr.message} — falling back to signal price ${signal.entryPrice}`,
-          );
+          this.logger.warn(`⚡ Could not get live quote for ${signal.symbol}: ${quoteErr.message} — using signal price`);
         }
 
-        // ═══════════════════════════════════════════════════
-        // PRICE VALIDATION: Reject if the execution price is
-        // invalid (0, negative, or unrealistically low).
-        // This prevents $0.00 / $0.01 phantom positions.
-        // ═══════════════════════════════════════════════════
-        if (!actualExecutionPrice || actualExecutionPrice <= 0) {
+        // Validate execution price
+        if (!executionPrice || executionPrice <= 0) {
           return {
             success: false,
-            error: `سعر التنفيذ غير صالح (${actualExecutionPrice}) لـ ${signal.symbol} — تم إلغاء الأمر`,
+            error: `سعر التنفيذ غير صالح (${executionPrice}) لـ ${signal.symbol} — تم إلغاء الأمر`,
             executionTimeMs: Date.now() - startTime,
           };
         }
 
-        // Also validate minimum trade value
-        const tradeValue = risk.positionSize * actualExecutionPrice;
+        // Validate minimum trade value
+        const tradeValue = risk.positionSize * executionPrice;
         if (tradeValue < 1) {
-          this.logger.warn(`⚡ Trade value too small: $${tradeValue.toFixed(4)} — skipping`);
           return {
             success: false,
             error: `قيمة الصفقة صغيرة جداً ($${tradeValue.toFixed(4)}) — تم الإلغاء`,
@@ -176,124 +163,125 @@ export class OrderExecutorService implements OnModuleDestroy {
           };
         }
 
-        const simulatedFee = actualExecutionPrice * risk.positionSize * 0.001; // 0.1% fee
-        const executionTimeMs = Date.now() - startTime;
-        const calculatedSlippage = this._calculateSlippage(signal.entryPrice, actualExecutionPrice, signal.action);
-
-        // Record in AutonomousTrade table
         try {
-          await this.prisma.autonomousTrade.create({
-            data: {
-              userId,
-              agentRunId: `run-${userId}-${signal.strategy}`,
-              symbol: signal.symbol,
-              side: signal.action as any,
-              orderType: signal.type as any,
-              strategy: signal.strategy as any,
-              status: 'FILLED',
-              entryPrice: actualExecutionPrice,
-              stopLoss: signal.stopLoss,
-              takeProfit: signal.takeProfit,
-              quantity: risk.positionSize,
-              filledQuantity: risk.positionSize,
-              pnl: null,
-              fee: simulatedFee,
-              feeCurrency: 'USD',
-              riskScore: risk.riskScore,
-              confidence: signal.confidence,
-              riskRewardRatio: risk.riskRewardRatio,
-              reasoning: signal.reasoning,
-              signalData: JSON.stringify(signal.metadata || {}),
-              metadata: JSON.stringify({
-                paperTrading: true,
-                executionTimeMs,
-                signalPrice: signal.entryPrice,
-                executionPrice: actualExecutionPrice,
-                slippage: actualExecutionPrice !== signal.entryPrice
-                  ? Math.abs((actualExecutionPrice - signal.entryPrice) / signal.entryPrice * 100).toFixed(4) + '%'
-                  : '0%',
-                usedLivePrice,
-              }),
-              execution: JSON.stringify({
-                success: true,
-                paperTrading: true,
-                filledQuantity: risk.positionSize,
-                averagePrice: actualExecutionPrice,
-                fee: simulatedFee,
-                slippage: calculatedSlippage,
-                executionTimeMs,
-              }),
-              credentialId,
-              openedAt: new Date(),
-            },
-          });
-        } catch (tradeErr: any) {
-          this.logger.error(`Failed to record paper AutonomousTrade: ${tradeErr.message}`);
-        }
-
-        // Also create a Position record for monitoring
-        try {
-          await this.prisma.position.create({
-            data: {
-              userId,
-              credentialId,
-              exchange: 'paper-trading',
-              symbol: signal.symbol,
-              side: signal.action as any,
-              status: 'OPEN',
-              quantity: risk.positionSize,
-              entryPrice: actualExecutionPrice,
-              currentPrice: actualExecutionPrice,
-              unrealizedPnl: 0,
-              stopLoss: signal.stopLoss,
-              takeProfit: signal.takeProfit,
-              source: 'agent',
-            },
-          });
-        } catch (posErr: any) {
-          this.logger.error(`Failed to create paper Position: ${posErr.message}`);
-        }
-
-        this.recentOrders.set(`${userId}:${signal.symbol}:${signal.action}`, new Date());
-
-        // Audit log
-        await this.audit.log({
-          userId,
-          action: 'AGENT_PAPER_TRADE_EXECUTED',
-          resource: 'autonomous-trader',
-          details: JSON.stringify({
+          // Route through TradingService — creates Order + Position + Trade + Signal in one transaction
+          const orderRequest = {
+            credentialId,
             symbol: signal.symbol,
-            side: signal.action,
-            type: signal.type,
+            side: signal.action as OrderSide,
+            type: signal.type as OrderType,
             quantity: risk.positionSize,
-            signalPrice: signal.entryPrice,
-            executionPrice: actualExecutionPrice,
-            slippage: calculatedSlippage,
+            price: executionPrice,
             stopLoss: signal.stopLoss,
             takeProfit: signal.takeProfit,
-            confidence: signal.confidence,
-            strategy: signal.strategy,
-            paperTrading: true,
-            usedLivePrice,
-          }),
-        });
+            source: 'agent' as const,
+          };
 
-        this.logger.log(
-          `✅ Paper order executed: ${signal.action} ${risk.positionSize} ${signal.symbol} ` +
-          `@ ${actualExecutionPrice.toFixed(2)} (signal: ${signal.entryPrice}, slippage: ${calculatedSlippage.toFixed(4)}%) ` +
-          `(paper trading — no real funds)`,
-        );
+          const order = await this.tradingService.placeOrder(userId, orderRequest);
+          const executionTimeMs = Date.now() - startTime;
+          const calculatedSlippage = this._calculateSlippage(signal.entryPrice, executionPrice, signal.action);
 
-        return {
-          success: true,
-          orderId: `paper-${Date.now()}`,
-          filledQuantity: risk.positionSize,
-          averagePrice: actualExecutionPrice,
-          fee: simulatedFee,
-          feeCurrency: 'USD',
-          slippage: calculatedSlippage,
-          executionTimeMs,
-        };
+          // Also record in AutonomousTrade table for agent-specific analytics
+          try {
+            await this.prisma.autonomousTrade.create({
+              data: {
+                userId,
+                agentRunId: `run-${userId}-${signal.strategy}`,
+                symbol: signal.symbol,
+                side: signal.action as any,
+                orderType: signal.type as any,
+                strategy: signal.strategy as any,
+                status: 'FILLED',
+                entryPrice: executionPrice,
+                stopLoss: signal.stopLoss,
+                takeProfit: signal.takeProfit,
+                quantity: risk.positionSize,
+                filledQuantity: risk.positionSize,
+                pnl: null,
+                fee: Number(order.fee) || executionPrice * risk.positionSize * 0.001,
+                feeCurrency: 'USD',
+                riskScore: risk.riskScore,
+                confidence: signal.confidence,
+                riskRewardRatio: risk.riskRewardRatio,
+                reasoning: signal.reasoning,
+                signalData: JSON.stringify(signal.metadata || {}),
+                metadata: JSON.stringify({
+                  paperTrading: true,
+                  executionTimeMs,
+                  orderId: order.id,
+                }),
+                execution: JSON.stringify({
+                  success: true,
+                  paperTrading: true,
+                  orderId: order.id,
+                  filledQuantity: risk.positionSize,
+                  averagePrice: executionPrice,
+                  slippage: calculatedSlippage,
+                  executionTimeMs,
+                }),
+                credentialId,
+                exchangeOrderId: order.exchangeOrderId || null,
+                openedAt: new Date(),
+              },
+            });
+          } catch (tradeErr: any) {
+            this.logger.error(`Failed to record AutonomousTrade: ${tradeErr.message}`);
+            // Non-fatal — the order was still executed via TradingService
+          }
+
+          this.recentOrders.set(`${userId}:${signal.symbol}:${signal.action}`, new Date());
+
+          // Audit log
+          await this.audit.log({
+            userId,
+            action: 'AGENT_PAPER_TRADE_EXECUTED',
+            resource: 'autonomous-trader',
+            details: JSON.stringify({
+              orderId: order.id,
+              symbol: signal.symbol,
+              side: signal.action,
+              quantity: risk.positionSize,
+              executionPrice,
+              stopLoss: signal.stopLoss,
+              takeProfit: signal.takeProfit,
+              strategy: signal.strategy,
+              paperTrading: true,
+            }),
+          });
+
+          this.logger.log(
+            `✅ Paper order executed: ${signal.action} ${risk.positionSize} ${signal.symbol} ` +
+            `@ ${executionPrice.toFixed(2)} via TradingService (order: ${order.id})`,
+          );
+
+          return {
+            success: true,
+            orderId: order.id,
+            exchangeOrderId: order.exchangeOrderId || undefined,
+            filledQuantity: risk.positionSize,
+            averagePrice: executionPrice,
+            fee: Number(order.fee) || executionPrice * risk.positionSize * 0.001,
+            feeCurrency: 'USD',
+            slippage: calculatedSlippage,
+            executionTimeMs,
+          };
+        } catch (orderErr: any) {
+          const executionTimeMs = Date.now() - startTime;
+          this.logger.error(`⚡ TradingService.placeOrder failed for paper trade: ${orderErr.message}`);
+
+          // Check if it's a P2002 unique constraint (duplicate position)
+          const isDuplicate = orderErr.message?.includes('Unique constraint') ||
+            orderErr.message?.includes('P2002') ||
+            orderErr.message?.includes('already has an open position');
+
+          return {
+            success: false,
+            error: isDuplicate
+              ? `يوجد مركز مفتوح بالفعل لـ ${signal.symbol} — لا يمكن فتح مركز آخر`
+              : `فشل تنفيذ الصفقة الورقية: ${orderErr.message}`,
+            executionTimeMs,
+          };
+        }
       }
 
       // DATA ISOLATION: credential was already filtered by userId in findFirst above

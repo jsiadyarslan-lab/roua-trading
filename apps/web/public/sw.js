@@ -1,4 +1,4 @@
-const CACHE_NAME = 'roua-v7';
+const CACHE_NAME = 'roua-v8';
 
 const APP_SHELL = [
   '/',
@@ -122,7 +122,13 @@ self.addEventListener('fetch', (event) => {
   // Next.js App Router performs client-side navigation by fetching RSC payloads.
   // If the SW intercepts these and serves cached HTML, the Next.js router crashes
   // and the navigation silently fails (AbortError).
-  if (url.searchParams.has('_rsc') || request.headers.get('RSC') === '1') {
+  const isRSC = 
+    url.searchParams.has('_rsc') || 
+    request.headers.get('RSC') === '1' ||
+    request.headers.get('Next-Router-State-Tree') !== null ||
+    (request.headers.get('accept') || '').includes('text/x-component');
+
+  if (isRSC) {
     return; // Bypass Service Worker completely for Next.js router fetches
   }
 

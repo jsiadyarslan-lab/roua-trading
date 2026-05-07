@@ -1145,6 +1145,65 @@ EOSQL
         ALTER TABLE "ExchangeCredential" ADD COLUMN "passphraseAuthTag" TEXT;
       END IF;
     END $$;
+
+    -- ── Order table (CRITICAL for trading engine) ──
+    -- Without this table, TradingService.placeOrder() fails completely.
+    -- This is the core table for the order lifecycle.
+    CREATE TABLE IF NOT EXISTS "Order" (
+      "id" TEXT NOT NULL,
+      "userId" TEXT NOT NULL,
+      "exchangeCredentialId" TEXT NOT NULL,
+      "exchange" TEXT NOT NULL,
+      "symbol" TEXT NOT NULL,
+      "side" TEXT NOT NULL,
+      "type" TEXT NOT NULL,
+      "timeInForce" TEXT,
+      "quantity" DECIMAL(19,8) NOT NULL,
+      "price" DECIMAL(19,4),
+      "stopLoss" DECIMAL(19,4),
+      "takeProfit" DECIMAL(19,4),
+      "status" TEXT NOT NULL DEFAULT 'PENDING',
+      "filledQuantity" DECIMAL(19,8) NOT NULL DEFAULT 0,
+      "averagePrice" DECIMAL(19,4),
+      "fee" DECIMAL(19,4),
+      "feeCurrency" TEXT,
+      "exchangeOrderId" TEXT,
+      "rejectReason" TEXT,
+      "signalId" TEXT,
+      "idempotencyKey" TEXT NOT NULL,
+      "clientOrderId" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Order_pkey" PRIMARY KEY ("id")
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS "Order_idempotencyKey_key" ON "Order"("idempotencyKey");
+    CREATE INDEX IF NOT EXISTS "Order_userId_idx" ON "Order"("userId");
+    CREATE INDEX IF NOT EXISTS "Order_symbol_idx" ON "Order"("symbol");
+    CREATE INDEX IF NOT EXISTS "Order_status_idx" ON "Order"("status");
+    CREATE INDEX IF NOT EXISTS "Order_exchange_idx" ON "Order"("exchange");
+    CREATE INDEX IF NOT EXISTS "Order_createdAt_idx" ON "Order"("createdAt");
+    CREATE INDEX IF NOT EXISTS "Order_userId_status_createdAt_idx" ON "Order"("userId", "status", "createdAt");
+
+    -- Order foreign keys
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'Order_userId_fkey'
+      ) THEN
+        ALTER TABLE "Order" ADD CONSTRAINT "Order_userId_fkey"
+          FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'Order_exchangeCredentialId_fkey'
+      ) THEN
+        ALTER TABLE "Order" ADD CONSTRAINT "Order_exchangeCredentialId_fkey"
+          FOREIGN KEY ("exchangeCredentialId") REFERENCES "ExchangeCredential"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+
     -- ── TradingBrief table (CRITICAL for Strategic Council + Smart Executor) ──
     -- Without this table, /api/strategic-council/briefs/active returns 503
     -- and SmartExecutor cannot read briefs to execute trades.

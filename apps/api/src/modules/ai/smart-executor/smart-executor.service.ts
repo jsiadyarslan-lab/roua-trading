@@ -140,6 +140,31 @@ export class SmartExecutorService implements OnModuleDestroy {
       } else {
         this.logger.log(`⚔️ ${enabledUsers.length} user(s) have explicitly enabled the executor`);
       }
+
+      // ── STARTUP PURGE: Clean phantom/stale positions that block new executions ──
+      // Old phantom positions from the removed auto-enable system have trade values
+      // under $1 (e.g., $0.01-$0.04). They block the executor from opening new
+      // positions because they count toward the maxOpenPositions limit.
+      // On every startup, we auto-purge these phantom positions.
+      try {
+        const purgeResult = await this.purgePhantomPositions();
+        if (purgeResult.deleted > 0) {
+          this.logger.log(`⚔️ STARTUP PURGE: Auto-deleted ${purgeResult.deleted} phantom position(s) with dust trade values`);
+        }
+      } catch (purgeErr: any) {
+        this.logger.warn(`⚔️ Startup phantom purge failed (non-critical): ${purgeErr.message}`);
+      }
+
+      // Also auto-close stale paper-trading positions that have been open too long (>24h)
+      // Paper trading positions should NOT stay open indefinitely — they block new briefs.
+      try {
+        const staleClosed = await this._autoCloseStalePaperPositions();
+        if (staleClosed > 0) {
+          this.logger.log(`⚔️ STARTUP CLEANUP: Auto-closed ${staleClosed} stale paper-trading position(s) open >24h`);
+        }
+      } catch (staleErr: any) {
+        this.logger.warn(`⚔️ Startup stale cleanup failed (non-critical): ${staleErr.message}`);
+      }
     } catch (error: any) {
       this.logger.warn(`⚔️ Auto-start failed (non-critical): ${error.message}`);
     }
@@ -854,8 +879,9 @@ export class SmartExecutorService implements OnModuleDestroy {
               status: 'CLOSED',
               closedAt: new Date(),
               currentPrice: closePrice,
-              realizedPnl: pnl,
               unrealizedPnl: 0,
+              realizedPnl: pnl,
+              source: 'smart_executor',
             },
           });
 
@@ -872,6 +898,7 @@ export class SmartExecutorService implements OnModuleDestroy {
                 price: closePrice,
                 pnl,
                 exchange: 'paper-trading',
+                source: 'smart_executor',
                 executedAt: new Date(),
               },
             });
@@ -1375,6 +1402,76 @@ export class SmartExecutorService implements OnModuleDestroy {
   }
 
   // ── Private: Utility ──
+
+  /**
+   * Auto-close stale paper-trading positions that have been open >24 hours.
+   * Paper trading positions should NOT remain open indefinitely — they block
+   * the executor from opening new positions when the maxOpenPositions limit
+   * is reached. This method is called on startup and during tick processing.
+   */
+  private async _autoCloseStalePaperPositions(): Promise<number> {
+    let closed = 0;
+    try {
+      const staleThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
+      const stalePositions = await this.prisma.position.findMany({
+        where: {
+          status: 'OPEN',
+          exchange: 'paper-trading',
+          openedAt: { lt: staleThreshold },
+        },
+      });
+
+      for (const pos of stalePositions) {
+        try {
+          const closePrice = Number(pos.currentPrice) || Number(pos.entryPrice);
+          const pnl = (closePrice - Number(pos.entryPrice)) * Number(pos.quantity) * (pos.side === 'SELL' ? -1 : 1);
+
+          await this.prisma.position.update({
+            where: { id: pos.id },
+            data: {
+              status: 'CLOSED',
+              closedAt: new Date(),
+              currentPrice: closePrice,
+              unrealizedPnl: 0,
+              realizedPnl: pnl,
+              source: 'smart_executor',
+            },
+          });
+
+          // Record the closing trade
+          try {
+            await this.prisma.trade.create({
+              data: {
+                userId: pos.userId,
+                positionId: pos.id,
+                symbol: pos.symbol,
+                side: pos.side === 'BUY' ? 'SELL' : 'BUY',
+                type: 'EXIT',
+                quantity: Number(pos.quantity),
+                price: closePrice,
+                pnl,
+                exchange: 'paper-trading',
+                source: 'smart_executor',
+                executedAt: new Date(),
+              },
+            });
+          } catch (tradeErr: any) {
+            this.logger.warn(`⚔️ Failed to record closing trade for stale position ${pos.id}: ${tradeErr.message}`);
+          }
+
+          closed++;
+          this.logger.log(
+            `⚔️ Auto-closed stale paper position ${pos.symbol} (id: ${pos.id}, opened: ${pos.openedAt.toISOString()}, PnL: $${pnl.toFixed(2)})`,
+          );
+        } catch (closeErr: any) {
+          this.logger.warn(`⚔️ Failed to close stale position ${pos.id}: ${closeErr.message}`);
+        }
+      }
+    } catch (error: any) {
+      this.logger.error(`⚔️ Failed to auto-close stale paper positions: ${error.message}`);
+    }
+    return closed;
+  }
 
   private async _getPortfolioValue(userId: string): Promise<number> {
     try {

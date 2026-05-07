@@ -284,13 +284,17 @@ export const usePositionsStore = create<PositionsState>()(
       const res = await fetch('/api/trading/positions')
       if (res.ok) {
         const data = await res.json()
-        const raw = data.data || data.positions || []
-        if (Array.isArray(raw) && raw.length > 0) {
+        // CRITICAL FIX: Backend returns a plain array [], not { success, data: [] }
+        // Handle both shapes: plain array AND { data: [] } or { positions: [] }
+        const raw = Array.isArray(data)
+          ? data
+          : (data.data || data.positions || [])
+        if (Array.isArray(raw)) {
           const positions: Position[] = raw.map((p: any) => ({
             id: p.id,
             symbol: p.symbol,
             side: p.side === 'long' ? 'long' : p.side === 'short' ? 'short' : p.side,
-            qty: p.quantity ?? p.qty ?? 0,
+            qty: Number(p.quantity ?? p.qty ?? 0),
             entryPrice: Number(p.entryPrice) || Number(p.avgEntryPrice) || 0,
             avgEntryPrice: Number(p.entryPrice) || Number(p.avgEntryPrice) || 0,
             currentPrice: Number(p.currentPrice) ?? 0,
@@ -306,17 +310,6 @@ export const usePositionsStore = create<PositionsState>()(
           }))
           set({
             positions,
-            lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-            dataSource: 'nestjs',
-            loading: false,
-            _cacheTimestamp: Date.now(),
-          })
-          return
-        }
-        // NestJS أرجع قائمة فارغة — لا مراكز مفتوحة
-        if (Array.isArray(raw)) {
-          set({
-            positions: [],
             lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             dataSource: 'nestjs',
             loading: false,

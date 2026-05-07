@@ -1456,6 +1456,112 @@ EOSQL
     echo "⚠️ Precision fix SQL had issues (non-fatal — may already be correct)"
   fi
 
+  # ── Step 3b-3: CRITICAL — Force-add missing columns that break API routes ──
+  # These columns MUST exist or ALL trading/agent API routes return 503.
+  # Running as SEPARATE prisma db execute commands because the combined
+  # add_missing_columns.sql may fail silently on some statements.
+  echo "📦 Force-adding critical missing columns (Position.source, Trade.source)..."
+  cat > /tmp/force_add_columns.sql <<'EOSQL'
+    -- Position.source (CRITICAL: /api/trading/positions fails without this)
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Position' AND column_name = 'source'
+      ) THEN
+        ALTER TABLE "Position" ADD COLUMN "source" TEXT DEFAULT 'user_manual';
+      END IF;
+    END $$;
+
+    -- Trade.source (CRITICAL: /api/agent/trader/performance fails without this)
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Trade' AND column_name = 'source'
+      ) THEN
+        ALTER TABLE "Trade" ADD COLUMN "source" TEXT DEFAULT 'user_manual';
+      END IF;
+    END $$;
+
+    -- Position.updatedAt (required by Prisma @updatedAt)
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Position' AND column_name = 'updatedAt'
+      ) THEN
+        ALTER TABLE "Position" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      END IF;
+    END $$;
+
+    -- Fix Position unrealizedPnl/realizedPnl DECIMAL precision
+    DO $$ BEGIN
+      ALTER TABLE "Position" ALTER COLUMN "unrealizedPnl" TYPE DECIMAL(18,4);
+    EXCEPTION WHEN others THEN NULL;
+    END $$;
+    DO $$ BEGIN
+      ALTER TABLE "Position" ALTER COLUMN "realizedPnl" TYPE DECIMAL(18,4);
+    EXCEPTION WHEN others THEN NULL;
+    END $$;
+
+    -- Fix Position unique constraint
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'Position_userId_symbol_side_status_key'
+      ) THEN
+        ALTER TABLE "Position" ADD CONSTRAINT "Position_userId_symbol_side_status_key"
+          UNIQUE ("userId", "symbol", "side", "status");
+      END IF;
+    END $$;
+
+    -- Trade.updatedAt (required by Prisma @updatedAt)
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'Trade' AND column_name = 'updatedAt'
+      ) THEN
+        ALTER TABLE "Trade" ADD COLUMN "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+      END IF;
+    END $$;
+
+    -- Fix Trade DECIMAL precision
+    DO $$ BEGIN
+      ALTER TABLE "Trade" ALTER COLUMN "fee" TYPE DECIMAL(18,4);
+    EXCEPTION WHEN others THEN NULL;
+    END $$;
+    DO $$ BEGIN
+      ALTER TABLE "Trade" ALTER COLUMN "pnl" TYPE DECIMAL(18,4);
+    EXCEPTION WHEN others THEN NULL;
+    END $$;
+
+    -- Make source columns nullable if they were created NOT NULL
+    DO $$ BEGIN
+      ALTER TABLE "Position" ALTER COLUMN "source" DROP NOT NULL;
+    EXCEPTION WHEN others THEN NULL;
+    END $$;
+    DO $$ BEGIN
+      ALTER TABLE "Trade" ALTER COLUMN "source" DROP NOT NULL;
+    EXCEPTION WHEN others THEN NULL;
+    END $$;
+
+    -- Add missing compound indexes
+    CREATE INDEX IF NOT EXISTS "Position_userId_status_idx" ON "Position"("userId", "status");
+    CREATE INDEX IF NOT EXISTS "Position_userId_symbol_status_idx" ON "Position"("userId", "symbol", "status");
+    CREATE INDEX IF NOT EXISTS "Position_source_idx" ON "Position"("source");
+    CREATE INDEX IF NOT EXISTS "Trade_source_idx" ON "Trade"("source");
+EOSQL
+
+  if run_prisma db execute --schema=./prisma/schema.prisma --file /tmp/force_add_columns.sql 2>&1; then
+    echo "✅ Critical columns force-added successfully"
+  else
+    echo "❌ CRITICAL: Force-add columns failed — trying psql directly..."
+    # Fallback: try using psql if prisma db execute fails
+    if command -v psql >/dev/null 2>&1 && [ -n "${DATABASE_URL:-}" ]; then
+      psql "$DATABASE_URL" -f /tmp/force_add_columns.sql 2>&1 || echo "⚠️ psql also failed"
+    else
+      echo "❌ psql not available and prisma db execute failed — API routes will return 503"
+    fi
+  fi
+
   # ── Step 3c: Fix AgentStrategy enum — add missing values ──
   # prisma db push may have created a native PostgreSQL enum for AgentStrategy
   # but only with the original values. The app uses MOMENTUM_BREAKOUT, MEAN_REVERSION,

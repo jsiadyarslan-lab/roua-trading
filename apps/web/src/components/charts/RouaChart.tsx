@@ -67,7 +67,8 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull }: {
     };
     update();
     const unsub = chart.onVisibleRangeChange(update);
-    const interval = setInterval(update, 500); // 500ms — sufficient for visual tracking without CPU overload
+    // PERF: 1000ms is sufficient — price label position doesn't need 500ms updates
+    const interval = setInterval(update, 1000);
     return () => { unsub(); clearInterval(interval); };
   }, [chart, currentPrice]);
 
@@ -554,7 +555,8 @@ export default function RouaChart({
 
     // Periodic overlay refresh to catch vertical price-scale changes
     // (lightweight-charts v5 has no priceScale subscribeVisiblePriceRangeChange)
-    const priceScaleInterval = setInterval(scheduleOverlayUpdate, 1000);
+    // PERF: 2000ms is sufficient — trade overlay positions don't change sub-second
+    const priceScaleInterval = setInterval(scheduleOverlayUpdate, 2000);
 
     return () => { unsubscribe(); clearTimeout(timer); clearInterval(priceScaleInterval); };
   }, [chart, scheduleOverlayUpdate]);

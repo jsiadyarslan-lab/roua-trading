@@ -5,14 +5,22 @@ import type { NextConfig } from "next";
 const apiTarget = process.env.API_INTERNAL_URL || "http://localhost:3001";
 
 const nextConfig: NextConfig = {
-  // reactStrictMode enabled to detect memory leaks and side effects (BUG-002 fix)
-  reactStrictMode: true,
+  // reactStrictMode: only in development — avoids double-invoking effects in production
+  reactStrictMode: process.env.NODE_ENV !== 'production',
   // SECURITY: Remove X-Powered-By header to prevent information disclosure
   poweredByHeader: false,
   // socket.io path specifics are handled by the rewrites() config below.
   // Skip TypeScript errors during build (pre-existing type issues in API routes)
   typescript: {
     ignoreBuildErrors: true,
+  },
+  // PERFORMANCE: Remove all console.* calls from the production bundle.
+  // There are 281 console.log/warn calls across the frontend codebase.
+  // In production, these add unnecessary overhead and can leak debug info.
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production'
+      ? { exclude: ['error'] }  // Keep console.error for critical issues
+      : false,
   },
   // NOTE: eslint.ignoreDuringBuilds removed in Next.js 16.
   // The build will skip ESLint checks by default.

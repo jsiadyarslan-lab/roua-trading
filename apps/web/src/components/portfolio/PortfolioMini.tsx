@@ -55,14 +55,12 @@ export function usePortfolioSummary() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // PERF: Initial fetch only — GlobalLogicEngine polls fetchAccount + fetchPositions
+    // every 15 seconds. A separate 10s poll here causes double API calls.
     fetchAccount()
     fetchPositions()
     setLoading(false)
-    const iv = setInterval(() => {
-      fetchAccount()
-      fetchPositions()
-    }, 10000)
-    return () => clearInterval(iv)
+    // No interval here — let GlobalLogicEngine handle background refresh
   }, [fetchAccount, fetchPositions])
 
   const data = (() => {

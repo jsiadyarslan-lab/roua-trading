@@ -610,8 +610,8 @@ export default function RouaChart({
       const entryPrice = Number(pos.entryPrice || pos.avgEntryPrice || 0);
       const isLong = (pos.side || '').toLowerCase() === 'long';
       if (entryPrice > 0) {
-        const label = `${isLong ? '▲ شراء' : '▼ بيع'} @ ${fmtPrice(entryPrice)}`;
-        addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, label, true);
+        // Only show price on the right axis, no floating title on the left
+        addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, '', true);
       }
       const sl = Number(pos.stopLoss || pos.sl || 0);
       if (sl > 0) addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 1, 2, '', false);
@@ -640,15 +640,7 @@ export default function RouaChart({
       const entryPrice = Number(trade.entryPrice || 0);
       const isLong = (trade.side || '').toLowerCase() === 'long';
       
-      // Distinguish source: executor ⚔️ vs agent 🧠 vs manual 📊
-      const srcIcon = trade.source === 'bot' || trade.source === 'executor' ? '⚔️'
-        : trade.source === 'agent' ? '🧠'
-        : '📊';
-        
-      const countLabel = trade.count > 1 ? ` (x${trade.count})` : '';
-      const label = `${srcIcon} ${isLong ? '▲' : '▼'}${countLabel} ${fmtPrice(entryPrice)}`;
-      
-      addLine(`trade-entry-grp-${key}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, label, true);
+      addLine(`trade-entry-grp-${key}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, '', true);
       if (trade.sl && Number(trade.sl) > 0) addLine(`trade-sl-grp-${key}`, Number(trade.sl), '#FF4757', 1, 2, '', false);
       if (trade.tp && Number(trade.tp) > 0) addLine(`trade-tp-grp-${key}`, Number(trade.tp), '#00FFA3', 1, 2, '', false);
     });

@@ -64,7 +64,7 @@ export function AICouncilPanel() {
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<string | null>(null)
   const [dataSource, setDataSource] = useState<'real-ai' | 'partial-ai' | 'scanner-rules' | 'fallback' | 'unknown'>('unknown')
-  const [countdown, setCountdown] = useState(600) // 10 min — matches 30min cache with overlap
+  const [countdown, setCountdown] = useState(180) // 3 min cache
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const failCountRef = useRef(0) // Track consecutive failures for exponential backoff
   const abortRef = useRef<AbortController | null>(null) // Cancel in-flight requests
@@ -103,7 +103,7 @@ export function AICouncilPanel() {
   const fetchConsensus = useCallback(async () => {
     setLoading(true)
     setError(null)
-    setCountdown(600) // 10 min countdown
+    setCountdown(180) // 3 min countdown
     // Cancel any previous in-flight request
     if (abortRef.current) abortRef.current.abort()
     abortRef.current = new AbortController()

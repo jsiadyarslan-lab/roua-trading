@@ -102,8 +102,8 @@ export class AIOrchestratorService implements OnModuleDestroy {
     risk_analysis: 15 * 60 * 1000,    // 15 minutes
     translation: 30 * 60 * 1000,      // 30 minutes
     general: 10 * 60 * 1000,          // 10 minutes
-    consensus: 10 * 60 * 1000,        // 10 minutes for FULL consensus results
-    consensus_partial: 2 * 60 * 1000, // FIX: 2 minutes for PARTIAL consensus (< 3 models)
+    consensus: 3 * 60 * 1000,        // 3 minutes for FULL consensus results
+    consensus_partial: 1 * 60 * 1000, // 1 minute for PARTIAL consensus (< 3 models)
   };
 
   /** Model key environment variable mapping

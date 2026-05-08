@@ -77,7 +77,7 @@ function recalculateConsensus(analyses: any[]): { consensusScore: number; recomm
 // PERSISTENT AI CACHE — Short TTL, only for same-symbol dedup
 // ═══════════════════════════════════════════════════════════════
 const aiResultCache = new Map<string, { data: any; source: string; cachedAt: number }>()
-const AI_CACHE_TTL = 10 * 60 * 1000 // FIX: Unified with NestJS 10-min TTL (was 5 min)
+const AI_CACHE_TTL = 3 * 60 * 1000 // FIX: Reduced to 3 minutes for faster UI updates
 
 function getCachedAIResult(symbol: string): { data: any; source: string } | null {
   // FIX: Use v4 namespace to invalidate stale pre-fix cached results

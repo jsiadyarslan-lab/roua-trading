@@ -523,19 +523,33 @@ export default function RouaChart({
       });
 
       // Paper trades (including bot trades)
+      // Group identical trades to prevent chart clutter (overlapping SL/TP zones)
+      const groupedPaper = new Map<string, any>();
       paperTradesRef.current.forEach(trade => {
         const symbol = normalizeSymbol(trade.symbol || '');
         if (!symbol.includes(chartSymbol) && !chartSymbol.includes(symbol)) return;
         const entryPrice = Number(trade.entryPrice || 0);
         if (entryPrice <= 0) return;
+        
+        const key = `${trade.side}-${entryPrice}-${trade.sl}-${trade.tp}`;
+        if (groupedPaper.has(key)) {
+          groupedPaper.get(key)!.qty += trade.qty || 0;
+          groupedPaper.get(key)!.unrealizedPnl += trade.unrealizedPnl || 0;
+          groupedPaper.get(key)!.count += 1;
+        } else {
+          groupedPaper.set(key, { ...trade, count: 1, qty: trade.qty || 0, unrealizedPnl: trade.unrealizedPnl || 0 });
+        }
+      });
+
+      groupedPaper.forEach((trade, key) => {
         processTrade(
-          entryPrice,
+          Number(trade.entryPrice || 0),
           (trade.side || '').toLowerCase() === 'long' ? 'long' : 'short',
           trade.sl ? Number(trade.sl) : undefined,
           trade.tp ? Number(trade.tp) : undefined,
           trade.qty || 0, trade.unrealizedPnl,
           trade.source === 'bot' ? 'bot' : 'manual',
-          `trade-${trade.id}-`
+          `trade-grp-${key}-`
         );
       });
 
@@ -606,21 +620,37 @@ export default function RouaChart({
     });
 
     // Paper trades (including executor and agent trades)
+    // Group identical trades for clean price scale labels
+    const groupedLines = new Map<string, any>();
     paperTrades.forEach(trade => {
       const symbol = normalizeSymbol(trade.symbol || '');
       if (!symbol.includes(chartSymbol) && !chartSymbol.includes(symbol)) return;
       const entryPrice = Number(trade.entryPrice || 0);
-      const isLong = (trade.side || '').toLowerCase() === 'long';
-      if (entryPrice > 0) {
-        // Distinguish source: executor ⚔️ vs agent 🧠 vs manual 📊
-        const srcIcon = trade.source === 'bot' || trade.source === 'executor' ? '⚔️'
-          : trade.source === 'agent' ? '🧠'
-          : '📊';
-        const label = `${srcIcon} ${isLong ? '▲' : '▼'} ${fmtPrice(entryPrice)}`;
-        addLine(`trade-entry-${trade.id}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, label);
+      if (entryPrice <= 0) return;
+      
+      const key = `${trade.side}-${entryPrice}-${trade.sl}-${trade.tp}`;
+      if (groupedLines.has(key)) {
+        groupedLines.get(key)!.count += 1;
+      } else {
+        groupedLines.set(key, { ...trade, count: 1 });
       }
-      if (trade.sl && Number(trade.sl) > 0) addLine(`trade-sl-${trade.id}`, Number(trade.sl), '#FF4757', 1, 2, `SL ${fmtPrice(Number(trade.sl))}`);
-      if (trade.tp && Number(trade.tp) > 0) addLine(`trade-tp-${trade.id}`, Number(trade.tp), '#00FFA3', 1, 2, `TP ${fmtPrice(Number(trade.tp))}`);
+    });
+
+    groupedLines.forEach((trade, key) => {
+      const entryPrice = Number(trade.entryPrice || 0);
+      const isLong = (trade.side || '').toLowerCase() === 'long';
+      
+      // Distinguish source: executor ⚔️ vs agent 🧠 vs manual 📊
+      const srcIcon = trade.source === 'bot' || trade.source === 'executor' ? '⚔️'
+        : trade.source === 'agent' ? '🧠'
+        : '📊';
+        
+      const countLabel = trade.count > 1 ? ` (x${trade.count})` : '';
+      const label = `${srcIcon} ${isLong ? '▲' : '▼'}${countLabel} ${fmtPrice(entryPrice)}`;
+      
+      addLine(`trade-entry-grp-${key}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, label);
+      if (trade.sl && Number(trade.sl) > 0) addLine(`trade-sl-grp-${key}`, Number(trade.sl), '#FF4757', 1, 2, `SL${countLabel} ${fmtPrice(Number(trade.sl))}`);
+      if (trade.tp && Number(trade.tp) > 0) addLine(`trade-tp-grp-${key}`, Number(trade.tp), '#00FFA3', 1, 2, `TP${countLabel} ${fmtPrice(Number(trade.tp))}`);
     });
 
     return () => {

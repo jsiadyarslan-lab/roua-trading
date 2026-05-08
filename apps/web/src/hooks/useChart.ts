@@ -13,7 +13,7 @@ import type {
 } from '../lib/charts/types';
 import { toHeikinAshi } from '../lib/charts/IndicatorCalculator';
 import { DrawingManager } from '../lib/charts/DrawingManager';
-import { DrawingRenderer } from '../lib/charts/DrawingRenderer';
+import type { DrawingRenderer } from '../lib/charts/DrawingRenderer';
 import { KeyboardShortcuts } from '../lib/charts/KeyboardShortcuts';
 import { ChartExporter } from '../lib/charts/ChartExporter';
 import { ChartTemplateManager } from '../lib/charts/ChartTemplate';
@@ -361,15 +361,19 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       drawingRendererRef.current.stop();
     }
     if (drawingManagerRef.current && candleSeriesRef.current) {
-      const renderer = new DrawingRenderer(
-        chart,
-        candleSeriesRef.current,
-        container,
-        drawingManagerRef.current,
-      );
-      renderer.setTool(activeTool);
-      renderer.start();
-      drawingRendererRef.current = renderer;
+      // Lazy load DrawingRenderer to reduce initial bundle size
+      import('../lib/charts/DrawingRenderer').then(({ DrawingRenderer: DynamicRenderer }) => {
+        if (!drawingManagerRef.current || !candleSeriesRef.current || !chartInstanceRef.current || !container) return;
+        const renderer = new DynamicRenderer(
+          chartInstanceRef.current,
+          candleSeriesRef.current,
+          container,
+          drawingManagerRef.current,
+        );
+        renderer.setTool(activeTool);
+        renderer.start();
+        drawingRendererRef.current = renderer as any;
+      }).catch(console.error);
     }
 
     // ── Init Keyboard Shortcuts ──

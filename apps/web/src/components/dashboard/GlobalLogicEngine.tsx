@@ -14,7 +14,8 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
  * Also handles cross-tab synchronization so desktop and mobile views stay in sync.
  */
 export function GlobalLogicEngine() {
-  const quotes = useMarketStore(s => s.quotes)
+  // Removed reactive quotes subscription to prevent rapid re-renders
+  // We will read from getState() inside the timer instead.
   const updatePaperPrice = usePaperTradesStore(s => s.updatePrice)
   const updatePositionPrice = usePositionsStore(s => s.updatePositionPrice)
   const fetchRealPositions = usePositionsStore(s => s.fetchPositions)
@@ -47,45 +48,50 @@ export function GlobalLogicEngine() {
   }, [])
 
   useEffect(() => {
-    const now = Date.now()
-    const activePaperTrades = usePaperTradesStore.getState().trades
-    const realPositions = usePositionsStore.getState().positions
+    const syncInterval = setInterval(() => {
+      const now = Date.now()
+      const quotes = useMarketStore.getState().quotes
+      const activePaperTrades = usePaperTradesStore.getState().trades
+      const realPositions = usePositionsStore.getState().positions
 
-    Object.entries(quotes).forEach(([symbol, q]) => {
-      const price = q?.price
-      if (typeof price !== 'number' || Number.isNaN(price)) return
+      Object.entries(quotes).forEach(([symbol, q]) => {
+        const price = q?.price
+        if (typeof price !== 'number' || Number.isNaN(price)) return
 
-      const normalizedSymbol = symbol.toUpperCase().replace('/', '')
+        const normalizedSymbol = symbol.toUpperCase().replace('/', '')
 
-      // تحقق مما إذا كان هناك صفقة ورقية مطابقة
-      const hasMatchingPaperTrade = activePaperTrades.some(
-        trade => trade.symbol.toUpperCase().replace('/', '') === normalizedSymbol
-      )
+        // تحقق مما إذا كان هناك صفقة ورقية مطابقة
+        const hasMatchingPaperTrade = activePaperTrades.some(
+          trade => trade.symbol.toUpperCase().replace('/', '') === normalizedSymbol
+        )
 
-      // تحقق مما إذا كان هناك مركز Alpaca حقيقي مطابق
-      const hasMatchingRealPosition = realPositions.some(
-        position => position.symbol.toUpperCase().replace('/', '') === normalizedSymbol
-      )
+        // تحقق مما إذا كان هناك مركز Alpaca حقيقي مطابق
+        const hasMatchingRealPosition = realPositions.some(
+          position => position.symbol.toUpperCase().replace('/', '') === normalizedSymbol
+        )
 
-      if (!hasMatchingPaperTrade && !hasMatchingRealPosition) return
+        if (!hasMatchingPaperTrade && !hasMatchingRealPosition) return
 
-      // تقييد التحديث إلى مرة واحدة في الثانية لكل رمز
-      const lastSyncAt = lastPriceSyncRef.current[normalizedSymbol] || 0
-      if (now - lastSyncAt < 1000) return
+        // تقييد التحديث إلى مرة واحدة في الثانية لكل رمز (redundant now with setInterval but safe)
+        const lastSyncAt = lastPriceSyncRef.current[normalizedSymbol] || 0
+        if (now - lastSyncAt < 1000) return
 
-      lastPriceSyncRef.current[normalizedSymbol] = now
+        lastPriceSyncRef.current[normalizedSymbol] = now
 
-      // تحديث الصفقات الورقية بالسعر المباشر
-      if (hasMatchingPaperTrade) {
-        updatePaperPrice(symbol, price)
-      }
+        // تحديث الصفقات الورقية بالسعر المباشر
+        if (hasMatchingPaperTrade) {
+          updatePaperPrice(symbol, price)
+        }
 
-      // تحديث مراكز Alpaca الحقيقية بالسعر المباشر (حساب P&L فوري)
-      if (hasMatchingRealPosition) {
-        updatePositionPrice(symbol, price)
-      }
-    })
-  }, [quotes, updatePaperPrice, updatePositionPrice])
+        // تحديث مراكز Alpaca الحقيقية بالسعر المباشر (حساب P&L فوري)
+        if (hasMatchingRealPosition) {
+          updatePositionPrice(symbol, price)
+        }
+      })
+    }, 1000)
+
+    return () => clearInterval(syncInterval)
+  }, [updatePaperPrice, updatePositionPrice])
 
   useEffect(() => {
     // تحديث دوري لمراكز Alpaca الحقيقية وحساب الحساب

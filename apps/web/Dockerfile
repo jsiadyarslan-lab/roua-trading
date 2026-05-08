@@ -34,10 +34,12 @@ FROM oven/bun:1 AS builder
 
 WORKDIR /app
 
-# Build arg: API internal URL for Docker network rewrites
-# Defaults to Docker Compose service name; override for other setups
-ARG API_INTERNAL_URL=http://api:3001
-ENV API_INTERNAL_URL=${API_INTERNAL_URL}
+# NOTE: API_INTERNAL_URL is intentionally NOT baked in at build time.
+# On Railway (single-container monorepo), NestJS runs on localhost:3001,
+# so the value must be http://127.0.0.1:3001 at RUNTIME, not build time.
+# The start.sh script sets: export API_INTERNAL_URL="${API_INTERNAL_URL:-http://127.0.0.1:3001}"
+# which means the value is always correct regardless of what Docker env says.
+# Legacy Docker Compose used "http://api:3001" which only works with multi-container setups.
 
 # Copy installed node_modules from deps stage
 COPY --from=deps /app/node_modules ./node_modules

@@ -1,8 +1,14 @@
 import type { NextConfig } from "next";
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-const apiTarget = process.env.API_INTERNAL_URL || "http://localhost:3001";
+// CRITICAL FIX: API_INTERNAL_URL must NEVER be "http://api:3001"
+// on Railway single-container deployments. NestJS runs on port 3001
+// within the SAME container, so the correct address is 127.0.0.1:3001.
+// "http://api:3001" only works in Docker Compose multi-container setups.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const rawApiTarget = process.env.API_INTERNAL_URL || "http://127.0.0.1:3001";
+// If the baked-in value is the old Docker Compose hostname, override it
+const apiTarget = rawApiTarget.includes("http://api:") ? "http://127.0.0.1:3001" : rawApiTarget;
 
 const nextConfig: NextConfig = {
   // reactStrictMode: only in development — avoids double-invoking effects in production

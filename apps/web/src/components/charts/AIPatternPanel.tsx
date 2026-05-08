@@ -9,6 +9,9 @@
 import { useState, useCallback, useRef } from 'react';
 import type { AIPattern, CandleData, AIEntryExit } from '@/lib/charts/types';
 import { ScopedStyle } from '@/components/ScopedStyle';
+import { detectHarmonicPatterns } from '@/lib/charts/HarmonicPatterns';
+import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
+import { useNotificationStore } from '@/hooks/useNotificationStore';
 
 interface SupportResistanceLevel {
   price: number;
@@ -266,6 +269,15 @@ export function AIPatternPanel({
       const lines = detectTrendLines(candles);
       setTrendLines(lines);
 
+      // Detect Harmonic Patterns and merge
+      const harmonicPatterns = detectHarmonicPatterns(candles);
+      if (harmonicPatterns.length > 0) {
+        detectedPatterns.push(...harmonicPatterns);
+        // Sort patterns by time
+        detectedPatterns.sort((a, b) => b.time - a.time);
+        setPatterns([...detectedPatterns]);
+      }
+
       onPatternsDetected({
         patterns: detectedPatterns,
         supportLevels: levels.filter(l => l.type === 'support'),
@@ -281,12 +293,16 @@ export function AIPatternPanel({
       const localPatterns = detectLocalPatterns(last50);
       const levels = detectSupportResistance(candles || []);
       const lines = detectTrendLines(candles || []);
+      const harmonicPatterns = detectHarmonicPatterns(candles || []);
+      
+      const allLocalPatterns = [...localPatterns, ...harmonicPatterns].sort((a, b) => b.time - a.time);
+      
       setDataSource('local');
-      setPatterns(localPatterns);
+      setPatterns(allLocalPatterns);
       setSrLevels(levels);
       setTrendLines(lines);
       onPatternsDetected({
-        patterns: localPatterns,
+        patterns: allLocalPatterns,
         supportLevels: levels.filter(l => l.type === 'support'),
         resistanceLevels: levels.filter(l => l.type === 'resistance'),
         trendLines: lines,
@@ -1122,6 +1138,78 @@ export function AIPatternPanel({
                     ))}
                   </div>
                 )}
+                
+                {/* AI Execute Trade Button */}
+                <div style={{ padding: '12px 0 0', marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                  <button
+                    onClick={() => {
+                      if (!entryExit) return;
+                      const { addTrade } = usePaperTradesStore.getState();
+                      // Assume standard lot size of 1.0 for manual AI quick trades (or fallback to user settings)
+                      const defaultLot = 1.0; 
+                      addTrade({
+                        symbol: symbol,
+                        side: entryExit.direction,
+                        qty: defaultLot,
+                        entryPrice: entryExit.entryPrice,
+                        currentPrice: entryExit.entryPrice,
+                        tp: entryExit.takeProfit > 0 ? entryExit.takeProfit : undefined,
+                        sl: entryExit.stopLoss > 0 ? entryExit.stopLoss : undefined,
+                        entryTime: Date.now(),
+                        strategy: 'ai_recommendation',
+                        source: 'agent',
+                      });
+                      
+                      useNotificationStore.getState().addNotification({
+                        source: 'agent',
+                        priority: 'high',
+                        action: 'BUY',
+                        title: `⚡ تم التنفيذ بذكاء الاصطناعي`,
+                        body: `صفقة ${entryExit.direction === 'long' ? 'شراء' : 'بيع'} ${symbol} من ${entryExit.entryPrice}`,
+                        pair: symbol,
+                        price: entryExit.entryPrice,
+                      });
+                      
+                      onClose(); // Close panel after execution
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: entryExit.direction === 'long'
+                        ? 'linear-gradient(135deg, rgba(0,255,163,0.2) 0%, rgba(0,255,163,0.1) 100%)'
+                        : 'linear-gradient(135deg, rgba(255,71,87,0.2) 0%, rgba(255,71,87,0.1) 100%)',
+                      border: `1px solid ${entryExit.direction === 'long' ? 'rgba(0,255,163,0.4)' : 'rgba(255,71,87,0.4)'}`,
+                      borderRadius: 8,
+                      color: entryExit.direction === 'long' ? C.success : C.danger,
+                      fontSize: 12,
+                      fontWeight: 800,
+                      cursor: 'pointer',
+                      fontFamily: "'Cairo', sans-serif",
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      transition: 'all 0.2s ease',
+                      boxShadow: `0 4px 12px ${entryExit.direction === 'long' ? 'rgba(0,255,163,0.15)' : 'rgba(255,71,87,0.15)'}`
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.filter = 'brightness(1.2)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.transform = 'none';
+                      e.currentTarget.style.filter = 'none';
+                    }}
+                  >
+                    <span>⚡ تنفيذ مباشر (AI)</span>
+                    <span style={{ fontSize: 10, opacity: 0.8, fontWeight: 500 }}>
+                      {entryExit.direction === 'long' ? 'شراء' : 'بيع'} @ {entryExit.entryPrice.toFixed(2)}
+                    </span>
+                  </button>
+                  <div style={{ textAlign: 'center', fontSize: 9, color: C.textDim, marginTop: 6, fontFamily: "'Cairo', sans-serif" }}>
+                    سيتم التنفيذ كصفقة ورقية في الداشبورد
+                  </div>
+                </div>
               </div>
             ) : (
               <div style={{

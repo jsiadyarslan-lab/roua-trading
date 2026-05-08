@@ -831,11 +831,10 @@ export default function RouaChart({
     // ── Draw Trend Lines on chart ──
     try {
       if (chartApi && result.trendLines.length > 0) {
-        const { LineSeries } = lc;
         result.trendLines.forEach((line, i) => {
           const color = line.type === 'ascending' ? 'rgba(0,255,163,0.6)' : 'rgba(255,71,87,0.6)';
           const lineWidth = line.strength === 'strong' ? 2 : 1;
-          const trendSeries = chartApi.addSeries(LineSeries, {
+          const trendSeries = chartApi.addLineSeries({
             color,
             lineWidth: lineWidth as any,
             lineStyle: 0,
@@ -843,11 +842,25 @@ export default function RouaChart({
             lastValueVisible: false,
             crosshairMarkerVisible: false,
           });
-          // FIX: Filter null/NaN from trend line data
-          const trendData = filterValidData([
-            { time: line.startPoint.time as any, value: line.startPoint.price },
-            { time: line.endPoint.time as any, value: line.endPoint.price },
-          ]);
+          // FIX: Filter null/NaN from trend line data and ensure sorted by time
+          const t1 = line.startPoint.time;
+          const t2 = line.endPoint.time;
+          const p1 = line.startPoint.price;
+          const p2 = line.endPoint.price;
+          
+          let points = [
+            { time: t1 as any, value: p1 },
+            { time: t2 as any, value: p2 },
+          ];
+          
+          if (t1 > t2) {
+            points = [
+              { time: t2 as any, value: p2 },
+              { time: t1 as any, value: p1 },
+            ];
+          }
+
+          const trendData = filterValidData(points);
           if (trendData.length >= 2) {
             trendSeries.setData(trendData as any);
             aiOverlaySeriesRef.current.push(trendSeries);
@@ -877,7 +890,9 @@ export default function RouaChart({
               p.shapePoints.map(pt => ({ time: pt.time as any, value: pt.price }))
             );
             if (areaData.length >= 2) {
-              const areaSeries = chartApi.addSeries(AreaSeries, {
+              // Ensure chronological order
+              areaData.sort((a, b) => a.time - b.time);
+              const areaSeries = chartApi.addAreaSeries({
                 topColor: color,
                 bottomColor: color.replace(/[\d.]+\)$/, '0.05)'),
                 lineColor: lineColor,
@@ -901,7 +916,9 @@ export default function RouaChart({
               p.shapePoints.map(pt => ({ time: pt.time as any, value: pt.price }))
             );
             if (lineData.length >= 2) {
-              const shapeLine = chartApi.addSeries(LineSeries, {
+              // Ensure chronological order
+              lineData.sort((a, b) => a.time - b.time);
+              const shapeLine = chartApi.addLineSeries({
                 color: lineColor,
                 lineWidth: 2 as any,
                 lineStyle: 0,

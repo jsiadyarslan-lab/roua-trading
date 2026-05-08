@@ -27,7 +27,7 @@ import { OrderSide, OrderType } from '@prisma/client';
 export { OrderSide as V2OrderSide, OrderType as V2OrderType } from '@prisma/client';
 
 export class PlaceOrderDto {
-  @IsUUID()
+  @IsString()
   exchangeCredentialId!: string;
 
   @IsString()

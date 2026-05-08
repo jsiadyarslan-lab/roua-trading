@@ -39,7 +39,7 @@ export enum TradeType {
 // ── DTOs with class-validator ──
 
 export class PlaceOrderDto {
-  @IsUUID()
+  @IsString()
   credentialId!: string;
 
   @IsString()
@@ -68,12 +68,12 @@ export class PlaceOrderDto {
   takeProfit?: number;
 
   @IsOptional()
-  @IsUUID()
+  @IsString()
   signalId?: string;
 }
 
 export class ClosePositionDto {
-  @IsUUID()
+  @IsString()
   positionId!: string;
 
   @IsOptional()

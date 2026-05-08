@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   Cpu, Play, Square, AlertTriangle, ExternalLink,
@@ -138,7 +139,10 @@ export function AgentControlMini() {
     agentState, loading, error,
     fetchStatus, fetchCredentials, startAgent, stopAgent,
     selectedCredentialId, positions, performance,
+    fetchPositions, fetchPerformance
   } = useAgentStore()
+  
+  const router = useRouter()
 
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -157,9 +161,14 @@ export function AgentControlMini() {
   useEffect(() => {
     fetchStatus()
     fetchCredentials()
-    const interval = setInterval(fetchStatus, 30000)
+    fetchPositions()
+    fetchPerformance()
+    const interval = setInterval(() => {
+      fetchStatus()
+      fetchPositions()
+    }, 10000)
     return () => clearInterval(interval)
-  }, [fetchStatus, fetchCredentials])
+  }, [fetchStatus, fetchCredentials, fetchPositions, fetchPerformance])
 
   // Auto-hide confirm dialog after 5s
   useEffect(() => {
@@ -433,8 +442,9 @@ export function AgentControlMini() {
       )}
 
       {/* ── Footer: Link to Full Settings ── */}
-      <Link href="/dashboard/autonomous-trader" style={{ textDecoration: 'none', display: 'block' }}>
-        <div style={{
+      <div 
+        onClick={() => router.push('/dashboard/autonomous-trader')}
+        style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
           padding: '6px 8px', borderRadius: 0,
           background: isRunning
@@ -447,8 +457,7 @@ export function AgentControlMini() {
           <Settings2 size={9} />
           لوحة التحكم الكاملة
           <ExternalLink size={8} />
-        </div>
-      </Link>
+      </div>
 
       {/* ── Error Warning ── */}
       {error && (

@@ -63,10 +63,10 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
   const TABS = [
     { id: 'executor', label: 'المنفذ', accent: T.cyan, icon: Swords, subtitle: 'المنفذ الذكي' },
     { id: 'strategic', label: 'المجلس', accent: T.purple, icon: Landmark, subtitle: 'المجلس الاستراتيجي' },
+    { id: 'trader', label: 'الوكيل', accent: '#FF8C42', icon: Bot, subtitle: 'وكيل التداول الذاتي' },
     { id: 'council', label: 'AI', accent: T.accent, icon: Brain, subtitle: 'إجماع الذكاء الاصطناعي' },
     { id: 'scanner', label: 'السكانر', accent: T.amber, icon: ScanSearch, subtitle: 'اكتشاف الفرص' },
     { id: 'signals', label: 'إشارات', accent: T.green, icon: Sparkles, subtitle: 'التحويل للتنفيذ' },
-    { id: 'trader', label: 'الوكيل', accent: '#FF8C42', icon: Bot, subtitle: 'وكيل التداول الذاتي' },
   ]
   const activeTab = TABS.find((tab) => tab.id === active) || TABS[0]
   const headlineMap = {

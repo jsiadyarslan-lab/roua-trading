@@ -598,8 +598,8 @@ export default function RouaChart({
 
     const fmtPrice = (p: number) => p > 999 ? p.toFixed(2) : p.toFixed(5);
 
-    const addLine = (id: string, price: number, color: string, lineWidth: number, lineStyle: number, label: string = '') => {
-      chart.addPriceLine(id, price, color, label, lineWidth, lineStyle, true);
+    const addLine = (id: string, price: number, color: string, lineWidth: number, lineStyle: number, label: string = '', axisLabelVisible: boolean = true) => {
+      chart.addPriceLine(id, price, color, label, lineWidth, lineStyle, axisLabelVisible);
       positionLineIdsRef.current.push(id);
     };
 
@@ -611,12 +611,12 @@ export default function RouaChart({
       const isLong = (pos.side || '').toLowerCase() === 'long';
       if (entryPrice > 0) {
         const label = `${isLong ? '▲ شراء' : '▼ بيع'} @ ${fmtPrice(entryPrice)}`;
-        addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, label);
+        addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, label, true);
       }
       const sl = Number(pos.stopLoss || pos.sl || 0);
-      if (sl > 0) addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 1, 2, `SL ${fmtPrice(sl)}`);
+      if (sl > 0) addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 1, 2, `SL ${fmtPrice(sl)}`, false);
       const tp = Number(pos.takeProfit || pos.tp || 0);
-      if (tp > 0) addLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 1, 2, `TP ${fmtPrice(tp)}`);
+      if (tp > 0) addLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 1, 2, `TP ${fmtPrice(tp)}`, false);
     });
 
     // Paper trades (including executor and agent trades)
@@ -648,9 +648,9 @@ export default function RouaChart({
       const countLabel = trade.count > 1 ? ` (x${trade.count})` : '';
       const label = `${srcIcon} ${isLong ? '▲' : '▼'}${countLabel} ${fmtPrice(entryPrice)}`;
       
-      addLine(`trade-entry-grp-${key}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, label);
-      if (trade.sl && Number(trade.sl) > 0) addLine(`trade-sl-grp-${key}`, Number(trade.sl), '#FF4757', 1, 2, `SL${countLabel} ${fmtPrice(Number(trade.sl))}`);
-      if (trade.tp && Number(trade.tp) > 0) addLine(`trade-tp-grp-${key}`, Number(trade.tp), '#00FFA3', 1, 2, `TP${countLabel} ${fmtPrice(Number(trade.tp))}`);
+      addLine(`trade-entry-grp-${key}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, label, true);
+      if (trade.sl && Number(trade.sl) > 0) addLine(`trade-sl-grp-${key}`, Number(trade.sl), '#FF4757', 1, 2, `SL${countLabel} ${fmtPrice(Number(trade.sl))}`, false);
+      if (trade.tp && Number(trade.tp) > 0) addLine(`trade-tp-grp-${key}`, Number(trade.tp), '#00FFA3', 1, 2, `TP${countLabel} ${fmtPrice(Number(trade.tp))}`, false);
     });
 
     return () => {

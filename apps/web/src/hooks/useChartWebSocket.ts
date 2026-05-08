@@ -304,7 +304,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     // Skip socket.io — go directly to Binance WS or REST polling
     if (process.env.NEXT_PUBLIC_WS_ENABLED !== 'true') {
       setConnectionState('connecting');
-      connectBinance();
+      connectBinanceFallback();
       return;
     }
 

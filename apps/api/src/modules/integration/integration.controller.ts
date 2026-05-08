@@ -300,7 +300,15 @@ export class IntegrationController {
         content: article.contentAr || article.contentEn || article.content,
         category: article.category,
         type: article.type || article.contentType,
-        symbols: article.symbols || article.relatedSymbols || [],
+        symbols: (() => {
+          const raw = article.symbols || article.relatedSymbols || [];
+          if (Array.isArray(raw)) return raw;
+          if (typeof raw === 'string') {
+            if (raw.startsWith('[')) { try { const p = JSON.parse(raw); return Array.isArray(p) ? p : raw.split(',').filter(Boolean); } catch { return raw.split(',').filter(Boolean); } }
+            return raw.split(',').filter(Boolean);
+          }
+          return [];
+        })(),
         sentiment: article.sentiment || article.sentimentScore,
         impactLevel: article.impactLevel,
         qualityScore: article.qualityScore,

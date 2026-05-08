@@ -136,6 +136,16 @@ export function SmartExecutorPanel() {
     return () => clearInterval(interval)
   }, [fetchUserState, fetchPositions])
 
+  // Auto-recovery: if executor is running but user state is null (lost after server restart),
+  // auto re-enable the user to restore execution capability
+  useEffect(() => {
+    if (status?.isRunning && !userState && !loading) {
+      // Re-enable silently — user had explicitly enabled before restart
+      enableUser(true)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status?.isRunning, userState, loading])
+
   // NOTE: Auto-enable removed intentionally.
   // Every user MUST manually click "تفعيل" to enable paper trading.
   // Auto-enabling caused phantom trades across all user sessions.
@@ -376,8 +386,33 @@ export function SmartExecutorPanel() {
         padding: 4, background: 'rgba(11,14,20,0.45)',
       }} className="custom-scrollbar">
         {positions.length === 0 ? (
-          <div style={{ padding: 20, textAlign: 'center', opacity: 0.3, fontSize: 9 }}>
-            {isEnabled ? 'لا توجد مراكز مفتوحة — ينتظر Briefs من المجلس' : 'فعّل المنفذ الذكي لبدء التداول التلقائي'}
+          <div style={{ padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {/* Diagnostic: show why no positions / why not executing */}
+            {isEnabled && status?.activeBriefs === 0 && (
+              <div style={{ fontSize: 7, color: T.amber, textAlign: 'center', opacity: 0.8 }}>
+                ⏳ ينتظر Briefs من المجلس الاستراتيجي...
+              </div>
+            )}
+            {isEnabled && (status?.activeBriefs ?? 0) > 0 && (
+              <div style={{ fontSize: 7, color: T.cyan, textAlign: 'center', opacity: 0.8 }}>
+                🔍 {status?.activeBriefs} Brief نشط — يفحص شروط الدخول كل 2 ثانية
+              </div>
+            )}
+            {isEnabled && status?.lastError && (
+              <div style={{ fontSize: 6.5, color: T.danger, textAlign: 'center', padding: '2px 4px', background: 'rgba(255,71,87,0.08)', borderRadius: 4 }}>
+                ⚠ {status.lastError}
+              </div>
+            )}
+            {!isEnabled && (
+              <div style={{ padding: 12, textAlign: 'center', opacity: 0.4, fontSize: 9 }}>
+                فعّل المنفذ الذكي لبدء التداول التلقائي
+              </div>
+            )}
+            {isEnabled && !status?.lastError && (status?.activeBriefs ?? 0) === 0 && (
+              <div style={{ padding: 6, textAlign: 'center', opacity: 0.3, fontSize: 8 }}>
+                لا توجد مراكز مفتوحة
+              </div>
+            )}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>

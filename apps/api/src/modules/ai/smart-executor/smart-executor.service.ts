@@ -1238,7 +1238,7 @@ export class SmartExecutorService implements OnModuleDestroy {
               confidence: brief.confidence,
               isPaperTrading: userState.isPaperTrading,
             },
-            source: 'bot',
+            source: 'executor',
             action: brief.direction === 'BUY' ? 'BUY' : 'SELL',
             pair: brief.pair,
           });
@@ -1266,7 +1266,7 @@ export class SmartExecutorService implements OnModuleDestroy {
               direction: brief.direction,
               error: result.error,
             },
-            source: 'bot',
+            source: 'executor',
             action: 'WARN',
             pair: brief.pair,
           });

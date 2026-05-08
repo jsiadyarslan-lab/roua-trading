@@ -151,7 +151,7 @@ export function detectHarmonicPatterns(candles: CandleData[]): AIPattern[] {
     if (patternType) {
       patterns.push({
         type: patternType,
-        labelAr: \`نمط \${patternType === 'Gartley' ? 'جارتلي' : patternType === 'Butterfly' ? 'الفراشة' : patternType === 'Bat' ? 'الخفاش' : 'السلطعون'} التوافقي\`,
+        labelAr: `نمط ${patternType === 'Gartley' ? 'جارتلي' : patternType === 'Butterfly' ? 'الفراشة' : patternType === 'Bat' ? 'الخفاش' : 'السلطعون'} التوافقي`,
         time: D.time,
         price: D.price,
         confidence,

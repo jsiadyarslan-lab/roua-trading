@@ -152,22 +152,13 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * loading, which causes ALL agent routes to return 404.
    */
   async onModuleInit() {
-    // CRITICAL FIX: Do NOT let any error escape — a failing onModuleInit prevents
-    // the controller from loading, which causes 404 on ALL agent routes.
-    //
-    // This method must be safe even when PrismaService/RedisService are null
-    // (e.g., DB not ready during cold start, dependency injection failed).
-    const INIT_TIMEOUT_MS = 5000; // 5 seconds max — don't block module loading
+    const INIT_TIMEOUT_MS = 5000;
 
-    // If critical dependencies are missing, skip initialization entirely
     if (!this.prisma || !this.redis) {
       this.logger.warn(
         `⚠️ Skipping onModuleInit auto-seed: prisma=${!!this.prisma}, redis=${!!this.redis}. ` +
         `Agent routes will still be registered. Service will retry on next DB access.`
       );
-
-      // Attempt to mark ready if both dependencies became available by now
-      // (edge case: DI resolved them after constructor but before onModuleInit)
       this._tryMarkReady();
       return;
     }
@@ -180,15 +171,100 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         ),
       ]);
     } catch (error: any) {
-      // DB not ready yet (cold start, connection issue, timeout) — non-fatal.
-      // The service will fall back to env vars for AUTO_TRADING_ENABLED.
       this.logger.warn(`Could not auto-seed AUTO_TRADING_ENABLED: ${error?.message || error} — will fall back to env var. Agent routes will still be registered.`);
-
-      // Mark as not-ready if we couldn't talk to the DB
       this._isReady = false;
       this._notReadyReason = 'قاعدة البيانات غير جاهزة بعد — يرجى المحاولة لاحقاً';
     }
+
+    // ── Auto-restart agents that were RUNNING before server restart ──
+    // This recovers all user agents automatically after a Railway deployment or crash.
+    // Without this, users have to manually click "تفعيل" every time the server restarts.
+    if (this._isReady) {
+      setTimeout(() => this._autoRestoreRunningAgents(), 5000);
+    }
   }
+
+  /**
+   * Auto-restore agents that were RUNNING before the server restarted.
+   * Called 5 seconds after startup to give DB/Redis time to warm up.
+   */
+  private async _autoRestoreRunningAgents(): Promise<void> {
+    try {
+      this.logger.log('🧠 Auto-restoring agents that were running before restart...');
+
+      const runningSessions = await this.prisma.agentSession.findMany({
+        where: { status: 'RUNNING' },
+        orderBy: { startedAt: 'desc' },
+        take: 50,
+      });
+
+      if (runningSessions.length === 0) {
+        this.logger.log('🧠 No running agent sessions found in DB — nothing to restore.');
+        return;
+      }
+
+      for (const session of runningSessions) {
+        try {
+          // Check if already in Redis
+          const existing = await this.redis.get(`agent:state:${session.userId}`);
+          if (existing) {
+            const state = JSON.parse(existing);
+            if (state.status === AgentStatus.RUNNING) {
+              this.logger.debug(`🧠 Agent for ${session.userId} already active in Redis — skipping restore`);
+              continue;
+            }
+          }
+
+          // Restore from DB to Redis
+          let config: AgentConfig;
+          try {
+            config = JSON.parse(session.config);
+          } catch {
+            config = {
+              userId: session.userId,
+              strategy: session.strategy as StrategyType,
+              enabled: true,
+              maxPositionSizePercent: 2,
+              maxDailyLossPercent: 5,
+              maxOpenPositions: 5,
+              riskPerTradePercent: 1.5,
+              strategyParams: this._getDefaultStrategyParams(session.strategy as StrategyType),
+              symbols: this.DEFAULT_SYMBOLS,
+              credentialId: session.credentialId || `paper-${session.userId}`,
+              isPaperTrading: !session.credentialId || session.credentialId.startsWith('paper-'),
+              createdAt: session.startedAt,
+              updatedAt: session.updatedAt,
+            };
+          }
+
+          const restoredState: AgentState = {
+            status: AgentStatus.RUNNING,
+            config,
+            startedAt: session.startedAt,
+            dailyPnL: Number(session.dailyPnL),
+            dailyTradesCount: session.dailyTradesCount,
+            dailyResetAt: session.dailyResetAt ?? undefined,
+            consecutiveLosses: session.consecutiveLosses,
+            totalCycles: session.totalCycles,
+            lastError: session.lastError ?? undefined,
+            lastCycleAt: session.lastCycleAt ?? undefined,
+            lastSignalAt: session.lastSignalAt ?? undefined,
+          };
+
+          await this._saveAgentState(session.userId, restoredState);
+          this.logger.log(`🧠 ✅ Auto-restored agent for user ${session.userId} (strategy: ${config.strategy})`);
+        } catch (err: any) {
+          this.logger.warn(`🧠 Failed to restore agent for ${session.userId}: ${err.message}`);
+        }
+      }
+
+      this.logger.log(`🧠 Auto-restore complete: restored ${runningSessions.length} agent(s)`);
+    } catch (err: any) {
+      this.logger.warn(`🧠 _autoRestoreRunningAgents failed (non-fatal): ${err.message}`);
+    }
+  }
+
+
 
   /**
    * Initialize AUTO_TRADING_ENABLED setting in DB.

@@ -51,8 +51,13 @@ export function useNotificationSocket() {
     const token = getSessionToken()
     if (!token) return
 
+    // Skip socket.io if WS is not explicitly enabled
+    // NestJS has no WebSocket gateway, so connecting causes 404 errors
+    if (process.env.NEXT_PUBLIC_WS_ENABLED !== 'true') return
+
     // Determine Socket.IO URL
-    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || (typeof window !== 'undefined' ? window.location.origin : '')
+    const wsUrl = process.env.NEXT_PUBLIC_WS_URL || ''
+    if (!wsUrl) return
 
     try {
       const socket = io(`${wsUrl}/notifications`, {

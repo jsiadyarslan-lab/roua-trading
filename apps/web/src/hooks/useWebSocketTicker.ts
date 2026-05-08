@@ -48,12 +48,12 @@ interface UseWebSocketTickerReturn {
   unsubscribe: (symbol: string) => void
 }
 
-// WebSocket URL — use env var if set, otherwise fall back to same origin
-// (Next.js rewrites proxy /socket.io/* to NestJS API on localhost:3001)
-// Polling transport works through rewrites; WebSocket upgrade requires
-// a separate API service or custom server proxy.
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || (typeof window !== 'undefined' ? window.location.origin : '')
-const WS_ENABLED = !!WS_URL
+// WebSocket URL — only enabled when NEXT_PUBLIC_WS_ENABLED=true is explicitly set.
+// NestJS has no WebSocket gateway in production, so attempting socket.io connection
+// causes 404 errors on every page load. Disable WS by default; use polling fallback.
+// To enable: set NEXT_PUBLIC_WS_ENABLED=true and NEXT_PUBLIC_WS_URL in Railway env vars.
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || ''
+const WS_ENABLED = process.env.NEXT_PUBLIC_WS_ENABLED === 'true' && !!WS_URL
 
 export function useWebSocketTicker({
   symbols,

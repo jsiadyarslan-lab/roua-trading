@@ -291,33 +291,28 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     }
   }, [symbol, timeframe, startPolling, onCandleUpdate, onPriceUpdate]);
 
-  // ── Primary: Connect via Socket.IO Gateway ─────────────
-  // FIX: Socket.IO connects to the backend /exchange namespace,
-  // which provides authenticated, multi-asset market data via
-  // ExchangeService. This is the preferred path because:
-  // - Authenticated (session token validation)
-  // - Works for ALL asset types (crypto + stocks + forex)
-  // - Rate-limited and consistent with backend data
-  // - Redis Pub/Sub for cross-instance distribution
+  // ── Primary: Skip Socket.IO, use Binance WS or REST polling ──
+  // NestJS has no WebSocket gateway deployed, so socket.io attempts
+  // always return 404 errors. Skip directly to Binance WS fallback.
+  // To enable Socket.IO, deploy NestJS WebSocket gateway and set
+  // NEXT_PUBLIC_WS_ENABLED=true in Railway environment variables.
   const connect = useCallback(() => {
     cleanup();
     isClosingRef.current = false;
     if (!enabled) return;
 
+    // Skip socket.io — go directly to Binance WS or REST polling
+    if (process.env.NEXT_PUBLIC_WS_ENABLED !== 'true') {
+      setConnectionState('connecting');
+      connectBinance();
+      return;
+    }
+
     setConnectionState('connecting');
 
-    // Get session token for authentication
-    // FIX: Only include token if it's actually available.
-    // When roua_session is httpOnly, document.cookie can't read it,
-    // so getSessionToken() returns null. Passing token=null in the
-    // query string creates "?token=null" which is misleading and may
-    // cause server-side auth failures. The browser automatically sends
-    // httpOnly cookies in the WebSocket handshake Cookie header, so
-    // the server can still authenticate via _extractSessionFromCookie().
     const token = getSessionToken();
     const wsUrl = window.location.origin;
 
-    // Dynamically import socket.io-client to avoid SSR issues
     import('socket.io-client').then(({ io }) => {
       if (isClosingRef.current) return;
 

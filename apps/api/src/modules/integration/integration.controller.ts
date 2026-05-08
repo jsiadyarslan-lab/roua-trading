@@ -13,6 +13,7 @@ import { IntegrationGuard, IntegrationRoute } from '../../common/guards/integrat
 import { ExchangeService } from '../exchange/exchange.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { ContentAgentService } from '../../agents/content/content-agent.service';
 
 @Public() // Bypass AuthGuard — integration uses its own auth
 @IntegrationRoute() // Mark all routes in this controller for IntegrationGuard auth
@@ -25,6 +26,7 @@ export class IntegrationController {
     private readonly exchangeService: ExchangeService,
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly contentAgent: ContentAgentService,
   ) {}
 
   /**
@@ -263,6 +265,63 @@ export class IntegrationController {
       this.logger.error(`Signal stats fetch failed: ${error?.message}`);
       return {
         error: error?.message || 'Failed to fetch signal stats',
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  /**
+   * GET /api/integration/content-feed?limit=5&category=CRYPTO
+   * Fetch published content agent analyses for the news site.
+   * Returns articles with full Arabic analysis content including
+   * support/resistance levels, technical indicators, and price targets.
+   */
+  @Get('content-feed')
+  async getContentFeed(
+    @Query('limit') limit: string = '5',
+    @Query('category') category?: string,
+    @Query('type') type?: string,
+    @Query('symbol') symbol?: string,
+  ) {
+    try {
+      const feed = await this.contentAgent.getContentFeed({
+        status: 'PUBLISHED',
+        limit: Math.min(parseInt(limit, 10) || 5, 20),
+        page: 1,
+        category,
+        type,
+        symbol,
+      });
+
+      // Transform for the news site — only include relevant fields
+      const articles = (feed?.articles || feed?.data?.articles || feed?.data || []).map((article: any) => ({
+        id: article.id,
+        title: article.titleAr || article.titleEn || article.title,
+        content: article.contentAr || article.contentEn || article.content,
+        category: article.category,
+        type: article.type || article.contentType,
+        symbols: article.symbols || article.relatedSymbols || [],
+        sentiment: article.sentiment || article.sentimentScore,
+        impactLevel: article.impactLevel,
+        qualityScore: article.qualityScore,
+        tags: article.tags ? (typeof article.tags === 'string' ? JSON.parse(article.tags) : article.tags) : [],
+        publishedAt: article.publishedAt || article.createdAt,
+        summary: article.summaryAr || article.summaryEn || article.summary,
+      }));
+
+      return {
+        success: true,
+        articles,
+        count: articles.length,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error: any) {
+      this.logger.error(`Content feed fetch failed: ${error?.message}`);
+      return {
+        success: false,
+        articles: [],
+        count: 0,
+        error: error?.message || 'Failed to fetch content feed',
         timestamp: new Date().toISOString(),
       };
     }

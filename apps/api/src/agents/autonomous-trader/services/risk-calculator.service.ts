@@ -152,14 +152,20 @@ export class RiskCalculatorService {
     }
 
     // RULE 4: Position size within limit
+    // FIX: Add 0.01% tolerance for floating-point arithmetic.
+    // _calculatePositionSize() caps the value to exactly maxPositionSizePercent,
+    // but floating-point multiplication produces results like 2.0000000001%
+    // which was being rejected even though it's effectively equal to the limit.
+    const POSITION_SIZE_TOLERANCE = 0.01; // 0.01% tolerance
     const positionValuePercent = portfolioValue > 0
       ? (positionSize * signal.entryPrice / portfolioValue) * 100
       : 0;
 
-    if (positionValuePercent > maxPositionSizePercent) {
+    if (positionValuePercent > maxPositionSizePercent + POSITION_SIZE_TOLERANCE) {
       canTrade = false;
       reason = `حجم المركز (${positionValuePercent.toFixed(1)}%) يتجاوز الحد (${maxPositionSizePercent}%)`;
     }
+
 
     // RULE 5: Risk-reward ratio — strategy-specific minimum
     // CRITICAL FIX: Each strategy has a different R:R expectation.

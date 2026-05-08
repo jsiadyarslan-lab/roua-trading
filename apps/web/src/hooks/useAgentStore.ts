@@ -713,12 +713,44 @@ export const useAgentStore = create<AgentStore>()(
       // ── Auto-refresh (every 15s when agent is running) ──
       startAutoRefresh: () => {
         if (_refreshInterval) return
-        _refreshInterval = setInterval(() => {
+        _refreshInterval = setInterval(async () => {
           const { agentState } = get()
           if (agentState?.status === AgentStatus.RUNNING) {
-            get().fetchStatus()
+            await get().fetchStatus()
             get().fetchPositions()
             get().fetchPerformance()
+
+            // ── Generate log entries from live status ──
+            // Since socket.io is not deployed, we synthesize logs from status polling.
+            // This keeps the event log panel alive and informative.
+            const updatedState = get().agentState
+            if (updatedState) {
+              const now = new Date().toLocaleTimeString('ar-EG')
+
+              // Report last cycle
+              if (updatedState.lastCycleAt) {
+                const cycleTime = new Date(updatedState.lastCycleAt)
+                const secsAgo = Math.round((Date.now() - cycleTime.getTime()) / 1000)
+                if (secsAgo < 30) {
+                  get().addLog(`🔄 دورة ${updatedState.totalCycles} مكتملة — منذ ${secsAgo}ث`, 'info')
+                }
+              }
+
+              // Report last error if it changed
+              if (updatedState.lastError) {
+                get().addLog(`⚠️ ${updatedState.lastError}`, 'warning')
+              }
+
+              // Report daily summary every 5 cycles
+              if (updatedState.totalCycles > 0 && updatedState.totalCycles % 5 === 0) {
+                const pnlSign = updatedState.dailyPnL >= 0 ? '+' : ''
+                get().addLog(
+                  `📊 ملخص: ${updatedState.dailyTradesCount} صفقة — ربح يومي: ${pnlSign}$${updatedState.dailyPnL.toFixed(2)}`,
+                  updatedState.dailyPnL >= 0 ? 'success' : 'warning'
+                )
+              }
+            }
+
             // Fetch regime info if AUTO strategy is active
             if (agentState?.config?.strategy === StrategyType.AUTO) {
               const firstSymbol = agentState?.config?.symbols?.[0] || 'BTC/USDT'
@@ -729,6 +761,7 @@ export const useAgentStore = create<AgentStore>()(
           }
         }, 15000)
       },
+
 
       stopAutoRefresh: () => {
         if (_refreshInterval) {

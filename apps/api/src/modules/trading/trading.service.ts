@@ -993,6 +993,18 @@ export class TradingService {
     error?: string;
   }> {
     try {
+      // ── Paper Trading: skip decryption entirely ──
+      // Paper-trading credentials store 'paper' as the API key/IV/authTag.
+      // Attempting to decrypt 'paper' as hex with AES-256-GCM always fails.
+      // Paper trades are simulated anyway — no real exchange connection needed.
+      if (exchangeName === 'paper-trading') {
+        const currentPrice = await this.exchangeService.getQuote(request.symbol).then(q => q?.price ?? 0).catch(() => 0);
+        if (currentPrice <= 0) {
+          return { success: false, error: `لا يمكن جلب سعر ${request.symbol} للتداول الورقي` };
+        }
+        return this._executePaperTrade(request, currentPrice);
+      }
+
       // SECURITY: Pass userId to verify credential ownership before decrypting
       const { apiKey, apiSecret } =
         await this.credentialsService.decryptCredential(credentialId, userId);
@@ -1004,6 +1016,7 @@ export class TradingService {
           error: `البورصة "${exchangeName}" غير مدعومة`,
         };
       }
+
 
       let result: any;
 

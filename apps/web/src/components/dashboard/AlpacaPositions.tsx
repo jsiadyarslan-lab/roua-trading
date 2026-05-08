@@ -53,6 +53,7 @@ export function AlpacaPositions() {
       tp: number | null
       sl: number | null
       source?: string
+      dbId?: string
     }
   > = [
     ...positions.map(position => {
@@ -61,11 +62,11 @@ export function AlpacaPositions() {
       )
       return {
         ...position,
+        // Store the real DB id separately so we can use it for closing
+        dbId: (position as any).id ?? undefined,
         id: position.rawSymbol ?? position.symbol,
         isPaper: false,
         entryTime: manualPaper?.entryTime || null,
-        // CRITICAL FIX: Read SL/TP from position data returned by backend API first.
-        // Previously only read from local paperTrades, so executor trades always showed "—".
         tp: (position as any).takeProfit || (position as any).tp || manualPaper?.tp || null,
         sl: (position as any).stopLoss || (position as any).sl || manualPaper?.sl || null,
       }
@@ -86,6 +87,7 @@ export function AlpacaPositions() {
         marketValue: trade.currentPrice * trade.qty,
         unrealizedPnl: trade.unrealizedPnl,
         id: trade.id,
+        dbId: undefined,
         isPaper: true,
         entryTime: trade.entryTime,
         tp: trade.tp ?? null,
@@ -105,7 +107,8 @@ export function AlpacaPositions() {
     return () => clearInterval(interval)
   }, [fetchPositions, fetchAccount])
 
-  const closePosition = async (id: string, isPaper: boolean, rawSymbol: string | undefined) => {
+  const closePosition = async (pos: typeof allPositions[0]) => {
+    const id = pos.id
     if (confirmClose !== id) {
       setConfirmClose(id)
       setTimeout(() => setConfirmClose(null), 3000)
@@ -115,19 +118,38 @@ export function AlpacaPositions() {
     setConfirmClose(null)
     setClosing(id)
 
-    if (isPaper) {
+    // Paper trade (local BotEngine) — close in store
+    if (pos.isPaper) {
       closePaperTrade(id)
       setClosing(null)
       return
     }
 
     try {
-      const response = await fetch(`/api/alpaca/positions/${encodeURIComponent(rawSymbol ?? '')}`, { method: 'DELETE' })
-      const json = await response.json()
-      if (json.success) {
-        await fetchPositions()
+      // CRITICAL FIX: SmartExecutor positions live in NestJS DB, not Alpaca.
+      // Use POST /api/trading/positions/close with the real DB position id.
+      if (pos.dbId) {
+        const response = await fetch('/api/trading/positions/close', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ positionId: pos.dbId }),
+        })
+        const json = await response.json()
+        if (response.ok) {
+          await fetchPositions()
+        } else {
+          alert(`فشل الإغلاق: ${json.message || json.error || 'خطأ غير معروف'}`)
+        }
       } else {
-        alert(`فشل الإغلاق: ${json.error}`)
+        // Alpaca position (no DB id) — use Alpaca endpoint
+        const rawSym = pos.rawSymbol ?? pos.symbol
+        const response = await fetch(`/api/alpaca/positions/${encodeURIComponent(rawSym)}`, { method: 'DELETE' })
+        const json = await response.json()
+        if (json.success) {
+          await fetchPositions()
+        } else {
+          alert(`فشل الإغلاق: ${json.error}`)
+        }
       }
     } catch {
       alert('خطأ في إغلاق المركز')
@@ -342,7 +364,7 @@ export function AlpacaPositions() {
               <div style={{ display: 'flex', justifyContent: 'center' }}>
                 <button
                   type="button"
-                  onClick={() => closePosition(position.id, position.isPaper, position.rawSymbol ?? position.symbol)}
+                  onClick={() => closePosition(position)}
                   disabled={closing === position.id}
                   style={{
                     minWidth: 46,

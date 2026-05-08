@@ -48,7 +48,10 @@ export class CredentialsService {
       // key will be accessible, but at least the app doesn't crash.
       const fallback = this.configService.get<string>('NEXTAUTH_SECRET');
       if (fallback) {
-        const deploymentId = `${fallback}:${this.configService.get('NODE_ENV', 'production')}:${hostname()}`;
+        // FIXED: Do NOT include hostname() in the derivation.
+        // On Railway, each redeploy creates a new container with a different hostname,
+        // which changed the encryption key and made all stored credentials unreadable.
+        const deploymentId = `${fallback}:${this.configService.get('NODE_ENV', 'production')}`;
         const salt = crypto.createHash('sha256').update(deploymentId).digest().slice(0, 16);
         this.encryptionKey = crypto.scryptSync(fallback, salt, 32);
         this.logger.warn(
@@ -80,7 +83,10 @@ export class CredentialsService {
         );
         this.encryptionKey = crypto.randomBytes(32);
       } else {
-        const deploymentId = `${fallback}:${this.configService.get('NODE_ENV', 'development')}:${hostname()}`;
+        // FIXED: Do NOT include hostname() in the derivation.
+        // On Railway, each redeploy creates a new container with a different hostname,
+        // which changed the encryption key and made all stored credentials unreadable.
+        const deploymentId = `${fallback}:${this.configService.get('NODE_ENV', 'development')}`;
         const salt = crypto.createHash('sha256').update(deploymentId).digest().slice(0, 16);
         this.encryptionKey = crypto.scryptSync(fallback, salt, 32);
         this.logger.warn(

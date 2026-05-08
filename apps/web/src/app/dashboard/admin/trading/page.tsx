@@ -61,6 +61,7 @@ interface TradingStats {
   pendingOrders: number
   dailyTrades: number
   winRate: number
+  autoPaperTrades?: number
 }
 
 interface TradingData {

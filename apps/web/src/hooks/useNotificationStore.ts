@@ -97,7 +97,7 @@ function playNotifSound(action: string) {
   }
 }
 
-export type NotifSource = 'bot' | 'ai' | 'scanner' | 'trade' | 'system'
+export type NotifSource = 'bot' | 'ai' | 'scanner' | 'trade' | 'system' | 'agent'
 export type NotifPriority = 'urgent' | 'high' | 'medium' | 'low'
 export type NotifAction = 'BUY' | 'SELL' | 'INFO' | 'WARN' | 'CLOSE' | 'CANCEL'
 

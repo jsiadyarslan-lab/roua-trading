@@ -277,7 +277,7 @@ export interface AIPattern {
   direction: 'bullish' | 'bearish' | 'neutral';
   // ── Pattern shape data for visual drawing on chart ──
   shapePoints?: { time: number; price: number }[];  // Polygon vertices to draw
-  shapeType?: 'polygon' | 'line' | 'zone';         // How to render the shape
+  shapeType?: 'polygon' | 'line' | 'zone' | 'harmonic' | 'classic';         // How to render the shape
   shapeColor?: string;                               // Fill/border color
 }
 

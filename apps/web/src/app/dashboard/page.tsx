@@ -951,10 +951,12 @@ export default function DashboardPage() {
       if (newest) {
         const dir = newest.side === 'BUY' ? '🟢 شراء' : '🔴 بيع'
         addNotificationFn({
-          type: 'trade',
+          source: 'trade',
+          priority: 'high',
+          action: newest.side === 'BUY' ? 'BUY' : 'SELL',
           title: `${dir} — ${newest.symbol}`,
           body: `فتح المنفذ الذكي مركزاً جديداً @ $${Number(newest.entryPrice ?? newest.currentPrice).toFixed(2)}`,
-          sound: true,
+          pair: newest.symbol,
         })
         setPosOpen(true)
       }

@@ -15,7 +15,7 @@ export interface PaperTrade {
   unrealizedPnl: number
   unrealizedPct: number
   strategy?: string           // 'manual' | bot strategy name
-  source: 'bot' | 'manual'
+  source: 'bot' | 'manual' | 'executor' | 'agent'
 }
 
 export interface ClosedPaperTrade {
@@ -32,7 +32,7 @@ export interface ClosedPaperTrade {
   entryTime: number
   closeTime: number
   strategy?: string
-  source: 'bot' | 'manual'
+  source: 'bot' | 'manual' | 'executor' | 'agent'
 }
 
 interface PaperTradesState {

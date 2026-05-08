@@ -21,7 +21,7 @@ import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 interface AdminStats {
   users: { total: number; free: number; pro: number; plus: number; premium: number; institutional: number }
-  trading: { dailyTrades: number; volume: number; winRate: number; activePositions: number }
+  trading: { dailyTrades: number; volume: number; winRate: number; activePositions: number; autoPaperTrades?: number }
   system: { uptime: string; lastCheck: string; dbStatus?: string; endpoints?: { path: string; status: string; responseTime: number }[] }
   error?: string
 }

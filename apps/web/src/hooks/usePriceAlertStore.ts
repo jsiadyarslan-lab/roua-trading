@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 
 export type AlertCondition = 'above' | 'below' | 'change_up' | 'change_down'
 
@@ -109,15 +109,18 @@ export const usePriceAlertStore = create<PriceAlertStore>()(
             return `${baseName}:${sid}`
           } catch { return baseName }
         }
+        
+        const bs = createJSONStorage(() => localStorage)
+        const baseStorage = bs as any
         return {
           getItem: (name: string) => {
-            try { return localStorage.getItem(getDynamicKey(name)) } catch { return null }
+            try { return baseStorage.getItem(getDynamicKey(name)) } catch { return null }
           },
-          setItem: (name: string, value: string) => {
-            try { localStorage.setItem(getDynamicKey(name), value) } catch { /**/ }
+          setItem: (name: string, value: any) => {
+            try { baseStorage.setItem(getDynamicKey(name), value) } catch { /**/ }
           },
           removeItem: (name: string) => {
-            try { localStorage.removeItem(getDynamicKey(name)) } catch { /**/ }
+            try { baseStorage.removeItem(getDynamicKey(name)) } catch { /**/ }
           },
         }
       })(),

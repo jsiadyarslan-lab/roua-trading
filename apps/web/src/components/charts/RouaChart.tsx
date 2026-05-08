@@ -826,7 +826,7 @@ export default function RouaChart({
         result.trendLines.forEach((line, i) => {
           const color = line.type === 'ascending' ? 'rgba(0,255,163,0.6)' : 'rgba(255,71,87,0.6)';
           const lineWidth = line.strength === 'strong' ? 2 : 1;
-          const trendSeries = chartApi.addLineSeries({
+          const trendSeries = chartApi.addSeries(lc.LineSeries, {
             color,
             lineWidth: lineWidth as any,
             lineStyle: 0,
@@ -884,7 +884,7 @@ export default function RouaChart({
             if (areaData.length >= 2) {
               // Ensure chronological order
               areaData.sort((a, b) => a.time - b.time);
-              const areaSeries = chartApi.addAreaSeries({
+              const areaSeries = chartApi.addSeries(AreaSeries, {
                 topColor: color,
                 bottomColor: color.replace(/[\d.]+\)$/, '0.05)'),
                 lineColor: lineColor,
@@ -910,7 +910,7 @@ export default function RouaChart({
             if (lineData.length >= 2) {
               // Ensure chronological order
               lineData.sort((a, b) => a.time - b.time);
-              const shapeLine = chartApi.addLineSeries({
+              const shapeLine = chartApi.addSeries(LineSeries, {
                 color: lineColor,
                 lineWidth: 2 as any,
                 lineStyle: 0,

@@ -192,11 +192,17 @@ export const usePaperTradesStore = create<PaperTradesState>()(
           try {
             const { useNotificationStore } = require('@/hooks/useNotificationStore')
             const isProfit = realizedPnl >= 0
+            // Map source to correct Arabic label
+            const sourceLabel = trade.source === 'bot' || trade.source === 'executor'
+              ? '⚔️ المنفذ'
+              : trade.source === 'agent'
+              ? '🧠 الوكيل'
+              : '📊 المركز'
             useNotificationStore.getState().addNotification({
-              source: trade.source === 'bot' ? 'bot' : 'trade',
+              source: trade.source === 'bot' || trade.source === 'executor' ? 'bot' : 'trade',
               priority: isProfit ? 'high' : 'urgent',
               action: isProfit ? 'CLOSE' : 'WARN',
-              title: `${trade.source === 'bot' ? '🤖 البوت' : '📊 المركز'}: ${isProfit ? 'إغلاق بربح' : 'إغلاق بخسارة'} ${trade.symbol}`,
+              title: `${sourceLabel}: ${isProfit ? 'إغلاق بربح' : 'إغلاق بخسارة'} ${trade.symbol}`,
               body: `${trade.side === 'long' ? 'شراء' : 'بيع'} ${trade.qty} ${trade.symbol} @ $${exitPrice.toFixed(2)} — ${isProfit ? '+' : ''}$${realizedPnl.toFixed(2)} (${isProfit ? '+' : ''}${realizedPct.toFixed(1)}%)`,
               pair: trade.symbol,
               price: exitPrice,

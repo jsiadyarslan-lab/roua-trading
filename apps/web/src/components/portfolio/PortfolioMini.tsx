@@ -67,7 +67,17 @@ export function usePortfolioSummary() {
 
   const data = (() => {
     const balance = Number(account?.equity) || 0
-    const margin = balance - (Number(account?.cash) || 0)
+    const cash = Number(account?.cash) || 0
+    // Exposure = total open positions market value / equity
+    // Use positions market value sum for a realistic exposure calculation
+    let positionsMarketValue = 0
+    positions.forEach(p => {
+      positionsMarketValue += Math.abs(Number(p.marketValue || 0))
+    })
+    paperTrades.forEach(pt => {
+      positionsMarketValue += Math.abs(pt.qty * (pt.currentPrice || pt.entryPrice || 0))
+    })
+    const margin = balance > 0 ? positionsMarketValue : (balance - cash)
 
     let totalPnl = 0, totalPositions = 0, pnlPercent = 0
     let totalProfit = 0, totalLoss = 0

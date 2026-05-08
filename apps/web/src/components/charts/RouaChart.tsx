@@ -573,15 +573,17 @@ export default function RouaChart({
     scheduleOverlayUpdate();
   }, [positions, paperTrades, scheduleOverlayUpdate]);
 
-  // ── Apply Position Lines to Chart (price lines only, no labels) ──
+  // ── Apply Position Lines to Chart (price lines with labels) ──
   useEffect(() => {
     positionLineIdsRef.current.forEach(id => chart.removePriceLine(id));
     positionLineIdsRef.current = [];
 
     const chartSymbol = normalizeSymbol(selectedSymbol);
 
-    const addLine = (id: string, price: number, color: string, lineWidth: number, lineStyle: number) => {
-      chart.addPriceLine(id, price, color, '', lineWidth, lineStyle, false);
+    const fmtPrice = (p: number) => p > 999 ? p.toFixed(2) : p.toFixed(5);
+
+    const addLine = (id: string, price: number, color: string, lineWidth: number, lineStyle: number, label: string = '') => {
+      chart.addPriceLine(id, price, color, label, lineWidth, lineStyle, true);
       positionLineIdsRef.current.push(id);
     };
 
@@ -590,27 +592,33 @@ export default function RouaChart({
       const posSymbol = normalizeSymbol(pos.symbol || '');
       if (!posSymbol.includes(chartSymbol) && !chartSymbol.includes(posSymbol)) return;
       const entryPrice = Number(pos.entryPrice || pos.avgEntryPrice || 0);
+      const isLong = (pos.side || '').toLowerCase() === 'long';
       if (entryPrice > 0) {
-        const isLong = (pos.side || '').toLowerCase() === 'long';
-        addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0);
+        const label = `${isLong ? '▲ شراء' : '▼ بيع'} @ ${fmtPrice(entryPrice)}`;
+        addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, label);
       }
       const sl = Number(pos.stopLoss || pos.sl || 0);
-      if (sl > 0) addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 1, 2);
+      if (sl > 0) addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 1, 2, `SL ${fmtPrice(sl)}`);
       const tp = Number(pos.takeProfit || pos.tp || 0);
-      if (tp > 0) addLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 1, 2);
+      if (tp > 0) addLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 1, 2, `TP ${fmtPrice(tp)}`);
     });
 
-    // Paper trades (including bot trades)
+    // Paper trades (including executor and agent trades)
     paperTrades.forEach(trade => {
       const symbol = normalizeSymbol(trade.symbol || '');
       if (!symbol.includes(chartSymbol) && !chartSymbol.includes(symbol)) return;
       const entryPrice = Number(trade.entryPrice || 0);
+      const isLong = (trade.side || '').toLowerCase() === 'long';
       if (entryPrice > 0) {
-        const isLong = (trade.side || '').toLowerCase() === 'long';
-        addLine(`trade-entry-${trade.id}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0);
+        // Distinguish source: executor ⚔️ vs agent 🧠 vs manual 📊
+        const srcIcon = trade.source === 'bot' || trade.source === 'executor' ? '⚔️'
+          : trade.source === 'agent' ? '🧠'
+          : '📊';
+        const label = `${srcIcon} ${isLong ? '▲' : '▼'} ${fmtPrice(entryPrice)}`;
+        addLine(`trade-entry-${trade.id}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, label);
       }
-      if (trade.sl && Number(trade.sl) > 0) addLine(`trade-sl-${trade.id}`, Number(trade.sl), '#FF4757', 1, 2);
-      if (trade.tp && Number(trade.tp) > 0) addLine(`trade-tp-${trade.id}`, Number(trade.tp), '#00FFA3', 1, 2);
+      if (trade.sl && Number(trade.sl) > 0) addLine(`trade-sl-${trade.id}`, Number(trade.sl), '#FF4757', 1, 2, `SL ${fmtPrice(Number(trade.sl))}`);
+      if (trade.tp && Number(trade.tp) > 0) addLine(`trade-tp-${trade.id}`, Number(trade.tp), '#00FFA3', 1, 2, `TP ${fmtPrice(Number(trade.tp))}`);
     });
 
     return () => {
@@ -961,13 +969,17 @@ export default function RouaChart({
     }
 
     // Place order via paper trades store
+    // FIX: Use last candle close as fallback if entryPrice is 0 (e.g. user didn't fill the field)
+    const lastClose = candlesRef.current[candlesRef.current.length - 1]?.close || 0;
+    const resolvedEntryPrice = (order.entryPrice && order.entryPrice > 0) ? order.entryPrice : lastClose;
+
     const { addTrade } = usePaperTradesStore.getState();
     addTrade({
       symbol: selectedSymbol,
       side: order.side === 'buy' ? 'long' : 'short',
       qty: order.quantity,
-      entryPrice: order.entryPrice,
-      currentPrice: order.entryPrice,
+      entryPrice: resolvedEntryPrice,
+      currentPrice: resolvedEntryPrice,
       sl: order.sl || undefined,
       tp: order.tp || undefined,
       entryTime: Date.now(),
@@ -1331,12 +1343,16 @@ export default function RouaChart({
                     className="roua-btn-buy"
                     onClick={() => {
                       const { addTrade } = usePaperTradesStore.getState();
+                      // FIX: Use last candle close as fallback when currentPrice is null/0
+                      // This ensures entry is always pinned to a real price on the chart
+                      const lastClose = candlesRef.current[candlesRef.current.length - 1]?.close || 0;
+                      const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : lastClose;
                       addTrade({
                         symbol: selectedSymbol,
                         side: 'long',
                         qty: lotSize,
-                        entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
-                        currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                        entryPrice: resolvedPrice,
+                        currentPrice: resolvedPrice,
                         entryTime: Date.now(),
                         strategy: 'quick',
                         source: 'manual',
@@ -1482,12 +1498,15 @@ export default function RouaChart({
                     className="roua-btn-sell"
                     onClick={() => {
                       const { addTrade } = usePaperTradesStore.getState();
+                      // FIX: Use last candle close as fallback when currentPrice is null/0
+                      const lastClose = candlesRef.current[candlesRef.current.length - 1]?.close || 0;
+                      const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : lastClose;
                       addTrade({
                         symbol: selectedSymbol,
                         side: 'short',
                         qty: lotSize,
-                        entryPrice: typeof currentPrice === 'number' ? currentPrice : 0,
-                        currentPrice: typeof currentPrice === 'number' ? currentPrice : 0,
+                        entryPrice: resolvedPrice,
+                        currentPrice: resolvedPrice,
                         entryTime: Date.now(),
                         strategy: 'quick',
                         source: 'manual',
@@ -1596,7 +1615,7 @@ export default function RouaChart({
 
         {/* AI Pattern Panel (draggable) */}
         {showAIPanel && (
-          <DraggablePanel defaultPosition={{ top: 40, left: 8 }} defaultWidth={320} minHeight={300}>
+          <DraggablePanel defaultPosition={{ top: 40, right: 8 }} defaultWidth={300} minHeight={280}>
             <AIPatternPanel
               symbol={selectedSymbol}
               candles={candlesRef.current || []}

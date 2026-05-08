@@ -1531,7 +1531,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         lineWidth: lineWidth as any,
         lineStyle: lineStyle as any, // 0=Solid, 1=Dotted, 2=Dashed, 3=LargeDashed, 4=SparseDotted
         axisLabelVisible: axisLabelVisible,
-        title: '',
+        title: label || '',
       });
       priceLinesRef.current.set(id, line);
     } catch {

@@ -1525,7 +1525,7 @@ function detectLocalPatterns(candles: CandleData[]): AIPattern[] {
 function detectSupportResistance(candles: CandleData[]): SupportResistanceLevel[] {
   if (!candles || candles.length < 20) return [];
   const levels: SupportResistanceLevel[] = [];
-  const windowSize = 10;
+  const windowSize = 8;
 
   for (let i = windowSize; i < candles.length - windowSize; i++) {
     const slice = candles.slice(i - windowSize, i + windowSize + 1);
@@ -1533,8 +1533,9 @@ function detectSupportResistance(candles: CandleData[]): SupportResistanceLevel[
 
     const isLocalHigh = slice.every(c => current.high >= c.high);
     if (isLocalHigh) {
-      const existing = levels.find(l => l.type === 'resistance' && Math.abs(l.price - current.high) / current.high < 0.005);
+      const existing = levels.find(l => l.type === 'resistance' && Math.abs(l.price - current.high) / current.high < 0.008);
       if (existing) {
+        existing.price = (existing.price * existing.touches + current.high) / (existing.touches + 1);
         existing.touches++;
         existing.strength = existing.touches >= 3 ? 'strong' : existing.touches >= 2 ? 'medium' : 'weak';
       } else {
@@ -1544,8 +1545,9 @@ function detectSupportResistance(candles: CandleData[]): SupportResistanceLevel[
 
     const isLocalLow = slice.every(c => current.low <= c.low);
     if (isLocalLow) {
-      const existing = levels.find(l => l.type === 'support' && Math.abs(l.price - current.low) / current.low < 0.005);
+      const existing = levels.find(l => l.type === 'support' && Math.abs(l.price - current.low) / current.low < 0.008);
       if (existing) {
+        existing.price = (existing.price * existing.touches + current.low) / (existing.touches + 1);
         existing.touches++;
         existing.strength = existing.touches >= 3 ? 'strong' : existing.touches >= 2 ? 'medium' : 'weak';
       } else {
@@ -1554,10 +1556,22 @@ function detectSupportResistance(candles: CandleData[]): SupportResistanceLevel[
     }
   }
 
-  const supportLevels = levels.filter(l => l.type === 'support').sort((a, b) => b.touches - a.touches).slice(0, 3);
-  const resistanceLevels = levels.filter(l => l.type === 'resistance').sort((a, b) => b.touches - a.touches).slice(0, 3);
+  const currentPrice = candles[candles.length - 1].close;
 
-  return [...supportLevels, ...resistanceLevels];
+  const validSupports = levels.filter(l => l.type === 'support' && l.price <= currentPrice * 1.01);
+  const validResistances = levels.filter(l => l.type === 'resistance' && l.price >= currentPrice * 0.99);
+
+  validSupports.sort((a, b) => {
+    if (b.touches !== a.touches) return b.touches - a.touches;
+    return Math.abs(a.price - currentPrice) - Math.abs(b.price - currentPrice);
+  });
+
+  validResistances.sort((a, b) => {
+    if (b.touches !== a.touches) return b.touches - a.touches;
+    return Math.abs(a.price - currentPrice) - Math.abs(b.price - currentPrice);
+  });
+
+  return [...validSupports.slice(0, 3), ...validResistances.slice(0, 3)];
 }
 
 // ── Trend Line Detection ───────────────────────────────

@@ -1261,63 +1261,8 @@ export default function RouaChart({
             ))}
 
             {/* ── Trade Line Labels (HTML overlays like TradingView) ── */}
-            {tradeOverlays.map(ov => {
-              const fmt = (v: number) => unifiedFmtPrice(v, selectedSymbol);
-              const isEntry = ov.type === 'entry';
-              const isSL = ov.type === 'sl';
-              const isTP = ov.type === 'tp';
-              const isLong = ov.direction === 'long';
-              const entryColor = isLong ? '#00FFA3' : '#FF4757';
-              const lineColor = isSL ? '#FF4757' : isTP ? '#00FFA3' : entryColor;
-
-              let labelText = '';
-              let bg: string;
-              let textColor: string;
-
-              if (isEntry) {
-                const dir = isLong ? 'Long' : 'Short';
-                const src = ov.source === 'bot' ? '🤖 ' : '';
-                const pnlStr = ov.pnl !== undefined && ov.pnl !== 0
-                  ? ` ${ov.pnl >= 0 ? '+' : ''}${ov.pnl.toFixed(2)}` : '';
-                labelText = `${src}${dir} ${ov.qty}${pnlStr}`;
-                bg = isLong ? 'rgba(63,185,80,0.18)' : 'rgba(248,81,73,0.18)';
-                textColor = lineColor;
-              } else if (isSL || isTP) {
-                return null; // Do not draw SL/TP HTML labels on the left side to prevent clutter
-              }
-
-              return (
-                <div
-                  key={ov.key}
-                  style={{
-                    position: 'absolute',
-                    top: ov.y - 10,
-                    left: 8,
-                    zIndex: 10,
-                    pointerEvents: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
-                >
-                  <span style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    color: textColor,
-                    background: bg,
-                    padding: '2px 7px',
-                    borderRadius: 3,
-                    borderLeft: `2px solid ${lineColor}`,
-                    whiteSpace: 'nowrap',
-                    lineHeight: '18px',
-                    letterSpacing: 0.3,
-                  }}>
-                    {labelText}
-                  </span>
-                </div>
-              );
-            })}
+            {/* ── Trade Line Labels (HTML overlays like TradingView) ── */}
+            {tradeOverlays.map(ov => null)}
 
             {/* Volume Profile moved to draggable panel below */}
 
@@ -1677,8 +1622,7 @@ export default function RouaChart({
               onLevelClick={(level) => {
                 try {
                   const color = level.type === 'support' ? '#00FFA3' : '#FF4757';
-                  const label = level.type === 'support' ? `دعم ${level.price.toFixed(level.price > 1000 ? 2 : 5)}` : `مقاومة ${level.price.toFixed(level.price > 1000 ? 2 : 5)}`;
-                  chart.addPriceLine(`ai-click-${level.type}-${Date.now()}`, level.price, color, label, 2, 0, true);
+                  chart.addPriceLine(`ai-level-${level.price}`, level.price, color, '', 2, 0, true);
                 } catch { /* ignore */ }
               }}
               onTrendLineClick={(line) => {

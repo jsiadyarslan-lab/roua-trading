@@ -1523,7 +1523,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // Remove existing line with same id
     if (priceLinesRef.current.has(id)) {
       try {
-        priceLinesRef.current.get(id)?.remove();
+        const existingLine = priceLinesRef.current.get(id);
+        if (existingLine && candleSeriesRef.current) {
+          candleSeriesRef.current.removePriceLine(existingLine);
+        }
       } catch {}
       priceLinesRef.current.delete(id);
     }
@@ -1547,7 +1550,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const line = priceLinesRef.current.get(id);
     if (line) {
       try {
-        line.remove();
+        if (candleSeriesRef.current) {
+          candleSeriesRef.current.removePriceLine(line);
+        }
       } catch {}
       priceLinesRef.current.delete(id);
     }

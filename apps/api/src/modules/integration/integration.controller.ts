@@ -285,11 +285,11 @@ export class IntegrationController {
   ) {
     try {
       const feed = await this.contentAgent.getContentFeed({
-        status: 'PUBLISHED',
+        status: 'PUBLISHED' as any,
         limit: Math.min(parseInt(limit, 10) || 5, 20),
         page: 1,
-        category,
-        type,
+        category: category as any,
+        type: type as any,
         symbol,
       });
 

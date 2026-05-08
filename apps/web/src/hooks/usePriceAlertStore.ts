@@ -90,8 +90,37 @@ export const usePriceAlertStore = create<PriceAlertStore>()(
         })),
     }),
     {
-      name: 'roua-price-alerts',
+      name: 'roua-price-alerts', // Base name — actual key resolved dynamically per user
       version: 2,
+      storage: (() => {
+        const getDynamicKey = (baseName: string): string => {
+          try {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
+            const { useAuthStore } = require('@/lib/auth-store')
+            const user = useAuthStore.getState()?.user
+            if (user?.id) return `${baseName}:${user.id}`
+          } catch { /* Auth store not ready */ }
+          try {
+            let sid = sessionStorage.getItem('roua-guest-session-id')
+            if (!sid) {
+              sid = `guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+              sessionStorage.setItem('roua-guest-session-id', sid)
+            }
+            return `${baseName}:${sid}`
+          } catch { return baseName }
+        }
+        return {
+          getItem: (name: string) => {
+            try { return localStorage.getItem(getDynamicKey(name)) } catch { return null }
+          },
+          setItem: (name: string, value: string) => {
+            try { localStorage.setItem(getDynamicKey(name), value) } catch { /**/ }
+          },
+          removeItem: (name: string) => {
+            try { localStorage.removeItem(getDynamicKey(name)) } catch { /**/ }
+          },
+        }
+      })(),
       migrate: (persistedState: any) => ({
         alerts: Array.isArray(persistedState?.alerts)
           ? persistedState.alerts.map(normalizeAlert).filter(Boolean)

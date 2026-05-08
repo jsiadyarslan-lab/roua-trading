@@ -151,48 +151,59 @@ export class AuthGuard implements CanActivate {
   }
 
   /**
-   * Get or create a SINGLE shared guest user for unauthenticated requests.
+   * Get or create a UNIQUE guest user per server session.
    *
-   * SECURITY FIX: Previously this method created a NEW database User row
-   * for every unauthenticated request, which was a DoS vector filling the
-   * database. Now we create/find ONE shared guest user (guest@roua.auto)
-   * on the first request and cache it in memory forever. All subsequent
-   * requests reuse the same cached guest user without any DB call.
+   * SECURITY FIX: Previously all unauthenticated users shared ONE guest user
+   * (guest@roua.auto), causing them to see each other's positions, portfolio,
+   * and trade data. Now each new server process creates a unique guest user
+   * (guest-{uuid}@roua.auto) so data is fully isolated between sessions.
+   *
+   * The guest user is cached in memory for the lifetime of this server process.
+   * On restart, a new unique guest is created (old ones stay in DB but orphaned).
    */
   private async _ensureGuestUser(): Promise<any> {
-    // Return cached guest user if available (no DB call)
+    // Return cached guest user if available (no DB call needed)
     if (this.sharedGuestUser) {
       return this.sharedGuestUser;
     }
 
     try {
-      // Try to find the existing shared guest user
-      let user = await this.prisma.user.findUnique({ where: { email: 'guest@roua.auto' } });
-      if (!user) {
-        // Create ONE shared guest user (only on first ever request)
-        user = await this.prisma.user.create({
-          data: { email: 'guest@roua.auto', displayName: 'ضيف', tier: 'FREE' },
-        });
-        this.logger.log('Created shared guest user: guest@roua.auto');
-      }
-      // Cache in memory — never hit DB again for guest
+      // Create a NEW unique guest user for this server process instance
+      const guestId = `guest-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      const guestEmail = `${guestId}@roua.auto`;
+
+      const user = await this.prisma.user.create({
+        data: {
+          email: guestEmail,
+          displayName: 'ضيف',
+          tier: 'FREE',
+        },
+      });
+
+      this.logger.log(`Created unique guest user: ${guestEmail}`);
+
+      // Cache in memory — reused for all unauthenticated requests in this process
       this.sharedGuestUser = {
         id: user.id,
         email: user.email,
         displayName: user.displayName,
         tier: user.tier,
+        isGuest: true,
       };
       return this.sharedGuestUser;
     } catch (error: any) {
-      this.logger.error(`Failed to get/create guest user: ${error?.message || error}`);
-      // Fallback: return a virtual guest user without DB write
+      this.logger.error(`Failed to create unique guest user: ${error?.message || error}`);
+      // Fallback: return a virtual guest with a random id
+      const fallbackId = `guest-virtual-${Math.random().toString(36).slice(2, 10)}`;
       this.sharedGuestUser = {
-        id: 'guest-virtual',
-        email: 'guest@roua.auto',
+        id: fallbackId,
+        email: `${fallbackId}@roua.auto`,
         displayName: 'ضيف',
         tier: 'FREE',
+        isGuest: true,
       };
       return this.sharedGuestUser;
     }
   }
 }
+

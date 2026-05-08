@@ -614,9 +614,9 @@ export default function RouaChart({
         addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, label, true);
       }
       const sl = Number(pos.stopLoss || pos.sl || 0);
-      if (sl > 0) addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 1, 2, `SL ${fmtPrice(sl)}`, false);
+      if (sl > 0) addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 1, 2, '', false);
       const tp = Number(pos.takeProfit || pos.tp || 0);
-      if (tp > 0) addLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 1, 2, `TP ${fmtPrice(tp)}`, false);
+      if (tp > 0) addLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 1, 2, '', false);
     });
 
     // Paper trades (including executor and agent trades)
@@ -649,8 +649,8 @@ export default function RouaChart({
       const label = `${srcIcon} ${isLong ? '▲' : '▼'}${countLabel} ${fmtPrice(entryPrice)}`;
       
       addLine(`trade-entry-grp-${key}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, label, true);
-      if (trade.sl && Number(trade.sl) > 0) addLine(`trade-sl-grp-${key}`, Number(trade.sl), '#FF4757', 1, 2, `SL${countLabel} ${fmtPrice(Number(trade.sl))}`, false);
-      if (trade.tp && Number(trade.tp) > 0) addLine(`trade-tp-grp-${key}`, Number(trade.tp), '#00FFA3', 1, 2, `TP${countLabel} ${fmtPrice(Number(trade.tp))}`, false);
+      if (trade.sl && Number(trade.sl) > 0) addLine(`trade-sl-grp-${key}`, Number(trade.sl), '#FF4757', 1, 2, '', false);
+      if (trade.tp && Number(trade.tp) > 0) addLine(`trade-tp-grp-${key}`, Number(trade.tp), '#00FFA3', 1, 2, '', false);
     });
 
     return () => {
@@ -944,15 +944,15 @@ export default function RouaChart({
     if (result.entryExit) {
       const ee = result.entryExit;
       if (ee.entryPrice > 0) {
-        chart.addPriceLine('ai-entry', ee.entryPrice, ee.direction === 'long' ? '#00D4FF' : '#00D4FF', `دخول ${ee.entryPrice.toFixed(ee.entryPrice > 1000 ? 2 : 5)}`, 2, 0, true);
+        chart.addPriceLine('ai-entry', ee.entryPrice, ee.direction === 'long' ? '#00D4FF' : '#00D4FF', '', 2, 0, false);
         aiPriceLinesRef.current.push('ai-entry');
       }
       if (ee.stopLoss > 0) {
-        chart.addPriceLine('ai-sl', ee.stopLoss, '#FF4757', `SL ${ee.stopLoss.toFixed(ee.stopLoss > 1000 ? 2 : 5)}`, 2, 2, true);
+        chart.addPriceLine('ai-sl', ee.stopLoss, '#FF4757', '', 2, 2, false);
         aiPriceLinesRef.current.push('ai-sl');
       }
       if (ee.takeProfit > 0) {
-        chart.addPriceLine('ai-tp', ee.takeProfit, '#00FFA3', `TP ${ee.takeProfit.toFixed(ee.takeProfit > 1000 ? 2 : 5)}`, 2, 2, true);
+        chart.addPriceLine('ai-tp', ee.takeProfit, '#00FFA3', '', 2, 2, false);
         aiPriceLinesRef.current.push('ai-tp');
       }
 
@@ -1076,10 +1076,10 @@ export default function RouaChart({
           const tp = Number(signal.takeProfit || 0);
           const signalId = signal.id || `${signal.createdAt}-${signal.action}`;
           if (sl > 0) {
-            chart.addPriceLine(`sl-${signalId}`, sl, 'rgba(255, 71, 87, 0.6)', `SL ${sl.toFixed(sl > 100 ? 1 : 5)}`, 1, 2, true);
+            chart.addPriceLine(`sl-${signalId}`, sl, 'rgba(255, 71, 87, 0.6)', '', 1, 2, false);
           }
           if (tp > 0) {
-            chart.addPriceLine(`tp-${signalId}`, tp, 'rgba(0, 255, 163, 0.6)', `TP ${tp.toFixed(tp > 100 ? 1 : 5)}`, 1, 2, true);
+            chart.addPriceLine(`tp-${signalId}`, tp, 'rgba(0, 255, 163, 0.6)', '', 1, 2, false);
           }
         });
       } catch {
@@ -1282,14 +1282,8 @@ export default function RouaChart({
                 labelText = `${src}${dir} ${ov.qty}${pnlStr}`;
                 bg = isLong ? 'rgba(63,185,80,0.18)' : 'rgba(248,81,73,0.18)';
                 textColor = lineColor;
-              } else if (isSL) {
-                labelText = `SL ${fmt(ov.price)}`;
-                bg = 'rgba(248,81,73,0.18)';
-                textColor = '#FF4757';
-              } else {
-                labelText = `TP ${fmt(ov.price)}`;
-                bg = 'rgba(63,185,80,0.18)';
-                textColor = '#00FFA3';
+              } else if (isSL || isTP) {
+                return null; // Do not draw SL/TP HTML labels on the left side to prevent clutter
               }
 
               return (
@@ -1706,13 +1700,13 @@ export default function RouaChart({
                   chart.removePriceLine('ai-sl-quick');
                   chart.removePriceLine('ai-tp-quick');
                   if (entryExit.entryPrice > 0) {
-                    chart.addPriceLine('ai-entry-quick', entryExit.entryPrice, '#00D4FF', `دخول ${entryExit.entryPrice.toFixed(entryExit.entryPrice > 1000 ? 2 : 5)}`, 2, 0, true);
+                    chart.addPriceLine('ai-entry-quick', entryExit.entryPrice, '#00D4FF', '', 2, 0, false);
                   }
                   if (entryExit.stopLoss > 0) {
-                    chart.addPriceLine('ai-sl-quick', entryExit.stopLoss, '#FF4757', `SL ${entryExit.stopLoss.toFixed(entryExit.stopLoss > 1000 ? 2 : 5)}`, 2, 2, true);
+                    chart.addPriceLine('ai-sl-quick', entryExit.stopLoss, '#FF4757', '', 2, 2, false);
                   }
                   if (entryExit.takeProfit > 0) {
-                    chart.addPriceLine('ai-tp-quick', entryExit.takeProfit, '#00FFA3', `TP ${entryExit.takeProfit.toFixed(entryExit.takeProfit > 1000 ? 2 : 5)}`, 2, 2, true);
+                    chart.addPriceLine('ai-tp-quick', entryExit.takeProfit, '#00FFA3', '', 2, 2, false);
                   }
                 } catch { /* ignore */ }
               }}

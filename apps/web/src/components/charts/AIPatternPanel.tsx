@@ -9,7 +9,7 @@
 import { useState, useCallback, useRef } from 'react';
 import type { AIPattern, CandleData, AIEntryExit } from '@/lib/charts/types';
 import { ScopedStyle } from '@/components/ScopedStyle';
-import { detectHarmonicPatterns } from '@/lib/charts/HarmonicPatterns';
+import { detectHarmonicPatterns, detectClassicPatterns } from '@/lib/charts/HarmonicPatterns';
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
 import { useNotificationStore } from '@/hooks/useNotificationStore';
 
@@ -294,8 +294,10 @@ export function AIPatternPanel({
       const levels = detectSupportResistance(candles || []);
       const lines = detectTrendLines(candles || []);
       const harmonicPatterns = detectHarmonicPatterns(candles || []);
+      const classicPatterns = detectClassicPatterns(candles || []);
+      const allPatterns = [...harmonicPatterns, ...classicPatterns];
       
-      const allLocalPatterns = [...localPatterns, ...harmonicPatterns].sort((a, b) => b.time - a.time);
+      const allLocalPatterns = [...localPatterns, ...allPatterns].sort((a, b) => b.time - a.time);
       
       setDataSource('local');
       setPatterns(allLocalPatterns);

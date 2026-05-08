@@ -167,3 +167,91 @@ export function detectHarmonicPatterns(candles: CandleData[]): AIPattern[] {
 
   return patterns;
 }
+
+export function detectClassicPatterns(candles: CandleData[]): AIPattern[] {
+  const patterns: AIPattern[] = [];
+  if (!candles || candles.length < 15) return patterns;
+
+  const pivots = findPivots(candles, 4, 0.3);
+  if (pivots.length < 3) return patterns;
+
+  // Double Top / Bottom
+  for (let i = 0; i <= pivots.length - 3; i++) {
+    const A = pivots[i];
+    const B = pivots[i + 1];
+    const C = pivots[i + 2];
+
+    if (A.type === C.type && A.type !== B.type) {
+      if (matchRatio(A.price, C.price, 0.02)) {
+        patterns.push({
+          type: A.type === 'high' ? 'Double Top' : 'Double Bottom',
+          labelAr: A.type === 'high' ? 'قمة مزدوجة' : 'قاع مزدوج',
+          time: C.time,
+          price: C.price,
+          confidence: 0.75,
+          direction: A.type === 'high' ? 'bearish' : 'bullish',
+          shapeType: 'classic',
+          shapePoints: [
+            { time: A.time, price: A.price },
+            { time: B.time, price: B.price },
+            { time: C.time, price: C.price }
+          ],
+          shapeColor: A.type === 'high' ? 'rgba(255,71,87,0.3)' : 'rgba(0,255,163,0.3)',
+        });
+      }
+    }
+  }
+
+  // Head and Shoulders
+  for (let i = 0; i <= pivots.length - 5; i++) {
+    const A = pivots[i];     // Left Shoulder
+    const B = pivots[i + 1]; // Neck 1
+    const C = pivots[i + 2]; // Head
+    const D = pivots[i + 3]; // Neck 2
+    const E = pivots[i + 4]; // Right Shoulder
+
+    if (A.type === 'high' && C.type === 'high' && E.type === 'high') {
+      if (C.price > A.price && C.price > E.price && matchRatio(A.price, E.price, 0.05) && matchRatio(B.price, D.price, 0.05)) {
+        patterns.push({
+          type: 'Head and Shoulders',
+          labelAr: 'رأس وكتفين',
+          time: E.time,
+          price: E.price,
+          confidence: 0.85,
+          direction: 'bearish',
+          shapeType: 'classic',
+          shapePoints: [
+            { time: A.time, price: A.price },
+            { time: B.time, price: B.price },
+            { time: C.time, price: C.price },
+            { time: D.time, price: D.price },
+            { time: E.time, price: E.price }
+          ],
+          shapeColor: 'rgba(255,71,87,0.3)',
+        });
+      }
+    } else if (A.type === 'low' && C.type === 'low' && E.type === 'low') {
+      if (C.price < A.price && C.price < E.price && matchRatio(A.price, E.price, 0.05) && matchRatio(B.price, D.price, 0.05)) {
+        patterns.push({
+          type: 'Inverse Head and Shoulders',
+          labelAr: 'رأس وكتفين معكوس',
+          time: E.time,
+          price: E.price,
+          confidence: 0.85,
+          direction: 'bullish',
+          shapeType: 'classic',
+          shapePoints: [
+            { time: A.time, price: A.price },
+            { time: B.time, price: B.price },
+            { time: C.time, price: C.price },
+            { time: D.time, price: D.price },
+            { time: E.time, price: E.price }
+          ],
+          shapeColor: 'rgba(0,255,163,0.3)',
+        });
+      }
+    }
+  }
+
+  return patterns;
+}

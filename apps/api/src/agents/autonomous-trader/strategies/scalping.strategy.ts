@@ -86,7 +86,7 @@ export class ScalpingStrategy extends BaseStrategy {
     const buySignals = [isOversold, bullishMACD, nearLowerBand, bullishTrend].filter(Boolean).length;
     const sellSignals = [isOverbought, bearishMACD, nearUpperBand, bearishTrend].filter(Boolean).length;
 
-    if (buySignals >= 2) {
+    if (buySignals >= 1) {
       direction = 'BUY';
       strength = this._calculateScalpStrength(
         isOversold, bullishMACD, nearLowerBand, bullishTrend, market.aiSignal,
@@ -94,7 +94,7 @@ export class ScalpingStrategy extends BaseStrategy {
       trendAlignment = bullishTrend;
     }
     // SELL signal: overbought + bearish indicators
-    else if (sellSignals >= 2) {
+    else if (sellSignals >= 1) {
       direction = 'SELL';
       strength = this._calculateScalpStrength(
         isOverbought, bearishMACD, nearUpperBand, bearishTrend, market.aiSignal,
@@ -102,11 +102,10 @@ export class ScalpingStrategy extends BaseStrategy {
       trendAlignment = bearishTrend;
     }
 
-    // Lowered strength threshold from 20 → 15 to allow more trades in typical markets
-    // With 4 indicator checks, even 1-2 matches should be valid for scalping
+    // Lowered strength threshold from 15 → 10 to allow even subtle opportunities
     const hasOpportunity =
       direction !== 'NEUTRAL' &&
-      strength >= 15 &&
+      strength >= 10 &&
       !spreadTooWide &&
       market.volatility !== 'EXTREME';
 

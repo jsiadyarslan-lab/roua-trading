@@ -156,6 +156,9 @@ export function AgentControlMini() {
   const dailyPnL = agentState?.dailyPnL ?? 0
   const lastSignalAt = agentState?.lastSignalAt
   const lastCycleAt = agentState?.lastCycleAt
+  
+  const [currentEvalSymbol, setCurrentEvalSymbol] = useState('BTC/USDT')
+  const EVAL_SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT']
 
   // Fetch on mount + periodic refresh
   useEffect(() => {
@@ -163,11 +166,23 @@ export function AgentControlMini() {
     fetchCredentials()
     fetchPositions()
     fetchPerformance()
+    
     const interval = setInterval(() => {
       fetchStatus()
       fetchPositions()
     }, 10000)
-    return () => clearInterval(interval)
+
+    const evalInterval = setInterval(() => {
+      setCurrentEvalSymbol(prev => {
+        const idx = EVAL_SYMBOLS.indexOf(prev)
+        return EVAL_SYMBOLS[(idx + 1) % EVAL_SYMBOLS.length]
+      })
+    }, 3500)
+
+    return () => {
+      clearInterval(interval)
+      clearInterval(evalInterval)
+    }
   }, [fetchStatus, fetchCredentials, fetchPositions, fetchPerformance])
 
   // Auto-hide confirm dialog after 5s
@@ -243,6 +258,24 @@ export function AgentControlMini() {
           }}>
             وكيل التداول الذاتي
           </span>
+
+          {/* Evaluating Heartbeat */}
+          {isRunning && (
+            <div style={{ 
+              display: 'flex', alignItems: 'center', gap: 4, 
+              background: 'rgba(0,255,163,0.05)', padding: '1px 6px', 
+              borderRadius: 10, border: '1px solid rgba(0,255,163,0.1)'
+            }}>
+              <div style={{ 
+                width: 4, height: 4, borderRadius: '50%', background: T.green,
+                boxShadow: `0 0 5px ${T.green}`,
+                animation: 'agentCtrlPulse 1s ease-in-out infinite'
+              }} />
+              <span style={{ fontSize: 7, color: T.green, fontWeight: 700, fontFamily: 'monospace' }}>
+                ANALYZING: {currentEvalSymbol}
+              </span>
+            </div>
+          )}
 
           {/* Status Badge */}
           <span style={{

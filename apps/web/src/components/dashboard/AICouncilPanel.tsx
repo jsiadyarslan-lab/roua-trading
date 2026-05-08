@@ -72,6 +72,10 @@ export function AICouncilPanel() {
   const [loadingPhase, setLoadingPhase] = useState(0)
   const [keepAliveStatus, setKeepAliveStatus] = useState<{ lastPingAt: string | null; nestJSUp: boolean } | null>(null)
   const phases = ['جاري تجميع بيانات السوق الحية...', 'تحليل الزخم عبر النماذج الذكية...', 'مناقشة الإشارات الفنية...', 'بناء استراتيجية الإجماع النهائي...']
+  
+  const [currentTrendSymbol, setCurrentTrendSymbol] = useState('BTC/USDT')
+  const TREND_SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'EUR/USD', 'GBP/USD']
+  const trendScanIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   // ── Keep-alive ping ──
   const pingKeepAlive = useCallback(async () => {
@@ -209,8 +213,17 @@ export function AICouncilPanel() {
         return c - 1
       })
     }, 1000)
+
+    trendScanIntervalRef.current = setInterval(() => {
+      setCurrentTrendSymbol(prev => {
+        const idx = TREND_SYMBOLS.indexOf(prev)
+        return TREND_SYMBOLS[(idx + 1) % TREND_SYMBOLS.length]
+      })
+    }, 5000)
+
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current)
+      if (trendScanIntervalRef.current) clearInterval(trendScanIntervalRef.current)
     }
   }, [loading, fetchConsensus])
 
@@ -252,6 +265,22 @@ export function AICouncilPanel() {
           </div>
           <div>
             <h3 className="text-[11px] font-bold text-white">مجلس الذكاء الاصطناعي</h3>
+            {/* Trend Heartbeat */}
+            <div style={{ 
+              display: 'flex', alignItems: 'center', gap: 4, 
+              background: 'rgba(179,136,255,0.05)', padding: '1px 6px', 
+              borderRadius: 10, border: '1px solid rgba(179,136,255,0.1)',
+              marginTop: 1, marginBottom: 1
+            }}>
+              <div style={{ 
+                width: 4, height: 4, borderRadius: '50%', background: T.purple,
+                boxShadow: `0 0 5px ${T.purple}`,
+                animation: 'agentCtrlPulse 1s ease-in-out infinite'
+              }} />
+              <span style={{ fontSize: 7, color: T.purple, fontWeight: 700, fontFamily: 'monospace' }}>
+                MONITORING TRENDS: {currentTrendSymbol}
+              </span>
+            </div>
             <p className="text-[8px] font-mono" style={{ color: isRealAI ? T.purple + 'cc' : T.accent + '80' }}>
               {data?.meta ? (
                 <>

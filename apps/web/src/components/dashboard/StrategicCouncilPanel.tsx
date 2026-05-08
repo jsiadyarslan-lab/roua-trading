@@ -25,7 +25,7 @@ interface TradingBrief {
   stopLoss: number
   takeProfit: number
   confidence: number
-  timeframe: 'H1' | 'H4' | 'D1' | 'W1'
+  timeframe: 'M5' | 'M15' | 'M30' | 'H1' | 'H4' | 'D1' | 'W1'
   issuedAt: string
   expiresAt: string
   isActive: boolean
@@ -54,14 +54,27 @@ export function StrategicCouncilPanel() {
   const [triggerLoading, setTriggerLoading] = useState(false)
   const [triggerStatus, setTriggerStatus] = useState<string | null>(null) // 'processing' | 'already_running' | null
   const [backendOffline, setBackendOffline] = useState(false)
+  const [currentScanSymbol, setCurrentScanSymbol] = useState('BTC/USDT')
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  const SCAN_SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA']
 
   // Cleanup polling on unmount
   useEffect(() => {
+    // Symbol Scanning Animation (Visual Only)
+    scanIntervalRef.current = setInterval(() => {
+      setCurrentScanSymbol(prev => {
+        const idx = SCAN_SYMBOLS.indexOf(prev)
+        return SCAN_SYMBOLS[(idx + 1) % SCAN_SYMBOLS.length]
+      })
+    }, 3000)
+
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
       if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current)
+      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current)
     }
   }, [])
 
@@ -233,6 +246,9 @@ export function StrategicCouncilPanel() {
   }
 
   const timeframeColors: Record<string, string> = {
+    M5: T.success,
+    M15: T.accent,
+    M30: T.amber,
     H1: T.cyan,
     H4: T.purple,
     D1: T.amber,
@@ -259,9 +275,27 @@ export function StrategicCouncilPanel() {
           <div style={{
             width: 8, height: 8, borderRadius: '50%',
             background: T.purple,
-            boxShadow: `0 0 10px ${T.purple}`,
+            boxShadow: `0 0 10px ${T.purple}, 0 0 20px rgba(179,136,255,0.4)`,
+            animation: 'agentCtrlPulse 2s ease-in-out infinite'
           }} />
           <span style={{ fontSize: 10, fontWeight: 800, color: T.text }}>المجلس الاستراتيجي</span>
+          
+          {/* Scanning Heartbeat */}
+          <div style={{ 
+            display: 'flex', alignItems: 'center', gap: 4, 
+            background: 'rgba(0,212,255,0.05)', padding: '1px 6px', 
+            borderRadius: 10, border: '1px solid rgba(0,212,255,0.1)'
+          }}>
+            <div style={{ 
+              width: 4, height: 4, borderRadius: '50%', background: T.accent,
+              boxShadow: `0 0 5px ${T.accent}`,
+              animation: 'agentCtrlPulse 1s ease-in-out infinite'
+            }} />
+            <span style={{ fontSize: 7, color: T.accent, fontWeight: 700, fontFamily: 'monospace' }}>
+              SCANNING: {currentScanSymbol}
+            </span>
+          </div>
+
           <span style={{
             fontSize: 6.5, padding: '1px 5px', borderRadius: 4,
             background: 'rgba(179,136,255,0.15)', color: T.purple, fontWeight: 700,

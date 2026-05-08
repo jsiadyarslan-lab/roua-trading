@@ -2,7 +2,7 @@
 // Roua Trading — Strategic Council Types
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-export type BriefTimeframe = 'H1' | 'H4' | 'D1' | 'W1';
+export type BriefTimeframe = 'M5' | 'M15' | 'M30' | 'H1' | 'H4' | 'D1' | 'W1';
 export type BriefDirection = 'BUY' | 'SELL';
 export type BriefReviewStatus = 'ACTIVE' | 'MODIFIED' | 'CANCELLED' | 'EXECUTED';
 
@@ -59,11 +59,14 @@ export const ALL_COUNCIL_PAIRS: string[] = [
   ...COUNCIL_PAIRS.COMMODITIES,
 ];
 
-/** Timeframes the Council covers */
-export const COUNCIL_TIMEFRAMES: BriefTimeframe[] = ['H1', 'H4', 'D1', 'W1'];
+/** Timeframes the Council covers (Focused on rapid scalping/intraday) */
+export const COUNCIL_TIMEFRAMES: BriefTimeframe[] = ['M5', 'M15', 'M30', 'H1'];
 
 /** Expiry durations per timeframe (in milliseconds) */
 export const TIMEFRAME_EXPIRY_MS: Record<BriefTimeframe, number> = {
+  M5: 5 * 60 * 1000,                // 5 minutes
+  M15: 15 * 60 * 1000,              // 15 minutes
+  M30: 30 * 60 * 1000,              // 30 minutes
   H1: 1 * 60 * 60 * 1000,           // 1 hour
   H4: 4 * 60 * 60 * 1000,           // 4 hours
   D1: 24 * 60 * 60 * 1000,          // 1 day
@@ -76,6 +79,9 @@ export const TIMEFRAME_EXPIRY_MS: Record<BriefTimeframe, number> = {
  *  the price had already moved past the entry price + 0.1% tolerance.
  */
 export const TIMEFRAME_RR: Record<BriefTimeframe, { sl: number; tp: number; maxSlippage: number }> = {
+  M5: { sl: 0.002, tp: 0.004, maxSlippage: 0.001 },     // 0.2% SL, 0.4% TP, 0.1% slippage
+  M15: { sl: 0.003, tp: 0.006, maxSlippage: 0.002 },     // 0.3% SL, 0.6% TP, 0.2% slippage
+  M30: { sl: 0.004, tp: 0.008, maxSlippage: 0.003 },     // 0.4% SL, 0.8% TP, 0.3% slippage
   H1: { sl: 0.005, tp: 0.01, maxSlippage: 0.005 },     // 0.5% SL, 1% TP, 0.5% slippage
   H4: { sl: 0.01, tp: 0.02, maxSlippage: 0.005 },       // 1% SL, 2% TP, 0.5% slippage
   D1: { sl: 0.02, tp: 0.04, maxSlippage: 0.008 },       // 2% SL, 4% TP, 0.8% slippage

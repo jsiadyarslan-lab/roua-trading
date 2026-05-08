@@ -110,10 +110,19 @@ export class StrategicCouncilService {
 
       await this.prisma.$executeRawUnsafe(`
         DO $$ BEGIN
-          CREATE TYPE "BriefTimeframe" AS ENUM ('H1', 'H4', 'D1', 'W1');
+          CREATE TYPE "BriefTimeframe" AS ENUM ('M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1');
         EXCEPTION WHEN duplicate_object THEN NULL;
         END $$;
       `);
+
+      // Ensure new fast timeframes exist in case the enum was created previously
+      try {
+        await this.prisma.$executeRawUnsafe(`ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'M5';`);
+        await this.prisma.$executeRawUnsafe(`ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'M15';`);
+        await this.prisma.$executeRawUnsafe(`ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'M30';`);
+      } catch (e) {
+        // Ignore if already added or not supported
+      }
 
       await this.prisma.$executeRawUnsafe(`
         DO $$ BEGIN
@@ -266,10 +275,10 @@ export class StrategicCouncilService {
   // ── Scheduled Sessions ──
 
   /**
-   * Main council session — runs every hour at minute 0
-   * Reviews ALL pairs across ALL timeframes
+   * Main council session — runs every 15 minutes for rapid scalping/intraday trades
+   * Reviews ALL pairs across rapid timeframes
    */
-  @Cron('0 * * * *')
+  @Cron('*/15 * * * *')
   async runHourlySession(): Promise<CouncilSessionResult> {
     if (this.isInSession) {
       this.logger.warn('🏛️ Previous council session still running — skipping');

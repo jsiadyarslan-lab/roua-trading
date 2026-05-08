@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 
 import { getPnlColor } from '@/lib/unified-tokens'
 
@@ -72,6 +72,9 @@ export function SmartExecutorPanel() {
   const [purging, setPurging] = useState(false)
 
   const [backendOffline, setBackendOffline] = useState(false)
+  const [currentMonitoredSymbol, setCurrentMonitoredSymbol] = useState('BTC/USDT')
+  const MONITORED_SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'EUR/USD', 'XAU/USD', 'AAPL']
+  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -135,6 +138,20 @@ export function SmartExecutorPanel() {
     }, 10000)
     return () => clearInterval(interval)
   }, [fetchUserState, fetchPositions])
+
+  // Symbol Monitoring Animation (Visual Only)
+  useEffect(() => {
+    scanIntervalRef.current = setInterval(() => {
+      setCurrentMonitoredSymbol(prev => {
+        const idx = MONITORED_SYMBOLS.indexOf(prev)
+        return MONITORED_SYMBOLS[(idx + 1) % MONITORED_SYMBOLS.length]
+      })
+    }, 4000)
+
+    return () => {
+      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current)
+    }
+  }, [])
 
   // Auto-recovery: if executor is running but user state is null (lost after server restart),
   // auto re-enable the user to restore execution capability
@@ -279,9 +296,29 @@ export function SmartExecutorPanel() {
           <div style={{
             width: 8, height: 8, borderRadius: '50%',
             background: isRunning ? T.success : isEnabled ? T.amber : T.text3,
-            boxShadow: isRunning ? `0 0 10px ${T.success}` : 'none',
+            boxShadow: isRunning ? `0 0 10px ${T.success}, 0 0 20px rgba(0,255,163,0.4)` : 'none',
+            animation: isRunning ? 'agentCtrlPulse 2s ease-in-out infinite' : 'none',
           }} />
           <span style={{ fontSize: 10, fontWeight: 800, color: T.text }}>المنفذ الذكي</span>
+
+          {/* Monitoring Heartbeat */}
+          {isRunning && (
+            <div style={{ 
+              display: 'flex', alignItems: 'center', gap: 4, 
+              background: 'rgba(0,255,163,0.05)', padding: '1px 6px', 
+              borderRadius: 10, border: '1px solid rgba(0,255,163,0.1)'
+            }}>
+              <div style={{ 
+                width: 4, height: 4, borderRadius: '50%', background: T.success,
+                boxShadow: `0 0 5px ${T.success}`,
+                animation: 'agentCtrlPulse 1s ease-in-out infinite'
+              }} />
+              <span style={{ fontSize: 7, color: T.success, fontWeight: 700, fontFamily: 'monospace' }}>
+                MONITORING: {currentMonitoredSymbol}
+              </span>
+            </div>
+          )}
+
           <span style={{
             fontSize: 6.5, padding: '1px 5px', borderRadius: 4,
             background: isRunning ? 'rgba(0,255,163,0.15)' : isEnabled ? 'rgba(255,184,0,0.15)' : 'rgba(255,255,255,0.06)',

@@ -294,7 +294,7 @@ export class TradingService {
             type: 'ENTRY',
             quantity: tradeQuantity,
             price: tradePrice,
-            fee: execution.fee,
+            fee: execution.fee ?? 0,
             feeCurrency: execution.feeCurrency,
             source: request.source || (credential.exchange === 'paper-trading' ? 'auto_paper' : 'user_manual'),
           },
@@ -677,7 +677,7 @@ export class TradingService {
           type: closeQuantity >= posQuantity ? 'EXIT' : 'PARTIAL_EXIT',
           quantity: closeQuantity,
           price: exitPrice,
-          fee: execution.fee,
+          fee: execution.fee ?? 0,
           feeCurrency: execution.feeCurrency,
           pnl,
           

@@ -210,6 +210,9 @@ export class ExecutionGatewayService {
     switch (exchangeLower) {
       case 'binance':
         return new BinanceAdapter(apiKey, apiSecret, this.auditService, userId);
+      
+      case 'binance_test':
+        return new BinanceAdapter(apiKey, apiSecret, this.auditService, userId, true /* isSandbox */);
 
       case 'alpaca':
         return new AlpacaAdapter(apiKey, apiSecret, this.auditService, userId, true /* paper first */);

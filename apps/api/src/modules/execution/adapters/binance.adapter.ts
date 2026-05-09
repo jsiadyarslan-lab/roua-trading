@@ -49,6 +49,7 @@ export class BinanceAdapter implements IExchangeAdapter {
     private readonly apiSecret: string,
     private readonly auditService: AuditService,
     private readonly userId: string,
+    private readonly isSandbox: boolean = false,
   ) {
     this._initializeExchange();
   }
@@ -221,6 +222,11 @@ export class BinanceAdapter implements IExchangeAdapter {
         adjustForTimeDifference: true,
       },
     });
+
+    if (this.isSandbox) {
+      this.exchange.setSandboxMode(true);
+      this.logger.log(`🛠️ Binance sandbox mode enabled for user ${this.userId}`);
+    }
   }
 
   private _mapStatus(status: string): OrderExecutionStatus {

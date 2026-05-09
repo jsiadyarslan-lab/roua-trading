@@ -455,6 +455,12 @@ export class CredentialsService {
       }
 
       const exchangeInstance = new ExchangeClass(exchangeConfig);
+      
+      // ── Binance Testnet support ──
+      if (exchange.toLowerCase() === 'binance_test') {
+        exchangeInstance.setSandboxMode(true);
+        this.logger.log('🔑 Binance Testnet detected — enabled sandbox mode for validation');
+      }
 
       // Strategy 1: Try to fetch balance to validate the key (full validation)
       try {

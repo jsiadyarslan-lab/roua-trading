@@ -932,7 +932,8 @@ export class TradingService {
     let exchange = this.exchangeCache.get(cacheKey);
 
     if (!exchange) {
-      const ExchangeClass = ccxt[exchangeName as keyof typeof ccxt] as any;
+      const normalizedName = exchangeName === 'binance_test' ? 'binance' : exchangeName;
+      const ExchangeClass = ccxt[normalizedName as keyof typeof ccxt] as any;
       if (!ExchangeClass) {
         return null;
       }
@@ -943,6 +944,12 @@ export class TradingService {
         timeout: 10000, // 10 second timeout
         options: { defaultType: 'spot' },
       });
+
+      if (exchangeName === 'binance_test') {
+        exchange.setSandboxMode(true);
+        this.logger.log(`🛠️ TradingService: Enabled Binance Sandbox mode for ${credentialId}`);
+      }
+
       this.exchangeCache.set(cacheKey, exchange);
 
       // Auto-cleanup after 10 minutes

@@ -33,6 +33,7 @@ interface Credential {
 
 const SUPPORTED_EXCHANGES = [
   { id: 'binance', name: 'Binance', icon: '🔶' },
+  { id: 'binance_test', name: 'Binance Testnet', icon: '🧪' },
   { id: 'kucoin', name: 'KuCoin', icon: '🟢', requiresPassphrase: false },
   { id: 'bybit', name: 'Bybit', icon: '🟠' },
   { id: 'okx', name: 'OKX', icon: '⚪', requiresPassphrase: true },

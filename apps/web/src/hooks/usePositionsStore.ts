@@ -149,7 +149,70 @@ export const usePositionsStore = create<PositionsState>()(
   fetchAccount: async () => {
     await ensureAuth()
 
-    // ── المحاولة الأولى: NestJS API ──
+    // ── المحاولة الأولى: أرصدة بيانات الاعتماد (Binance, KuCoin, OKX, etc.) ──
+    // هذا هو المصدر الرئيسي لأرصدة البورصات المرتبطة بالمستخدم
+    try {
+      const res = await fetch('/api/portfolio/credentials/balances')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.data && data.data.exchanges?.length > 0) {
+          const { totalEquityUsd, totalAvailableUsd, exchanges } = data.data
+          const hasAnyEquity = totalEquityUsd > 0 || exchanges.some((e: any) => e.equity > 0)
+          if (hasAnyEquity) {
+            const isTestnet = exchanges.some((e: any) => e.isTestnet)
+            const account = {
+              equity: totalEquityUsd,
+              cash: totalAvailableUsd,
+              buyingPower: totalAvailableUsd,
+              portfolioValue: totalEquityUsd,
+              longMarketValue: totalEquityUsd,
+              shortMarketValue: 0,
+              initialMargin: totalEquityUsd - totalAvailableUsd,
+              maintenanceMargin: 0,
+              unrealizedPnl: 0,
+              unrealizedPnlPct: 0,
+              isPaperTrading: isTestnet,
+              tradingBlocked: false,
+              accountBlocked: false,
+            }
+            set({ account, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
+
+            // Also update positions from exchange assets (for the widget)
+            const currentPositions = get().positions
+            // Only add exchange assets if we don't already have positions from trading
+            if (currentPositions.length === 0) {
+              const exchangePositions = exchanges
+                .filter((ex: any) => ex.assets && ex.assets.length > 0)
+                .flatMap((ex: any) =>
+                  ex.assets
+                    .filter((a: any) => a.total > 0)
+                    .map((a: any) => ({
+                      id: `${ex.exchange}-${a.currency}`,
+                      symbol: a.currency === 'USDT' || a.currency === 'USD' ? 'USDT' : `${a.currency}/USDT`,
+                      side: 'long' as const,
+                      qty: a.total,
+                      avgEntryPrice: 0,
+                      currentPrice: a.currency === 'USDT' || a.currency === 'USD' ? 1 : 0,
+                      marketValue: a.total * (a.currency === 'USDT' || a.currency === 'USD' ? 1 : 0),
+                      unrealizedPnl: 0,
+                      unrealizedPnlPct: 0,
+                      exchange: ex.exchange,
+                      source: (ex.isTestnet ? 'nestjs' : 'nestjs') as const,
+                    }))
+                )
+              if (exchangePositions.length > 0) {
+                set({ positions: exchangePositions })
+              }
+            }
+            return
+          }
+        }
+      }
+    } catch {
+      // بيانات الاعتماد غير متاحة — نحاول المصادر الأخرى
+    }
+
+    // ── المحاولة الثانية: NestJS Trading API ──
     // يستخدم ملخص المحفظة من NestJS لاشتقاق بيانات الحساب
     try {
       const res = await fetch('/api/trading/positions/summary')
@@ -181,7 +244,7 @@ export const usePositionsStore = create<PositionsState>()(
       // NestJS غير متاح — نحاول Alpaca
     }
 
-    // ── المحاولة الثانية: Alpaca API ──
+    // ── المحاولة الثالثة: Alpaca API ──
     try {
       const res = await fetch('/api/alpaca/account')
       const j = await res.json()
@@ -193,7 +256,7 @@ export const usePositionsStore = create<PositionsState>()(
       // Alpaca غير متاح أيضاً
     }
 
-    // ── المحاولة الثالثة: حساب من المراكز المحملة ──
+    // ── المحاولة الرابعة: حساب من المراكز المحملة ──
     // إذا كانت لدينا مراكز محملة، نحسب بيانات الحساب منها
     const currentPositions = get().positions
     if (currentPositions.length > 0) {

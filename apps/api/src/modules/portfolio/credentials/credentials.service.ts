@@ -423,6 +423,7 @@ export class CredentialsService {
   /**
    * Fetch balance from a single exchange using decrypted credentials.
    * Handles Binance Testnet URL configuration, just like _doValidateApiKey.
+   * Includes a 15-second timeout to prevent hanging on slow testnet connections.
    */
   private async _fetchSingleExchangeBalance(
     exchange: string,
@@ -460,6 +461,7 @@ export class CredentialsService {
       apiKey,
       secret: apiSecret,
       enableRateLimit: true,
+      timeout: 15000, // 15-second timeout for balance fetch (testnet can be slow)
       options: {
         defaultType: exchange === 'binance_future_test' ? 'future' : 'spot',
         adjustForTimeDifference: true,
@@ -487,12 +489,61 @@ export class CredentialsService {
           fapiPublicV3: 'https://testnet.binancefuture.com/fapi/v3',
           fapiPrivateV3: 'https://testnet.binancefuture.com/fapi/v3',
         };
+        this.logger.log(`🔑 Balance fetch: Binance Futures Testnet via manual URL override`);
       } else {
         instance.setSandboxMode(true);
+        this.logger.log(`🔑 Balance fetch: Binance Spot Testnet via CCXT sandbox mode`);
       }
     }
 
-    const balance = await instance.fetchBalance();
+    // Fetch balance with explicit timeout wrapper for extra safety
+    const BALANCE_TIMEOUT_MS = 15_000;
+    let balance: any;
+    try {
+      balance = await Promise.race([
+        instance.fetchBalance(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`انتهت مهلة جلب الرصيد من ${exchange} (${BALANCE_TIMEOUT_MS / 1000}s)`)), BALANCE_TIMEOUT_MS)
+        ),
+      ]);
+    } catch (fetchError: any) {
+      const errMsg = fetchError.message || 'Unknown error';
+      this.logger.warn(`⚠️ Balance fetch failed for ${exchange}/${label}: ${errMsg}`);
+
+      // If the error is a timeout or connection issue, return with error but don't crash
+      if (errMsg.includes('timeout') || errMsg.includes('ETIMEDOUT') || errMsg.includes('ECONNREFUSED') ||
+          errMsg.includes('ECONNRESET') || errMsg.includes('network') || errMsg.includes('سحب')) {
+        return {
+          exchange, label, credentialId, isTestnet,
+          equity: 0, available: 0, currency: 'USD', assets: [],
+          error: `تعذر الاتصال بالبورصة — يرجى المحاولة لاحقاً`,
+        };
+      }
+
+      // For auth errors, mark the credential as potentially invalid
+      if (this._isAuthError(errMsg)) {
+        return {
+          exchange, label, credentialId, isTestnet,
+          equity: 0, available: 0, currency: 'USD', assets: [],
+          error: `مفتاح API غير صالح أو منتهي الصلاحية — يرجى حذفه وإضافته مرة أخرى`,
+        };
+      }
+
+      // For any other error, return with the error message
+      return {
+        exchange, label, credentialId, isTestnet,
+        equity: 0, available: 0, currency: 'USD', assets: [],
+        error: `خطأ في جلب الرصيد: ${errMsg.substring(0, 100)}`,
+      };
+    }
+
+    if (!balance || typeof balance !== 'object') {
+      return {
+        exchange, label, credentialId, isTestnet,
+        equity: 0, available: 0, currency: 'USD', assets: [],
+        error: 'لم يتم استلام بيانات الرصيد من البورصة',
+      };
+    }
 
     // Extract non-zero assets
     const assets: Array<{ currency: string; free: number; used: number; total: number }> = [];

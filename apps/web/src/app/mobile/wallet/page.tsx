@@ -170,8 +170,10 @@ export default function MobileWalletPage() {
 
       if (balanceData.success && balanceData.data && balanceData.data.exchanges?.length > 0) {
         const { totalEquityUsd, totalAvailableUsd, exchanges } = balanceData.data
-        const primaryExchange = exchanges[0]
         const isTestnet = exchanges.some((e: any) => e.isTestnet)
+
+        // Check if ANY exchange has a balance > 0 (even with errors on some)
+        const hasAnyBalance = totalEquityUsd > 0 || exchanges.some((e: any) => e.equity > 0)
 
         setAccount({
           equity: totalEquityUsd,
@@ -204,6 +206,18 @@ export default function MobileWalletPage() {
 
         setAccountLoading(false)
         return
+      }
+
+      // If the balance endpoint returned an error (not 200 or not success),
+      // check if there are credential errors we should show
+      if (!balanceRes.ok || balanceData.statusCode >= 400) {
+        console.warn('[Wallet] Balance endpoint error:', balanceData.message || balanceData.error)
+      }
+
+      // If credentials exist but all have zero balance (or errors), still mark as linked
+      // The user has linked an exchange even if the balance is 0
+      if (balanceData.success && balanceData.data && balanceData.data.exchanges?.length > 0) {
+        setIsLinked(true)
       }
 
       // Fallback: Try Alpaca account
@@ -301,7 +315,16 @@ export default function MobileWalletPage() {
     try {
       const res = await fetch('/api/portfolio/credentials')
       const j = await res.json()
-      const creds = j.data || j.credentials || []
+      const rawCreds = j.data || j.credentials || []
+      // Map backend fields to frontend Credential interface
+      // Backend: { exchange, isValid, ... } → Frontend: { provider, isActive, isPaper, ... }
+      const creds: Credential[] = rawCreds.map((c: any) => ({
+        id: c.id,
+        provider: c.exchange || c.provider || 'Unknown',
+        isActive: c.isValid !== false && c.isValid !== undefined,
+        isPaper: (c.exchange || '').includes('test') || (c.exchange || '').includes('paper'),
+        label: c.label,
+      }))
       setCredentials(creds)
       setIsLinked(creds.length > 0 && creds.some((c: any) => c.isActive !== false))
     } catch {
@@ -770,7 +793,18 @@ export default function MobileWalletPage() {
                 <Globe2 size={14} color={T.accent} />
                 <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: T.font }}>الحسابات المربوطة</span>
               </div>
-              {credentials.length > 0 ? credentials.map(cred => (
+              {credentials.length > 0 ? credentials.map(cred => {
+                // Display-friendly exchange names
+                const exchangeName: Record<string, string> = {
+                  'binance': 'Binance',
+                  'binance_test': 'Binance Testnet',
+                  'binance_future_test': 'Binance Futures Testnet',
+                  'kucoin': 'KuCoin',
+                  'okx': 'OKX',
+                  'alpaca': 'Alpaca',
+                }
+                const displayName = exchangeName[cred.provider] || cred.provider || 'بورصة'
+                return (
                 <div key={cred.id} style={{
                   display: 'flex', alignItems: 'center', gap: 12,
                   padding: '12px 14px', borderRadius: 14,
@@ -782,8 +816,8 @@ export default function MobileWalletPage() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: T.font }}>{cred.provider || 'Alpaca'}</span>
-                      {cred.isPaper && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, background: `${T.amber}15`, color: T.amber, fontFamily: T.font, fontWeight: 700 }}>ورقي</span>}
+                      <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: T.font }}>{displayName}</span>
+                      {cred.isPaper && <span style={{ fontSize: 8, padding: '1px 5px', borderRadius: 4, background: `${T.amber}15`, color: T.amber, fontFamily: T.font, fontWeight: 700 }}>تجريبي</span>}
                     </div>
                     <span style={{ fontSize: 10, color: T.text2, fontFamily: T.font }}>{cred.label || cred.id.slice(0, 8)}</span>
                   </div>
@@ -792,7 +826,8 @@ export default function MobileWalletPage() {
                     <span style={{ fontSize: 10, color: cred.isActive ? T.success : T.danger, fontFamily: T.font }}>{cred.isActive ? 'نشط' : 'معطل'}</span>
                   </div>
                 </div>
-              )) : (
+                )
+              }) : (
                 <div style={{ textAlign: 'center', padding: '16px 0' }}>
                   <Link2 size={24} color={T.text3} style={{ margin: '0 auto 8px' }} />
                   <p style={{ fontSize: 12, color: T.text2, fontFamily: T.font }}>لا توجد حسابات مربوطة</p>

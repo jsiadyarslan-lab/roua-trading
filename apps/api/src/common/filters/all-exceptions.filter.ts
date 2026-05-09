@@ -81,7 +81,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           rawMessage.includes('Invalid')
         ) {
           status = HttpStatus.SERVICE_UNAVAILABLE;
-          message = 'خطأ في هيكل قاعدة البيانات — يتم إصلاحه تلقائياً عند إعادة النشر';
+          message = 'خطأ في هيكل قاعدة البيانات — يتم إصلاحه تلقائياً عند إعادة النشر: ' + rawMessage;
         } else {
           status = HttpStatus.SERVICE_UNAVAILABLE;
           message = 'خطأ في قاعدة البيانات — يرجى المحاولة لاحقاً';

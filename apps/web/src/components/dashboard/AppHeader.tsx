@@ -742,16 +742,17 @@ function AccountDropdown({
 }) {
   const authUser = useAuthStore(state => state.user)
   const authLogout = useAuthStore(state => state.logout)
-  const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 })
+  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const updatePosition = useCallback(() => {
     if (!anchorRef.current) return
     const rect = anchorRef.current.getBoundingClientRect()
-    // Use RIGHT positioning like MoreDropdown — works correctly in RTL
+    // Use LEFT positioning for the account dropdown because it's on the left side of the header in RTL layout.
+    // This ensures the dropdown expands rightwards into the viewport instead of going off-screen.
     setPos({
       top: rect.bottom + 4,
-      right: window.innerWidth - rect.right,
+      left: rect.left,
     })
   }, [anchorRef])
 
@@ -808,7 +809,7 @@ function AccountDropdown({
     <div ref={dropdownRef} style={{
       position: 'fixed',
       top: pos.top,
-      right: pos.right,
+      left: pos.left,
       background: 'rgba(26, 29, 41, 0.95)',
       backdropFilter: 'blur(32px) saturate(1.8)',
       WebkitBackdropFilter: 'blur(32px) saturate(1.8)',

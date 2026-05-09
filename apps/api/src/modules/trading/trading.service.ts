@@ -932,7 +932,8 @@ export class TradingService {
     let exchange = this.exchangeCache.get(cacheKey);
 
     if (!exchange) {
-      const normalizedName = exchangeName === 'binance_test' ? 'binance' : exchangeName;
+      const isBinanceTest = exchangeName === 'binance_test' || exchangeName === 'binance_future_test';
+      const normalizedName = isBinanceTest ? 'binance' : exchangeName;
       const ExchangeClass = ccxt[normalizedName as keyof typeof ccxt] as any;
       if (!ExchangeClass) {
         return null;
@@ -942,10 +943,13 @@ export class TradingService {
         secret: apiSecret,
         enableRateLimit: true,
         timeout: 10000, // 10 second timeout
-        options: { defaultType: 'spot' },
+        options: { 
+          defaultType: exchangeName === 'binance_future_test' ? 'future' : 'spot',
+          adjustForTimeDifference: true
+        },
       });
 
-      if (exchangeName === 'binance_test') {
+      if (isBinanceTest) {
         exchange.setSandboxMode(true);
         this.logger.log(`🛠️ TradingService: Enabled Binance Sandbox mode for ${credentialId}`);
       }

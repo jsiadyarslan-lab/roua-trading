@@ -415,7 +415,9 @@ export class CredentialsService {
     passphrase?: string,
   ): Promise<{ valid: boolean; permissions?: string[]; error?: string }> {
     try {
-      const ExchangeClass = ccxt[exchange as keyof typeof ccxt] as any;
+      const isBinanceTest = exchange === 'binance_test' || exchange === 'binance_future_test';
+      const normalizedExchange = isBinanceTest ? 'binance' : exchange;
+      const ExchangeClass = ccxt[normalizedExchange as keyof typeof ccxt] as any;
       if (!ExchangeClass) {
         this.logger.warn(`Exchange "${exchange}" not found in CCXT — accepting with read-only permissions`);
         return { valid: true, permissions: ['read', 'trade'] };
@@ -426,6 +428,10 @@ export class CredentialsService {
         apiKey,
         secret: apiSecret,
         enableRateLimit: true,
+        options: {
+          defaultType: exchange === 'binance_future_test' ? 'future' : 'spot',
+          adjustForTimeDifference: true,
+        },
       };
 
       // FIX: Add passphrase for exchanges that require it (KuCoin, OKX)
@@ -457,9 +463,9 @@ export class CredentialsService {
       const exchangeInstance = new ExchangeClass(exchangeConfig);
       
       // ── Binance Testnet support ──
-      if (exchange.toLowerCase() === 'binance_test') {
+      if (isBinanceTest) {
         exchangeInstance.setSandboxMode(true);
-        this.logger.log('🔑 Binance Testnet detected — enabled sandbox mode for validation');
+        this.logger.log(`🔑 Binance Testnet (${exchangeConfig.options.defaultType}) detected — enabled sandbox mode for validation`);
       }
 
       // Strategy 1: Try to fetch balance to validate the key (full validation)

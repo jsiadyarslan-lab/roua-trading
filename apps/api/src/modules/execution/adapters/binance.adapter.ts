@@ -50,6 +50,7 @@ export class BinanceAdapter implements IExchangeAdapter {
     private readonly auditService: AuditService,
     private readonly userId: string,
     private readonly isSandbox: boolean = false,
+    private readonly defaultType: 'spot' | 'future' = 'spot',
   ) {
     this._initializeExchange();
   }
@@ -218,14 +219,14 @@ export class BinanceAdapter implements IExchangeAdapter {
       secret: this.apiSecret,
       enableRateLimit: true,
       options: {
-        defaultType: 'spot',
+        defaultType: this.defaultType,
         adjustForTimeDifference: true,
       },
     });
 
     if (this.isSandbox) {
       this.exchange.setSandboxMode(true);
-      this.logger.log(`🛠️ Binance sandbox mode enabled for user ${this.userId}`);
+      this.logger.log(`🛠️ Binance sandbox mode enabled for user ${this.userId} (${this.defaultType})`);
     }
   }
 

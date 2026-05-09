@@ -212,7 +212,10 @@ export class ExecutionGatewayService {
         return new BinanceAdapter(apiKey, apiSecret, this.auditService, userId);
       
       case 'binance_test':
-        return new BinanceAdapter(apiKey, apiSecret, this.auditService, userId, true /* isSandbox */);
+        return new BinanceAdapter(apiKey, apiSecret, this.auditService, userId, true /* isSandbox */, 'spot');
+      
+      case 'binance_future_test':
+        return new BinanceAdapter(apiKey, apiSecret, this.auditService, userId, true /* isSandbox */, 'future');
 
       case 'alpaca':
         return new AlpacaAdapter(apiKey, apiSecret, this.auditService, userId, true /* paper first */);

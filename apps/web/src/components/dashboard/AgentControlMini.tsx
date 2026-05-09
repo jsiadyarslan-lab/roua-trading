@@ -475,8 +475,8 @@ export function AgentControlMini() {
       )}
 
       {/* ── Footer: Link to Full Settings ── */}
-      <div 
-        onClick={() => router.push('/dashboard/autonomous-trader')}
+      <Link 
+        href="/dashboard/autonomous-trader"
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
           padding: '6px 8px', borderRadius: 0,
@@ -486,11 +486,12 @@ export function AgentControlMini() {
           borderTop: `1px solid ${isRunning ? 'rgba(0,255,163,0.1)' : 'rgba(0,212,255,0.1)'}`,
           color: isRunning ? T.green : T.accent, fontSize: 9, fontWeight: 700,
           fontFamily: FONT_AR, cursor: 'pointer', transition: 'all 0.15s',
+          textDecoration: 'none'
         }}>
           <Settings2 size={9} />
           لوحة التحكم الكاملة
           <ExternalLink size={8} />
-      </div>
+      </Link>
 
       {/* ── Error Warning ── */}
       {error && (

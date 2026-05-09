@@ -1520,12 +1520,8 @@ EOSQL
     -- when old/stale positions were stuck OPEN. Now replaced with a regular index.
     -- Drop the unique constraint if it exists from a previous deploy.
     DO $$ BEGIN
-      IF EXISTS (
-        SELECT 1 FROM information_schema.table_constraints
-        WHERE constraint_name = 'Position_userId_symbol_side_status_key'
-      ) THEN
-        ALTER TABLE "Position" DROP CONSTRAINT "Position_userId_symbol_side_status_key";
-      END IF;
+      DROP INDEX IF EXISTS "Position_userId_symbol_side_status_key";
+    EXCEPTION WHEN others THEN NULL;
     END $$;
     -- Add a regular index instead (allows multiple open positions per pair)
     CREATE INDEX IF NOT EXISTS "Position_userId_symbol_side_status_idx" ON "Position"("userId", "symbol", "side", "status");

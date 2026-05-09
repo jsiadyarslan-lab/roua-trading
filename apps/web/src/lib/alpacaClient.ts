@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { db } from '@/lib/db'
+import { decrypt } from '@/lib/encryption'
 
 const ALPACA_BASE = process.env.ALPACA_PAPER === 'false'
   ? 'https://api.alpaca.markets'
@@ -104,8 +106,38 @@ function createFallbackResponse(path: string): Response {
 export async function alpacaFetch(
   path: string,
   options: RequestInit = {},
-  creds?: AlpacaCredentials
+  metadataOrCreds?: { userId?: string } | AlpacaCredentials
 ): Promise<Response> {
+  let creds: AlpacaCredentials | undefined
+
+  if (metadataOrCreds) {
+    // If it's AlpacaCredentials (has apiKey)
+    if ('apiKey' in metadataOrCreds) {
+      creds = metadataOrCreds as AlpacaCredentials
+    } 
+    // If it's metadata with userId
+    else if ('userId' in metadataOrCreds && metadataOrCreds.userId) {
+      try {
+        const dbCred = await db.exchangeCredential.findFirst({
+          where: {
+            userId: metadataOrCreds.userId,
+            exchange: 'alpaca',
+            isValid: true
+          }
+        })
+
+        if (dbCred) {
+          creds = {
+            apiKey: decrypt(dbCred.encryptedApiKey, dbCred.iv, dbCred.authTag),
+            apiSecret: decrypt(dbCred.encryptedSecret, dbCred.secretIv || dbCred.iv, dbCred.secretAuthTag || dbCred.authTag)
+          }
+        }
+      } catch (err) {
+        console.error(`[alpacaFetch] Failed to fetch credentials for ${metadataOrCreds.userId}:`, err)
+      }
+    }
+  }
+
   // If no explicit creds and no global keys, fallback
   if (!creds && !HAS_ALPACA_KEYS) {
     return createFallbackResponse(path)

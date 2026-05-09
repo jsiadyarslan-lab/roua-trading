@@ -14,36 +14,8 @@ export async function GET(request: NextRequest) {
   if (auth.error) return auth.error
 
   try {
-    // 1. Fetch credentials for the user
-    const credential = await db.exchangeCredential.findFirst({
-      where: { 
-        userId: auth.session.userId,
-        exchange: 'alpaca'
-      }
-    })
-
-    if (!credential) {
-      return NextResponse.json(
-        { success: false, error: 'ALPACA_CREDENTIALS_NOT_CONFIGURED', data: [] },
-        { status: 503 }
-      )
-    }
-
-    // 2. Decrypt credentials
-    const { decrypt } = await import('@/lib/encryption')
-    const apiKey = decrypt({
-      encrypted: credential.encryptedApiKey,
-      iv: credential.iv,
-      authTag: credential.authTag
-    })
-    const apiSecret = decrypt({
-      encrypted: credential.encryptedSecret,
-      iv: credential.secretIv || credential.iv,
-      authTag: credential.secretAuthTag || credential.authTag
-    })
-
-    // 3. Fetch from Alpaca with user credentials
-    const res = await alpacaFetch('/v2/positions', {}, { apiKey, apiSecret })
+    // 1. Fetch from Alpaca with user credentials handled automatically by alpacaFetch
+    const res = await alpacaFetch('/v2/positions', {}, { userId: auth.session.userId })
 
     if (!res.ok) {
       const errBody = await res.text()

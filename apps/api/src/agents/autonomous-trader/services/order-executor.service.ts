@@ -182,6 +182,9 @@ export class OrderExecutorService implements OnModuleDestroy {
           const executionTimeMs = Date.now() - startTime;
           const calculatedSlippage = this._calculateSlippage(signal.entryPrice, executionPrice, signal.action);
 
+          // Track this order to prevent immediate duplicates
+          this.recentOrders.set(`${userId}:${signal.symbol}:${signal.action}`, new Date());
+
           // Also record in AutonomousTrade table for agent-specific analytics
           try {
             await this.prisma.autonomousTrade.create({

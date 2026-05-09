@@ -748,11 +748,28 @@ function AccountDropdown({
   const updatePosition = useCallback(() => {
     if (!anchorRef.current) return
     const rect = anchorRef.current.getBoundingClientRect()
-    // Use LEFT positioning for the account dropdown because it's on the left side of the header in RTL layout.
-    // This ensures the dropdown expands rightwards into the viewport instead of going off-screen.
+    
+    // Boundary check for RTL layout:
+    // Ensure the dropdown (width 220px) doesn't go off the right or left edge.
+    // In RTL, the account button is on the far left.
+    const dropdownWidth = 220;
+    const padding = 12;
+    
+    let left = rect.left;
+    
+    // Safety: don't let it go past the right edge
+    if (left + dropdownWidth > window.innerWidth - padding) {
+      left = window.innerWidth - dropdownWidth - padding;
+    }
+    
+    // Safety: don't let it go past the left edge
+    if (left < padding) {
+      left = padding;
+    }
+
     setPos({
       top: rect.bottom + 4,
-      left: rect.left,
+      left: left,
     })
   }, [anchorRef])
 

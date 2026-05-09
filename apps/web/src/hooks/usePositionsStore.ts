@@ -157,55 +157,75 @@ export const usePositionsStore = create<PositionsState>()(
         const data = await res.json()
         if (data.success && data.data && data.data.exchanges?.length > 0) {
           const { totalEquityUsd, totalAvailableUsd, exchanges } = data.data
-          const hasAnyEquity = totalEquityUsd > 0 || exchanges.some((e: any) => e.equity > 0)
-          if (hasAnyEquity) {
-            const isTestnet = exchanges.some((e: any) => e.isTestnet)
-            const account = {
-              equity: totalEquityUsd,
-              cash: totalAvailableUsd,
-              buyingPower: totalAvailableUsd,
-              portfolioValue: totalEquityUsd,
-              longMarketValue: totalEquityUsd,
-              shortMarketValue: 0,
-              initialMargin: totalEquityUsd - totalAvailableUsd,
-              maintenanceMargin: 0,
-              unrealizedPnl: 0,
-              unrealizedPnlPct: 0,
-              isPaperTrading: isTestnet,
-              tradingBlocked: false,
-              accountBlocked: false,
-            }
-            set({ account, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
 
-            // Also update positions from exchange assets (for the widget)
-            const currentPositions = get().positions
-            // Only add exchange assets if we don't already have positions from trading
-            if (currentPositions.length === 0) {
-              const exchangePositions = exchanges
-                .filter((ex: any) => ex.assets && ex.assets.length > 0)
-                .flatMap((ex: any) =>
-                  ex.assets
-                    .filter((a: any) => a.total > 0)
-                    .map((a: any) => ({
-                      id: `${ex.exchange}-${a.currency}`,
-                      symbol: a.currency === 'USDT' || a.currency === 'USD' ? 'USDT' : `${a.currency}/USDT`,
-                      side: 'long' as const,
-                      qty: a.total,
-                      avgEntryPrice: 0,
-                      currentPrice: a.currency === 'USDT' || a.currency === 'USD' ? 1 : 0,
-                      marketValue: a.total * (a.currency === 'USDT' || a.currency === 'USD' ? 1 : 0),
-                      unrealizedPnl: 0,
-                      unrealizedPnlPct: 0,
-                      exchange: ex.exchange,
-                      source: (ex.isTestnet ? 'nestjs' : 'nestjs') as const,
-                    }))
-                )
-              if (exchangePositions.length > 0) {
-                set({ positions: exchangePositions })
-              }
+          // FIX: Always update state when we get a valid response from the
+          // credentials/balances endpoint — even if equity is 0. Previously,
+          // when equity was 0, the code skipped this block and fell through
+          // to Alpaca/localStorage, which showed stale data (e.g. $5000).
+          const isTestnet = exchanges.some((e: any) => e.isTestnet)
+          const hasDecryptionError = exchanges.some((e: any) => e.error)
+          const hasRealCredentials = exchanges.some(
+            (e: any) => e.exchange !== 'paper-trading'
+          )
+
+          // Always set the account from this endpoint's data
+          const account = {
+            equity: totalEquityUsd,
+            cash: totalAvailableUsd,
+            buyingPower: totalAvailableUsd,
+            portfolioValue: totalEquityUsd,
+            longMarketValue: totalEquityUsd,
+            shortMarketValue: 0,
+            initialMargin: totalEquityUsd - totalAvailableUsd,
+            maintenanceMargin: 0,
+            unrealizedPnl: 0,
+            unrealizedPnlPct: 0,
+            isPaperTrading: isTestnet,
+            tradingBlocked: false,
+            accountBlocked: false,
+          }
+          set({ account, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
+
+          // Also update positions from exchange assets (for the widget)
+          const currentPositions = get().positions
+          if (currentPositions.length === 0 || totalEquityUsd > 0) {
+            const exchangePositions = exchanges
+              .filter((ex: any) => ex.assets && ex.assets.length > 0)
+              .flatMap((ex: any) =>
+                ex.assets
+                  .filter((a: any) => a.total > 0)
+                  .map((a: any) => ({
+                    id: `${ex.exchange}-${a.currency}`,
+                    symbol: a.currency === 'USDT' || a.currency === 'USD' ? 'USDT' : `${a.currency}/USDT`,
+                    side: 'long' as const,
+                    qty: a.total,
+                    avgEntryPrice: 0,
+                    currentPrice: a.currency === 'USDT' || a.currency === 'USD' ? 1 : 0,
+                    marketValue: a.total * (a.currency === 'USDT' || a.currency === 'USD' ? 1 : 0),
+                    unrealizedPnl: 0,
+                    unrealizedPnlPct: 0,
+                    exchange: ex.exchange,
+                    source: (ex.isTestnet ? 'nestjs' : 'nestjs') as const,
+                  }))
+              )
+            if (exchangePositions.length > 0) {
+              set({ positions: exchangePositions })
             }
+          }
+
+          // If we have real balance or no decryption errors, stop here.
+          // If there are decryption errors but we have real credentials,
+          // fall through to try other sources as well.
+          if (totalEquityUsd > 0 || !hasDecryptionError) {
             return
           }
+          // If all credentials have decryption errors and we have no real
+          // credentials, still return — the error message will be shown
+          // in the UI and the user can re-add their keys.
+          if (!hasRealCredentials) {
+            return
+          }
+          // If we have real credentials but they have errors, try other sources
         }
       }
     } catch {

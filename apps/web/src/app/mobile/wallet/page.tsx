@@ -172,9 +172,10 @@ export default function MobileWalletPage() {
         const { totalEquityUsd, totalAvailableUsd, exchanges } = balanceData.data
         const isTestnet = exchanges.some((e: any) => e.isTestnet)
 
-        // Check if ANY exchange has a balance > 0 (even with errors on some)
-        const hasAnyBalance = totalEquityUsd > 0 || exchanges.some((e: any) => e.equity > 0)
-
+        // FIX: Always set account from this endpoint's data, even when equity
+        // is 0. Previously, the `hasAnyBalance` check was used to decide whether
+        // to fall through to Alpaca, but this caused stale localStorage data
+        // (e.g. $5000) to persist when the real balance was 0.
         setAccount({
           equity: totalEquityUsd,
           buyingPower: totalAvailableUsd,
@@ -204,6 +205,8 @@ export default function MobileWalletPage() {
         )
         setAlpacaPositions(allAssetsFromExchanges)
 
+        // If we have balance data (even 0), stop here — don't fall through
+        // to Alpaca which would overwrite with stale data from localStorage
         setAccountLoading(false)
         return
       }

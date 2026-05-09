@@ -363,17 +363,57 @@ export class CredentialsService {
       error?: string;
     }>;
   }> {
-    const credentials = await this.prisma.exchangeCredential.findMany({
+    const allCredentials = await this.prisma.exchangeCredential.findMany({
       where: { userId, isValid: true },
     });
 
-    if (credentials.length === 0) {
+    if (allCredentials.length === 0) {
       return { totalEquityUsd: 0, totalAvailableUsd: 0, exchanges: [] };
     }
 
+    // FIX: Separate paper-trading credentials from real exchange credentials.
+    // Paper-trading credentials don't have real API keys — they can't be
+    // decrypted and they don't have exchange balances. Including them in the
+    // balance fetch causes decryption errors that confuse the frontend.
+    const paperTradingCreds = allCredentials.filter(
+      (c) => c.exchange === 'paper-trading'
+    );
+    const realCredentials = allCredentials.filter(
+      (c) => c.exchange !== 'paper-trading'
+    );
+
+    // Paper-trading entries: return with 0 balance and a note (no error)
+    const paperResults = paperTradingCreds.map((cred) => ({
+      exchange: cred.exchange,
+      label: cred.label,
+      credentialId: cred.id,
+      isTestnet: false,
+      equity: 0,
+      available: 0,
+      currency: 'USD',
+      assets: [],
+      // No error — this is expected for paper-trading
+    }));
+
+    // Real exchange credentials: fetch balances via CCXT
     const exchangeResults = await Promise.allSettled(
-      credentials.map(async (cred) => {
+      realCredentials.map(async (cred) => {
         try {
+          // FIX: Validate that encrypted data exists before trying to decrypt
+          if (!cred.encryptedApiKey || !cred.encryptedSecret) {
+            return {
+              exchange: cred.exchange,
+              label: cred.label,
+              credentialId: cred.id,
+              isTestnet: cred.exchange.includes('test'),
+              equity: 0,
+              available: 0,
+              currency: 'USD',
+              assets: [],
+              error: 'بيانات الاعتماد غير مكتملة — يرجى حذف المفتاح وإضافته مرة أخرى',
+            };
+          }
+
           const decrypted = await this.decryptCredential(cred.id, userId);
           return await this._fetchSingleExchangeBalance(
             cred.exchange,
@@ -400,7 +440,7 @@ export class CredentialsService {
       }),
     );
 
-    const exchanges = exchangeResults.map((r) =>
+    const realExchanges = exchangeResults.map((r) =>
       r.status === 'fulfilled' ? r.value : {
         exchange: 'unknown',
         label: 'فشل',
@@ -413,6 +453,9 @@ export class CredentialsService {
         error: r.reason?.message || 'خطأ غير معروف',
       },
     );
+
+    // Combine paper-trading results (no errors) with real exchange results
+    const exchanges = [...paperResults, ...realExchanges];
 
     const totalEquityUsd = exchanges.reduce((sum, e) => sum + e.equity, 0);
     const totalAvailableUsd = exchanges.reduce((sum, e) => sum + e.available, 0);

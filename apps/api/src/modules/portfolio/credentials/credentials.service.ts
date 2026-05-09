@@ -465,14 +465,29 @@ export class CredentialsService {
       
       // ── Sustainable Binance Testnet Support ──
       if (isBinanceTest) {
-        // setSandboxMode(true) in CCXT 4.5+ correctly sets ALL testnet URLs
-        // (public, private, fapiPublic, fapiPrivate, dapiPublic, dapiPrivate, etc.)
-        // Previous manual URL override was COUNTERPRODUCTIVE — it replaced the entire
-        // urls.api object with only 2-4 keys, destroying essential endpoints that
-        // loadMarkets() and fetchBalance() need (e.g., fapiPublicV2, fapiPublicV3, sapi).
-        exchangeInstance.setSandboxMode(true);
-
-        this.logger.log(`🔑 Validating Binance Testnet (${exchangeConfig.options.defaultType}) via CCXT sandbox mode`);
+        // CCXT 4.5+ deprecated setSandboxMode for Binance Futures — it throws NotSupported.
+        // For Spot Testnet, setSandboxMode(true) works and sets all URLs correctly.
+        // For Futures Testnet, we must manually override URLs while keeping all
+        // existing keys (fapiPublicV2, fapiPublicV3, etc.) that loadMarkets() needs.
+        if (exchange === 'binance_future_test') {
+          exchangeInstance.sandbox = true;
+          exchangeInstance.urls['api'] = {
+            ...exchangeInstance.urls['api'],
+            public: 'https://testnet.binancefuture.com/fapi/v1',
+            private: 'https://testnet.binancefuture.com/fapi/v1',
+            fapiPublic: 'https://testnet.binancefuture.com/fapi/v1',
+            fapiPrivate: 'https://testnet.binancefuture.com/fapi/v1',
+            fapiPublicV2: 'https://testnet.binancefuture.com/fapi/v2',
+            fapiPrivateV2: 'https://testnet.binancefuture.com/fapi/v2',
+            fapiPublicV3: 'https://testnet.binancefuture.com/fapi/v3',
+            fapiPrivateV3: 'https://testnet.binancefuture.com/fapi/v3',
+          };
+          this.logger.log('🔑 Validating Binance Futures Testnet via manual URL override (CCXT sandbox deprecated for futures)');
+        } else {
+          // Spot Testnet — setSandboxMode works correctly
+          exchangeInstance.setSandboxMode(true);
+          this.logger.log('🔑 Validating Binance Spot Testnet via CCXT sandbox mode');
+        }
       }
 
       // Strategy 1: Try to fetch balance to validate the key (full validation)
@@ -558,6 +573,12 @@ export class CredentialsService {
       }
     } catch (error: any) {
       const message = error.message || 'Unknown error';
+
+      // Catch CCXT NotSupported error (e.g., Binance Futures Testnet sandbox deprecated)
+      if (error.constructor?.name === 'NotSupported' || message.includes('not supported') || message.includes('NotSupported')) {
+        this.logger.warn(`Exchange feature not supported for ${exchange}: ${message.substring(0, 100)}`);
+        return { valid: false, error: `Binance Futures Testnet لم يعد مدعوماً من CCXT. استخدم Binance Spot Testnet أو الحساب الحي بدلاً منه.` };
+      }
 
       if (this._isAuthError(message)) {
         const testnetHint3 = isBinanceTest

@@ -104,7 +104,7 @@ export default function LandingNavbar() {
                 <span style={{ fontFamily: 'var(--font-ar)' }}>تسجيل الدخول</span>
               </Button>
             </Link>
-            <Link href="/api/auth/guest">
+            <Link href="/login">
               <Button
                 size="sm"
                 className="gap-2 text-sm font-bold rounded-lg"
@@ -168,7 +168,7 @@ export default function LandingNavbar() {
                     <span style={{ fontFamily: 'var(--font-ar)' }}>تسجيل الدخول</span>
                   </Button>
                 </Link>
-                <Link href="/api/auth/guest" onClick={() => setMobileOpen(false)}>
+                <Link href="/login" onClick={() => setMobileOpen(false)}>
                   <Button
                     className="w-full justify-center gap-2 rounded-lg font-bold"
                     style={{

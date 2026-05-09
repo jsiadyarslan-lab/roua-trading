@@ -626,62 +626,7 @@ export class AuthService {
    *
    * The legacy guest@roua.auto account is kept for backward compatibility.
    */
-  async createGuestSession() {
-    const uuid = crypto.randomUUID().slice(0, 8);
-    const guestEmail = `guest-${uuid}@roua.auto`;
 
-    let guestUser;
-
-    try {
-      guestUser = await this.prisma.user.create({
-        data: { email: guestEmail, displayName: 'ضيف', tier: 'FREE' },
-      });
-      this.logger.log(`Unique guest user created: ${guestEmail}`);
-    } catch (createErr: any) {
-      // UUID collision is extremely unlikely, but retry with new UUID
-      this.logger.warn(`Failed to create unique guest (${guestEmail}), retrying: ${createErr?.message || createErr}`);
-      const uuid2 = crypto.randomUUID().slice(0, 8);
-      const retryEmail = `guest-${uuid2}@roua.auto`;
-      try {
-        guestUser = await this.prisma.user.create({
-          data: { email: retryEmail, displayName: 'ضيف', tier: 'FREE' },
-        });
-        this.logger.log(`Unique guest user created (retry): ${retryEmail}`);
-      } catch {
-        // Last resort: fall back to legacy shared guest account
-        this.logger.warn('Falling back to legacy guest@roua.auto account');
-        guestUser = await this.prisma.user.findUnique({ where: { email: 'guest@roua.auto' } });
-        if (!guestUser) {
-          try {
-            guestUser = await this.prisma.user.create({
-              data: { email: 'guest@roua.auto', displayName: 'ضيف', tier: 'FREE' },
-            });
-          } catch {
-            guestUser = await this.prisma.user.findUnique({ where: { email: 'guest@roua.auto' } });
-          }
-        }
-      }
-    }
-
-    if (!guestUser) {
-      throw new BadRequestException('فشل في إنشاء مستخدم ضيف');
-    }
-
-    const session = await this.createSession(guestUser.id);
-
-    this.logger.log(`Guest session created for: ${guestUser.email}`);
-
-    return {
-      sessionToken: session.token,
-      refreshToken: session.refreshToken,
-      user: {
-        id: guestUser.id,
-        email: guestUser.email,
-        displayName: guestUser.displayName,
-        tier: guestUser.tier,
-      },
-    };
-  }
 
   // ── Cleanup Expired Sessions ──
 

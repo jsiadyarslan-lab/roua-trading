@@ -15,15 +15,9 @@ import crypto from 'crypto'
  * 3. Otherwise → return { authenticated: false }
  */
 
-const GUEST_EMAIL = 'guest@roua.auto'
 
-/**
- * Check if an email belongs to a guest user.
- * Matches both the legacy guest@roua.auto and the new unique guest-{uuid}@roua.auto pattern.
- */
-function isGuestEmail(email: string): boolean {
-  return email === GUEST_EMAIL || /^guest-[a-f0-9]+@roua\.auto$/.test(email)
-}
+
+
 const SESSION_DURATION_MS = 24 * 60 * 60 * 1000 // 24 hours
 const REFRESH_DURATION_MS = 30 * 24 * 60 * 60 * 1000 // 30 days
 
@@ -76,17 +70,13 @@ export async function GET(request: NextRequest) {
           include: { user: true },
         })
         if (session && session.isActive && session.expiresAt > new Date()) {
-          const isGuestUser = isGuestEmail(session.user.email) || session.user.id.startsWith('guest')
-
           return NextResponse.json({
-            authenticated: !isGuestUser,
-            isGuest: isGuestUser,
+            authenticated: true,
             user: {
               id: session.user.id,
               email: session.user.email,
               displayName: session.user.displayName,
               tier: session.user.tier,
-              isGuest: isGuestUser,
             },
           })
         }
@@ -104,12 +94,7 @@ export async function GET(request: NextRequest) {
 
     // ── Email login flow: ?email=xxx ──
     if (requestedEmail) {
-      if (isGuestEmail(requestedEmail)) {
-        return NextResponse.json({
-          authenticated: false,
-          error: 'GUEST_LOGIN_BLOCKED',
-        })
-      }
+
 
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(requestedEmail)) {
         return NextResponse.json({
@@ -191,13 +176,11 @@ export async function GET(request: NextRequest) {
 
       const response = NextResponse.json({
         authenticated: true,
-        isGuest: false,
         user: {
           id: user.id,
           email: user.email,
           displayName: user.displayName,
           tier: user.tier,
-          isGuest: false,
         },
       })
 
@@ -221,8 +204,6 @@ export async function GET(request: NextRequest) {
     }
 
     // ── No session, no email → not authenticated ──
-    // Guest access is now handled via /api/auth/guest which creates a proper
-    // session + cookie. No more SKIP_LANDING virtual guest hack.
     return NextResponse.json({
       authenticated: false,
       error: 'NO_SESSION',
@@ -259,12 +240,7 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    if (isGuestEmail(requestedEmail)) {
-      return NextResponse.json({
-        authenticated: false,
-        error: 'GUEST_LOGIN_BLOCKED',
-      })
-    }
+
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(requestedEmail)) {
       return NextResponse.json({
@@ -336,13 +312,11 @@ export async function POST(request: NextRequest) {
 
     const response = NextResponse.json({
       authenticated: true,
-      isGuest: false,
       user: {
         id: user.id,
         email: user.email,
         displayName: user.displayName,
         tier: user.tier,
-        isGuest: false,
       },
     })
 

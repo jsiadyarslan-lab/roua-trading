@@ -246,30 +246,7 @@ export class AuthController {
 
   // ── Guest Session ──
 
-  @Post('guest')
-  @Public()
-  @Throttle({ default: { limit: 5, ttl: 60000 } })
-  async createGuestSession(@Res({ passthrough: true }) res: Response) {
-    this.logger.log('Guest session creation requested via /api/auth/guest');
 
-    const result = await this.authService.createGuestSession();
-
-    res.cookie('roua_session', result.sessionToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/',
-    });
-
-    // Guest sessions don't need long-lived refresh tokens
-    // FIX: Return sessionToken ONLY via the x-roua-session custom header.
-    // Previously it was also in the response body — a security risk since
-    // response bodies are easier to log/leak than headers and may be cached.
-    // The frontend reads the header from the fetch response.
-    res.setHeader('x-roua-session', result.sessionToken);
-    return { success: true, user: result.user };
-  }
 
   // ── Cleanup Expired Sessions (internal/admin) ──
 

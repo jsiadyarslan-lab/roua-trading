@@ -228,23 +228,8 @@ async function ensureSession(request: NextRequest): Promise<{
     }
   }
 
-  // No valid cookie — auto-create guest session
-  const newSession = await forceCreateSession()
-  if (newSession) {
-    return { token: newSession.token, cookieAlreadySet: false }
-  }
-
-  // Next.js DB failed — try NestJS fallback
-  const nestjsSession = await createSessionViaNestJS()
-  if (nestjsSession) {
-    return { token: nestjsSession.token, cookieAlreadySet: false }
-  }
-
-  // ── Last resort: return 502 error instead of creating phantom tokens ──
-  // Previously this generated a random token with no DB session, causing
-  // orphaned sessions and auth bypass. Now we fail explicitly so the
-  // frontend can handle the error appropriately.
-  console.error('[nestjs-proxy] Could not create any session — DB and NestJS unavailable')
+  // No valid cookie — do NOT auto-create guest sessions.
+  // This prevents database bloat from bots and anonymous visitors.
   return { token: '', cookieAlreadySet: false }
 }
 

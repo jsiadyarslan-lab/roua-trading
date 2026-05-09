@@ -23,6 +23,8 @@ const c = {
 /* ─── Exchange Data ─── */
 const EXCHANGES = [
   { id: 'binance', name: 'Binance', nameAr: 'باينانس', color: '#F0B90B', desc: 'أكبر منصة تداول عملات رقمية' },
+  { id: 'binance_test', name: 'Binance Spot Testnet', nameAr: 'باينانس سبوت تجريبي', color: '#F0B90B', desc: 'بيئة اختبار Binance Spot' },
+  { id: 'binance_future_test', name: 'Binance Futures Testnet', nameAr: 'باينانس فيوتشرز تجريبي', color: '#F0B90B', desc: 'بيئة اختبار Binance Futures' },
   { id: 'kucoin', name: 'KuCoin', nameAr: 'كوکوين', color: '#23AF91', desc: 'منصة تداول عملات رقمية' },
   { id: 'bybit', name: 'Bybit', nameAr: 'بايبيت', color: '#F7A600', desc: 'منصة مشتقات رقمية' },
   { id: 'okx', name: 'OKX', nameAr: 'أو كي إكس', color: '#ffffff', desc: 'منصة تداول رقمية متعددة' },

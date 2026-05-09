@@ -1566,53 +1566,49 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         let currentPrice = Number(position.currentPrice || position.entryPrice);
         const stopLoss = Number(position.stopLoss || 0);
         const takeProfit = Number(position.takeProfit || 0);
-
-        // CRITICAL FIX: Update currentPrice for paper-trading positions from live quotes
-        // Without this, paper positions never have their price updated, so SL/TP never triggers
         const isPaperPosition = position.exchange === 'paper-trading';
-        if (isPaperPosition) {
-          try {
-            const quote = await this.exchangeService.getQuote(position.symbol);
-            if (quote && quote.price) {
-              currentPrice = quote.price;
-              // Update the position's currentPrice in DB so it's fresh for next check
-              await this.prisma.position.update({
-                where: { id: position.id },
-                data: {
-                  currentPrice: quote.price,
-                  unrealizedPnl: position.side === 'BUY'
-                    ? (quote.price - Number(position.entryPrice)) * Number(position.quantity)
-                    : (Number(position.entryPrice) - quote.price) * Number(position.quantity),
-                },
-              });
-              this.logger.debug(`🧠 Updated paper position ${position.symbol} price: ${quote.price}`);
-            }
-          } catch (quoteErr: any) {
-            this.logger.warn(`Could not get quote for paper position ${position.symbol}: ${quoteErr.message}`);
 
-            // FIX: Fallback to simulated price movement when all exchange APIs are down
-            // Without this, paper positions stay frozen at their last price, SL/TP never triggers,
-            // positions accumulate and maxOpenPositions limit blocks all new trades.
+        // FETCH LIVE QUOTE for all positions to ensure SL/TP exits can trigger
+        // Previously this was only done for paper-trading, but real positions also
+        // need live price monitoring for autonomous exit logic to work.
+        try {
+          const quote = await this.exchangeService.getQuote(position.symbol);
+          if (quote && quote.price) {
+            currentPrice = quote.price;
+            // Update the position's currentPrice in DB so it's fresh for next check and for the UI
+            await this.prisma.position.update({
+              where: { id: position.id },
+              data: {
+                currentPrice: quote.price,
+                unrealizedPnl: position.side === 'BUY'
+                  ? (quote.price - Number(position.entryPrice)) * Number(position.quantity)
+                  : (Number(position.entryPrice) - quote.price) * Number(position.quantity),
+              },
+            });
+            this.logger.debug(`🧠 Updated ${position.exchange} position ${position.symbol} price: ${quote.price}`);
+          }
+        } catch (quoteErr: any) {
+          this.logger.warn(`Could not get quote for ${position.exchange} position ${position.symbol}: ${quoteErr.message}`);
+
+          // Fallback to simulated price movement ONLY for paper-trading positions
+          // Real positions should NOT be closed based on simulated data.
+          if (isPaperPosition) {
             const entryPrice = Number(position.entryPrice);
             const lastPrice = Number(position.currentPrice || entryPrice);
 
             // IMPROVED: Larger random walk using ATR-based SL/TP distance
-            // Old ±0.1% was too small — typical ATR-based SL is 1-2% away from entry,
-            // so ±0.1% per minute would take 10-20 minutes just to reach SL/TP by drift alone.
-            // New: ±0.5% gives realistic intraday movement and can reach SL/TP within a few cycles.
-            const maxDelta = entryPrice * 0.005; // ±0.5% (was ±0.1%)
-            // Add slight directional bias toward the position's SL or TP based on which is closer
+            const maxDelta = entryPrice * 0.005; // ±0.5%
             const slDistance = Math.abs(lastPrice - stopLoss) / lastPrice;
             const tpDistance = Math.abs(lastPrice - takeProfit) / lastPrice;
-            // If SL is closer, slightly bias downward; if TP is closer, bias upward (for BUY)
+            
             let bias = 0;
             if (position.side === 'BUY') {
-              bias = slDistance < tpDistance ? -0.2 : 0.2; // slight drift toward nearer target
+              bias = slDistance < tpDistance ? -0.2 : 0.2;
             } else {
               bias = slDistance < tpDistance ? 0.2 : -0.2;
             }
             const delta = (Math.random() - 0.5 + bias) * 2 * maxDelta;
-            currentPrice = Math.max(lastPrice + delta, entryPrice * 0.5); // ensure price stays positive
+            currentPrice = Math.max(lastPrice + delta, entryPrice * 0.5);
 
             try {
               await this.prisma.position.update({

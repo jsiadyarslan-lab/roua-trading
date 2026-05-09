@@ -138,6 +138,15 @@ export async function alpacaFetch(
     }
   }
 
+  // If userId is provided, we MUST use its credentials. Do NOT fall back to global keys
+  // as that would cause data leakage between users (sharing the same wallet).
+  if (metadataOrCreds && 'userId' in metadataOrCreds && (metadataOrCreds as any).userId) {
+    if (!creds) {
+      console.warn(`[alpacaFetch] No credentials found for user ${(metadataOrCreds as any).userId} — blocking global fallback for safety`)
+      return createFallbackResponse(path)
+    }
+  }
+
   // If no explicit creds and no global keys, fallback
   if (!creds && !HAS_ALPACA_KEYS) {
     return createFallbackResponse(path)

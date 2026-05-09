@@ -86,6 +86,10 @@ export class MaintenanceController {
           this.prisma.exchangeCredential.deleteMany({ where: { userId: guest.id } }),
           // Delete agent sessions
           this.prisma.agentSession.deleteMany({ where: { userId: guest.id } }),
+          // Delete agent settings
+          this.prisma.agentSettings.deleteMany({ where: { userId: guest.id } }),
+          // Delete autonomous trades
+          this.prisma.autonomousTrade.deleteMany({ where: { userId: guest.id } }),
           // Finally delete the user
           this.prisma.user.delete({ where: { id: guest.id } }),
         ]);

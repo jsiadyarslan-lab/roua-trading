@@ -64,7 +64,7 @@ export class AutonomousTraderPublicController {
       const { PrismaClient } = require('@prisma/client');
       const prisma = new PrismaClient();
       
-      let logs = [];
+      let logs: string[] = [];
       logs.push("Starting diagnostic DB fix...");
       
       // 1. Find the index

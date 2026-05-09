@@ -55,6 +55,43 @@ export class AutonomousTraderPublicController {
     // DB failures internally.
     return this.agentService.getPublicStatus();
   }
+
+  @Get('fix-db')
+  @Public()
+  async fixDb() {
+    try {
+      // Create a raw PrismaClient to ensure we have direct access
+      const { PrismaClient } = require('@prisma/client');
+      const prisma = new PrismaClient();
+      
+      let logs = [];
+      logs.push("Starting diagnostic DB fix...");
+      
+      // 1. Find the index
+      const indexes = await prisma.$queryRawUnsafe(`
+        SELECT i.relname AS index_name
+        FROM pg_class t
+        JOIN pg_index ix ON t.oid = ix.indrelid
+        JOIN pg_class i ON i.oid = ix.indexrelid
+        WHERE t.relname = 'Position' AND ix.indisunique = true
+      `);
+      logs.push("Found unique indexes: " + JSON.stringify(indexes));
+
+      // 2. Try dropping them
+      for (const idx of (indexes as any[])) {
+        if (idx.index_name !== 'Position_pkey') {
+          logs.push("Dropping " + idx.index_name + "...");
+          await prisma.$executeRawUnsafe('DROP INDEX IF EXISTS "' + idx.index_name + '" CASCADE;');
+          logs.push("Dropped " + idx.index_name + " successfully!");
+        }
+      }
+      
+      await prisma.$disconnect();
+      return { success: true, message: "Fixed successfully", logs };
+    } catch (e: any) {
+      return { success: false, error: e.message, stack: e.stack };
+    }
+  }
 }
 
 /**

@@ -175,6 +175,7 @@ export class DCAStrategy extends BaseStrategy {
       const riskRewardRatio = risk > 0 ? reward / risk : 0.8; // Default 0.8 if calculation fails
 
       return {
+        id: '', // Will be set by BaseStrategy.evaluate
         symbol: market.symbol,
         action: side,
         type: OrderType.MARKET,

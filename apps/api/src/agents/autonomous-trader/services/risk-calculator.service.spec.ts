@@ -59,6 +59,7 @@ const baseAgentConfig: AgentConfig = {
 };
 
 const createSignal = (overrides: Partial<EvaluatedSignal> = {}): EvaluatedSignal => ({
+  id: 'test-signal-id',
   symbol: 'BTC/USDT',
   action: OrderSide.BUY,
   type: OrderType.MARKET,

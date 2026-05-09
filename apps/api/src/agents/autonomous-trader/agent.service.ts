@@ -1371,6 +1371,10 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     const seenUserIds = new Set<string>();
 
     // Step 1: Check Redis for active agent states
+    // ONLY Redis is the source of truth. Agents are ONLY in Redis when
+    // the user EXPLICITLY starts them via startAgent(). On server restart,
+    // the startup cleanup clears ALL Redis states and sets all DB sessions
+    // to STOPPED. This ensures no phantom trades are ever auto-recovered.
     try {
       const keys = await this.redis.scanKeys('agent:state:*');
 
@@ -1390,81 +1394,21 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         }
       }
     } catch (redisError: any) {
-      // Redis scan failed (not connected, timeout, etc.) — fall through to DB check
-      this.logger.warn(`Redis scanKeys failed in _getActiveAgents: ${redisError?.message || redisError} — falling back to DB`);
+      this.logger.warn(`Redis scanKeys failed in _getActiveAgents: ${redisError?.message || redisError}`);
     }
 
-    // Step 2: CRITICAL FIX — Also check DB for running agent sessions
-    // This is essential because Redis can lose data on restart (common on Railway),
-    // which would cause the cron to find NO active agents and skip all cycles.
-    // The DB is the source of truth for agent session persistence.
-    try {
-      const dbSessions = await this.prisma.agentSession.findMany({
-        where: { status: { in: ['RUNNING', 'PAUSED', 'DAILY_LIMIT_REACHED'] } },
-        orderBy: { startedAt: 'desc' },
-      });
-
-      for (const session of dbSessions) {
-        if (!seenUserIds.has(session.userId)) {
-          // This agent is in DB but not in Redis — Redis likely lost it
-          activeUsers.push(session.userId);
-          seenUserIds.add(session.userId);
-          this.logger.warn(
-            `🧠 Agent for user ${session.userId} found in DB but NOT in Redis — ` +
-            `likely lost after Redis restart. Recovering state to Redis now.`,
-          );
-
-          // ── FIX: Recover the agent's state from DB to Redis ──
-          // Without this, the agent's _getAgentState() would try Redis first,
-          // miss, then recover from DB on the NEXT call. But the cycle
-          // needs the state IMMEDIATELY — otherwise it processes the agent
-          // but can't find its config, strategy, or daily stats.
-          try {
-            let config: AgentConfig;
-            try {
-              config = JSON.parse(session.config);
-            } catch {
-              config = {
-                userId: session.userId,
-                strategy: session.strategy as StrategyType,
-                enabled: true,
-                maxPositionSizePercent: 2,
-                maxDailyLossPercent: 5,
-                maxOpenPositions: 5,
-                riskPerTradePercent: 1.5,
-                strategyParams: this._getDefaultStrategyParams(session.strategy as StrategyType),
-                symbols: this.DEFAULT_SYMBOLS,
-                credentialId: session.credentialId,
-                createdAt: session.startedAt,
-                updatedAt: session.updatedAt,
-              };
-            }
-
-            const recoveredState: AgentState = {
-              status: session.status as AgentStatus,
-              config,
-              startedAt: session.startedAt,
-              dailyPnL: Number(session.dailyPnL),
-              dailyTradesCount: session.dailyTradesCount,
-              dailyResetAt: session.dailyResetAt ?? undefined,
-              consecutiveLosses: session.consecutiveLosses,
-              totalCycles: session.totalCycles,
-              lastError: session.lastError ?? undefined,
-              lastCycleAt: session.lastCycleAt ?? undefined,
-              lastSignalAt: session.lastSignalAt ?? undefined,
-            };
-
-            // Re-populate Redis from DB so _getAgentState() finds it next time
-            await this._saveAgentState(session.userId, recoveredState);
-            this.logger.log(`🧠 Successfully recovered agent state for user ${session.userId} from DB to Redis`);
-          } catch (recoveryError: any) {
-            this.logger.error(`🧠 Failed to recover agent state for user ${session.userId}: ${recoveryError.message}`);
-          }
-        }
-      }
-    } catch (dbError: any) {
-      this.logger.error(`Failed to check DB for active agents: ${dbError?.message || dbError}`);
-    }
+    // REMOVED: Step 2 (DB recovery of agent sessions) has been DELETED.
+    // Previously, this code would find RUNNING sessions in the DB and
+    // auto-recover them to Redis, even if the user didn't explicitly start
+    // the agent in the current session. This caused phantom trades because:
+    // 1. Old RUNNING sessions from before server restart were recovered
+    // 2. The cron would process these "recovered" agents and execute trades
+    // 3. Even though startup cleanup sets sessions to STOPPED, any session
+    //    that somehow remained RUNNING in DB would be picked up here
+    //
+    // Now: ONLY Redis is the source of truth. If Redis loses state (restart),
+    // the user must explicitly re-start their agent. This is a one-time
+    // inconvenience vs. the ongoing problem of phantom trades.
 
     return activeUsers;
   }

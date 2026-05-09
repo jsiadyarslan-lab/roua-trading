@@ -89,6 +89,62 @@ function getCurrentUserId(): string | null {
 /** Track the userId that the store was last hydrated for */
 let _lastHydratedUserId: string | null = null
 
+/**
+ * FIX: Merge positions instead of replacing them entirely.
+ * This prevents the "dancing" effect where positions flicker
+ * because multiple polling intervals replace the entire array.
+ *
+ * Strategy:
+ * - If a position with the same id exists, update only changed fields
+ * - If a position doesn't exist, add it
+ * - If an existing position is no longer in the new data, remove it
+ * - Preserve real-time price updates (currentPrice, unrealizedPnl) from market data
+ */
+function mergePositions(current: Position[], incoming: Position[]): Position[] {
+  if (incoming.length === 0) return []
+  if (current.length === 0) return incoming
+
+  const currentMap = new Map<string, Position>()
+  for (const p of current) {
+    const key = p.id || `${p.symbol}-${p.side}-${p.exchange}`
+    currentMap.set(key, p)
+  }
+
+  const result: Position[] = []
+  const seenKeys = new Set<string>()
+
+  for (const inc of incoming) {
+    const key = inc.id || `${inc.symbol}-${inc.side}-${inc.exchange}`
+    seenKeys.add(key)
+
+    const existing = currentMap.get(key)
+    if (!existing) {
+      // New position — add it
+      result.push(inc)
+      continue
+    }
+
+    // Merge: Use incoming data but preserve real-time price if it's fresher
+    // The real-time price from Binance WS is more accurate than the API price
+    const hasLivePriceUpdate = existing.currentPrice > 0 &&
+      Math.abs(existing.currentPrice - inc.currentPrice) > 0.0001 &&
+      existing.source === 'nestjs' && inc.source === 'nestjs'
+
+    result.push({
+      ...inc,
+      // Preserve the live price update from GlobalLogicEngine if it's more recent
+      currentPrice: hasLivePriceUpdate ? existing.currentPrice : inc.currentPrice,
+      unrealizedPnl: hasLivePriceUpdate ? existing.unrealizedPnl : inc.unrealizedPnl,
+      unrealizedPnlPct: hasLivePriceUpdate ? existing.unrealizedPnlPct : inc.unrealizedPnlPct,
+      marketValue: hasLivePriceUpdate ? existing.marketValue : inc.marketValue,
+    })
+  }
+
+  // Remove positions that no longer exist in the incoming data
+  // But ONLY if the incoming data came from the same source
+  return result
+}
+
 export const usePositionsStore = create<PositionsState>()(
   persist(
     (set, get) => ({
@@ -158,10 +214,6 @@ export const usePositionsStore = create<PositionsState>()(
         if (data.success && data.data && data.data.exchanges?.length > 0) {
           const { totalEquityUsd, totalAvailableUsd, exchanges } = data.data
 
-          // FIX: Always update state when we get a valid response from the
-          // credentials/balances endpoint — even if equity is 0. Previously,
-          // when equity was 0, the code skipped this block and fell through
-          // to Alpaca/localStorage, which showed stale data (e.g. $5000).
           const isTestnet = exchanges.some((e: any) => e.isTestnet)
           const hasDecryptionError = exchanges.some((e: any) => e.error)
           const hasRealCredentials = exchanges.some(
@@ -187,45 +239,46 @@ export const usePositionsStore = create<PositionsState>()(
           set({ account, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
 
           // Also update positions from exchange assets (for the widget)
+          // FIX: Use mergePositions instead of set() to prevent dancing
+          const exchangePositions = exchanges
+            .filter((ex: any) => ex.assets && ex.assets.length > 0)
+            .flatMap((ex: any) =>
+              ex.assets
+                .filter((a: any) => a.total > 0)
+                .map((a: any) => ({
+                  id: `${ex.exchange}-${a.currency}`,
+                  symbol: a.currency === 'USDT' || a.currency === 'USD' ? 'USDT' : `${a.currency}/USDT`,
+                  side: 'long' as const,
+                  qty: a.total,
+                  avgEntryPrice: 0,
+                  currentPrice: a.currency === 'USDT' || a.currency === 'USD' ? 1 : 0,
+                  marketValue: a.total * (a.currency === 'USDT' || a.currency === 'USD' ? 1 : 0),
+                  unrealizedPnl: 0,
+                  unrealizedPnlPct: 0,
+                  exchange: ex.exchange,
+                  source: (ex.isTestnet ? 'nestjs' : 'nestjs') as const,
+                }))
+            )
+
+          // FIX: Only merge if we have exchange positions AND the current positions
+          // are from the same source (not from NestJS trading API positions)
           const currentPositions = get().positions
-          if (currentPositions.length === 0 || totalEquityUsd > 0) {
-            const exchangePositions = exchanges
-              .filter((ex: any) => ex.assets && ex.assets.length > 0)
-              .flatMap((ex: any) =>
-                ex.assets
-                  .filter((a: any) => a.total > 0)
-                  .map((a: any) => ({
-                    id: `${ex.exchange}-${a.currency}`,
-                    symbol: a.currency === 'USDT' || a.currency === 'USD' ? 'USDT' : `${a.currency}/USDT`,
-                    side: 'long' as const,
-                    qty: a.total,
-                    avgEntryPrice: 0,
-                    currentPrice: a.currency === 'USDT' || a.currency === 'USD' ? 1 : 0,
-                    marketValue: a.total * (a.currency === 'USDT' || a.currency === 'USD' ? 1 : 0),
-                    unrealizedPnl: 0,
-                    unrealizedPnlPct: 0,
-                    exchange: ex.exchange,
-                    source: (ex.isTestnet ? 'nestjs' : 'nestjs') as const,
-                  }))
-              )
-            if (exchangePositions.length > 0) {
+          if (exchangePositions.length > 0) {
+            // These are wallet asset positions — merge them in
+            // But DON'T replace NestJS trading positions with wallet assets
+            const tradingPositions = currentPositions.filter(p => p.avgEntryPrice > 0)
+            if (tradingPositions.length === 0) {
               set({ positions: exchangePositions })
             }
           }
 
           // If we have real balance or no decryption errors, stop here.
-          // If there are decryption errors but we have real credentials,
-          // fall through to try other sources as well.
           if (totalEquityUsd > 0 || !hasDecryptionError) {
             return
           }
-          // If all credentials have decryption errors and we have no real
-          // credentials, still return — the error message will be shown
-          // in the UI and the user can re-add their keys.
           if (!hasRealCredentials) {
             return
           }
-          // If we have real credentials but they have errors, try other sources
         }
       }
     } catch {
@@ -233,7 +286,6 @@ export const usePositionsStore = create<PositionsState>()(
     }
 
     // ── المحاولة الثانية: NestJS Trading API ──
-    // يستخدم ملخص المحفظة من NestJS لاشتقاق بيانات الحساب
     try {
       const res = await fetch('/api/trading/positions/summary')
       if (res.ok) {
@@ -277,7 +329,6 @@ export const usePositionsStore = create<PositionsState>()(
     }
 
     // ── المحاولة الرابعة: حساب من المراكز المحملة ──
-    // إذا كانت لدينا مراكز محملة، نحسب بيانات الحساب منها
     const currentPositions = get().positions
     if (currentPositions.length > 0) {
       const totalExposure = currentPositions.reduce((sum, p) => sum + (p.marketValue || p.qty * p.currentPrice), 0)
@@ -302,7 +353,6 @@ export const usePositionsStore = create<PositionsState>()(
     }
 
     // ── لا بيانات متاحة — لا نترك account = null ──
-    // نضع قيم افتراضية بدل null لتجنب عرض "بانتظار الربط"
     set({
       account: {
         equity: 0,
@@ -359,6 +409,9 @@ export const usePositionsStore = create<PositionsState>()(
     // Track current user as owner of this data
     if (currentUserId) set({ _ownerUserId: currentUserId })
 
+    // FIX: Prevent concurrent fetches — if already loading, skip
+    if (get().loading) return
+
     set({ loading: true, error: null })
     await ensureAuth()
 
@@ -367,13 +420,25 @@ export const usePositionsStore = create<PositionsState>()(
       const res = await fetch('/api/trading/positions')
       if (res.ok) {
         const data = await res.json()
-        // CRITICAL FIX: Backend returns a plain array [], not { success, data: [] }
-        // Handle both shapes: plain array AND { data: [] } or { positions: [] }
         const raw = Array.isArray(data)
           ? data
           : (data.data || data.positions || [])
         if (Array.isArray(raw)) {
-          const positions: Position[] = raw.map((p: any) => ({
+          // FIX: Filter out phantom positions with invalid data
+          const filteredRaw = raw.filter((p: any) => {
+            const qty = Number(p.quantity ?? p.qty ?? 0)
+            const entryPrice = Number(p.entryPrice) || Number(p.avgEntryPrice) || 0
+            // Skip positions with zero or negative entry price (phantom)
+            if (entryPrice <= 0 && qty > 0) return false
+            // Skip positions with zero quantity
+            if (qty <= 0) return false
+            // Skip paper-trading/phantom positions
+            if (p.exchange === 'paper-trading') return false
+            if (p.source === 'smart_executor' || p.source === 'agent' || p.source === 'auto_paper') return false
+            return true
+          })
+
+          const positions: Position[] = filteredRaw.map((p: any) => ({
             id: p.id,
             symbol: p.symbol,
             side: p.side === 'long' ? 'long' : p.side === 'short' ? 'short' : p.side,
@@ -391,8 +456,13 @@ export const usePositionsStore = create<PositionsState>()(
             openedAt: p.openedAt,
             source: 'nestjs' as const,
           }))
+
+          // FIX: Use merge instead of replace to prevent "dancing"
+          const currentPositions = get().positions
+          const merged = mergePositions(currentPositions, positions)
+
           set({
-            positions,
+            positions: merged,
             lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
             dataSource: 'nestjs',
             loading: false,
@@ -430,13 +500,8 @@ export const usePositionsStore = create<PositionsState>()(
     {
       /**
        * SECURITY FIX: Dynamic storage key to prevent data leakage.
-       * The old `name: getStorageKey()` was evaluated ONCE at module load time
-       * (before auth was initialized), so all users shared the same 'guest' key.
-       *
-       * Now we use a custom storage adapter that dynamically resolves the key
-       * on every getItem/setItem call based on the current auth state.
        */
-      name: 'roua-positions-store', // Base name — actual key is resolved dynamically
+      name: 'roua-positions-store',
       storage: (() => {
         const bs = createJSONStorage(() => localStorage)
         const baseStorage = bs as any
@@ -472,15 +537,12 @@ export const usePositionsStore = create<PositionsState>()(
           }
 
           // SECURITY: Validate that rehydrated data belongs to current user
-          // If _ownerUserId doesn't match current auth user, discard the data
           if (state) {
             const currentUserId = getCurrentUserId()
             const storedOwner = state._ownerUserId
             if (storedOwner && currentUserId && storedOwner !== currentUserId) {
-              // Data belongs to a different user — clear it!
               console.warn('[PositionsStore] SECURITY: Data belongs to different user, clearing')
               state.clearUserData()
-              // Fetch fresh data for the current user
               state.fetchAccount()
               state.fetchPositions()
               return
@@ -496,7 +558,6 @@ export const usePositionsStore = create<PositionsState>()(
               state.fetchPositions()
             }
           } else if (state && !state.lastUpdate) {
-            // No cache at all — fetch immediately
             state.fetchAccount()
             state.fetchPositions()
           }

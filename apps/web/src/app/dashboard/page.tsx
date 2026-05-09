@@ -995,12 +995,20 @@ export default function DashboardPage() {
     fetchAccount()
     fetchPositions()
 
-    // CRITICAL FIX: Poll every 10s (was 60s) so new SmartExecutor trades
-    // appear in the open positions card within 10 seconds of execution.
+    // FIX: Increased from 10s to 30s to prevent "dancing" trades.
+    // The old 10s polling combined with GlobalLogicEngine's 15s polling
+    // and AlpacaPositions' 30s polling caused 3 competing intervals that
+    // replaced the entire positions array at different times, making
+    // positions flicker/dance every few seconds.
+    //
+    // Now: This interval does a full refresh every 30s. The
+    // GlobalLogicEngine handles real-time price updates every 2s
+    // (in-place updates, not full array replacements). The mergePositions()
+    // function in usePositionsStore prevents the full-array-replace flicker.
     const intervalId = window.setInterval(() => {
       fetchAccount()
       fetchPositions()
-    }, 10000)
+    }, 30000)
 
     // Extra immediate fetch after 3s to catch trades that just fired
     const quickFetch = setTimeout(() => fetchPositions(), 3000)

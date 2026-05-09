@@ -12,6 +12,17 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
  * market quotes (Binance WS, REST polling) to both paper trades AND real Alpaca positions.
  *
  * Also handles cross-tab synchronization so desktop and mobile views stay in sync.
+ *
+ * FIX: Reduced polling to prevent "dancing" trades. Previously, there were
+ * MULTIPLE overlapping fetch intervals (1s price sync + 15s full fetch here,
+ * + 10s fetch on dashboard, + 30s fetch in AlpacaPositions). These competing
+ * timers replaced the entire positions array at different times, causing
+ * positions to flicker between states.
+ *
+ * Now:
+ * - 1s: Price sync only (updates currentPrice in-place, doesn't replace array)
+ * - 30s: Full positions/account fetch (single source of truth for full refresh)
+ * - Removed the 15s full-fetch interval from this component
  */
 export function GlobalLogicEngine() {
   // Removed reactive quotes subscription to prevent rapid re-renders
@@ -21,10 +32,9 @@ export function GlobalLogicEngine() {
   const fetchRealPositions = usePositionsStore(s => s.fetchPositions)
   const fetchAccount = usePositionsStore(s => s.fetchAccount)
   const lastPriceSyncRef = useRef<Record<string, number>>({})
+  const lastFullFetchRef = useRef<number>(0)
 
   // ── Cross-tab synchronization via storage events ──
-  // When another tab (desktop/mobile) updates localStorage,
-  // this listener re-hydrates the Zustand store from the persisted data.
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key?.startsWith('roua-positions-store') && e.newValue) {
@@ -47,6 +57,9 @@ export function GlobalLogicEngine() {
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
+  // ── Price sync: every 2 seconds (was 1s) ──
+  // This only updates currentPrice in existing positions — does NOT
+  // replace the entire positions array, so no "dancing"
   useEffect(() => {
     const syncInterval = setInterval(() => {
       const now = Date.now()
@@ -60,45 +73,48 @@ export function GlobalLogicEngine() {
 
         const normalizedSymbol = symbol.toUpperCase().replace('/', '')
 
-        // تحقق مما إذا كان هناك صفقة ورقية مطابقة
         const hasMatchingPaperTrade = activePaperTrades.some(
           trade => trade.symbol.toUpperCase().replace('/', '') === normalizedSymbol
         )
 
-        // تحقق مما إذا كان هناك مركز Alpaca حقيقي مطابق
         const hasMatchingRealPosition = realPositions.some(
           position => position.symbol.toUpperCase().replace('/', '') === normalizedSymbol
         )
 
         if (!hasMatchingPaperTrade && !hasMatchingRealPosition) return
 
-        // تقييد التحديث إلى مرة واحدة في الثانية لكل رمز (redundant now with setInterval but safe)
+        // تقييد التحديث إلى مرة واحدة كل 2 ثانية لكل رمز
         const lastSyncAt = lastPriceSyncRef.current[normalizedSymbol] || 0
-        if (now - lastSyncAt < 1000) return
+        if (now - lastSyncAt < 2000) return
 
         lastPriceSyncRef.current[normalizedSymbol] = now
 
-        // تحديث الصفقات الورقية بالسعر المباشر
         if (hasMatchingPaperTrade) {
           updatePaperPrice(symbol, price)
         }
 
-        // تحديث مراكز Alpaca الحقيقية بالسعر المباشر (حساب P&L فوري)
         if (hasMatchingRealPosition) {
           updatePositionPrice(symbol, price)
         }
       })
-    }, 1000)
+    }, 2000) // Changed from 1000ms to 2000ms
 
     return () => clearInterval(syncInterval)
   }, [updatePaperPrice, updatePositionPrice])
 
+  // ── Full fetch: every 30 seconds (was 15s) ──
+  // This is the ONLY full refresh interval in this component.
+  // The dashboard page has its own 10s interval, but that's fine
+  // because mergePositions() now prevents dancing.
   useEffect(() => {
-    // تحديث دوري لمراكز Alpaca الحقيقية وحساب الحساب
     const iv = setInterval(() => {
+      const now = Date.now()
+      // Guard: don't fetch more than once every 15s
+      if (now - lastFullFetchRef.current < 15000) return
+      lastFullFetchRef.current = now
       fetchRealPositions()
       fetchAccount()
-    }, 15000)
+    }, 30000) // Changed from 15000ms to 30000ms
     return () => clearInterval(iv)
   }, [fetchRealPositions, fetchAccount])
 

@@ -370,21 +370,12 @@ export class SmartExecutorService implements OnModuleDestroy {
       return dbState;
     }
 
-    // Step 3: Check if user has an active AgentSession (Autonomous Trader Agent)
-    // Users who activated the Agent should also be considered "enabled" for the Smart Executor
-    const agentSessionState = await this._loadUserStateFromAgentSession(userId);
-    if (agentSessionState) {
-      this.logger.log(`⚔️ Recovered user ${userId} state from AgentSession (cross-system sync)`);
-      // Save to both Redis and DB
-      await this.redis.set(
-        `${this.REDIS_USER_STATE_PREFIX}${userId}`,
-        JSON.stringify(agentSessionState),
-        86400000 * 7,
-      );
-      await this._persistUserStateToDB(userId, agentSessionState);
-      return agentSessionState;
-    }
-
+    // REMOVED: Step 3 (AgentSession cross-system sync) has been DELETED from getUserState().
+    // Previously, if a user had an active AgentSession, the Smart Executor would
+    // automatically treat them as "enabled" and start executing trades for them.
+    // This caused DUPLICATE phantom trades — both the Agent AND the Executor would
+    // trade for the same user. Each system must be independent and ONLY activated
+    // by explicit user action.
     return null;
   }
 
@@ -2008,71 +1999,9 @@ export class SmartExecutorService implements OnModuleDestroy {
     }
   }
 
-  /**
-   * Load user state from AgentSession (cross-system sync)
-   * If the user activated the Autonomous Trader Agent, we treat them
-   * as enabled for the Smart Executor too, with matching settings.
-   */
-  private async _loadUserStateFromAgentSession(userId: string): Promise<UserExecutorState | null> {
-    try {
-      const session = await this.prisma.agentSession.findFirst({
-        where: {
-          userId,
-          status: { in: ['RUNNING', 'PAUSED', 'DAILY_LIMIT_REACHED'] },
-        },
-        orderBy: { startedAt: 'desc' },
-      });
-
-      if (!session) return null;
-
-      // Build UserExecutorState from AgentSession config
-      let isPaperTrading = true;
-      let credentialId: string | undefined;
-      let maxOpenPositions = this.config.maxOpenPositions;
-      let riskPerTradePercent = this.config.riskPerTradePercent;
-
-      try {
-        const config = JSON.parse(session.config);
-        isPaperTrading = config.isPaperTrading ?? true;
-        credentialId = config.credentialId;
-        maxOpenPositions = config.maxOpenPositions ?? this.config.maxOpenPositions;
-        riskPerTradePercent = config.riskPerTradePercent ?? this.config.riskPerTradePercent;
-      } catch {
-        // Use defaults
-      }
-
-      return {
-        enabled: true,
-        dailyPnL: Number(session.dailyPnL) || 0,
-        dailyTrades: session.dailyTradesCount || 0,
-        dailyResetAt: session.dailyResetAt?.toISOString() || new Date().toISOString(),
-        lastTradeAt: session.lastSignalAt?.toISOString() || null,
-        consecutiveLosses: session.consecutiveLosses || 0,
-        maxOpenPositions,
-        riskPerTradePercent,
-        credentialId: credentialId || session.credentialId,
-        isPaperTrading,
-      };
-    } catch (e: any) {
-      this.logger.debug(`⚔️ Failed to load user state from AgentSession for ${userId}: ${e.message}`);
-      return null;
-    }
-  }
-
-  /**
-   * Get all user IDs that have active AgentSessions
-   */
-  private async _getAgentSessionUsers(): Promise<string[]> {
-    try {
-      const sessions = await this.prisma.agentSession.findMany({
-        where: { status: { in: ['RUNNING', 'PAUSED', 'DAILY_LIMIT_REACHED'] } },
-        select: { userId: true },
-        distinct: ['userId'],
-      });
-      return sessions.map(s => s.userId);
-    } catch (e: any) {
-      this.logger.debug(`⚔️ Failed to get AgentSession users: ${e.message}`);
-      return [];
-    }
-  }
+  // REMOVED: _loadUserStateFromAgentSession() and _getAgentSessionUsers()
+  // have been PERMANENTLY DELETED. These methods caused the Smart Executor
+  // to silently enable users who had active AgentSessions, leading to
+  // DUPLICATE phantom trades from both systems. Each system (Executor and
+  // Agent) is now fully independent — users must explicitly enable each one.
 }

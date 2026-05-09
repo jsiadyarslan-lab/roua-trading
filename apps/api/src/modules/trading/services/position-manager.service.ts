@@ -49,8 +49,18 @@ export class PositionManagerService {
    * Aggregates positions from all linked exchanges
    */
   async getOpenPositions(userId: string): Promise<PositionInfo[]> {
+    // FIX: Filter out phantom/paper-trading positions at the DB query level.
+    // Previously, ALL open positions were returned including phantom positions
+    // created by the Smart Executor and Autonomous Trader Agent. These phantom
+    // positions have exchange='paper-trading' or source in ['smart_executor', 'agent', 'auto_paper'].
     const positions = await this.prisma.position.findMany({
-      where: { userId, status: 'OPEN' },
+      where: {
+        userId,
+        status: 'OPEN',
+        // EXCLUDE phantom positions from auto-trading systems
+        exchange: { not: 'paper-trading' },
+        source: { notIn: ['smart_executor', 'agent', 'paper_trading', 'auto_paper'] },
+      },
       orderBy: { openedAt: 'desc' },
     });
 

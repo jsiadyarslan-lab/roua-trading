@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v60
+ARG BUILD_CACHE=v61
 
 # ─────────────────────────────────────────────────────────────
 # Stage 1: Install dependencies
@@ -120,4 +120,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Previously only ran `next start`, leaving the API dead.
 CMD ["bash", "start.sh"]
 
-# Build v60 - Fix ENCRYPTION_KEY invalid key length
+# Build v61 - Exchange balance endpoint + wallet page shows Binance balance

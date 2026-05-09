@@ -164,6 +164,49 @@ export default function MobileWalletPage() {
   const fetchAccount = useCallback(async () => {
     setAccountLoading(true)
     try {
+      // Try exchange balances endpoint first (supports Binance, KuCoin, etc.)
+      const balanceRes = await fetch('/api/portfolio/credentials/balances')
+      const balanceData = await balanceRes.json()
+
+      if (balanceData.success && balanceData.data && balanceData.data.exchanges?.length > 0) {
+        const { totalEquityUsd, totalAvailableUsd, exchanges } = balanceData.data
+        const primaryExchange = exchanges[0]
+        const isTestnet = exchanges.some((e: any) => e.isTestnet)
+
+        setAccount({
+          equity: totalEquityUsd,
+          buyingPower: totalAvailableUsd,
+          cash: totalAvailableUsd,
+          portfolioValue: totalEquityUsd,
+          unrealizedPnl: 0,
+          unrealizedPnlPct: 0,
+          longMarketValue: totalEquityUsd,
+          shortMarketValue: 0,
+          isPaperTrading: isTestnet,
+        })
+        setIsLinked(true)
+
+        // Also store exchange assets for the assets tab
+        const allAssetsFromExchanges = exchanges.flatMap((ex: any) =>
+          (ex.assets || []).map((a: any) => ({
+            id: `${ex.exchange}-${a.currency}`,
+            symbol: a.currency === 'USDT' || a.currency === 'USD' ? 'USDT' : `${a.currency}/USDT`,
+            side: 'long' as const,
+            value: a.total * (a.currency === 'USDT' || a.currency === 'USD' ? 1 : 0),
+            pnl: 0,
+            pnlPct: 0,
+            qty: a.total,
+            currentPrice: a.currency === 'USDT' || a.currency === 'USD' ? 1 : 0,
+            source: (ex.isTestnet ? 'testnet' : 'live') as const,
+          }))
+        )
+        setAlpacaPositions(allAssetsFromExchanges)
+
+        setAccountLoading(false)
+        return
+      }
+
+      // Fallback: Try Alpaca account
       const res = await fetch('/api/alpaca/account')
       const j = await res.json()
       if (j.success && j.data) {

@@ -343,6 +343,196 @@ export class CredentialsService {
     return { apiKey, apiSecret, passphrase };
   }
 
+  /**
+   * Fetch balances from ALL linked exchange accounts for a user.
+   * Decrypts credentials, creates CCXT instances, and calls fetchBalance.
+   * Returns aggregated data with per-exchange breakdown.
+   */
+  async fetchAllExchangeBalances(userId: string): Promise<{
+    totalEquityUsd: number;
+    totalAvailableUsd: number;
+    exchanges: Array<{
+      exchange: string;
+      label: string;
+      credentialId: string;
+      isTestnet: boolean;
+      equity: number;
+      available: number;
+      currency: string;
+      assets: Array<{ currency: string; free: number; used: number; total: number }>;
+      error?: string;
+    }>;
+  }> {
+    const credentials = await this.prisma.exchangeCredential.findMany({
+      where: { userId, isValid: true },
+    });
+
+    if (credentials.length === 0) {
+      return { totalEquityUsd: 0, totalAvailableUsd: 0, exchanges: [] };
+    }
+
+    const exchangeResults = await Promise.allSettled(
+      credentials.map(async (cred) => {
+        try {
+          const decrypted = await this.decryptCredential(cred.id, userId);
+          return await this._fetchSingleExchangeBalance(
+            cred.exchange,
+            cred.label,
+            cred.id,
+            decrypted.apiKey,
+            decrypted.apiSecret,
+            decrypted.passphrase,
+          );
+        } catch (error: any) {
+          this.logger.warn(`Failed to fetch balance for ${cred.exchange}/${cred.label}: ${error.message}`);
+          return {
+            exchange: cred.exchange,
+            label: cred.label,
+            credentialId: cred.id,
+            isTestnet: cred.exchange.includes('test'),
+            equity: 0,
+            available: 0,
+            currency: 'USD',
+            assets: [],
+            error: error.message || 'فشل في جلب الرصيد',
+          };
+        }
+      }),
+    );
+
+    const exchanges = exchangeResults.map((r) =>
+      r.status === 'fulfilled' ? r.value : {
+        exchange: 'unknown',
+        label: 'فشل',
+        credentialId: '',
+        isTestnet: false,
+        equity: 0,
+        available: 0,
+        currency: 'USD',
+        assets: [],
+        error: r.reason?.message || 'خطأ غير معروف',
+      },
+    );
+
+    const totalEquityUsd = exchanges.reduce((sum, e) => sum + e.equity, 0);
+    const totalAvailableUsd = exchanges.reduce((sum, e) => sum + e.available, 0);
+
+    return { totalEquityUsd, totalAvailableUsd, exchanges };
+  }
+
+  /**
+   * Fetch balance from a single exchange using decrypted credentials.
+   * Handles Binance Testnet URL configuration, just like _doValidateApiKey.
+   */
+  private async _fetchSingleExchangeBalance(
+    exchange: string,
+    label: string,
+    credentialId: string,
+    apiKey: string,
+    apiSecret: string,
+    passphrase?: string,
+  ): Promise<{
+    exchange: string;
+    label: string;
+    credentialId: string;
+    isTestnet: boolean;
+    equity: number;
+    available: number;
+    currency: string;
+    assets: Array<{ currency: string; free: number; used: number; total: number }>;
+    error?: string;
+  }> {
+    const isBinance = exchange.toLowerCase().startsWith('binance');
+    const isBinanceTest = exchange === 'binance_test' || exchange === 'binance_future_test';
+    const normalizedExchange = isBinance ? 'binance' : exchange;
+    const isTestnet = isBinanceTest || exchange.includes('test');
+
+    const ExchangeClass = ccxt[normalizedExchange as keyof typeof ccxt] as any;
+    if (!ExchangeClass) {
+      return {
+        exchange, label, credentialId, isTestnet,
+        equity: 0, available: 0, currency: 'USD', assets: [],
+        error: `البورصة "${exchange}" غير مدعومة`,
+      };
+    }
+
+    const exchangeConfig: any = {
+      apiKey,
+      secret: apiSecret,
+      enableRateLimit: true,
+      options: {
+        defaultType: exchange === 'binance_future_test' ? 'future' : 'spot',
+        adjustForTimeDifference: true,
+      },
+    };
+
+    if (passphrase) {
+      exchangeConfig.password = passphrase;
+    }
+
+    const instance = new ExchangeClass(exchangeConfig);
+
+    // Apply testnet URLs (same logic as _doValidateApiKey)
+    if (isBinanceTest) {
+      if (exchange === 'binance_future_test') {
+        instance.sandbox = true;
+        instance.urls['api'] = {
+          ...instance.urls['api'],
+          public: 'https://testnet.binancefuture.com/fapi/v1',
+          private: 'https://testnet.binancefuture.com/fapi/v1',
+          fapiPublic: 'https://testnet.binancefuture.com/fapi/v1',
+          fapiPrivate: 'https://testnet.binancefuture.com/fapi/v1',
+          fapiPublicV2: 'https://testnet.binancefuture.com/fapi/v2',
+          fapiPrivateV2: 'https://testnet.binancefuture.com/fapi/v2',
+          fapiPublicV3: 'https://testnet.binancefuture.com/fapi/v3',
+          fapiPrivateV3: 'https://testnet.binancefuture.com/fapi/v3',
+        };
+      } else {
+        instance.setSandboxMode(true);
+      }
+    }
+
+    const balance = await instance.fetchBalance();
+
+    // Extract non-zero assets
+    const assets: Array<{ currency: string; free: number; used: number; total: number }> = [];
+    for (const [currency, data] of Object.entries(balance)) {
+      if (['free', 'used', 'total', 'info', 'timestamp', 'datetime', 'nonce'].includes(currency)) continue;
+      if (typeof data === 'object' && data !== null && 'free' in (data as any)) {
+        const d = data as any;
+        const total = d.total || 0;
+        if (total > 0) {
+          assets.push({
+            currency,
+            free: d.free || 0,
+            used: d.used || 0,
+            total,
+          });
+        }
+      }
+    }
+
+    // Calculate equity in USD/USDT
+    const usdtFree = balance.free?.USDT || balance.free?.USD || 0;
+    const usdtUsed = balance.used?.USDT || balance.used?.USD || 0;
+    const usdtTotal = balance.total?.USDT || balance.total?.USD || 0;
+    const equity = usdtTotal || assets.reduce((sum, a) => sum + a.total, 0);
+    const available = usdtFree || assets.reduce((sum, a) => sum + a.free, 0);
+
+    this.logger.log(`💰 Balance fetched from ${exchange}/${label}: equity=$${equity}, available=$${available}, ${assets.length} assets`);
+
+    return {
+      exchange,
+      label,
+      credentialId,
+      isTestnet,
+      equity,
+      available,
+      currency: 'USD',
+      assets,
+    };
+  }
+
   // ── Private: Encryption (AES-256-GCM) ──
 
   private _encrypt(plaintext: string): { encrypted: string; iv: string; authTag: string } {

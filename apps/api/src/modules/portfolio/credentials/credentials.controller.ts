@@ -81,6 +81,25 @@ export class CredentialsController {
   }
 
   /**
+   * GET /api/portfolio/credentials/balances — Fetch balances from all linked exchanges
+   * Uses stored credentials to call fetchBalance on each exchange via CCXT.
+   * Returns aggregated balances across all linked accounts.
+   */
+  @Get('balances')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async getBalances(@Request() req: any) {
+    try {
+      const balances = await this.credentialsService.fetchAllExchangeBalances(req.user.id);
+      return { success: true, data: balances };
+    } catch (error: any) {
+      this.logger.error(`Failed to fetch balances for user ${req.user.id}: ${error.message}`, error.stack);
+      throw new BadRequestException(
+        `فشل في جلب الأرصدة: ${error.message || 'خطأ غير معروف'}`
+      );
+    }
+  }
+
+  /**
    * DELETE /api/portfolio/credentials/:id — Delete a credential
    */
   @Delete(':id')

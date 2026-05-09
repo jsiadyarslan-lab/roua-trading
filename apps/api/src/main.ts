@@ -415,14 +415,8 @@ async function bootstrap() {
         console.log(`✅ Fixed Position DECIMAL precision`);
       } catch { /* May already be correct */ }
 
-      // Add missing unique constraint
-      try {
-        await prisma.$executeRawUnsafe(`
-          ALTER TABLE "Position" ADD CONSTRAINT "Position_userId_symbol_side_status_key"
-          UNIQUE ("userId", "symbol", "side", "status")
-        `);
-        console.log(`✅ Added Position unique constraint`);
-      } catch { /* May already exist */ }
+      // The unique constraint on Position was removed to allow closing multiple positions.
+      // Do NOT re-add it here!
 
       // Make source columns nullable
       try {

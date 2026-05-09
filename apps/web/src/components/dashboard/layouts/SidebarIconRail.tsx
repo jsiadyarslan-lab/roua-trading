@@ -8,6 +8,7 @@ import {
   Eye,
   Bell,
   Brain,
+  Bot,
   Newspaper,
   CalendarDays,
   FlaskConical,

@@ -33,8 +33,6 @@ export class AuthGuard implements CanActivate {
   private readonly logger = new Logger(AuthGuard.name);
   private readonly SESSION_CACHE_PREFIX = 'session:';
   private readonly SESSION_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes (reduced from 15 — revoked sessions mustn't linger)
-  private sharedGuestUser: any = null;
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly reflector: Reflector,
@@ -131,79 +129,15 @@ export class AuthGuard implements CanActivate {
 
     // ── No valid session found ──
     if (isPublic) {
-      try {
-        const user = await this._ensureGuestUser();
-        (request as any).user = user;
-        return true;
-      } catch (error: any) {
-        this.logger.error(`Guest auto-auth failed: ${error?.message || error}`);
-        throw new UnauthorizedException('Unable to establish guest session. Please try again.');
-      }
+      // For public routes, we don't force a guest user anymore unless absolutely needed.
+      // This prevents cross-session leakage where all guests shared one identity.
+      return true;
     }
 
     // 🔒 PROTECTED ROUTE: No valid session → reject with 401
-    // FIX: Previously returned `false` which caused NestJS to return 403 Forbidden.
-    // Returning `false` from canActivate() results in a 403, but the proxy and
-    // frontend expect 401 for unauthenticated requests. Throwing UnauthorizedException
-    // ensures the proxy can properly handle auth failures and retry with a new session.
     this.logger.warn(`Unauthenticated request to protected route: ${request.method} ${request.url}`);
     throw new UnauthorizedException('يرجى تسجيل الدخول للوصول إلى هذا المورد');
   }
-
-  /**
-   * Get or create a UNIQUE guest user per server session.
-   *
-   * SECURITY FIX: Previously all unauthenticated users shared ONE guest user
-   * (guest@roua.auto), causing them to see each other's positions, portfolio,
-   * and trade data. Now each new server process creates a unique guest user
-   * (guest-{uuid}@roua.auto) so data is fully isolated between sessions.
-   *
-   * The guest user is cached in memory for the lifetime of this server process.
-   * On restart, a new unique guest is created (old ones stay in DB but orphaned).
-   */
-  private async _ensureGuestUser(): Promise<any> {
-    // Return cached guest user if available (no DB call needed)
-    if (this.sharedGuestUser) {
-      return this.sharedGuestUser;
-    }
-
-    try {
-      // Create a NEW unique guest user for this server process instance
-      const guestId = `guest-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-      const guestEmail = `${guestId}@roua.auto`;
-
-      const user = await this.prisma.user.create({
-        data: {
-          email: guestEmail,
-          displayName: 'ضيف',
-          tier: 'FREE',
-        },
-      });
-
-      this.logger.log(`Created unique guest user: ${guestEmail}`);
-
-      // Cache in memory — reused for all unauthenticated requests in this process
-      this.sharedGuestUser = {
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-        tier: user.tier,
-        isGuest: true,
-      };
-      return this.sharedGuestUser;
-    } catch (error: any) {
-      this.logger.error(`Failed to create unique guest user: ${error?.message || error}`);
-      // Fallback: return a virtual guest with a random id
-      const fallbackId = `guest-virtual-${Math.random().toString(36).slice(2, 10)}`;
-      this.sharedGuestUser = {
-        id: fallbackId,
-        email: `${fallbackId}@roua.auto`,
-        displayName: 'ضيف',
-        tier: 'FREE',
-        isGuest: true,
-      };
-      return this.sharedGuestUser;
-    }
-  }
 }
+
 

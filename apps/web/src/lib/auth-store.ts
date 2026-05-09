@@ -221,12 +221,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (data.authenticated && data.user && !data.isGuest) {
           const user = data.user as AuthUser
 
-          // SECURITY: Detect user change — clear all stores if user changed
-          const previousUser = get().user
-          if (previousUser?.id && user.id && previousUser.id !== user.id) {
-            console.warn('[AuthStore] SECURITY: User changed during login — clearing all stores')
-            _clearAllUserStores()
-          }
+          // SECURITY: Always clear all stores before a new login
+          // to ensure a completely fresh state for the new user.
+          console.warn('[AuthStore] SECURITY: New login session established — clearing all cached state')
+          _clearAllUserStores()
 
           writeCache(user)
           set({ user, isAuthenticated: true, isGuest: false, loading: false })

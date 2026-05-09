@@ -132,6 +132,7 @@ export class SmartExecutorService implements OnModuleDestroy {
       // enabled paper trading for ALL users in the database, causing phantom trades
       // to be created for every user on every server restart. Users must explicitly
       // click "تشغيل" from their dashboard to enable trading for their account.
+      // await this._autoEnableRealUsersForPaperTrading(); 
       await this.start('system-auto');
       this.logger.log('⚔️ Smart Executor AUTO-STARTED in pure monitoring mode — waiting for users to explicitly enable');
 

@@ -13,6 +13,7 @@ import {
   DesktopCorrelationPanel,
   DesktopNewsPanel,
 } from '@/components/dashboard/DesktopContextPanels'
+import { AgentControlMini } from '@/components/dashboard/AgentControlMini'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { getDataStatus, getSourceLabel } from '@/lib/dashboard-live'
@@ -108,6 +109,7 @@ export function SidebarContentPanel({
                 dataStatus={quoteStatus}
               />
             )}
+            {activeTab === 'trader' && <AgentControlMini />}
             {activeTab === 'news' && <DesktopNewsPanel />}
             {activeTab === 'calendar' && <DesktopCalendarPanel />}
             {activeTab === 'backtest' && <DesktopBacktestPanel />}

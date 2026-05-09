@@ -29,6 +29,7 @@ const TAB_CONFIG: TabConfig[] = [
   { id: 'execute', label: 'التنفيذ', helper: 'أمر سريع', accent: '#00FFA3', icon: Zap },
   { id: 'book', label: 'دفتر الأوامر', helper: 'العمق والسيولة', accent: '#FF4757', icon: BookOpen },
   { id: 'watch', label: 'قائمة السوق', helper: 'المراقبة الحية', accent: '#00D4FF', icon: Eye },
+  { id: 'trader', label: 'الوكيل الذكي', helper: 'تداول آلي', accent: '#00FFA3', icon: Bot },
   { id: 'alerts', label: 'التنبيهات', helper: 'قواعد المتابعة', accent: '#FFB800', icon: Bell },
   { id: 'ai', label: 'رؤى AI', helper: 'الشرح والسياق', accent: '#B388FF', icon: Brain },
   { id: 'news', label: 'الأخبار', helper: 'تدفق السوق', accent: '#00D4FF', icon: Newspaper },

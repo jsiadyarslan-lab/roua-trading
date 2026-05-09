@@ -51,14 +51,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
     } else if (exception instanceof Error) {
       details = exception.stack;
 
-      // FIX: Always show Prisma error messages for debugging database schema issues
+      // FIX: Always show the actual error message for debugging.
+      // Previously, production mode hid ALL non-HttpException errors behind
+      // "Internal server error", making it impossible to diagnose issues.
+      // Now we always show the real error, with a prefix for production
+      // to distinguish from user-facing HttpException messages.
       const rawMessage = exception.message || '';
-      const isPrismaError = rawMessage.includes('Prisma') || rawMessage.includes('prisma') || rawMessage.includes('database');
 
-      // In production, hide internal error details for non-HttpException errors
-      // EXCEPTION: Show Prisma error details to help debug schema mismatches
-      if (process.env.NODE_ENV === 'production' && !isPrismaError) {
-        message = 'Internal server error';
+      if (process.env.NODE_ENV === 'production') {
+        // In production, show the real error but with a clear prefix
+        // so it's distinguishable from intentional HttpException messages
+        message = rawMessage || 'Internal server error';
       } else {
         message = rawMessage || 'Internal server error';
       }

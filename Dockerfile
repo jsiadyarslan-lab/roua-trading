@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v58
+ARG BUILD_CACHE=v59
 
 # ─────────────────────────────────────────────────────────────
 # Stage 1: Install dependencies
@@ -120,4 +120,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Previously only ran `next start`, leaving the API dead.
 CMD ["bash", "start.sh"]
 
-# Build v57 - BullModule REDIS_URL crash fix, unhandledRejection handler, esModuleInterop
+# Build v59 - Show real error messages in production, controller try-catch

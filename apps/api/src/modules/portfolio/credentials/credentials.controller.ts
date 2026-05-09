@@ -56,14 +56,28 @@ export class CredentialsController {
       throw new BadRequestException('جميع الحقول مطلوبة');
     }
 
-    const credential = await this.credentialsService.addCredential(
-      req.user.id,
-      body,
-      req.ip,
-      req.headers['user-agent'],
-    );
+    try {
+      const credential = await this.credentialsService.addCredential(
+        req.user.id,
+        body,
+        req.ip,
+        req.headers['user-agent'],
+      );
 
-    return { success: true, data: credential };
+      return { success: true, data: credential };
+    } catch (error: any) {
+      // If it's already an HttpException (BadRequestException, ForbiddenException, etc.),
+      // just re-throw it — NestJS will handle it properly.
+      if (error.constructor && error.constructor.name && error.constructor.name.endsWith('Exception')) {
+        throw error;
+      }
+      // For any other error (CCXT errors, crypto errors, etc.), wrap in BadRequestException
+      // with the actual error message so the frontend can see what went wrong.
+      this.logger.error(`Unexpected error in addCredential: ${error.message}`, error.stack);
+      throw new BadRequestException(
+        `خطأ في التحقق من المفتاح: ${error.message || 'خطأ غير معروف'}`
+      );
+    }
   }
 
   /**

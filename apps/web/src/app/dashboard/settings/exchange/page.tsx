@@ -95,10 +95,10 @@ export default function ExchangeSettingsPage() {
         body: JSON.stringify({ exchange, label: label || `${exchange}-key`, apiKey, apiSecret, passphrase: passphrase || undefined }),
       })
 
-      const data = await res.json()
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || data.message || 'فشل في إضافة المفتاح')
+      if (!res.ok) {
+        const data = await res.json()
+        const errorMsg = data.error || data.message || 'فشل في إضافة المفتاح'
+        throw new Error(errorMsg)
       }
 
       setSuccess('تم إضافة المفتاح بنجاح! ✅')

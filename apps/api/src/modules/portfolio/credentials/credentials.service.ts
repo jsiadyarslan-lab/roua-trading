@@ -415,8 +415,9 @@ export class CredentialsService {
     passphrase?: string,
   ): Promise<{ valid: boolean; permissions?: string[]; error?: string }> {
     try {
-      const isBinanceTest = exchange === 'binance_test' || exchange === 'binance_future_test';
-      const normalizedExchange = isBinanceTest ? 'binance' : exchange;
+      const isBinance = exchange.toLowerCase().startsWith('binance');
+      const isBinanceTest = exchange === 'binance_test' || exchange === 'binance_future_test' || (isBinance && exchange !== 'binance');
+      const normalizedExchange = isBinance ? 'binance' : exchange;
       const ExchangeClass = ccxt[normalizedExchange as keyof typeof ccxt] as any;
       if (!ExchangeClass) {
         this.logger.warn(`Exchange "${exchange}" not found in CCXT — accepting with read-only permissions`);
@@ -462,21 +463,33 @@ export class CredentialsService {
 
       const exchangeInstance = new ExchangeClass(exchangeConfig);
       
-      // ── Binance Testnet support ──
+      // ── Sustainable Binance Testnet Support ──
       if (isBinanceTest) {
         exchangeInstance.setSandboxMode(true);
-        this.logger.log(`🔑 Binance Testnet (${exchangeConfig.options.defaultType}) detected — enabled sandbox mode for validation`);
         
-        // ── Bypass strict validation for Binance Testnet ──
-        // Binance Testnet is notoriously unstable. API keys are frequently rejected 
-        // randomly, or fail due to Spot/Futures endpoint desync in the sandbox.
-        // Since testnet keys have no real funds, it's safe to bypass strict validation.
-        this.logger.warn(`Bypassing strict validation for Binance Testnet keys to avoid sandbox instability`);
-        return { valid: true, permissions: ['read', 'trade'] };
+        // Manual URL override to ensure we hit the correct testnet endpoints
+        // CCXT's default sandbox mode can sometimes hit the wrong domain during loadMarkets()
+        if (exchange === 'binance_future_test') {
+          exchangeInstance.urls['api'] = {
+            public: 'https://testnet.binancefuture.com/fapi/v1',
+            private: 'https://testnet.binancefuture.com/fapi/v1',
+            fapiPublic: 'https://testnet.binancefuture.com/fapi/v1',
+            fapiPrivate: 'https://testnet.binancefuture.com/fapi/v1',
+          };
+        } else {
+          exchangeInstance.urls['api'] = {
+            public: 'https://testnet.binance.vision/api/v3',
+            private: 'https://testnet.binance.vision/api/v3',
+          };
+        }
+
+        this.logger.log(`🔑 Validating Binance Testnet (${exchangeConfig.options.defaultType}) via explicit endpoints`);
       }
 
       // Strategy 1: Try to fetch balance to validate the key (full validation)
       try {
+        // Optimization: For validation, we don't necessarily need to load all markets
+        // but CCXT methods usually do it. We catch errors here specifically.
         const balance = await exchangeInstance.fetchBalance();
 
         const permissions: string[] = ['read'];

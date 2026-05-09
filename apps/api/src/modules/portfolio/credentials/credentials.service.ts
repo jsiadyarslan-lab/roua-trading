@@ -38,7 +38,22 @@ export class CredentialsService {
     const isProduction = this.configService.get('NODE_ENV') === 'production';
 
     if (key) {
-      this.encryptionKey = Buffer.from(key, 'hex');
+      const keyBuffer = Buffer.from(key, 'hex');
+      // FIX: AES-256-GCM requires exactly 32 bytes (64 hex chars).
+      // If ENCRYPTION_KEY is set but not 32 bytes, the crypto operations
+      // will throw "invalid key length". We validate here and fall back
+      // to scryptSync derivation if the key is the wrong length.
+      if (keyBuffer.length === 32) {
+        this.encryptionKey = keyBuffer;
+      } else {
+        this.logger.error(
+          `🚨 ENCRYPTION_KEY is ${keyBuffer.length} bytes (expected 32). ` +
+          `Deriving a valid 32-byte key from it via scryptSync. ` +
+          `Generate a proper key with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+        );
+        const salt = crypto.createHash('sha256').update(`encryption-key-fix:${key}`).digest().slice(0, 16);
+        this.encryptionKey = crypto.scryptSync(key, salt, 32);
+      }
     } else if (isProduction) {
       // FIX: Instead of throwing (which crashes the ENTIRE NestJS app and takes
       // down ALL routes), we now fall back to NEXTAUTH_SECRET-derived key with

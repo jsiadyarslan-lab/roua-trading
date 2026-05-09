@@ -1,4 +1,4 @@
-const CACHE_NAME = 'roua-v9';
+const CACHE_NAME = 'roua-v10';
 
 const APP_SHELL = [
   '/manifest.json',

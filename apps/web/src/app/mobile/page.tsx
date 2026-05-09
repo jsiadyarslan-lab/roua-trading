@@ -681,6 +681,7 @@ function MobileOrderBookPreview() {
 /* ─── Mobile Positions / Recent Trades ───── */
 function MobilePositions() {
   const positions = usePositionsStore(s => s.positions)
+  const account = usePositionsStore(s => s.account)
   const { trades: paperTrades, closedTrades, closeTrade: closePaperTrade } = usePaperTradesStore()
   const [closing, setClosing] = useState<string | null>(null)
   const [confirmClose, setConfirmClose] = useState<string | null>(null)
@@ -689,7 +690,19 @@ function MobilePositions() {
   const fetchAccount = usePositionsStore(s => s.fetchAccount)
   const router = useRouter()
 
+  // FIX: Determine if user has a real exchange linked by checking the
+  // positions store account data. When linked, don't merge paper trades
+  // into the display — they confuse users who think they have real positions.
+  const hasRealAccount = useMemo(() => {
+    if (!account) return false
+    const equity = Number((account as any).equity) || 0
+    // If the account has any equity (even from testnet), it means they linked an exchange
+    return equity > 0 || positions.length > 0
+  }, [account, positions])
+
   // Merge real positions + paper trades
+  // FIX: When real exchange is linked, do NOT include paper trades.
+  // Only show paper trades in pure demo mode (no linked exchange).
   const allPositions = useMemo(() => {
     const realPos = positions.map(p => ({
       id: (p as any).rawSymbol ?? p.symbol,
@@ -702,6 +715,12 @@ function MobilePositions() {
       isPaper: false,
       source: (p as any).source,
     }))
+
+    // Only include paper trades if no real exchange is linked (pure demo mode)
+    if (hasRealAccount) {
+      return realPos
+    }
+
     const paperPos = paperTrades
       .filter(trade =>
         trade.source === 'bot' ||
@@ -719,7 +738,7 @@ function MobilePositions() {
         source: trade.source,
       }))
     return [...realPos, ...paperPos]
-  }, [positions, paperTrades])
+  }, [positions, paperTrades, hasRealAccount])
 
   // Fetch positions on mount
   useEffect(() => {

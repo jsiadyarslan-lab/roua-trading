@@ -588,21 +588,29 @@ export class CredentialsService {
       };
     }
 
-    // Extract non-zero assets
+    // Extract non-zero assets with dust filter
+    // FIX: Binance (especially Testnet) returns ALL tokens including those
+    // with zero balance. We filter out:
+    //   1. Zero-balance tokens (total <= 0)
+    //   2. Dust amounts (total < 0.0001) that have no real value
+    //   3. Special/internal tokens (starting with LD, like LDBNB, LDETH)
+    const DUST_THRESHOLD = 0.0001;
+    const INTERNAL_PREFIXES = ['LD', 'NFT', 'BETH']; // Binance internal tokens
     const assets: Array<{ currency: string; free: number; used: number; total: number }> = [];
     for (const [currency, data] of Object.entries(balance)) {
       if (['free', 'used', 'total', 'info', 'timestamp', 'datetime', 'nonce'].includes(currency)) continue;
       if (typeof data === 'object' && data !== null && 'free' in (data as any)) {
         const d = data as any;
-        const total = d.total || 0;
-        if (total > 0) {
-          assets.push({
-            currency,
-            free: d.free || 0,
-            used: d.used || 0,
-            total,
-          });
-        }
+        const total = Number(d.total) || 0;
+        // Filter: skip zero balance, dust, and internal tokens
+        if (total <= DUST_THRESHOLD) continue;
+        if (INTERNAL_PREFIXES.some(prefix => currency.toUpperCase().startsWith(prefix))) continue;
+        assets.push({
+          currency,
+          free: Number(d.free) || 0,
+          used: Number(d.used) || 0,
+          total,
+        });
       }
     }
 

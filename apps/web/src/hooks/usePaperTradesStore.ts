@@ -324,6 +324,7 @@ export const usePaperTradesStore = create<PaperTradesState>()(
             //   2. tradeValue >= $1 (no dust)
             //   3. Valid symbol format (e.g. BTC/USDT, ETH/USDT)
             //   4. No test/gibberish symbols (456/USDT, 这是测试币)
+            //   5. Base currency must be letters only (no digits)
             // ═══════════════════════════════════════════════════
             if (state.trades && state.trades.length > 0) {
               const VALID_SYMBOL = /^[A-Z]{2,10}\/[A-Z]{3,5}$/
@@ -341,8 +342,17 @@ export const usePaperTradesStore = create<PaperTradesState>()(
                 if (symbol === 'USDT' || symbol === 'USD') return false
                 if (!VALID_SYMBOL.test(symbol)) return false
 
+                // Remove trades where base currency is all digits (e.g. 456/USDT)
+                const baseCurrency = symbol.split('/')[0]
+                if (/^\d+$/.test(baseCurrency)) return false
+
                 // Remove trades with unreasonable qty (e.g. 10000 for free)
                 if (trade.qty > 1000000) return false
+
+                // Remove trades that haven't been updated with a real price
+                // (currentPrice still equals entryPrice means no live price was ever set)
+                // EXCEPTION: Allow if entryPrice > 10 (could be a valid entry)
+                if (trade.currentPrice === 0 && entryPrice < 10) return false
 
                 return true
               })

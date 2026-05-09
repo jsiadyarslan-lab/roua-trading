@@ -66,13 +66,26 @@ export function usePortfolioSummary() {
   const data = (() => {
     const balance = Number(account?.equity) || 0
     const cash = Number(account?.cash) || 0
+    // FIX: When real positions exist (from exchange), don't include paper trades
+    // in the summary calculations. Paper trades are demo/fake and shouldn't
+    // affect the real portfolio summary numbers.
+    const hasRealPositions = positions.length > 0 && positions.some(p => (p as any).exchange || p.source === 'nestjs')
+    const relevantPaperTrades = hasRealPositions ? [] : paperTrades.filter(pt => {
+      // Filter out phantom trades with zero value or test symbols
+      const tradeValue = Math.abs(pt.qty * (pt.currentPrice || pt.entryPrice || 0))
+      if (tradeValue < 1) return false
+      const base = pt.symbol.split('/')[0]
+      if (/^\d+$/.test(base)) return false
+      return true
+    })
+
     // Exposure = total open positions market value / equity
     // Use positions market value sum for a realistic exposure calculation
     let positionsMarketValue = 0
     positions.forEach(p => {
       positionsMarketValue += Math.abs(Number(p.marketValue || 0))
     })
-    paperTrades.forEach(pt => {
+    relevantPaperTrades.forEach(pt => {
       positionsMarketValue += Math.abs(pt.qty * (pt.currentPrice || pt.entryPrice || 0))
     })
     const margin = balance > 0 ? positionsMarketValue : (balance - cash)
@@ -93,8 +106,8 @@ export function usePortfolioSummary() {
       }
     })
 
-    totalPositions += paperTrades.length
-    paperTrades.forEach(pt => {
+    totalPositions += relevantPaperTrades.length
+    relevantPaperTrades.forEach(pt => {
       totalPnl += pt.unrealizedPnl
       if (pt.unrealizedPnl > 0) {
         totalProfit += pt.unrealizedPnl

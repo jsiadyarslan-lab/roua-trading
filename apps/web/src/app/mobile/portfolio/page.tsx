@@ -455,19 +455,33 @@ export default function MobilePortfolioPage() {
   }
 
   // ── Combined positions (Alpaca real + paper trades) ──
+  // FIX: When the user has a real exchange linked (isLinked=true),
+  // do NOT merge paper trades into the positions list. Paper trades
+  // are demo/fake trades stored in localStorage and should not appear
+  // alongside real exchange positions. They confuse users who think
+  // they have real money in these positions.
+  // Only show paper trades when NO real exchange is linked (pure demo mode).
   const allPositions = useMemo(() => {
-    const real = alpacaPositions.map(p => ({
-      id: p.id,
-      symbol: p.symbol,
-      side: p.side,
-      value: p.marketValue,
-      pnl: p.unrealizedPnl,
-      pnlPct: p.unrealizedPnlPct * 100,
-      qty: p.qty,
-      avgEntry: p.avgEntryPrice,
-      currentPrice: p.currentPrice,
-      source: 'live' as const,
-    }))
+    const real = alpacaPositions
+      .map(p => ({
+        id: p.id,
+        symbol: p.symbol,
+        side: p.side,
+        value: p.marketValue,
+        pnl: p.unrealizedPnl,
+        pnlPct: p.unrealizedPnlPct * 100,
+        qty: p.qty,
+        avgEntry: p.avgEntryPrice,
+        currentPrice: p.currentPrice,
+        source: 'live' as const,
+      }))
+      // FIX: Filter out zero-value positions (dust/phantom assets)
+      .filter(p => p.value > 0 || p.qty > 0)
+
+    // Only include paper trades if no real exchange is linked (pure demo mode)
+    if (isLinked) {
+      return real
+    }
 
     // Add paper trades that aren't duplicated with real positions
     const realSymbols = new Set(real.map(p => p.symbol))
@@ -487,7 +501,7 @@ export default function MobilePortfolioPage() {
       }))
 
     return [...real, ...paper]
-  }, [alpacaPositions, openTrades])
+  }, [alpacaPositions, openTrades, isLinked])
 
   const totalPositionValue = allPositions.reduce((s, p) => s + p.value, 0)
 

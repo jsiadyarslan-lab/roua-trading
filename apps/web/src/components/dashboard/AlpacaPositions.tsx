@@ -46,9 +46,10 @@ export function AlpacaPositions() {
   const [showClosed, setShowClosed] = useState(false)
 
   // FIX: When real exchange positions exist, don't mix in paper trades
-  // that overlap with the same symbols. Only show paper trades for
-  // symbols that have NO real position. Also filter out any paper trades
-  // with invalid/zero entry prices that slipped through.
+  // at all. Paper trades are demo/fake trades stored in localStorage
+  // and should not appear alongside real exchange positions. They
+  // confuse users who think they have real money in these positions.
+  // Only show paper trades when NO real positions exist (pure demo mode).
   const hasRealPositions = positions.length > 0 && positions.some(p => (p as any).exchange || p.source === 'nestjs')
 
   const allPositions: Array<
@@ -77,16 +78,20 @@ export function AlpacaPositions() {
         sl: (position as any).stopLoss || (position as any).sl || manualPaper?.sl || null,
       }
     }),
-    // Only include paper trades when they don't overlap with real positions
-    // and they have valid entry prices
-    ...paperTrades
+    // Only include paper trades when there are NO real positions (pure demo mode)
+    // When the user has a real exchange linked, paper trades should not be shown
+    ...(!hasRealPositions ? paperTrades
       .filter(trade => {
         // Always filter out trades with invalid entry prices
         if (!trade.entryPrice || trade.entryPrice <= 0) return false
-        // Filter out trades that overlap with real positions
-        if (positions.some(position => (position.rawSymbol ?? position.symbol).replace('/', '') === trade.symbol.replace('/', ''))) return false
+        // Filter out phantom trades: zero value or test symbols
+        const tradeValue = Math.abs(trade.qty * trade.entryPrice)
+        if (tradeValue < 1) return false
+        // Filter out numeric-only base currencies (e.g. 456/USDT)
+        const base = trade.symbol.split('/')[0]
+        if (/^\d+$/.test(base)) return false
         return true
-      })
+      }) : [])
       .map(trade => ({
         symbol: trade.symbol,
         rawSymbol: trade.symbol,

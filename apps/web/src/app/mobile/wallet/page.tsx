@@ -190,18 +190,46 @@ export default function MobileWalletPage() {
         setIsLinked(true)
 
         // Also store exchange assets for the assets tab
+        // FIX: Filter out dust/zero-balance assets AND calculate proper USD value
+        // using live market prices. Previously, non-USDT assets always showed
+        // value=0 because the price multiplier was hardcoded to 0.
         const allAssetsFromExchanges = exchanges.flatMap((ex: any) =>
-          (ex.assets || []).map((a: any) => ({
-            id: `${ex.exchange}-${a.currency}`,
-            symbol: a.currency === 'USDT' || a.currency === 'USD' ? 'USDT' : `${a.currency}/USDT`,
-            side: 'long' as const,
-            value: a.total * (a.currency === 'USDT' || a.currency === 'USD' ? 1 : 0),
-            pnl: 0,
-            pnlPct: 0,
-            qty: a.total,
-            currentPrice: a.currency === 'USDT' || a.currency === 'USD' ? 1 : 0,
-            source: (ex.isTestnet ? 'testnet' : 'live') as const,
-          }))
+          (ex.assets || [])
+            .filter((a: any) => {
+              // Skip assets with zero or near-zero total balance (dust filter)
+              const total = Number(a.total) || 0
+              return total > 0.0001
+            })
+            .map((a: any) => {
+              const isStablecoin = a.currency === 'USDT' || a.currency === 'USD' || a.currency === 'BUSD' || a.currency === 'USDC'
+              const symbol = isStablecoin ? 'USDT' : `${a.currency}/USDT`
+              // Try to get live price from market store for non-stablecoin assets
+              let currentPrice = isStablecoin ? 1 : 0
+              if (!isStablecoin) {
+                const pairKey = Object.keys(quotes).find(k =>
+                  k.toUpperCase() === `${a.currency}/USDT` ||
+                  k.toUpperCase() === `${a.currency}/BUSD`
+                )
+                if (pairKey) {
+                  currentPrice = Number(quotes[pairKey]?.price) || 0
+                }
+              }
+              const value = a.total * currentPrice
+              return {
+                id: `${ex.exchange}-${a.currency}`,
+                symbol,
+                side: 'long' as const,
+                value,
+                pnl: 0,
+                pnlPct: 0,
+                qty: a.total,
+                currentPrice,
+                source: (ex.isTestnet ? 'testnet' : 'live') as const,
+              }
+            })
+            // FIX: After calculating value with live prices, filter out
+            // any assets that still have zero value (no price available)
+            .filter((a: any) => a.value > 0 || a.symbol === 'USDT')
         )
         setAlpacaPositions(allAssetsFromExchanges)
 
@@ -462,16 +490,32 @@ export default function MobileWalletPage() {
   }
 
   // ── Combined positions ──
+  // FIX: When the user has a real exchange linked (isLinked=true),
+  // do NOT merge paper trades into the positions list. Paper trades
+  // are demo/fake trades stored in localStorage and should not appear
+  // alongside real exchange positions. They confuse users who think
+  // they have real money in these positions.
+  // Only show paper trades when NO real exchange is linked (pure demo mode).
   const allPositions = useMemo(() => {
-    const real = alpacaPositions.map(p => ({
-      id: p.id, symbol: p.symbol, side: p.side || 'long',
-      value: Number(p.market_value || p.marketValue) || 0,
-      pnl: Number(p.unrealized_pl || p.unrealizedPnl) || 0,
-      pnlPct: Number(p.unrealized_plpc || p.unrealizedPnlPct) * 100 || 0,
-      qty: Number(p.qty) || 0,
-      currentPrice: Number(p.current_price || p.currentPrice) || 0,
-      source: 'live' as const,
-    }))
+    const real = alpacaPositions
+      .map(p => ({
+        id: p.id, symbol: p.symbol, side: p.side || 'long',
+        value: Number(p.market_value || p.marketValue) || 0,
+        pnl: Number(p.unrealized_pl || p.unrealizedPnl) || 0,
+        pnlPct: Number(p.unrealized_plpc || p.unrealizedPnlPct) * 100 || 0,
+        qty: Number(p.qty) || 0,
+        currentPrice: Number(p.current_price || p.currentPrice) || 0,
+        source: p.source || ('live' as const),
+      }))
+      // FIX: Filter out zero-value positions (dust assets with no price)
+      // These come from Binance Testnet returning ALL tokens including 0-balance ones
+      .filter(p => p.value > 0 || p.qty > 0)
+
+    // Only include paper trades if no real exchange is linked (pure demo mode)
+    if (isLinked) {
+      return real
+    }
+
     const realSymbols = new Set(real.map(p => p.symbol))
     const paper = openTrades
       .filter(t => !realSymbols.has(t.symbol))
@@ -482,7 +526,7 @@ export default function MobileWalletPage() {
         currentPrice: t.currentPrice, source: 'paper' as const,
       }))
     return [...real, ...paper]
-  }, [alpacaPositions, openTrades])
+  }, [alpacaPositions, openTrades, isLinked])
 
   const totalPositionValue = allPositions.reduce((s, p) => s + p.value, 0)
   const totalPnl = allPositions.reduce((s, p) => s + p.pnl, 0)

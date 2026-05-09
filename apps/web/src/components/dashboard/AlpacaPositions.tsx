@@ -45,6 +45,12 @@ export function AlpacaPositions() {
   const [confirmClose, setConfirmClose] = useState<string | null>(null)
   const [showClosed, setShowClosed] = useState(false)
 
+  // FIX: When real exchange positions exist, don't mix in paper trades
+  // that overlap with the same symbols. Only show paper trades for
+  // symbols that have NO real position. Also filter out any paper trades
+  // with invalid/zero entry prices that slipped through.
+  const hasRealPositions = positions.length > 0 && positions.some(p => (p as any).exchange || p.source === 'nestjs')
+
   const allPositions: Array<
     Position & {
       id: string
@@ -71,12 +77,16 @@ export function AlpacaPositions() {
         sl: (position as any).stopLoss || (position as any).sl || manualPaper?.sl || null,
       }
     }),
+    // Only include paper trades when they don't overlap with real positions
+    // and they have valid entry prices
     ...paperTrades
-      .filter(
-        trade =>
-          trade.source === 'bot' ||
-          !positions.some(position => (position.rawSymbol ?? position.symbol).replace('/', '') === trade.symbol.replace('/', '')),
-      )
+      .filter(trade => {
+        // Always filter out trades with invalid entry prices
+        if (!trade.entryPrice || trade.entryPrice <= 0) return false
+        // Filter out trades that overlap with real positions
+        if (positions.some(position => (position.rawSymbol ?? position.symbol).replace('/', '') === trade.symbol.replace('/', ''))) return false
+        return true
+      })
       .map(trade => ({
         symbol: trade.symbol,
         rawSymbol: trade.symbol,

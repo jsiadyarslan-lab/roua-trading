@@ -316,24 +316,41 @@ export const usePaperTradesStore = create<PaperTradesState>()(
             }
 
             // ═══════════════════════════════════════════════════
-            // CLEANUP: Remove ALL phantom trades with invalid
-            // prices or dust values. These are trades created
-            // by the BotEngine from degraded/fallback data.
-            // They show as $0.00-$0.04 on the dashboard.
-            // A real trade must have tradeValue >= $1.
+            // CLEANUP: Remove ALL phantom/bogus trades.
+            // These are trades created by testing, BotEngine
+            // from degraded/fallback data, or invalid symbols.
+            // A valid trade must have:
+            //   1. entryPrice > 0 (no zero-price entries)
+            //   2. tradeValue >= $1 (no dust)
+            //   3. Valid symbol format (e.g. BTC/USDT, ETH/USDT)
+            //   4. No test/gibberish symbols (456/USDT, 这是测试币)
             // ═══════════════════════════════════════════════════
             if (state.trades && state.trades.length > 0) {
+              const VALID_SYMBOL = /^[A-Z]{2,10}\/[A-Z]{3,5}$/
               const validTrades = state.trades.filter((trade) => {
                 const entryPrice = trade.entryPrice || 0
                 const tradeValue = Math.abs(trade.qty * entryPrice)
+                const symbol = (trade.symbol || '').toUpperCase().replace(/\s/g, '')
+
                 // Remove trades with zero/invalid entry price or dust value < $1
-                return entryPrice > 0 && tradeValue >= 1
+                if (entryPrice <= 0 || tradeValue < 1) return false
+
+                // Remove trades with invalid symbol format
+                // Must be like BTC/USDT, ETH/USDT, etc.
+                // Reject: 456/USDT, 这是测试币/USDT, USDT alone
+                if (symbol === 'USDT' || symbol === 'USD') return false
+                if (!VALID_SYMBOL.test(symbol)) return false
+
+                // Remove trades with unreasonable qty (e.g. 10000 for free)
+                if (trade.qty > 1000000) return false
+
+                return true
               })
 
               const removedCount = state.trades.length - validTrades.length
               if (removedCount > 0) {
                 console.warn(
-                  `[PaperTradesStore] Cleaned up ${removedCount} phantom trade(s) with invalid prices`,
+                  `[PaperTradesStore] Cleaned up ${removedCount} phantom/bogus trade(s)`,
                 )
                 // Update the store with clean data
                 usePaperTradesStore.setState({ trades: validTrades })

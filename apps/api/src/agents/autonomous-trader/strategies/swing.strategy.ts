@@ -186,6 +186,7 @@ export class SwingStrategy extends BaseStrategy {
     const orderType = analysis.strength >= 70 ? OrderType.MARKET : OrderType.LIMIT;
 
     return {
+      id: '', // Will be set by BaseStrategy.evaluate
       symbol: market.symbol,
       action: side,
       type: orderType,

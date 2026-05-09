@@ -163,6 +163,7 @@ export class MomentumBreakoutStrategy extends BaseStrategy {
     });
 
     return {
+      id: '', // Will be set by BaseStrategy.evaluate
       symbol: market.symbol,
       action: side,
       type: OrderType.MARKET, // Breakouts need fast market orders

@@ -216,7 +216,7 @@ export class TradingService {
           quantity: request.quantity,
           price: request.price ?? null,
           stopLoss: request.stopLoss ?? null,
-          idempotencyKey: `legacy-${Date.now()}-${crypto.randomUUID()}`,
+          idempotencyKey: request.idempotencyKey || `legacy-${Date.now()}-${crypto.randomUUID()}`,
         },
       });
 
@@ -262,7 +262,7 @@ export class TradingService {
           fee: execution.fee ?? null,
           feeCurrency: execution.feeCurrency ?? null,
           exchangeOrderId: execution.exchangeOrderId,
-          idempotencyKey: `legacy-${Date.now()}-${crypto.randomUUID()}`,
+          idempotencyKey: request.idempotencyKey || `legacy-${Date.now()}-${crypto.randomUUID()}`,
         },
       });
 
@@ -1048,10 +1048,22 @@ export class TradingService {
 
       switch (request.type) {
         case 'MARKET':
+          // Pass client_order_id to Alpaca if idempotencyKey is provided
+          const params: any = {};
+          if (request.idempotencyKey) {
+            if (exchangeName.toLowerCase() === 'alpaca') {
+              params.client_order_id = request.idempotencyKey;
+            } else {
+              params.idempotencyKey = request.idempotencyKey;
+            }
+          }
+
           result = await exchange.createMarketOrder(
             request.symbol,
             request.side.toLowerCase(),
             request.quantity,
+            undefined,
+            params,
           );
           break;
 
@@ -1062,11 +1074,22 @@ export class TradingService {
               error: 'سعر الحد مطلوب للطلبات المحددة',
             };
           }
+          
+          const limitParams: any = {};
+          if (request.idempotencyKey) {
+            if (exchangeName.toLowerCase() === 'alpaca') {
+              limitParams.client_order_id = request.idempotencyKey;
+            } else {
+              limitParams.idempotencyKey = request.idempotencyKey;
+            }
+          }
+
           result = await exchange.createLimitOrder(
             request.symbol,
             request.side.toLowerCase(),
             request.quantity,
             request.price,
+            limitParams,
           );
           break;
 

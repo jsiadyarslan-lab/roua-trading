@@ -67,6 +67,11 @@ export abstract class BaseStrategy {
       return null;
     }
 
+    // Step 8: Assign stable signal ID for idempotency
+    // Uses 30s window to ensure same signal generated twice is deduplicated
+    const timeWindow = Math.floor(Date.now() / 30000);
+    signal.id = `sig-${signal.symbol}-${signal.action}-${this.type}-${timeWindow}`;
+
     return signal;
   }
 

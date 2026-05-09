@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { alpacaFetch } from '@/lib/alpacaClient'
 import { verifyUserSession } from '@/lib/session-auth'
+import { db } from '@/lib/db'
 
 /**
  * GET /api/alpaca/account
@@ -13,14 +14,43 @@ export async function GET(request: NextRequest) {
   if (auth.error) return auth.error
 
   try {
-    const res = await alpacaFetch('/v2/account')
+    // 1. Fetch credentials for the user
+    const credential = await db.exchangeCredential.findFirst({
+      where: { 
+        userId: auth.session.userId,
+        exchange: 'alpaca'
+      }
+    })
+
+    if (!credential) {
+      return NextResponse.json(
+        { success: false, error: 'ALPACA_CREDENTIALS_NOT_CONFIGURED', data: null },
+        { status: 503 }
+      )
+    }
+
+    // 2. Decrypt credentials
+    const { decrypt } = await import('@/lib/encryption')
+    const apiKey = decrypt({
+      encrypted: credential.encryptedApiKey,
+      iv: credential.iv,
+      authTag: credential.authTag
+    })
+    const apiSecret = decrypt({
+      encrypted: credential.encryptedSecret,
+      iv: credential.secretIv || credential.iv,
+      authTag: credential.secretAuthTag || credential.authTag
+    })
+
+    // 3. Fetch from Alpaca with user credentials
+    const res = await alpacaFetch('/v2/account', {}, { apiKey, apiSecret })
 
     if (!res.ok) {
       const errBody = await res.text()
       let userError = `Alpaca API Error ${res.status}: ${errBody}`
       
       if (res.status === 403) {
-        userError = 'مفاتيح Alpaca غير صالحة أو منتهية الصلاحية. تحقق من متغيرات البيئة.'
+        userError = 'مفاتيح Alpaca غير صالحة أو منتهية الصلاحية'
         console.error('[alpaca/account] 403 Forbidden — API keys may be invalid:', errBody)
       }
       

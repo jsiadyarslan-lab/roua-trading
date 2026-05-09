@@ -177,11 +177,19 @@ export class RiskCalculatorService {
       reason = `نسبة المخاطرة للمكافأة (${riskRewardRatio.toFixed(2)}) أقل من الحد الأدنى لاستراتيجية ${signal.strategy} (${strategyMinRR})`;
     }
 
-    // RULE 6: No duplicate positions for same symbol
+    // RULE 6: Duplicate positions check
+    // RELAXED: Previously this blocked ANY duplicate position for the same symbol.
+    // Now we allow it but log a warning, OR we check if the strategy is different.
+    // This allows the Agent and Executor to work on the same symbol with different strategies.
     const existingPosition = await this._hasOpenPosition(userId, signal.symbol);
     if (existingPosition) {
-      canTrade = false;
-      reason = `يوجد مركز مفتوح بالفعل لـ ${signal.symbol}`;
+      // If it's the SAME strategy, we might want to block to prevent double-entry
+      if (existingPosition.strategy === signal.strategy) {
+        canTrade = false;
+        reason = `يوجد مركز مفتوح بالفعل لـ ${signal.symbol} باستخدام نفس الاستراتيجية (${signal.strategy})`;
+      } else {
+        this.logger.log(`⚠️ Adding additional position for ${signal.symbol} using strategy ${signal.strategy} (existing: ${existingPosition.strategy})`);
+      }
     }
 
     // RULE 7: Check if AUTO_TRADING_ENABLED (global DB/ENV = admin kill switch)
@@ -450,14 +458,13 @@ export class RiskCalculatorService {
     }
   }
 
-  private async _hasOpenPosition(userId: string, symbol: string): Promise<boolean> {
+  private async _hasOpenPosition(userId: string, symbol: string): Promise<any> {
     try {
-      const count = await this.prisma.position.count({
+      return await this.prisma.position.findFirst({
         where: { userId, symbol, status: 'OPEN' },
       });
-      return count > 0;
     } catch {
-      return false;
+      return null;
     }
   }
 }

@@ -82,7 +82,7 @@ export class OrderExecutorService implements OnModuleDestroy {
     credentialId: string,
   ): Promise<TradeExecution> {
     const startTime = Date.now();
-    const idempotencyKey = `agent-${userId}-${signal.symbol}-${Date.now()}`;
+    const idempotencyKey = `${userId}-${signal.id}`;
 
     this.logger.log(
       `⚡ Executing: ${signal.action} ${risk.positionSize.toFixed(6)} ${signal.symbol} ` +
@@ -175,6 +175,7 @@ export class OrderExecutorService implements OnModuleDestroy {
             stopLoss: signal.stopLoss,
             takeProfit: signal.takeProfit,
             source: 'agent' as const,
+            idempotencyKey,
           };
 
           const order = await this.tradingService.placeOrder(userId, orderRequest);
@@ -312,6 +313,7 @@ export class OrderExecutorService implements OnModuleDestroy {
         price: signal.type === OrderType.LIMIT ? signal.entryPrice : undefined,
         stopLoss: signal.stopLoss, // MANDATORY
         takeProfit: signal.takeProfit,
+        idempotencyKey,
       };
 
       // Execute through TradingService (includes risk checks)

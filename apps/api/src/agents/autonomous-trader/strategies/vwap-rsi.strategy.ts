@@ -173,6 +173,7 @@ export class VWAPRSIStrategy extends BaseStrategy {
     });
 
     return {
+      id: '', // Will be set by BaseStrategy.evaluate
       symbol: market.symbol,
       action: side,
       type: OrderType.MARKET,

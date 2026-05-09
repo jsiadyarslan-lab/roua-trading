@@ -149,6 +149,7 @@ export class GridStrategy extends BaseStrategy {
     });
 
     return {
+      id: '', // Will be set by BaseStrategy.evaluate
       symbol: market.symbol,
       action: side,
       type: OrderType.LIMIT, // Grid uses limit orders at each level

@@ -6,12 +6,17 @@ const ALPACA_BASE = process.env.ALPACA_PAPER === 'false'
 
 const HAS_ALPACA_KEYS = Boolean(process.env.ALPACA_API_KEY && process.env.ALPACA_API_SECRET)
 
-export function alpacaClient() {
-  const key = process.env.ALPACA_API_KEY
-  const secret = process.env.ALPACA_API_SECRET
+export interface AlpacaCredentials {
+  apiKey: string
+  apiSecret: string
+}
+
+export function alpacaClient(creds?: AlpacaCredentials) {
+  const key = creds?.apiKey || process.env.ALPACA_API_KEY
+  const secret = creds?.apiSecret || process.env.ALPACA_API_SECRET
 
   if (!key || !secret) {
-    throw new Error('ALPACA_API_KEY أو ALPACA_API_SECRET غير موجودَين في المتغيرات البيئية')
+    throw new Error('ALPACA_API_KEY أو ALPACA_API_SECRET غير موجودَين')
   }
 
   return {
@@ -61,7 +66,6 @@ export function fromAlpacaSymbol(alpacaSym: string): string {
 
 function createFallbackResponse(path: string): Response {
   // Production trading must fail loudly when broker credentials are absent.
-  // Returning 200 here makes the UI look healthy while execution is disabled.
   const isPositions = path.includes('/positions')
   const isAccount = path.includes('/account')
   const payload = {
@@ -100,18 +104,24 @@ function createFallbackResponse(path: string): Response {
 export async function alpacaFetch(
   path: string,
   options: RequestInit = {},
+  creds?: AlpacaCredentials
 ): Promise<Response> {
-  if (!HAS_ALPACA_KEYS) {
+  // If no explicit creds and no global keys, fallback
+  if (!creds && !HAS_ALPACA_KEYS) {
     return createFallbackResponse(path)
   }
 
-  const client = alpacaClient()
-  return fetch(`${client.baseURL}${path}`, {
-    ...options,
-    cache: 'no-store',
-    headers: {
-      ...client.headers,
-      ...(options.headers || {}),
-    },
-  })
+  try {
+    const client = alpacaClient(creds)
+    return fetch(`${client.baseURL}${path}`, {
+      ...options,
+      cache: 'no-store',
+      headers: {
+        ...client.headers,
+        ...(options.headers || {}),
+      },
+    })
+  } catch (err: any) {
+    return createFallbackResponse(path)
+  }
 }

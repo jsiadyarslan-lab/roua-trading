@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
     const res = await alpacaFetch('/v2/orders', {
       method: 'POST',
       body: JSON.stringify(payload),
-    })
+    }, { userId: auth.user.id })
 
     const data = await res.json()
 
@@ -131,7 +131,7 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status') || 'open'
     const limit  = searchParams.get('limit')  || '20'
 
-    const res = await alpacaFetch(`/v2/orders?status=${status}&limit=${limit}`)
+    const res = await alpacaFetch(`/v2/orders?status=${status}&limit=${limit}`, undefined, { userId: auth.user.id })
 
     if (!res.ok) {
       const errBody = await res.text()

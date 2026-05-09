@@ -201,6 +201,7 @@ export interface EMAResult {
 // ── Signal Evaluation ──
 
 export interface EvaluatedSignal {
+  id: string;
   symbol: string;
   action: OrderSide;
   type: OrderType;

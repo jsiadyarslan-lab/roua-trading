@@ -414,9 +414,9 @@ export class CredentialsService {
     apiSecret: string,
     passphrase?: string,
   ): Promise<{ valid: boolean; permissions?: string[]; error?: string }> {
+    const isBinance = exchange.toLowerCase().startsWith('binance');
+    const isBinanceTest = exchange === 'binance_test' || exchange === 'binance_future_test' || (isBinance && exchange !== 'binance');
     try {
-      const isBinance = exchange.toLowerCase().startsWith('binance');
-      const isBinanceTest = exchange === 'binance_test' || exchange === 'binance_future_test' || (isBinance && exchange !== 'binance');
       const normalizedExchange = isBinance ? 'binance' : exchange;
       const ExchangeClass = ccxt[normalizedExchange as keyof typeof ccxt] as any;
       if (!ExchangeClass) {
@@ -465,25 +465,14 @@ export class CredentialsService {
       
       // ── Sustainable Binance Testnet Support ──
       if (isBinanceTest) {
+        // setSandboxMode(true) in CCXT 4.5+ correctly sets ALL testnet URLs
+        // (public, private, fapiPublic, fapiPrivate, dapiPublic, dapiPrivate, etc.)
+        // Previous manual URL override was COUNTERPRODUCTIVE — it replaced the entire
+        // urls.api object with only 2-4 keys, destroying essential endpoints that
+        // loadMarkets() and fetchBalance() need (e.g., fapiPublicV2, fapiPublicV3, sapi).
         exchangeInstance.setSandboxMode(true);
-        
-        // Manual URL override to ensure we hit the correct testnet endpoints
-        // CCXT's default sandbox mode can sometimes hit the wrong domain during loadMarkets()
-        if (exchange === 'binance_future_test') {
-          exchangeInstance.urls['api'] = {
-            public: 'https://testnet.binancefuture.com/fapi/v1',
-            private: 'https://testnet.binancefuture.com/fapi/v1',
-            fapiPublic: 'https://testnet.binancefuture.com/fapi/v1',
-            fapiPrivate: 'https://testnet.binancefuture.com/fapi/v1',
-          };
-        } else {
-          exchangeInstance.urls['api'] = {
-            public: 'https://testnet.binance.vision/api/v3',
-            private: 'https://testnet.binance.vision/api/v3',
-          };
-        }
 
-        this.logger.log(`🔑 Validating Binance Testnet (${exchangeConfig.options.defaultType}) via explicit endpoints`);
+        this.logger.log(`🔑 Validating Binance Testnet (${exchangeConfig.options.defaultType}) via CCXT sandbox mode`);
       }
 
       // Strategy 1: Try to fetch balance to validate the key (full validation)
@@ -516,10 +505,17 @@ export class CredentialsService {
           } catch (tickerErr: any) {
             // fetchTicker also failed with auth error → key is genuinely invalid
             if (this._isAuthError(tickerErr.message || '')) {
-              return { valid: false, error: 'مفتاح API غير صالح أو منتهي الصلاحية' };
+              const testnetHint2 = isBinanceTest
+                ? ' تأكد أن المفتاح من Binance Testnet وليس من الحساب الحي.'
+                : ' إذا كنت تستخدم مفتاح Testnet، اختر "Binance Spot Testnet" أو "Binance Futures Testnet" بدلاً من "Binance".';
+              return { valid: false, error: `مفتاح API غير صالح أو منتهي الصلاحية.${testnetHint2}` };
             }
           }
-          return { valid: false, error: 'مفتاح API غير صالح أو منتهي الصلاحية' };
+          // Provide specific error messages for testnet/live mismatches
+          const testnetHint = isBinanceTest
+            ? ' تأكد أن المفتاح من Binance Testnet وليس من الحساب الحي.'
+            : ' إذا كنت تستخدم مفتاح Testnet، اختر "Binance Spot Testnet" أو "Binance Futures Testnet" بدلاً من "Binance".';
+          return { valid: false, error: `مفتاح API غير صالح أو منتهي الصلاحية.${testnetHint}` };
         }
 
         // If connection error → can't reach exchange, accept with warning
@@ -564,7 +560,10 @@ export class CredentialsService {
       const message = error.message || 'Unknown error';
 
       if (this._isAuthError(message)) {
-        return { valid: false, error: 'مفتاح API غير صالح أو منتهي الصلاحية' };
+        const testnetHint3 = isBinanceTest
+          ? ' تأكد أن المفتاح من Binance Testnet وليس من الحساب الحي.'
+          : ' إذا كنت تستخدم مفتاح Testnet، اختر "Binance Spot Testnet" أو "Binance Futures Testnet" بدلاً من "Binance".';
+        return { valid: false, error: `مفتاح API غير صالح أو منتهي الصلاحية.${testnetHint3}` };
       }
 
       if (this._isConnectionError(message)) {

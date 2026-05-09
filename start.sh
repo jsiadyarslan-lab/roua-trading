@@ -1519,8 +1519,22 @@ EOSQL
     -- FIX: This constraint blocked the Smart Executor from opening new positions
     -- when old/stale positions were stuck OPEN. Now replaced with a regular index.
     -- Drop the unique constraint if it exists from a previous deploy.
-    DO $$ BEGIN
-      DROP INDEX IF EXISTS "Position_userId_symbol_side_status_key";
+    DO $$ 
+    DECLARE
+        r RECORD;
+    BEGIN
+        FOR r IN (
+            SELECT i.relname AS index_name
+            FROM pg_class t
+            JOIN pg_index ix ON t.oid = ix.indrelid
+            JOIN pg_class i ON i.oid = ix.indexrelid
+            WHERE t.relname = 'Position' 
+              AND ix.indisunique = true
+        ) LOOP
+            IF r.index_name != 'Position_pkey' THEN
+                EXECUTE 'DROP INDEX IF EXISTS "' || r.index_name || '" CASCADE;';
+            END IF;
+        END LOOP;
     EXCEPTION WHEN others THEN NULL;
     END $$;
     -- Add a regular index instead (allows multiple open positions per pair)

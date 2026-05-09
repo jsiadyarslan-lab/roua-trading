@@ -143,7 +143,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
 
   /**
    * OnModuleInit — Auto-seed critical system settings on startup.
-   * This ensures AUTO_TRADING_ENABLED exists in the DB with a default of `true`,
+   * This ensures AUTO_TRADING_ENABLED exists in the DB with a default of `false`,
    * so the agent can be controlled from the UI without relying on env vars.
    *
    * IMPORTANT: This method MUST NEVER throw. If the DB isn't ready yet
@@ -176,95 +176,88 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       this._notReadyReason = 'قاعدة البيانات غير جاهزة بعد — يرجى المحاولة لاحقاً';
     }
 
-    // ── Auto-restart agents that were RUNNING before server restart ──
-    // This recovers all user agents automatically after a Railway deployment or crash.
-    // Without this, users have to manually click "تفعيل" every time the server restarts.
+    // FIX: REMOVED _autoRestoreRunningAgents(). Previously, the agent would
+    // auto-restore all RUNNING agent sessions from the database on server restart,
+    // which caused phantom trades to be created for every user who had ever
+    // activated the agent — even if they had since deactivated it or hadn't
+    // used the platform in days. This was a major source of phantom trades.
+    //
+    // Now: The agent does NOT auto-restore. Users must explicitly click "تفعيل"
+    // from their dashboard after every server restart. This ensures no trades
+    // are ever executed without the user's explicit, current consent.
+    //
+    // Instead, run a startup cleanup to purge phantom data:
     if (this._isReady) {
-      setTimeout(() => this._autoRestoreRunningAgents(), 5000);
+      setTimeout(() => this._startupCleanup(), 10000);
     }
   }
 
   /**
-   * Auto-restore agents that were RUNNING before the server restarted.
-   * Called 5 seconds after startup to give DB/Redis time to warm up.
+   * Startup cleanup: Purge phantom agent data without restoring agents.
+   * This runs once on server boot to clean up any leftover phantom positions,
+   * trades, and agent sessions from previous server instances.
+   * Does NOT restore any agent sessions — users must explicitly re-enable.
    */
-  private async _autoRestoreRunningAgents(): Promise<void> {
+  private async _startupCleanup(): Promise<void> {
     try {
-      this.logger.log('🧠 Auto-restoring agents that were running before restart...');
+      this.logger.log('🧠 Running startup phantom cleanup...');
 
-      const runningSessions = await this.prisma.agentSession.findMany({
-        where: { status: 'RUNNING' },
-        orderBy: { startedAt: 'desc' },
-        take: 50,
-      });
-
-      if (runningSessions.length === 0) {
-        this.logger.log('🧠 No running agent sessions found in DB — nothing to restore.');
-        return;
-      }
-
-      for (const session of runningSessions) {
-        try {
-          // Check if already in Redis
-          const existing = await this.redis.get(`agent:state:${session.userId}`);
-          if (existing) {
-            const state = JSON.parse(existing);
-            if (state.status === AgentStatus.RUNNING) {
-              this.logger.debug(`🧠 Agent for ${session.userId} already active in Redis — skipping restore`);
-              continue;
-            }
-          }
-
-          // Restore from DB to Redis
-          let config: AgentConfig;
-          try {
-            config = JSON.parse(session.config);
-          } catch {
-            config = {
-              userId: session.userId,
-              strategy: session.strategy as StrategyType,
-              enabled: true,
-              maxPositionSizePercent: 2,
-              maxDailyLossPercent: 5,
-              maxOpenPositions: 5,
-              riskPerTradePercent: 1.5,
-              strategyParams: this._getDefaultStrategyParams(session.strategy as StrategyType),
-              symbols: this.DEFAULT_SYMBOLS,
-              credentialId: session.credentialId || `paper-${session.userId}`,
-              isPaperTrading: !session.credentialId || session.credentialId.startsWith('paper-'),
-              createdAt: session.startedAt,
-              updatedAt: session.updatedAt,
-            };
-          }
-
-          const restoredState: AgentState = {
-            status: AgentStatus.RUNNING,
-            config,
-            startedAt: session.startedAt,
-            dailyPnL: Number(session.dailyPnL),
-            dailyTradesCount: session.dailyTradesCount,
-            dailyResetAt: session.dailyResetAt ?? undefined,
-            consecutiveLosses: session.consecutiveLosses,
-            totalCycles: session.totalCycles,
-            lastError: session.lastError ?? undefined,
-            lastCycleAt: session.lastCycleAt ?? undefined,
-            lastSignalAt: session.lastSignalAt ?? undefined,
-          };
-
-          await this._saveAgentState(session.userId, restoredState);
-          this.logger.log(`🧠 ✅ Auto-restored agent for user ${session.userId} (strategy: ${config.strategy})`);
-        } catch (err: any) {
-          this.logger.warn(`🧠 Failed to restore agent for ${session.userId}: ${err.message}`);
+      // ── STOP: Set all RUNNING agent sessions to STOPPED in DB ──
+      // These were auto-restored by the old code and kept generating phantom trades.
+      try {
+        const stopped = await this.prisma.agentSession.updateMany({
+          where: { status: { in: ['RUNNING', 'PAUSED', 'DAILY_LIMIT_REACHED'] } },
+          data: { status: 'STOPPED', updatedAt: new Date() },
+        });
+        if (stopped.count > 0) {
+          this.logger.log(`🧠 STARTUP PURGE: Stopped ${stopped.count} phantom agent session(s) in DB`);
         }
+      } catch (err: any) {
+        this.logger.warn(`🧠 Failed to stop agent sessions: ${err.message}`);
       }
 
-      this.logger.log(`🧠 Auto-restore complete: restored ${runningSessions.length} agent(s)`);
-    } catch (err: any) {
-      this.logger.warn(`🧠 _autoRestoreRunningAgents failed (non-fatal): ${err.message}`);
+      // ── PURGE: Clear all agent states from Redis ──
+      try {
+        const agentKeys = await this.redis.scanKeys('agent:state:*');
+        for (const key of agentKeys) {
+          await this.redis.del(key);
+        }
+        if (agentKeys.length > 0) {
+          this.logger.log(`🧠 STARTUP PURGE: Cleared ${agentKeys.length} agent state(s) from Redis`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`🧠 Failed to clear agent Redis states: ${err.message}`);
+      }
+
+      // ── PURGE: Delete ALL paper-trading credentials created by agent ──
+      try {
+        const deletedCreds = await this.prisma.exchangeCredential.deleteMany({
+          where: { exchange: 'paper-trading' },
+        });
+        if (deletedCreds.count > 0) {
+          this.logger.log(`🧠 STARTUP PURGE: Deleted ${deletedCreds.count} paper-trading credential(s)`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`🧠 Failed to purge paper-trading credentials: ${err.message}`);
+      }
+
+      // ── PURGE: Delete ALL positions created by agent ──
+      try {
+        const deletedPositions = await this.prisma.position.deleteMany({
+          where: { source: { in: ['agent', 'smart_executor', 'paper_trading', 'auto_paper'] } },
+        });
+        if (deletedPositions.count > 0) {
+          this.logger.log(`🧠 STARTUP PURGE: Deleted ${deletedPositions.count} phantom position(s) from agent`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`🧠 Failed to purge agent positions: ${err.message}`);
+      }
+
+      this.logger.log('🧠 Startup phantom cleanup complete');
+    } catch (error: any) {
+      this.logger.warn(`🧠 Startup cleanup failed (non-critical): ${error.message}`);
     }
   }
-
-
 
   /**
    * Initialize AUTO_TRADING_ENABLED setting in DB.
@@ -277,8 +270,10 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     });
 
     if (!existing) {
-      // Read current env var value to use as initial DB value, defaulting to true
-      const envValue = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+      // FIX: Default to FALSE. Previously defaulted to 'true', which meant
+      // the agent was globally enabled by default on every new installation.
+      // This caused phantom trades for all users without their consent.
+      const envValue = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
       await this.prisma.setting.create({
         data: {
           key: 'AUTO_TRADING_ENABLED',
@@ -287,7 +282,19 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       });
       this.logger.log(`🔧 Auto-seeded AUTO_TRADING_ENABLED=${envValue} in DB (from env var / default)`);
     } else {
-      this.logger.log(`🔧 AUTO_TRADING_ENABLED=${JSON.parse(existing.value)} already in DB (source: database)`);
+      // FIX: If the existing DB value is 'true' from the old code, override it to 'false'.
+      // The old code defaulted to 'true', so existing deployments will have it enabled.
+      // We must disable it to stop phantom trades.
+      const existingValue = JSON.parse(existing.value);
+      if (existingValue === true) {
+        await this.prisma.setting.update({
+          where: { key: 'AUTO_TRADING_ENABLED' },
+          data: { value: JSON.stringify(false) },
+        });
+        this.logger.log('🔧 OVERRIDDEN: AUTO_TRADING_ENABLED was true in DB — set to false to stop phantom trades');
+      } else {
+        this.logger.log(`🔧 AUTO_TRADING_ENABLED=${existingValue} already in DB (source: database)`);
+      }
     }
   }
 
@@ -318,10 +325,10 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       if (dbSetting) {
         globalAutoTradingEnabled = JSON.parse(dbSetting.value);
       } else {
-        globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+        globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
       }
     } catch {
-      globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+      globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
     }
 
     if (!globalAutoTradingEnabled) {
@@ -838,7 +845,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     try {
       if (!this.prisma) {
         // Prisma not available — fall back to env var
-        autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+        autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
         source = 'env_var';
       } else {
         const dbSetting = await this.prisma.setting.findUnique({
@@ -848,12 +855,12 @@ export class AutonomousTraderAgentService implements OnModuleInit {
           autoTradingEnabled = JSON.parse(dbSetting.value);
           source = 'database';
         } else {
-          autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+          autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
           source = 'env_var';
         }
       }
     } catch {
-      autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+      autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
       source = 'env_var';
     }
 
@@ -890,7 +897,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     }
 
     // Priority: DB setting > env var > default (true)
-    const envAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+    const envAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
     const autoTradingEnabled = dbAutoTradingEnabled !== null ? dbAutoTradingEnabled : envAutoTradingEnabled;
 
     const defaultPaperBalance = parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000;

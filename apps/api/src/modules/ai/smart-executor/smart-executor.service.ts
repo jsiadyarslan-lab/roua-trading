@@ -82,71 +82,43 @@ export class SmartExecutorService implements OnModuleDestroy {
     // the DI container to resolve undefined in production builds.
     private readonly orchestrator: AIOrchestratorService,
   ) {
-    this.logger.log('⚔️ Smart Executor initialized — will auto-start in monitoring mode (with RiskGatekeeper + Notifications)');
+    this.logger.log('⚔️ Smart Executor initialized — DISABLED auto-start. Will ONLY run when a user explicitly enables it.');
 
-    // RE-ENABLED: Auto-start in MONITORING mode only (safe).
-    // The old auto-start was disabled because _autoEnableSystemUser() would
-    // auto-create paper-trading users without consent, creating phantom trades.
-    // That function has been PERMANENTLY REMOVED. Now auto-start ONLY begins
-    // the tick loop — no users are auto-enabled. Trades only execute when a
-    // real user explicitly clicks "تفعيل" in the dashboard.
+    // FIX: REMOVED auto-start completely. Previously, the executor would
+    // auto-start after 10 seconds, restore user states from DB/Redis,
+    // and sync with AgentSession — all without user consent. This caused
+    // phantom trades to be created for every user on every server restart.
+    //
+    // Now: The executor does NOTHING until a user explicitly clicks "تشغيل"
+    // from their dashboard. No auto-start, no auto-restore, no cross-system sync.
+    //
+    // Only run startup cleanup to purge any leftover phantom data:
     setTimeout(() => {
-      this._autoStart();
-    }, 10000);
+      this._startupCleanup();
+    }, 15000);
   }
 
   /**
-   * Auto-start the executor on startup.
-   * CRITICAL FIX: Do NOT auto-enable any users. Previously, the executor
-   * would auto-create a "system-auto-trader" paper trading user and execute
-   * trades on their behalf without any real user consent. This created phantom
-   * trades that inflated statistics and misled users about platform activity.
-   *
-   * Now: The executor starts in MONITORING mode only. It watches briefs but
-   * will NOT execute any trades until a real user explicitly enables the
-   * executor for their account via the dashboard "تشغيل" button.
+   * Startup cleanup: Purge phantom data without starting the executor.
+   * This runs once on server boot to clean up any leftover phantom positions,
+   * trades, and paper-trading credentials from previous server instances.
+   * Does NOT start the tick loop or enable any users.
    */
-  private async _autoStart(): Promise<void> {
+  private async _startupCleanup(): Promise<void> {
     try {
-      // Check if executor was running before restart (stored in Redis)
-      const savedState = await this.redis.get(this.REDIS_GLOBAL_STATE);
-      if (savedState) {
-        try {
-          const parsed = JSON.parse(savedState);
-          if (parsed.isRunning) {
-            this.logger.log('⚔️ Restoring executor running state from Redis (previous instance)');
-          }
-        } catch {}
-      }
+      this.logger.log('⚔️ Running startup phantom cleanup...');
 
-      if (this.isRunning) return;
-
-      // Check if there are any active briefs from the council
-      const activeBriefs = await this.councilService.getActiveBriefsCount();
-
-      this.logger.log(`⚔️ Auto-start check: ${activeBriefs} active briefs available`);
-
-      // Start the executor in MONITORING MODE ONLY.
-      // CRITICAL: Do NOT auto-enable any users here.
-      // Previously this code called _autoEnableRealUsersForPaperTrading() which
-      // enabled paper trading for ALL users in the database, causing phantom trades
-      // to be created for every user on every server restart. Users must explicitly
-      // click "تشغيل" from their dashboard to enable trading for their account.
-      // await this._autoEnableRealUsersForPaperTrading(); 
-      await this.start('system-auto');
-      this.logger.log('⚔️ Smart Executor AUTO-STARTED in pure monitoring mode — waiting for users to explicitly enable');
-
-      // ── STARTUP PURGE: Clean phantom/stale positions that block new executions ──
+      // ── STARTUP PURGE: Clean phantom/stale positions ──
       try {
         const purgeResult = await this.purgePhantomPositions();
         if (purgeResult.deleted > 0) {
-          this.logger.log(`⚔️ STARTUP PURGE: Auto-deleted ${purgeResult.deleted} phantom position(s) with dust trade values`);
+          this.logger.log(`⚔️ STARTUP PURGE: Auto-deleted ${purgeResult.deleted} phantom position(s)`);
         }
       } catch (purgeErr: any) {
         this.logger.warn(`⚔️ Startup phantom purge failed (non-critical): ${purgeErr.message}`);
       }
 
-      // Also auto-close stale paper-trading positions that have been open too long (>24h)
+      // Auto-close stale paper-trading positions that have been open too long (>24h)
       try {
         const staleClosed = await this._autoCloseStalePaperPositions();
         if (staleClosed > 0) {
@@ -156,73 +128,63 @@ export class SmartExecutorService implements OnModuleDestroy {
         this.logger.warn(`⚔️ Startup stale cleanup failed (non-critical): ${staleErr.message}`);
       }
 
-      // Restore previously-enabled users from DB (they explicitly enabled before restart)
-      // This is different from auto-enabling ALL users — we only restore users who
-      // previously clicked "تشغيل" themselves.
+      // ── NUCLEAR CLEANUP: Delete ALL paper-trading credentials ──
+      // These are auto-generated fake credentials that create phantom trades.
+      // They must be removed so the system stops generating fake positions.
       try {
-        const dbStates = await this._loadAllUserStatesFromDB();
-        let restored = 0;
-        for (const { userId, state } of dbStates) {
-          if (state.enabled) {
-            await this.redis.set(
-              `${this.REDIS_USER_STATE_PREFIX}${userId}`,
-              JSON.stringify(state),
-              86400000 * 7,
-            );
-            restored++;
-          }
+        const deletedCreds = await this.prisma.exchangeCredential.deleteMany({
+          where: { exchange: 'paper-trading' },
+        });
+        if (deletedCreds.count > 0) {
+          this.logger.log(`⚔️ STARTUP PURGE: Deleted ${deletedCreds.count} paper-trading credential(s)`);
         }
-        if (restored > 0) {
-          this.logger.log(`⚔️ Restored ${restored} user(s) executor state from DB (they explicitly enabled before restart)`);
-        }
-      } catch (restoreErr: any) {
-        this.logger.warn(`⚔️ Failed to restore user states from DB: ${restoreErr.message}`);
+      } catch (credErr: any) {
+        this.logger.warn(`⚔️ Failed to purge paper-trading credentials: ${credErr.message}`);
       }
 
+      // ── PURGE: Delete ALL smart_executor and agent positions from DB ──
+      // These are phantom positions created by the auto-start tick loop
+      try {
+        const deletedPositions = await this.prisma.position.deleteMany({
+          where: { source: { in: ['smart_executor', 'agent', 'paper_trading', 'auto_paper'] } },
+        });
+        if (deletedPositions.count > 0) {
+          this.logger.log(`⚔️ STARTUP PURGE: Deleted ${deletedPositions.count} phantom position(s) from executor/agent`);
+        }
+      } catch (posErr: any) {
+        this.logger.warn(`⚔️ Failed to purge executor positions: ${posErr.message}`);
+      }
+
+      // ── PURGE: Clear all user executor states from Redis (no auto-restore) ──
+      try {
+        const userKeys = await this.redis.scanKeys(`${this.REDIS_USER_STATE_PREFIX}*`);
+        for (const key of userKeys) {
+          await this.redis.del(key);
+        }
+        if (userKeys.length > 0) {
+          this.logger.log(`⚔️ STARTUP PURGE: Cleared ${userKeys.length} executor user state(s) from Redis`);
+        }
+      } catch (redisErr: any) {
+        this.logger.warn(`⚔️ Failed to clear executor Redis states: ${redisErr.message}`);
+      }
+
+      // ── PURGE: Clear global executor state from Redis ──
+      try {
+        await this.redis.del(this.REDIS_GLOBAL_STATE);
+      } catch {}
+
+      this.logger.log('⚔️ Startup phantom cleanup complete');
     } catch (error: any) {
-      this.logger.warn(`⚔️ Auto-start failed (non-critical): ${error.message}`);
+      this.logger.warn(`⚔️ Startup cleanup failed (non-critical): ${error.message}`);
     }
   }
 
   /**
-   * FIX: Auto-enable paper trading for ALL real users in the database.
-   * Unlike the old _autoEnableSystemUser() which created a FAKE "system-auto-trader"
-   * user, this method only enables REAL users who already exist in the database.
-   * Paper trading is safe (virtual money), so there's no risk in auto-enabling.
-   *
-   * This is the KEY FIX for the "تنفيذات المنفذ: 0" problem — without this,
-   * no users are enabled, so no trades execute, and the platform appears broken.
-   *
-   * Also called from enableUser() when a new user registers — ensures
-   * they're automatically enabled for paper trading without clicking anything.
+   * REMOVED: _autoEnableRealUsersForPaperTrading() has been PERMANENTLY DELETED.
+   * This method auto-enabled paper trading for ALL users in the database without
+   * their consent, creating phantom trades on every server restart. The executor
+   * now ONLY enables users who explicitly click "تشغيل" from their dashboard.
    */
-  private async _autoEnableRealUsersForPaperTrading(): Promise<number> {
-    let enabledCount = 0;
-    try {
-      // Find all real users (not system/auto users)
-      const users = await this.prisma.user.findMany({
-        select: { id: true },
-      });
-
-      for (const user of users) {
-        // Skip if already enabled
-        const existingState = await this.getUserState(user.id);
-        if (existingState?.enabled) continue;
-
-        // Auto-enable for paper trading
-        await this.enableUser(user.id, {
-          isPaperTrading: true,
-          maxOpenPositions: this.config.maxOpenPositions,
-          riskPerTradePercent: this.config.riskPerTradePercent,
-        });
-        enabledCount++;
-        this.logger.log(`⚔️ Auto-enabled paper trading for real user ${user.id}`);
-      }
-    } catch (error: any) {
-      this.logger.error(`⚔️ Failed to auto-enable real users: ${error.message}`);
-    }
-    return enabledCount;
-  }
 
   // ── Lifecycle ──
 
@@ -817,11 +779,11 @@ export class SmartExecutorService implements OnModuleDestroy {
     }
 
     // Step 2: Check DB for persisted user states (survives Redis restart)
+    // Only restore users who EXPLICITLY enabled the executor themselves.
     try {
       const dbUserIds = await this._getAllEnabledUsersFromDB();
       for (const id of dbUserIds) {
         if (!userIds.has(id)) {
-          this.logger.log(`⚔️ Found user ${id} in DB but NOT in Redis — recovering from DB`);
           userIds.add(id);
           // Re-populate Redis from DB
           const dbState = await this._loadUserStateFromDB(id);
@@ -838,28 +800,13 @@ export class SmartExecutorService implements OnModuleDestroy {
       this.logger.warn(`⚔️ Failed to check DB for enabled users: ${e.message}`);
     }
 
-    // Step 3: Check AgentSession for users who activated the Autonomous Trader Agent
-    try {
-      const agentUserIds = await this._getAgentSessionUsers();
-      for (const id of agentUserIds) {
-        if (!userIds.has(id)) {
-          this.logger.log(`⚔️ Found user ${id} in AgentSession but NOT in Smart Executor — cross-system sync`);
-          userIds.add(id);
-          // Create Smart Executor state from Agent session
-          const agentState = await this._loadUserStateFromAgentSession(id);
-          if (agentState) {
-            await this.redis.set(
-              `${this.REDIS_USER_STATE_PREFIX}${id}`,
-              JSON.stringify(agentState),
-              86400000 * 7,
-            );
-            await this._persistUserStateToDB(id, agentState);
-          }
-        }
-      }
-    } catch (e: any) {
-      this.logger.warn(`⚔️ Failed to check AgentSession for users: ${e.message}`);
-    }
+    // REMOVED: Step 3 (AgentSession cross-system sync) has been DELETED.
+    // Previously, this code would find users with active AgentSession records
+    // and auto-enable them for the Smart Executor without their consent.
+    // This caused the executor to execute trades for users who only activated
+    // the Agent, creating duplicate phantom trades from TWO systems.
+    // Now: Each system is independent. The executor only runs for users who
+    // explicitly enabled it from the executor dashboard.
 
     if (userIds.size > 0) {
       this.logger.debug(`⚔️ Enabled users total: ${userIds.size}`);
@@ -1380,46 +1327,18 @@ export class SmartExecutorService implements OnModuleDestroy {
       }
 
       if (!credential) {
-        // FIX: Instead of disabling the user entirely when no real credential is found,
-        // automatically fall back to paper trading. This handles the common case where
-        // ENCRYPTION_KEY changed and real credentials can't be decrypted — the user
-        // shouldn't lose all trading functionality just because of a key rotation.
+        // FIX: No credential found — do NOT auto-create paper-trading credentials.
+        // Previously, this code would automatically fall back to paper trading,
+        // creating a fake credential and executing phantom trades without user consent.
+        // This was a major source of phantom trades. Now: if there's no credential,
+        // the brief is simply SKIPPED for this user. The user must explicitly
+        // add an exchange API key or explicitly enable paper trading from the dashboard.
         this.logger.warn(
-          `⚔️ No real credential for user ${userId} — auto-falling back to paper trading`,
+          `⚔️ No credential found for user ${userId} — skipping brief execution. ` +
+          `User must add an exchange API key or explicitly enable paper trading.`,
         );
-
-        // Switch user to paper trading mode
-        userState.isPaperTrading = true;
-        userState.credentialId = undefined;
-
-        // Find or create paper-trading credential
-        credential = await this.prisma.exchangeCredential.findFirst({
-          where: { userId, exchange: 'paper-trading', isValid: true },
-        });
-
-        if (!credential) {
-          credential = await this.prisma.exchangeCredential.create({
-            data: {
-              userId,
-              exchange: 'paper-trading',
-              label: 'تداول ورقي (تجريبي)',
-              encryptedApiKey: 'paper',
-              encryptedSecret: 'paper',
-              iv: 'paper',
-              authTag: 'paper',
-              permissions: JSON.stringify(['read', 'trade']),
-              isValid: true,
-            },
-          });
-        }
-
-        // Persist the paper trading state so it survives restarts
-        await this.redis.set(
-          `${this.REDIS_USER_STATE_PREFIX}${userId}`,
-          JSON.stringify(userState),
-          86400000 * 7,
-        );
-        this._persistUserStateToDB(userId, userState).catch(() => {});
+        result.error = 'No exchange credential — skipped';
+        return result;
       }
 
       // Calculate position size based on risk

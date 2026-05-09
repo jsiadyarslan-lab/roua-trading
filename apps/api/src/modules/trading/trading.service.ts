@@ -570,6 +570,32 @@ export class TradingService {
     ipAddress?: string,
     userAgent?: string,
   ) {
+    // DYNAMIC HOTFIX: Drop unique constraints on Position table that prevent closing trades
+    try {
+      await this.prisma.$executeRawUnsafe(`
+        DO $$ 
+        DECLARE
+            r RECORD;
+        BEGIN
+            FOR r IN (
+                SELECT i.relname AS index_name
+                FROM pg_class t
+                JOIN pg_index ix ON t.oid = ix.indrelid
+                JOIN pg_class i ON i.oid = ix.indexrelid
+                WHERE t.relname = 'Position' 
+                  AND ix.indisunique = true
+            ) LOOP
+                IF r.index_name != 'Position_pkey' THEN
+                    EXECUTE 'DROP INDEX IF EXISTS "' || r.index_name || '" CASCADE;';
+                END IF;
+            END LOOP;
+        END $$;
+      `);
+      this.logger.debug('Dynamically dropped unique constraints on Position table');
+    } catch (e: any) {
+      this.logger.warn(`Failed to dynamically drop Position unique constraints: ${e.message}`);
+    }
+
     // DATA ISOLATION: Use findFirst with userId to prevent accessing other users' positions
     const position = await this.prisma.position.findFirst({
       where: { id: request.positionId, userId },

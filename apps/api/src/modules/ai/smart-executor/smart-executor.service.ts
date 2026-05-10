@@ -26,6 +26,7 @@ import { RiskGatekeeperService } from '../../trading/services/risk-gatekeeper.se
 import { AIOrchestratorService } from '../services/ai-orchestrator.service';
 import { OrderSideEnum, OrderTypeEnum } from '../../trading/events/order.events';
 import { NotificationService } from '../../notification/notification.service';
+import { OrderDispatcherService, AutoOrderRequest } from '../../trading/services/order-dispatcher.service';
 
 @Injectable()
 export class SmartExecutorService implements OnModuleDestroy {
@@ -81,6 +82,7 @@ export class SmartExecutorService implements OnModuleDestroy {
     // a second forwardRef on the injection site. Double forwardRef can cause
     // the DI container to resolve undefined in production builds.
     private readonly orchestrator: AIOrchestratorService,
+    private readonly orderDispatcher: OrderDispatcherService,
   ) {
     this.logger.log('⚔️ Smart Executor initialized — DISABLED auto-start. Will ONLY run when a user explicitly enables it.');
 
@@ -1557,63 +1559,34 @@ export class SmartExecutorService implements OnModuleDestroy {
         `risk=$${(quantity * priceRisk).toFixed(2)} (${((quantity * priceRisk / portfolioValue) * 100).toFixed(2)}% of portfolio)`,
       );
 
-      // Place the order via TradingService (proper risk checks, CCXT execution, etc.)
-      // FIX: Pass currentPrice so TradingService doesn't need to re-fetch from ExchangeService
-      // (which can fail on Railway for some pairs). The SmartExecutor already has the price
-      // from _checkBriefForUser's price fetch.
-      const orderRequest: PlaceOrderRequest = {
-        credentialId: credential.id,
-        symbol: brief.pair,
-        side: brief.direction === 'BUY' ? OrderSide.BUY : OrderSide.SELL,
-        type: OrderType.MARKET,
-        quantity,
-        price: currentPrice,
-        stopLoss: brief.stopLoss,
-        takeProfit: brief.takeProfit,
-        source: 'smart_executor',
-      };
-
-      // FIX: Run RiskGatekeeper 5-point validation BEFORE placing the order.
-      // Previously, SmartExecutor bypassed all 5 safety checks:
-      //   1. Stop-loss enforcement
-      //   2. Sufficient balance
-      //   3. Position size limit
-      //   4. Daily drawdown limit
-      //   5. Circuit breakers
-      // This was a critical gap — automated trades had LESS protection than manual ones.
+      // ✅ FIX: Route through OrderDispatcher (handles RiskGatekeeper + TradingService + idempotency).
+      // This prevents conflicts between SmartExecutor and AutonomousTrader.
       if (!brief.stopLoss || brief.stopLoss <= 0) {
         result.error = 'Brief has no stop-loss — BLOCKED by safety rules';
         this.logger.warn(`⚔️ Brief ${brief.id} has no stop-loss — execution BLOCKED for user ${userId}`);
         return result;
       }
-
-      const riskResult = await this.riskGatekeeper.validateOrder({
+      const dispatchResult = await this.orderDispatcher.submitOrder({
+        source: 'smart_executor',
         userId,
-        exchangeCredentialId: credential.id,
+        credentialId: credential.id,
         symbol: brief.pair,
-        side: brief.direction === 'BUY' ? OrderSideEnum.BUY : OrderSideEnum.SELL,
-        type: OrderTypeEnum.MARKET,
+        side: brief.direction as 'BUY' | 'SELL',
         quantity,
         price: currentPrice,
         stopLoss: brief.stopLoss,
-        idempotencyKey: `smart-exec-${brief.id}-${userId}`,
+        takeProfit: brief.takeProfit,
+        briefId: brief.id,
+        isPaperTrading: userState.isPaperTrading,
       });
 
-      if (!riskResult.allowed) {
-        result.error = `Risk gatekeeper blocked: ${riskResult.reason || 'Unknown risk'}`;
-        this.logger.warn(`⚔️ Risk gatekeeper BLOCKED execution of brief ${brief.id} for user ${userId}: ${riskResult.reason}`);
-
-        // FIX: Do NOT mark brief as processed when Risk Gatekeeper blocks it.
-        // Previously, a blocked brief was still marked as "processed" in Redis with 24h TTL,
-        // which meant it would NEVER be retried even if conditions changed.
-        // Now: Only mark as processed on SUCCESS. Failed attempts are retryable.
+      if (!dispatchResult.success) {
+        result.error = dispatchResult.error || dispatchResult.message || 'فشل الموزع';
         return result;
       }
 
-      const orderResult = await this.tradingService.placeOrder(userId, orderRequest);
-
       result.success = true;
-      result.orderId = orderResult?.id || 'unknown';
+      result.orderId = dispatchResult.orderId || 'unknown';
 
       // Audit log for the execution
       await this.audit.log({

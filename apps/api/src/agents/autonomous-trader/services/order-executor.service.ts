@@ -56,6 +56,7 @@ export class OrderExecutorService implements OnModuleDestroy {
     private readonly redis: RedisService,
     private readonly audit: AuditService,
     private readonly tradingService: TradingService,
+    private readonly orderDispatcher: OrderDispatcherService,
     private readonly exchangeService: ExchangeService,
   ) {
     this.logger.log('⚡ Order Executor initialized — safe execution ready');
@@ -178,7 +179,24 @@ export class OrderExecutorService implements OnModuleDestroy {
             idempotencyKey,
           };
 
-          const order = await this.tradingService.placeOrder(userId, orderRequest);
+          // ✅ FIX: Route through OrderDispatcher — prevents duplicate orders with SmartExecutor
+          const dispatchResult = await this.orderDispatcher.submitOrder({
+            source: 'autonomous_trader',
+            userId,
+            credentialId: orderRequest.credentialId,
+            symbol: orderRequest.symbol,
+            side: orderRequest.side === 'buy' || orderRequest.side === 'BUY' ? 'BUY' : 'SELL',
+            quantity: orderRequest.quantity,
+            price: orderRequest.price || 0,
+            stopLoss: orderRequest.stopLoss,
+            takeProfit: orderRequest.takeProfit,
+            signalId: signal?.id,
+            isPaperTrading: true,
+          });
+          if (!dispatchResult.success) {
+            throw new Error(dispatchResult.error || dispatchResult.message || 'فشل الموزع');
+          }
+          const order = { id: dispatchResult.orderId || 'unknown' };
           const executionTimeMs = Date.now() - startTime;
           const calculatedSlippage = this._calculateSlippage(signal.entryPrice, executionPrice, signal.action);
 

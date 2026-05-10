@@ -22,6 +22,9 @@ import { OrderConsumerService } from './services/order-consumer.service';
 import { PositionReconciliationService } from './services/position-reconciliation.service';
 import { ExchangeSyncService } from './services/exchange-sync.service';
 
+// ✅ NEW: Order Dispatcher — المنسق الوحيد لجميع الأوامر الآلية
+import { OrderDispatcherService } from './services/order-dispatcher.service';
+
 /**
  * Trading Module — Complete Trading Engine
  *
@@ -42,6 +45,7 @@ import { ExchangeSyncService } from './services/exchange-sync.service';
  * - OrderConsumerService: RabbitMQ order processor
  * - PositionReconciliationService: Background job to reconcile failed position updates
  * - ExchangeSyncService: Exchange ↔ DB position reconciliation (detects exchange closures)
+ * - OrderDispatcherService: ✅ NEW — الموزع المركزي لجميع الأوامر الآلية
  */
 @Module({
   imports: [
@@ -73,6 +77,9 @@ import { ExchangeSyncService } from './services/exchange-sync.service';
     OrderConsumerService,
     PositionReconciliationService,
     ExchangeSyncService,
+
+    // ✅ NEW: Order Dispatcher
+    OrderDispatcherService,
   ],
   exports: [
     TradingService,
@@ -85,6 +92,9 @@ import { ExchangeSyncService } from './services/exchange-sync.service';
     OrderConsumerService,
     PositionReconciliationService,
     ExchangeSyncService,
+
+    // ✅ NEW: Export so SmartExecutor and AutonomousTrader can inject it
+    OrderDispatcherService,
   ],
 })
 export class TradingModule {}

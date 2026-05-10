@@ -857,7 +857,8 @@ export class ScannerService {
     const currentPrice = closes[closes.length - 1];
 
     // Bull Flag: Strong uptrend followed by consolidation
-    const earlyTrend = (closes[closes.length - 15] - closes[closes.length - 20]) / closes[closes.length - 20];
+    const earlyTrendDenom = closes[closes.length - 20] || 1;
+    const earlyTrend = (closes[closes.length - 15] - closes[closes.length - 20]) / earlyTrendDenom;
     const recentConsolidation = range / sma20;
     if (earlyTrend > 0.03 && recentConsolidation < 0.02 && currentPrice > sma10) {
       patterns.push({
@@ -924,7 +925,7 @@ export class ScannerService {
     }
 
     // Breakout: Price crossing above/below consolidation range
-    const bbRange = range / currentPrice;
+    const bbRange = range / (currentPrice || 1);
     if (bbRange < 0.03) {
       // Tight consolidation
       if (currentPrice > recentHigh * 0.998 && sma5 > sma10) {

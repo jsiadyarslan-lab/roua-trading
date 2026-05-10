@@ -56,7 +56,7 @@ export class OpenRouterService {
   constructor(private readonly configService: ConfigService) {
     this.apiKey = this._resolveApiKey();
     if (this.apiKey) {
-      this.logger.log(`🔀 OpenRouter Service initialized — key: ${this.apiKey.substring(0, 4)}***${this.apiKey.length > 8 ? this.apiKey.substring(this.apiKey.length - 4) : ''} (${this.apiKey.length} chars)`);
+      this.logger.log(`🔀 OpenRouter Service initialized — key configured (${this.apiKey.length} chars)`);
     } else {
       this.logger.warn('⚠️ OPENROUTER_API_KEY not set or empty (checked ConfigService + process.env + OPEN_ROUTER_API_KEY alternate)');
     }

@@ -8,7 +8,7 @@ import {
   Activity, Target, ShieldAlert, ChevronDown
 } from 'lucide-react'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
-import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
+import { usePaperTradesStore, type PaperTrade } from '@/hooks/usePaperTradesStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
 
 /* ─── Design Tokens ─── */
@@ -412,13 +412,17 @@ export default function MobilePositionsPage() {
       .map(p => ({
         id: p.id || `${p.symbol}-${p.side}`,
         symbol: p.symbol,
-        side: p.side === 'long' ? 'long' : 'short',
+        side: (p.side === 'long' ? 'long' : 'short') as 'long' | 'short',
         qty: p.qty,
         entryPrice: p.avgEntryPrice || p.entryPrice || 0,
         currentPrice: p.currentPrice || 0,
+        tp: p.takeProfit ?? undefined,
+        sl: p.stopLoss ?? undefined,
         unrealizedPnl: p.unrealizedPnl || 0,
         unrealizedPct: p.unrealizedPnlPct || 0,
-        source: 'real' as const,
+        entryTime: p.openedAt ? new Date(p.openedAt).getTime() : Date.now(),
+        strategy: 'real',
+        source: 'manual' as const,
       }))
   }, [positions])
 

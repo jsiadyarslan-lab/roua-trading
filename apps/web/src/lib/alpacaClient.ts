@@ -128,8 +128,8 @@ export async function alpacaFetch(
 
         if (dbCred) {
           creds = {
-            apiKey: decrypt(dbCred.encryptedApiKey, dbCred.iv, dbCred.authTag),
-            apiSecret: decrypt(dbCred.encryptedSecret, dbCred.secretIv || dbCred.iv, dbCred.secretAuthTag || dbCred.authTag)
+            apiKey: decrypt({ encrypted: dbCred.encryptedApiKey, iv: dbCred.iv, authTag: dbCred.authTag }),
+            apiSecret: decrypt({ encrypted: dbCred.encryptedSecret, iv: dbCred.secretIv || dbCred.iv, authTag: dbCred.secretAuthTag || dbCred.authTag })
           }
         }
       } catch (err) {

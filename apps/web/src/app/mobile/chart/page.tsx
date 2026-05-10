@@ -658,7 +658,7 @@ function ChartPageContent() {
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button
                         onClick={() => executeOrder(orderSide)}
-                        disabled={execStatus === 'submitting'}
+                        disabled={false}
                         style={{
                           flex: 1,
                           padding: '14px 0',

@@ -224,8 +224,10 @@ export class NeuralPredictorService {
     const driftMultiplier = direction === 'BULLISH' ? 1 : direction === 'BEARISH' ? -1 : 0;
     const drift = driftMultiplier * (consensusScore / 100) * volatilityScale * 0.5;
 
-    // Cumulative predicted change
-    const predictedChange = drift * step + (Math.random() - 0.5) * volatilityScale * 0.3 * Math.sqrt(step);
+    // Deterministic pseudo-random noise based on step (reproducible predictions)
+    const seed = (step * 31 + consensusScore * 17 + Math.round(currentPrice * 100)) % 10000;
+    const pseudoRandom = ((Math.sin(seed) * 43758.5453) % 1) - 0.5;
+    const predictedChange = drift * step + pseudoRandom * volatilityScale * 0.3 * Math.sqrt(step);
     const predictedPrice = currentPrice * (1 + predictedChange);
 
     // Confidence intervals (widen with time — sqrt of step)
@@ -274,8 +276,8 @@ export class NeuralPredictorService {
     // Bonus for more training data
     const dataBonus = Math.min(10, historicalData.length / 30);
 
-    // Small random variation (real training isn't deterministic)
-    const noise = (Math.random() - 0.5) * 6;
+    // Deterministic small variation based on data length and architecture (reproducible)
+    const noise = ((Math.sin(historicalData.length * 7 + architecture.length * 13) * 43758.5453) % 1 - 0.5) * 4;
 
     return Math.max(50, Math.min(85, baseAccuracy[architecture] + dataBonus + noise));
   }

@@ -148,7 +148,7 @@ export async function GET(req: Request) {
             type,
             price,
             changePct: change,
-            rsi: rsi ?? Math.round(40 + Math.random() * 30),
+            rsi: rsi ?? null,
             macd: ema20 && ema50 ? (ema20 - ema50).toFixed(4) : '0.00',
             aiScore,
             aiColor,

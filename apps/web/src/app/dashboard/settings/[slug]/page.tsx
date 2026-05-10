@@ -12,13 +12,14 @@ import { redirect } from 'next/navigation'
  * This catch-all redirects any unknown /dashboard/settings/* sub-route back to the
  * main settings page, which already has tabs for all these sections.
  */
-export default function SettingsSubRouteRedirect({
+export default async function SettingsSubRouteRedirect({
   params,
 }: {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 }) {
+  const { slug } = await params
   const knownRoutes = ['exchange']
-  if (!knownRoutes.includes(params.slug)) {
+  if (!knownRoutes.includes(slug)) {
     redirect('/dashboard/settings')
   }
   // For known routes that somehow fall through, also redirect

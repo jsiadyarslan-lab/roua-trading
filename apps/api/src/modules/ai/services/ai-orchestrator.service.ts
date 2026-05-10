@@ -944,7 +944,6 @@ export class AIOrchestratorService implements OnModuleDestroy {
       apiWorking: boolean;
       responseTimeMs: number;
       error?: string;
-      keyHint?: string;
     }>;
     summary: { total: number; keysAvailable: number; apiWorking: number };
     circuitBreaker: Array<{
@@ -976,76 +975,16 @@ export class AIOrchestratorService implements OnModuleDestroy {
         let apiWorking = false;
         let responseTimeMs = 0;
         let error: string | undefined;
-        let keyHint: string | undefined;
 
-        // Show key presence (first 4 chars + ***) for debugging
-        // FIX: Also check altKeyEnv (e.g., GEMINI_API_KEY as alternative to GOOGLE_AI_STUDIO_API_KEY)
+        // Check key presence (DO NOT expose any part of the key)
         const altKeyEnv = (m as any).altKeyEnv as string | undefined;
         let keyValue = this.configService.get<string>(m.keyEnv, '') ||
           (altKeyEnv ? this.configService.get<string>(altKeyEnv, '') : '') ||
           (m.id === 'bedrock' ? this.configService.get<string>('AWS_ACCESS_KEY_ID', '') : '');
-        if (keyValue) {
-          keyHint = `${keyValue.substring(0, 4)}***${keyValue.length > 8 ? keyValue.substring(keyValue.length - 4) : ''}`;
-          if (altKeyEnv) keyHint += ` (checked: ${m.keyEnv} or ${altKeyEnv})`;
-        } else {
-          keyHint = `(empty — tried: ${m.keyEnv}${altKeyEnv ? ` and ${altKeyEnv}` : ''})`;
-        }
-
-        // For Ollama, also show the base URL
-        if (m.id === 'ollama') {
-          const baseUrl = this.configService.get<string>('OLLAMA_BASE_URL', 'http://localhost:11434');
-          keyHint = `URL: ${baseUrl}`;
-        }
-
-        // For Bedrock, show region
-        if (m.id === 'bedrock') {
-          const region = this.configService.get<string>('AWS_REGION', 'us-east-1');
-          keyHint = `Region: ${region}, Key: ${keyHint}`;
-        }
-
-        // For HuggingFace, also check OpenRouter fallback key
-        if (m.id === 'huggingface') {
-          const orKey = this.configService.get<string>('OPENROUTER_API_KEY', '');
-          if (orKey) {
-            keyHint += ` + OR:${orKey.substring(0, 4)}***${orKey.length > 8 ? orKey.substring(orKey.length - 4) : ''}`;
-          }
-        }
-
-        // For OpenRouter, show key hint
-        if (m.id === 'openrouter') {
-          const orKey = this.configService.get<string>('OPENROUTER_API_KEY', '');
-          if (orKey) {
-            keyHint = `${orKey.substring(0, 4)}***${orKey.length > 8 ? orKey.substring(orKey.length - 4) : ''}`;
-          }
-        }
-
-        // For Cerebras, show alt key hint
-        if (m.id === 'cerebras') {
-          const altKey = process.env.CEREBRAS_KEY || '';
-          if (altKey && keyHint) {
-            keyHint += ` (checked: CEREBRAS_API_KEY or CEREBRAS_KEY)`;
-          }
-        }
-
-        // For NVIDIA, show alt key hint
-        if (m.id === 'nvidia') {
-          const nimKey = process.env.NVIDIA_NIM_API_KEY || process.env.NIM_API_KEY || '';
-          if (nimKey) {
-            keyHint += ` + NIM:${nimKey.substring(0, 4)}***`;
-          }
-        }
-
-        // For Mistral, show alt key hint
-        if (m.id === 'mistral') {
-          const altKey = process.env.MISTRAL_KEY || '';
-          if (altKey) {
-            keyHint += ` + MISTRAL_KEY:${altKey.substring(0, 4)}***`;
-          }
-        }
 
         if (!keyAvailable) {
           error = `API key not configured or not available on this platform`;
-          return { model: m.name, keyAvailable, apiWorking, responseTimeMs, error, keyHint };
+          return { model: m.name, keyAvailable, apiWorking, responseTimeMs, error };
         }
 
         // Test actual API call
@@ -1083,7 +1022,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
           }
         }
 
-        return { model: m.name, keyAvailable, apiWorking, responseTimeMs, error, keyHint };
+        return { model: m.name, keyAvailable, apiWorking, responseTimeMs, error };
       }),
     );
 

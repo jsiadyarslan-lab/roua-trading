@@ -121,8 +121,9 @@ export class FinnhubAdapter implements IExchangeAdapter, OnModuleDestroy {
    * Subscribes to Finnhub WebSocket for live price updates
    */
   getPriceStream(symbol: string): Observable<FinnhubQuoteDto> {
+    const finnhubSymbol = this._convertSymbol(symbol);
     return this.priceSubject.asObservable().pipe(
-      filter((quote) => quote.symbol === symbol),
+      filter((quote) => quote.symbol === finnhubSymbol),
     );
   }
 
@@ -405,14 +406,18 @@ export class FinnhubAdapter implements IExchangeAdapter, OnModuleDestroy {
    * EUR/USD → OANDA:EUR_USD
    */
   private _convertSymbol(symbol: string): string {
-    // Crypto pairs: BTC/USDT → BINANCE:BTCUSDT
-    if (symbol.includes('/USDT') || symbol.includes('/USDC') || symbol.includes('/BTC')) {
-      const parts = symbol.split('/');
-      return `BINANCE:${parts[0]}${parts[1]}`;
+    // Crypto pairs: BTC/USDT → BINANCE:BTCUSDT, BTC/USD → BINANCE:BTCUSD
+    const CRYPTO_BASES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI', 'LTC', 'SHIB', 'ATOM'];
+    if (symbol.includes('/')) {
+      const base = symbol.split('/')[0].toUpperCase();
+      if (CRYPTO_BASES.includes(base)) {
+        const parts = symbol.split('/');
+        return `BINANCE:${parts[0]}${parts[1]}`;
+      }
     }
 
     // Forex pairs: EUR/USD → OANDA:EUR_USD
-    if (symbol.includes('/') && !symbol.includes('USDT')) {
+    if (symbol.includes('/')) {
       const parts = symbol.split('/');
       return `OANDA:${parts[0]}_${parts[1]}`;
     }

@@ -19,6 +19,7 @@ const SRC_ICON: Record<NotifSource, React.ReactNode> = {
   scanner: <ScanSearch size={13} />,
   trade: <Zap size={13} />,
   system: <Zap size={13} />,
+  agent: <Bot size={13} />,
 }
 
 const SRC_COLOR: Record<NotifSource, string> = {
@@ -27,6 +28,7 @@ const SRC_COLOR: Record<NotifSource, string> = {
   scanner: '#FFB800',
   trade: '#00FFA3',
   system: '#8B92A8',
+  agent: '#A259FF',
 }
 
 const ACTION_COLOR: Record<NotifAction, string> = {

@@ -7,8 +7,8 @@ import {
   ArrowRight, X, TrendingUp, TrendingDown, Loader2,
   Activity, Target, ShieldAlert, ChevronDown
 } from 'lucide-react'
-import { usePaperTradesStore, type PaperTrade } from '@/hooks/usePaperTradesStore'
-import { useMarketStore, binanceWS } from '@/hooks/useMarketStore'
+import { usePositionsStore } from '@/hooks/usePositionsStore'
+import { useMarketStore } from '@/hooks/useMarketStore'
 
 /* ─── Design Tokens ─── */
 const C = {
@@ -387,50 +387,53 @@ function PositionCard({
 /* ─── Main Page ─── */
 export default function MobilePositionsPage() {
   const router = useRouter()
-  const { trades, closeTrade } = usePaperTradesStore()
+  // FIX: Use real positions from PositionsStore instead of phantom paper trades.
+  // Previously this page used usePaperTradesStore which was the SOLE source of
+  // phantom trades on this page. Now it uses the real positions store.
+  const positions = usePositionsStore(s => s.positions)
+  const fetchPositions = usePositionsStore(s => s.fetchPositions)
   const { quotes } = useMarketStore()
 
   const [activeTab, setActiveTab] = useState<FilterTab>('ALL')
-  const [closingTrade, setClosingTrade] = useState<PaperTrade | null>(null)
+  const [closingTrade, setClosingeTrade] = useState<any | null>(null)
   const [isClosing, setIsClosing] = useState(false)
 
-  // Subscribe to real-time price updates for open positions
-  // FIX: Use useMemo to create stable symbol list to prevent infinite re-renders
-  const tradeSymbols = useMemo(() => [...new Set(trades.map(t => t.symbol))], [trades])
-  const tradeSymbolsKey = tradeSymbols.join(',')
-
+  // Fetch real positions on mount
   useEffect(() => {
-    tradeSymbols.forEach(s => binanceWS.subscribe(s))
-    return () => {
-      tradeSymbols.forEach(s => binanceWS.unsubscribe(s))
-    }
-  }, [tradeSymbolsKey, tradeSymbols])
+    fetchPositions()
+  }, [fetchPositions])
 
-  // Sync market prices into paper trades store
-  useEffect(() => {
-    const { updatePrice } = usePaperTradesStore.getState()
-    for (const trade of trades) {
-      const q = quotes[trade.symbol]
-      if (q && q.price && q.price !== trade.currentPrice) {
-        updatePrice(trade.symbol, q.price)
-      }
-    }
-  }, [quotes, trades.length])
+  // Convert real positions to display format
+  const displayTrades = useMemo(() => {
+    return positions
+      .filter(p => p.qty > 0 && (p.avgEntryPrice > 0 || p.currentPrice > 0))
+      .map(p => ({
+        id: p.id || `${p.symbol}-${p.side}`,
+        symbol: p.symbol,
+        side: p.side === 'long' ? 'long' : 'short',
+        qty: p.qty,
+        entryPrice: p.avgEntryPrice || p.entryPrice || 0,
+        currentPrice: p.currentPrice || 0,
+        unrealizedPnl: p.unrealizedPnl || 0,
+        unrealizedPct: p.unrealizedPnlPct || 0,
+        source: 'real' as const,
+      }))
+  }, [positions])
 
   // Filtered positions
   const filteredTrades = useMemo(() => {
-    if (activeTab === 'PROFIT') return trades.filter(t => t.unrealizedPnl >= 0)
-    if (activeTab === 'LOSS') return trades.filter(t => t.unrealizedPnl < 0)
-    return trades
-  }, [trades, activeTab])
+    if (activeTab === 'PROFIT') return displayTrades.filter(t => t.unrealizedPnl >= 0)
+    if (activeTab === 'LOSS') return displayTrades.filter(t => t.unrealizedPnl < 0)
+    return displayTrades
+  }, [displayTrades, activeTab])
 
   // Summary stats
-  const totalPnl = useMemo(() => trades.reduce((s, t) => s + t.unrealizedPnl, 0), [trades])
+  const totalPnl = useMemo(() => displayTrades.reduce((s, t) => s + t.unrealizedPnl, 0), [displayTrades])
   const totalValue = useMemo(
-    () => trades.reduce((s, t) => s + t.qty * (t.currentPrice || t.entryPrice), 0),
-    [trades]
+    () => displayTrades.reduce((s, t) => s + t.qty * (t.currentPrice || t.entryPrice), 0),
+    [displayTrades]
   )
-  const positionCount = trades.length
+  const positionCount = displayTrades.length
 
   // Close handler
   const handleClose = useCallback(async () => {

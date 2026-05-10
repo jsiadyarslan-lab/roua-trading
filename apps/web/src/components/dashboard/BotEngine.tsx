@@ -316,16 +316,30 @@ export function BotEngine() {
       }
     }
 
-    // Don't fire immediately on mount — wait 15 seconds to let the system stabilize
-    // and avoid generating fake notifications on page refresh
-    const startupDelay = window.setTimeout(() => {
-      scanAndExecute()
-    }, 15000)
+    // ═══════════════════════════════════════════════════════════════
+    // FIX: DISABLED auto-scan to prevent phantom trades.
+    // Previously, the BotEngine would automatically scan markets
+    // every 30 seconds and create paper trades. These paper trades
+    // were the PRIMARY source of phantom trades — they persisted
+    // in localStorage and kept getting updated by GlobalLogicEngine
+    // every 2 seconds, causing the "dancing" effect.
+    //
+    // Now: The BotEngine does NOT auto-scan or auto-trade.
+    // Users must manually trigger trades from the dashboard.
+    // The bot engine only MANAGES existing trades (TP/SL) when
+    // explicitly activated AND trades already exist.
+    // ═══════════════════════════════════════════════════════════════
+    
+    // Only manage existing open trades — do NOT scan for new ones
+    const manageInterval = setInterval(() => {
+      const botTrades = tradesRef.current.filter((trade) => trade.source === 'bot')
+      if (botTrades.length > 0) {
+        manageOpenTrades()
+      }
+    }, 30000)
 
-    const interval = setInterval(scanAndExecute, 30000)
     return () => {
-      window.clearTimeout(startupDelay)
-      clearInterval(interval)
+      clearInterval(manageInterval)
     }
   }, [hydrated, isOn, settings.confLimit, settings.riskPct, settings.strategy, settings.useAIConsensus, settings.maxDailyLoss, settings.maxOpenPositions, settings.maxDrawdown, addLog, addNotification, addPaperTrade, updatePaperTradePrice, closePaperTrade, patchStats, setEngineState])
 

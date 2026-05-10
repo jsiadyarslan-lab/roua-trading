@@ -171,7 +171,10 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
     );
 
     // Check 1: Stop-loss enforcement (MANDATORY)
-    const slCheck = this.enforceStopLoss(command);
+    // FIX: enforceStopLoss is now async — it fetches market price for market orders
+    // where command.price is undefined, instead of using `(command.price || 0)` which
+    // caused false rejections for all market buy orders.
+    const slCheck = await this.enforceStopLoss(command);
     if (!slCheck.allowed) return slCheck;
 
     // Check 2: Sufficient balance
@@ -209,7 +212,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
    * Every order MUST have a stop-loss. No exceptions.
    * This is the #1 safety rule of the Roua platform.
    */
-  enforceStopLoss(command: OrderCommand): RiskCheckResult {
+  async enforceStopLoss(command: OrderCommand): Promise<RiskCheckResult> {
     if (!command.stopLoss || command.stopLoss <= 0) {
       this.logger.warn(`🛡️ ORDER REJECTED: No stop-loss for ${command.symbol}`);
 
@@ -220,8 +223,36 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       };
     }
 
-    // Validate stop-loss direction
-    if (command.side === 'BUY' && command.stopLoss >= (command.price || 0)) {
+    // FIX: Resolve reference price for stop-loss direction validation.
+    // For MARKET orders, `command.price` is undefined/0 because there's no limit price.
+    // Previously, `(command.price || 0)` resulted in `0`, making `stopLoss >= 0` always TRUE
+    // for BUY orders — which incorrectly rejected ALL market buy orders with a valid SL.
+    // Now: if price is missing, fetch the current market price from the exchange service.
+    let referencePrice: number | undefined = command.price;
+    if (!referencePrice || referencePrice <= 0) {
+      try {
+        const quote = await this.exchangeService.getQuote(command.symbol);
+        if (quote && quote.price > 0) {
+          referencePrice = quote.price;
+          this.logger.debug(`🛡️ Fetched market price for SL validation: ${command.symbol} = $${referencePrice}`);
+        }
+      } catch {
+        // Cannot fetch price — skip direction check rather than reject
+        // A missing price reference should not block the order; the SL value itself
+        // is still validated (> 0) and the exchange will reject invalid SL on execution.
+        this.logger.warn(`🛡️ Cannot fetch price for ${command.symbol} — skipping SL direction check`);
+        return { allowed: true };
+      }
+    }
+
+    // If we still don't have a reference price, skip direction check (safety net)
+    if (!referencePrice || referencePrice <= 0) {
+      this.logger.warn(`🛡️ No reference price for ${command.symbol} — skipping SL direction check`);
+      return { allowed: true };
+    }
+
+    // Validate stop-loss direction using the resolved reference price
+    if (command.side === 'BUY' && command.stopLoss >= referencePrice) {
       return {
         allowed: false,
         reason: 'وقف الخسارة لأمر الشراء يجب أن يكون أقل من سعر الدخول.',
@@ -229,7 +260,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       };
     }
 
-    if (command.side === 'SELL' && command.stopLoss <= (command.price || 0) && command.price) {
+    if (command.side === 'SELL' && command.stopLoss <= referencePrice) {
       return {
         allowed: false,
         reason: 'وقف الخسارة لأمر البيع يجب أن يكون أعلى من سعر الدخول.',

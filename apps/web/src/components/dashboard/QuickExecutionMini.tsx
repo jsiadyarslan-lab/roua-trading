@@ -466,14 +466,19 @@ export function QuickExecutionMini({
         <button
           onClick={() => {
             if (currentPrice > 0) {
-              const tp = currentPrice * 1.02; // 2% Take Profit
-              const sl = currentPrice * 0.99; // 1% Stop Loss
+              // FIX: SL/TP direction must respect the pending order side:
+              // - BUY: SL below price (0.99x), TP above price (1.02x)
+              // - SELL: SL above price (1.01x), TP below price (0.98x)
+              // Previously, SL was always set below price which is wrong for SELL orders.
+              const isSell = pendingAction === 'sell'
+              const tp = isSell ? currentPrice * 0.98 : currentPrice * 1.02;
+              const sl = isSell ? currentPrice * 1.01 : currentPrice * 0.99;
               setTakeProfit(tp.toFixed(2));
               setStopLoss(sl.toFixed(2));
               
               if (account && account.cash) {
                 const risk = account.cash * (parseFloat(riskPct) / 100);
-                const pips = currentPrice - sl;
+                const pips = Math.abs(currentPrice - sl);
                 // Alpaca bracket orders are safer with integer quantities
                 const calcQty = Math.max(1, Math.floor(risk / pips)).toString();
                 if (parseFloat(calcQty) > 0) {

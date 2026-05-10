@@ -12,41 +12,73 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { ensureAuth } from '@/lib/api-fetch'
 import {
   X, Target, ShieldAlert, Loader2, CheckCircle, AlertCircle,
-  Minus, Plus, ArrowUpRight, ArrowDownRight
+  Minus, Plus, Wallet, ArrowUpRight, ArrowDownRight
 } from 'lucide-react'
 
 const RouaChart = dynamic(() => import('@/components/charts/RouaChart'), {
   ssr: false,
   loading: () => (
-    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0B0E14' }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
       <div className="animate-spin" style={{ width: 24, height: 24, border: '2px solid rgba(0,212,255,0.1)', borderTopColor: '#00D4FF', borderRadius: '50%' }} />
     </div>
   )
 })
 
+/* ─── Design Tokens ─── */
 const C = {
   accent: '#00D4FF',
   success: '#32D74B',
   danger: '#FF453A',
+  amber: '#FFB800',
   text: '#F0F2F5',
+  text2: 'rgba(235,235,245,0.5)',
   bg: 'rgba(28, 28, 30, 0.98)',
+  border: 'rgba(255,255,255,0.08)',
 }
 
+type ExecStatus = 'idle' | 'validating' | 'submitting' | 'filled' | 'rejected' | 'error'
+
 function ChartPageContent() {
-  const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const { selectedSymbol, setSelectedSymbol, timeframe, setTimeframe } = useSymbolStore()
   const quotes = useMarketStore(s => s.quotes)
   const addPaperTrade = usePaperTradesStore(s => s.addTrade)
   const addNotification = useNotificationStore(s => s.addNotification)
   const fetchAccount = usePositionsStore(s => s.fetchAccount)
   const fetchPositions = usePositionsStore(s => s.fetchPositions)
   const account = usePositionsStore(s => s.account)
+  const positions = usePositionsStore(s => s.positions)
 
+  // Read symbol and side from URL params
+  useEffect(() => {
+    const symbolParam = searchParams.get('symbol')
+    if (symbolParam) {
+      setSelectedSymbol(symbolParam)
+    }
+  }, [searchParams, setSelectedSymbol])
+
+  // Order form state
   const [showOrderSheet, setShowOrderSheet] = useState(false)
   const [orderSide, setOrderSide] = useState<'buy' | 'sell'>('buy')
+  const [orderType, setOrderType] = useState<'market' | 'limit'>('market')
   const [quantity, setQuantity] = useState('0.01')
-  const [execStatus, setExecStatus] = useState<'idle' | 'submitting' | 'filled' | 'error'>('idle')
-  const [execMessage, setExecMessage] = useState('')
+  const [limitPrice, setLimitPrice] = useState('')
+  const [tpEnabled, setTpEnabled] = useState(false)
+  const [slEnabled, setSlEnabled] = useState(false)
+  const [tpValue, setTpValue] = useState('')
+  const [slValue, setSlValue] = useState('')
 
+  // Execution state
+  const [execStatus, setExecStatus] = useState<ExecStatus>('idle')
+  const [execMessage, setExecMessage] = useState('')
+  const [execSource, setExecSource] = useState<string>('')
+
+  // Pair selector
+  const [showPairDropdown, setShowPairDropdown] = useState(false)
+  const PAIRS = ['BTC/USD', 'ETH/USD', 'XAU/USD', 'EUR/USD', 'GBP/USD', 'SOL/USD']
+
+  // Live price
   const quoteKey = (quotes && selectedSymbol) ? Object.keys(quotes).find(k =>
     k.toUpperCase().replace('/', '') === selectedSymbol.toUpperCase().replace('/', '')
   ) : null
@@ -54,17 +86,73 @@ function ChartPageContent() {
   const livePrice = quote ? Number(quote.price) : null
   const changePercent = quote?.changePercent ?? 0
 
-  const executeOrder = async (side: 'buy' | 'sell') => {
+  // Account balance
+  const buyingPower = account?.buying_power ? Number(account.buying_power) : 0
+
+  // Adjust quantity
+  const adjustQty = (delta: number) => {
+    const current = parseFloat(quantity) || 0
+    const step = (livePrice && livePrice > 1000) ? 0.01 : (livePrice && livePrice > 10) ? 0.1 : 1
+    const newVal = Math.max(0, current + delta * step)
+    setQuantity(newVal.toFixed(newVal < 1 ? 4 : newVal < 100 ? 2 : 0))
+  }
+
+  // Quick quantity presets (% of buying power)
+  const setQtyPercent = (pct: number) => {
+    if (!livePrice || livePrice <= 0 || buyingPower <= 0) return
+    const qty = (buyingPower * pct / 100) / livePrice
+    const step = livePrice > 1000 ? 0.01 : livePrice > 10 ? 0.1 : 1
+    setQuantity(Math.max(step, Math.floor(qty / step) * step).toFixed(livePrice > 1000 ? 2 : livePrice > 10 ? 1 : 0))
+  }
+
+  // Validate order
+  const validateOrder = (): string | null => {
     const qty = parseFloat(quantity)
-    if (!qty || qty <= 0 || !livePrice) {
+    if (!qty || qty <= 0) return 'يرجى إدخال كمية صالحة'
+    if (orderType === 'limit' && (!limitPrice || parseFloat(limitPrice) <= 0)) return 'يرجى إدخال سعر الحد'
+    if (!livePrice || livePrice <= 0) return 'سعر السوق غير متوفر حالياً'
+
+    const tp = parseFloat(tpValue)
+    const sl = parseFloat(slValue)
+    if (tpEnabled && tp) {
+      if (orderSide === 'buy' && tp <= livePrice) return 'جني الأرباح يجب أن يكون أعلى من السعر الحالي'
+      if (orderSide === 'sell' && tp >= livePrice) return 'جني الأرباح يجب أن يكون أقل من السعر الحالي'
+    }
+    if (slEnabled && sl) {
+      if (orderSide === 'buy' && sl >= livePrice) return 'وقف الخسارة يجب أن يكون أقل من السعر الحالي'
+      if (orderSide === 'sell' && sl <= livePrice) return 'وقف الخسارة يجب أن يكون أعلى من السعر الحالي'
+    }
+    return null
+  }
+
+  // Execute order
+  const executeOrder = async (side: 'buy' | 'sell') => {
+    const validationError = validateOrder()
+    if (validationError) {
       setExecStatus('error')
-      setExecMessage('يرجى إدخال كمية صالحة')
+      setExecMessage(validationError)
       setTimeout(() => setExecStatus('idle'), 3000)
       return
     }
 
     setExecStatus('submitting')
     setExecMessage('جارٍ إرسال الأمر...')
+
+    const body: Record<string, any> = {
+      symbol: selectedSymbol,
+      side: side,
+      qty: parseFloat(quantity),
+      type: orderType,
+      time_in_force: 'ioc',
+    }
+    if (orderType === 'limit' && limitPrice) body.limit_price = parseFloat(limitPrice)
+    if (slEnabled && slValue) body.stop_loss = parseFloat(slValue)
+    if (tpEnabled && tpValue) body.take_profit = parseFloat(tpValue)
+
+    let success = false
+    let orderId = ''
+    let filledPrice = 0
+    let source = ''
 
     try {
       await ensureAuth()
@@ -78,8 +166,11 @@ function ChartPageContent() {
           credentialId,
           symbol: selectedSymbol,
           side: side.toUpperCase(),
-          type: 'MARKET',
+          type: orderType.toUpperCase(),
           quantity: parseFloat(quantity),
+          price: orderType === 'limit' && limitPrice ? parseFloat(limitPrice) : undefined,
+          stopLoss: slEnabled && slValue ? parseFloat(slValue) : undefined,
+          takeProfit: tpEnabled && tpValue ? parseFloat(tpValue) : undefined,
         }
 
         const res = await fetch('/api/trading/orders', {
@@ -90,55 +181,114 @@ function ChartPageContent() {
         const j = await res.json()
 
         if (res.ok && j.id) {
-          addPaperTrade({
-            symbol: selectedSymbol,
-            side: side === 'buy' ? 'long' : 'short',
-            qty: parseFloat(quantity),
-            entryPrice: livePrice,
-            currentPrice: livePrice,
-            source: 'manual',
-            entryTime: Date.now()
-          })
-
-          setExecStatus('filled')
-          setExecMessage(`تم ${side === 'buy' ? 'شراء' : 'بيع'} ${quantity} ${selectedSymbol} بسعر $${livePrice.toFixed(2)}`)
-
-          addNotification({
-            source: 'trade',
-            priority: 'high',
-            action: side === 'buy' ? 'BUY' : 'SELL',
-            title: `تم ${side === 'buy' ? 'شراء' : 'بيع'} ${selectedSymbol}`,
-            body: `${quantity} ${selectedSymbol} @ $${livePrice.toFixed(2)}`,
-            pair: selectedSymbol,
-            price: livePrice,
-          })
-
-          fetchAccount()
-          fetchPositions()
-
-          setTimeout(() => {
-            setShowOrderSheet(false)
-            setExecStatus('idle')
-            setQuantity('0.01')
-          }, 2000)
+          success = true
+          orderId = j.id
+          filledPrice = j.filledAvgPrice || j.avgFillPrice || livePrice || 0
+          source = 'nestjs'
+        } else if (res.status === 403) {
+          setExecStatus('rejected')
+          setExecMessage(j.message || 'تم رفض الأمر')
+          setExecSource('nestjs')
+          setTimeout(() => setExecStatus('idle'), 5000)
+          return
         } else {
-          setExecStatus('error')
-          setExecMessage(j.message || 'فشل تنفيذ الأمر')
-          setTimeout(() => setExecStatus('idle'), 3000)
+          throw new Error(j.message || 'NestJS error')
         }
+      } else {
+        throw new Error('No credentials')
       }
     } catch {
-      setExecStatus('error')
-      setExecMessage('خطأ في الشبكة')
-      setTimeout(() => setExecStatus('idle'), 3000)
+      try {
+        const res = await fetch('/api/alpaca/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        })
+        const j = await res.json()
+
+        if (j.success) {
+          success = true
+          orderId = j.orderId
+          filledPrice = j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : (livePrice || 0)
+          source = 'alpaca'
+        } else {
+          setExecStatus('error')
+          setExecMessage(j.error || 'فشل تنفيذ الأمر')
+          setTimeout(() => setExecStatus('idle'), 4000)
+          return
+        }
+      } catch {
+        setExecStatus('error')
+        setExecMessage('خطأ في الشبكة')
+        setTimeout(() => setExecStatus('idle'), 4000)
+        return
+      }
+    }
+
+    if (success) {
+      addPaperTrade({
+        symbol: selectedSymbol,
+        side: side === 'buy' ? 'long' : 'short',
+        qty: parseFloat(quantity),
+        entryPrice: filledPrice,
+        currentPrice: livePrice || filledPrice,
+        tp: tpEnabled && tpValue ? parseFloat(tpValue) : undefined,
+        sl: slEnabled && slValue ? parseFloat(slValue) : undefined,
+        source: 'manual',
+        entryTime: Date.now()
+      })
+
+      setExecStatus('filled')
+      const sourceLabel = source === 'nestjs' ? 'آمن' : 'مباشر'
+      setExecSource(sourceLabel)
+      setExecMessage(`تم ${side === 'buy' ? 'شراء' : 'بيع'} ${quantity} ${selectedSymbol} بسعر $${filledPrice.toFixed(2)}`)
+
+      addNotification({
+        source: 'trade',
+        priority: 'high',
+        action: side === 'buy' ? 'BUY' : 'SELL',
+        title: `تم ${side === 'buy' ? 'شراء' : 'بيع'} ${selectedSymbol}`,
+        body: `${quantity} ${selectedSymbol} @ $${filledPrice.toFixed(2)} [${sourceLabel}]`,
+        pair: selectedSymbol,
+        price: filledPrice,
+      })
+
+      fetchAccount()
+      fetchPositions()
+      setTimeout(() => { fetchAccount(); fetchPositions() }, 2000)
+
+      setTimeout(() => {
+        setShowOrderSheet(false)
+        setExecStatus('idle')
+        setTpEnabled(false)
+        setSlEnabled(false)
+        setTpValue('')
+        setSlValue('')
+        setLimitPrice('')
+      }, 2500)
     }
   }
 
+  // Format price
   const fmtPrice = (p: number | null) => {
     if (!p) return '—'
     if (p > 100) return p.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     return p.toFixed(4)
   }
+
+  // Ref for dropdown
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowPairDropdown(false)
+      }
+    }
+    if (showPairDropdown) document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showPairDropdown])
+
+  const [chartFullscreen, setChartFullscreen] = useState(false)
 
   return (
     <div style={{
@@ -152,28 +302,81 @@ function ChartPageContent() {
         flexShrink: 0,
         height: 48,
         marginTop: 'calc(env(safe-area-inset-top) + 2px)',
-        marginLeft: 12,
-        marginRight: 12,
+        marginLeft: 8,
+        marginRight: 8,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         direction: 'rtl',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, direction: 'ltr' }}>
-          <span style={{ fontSize: 14, fontWeight: 900, color: '#00D4FF', fontFamily: 'JetBrains Mono, monospace' }}>
-            {selectedSymbol}
-          </span>
+          <div ref={dropdownRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowPairDropdown(!showPairDropdown)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4,
+                padding: '4px 10px', borderRadius: 8,
+                background: 'rgba(0,212,255,0.08)',
+                border: '1px solid rgba(0,212,255,0.2)',
+                cursor: 'pointer',
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace" }}>
+                {selectedSymbol}
+              </span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#00D4FF" strokeWidth="2.5">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
+            </button>
+            {showPairDropdown && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, zIndex: 50,
+                minWidth: 140, maxHeight: 200, overflowY: 'auto',
+                background: 'rgba(20,20,22,0.98)',
+                backdropFilter: 'blur(20px)',
+                border: '1px solid rgba(0,212,255,0.2)',
+                borderRadius: 10,
+                padding: 4,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+              }}>
+                {PAIRS.map(pair => {
+                  const isActive = selectedSymbol === pair
+                  return (
+                    <button
+                      key={pair}
+                      onClick={() => { setSelectedSymbol(pair); setShowPairDropdown(false) }}
+                      style={{
+                        width: '100%', padding: '8px 10px', borderRadius: 6,
+                        background: isActive ? 'rgba(0,212,255,0.12)' : 'transparent',
+                        border: 'none', cursor: 'pointer', textAlign: 'left',
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      }}
+                    >
+                      <span style={{ fontSize: 12, fontWeight: 700, color: isActive ? '#00D4FF' : '#F0F2F5', fontFamily: "'JetBrains Mono', monospace" }}>
+                        {pair}
+                      </span>
+                      {isActive && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00D4FF" strokeWidth="3">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </div>
           <span style={{
             fontSize: 14, fontWeight: 900,
-            color: livePrice ? (changePercent >= 0 ? C.success : C.danger) : '#666',
-            fontFamily: 'JetBrains Mono, monospace',
+            color: livePrice ? (changePercent >= 0 ? C.success : C.danger) : C.text2,
+            fontFamily: "'JetBrains Mono', monospace",
           }}>
             {fmtPrice(livePrice)}
           </span>
           <span style={{
             fontSize: 10, fontWeight: 700,
             color: changePercent >= 0 ? C.success : C.danger,
-            fontFamily: 'JetBrains Mono, monospace',
+            fontFamily: "'JetBrains Mono', monospace",
             padding: '2px 6px', borderRadius: 4,
             background: changePercent >= 0 ? 'rgba(50,215,75,0.1)' : 'rgba(255,69,58,0.1)',
           }}>
@@ -195,82 +398,83 @@ function ChartPageContent() {
             justifyContent: 'center',
             gap: 4,
             cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(0,212,255,0.3)',
           }}
         >
-          <span style={{ fontSize: 11, fontWeight: 800, color: '#000', fontFamily: 'Cairo, sans-serif' }}>تداول</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
+          </svg>
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#000', fontFamily: "'Cairo', sans-serif" }}>تداول</span>
         </motion.button>
       </div>
 
-      {/* Chart Area - Full Height */}
+      {/* Chart Area */}
       <div style={{
-        position: 'absolute',
-        top: 60, // Top bar height
-        left: 12,
-        right: 12,
-        bottom: 12, // Bottom margin
+        flex: 1,
+        marginLeft: 8,
+        marginRight: 8,
         borderRadius: 12,
         overflow: 'hidden',
         background: '#0B0E14',
         border: '1px solid rgba(0,212,255,0.15)',
+        position: 'relative',
         direction: 'ltr',
+        minHeight: 0,
       }}>
         <RouaChart
           currentPrice={livePrice}
-          isChartFullscreen={false}
-          onToggleChartFullscreen={() => {}}
+          isChartFullscreen={chartFullscreen}
+          onToggleChartFullscreen={() => setChartFullscreen(!chartFullscreen)}
         />
-        
-        {/* Floating Buy/Sell Buttons */}
-        <div style={{
-          position: 'absolute',
-          bottom: 12,
-          left: 12,
-          right: 12,
-          display: 'flex',
-          gap: 8,
-          zIndex: 10,
-        }}>
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={() => { setOrderSide('buy'); setShowOrderSheet(true) }}
-            style={{
-              flex: 1,
-              height: 44,
-              borderRadius: 12,
-              background: 'rgba(50,215,75,0.9)',
-              border: '1px solid rgba(50,215,75,0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              cursor: 'pointer',
-              backdropFilter: 'blur(10px)',
-            }}
-          >
-            <ArrowUpRight size={16} color="#FFF" />
-            <span style={{ fontSize: 13, fontWeight: 800, color: '#FFF', fontFamily: 'Cairo, sans-serif' }}>شراء</span>
-          </motion.button>
-          <motion.button
-            whileTap={{ scale: 0.95 }}
-            onClick={() => { setOrderSide('sell'); setShowOrderSheet(true) }}
-            style={{
-              flex: 1,
-              height: 44,
-              borderRadius: 12,
-              background: 'rgba(255,69,58,0.9)',
-              border: '1px solid rgba(255,69,58,0.3)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              cursor: 'pointer',
-              backdropFilter: 'blur(10px)',
-            }}
-          >
-            <ArrowDownRight size={16} color="#FFF" />
-            <span style={{ fontSize: 13, fontWeight: 800, color: '#FFF', fontFamily: 'Cairo, sans-serif' }}>بيع</span>
-          </motion.button>
-        </div>
+      </div>
+
+      {/* Quick Buy/Sell Buttons */}
+      <div style={{
+        flexShrink: 0,
+        marginLeft: 8,
+        marginRight: 8,
+        marginTop: 8,
+        display: 'flex',
+        gap: 8,
+      }}>
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => { setOrderSide('buy'); setShowOrderSheet(true) }}
+          style={{
+            flex: 1,
+            height: 44,
+            borderRadius: 12,
+            background: 'rgba(50,215,75,0.15)',
+            border: '1px solid rgba(50,215,75,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            cursor: 'pointer',
+          }}
+        >
+          <ArrowUpRight size={16} color="#32D74B" />
+          <span style={{ fontSize: 13, fontWeight: 800, color: '#32D74B', fontFamily: "'Cairo', sans-serif" }}>شراء</span>
+        </motion.button>
+        <motion.button
+          whileTap={{ scale: 0.95 }}
+          onClick={() => { setOrderSide('sell'); setShowOrderSheet(true) }}
+          style={{
+            flex: 1,
+            height: 44,
+            borderRadius: 12,
+            background: 'rgba(255,69,58,0.15)',
+            border: '1px solid rgba(255,69,58,0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
+            cursor: 'pointer',
+          }}
+        >
+          <ArrowDownRight size={16} color="#FF453A" />
+          <span style={{ fontSize: 13, fontWeight: 800, color: '#FF453A', fontFamily: "'Cairo', sans-serif" }}>بيع</span>
+        </motion.button>
       </div>
 
       {/* Order Sheet */}
@@ -305,7 +509,7 @@ function ChartPageContent() {
 
               <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', WebkitOverflowScrolling: 'touch' }}>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', fontFamily: 'Cairo, sans-serif' }}>تنفيذ صفقة</h2>
+                  <h2 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>تنفيذ صفقة</h2>
                   <button
                     onClick={() => { if (execStatus !== 'submitting') setShowOrderSheet(false) }}
                     style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none' }}
@@ -319,63 +523,169 @@ function ChartPageContent() {
                     animate={{ x: orderSide === 'buy' ? 0 : '100%' }}
                     style={{ position: 'absolute', top: 4, left: 4, width: 'calc(50% - 4px)', bottom: 4, background: orderSide === 'buy' ? C.success : C.danger, borderRadius: 12, zIndex: 0 }}
                   />
-                  <button onClick={() => setOrderSide('buy')} style={{ flex: 1, height: 40, borderRadius: 12, border: 'none', background: 'transparent', fontSize: 15, fontWeight: 800, color: orderSide === 'buy' ? '#000' : '#FFF', fontFamily: 'Cairo, sans-serif', zIndex: 1, position: 'relative' }}>شراء</button>
-                  <button onClick={() => setOrderSide('sell')} style={{ flex: 1, height: 40, borderRadius: 12, border: 'none', background: 'transparent', fontSize: 15, fontWeight: 800, color: orderSide === 'sell' ? '#000' : '#FFF', fontFamily: 'Cairo, sans-serif', zIndex: 1, position: 'relative' }}>بيع</button>
+                  <button onClick={() => setOrderSide('buy')} style={{ flex: 1, height: 40, borderRadius: 12, border: 'none', background: 'transparent', fontSize: 15, fontWeight: 800, color: orderSide === 'buy' ? '#000' : '#FFF', fontFamily: "'Cairo', sans-serif", zIndex: 1, position: 'relative' }}>شراء</button>
+                  <button onClick={() => setOrderSide('sell')} style={{ flex: 1, height: 40, borderRadius: 12, border: 'none', background: 'transparent', fontSize: 15, fontWeight: 800, color: orderSide === 'sell' ? '#000' : '#FFF', fontFamily: "'Cairo', sans-serif", zIndex: 1, position: 'relative' }}>بيع</button>
                 </div>
 
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ fontSize: 11, color: '#999', fontFamily: 'Cairo, sans-serif', fontWeight: 700, display: 'block', marginBottom: 4 }}>الكمية</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <motion.button whileTap={{ scale: 0.9 }} onClick={() => setQuantity(String(Math.max(0.01, parseFloat(quantity) - 0.01)))}
-                      style={{ width: 40, height: 40, borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                    >
-                      <Minus size={14} color="#999" />
-                    </motion.button>
-                    <input
-                      value={quantity} onChange={e => setQuantity(e.target.value)}
-                      type="number"
-                      style={{
-                        flex: 1, height: 40, borderRadius: 8, background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.1)', padding: '0 12px',
-                        color: '#FFF', fontSize: 14, fontWeight: 800, fontFamily: 'JetBrains Mono, monospace',
-                        outline: 'none', direction: 'ltr', textAlign: 'center',
-                      }}
-                    />
-                    <motion.button whileTap={{ scale: 0.9 }} onClick={() => setQuantity(String(parseFloat(quantity) + 0.01))}
-                      style={{ width: 40, height: 40, borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
-                    >
-                      <Plus size={14} color="#999" />
-                    </motion.button>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: 11, color: C.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 4 }}>نوع الأمر</label>
+                    <div style={{ display: 'flex', gap: 4, padding: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
+                      <button
+                        onClick={() => setOrderType('market')}
+                        style={{
+                          flex: 1, padding: '6px 0', borderRadius: 8,
+                          background: orderType === 'market' ? C.accent : 'transparent',
+                          color: orderType === 'market' ? '#000' : C.text2,
+                          fontSize: 11, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
+                          border: 'none', cursor: 'pointer',
+                        }}
+                      >سوقي</button>
+                      <button
+                        onClick={() => setOrderType('limit')}
+                        style={{
+                          flex: 1, padding: '6px 0', borderRadius: 8,
+                          background: orderType === 'limit' ? C.accent : 'transparent',
+                          color: orderType === 'limit' ? '#000' : C.text2,
+                          fontSize: 11, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
+                          border: 'none', cursor: 'pointer',
+                        }}
+                      >محدد</button>
+                    </div>
+                  </div>
+                  <div style={{ flex: 1.3 }}>
+                    <label style={{ fontSize: 11, color: C.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 4 }}>الكمية</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <motion.button whileTap={{ scale: 0.9 }} onClick={() => adjustQty(-1)}
+                        style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                      >
+                        <Minus size={14} color={C.text} />
+                      </motion.button>
+                      <input
+                        value={quantity} onChange={e => setQuantity(e.target.value)}
+                        type="number"
+                        style={{
+                          flex: 1, height: 34, borderRadius: 8, background: 'rgba(255,255,255,0.05)',
+                          border: `0.5px solid ${C.border}`, padding: '0 8px',
+                          color: C.text, fontSize: 13, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
+                          outline: 'none', direction: 'ltr', textAlign: 'center',
+                        }}
+                      />
+                      <motion.button whileTap={{ scale: 0.9 }} onClick={() => adjustQty(1)}
+                        style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                      >
+                        <Plus size={14} color={C.text} />
+                      </motion.button>
+                    </div>
                   </div>
                 </div>
 
-                <div style={{ flexShrink: 0, padding: '8px 20px 20px', borderTop: '0.5px solid rgba(255,255,255,0.08)', background: 'rgba(20,20,22,0.95)' }}>
-                  {execStatus === 'idle' && (
-                    <button
-                      onClick={() => executeOrder(orderSide)}
+                {buyingPower > 0 && livePrice && livePrice > 0 && (
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+                    {[5, 10, 25, 50].map(pct => (
+                      <button
+                        key={pct}
+                        onClick={() => setQtyPercent(pct)}
+                        style={{
+                          flex: 1, padding: '5px 0', borderRadius: 8,
+                          background: 'rgba(255,255,255,0.04)',
+                          border: '0.5px solid rgba(255,255,255,0.08)',
+                          color: C.text2, fontSize: 10, fontWeight: 700,
+                          fontFamily: "'JetBrains Mono', monospace",
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {pct}%
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {orderType === 'limit' && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} style={{ marginBottom: 10 }}>
+                    <label style={{ fontSize: 11, color: C.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 4 }}>سعر الحد</label>
+                    <input
+                      value={limitPrice} onChange={e => setLimitPrice(e.target.value)}
+                      type="number" placeholder={livePrice?.toString() || '0.00'}
                       style={{
-                        width: '100%',
-                        padding: '14px 0',
-                        borderRadius: 12,
-                        border: 'none',
-                        background: orderSide === 'buy'
-                          ? 'linear-gradient(135deg, #32D74B 0%, #28A745 100%)'
-                          : 'linear-gradient(135deg, #FF453A 0%, #DC2626 100%)',
-                        color: '#FFFFFF',
-                        fontSize: 14,
-                        fontWeight: 800,
-                        fontFamily: 'Cairo, sans-serif',
-                        cursor: 'pointer',
+                        width: '100%', height: 38, borderRadius: 10, background: 'rgba(255,255,255,0.05)',
+                        border: `0.5px solid ${C.border}`, padding: '0 12px',
+                        color: C.text, fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
+                        outline: 'none', direction: 'ltr', textAlign: 'left',
                       }}
-                    >
-                      {orderSide === 'buy' ? 'شراء' : 'بيع'} {selectedSymbol}
-                    </button>
+                    />
+                  </motion.div>
+                )}
+
+                <div className="space-y-2 mb-4">
+                  <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 14, padding: '12px', border: '0.5px solid rgba(255,255,255,0.05)' }}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Target size={16} color={C.success} />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>جني الأرباح (TP)</span>
+                      </div>
+                      <button onClick={() => setTpEnabled(!tpEnabled)} style={{ width: 42, height: 24, borderRadius: 12, background: tpEnabled ? C.success : 'rgba(255,255,255,0.1)', position: 'relative', border: 'none' }}>
+                        <motion.div animate={{ x: tpEnabled ? 18 : 2 }} style={{ position: 'absolute', top: 2, left: 0, width: 20, height: 20, borderRadius: '50%', background: '#FFF' }} />
+                      </button>
+                    </div>
+                    {tpEnabled && (
+                      <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} className="pt-3">
+                        <input type="number" placeholder="سعر الهدف..." value={tpValue} onChange={(e) => setTpValue(e.target.value)} style={{ width: '100%', height: 38, borderRadius: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', padding: '0 12px', color: '#FFF', fontSize: 13, fontFamily: "'JetBrains Mono', monospace", outline: 'none' }} />
+                      </motion.div>
+                    )}
+                  </div>
+
+                  <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 14, padding: '12px', border: '0.5px solid rgba(255,255,255,0.05)' }}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ShieldAlert size={16} color={C.danger} />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>وقف الخسارة (SL)</span>
+                      </div>
+                      <button onClick={() => setSlEnabled(!slEnabled)} style={{ width: 42, height: 24, borderRadius: 12, background: slEnabled ? C.danger : 'rgba(255,255,255,0.1)', position: 'relative', border: 'none' }}>
+                        <motion.div animate={{ x: slEnabled ? 18 : 2 }} style={{ position: 'absolute', top: 2, left: 0, width: 20, height: 20, borderRadius: '50%', background: '#FFF' }} />
+                      </button>
+                    </div>
+                    {slEnabled && (
+                      <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} className="pt-3">
+                        <input type="number" placeholder="سعر التوقف..." value={slValue} onChange={(e) => setSlValue(e.target.value)} style={{ width: '100%', height: 38, borderRadius: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', padding: '0 12px', color: '#FFF', fontSize: 13, fontFamily: "'JetBrains Mono', monospace", outline: 'none' }} />
+                      </motion.div>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ flexShrink: 0, padding: '8px 20px 20px', borderTop: '0.5px solid rgba(255,255,255,0.08)', background: 'rgba(20,20,22,0.95)', position: 'relative', zIndex: 36 }}>
+                  {(execStatus === 'idle' || execStatus === 'error' || execStatus === 'rejected') && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        onClick={() => executeOrder(orderSide)}
+                        disabled={execStatus === 'submitting'}
+                        style={{
+                          flex: 1,
+                          padding: '14px 0',
+                          borderRadius: 12,
+                          border: 'none',
+                          background: orderSide === 'buy'
+                            ? 'linear-gradient(135deg, #32D74B 0%, #28A745 100%)'
+                            : 'linear-gradient(135deg, #FF453A 0%, #DC2626 100%)',
+                          color: '#FFFFFF',
+                          fontSize: 14,
+                          fontWeight: 800,
+                          fontFamily: "'Cairo', sans-serif",
+                          cursor: 'pointer',
+                          boxShadow: orderSide === 'buy'
+                            ? '0 4px 16px rgba(50,215,75,0.3)'
+                            : '0 4px 16px rgba(255,69,58,0.3)',
+                        }}
+                      >
+                        {orderSide === 'buy' ? 'شراء' : 'بيع'} {selectedSymbol}
+                      </button>
+                    </div>
                   )}
 
                   {execStatus === 'submitting' && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 0' }}>
                       <Loader2 size={20} className="animate-spin" color="#00D4FF" />
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#F0F2F5', fontFamily: 'Cairo, sans-serif' }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#F0F2F5', fontFamily: "'Cairo', sans-serif" }}>
                         جارٍ التنفيذ...
                       </span>
                     </div>
@@ -384,7 +694,16 @@ function ChartPageContent() {
                   {execStatus === 'filled' && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 0', background: 'rgba(50,215,75,0.1)', borderRadius: 12 }}>
                       <CheckCircle size={20} color="#32D74B" />
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#32D74B', fontFamily: 'Cairo, sans-serif' }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#32D74B', fontFamily: "'Cairo', sans-serif" }}>
+                        {execMessage}
+                      </span>
+                    </div>
+                  )}
+
+                  {execStatus === 'rejected' && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 0', background: 'rgba(255,184,0,0.1)', borderRadius: 12 }}>
+                      <AlertCircle size={20} color="#FFB800" />
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#FFB800', fontFamily: "'Cairo', sans-serif" }}>
                         {execMessage}
                       </span>
                     </div>
@@ -393,7 +712,7 @@ function ChartPageContent() {
                   {execStatus === 'error' && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 0', background: 'rgba(255,69,58,0.1)', borderRadius: 12 }}>
                       <AlertCircle size={20} color="#FF453A" />
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#FF453A', fontFamily: 'Cairo, sans-serif' }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#FF453A', fontFamily: "'Cairo', sans-serif" }}>
                         {execMessage}
                       </span>
                     </div>
@@ -411,7 +730,7 @@ function ChartPageContent() {
 export default function MobileChartPage() {
   return (
     <Suspense fallback={
-      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0B0E14' }}>
+      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
         <div className="animate-spin" style={{ width: 24, height: 24, border: '2px solid rgba(0,212,255,0.1)', borderTopColor: '#00D4FF', borderRadius: '50%' }} />
       </div>
     }>

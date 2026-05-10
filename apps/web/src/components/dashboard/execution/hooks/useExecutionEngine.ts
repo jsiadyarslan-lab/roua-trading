@@ -348,7 +348,14 @@ export function useExecutionEngine() {
           side: side.toUpperCase(),
           type: orderType.toUpperCase(),
           quantity: parseFloat(quantity),
-          price: orderType === 'limit' && limitPrice ? parseFloat(limitPrice) : undefined,
+          // FIX: Always send price even for market orders — the risk gatekeeper
+          // needs a reference price to validate stop-loss direction. Previously,
+          // market orders sent price=undefined, causing `(command.price || 0)` = 0
+          // in the risk gatekeeper, which made `stopLoss >= 0` always TRUE and
+          // rejected ALL market buy orders.
+          price: orderType === 'limit' && limitPrice
+            ? parseFloat(limitPrice)
+            : currentPrice > 0 ? currentPrice : undefined,
           // FIX: v2 requires stopLoss (mandatory per RiskGatekeeper rule #1)
           // If user didn't set one, calculate a default (2% from current price)
           stopLoss: stopLoss ? parseFloat(stopLoss) : currentPrice > 0
@@ -529,8 +536,13 @@ export function useExecutionEngine() {
   // Auto-calculate TP/SL/Qty
   const autoCalculate = useCallback(() => {
     if (currentPrice > 0) {
-      const tp = currentPrice * 1.02
-      const sl = currentPrice * 0.99
+      // FIX: SL direction must respect order side:
+      // - BUY: SL below price, TP above price
+      // - SELL: SL above price, TP below price
+      // Previously, SL was always set below price (0.99x) which is wrong for SELL orders.
+      const isSell = pendingAction === 'sell'
+      const tp = isSell ? currentPrice * 0.98 : currentPrice * 1.02
+      const sl = isSell ? currentPrice * 1.01 : currentPrice * 0.99
       setTakeProfit(tp.toFixed(2))
       setStopLoss(sl.toFixed(2))
 
@@ -543,7 +555,7 @@ export function useExecutionEngine() {
         }
       }
     }
-  }, [currentPrice, account, riskPct])
+  }, [currentPrice, account, riskPct, pendingAction])
 
   // Apply optimal quantity from risk calculator
   const applyOptimalQty = useCallback(() => {

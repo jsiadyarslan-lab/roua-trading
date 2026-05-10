@@ -1040,7 +1040,9 @@ export class SmartExecutorService implements OnModuleDestroy {
           //   3. No audit log for the close
           // Now: delegate to TradingService which handles everything properly.
           try {
-            await this.tradingService.closePosition(userId, {
+            // FIX: Use closePositionWithRetry for optimistic locking support.
+            // No more direct DB bypass — TradingService is the SINGLE source of truth.
+            await this.tradingService.closePositionWithRetry(userId, {
               positionId: oldestPosition.id,
             });
 
@@ -1055,44 +1057,17 @@ export class SmartExecutorService implements OnModuleDestroy {
               `(id: ${oldestPosition.id}, PnL: $${pnl.toFixed(2)}) via TradingService to make room for new brief`,
             );
           } catch (closeErr: any) {
-            this.logger.warn(`⚔️ TradingService close failed for stale position ${oldestPosition.id}: ${closeErr.message} — falling back to direct DB update`);
-            // Fallback: direct DB update if TradingService fails (e.g., credential deleted)
-            const closePrice = Number(oldestPosition.currentPrice) || Number(oldestPosition.entryPrice);
-            const pnl = (closePrice - Number(oldestPosition.entryPrice)) * Number(oldestPosition.quantity) * (oldestPosition.side === 'SELL' ? -1 : 1);
-
-            await this.prisma.position.update({
-              where: { id: oldestPosition.id },
-              data: {
-                status: 'CLOSED',
-                closedAt: new Date(),
-                currentPrice: closePrice,
-                unrealizedPnl: 0,
-                realizedPnl: pnl,
-                source: 'smart_executor',
-              },
-            });
-
-            try {
-              await this.prisma.trade.create({
-                data: {
-                  userId,
-                  positionId: oldestPosition.id,
-                  symbol: oldestPosition.symbol,
-                  side: oldestPosition.side === 'BUY' ? 'SELL' : 'BUY',
-                  type: 'EXIT',
-                  quantity: Number(oldestPosition.quantity),
-                  price: closePrice,
-                  pnl,
-                  exchange: 'paper-trading',
-                  source: 'smart_executor',
-                },
-              });
-            } catch (tradeErr: any) {
-              this.logger.warn(`⚔️ Failed to record closing trade: ${tradeErr.message}`);
-            }
-
-            userState.dailyPnL += pnl;
-            openPositionsCount--;
+            // FIX: REMOVED direct DB bypass fallback. Previously, when TradingService.closePosition()
+            // failed, we'd directly update the DB with prisma.position.update(). This bypassed:
+            //   1. Optimistic locking (version check)
+            //   2. Order record creation (audit gap)
+            //   3. Proper exchange close attempt
+            //   4. Position-Trade-Order consistency
+            // Now: If TradingService fails, we LOG the error and skip — the position remains
+            // open and will be retried on the next tick or closed manually by the user.
+            this.logger.warn(
+              `⚔️ TradingService close failed for stale position ${oldestPosition.id}: ${closeErr.message} — skipping (no direct DB bypass)`,
+            );
           }
         }
       } catch (closeErr: any) {
@@ -1130,10 +1105,11 @@ export class SmartExecutorService implements OnModuleDestroy {
         // causing 0 executions when the dashboard shows "5 open positions".
         if (userState.isPaperTrading) {
           try {
-            // FIX: Use TradingService.closePosition() instead of direct DB update
-            // for the same reasons as the stale position close above.
+            // FIX: Use TradingService.closePositionWithRetry() — NO direct DB bypass.
+            // The direct prisma.position.update() fallback has been REMOVED because it
+            // bypassed optimistic locking, Order creation, and exchange state sync.
             try {
-              await this.tradingService.closePosition(userId, {
+              await this.tradingService.closePositionWithRetry(userId, {
                 positionId: existingPosition.id,
               });
 
@@ -1146,47 +1122,10 @@ export class SmartExecutorService implements OnModuleDestroy {
                 `(PnL: $${pnl.toFixed(2)}) via TradingService to execute new brief ${brief.id}`,
               );
             } catch (tsCloseErr: any) {
-              // Fallback: direct DB update if TradingService fails
-              this.logger.warn(`⚔️ TradingService close failed for ${existingPosition.id}: ${tsCloseErr.message} — falling back to direct DB update`);
-              const closePrice = Number(existingPosition.currentPrice) || Number(existingPosition.entryPrice);
-              const pnl = (closePrice - Number(existingPosition.entryPrice)) * Number(existingPosition.quantity) * (existingPosition.side === 'SELL' ? -1 : 1);
-
-              await this.prisma.position.update({
-                where: { id: existingPosition.id },
-                data: {
-                  status: 'CLOSED',
-                  closedAt: new Date(),
-                  currentPrice: closePrice,
-                  unrealizedPnl: 0,
-                  realizedPnl: pnl,
-                  source: 'smart_executor',
-                },
-              });
-
-              try {
-                await this.prisma.trade.create({
-                  data: {
-                    userId,
-                    positionId: existingPosition.id,
-                    symbol: existingPosition.symbol,
-                    side: existingPosition.side === 'BUY' ? 'SELL' : 'BUY',
-                    type: 'EXIT',
-                    quantity: Number(existingPosition.quantity),
-                    price: closePrice,
-                    pnl,
-                    exchange: 'paper-trading',
-                    source: 'smart_executor',
-                  },
-                });
-              } catch (tradeErr: any) {
-                this.logger.warn(`⚔️ Failed to record closing trade: ${tradeErr.message}`);
-              }
-
-              userState.dailyPnL += pnl;
-
-              this.logger.log(
-                `⚔️ Closed stale paper position ${existingPosition.symbol} ` +
-                `(PnL: $${pnl.toFixed(2)}) via DB fallback to execute new brief ${brief.id}`,
+              // FIX: REMOVED direct DB bypass. If TradingService fails, log and skip.
+              // The position will be retried on the next tick.
+              this.logger.warn(
+                `⚔️ TradingService close failed for ${existingPosition.id}: ${tsCloseErr.message} — skipping (no direct DB bypass)`,
               );
             }
           } catch (closeErr: any) {

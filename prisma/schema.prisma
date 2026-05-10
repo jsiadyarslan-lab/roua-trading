@@ -381,6 +381,8 @@ model Position {
   closedAt       DateTime?
   updatedAt      DateTime       @updatedAt
   source         String?        @default("user_manual")
+  version        Int            @default(0)  // FIX: Optimistic locking — prevents concurrent close race condition
+  exchangeSymbol String?                     // FIX: Exchange-specific symbol (e.g. BTCUSD for Alpaca) for reconciliation
   user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   credential     ExchangeCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
   trades         Trade[]

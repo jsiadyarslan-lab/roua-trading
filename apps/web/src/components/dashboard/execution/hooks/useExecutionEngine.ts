@@ -12,6 +12,8 @@ import type { ExecutionState, DataStatus } from '@/lib/dashboard-live'
 // FIX: Helper to poll v2 order status until terminal state or timeout.
 // v2 pipeline returns ACCEPTED immediately (async BullMQ execution),
 // so we poll the order status endpoint to wait for FILLED/REJECTED.
+// FIX: Also try v1 endpoint as fallback — v2 orders endpoint may not
+// have a GET route yet. We try both paths to be resilient.
 async function pollOrderStatus(
   orderId: string,
   timeoutMs: number = 10000,
@@ -21,7 +23,12 @@ async function pollOrderStatus(
 
   while (Date.now() - startTime < timeoutMs) {
     try {
-      const res = await fetch(`/api/trading/v2/orders/${orderId}`)
+      // Try v2 endpoint first
+      let res = await fetch(`/api/trading/v2/orders/${orderId}`)
+      if (!res.ok) {
+        // Fallback to v1 endpoint
+        res = await fetch(`/api/trading/orders/${orderId}`)
+      }
       if (!res.ok) break
       const j = await res.json()
       const order = j.data || j
@@ -326,14 +333,41 @@ export function useExecutionEngine() {
       // Try to get a credential ID from NestJS portfolio service
       const credRes = await fetch('/api/portfolio/credentials')
       const credData = await credRes.json()
-      // FIX: Ensure credentials is always an array before accessing index.
-      // Previously, if credData.data was an object (not an array), credentials[0]
-      // would be undefined, causing credentialId to be undefined and falling through
-      // to Alpaca. But if credData itself was malformed, .data or .credentials
-      // could be null/undefined, causing crashes.
+      // FIX: Select the correct credential based on exchange type and symbol.
+      // Previously, always used credentials[0] — if a user has Binance + Alpaca,
+      // stock orders would be sent to Binance or vice versa.
+      // Now: match credential exchange to the symbol type (crypto → Binance, stocks → Alpaca).
       const rawCredentials = credData.data || credData.credentials || []
       const credentials = Array.isArray(rawCredentials) ? rawCredentials : []
-      const credentialId = credentials[0]?.id || credentials[0]?.credentialId
+      
+      // FIX: Smart credential selection — match exchange to symbol type
+      let credentialId: string | undefined
+      const isCryptoSymbol = (sym: string) => {
+        const cryptoQuotes = ['USDT', 'BUSD', 'USD', 'BTC', 'ETH', 'BNB', 'DAI', 'USDC', 'FDUSD']
+        if (!sym.includes('/')) return false
+        const quote = sym.split('/')[1]
+        return cryptoQuotes.includes(quote)
+      }
+      
+      if (credentials.length === 1) {
+        // Only one credential — use it
+        credentialId = credentials[0]?.id || credentials[0]?.credentialId
+      } else if (credentials.length > 1) {
+        // Multiple credentials — match exchange type to symbol
+        const isCrypto = isCryptoSymbol(localSymbol)
+        // Priority: exact match first, then non-paper, then first available
+        const matched = credentials.find((c: any) => {
+          const ex = (c.exchange || '').toLowerCase()
+          if (isCrypto) return ex.includes('binance') || ex.includes('crypto')
+          return ex.includes('alpaca') || ex.includes('stock')
+        })
+        const nonPaper = credentials.find((c: any) => 
+          (c.exchange || '').toLowerCase() !== 'paper-trading' && c.isValid !== false
+        )
+        credentialId = matched?.id || matched?.credentialId 
+          || nonPaper?.id || nonPaper?.credentialId
+          || credentials[0]?.id || credentials[0]?.credentialId
+      }
 
       if (credentialId) {
         // FIX: Generate idempotencyKey client-side for v2 pipeline.

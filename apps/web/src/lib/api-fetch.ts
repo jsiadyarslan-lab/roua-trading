@@ -23,6 +23,10 @@ export interface UnifiedPosition {
   openedAt?: string
   /** مصدر البيانات: nestjs أو alpaca */
   source?: 'nestjs' | 'alpaca'
+  /** DB position ID (UUID) — for NestJS close path */
+  dbId?: string
+  /** Exchange-specific symbol — for Alpaca/Exchange reconciliation */
+  exchangeSymbol?: string
 }
 
 /** صيغة ملخص المراكز الموحدة */
@@ -221,6 +225,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export async function closePositionUnified(
   positionId: string,
   quantity?: number,
+  options?: { onClosed?: () => void },
 ): Promise<{ success: boolean; error?: string; source: 'nestjs' | 'alpaca' }> {
   // Ensure auth cookie exists before making API calls
   await ensureAuth()
@@ -238,6 +243,8 @@ export async function closePositionUnified(
       })
 
       if (res.ok) {
+        // FIX: Trigger refresh callback after successful close
+        options?.onClosed?.()
         return { success: true, source: 'nestjs' }
       }
 
@@ -253,8 +260,23 @@ export async function closePositionUnified(
           && !errMsg.includes('غير موجود')
           && !errMsg.toLowerCase().includes('not open')
           && !errMsg.toLowerCase().includes('not found')
+          && !errMsg.includes('OPTIMISTIC_LOCK_FAILURE')
         if (isNestjsOnlyError) {
           return { success: false, error: data.error || data.message || 'فشل الإغلاق', source: 'nestjs' }
+        }
+        // FIX: If OPTIMISTIC_LOCK_FAILURE, retry once after a short delay
+        if (errMsg.includes('OPTIMISTIC_LOCK_FAILURE')) {
+          await new Promise(r => setTimeout(r, 200))
+          const retryRes = await fetch('/api/trading/positions/close', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          })
+          if (retryRes.ok) {
+            options?.onClosed?.()
+            return { success: true, source: 'nestjs' }
+          }
+          // Retry also failed — fall through to Alpaca
         }
         // Fall through to Alpaca fallback
       }
@@ -271,6 +293,8 @@ export async function closePositionUnified(
     const data = await res.json()
 
     if (data.success) {
+      // FIX: Trigger refresh callback after successful close
+      options?.onClosed?.()
       return { success: true, source: 'alpaca' }
     }
 

@@ -20,6 +20,7 @@ import { PositionManagerService } from './services/position-manager.service';
 import { OrderProducerService } from './services/order-producer.service';
 import { OrderConsumerService } from './services/order-consumer.service';
 import { PositionReconciliationService } from './services/position-reconciliation.service';
+import { ExchangeSyncService } from './services/exchange-sync.service';
 
 /**
  * Trading Module — Complete Trading Engine
@@ -40,6 +41,7 @@ import { PositionReconciliationService } from './services/position-reconciliatio
  * - OrderProducerService: RabbitMQ order publisher
  * - OrderConsumerService: RabbitMQ order processor
  * - PositionReconciliationService: Background job to reconcile failed position updates
+ * - ExchangeSyncService: Exchange ↔ DB position reconciliation (detects exchange closures)
  */
 @Module({
   imports: [
@@ -70,6 +72,7 @@ import { PositionReconciliationService } from './services/position-reconciliatio
     OrderProducerService,
     OrderConsumerService,
     PositionReconciliationService,
+    ExchangeSyncService,
   ],
   exports: [
     TradingService,
@@ -81,6 +84,7 @@ import { PositionReconciliationService } from './services/position-reconciliatio
     OrderProducerService,
     OrderConsumerService,
     PositionReconciliationService,
+    ExchangeSyncService,
   ],
 })
 export class TradingModule {}

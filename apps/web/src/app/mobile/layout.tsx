@@ -78,7 +78,7 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
               /* Padding at the bottom so the fixed MobileNavBar doesn't cover content.
                  Pages with their own fixed bottom bar (chart, trading) add extra
                  padding via their own styles. */
-              paddingBottom: 'calc(64px + env(safe-area-inset-bottom))',
+              paddingBottom: 'calc(56px + env(safe-area-inset-bottom))',
               overflowY: 'auto',
               overflowX: 'hidden',
               WebkitOverflowScrolling: 'touch',

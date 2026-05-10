@@ -370,7 +370,7 @@ function ChartPageContent() {
             {/* Dropdown */}
             {showPairDropdown && (
               <div style={{
-                position: 'absolute', top: '100%', left: 0, zIndex: 500,
+                position: 'absolute', top: '100%', left: 0, zIndex: 45,
                 minWidth: 140, maxHeight: 200, overflowY: 'auto',
                 background: 'rgba(20,20,22,0.98)',
                 backdropFilter: 'blur(20px)',
@@ -478,7 +478,7 @@ function ChartPageContent() {
           position: 'absolute',
           top: 6,
           left: 6,
-          zIndex: 100,
+          zIndex: 30,
           display: 'flex',
           gap: 2,
           direction: 'ltr',
@@ -516,13 +516,13 @@ function ChartPageContent() {
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => { if (execStatus !== 'submitting') setShowOrderSheet(false) }}
-              style={{ position: 'fixed', inset: 0, zIndex: 300, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)' }}
+              style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)' }}
             />
             <motion.div
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 350 }}
               style={{
-                position: 'fixed', bottom: 'calc(35px + env(safe-area-inset-bottom))', left: 0, right: 0, zIndex: 301,
+                position: 'fixed', bottom: 'calc(56px + env(safe-area-inset-bottom))', left: 0, right: 0, zIndex: 41,
                 background: C.bg,
                 backdropFilter: 'blur(50px) saturate(200%)',
                 borderRadius: '24px 24px 0 0',
@@ -768,7 +768,7 @@ function ChartPageContent() {
               </div>{/* END scrollable content */}
 
               {/* Fixed Bottom — Buy / Sell Buttons (always visible in sheet, above navbar) */}
-              <div style={{ flexShrink: 0, padding: '8px 20px 20px', borderTop: '0.5px solid rgba(255,255,255,0.08)', background: 'rgba(20,20,22,0.95)', position: 'relative', zIndex: 302 }}>
+              <div style={{ flexShrink: 0, padding: '8px 20px 20px', borderTop: '0.5px solid rgba(255,255,255,0.08)', background: 'rgba(20,20,22,0.95)', position: 'relative', zIndex: 42 }}>
                 {(execStatus === 'idle' || execStatus === 'error' || execStatus === 'rejected') && (
                   <div style={{ display: 'flex', gap: 8 }}>
                     <motion.button

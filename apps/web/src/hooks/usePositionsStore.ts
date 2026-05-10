@@ -101,7 +101,13 @@ let _lastHydratedUserId: string | null = null
  * - Preserve real-time price updates (currentPrice, unrealizedPnl) from market data
  */
 function mergePositions(current: Position[], incoming: Position[]): Position[] {
-  if (incoming.length === 0) return []
+  // FIX: When API returns empty array, PRESERVE current positions instead of wiping them.
+  // Previously, returning [] when incoming is empty caused all positions to disappear
+  // when navigating between pages (e.g., chart → wallet → chart), because the NestJS
+  // API might return empty for a user whose positions are on Alpaca, wiping everything.
+  // Now: empty incoming = no NEW data to merge, so keep what we have.
+  // Positions will be properly removed when a non-empty API response doesn't include them.
+  if (incoming.length === 0) return current
   if (current.length === 0) return incoming
 
   const currentMap = new Map<string, Position>()

@@ -32,6 +32,8 @@ export class SmartExecutorController {
 
   /**
    * POST /api/smart-executor/start — Start the executor globally
+   * FIX: Kept for system use, but the tick loop already handles
+   * the case where no users are enabled (just skips).
    */
   @Post('start')
   @Throttle({ default: { limit: 3, ttl: 60000 } })
@@ -43,11 +45,14 @@ export class SmartExecutorController {
 
   /**
    * POST /api/smart-executor/stop — Stop the executor globally
+   * FIX: PROTECTED — This now checks if other users are still enabled
+   * before stopping. If other users are enabled, the stop is rejected.
+   * Individual users should use POST /user/disable instead.
    */
   @Post('stop')
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   async stop(@Request() req: any) {
-    this.logger.log('⚔️ Smart Executor stop requested');
+    this.logger.log('⚔️ Smart Executor stop requested — checking for other enabled users');
     const status = await this.executorService.stop(req.user?.id);
     return { success: true, data: status };
   }

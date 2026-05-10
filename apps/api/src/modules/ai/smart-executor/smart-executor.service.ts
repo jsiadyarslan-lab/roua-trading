@@ -269,7 +269,10 @@ export class SmartExecutorService implements OnModuleDestroy {
 
   /**
    * Start the Smart Executor globally
-   * Begins the price monitoring loop
+   * FIX: Now starts the tick loop regardless — the tick itself checks
+   * for enabled users and skips if none exist. This prevents the issue
+   * where one user stopping the executor kills it for ALL users.
+   * The tick loop is lightweight (just reads Redis keys) when no users are enabled.
    */
   async start(userId?: string): Promise<ExecutorStatus> {
     if (this.isRunning) {
@@ -304,8 +307,23 @@ export class SmartExecutorService implements OnModuleDestroy {
 
   /**
    * Stop the Smart Executor globally
+   * FIX: This method is now RESTRICTED — it should ONLY be called by
+   * the system (e.g., nuclear cleanup, module destroy), NOT by individual users.
+   * Individual users should use enableUser/disableUser instead.
+   * When a user disables their executor, only THEIR state is removed.
+   * The tick loop continues running for other enabled users.
    */
   async stop(userId?: string): Promise<ExecutorStatus> {
+    // FIX: Check if there are still enabled users before stopping.
+    // If other users are still enabled, DON'T stop the tick loop.
+    const enabledUsers = await this._getEnabledUsers();
+    const otherUsersEnabled = enabledUsers.some(id => id !== userId);
+
+    if (otherUsersEnabled) {
+      this.logger.warn(`⚔️ Cannot stop executor — ${enabledUsers.length} user(s) still enabled. Only individual disable is allowed.`);
+      return this.getStatus();
+    }
+
     if (!this.isRunning) {
       return this.getStatus();
     }
@@ -317,7 +335,7 @@ export class SmartExecutorService implements OnModuleDestroy {
       this.tickInterval = null;
     }
 
-    this.logger.log('⚔️ Smart Executor STOPPED');
+    this.logger.log('⚔️ Smart Executor STOPPED — no enabled users remain');
 
     await this.redis.set(
       this.REDIS_GLOBAL_STATE,
@@ -403,6 +421,9 @@ export class SmartExecutorService implements OnModuleDestroy {
 
   /**
    * Disable executor for a specific user
+   * FIX: This now ONLY disables the specific user. The global executor
+   * tick loop keeps running for any other enabled users. The global
+   * stop() method handles the case where no users remain enabled.
    */
   async disableUser(userId: string): Promise<void> {
     // Remove from Redis
@@ -412,6 +433,25 @@ export class SmartExecutorService implements OnModuleDestroy {
     await this._removeUserStateFromDB(userId);
 
     this.logger.log(`⚔️ Executor disabled for user ${userId} — removed from Redis + DB`);
+
+    // FIX: Check if any other users are still enabled.
+    // If not, stop the tick loop to save resources.
+    // If yes, the tick loop continues for them.
+    const remainingUsers = await this._getEnabledUsers();
+    if (remainingUsers.length === 0 && this.isRunning) {
+      this.logger.log(`⚔️ No enabled users remain — stopping tick loop`);
+      // Use internal stop (bypass the user check since we already know no users are enabled)
+      this.isRunning = false;
+      if (this.tickInterval) {
+        clearInterval(this.tickInterval);
+        this.tickInterval = null;
+      }
+      await this.redis.set(
+        this.REDIS_GLOBAL_STATE,
+        JSON.stringify({ isRunning: false, stoppedAt: new Date().toISOString() }),
+        86400000,
+      ).catch(() => {});
+    }
 
     await this.audit.log({
       userId,

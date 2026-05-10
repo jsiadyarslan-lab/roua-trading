@@ -312,7 +312,13 @@ export function useExecutionEngine() {
       // Try to get a credential ID from NestJS portfolio service
       const credRes = await fetch('/api/portfolio/credentials')
       const credData = await credRes.json()
-      const credentials = credData.data || credData.credentials || []
+      // FIX: Ensure credentials is always an array before accessing index.
+      // Previously, if credData.data was an object (not an array), credentials[0]
+      // would be undefined, causing credentialId to be undefined and falling through
+      // to Alpaca. But if credData itself was malformed, .data or .credentials
+      // could be null/undefined, causing crashes.
+      const rawCredentials = credData.data || credData.credentials || []
+      const credentials = Array.isArray(rawCredentials) ? rawCredentials : []
       const credentialId = credentials[0]?.id || credentials[0]?.credentialId
 
       if (credentialId) {
@@ -350,9 +356,16 @@ export function useExecutionEngine() {
         // not { id, filledAvgPrice } like v1. We need to handle the async
         // response by either polling for completion or treating ACCEPTED as success.
         if (res.ok && j.success && j.data?.orderId) {
+          // FIX: Validate j.data exists before accessing j.data.orderId
+          // Optional chaining above ensures j.data?.orderId is defined,
+          // but explicitly verify to prevent edge cases.
+          const orderId = j.data?.orderId || j.orderId
+          if (!orderId) {
+            throw new Error('NestJS v2 returned success but no orderId')
+          }
           result = {
             success: true,
-            orderId: j.data.orderId,
+            orderId,
             symbol: localSymbol,
             side,
             qty: quantity,
@@ -404,14 +417,25 @@ export function useExecutionEngine() {
         const j = await res.json()
 
         if (j.success) {
+          // FIX: Validate orderId exists — Alpaca might return success without orderId
+          // in edge cases, which would cause crashes downstream when accessing result.orderId
+          const orderId = j.orderId || j.id || j.data?.orderId
+          if (!orderId) {
+            result = {
+              success: false,
+              source: 'alpaca',
+              error: 'لم يتم استلام رقم الأمر من المزود',
+            }
+          } else {
           result = {
             success: true,
-            orderId: j.orderId,
-            symbol: j.symbol,
-            side: j.side,
-            qty: j.qty,
+            orderId,
+            symbol: j.symbol || localSymbol,
+            side: j.side || side,
+            qty: j.qty || quantity,
             filledAvgPrice: j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : undefined,
             source: 'alpaca',
+          }
           }
         } else {
           result = {

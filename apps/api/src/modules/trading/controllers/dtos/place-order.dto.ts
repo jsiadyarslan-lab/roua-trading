@@ -49,10 +49,9 @@ export class PlaceOrderDto {
   @Min(0.00001)
   price?: number;
 
-  @IsOptional()
   @IsNumber()
   @Min(0.00001)
-  stopLoss?: number;
+  stopLoss!: number;
 
   @IsOptional()
   @IsNumber()

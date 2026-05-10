@@ -126,7 +126,41 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
       const { apiKey, apiSecret } = await this.credentialsService.decryptCredential(credential.id, message.userId);
 
       // Step 4: Create CCXT exchange instance
-      const ExchangeClass = ccxt[credential.exchange as keyof typeof ccxt] as any;
+      // FIX: Handle paper-trading and test exchange names.
+      // - 'paper-trading' credentials are simulated — skip CCXT entirely.
+      // - Exchange names ending with '_test', '_paper', '_demo', '_sandbox',
+      //   '_simulation' (e.g. 'binance_test') don't exist in CCXT. Resolve
+      //   to the base name (e.g. 'binance') so CCXT can instantiate correctly.
+
+      // Skip paper-trading orders — they are handled by the Smart Executor
+      // and don't go through a real exchange.
+      if (credential.exchange === 'paper-trading') {
+        this.logger.log(`📝 Order ${message.orderId} is paper-trading — skipping CCXT execution`);
+        await this.stateManager.updateOrderStatus(message.orderId, 'FILLED', {
+          filledQuantity: message.quantity,
+          averagePrice: message.price ?? 0,
+          filledAt: new Date().toISOString(),
+        });
+        await this._updatePosition(message, message.quantity, message.price ?? 0);
+        return {
+          success: true,
+          filledQuantity: message.quantity,
+          averagePrice: message.price ?? 0,
+        };
+      }
+
+      // Resolve CCXT exchange class name (e.g. 'binance_test' → 'binance')
+      let exchangeName = credential.exchange;
+      const testSuffixes = ['_test', '_paper', '_demo', '_sandbox', '_simulation'];
+      for (const suffix of testSuffixes) {
+        if (exchangeName.toLowerCase().endsWith(suffix)) {
+          exchangeName = exchangeName.slice(0, -suffix.length);
+          this.logger.debug(`🔧 Resolved exchange "${credential.exchange}" → "${exchangeName}" for CCXT`);
+          break;
+        }
+      }
+
+      const ExchangeClass = ccxt[exchangeName as keyof typeof ccxt] as any;
       if (!ExchangeClass) {
         await this.stateManager.updateOrderStatus(message.orderId, 'REJECTED', {
           reason: `البورصة "${credential.exchange}" غير مدعومة`,

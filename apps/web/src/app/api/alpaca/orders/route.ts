@@ -220,3 +220,76 @@ export async function GET(req: NextRequest) {
     )
   }
 }
+
+/**
+ * DELETE /api/alpaca/orders?orderId=xxx
+ * إلغاء أمر مفتوح عبر Alpaca Paper Trading
+ */
+export async function DELETE(req: NextRequest) {
+  const auth = await verifyUserSession(req)
+  if (auth.error) return auth.error
+
+  try {
+    const { searchParams } = new URL(req.url)
+    const orderId = searchParams.get('orderId')
+
+    if (!orderId) {
+      return NextResponse.json(
+        { success: false, error: 'orderId مطلوب (query param)' },
+        { status: 400 }
+      )
+    }
+
+    const res = await alpacaFetch(`/v2/orders/${orderId}`, {
+      method: 'DELETE',
+    }, { userId: auth.session.userId })
+
+    // Handle fallback responses from alpacaFetch (503 when credentials not configured)
+    let data: any
+    try {
+      data = await res.json()
+    } catch {
+      // Alpaca returns 204 No Content on successful delete — no JSON body
+      if (res.ok || res.status === 204) {
+        return NextResponse.json({ success: true, orderId })
+      }
+      return NextResponse.json(
+        { success: false, error: 'فشل في قراءة استجابة Alpaca', offline: true },
+        { status: 503 }
+      )
+    }
+
+    // Detect alpacaFetch fallback responses (offline/no credentials)
+    if (data?.offline || data?.error === 'ALPACA_CREDENTIALS_NOT_CONFIGURED') {
+      return NextResponse.json(
+        { success: false, error: 'ALPACA_CREDENTIALS_NOT_CONFIGURED', offline: true },
+        { status: 503 }
+      )
+    }
+
+    if (!res.ok) {
+      const errMsg = data.message || data.error || `Alpaca Error ${res.status}`
+      let userError = errMsg
+
+      if (res.status === 403) {
+        userError = 'مفاتيح Alpaca غير صالحة أو منتهية الصلاحية'
+        console.error('[alpaca/orders] DELETE 403 Forbidden — API keys may be invalid:', errMsg)
+      } else if (res.status === 404) {
+        userError = 'الأمر غير موجود أو تم إلغاؤه مسبقاً'
+      }
+
+      return NextResponse.json(
+        { success: false, error: userError, alpacaStatus: res.status },
+        { status: res.status === 403 ? 503 : res.status }
+      )
+    }
+
+    return NextResponse.json({ success: true, orderId })
+  } catch (error: any) {
+    console.error('[alpaca/orders] DELETE Error:', error.message)
+    return NextResponse.json(
+      { success: false, error: error.message || 'فشل في إلغاء الأمر' },
+      { status: 500 }
+    )
+  }
+}

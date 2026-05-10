@@ -192,7 +192,7 @@ export function useExecutionEngine() {
   // Cancel an open order
   const cancelOrder = useCallback(async (orderId: string) => {
     try {
-      const res = await fetch(`/api/alpaca/orders/${orderId}`, { method: 'DELETE' })
+      const res = await fetch(`/api/alpaca/orders?orderId=${orderId}`, { method: 'DELETE' })
       const j = await res.json()
       if (j.success || res.ok) {
         setRecentOrders(prev => prev.filter(o => o.id !== orderId))

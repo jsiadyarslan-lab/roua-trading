@@ -165,62 +165,70 @@ export class OrderController {
       validatedAt: new Date().toISOString(),
     });
 
-    // ── Step 7: Send to BullMQ execution_queue for async execution ──
-    try {
-      await this.executionQueue.add(
-        'execute',
-        {
-          orderId: order.id,
-          userId: command.userId,
-          exchangeCredentialId: command.exchangeCredentialId,
-          symbol: command.symbol,
-          side: command.side,
-          type: command.type,
-          quantity: command.quantity,
-          price: command.price,
-          stopLoss: command.stopLoss,
-          takeProfit: command.takeProfit,
-          clientOrderId: command.clientOrderId,
-          idempotencyKey: command.idempotencyKey,
-        },
-        {
-          jobId: command.idempotencyKey, // Unique job ID (prevents duplicates)
-          attempts: 3,
-          backoff: {
-            type: 'exponential',
-            delay: 5000,
-          },
-        },
-      );
+    // ── Step 7: Send to execution queue for async processing ──
+    // PRIMARY: RabbitMQ (OrderConsumerService processes from this queue)
+    // FALLBACK: BullMQ execution_queue (if RabbitMQ is unavailable)
+    const queueMessage = {
+      orderId: order.id,
+      userId: command.userId,
+      exchangeCredentialId: command.exchangeCredentialId,
+      symbol: command.symbol,
+      side: command.side,
+      type: command.type,
+      quantity: command.quantity,
+      price: command.price,
+      stopLoss: command.stopLoss,
+      takeProfit: command.takeProfit,
+      clientOrderId: command.clientOrderId,
+      idempotencyKey: command.idempotencyKey,
+      submittedAt: new Date(),
+    };
 
-      this.logger.log(`📤 Order ${order.id} added to execution_queue (jobId: ${command.idempotencyKey})`);
-    } catch (queueError: any) {
-      // BullMQ queue submission failed — try RabbitMQ as fallback
+    let submittedViaRabbitMQ = false;
+
+    try {
+      await this.orderProducer.sendOrder(queueMessage);
+      submittedViaRabbitMQ = true;
+      this.logger.log(`📤 Order ${order.id} submitted to RabbitMQ order_queue`);
+    } catch (rabbitError: any) {
       this.logger.warn(
-        `BullMQ queue failed for ${order.id}: ${queueError.message} — trying RabbitMQ fallback`,
+        `RabbitMQ failed for ${order.id}: ${rabbitError.message} — trying BullMQ fallback`,
       );
 
       try {
-        await this.orderProducer.sendOrder({
-          orderId: order.id,
-          userId: command.userId,
-          exchangeCredentialId: command.exchangeCredentialId,
-          symbol: command.symbol,
-          side: command.side,
-          type: command.type,
-          quantity: command.quantity,
-          price: command.price,
-          stopLoss: command.stopLoss,
-          takeProfit: command.takeProfit,
-          clientOrderId: command.clientOrderId,
-          idempotencyKey: command.idempotencyKey,
-          submittedAt: new Date(),
-        });
-      } catch (rabbitError: any) {
+        await this.executionQueue.add(
+          'execute',
+          {
+            orderId: order.id,
+            userId: command.userId,
+            exchangeCredentialId: command.exchangeCredentialId,
+            symbol: command.symbol,
+            side: command.side,
+            type: command.type,
+            quantity: command.quantity,
+            price: command.price,
+            stopLoss: command.stopLoss,
+            takeProfit: command.takeProfit,
+            clientOrderId: command.clientOrderId,
+            idempotencyKey: command.idempotencyKey,
+          },
+          {
+            jobId: command.idempotencyKey,
+            attempts: 3,
+            backoff: {
+              type: 'exponential',
+              delay: 5000,
+            },
+          },
+        );
+
+        this.logger.log(`📤 Order ${order.id} added to BullMQ execution_queue (fallback, jobId: ${command.idempotencyKey})`);
+      } catch (bullError: any) {
         // Both queues failed — order is ACCEPTED but not yet submitted
         // It will be picked up by a retry mechanism or manual reconciliation
         this.logger.error(
-          `Both queues failed for order ${order.id}. Order is ACCEPTED but not submitted for execution.`,
+          `Both queues failed for order ${order.id}. Order is ACCEPTED but not submitted for execution. ` +
+          `RabbitMQ: ${rabbitError.message}, BullMQ: ${bullError.message}`,
         );
       }
     }

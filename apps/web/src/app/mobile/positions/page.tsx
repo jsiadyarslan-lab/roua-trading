@@ -8,7 +8,7 @@ import {
   Activity, Target, ShieldAlert, ChevronDown
 } from 'lucide-react'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
-import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
+import { usePaperTradesStore, type PaperTrade } from '@/hooks/usePaperTradesStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
 
 /* ─── Design Tokens ─── */
@@ -412,13 +412,17 @@ export default function MobilePositionsPage() {
       .map(p => ({
         id: p.id || `${p.symbol}-${p.side}`,
         symbol: p.symbol,
-        side: p.side === 'long' ? 'long' : 'short',
+        side: (p.side === 'long' ? 'long' : 'short') as 'long' | 'short',
         qty: p.qty,
         entryPrice: p.avgEntryPrice || p.entryPrice || 0,
         currentPrice: p.currentPrice || 0,
+        tp: p.takeProfit ?? undefined,
+        sl: p.stopLoss ?? undefined,
         unrealizedPnl: p.unrealizedPnl || 0,
         unrealizedPct: p.unrealizedPnlPct || 0,
-        source: 'real' as const,
+        entryTime: p.openedAt ? new Date(p.openedAt).getTime() : Date.now(),
+        strategy: 'real',
+        source: 'manual' as const,
       }))
   }, [positions])
 
@@ -448,15 +452,20 @@ export default function MobilePositionsPage() {
       } else if (closingTrade.id && !closingTrade.id.startsWith('paper-')) {
         // Real NestJS/Alpaca position — close via API
         try {
-          if (closingTrade.dbId) {
-            await fetch('/api/trading/positions/close', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ positionId: closingTrade.dbId }),
-            })
-          } else {
-            const symbol = encodeURIComponent(closingTrade.symbol)
-            await fetch(`/api/alpaca/positions/${symbol}`, { method: 'DELETE' })
+          // FIX: Use closePositionUnified which properly routes through NestJS
+          // for DB positions and only falls back to Alpaca for genuine Alpaca positions.
+          // Previously, when dbId was missing, this fell through to Alpaca directly,
+          // causing "Alpaca Error 404" for DB-only positions.
+          // CRITICAL: Use isNestJsId() instead of UUID regex — Prisma uses cuid(),
+          // so IDs like "clm5x2j4d0001..." must be recognized as NestJS IDs.
+          const { closePositionUnified, isNestJsId } = await import('@/lib/api-fetch')
+          const result = await closePositionUnified(
+            closingTrade.id,
+            undefined,
+            { dbId: closingTrade.dbId || (closingTrade.id && isNestJsId(closingTrade.id) ? closingTrade.id : undefined) }
+          )
+          if (!result.success) {
+            console.warn('Close position failed:', result.error)
           }
         } catch {
           // API close failed — still remove from local state

@@ -543,7 +543,7 @@ export class SignalGeneratorService {
       supportingIndicators: [],
       riskRewardRatio: null,
       expiresAt: new Date(Date.now() + this.SIGNAL_EXPIRY_MS),
-      id: 'wait',
+      id: `wait-${symbol}-${Date.now()}`,
     };
   }
 }

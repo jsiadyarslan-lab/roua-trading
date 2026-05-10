@@ -224,7 +224,7 @@ export default function MobileWalletPage() {
                 pnlPct: 0,
                 qty: a.total,
                 currentPrice,
-                source: (ex.isTestnet ? 'testnet' : 'live') as const,
+                source: ex.isTestnet ? 'testnet' as const : 'live' as const,
               }
             })
             // FIX: After calculating value with live prices, filter out

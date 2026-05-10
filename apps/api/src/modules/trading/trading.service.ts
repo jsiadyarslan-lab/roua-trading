@@ -88,9 +88,52 @@ export class TradingService {
         }
       }
 
-      this.logger.log('⚡ ExchangeCredential schema verified — all columns present');
+      // FIX: Add optimistic locking and exchange symbol columns to Position table
+      // These new columns need to be added via raw SQL since Prisma migration
+      // may not run on production (Railway).
+      const positionColumns = [
+        { name: 'version', type: 'INTEGER DEFAULT 0' },
+        { name: 'exchangeSymbol', type: 'TEXT' },
+      ];
+
+      for (const col of positionColumns) {
+        try {
+          await this.prisma.$executeRawUnsafe(`
+            ALTER TABLE "Position"
+            ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type};
+          `);
+        } catch (e: any) {
+          if (!e.message?.includes('already exists')) {
+            this.logger.warn(`⚡ Could not add Position column ${col.name}: ${e.message}`);
+          }
+        }
+      }
+
+      // FIX: Add missing AuditLog.updatedAt column.
+      // Prisma schema has `updatedAt DateTime @updatedAt` but the production DB
+      // doesn't have this column because Prisma migration didn't run properly.
+      // This causes "The column AuditLog.updatedAt does not exist" errors on
+      // every audit log query, which blocks trading operations and fills the logs.
+      const auditLogColumns = [
+        { name: 'updatedAt', type: 'TIMESTAMP DEFAULT NOW()' },
+      ];
+
+      for (const col of auditLogColumns) {
+        try {
+          await this.prisma.$executeRawUnsafe(`
+            ALTER TABLE "AuditLog"
+            ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type};
+          `);
+        } catch (e: any) {
+          if (!e.message?.includes('already exists')) {
+            this.logger.warn(`⚡ Could not add AuditLog column ${col.name}: ${e.message}`);
+          }
+        }
+      }
+
+      this.logger.log('⚡ ExchangeCredential + Position + AuditLog schema verified — all columns present');
     } catch (error: any) {
-      this.logger.error(`⚡ Failed to verify ExchangeCredential schema: ${error.message}`);
+      this.logger.error(`⚡ Failed to verify schema: ${error.message}`);
     }
   }
 
@@ -579,6 +622,7 @@ export class TradingService {
     request: ClosePositionRequest,
     ipAddress?: string,
     userAgent?: string,
+    _retryCount = 0, // FIX: Internal retry counter for optimistic locking
   ) {
     // FIX: REMOVED the dynamic DDL that dropped unique constraints on Position table
     // on EVERY closePosition() call. This was a dangerous hotfix that:
@@ -592,6 +636,7 @@ export class TradingService {
     // fix in _updatePosition() (P2002 catch with retry).
 
     // DATA ISOLATION: Use findFirst with userId to prevent accessing other users' positions
+    // FIX: Read version for optimistic locking — prevents concurrent close race condition
     const position = await this.prisma.position.findFirst({
       where: { id: request.positionId, userId },
     });
@@ -599,6 +644,11 @@ export class TradingService {
     if (!position) {
       throw new NotFoundException('المركز غير موجود');
     }
+
+    // FIX: Optimistic locking — if another request already closed this position
+    // between our read and the upcoming update, the version won't match and we'll
+    // retry. This prevents double-close, duplicate EXIT trades, and PnL miscalculation.
+    const positionVersion = position.version ?? 0;
 
     if (position.status !== 'OPEN') {
       // ── FIX: Idempotent close — if position is already CLOSED/LIQUIDATED,
@@ -742,6 +792,9 @@ export class TradingService {
         : (posEntryPrice - exitPrice) * closeQuantity;
 
     // Record closing order, exit trade, and update position — all in one transaction
+    // FIX: Optimistic locking — use version check in WHERE clause to prevent
+    // concurrent close from double-executing. If version changed (another close
+    // committed first), we retry the whole closePosition method.
     const { order: closedOrder } = await this.prisma.$transaction(async (tx) => {
       // Note: averagePrice (not averageFillPrice) is the correct field name
       // idempotencyKey is required (String @unique)
@@ -784,24 +837,35 @@ export class TradingService {
         },
       });
 
-      // Update position
+      // Update position with optimistic locking (version check)
+      // If another concurrent close already updated this position, the version
+      // won't match and the update will affect 0 rows — we detect this and retry.
       if (closeQuantity >= posQuantity) {
-        await tx.position.update({
-          where: { id: position.id },
+        const updateResult = await tx.position.updateMany({
+          where: { id: position.id, version: positionVersion },
           data: {
             status: 'CLOSED',
             closedAt: new Date(),
             realizedPnl: posRealizedPnl + pnl,
+            version: positionVersion + 1,
           },
         });
+        if (updateResult.count === 0) {
+          // Optimistic lock failure — another close committed first
+          throw new Error('OPTIMISTIC_LOCK_FAILURE: Position was modified by another request. Please retry.');
+        }
       } else {
-        await tx.position.update({
-          where: { id: position.id },
+        const updateResult = await tx.position.updateMany({
+          where: { id: position.id, version: positionVersion },
           data: {
             quantity: posQuantity - closeQuantity,
             realizedPnl: posRealizedPnl + pnl,
+            version: positionVersion + 1,
           },
         });
+        if (updateResult.count === 0) {
+          throw new Error('OPTIMISTIC_LOCK_FAILURE: Position was modified by another request. Please retry.');
+        }
       }
 
       return { order };
@@ -833,6 +897,32 @@ export class TradingService {
         where: { id: position.id },
       }),
     };
+  }
+
+  /**
+   * FIX: Close position with automatic retry on optimistic lock failure.
+   * When two concurrent close requests race, the loser gets OPTIMISTIC_LOCK_FAILURE
+   * and should retry (the position may now be partially closed or fully closed).
+   * This wrapper handles that retry logic transparently.
+   */
+  async closePositionWithRetry(
+    userId: string,
+    request: ClosePositionRequest,
+    ipAddress?: string,
+    userAgent?: string,
+    maxRetries = 3,
+  ): Promise<any> {
+    try {
+      return await this.closePosition(userId, request, ipAddress, userAgent, 0);
+    } catch (error: any) {
+      if (error.message?.includes('OPTIMISTIC_LOCK_FAILURE') && maxRetries > 0) {
+        this.logger.warn(`Optimistic lock failure on closePosition for ${request.positionId} — retrying (${maxRetries} attempts left)`);
+        // Small delay before retry to let the other transaction commit
+        await new Promise(resolve => setTimeout(resolve, 100));
+        return this.closePositionWithRetry(userId, request, ipAddress, userAgent, maxRetries - 1);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -1315,6 +1405,28 @@ export class TradingService {
   }
 
   /**
+   * FIX: Convert a standard trading symbol to the exchange-specific format.
+   *
+   * Internal symbols use CCXT format: "BTC/USDT", "ETH/USD", "AAPL"
+   * But exchanges have different requirements:
+   *   - Alpaca: "BTCUSDT" (no slash), "AAPL" (stocks stay the same)
+   *   - Binance: "BTC/USDT" (CCXT format, handled by ccxt library)
+   *
+   * This function converts the internal symbol to the format expected by
+   * the exchange. The `exchangeSymbol` field is stored on Position records
+   * so that exchange reconciliation (exchange-sync) can look up the position
+   * by the exchange's own symbol format.
+   */
+  private _toAlpacaSymbol(symbol: string, exchangeName: string): string {
+    if (exchangeName === 'alpaca' || exchangeName === 'alpaca_paper') {
+      // Alpaca uses no slash: "BTC/USDT" → "BTCUSDT", "AAPL" → "AAPL"
+      return symbol.replace('/', '');
+    }
+    // Binance and other CCXT exchanges use the slash format as-is
+    return symbol;
+  }
+
+  /**
    * Update or create position after order execution
    *
    * FIX: Race condition prevention — Two concurrent orders for the same
@@ -1393,6 +1505,7 @@ export class TradingService {
               credentialId: request.credentialId,
               exchange: exchangeName,
               symbol: request.symbol,
+              exchangeSymbol: this._toAlpacaSymbol(request.symbol, exchangeName),
               side,
               status: 'OPEN',
               quantity: filledQty,

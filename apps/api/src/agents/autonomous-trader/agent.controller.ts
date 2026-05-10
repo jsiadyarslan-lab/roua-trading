@@ -57,39 +57,47 @@ export class AutonomousTraderPublicController {
   }
 
   @Get('fix-db')
-  @Public()
-  async fixDb() {
+  @UseGuards(AuthGuard)
+  async fixDb(@Req() req: any) {
+    // SECURITY: Only INSTITUTIONAL (admin) users can run DB fixes
+    if (!req.user || req.user.tier !== 'INSTITUTIONAL') {
+      throw new ForbiddenException('فقط المستخدمون المؤسسيون يمكنهم تنفيذ إصلاحات قاعدة البيانات');
+    }
+
     try {
-      // Create a raw PrismaClient to ensure we have direct access
+      // Use parameterized queries to prevent SQL injection
       const { PrismaClient } = require('@prisma/client');
       const prisma = new PrismaClient();
       
       let logs: string[] = [];
       logs.push("Starting diagnostic DB fix...");
       
-      // 1. Find the index
-      const indexes = await prisma.$queryRawUnsafe(`
+      // 1. Find unique indexes on Position table using parameterized query
+      const indexes = await prisma.$queryRaw`
         SELECT i.relname AS index_name
         FROM pg_class t
         JOIN pg_index ix ON t.oid = ix.indrelid
         JOIN pg_class i ON i.oid = ix.indexrelid
         WHERE t.relname = 'Position' AND ix.indisunique = true
-      `);
+      `;
       logs.push("Found unique indexes: " + JSON.stringify(indexes));
 
-      // 2. Try dropping them
+      // 2. Try dropping them with parameterized name (validate index name format)
       for (const idx of (indexes as any[])) {
-        if (idx.index_name !== 'Position_pkey') {
-          logs.push("Dropping " + idx.index_name + "...");
-          await prisma.$executeRawUnsafe('DROP INDEX IF EXISTS "' + idx.index_name + '" CASCADE;');
-          logs.push("Dropped " + idx.index_name + " successfully!");
+        const indexName = String(idx.index_name);
+        if (indexName !== 'Position_pkey' && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(indexName)) {
+          logs.push("Dropping " + indexName + "...");
+          await prisma.$executeRawUnsafe(`DROP INDEX IF EXISTS "${indexName}" CASCADE;`);
+          logs.push("Dropped " + indexName + " successfully!");
+        } else if (indexName !== 'Position_pkey') {
+          logs.push("Skipping suspicious index name: " + indexName);
         }
       }
       
       await prisma.$disconnect();
       return { success: true, message: "Fixed successfully", logs };
     } catch (e: any) {
-      return { success: false, error: e.message, stack: e.stack };
+      return { success: false, error: e.message };
     }
   }
 }
@@ -355,19 +363,15 @@ export class AutonomousTraderAgentController {
   /**
    * PUT /api/agent/trader/system-settings
    * Update system-level auto trading settings.
-   * Any authenticated user can enable auto-trading.
-   * Only INSTITUTIONAL users can disable it globally.
+   * SECURITY: Only INSTITUTIONAL (admin) users can modify system-level settings.
    */
   @Put('system-settings')
   async updateSystemSettings(@Req() req: any, @Body() body: { autoTradingEnabled?: boolean }) {
     const user = req.user;
 
-    // Allow any user to ENABLE auto-trading (they're enabling it for themselves).
-    // Only INSTITUTIONAL users can DISABLE auto-trading globally (affects all users).
-    if (body.autoTradingEnabled === false) {
-      if (!user || user.tier !== 'INSTITUTIONAL') {
-        throw new ForbiddenException('فقط المستخدمون المؤسسيون يمكنهم تعطيل التداول الذاتي على مستوى النظام');
-      }
+    // SECURITY: Only INSTITUTIONAL users can change system-level auto-trading settings
+    if (!user || user.tier !== 'INSTITUTIONAL') {
+      throw new ForbiddenException('فقط المستخدمون المؤسسيون يمكنهم تعديل إعدادات التداول الذاتي على مستوى النظام');
     }
 
     if (body.autoTradingEnabled !== undefined) {

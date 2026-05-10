@@ -428,21 +428,25 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
           this.logger.warn(`🛡️ Exchange "${credential.exchange}" not found in CCXT — allowing order (execution layer will validate)`);
         }
       } catch (error: any) {
-        // FIX: If decryption failed (ENCRYPTION_KEY changed), auto-fallback to paper trading
-        // instead of rejecting the order. This is the KEY fix for the "0 executions" problem.
-        // When the ENCRYPTION_KEY changes, ALL real credentials become undecryptable,
-        // which blocks ALL trade execution. Instead of blocking, we allow the order
-        // through — the Smart Executor will detect the decrypt failure and auto-switch
-        // the user to paper trading on the next tick.
+        // FIX: If decryption failed (ENCRYPTION_KEY changed), REJECT the order.
+        // Previously, decrypt failures were allowed through under the assumption
+        // that Smart Executor would auto-fallback to paper trading — but this is
+        // dangerous: an order that bypasses balance checks can execute with
+        // unverified credentials on a live exchange. Fail-closed is the only
+        // safe policy.
         const isDecryptError = error.message?.includes('decrypt') ||
           error.message?.includes('initialization vector') ||
           error.message?.includes('فشل فك تشفير');
         if (isDecryptError) {
-          this.logger.warn(
+          this.logger.error(
             `🛡️ Credential decryption failed for ${credential.exchange} (likely ENCRYPTION_KEY changed) — ` +
-            `allowing order to proceed (Smart Executor will auto-fallback to paper trading)`
+            `REJECTING order to protect capital (fail-closed)`
           );
-          // Allow the order — Smart Executor will catch the error and switch to paper
+          return {
+            allowed: false,
+            reason: 'فشل فك تشفير بيانات الاعتماد — لا يمكن التحقق من الرصيد. تم رفض الطلب لحماية رأس المال. يرجى إعادة إدخال مفاتيح API.',
+            failedCheck: 'BALANCE_CHECK',
+          };
         } else {
           // FAIL-CLOSED: Other balance verification failures — reject to protect capital
           this.logger.error(`Balance verification failed for ${command.symbol}: ${error.message} — rejecting order`);
@@ -869,14 +873,17 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
    * rejected with: "لا يمكن التحقق من الرصيد للبورصة" — blocking ALL trades.
    *
    * Recognized test exchange patterns:
-   * - Exactly 'paper-trading' or 'paper' or 'demo' or 'test' or 'sandbox'
-   * - Ends with '_test', '_paper', '_demo', '_sandbox', '_simulation'
+   * - Exactly 'paper-trading' or 'paper' or 'demo' or 'sandbox' or 'simulation'
+   * - Ends with '_test', '_paper', '_demo', '_sandbox', '_simulation' (e.g. 'binance_test', 'alpaca_paper')
    * - Contains 'testnet' (e.g. 'binance_testnet')
+   *
+   * NOTE: 'test' is intentionally EXCLUDED from exactMatches to prevent any
+   * exchange literally named "test" from bypassing ALL balance checks.
    */
   private _isTestExchange(exchangeName: string): boolean {
     if (!exchangeName) return false;
     const lower = exchangeName.toLowerCase();
-    const exactMatches = ['paper-trading', 'paper', 'demo', 'test', 'sandbox', 'simulation'];
+    const exactMatches = ['paper-trading', 'paper', 'demo', 'sandbox', 'simulation'];
     if (exactMatches.includes(lower)) return true;
     const suffixes = ['_test', '_paper', '_demo', '_sandbox', '_simulation'];
     if (suffixes.some(s => lower.endsWith(s))) return true;

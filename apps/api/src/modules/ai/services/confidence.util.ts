@@ -61,7 +61,7 @@ export function calculateConfidence(content: string, model: string): number {
   const hasBuy = /شراء|BUY|صعود|long/i.test(content);
   const hasSell = /بيع|SELL|هبوط|short/i.test(content);
   const hasHold = /انتظار|HOLD|WAIT|محايد/i.test(content);
-  const hasNegation = /لا أنصح|لا أ 推荐|غير مستحسن|لا يُنصح|I don't recommend|not recommended|avoid|لا أنصح بال/i.test(content);
+  const hasNegation = /لا أنصح|لا أنصح بال|غير مستحسن|لا يُنصح|I don't recommend|not recommended|avoid/i.test(content);
 
   if ((hasBuy || hasSell || hasHold) && !hasNegation) {
     confidence += 0.10; // Clear, affirmative recommendation

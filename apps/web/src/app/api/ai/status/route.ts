@@ -5,7 +5,7 @@ import { getAvailableModelKeys } from '@/lib/ai-direct-calls'
  * GET /api/ai/status
  *
  * Returns the status of AI models.
- * 1. Try NestJS /api/ai/models (full status with all 6 models)
+ * 1. Try NestJS /api/ai/models (full status with all 11 models)
  * 2. If NestJS is down, check API keys directly and report which
  *    models are available via direct calls.
  */
@@ -68,12 +68,17 @@ export async function GET(req: NextRequest) {
       connected: availableDirect.length > 0,
       error: lastError || 'NestJS unreachable',
       models: [
-        { model: 'Groq/Llama 3.3 70B', available: !!directKeys.find(k => k.model === 'Groq')?.hasKey, specialty: 'سرعة فائقة — تحليل المشاعر' },
-        { model: 'Gemini 2.0 Flash', available: !!directKeys.find(k => k.model === 'Gemini')?.hasKey, specialty: 'تحليل إبداعي — استراتيجية' },
-        { model: 'GLM-4 (Zhipu AI)', available: !!directKeys.find(k => k.model === 'GLM-4')?.hasKey, specialty: 'تحليل عربي — سياق طويل 200k' },
-        { model: 'HuggingFace/Mistral-7B', available: !!directKeys.find(k => k.model === 'HuggingFace')?.hasKey, specialty: 'مجاني مفتوح المصدر — متعدد اللغات' },
-        { model: 'Ollama/Qwen2.5', available: !!directKeys.find(k => k.model === 'Ollama')?.hasKey, specialty: directKeys.find(k => k.model === 'Ollama')?.note || 'محلي — يحتاج خادم Ollama' },
-        { model: 'Bedrock/Claude 3.5 Sonnet', available: !!directKeys.find(k => k.model === 'Bedrock')?.hasKey, specialty: directKeys.find(k => k.model === 'Bedrock')?.note || 'مؤسسي — يتطلب AWS credentials' },
+        { name: 'Groq', available: !!directKeys.find(k => k.model === 'Groq')?.hasKey, latency: null, specialty: 'سرعة فائقة — تحليل المشاعر' },
+        { name: 'Gemini', available: !!directKeys.find(k => k.model === 'Gemini')?.hasKey, latency: null, specialty: 'تحليل إبداعي — استراتيجية' },
+        { name: 'GLM-4', available: !!directKeys.find(k => k.model === 'GLM-4')?.hasKey, latency: null, specialty: 'تحليل عربي — سياق طويل 200k' },
+        { name: 'HuggingFace', available: !!directKeys.find(k => k.model === 'HuggingFace')?.hasKey, latency: null, specialty: 'مجاني مفتوح المصدر — متعدد اللغات' },
+        { name: 'Ollama', available: !!directKeys.find(k => k.model === 'Ollama')?.hasKey, latency: null, specialty: directKeys.find(k => k.model === 'Ollama')?.note || 'محلي — يحتاج خادم Ollama' },
+        { name: 'Bedrock', available: !!directKeys.find(k => k.model === 'Bedrock')?.hasKey, latency: null, specialty: directKeys.find(k => k.model === 'Bedrock')?.note || 'مؤسسي — يتطلب AWS credentials' },
+        { name: 'DeepSeek', available: !!directKeys.find(k => k.model === 'deepseek')?.hasKey, latency: null, specialty: 'تحليل السيناريوهات — نموذج V3' },
+        { name: 'OpenRouter', available: !!directKeys.find(k => k.model === 'OpenRouter')?.hasKey, latency: null, specialty: 'نماذج مجانية — محلل التباين' },
+        { name: 'Cerebras', available: !!directKeys.find(k => k.model === 'Cerebras')?.hasKey, latency: null, specialty: 'سرعة فائقة — Llama 3.1 على محرك wafer-scale' },
+        { name: 'NVIDIA', available: !!directKeys.find(k => k.model === 'NVIDIA')?.hasKey, latency: null, specialty: 'بنية تحتية NVIDIA — Llama 3.3 70B' },
+        { name: 'Mistral', available: !!directKeys.find(k => k.model === 'Mistral')?.hasKey, latency: null, specialty: 'متعدد اللغات — Mistral Small/Nemo' },
       ],
       directCallAvailable: availableDirect.map(k => k.model),
       totalDirectModels: availableDirect.length,

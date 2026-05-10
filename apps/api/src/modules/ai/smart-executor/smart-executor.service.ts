@@ -99,154 +99,111 @@ export class SmartExecutorService implements OnModuleDestroy {
   }
 
   /**
-   * Startup cleanup: Purge phantom data without starting the executor.
-   * This runs once on server boot to clean up any leftover phantom positions,
-   * trades, and paper-trading credentials from previous server instances.
-   * Does NOT start the tick loop or enable any users.
+   * Startup cleanup: Purge ONLY phantom/stale data, preserving legitimate user states.
+   *
+   * FIX: Previous version deleted ALL data on every restart, including:
+   *   - User executor states that were explicitly enabled
+   *   - Valid TradingBriefs from the Strategic Council
+   *   - Legitimate trade history
+   *   - AgentSettings that users intentionally configured
+   *
+   * New behavior:
+   *   - Only purges PHANTOM positions (zero-value / stale > 24h)
+   *   - Only purges EXPIRED TradingBriefs (past their validUntil)
+   *   - Preserves DB-persisted user states (users explicitly enabled them)
+   *   - Preserves AgentSettings (user configuration)
+   *   - Still clears Redis states (volatile, will be restored from DB)
    */
   private async _startupCleanup(): Promise<void> {
     try {
-      this.logger.log('⚔️ Running startup phantom cleanup...');
+      this.logger.log('⚔️ Running startup phantom cleanup (preserving user data)...');
 
-      // ── STARTUP PURGE: Clean phantom/stale positions ──
+      // ── STEP 1: Clean phantom/stale positions (zero-value only) ──
       try {
         const purgeResult = await this.purgePhantomPositions();
         if (purgeResult.deleted > 0) {
-          this.logger.log(`⚔️ STARTUP PURGE: Auto-deleted ${purgeResult.deleted} phantom position(s)`);
+          this.logger.log(`⚔️ STARTUP: Purged ${purgeResult.deleted} phantom (zero-value) position(s)`);
         }
       } catch (purgeErr: any) {
         this.logger.warn(`⚔️ Startup phantom purge failed (non-critical): ${purgeErr.message}`);
       }
 
-      // Auto-close stale paper-trading positions that have been open too long (>24h)
+      // ── STEP 2: Auto-close stale paper-trading positions (>24h) ──
       try {
         const staleClosed = await this._autoCloseStalePaperPositions();
         if (staleClosed > 0) {
-          this.logger.log(`⚔️ STARTUP CLEANUP: Auto-closed ${staleClosed} stale paper-trading position(s) open >24h`);
+          this.logger.log(`⚔️ STARTUP: Auto-closed ${staleClosed} stale paper position(s) (>24h)`);
         }
       } catch (staleErr: any) {
         this.logger.warn(`⚔️ Startup stale cleanup failed (non-critical): ${staleErr.message}`);
       }
 
-      // ── NUCLEAR CLEANUP: Delete ALL paper-trading credentials ──
-      // These are auto-generated fake credentials that create phantom trades.
-      // They must be removed so the system stops generating fake positions.
+      // ── STEP 3: Delete only EXPIRED TradingBriefs (not all) ──
+      // Previous code deleted ALL briefs, but valid briefs should be kept
+      // so the executor can continue working after a restart.
       try {
-        const deletedCreds = await this.prisma.exchangeCredential.deleteMany({
-          where: { exchange: 'paper-trading' },
+        const deletedBriefs = await this.prisma.tradingBrief.deleteMany({
+          where: {
+            OR: [
+              { expiresAt: { lt: new Date() } },  // Expired briefs
+              { isActive: false },                  // Deactivated briefs
+            ],
+          },
         });
-        if (deletedCreds.count > 0) {
-          this.logger.log(`⚔️ STARTUP PURGE: Deleted ${deletedCreds.count} paper-trading credential(s)`);
+        if (deletedBriefs.count > 0) {
+          this.logger.log(`⚔️ STARTUP: Purged ${deletedBriefs.count} expired TradingBrief(s) (preserving active ones)`);
         }
-      } catch (credErr: any) {
-        this.logger.warn(`⚔️ Failed to purge paper-trading credentials: ${credErr.message}`);
+      } catch (briefErr: any) {
+        this.logger.warn(`⚔️ Failed to purge expired TradingBrief records: ${briefErr.message}`);
       }
 
-      // ── PURGE: Delete ALL smart_executor and agent positions from DB ──
-      // These are phantom positions created by the auto-start tick loop
-      try {
-        const deletedPositions = await this.prisma.position.deleteMany({
-          where: { source: { in: ['smart_executor', 'agent', 'paper_trading', 'auto_paper'] } },
-        });
-        if (deletedPositions.count > 0) {
-          this.logger.log(`⚔️ STARTUP PURGE: Deleted ${deletedPositions.count} phantom position(s) from executor/agent`);
-        }
-      } catch (posErr: any) {
-        this.logger.warn(`⚔️ Failed to purge executor positions: ${posErr.message}`);
-      }
-
-      // ── PURGE: Clear all user executor states from Redis (no auto-restore) ──
+      // ── STEP 4: Clear Redis user states (volatile) — DB states preserved ──
+      // Redis states are volatile and may be stale. Clear them so they get
+      // re-populated from DB (the source of truth for explicitly-enabled users).
       try {
         const userKeys = await this.redis.scanKeys(`${this.REDIS_USER_STATE_PREFIX}*`);
         for (const key of userKeys) {
           await this.redis.del(key);
         }
         if (userKeys.length > 0) {
-          this.logger.log(`⚔️ STARTUP PURGE: Cleared ${userKeys.length} executor user state(s) from Redis`);
+          this.logger.log(`⚔️ STARTUP: Cleared ${userKeys.length} volatile Redis user state(s) (DB states preserved)`);
         }
       } catch (redisErr: any) {
         this.logger.warn(`⚔️ Failed to clear executor Redis states: ${redisErr.message}`);
       }
 
-      // ── PURGE: Clear global executor state from Redis ──
+      // ── STEP 5: Clear global executor state from Redis ──
       try {
         await this.redis.del(this.REDIS_GLOBAL_STATE);
       } catch {}
 
-      // ── PURGE: Delete ALL DB-persisted user executor states ──
-      // These survive Redis restarts and cause phantom users to be re-enabled.
-      // MUST delete them so users only get enabled when they explicitly click.
+      // ── STEP 6: Delete stale AutonomousTrade records (>7 days old) ──
       try {
-        const deletedDbStates = await this.prisma.setting.deleteMany({
-          where: { key: { startsWith: this.DB_USER_STATE_KEY } },
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const deletedAutoTrades = await this.prisma.autonomousTrade.deleteMany({
+          where: { createdAt: { lt: sevenDaysAgo } },
         });
-        if (deletedDbStates.count > 0) {
-          this.logger.log(`⚔️ STARTUP PURGE: Deleted ${deletedDbStates.count} DB-persisted executor user state(s)`);
-        }
-      } catch (dbStateErr: any) {
-        this.logger.warn(`⚔️ Failed to purge DB executor states: ${dbStateErr.message}`);
-      }
-
-      // ── FIX: Delete ALL phantom Trade records from auto-trading sources ──
-      try {
-        const deletedTrades = await this.prisma.trade.deleteMany({
-          where: { source: { in: ['smart_executor', 'agent', 'paper_trading', 'auto_paper'] } },
-        });
-        if (deletedTrades.count > 0) {
-          this.logger.log(`⚔️ STARTUP PURGE: Deleted ${deletedTrades.count} phantom Trade record(s)`);
-        }
-      } catch (tradeErr: any) {
-        this.logger.warn(`⚔️ Failed to purge phantom Trade records: ${tradeErr.message}`);
-      }
-
-      // ── FIX: Delete ALL TradingBrief records (auto-generated by Strategic Council) ──
-      // These briefs feed the executor tick loop and can trigger phantom trades
-      // even after cleanup. Deleting them ensures the executor has nothing to execute
-      // until the Strategic Council generates new ones (which only happens when
-      // the system is properly configured and running).
-      try {
-        const deletedBriefs = await this.prisma.tradingBrief.deleteMany({});
-        if (deletedBriefs.count > 0) {
-          this.logger.log(`⚔️ STARTUP PURGE: Deleted ${deletedBriefs.count} TradingBrief record(s)`);
-        }
-      } catch (briefErr: any) {
-        this.logger.warn(`⚔️ Failed to purge TradingBrief records: ${briefErr.message}`);
-      }
-
-      // ── FIX: Delete ALL AutonomousTrade records (phantom trade history) ──
-      try {
-        const deletedAutoTrades = await this.prisma.autonomousTrade.deleteMany({});
         if (deletedAutoTrades.count > 0) {
-          this.logger.log(`⚔️ STARTUP PURGE: Deleted ${deletedAutoTrades.count} AutonomousTrade record(s)`);
+          this.logger.log(`⚔️ STARTUP: Purged ${deletedAutoTrades.count} stale AutonomousTrade(s) (>7 days)`);
         }
       } catch (autoTradeErr: any) {
-        this.logger.warn(`⚔️ Failed to purge AutonomousTrade records: ${autoTradeErr.message}`);
+        this.logger.warn(`⚔️ Failed to purge stale AutonomousTrade records: ${autoTradeErr.message}`);
       }
 
-      // ── FIX: Delete ALL PaperOrder records ──
+      // ── STEP 7: Delete stale PaperOrder records (>7 days old) ──
       try {
-        const deletedPaperOrders = await this.prisma.paperOrder.deleteMany({});
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const deletedPaperOrders = await this.prisma.paperOrder.deleteMany({
+          where: { createdAt: { lt: sevenDaysAgo } },
+        });
         if (deletedPaperOrders.count > 0) {
-          this.logger.log(`⚔️ STARTUP PURGE: Deleted ${deletedPaperOrders.count} PaperOrder record(s)`);
+          this.logger.log(`⚔️ STARTUP: Purged ${deletedPaperOrders.count} stale PaperOrder(s) (>7 days)`);
         }
       } catch (paperErr: any) {
-        this.logger.warn(`⚔️ Failed to purge PaperOrder records: ${paperErr.message}`);
+        this.logger.warn(`⚔️ Failed to purge stale PaperOrder records: ${paperErr.message}`);
       }
 
-      // ── FIX: Force-overwrite ALL AgentSettings.autoTradingEnabled=false ──
-      try {
-        const forceDisabled = await this.prisma.agentSettings.updateMany({
-          where: { autoTradingEnabled: true },
-          data: { autoTradingEnabled: false },
-        });
-        if (forceDisabled.count > 0) {
-          this.logger.log(`⚔️ STARTUP FIX: Force-disabled autoTradingEnabled for ${forceDisabled.count} user(s)`);
-        }
-      } catch (settingsErr: any) {
-        this.logger.warn(`⚔️ Failed to force-disable autoTradingEnabled: ${settingsErr.message}`);
-      }
-
-      this.logger.log('⚔️ Startup phantom cleanup complete');
+      this.logger.log('⚔️ Startup cleanup complete (user data preserved)');
     } catch (error: any) {
       this.logger.warn(`⚔️ Startup cleanup failed (non-critical): ${error.message}`);
     }
@@ -591,7 +548,60 @@ export class SmartExecutorService implements OnModuleDestroy {
     }
 
     // Check if daily loss limit reached
-    const dailyLossLimitReached = false; // Per-user check, not global
+    // FIX: Previously hardcoded to false. Now we actually check each user's
+    // daily PnL against their portfolio value * (maxDailyLossPercent / 100).
+    let dailyLossLimitReached = false;
+    try {
+      const threshold = this.config.maxDailyLossPercent; // default 5%
+
+      if (userId) {
+        // User-specific check: compare this user's dailyPnL against their portfolio threshold
+        const userState = await this.getUserState(userId);
+        if (userState && userState.enabled) {
+          const portfolio = await this._getPortfolioValue(userId);
+          if (portfolio > 0) {
+            const lossLimit = portfolio * (threshold / 100);
+            dailyLossLimitReached = todayPnL < -lossLimit;
+          }
+        }
+      } else {
+        // Global check: check if ANY enabled user has hit the daily loss limit
+        const enabledUsers = await this._getEnabledUsers();
+        for (const uid of enabledUsers) {
+          try {
+            const userState = await this.getUserState(uid);
+            if (userState && userState.enabled) {
+              const portfolio = await this._getPortfolioValue(uid);
+              if (portfolio > 0) {
+                const lossLimit = portfolio * (threshold / 100);
+                // Calculate this user's daily PnL
+                const startOfDay = new Date();
+                startOfDay.setHours(0, 0, 0, 0);
+                const userPnlWhere: any = {
+                  type: { in: ['EXIT', 'PARTIAL_EXIT'] },
+                  executedAt: { gte: startOfDay },
+                  pnl: { not: null },
+                  userId: uid,
+                };
+                const userPnlTrades = await this.prisma.trade.findMany({
+                  where: userPnlWhere,
+                  select: { pnl: true },
+                });
+                const userDailyPnL = userPnlTrades.reduce((sum, t) => sum + (Number(t.pnl) || 0), 0);
+                if (userDailyPnL < -lossLimit) {
+                  dailyLossLimitReached = true;
+                  break;
+                }
+              }
+            }
+          } catch (userErr: any) {
+            this.logger.debug(`getStatus: dailyLoss check failed for user ${uid}: ${userErr.message}`);
+          }
+        }
+      }
+    } catch (lossErr: any) {
+      this.logger.debug(`getStatus: dailyLossLimitReached check failed: ${lossErr.message}`);
+    }
 
     return {
       isRunning: this.isRunning,
@@ -1040,7 +1050,9 @@ export class SmartExecutorService implements OnModuleDestroy {
           //   3. No audit log for the close
           // Now: delegate to TradingService which handles everything properly.
           try {
-            await this.tradingService.closePosition(userId, {
+            // FIX: Use closePositionWithRetry for optimistic locking support.
+            // No more direct DB bypass — TradingService is the SINGLE source of truth.
+            await this.tradingService.closePositionWithRetry(userId, {
               positionId: oldestPosition.id,
             });
 
@@ -1055,44 +1067,17 @@ export class SmartExecutorService implements OnModuleDestroy {
               `(id: ${oldestPosition.id}, PnL: $${pnl.toFixed(2)}) via TradingService to make room for new brief`,
             );
           } catch (closeErr: any) {
-            this.logger.warn(`⚔️ TradingService close failed for stale position ${oldestPosition.id}: ${closeErr.message} — falling back to direct DB update`);
-            // Fallback: direct DB update if TradingService fails (e.g., credential deleted)
-            const closePrice = Number(oldestPosition.currentPrice) || Number(oldestPosition.entryPrice);
-            const pnl = (closePrice - Number(oldestPosition.entryPrice)) * Number(oldestPosition.quantity) * (oldestPosition.side === 'SELL' ? -1 : 1);
-
-            await this.prisma.position.update({
-              where: { id: oldestPosition.id },
-              data: {
-                status: 'CLOSED',
-                closedAt: new Date(),
-                currentPrice: closePrice,
-                unrealizedPnl: 0,
-                realizedPnl: pnl,
-                source: 'smart_executor',
-              },
-            });
-
-            try {
-              await this.prisma.trade.create({
-                data: {
-                  userId,
-                  positionId: oldestPosition.id,
-                  symbol: oldestPosition.symbol,
-                  side: oldestPosition.side === 'BUY' ? 'SELL' : 'BUY',
-                  type: 'EXIT',
-                  quantity: Number(oldestPosition.quantity),
-                  price: closePrice,
-                  pnl,
-                  exchange: 'paper-trading',
-                  source: 'smart_executor',
-                },
-              });
-            } catch (tradeErr: any) {
-              this.logger.warn(`⚔️ Failed to record closing trade: ${tradeErr.message}`);
-            }
-
-            userState.dailyPnL += pnl;
-            openPositionsCount--;
+            // FIX: REMOVED direct DB bypass fallback. Previously, when TradingService.closePosition()
+            // failed, we'd directly update the DB with prisma.position.update(). This bypassed:
+            //   1. Optimistic locking (version check)
+            //   2. Order record creation (audit gap)
+            //   3. Proper exchange close attempt
+            //   4. Position-Trade-Order consistency
+            // Now: If TradingService fails, we LOG the error and skip — the position remains
+            // open and will be retried on the next tick or closed manually by the user.
+            this.logger.warn(
+              `⚔️ TradingService close failed for stale position ${oldestPosition.id}: ${closeErr.message} — skipping (no direct DB bypass)`,
+            );
           }
         }
       } catch (closeErr: any) {
@@ -1130,10 +1115,11 @@ export class SmartExecutorService implements OnModuleDestroy {
         // causing 0 executions when the dashboard shows "5 open positions".
         if (userState.isPaperTrading) {
           try {
-            // FIX: Use TradingService.closePosition() instead of direct DB update
-            // for the same reasons as the stale position close above.
+            // FIX: Use TradingService.closePositionWithRetry() — NO direct DB bypass.
+            // The direct prisma.position.update() fallback has been REMOVED because it
+            // bypassed optimistic locking, Order creation, and exchange state sync.
             try {
-              await this.tradingService.closePosition(userId, {
+              await this.tradingService.closePositionWithRetry(userId, {
                 positionId: existingPosition.id,
               });
 
@@ -1146,47 +1132,10 @@ export class SmartExecutorService implements OnModuleDestroy {
                 `(PnL: $${pnl.toFixed(2)}) via TradingService to execute new brief ${brief.id}`,
               );
             } catch (tsCloseErr: any) {
-              // Fallback: direct DB update if TradingService fails
-              this.logger.warn(`⚔️ TradingService close failed for ${existingPosition.id}: ${tsCloseErr.message} — falling back to direct DB update`);
-              const closePrice = Number(existingPosition.currentPrice) || Number(existingPosition.entryPrice);
-              const pnl = (closePrice - Number(existingPosition.entryPrice)) * Number(existingPosition.quantity) * (existingPosition.side === 'SELL' ? -1 : 1);
-
-              await this.prisma.position.update({
-                where: { id: existingPosition.id },
-                data: {
-                  status: 'CLOSED',
-                  closedAt: new Date(),
-                  currentPrice: closePrice,
-                  unrealizedPnl: 0,
-                  realizedPnl: pnl,
-                  source: 'smart_executor',
-                },
-              });
-
-              try {
-                await this.prisma.trade.create({
-                  data: {
-                    userId,
-                    positionId: existingPosition.id,
-                    symbol: existingPosition.symbol,
-                    side: existingPosition.side === 'BUY' ? 'SELL' : 'BUY',
-                    type: 'EXIT',
-                    quantity: Number(existingPosition.quantity),
-                    price: closePrice,
-                    pnl,
-                    exchange: 'paper-trading',
-                    source: 'smart_executor',
-                  },
-                });
-              } catch (tradeErr: any) {
-                this.logger.warn(`⚔️ Failed to record closing trade: ${tradeErr.message}`);
-              }
-
-              userState.dailyPnL += pnl;
-
-              this.logger.log(
-                `⚔️ Closed stale paper position ${existingPosition.symbol} ` +
-                `(PnL: $${pnl.toFixed(2)}) via DB fallback to execute new brief ${brief.id}`,
+              // FIX: REMOVED direct DB bypass. If TradingService fails, log and skip.
+              // The position will be retried on the next tick.
+              this.logger.warn(
+                `⚔️ TradingService close failed for ${existingPosition.id}: ${tsCloseErr.message} — skipping (no direct DB bypass)`,
               );
             }
           } catch (closeErr: any) {
@@ -1655,7 +1604,17 @@ export class SmartExecutorService implements OnModuleDestroy {
   // ── Private: Utility ──
 
   /**
-   * Auto-close stale paper-trading positions that have been open >24 hours.
+   * FIX: Auto-close stale paper-trading positions (>24h open) using
+   * TradingService.closePositionWithRetry() instead of direct prisma.position.update().
+   *
+   * Why: Direct prisma.position.update() bypasses the position-close business logic:
+   *   - No Trade record is created (or it's created manually with potential inconsistency)
+   *   - No Order record is created
+   *   - No optimistic lock check (version increment)
+   *   - No exchange reconciliation (exchange-sync won't know the position was closed)
+   *   - No audit log entry
+   * Using closePositionWithRetry() ensures all side-effects are properly handled.
+   *
    * Paper trading positions should NOT remain open indefinitely — they block
    * the executor from opening new positions when the maxOpenPositions limit
    * is reached. This method is called on startup and during tick processing.
@@ -1674,48 +1633,25 @@ export class SmartExecutorService implements OnModuleDestroy {
 
       for (const pos of stalePositions) {
         try {
-          const closePrice = Number(pos.currentPrice) || Number(pos.entryPrice);
-          const pnl = (closePrice - Number(pos.entryPrice)) * Number(pos.quantity) * (pos.side === 'SELL' ? -1 : 1);
-
-          await this.prisma.position.update({
-            where: { id: pos.id },
-            data: {
-              status: 'CLOSED',
-              closedAt: new Date(),
-              currentPrice: closePrice,
-              unrealizedPnl: 0,
-              realizedPnl: pnl,
-              source: 'smart_executor',
-            },
+          // FIX: Use TradingService.closePositionWithRetry() instead of
+          // direct prisma.position.update() — ensures all business logic
+          // (Trade/Order records, optimistic lock, audit log) is properly handled.
+          await this.tradingService.closePositionWithRetry(pos.userId, {
+            positionId: pos.id,
           });
-
-          // Record the closing trade
-          try {
-            await this.prisma.trade.create({
-              data: {
-                userId: pos.userId,
-                positionId: pos.id,
-                symbol: pos.symbol,
-                side: pos.side === 'BUY' ? 'SELL' : 'BUY',
-                type: 'EXIT',
-                quantity: Number(pos.quantity),
-                price: closePrice,
-                pnl,
-                exchange: 'paper-trading',
-                source: 'smart_executor',
-                executedAt: new Date(),
-              },
-            });
-          } catch (tradeErr: any) {
-            this.logger.warn(`⚔️ Failed to record closing trade for stale position ${pos.id}: ${tradeErr.message}`);
-          }
 
           closed++;
           this.logger.log(
-            `⚔️ Auto-closed stale paper position ${pos.symbol} (id: ${pos.id}, opened: ${pos.openedAt.toISOString()}, PnL: $${pnl.toFixed(2)})`,
+            `⚔️ Auto-closed stale paper position ${pos.symbol} (id: ${pos.id}, opened: ${pos.openedAt.toISOString()})`,
           );
         } catch (closeErr: any) {
-          this.logger.warn(`⚔️ Failed to close stale position ${pos.id}: ${closeErr.message}`);
+          // If the position is already closed, that's fine — count it as success
+          if (closeErr.message?.includes('already') || closeErr.message?.includes('ليس مفتوحاً') || closeErr.message?.includes('not open')) {
+            closed++;
+            this.logger.debug(`⚔️ Stale paper position ${pos.id} was already closed`);
+          } else {
+            this.logger.warn(`⚔️ Failed to close stale position ${pos.id}: ${closeErr.message}`);
+          }
         }
       }
     } catch (error: any) {

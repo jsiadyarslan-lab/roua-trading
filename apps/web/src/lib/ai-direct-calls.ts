@@ -1817,5 +1817,20 @@ export function getAvailableModelKeys(): { model: string; hasKey: boolean; note?
       hasKey: !!getKey('DEEPSEEK_API_KEY'),
       note: 'DeepSeek V3 — scenario analysis',
     },
+    {
+      model: 'Cerebras',
+      hasKey: !!(getKey('CEREBRAS_API_KEY') || getKey('CEREBRAS_KEY')),
+      note: '14,400 req/day FREE — Llama 3.1 on wafer-scale engine',
+    },
+    {
+      model: 'NVIDIA',
+      hasKey: !!(getKey('NVIDIA_API_KEY') || getKey('NVIDIA_NIM_API_KEY') || getKey('NIM_API_KEY')),
+      note: '40 req/min FREE — Llama 3.3 70B on NVIDIA infrastructure',
+    },
+    {
+      model: 'Mistral',
+      hasKey: !!(getKey('MISTRAL_API_KEY') || getKey('MISTRAL_KEY')),
+      note: '1B tokens/month FREE — Mistral Small/Nemo',
+    },
   ]
 }

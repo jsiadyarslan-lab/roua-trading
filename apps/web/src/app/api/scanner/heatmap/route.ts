@@ -29,6 +29,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, data })
   } catch (error: any) {
     console.error('[scanner/heatmap] Error:', error?.message)
-    return NextResponse.json({ success: true, data: [] })
+    return NextResponse.json({ success: false, data: [], error: 'Failed to load heatmap data' }, { status: 502 })
   }
 }

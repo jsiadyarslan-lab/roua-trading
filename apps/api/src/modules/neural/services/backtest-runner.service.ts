@@ -132,8 +132,8 @@ export class BacktestRunnerService {
             pnl: Math.round(pnl * 100) / 100,
             pnlPercent: Math.round(pnlPct * 10000) / 100,
             holdDuration: this._calculateDuration(entryDate, this._ts(curr.timestamp)),
-            stopLoss: entryPrice * (1 - slPct),
-            takeProfit: entryPrice * (1 + tpPct),
+            stopLoss: openTrade.side === 'BUY' ? entryPrice * (1 - slPct) : entryPrice * (1 + slPct),
+            takeProfit: openTrade.side === 'BUY' ? entryPrice * (1 + tpPct) : entryPrice * (1 - tpPct),
           });
 
           openTrade = null;

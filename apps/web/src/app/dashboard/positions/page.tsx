@@ -24,6 +24,7 @@ import { fetchPositionsUnified, fetchSummaryUnified, closePositionUnified } from
 // ── Types ──
 interface Position {
   id: string
+  dbId?: string
   symbol: string
   side: 'BUY' | 'SELL'
   quantity: number
@@ -200,7 +201,10 @@ export default function PositionsPage() {
     const qty = closeQuantity ? parseFloat(closeQuantity) : closeDialog.quantity
     const isPartial = qty < closeDialog.quantity
     try {
-      const result = await closePositionUnified(closeDialog.id, isPartial ? qty : undefined)
+      // FIX: Pass dbId so closePositionUnified always routes through NestJS
+      // for DB positions. Without this, if the id is not a valid UUID format,
+      // it falls through to Alpaca, which returns 404 for DB-only positions.
+      const result = await closePositionUnified(closeDialog.id, isPartial ? qty : undefined, { dbId: closeDialog.dbId || closeDialog.id })
       if (result.success) {
         if (isPartial) {
           setPositions((prev) => prev.map((p) => p.id === closeDialog.id ? { ...p, quantity: p.quantity - qty } : p))

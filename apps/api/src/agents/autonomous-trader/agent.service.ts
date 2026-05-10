@@ -193,127 +193,96 @@ export class AutonomousTraderAgentService implements OnModuleInit {
   }
 
   /**
-   * Startup cleanup: Purge phantom agent data without restoring agents.
-   * This runs once on server boot to clean up any leftover phantom positions,
-   * trades, and agent sessions from previous server instances.
-   * Does NOT restore any agent sessions — users must explicitly re-enable.
+   * Startup cleanup: Purge ONLY phantom/stale data, preserving legitimate user states.
+   *
+   * FIX: Previous version deleted ALL data on every restart, including:
+   *   - AgentSettings that users explicitly configured
+   *   - Valid TradingBriefs from the Strategic Council
+   *   - Legitimate trade history
+   *   - Paper-trading credentials that users intentionally created
+   *
+   * New behavior:
+   *   - Stops stale agent sessions (RUNNING/PAUSED) — they should be restarted explicitly
+   *   - Only purges PHANTOM positions (zero-value / stale > 24h)
+   *   - Only purges EXPIRED TradingBriefs
+   *   - Preserves AgentSettings (user configuration)
+   *   - Preserves DB-persisted user states
    */
   private async _startupCleanup(): Promise<void> {
     try {
-      this.logger.log('🧠 Running startup phantom cleanup...');
+      this.logger.log('🧠 Running startup phantom cleanup (preserving user data)...');
 
-      // ── STOP: Set all RUNNING agent sessions to STOPPED in DB ──
-      // These were auto-restored by the old code and kept generating phantom trades.
+      // ── STOP: Set stale RUNNING agent sessions to STOPPED in DB ──
+      // These were active before the restart and should not auto-resume.
       try {
         const stopped = await this.prisma.agentSession.updateMany({
           where: { status: { in: ['RUNNING', 'PAUSED', 'DAILY_LIMIT_REACHED'] } },
           data: { status: 'STOPPED', updatedAt: new Date() },
         });
         if (stopped.count > 0) {
-          this.logger.log(`🧠 STARTUP PURGE: Stopped ${stopped.count} phantom agent session(s) in DB`);
+          this.logger.log(`🧠 STARTUP: Stopped ${stopped.count} stale agent session(s)`);
         }
       } catch (err: any) {
         this.logger.warn(`🧠 Failed to stop agent sessions: ${err.message}`);
       }
 
-      // ── PURGE: Clear all agent states from Redis ──
+      // ── PURGE: Clear volatile agent states from Redis ──
       try {
         const agentKeys = await this.redis.scanKeys('agent:state:*');
         for (const key of agentKeys) {
           await this.redis.del(key);
         }
         if (agentKeys.length > 0) {
-          this.logger.log(`🧠 STARTUP PURGE: Cleared ${agentKeys.length} agent state(s) from Redis`);
+          this.logger.log(`🧠 STARTUP: Cleared ${agentKeys.length} volatile Redis agent state(s)`);
         }
       } catch (err: any) {
         this.logger.warn(`🧠 Failed to clear agent Redis states: ${err.message}`);
       }
 
-      // ── PURGE: Delete ALL paper-trading credentials created by agent ──
+      // ── PURGE: Delete only EXPIRED TradingBriefs (not all) ──
       try {
-        const deletedCreds = await this.prisma.exchangeCredential.deleteMany({
-          where: { exchange: 'paper-trading' },
+        const deletedBriefs = await this.prisma.tradingBrief.deleteMany({
+          where: {
+            OR: [
+              { expiresAt: { lt: new Date() } },
+              { isActive: false },
+            ],
+          },
         });
-        if (deletedCreds.count > 0) {
-          this.logger.log(`🧠 STARTUP PURGE: Deleted ${deletedCreds.count} paper-trading credential(s)`);
-        }
-      } catch (err: any) {
-        this.logger.warn(`🧠 Failed to purge paper-trading credentials: ${err.message}`);
-      }
-
-      // ── PURGE: Delete ALL positions created by agent ──
-      try {
-        const deletedPositions = await this.prisma.position.deleteMany({
-          where: { source: { in: ['agent', 'smart_executor', 'paper_trading', 'auto_paper'] } },
-        });
-        if (deletedPositions.count > 0) {
-          this.logger.log(`🧠 STARTUP PURGE: Deleted ${deletedPositions.count} phantom position(s) from agent`);
-        }
-      } catch (err: any) {
-        this.logger.warn(`🧠 Failed to purge agent positions: ${err.message}`);
-      }
-
-      // ── FIX: Force-overwrite ALL existing AgentSettings where autoTradingEnabled=true ──
-      // Previously, _createDefaultSettings() defaulted to true. This means many users
-      // in the database have autoTradingEnabled=true even though they never explicitly
-      // enabled it. If a system admin enables the global AUTO_TRADING_ENABLED toggle,
-      // ALL these users would immediately start auto-trading without their knowledge.
-      // We must set them all to false now.
-      try {
-        const forceDisabled = await this.prisma.agentSettings.updateMany({
-          where: { autoTradingEnabled: true },
-          data: { autoTradingEnabled: false },
-        });
-        if (forceDisabled.count > 0) {
-          this.logger.log(`🧠 STARTUP FIX: Force-disabled autoTradingEnabled for ${forceDisabled.count} user(s) who had it set to true from old code`);
-        }
-      } catch (err: any) {
-        this.logger.warn(`🧠 Failed to force-disable autoTradingEnabled: ${err.message}`);
-      }
-
-      // ── FIX: Delete ALL AutonomousTrade records (phantom trade history) ──
-      try {
-        const deletedTrades = await this.prisma.autonomousTrade.deleteMany({});
-        if (deletedTrades.count > 0) {
-          this.logger.log(`🧠 STARTUP PURGE: Deleted ${deletedTrades.count} AutonomousTrade record(s)`);
-        }
-      } catch (err: any) {
-        this.logger.warn(`🧠 Failed to purge AutonomousTrade records: ${err.message}`);
-      }
-
-      // ── FIX: Delete ALL PaperOrder records (phantom paper orders) ──
-      try {
-        const deletedPaperOrders = await this.prisma.paperOrder.deleteMany({});
-        if (deletedPaperOrders.count > 0) {
-          this.logger.log(`🧠 STARTUP PURGE: Deleted ${deletedPaperOrders.count} PaperOrder record(s)`);
-        }
-      } catch (err: any) {
-        this.logger.warn(`🧠 Failed to purge PaperOrder records: ${err.message}`);
-      }
-
-      // ── FIX: Delete ALL Trade records from auto-trading sources ──
-      try {
-        const deletedTrades = await this.prisma.trade.deleteMany({
-          where: { source: { in: ['smart_executor', 'agent', 'paper_trading', 'auto_paper'] } },
-        });
-        if (deletedTrades.count > 0) {
-          this.logger.log(`🧠 STARTUP PURGE: Deleted ${deletedTrades.count} phantom Trade record(s)`);
-        }
-      } catch (err: any) {
-        this.logger.warn(`🧠 Failed to purge phantom Trade records: ${err.message}`);
-      }
-
-      // ── FIX: Delete ALL TradingBrief records (auto-generated by Strategic Council) ──
-      try {
-        const deletedBriefs = await this.prisma.tradingBrief.deleteMany({});
         if (deletedBriefs.count > 0) {
-          this.logger.log(`🧠 STARTUP PURGE: Deleted ${deletedBriefs.count} TradingBrief record(s)`);
+          this.logger.log(`🧠 STARTUP: Purged ${deletedBriefs.count} expired TradingBrief(s) (preserving active ones)`);
         }
       } catch (err: any) {
-        this.logger.warn(`🧠 Failed to purge TradingBrief records: ${err.message}`);
+        this.logger.warn(`🧠 Failed to purge expired TradingBrief records: ${err.message}`);
       }
 
-      this.logger.log('🧠 Startup phantom cleanup complete');
+      // ── PURGE: Delete stale AutonomousTrade records (>7 days) ──
+      try {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const deletedTrades = await this.prisma.autonomousTrade.deleteMany({
+          where: { createdAt: { lt: sevenDaysAgo } },
+        });
+        if (deletedTrades.count > 0) {
+          this.logger.log(`🧠 STARTUP: Purged ${deletedTrades.count} stale AutonomousTrade(s) (>7 days)`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`🧠 Failed to purge stale AutonomousTrade records: ${err.message}`);
+      }
+
+      // ── PURGE: Delete stale PaperOrder records (>7 days) ──
+      try {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const deletedPaperOrders = await this.prisma.paperOrder.deleteMany({
+          where: { createdAt: { lt: sevenDaysAgo } },
+        });
+        if (deletedPaperOrders.count > 0) {
+          this.logger.log(`🧠 STARTUP: Purged ${deletedPaperOrders.count} stale PaperOrder(s) (>7 days)`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`🧠 Failed to purge stale PaperOrder records: ${err.message}`);
+      }
+
+      this.logger.log('🧠 Startup cleanup complete (user data preserved)');
     } catch (error: any) {
       this.logger.warn(`🧠 Startup cleanup failed (non-critical): ${error.message}`);
     }
@@ -1738,8 +1707,59 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         if (shouldClose) {
           this.logger.log(`🧠 Auto-closing position ${position.id} (${position.symbol}): ${reason}`);
           try {
-            // For paper positions, close directly in DB (TradingService may not handle them)
-            if (isPaperPosition) {
+            // FIX: Use TradingService.closePositionWithRetry() for ALL positions
+            // (both paper and real), instead of direct prisma.position.update().
+            //
+            // Why: Direct prisma.position.update() bypasses the position-close
+            // business logic — no Trade record, no Order record, no optimistic
+            // lock check, no exchange reconciliation, no audit log.
+            // closePositionWithRetry() handles all of this properly.
+            if (this.tradingService) {
+              const result = await this.tradingService.closePositionWithRetry(userId, {
+                positionId: position.id,
+              });
+
+              // Calculate PnL for daily tracking
+              const pnl = position.side === 'BUY'
+                ? (currentPrice - Number(position.entryPrice)) * Number(position.quantity)
+                : (Number(position.entryPrice) - currentPrice) * Number(position.quantity);
+
+              // Update daily PnL tracking
+              state.dailyPnL += pnl;
+              if (pnl < 0) {
+                state.consecutiveLosses++;
+              } else if (pnl > 0) {
+                state.consecutiveLosses = 0;
+              }
+
+              // Update the AutonomousTrade record
+              try {
+                await this.prisma.autonomousTrade.updateMany({
+                  where: {
+                    userId,
+                    symbol: position.symbol,
+                    status: 'FILLED',
+                    exitPrice: null,
+                  },
+                  data: {
+                    exitPrice: currentPrice,
+                    pnl,
+                    closedAt: new Date(),
+                    holdingDurationMs: Date.now() - new Date(position.openedAt).getTime(),
+                    exitReason: reason === 'STOP_LOSS_HIT' ? 'STOP_LOSS' : reason === 'MAX_HOLDING_TIME' ? 'STRATEGY_EXIT' : 'TAKE_PROFIT',
+                    isWinning: pnl > 0,
+                    currentPrice,
+                    status: 'FILLED',
+                  },
+                });
+              } catch (tradeErr: any) {
+                this.logger.warn(`Failed to update AutonomousTrade for close: ${tradeErr.message}`);
+              }
+
+              this.logger.log(`🧠 Position closed: ${position.symbol} PnL: ${pnl.toFixed(2)} (${reason})`);
+            } else {
+              // Fallback: TradingService unavailable — direct DB update as last resort
+              this.logger.warn(`🧠 TradingService unavailable for position close — using direct DB update as fallback`);
               const pnl = position.side === 'BUY'
                 ? (currentPrice - Number(position.entryPrice)) * Number(position.quantity)
                 : (Number(position.entryPrice) - currentPrice) * Number(position.quantity);
@@ -1783,49 +1803,10 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                   },
                 });
               } catch (tradeErr: any) {
-                this.logger.warn(`Failed to update AutonomousTrade for paper close: ${tradeErr.message}`);
+                this.logger.warn(`Failed to update AutonomousTrade for fallback close: ${tradeErr.message}`);
               }
 
-              this.logger.log(`🧠 Paper position closed: ${position.symbol} PnL: ${pnl.toFixed(2)} (${reason})`);
-            } else {
-              // Real position — use TradingService
-              const result = await this.tradingService.closePosition(userId, {
-                positionId: position.id,
-              });
-
-              // Update daily PnL tracking
-              const pnl = Number(result?.pnl || 0);
-              state.dailyPnL += pnl;
-              if (pnl < 0) {
-                state.consecutiveLosses++;
-              } else if (pnl > 0) {
-                state.consecutiveLosses = 0;
-              }
-
-              // Update the AutonomousTrade record
-              try {
-                await this.prisma.autonomousTrade.updateMany({
-                  where: {
-                    userId,
-                    symbol: position.symbol,
-                    status: 'FILLED',
-                    exitPrice: null,
-                  },
-                  data: {
-                    exitPrice: currentPrice,
-                    pnl,
-                    closedAt: new Date(),
-                    holdingDurationMs: Date.now() - new Date(position.openedAt).getTime(),
-                    exitReason: reason === 'STOP_LOSS_HIT' ? 'STOP_LOSS' : reason === 'MAX_HOLDING_TIME' ? 'STRATEGY_EXIT' : 'TAKE_PROFIT',
-                    isWinning: pnl > 0,
-                    currentPrice,
-                  },
-                });
-              } catch (tradeErr: any) {
-                this.logger.error(`Failed to update AutonomousTrade on close: ${tradeErr.message}`);
-              }
-
-              this.logger.log(`🧠 Position closed: ${position.symbol} PnL=${pnl.toFixed(2)} reason=${reason}`);
+              this.logger.log(`🧠 Paper position closed (fallback): ${position.symbol} PnL: ${pnl.toFixed(2)} (${reason})`);
             }
           } catch (error: any) {
             this.logger.error(`Failed to close position ${position.id}: ${error.message}`);

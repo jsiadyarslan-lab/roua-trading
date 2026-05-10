@@ -24,6 +24,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ success: true, data })
   } catch (error: any) {
     console.error('[scanner/overview] Error:', error?.message)
-    return NextResponse.json({ success: true, data: null })
+    return NextResponse.json({ success: false, data: null, error: 'Failed to load overview data' }, { status: 502 })
   }
 }

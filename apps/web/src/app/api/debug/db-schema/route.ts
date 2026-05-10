@@ -9,10 +9,14 @@ import { db, ensureDbReady, getDbInitError } from '@/lib/db'
  *
  * ⚠️ Only available in development or with a secret key in production.
  */
+import { verifyAdminAuth } from '@/lib/admin-auth'
+
 export async function GET(request: NextRequest) {
-  // FIX (C2): Security — disable this endpoint entirely in production.
-  // Previously used ADMIN_PASSWORD as query param which leaked through access logs/referrers.
-  // Now only available in development mode. For production debugging, use the admin dashboard.
+  // FIX (C2): Security — keep production disabled and require admin auth in dev.
+  // This prevents any debug/schema leakage even on misconfigured environments.
+  const authError = await verifyAdminAuth(request)
+  if (authError) return authError
+
   const isDev = process.env.NODE_ENV !== 'production'
 
   if (!isDev) {

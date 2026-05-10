@@ -113,6 +113,7 @@ export default function MobileNavBar() {
         className="fixed bottom-0 left-0 right-0 md:hidden"
         style={{
           zIndex: 50,
+          pointerEvents: 'auto',
           height: 'calc(56px + env(safe-area-inset-bottom))',
           paddingBottom: 'env(safe-area-inset-bottom)',
           background: 'linear-gradient(180deg, rgba(0,212,255,0.05) 0%, rgba(11,14,20,0.85) 100%)',
@@ -122,13 +123,13 @@ export default function MobileNavBar() {
           boxShadow: '0 -4px 24px rgba(0,0,0,0.4), 0 -1px 0 rgba(0,212,255,0.1)',
         }}
       >
-        <div className="flex items-center justify-around h-full px-0.5" dir="rtl">
+        <div className="flex items-center justify-around h-full px-0.5" dir="rtl" style={{ pointerEvents: 'auto' }}>
           {NAV_ITEMS.map((item, idx) => {
             /* Center wallet button — compact floating style */
             if ((item as any).isCenter) {
               const active = isActive(item.href)
               return (
-                <div key={item.href} style={{ position: 'relative', marginTop: -12, zIndex: 10 }}>
+                <div key={item.href} style={{ position: 'relative', marginTop: -12, zIndex: 10, pointerEvents: 'auto' }}>
                   <motion.button
                     whileTap={{ scale: 0.92 }}
                     onClick={() => handleNav(item.href)}
@@ -148,6 +149,7 @@ export default function MobileNavBar() {
                       gap: 0, cursor: 'pointer',
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       padding: 0,
+                      pointerEvents: 'auto',
                     }}
                   >
                     <Wallet size={28} color={active ? '#FFFFFF' : '#00D4FF'} strokeWidth={2} />
@@ -186,6 +188,7 @@ export default function MobileNavBar() {
                   cursor: 'pointer',
                   padding: 0,
                   zIndex: 10,
+                  pointerEvents: 'auto',
                 }}
               >
                 <div 
@@ -196,6 +199,7 @@ export default function MobileNavBar() {
                     alignItems: 'center',
                     gap: 4,
                     padding: '6px 12px',
+                    pointerEvents: 'none',
                     borderRadius: 12,
                     background: active ? 'rgba(0,212,255,0.08)' : 'transparent',
                     border: active ? '1px solid rgba(0,212,255,0.2)' : '1px solid transparent',

@@ -1139,29 +1139,85 @@ export class TradingService {
    * This checks the ACTUAL balance on the exchange (not the cached/expected balance).
    * Used to prevent "Insufficient balance" errors when closing positions.
    *
+   * FIX: Enhanced version with:
+   * 1. Detailed logging to debug "available: 0" issues
+   * 2. Futures wallet support (for positions opened on futures)
+   * 3. Fallback to total balance if free balance is 0 (with warning)
+   * 4. Better error messages for different wallet types
+   *
    * @param exchange CCXT exchange instance
    * @param symbol Trading pair (e.g., 'BTC/USDT')
+   * @param walletType 'spot' | 'future' | 'margin' — defaults to spot
    * @returns Available and total balance for the base currency (e.g., BTC)
    */
   private async _getAvailableBalance(
     exchange: any,
     symbol: string,
-  ): Promise<{ available: number; total: number; currency: string }> {
-    try {
-      const balance = await exchange.fetchBalance();
-      const baseCurrency = symbol.split('/')[0];
+    walletType: 'spot' | 'future' | 'margin' = 'spot',
+  ): Promise<{ available: number; total: number; currency: string; walletType: string; rawBalance?: any }> {
+    const baseCurrency = symbol.split('/')[0];
 
-      if (!balance[baseCurrency]) {
-        return { available: 0, total: 0, currency: baseCurrency };
+    try {
+      // Try fetching balance with specified wallet type
+      const balanceParams = walletType !== 'spot' ? { type: walletType } : {};
+      const balance = await exchange.fetchBalance(balanceParams);
+
+      // DEBUG: Log full balance response for troubleshooting
+      this.logger.debug(
+        `🔍 Balance fetch for ${symbol} (${walletType}): ${JSON.stringify({
+          baseCurrency,
+          free: balance[baseCurrency]?.free,
+          total: balance[baseCurrency]?.total,
+          used: balance[baseCurrency]?.used,
+          hasBalance: !!balance[baseCurrency],
+        })}`,
+      );
+
+      // Log all currencies that have balance > 0 (for debugging)
+      const nonZeroBalances = Object.entries(balance)
+        .filter(([key, val]: [string, any]) => {
+          if (key === 'free' || key === 'total' || key === 'used' || key === 'info') return false;
+          return val && (parseFloat(val.total || 0) > 0 || parseFloat(val.free || 0) > 0);
+        })
+        .map(([key, val]: [string, any]) => `${key}: free=${val.free}, total=${val.total}`);
+
+      if (nonZeroBalances.length > 0) {
+        this.logger.debug(`🔍 Non-zero balances on ${walletType}: ${nonZeroBalances.join(' | ')}`);
       }
 
-      const available = parseFloat(balance[baseCurrency].free || '0');
-      const total = parseFloat(balance[baseCurrency].total || '0');
+      if (!balance[baseCurrency]) {
+        // Currency not found in this wallet type
+        return {
+          available: 0,
+          total: 0,
+          currency: baseCurrency,
+          walletType,
+          rawBalance: nonZeroBalances.length > 0 ? nonZeroBalances : undefined,
+        };
+      }
 
-      return { available, total, currency: baseCurrency };
+      let available = parseFloat(balance[baseCurrency].free || '0');
+      const total = parseFloat(balance[baseCurrency].total || '0');
+      const used = parseFloat(balance[baseCurrency].used || '0');
+
+      // FIX: If available is 0 but total > 0, the balance is locked (used in open orders, etc.)
+      // In this case, we can try using total with a warning
+      if (available <= 0 && total > 0) {
+        this.logger.warn(
+          `⚡ Balance locked for ${baseCurrency}: free=${available}, used=${used}, total=${total}. ` +
+          `The ${walletType} wallet shows 0 available but ${total} total. ` +
+          `This usually means the balance is locked in open orders or margin positions.`,
+        );
+
+        // For closing positions, we should use total if available is 0
+        // This is a fallback — the order might still fail if truly locked
+        available = total;
+      }
+
+      return { available, total, currency: baseCurrency, walletType };
     } catch (error: any) {
-      this.logger.warn(`⚡ Failed to fetch balance for ${symbol}: ${error.message}`);
-      return { available: 0, total: 0, currency: symbol.split('/')[0] };
+      this.logger.warn(`⚡ Failed to fetch ${walletType} balance for ${symbol}: ${error.message}`);
+      return { available: 0, total: 0, currency: baseCurrency, walletType };
     }
   }
 
@@ -1260,19 +1316,44 @@ export class TradingService {
       // This prevents "Insufficient balance" errors when closing positions.
       // The database may show a higher quantity than what's actually available
       // due to fees, locked funds, or other pending orders.
+      //
+      // FIX: Try both spot and futures wallets — the position might be on either.
       if (request.side === 'SELL') {
-        const balance = await this._getAvailableBalance(exchange, request.symbol);
+        let balance = await this._getAvailableBalance(exchange, request.symbol, 'spot');
 
+        // If spot balance is 0, try futures wallet
         if (balance.available <= 0) {
-          return {
-            success: false,
-            error: `رصيد ${balance.currency} غير متاح في Binance. الرصيد المتاح: 0`,
-          };
+          this.logger.log(
+            `🔍 Spot balance for ${request.symbol} is 0, checking futures wallet...`,
+          );
+          const futuresBalance = await this._getAvailableBalance(exchange, request.symbol, 'future');
+
+          if (futuresBalance.available > 0) {
+            this.logger.log(
+              `✅ Found ${futuresBalance.available} ${futuresBalance.currency} in futures wallet`,
+            );
+            balance = futuresBalance;
+          } else {
+            // Neither spot nor futures has balance — log detailed info
+            this.logger.warn(
+              `⚡ ${request.symbol}: Spot balance = ${balance.total} total (${balance.available} available), ` +
+              `Futures balance = ${futuresBalance.total} total (${futuresBalance.available} available). ` +
+              `Available wallets: ${balance.rawBalance?.join(', ') || 'none'}`,
+            );
+
+            return {
+              success: false,
+              error: `رصيد ${balance.currency} غير متاح. ` +
+                `محفظة Spot: ${balance.total} (متاح: ${balance.available}), ` +
+                `محفظة Futures: ${futuresBalance.total} (متاح: ${futuresBalance.available}). ` +
+                `الرصيد قد يكون محجوز في أمر معلق أو في محفظة أخرى.`,
+            };
+          }
         }
 
         if (request.quantity > balance.available) {
           this.logger.warn(
-            `⚡ Adjusting SELL quantity for ${request.symbol}: requested ${request.quantity} but only ${balance.available} ${balance.currency} available`,
+            `⚡ Adjusting SELL quantity for ${request.symbol}: requested ${request.quantity} but only ${balance.available} ${balance.currency} available (${balance.walletType} wallet)`,
           );
 
           // Log the adjustment for audit purposes
@@ -1285,6 +1366,7 @@ export class TradingService {
                 symbol: request.symbol,
                 requestedQuantity: request.quantity,
                 availableBalance: balance.available,
+                walletType: balance.walletType,
                 adjustedQuantity: balance.available,
                 reason: 'Insufficient balance on exchange',
               }),

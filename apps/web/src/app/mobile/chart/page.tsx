@@ -470,7 +470,6 @@ function ChartPageContent() {
           currentPrice={livePrice}
           mobile={true}
           compact={true}
-          hideToolbar={true}
         />
 
         {/* ── Floating Timeframe Buttons — Top-Left ── */}

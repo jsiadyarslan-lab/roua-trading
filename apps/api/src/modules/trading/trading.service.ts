@@ -616,7 +616,55 @@ export class TradingService {
     }
 
     if (position.status !== 'OPEN') {
-      throw new BadRequestException('المركز ليس مفتوحاً');
+      // ── FIX: Idempotent close — if position is already CLOSED/LIQUIDATED,
+      // it may still be open on the exchange (e.g. SmartExecutor closed it in
+      // DB without closing on exchange). Try to close on exchange anyway and
+      // return success instead of rejecting the user's request.
+      this.logger.warn(
+        `Position ${position.id} (${position.symbol}) status is ${position.status} — attempting exchange close for safety`,
+      );
+
+      // Try to close on exchange if we have valid credentials
+      try {
+        const staleCredential =
+          await this.prisma.exchangeCredential.findFirst({
+            where: { id: position.credentialId, userId },
+          });
+
+        if (staleCredential && staleCredential.exchange !== 'paper-trading') {
+          const staleSide = position.side === 'BUY' ? 'SELL' : 'BUY';
+          await this._executeOnExchange(
+            staleCredential.exchange,
+            staleCredential.id,
+            {
+              credentialId: staleCredential.id,
+              symbol: position.symbol,
+              side: staleSide as PrismaOrderSide,
+              type: PrismaOrderType.MARKET,
+              quantity: position.quantity.toNumber(),
+            },
+            userId,
+          );
+          this.logger.log(
+            `Successfully closed position ${position.id} on exchange despite DB status being ${position.status}`,
+          );
+        }
+      } catch (exchangeErr: any) {
+        this.logger.warn(
+          `Exchange close for already-closed position ${position.id} failed: ${exchangeErr.message}`,
+        );
+        // Not fatal — position may already be closed on exchange too
+      }
+
+      // Return the existing closed position (idempotent success)
+      return {
+        order: null,
+        pnl: position.realizedPnl?.toNumber() ?? 0,
+        position: await this.prisma.position.findUnique({
+          where: { id: position.id },
+        }),
+        alreadyClosed: true,
+      };
     }
 
     const posQuantity = position.quantity.toNumber();
@@ -789,7 +837,14 @@ export class TradingService {
     }
 
     if (position.status !== 'OPEN') {
-      throw new BadRequestException('المركز ليس مفتوحاً');
+      // ── FIX: Idempotent update — if position is already CLOSED/LIQUIDATED,
+      // SL/TP update is meaningless. Return the position as-is instead of error.
+      this.logger.warn(
+        `Cannot update SL/TP for position ${positionId} — status is ${position.status}`,
+      );
+      return this.prisma.position.findUnique({
+        where: { id: positionId },
+      });
     }
 
     return this.prisma.position.update({

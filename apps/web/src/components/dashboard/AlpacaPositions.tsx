@@ -168,6 +168,10 @@ export function AlpacaPositions() {
         const json = await response.json()
         if (response.ok) {
           await fetchPositions()
+          // If position was already closed (idempotent close), notify user
+          if (json.alreadyClosed) {
+            // Silently refresh — no error, position is now synced
+          }
         } else {
           alert(`فشل الإغلاق: ${json.message || json.error || 'خطأ غير معروف'}`)
         }

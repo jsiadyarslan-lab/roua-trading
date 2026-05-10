@@ -239,7 +239,14 @@ export async function closePositionUnified(
 
     if (res.status !== 401 && res.status !== 403) {
       const data = await res.json().catch(() => ({}))
-      return { success: false, error: data.error || data.message || 'فشل الإغلاق', source: 'nestjs' }
+      // If NestJS says position is not open, it might still be open on the
+      // exchange — fall through to Alpaca fallback instead of hard-failing.
+      const isNotOpenError = (data.message || data.error || '').includes('ليس مفتوحاً')
+        || (data.message || data.error || '').toLowerCase().includes('not open')
+      if (!isNotOpenError) {
+        return { success: false, error: data.error || data.message || 'فشل الإغلاق', source: 'nestjs' }
+      }
+      // Fall through to Alpaca fallback for "not open" errors
     }
   } catch {
     // NestJS غير متاح

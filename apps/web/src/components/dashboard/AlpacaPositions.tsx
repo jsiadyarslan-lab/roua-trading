@@ -79,8 +79,13 @@ export function AlpacaPositions() {
       )
       return {
         ...position,
-        // Store the real DB id separately so we can use it for closing
-        dbId: (position as any)?.id ?? undefined,
+        // Store the real DB id separately so we can use it for closing.
+        // FIX: Only set dbId if it's a valid UUID — Alpaca positions have id=rawSymbol
+        // (like "BTCUSD") which is NOT a DB id. Without this check, the close button
+        // tries NestJS close with a symbol string, which fails with 404.
+        dbId: (position as any)?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test((position as any).id)
+          ? (position as any).id
+          : undefined,
         id: position.rawSymbol ?? position.symbol,
         isPaper: false,
         entryTime: manualPaper?.entryTime || null,

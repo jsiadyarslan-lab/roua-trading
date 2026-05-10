@@ -212,9 +212,12 @@ export async function fetchSummaryUnified(): Promise<{
 
 /**
  * إغلاق مركز مع رجوع تلقائي
- * - يحاول NestJS API أولاً (لديه منطق إغلاق متقدم)
- * - عند فشل 401، يستخدم Alpaca API مباشرة
+ * - إذا كان positionId UUID → يحاول NestJS API أولاً ثم Alpaca
+ * - إذا كان positionId رمز أصل (مثل "BTCUSD") → يذهب مباشرة إلى Alpaca
+ * - عند فشل NestJS (404/غير موجود)، يحاول Alpaca API مباشرة
  */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 export async function closePositionUnified(
   positionId: string,
   quantity?: number,
@@ -222,34 +225,42 @@ export async function closePositionUnified(
   // Ensure auth cookie exists before making API calls
   await ensureAuth()
 
-  // المحاولة الأولى: NestJS API
-  try {
-    const body: Record<string, unknown> = { positionId }
-    if (quantity) body.quantity = quantity
+  // المحاولة الأولى: NestJS API (فقط إذا كان positionId UUID صالح)
+  if (UUID_RE.test(positionId)) {
+    try {
+      const body: Record<string, unknown> = { positionId }
+      if (quantity) body.quantity = quantity
 
-    const res = await fetch('/api/trading/positions/close', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
+      const res = await fetch('/api/trading/positions/close', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
 
-    if (res.ok) {
-      return { success: true, source: 'nestjs' }
-    }
-
-    if (res.status !== 401 && res.status !== 403) {
-      const data = await res.json().catch(() => ({}))
-      // If NestJS says position is not open, it might still be open on the
-      // exchange — fall through to Alpaca fallback instead of hard-failing.
-      const isNotOpenError = (data.message || data.error || '').includes('ليس مفتوحاً')
-        || (data.message || data.error || '').toLowerCase().includes('not open')
-      if (!isNotOpenError) {
-        return { success: false, error: data.error || data.message || 'فشل الإغلاق', source: 'nestjs' }
+      if (res.ok) {
+        return { success: true, source: 'nestjs' }
       }
-      // Fall through to Alpaca fallback for "not open" errors
+
+      // On auth errors, fall through to Alpaca
+      if (res.status === 401 || res.status === 403) {
+        // Fall through to Alpaca
+      } else {
+        const data = await res.json().catch(() => ({}))
+        const errMsg = data.message || data.error || ''
+        // If position not found or not open, it might be an Alpaca-only position
+        // — fall through to Alpaca instead of hard-failing
+        const isNestjsOnlyError = !errMsg.includes('ليس مفتوحاً')
+          && !errMsg.includes('غير موجود')
+          && !errMsg.toLowerCase().includes('not open')
+          && !errMsg.toLowerCase().includes('not found')
+        if (isNestjsOnlyError) {
+          return { success: false, error: data.error || data.message || 'فشل الإغلاق', source: 'nestjs' }
+        }
+        // Fall through to Alpaca fallback
+      }
+    } catch {
+      // NestJS غير متاح — fall through to Alpaca
     }
-  } catch {
-    // NestJS غير متاح
   }
 
   // المحاولة الثانية: Alpaca API مباشرة (positionId = rawSymbol)

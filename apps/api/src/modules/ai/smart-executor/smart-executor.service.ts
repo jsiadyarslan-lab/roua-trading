@@ -307,13 +307,17 @@ export class SmartExecutorService implements OnModuleDestroy {
 
   /**
    * Stop the Smart Executor globally
-   * FIX: This method is now RESTRICTED — it should ONLY be called by
-   * the system (e.g., nuclear cleanup, module destroy), NOT by individual users.
+   * FIX: Made PRIVATE — This method should ONLY be called by the system
+   * (e.g., module destroy, nuclear cleanup). It must NEVER be triggered by
+   * individual user actions, because it kills the tick loop for ALL users.
+   *
    * Individual users should use enableUser/disableUser instead.
-   * When a user disables their executor, only THEIR state is removed.
-   * The tick loop continues running for other enabled users.
+   * The controller's POST /stop endpoint now calls disableUser(), not stop().
+   *
+   * The tick loop will automatically stop when no enabled users remain
+   * (handled by disableUser()).
    */
-  async stop(userId?: string): Promise<ExecutorStatus> {
+  private async stop(userId?: string): Promise<ExecutorStatus> {
     // FIX: Check if there are still enabled users before stopping.
     // If other users are still enabled, DON'T stop the tick loop.
     const enabledUsers = await this._getEnabledUsers();

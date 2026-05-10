@@ -6,6 +6,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { getPortalRoot } from '@/lib/portal-root';
 import type { ChartType, DrawingTool } from '@/lib/charts/types';
 import { TIMEFRAMES } from '@/lib/charts/types';
 import { ScopedStyle } from '@/components/ScopedStyle';
@@ -324,7 +325,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
         })}
       </div>
     </div>,
-    document.body
+    getPortalRoot()
   ) : null;
 
   const ctPanelPortal = showChartTypePanel && ctPanelPos ? createPortal(
@@ -347,7 +348,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
         </button>
       ))}
     </div>,
-    document.body
+    getPortalRoot()
   ) : null;
 
   const exportPanelPortal = showExportPanel && exportPanelPos ? createPortal(
@@ -395,7 +396,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
         </button>
       ))}
     </div>,
-    document.body
+    getPortalRoot()
   ) : null;
 
   // ── Mobile: show only essential tools ──

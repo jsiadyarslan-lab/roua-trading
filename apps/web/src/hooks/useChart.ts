@@ -413,12 +413,22 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         drawingRendererRef.current.stop();
         drawingRendererRef.current = null;
       }
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.remove();
-        chartInstanceRef.current = null;
-      }
+      // FIX: Disconnect ResizeObserver FIRST before removing chart.
+      // This prevents "Node cannot be found in the current page" DOM errors
+      // that occur when the observer tries to observe a removed container.
       if (resizeObserverRef.current) {
         resizeObserverRef.current.disconnect();
+        resizeObserverRef.current = null;
+      }
+      if (chartInstanceRef.current) {
+        try {
+          chartInstanceRef.current.remove();
+        } catch (e: any) {
+          // Silently catch DOM errors during chart cleanup — the container
+          // may already be removed from the document during navigation
+          console.warn('[useChart] Chart remove failed (container likely removed):', e?.message);
+        }
+        chartInstanceRef.current = null;
       }
       if (windowResizeHandlerRef.current) {
         window.removeEventListener('resize', windowResizeHandlerRef.current);

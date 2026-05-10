@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { getPortalRoot } from '@/lib/portal-root'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
@@ -724,7 +725,7 @@ function MoreDropdown({
         )
       })}
     </div>,
-    document.body
+    getPortalRoot()
   )
 }
 
@@ -927,7 +928,7 @@ function AccountDropdown({
         تسجيل الخروج
       </div>
     </div>,
-    document.body
+    getPortalRoot()
   )
 }
 
@@ -1043,7 +1044,7 @@ function SubNavDropdown({
         )
       })}
     </div>,
-    document.body
+    getPortalRoot()
   )
 }
 

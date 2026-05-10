@@ -41,7 +41,14 @@ export function QuickExecutionMini({
   useEffect(() => {
     fetch('/api/alpaca/account')
       .then(r => r.json())
-      .then(j => { if (j.success && j.data) setAccount({ cash: j.data.cash ?? 0, buyingPower: j.data.buyingPower ?? 0 }) })
+      .then(j => {
+        // FIX: Gracefully handle 503 (Alpaca credentials not configured)
+        if (j.success && j.data) {
+          setAccount({ cash: j.data.cash ?? 0, buyingPower: j.data.buyingPower ?? 0 })
+        } else if (j.offline || j.error === 'ALPACA_CREDENTIALS_NOT_CONFIGURED') {
+          setAccount({ cash: 0, buyingPower: 0 })
+        }
+      })
       .catch(() => {})
   }, [])
 
@@ -162,16 +169,22 @@ export function QuickExecutionMini({
 
       if (j.success) {
         setExecutionState('accepted')
-        const filled = j.filledAvgPrice
-          ? ` بسعر $${parseFloat(j.filledAvgPrice).toFixed(2)}`
-          : ''
-          
+        // FIX: Null-safe access to Alpaca response properties.
+        // The Alpaca API may return unexpected response shapes (missing fields, null values).
+        // Previously, accessing j.symbol, j.qty etc. without optional chaining could
+        // cause crashes or undefined values propagating into the UI.
+        const filledPrice = j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : null
+        const filled = filledPrice ? ` بسعر $${filledPrice.toFixed(2)}` : ''
+        const responseSymbol = j.symbol || localSymbol
+        const responseQty = j.qty || quantity
+        const responseOrderId = j.orderId || j.id || ''
+
         // TRACK IN PAPER STORE: This ensures TP/SL lines render immediately even if Alpaca stripped them for crypto
         addPaperTrade({
           symbol: localSymbol,
           side: side === 'buy' ? 'long' : 'short',
           qty: parseFloat(quantity),
-          entryPrice: j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : currentPrice,
+          entryPrice: filledPrice || currentPrice,
           currentPrice: currentPrice,
           tp: takeProfit ? parseFloat(takeProfit) : undefined,
           sl: stopLoss ? parseFloat(stopLoss) : undefined,
@@ -180,31 +193,70 @@ export function QuickExecutionMini({
         })
 
         setStatus({
-          msg:  `✅ تمت عملية ${side === 'buy' ? 'شراء' : 'بيع'} ${j.qty} ${j.symbol}${filled}\nرقم الأمر: ${j.orderId?.slice(0,8)}...`,
+          msg:  `✅ تمت عملية ${side === 'buy' ? 'شراء' : 'بيع'} ${responseQty} ${responseSymbol}${filled}\nرقم الأمر: ${responseOrderId?.slice(0,8)}...`,
           type: 'success',
         })
-        setExecutionState(j.filledAvgPrice ? 'filled' : 'accepted')
+        setExecutionState(filledPrice ? 'filled' : 'accepted')
         addNotification({
           source: 'trade',
           priority: 'high',
           action: side === 'buy' ? 'BUY' : 'SELL',
-          title: `تم ${side === 'buy' ? 'شراء' : 'بيع'} ${j.symbol}`,
-          body: `تم تنفيذ ${j.qty} ${j.symbol}${filled || ' في وضع paper'}`,
-          pair: j.symbol,
-          price: j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : currentPrice,
+          title: `تم ${side === 'buy' ? 'شراء' : 'بيع'} ${responseSymbol}`,
+          body: `تم تنفيذ ${responseQty} ${responseSymbol}${filled || ' في وضع paper'}`,
+          pair: responseSymbol,
+          price: filledPrice || currentPrice,
         })
         // Refresh account balance
         fetch('/api/alpaca/account').then(r=>r.json()).then(j => {
           if (j.success && j.data) setAccount({ cash: j.data.cash ?? 0, buyingPower: j.data.buyingPower ?? 0 })
-        })
+          else if (j.offline || j.error === 'ALPACA_CREDENTIALS_NOT_CONFIGURED') setAccount({ cash: 0, buyingPower: 0 })
+        }).catch(() => {})
         // Refresh dashboard account + positions so balance/margin update immediately
         fetchAccount()
         fetchPositions()
         // Refresh again after 2 seconds (Alpaca sometimes takes a moment to settle)
         setTimeout(() => { fetchAccount(); fetchPositions() }, 2000)
       } else {
-        setExecutionState('rejected')
-        setStatus({ msg: `❌ ${j.error || 'فشل التنفيذ'}`, type: 'error' })
+        // FIX: When Alpaca credentials are not configured (503), fall back to
+        // paper-only mode instead of showing an error. The trade still gets
+        // recorded locally so the user sees it in their positions.
+        const isAlpacaOffline = j.offline || j.alpacaStatus === 503 || res.status === 503
+        const isCredentialsMissing = j.error === 'ALPACA_CREDENTIALS_NOT_CONFIGURED'
+
+        if (isAlpacaOffline || isCredentialsMissing) {
+          // Paper-only fallback: Record trade locally without Alpaca execution
+          addPaperTrade({
+            symbol: localSymbol,
+            side: side === 'buy' ? 'long' : 'short',
+            qty: parseFloat(quantity),
+            entryPrice: currentPrice || 0,
+            currentPrice: currentPrice,
+            tp: takeProfit ? parseFloat(takeProfit) : undefined,
+            sl: stopLoss ? parseFloat(stopLoss) : undefined,
+            source: 'manual',
+            entryTime: Date.now()
+          })
+
+          setExecutionState('accepted')
+          setStatus({
+            msg:  `📝 تم تسجيل عملية ${side === 'buy' ? 'شراء' : 'بيع'} ${quantity} ${localSymbol} (ورقي — غير متصل بـ Alpaca)`,
+            type: 'success',
+          })
+          addNotification({
+            source: 'trade',
+            priority: 'high',
+            action: side === 'buy' ? 'BUY' : 'SELL',
+            title: `صفقة ورقية: ${side === 'buy' ? 'شراء' : 'بيع'} ${localSymbol}`,
+            body: `تم تسجيل ${quantity} ${localSymbol} في الوضع الورقي`,
+            pair: localSymbol,
+            price: currentPrice,
+          })
+          fetchAccount()
+          fetchPositions()
+        } else {
+          setExecutionState('rejected')
+          setStatus({ msg: `❌ ${j.error || 'فشل التنفيذ'}`, type: 'error' })
+        }
       }
     } catch {
       setExecutionState('rejected')

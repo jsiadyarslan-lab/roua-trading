@@ -514,8 +514,16 @@ export const usePositionsStore = create<PositionsState>()(
           source: 'alpaca' as const,
         }))
 
+        // FIX: Use mergePositions instead of direct set to prevent:
+        // 1. Wiping NestJS-sourced positions with Alpaca data
+        // 2. Introducing improperly formatted objects that cause "Cannot read properties of undefined (reading 'id')"
+        // The Alpaca path previously did a direct `set({ positions })` which REPLACED the entire
+        // array, losing paper trades and any positions from the NestJS path.
+        const currentPositions = get().positions
+        const merged = mergePositions(currentPositions, positions)
+
         set({
-          positions,
+          positions: merged,
           lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
           dataSource: 'alpaca',
           loading: false,

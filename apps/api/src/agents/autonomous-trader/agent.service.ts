@@ -431,7 +431,13 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       isPaperTrading = true;
       this.logger.log(`🧠 Agent starting in PAPER TRADING mode for user ${userId}`);
 
-      // Auto-create a paper trading credential record if one doesn't exist
+      // FIX: Do NOT auto-create paper trading credentials.
+      // Previously, this code auto-created paper credentials every time
+      // a user started the agent in paper mode. This was a major source
+      // of phantom trades because the startup cleanup deletes them,
+      // but the next agent start recreates them, and the cycle continues.
+      // Now: The user must have an existing paper-trading credential,
+      // or the agent start is rejected.
       try {
         const existingPaper = await this.prisma.exchangeCredential.findFirst({
           where: { userId, exchange: 'paper-trading', isValid: true },
@@ -439,24 +445,17 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         if (existingPaper) {
           credential = existingPaper;
         } else {
-          credential = await this.prisma.exchangeCredential.create({
-            data: {
-              userId,
-              exchange: 'paper-trading',
-              label: 'تداول ورقي (تجريبي)',
-              encryptedApiKey: 'paper',
-              encryptedSecret: 'paper',
-              iv: 'paper',
-              authTag: 'paper',
-              permissions: JSON.stringify(['read', 'trade']),
-              isValid: true,
-            },
-          });
-          this.logger.log(`🧠 Auto-created paper trading credential for user ${userId}`);
+          // No paper credential — reject the start
+          throw new BadRequestException(
+            'لا يوجد حساب تداول ورقي — يجب إنشاء حساب ورقي من صفحة المحفظة أولاً',
+          );
         }
       } catch (error: any) {
-        this.logger.warn(`Could not create paper credential: ${error.message}`);
-        // Continue without a DB record — paper trading doesn't need one
+        if (error instanceof BadRequestException) throw error;
+        this.logger.warn(`Could not check paper credential: ${error.message}`);
+        throw new BadRequestException(
+          'لا يوجد حساب تداول ورقي — يجب إنشاء حساب ورقي من صفحة المحفظة أولاً',
+        );
       }
     } else {
       // Real credential — validate it
@@ -1134,12 +1133,19 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * source of phantom trades — the cron would find orphaned agent sessions
    * in Redis (before startup cleanup ran) and execute trades for them.
    *
-   * Now: If AUTO_TRADING_ENABLED is false (the default), the cron returns
-   * immediately without scanning Redis or processing any agents. The cron
-   * effectively becomes a no-op until a system admin explicitly enables
-   * auto-trading from the UI.
+   * FIX: @Cron decorator has been COMPLETELY DISABLED.
+   * Previously, this cron fired every minute and even with the AUTO_TRADING_ENABLED
+   * guard, it could still cause phantom trades during race conditions (e.g., if the
+   * DB lookup failed and fell through to a stale env var). The cron also consumed
+   * resources scanning Redis for active agents every minute even when disabled.
+   *
+   * Now: The agent cycle is ONLY triggered when a user explicitly starts an agent
+   * via the API (POST /agents/autonomous-trader/start). There is NO automatic
+   * scheduling. This guarantees zero phantom trades from this service.
+   *
+   * To re-enable: Uncomment the @Cron decorator below. NOT RECOMMENDED.
    */
-  @Cron('*/1 * * * *')
+  // @Cron('*/1 * * * *')  // DISABLED — phantom trades prevention
   async runCycle(): Promise<void> {
     // ═══════════════════════════════════════════════════════
     // CRITICAL GUARD: Check AUTO_TRADING_ENABLED before anything else.

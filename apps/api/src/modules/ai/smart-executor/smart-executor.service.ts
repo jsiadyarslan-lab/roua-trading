@@ -173,6 +173,20 @@ export class SmartExecutorService implements OnModuleDestroy {
         await this.redis.del(this.REDIS_GLOBAL_STATE);
       } catch {}
 
+      // ── PURGE: Delete ALL DB-persisted user executor states ──
+      // These survive Redis restarts and cause phantom users to be re-enabled.
+      // MUST delete them so users only get enabled when they explicitly click.
+      try {
+        const deletedDbStates = await this.prisma.setting.deleteMany({
+          where: { key: { startsWith: this.DB_USER_STATE_KEY } },
+        });
+        if (deletedDbStates.count > 0) {
+          this.logger.log(`⚔️ STARTUP PURGE: Deleted ${deletedDbStates.count} DB-persisted executor user state(s)`);
+        }
+      } catch (dbStateErr: any) {
+        this.logger.warn(`⚔️ Failed to purge DB executor states: ${dbStateErr.message}`);
+      }
+
       // ── FIX: Delete ALL phantom Trade records from auto-trading sources ──
       try {
         const deletedTrades = await this.prisma.trade.deleteMany({
@@ -828,27 +842,13 @@ export class SmartExecutorService implements OnModuleDestroy {
       // Redis unavailable — fall through to DB check
     }
 
-    // Step 2: Check DB for persisted user states (survives Redis restart)
-    // Only restore users who EXPLICITLY enabled the executor themselves.
-    try {
-      const dbUserIds = await this._getAllEnabledUsersFromDB();
-      for (const id of dbUserIds) {
-        if (!userIds.has(id)) {
-          userIds.add(id);
-          // Re-populate Redis from DB
-          const dbState = await this._loadUserStateFromDB(id);
-          if (dbState) {
-            await this.redis.set(
-              `${this.REDIS_USER_STATE_PREFIX}${id}`,
-              JSON.stringify(dbState),
-              86400000 * 7,
-            );
-          }
-        }
-      }
-    } catch (e: any) {
-      this.logger.warn(`⚔️ Failed to check DB for enabled users: ${e.message}`);
-    }
+    // REMOVED: Step 2 (DB-persisted user states) has been DELETED.
+    // Previously, if a user had a persisted state in the Setting table
+    // (from a previous session where they clicked "تفعيل"), the Smart Executor
+    // would automatically re-enable them from DB after every Redis restart.
+    // This caused phantom trades because old enabled states survived cleanup.
+    // Now: Users ONLY stay enabled if their state exists in Redis (volatile).
+    // If Redis restarts, all users are disabled and must re-enable manually.
 
     // REMOVED: Step 3 (AgentSession cross-system sync) has been DELETED.
     // Previously, this code would find users with active AgentSession records
@@ -1344,25 +1344,19 @@ export class SmartExecutorService implements OnModuleDestroy {
       let credential: any = null;
 
       if (userState.isPaperTrading) {
-        // Paper trading — find or create paper credential
+        // Paper trading — find existing paper credential ONLY
+        // FIX: Do NOT auto-create paper credentials. Auto-creation was a major
+        // source of phantom trades. The user must explicitly create a paper
+        // trading credential from the dashboard, or the executor must have
+        // been started with an existing paper credential via enableUser().
         credential = await this.prisma.exchangeCredential.findFirst({
           where: { userId, exchange: 'paper-trading', isValid: true },
         });
 
         if (!credential) {
-          credential = await this.prisma.exchangeCredential.create({
-            data: {
-              userId,
-              exchange: 'paper-trading',
-              label: 'تداول ورقي (تجريبي)',
-              encryptedApiKey: 'paper',
-              encryptedSecret: 'paper',
-              iv: 'paper',
-              authTag: 'paper',
-              permissions: JSON.stringify(['read', 'trade']),
-              isValid: true,
-            },
-          });
+          this.logger.warn(`⚔️ No paper-trading credential found for user ${userId} — SKIPPING. User must create one explicitly.`);
+          result.error = 'No paper-trading credential — skipped';
+          return result;
         }
       } else {
         // Real trading — use user's credential

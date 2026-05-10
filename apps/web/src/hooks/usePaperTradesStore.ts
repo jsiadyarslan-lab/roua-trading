@@ -307,28 +307,45 @@ export const usePaperTradesStore = create<PaperTradesState>()(
           }
 
           // ═══════════════════════════════════════════════════════════════
-          // NUCLEAR FIX: Delete ALL paper trades on rehydration.
-          // Paper trades stored in localStorage are the PRIMARY source
-          // of phantom trades. They persist across page refreshes and
-          // browser sessions, and they keep getting updated by
-          // GlobalLogicEngine every 2 seconds (causing the "dancing"
-          // effect). The only way to stop phantom trades is to NUKE
-          // all localStorage paper trades on every page load.
+          // FIX: Filter out PHANTOM trades on rehydration, but KEEP
+          // legitimate manual trades. The previous "NUCLEAR FIX" deleted
+          // ALL trades including real user trades, which caused trades
+          // to disappear when navigating between pages.
           //
-          // Paper trades should only exist during an active browser
-          // session when the user explicitly opens them. They should
-          // NEVER survive a page refresh or browser restart.
+          // Now we only filter out:
+          // - Trades with zero/negative entry price (phantom)
+          // - Trades with trade value < $1 (dust/phantom)
+          // - Trades from auto-trading bots (source: bot/executor/agent)
+          // - Trades with numeric-only symbols (phantom)
+          //
+          // Manual trades (source: 'manual') with valid data are preserved.
           // ═══════════════════════════════════════════════════════════════
           if (state && state.trades && state.trades.length > 0) {
-            console.warn(
-              `[PaperTradesStore] PHANTOM NUKE: Deleting ${state.trades.length} paper trade(s) from localStorage on rehydration`
-            )
-            usePaperTradesStore.setState({ trades: [] })
-          }
+            const validTrades = state.trades.filter((t: PaperTrade) => {
+              // Always keep manual trades with valid data
+              if (t.source === 'manual' && t.entryPrice > 0 && t.qty > 0) {
+                const tradeValue = Math.abs(t.qty * t.entryPrice)
+                if (tradeValue >= 1) return true
+              }
+              // Filter out phantom/invalid trades
+              if (!t.entryPrice || t.entryPrice <= 0) return false
+              if (!t.qty || t.qty <= 0) return false
+              const tradeValue = Math.abs(t.qty * t.entryPrice)
+              if (tradeValue < 1) return false
+              // Filter out numeric-only symbols
+              const base = t.symbol.split('/')[0]
+              if (/^\d+$/.test(base)) return false
+              // Filter out auto-trading bot trades (they re-create themselves)
+              if (t.source === 'bot' || t.source === 'executor' || t.source === 'agent') return false
+              return true
+            })
 
-          if (state && state.closedTrades && state.closedTrades.length > 0) {
-            // Also clear closed trades to free localStorage space
-            usePaperTradesStore.setState({ closedTrades: [] })
+            if (validTrades.length !== state.trades.length) {
+              console.warn(
+                `[PaperTradesStore] Filtered ${state.trades.length - validTrades.length} phantom trade(s), keeping ${validTrades.length} valid trade(s)`
+              )
+              usePaperTradesStore.setState({ trades: validTrades })
+            }
           }
 
           // SECURITY: Validate that rehydrated data belongs to current user

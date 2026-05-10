@@ -512,20 +512,10 @@ export default function MobileWalletPage() {
       .filter(p => p.value > 0 || p.qty > 0)
 
     // Only include paper trades if no real exchange is linked (pure demo mode)
-    if (isLinked) {
-      return real
-    }
-
-    const realSymbols = new Set(real.map(p => p.symbol))
-    const paper = openTrades
-      .filter(t => !realSymbols.has(t.symbol))
-      .map(t => ({
-        id: t.id, symbol: t.symbol, side: t.side,
-        value: t.entryPrice * t.qty, pnl: t.unrealizedPnl,
-        pnlPct: t.unrealizedPct * 100, qty: t.qty,
-        currentPrice: t.currentPrice, source: 'paper' as const,
-      }))
-    return [...real, ...paper]
+    // FIX: NEVER include paper trades. They were the source of phantom trades
+    // that appeared and "danced" every second. Even in demo mode, we should
+    // show empty state rather than phantom data.
+    return real
   }, [alpacaPositions, openTrades, isLinked])
 
   const totalPositionValue = allPositions.reduce((s, p) => s + p.value, 0)

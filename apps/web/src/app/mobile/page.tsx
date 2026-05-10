@@ -717,27 +717,9 @@ function MobilePositions() {
     }))
 
     // Only include paper trades if no real exchange is linked (pure demo mode)
-    if (hasRealAccount) {
-      return realPos
-    }
-
-    const paperPos = paperTrades
-      .filter(trade =>
-        trade.source === 'bot' ||
-        !positions.some(p => ((p as any).rawSymbol ?? p.symbol).replace('/', '') === trade.symbol.replace('/', ''))
-      )
-      .map(trade => ({
-        id: trade.id,
-        symbol: trade.symbol,
-        side: trade.side,
-        qty: trade.qty,
-        entryPrice: trade.entryPrice,
-        currentPrice: trade.currentPrice,
-        unrealizedPnl: trade.unrealizedPnl,
-        isPaper: true,
-        source: trade.source,
-      }))
-    return [...realPos, ...paperPos]
+    // FIX: NEVER include paper trades. They were the source of phantom trades
+    // that appeared and "danced" every second. Show empty state instead.
+    return realPos
   }, [positions, paperTrades, hasRealAccount])
 
   // Fetch positions on mount

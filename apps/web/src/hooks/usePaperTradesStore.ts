@@ -305,6 +305,32 @@ export const usePaperTradesStore = create<PaperTradesState>()(
           if (error) {
             console.warn('[PaperTradesStore] Rehydration failed:', error)
           }
+
+          // ═══════════════════════════════════════════════════════════════
+          // NUCLEAR FIX: Delete ALL paper trades on rehydration.
+          // Paper trades stored in localStorage are the PRIMARY source
+          // of phantom trades. They persist across page refreshes and
+          // browser sessions, and they keep getting updated by
+          // GlobalLogicEngine every 2 seconds (causing the "dancing"
+          // effect). The only way to stop phantom trades is to NUKE
+          // all localStorage paper trades on every page load.
+          //
+          // Paper trades should only exist during an active browser
+          // session when the user explicitly opens them. They should
+          // NEVER survive a page refresh or browser restart.
+          // ═══════════════════════════════════════════════════════════════
+          if (state && state.trades && state.trades.length > 0) {
+            console.warn(
+              `[PaperTradesStore] PHANTOM NUKE: Deleting ${state.trades.length} paper trade(s) from localStorage on rehydration`
+            )
+            usePaperTradesStore.setState({ trades: [] })
+          }
+
+          if (state && state.closedTrades && state.closedTrades.length > 0) {
+            // Also clear closed trades to free localStorage space
+            usePaperTradesStore.setState({ closedTrades: [] })
+          }
+
           // SECURITY: Validate that rehydrated data belongs to current user
           if (state) {
             const currentUserId = getCurrentUserId()
@@ -312,72 +338,6 @@ export const usePaperTradesStore = create<PaperTradesState>()(
             if (storedOwner && currentUserId && storedOwner !== currentUserId) {
               console.warn('[PaperTradesStore] SECURITY: Data belongs to different user, clearing')
               state.clearUserData()
-              return
-            }
-
-            // ═══════════════════════════════════════════════════
-            // CLEANUP: Remove ALL phantom/bogus trades.
-            // These are trades created by testing, BotEngine
-            // from degraded/fallback data, or invalid symbols.
-            // A valid trade must have:
-            //   1. entryPrice > 0 (no zero-price entries)
-            //   2. tradeValue >= $1 (no dust)
-            //   3. Valid symbol format (e.g. BTC/USDT, ETH/USDT)
-            //   4. No test/gibberish symbols (456/USDT, 这是测试币)
-            //   5. Base currency must be letters only (no digits)
-            // ═══════════════════════════════════════════════════
-            if (state.trades && state.trades.length > 0) {
-              const VALID_SYMBOL = /^[A-Z]{2,10}\/[A-Z]{3,5}$/
-              const validTrades = state.trades.filter((trade) => {
-                const entryPrice = trade.entryPrice || 0
-                const tradeValue = Math.abs(trade.qty * entryPrice)
-                const symbol = (trade.symbol || '').toUpperCase().replace(/\s/g, '')
-
-                // Remove trades with zero/invalid entry price or dust value < $1
-                if (entryPrice <= 0 || tradeValue < 1) return false
-
-                // Remove trades with invalid symbol format
-                // Must be like BTC/USDT, ETH/USDT, etc.
-                // Reject: 456/USDT, 这是测试币/USDT, USDT alone
-                if (symbol === 'USDT' || symbol === 'USD') return false
-                if (!VALID_SYMBOL.test(symbol)) return false
-
-                // Remove trades where base currency is all digits (e.g. 456/USDT)
-                const baseCurrency = symbol.split('/')[0]
-                if (/^\d+$/.test(baseCurrency)) return false
-
-                // Remove trades with unreasonable qty (e.g. 10000 for free)
-                if (trade.qty > 1000000) return false
-
-                // Remove trades that haven't been updated with a real price
-                // (currentPrice still equals entryPrice means no live price was ever set)
-                // EXCEPTION: Allow if entryPrice > 10 (could be a valid entry)
-                if (trade.currentPrice === 0 && entryPrice < 10) return false
-
-                return true
-              })
-
-              const removedCount = state.trades.length - validTrades.length
-              if (removedCount > 0) {
-                console.warn(
-                  `[PaperTradesStore] Cleaned up ${removedCount} phantom/bogus trade(s)`,
-                )
-                // Update the store with clean data
-                usePaperTradesStore.setState({ trades: validTrades })
-              }
-            }
-
-            // Also clean closed trades
-            if (state.closedTrades && state.closedTrades.length > 0) {
-              const validClosedTrades = state.closedTrades.filter((trade) => {
-                const entryPrice = trade.entryPrice || 0
-                return entryPrice > 0
-              })
-
-              const removedClosedCount = state.closedTrades.length - validClosedTrades.length
-              if (removedClosedCount > 0) {
-                usePaperTradesStore.setState({ closedTrades: validClosedTrades })
-              }
             }
           }
         }

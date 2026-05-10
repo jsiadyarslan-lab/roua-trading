@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react'
 import { useMarketStore } from '@/hooks/useMarketStore'
-import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 
 /**
@@ -27,7 +26,6 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
 export function GlobalLogicEngine() {
   // Removed reactive quotes subscription to prevent rapid re-renders
   // We will read from getState() inside the timer instead.
-  const updatePaperPrice = usePaperTradesStore(s => s.updatePrice)
   const updatePositionPrice = usePositionsStore(s => s.updatePositionPrice)
   const fetchRealPositions = usePositionsStore(s => s.fetchPositions)
   const fetchAccount = usePositionsStore(s => s.fetchAccount)
@@ -60,11 +58,18 @@ export function GlobalLogicEngine() {
   // ── Price sync: every 2 seconds (was 1s) ──
   // This only updates currentPrice in existing positions — does NOT
   // replace the entire positions array, so no "dancing"
+  //
+  // FIX: DISABLED paper trade price updates. Previously, this synced
+  // prices to paper trades every 2 seconds, which caused phantom trades
+  // to "dance" (flicker/update rapidly). Since paper trades are now
+  // cleared on every page load (see usePaperTradesStore), there should
+  // be no paper trades to update. But as an extra safety measure, we
+  // skip paper trade price updates entirely. Only real positions from
+  // the exchange get price updates.
   useEffect(() => {
     const syncInterval = setInterval(() => {
       const now = Date.now()
       const quotes = useMarketStore.getState().quotes
-      const activePaperTrades = usePaperTradesStore.getState().trades
       const realPositions = usePositionsStore.getState().positions
 
       Object.entries(quotes).forEach(([symbol, q]) => {
@@ -73,25 +78,20 @@ export function GlobalLogicEngine() {
 
         const normalizedSymbol = symbol.toUpperCase().replace('/', '')
 
-        const hasMatchingPaperTrade = activePaperTrades.some(
-          trade => trade.symbol.toUpperCase().replace('/', '') === normalizedSymbol
-        )
-
         const hasMatchingRealPosition = realPositions.some(
           position => position.symbol.toUpperCase().replace('/', '') === normalizedSymbol
         )
 
-        if (!hasMatchingPaperTrade && !hasMatchingRealPosition) return
+        // FIX: ONLY update prices for REAL positions, NOT paper trades.
+        // Paper trade price updates were the cause of the "dancing"
+        // phantom trades that refreshed every 2 seconds.
+        if (!hasMatchingRealPosition) return
 
         // تقييد التحديث إلى مرة واحدة كل 2 ثانية لكل رمز
         const lastSyncAt = lastPriceSyncRef.current[normalizedSymbol] || 0
         if (now - lastSyncAt < 2000) return
 
         lastPriceSyncRef.current[normalizedSymbol] = now
-
-        if (hasMatchingPaperTrade) {
-          updatePaperPrice(symbol, price)
-        }
 
         if (hasMatchingRealPosition) {
           updatePositionPrice(symbol, price)
@@ -100,7 +100,7 @@ export function GlobalLogicEngine() {
     }, 2000) // Changed from 1000ms to 2000ms
 
     return () => clearInterval(syncInterval)
-  }, [updatePaperPrice, updatePositionPrice])
+  }, [updatePositionPrice])
 
   // ── Full fetch: every 30 seconds (was 15s) ──
   // This is the ONLY full refresh interval in this component.

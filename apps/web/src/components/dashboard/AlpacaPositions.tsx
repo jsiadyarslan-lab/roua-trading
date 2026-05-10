@@ -63,19 +63,23 @@ export function AlpacaPositions() {
       dbId?: string
     }
   > = [
-    ...positions.map(position => {
+    ...positions
+      // FIX: Filter out null/undefined positions to prevent crash
+      // when accessing .id on undefined elements
+      .filter(position => position != null && position.symbol)
+      .map(position => {
       const manualPaper = paperTrades.find(
         trade => trade.symbol.replace('/', '') === position.symbol.replace('/', '') && trade.source === 'manual',
       )
       return {
         ...position,
         // Store the real DB id separately so we can use it for closing
-        dbId: (position as any).id ?? undefined,
+        dbId: (position as any)?.id ?? undefined,
         id: position.rawSymbol ?? position.symbol,
         isPaper: false,
         entryTime: manualPaper?.entryTime || null,
-        tp: (position as any).takeProfit || (position as any).tp || manualPaper?.tp || null,
-        sl: (position as any).stopLoss || (position as any).sl || manualPaper?.sl || null,
+        tp: (position as any)?.takeProfit || (position as any)?.tp || manualPaper?.tp || null,
+        sl: (position as any)?.stopLoss || (position as any)?.sl || manualPaper?.sl || null,
       }
     }),
     // Only include paper trades when there are NO real positions (pure demo mode)

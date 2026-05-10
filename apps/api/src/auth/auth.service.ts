@@ -3,7 +3,6 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { RedisService } from '../common/redis/redis.service';
 import { AuditService } from '../audit/audit.service';
-import { CredentialsService } from '../modules/portfolio/credentials/credentials.service';
 import {
   generateRegistrationOptions as webauthnGenerateRegistration,
   generateAuthenticationOptions as webauthnGenerateAuthentication,
@@ -54,7 +53,6 @@ export class AuthService {
     private readonly redis: RedisService,
     private readonly configService: ConfigService,
     private readonly auditService: AuditService,
-    private readonly credentialsService: CredentialsService,
   ) {
     this.rpId =
       this.configService.get<string>('RP_ID') ||
@@ -331,18 +329,23 @@ export class AuthService {
         });
 
         if (!existingPaperCredential) {
-          await this.credentialsService.addCredential(
-            user.id,
-            {
+          // Create paper-trading credential directly using Prisma
+          // to avoid circular dependency with CredentialsService
+          await this.prisma.exchangeCredential.create({
+            data: {
+              userId: user.id,
               exchange: 'paper-trading',
               label: 'حساب تجريبي تجريبي',
               apiKey: `demo-${user.id}`,
               apiSecret: `demo-secret-${user.id}`,
               testnet: false,
+              isValid: true,
+              permissions: 'trade',
+              metadata: {},
+              createdAt: new Date(),
+              updatedAt: new Date(),
             },
-            ipAddress,
-            userAgent,
-          );
+          });
 
           this.logger.log(`🎮 Auto-created paper-trading account for user ${user.id}`);
           

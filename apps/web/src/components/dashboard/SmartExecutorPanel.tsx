@@ -153,15 +153,11 @@ export function SmartExecutorPanel() {
     }
   }, [])
 
-  // Auto-recovery: if executor is running but user state is null (lost after server restart),
-  // auto re-enable the user to restore execution capability
-  useEffect(() => {
-    if (status?.isRunning && !userState && !loading) {
-      // Re-enable silently — user had explicitly enabled before restart
-      enableUser(true)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status?.isRunning, userState, loading])
+  // FIX: Removed auto-recovery based on global isRunning flag.
+  // Previously, if the global isRunning was true but userState was null,
+  // it would auto-enable. But isRunning is GLOBAL — it could be true
+  // because ANOTHER user started it, not this user.
+  // Each user must manually click "تفعيل" to enable their executor.
 
   // NOTE: Auto-enable removed intentionally.
   // Every user MUST manually click "تفعيل" to enable paper trading.
@@ -217,31 +213,10 @@ export function SmartExecutorPanel() {
     } catch { /* localStorage unavailable */ }
   }, [])
 
-  const startExecutor = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      await fetch('/api/smart-executor/start', { method: 'POST' })
-      await fetchStatus()
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const stopExecutor = async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      await fetch('/api/smart-executor/stop', { method: 'POST' })
-      await fetchStatus()
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setLoading(false)
-    }
-  }
+  // FIX: Removed global startExecutor/stopExecutor functions.
+  // These called /api/smart-executor/start and /stop which are GLOBAL
+  // operations — any user clicking "stop" would kill the executor
+  // for ALL users. Now only per-user enable/disable is available.
 
   const enableUser = async (isPaper: boolean = true) => {
     setLoading(true)
@@ -273,8 +248,10 @@ export function SmartExecutorPanel() {
     }
   }
 
-  const isRunning = status?.isRunning ?? false
-  const isEnabled = userState?.enabled ?? false
+  // FIX: Use per-user state as the primary status indicator instead of global isRunning.
+  // isRunning was a GLOBAL flag — it showed the same status for all users.
+  // userState?.enabled is per-user — each user sees their own status.
+  const isActive = userState?.enabled ?? false  // Per-user: is THIS user's executor active?
   const activeBriefs = status?.activeBriefs ?? 0
   const todayExecs = status?.todayExecutions ?? 0
 
@@ -295,14 +272,14 @@ export function SmartExecutorPanel() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
             width: 8, height: 8, borderRadius: '50%',
-            background: isRunning ? T.success : isEnabled ? T.amber : T.text3,
-            boxShadow: isRunning ? `0 0 10px ${T.success}, 0 0 20px rgba(0,255,163,0.4)` : 'none',
-            animation: isRunning ? 'agentCtrlPulse 2s ease-in-out infinite' : 'none',
+            background: isActive ? T.success : T.text3,
+            boxShadow: isActive ? `0 0 10px ${T.success}, 0 0 20px rgba(0,255,163,0.4)` : 'none',
+            animation: isActive ? 'agentCtrlPulse 2s ease-in-out infinite' : 'none',
           }} />
           <span style={{ fontSize: 10, fontWeight: 800, color: T.text }}>المنفذ الذكي</span>
 
           {/* Monitoring Heartbeat */}
-          {isRunning && (
+          {isActive && (
             <div style={{ 
               display: 'flex', alignItems: 'center', gap: 4, 
               background: 'rgba(0,255,163,0.05)', padding: '1px 6px', 
@@ -321,44 +298,34 @@ export function SmartExecutorPanel() {
 
           <span style={{
             fontSize: 6.5, padding: '1px 5px', borderRadius: 4,
-            background: isRunning ? 'rgba(0,255,163,0.15)' : isEnabled ? 'rgba(255,184,0,0.15)' : 'rgba(255,255,255,0.06)',
-            color: isRunning ? T.success : isEnabled ? T.amber : T.text3, fontWeight: 700, fontFamily: 'monospace',
+            background: isActive ? 'rgba(0,255,163,0.15)' : 'rgba(255,255,255,0.06)',
+            color: isActive ? T.success : T.text3, fontWeight: 700, fontFamily: 'monospace',
           }}>
-            {isRunning ? 'نشط' : isEnabled ? 'مُفعّل' : 'متوقف'}
+            {isActive ? 'نشط' : 'متوقف'}
           </span>
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
-          {/* User enable/disable */}
-          {!isEnabled ? (
+          {/* FIX: Single per-user toggle — no more global start/stop.
+              Previously, start/stop was GLOBAL — any user clicking "stop"
+              would kill the executor for ALL users. Now, each user
+              only controls their OWN executor via enable/disable. */}
+          {!isActive ? (
             <button onClick={() => enableUser(true)} disabled={loading} style={{
-              fontSize: 7, minHeight: 22, padding: '3px 8px',
+              fontSize: 8, minHeight: 22, padding: '3px 10px',
               borderRadius: 5, border: '1px solid rgba(0,255,163,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
-              background: 'rgba(0,255,163,0.15)', color: T.success, fontWeight: 700,
+              background: 'rgba(0,255,163,0.15)', color: T.success, fontWeight: 800,
             }}>
-              تفعيل
+              {loading ? '...' : 'تفعيل'}
             </button>
           ) : (
             <button onClick={disableUser} disabled={loading} style={{
-              fontSize: 7, minHeight: 22, padding: '3px 8px',
+              fontSize: 8, minHeight: 22, padding: '3px 10px',
               borderRadius: 5, border: '1px solid rgba(255,71,87,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
-              background: 'rgba(255,71,87,0.15)', color: T.danger, fontWeight: 700,
+              background: 'rgba(255,71,87,0.15)', color: T.danger, fontWeight: 800,
             }}>
-              تعطيل
+              {loading ? '...' : 'تعطيل'}
             </button>
           )}
-          {/* Global start/stop */}
-          <button
-            onClick={() => isRunning ? stopExecutor() : startExecutor()}
-            disabled={loading}
-            style={{
-              fontSize: 8, minHeight: 22, minWidth: 48, padding: '3px 8px',
-              borderRadius: 5, border: 'none', cursor: loading ? 'not-allowed' : 'pointer',
-              background: isRunning ? 'rgba(255,71,87,0.2)' : 'rgba(0,212,255,0.2)',
-              color: isRunning ? T.danger : T.cyan, fontWeight: 800,
-            }}
-          >
-            {loading ? '...' : isRunning ? 'إيقاف' : 'تشغيل'}
-          </button>
         </div>
       </div>
 
@@ -376,7 +343,7 @@ export function SmartExecutorPanel() {
       </div>
 
       {/* User Config */}
-      {isEnabled && userState && (
+      {isActive && userState && (
         <div style={{
           padding: '5px 8px', borderBottom: '1px solid rgba(0,212,255,0.08)',
           display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 7,
@@ -395,7 +362,7 @@ export function SmartExecutorPanel() {
       )}
 
       {/* Paper Trading Warning */}
-      {isEnabled && userState?.isPaperTrading && (
+      {isActive && userState?.isPaperTrading && (
         <div style={{
           padding: '4px 8px', background: 'rgba(0,212,255,0.06)', borderBottom: '1px solid rgba(0,212,255,0.12)',
         }}>
@@ -425,27 +392,27 @@ export function SmartExecutorPanel() {
         {positions.length === 0 ? (
           <div style={{ padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {/* Diagnostic: show why no positions / why not executing */}
-            {isEnabled && status?.activeBriefs === 0 && (
+            {isActive && status?.activeBriefs === 0 && (
               <div style={{ fontSize: 7, color: T.amber, textAlign: 'center', opacity: 0.8 }}>
                 ⏳ ينتظر Briefs من المجلس الاستراتيجي...
               </div>
             )}
-            {isEnabled && (status?.activeBriefs ?? 0) > 0 && (
+            {isActive && (status?.activeBriefs ?? 0) > 0 && (
               <div style={{ fontSize: 7, color: T.cyan, textAlign: 'center', opacity: 0.8 }}>
                 🔍 {status?.activeBriefs} Brief نشط — يفحص شروط الدخول كل 2 ثانية
               </div>
             )}
-            {isEnabled && status?.lastError && (
+            {isActive && status?.lastError && (
               <div style={{ fontSize: 6.5, color: T.danger, textAlign: 'center', padding: '2px 4px', background: 'rgba(255,71,87,0.08)', borderRadius: 4 }}>
                 ⚠ {status.lastError}
               </div>
             )}
-            {!isEnabled && (
+            {!isActive && (
               <div style={{ padding: 12, textAlign: 'center', opacity: 0.4, fontSize: 9 }}>
                 فعّل المنفذ الذكي لبدء التداول التلقائي
               </div>
             )}
-            {isEnabled && !status?.lastError && (status?.activeBriefs ?? 0) === 0 && (
+            {isActive && !status?.lastError && (status?.activeBriefs ?? 0) === 0 && (
               <div style={{ padding: 6, textAlign: 'center', opacity: 0.3, fontSize: 8 }}>
                 لا توجد مراكز مفتوحة
               </div>

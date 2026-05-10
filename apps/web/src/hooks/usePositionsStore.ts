@@ -404,6 +404,10 @@ export const usePositionsStore = create<PositionsState>()(
           // This is the LAST line of defense — even if the backend somehow
           // returns phantom positions, they'll be filtered out here.
           const filteredRaw = raw.filter((p: any) => {
+            // FIX: Skip null/undefined elements from API response
+            if (!p) return false
+            // Skip positions with missing symbol
+            if (!p.symbol) return false
             const qty = Number(p.quantity ?? p.qty ?? 0)
             const entryPrice = Number(p.entryPrice) || Number(p.avgEntryPrice) || 0
             // Skip positions with zero or negative entry price (phantom)
@@ -421,7 +425,8 @@ export const usePositionsStore = create<PositionsState>()(
           })
 
           const positions: Position[] = filteredRaw.map((p: any) => ({
-            id: p.id,
+            // FIX: Add fallback chain for id (same as Alpaca path)
+            id: p.id || p.asset_id || p._id || p.symbol,
             symbol: p.symbol,
             side: p.side === 'long' ? 'long' : p.side === 'short' ? 'short' : p.side,
             qty: Number(p.quantity ?? p.qty ?? 0),

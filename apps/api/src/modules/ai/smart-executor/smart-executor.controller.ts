@@ -44,17 +44,27 @@ export class SmartExecutorController {
   }
 
   /**
-   * POST /api/smart-executor/stop — Stop the executor globally
-   * FIX: PROTECTED — This now checks if other users are still enabled
-   * before stopping. If other users are enabled, the stop is rejected.
-   * Individual users should use POST /user/disable instead.
+   * POST /api/smart-executor/stop — Disable executor for the current user
+   * FIX: CRITICAL SECURITY FIX — Previously this endpoint called the global stop()
+   * method which killed the executor tick loop for ALL users. When User A clicked
+   * "تعطيل" (disable), it would set isRunning=false and clearInterval(tickInterval),
+   * stopping execution for User B who was still enabled.
+   *
+   * Now: This endpoint calls disableUser() instead, which ONLY removes the calling
+   * user's state. The tick loop continues running for any other enabled users.
+   * Only when NO users remain enabled does the tick loop stop automatically.
    */
   @Post('stop')
   @Throttle({ default: { limit: 3, ttl: 60000 } })
   async stop(@Request() req: any) {
-    this.logger.log('⚔️ Smart Executor stop requested — checking for other enabled users');
-    const status = await this.executorService.stop(req.user?.id);
-    return { success: true, data: status };
+    const userId = req.user?.id;
+    if (!userId) {
+      return { success: false, error: 'المستخدم غير مُصادق عليه' };
+    }
+    this.logger.log(`⚔️ Smart Executor stop requested by user ${userId} — disabling user only (not global)`);
+    await this.executorService.disableUser(userId);
+    const status = await this.executorService.getStatus(userId);
+    return { success: true, data: status, message: 'تم تعطيل المنفذ الذكي لحسابك' };
   }
 
   /**

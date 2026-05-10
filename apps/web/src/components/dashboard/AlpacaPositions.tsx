@@ -45,12 +45,18 @@ export function AlpacaPositions() {
   const [confirmClose, setConfirmClose] = useState<string | null>(null)
   const [showClosed, setShowClosed] = useState(false)
 
-  // FIX: When real exchange positions exist, don't mix in paper trades
-  // at all. Paper trades are demo/fake trades stored in localStorage
-  // and should not appear alongside real exchange positions. They
-  // confuse users who think they have real money in these positions.
-  // Only show paper trades when NO real positions exist (pure demo mode).
-  const hasRealPositions = positions.length > 0 && positions.some(p => (p as any).exchange || p.source === 'nestjs')
+  // FIX: Always show paper trades alongside real positions.
+  // Previously, when hasRealPositions was true, ALL paper trades were hidden.
+  // This caused trades to disappear when navigating away from chart and back,
+  // because fetchPositions() would populate real positions from the API,
+  // making hasRealPositions=true, which hid the user's manual paper trades.
+  // Now: paper trades are always shown but visually distinguished with the
+  // "ورقي" (paper) badge and distinct styling.
+  const realPositionSymbols = new Set(
+    positions
+      .filter(position => position != null && position.symbol)
+      .map(position => position.symbol.replace('/', '').toUpperCase())
+  )
 
   const allPositions: Array<
     Position & {
@@ -82,9 +88,11 @@ export function AlpacaPositions() {
         sl: (position as any)?.stopLoss || (position as any)?.sl || manualPaper?.sl || null,
       }
     }),
-    // Only include paper trades when there are NO real positions (pure demo mode)
-    // When the user has a real exchange linked, paper trades should not be shown
-    ...(!hasRealPositions ? paperTrades
+    // FIX: Always include paper trades, even when real positions exist.
+    // Only skip a paper trade if there's already a real position for the same symbol
+    // (to avoid showing duplicates). Paper trades for symbols without real positions
+    // are always shown.
+    ...paperTrades
       .filter(trade => {
         // Always filter out trades with invalid entry prices
         if (!trade.entryPrice || trade.entryPrice <= 0) return false
@@ -94,8 +102,12 @@ export function AlpacaPositions() {
         // Filter out numeric-only base currencies (e.g. 456/USDT)
         const base = trade.symbol.split('/')[0]
         if (/^\d+$/.test(base)) return false
+        // Skip paper trade if there's already a real position for the same symbol
+        // (avoid showing duplicate entries for the same asset)
+        const normalizedSymbol = trade.symbol.replace('/', '').toUpperCase()
+        if (realPositionSymbols.has(normalizedSymbol)) return false
         return true
-      }) : [])
+      })
       .map(trade => ({
         symbol: trade.symbol,
         rawSymbol: trade.symbol,

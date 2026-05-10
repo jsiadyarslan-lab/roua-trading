@@ -68,6 +68,11 @@ export default function DashboardLayout({
               {children}
             </ErrorBoundary>
           </main>
+          {/* FIX: Dedicated portal container for dropdowns. Using document.body as portal
+              target causes "Node cannot be found in the current page" errors when Next.js
+              client-side navigation replaces the body. This dedicated div stays stable
+              across navigations, so React can safely unmount portals. */}
+          <div id="portal-root" />
         </div>
       </AuthGuard>
     </MarketProvider>

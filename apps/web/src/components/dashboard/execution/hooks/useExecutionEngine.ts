@@ -138,10 +138,18 @@ export function useExecutionEngine() {
     try {
       const res = await fetch('/api/alpaca/account')
       const j = await res.json()
+      // FIX: Gracefully handle 503 (Alpaca credentials not configured)
+      // Instead of crashing, just leave account as null so the UI shows
+      // "غير متصل" instead of a broken state.
       if (j.success && j.data) {
         setAccount({ cash: j.data.cash ?? 0, buyingPower: j.data.buyingPower ?? 0 })
+      } else if (j.offline || j.error === 'ALPACA_CREDENTIALS_NOT_CONFIGURED') {
+        // Alpaca not connected — use fallback zero balance
+        setAccount({ cash: 0, buyingPower: 0 })
       }
-    } catch {}
+    } catch {
+      // Network error — leave account as null
+    }
   }, [])
 
   // Load open orders
@@ -149,6 +157,7 @@ export function useExecutionEngine() {
     try {
       const res = await fetch('/api/alpaca/orders?status=open&limit=10')
       const j = await res.json()
+      // FIX: Gracefully handle 503 (Alpaca credentials not configured)
       if (j.success && Array.isArray(j.data)) {
         setRecentOrders(j.data.map((o: any) => ({
           id: o.id,
@@ -164,8 +173,13 @@ export function useExecutionEngine() {
           createdAt: o.createdAt,
           source: 'alpaca' as const,
         })))
+      } else if (j.offline || j.error === 'ALPACA_CREDENTIALS_NOT_CONFIGURED') {
+        // Alpaca not connected — show empty orders list
+        setRecentOrders([])
       }
-    } catch {}
+    } catch {
+      // Network error — keep existing orders
+    }
   }, [])
 
   // Cancel an open order
@@ -329,7 +343,7 @@ export function useExecutionEngine() {
         const idempotencyKey = crypto.randomUUID()
 
         const nestBody = {
-          credentialId,
+          exchangeCredentialId: credentialId,
           symbol: localSymbol,
           side: side.toUpperCase(),
           type: orderType.toUpperCase(),

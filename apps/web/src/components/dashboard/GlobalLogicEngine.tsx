@@ -33,26 +33,14 @@ export function GlobalLogicEngine() {
   const lastFullFetchRef = useRef<number>(0)
 
   // ── Cross-tab synchronization via storage events ──
+  // FIX: DISABLED cross-tab position sync. Previously, this re-added
+  // phantom positions from another tab's stale localStorage data.
+  // Since we now NUKE all localStorage data on rehydration, cross-tab
+  // sync would only propagate stale data. Fresh data is fetched from
+  // the API in each tab independently.
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key?.startsWith('roua-positions-store') && e.newValue) {
-        try {
-          const parsed = JSON.parse(e.newValue)
-          if (parsed?.state) {
-            const { account, positions, lastUpdate, dataSource } = parsed.state
-            if (account) usePositionsStore.setState({ account })
-            if (positions) usePositionsStore.setState({ positions })
-            if (lastUpdate) usePositionsStore.setState({ lastUpdate })
-            if (dataSource) usePositionsStore.setState({ dataSource })
-          }
-        } catch {
-          // Ignore parse errors
-        }
-      }
-    }
-
-    window.addEventListener('storage', handleStorageChange)
-    return () => window.removeEventListener('storage', handleStorageChange)
+    // No-op: Cross-tab sync disabled to prevent phantom trade propagation
+    return () => {}
   }, [])
 
   // ── Price sync: every 2 seconds (was 1s) ──

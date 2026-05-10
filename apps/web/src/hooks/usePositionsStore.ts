@@ -238,39 +238,15 @@ export const usePositionsStore = create<PositionsState>()(
           }
           set({ account, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
 
-          // Also update positions from exchange assets (for the widget)
-          // FIX: Use mergePositions instead of set() to prevent dancing
-          const exchangePositions = exchanges
-            .filter((ex: any) => ex.assets && ex.assets.length > 0)
-            .flatMap((ex: any) =>
-              ex.assets
-                .filter((a: any) => a.total > 0)
-                .map((a: any) => ({
-                  id: `${ex.exchange}-${a.currency}`,
-                  symbol: a.currency === 'USDT' || a.currency === 'USD' ? 'USDT' : `${a.currency}/USDT`,
-                  side: 'long' as const,
-                  qty: a.total,
-                  avgEntryPrice: 0,
-                  currentPrice: a.currency === 'USDT' || a.currency === 'USD' ? 1 : 0,
-                  marketValue: a.total * (a.currency === 'USDT' || a.currency === 'USD' ? 1 : 0),
-                  unrealizedPnl: 0,
-                  unrealizedPnlPct: 0,
-                  exchange: ex.exchange,
-                  source: (ex.isTestnet ? 'nestjs' : 'nestjs') as const,
-                }))
-            )
-
-          // FIX: Only merge if we have exchange positions AND the current positions
-          // are from the same source (not from NestJS trading API positions)
-          const currentPositions = get().positions
-          if (exchangePositions.length > 0) {
-            // These are wallet asset positions — merge them in
-            // But DON'T replace NestJS trading positions with wallet assets
-            const tradingPositions = currentPositions.filter(p => p.avgEntryPrice > 0)
-            if (tradingPositions.length === 0) {
-              set({ positions: exchangePositions })
-            }
-          }
+          // ═══════════════════════════════════════════════════════════════
+          // FIX: REMOVED wallet asset "positions" creation.
+          // Previously, this code created fake "positions" from exchange
+          // wallet assets (like USDT balance) with avgEntryPrice=0.
+          // These wallet assets are NOT trading positions — they're just
+          // holdings. They confused users who thought they had open trades.
+          // Wallet asset info is now ONLY shown in the wallet/portfolio
+          // pages, not in the positions/trades widget.
+          // ═══════════════════════════════════════════════════════════════
 
           // If we have real balance or no decryption errors, stop here.
           if (totalEquityUsd > 0 || !hasDecryptionError) {
@@ -542,6 +518,23 @@ export const usePositionsStore = create<PositionsState>()(
             console.warn('[PositionsStore] Rehydration failed:', error)
           }
 
+          // ═══════════════════════════════════════════════════════════════
+          // NUCLEAR FIX: Always NUKE all rehydrated positions.
+          // localStorage is the PRIMARY source of phantom trades.
+          // Positions cached from previous sessions are stale and
+          // should never be displayed. Fresh data will be fetched
+          // from the API immediately after this cleanup.
+          //
+          // This matches the PaperTradesStore strategy which also
+          // nukes all trades on rehydration.
+          // ═══════════════════════════════════════════════════════════════
+          if (state && state.positions && state.positions.length > 0) {
+            console.warn(
+              `[PositionsStore] PHANTOM NUKE: Deleting ${state.positions.length} cached position(s) from localStorage on rehydration`
+            )
+            state.setPositions([])
+          }
+
           // SECURITY: Validate that rehydrated data belongs to current user
           if (state) {
             const currentUserId = getCurrentUserId()
@@ -549,46 +542,11 @@ export const usePositionsStore = create<PositionsState>()(
             if (storedOwner && currentUserId && storedOwner !== currentUserId) {
               console.warn('[PositionsStore] SECURITY: Data belongs to different user, clearing')
               state.clearUserData()
-              state.fetchAccount()
-              state.fetchPositions()
-              return
-            }
-
-            // FIX: Clear any phantom/cached positions from localStorage rehydration.
-            // Old phantom positions from auto-trading might still be cached in
-            // localStorage. We detect them by checking for invalid data patterns
-            // and remove them before the data is displayed.
-            if (state.positions && state.positions.length > 0) {
-              const cleanedPositions = state.positions.filter((p: Position) => {
-                // Remove paper-trading positions
-                if (p.exchange === 'paper-trading') return false
-                // Remove positions with zero entry price
-                if ((p.entryPrice ?? p.avgEntryPrice) <= 0) return false
-                // Remove positions with zero quantity
-                if (p.qty <= 0) return false
-                // Remove dust positions (trade value < $1)
-                if (p.qty * (p.avgEntryPrice || p.currentPrice || 0) < 1) return false
-                return true
-              })
-              if (cleanedPositions.length !== state.positions.length) {
-                console.warn(
-                  `[PositionsStore] PHANTOM CLEANUP: Removed ${state.positions.length - cleanedPositions.length} ` +
-                  `phantom position(s) from localStorage cache`
-                )
-                state.setPositions(cleanedPositions)
-              }
             }
           }
 
-          // If cached data is stale (older than 5 min), immediately fetch fresh data
-          if (state?._cacheTimestamp) {
-            const cacheAge = Date.now() - state._cacheTimestamp
-            if (cacheAge > 5 * 60 * 1000) {
-              console.log('[PositionsStore] Cache is stale (%d ms old), forcing refresh', cacheAge)
-              state.fetchAccount()
-              state.fetchPositions()
-            }
-          } else if (state && !state.lastUpdate) {
+          // Always fetch fresh data after clearing localStorage cache
+          if (state) {
             state.fetchAccount()
             state.fetchPositions()
           }

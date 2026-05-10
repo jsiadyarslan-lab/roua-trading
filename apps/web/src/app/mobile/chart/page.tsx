@@ -321,7 +321,7 @@ function ChartPageContent() {
                 cursor: 'pointer',
               }}
             >
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace" }}>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#00D4FF', fontFamily: 'JetBrains Mono, monospace' }}>
                 {selectedSymbol}
               </span>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#00D4FF" strokeWidth="2.5">
@@ -352,7 +352,7 @@ function ChartPageContent() {
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                       }}
                     >
-                      <span style={{ fontSize: 12, fontWeight: 700, color: isActive ? '#00D4FF' : '#F0F2F5', fontFamily: "'JetBrains Mono', monospace" }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: isActive ? '#00D4FF' : '#F0F2F5', fontFamily: 'JetBrains Mono, monospace' }}>
                         {pair}
                       </span>
                       {isActive && (
@@ -369,14 +369,14 @@ function ChartPageContent() {
           <span style={{
             fontSize: 14, fontWeight: 900,
             color: livePrice ? (changePercent >= 0 ? C.success : C.danger) : C.text2,
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: 'JetBrains Mono, monospace',
           }}>
             {fmtPrice(livePrice)}
           </span>
           <span style={{
             fontSize: 10, fontWeight: 700,
             color: changePercent >= 0 ? C.success : C.danger,
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: 'JetBrains Mono, monospace',
             padding: '2px 6px', borderRadius: 4,
             background: changePercent >= 0 ? 'rgba(50,215,75,0.1)' : 'rgba(255,69,58,0.1)',
           }}>
@@ -404,7 +404,7 @@ function ChartPageContent() {
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5">
             <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
           </svg>
-          <span style={{ fontSize: 11, fontWeight: 800, color: '#000', fontFamily: "'Cairo', sans-serif" }}>تداول</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#000', fontFamily: 'Cairo, sans-serif' }}>تداول</span>
         </motion.button>
       </div>
 
@@ -454,7 +454,7 @@ function ChartPageContent() {
           }}
         >
           <ArrowUpRight size={16} color="#32D74B" />
-          <span style={{ fontSize: 13, fontWeight: 800, color: '#32D74B', fontFamily: "'Cairo', sans-serif" }}>شراء</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: '#32D74B', fontFamily: 'Cairo, sans-serif' }}>شراء</span>
         </motion.button>
         <motion.button
           whileTap={{ scale: 0.95 }}
@@ -473,7 +473,7 @@ function ChartPageContent() {
           }}
         >
           <ArrowDownRight size={16} color="#FF453A" />
-          <span style={{ fontSize: 13, fontWeight: 800, color: '#FF453A', fontFamily: "'Cairo', sans-serif" }}>بيع</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: '#FF453A', fontFamily: 'Cairo, sans-serif' }}>بيع</span>
         </motion.button>
       </div>
 
@@ -509,7 +509,7 @@ function ChartPageContent() {
 
               <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', WebkitOverflowScrolling: 'touch' }}>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif' }}>تنفيذ صفقة</h2>
+                  <h2 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', fontFamily: 'Cairo, sans-serif' }}>تنفيذ صفقة</h2>
                   <button
                     onClick={() => { if (execStatus !== 'submitting') setShowOrderSheet(false) }}
                     style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none' }}
@@ -523,13 +523,13 @@ function ChartPageContent() {
                     animate={{ x: orderSide === 'buy' ? 0 : '100%' }}
                     style={{ position: 'absolute', top: 4, left: 4, width: 'calc(50% - 4px)', bottom: 4, background: orderSide === 'buy' ? C.success : C.danger, borderRadius: 12, zIndex: 0 }}
                   />
-                  <button onClick={() => setOrderSide('buy')} style={{ flex: 1, height: 40, borderRadius: 12, border: 'none', background: 'transparent', fontSize: 15, fontWeight: 800, color: orderSide === 'buy' ? '#000' : '#FFF', fontFamily: "'Cairo', sans-serif", zIndex: 1, position: 'relative' }}>شراء</button>
-                  <button onClick={() => setOrderSide('sell')} style={{ flex: 1, height: 40, borderRadius: 12, border: 'none', background: 'transparent', fontSize: 15, fontWeight: 800, color: orderSide === 'sell' ? '#000' : '#FFF', fontFamily: "'Cairo', sans-serif", zIndex: 1, position: 'relative' }}>بيع</button>
+                  <button onClick={() => setOrderSide('buy')} style={{ flex: 1, height: 40, borderRadius: 12, border: 'none', background: 'transparent', fontSize: 15, fontWeight: 800, color: orderSide === 'buy' ? '#000' : '#FFF', fontFamily: 'Cairo, sans-serif', zIndex: 1, position: 'relative' }}>شراء</button>
+                  <button onClick={() => setOrderSide('sell')} style={{ flex: 1, height: 40, borderRadius: 12, border: 'none', background: 'transparent', fontSize: 15, fontWeight: 800, color: orderSide === 'sell' ? '#000' : '#FFF', fontFamily: 'Cairo, sans-serif', zIndex: 1, position: 'relative' }}>بيع</button>
                 </div>
 
                 <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                   <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 11, color: C.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 4 }}>نوع الأمر</label>
+                    <label style={{ fontSize: 11, color: C.text2, fontFamily: 'Cairo, sans-serif', fontWeight: 700, display: 'block', marginBottom: 4 }}>نوع الأمر</label>
                     <div style={{ display: 'flex', gap: 4, padding: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
                       <button
                         onClick={() => setOrderType('market')}
@@ -537,7 +537,7 @@ function ChartPageContent() {
                           flex: 1, padding: '6px 0', borderRadius: 8,
                           background: orderType === 'market' ? C.accent : 'transparent',
                           color: orderType === 'market' ? '#000' : C.text2,
-                          fontSize: 11, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
+                          fontSize: 11, fontWeight: 800, fontFamily: 'Cairo, sans-serif',
                           border: 'none', cursor: 'pointer',
                         }}
                       >سوقي</button>
@@ -547,14 +547,14 @@ function ChartPageContent() {
                           flex: 1, padding: '6px 0', borderRadius: 8,
                           background: orderType === 'limit' ? C.accent : 'transparent',
                           color: orderType === 'limit' ? '#000' : C.text2,
-                          fontSize: 11, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
+                          fontSize: 11, fontWeight: 800, fontFamily: 'Cairo, sans-serif',
                           border: 'none', cursor: 'pointer',
                         }}
                       >محدد</button>
                     </div>
                   </div>
                   <div style={{ flex: 1.3 }}>
-                    <label style={{ fontSize: 11, color: C.text2, fontFamily: "'Cairo', sans-serif', fontWeight: 700, display: 'block', marginBottom: 4 }}>الكمية</label>
+                    <label style={{ fontSize: 11, color: C.text2, fontFamily: 'Cairo, sans-serif', fontWeight: 700, display: 'block', marginBottom: 4 }}>الكمية</label>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <motion.button whileTap={{ scale: 0.9 }} onClick={() => adjustQty(-1)}
                         style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
@@ -567,7 +567,7 @@ function ChartPageContent() {
                         style={{
                           flex: 1, height: 34, borderRadius: 8, background: 'rgba(255,255,255,0.05)',
                           border: `0.5px solid ${C.border}`, padding: '0 8px',
-                          color: C.text, fontSize: 13, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
+                          color: C.text, fontSize: 13, fontWeight: 800, fontFamily: 'JetBrains Mono, monospace',
                           outline: 'none', direction: 'ltr', textAlign: 'center',
                         }}
                       />
@@ -591,7 +591,7 @@ function ChartPageContent() {
                           background: 'rgba(255,255,255,0.04)',
                           border: '0.5px solid rgba(255,255,255,0.08)',
                           color: C.text2, fontSize: 10, fontWeight: 700,
-                          fontFamily: "'JetBrains Mono', monospace",
+                          fontFamily: 'JetBrains Mono, monospace',
                           cursor: 'pointer',
                         }}
                       >
@@ -603,14 +603,14 @@ function ChartPageContent() {
 
                 {orderType === 'limit' && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} style={{ marginBottom: 10 }}>
-                    <label style={{ fontSize: 11, color: C.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 4 }}>سعر الحد</label>
+                    <label style={{ fontSize: 11, color: C.text2, fontFamily: 'Cairo, sans-serif', fontWeight: 700, display: 'block', marginBottom: 4 }}>سعر الحد</label>
                     <input
                       value={limitPrice} onChange={e => setLimitPrice(e.target.value)}
                       type="number" placeholder={livePrice?.toString() || '0.00'}
                       style={{
                         width: '100%', height: 38, borderRadius: 10, background: 'rgba(255,255,255,0.05)',
                         border: `0.5px solid ${C.border}`, padding: '0 12px',
-                        color: C.text, fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
+                        color: C.text, fontSize: 13, fontFamily: 'JetBrains Mono, monospace',
                         outline: 'none', direction: 'ltr', textAlign: 'left',
                       }}
                     />
@@ -622,7 +622,7 @@ function ChartPageContent() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <Target size={16} color={C.success} />
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>جني الأرباح (TP)</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', fontFamily: 'Cairo, sans-serif' }}>جني الأرباح (TP)</span>
                       </div>
                       <button onClick={() => setTpEnabled(!tpEnabled)} style={{ width: 42, height: 24, borderRadius: 12, background: tpEnabled ? C.success : 'rgba(255,255,255,0.1)', position: 'relative', border: 'none' }}>
                         <motion.div animate={{ x: tpEnabled ? 18 : 2 }} style={{ position: 'absolute', top: 2, left: 0, width: 20, height: 20, borderRadius: '50%', background: '#FFF' }} />
@@ -630,7 +630,7 @@ function ChartPageContent() {
                     </div>
                     {tpEnabled && (
                       <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} className="pt-3">
-                        <input type="number" placeholder="سعر الهدف..." value={tpValue} onChange={(e) => setTpValue(e.target.value)} style={{ width: '100%', height: 38, borderRadius: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', padding: '0 12px', color: '#FFF', fontSize: 13, fontFamily: "'JetBrains Mono', monospace", outline: 'none' }} />
+                        <input type="number" placeholder="سعر الهدف..." value={tpValue} onChange={(e) => setTpValue(e.target.value)} style={{ width: '100%', height: 38, borderRadius: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', padding: '0 12px', color: '#FFF', fontSize: 13, fontFamily: 'JetBrains Mono, monospace', outline: 'none' }} />
                       </motion.div>
                     )}
                   </div>
@@ -639,7 +639,7 @@ function ChartPageContent() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <ShieldAlert size={16} color={C.danger} />
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>وقف الخسارة (SL)</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', fontFamily: 'Cairo, sans-serif' }}>وقف الخسارة (SL)</span>
                       </div>
                       <button onClick={() => setSlEnabled(!slEnabled)} style={{ width: 42, height: 24, borderRadius: 12, background: slEnabled ? C.danger : 'rgba(255,255,255,0.1)', position: 'relative', border: 'none' }}>
                         <motion.div animate={{ x: slEnabled ? 18 : 2 }} style={{ position: 'absolute', top: 2, left: 0, width: 20, height: 20, borderRadius: '50%', background: '#FFF' }} />
@@ -647,7 +647,7 @@ function ChartPageContent() {
                     </div>
                     {slEnabled && (
                       <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} className="pt-3">
-                        <input type="number" placeholder="سعر التوقف..." value={slValue} onChange={(e) => setSlValue(e.target.value)} style={{ width: '100%', height: 38, borderRadius: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', padding: '0 12px', color: '#FFF', fontSize: 13, fontFamily: "'JetBrains Mono', monospace', outline: 'none' }} />
+                        <input type="number" placeholder="سعر التوقف..." value={slValue} onChange={(e) => setSlValue(e.target.value)} style={{ width: '100%', height: 38, borderRadius: 10, background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', padding: '0 12px', color: '#FFF', fontSize: 13, fontFamily: 'JetBrains Mono, monospace', outline: 'none' }} />
                       </motion.div>
                     )}
                   </div>
@@ -670,7 +670,7 @@ function ChartPageContent() {
                           color: '#FFFFFF',
                           fontSize: 14,
                           fontWeight: 800,
-                          fontFamily: "'Cairo', sans-serif",
+                          fontFamily: 'Cairo, sans-serif',
                           cursor: 'pointer',
                           boxShadow: orderSide === 'buy'
                             ? '0 4px 16px rgba(50,215,75,0.3)'
@@ -685,7 +685,7 @@ function ChartPageContent() {
                   {execStatus === 'submitting' && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 0' }}>
                       <Loader2 size={20} className="animate-spin" color="#00D4FF" />
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#F0F2F5', fontFamily: "'Cairo', sans-serif" }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#F0F2F5', fontFamily: 'Cairo, sans-serif' }}>
                         جارٍ التنفيذ...
                       </span>
                     </div>
@@ -694,7 +694,7 @@ function ChartPageContent() {
                   {execStatus === 'filled' && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 0', background: 'rgba(50,215,75,0.1)', borderRadius: 12 }}>
                       <CheckCircle size={20} color="#32D74B" />
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#32D74B', fontFamily: "'Cairo', sans-serif" }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#32D74B', fontFamily: 'Cairo, sans-serif' }}>
                         {execMessage}
                       </span>
                     </div>
@@ -703,7 +703,7 @@ function ChartPageContent() {
                   {execStatus === 'rejected' && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 0', background: 'rgba(255,184,0,0.1)', borderRadius: 12 }}>
                       <AlertCircle size={20} color="#FFB800" />
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#FFB800', fontFamily: "'Cairo', sans-serif" }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#FFB800', fontFamily: 'Cairo, sans-serif' }}>
                         {execMessage}
                       </span>
                     </div>
@@ -712,7 +712,7 @@ function ChartPageContent() {
                   {execStatus === 'error' && (
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '14px 0', background: 'rgba(255,69,58,0.1)', borderRadius: 12 }}>
                       <AlertCircle size={20} color="#FF453A" />
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#FF453A', fontFamily: "'Cairo', sans-serif" }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: '#FF453A', fontFamily: 'Cairo, sans-serif' }}>
                         {execMessage}
                       </span>
                     </div>

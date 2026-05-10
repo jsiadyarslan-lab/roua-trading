@@ -57,6 +57,7 @@ export default function ExchangeSettingsPage() {
   const [apiKey, setApiKey] = useState('')
   const [apiSecret, setApiSecret] = useState('')
   const [passphrase, setPassphrase] = useState('')
+  const [testnet, setTestnet] = useState(false)
 
   // Auth handled by useAuth hook
 
@@ -92,7 +93,7 @@ export default function ExchangeSettingsPage() {
       const res = await fetch('/api/portfolio/credentials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ exchange, label: label || `${exchange}-key`, apiKey, apiSecret, passphrase: passphrase || undefined }),
+        body: JSON.stringify({ exchange, label: label || `${exchange}-key`, apiKey, apiSecret, passphrase: passphrase || undefined, testnet }),
       })
 
       if (!res.ok) {
@@ -106,6 +107,7 @@ export default function ExchangeSettingsPage() {
       setApiKey('')
       setApiSecret('')
       setPassphrase('')
+      setTestnet(false)
       setShowForm(false)
       fetchCredentials()
     } catch (err: unknown) {
@@ -243,6 +245,27 @@ export default function ExchangeSettingsPage() {
                       />
                     </div>
 
+                    {/* Testnet Mode (for Binance and other exchanges that support it) */}
+                    {(exchange === 'binance' || exchange === 'binance_test' || exchange === 'binance_future_test') && (
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            id="testnet"
+                            type="checkbox"
+                            checked={testnet}
+                            onChange={(e) => setTestnet(e.target.checked)}
+                            className="w-4 h-4 text-teal-600 bg-gray-100 border-gray-300 rounded focus:ring-teal-500 focus:ring-2"
+                          />
+                          <Label htmlFor="testnet" className="text-sm font-medium text-gray-700">
+                            وضع التجريب (Testnet)
+                          </Label>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          تفعيل هذا الخيار يربط API keys بـ Binance Testnet بدلاً من Mainnet
+                        </p>
+                      </div>
+                    )}
+
                     {/* Passphrase (for OKX and other exchanges that require it) */}
                     {SUPPORTED_EXCHANGES.find(e => e.id === exchange)?.requiresPassphrase && (
                       <div className="space-y-2">
@@ -372,6 +395,11 @@ export default function ExchangeSettingsPage() {
                               >
                                 {cred.isValid ? '✓ صالح' : '✗ غير صالح'}
                               </Badge>
+                              {(cred.testnet || cred.exchange.includes('test')) && (
+                                <Badge variant="outline" className="text-xs bg-blue-500/10 border-blue-500/30 text-blue-400">
+                                  🧪 Testnet
+                                </Badge>
+                              )}
                               {permissions.map((p: string) => (
                                 <Badge key={p} variant="outline" className="text-xs text-muted-foreground">
                                   {p}

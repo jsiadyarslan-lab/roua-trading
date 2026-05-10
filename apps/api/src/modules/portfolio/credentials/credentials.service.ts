@@ -126,11 +126,12 @@ export class CredentialsService {
       apiKey: string;
       apiSecret: string;
       passphrase?: string;
+      testnet?: boolean;
     },
     ipAddress?: string,
     userAgent?: string,
   ) {
-    const { exchange, label, apiKey, apiSecret, passphrase } = data;
+    const { exchange, label, apiKey, apiSecret, passphrase, testnet } = data;
 
     // Step 1: Validate the API key against the actual exchange
     const validation = await this._validateApiKey(exchange, apiKey, apiSecret, passphrase);
@@ -195,6 +196,7 @@ export class CredentialsService {
         permissions: JSON.stringify(validation.permissions || ['read']),
         isValid: true,
         lastValidatedAt: new Date(),
+        testnet: testnet || false,
       },
     });
 

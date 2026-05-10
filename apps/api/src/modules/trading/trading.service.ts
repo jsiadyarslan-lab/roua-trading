@@ -73,6 +73,7 @@ export class TradingService {
         { name: 'encryptedPassphrase', type: 'TEXT' },
         { name: 'passphraseIv', type: 'TEXT' },
         { name: 'passphraseAuthTag', type: 'TEXT' },
+        { name: 'testnet', type: 'BOOLEAN DEFAULT FALSE' },
       ];
 
       for (const col of missingColumns) {
@@ -419,7 +420,7 @@ export class TradingService {
           // SECURITY: Pass userId to verify credential ownership before decrypting
           const { apiKey, apiSecret } =
             await this.credentialsService.decryptCredential(credential.id, userId);
-          const exchange = this._getExchangeInstance(credential.exchange, apiKey, apiSecret, credential.id);
+          const exchange = this._getExchangeInstance(credential.exchange, apiKey, apiSecret, credential.id, (credential as any).testnet || false);
           if (exchange) {
             await exchange.cancelOrder(order.exchangeOrderId, order.symbol);
           }
@@ -772,6 +773,30 @@ export class TradingService {
     }
 
     if (!execution.success) {
+      const errorMsg = execution.error || '';
+
+      // FIX: If balance is 0 on all wallets, try force-close (DB only).
+      // This handles positions already closed on exchange, API key issues,
+      // or any situation where the exchange refuses to close.
+      if (errorMsg.includes('رصيد') && errorMsg.includes('غير متاح')) {
+        this.logger.warn(
+          `⚡ Exchange close failed for ${position.symbol} due to zero balance — attempting force close (DB only)`,
+        );
+        try {
+          return await this.forceClosePosition(
+            userId,
+            position.id,
+            `Auto force-close after insufficient balance: ${errorMsg}`,
+            ipAddress,
+            userAgent,
+          );
+        } catch (forceErr: any) {
+          this.logger.error(
+            `❌ Force close also failed for ${position.id}: ${forceErr.message}`,
+          );
+        }
+      }
+
       throw new BadRequestException(
         `فشل في إغلاق المركز: ${execution.error}`,
       );
@@ -1241,13 +1266,14 @@ export class TradingService {
    * Get or create a cached CCXT exchange instance
    * Caches per credential+exchange combo to avoid recreating for every order
    */
-  private _getExchangeInstance(exchangeName: string, apiKey: string, apiSecret: string, credentialId: string): any {
-    const cacheKey = `${credentialId}:${exchangeName}`;
+  private _getExchangeInstance(exchangeName: string, apiKey: string, apiSecret: string, credentialId: string, testnet: boolean = false): any {
+    const cacheKey = `${credentialId}:${exchangeName}:${testnet}`;
     let exchange = this.exchangeCache.get(cacheKey);
 
     if (!exchange) {
-      const isBinanceTest = exchangeName === 'binance_test' || exchangeName === 'binance_future_test';
-      const normalizedName = isBinanceTest ? 'binance' : exchangeName;
+      const isLegacyBinanceTest = exchangeName === 'binance_test' || exchangeName === 'binance_future_test';
+      const isTestnet = testnet || isLegacyBinanceTest;
+      const normalizedName = isLegacyBinanceTest ? 'binance' : exchangeName;
       const ExchangeClass = ccxt[normalizedName as keyof typeof ccxt] as any;
       if (!ExchangeClass) {
         return null;
@@ -1263,9 +1289,9 @@ export class TradingService {
         },
       });
 
-      if (isBinanceTest) {
+      if (isTestnet) {
         exchange.setSandboxMode(true);
-        this.logger.log(`🛠️ TradingService: Enabled Binance Sandbox mode for ${credentialId}`);
+        this.logger.log(`🛠️ TradingService: Enabled Binance Sandbox mode for ${credentialId} (testnet=${testnet}, legacy=${isLegacyBinanceTest})`);
       }
 
       this.exchangeCache.set(cacheKey, exchange);
@@ -1498,7 +1524,13 @@ export class TradingService {
       const { apiKey, apiSecret } =
         await this.credentialsService.decryptCredential(credentialId, userId);
 
-      const exchange = this._getExchangeInstance(exchangeName, apiKey, apiSecret, credentialId);
+      // Fetch credential to get testnet flag
+      const credential = await this.prisma.exchangeCredential.findFirst({
+        where: { id: credentialId },
+      });
+      const isTestnet = (credential as any)?.testnet || false;
+
+      const exchange = this._getExchangeInstance(exchangeName, apiKey, apiSecret, credentialId, isTestnet);
       if (!exchange) {
         return {
           success: false,

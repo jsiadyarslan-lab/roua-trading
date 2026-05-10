@@ -2,7 +2,7 @@ import { Controller, Get, Post, Delete, Body, Param, UseGuards, Request, Logger,
 import { CredentialsService } from './credentials.service';
 import { AuthGuard } from '../../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean } from 'class-validator';
 
 class AddCredentialDto {
   @IsString()
@@ -24,6 +24,10 @@ class AddCredentialDto {
   @IsString()
   @IsOptional()
   passphrase?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  testnet?: boolean;
 }
 
 @Controller('portfolio/credentials')

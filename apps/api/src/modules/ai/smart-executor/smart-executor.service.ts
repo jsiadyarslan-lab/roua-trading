@@ -203,6 +203,40 @@ export class SmartExecutorService implements OnModuleDestroy {
         this.logger.warn(`⚔️ Failed to purge stale PaperOrder records: ${paperErr.message}`);
       }
 
+      // ── STEP 5: Auto-enable users with paper-trading credentials ──
+      // FIX: Many users create paper-trading credentials but forget to enable the executor.
+      // This causes confusion - they see 10+ active briefs but no trades execute.
+      // Now: Auto-enable the executor for users who have paper-trading credentials.
+      try {
+        const paperCredentialUsers = await this.prisma.exchangeCredential.findMany({
+          where: { exchange: 'paper-trading', isValid: true },
+          select: { userId: true },
+          distinct: ['userId'],
+        });
+
+        if (paperCredentialUsers.length > 0) {
+          this.logger.log(`⚔️ AUTO-ENABLE: Found ${paperCredentialUsers.length} users with paper-trading credentials`);
+          
+          for (const cred of paperCredentialUsers) {
+            const userId = cred.userId;
+            const existingState = await this.getUserState(userId);
+            
+            if (!existingState || !existingState.enabled) {
+              // Auto-enable with paper trading settings
+              await this.enableUser(userId, {
+                isPaperTrading: true,
+                maxOpenPositions: 10,
+                riskPerTradePercent: 1,
+              });
+              
+              this.logger.log(`⚔️ AUTO-ENABLE: Enabled Smart Executor for user ${userId} (paper-trading)`);
+            }
+          }
+        }
+      } catch (autoErr: any) {
+        this.logger.warn(`⚔️ Auto-enable failed: ${autoErr.message}`);
+      }
+
       this.logger.log('⚔️ Startup cleanup complete (user data preserved)');
     } catch (error: any) {
       this.logger.warn(`⚔️ Startup cleanup failed (non-critical): ${error.message}`);

@@ -10,6 +10,7 @@ import { TradingService } from '../../../modules/trading/trading.service';
 import { ExchangeService } from '../../../modules/exchange/exchange.service';
 import { PlaceOrderRequest, OrderSide, OrderType } from '../../../modules/trading/trading.types';
 import { EvaluatedSignal, TradeExecution, RiskAssessment, AgentDecision } from '../types/agent.types';
+import { OrderDispatcherService } from '../../../modules/trading/services/order-dispatcher.service';
 
 /**
  * OrderExecutorService — Executes trades with safety and precision
@@ -181,11 +182,11 @@ export class OrderExecutorService implements OnModuleDestroy {
 
           // ✅ FIX: Route through OrderDispatcher — prevents duplicate orders with SmartExecutor
           const dispatchResult = await this.orderDispatcher.submitOrder({
-            source: 'autonomous_trader',
+            source: 'agent' as const,
             userId,
             credentialId: orderRequest.credentialId,
             symbol: orderRequest.symbol,
-            side: orderRequest.side === 'buy' || orderRequest.side === 'BUY' ? 'BUY' : 'SELL',
+            side: (orderRequest.side as string).toUpperCase() === 'BUY' ? 'BUY' : 'SELL',
             quantity: orderRequest.quantity,
             price: orderRequest.price || 0,
             stopLoss: orderRequest.stopLoss,
@@ -220,7 +221,7 @@ export class OrderExecutorService implements OnModuleDestroy {
                 quantity: risk.positionSize,
                 filledQuantity: risk.positionSize,
                 pnl: null,
-                fee: Number(order.fee) || executionPrice * risk.positionSize * 0.001,
+                fee: executionPrice * risk.positionSize * 0.001,
                 feeCurrency: 'USD',
                 riskScore: risk.riskScore,
                 confidence: signal.confidence,
@@ -242,7 +243,7 @@ export class OrderExecutorService implements OnModuleDestroy {
                   executionTimeMs,
                 }),
                 credentialId,
-                exchangeOrderId: order.exchangeOrderId || null,
+                exchangeOrderId: null,
                 openedAt: new Date(),
               },
             });
@@ -279,10 +280,10 @@ export class OrderExecutorService implements OnModuleDestroy {
           return {
             success: true,
             orderId: order.id,
-            exchangeOrderId: order.exchangeOrderId || undefined,
+            exchangeOrderId: undefined,
             filledQuantity: risk.positionSize,
             averagePrice: executionPrice,
-            fee: Number(order.fee) || executionPrice * risk.positionSize * 0.001,
+            fee: executionPrice * risk.positionSize * 0.001,
             feeCurrency: 'USD',
             slippage: calculatedSlippage,
             executionTimeMs,
@@ -404,7 +405,7 @@ export class OrderExecutorService implements OnModuleDestroy {
               executionTimeMs,
             }),
             credentialId,
-            exchangeOrderId: order.exchangeOrderId || null,
+            exchangeOrderId: null,
             openedAt: new Date(),
           },
         });
@@ -421,7 +422,7 @@ export class OrderExecutorService implements OnModuleDestroy {
       return {
         success: true,
         orderId: order.id,
-        exchangeOrderId: order.exchangeOrderId || undefined,
+        exchangeOrderId: undefined,
         filledQuantity: Number(order.filledQuantity) || risk.positionSize,
         averagePrice: Number(order.averagePrice) || signal.entryPrice,
         fee: Number(order.fee) || 0,

@@ -19,8 +19,8 @@ import { OrderSide, OrderType, PlaceOrderRequest } from '../trading.types';
 import { OrderSideEnum, OrderTypeEnum } from '../events/order.events';
 
 export interface AutoOrderRequest {
-  /** المصدر: 'smart_executor' أو 'autonomous_trader' */
-  source: 'smart_executor' | 'autonomous_trader';
+  /** المصدر: 'smart_executor' أو 'agent' */
+  source: 'smart_executor' | 'agent';
   userId: string;
   credentialId: string;
   symbol: string;
@@ -125,7 +125,7 @@ export class OrderDispatcherService {
           side: request.side === 'BUY' ? OrderSideEnum.BUY : OrderSideEnum.SELL,
           type: OrderTypeEnum.MARKET,
           quantity: request.quantity,
-          price: request.price,
+          price: request.price ?? 0,
           stopLoss: request.stopLoss,
           idempotencyKey: `dispatcher-${idemKey}`,
         });
@@ -146,10 +146,10 @@ export class OrderDispatcherService {
         side: request.side === 'BUY' ? OrderSide.BUY : OrderSide.SELL,
         type: OrderType.MARKET,
         quantity: request.quantity,
-        price: request.price,
+        price: request.price ?? 0,
         stopLoss: request.stopLoss,
         takeProfit: request.takeProfit,
-        source: request.source,
+        source: request.source as 'smart_executor' | 'agent' | 'auto_paper' | 'user_manual',
       };
 
       const orderResult = await this.tradingService.placeOrder(request.userId, orderRequest);

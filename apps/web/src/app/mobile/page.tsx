@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { ScopedStyle } from '@/components/ScopedStyle'
+import { closePositionUnified, UUID_RE } from '@/lib/api-fetch'
 
 /* ─── helpers ─────────────────────────────── */
 const fmt2 = (n: number) => Math.abs(n).toFixed(2)
@@ -742,9 +743,11 @@ function MobilePositions() {
       return
     }
     try {
-      const res = await fetch(`/api/alpaca/positions/${encodeURIComponent(symbol)}`, { method: 'DELETE' })
-      const json = await res.json()
-      if (json.success) {
+      // FIX: Use closePositionUnified which tries NestJS first (for DB positions)
+      // and falls back to Alpaca (for exchange positions). Previously, this
+      // always called Alpaca directly, causing 404 for DB-only positions.
+      const result = await closePositionUnified(id, undefined, { dbId: UUID_RE.test(id) ? id : undefined })
+      if (result.success) {
         await fetchPositions()
         await fetchAccount()
       }

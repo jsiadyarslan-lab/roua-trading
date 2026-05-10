@@ -322,8 +322,11 @@ export default function PortfolioPage() {
   const handleClosePosition = async (pos: Position) => {
     setClosing(pos.id)
     try {
-      // Alpaca delete route expects symbol, not internal UUID
-      const result = await closePositionUnified(pos.symbol)
+      // FIX: Pass pos.id (UUID) as the primary ID so NestJS is tried first.
+      // Also pass the symbol via the exchangeSymbol field for Alpaca fallback.
+      // Previously, pos.symbol was passed, which skipped NestJS entirely
+      // and went directly to Alpaca — causing 404 for DB-only positions.
+      const result = await closePositionUnified(pos.id, undefined, { dbId: pos.id })
       if (result.success) {
         setPositions(prev => prev.filter(p => p.id !== pos.id))
         fetchSummary()
@@ -346,8 +349,8 @@ export default function PortfolioPage() {
       let allSuccess = true
       
       for (const pos of openPositions) {
-        // Alpaca delete route expects symbol, not internal UUID
-        const result = await closePositionUnified(pos.symbol)
+        // FIX: Pass pos.id (UUID) so NestJS is tried first
+        const result = await closePositionUnified(pos.id, undefined, { dbId: pos.id })
         if (!result.success) {
           allSuccess = false
           setApiError(`فشل في إغلاق المركز ${pos.symbol}: ${result.error || 'غير معروف'}`)

@@ -109,6 +109,8 @@ export async function fetchPositionsUnified(): Promise<{
         takeProfit: p.takeProfit,
         openedAt: p.openedAt,
         source: 'nestjs' as const,
+        dbId: p.id,              // FIX: Always pass DB UUID so closePositionUnified can use it
+        exchangeSymbol: p.exchangeSymbol,  // FIX: Pass exchange-specific symbol for reconciliation
       }))
       return { positions, source: 'nestjs' }
     }
@@ -220,20 +222,36 @@ export async function fetchSummaryUnified(): Promise<{
  * - إذا كان positionId رمز أصل (مثل "BTCUSD") → يذهب مباشرة إلى Alpaca
  * - عند فشل NestJS (404/غير موجود)، يحاول Alpaca API مباشرة
  */
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+/** Regex to detect UUID format — used for routing close requests to the right API */
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+/**
+ * إغلاق مركز مع رجوع تلقائي — النسخة المحسّنة
+ *
+ * المسار الصحيح:
+ * 1. إذا كان dbId متاحاً (UUID من قاعدة البيانات) → NestJS API أولاً
+ * 2. إذا فشل NestJS أو لم يكن dbId متاحاً → Alpaca API كاحتياطي
+ * 3. إذا فشل Alpaca بـ 404 → محاولة NestJS بالبحث بالرمز كحل أخير
+ *
+ * القاعدة: UUID ليس رمز أصل صالح — لا يُرسل أبداً إلى Alpaca
+ */
 export async function closePositionUnified(
   positionId: string,
   quantity?: number,
-  options?: { onClosed?: () => void },
+  options?: { onClosed?: () => void; dbId?: string },
 ): Promise<{ success: boolean; error?: string; source: 'nestjs' | 'alpaca' }> {
   // Ensure auth cookie exists before making API calls
   await ensureAuth()
 
-  // المحاولة الأولى: NestJS API (فقط إذا كان positionId UUID صالح)
-  if (UUID_RE.test(positionId)) {
+  // تحديد معرف قاعدة البيانات: إما من options.dbId أو من positionId إذا كان UUID
+  const nestjsId = options?.dbId || (UUID_RE.test(positionId) ? positionId : null)
+
+  // ════════════════════════════════════════════════════════
+  // المحاولة الأولى: NestJS API (إذا كان لدينا UUID صالح)
+  // ════════════════════════════════════════════════════════
+  if (nestjsId && UUID_RE.test(nestjsId)) {
     try {
-      const body: Record<string, unknown> = { positionId }
+      const body: Record<string, unknown> = { positionId: nestjsId }
       if (quantity) body.quantity = quantity
 
       const res = await fetch('/api/trading/positions/close', {
@@ -243,36 +261,23 @@ export async function closePositionUnified(
       })
 
       if (res.ok) {
-        // FIX: Trigger refresh callback after successful close
         options?.onClosed?.()
         return { success: true, source: 'nestjs' }
       }
 
-      // On auth errors, fall through to Alpaca
+      // On auth errors, fall through to Alpaca (maybe the position is Alpaca-only)
       if (res.status === 401 || res.status === 403) {
-        // Fall through to Alpaca
+        // Fall through to Alpaca — but only if positionId is NOT a UUID
+        // (a UUID sent to Alpaca will always fail)
+        if (UUID_RE.test(positionId)) {
+          const data = await res.json().catch(() => ({}))
+          return { success: false, error: data.error || data.message || 'فشل المصادقة', source: 'nestjs' }
+        }
       } else {
         const data = await res.json().catch(() => ({}))
         const errMsg = data.message || data.error || ''
-        // If position not found or not open, it might be an Alpaca-only position
-        // — fall through to Alpaca instead of hard-failing
-        const isNestjsOnlyError = !errMsg.includes('ليس مفتوحاً')
-          && !errMsg.includes('غير موجود')
-          && !errMsg.toLowerCase().includes('not open')
-          && !errMsg.toLowerCase().includes('not found')
-          && !errMsg.includes('OPTIMISTIC_LOCK_FAILURE')
 
-        // FIX: If positionId is a UUID (DB position), do NOT fall through
-        // to Alpaca API. A UUID is not a valid asset symbol — sending it
-        // to Alpaca as a symbol will always fail. The position only exists
-        // in our DB, so a 404 from NestJS means it genuinely doesn't exist.
-        // Only fall through for non-UUID positionIds (like "BTCUSDT").
-        const isUuidPosition = UUID_RE.test(positionId)
-
-        if (isNestjsOnlyError || isUuidPosition) {
-          return { success: false, error: data.error || data.message || 'فشل الإغلاق', source: 'nestjs' }
-        }
-        // FIX: If OPTIMISTIC_LOCK_FAILURE, retry once after a short delay
+        // OPTIMISTIC_LOCK_FAILURE — retry once
         if (errMsg.includes('OPTIMISTIC_LOCK_FAILURE')) {
           await new Promise(r => setTimeout(r, 200))
           const retryRes = await fetch('/api/trading/positions/close', {
@@ -284,16 +289,38 @@ export async function closePositionUnified(
             options?.onClosed?.()
             return { success: true, source: 'nestjs' }
           }
-          // Retry also failed — fall through to Alpaca
         }
-        // Fall through to Alpaca fallback
+
+        // FIX: If positionId is a UUID, do NOT fall through to Alpaca.
+        // A UUID is not a valid asset symbol — sending it to Alpaca always fails.
+        // Only fall through for non-UUID positionIds (like "BTCUSDT").
+        if (UUID_RE.test(positionId)) {
+          return { success: false, error: data.error || data.message || 'فشل الإغلاق', source: 'nestjs' }
+        }
+
+        // Non-UUID positionId — the position might be Alpaca-only
+        // If NestJS says "not found" or "not open", fall through to Alpaca
+        const isSoftError = errMsg.includes('ليس مفتوحاً')
+          || errMsg.includes('غير موجود')
+          || errMsg.toLowerCase().includes('not open')
+          || errMsg.toLowerCase().includes('not found')
+
+        if (!isSoftError) {
+          return { success: false, error: data.error || data.message || 'فشل الإغلاق', source: 'nestjs' }
+        }
+        // Soft error + non-UUID → fall through to Alpaca
       }
     } catch {
-      // NestJS غير متاح — fall through to Alpaca
+      // NestJS unavailable — only fall through if positionId is NOT a UUID
+      if (UUID_RE.test(positionId)) {
+        return { success: false, error: 'خادم NestJS غير متاح', source: 'nestjs' }
+      }
     }
   }
 
+  // ════════════════════════════════════════════════════════
   // المحاولة الثانية: Alpaca API مباشرة (positionId = rawSymbol)
+  // ════════════════════════════════════════════════════════
   try {
     const res = await fetch(`/api/alpaca/positions/${encodeURIComponent(positionId)}`, {
       method: 'DELETE',
@@ -301,9 +328,42 @@ export async function closePositionUnified(
     const data = await res.json()
 
     if (data.success) {
-      // FIX: Trigger refresh callback after successful close
       options?.onClosed?.()
       return { success: true, source: 'alpaca' }
+    }
+
+    // FIX: If Alpaca returns 404, the position doesn't exist on Alpaca.
+    // This usually means it's a DB-only position (paper-trading).
+    // Try NestJS one more time with the symbol as a last resort.
+    if (data.alpacaStatus === 404 || (data.error && data.error.includes('404'))) {
+      // Last resort: try to find and close the position in DB by symbol
+      try {
+        const positionsRes = await fetch('/api/trading/positions')
+        if (positionsRes.ok) {
+          const positionsData = await positionsRes.json()
+          const allPositions = positionsData.data || positionsData.positions || []
+          // Normalize symbol for matching: BTC/USDT → BTCUSDT
+          const normalizedId = positionId.replace('/', '').toUpperCase()
+          const match = allPositions.find((p: any) => {
+            const pNorm = (p.symbol || '').replace('/', '').toUpperCase()
+            const pExchNorm = (p.exchangeSymbol || '').replace('/', '').toUpperCase()
+            return pNorm === normalizedId || pExchNorm === normalizedId || p.id === positionId
+          })
+          if (match && match.id && UUID_RE.test(match.id)) {
+            const closeRes = await fetch('/api/trading/positions/close', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ positionId: match.id }),
+            })
+            if (closeRes.ok) {
+              options?.onClosed?.()
+              return { success: true, source: 'nestjs' }
+            }
+          }
+        }
+      } catch {
+        // Last-resort NestJS lookup failed — ignore
+      }
     }
 
     return { success: false, error: data.error || 'فشل إغلاق المركز عبر Alpaca', source: 'alpaca' }

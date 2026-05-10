@@ -926,6 +926,149 @@ export class TradingService {
   }
 
   /**
+   * FIX: Force close a position in the database WITHOUT executing on the exchange.
+   * This is used when:
+   * 1. The user already closed the position manually on the exchange
+   * 2. The exchange API is not accessible (insufficient balance, API key issues, etc.)
+   * 3. The position is stuck and needs manual sync
+   *
+   * WARNING: This does NOT execute any order on the exchange. It only updates the
+   * database records. Use only when you are certain the position is already closed
+   * on the exchange or should be marked as closed for operational reasons.
+   */
+  async forceClosePosition(
+    userId: string,
+    positionId: string,
+    reason: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    // DATA ISOLATION: Use findFirst with userId
+    const position = await this.prisma.position.findFirst({
+      where: { id: positionId, userId },
+    });
+
+    if (!position) {
+      throw new NotFoundException('المركز غير موجود');
+    }
+
+    if (position.status !== 'OPEN') {
+      return {
+        order: null,
+        pnl: position.realizedPnl?.toNumber() ?? 0,
+        position: await this.prisma.position.findUnique({
+          where: { id: position.id },
+        }),
+        alreadyClosed: true,
+      };
+    }
+
+    const posQuantity = position.quantity.toNumber();
+    const posEntryPrice = position.entryPrice.toNumber();
+    const posRealizedPnl = position.realizedPnl?.toNumber() ?? 0;
+    const posStopLoss = position.stopLoss?.toNumber() ?? null;
+
+    // Get current market price for PnL calculation
+    let currentPrice = position.currentPrice?.toNumber() ?? 0;
+    if (currentPrice <= 0) {
+      try {
+        const quote = await this.exchangeService.getQuote(position.symbol);
+        currentPrice = quote?.price ?? posEntryPrice;
+      } catch {
+        currentPrice = posEntryPrice;
+      }
+    }
+
+    const closeSide = position.side === 'BUY' ? 'SELL' : 'BUY';
+    const pnl =
+      position.side === 'BUY'
+        ? (currentPrice - posEntryPrice) * posQuantity
+        : (posEntryPrice - currentPrice) * posQuantity;
+
+    // Create DB records without exchange execution
+    const { order: closedOrder } = await this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.create({
+        data: {
+          userId,
+          exchangeCredentialId: position.credentialId,
+          exchange: position.exchange,
+          symbol: position.symbol,
+          side: closeSide,
+          type: 'MARKET' as PrismaOrderType,
+          status: 'FILLED' as PrismaOrderStatus,
+          quantity: posQuantity,
+          stopLoss: posStopLoss,
+          filledQuantity: posQuantity,
+          averagePrice: currentPrice,
+          fee: 0,
+          feeCurrency: position.symbol.split('/').pop() || 'USDT',
+          exchangeOrderId: `force-${Date.now()}-${crypto.randomUUID()}`,
+          idempotencyKey: `force-close-${Date.now()}-${crypto.randomUUID()}`,
+        },
+      });
+
+      await tx.trade.create({
+        data: {
+          userId,
+          orderId: order.id,
+          positionId: position.id,
+          exchange: position.exchange,
+          symbol: position.symbol,
+          side: closeSide as PrismaOrderSide,
+          type: 'EXIT',
+          quantity: posQuantity,
+          price: currentPrice,
+          fee: 0,
+          feeCurrency: position.symbol.split('/').pop() || 'USDT',
+          pnl,
+        },
+      });
+
+      await tx.position.update({
+        where: { id: position.id },
+        data: {
+          status: 'CLOSED',
+          closedAt: new Date(),
+          realizedPnl: posRealizedPnl + pnl,
+        },
+      });
+
+      return { order };
+    });
+
+    await this.auditService.log({
+      userId,
+      action: 'POSITION_FORCE_CLOSED',
+      resource: 'position',
+      details: JSON.stringify({
+        positionId: position.id,
+        symbol: position.symbol,
+        quantity: posQuantity,
+        pnl,
+        exitPrice: currentPrice,
+        reason,
+        warning: 'Position was force-closed in DB only — no exchange order was executed',
+      }),
+      ipAddress,
+      userAgent,
+    });
+
+    this.logger.warn(
+      `🔴 FORCE CLOSED position ${position.id} (${position.symbol}) — reason: ${reason}. ` +
+      `NO exchange order was executed. DB updated only.`,
+    );
+
+    return {
+      order: closedOrder,
+      pnl,
+      position: await this.prisma.position.findUnique({
+        where: { id: position.id },
+      }),
+      forceClosed: true,
+    };
+  }
+
+  /**
    * Update stop-loss and take-profit for a position
    */
   async updatePositionLevels(
@@ -1223,41 +1366,51 @@ export class TradingService {
 
   /**
    * FIX: Check API key permissions on the exchange.
-   * This helps diagnose why balance returns 0 (API key may lack permissions).
+   * Since CCXT doesn't expose Binance's apiRestrictions endpoint directly,
+   * we use fetchBalance() as a proxy: if it succeeds, the key has read permissions.
+   * If it fails with an auth error, the key is invalid or lacks permissions.
    *
    * @param exchange CCXT exchange instance
-   * @returns Permission info including IP restriction, trading enabled, etc.
+   * @returns Permission info based on whether fetchBalance succeeds
    */
   private async _checkApiPermissions(
     exchange: any,
-  ): Promise<{ success: boolean; permissions?: any; error?: string; rawResponse?: any }> {
+  ): Promise<{ success: boolean; permissions?: any; error?: string }> {
     try {
-      // Try to fetch API key permissions using CCXT's sapi (Binance specific)
-      // This requires a private API call to /sapi/v1/account/apiRestrictions
-      const response = await exchange.sapi_get_account_apiRestrictions();
+      // Use fetchBalance as a proxy for API permissions
+      const balance = await exchange.fetchBalance();
 
-      this.logger.debug(
-        `🔍 API Permissions check: ${JSON.stringify(response)}`,
-      );
-
+      // If we got here, the API key works for reading
       return {
         success: true,
         permissions: {
-          enableReading: response.enableReading,
-          enableSpotAndMarginTrading: response.enableSpotAndMarginTrading,
-          enableFutures: response.enableFutures,
-          enableWithdrawals: response.enableWithdrawals,
-          ipRestrict: response.ipRestrict,
-          createTime: response.createTime,
+          enableReading: true,
+          canFetchBalance: true,
+          walletAccessible: true,
         },
-        rawResponse: response,
       };
     } catch (error: any) {
-      this.logger.warn(`⚡ Failed to check API permissions: ${error.message}`);
+      const message = error.message || '';
+      let inferredPermissions = {
+        enableReading: false,
+        canFetchBalance: false,
+        walletAccessible: false,
+      };
+
+      // Try to infer the issue from the error message
+      if (message.includes('Invalid API-key') || message.includes('Invalid key')) {
+        inferredPermissions = { ...inferredPermissions, errorType: 'INVALID_API_KEY' } as any;
+      } else if (message.includes('IP')) {
+        inferredPermissions = { ...inferredPermissions, errorType: 'IP_RESTRICTED' } as any;
+      } else if (message.includes('timestamp') || message.includes('time')) {
+        inferredPermissions = { ...inferredPermissions, errorType: 'TIME_SYNC_ISSUE' } as any;
+      }
+
+      this.logger.warn(`⚡ API key test failed: ${message}`);
       return {
         success: false,
-        error: error.message,
-        rawResponse: error,
+        permissions: inferredPermissions,
+        error: message,
       };
     }
   }

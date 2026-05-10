@@ -301,6 +301,33 @@ export class TradingController {
   }
 
   /**
+   * Force close a position (DB only — no exchange execution)
+   * POST /api/trading/positions/force-close
+   *
+   * Use this when:
+   * - The position is already closed on the exchange but still shows OPEN in DB
+   * - The exchange API is not accessible and you need to sync the DB state
+   */
+  @Post('positions/force-close')
+  @Throttle({ medium: { limit: 5, ttl: 60000 } })
+  async forceClosePosition(@Req() req: any, @Body() body: any) {
+    const positionId = body.positionId;
+    const reason = body.reason || 'User requested force close';
+
+    if (!positionId) {
+      throw new BadRequestException('معرف المركز مطلوب');
+    }
+
+    return this.tradingService.forceClosePosition(
+      req.user.id,
+      positionId,
+      reason,
+      req.ip,
+      req.headers['user-agent'],
+    );
+  }
+
+  /**
    * Update position stop-loss/take-profit
    * POST /api/trading/positions/:id/levels
    */

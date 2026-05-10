@@ -126,7 +126,7 @@ export class OrderDispatcherService {
           type: OrderTypeEnum.MARKET,
           quantity: request.quantity,
           price: request.price ?? 0,
-          stopLoss: request.stopLoss,
+          stopLoss: request.stopLoss ?? 0,
           idempotencyKey: `dispatcher-${idemKey}`,
         });
       } catch (riskErr: any) {

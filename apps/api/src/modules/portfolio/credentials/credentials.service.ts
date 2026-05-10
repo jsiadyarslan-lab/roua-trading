@@ -371,29 +371,13 @@ export class CredentialsService {
       return { totalEquityUsd: 0, totalAvailableUsd: 0, exchanges: [] };
     }
 
-    // FIX: Separate paper-trading credentials from real exchange credentials.
-    // Paper-trading credentials don't have real API keys — they can't be
-    // decrypted and they don't have exchange balances. Including them in the
-    // balance fetch causes decryption errors that confuse the frontend.
-    const paperTradingCreds = allCredentials.filter(
-      (c) => c.exchange === 'paper-trading'
-    );
+    // FIX: COMPLETELY EXCLUDE paper-trading credentials from the response.
+    // Previously, paper-trading credentials were included with 0 balance, which
+    // caused the frontend to show an empty "paper-trading" exchange card and
+    // could create phantom wallet entries. Now we simply don't return them at all.
     const realCredentials = allCredentials.filter(
       (c) => c.exchange !== 'paper-trading'
     );
-
-    // Paper-trading entries: return with 0 balance and a note (no error)
-    const paperResults = paperTradingCreds.map((cred) => ({
-      exchange: cred.exchange,
-      label: cred.label,
-      credentialId: cred.id,
-      isTestnet: false,
-      equity: 0,
-      available: 0,
-      currency: 'USD',
-      assets: [],
-      // No error — this is expected for paper-trading
-    }));
 
     // Real exchange credentials: fetch balances via CCXT
     const exchangeResults = await Promise.allSettled(
@@ -454,8 +438,8 @@ export class CredentialsService {
       },
     );
 
-    // Combine paper-trading results (no errors) with real exchange results
-    const exchanges = [...paperResults, ...realExchanges];
+    // FIX: Only include real exchange results (paper-trading excluded entirely)
+    const exchanges = realExchanges;
 
     const totalEquityUsd = exchanges.reduce((sum, e) => sum + e.equity, 0);
     const totalAvailableUsd = exchanges.reduce((sum, e) => sum + e.available, 0);

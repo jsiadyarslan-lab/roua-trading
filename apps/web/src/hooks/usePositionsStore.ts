@@ -425,6 +425,8 @@ export const usePositionsStore = create<PositionsState>()(
           : (data.data || data.positions || [])
         if (Array.isArray(raw)) {
           // FIX: Filter out phantom positions with invalid data
+          // This is the LAST line of defense — even if the backend somehow
+          // returns phantom positions, they'll be filtered out here.
           const filteredRaw = raw.filter((p: any) => {
             const qty = Number(p.quantity ?? p.qty ?? 0)
             const entryPrice = Number(p.entryPrice) || Number(p.avgEntryPrice) || 0
@@ -432,9 +434,13 @@ export const usePositionsStore = create<PositionsState>()(
             if (entryPrice <= 0 && qty > 0) return false
             // Skip positions with zero quantity
             if (qty <= 0) return false
-            // Skip paper-trading/phantom positions
+            // Skip paper-trading/phantom positions from auto-trading systems
             if (p.exchange === 'paper-trading') return false
             if (p.source === 'smart_executor' || p.source === 'agent' || p.source === 'auto_paper') return false
+            // Skip positions with trade value < $1 (dust/phantom)
+            if (qty * entryPrice < 1) return false
+            // Skip positions where symbol is numeric or invalid
+            if (/^\d+$/.test(p.symbol?.split('/')[0] || '')) return false
             return true
           })
 
@@ -546,6 +552,31 @@ export const usePositionsStore = create<PositionsState>()(
               state.fetchAccount()
               state.fetchPositions()
               return
+            }
+
+            // FIX: Clear any phantom/cached positions from localStorage rehydration.
+            // Old phantom positions from auto-trading might still be cached in
+            // localStorage. We detect them by checking for invalid data patterns
+            // and remove them before the data is displayed.
+            if (state.positions && state.positions.length > 0) {
+              const cleanedPositions = state.positions.filter((p: Position) => {
+                // Remove paper-trading positions
+                if (p.exchange === 'paper-trading') return false
+                // Remove positions with zero entry price
+                if ((p.entryPrice ?? p.avgEntryPrice) <= 0) return false
+                // Remove positions with zero quantity
+                if (p.qty <= 0) return false
+                // Remove dust positions (trade value < $1)
+                if (p.qty * (p.avgEntryPrice || p.currentPrice || 0) < 1) return false
+                return true
+              })
+              if (cleanedPositions.length !== state.positions.length) {
+                console.warn(
+                  `[PositionsStore] PHANTOM CLEANUP: Removed ${state.positions.length - cleanedPositions.length} ` +
+                  `phantom position(s) from localStorage cache`
+                )
+                state.setPositions(cleanedPositions)
+              }
             }
           }
 

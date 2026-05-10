@@ -76,10 +76,20 @@ export class PositionMonitorService {
 
     try {
       // Step 1: Get all open positions
+      // FIX: EXCLUDE phantom/paper-trading positions. Previously, the monitor
+      // would process ALL open positions including those created by the
+      // Smart Executor and Autonomous Trader. This caused phantom positions
+      // to be auto-closed (creating phantom Trade records) and phantom
+      // trailing-stop updates. Now we only monitor REAL user positions.
       let positions: any[];
       try {
         positions = await this.prisma.position.findMany({
-          where: { status: 'OPEN' },
+          where: {
+            status: 'OPEN',
+            // EXCLUDE phantom positions from auto-trading systems
+            exchange: { not: 'paper-trading' },
+            source: { notIn: ['smart_executor', 'agent', 'paper_trading', 'auto_paper'] },
+          },
         });
       } catch (dbError: any) {
         // Table may not exist yet (e.g., Prisma db:push hasn't run or Position model is new)

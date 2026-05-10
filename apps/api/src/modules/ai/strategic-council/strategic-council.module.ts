@@ -3,6 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Module, forwardRef } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { StrategicCouncilService } from './strategic-council.service';
 import { StrategicCouncilController } from './strategic-council.controller';
 import { AiModule } from '../ai.module';
@@ -13,6 +14,7 @@ import { ExchangeModule } from '../../exchange/exchange.module';
 
 @Module({
   imports: [
+    ConfigModule,
     PrismaModule,
     RedisModule,
     AuditModule,

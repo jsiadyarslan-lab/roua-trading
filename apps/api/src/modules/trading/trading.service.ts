@@ -1302,6 +1302,28 @@ export class TradingService {
   }
 
   /**
+   * FIX: Convert a standard trading symbol to the exchange-specific format.
+   *
+   * Internal symbols use CCXT format: "BTC/USDT", "ETH/USD", "AAPL"
+   * But exchanges have different requirements:
+   *   - Alpaca: "BTCUSDT" (no slash), "AAPL" (stocks stay the same)
+   *   - Binance: "BTC/USDT" (CCXT format, handled by ccxt library)
+   *
+   * This function converts the internal symbol to the format expected by
+   * the exchange. The `exchangeSymbol` field is stored on Position records
+   * so that exchange reconciliation (exchange-sync) can look up the position
+   * by the exchange's own symbol format.
+   */
+  private _toAlpacaSymbol(symbol: string, exchangeName: string): string {
+    if (exchangeName === 'alpaca' || exchangeName === 'alpaca_paper') {
+      // Alpaca uses no slash: "BTC/USDT" → "BTCUSDT", "AAPL" → "AAPL"
+      return symbol.replace('/', '');
+    }
+    // Binance and other CCXT exchanges use the slash format as-is
+    return symbol;
+  }
+
+  /**
    * Update or create position after order execution
    *
    * FIX: Race condition prevention — Two concurrent orders for the same
@@ -1380,6 +1402,7 @@ export class TradingService {
               credentialId: request.credentialId,
               exchange: exchangeName,
               symbol: request.symbol,
+              exchangeSymbol: this._toAlpacaSymbol(request.symbol, exchangeName),
               side,
               status: 'OPEN',
               quantity: filledQty,

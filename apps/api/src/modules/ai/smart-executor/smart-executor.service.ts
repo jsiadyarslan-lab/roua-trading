@@ -1594,7 +1594,17 @@ export class SmartExecutorService implements OnModuleDestroy {
   // ── Private: Utility ──
 
   /**
-   * Auto-close stale paper-trading positions that have been open >24 hours.
+   * FIX: Auto-close stale paper-trading positions (>24h open) using
+   * TradingService.closePositionWithRetry() instead of direct prisma.position.update().
+   *
+   * Why: Direct prisma.position.update() bypasses the position-close business logic:
+   *   - No Trade record is created (or it's created manually with potential inconsistency)
+   *   - No Order record is created
+   *   - No optimistic lock check (version increment)
+   *   - No exchange reconciliation (exchange-sync won't know the position was closed)
+   *   - No audit log entry
+   * Using closePositionWithRetry() ensures all side-effects are properly handled.
+   *
    * Paper trading positions should NOT remain open indefinitely — they block
    * the executor from opening new positions when the maxOpenPositions limit
    * is reached. This method is called on startup and during tick processing.
@@ -1613,48 +1623,25 @@ export class SmartExecutorService implements OnModuleDestroy {
 
       for (const pos of stalePositions) {
         try {
-          const closePrice = Number(pos.currentPrice) || Number(pos.entryPrice);
-          const pnl = (closePrice - Number(pos.entryPrice)) * Number(pos.quantity) * (pos.side === 'SELL' ? -1 : 1);
-
-          await this.prisma.position.update({
-            where: { id: pos.id },
-            data: {
-              status: 'CLOSED',
-              closedAt: new Date(),
-              currentPrice: closePrice,
-              unrealizedPnl: 0,
-              realizedPnl: pnl,
-              source: 'smart_executor',
-            },
+          // FIX: Use TradingService.closePositionWithRetry() instead of
+          // direct prisma.position.update() — ensures all business logic
+          // (Trade/Order records, optimistic lock, audit log) is properly handled.
+          await this.tradingService.closePositionWithRetry(pos.userId, {
+            positionId: pos.id,
           });
-
-          // Record the closing trade
-          try {
-            await this.prisma.trade.create({
-              data: {
-                userId: pos.userId,
-                positionId: pos.id,
-                symbol: pos.symbol,
-                side: pos.side === 'BUY' ? 'SELL' : 'BUY',
-                type: 'EXIT',
-                quantity: Number(pos.quantity),
-                price: closePrice,
-                pnl,
-                exchange: 'paper-trading',
-                source: 'smart_executor',
-                executedAt: new Date(),
-              },
-            });
-          } catch (tradeErr: any) {
-            this.logger.warn(`⚔️ Failed to record closing trade for stale position ${pos.id}: ${tradeErr.message}`);
-          }
 
           closed++;
           this.logger.log(
-            `⚔️ Auto-closed stale paper position ${pos.symbol} (id: ${pos.id}, opened: ${pos.openedAt.toISOString()}, PnL: $${pnl.toFixed(2)})`,
+            `⚔️ Auto-closed stale paper position ${pos.symbol} (id: ${pos.id}, opened: ${pos.openedAt.toISOString()})`,
           );
         } catch (closeErr: any) {
-          this.logger.warn(`⚔️ Failed to close stale position ${pos.id}: ${closeErr.message}`);
+          // If the position is already closed, that's fine — count it as success
+          if (closeErr.message?.includes('already') || closeErr.message?.includes('ليس مفتوحاً') || closeErr.message?.includes('not open')) {
+            closed++;
+            this.logger.debug(`⚔️ Stale paper position ${pos.id} was already closed`);
+          } else {
+            this.logger.warn(`⚔️ Failed to close stale position ${pos.id}: ${closeErr.message}`);
+          }
         }
       }
     } catch (error: any) {

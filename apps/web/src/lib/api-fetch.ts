@@ -261,7 +261,15 @@ export async function closePositionUnified(
           && !errMsg.toLowerCase().includes('not open')
           && !errMsg.toLowerCase().includes('not found')
           && !errMsg.includes('OPTIMISTIC_LOCK_FAILURE')
-        if (isNestjsOnlyError) {
+
+        // FIX: If positionId is a UUID (DB position), do NOT fall through
+        // to Alpaca API. A UUID is not a valid asset symbol — sending it
+        // to Alpaca as a symbol will always fail. The position only exists
+        // in our DB, so a 404 from NestJS means it genuinely doesn't exist.
+        // Only fall through for non-UUID positionIds (like "BTCUSDT").
+        const isUuidPosition = UUID_RE.test(positionId)
+
+        if (isNestjsOnlyError || isUuidPosition) {
           return { success: false, error: data.error || data.message || 'فشل الإغلاق', source: 'nestjs' }
         }
         // FIX: If OPTIMISTIC_LOCK_FAILURE, retry once after a short delay

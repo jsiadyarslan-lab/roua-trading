@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { RedisService } from '../common/redis/redis.service';
 import { AuditService } from '../audit/audit.service';
+import { CredentialsService } from '../modules/portfolio/credentials/credentials.service';
 import {
   generateRegistrationOptions as webauthnGenerateRegistration,
   generateAuthenticationOptions as webauthnGenerateAuthentication,
@@ -53,6 +54,7 @@ export class AuthService {
     private readonly redis: RedisService,
     private readonly configService: ConfigService,
     private readonly auditService: AuditService,
+    private readonly credentialsService: CredentialsService,
   ) {
     this.rpId =
       this.configService.get<string>('RP_ID') ||
@@ -319,6 +321,44 @@ export class AuthService {
       await this.auditService.log({
         userId: user.id, action: 'AUTH_LOGIN', resource: 'passkey', userAgent, ipAddress,
       });
+
+      // ── Auto-Create Paper Trading Account for New Users ──
+      // FIX: New users should get a demo account immediately after login
+      // so they can try the platform without manual setup
+      try {
+        const existingPaperCredential = await this.prisma.exchangeCredential.findFirst({
+          where: { userId: user.id, exchange: 'paper-trading' },
+        });
+
+        if (!existingPaperCredential) {
+          await this.credentialsService.addCredential(
+            user.id,
+            {
+              exchange: 'paper-trading',
+              label: 'حساب تجريبي تجريبي',
+              apiKey: `demo-${user.id}`,
+              apiSecret: `demo-secret-${user.id}`,
+              testnet: false,
+            },
+            ipAddress,
+            userAgent,
+          );
+
+          this.logger.log(`🎮 Auto-created paper-trading account for user ${user.id}`);
+          
+          await this.auditService.log({
+            userId: user.id,
+            action: 'DEMO_ACCOUNT_CREATED',
+            resource: 'paper-trading',
+            details: 'Auto-created demo account for new user',
+            userAgent,
+            ipAddress,
+          });
+        }
+      } catch (demoErr: any) {
+        // Non-fatal - don't fail login if demo account creation fails
+        this.logger.warn(`Failed to create demo account for user ${user.id}: ${demoErr.message}`);
+      }
 
       this.logger.log(`User logged in: ${email}`);
       return {

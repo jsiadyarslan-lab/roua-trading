@@ -322,7 +322,8 @@ export default function PortfolioPage() {
   const handleClosePosition = async (pos: Position) => {
     setClosing(pos.id)
     try {
-      const result = await closePositionUnified(pos.id)
+      // Alpaca delete route expects symbol, not internal UUID
+      const result = await closePositionUnified(pos.symbol)
       if (result.success) {
         setPositions(prev => prev.filter(p => p.id !== pos.id))
         fetchSummary()
@@ -345,7 +346,8 @@ export default function PortfolioPage() {
       let allSuccess = true
       
       for (const pos of openPositions) {
-        const result = await closePositionUnified(pos.id)
+        // Alpaca delete route expects symbol, not internal UUID
+        const result = await closePositionUnified(pos.symbol)
         if (!result.success) {
           allSuccess = false
           setApiError(`فشل في إغلاق المركز ${pos.symbol}: ${result.error || 'غير معروف'}`)

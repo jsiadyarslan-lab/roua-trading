@@ -886,21 +886,41 @@ export class SmartExecutorService implements OnModuleDestroy {
       // Redis unavailable — fall through to DB check
     }
 
-    // REMOVED: Step 2 (DB-persisted user states) has been DELETED.
-    // Previously, if a user had a persisted state in the Setting table
-    // (from a previous session where they clicked "تفعيل"), the Smart Executor
-    // would automatically re-enable them from DB after every Redis restart.
-    // This caused phantom trades because old enabled states survived cleanup.
-    // Now: Users ONLY stay enabled if their state exists in Redis (volatile).
-    // If Redis restarts, all users are disabled and must re-enable manually.
-
-    // REMOVED: Step 3 (AgentSession cross-system sync) has been DELETED.
-    // Previously, this code would find users with active AgentSession records
-    // and auto-enable them for the Smart Executor without their consent.
-    // This caused the executor to execute trades for users who only activated
-    // the Agent, creating duplicate phantom trades from TWO systems.
-    // Now: Each system is independent. The executor only runs for users who
-    // explicitly enabled it from the executor dashboard.
+    // Step 2: DB fallback — recover users whose state was persisted to DB
+    // but lost from Redis (e.g., Redis restart on Railway).
+    // FIX: Previously, this step was DELETED, causing silent data loss on Redis restart.
+    // A user who clicked "تفعيل" would appear enabled in getUserState() (which reads DB)
+    // but _getEnabledUsers() (which only read Redis) would return empty → tick loop skips them.
+    // Now: we also read from DB to ensure no user is lost on Redis restart.
+    if (userIds.size === 0) {
+      try {
+        const dbStates = await this.prisma.setting.findMany({
+          where: { key: { startsWith: this.DB_USER_STATE_KEY } },
+        });
+        for (const s of dbStates) {
+          try {
+            const state = JSON.parse(s.value);
+            if (state.enabled) {
+              const userId = s.key.replace(this.DB_USER_STATE_KEY + ':', '');
+              userIds.add(userId);
+              // Re-populate Redis from DB so next read is fast
+              await this.redis.set(
+                `${this.REDIS_USER_STATE_PREFIX}${userId}`,
+                JSON.stringify(state),
+                86400000 * 7,
+              ).catch(() => {});
+            }
+          } catch {
+            // Malformed state — ignore
+          }
+        }
+        if (userIds.size > 0) {
+          this.logger.log(`⚔️ Recovered ${userIds.size} enabled user(s) from DB (Redis was empty — likely restart)`);
+        }
+      } catch (dbErr: any) {
+        this.logger.warn(`⚔️ Failed to read enabled users from DB: ${dbErr.message}`);
+      }
+    }
 
     if (userIds.size > 0) {
       this.logger.debug(`⚔️ Enabled users total: ${userIds.size}`);
@@ -1012,51 +1032,68 @@ export class SmartExecutorService implements OnModuleDestroy {
         });
 
         if (oldestPosition) {
-          // Close the oldest position at its current price (or entry price as fallback)
-          const closePrice = Number(oldestPosition.currentPrice) || Number(oldestPosition.entryPrice);
-          const pnl = (closePrice - Number(oldestPosition.entryPrice)) * Number(oldestPosition.quantity) * (oldestPosition.side === 'SELL' ? -1 : 1);
-
-          await this.prisma.position.update({
-            where: { id: oldestPosition.id },
-            data: {
-              status: 'CLOSED',
-              closedAt: new Date(),
-              currentPrice: closePrice,
-              unrealizedPnl: 0,
-              realizedPnl: pnl,
-              source: 'smart_executor',
-            },
-          });
-
-          // Record the closing trade
+          // FIX: Use TradingService.closePosition() instead of directly updating
+          // the DB. The previous direct prisma.position.update() bypassed
+          // TradingService, causing:
+          //   1. No closing Order record created (audit gap)
+          //   2. DB-Exchange state inconsistency
+          //   3. No audit log for the close
+          // Now: delegate to TradingService which handles everything properly.
           try {
-            await this.prisma.trade.create({
+            await this.tradingService.closePosition(userId, {
+              positionId: oldestPosition.id,
+            });
+
+            // Calculate PnL for user daily tracking
+            const closePrice = Number(oldestPosition.currentPrice) || Number(oldestPosition.entryPrice);
+            const pnl = (closePrice - Number(oldestPosition.entryPrice)) * Number(oldestPosition.quantity) * (oldestPosition.side === 'SELL' ? -1 : 1);
+            userState.dailyPnL += pnl;
+
+            openPositionsCount--;
+            this.logger.log(
+              `⚔️ Paper trading: auto-closed stale position ${oldestPosition.symbol} ` +
+              `(id: ${oldestPosition.id}, PnL: $${pnl.toFixed(2)}) via TradingService to make room for new brief`,
+            );
+          } catch (closeErr: any) {
+            this.logger.warn(`⚔️ TradingService close failed for stale position ${oldestPosition.id}: ${closeErr.message} — falling back to direct DB update`);
+            // Fallback: direct DB update if TradingService fails (e.g., credential deleted)
+            const closePrice = Number(oldestPosition.currentPrice) || Number(oldestPosition.entryPrice);
+            const pnl = (closePrice - Number(oldestPosition.entryPrice)) * Number(oldestPosition.quantity) * (oldestPosition.side === 'SELL' ? -1 : 1);
+
+            await this.prisma.position.update({
+              where: { id: oldestPosition.id },
               data: {
-                userId,
-                positionId: oldestPosition.id,
-                symbol: oldestPosition.symbol,
-                side: oldestPosition.side === 'BUY' ? 'SELL' : 'BUY',
-                type: 'EXIT',
-                quantity: Number(oldestPosition.quantity),
-                price: closePrice,
-                pnl,
-                exchange: 'paper-trading',
+                status: 'CLOSED',
+                closedAt: new Date(),
+                currentPrice: closePrice,
+                unrealizedPnl: 0,
+                realizedPnl: pnl,
                 source: 'smart_executor',
-                executedAt: new Date(),
               },
             });
-          } catch (tradeErr: any) {
-            this.logger.warn(`⚔️ Failed to record closing trade for stale position ${oldestPosition.id}: ${tradeErr.message}`);
+
+            try {
+              await this.prisma.trade.create({
+                data: {
+                  userId,
+                  positionId: oldestPosition.id,
+                  symbol: oldestPosition.symbol,
+                  side: oldestPosition.side === 'BUY' ? 'SELL' : 'BUY',
+                  type: 'EXIT',
+                  quantity: Number(oldestPosition.quantity),
+                  price: closePrice,
+                  pnl,
+                  exchange: 'paper-trading',
+                  source: 'smart_executor',
+                },
+              });
+            } catch (tradeErr: any) {
+              this.logger.warn(`⚔️ Failed to record closing trade: ${tradeErr.message}`);
+            }
+
+            userState.dailyPnL += pnl;
+            openPositionsCount--;
           }
-
-          // Update user daily PnL
-          userState.dailyPnL += pnl;
-
-          openPositionsCount--;
-          this.logger.log(
-            `⚔️ Paper trading: auto-closed stale position ${oldestPosition.symbol} ` +
-            `(id: ${oldestPosition.id}, PnL: $${pnl.toFixed(2)}) to make room for new brief`,
-          );
         }
       } catch (closeErr: any) {
         this.logger.warn(`⚔️ Failed to auto-close stale position for paper user ${userId}: ${closeErr.message}`);
@@ -1093,46 +1130,65 @@ export class SmartExecutorService implements OnModuleDestroy {
         // causing 0 executions when the dashboard shows "5 open positions".
         if (userState.isPaperTrading) {
           try {
-            const closePrice = Number(existingPosition.currentPrice) || Number(existingPosition.entryPrice);
-            const pnl = (closePrice - Number(existingPosition.entryPrice)) * Number(existingPosition.quantity) * (existingPosition.side === 'SELL' ? -1 : 1);
-
-            await this.prisma.position.update({
-              where: { id: existingPosition.id },
-              data: {
-                status: 'CLOSED',
-                closedAt: new Date(),
-                currentPrice: closePrice,
-                unrealizedPnl: 0,
-                realizedPnl: pnl,
-                source: 'smart_executor',
-              },
-            });
-
-            // Record the closing trade
+            // FIX: Use TradingService.closePosition() instead of direct DB update
+            // for the same reasons as the stale position close above.
             try {
-              await this.prisma.trade.create({
+              await this.tradingService.closePosition(userId, {
+                positionId: existingPosition.id,
+              });
+
+              const closePrice = Number(existingPosition.currentPrice) || Number(existingPosition.entryPrice);
+              const pnl = (closePrice - Number(existingPosition.entryPrice)) * Number(existingPosition.quantity) * (existingPosition.side === 'SELL' ? -1 : 1);
+              userState.dailyPnL += pnl;
+
+              this.logger.log(
+                `⚔️ Closed stale paper position ${existingPosition.symbol} ` +
+                `(PnL: $${pnl.toFixed(2)}) via TradingService to execute new brief ${brief.id}`,
+              );
+            } catch (tsCloseErr: any) {
+              // Fallback: direct DB update if TradingService fails
+              this.logger.warn(`⚔️ TradingService close failed for ${existingPosition.id}: ${tsCloseErr.message} — falling back to direct DB update`);
+              const closePrice = Number(existingPosition.currentPrice) || Number(existingPosition.entryPrice);
+              const pnl = (closePrice - Number(existingPosition.entryPrice)) * Number(existingPosition.quantity) * (existingPosition.side === 'SELL' ? -1 : 1);
+
+              await this.prisma.position.update({
+                where: { id: existingPosition.id },
                 data: {
-                  userId,
-                  positionId: existingPosition.id,
-                  symbol: existingPosition.symbol,
-                  side: existingPosition.side === 'BUY' ? 'SELL' : 'BUY',
-                  type: 'EXIT',
-                  quantity: Number(existingPosition.quantity),
-                  price: closePrice,
-                  pnl,
-                  exchange: 'paper-trading',
+                  status: 'CLOSED',
+                  closedAt: new Date(),
+                  currentPrice: closePrice,
+                  unrealizedPnl: 0,
+                  realizedPnl: pnl,
                   source: 'smart_executor',
-                  executedAt: new Date(),
                 },
               });
-            } catch (tradeErr: any) {
-              this.logger.warn(`⚔️ Failed to record closing trade: ${tradeErr.message}`);
-            }
 
-            this.logger.log(
-              `⚔️ Closed stale paper position ${existingPosition.symbol} ` +
-              `(PnL: $${pnl.toFixed(2)}) to execute new brief ${brief.id}`,
-            );
+              try {
+                await this.prisma.trade.create({
+                  data: {
+                    userId,
+                    positionId: existingPosition.id,
+                    symbol: existingPosition.symbol,
+                    side: existingPosition.side === 'BUY' ? 'SELL' : 'BUY',
+                    type: 'EXIT',
+                    quantity: Number(existingPosition.quantity),
+                    price: closePrice,
+                    pnl,
+                    exchange: 'paper-trading',
+                    source: 'smart_executor',
+                  },
+                });
+              } catch (tradeErr: any) {
+                this.logger.warn(`⚔️ Failed to record closing trade: ${tradeErr.message}`);
+              }
+
+              userState.dailyPnL += pnl;
+
+              this.logger.log(
+                `⚔️ Closed stale paper position ${existingPosition.symbol} ` +
+                `(PnL: $${pnl.toFixed(2)}) via DB fallback to execute new brief ${brief.id}`,
+              );
+            }
           } catch (closeErr: any) {
             this.logger.warn(`⚔️ Failed to close stale position for ${brief.pair}: ${closeErr.message} — skipping brief`);
             continue;

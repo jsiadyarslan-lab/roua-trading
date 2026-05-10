@@ -448,15 +448,18 @@ export default function MobilePositionsPage() {
       } else if (closingTrade.id && !closingTrade.id.startsWith('paper-')) {
         // Real NestJS/Alpaca position — close via API
         try {
-          if (closingTrade.dbId) {
-            await fetch('/api/trading/positions/close', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ positionId: closingTrade.dbId }),
-            })
-          } else {
-            const symbol = encodeURIComponent(closingTrade.symbol)
-            await fetch(`/api/alpaca/positions/${symbol}`, { method: 'DELETE' })
+          // FIX: Use closePositionUnified which properly routes through NestJS
+          // for DB positions and only falls back to Alpaca for genuine Alpaca positions.
+          // Previously, when dbId was missing, this fell through to Alpaca directly,
+          // causing "Alpaca Error 404" for DB-only positions.
+          const { closePositionUnified } = await import('@/lib/api-fetch')
+          const result = await closePositionUnified(
+            closingTrade.id,
+            undefined,
+            { dbId: closingTrade.dbId || (closingTrade.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(closingTrade.id) ? closingTrade.id : undefined) }
+          )
+          if (!result.success) {
+            console.warn('Close position failed:', result.error)
           }
         } catch {
           // API close failed — still remove from local state

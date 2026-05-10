@@ -5,6 +5,8 @@ import { useAuthStore } from '@/lib/auth-store'
 
 interface Position {
   id?: string
+  /** DB UUID — used by close buttons to route through NestJS instead of Alpaca */
+  dbId?: string
   symbol: string
   rawSymbol?: string
   side: string
@@ -433,6 +435,14 @@ export const usePositionsStore = create<PositionsState>()(
           const positions: Position[] = filteredRaw.map((p: any) => ({
             // FIX: Add fallback chain for id (same as Alpaca path)
             id: p.id || p.asset_id || p._id || p.symbol,
+            // FIX: Always preserve the DB UUID separately so close buttons
+            // can route through NestJS instead of falling through to Alpaca.
+            // Without dbId, positions from NestJS that get displayed in
+            // AlpacaPositions.tsx fall through to the Alpaca close endpoint,
+            // which returns 404 for DB-only positions.
+            dbId: p.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.id)
+              ? p.id
+              : undefined,
             symbol: p.symbol,
             side: p.side === 'long' ? 'long' : p.side === 'short' ? 'short' : p.side,
             qty: Number(p.quantity ?? p.qty ?? 0),

@@ -83,9 +83,11 @@ export function AlpacaPositions() {
         // FIX: Only set dbId if it's a valid UUID — Alpaca positions have id=rawSymbol
         // (like "BTCUSD") which is NOT a DB id. Without this check, the close button
         // tries NestJS close with a symbol string, which fails with 404.
-        dbId: (position as any)?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test((position as any).id)
-          ? (position as any).id
-          : undefined,
+        // Also check (position as any).dbId — the usePositionsStore now preserves it.
+        dbId: (position as any)?.dbId
+          || ((position as any)?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test((position as any).id)
+            ? (position as any).id
+            : undefined),
         id: position.rawSymbol ?? position.symbol,
         isPaper: false,
         entryTime: manualPaper?.entryTime || null,
@@ -181,14 +183,21 @@ export function AlpacaPositions() {
           alert(`فشل الإغلاق: ${json.message || json.error || 'خطأ غير معروف'}`)
         }
       } else {
-        // Alpaca position (no DB id) — use Alpaca endpoint
-        const rawSym = pos.rawSymbol ?? pos.symbol
-        const response = await fetch(`/api/alpaca/positions/${encodeURIComponent(rawSym)}`, { method: 'DELETE' })
-        const json = await response.json()
-        if (json.success) {
+        // No DB id — try closePositionUnified which handles the full
+        // NestJS → Alpaca fallback flow properly. Previously, this went
+        // directly to Alpaca, causing "Alpaca Error 404" for positions
+        // that only exist in the DB.
+        const { closePositionUnified } = await import('@/lib/api-fetch')
+        const result = await closePositionUnified(
+          pos.rawSymbol ?? pos.symbol,
+          undefined,
+          // Pass dbId if it's a valid UUID (checked above)
+          { dbId: pos.dbId || undefined }
+        )
+        if (result.success) {
           await fetchPositions()
         } else {
-          alert(`فشل الإغلاق: ${json.error}`)
+          alert(`فشل الإغلاق: ${result.error || 'خطأ غير معروف'}`)
         }
       }
     } catch {
@@ -462,8 +471,10 @@ export function AlpacaPositions() {
                   } catch {}
                 } else {
                   try {
-                    const rawSym = pos.rawSymbol ?? pos.symbol
-                    await fetch(`/api/alpaca/positions/${encodeURIComponent(rawSym)}`, { method: 'DELETE' })
+                    // FIX: Use closePositionUnified instead of direct Alpaca call.
+                    // Direct Alpaca call causes 404 for DB-only positions.
+                    const { closePositionUnified } = await import('@/lib/api-fetch')
+                    await closePositionUnified(pos.rawSymbol ?? pos.symbol, undefined, { dbId: pos.dbId || undefined })
                   } catch {}
                 }
               }

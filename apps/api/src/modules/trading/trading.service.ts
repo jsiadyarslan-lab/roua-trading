@@ -1317,9 +1317,13 @@ export class TradingService {
       // The database may show a higher quantity than what's actually available
       // due to fees, locked funds, or other pending orders.
       //
-      // FIX: Try both spot and futures wallets — the position might be on either.
+      // FIX: Try spot, futures, and margin wallets — the position might be on any of them.
       if (request.side === 'SELL') {
+        const allWallets: Array<{ type: string; available: number; total: number; raw?: any[] }> = [];
+
+        // Check Spot wallet
         let balance = await this._getAvailableBalance(exchange, request.symbol, 'spot');
+        allWallets.push({ type: 'Spot', available: balance.available, total: balance.total, raw: balance.rawBalance });
 
         // If spot balance is 0, try futures wallet
         if (balance.available <= 0) {
@@ -1327,6 +1331,7 @@ export class TradingService {
             `🔍 Spot balance for ${request.symbol} is 0, checking futures wallet...`,
           );
           const futuresBalance = await this._getAvailableBalance(exchange, request.symbol, 'future');
+          allWallets.push({ type: 'Futures', available: futuresBalance.available, total: futuresBalance.total, raw: futuresBalance.rawBalance });
 
           if (futuresBalance.available > 0) {
             this.logger.log(
@@ -1334,21 +1339,53 @@ export class TradingService {
             );
             balance = futuresBalance;
           } else {
-            // Neither spot nor futures has balance — log detailed info
-            this.logger.warn(
-              `⚡ ${request.symbol}: Spot balance = ${balance.total} total (${balance.available} available), ` +
-              `Futures balance = ${futuresBalance.total} total (${futuresBalance.available} available). ` +
-              `Available wallets: ${balance.rawBalance?.join(', ') || 'none'}`,
+            // Try margin wallet as well
+            this.logger.log(
+              `🔍 Futures balance is 0, checking margin wallet...`,
             );
+            const marginBalance = await this._getAvailableBalance(exchange, request.symbol, 'margin');
+            allWallets.push({ type: 'Margin', available: marginBalance.available, total: marginBalance.total, raw: marginBalance.rawBalance });
 
-            return {
-              success: false,
-              error: `رصيد ${balance.currency} غير متاح. ` +
-                `محفظة Spot: ${balance.total} (متاح: ${balance.available}), ` +
-                `محفظة Futures: ${futuresBalance.total} (متاح: ${futuresBalance.available}). ` +
-                `الرصيد قد يكون محجوز في أمر معلق أو في محفظة أخرى.`,
-            };
+            if (marginBalance.available > 0) {
+              this.logger.log(
+                `✅ Found ${marginBalance.available} ${balance.currency} in margin wallet`,
+              );
+              balance = marginBalance;
+            }
           }
+        }
+
+        // If still no balance, log all attempts and return detailed error
+        if (balance.available <= 0) {
+          const walletSummary = allWallets
+            .map(w => `${w.type}: total=${w.total}, free=${w.available}`)
+            .join(' | ');
+
+          const allNonZeroCurrencies = allWallets
+            .flatMap(w => w.raw || [])
+            .filter((v, i, a) => a.indexOf(v) === i) // unique
+            .join(' | ');
+
+          this.logger.error(
+            `❌ ${request.symbol}: No ${balance.currency} balance found in any wallet. ` +
+            `Checked: ${walletSummary}. ` +
+            `All non-zero balances found: ${allNonZeroCurrencies || 'NONE'}. ` +
+            `This usually means: (1) Position was already closed on exchange, ` +
+            `(2) API key lacks wallet read permission, ` +
+            `(3) Balance is in a sub-account or different wallet type, ` +
+            `(4) Position was opened on different exchange/account.`,
+          );
+
+          return {
+            success: false,
+            error: `رصيد ${balance.currency} غير متاح في أي محفظة. ` +
+              `المحاولات: ${walletSummary}. ` +
+              `العملات المتاحة: ${allNonZeroCurrencies || 'لا يوجد'}. ` +
+              `الأسباب المحتملة: (1) المركز مُغلق يدوياً في Binance، ` +
+              `(2) مفتاح API لا يملك صلاحية قراءة المحفظة، ` +
+              `(3) الرصيد في حساب فرعي أو محفظة غير مدعومة، ` +
+              `(4) المركز مفتوح في بورصة أو حساب مختلف.`,
+          };
         }
 
         if (request.quantity > balance.available) {

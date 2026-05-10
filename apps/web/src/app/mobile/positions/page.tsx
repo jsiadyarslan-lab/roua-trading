@@ -8,6 +8,7 @@ import {
   Activity, Target, ShieldAlert, ChevronDown
 } from 'lucide-react'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
+import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
 
 /* ─── Design Tokens ─── */
@@ -395,7 +396,8 @@ export default function MobilePositionsPage() {
   const { quotes } = useMarketStore()
 
   const [activeTab, setActiveTab] = useState<FilterTab>('ALL')
-  const [closingTrade, setClosingeTrade] = useState<any | null>(null)
+  const closePaperTrade = usePaperTradesStore(s => s.closeTrade)
+  const [closingTrade, setClosingTrade] = useState<any | null>(null)
   const [isClosing, setIsClosing] = useState(false)
 
   // Fetch real positions on mount
@@ -435,17 +437,38 @@ export default function MobilePositionsPage() {
   )
   const positionCount = displayTrades.length
 
-  // Close handler
+  // Close handler — works for both real positions and paper trades
   const handleClose = useCallback(async () => {
     if (!closingTrade) return
     setIsClosing(true)
     try {
-      closeTrade(closingTrade.id)
+      if (closingTrade.source === 'paper' || (closingTrade.id && closingTrade.id.startsWith('paper-'))) {
+        // Paper trade — close in store
+        closePaperTrade(closingTrade.id)
+      } else if (closingTrade.id && !closingTrade.id.startsWith('paper-')) {
+        // Real NestJS/Alpaca position — close via API
+        try {
+          if (closingTrade.dbId) {
+            await fetch('/api/trading/positions/close', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ positionId: closingTrade.dbId }),
+            })
+          } else {
+            const symbol = encodeURIComponent(closingTrade.symbol)
+            await fetch(`/api/alpaca/positions/${symbol}`, { method: 'DELETE' })
+          }
+        } catch {
+          // API close failed — still remove from local state
+        }
+      }
+      // Refresh positions from API
+      await fetchPositions()
     } finally {
       setIsClosing(false)
       setClosingTrade(null)
     }
-  }, [closingTrade, closeTrade])
+  }, [closingTrade, closePaperTrade, fetchPositions])
 
   const isLoading = false // store is sync, no loading state needed for initial load
 

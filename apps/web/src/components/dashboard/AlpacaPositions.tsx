@@ -39,8 +39,8 @@ export function AlpacaPositions() {
           to { transform: rotate(360deg); }
         }
       `)
-  const { positions, fetchPositions, fetchAccount } = usePositionsStore()
-  const { trades: paperTrades, closeTrade: closePaperTrade, closedTrades, clearClosedTrades } = usePaperTradesStore()
+  const { positions, fetchPositions, fetchAccount, setPositions } = usePositionsStore()
+  const { trades: paperTrades, closeTrade: closePaperTrade, closedTrades, clearClosedTrades, clearAll: clearAllPaperTrades } = usePaperTradesStore()
   const [closing, setClosing] = useState<string | null>(null)
   const [confirmClose, setConfirmClose] = useState<string | null>(null)
   const [showClosed, setShowClosed] = useState(false)
@@ -416,6 +416,60 @@ export function AlpacaPositions() {
           )
         })}
       </div>
+
+      {/* Clear All + Closed Trades Section */}
+      {allPositions.length > 0 && (
+        <div style={{ padding: '0 8px 4px' }}>
+          <button
+            type="button"
+            onClick={async () => {
+              // Close all real positions via API
+              for (const pos of allPositions) {
+                if (pos.isPaper) {
+                  closePaperTrade(pos.id)
+                } else if (pos.dbId) {
+                  try {
+                    await fetch('/api/trading/positions/close', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ positionId: pos.dbId }),
+                    })
+                  } catch {}
+                } else {
+                  try {
+                    const rawSym = pos.rawSymbol ?? pos.symbol
+                    await fetch(`/api/alpaca/positions/${encodeURIComponent(rawSym)}`, { method: 'DELETE' })
+                  } catch {}
+                }
+              }
+              // Clear all local state
+              clearAllPaperTrades()
+              setPositions([])
+              // Refresh from API
+              setTimeout(() => { fetchPositions(); fetchAccount() }, 500)
+            }}
+            style={{
+              width: '100%',
+              padding: '5px 8px',
+              borderRadius: 8,
+              border: `1px solid rgba(255,71,87,0.18)`,
+              background: 'rgba(255,71,87,0.06)',
+              color: T.danger,
+              fontSize: 7.5,
+              fontWeight: 800,
+              fontFamily: "'Cairo', sans-serif",
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 4,
+            }}
+          >
+            <XIcon size={9} />
+            إغلاق وإزالة الكل
+          </button>
+        </div>
+      )}
 
       {/* Closed Trades Section */}
       {closedTrades.length > 0 && (

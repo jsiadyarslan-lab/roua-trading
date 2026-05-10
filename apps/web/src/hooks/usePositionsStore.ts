@@ -462,8 +462,49 @@ export const usePositionsStore = create<PositionsState>()(
       const res = await fetch('/api/alpaca/positions')
       const j = await res.json()
       if (j.success && Array.isArray(j.data)) {
+        // FIX: Validate, filter, and normalize Alpaca positions — same as NestJS path.
+        // Previously, raw j.data was stored directly, which could contain
+        // null/undefined elements or objects with missing fields. This caused
+        // "Cannot read properties of undefined (reading 'id')" crashes in
+        // AlpacaPositions.tsx when iterating positions.
+        const filteredData = j.data.filter((p: any) => {
+          // Skip null/undefined elements from API
+          if (!p) return false
+          // Skip positions with missing symbol
+          if (!p.symbol) return false
+          // Skip positions with zero/negative qty
+          const qty = Number(p.qty ?? p.quantity ?? 0)
+          if (qty <= 0) return false
+          // Skip phantom positions with near-zero entry price
+          const entryPrice = Number(p.avgEntryPrice ?? p.entryPrice ?? 0)
+          if (entryPrice <= 0 && qty > 0) return false
+          // Skip dust positions (trade value < $1)
+          if (qty * entryPrice < 1) return false
+          return true
+        })
+
+        const positions: Position[] = filteredData.map((p: any) => ({
+          id: p.id || p.rawSymbol || p.symbol,
+          symbol: p.symbol,
+          rawSymbol: p.rawSymbol,
+          side: p.side === 'long' ? 'long' : p.side === 'short' ? 'short' : p.side,
+          qty: Number(p.qty ?? 0),
+          entryPrice: Number(p.avgEntryPrice ?? p.entryPrice ?? 0),
+          avgEntryPrice: Number(p.avgEntryPrice ?? p.entryPrice ?? 0),
+          currentPrice: Number(p.currentPrice ?? 0),
+          marketValue: Number(p.marketValue ?? (Number(p.qty ?? 0) * Number(p.currentPrice ?? 0))),
+          unrealizedPnl: Number(p.unrealizedPnl ?? 0),
+          unrealizedPnlPct: Number(p.unrealizedPnlPct ?? 0),
+          sl: Number(p.stopLoss) || Number(p.sl) || undefined,
+          tp: Number(p.takeProfit) || Number(p.tp) || undefined,
+          stopLoss: Number(p.stopLoss) || undefined,
+          takeProfit: Number(p.takeProfit) || undefined,
+          exchange: 'alpaca',
+          source: 'alpaca' as const,
+        }))
+
         set({
-          positions: j.data,
+          positions,
           lastUpdate: new Date().toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
           dataSource: 'alpaca',
           loading: false,

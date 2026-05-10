@@ -369,8 +369,8 @@ export class TradingService {
     if (order.exchangeOrderId) {
       try {
         const credential =
-          await this.prisma.exchangeCredential.findUnique({
-            where: { id: order.exchangeCredentialId! },
+          await this.prisma.exchangeCredential.findFirst({
+            where: { id: order.exchangeCredentialId!, userId },
           });
         if (credential) {
           // SECURITY: Pass userId to verify credential ownership before decrypting
@@ -580,31 +580,16 @@ export class TradingService {
     ipAddress?: string,
     userAgent?: string,
   ) {
-    // DYNAMIC HOTFIX: Drop unique constraints on Position table that prevent closing trades
-    try {
-      await this.prisma.$executeRawUnsafe(`
-        DO $$ 
-        DECLARE
-            r RECORD;
-        BEGIN
-            FOR r IN (
-                SELECT i.relname AS index_name
-                FROM pg_class t
-                JOIN pg_index ix ON t.oid = ix.indrelid
-                JOIN pg_class i ON i.oid = ix.indexrelid
-                WHERE t.relname = 'Position' 
-                  AND ix.indisunique = true
-            ) LOOP
-                IF r.index_name != 'Position_pkey' THEN
-                    EXECUTE 'DROP INDEX IF EXISTS "' || r.index_name || '" CASCADE;';
-                END IF;
-            END LOOP;
-        END $$;
-      `);
-      this.logger.debug('Dynamically dropped unique constraints on Position table');
-    } catch (e: any) {
-      this.logger.warn(`Failed to dynamically drop Position unique constraints: ${e.message}`);
-    }
+    // FIX: REMOVED the dynamic DDL that dropped unique constraints on Position table
+    // on EVERY closePosition() call. This was a dangerous hotfix that:
+    //   1. Ran destructive DDL (DROP INDEX CASCADE) inside business logic
+    //   2. Executed on every close call (not just once)
+    //   3. Could cause data corruption under concurrent close requests
+    //   4. Removed ALL unique constraints (except PK), allowing duplicate data
+    //
+    // The original problem (unique constraint violations during close) is now
+    // handled properly by the idempotent close logic below and the race condition
+    // fix in _updatePosition() (P2002 catch with retry).
 
     // DATA ISOLATION: Use findFirst with userId to prevent accessing other users' positions
     const position = await this.prisma.position.findFirst({
@@ -681,29 +666,60 @@ export class TradingService {
     }
 
     // Execute closing order on exchange
+    // FIX: Handle paper-trading positions separately. Previously, closePosition
+    // always called _executeOnExchange() which requires decrypting credentials.
+    // But paper-trading credentials may have been deleted by _startupCleanup(),
+    // making paper positions un-closeable (NotFoundException on credential).
+    // Now: for paper-trading positions, use _executePaperTrade() directly.
     const credential =
       await this.prisma.exchangeCredential.findFirst({
         where: { id: position.credentialId, userId },
       });
 
-    if (!credential) {
-      throw new NotFoundException('بيانات الاعتماد غير موجودة');
-    }
-
     const closeSide = position.side === 'BUY' ? 'SELL' : 'BUY';
 
-    const execution = await this._executeOnExchange(
-      credential.exchange,
-      credential.id,
-      {
-        credentialId: credential.id,
-        symbol: position.symbol,
-        side: closeSide as PrismaOrderSide,
-        type: PrismaOrderType.MARKET,
-        quantity: closeQuantity,
-      },
-      userId,
-    );
+    let execution: any;
+
+    if (position.exchange === 'paper-trading' || !credential) {
+      // Paper-trading close: simulate the close using current market price.
+      // If credential was deleted by startup cleanup, we can still close the position
+      // because paper trading is simulated — no real exchange connection needed.
+      let closePrice = posCurrentPrice || posEntryPrice;
+      if (closePrice <= 0) {
+        try {
+          const quote = await this.exchangeService.getQuote(position.symbol);
+          closePrice = quote.price || posEntryPrice;
+        } catch {
+          closePrice = posEntryPrice;
+        }
+      }
+
+      execution = this._executePaperTrade(
+        {
+          credentialId: position.credentialId,
+          symbol: position.symbol,
+          side: closeSide as PrismaOrderSide,
+          type: PrismaOrderType.MARKET,
+          quantity: closeQuantity,
+          price: closePrice,
+        },
+        closePrice,
+      );
+    } else {
+      // Real exchange close: use CCXT
+      execution = await this._executeOnExchange(
+        credential.exchange,
+        credential.id,
+        {
+          credentialId: credential.id,
+          symbol: position.symbol,
+          side: closeSide as PrismaOrderSide,
+          type: PrismaOrderType.MARKET,
+          quantity: closeQuantity,
+        },
+        userId,
+      );
+    }
 
     if (!execution.success) {
       throw new BadRequestException(

@@ -313,7 +313,7 @@ export function useExecutionEngine() {
     if (stopLoss) body.stop_loss = parseFloat(stopLoss)
     if (takeProfit) body.take_profit = parseFloat(takeProfit)
 
-    let result: OrderResult
+    let result: OrderResult | undefined
 
     // ── Path 1: NestJS Trading API v2 (with RiskGatekeeper + BullMQ queue) ──
     // FIX: Migrated from v1 (direct /api/trading/orders) to v2 pipeline
@@ -401,9 +401,23 @@ export function useExecutionEngine() {
             if (pollResult.status === 'FILLED' && pollResult.averagePrice) {
               result.filledAvgPrice = pollResult.averagePrice
             }
+            // FIX: If poll timed out but order was ACCEPTED, do NOT fall through
+            // to Alpaca. The order is still processing via BullMQ and will
+            // eventually execute. Sending a duplicate order to Alpaca would
+            // create a double position. Treat ACCEPTED+TIMEOUT as success.
+            if (pollResult.status === 'TIMEOUT') {
+              this_is_accepted: {
+                // Order is processing — don't create duplicate via Alpaca
+              }
+            }
           } catch {
             // Polling failed — order is still ACCEPTED/processing, not an error
           }
+
+          // Order was accepted by NestJS — do NOT fall through to Alpaca
+          // even if polling timed out. The order will execute via BullMQ.
+          // Falling through would create a DOUBLE ORDER.
+          setUsedNestJS(true)
         } else if (res.status === 403 || (j.message && j.message.includes('رفض'))) {
           // Risk gatekeeper rejected
           result = {
@@ -421,13 +435,23 @@ export function useExecutionEngine() {
           }
         } else {
           // NestJS v2 failed — fallback to Alpaca
+          // FIX: Only fall through to Alpaca if the order was NOT accepted.
+          // If it was accepted (we already handled it above), we should not
+          // create a duplicate order.
           throw new Error(j.message || 'NestJS v2 error')
         }
       } else {
         throw new Error('No credentials')
       }
-    } catch {
+    } catch (e: any) {
       // ── Path 2: Alpaca Direct (fallback) ──
+      // FIX: Only try Alpaca if we don't already have a result from NestJS.
+      // Previously, the catch block always executed the Alpaca fallback,
+      // even when NestJS had already accepted the order successfully
+      // (just with a polling timeout), creating DOUBLE ORDERS.
+      if (result) {
+        // NestJS already handled this order — skip Alpaca fallback
+      } else {
       setUsedNestJS(false)
       try {
         const res = await fetch('/api/alpaca/orders', {
@@ -472,19 +496,28 @@ export function useExecutionEngine() {
           error: `خطأ في الشبكة — تعذّر الوصول للمزود`,
         }
       }
+      } // end else (Alpaca fallback)
     }
 
     // ── Handle result ──
-    if (result.success) {
-      const filled = result.filledAvgPrice ? ` بسعر $${result.filledAvgPrice.toFixed(2)}` : ''
-      const sourceLabel = result.source === 'nestjs' ? '🛡️ آمن' : '⚡ مباشر'
+    // FIX: Ensure result is defined before using it. If both NestJS and Alpaca
+    // failed to produce a result (shouldn't happen, but defensive), show error.
+    const finalResult = result || {
+      success: false,
+      source: 'alpaca' as const,
+      error: 'فشل في إرسال الأمر — يرجى المحاولة مرة أخرى',
+    }
+
+    if (finalResult.success) {
+      const filled = finalResult.filledAvgPrice ? ` بسعر $${finalResult.filledAvgPrice.toFixed(2)}` : ''
+      const sourceLabel = finalResult.source === 'nestjs' ? '🛡️ آمن' : '⚡ مباشر'
 
       // Track in paper store
       addPaperTrade({
         symbol: localSymbol,
         side: side === 'buy' ? 'long' : 'short',
         qty: parseFloat(quantity),
-        entryPrice: result.filledAvgPrice || currentPrice,
+        entryPrice: finalResult.filledAvgPrice || currentPrice,
         currentPrice: currentPrice,
         tp: takeProfit ? parseFloat(takeProfit) : undefined,
         sl: stopLoss ? parseFloat(stopLoss) : undefined,
@@ -492,9 +525,9 @@ export function useExecutionEngine() {
         entryTime: Date.now()
       })
 
-      setExecutionState(result.filledAvgPrice ? 'filled' : 'accepted')
+      setExecutionState(finalResult.filledAvgPrice ? 'filled' : 'accepted')
       setStatus({
-        msg: `تم ${side === 'buy' ? 'شراء' : 'بيع'} ${result.qty} ${result.symbol}${filled}\n${sourceLabel} — رقم الأمر: ${result.orderId?.slice(0, 8)}...`,
+        msg: `تم ${side === 'buy' ? 'شراء' : 'بيع'} ${finalResult.qty} ${finalResult.symbol}${filled}\n${sourceLabel} — رقم الأمر: ${finalResult.orderId?.slice(0, 8)}...`,
         type: 'success',
       })
 
@@ -502,10 +535,10 @@ export function useExecutionEngine() {
         source: 'trade',
         priority: 'high',
         action: side === 'buy' ? 'BUY' : 'SELL',
-        title: `تم ${side === 'buy' ? 'شراء' : 'بيع'} ${result.symbol}`,
-        body: `تم تنفيذ ${result.qty} ${result.symbol}${filled} [${sourceLabel}]`,
-        pair: result.symbol || localSymbol,
-        price: result.filledAvgPrice || currentPrice,
+        title: `تم ${side === 'buy' ? 'شراء' : 'بيع'} ${finalResult.symbol}`,
+        body: `تم تنفيذ ${finalResult.qty} ${finalResult.symbol}${filled} [${sourceLabel}]`,
+        pair: finalResult.symbol || localSymbol,
+        price: finalResult.filledAvgPrice || currentPrice,
       })
 
       // Refresh data — batched to avoid 7 simultaneous API calls
@@ -521,9 +554,9 @@ export function useExecutionEngine() {
     } else {
       setExecutionState('rejected')
       setStatus({
-        msg: result.riskReason
-          ? `تم رفض الأمر: ${result.riskReason}`
-          : `${result.error || 'فشل التنفيذ'}`,
+        msg: finalResult.riskReason
+          ? `تم رفض الأمر: ${finalResult.riskReason}`
+          : `${finalResult.error || 'فشل التنفيذ'}`,
         type: 'error'
       })
     }

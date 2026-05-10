@@ -147,6 +147,7 @@ export default function MobileNavBar() {
                       alignItems: 'center', justifyContent: 'center',
                       gap: 0, cursor: 'pointer',
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                      padding: 0,
                     }}
                   >
                     <Wallet size={28} color={active ? '#FFFFFF' : '#00D4FF'} strokeWidth={2} />
@@ -170,9 +171,11 @@ export default function MobileNavBar() {
             const active = isActive(item.href)
 
             return (
-              <button
+              <motion.button
                 key={item.href}
                 onClick={() => handleNav(item.href)}
+                whileTap={{ scale: 0.9 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 className="flex items-center justify-center h-full"
                 style={{ 
                   width: 64, 
@@ -181,11 +184,11 @@ export default function MobileNavBar() {
                   background: 'transparent',
                   border: 'none',
                   cursor: 'pointer',
+                  padding: 0,
+                  zIndex: 10,
                 }}
               >
-                <motion.div 
-                  whileTap={{ scale: 0.9 }} 
-                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                <div 
                   className="relative"
                   style={{
                     display: 'flex',
@@ -240,8 +243,8 @@ export default function MobileNavBar() {
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </motion.div>
                   )}
-                </motion.div>
-              </button>
+                </div>
+              </motion.button>
             )
           })}
         </div>

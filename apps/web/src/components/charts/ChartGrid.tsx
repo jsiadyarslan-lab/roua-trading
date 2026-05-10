@@ -772,7 +772,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 1000,
+        zIndex: 30,
         background: 'rgba(0,0,0,0.9)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',

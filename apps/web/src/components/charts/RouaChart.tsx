@@ -1223,7 +1223,7 @@ export default function RouaChart({
               minHeight: 0,
               background: T.bg,
               position: 'relative',
-              zIndex: chart.activeTool !== 'cursor' ? 1000 : 0,
+              zIndex: chart.activeTool !== 'cursor' ? 30 : 0,
             }}
           />
 

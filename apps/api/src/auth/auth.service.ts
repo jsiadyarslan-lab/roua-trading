@@ -338,12 +338,6 @@ export class AuthService {
               label: 'حساب تجريبي تجريبي',
               apiKey: `demo-${user.id}`,
               apiSecret: `demo-secret-${user.id}`,
-              testnet: false,
-              isValid: true,
-              permissions: 'trade',
-              metadata: {},
-              createdAt: new Date(),
-              updatedAt: new Date(),
             },
           });
 

@@ -113,12 +113,13 @@ export default function MobileNavBar() {
         className="fixed bottom-0 left-0 right-0 md:hidden"
         style={{
           zIndex: 50,
-          height: 'calc(68px + env(safe-area-inset-bottom))',
+          height: 'calc(56px + env(safe-area-inset-bottom))',
           paddingBottom: 'env(safe-area-inset-bottom)',
-          background: 'rgba(11, 14, 20, 0.4)',
-          backdropFilter: 'blur(50px) saturate(210%)',
-          WebkitBackdropFilter: 'blur(50px) saturate(210%)',
-          borderTop: '0.5px solid rgba(255,255,255,0.12)',
+          background: 'linear-gradient(180deg, rgba(0,212,255,0.05) 0%, rgba(11,14,20,0.85) 100%)',
+          backdropFilter: 'blur(60px) saturate(250%)',
+          WebkitBackdropFilter: 'blur(60px) saturate(250%)',
+          borderTop: '0.5px solid rgba(0,212,255,0.15)',
+          boxShadow: '0 -4px 24px rgba(0,0,0,0.4), 0 -1px 0 rgba(0,212,255,0.1)',
         }}
       >
         <div className="flex items-center justify-around h-full px-0.5" dir="rtl">
@@ -127,26 +128,40 @@ export default function MobileNavBar() {
             if ((item as any).isCenter) {
               const active = isActive(item.href)
               return (
-                <div key={item.href} style={{ position: 'relative', marginTop: -16, zIndex: 10 }}>
+                <div key={item.href} style={{ position: 'relative', marginTop: -12, zIndex: 10 }}>
                   <motion.button
                     whileTap={{ scale: 0.92 }}
                     onClick={() => handleNav(item.href)}
                     style={{
-                      width: 80, height: 80, borderRadius: '50%',
+                      width: 56, height: 56, borderRadius: '50%',
                       background: active
-                        ? 'linear-gradient(135deg, #00D4FF, #0099CC)'
-                        : 'linear-gradient(135deg, #1C1C1E, #0D0D0F)',
-                      border: active ? '1.5px solid rgba(0,212,255,0.5)' : '0.5px solid rgba(255,255,255,0.15)',
+                        ? 'linear-gradient(135deg, #00D4FF 0%, #00A8CC 50%, #0066AA 100%)'
+                        : 'linear-gradient(135deg, rgba(0,212,255,0.15) 0%, rgba(0,168,204,0.1) 100%)',
+                      border: active 
+                        ? '2px solid rgba(0,212,255,0.8)' 
+                        : '1.5px solid rgba(0,212,255,0.4)',
                       boxShadow: active
-                        ? '0 0 12px rgba(0,212,255,0.4)'
-                        : '0 2px 6px rgba(0,0,0,0.4)',
+                        ? '0 0 20px rgba(0,212,255,0.6), 0 0 40px rgba(0,212,255,0.3), inset 0 1px 0 rgba(255,255,255,0.3)'
+                        : '0 4px 15px rgba(0,0,0,0.3), 0 0 10px rgba(0,212,255,0.2), inset 0 1px 0 rgba(255,255,255,0.1)',
                       display: 'flex', flexDirection: 'column',
                       alignItems: 'center', justifyContent: 'center',
                       gap: 0, cursor: 'pointer',
+                      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     }}
                   >
-                    <Wallet size={50} color={active ? '#FFFFFF' : '#00D4FF'} strokeWidth={2.5} />
+                    <Wallet size={28} color={active ? '#FFFFFF' : '#00D4FF'} strokeWidth={2} />
                   </motion.button>
+                  {/* Neon glow ring */}
+                  <div style={{
+                    position: 'absolute',
+                    inset: -4,
+                    borderRadius: '50%',
+                    background: 'radial-gradient(circle, rgba(0,212,255,0.3) 0%, transparent 70%)',
+                    filter: 'blur(8px)',
+                    zIndex: -1,
+                    opacity: active ? 1 : 0.5,
+                    transition: 'opacity 0.3s ease',
+                  }} />
                 </div>
               )
             }
@@ -159,49 +174,71 @@ export default function MobileNavBar() {
                 key={item.href}
                 onClick={() => handleNav(item.href)}
                 className="flex items-center justify-center h-full"
-                style={{ width: 80, flexShrink: 0, position: 'relative' }}
+                style={{ 
+                  width: 64, 
+                  flexShrink: 0, 
+                  position: 'relative',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                }}
               >
                 <motion.div 
                   whileTap={{ scale: 0.9 }} 
                   transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   className="relative"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '6px 12px',
+                    borderRadius: 12,
+                    background: active ? 'rgba(0,212,255,0.08)' : 'transparent',
+                    border: active ? '1px solid rgba(0,212,255,0.2)' : '1px solid transparent',
+                    transition: 'all 0.2s ease',
+                  }}
                 >
-                  <Icon size={48} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} />
+                  <Icon 
+                    size={28} 
+                    color={active ? '#00D4FF' : 'rgba(255,255,255,0.5)'} 
+                    strokeWidth={active ? 2.5 : 2}
+                  />
+                  {/* Elegant bottom line indicator */}
+                  {active && (
+                    <motion.div
+                      layoutId="navIndicator"
+                      initial={{ scaleX: 0 }}
+                      animate={{ scaleX: 1 }}
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      style={{
+                        width: 20,
+                        height: 2,
+                        borderRadius: 2,
+                        background: 'linear-gradient(90deg, transparent, #00D4FF, transparent)',
+                        boxShadow: '0 0 8px rgba(0,212,255,0.8)',
+                      }}
+                    />
+                  )}
                   {/* Notification badge on Home icon */}
                   {item.href === '/mobile' && unreadCount > 0 && (
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       style={{
-                        position: 'absolute', top: -4, right: -6,
-                        minWidth: 12, height: 12, borderRadius: 6,
-                        background: '#FF453A',
+                        position: 'absolute', top: 2, right: 4,
+                        minWidth: 16, height: 16, borderRadius: 8,
+                        background: 'linear-gradient(135deg, #FF453A, #FF6B6B)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 7, fontWeight: 800, color: '#FFF',
+                        fontSize: 9, fontWeight: 800, color: '#FFF',
                         fontFamily: "'JetBrains Mono', monospace",
-                        padding: '0 2px',
-                        boxShadow: '0 0 6px rgba(255,69,58,0.6)',
+                        padding: '0 4px',
+                        boxShadow: '0 2px 8px rgba(255,69,58,0.5)',
+                        border: '1.5px solid rgba(255,255,255,0.2)',
                       }}
                     >
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </motion.div>
-                  )}
-                  {active && (
-                    <motion.div
-                      layoutId="navIndicator"
-                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                      style={{
-                        position: 'absolute',
-                        bottom: -4,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        width: 4,
-                        height: 4,
-                        borderRadius: '50%',
-                        background: '#00D4FF',
-                        boxShadow: '0 0 6px #00D4FF',
-                      }}
-                    />
                   )}
                 </motion.div>
               </button>
@@ -221,7 +258,12 @@ export default function MobileNavBar() {
               exit={{ opacity: 0 }}
               onClick={() => setShowMore(false)}
               className="fixed inset-0 md:hidden"
-              style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 50 }}
+              style={{ 
+                background: 'rgba(0,0,0,0.75)', 
+                backdropFilter: 'blur(20px) saturate(180%)', 
+                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                zIndex: 50 
+              }}
             />
 
             {/* Sheet */}
@@ -233,21 +275,27 @@ export default function MobileNavBar() {
               className="fixed bottom-0 left-0 right-0 md:hidden"
               style={{
                 zIndex: 50,
-                background: 'rgba(11, 14, 20, 0.92)',
-                backdropFilter: 'blur(40px) saturate(200%)',
-                WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-                borderRadius: '28px 28px 0 0',
-                borderTop: '0.5px solid rgba(255,255,255,0.15)',
-                paddingBottom: 'calc(16px + env(safe-area-inset-bottom))',
-                boxShadow: '0 -10px 40px rgba(0,0,0,0.5)',
+                background: 'linear-gradient(180deg, rgba(0,212,255,0.08) 0%, rgba(11,14,20,0.95) 100%)',
+                backdropFilter: 'blur(50px) saturate(220%)',
+                WebkitBackdropFilter: 'blur(50px) saturate(220%)',
+                borderRadius: '32px 32px 0 0',
+                borderTop: '1px solid rgba(0,212,255,0.25)',
+                paddingBottom: 'calc(20px + env(safe-area-inset-bottom))',
+                boxShadow: '0 -8px 40px rgba(0,0,0,0.6), 0 -2px 0 rgba(0,212,255,0.15)',
                 maxHeight: '85vh',
                 display: 'flex',
                 flexDirection: 'column',
               }}
             >
               {/* Handle */}
-              <div className="flex justify-center pt-3 pb-1" style={{ flexShrink: 0 }}>
-                <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.2)' }} />
+              <div className="flex justify-center pt-3 pb-2" style={{ flexShrink: 0 }}>
+                <div style={{ 
+                  width: 40, 
+                  height: 5, 
+                  borderRadius: 3, 
+                  background: 'linear-gradient(90deg, transparent, rgba(0,212,255,0.5), transparent)',
+                  boxShadow: '0 0 10px rgba(0,212,255,0.3)',
+                }} />
               </div>
 
               {/* Header */}
@@ -257,17 +305,33 @@ export default function MobileNavBar() {
                     استكشف المزيد
                   </span>
                   <span style={{
-                    fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 8,
-                    background: 'rgba(0,212,255,0.12)', color: '#00D4FF',
+                    fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 10,
+                    background: 'linear-gradient(135deg, rgba(0,212,255,0.2), rgba(0,168,204,0.15))',
+                    color: '#00D4FF',
                     fontFamily: "'JetBrains Mono', monospace",
-                    border: '0.5px solid rgba(0,212,255,0.2)',
+                    border: '1px solid rgba(0,212,255,0.35)',
+                    boxShadow: '0 0 12px rgba(0,212,255,0.2), inset 0 1px 0 rgba(255,255,255,0.1)',
                   }}>
                     {ALL_MORE_ITEMS.filter(i => i.isNew).length} جديد
                   </span>
                 </div>
-                <button onClick={() => setShowMore(false)}>
-                  <X size={20} color="rgba(255,255,255,0.4)" />
-                </button>
+                <motion.button 
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setShowMore(false)}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <X size={20} color="rgba(255,255,255,0.6)" />
+                </motion.button>
               </div>
 
               {/* Scrollable Content */}
@@ -298,35 +362,51 @@ export default function MobileNavBar() {
                             transition={{ delay: globalIdx * 0.03 }}
                             whileTap={{ scale: 0.93 }}
                             onClick={() => { router.push(item.href); setShowMore(false) }}
-                            className="flex flex-col items-center gap-1.5 py-3 rounded-2xl relative"
+                            className="flex flex-col items-center gap-2 py-4 rounded-2xl relative"
                             style={{
-                              background: 'rgba(255,255,255,0.03)',
-                              border: '1px solid rgba(255,255,255,0.05)',
+                              background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)',
+                              backdropFilter: 'blur(10px)',
+                              border: `1px solid ${item.isNew ? `${item.color}50` : 'rgba(255,255,255,0.08)'}`,
+                              boxShadow: item.isNew 
+                                ? `0 4px 20px ${item.color}20, inset 0 1px 0 rgba(255,255,255,0.1)` 
+                                : '0 4px 15px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
+                              transition: 'all 0.3s ease',
                             }}
                           >
                             {/* New badge */}
                             {item.isNew && (
-                              <div style={{
-                                position: 'absolute', top: 4, insetInlineStart: 4,
-                                width: 7, height: 7, borderRadius: '50%',
-                                background: '#00D4FF',
-                                boxShadow: '0 0 6px rgba(0,212,255,0.6)',
-                              }} />
+                              <motion.div 
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ delay: globalIdx * 0.03 + 0.2 }}
+                                style={{
+                                  position: 'absolute', top: 6, insetInlineStart: 6,
+                                  width: 8, height: 8, borderRadius: '50%',
+                                  background: `linear-gradient(135deg, ${item.color}, #00D4FF)`,
+                                  boxShadow: `0 0 10px ${item.color}, 0 0 20px ${item.color}50`,
+                                }} 
+                              />
                             )}
                             <div
                               style={{
-                                width: 40, height: 40, borderRadius: 12,
-                                background: `${item.color}14`,
+                                width: 44, height: 44, borderRadius: 14,
+                                background: `linear-gradient(135deg, ${item.color}25, ${item.color}10)`,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                border: `1px solid ${item.color}28`,
+                                border: `1.5px solid ${item.color}40`,
+                                boxShadow: `0 4px 15px ${item.color}20, inset 0 1px 0 rgba(255,255,255,0.1)`,
                               }}
                             >
-                              <Icon size={18} color={item.color} />
+                              <Icon size={20} color={item.color} strokeWidth={2} />
                             </div>
                             <span style={{
-                              fontSize: 10, color: '#F0F2F5', fontFamily: "'Cairo', sans-serif",
-                              lineHeight: 1.2, textAlign: 'center', fontWeight: item.isNew ? 800 : 600,
+                              fontSize: 11, 
+                              color: item.isNew ? '#F0F2F5' : 'rgba(255,255,255,0.85)', 
+                              fontFamily: "'Cairo', sans-serif",
+                              lineHeight: 1.3, 
+                              textAlign: 'center', 
+                              fontWeight: item.isNew ? 800 : 600,
                               maxWidth: '90%',
+                              textShadow: item.isNew ? `0 0 20px ${item.color}40` : 'none',
                             }}>
                               {item.label}
                             </span>

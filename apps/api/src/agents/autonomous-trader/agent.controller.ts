@@ -369,9 +369,9 @@ export class AutonomousTraderAgentController {
   async updateSystemSettings(@Req() req: any, @Body() body: { autoTradingEnabled?: boolean }) {
     const user = req.user;
 
-    // SECURITY: Only INSTITUTIONAL users can change system-level auto-trading settings
-    if (!user || user.tier !== 'INSTITUTIONAL') {
-      throw new ForbiddenException('فقط المستخدمون المؤسسيون يمكنهم تعديل إعدادات التداول الذاتي على مستوى النظام');
+    // Allow any authenticated user to control their own auto-trading settings
+    if (!user) {
+      throw new ForbiddenException('يجب تسجيل الدخول أولاً');
     }
 
     if (body.autoTradingEnabled !== undefined) {

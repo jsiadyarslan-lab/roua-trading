@@ -336,8 +336,10 @@ export class AuthService {
               userId: user.id,
               exchange: 'paper-trading',
               label: 'حساب تجريبي تجريبي',
-              apiKey: `demo-${user.id}`,
-              apiSecret: `demo-secret-${user.id}`,
+              encryptedApiKey: `demo-${user.id}`,
+              encryptedSecret: `demo-secret-${user.id}`,
+              iv: 'demo-iv',
+              authTag: 'demo-auth-tag',
             },
           });
 
